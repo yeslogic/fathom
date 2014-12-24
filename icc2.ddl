@@ -4,11 +4,11 @@
 struct Header: byte[128] {
     profile_size: byte[4],
     cmm_type_signature: byte[4],
-    profile_version_number: byte[4],
-	// 0: Major Revision in Binary-Coded Decimal
-	// 1: Minor Revision & Bug Fix Revision in each nibble in Binary-Coded Decimal
-	// 2: reserved, must be set to 0
-	// 3: reserved, must be set to 0
+    struct profile_version_number: byte[4] {
+	major_revision: byte[1],
+	minor_revision: byte[1],
+	_reserved: byte[2] = 0
+    },
     profile_device_class_signature: byte[4] =
 	'scnr' | 'mntr' | 'prtr' | 'link' | 'spac' | 'abst' | 'nmcl',
     color_space_signature: byte[4] =

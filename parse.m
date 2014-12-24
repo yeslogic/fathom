@@ -32,7 +32,12 @@ parse_ddl(Src, Structs, !PS) :-
 
 parse_struct_def(Src, Struct, !PS) :-
     skip_ws_comments(Src, _, !PS),
-    keyword("struct", Src, !PS),
+    keyword(kw_struct, Src, !PS),
+    parse_struct_def_body(Src, Struct, !PS).
+
+:- pred parse_struct_def_body(src::in, struct_def::out, ps::in, ps::out) is semidet.
+
+parse_struct_def_body(Src, Struct, !PS) :-
     identifier(Src, Ident, !PS),
     punct(":", Src, _, !PS),
     parse_item_size(Src, Size, !PS),
@@ -44,7 +49,7 @@ parse_struct_def(Src, Struct, !PS) :-
 :- pred parse_item_size(src::in, item_size::out, ps::in, ps::out) is semidet.
 
 parse_item_size(Src, Size, !PS) :-
-    keyword("byte", Src, !PS),
+    keyword(kw_byte, Src, !PS),
     punct("[", Src, _, !PS),
     int_literal(Src, N, !PS),
     punct("]", Src, _, !PS),
@@ -53,21 +58,29 @@ parse_item_size(Src, Size, !PS) :-
 :- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
 
 parse_field_def(Src, Field, !PS) :-
-    identifier(Src, Name, !PS),
-    punct(":", Src, _, !PS),
-    parse_item_size(Src, Size, !PS),
-    ( if punct("=", Src, _, !PS) then
-	parse_field_value(Src, V, !PS),
-	( if punct("|", Src, _, !PS) then
-	    separated_list("|", parse_field_value, Src, Vs, !PS),
-	    Values = [V|Vs]
-	else
-	    Values = [V]
-	)
+    ( if keyword(kw_struct, Src, !PS) then
+	parse_struct_def_body(Src, Struct, !PS),
+	Name = Struct ^ struct_name,
+	Struct ^ struct_size = yes(Size),
+	Type = field_type_struct(Struct ^ struct_fields)
     else
-	Values = []
+	identifier(Src, Name, !PS),
+	punct(":", Src, _, !PS),
+	parse_item_size(Src, Size, !PS),
+	( if punct("=", Src, _, !PS) then
+	    parse_field_value(Src, V, !PS),
+	    ( if punct("|", Src, _, !PS) then
+		separated_list("|", parse_field_value, Src, Vs, !PS),
+		Values = [V|Vs]
+	    else
+		Values = [V]
+	    ),
+	    Type = field_type_enum(Values)
+	else
+	    Type = field_type_any
+	)
     ),
-    Field = field_def(Name, Size, Values).
+    Field = field_def(Name, Size, Type).
 
 :- pred parse_field_value(src::in, field_value::out, ps::in, ps::out) is semidet.
 
@@ -87,15 +100,30 @@ parse_field_value(Src, Value, !PS) :-
 	Value = field_value_tag(C1, C2, C3, C4)
     ).
 
-:- pred keyword(string::in, src::in, ps::in, ps::out) is semidet.
+%--------------------------------------------------------------------%
+
+:- type keyword
+    --->    kw_struct
+    ;	    kw_byte.
+
+:- pred keyword_string(keyword, string).
+:- mode keyword_string(in, out) is det.
+:- mode keyword_string(out, in) is semidet.
+
+keyword_string(kw_struct, "struct").
+keyword_string(kw_byte, "byte").
+
+:- pred keyword(keyword::in, src::in, ps::in, ps::out) is semidet.
 
 keyword(Keyword, Src, !PS) :-
-    parsing_utils.keyword(identifier_chars, Keyword, Src, _, !PS).
+    keyword_string(Keyword, Str),
+    parsing_utils.keyword(identifier_chars, Str, Src, _, !PS).
 
 :- pred identifier(src::in, string::out, ps::in, ps::out) is semidet.
 
 identifier(Src, Ident, !PS) :-
-    parsing_utils.identifier(identifier_chars_init, identifier_chars, Src, Ident, !PS).
+    parsing_utils.identifier(identifier_chars_init, identifier_chars, Src, Ident, !PS),
+    not keyword_string(_, Ident).
 
 :- func identifier_chars_init = string.
 

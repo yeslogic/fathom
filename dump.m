@@ -22,18 +22,33 @@ dump_struct(Bytes, Struct, !IO) :-
     write_string(Struct ^ struct_name, !IO),
     write_string(" {\n", !IO),
     Fields = get_offsets(Struct ^ struct_fields, 0),
-    foldl(dump_field(Bytes), Fields, !IO),
+    foldl(dump_field(Bytes, 1), Fields, !IO),
     write_string("}\n", !IO).
 
-:- pred dump_field(bytes::in, {field_def, int}::in, io::di, io::uo) is det.
+:- pred dump_field(bytes::in, int::in, {field_def, int}::in, io::di, io::uo) is det.
 
-dump_field(Bytes, {Field, Offset}, !IO) :-
-    write_string("    ", !IO),
+dump_field(Bytes, Indent, {Field, Offset}, !IO) :-
+    write_indent(Indent, !IO),
     write_string(Field ^ field_name, !IO),
     write_string(" = ", !IO),
-    Field ^ field_size = item_size_bytes(Size),
-    Bs = get_byte_range(Bytes, Offset, Size),
-    write_field_value(Field ^ field_values, Bs, !IO),
+    (
+	Field ^ field_type = field_type_any,
+	Field ^ field_size = item_size_bytes(Size),
+	Bs = get_byte_range(Bytes, Offset, Size),
+	write(Bs, !IO)
+    ;
+	Field ^ field_type = field_type_enum(Values),
+	Field ^ field_size = item_size_bytes(Size),
+	Bs = get_byte_range(Bytes, Offset, Size),
+	write_field_value(Values, Bs, !IO)
+    ;
+	Field ^ field_type = field_type_struct(Fields0),
+	write_string("{\n", !IO),
+	Fields = get_offsets(Fields0, Offset),
+	foldl(dump_field(Bytes, 2), Fields, !IO),
+	write_indent(Indent, !IO),
+	write_string("}", !IO)
+    ),
     write_string(",\n", !IO).
 
 :- pred write_field_value(list(field_value)::in, list(int)::in, io::di, io::uo) is det.
@@ -94,6 +109,18 @@ get_byte_range(Bytes, Offset, Length) = Bs :-
 get_offsets([], _) = [].
 get_offsets([Field|Fs], Offset) = [{Field, Offset}|get_offsets(Fs, Offset+Size)] :-
     Field ^ field_size = item_size_bytes(Size).
+
+%--------------------------------------------------------------------%
+
+:- pred write_indent(int::in, io::di, io::uo) is det.
+
+write_indent(Indent, !IO) :-
+    ( if Indent > 0 then
+	write_string("    ", !IO),
+	write_indent(Indent-1, !IO)
+    else
+	true
+    ).
 
 %--------------------------------------------------------------------%
 

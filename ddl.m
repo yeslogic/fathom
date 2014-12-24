@@ -18,8 +18,13 @@
     --->    field_def(
 		field_name :: string,
 		field_size :: item_size,
-		field_values :: list(field_value)
+		field_type :: field_type
 	    ).
+
+:- type field_type
+    --->    field_type_any
+    ;	    field_type_enum(list(field_value))
+    ;	    field_type_struct(list(field_def)).
 
 :- type field_value
     --->    field_value_any
