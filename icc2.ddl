@@ -2,11 +2,11 @@
 // @pragma big_endian;
 
 struct Header: byte[128] {
-    profile_size: byte[4],
+    profile_size: uint32,
     cmm_type_signature: byte[4],
     struct profile_version_number: byte[4] {
-	major_revision: byte[1],
-	minor_revision: byte[1],
+	major_revision: byte,
+	minor_revision: byte,
 	_reserved: byte[2] = 0
     },
     profile_device_class_signature: byte[4] =

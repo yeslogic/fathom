@@ -32,15 +32,20 @@ dump_field(Bytes, Indent, {Field, Offset}, !IO) :-
     write_string(Field ^ field_name, !IO),
     write_string(" = ", !IO),
     (
-	Field ^ field_type = field_type_any,
-	Field ^ field_size = item_size_bytes(Size),
-	Bs = get_byte_range(Bytes, Offset, Size),
-	write(Bs, !IO)
+	Field ^ field_type = field_type_word(_WordType, Values),
+	Word = get_byte_range_as_uint(Bytes, Offset, Field ^ field_size, 0),
+	write_int(Word, !IO)
     ;
-	Field ^ field_type = field_type_enum(Values),
-	Field ^ field_size = item_size_bytes(Size),
-	Bs = get_byte_range(Bytes, Offset, Size),
-	write_field_value(Values, Bs, !IO)
+	Field ^ field_type = field_type_array(_Length, _Type, Values),
+	(
+	    Values = [],
+	    Bs = get_byte_range(Bytes, Offset, Field ^ field_size),
+	    write(Bs, !IO)
+	;
+	    Values = [_|_],
+	    Bs = get_byte_range(Bytes, Offset, Field ^ field_size),
+	    write_field_value(Values, Bs, !IO)
+	)
     ;
 	Field ^ field_type = field_type_struct(Fields0),
 	write_string("{\n", !IO),
@@ -90,6 +95,18 @@ write_bytes([B|Bs], !IO) :-
 	write_bytes(Bs, !IO)
     ).
 
+:- func get_byte_range_as_uint(bytes, int, int, int) = int.
+
+get_byte_range_as_uint(Bytes, Offset, Length, Acc) =
+    ( if
+	Length > 0,
+	get_byte(Bytes, Offset, B)
+    then
+	get_byte_range_as_uint(Bytes, Offset+1, Length-1, (Acc << 8) \/ B)
+    else
+	Acc
+    ).
+
 :- func get_byte_range(bytes, int, int) = list(int).
 
 get_byte_range(Bytes, Offset, Length) = Bs :-
@@ -107,8 +124,8 @@ get_byte_range(Bytes, Offset, Length) = Bs :-
 :- func get_offsets(list(field_def), int) = list({field_def, int}).
 
 get_offsets([], _) = [].
-get_offsets([Field|Fs], Offset) = [{Field, Offset}|get_offsets(Fs, Offset+Size)] :-
-    Field ^ field_size = item_size_bytes(Size).
+get_offsets([Field|Fs], Offset) =
+    [{Field, Offset}|get_offsets(Fs, Offset + Field ^ field_size)].
 
 %--------------------------------------------------------------------%
 
