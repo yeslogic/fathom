@@ -41,18 +41,28 @@ parse_struct_def_body(Src, Struct, !PS) :-
     identifier(Src, Ident, !PS),
     ( if punct(":", Src, _, !PS) then
 	parse_field_type(Src, Type, !PS), % FIXME no value
-	SpecSize = yes(field_type_size(Type))
+	( if field_type_fixed_size(Type, SpecSize0) then
+	    SpecSize = yes(SpecSize0)
+	else
+	    fail_with_message("specified struct size must be fixed", Src, SpecSize, !PS)
+	)
     else
 	SpecSize = no
     ),
     punct("{", Src, _, !PS),
     comma_separated_list(parse_field_def, Src, Fields, !PS),
     punct("}", Src, _, !PS),
-    Size = struct_fields_size(Fields),
-    ( if SpecSize = yes(Size0), Size0 \= Size then
-	fail_with_message("specified struct size does not match fields", Src, Struct, !PS)
+    ( if SpecSize = yes(Size0) then
+	( if
+	    struct_fields_fixed_size(Fields, Size),
+	    Size = Size0
+	then
+	    Struct = struct_def(Ident, yes(Size), Fields)
+	else
+	    fail_with_message("specified struct size does not match fields", Src, Struct, !PS)
+	)
     else
-	Struct = struct_def(Ident, Size, Fields)
+	Struct = struct_def(Ident, no, Fields)
     ).
 
 :- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
@@ -61,17 +71,16 @@ parse_field_def(Src, Field, !PS) :-
     identifier(Src, Name, !PS),
     punct(":", Src, _, !PS),
     parse_field_type(Src, Type, !PS),
-    Size = field_type_size(Type),
-    Field = field_def(Name, Size, Type).
+    Field = field_def(Name, Type).
 
 :- pred parse_field_type(src::in, field_type::out, ps::in, ps::out) is semidet.
 
 parse_field_type(Src, Type, !PS) :-
     ( if keyword(kw_struct, Src, !PS) then
 	( if punct("[", Src, _, !PS) then
-	    int_literal(Src, N, !PS),
+	    parse_array_size(Src, ArraySize0, !PS),
 	    punct("]", Src, _, !PS),
-	    Array = yes(N)
+	    Array = yes(ArraySize0)
 	else
 	    Array = no
 	),
@@ -83,20 +92,30 @@ parse_field_type(Src, Type, !PS) :-
 	    Array = no,
 	    Type = Type0
 	;
-	    Array = yes(Length),
-	    Type = field_type_array(Length, Type0, [])
+	    Array = yes(ArraySize),
+	    Type = field_type_array(ArraySize, Type0, [])
 	)
     else
 	parse_word_type(Src, WordType, !PS),
 	( if punct("[", Src, _, !PS) then
-	    int_literal(Src, N, !PS),
+	    parse_array_size(Src, ArraySize, !PS),
 	    punct("]", Src, _, !PS),
 	    parse_field_values(Src, Values, !PS),
-	    Type = field_type_array(N, field_type_word(WordType, []), Values)
+	    Type = field_type_array(ArraySize, field_type_word(WordType, []), Values)
 	else
 	    parse_field_values(Src, Values, !PS),
 	    Type = field_type_word(WordType, Values)
 	)
+    ).
+
+:- pred parse_array_size(src::in, array_size::out, ps::in, ps::out) is semidet.
+
+parse_array_size(Src, ArraySize, !PS) :-
+    ( if int_literal(Src, N, !PS) then
+	ArraySize = array_size_fixed(N)
+    else
+	identifier(Src, Ident, !PS),
+	ArraySize = array_size_variable(Ident)
     ).
 
 :- pred parse_field_values(src::in, list(field_value)::out, ps::in, ps::out) is semidet.

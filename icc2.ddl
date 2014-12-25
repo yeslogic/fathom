@@ -37,7 +37,7 @@ Header: struct {
 
 TagTable: struct {
     num_tags: uint32,
-    tag_array: struct[8] {
+    tag_array: struct[num_tags] {
 	tag_signature: byte[4],
 	tag_offset: uint32,
 	tag_length: uint32

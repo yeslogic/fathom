@@ -16,55 +16,74 @@
 
 :- implementation.
 
-:- import_module list, int, char.
+:- import_module list, int, char, maybe, pair.
 
 dump_struct(Bytes, Struct, !IO) :-
     write_string(Struct ^ struct_name, !IO),
     write_string(" {\n", !IO),
-    Fields = get_offsets(Struct ^ struct_fields, 0),
-    foldl(dump_field(Bytes, 1), Fields, !IO),
+    dump_struct_fields(Bytes, 1, Struct ^ struct_fields, 0, _Offset, [], !IO),
     write_string("}\n", !IO).
 
-:- pred dump_field(bytes::in, int::in, {field_def, int}::in, io::di, io::uo) is det.
+:- pred dump_struct_fields(bytes::in, int::in, list(field_def)::in, int::in, int::out, context::in, io::di, io::uo) is det.
 
-dump_field(Bytes, Indent, {Field, Offset}, !IO) :-
+dump_struct_fields(_Bytes, _Indent, [], !Offset, _Context, !IO).
+dump_struct_fields(Bytes, Indent, [Field|Fields], !Offset, Context0, !IO) :-
+    dump_field(Bytes, Indent, Field, !Offset, Context0, Context, !IO),
+    dump_struct_fields(Bytes, Indent, Fields, !Offset, Context, !IO).
+
+:- pred dump_field(bytes::in, int::in, field_def::in, int::in, int::out, context::in, context::out, io::di, io::uo) is det.
+
+dump_field(Bytes, Indent, Field, !Offset, !Context, !IO) :-
     write_indent(Indent, !IO),
     write_string(Field ^ field_name, !IO),
     write_string(" = ", !IO),
-    dump_field_value(Bytes, Indent, Field ^ field_type, Offset, !IO),
+    dump_field_value(Bytes, Indent, yes(Field ^ field_name), Field ^ field_type, !.Offset, Size, !Context, !IO),
+    !:Offset = !.Offset + Size,
     write_string(",\n", !IO).
 
-:- pred dump_field_value(bytes::in, int::in, field_type::in, int::in, io::di, io::uo) is det.
+:- pred dump_field_value(bytes::in, int::in, maybe(string)::in, field_type::in, int::in, int::out, context::in, context::out, io::di, io::uo) is det.
 
-dump_field_value(Bytes, Indent, Type, Offset, !IO) :-
+dump_field_value(Bytes, Indent, MaybeName, Type, Offset, Size, !Context, !IO) :-
     (
 	Type = field_type_word(WordType, _Values),
 	Size = word_type_size(WordType),
 	Word = get_byte_range_as_uint(Bytes, Offset, Size, 0),
-	write_int(Word, !IO)
+	write_int(Word, !IO),
+	( if MaybeName = yes(Name) then
+	    !:Context = [Name-Word|!.Context]
+	else
+	    true
+	)
     ;
-	Type = field_type_array(Length, Type0, _Values),
-	Size = field_type_size(Type0),
+	Type = field_type_array(ArraySize, Type0, _Values),
+	(
+	    ArraySize = array_size_fixed(Length)
+	;
+	    ArraySize = array_size_variable(Name),
+	    Length = context_resolve(!.Context, Name)
+	),
+	FieldSize = field_type_size(!.Context, Type0),
 	write_string("[", !IO),
-	dump_array(Bytes, Indent, Length, Type0, 0, Offset, Size, !IO),
-	write_string("]", !IO)
+	dump_array(Bytes, Indent, Length, Type0, 0, Offset, FieldSize, !Context, !IO),
+	write_string("]", !IO),
+	Size = Length * FieldSize
     ;
 	Type = field_type_struct(Fields0),
 	write_string("{\n", !IO),
-	Fields = get_offsets(Fields0, Offset),
-	foldl(dump_field(Bytes, Indent+1), Fields, !IO),
+	dump_struct_fields(Bytes, Indent+1, Fields0, Offset, NextOffset, [], !IO),
+	Size = NextOffset - Offset,
 	write_indent(Indent, !IO),
 	write_string("}", !IO)
     ).
 
-:- pred dump_array(bytes::in, int::in, int::in, field_type::in, int::in, int::in, int::in, io::di, io::uo) is det.
+:- pred dump_array(bytes::in, int::in, int::in, field_type::in, int::in, int::in, int::in, context::in, context::out, io::di, io::uo) is det.
 
-dump_array(Bytes, Indent, Length, Type, Index, Offset, Size, !IO) :-
+dump_array(Bytes, Indent, Length, Type, Index, Offset, Size, !Context, !IO) :-
     ( if Index < Length then
-	dump_field_value(Bytes, Indent, Type, Offset + Index*Size, !IO),
+	dump_field_value(Bytes, Indent, no, Type, Offset + Index*Size, _Size0, !Context, !IO),
 	( if Index < Length - 1 then
 	    write_string(",", !IO),
-	    dump_array(Bytes, Indent, Length, Type, Index+1, Offset, Size, !IO)
+	    dump_array(Bytes, Indent, Length, Type, Index+1, Offset, Size, !Context, !IO)
 	else
 	    true
 	)
@@ -134,14 +153,6 @@ get_byte_range(Bytes, Offset, Length) = Bs :-
     else
 	Bs = []
     ).
-
-%--------------------------------------------------------------------%
-
-:- func get_offsets(list(field_def), int) = list({field_def, int}).
-
-get_offsets([], _) = [].
-get_offsets([Field|Fs], Offset) =
-    [{Field, Offset}|get_offsets(Fs, Offset + Field ^ field_size)].
 
 %--------------------------------------------------------------------%
 
