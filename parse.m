@@ -41,32 +41,62 @@ parse_struct_def_body(Src, Struct, !PS) :-
     identifier(Src, Ident, !PS),
     ( if punct(":", Src, _, !PS) then
 	parse_field_type(Src, Type, !PS), % FIXME no value
-	SpecSize = yes(calc_field_type_size(Type))
+	SpecSize = yes(field_type_size(Type))
     else
 	SpecSize = no
     ),
     punct("{", Src, _, !PS),
     comma_separated_list(parse_field_def, Src, Fields, !PS),
     punct("}", Src, _, !PS),
-    Size = calc_struct_fields_size(Fields),
+    Size = struct_fields_size(Fields),
     ( if SpecSize = yes(Size0), Size0 \= Size then
 	fail_with_message("specified struct size does not match fields", Src, Struct, !PS)
     else
 	Struct = struct_def(Ident, Size, Fields)
     ).
 
+:- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
+
+parse_field_def(Src, Field, !PS) :-
+    identifier(Src, Name, !PS),
+    punct(":", Src, _, !PS),
+    parse_field_type(Src, Type, !PS),
+    Size = field_type_size(Type),
+    Field = field_def(Name, Size, Type).
+
 :- pred parse_field_type(src::in, field_type::out, ps::in, ps::out) is semidet.
 
 parse_field_type(Src, Type, !PS) :-
-    parse_word_type(Src, WordType, !PS),
-    ( if punct("[", Src, _, !PS) then
-	int_literal(Src, N, !PS),
-	punct("]", Src, _, !PS),
-	parse_field_values(Src, Values, !PS),
-	Type = field_type_array(N, field_type_word(WordType, []), Values)
+    ( if keyword(kw_struct, Src, !PS) then
+	( if punct("[", Src, _, !PS) then
+	    int_literal(Src, N, !PS),
+	    punct("]", Src, _, !PS),
+	    Array = yes(N)
+	else
+	    Array = no
+	),
+	punct("{", Src, _, !PS),
+	comma_separated_list(parse_field_def, Src, Fields, !PS),
+	punct("}", Src, _, !PS),
+	Type0 = field_type_struct(Fields),
+	(
+	    Array = no,
+	    Type = Type0
+	;
+	    Array = yes(Length),
+	    Type = field_type_array(Length, Type0, [])
+	)
     else
-	parse_field_values(Src, Values, !PS),
-	Type = field_type_word(WordType, Values)
+	parse_word_type(Src, WordType, !PS),
+	( if punct("[", Src, _, !PS) then
+	    int_literal(Src, N, !PS),
+	    punct("]", Src, _, !PS),
+	    parse_field_values(Src, Values, !PS),
+	    Type = field_type_array(N, field_type_word(WordType, []), Values)
+	else
+	    parse_field_values(Src, Values, !PS),
+	    Type = field_type_word(WordType, Values)
+	)
     ).
 
 :- pred parse_field_values(src::in, list(field_value)::out, ps::in, ps::out) is semidet.
@@ -98,22 +128,6 @@ parse_word_type(Src, Type, !PS) :-
     else
 	fail
     ).
-
-:- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
-
-parse_field_def(Src, Field, !PS) :-
-    ( if keyword(kw_struct, Src, !PS) then
-	parse_struct_def_body(Src, Struct, !PS),
-	Name = Struct ^ struct_name,
-	Size = Struct ^ struct_size,
-	Type = field_type_struct(Struct ^ struct_fields)
-    else
-	identifier(Src, Name, !PS),
-	punct(":", Src, _, !PS),
-	parse_field_type(Src, Type, !PS),
-	Size = calc_field_type_size(Type)
-    ),
-    Field = field_def(Name, Size, Type).
 
 :- pred parse_field_value(src::in, field_value::out, ps::in, ps::out) is semidet.
 

@@ -1,10 +1,12 @@
 
 // @pragma big_endian;
 
-struct Header: byte[128] {
+struct ICC {
+
+Header: struct {
     profile_size: uint32,
     cmm_type_signature: byte[4],
-    struct profile_version_number: byte[4] {
+    profile_version_number: struct {
 	major_revision: byte,
 	minor_revision: byte,
 	_reserved1: byte = 0,
@@ -31,5 +33,15 @@ struct Header: byte[128] {
     profile_creator_signature: byte[4],
     // ICC 4 has profile_id: byte[16],
     _padding: byte[44]
+},
+
+TagTable: struct {
+    num_tags: uint32,
+    tag_array: struct[8] {
+	tag_signature: byte[4],
+	tag_offset: uint32,
+	tag_length: uint32
+    }
+}
 }
 

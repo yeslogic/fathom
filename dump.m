@@ -31,30 +31,46 @@ dump_field(Bytes, Indent, {Field, Offset}, !IO) :-
     write_indent(Indent, !IO),
     write_string(Field ^ field_name, !IO),
     write_string(" = ", !IO),
+    dump_field_value(Bytes, Indent, Field ^ field_type, Offset, !IO),
+    write_string(",\n", !IO).
+
+:- pred dump_field_value(bytes::in, int::in, field_type::in, int::in, io::di, io::uo) is det.
+
+dump_field_value(Bytes, Indent, Type, Offset, !IO) :-
     (
-	Field ^ field_type = field_type_word(_WordType, _Values),
-	Word = get_byte_range_as_uint(Bytes, Offset, Field ^ field_size, 0),
+	Type = field_type_word(WordType, _Values),
+	Size = word_type_size(WordType),
+	Word = get_byte_range_as_uint(Bytes, Offset, Size, 0),
 	write_int(Word, !IO)
     ;
-	Field ^ field_type = field_type_array(_Length, _Type, Values),
-	(
-	    Values = [],
-	    Bs = get_byte_range(Bytes, Offset, Field ^ field_size),
-	    write(Bs, !IO)
-	;
-	    Values = [_|_],
-	    Bs = get_byte_range(Bytes, Offset, Field ^ field_size),
-	    write_field_value(Values, Bs, !IO)
-	)
+	Type = field_type_array(Length, Type0, _Values),
+	Size = field_type_size(Type0),
+	write_string("[", !IO),
+	dump_array(Bytes, Indent, Length, Type0, 0, Offset, Size, !IO),
+	write_string("]", !IO)
     ;
-	Field ^ field_type = field_type_struct(Fields0),
+	Type = field_type_struct(Fields0),
 	write_string("{\n", !IO),
 	Fields = get_offsets(Fields0, Offset),
 	foldl(dump_field(Bytes, Indent+1), Fields, !IO),
 	write_indent(Indent, !IO),
 	write_string("}", !IO)
-    ),
-    write_string(",\n", !IO).
+    ).
+
+:- pred dump_array(bytes::in, int::in, int::in, field_type::in, int::in, int::in, int::in, io::di, io::uo) is det.
+
+dump_array(Bytes, Indent, Length, Type, Index, Offset, Size, !IO) :-
+    ( if Index < Length then
+	dump_field_value(Bytes, Indent, Type, Offset + Index*Size, !IO),
+	( if Index < Length - 1 then
+	    write_string(",", !IO),
+	    dump_array(Bytes, Indent, Length, Type, Index+1, Offset, Size, !IO)
+	else
+	    true
+	)
+    else
+	true
+    ).
 
 :- pred write_field_value(list(field_value)::in, list(int)::in, io::di, io::uo) is det.
 
