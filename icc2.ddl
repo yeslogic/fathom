@@ -7,7 +7,8 @@ struct Header: byte[128] {
     struct profile_version_number: byte[4] {
 	major_revision: byte,
 	minor_revision: byte,
-	_reserved: byte[2] = 0
+	_reserved1: byte = 0,
+	_reserved2: byte = 0
     },
     profile_device_class_signature: byte[4] =
 	'scnr' | 'mntr' | 'prtr' | 'link' | 'spac' | 'abst' | 'nmcl',

@@ -32,7 +32,7 @@ dump_field(Bytes, Indent, {Field, Offset}, !IO) :-
     write_string(Field ^ field_name, !IO),
     write_string(" = ", !IO),
     (
-	Field ^ field_type = field_type_word(_WordType, Values),
+	Field ^ field_type = field_type_word(_WordType, _Values),
 	Word = get_byte_range_as_uint(Bytes, Offset, Field ^ field_size, 0),
 	write_int(Word, !IO)
     ;
@@ -50,7 +50,7 @@ dump_field(Bytes, Indent, {Field, Offset}, !IO) :-
 	Field ^ field_type = field_type_struct(Fields0),
 	write_string("{\n", !IO),
 	Fields = get_offsets(Fields0, Offset),
-	foldl(dump_field(Bytes, 2), Fields, !IO),
+	foldl(dump_field(Bytes, Indent+1), Fields, !IO),
 	write_indent(Indent, !IO),
 	write_string("}", !IO)
     ),

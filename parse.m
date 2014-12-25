@@ -39,13 +39,21 @@ parse_struct_def(Src, Struct, !PS) :-
 
 parse_struct_def_body(Src, Struct, !PS) :-
     identifier(Src, Ident, !PS),
-    punct(":", Src, _, !PS),
-    parse_field_type(Src, Type, !PS), % FIXME
-    Size = calc_field_type_size(Type),
+    ( if punct(":", Src, _, !PS) then
+	parse_field_type(Src, Type, !PS), % FIXME no value
+	SpecSize = yes(calc_field_type_size(Type))
+    else
+	SpecSize = no
+    ),
     punct("{", Src, _, !PS),
     comma_separated_list(parse_field_def, Src, Fields, !PS),
     punct("}", Src, _, !PS),
-    Struct = struct_def(Ident, Size, Fields).
+    Size = calc_struct_fields_size(Fields),
+    ( if SpecSize = yes(Size0), Size0 \= Size then
+	fail_with_message("specified struct size does not match fields", Src, Struct, !PS)
+    else
+	Struct = struct_def(Ident, Size, Fields)
+    ).
 
 :- pred parse_field_type(src::in, field_type::out, ps::in, ps::out) is semidet.
 

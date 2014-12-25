@@ -36,6 +36,8 @@
     ;	    uint16
     ;	    uint32.
 
+:- func calc_struct_fields_size(list(field_def)) = int.
+
 :- func calc_field_type_size(field_type) = int.
 
 %--------------------------------------------------------------------%
@@ -44,13 +46,16 @@
 
 :- import_module int.
 
+calc_struct_fields_size(Fields) =
+    foldl(plus, map(func(Field) = Field ^ field_size, Fields), 0).
+
 calc_field_type_size(field_type_word(uint8, _)) = 1.
 calc_field_type_size(field_type_word(uint16, _)) = 2.
 calc_field_type_size(field_type_word(uint32, _)) = 4.
 calc_field_type_size(field_type_array(Length, Type, _)) =
     Length * calc_field_type_size(Type).
 calc_field_type_size(field_type_struct(Fields)) =
-    foldl(plus, map(func(Field) = Field ^ field_size, Fields), 0).
+    calc_struct_fields_size(Fields).
 
 %--------------------------------------------------------------------%
 
