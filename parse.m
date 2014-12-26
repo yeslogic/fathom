@@ -5,65 +5,40 @@
 
 :- interface.
 
-:- import_module list, string, parsing_utils.
+:- import_module string, parsing_utils.
 
 :- import_module ddl.
 
-:- pred parse(string, parse_result(list(struct_def))).
+:- pred parse(string, parse_result(ddl)).
 :- mode parse(in, out) is det.
 
 %--------------------------------------------------------------------%
 
 :- implementation.
 
-:- import_module maybe, unit.
+:- import_module list, pair, maybe, unit.
 
 parse(Str, Res) :-
     promise_equivalent_solutions [Res] (
 	parsing_utils.parse(Str, skip_ws_comments, parse_ddl, Res)
     ).
 
-:- pred parse_ddl(src::in, list(struct_def)::out, ps::in, ps::out) is semidet.
+:- pred parse_ddl(src::in, ddl::out, ps::in, ps::out) is semidet.
 
 parse_ddl(Src, Structs, !PS) :-
     one_or_more(parse_struct_def, Src, Structs, !PS).
 
-:- pred parse_struct_def(src::in, struct_def::out, ps::in, ps::out) is semidet.
+:- pred parse_struct_def(src::in, pair(string, struct_def)::out, ps::in, ps::out) is semidet.
 
-parse_struct_def(Src, Struct, !PS) :-
+parse_struct_def(Src, Ident-Struct, !PS) :-
     skip_ws_comments(Src, _, !PS),
-    keyword(kw_struct, Src, !PS),
-    parse_struct_def_body(Src, Struct, !PS).
-
-:- pred parse_struct_def_body(src::in, struct_def::out, ps::in, ps::out) is semidet.
-
-parse_struct_def_body(Src, Struct, !PS) :-
     identifier(Src, Ident, !PS),
-    ( if punct(":", Src, _, !PS) then
-	parse_field_type(Src, Type, !PS), % FIXME no value
-	( if field_type_fixed_size(Type, SpecSize0) then
-	    SpecSize = yes(SpecSize0)
-	else
-	    fail_with_message("specified struct size must be fixed", Src, SpecSize, !PS)
-	)
-    else
-	SpecSize = no
-    ),
+    punct(":", Src, _, !PS),
+    keyword(kw_struct, Src, !PS),
     punct("{", Src, _, !PS),
     comma_separated_list(parse_field_def, Src, Fields, !PS),
     punct("}", Src, _, !PS),
-    ( if SpecSize = yes(Size0) then
-	( if
-	    struct_fields_fixed_size(Fields, Size),
-	    Size = Size0
-	then
-	    Struct = struct_def(Ident, yes(Size), Fields)
-	else
-	    fail_with_message("specified struct size does not match fields", Src, Struct, !PS)
-	)
-    else
-	Struct = struct_def(Ident, no, Fields)
-    ).
+    Struct = struct_def(Ident, Fields).
 
 :- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
 
@@ -71,7 +46,8 @@ parse_field_def(Src, Field, !PS) :-
     identifier(Src, Name, !PS),
     punct(":", Src, _, !PS),
     parse_field_type(Src, Type, !PS),
-    Field = field_def(Name, Type).
+    parse_field_values(Src, Values, !PS),
+    Field = field_def(Name, Type, Values).
 
 :- pred parse_field_type(src::in, field_type::out, ps::in, ps::out) is semidet.
 
@@ -93,18 +69,21 @@ parse_field_type(Src, Type, !PS) :-
 	    Type = Type0
 	;
 	    Array = yes(ArraySize),
-	    Type = field_type_array(ArraySize, Type0, [])
+	    Type = field_type_array(ArraySize, Type0)
 	)
     else
-	parse_word_type(Src, WordType, !PS),
+	( if parse_word_type(Src, WordType, !PS) then
+	    Type0 = field_type_word(WordType)
+	else
+	    identifier(Src, Ident, !PS),
+	    Type0 = field_type_ref(Ident)
+	),
 	( if punct("[", Src, _, !PS) then
 	    parse_array_size(Src, ArraySize, !PS),
 	    punct("]", Src, _, !PS),
-	    parse_field_values(Src, Values, !PS),
-	    Type = field_type_array(ArraySize, field_type_word(WordType, []), Values)
+	    Type = field_type_array(ArraySize, Type0)
 	else
-	    parse_field_values(Src, Values, !PS),
-	    Type = field_type_word(WordType, Values)
+	    Type = Type0
 	)
     ).
 

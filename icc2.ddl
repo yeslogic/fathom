@@ -1,7 +1,10 @@
 
 // @pragma big_endian;
 
-struct ICC {
+ICC: struct {
+    header: Header,
+    tag_table: TagTable
+}
 
 Header: struct {
     profile_size: uint32,
@@ -33,7 +36,7 @@ Header: struct {
     profile_creator_signature: byte[4],
     // ICC 4 has profile_id: byte[16],
     _padding: byte[44]
-},
+}
 
 TagTable: struct {
     num_tags: uint32,
@@ -42,6 +45,5 @@ TagTable: struct {
 	tag_offset: uint32,
 	tag_length: uint32
     }
-}
 }
 

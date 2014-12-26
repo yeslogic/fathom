@@ -10,7 +10,7 @@
 :- import_module bytes.
 :- import_module ddl.
 
-:- pred dump_struct(bytes::in, struct_def::in, io::di, io::uo) is det.
+:- pred dump_struct(ddl::in, bytes::in, struct_def::in, io::di, io::uo) is det.
 
 %--------------------------------------------------------------------%
 
@@ -18,34 +18,34 @@
 
 :- import_module list, int, char, maybe, pair.
 
-dump_struct(Bytes, Struct, !IO) :-
+dump_struct(DDL, Bytes, Struct, !IO) :-
     write_string(Struct ^ struct_name, !IO),
     write_string(" {\n", !IO),
-    dump_struct_fields(Bytes, 1, Struct ^ struct_fields, 0, _Offset, [], !IO),
+    dump_struct_fields(DDL, Bytes, 1, Struct ^ struct_fields, 0, _Offset, [], !IO),
     write_string("}\n", !IO).
 
-:- pred dump_struct_fields(bytes::in, int::in, list(field_def)::in, int::in, int::out, context::in, io::di, io::uo) is det.
+:- pred dump_struct_fields(ddl::in, bytes::in, int::in, list(field_def)::in, int::in, int::out, context::in, io::di, io::uo) is det.
 
-dump_struct_fields(_Bytes, _Indent, [], !Offset, _Context, !IO).
-dump_struct_fields(Bytes, Indent, [Field|Fields], !Offset, Context0, !IO) :-
-    dump_field(Bytes, Indent, Field, !Offset, Context0, Context, !IO),
-    dump_struct_fields(Bytes, Indent, Fields, !Offset, Context, !IO).
+dump_struct_fields(_DDL, _Bytes, _Indent, [], !Offset, _Context, !IO).
+dump_struct_fields(DDL, Bytes, Indent, [Field|Fields], !Offset, Context0, !IO) :-
+    dump_field(DDL, Bytes, Indent, Field, !Offset, Context0, Context, !IO),
+    dump_struct_fields(DDL, Bytes, Indent, Fields, !Offset, Context, !IO).
 
-:- pred dump_field(bytes::in, int::in, field_def::in, int::in, int::out, context::in, context::out, io::di, io::uo) is det.
+:- pred dump_field(ddl::in, bytes::in, int::in, field_def::in, int::in, int::out, context::in, context::out, io::di, io::uo) is det.
 
-dump_field(Bytes, Indent, Field, !Offset, !Context, !IO) :-
+dump_field(DDL, Bytes, Indent, Field, !Offset, !Context, !IO) :-
     write_indent(Indent, !IO),
     write_string(Field ^ field_name, !IO),
     write_string(" = ", !IO),
-    dump_field_value(Bytes, Indent, yes(Field ^ field_name), Field ^ field_type, !.Offset, Size, !Context, !IO),
+    dump_field_value(DDL, Bytes, Indent, yes(Field ^ field_name), Field ^ field_type, !.Offset, Size, !Context, !IO),
     !:Offset = !.Offset + Size,
     write_string(",\n", !IO).
 
-:- pred dump_field_value(bytes::in, int::in, maybe(string)::in, field_type::in, int::in, int::out, context::in, context::out, io::di, io::uo) is det.
+:- pred dump_field_value(ddl::in, bytes::in, int::in, maybe(string)::in, field_type::in, int::in, int::out, context::in, context::out, io::di, io::uo) is det.
 
-dump_field_value(Bytes, Indent, MaybeName, Type, Offset, Size, !Context, !IO) :-
+dump_field_value(DDL, Bytes, Indent, MaybeName, Type, Offset, Size, !Context, !IO) :-
     (
-	Type = field_type_word(WordType, _Values),
+	Type = field_type_word(WordType),
 	Size = word_type_size(WordType),
 	Word = get_byte_range_as_uint(Bytes, Offset, Size, 0),
 	write_int(Word, !IO),
@@ -55,35 +55,39 @@ dump_field_value(Bytes, Indent, MaybeName, Type, Offset, Size, !Context, !IO) :-
 	    true
 	)
     ;
-	Type = field_type_array(ArraySize, Type0, _Values),
+	Type = field_type_array(ArraySize, Type0),
 	(
 	    ArraySize = array_size_fixed(Length)
 	;
 	    ArraySize = array_size_variable(Name),
 	    Length = context_resolve(!.Context, Name)
 	),
-	FieldSize = field_type_size(!.Context, Type0),
+	FieldSize = field_type_size(DDL, !.Context, Type0),
 	write_string("[", !IO),
-	dump_array(Bytes, Indent, Length, Type0, 0, Offset, FieldSize, !Context, !IO),
+	dump_array(DDL, Bytes, Indent, Length, Type0, 0, Offset, FieldSize, !Context, !IO),
 	write_string("]", !IO),
 	Size = Length * FieldSize
     ;
 	Type = field_type_struct(Fields0),
 	write_string("{\n", !IO),
-	dump_struct_fields(Bytes, Indent+1, Fields0, Offset, NextOffset, [], !IO),
+	dump_struct_fields(DDL, Bytes, Indent+1, Fields0, Offset, NextOffset, [], !IO),
 	Size = NextOffset - Offset,
 	write_indent(Indent, !IO),
 	write_string("}", !IO)
+    ;
+	Type = field_type_ref(Name),
+	Struct = ddl_resolve(DDL, Name),
+	dump_field_value(DDL, Bytes, Indent, MaybeName, field_type_struct(Struct ^ struct_fields), Offset, Size, !Context, !IO)
     ).
 
-:- pred dump_array(bytes::in, int::in, int::in, field_type::in, int::in, int::in, int::in, context::in, context::out, io::di, io::uo) is det.
+:- pred dump_array(ddl::in, bytes::in, int::in, int::in, field_type::in, int::in, int::in, int::in, context::in, context::out, io::di, io::uo) is det.
 
-dump_array(Bytes, Indent, Length, Type, Index, Offset, Size, !Context, !IO) :-
+dump_array(DDL, Bytes, Indent, Length, Type, Index, Offset, Size, !Context, !IO) :-
     ( if Index < Length then
-	dump_field_value(Bytes, Indent, no, Type, Offset + Index*Size, _Size0, !Context, !IO),
+	dump_field_value(DDL, Bytes, Indent, no, Type, Offset + Index*Size, _Size0, !Context, !IO),
 	( if Index < Length - 1 then
 	    write_string(",", !IO),
-	    dump_array(Bytes, Indent, Length, Type, Index+1, Offset, Size, !Context, !IO)
+	    dump_array(DDL, Bytes, Indent, Length, Type, Index+1, Offset, Size, !Context, !IO)
 	else
 	    true
 	)

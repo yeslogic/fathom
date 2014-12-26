@@ -14,7 +14,7 @@
 
 :- implementation.
 
-:- import_module list, maybe, parsing_utils.
+:- import_module list, pair, maybe, parsing_utils.
 
 :- import_module bytes.
 :- import_module ddl.
@@ -32,9 +32,9 @@ main(!IO) :-
 		Res1 = ok(DDLStr),
 		parse(DDLStr, Res2),
 		(
-		    Res2 = ok(Structs),
-		    ( if Structs = [Struct] then
-			main2(Struct, InputFileName, !IO)
+		    Res2 = ok(DDL),
+		    ( if DDL = [_-Struct|_] then
+			main2(DDL, Struct, InputFileName, !IO)
 		    else
 			write_string("Expected one struct\n", !IO)
 		    )
@@ -55,16 +55,16 @@ main(!IO) :-
 	write_string("Usage: <prog> DDL INPUT\n", !IO)
     ).
 
-:- pred main2(struct_def::in, string::in, io::di, io::uo) is det.
+:- pred main2(ddl::in, struct_def::in, string::in, io::di, io::uo) is det.
 
-main2(Struct, InputFileName, !IO) :-
+main2(DDL, Struct, InputFileName, !IO) :-
     open_binary_input(InputFileName, Res0, !IO),
     (
 	Res0 = ok(InputFile),
 	read_stream(InputFile, Res1, !IO),
 	(
 	    Res1 = ok(Bytes),
-	    dump_struct(Bytes, Struct, !IO)
+	    dump_struct(DDL, Bytes, Struct, !IO)
 	;
 	    Res1 = error(Error1),
 	    write_string(Error1, !IO), nl(!IO)
