@@ -7,7 +7,17 @@
 
 :- import_module list, assoc_list, string, char.
 
-:- type ddl == assoc_list(string, struct_def).
+:- type ddl == assoc_list(string, ddl_def).
+
+:- type ddl_def
+    --->    def_union(union_def)
+    ;	    def_struct(struct_def).
+
+:- type union_def
+    --->    union_def(
+		union_name :: string,
+		union_options :: list(string)
+	    ).
 
 :- type struct_def
     --->    struct_def(
@@ -26,6 +36,7 @@
     --->    field_type_word(word_type)
     ;	    field_type_array(array_size, field_type)
     ;	    field_type_struct(list(field_def))
+    ;	    field_type_union(list(string))
     ;	    field_type_ref(string).
 
 :- type array_size
@@ -46,6 +57,14 @@
 
 :- func word_type_size(word_type) = int.
 
+:- pred ddl_def_fixed_size(ddl::in, ddl_def::in, int::out) is semidet.
+
+:- func ddl_def_size(ddl, context, ddl_def) = int.
+
+:- pred union_options_fixed_size(ddl::in, list(string)::in, int::out) is semidet.
+
+:- func union_options_size(ddl, context, list(string)) = int.
+
 :- pred struct_fields_fixed_size(ddl::in, list(field_def)::in, int::out) is semidet.
 
 :- func struct_fields_size(ddl, context, list(field_def)) = int.
@@ -56,7 +75,7 @@
 
 :- func context_resolve(context, string) = int.
 
-:- func ddl_resolve(ddl, string) = struct_def.
+:- func ddl_resolve(ddl, string) = ddl_def.
 
 %--------------------------------------------------------------------%
 
@@ -69,6 +88,34 @@
 word_type_size(uint8) = 1.
 word_type_size(uint16) = 2.
 word_type_size(uint32) = 4.
+
+ddl_def_fixed_size(DDL, Def, Size) :-
+    require_complete_switch [Def]
+    (
+	Def = def_union(Union),
+	union_options_fixed_size(DDL, Union ^ union_options, Size)
+    ;
+	Def = def_struct(Struct),
+	struct_fields_fixed_size(DDL, Struct ^ struct_fields, Size)
+    ).
+
+ddl_def_size(DDL, Context, Def) = Size :-
+    (
+	Def = def_union(Union),
+	Size = union_options_size(DDL, Context, Union ^ union_options)
+    ;
+	Def = def_struct(Struct),
+	Size = struct_fields_size(DDL, Context, Struct ^ struct_fields)
+    ).
+
+union_options_fixed_size(DDL, Opts, Size) :-
+    Defs = map(ddl_resolve(DDL), Opts),
+    map(ddl_def_fixed_size(DDL), Defs, Sizes),
+    Sizes = [Size|_],
+    all [X] ( member(X, Sizes), X = Size ).
+
+union_options_size(_DDL, _Context, _Opts) = _Size :-
+    abort("uh oh!").
 
 struct_fields_fixed_size(_DDL, [], 0).
 struct_fields_fixed_size(DDL, [F|Fs], Size) :-
@@ -102,9 +149,12 @@ field_type_fixed_size(DDL, FieldType, Size) :-
 	FieldType = field_type_struct(Fields),
 	struct_fields_fixed_size(DDL, Fields, Size)
     ;
+	FieldType = field_type_union(Options),
+	union_options_fixed_size(DDL, Options, Size)
+    ;
 	FieldType = field_type_ref(Name),
-	Struct = ddl_resolve(DDL, Name),
-	struct_fields_fixed_size(DDL, Struct ^ struct_fields, Size)
+	Def = ddl_resolve(DDL, Name),
+	ddl_def_fixed_size(DDL, Def, Size)
     ).
 
 field_type_size(DDL, Context, FieldType) = Size :-
@@ -124,9 +174,12 @@ field_type_size(DDL, Context, FieldType) = Size :-
 	FieldType = field_type_struct(Fields),
 	Size = struct_fields_size(DDL, Context, Fields)
     ;
+	FieldType = field_type_union(Options),
+	Size = union_options_size(DDL, Context, Options)
+    ;
 	FieldType = field_type_ref(Name),
-	Struct = ddl_resolve(DDL, Name),
-	Size = struct_fields_size(DDL, Context, Struct ^ struct_fields)
+	Def = ddl_resolve(DDL, Name),
+	Size = ddl_def_size(DDL, Context, Def)
     ).
 
 context_resolve(Context, Name) = Value :-
@@ -136,9 +189,9 @@ context_resolve(Context, Name) = Value :-
 	abort("context missing: "++Name)
     ).
 
-ddl_resolve(DDL, Name) = Struct :-
-    ( if search(DDL, Name, Struct0) then
-	Struct = Struct0
+ddl_resolve(DDL, Name) = Def :-
+    ( if search(DDL, Name, Def0) then
+	Def = Def0
     else
 	abort("unknown type ref: "++Name)
     ).

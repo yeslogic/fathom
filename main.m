@@ -33,10 +33,10 @@ main(!IO) :-
 		parse(DDLStr, Res2),
 		(
 		    Res2 = ok(DDL),
-		    ( if DDL = [_-Struct|_] then
-			main2(DDL, Struct, InputFileName, !IO)
+		    ( if DDL = [_-Def|_] then
+			main2(DDL, Def, InputFileName, !IO)
 		    else
-			write_string("Expected one struct\n", !IO)
+			write_string("Expected at least one def\n", !IO)
 		    )
 		;
 		    Res2 = error(_Msg, _Line, _Col),
@@ -55,16 +55,16 @@ main(!IO) :-
 	write_string("Usage: <prog> DDL INPUT\n", !IO)
     ).
 
-:- pred main2(ddl::in, struct_def::in, string::in, io::di, io::uo) is det.
+:- pred main2(ddl::in, ddl_def::in, string::in, io::di, io::uo) is det.
 
-main2(DDL, Struct, InputFileName, !IO) :-
+main2(DDL, Def, InputFileName, !IO) :-
     open_binary_input(InputFileName, Res0, !IO),
     (
 	Res0 = ok(InputFile),
 	read_stream(InputFile, Res1, !IO),
 	(
 	    Res1 = ok(Bytes),
-	    dump_struct(DDL, Bytes, Struct, !IO)
+	    dump_root(DDL, Bytes, Def, !IO)
 	;
 	    Res1 = error(Error1),
 	    write_string(Error1, !IO), nl(!IO)

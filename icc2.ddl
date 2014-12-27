@@ -1,6 +1,7 @@
 
 // @pragma big_endian;
 
+// @root
 ICC: struct {
     header: Header,
     tag_table: TagTable

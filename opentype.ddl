@@ -4,11 +4,10 @@
 // FIXME tables must (should?) be 4-byte aligned
 // FIXME padding bytes between tables must (should?) be zero
 
-@root
+// @root
 OpenType: union {
     OffsetTable,
-    TTCHeader1,
-    TTCHeader2
+    TTCHeader
 }
 
 OffsetTable: struct {
@@ -23,6 +22,11 @@ OffsetTable: struct {
 	offset: uint32 => offset(Table), // from @root (OffsetTable or TTCHeader)
 	length: uint32
     }
+}
+
+TTCHeader: union {
+    TTCHeader1,
+    TTCHeader2
 }
 
 TTCHeader1: struct {

@@ -10,7 +10,7 @@
 :- import_module bytes.
 :- import_module ddl.
 
-:- pred dump_struct(ddl::in, bytes::in, struct_def::in, io::di, io::uo) is det.
+:- pred dump_root(ddl::in, bytes::in, ddl_def::in, io::di, io::uo) is det.
 
 %--------------------------------------------------------------------%
 
@@ -18,10 +18,119 @@
 
 :- import_module list, int, char, maybe, pair.
 
-dump_struct(DDL, Bytes, Struct, !IO) :-
+dump_root(DDL, Bytes, Def, !IO) :-
+    dump_def(DDL, Bytes, 0, Def, 0, _Offset, [], !IO).
+
+:- pred dump_def(ddl::in, bytes::in, int::in, ddl_def::in, int::in, int::out, context::in, io::di, io::uo) is det.
+
+dump_def(DDL, Bytes, Indent, Def, !Offset, Context0, !IO) :-
+    (
+	Def = def_union(Union),
+	dump_union(DDL, Bytes, Indent, Union, !Offset, Context0, !IO)
+    ;
+	Def = def_struct(Struct),
+	dump_struct(DDL, Bytes, Indent, Struct, !Offset, Context0, !IO)
+    ).
+
+:- pred dump_union(ddl::in, bytes::in, int::in, union_def::in, int::in, int::out, context::in, io::di, io::uo) is det.
+
+dump_union(DDL, Bytes, Indent, Union, !Offset, Context0, !IO) :-
+    write_indent(Indent, !IO),
+    write_string(Union ^ union_name, !IO),
+    write_string(" {\n", !IO),
+    dump_union_options(DDL, Bytes, Indent+1, Union ^ union_options, !Offset, Context0, !IO),
+    write_indent(Indent, !IO),
+    write_string("}\n", !IO).
+
+:- pred dump_union_options(ddl::in, bytes::in, int::in, list(string)::in, int::in, int::out, context::in, io::di, io::uo) is det.
+
+dump_union_options(_DDL, _Bytes, _Indent, [], !Offset, _Context0, !IO).
+dump_union_options(DDL, Bytes, Indent, [Option|Options], !Offset, Context0, !IO) :-
+    Def = ddl_resolve(DDL, Option),
+    ( if match_def(DDL, Bytes, Def, !.Offset, Context0) then
+	dump_def(DDL, Bytes, Indent, Def, !Offset, Context0, !IO)
+    else
+	dump_union_options(DDL, Bytes, Indent, Options, !Offset, Context0, !IO)
+    ).
+
+:- pred match_def(ddl::in, bytes::in, ddl_def::in, int::in, context::in) is semidet.
+
+match_def(DDL, Bytes, Def, Offset, Context) :-
+    (
+	Def = def_union(Union),
+	match_union_options(DDL, Bytes, Union ^ union_options, Offset, Context)
+    ;
+	Def = def_struct(Struct),
+	match_struct_fields(DDL, Bytes, Struct ^ struct_fields, Offset, Context)
+    ).
+
+:- pred match_union_options(ddl::in, bytes::in, list(string)::in, int::in, context::in) is semidet.
+
+match_union_options(DDL, Bytes, Options, Offset, Context) :-
+    member(Def0, map(ddl_resolve(DDL), Options)),
+    match_def(DDL, Bytes, Def0, Offset, Context).
+
+:- pred match_struct_fields(ddl::in, bytes::in, list(field_def)::in, int::in, context::in) is semidet.
+
+match_struct_fields(DDL, Bytes, Fields, Offset, Context) :-
+    (
+	Fields = [] % FIXME uhh...
+    ;
+	Fields = [Field|_],
+	match_field(DDL, Bytes, Field, Offset, Context)
+    ).
+
+:- pred match_field(ddl::in, bytes::in, field_def::in, int::in, context::in) is semidet.
+
+match_field(DDL, Bytes, Field, Offset, Context) :-
+    Type = Field ^ field_type,
+    require_complete_switch [Type]
+    (
+	Type = field_type_word(WordType),
+	member(Value, Field ^ field_values),
+	match_word(Bytes, WordType, Value, Offset)
+    ;
+	Type = field_type_array(_, _),
+	fail
+    ;
+	Type = field_type_struct(Fields),
+	match_struct_fields(DDL, Bytes, Fields, Offset, Context)
+    ;
+	Type = field_type_union(Options),
+	match_union_options(DDL, Bytes, Options, Offset, Context)
+    ;
+	Type = field_type_ref(Name),
+	Def = ddl_resolve(DDL, Name),
+	match_def(DDL, Bytes, Def, Offset, Context)
+    ).
+
+:- pred match_word(bytes::in, word_type::in, field_value::in, int::in) is semidet.
+
+match_word(Bytes, WordType, Value, Offset) :-
+    Size = word_type_size(WordType),
+    Word = get_byte_range_as_uint(Bytes, Offset, Size, 0),
+    require_complete_switch [Value]
+    (
+	Value = field_value_any % FIXME wrong
+    ;
+	Value = field_value_int(Word)
+    ;
+	Value = field_value_tag(C1, C2, C3, C4),
+	B1 = char.to_int(C1),
+	B2 = char.to_int(C2),
+	B3 = char.to_int(C3),
+	B4 = char.to_int(C4),
+	Word = (((((B1 << 8) \/ B2) << 8) \/ B3) << 8) \/ B4
+    ).
+
+:- pred dump_struct(ddl::in, bytes::in, int::in, struct_def::in, int::in, int::out, context::in, io::di, io::uo) is det.
+
+dump_struct(DDL, Bytes, Indent, Struct, !Offset, Context0, !IO) :-
+    write_indent(Indent, !IO),
     write_string(Struct ^ struct_name, !IO),
     write_string(" {\n", !IO),
-    dump_struct_fields(DDL, Bytes, 1, Struct ^ struct_fields, 0, _Offset, [], !IO),
+    dump_struct_fields(DDL, Bytes, Indent+1, Struct ^ struct_fields, !Offset, Context0, !IO),
+    write_indent(Indent, !IO),
     write_string("}\n", !IO).
 
 :- pred dump_struct_fields(ddl::in, bytes::in, int::in, list(field_def)::in, int::in, int::out, context::in, io::di, io::uo) is det.
@@ -75,9 +184,19 @@ dump_field_value(DDL, Bytes, Indent, MaybeName, Type, Offset, Size, !Context, !I
 	write_indent(Indent, !IO),
 	write_string("}", !IO)
     ;
+	Type = field_type_union(_Options),
+	Size = 0
+	% FIXME
+    ;
 	Type = field_type_ref(Name),
-	Struct = ddl_resolve(DDL, Name),
-	dump_field_value(DDL, Bytes, Indent, MaybeName, field_type_struct(Struct ^ struct_fields), Offset, Size, !Context, !IO)
+	Def = ddl_resolve(DDL, Name),
+	(
+	    Def = def_struct(Struct),
+	    dump_field_value(DDL, Bytes, Indent, MaybeName, field_type_struct(Struct ^ struct_fields), Offset, Size, !Context, !IO)
+	;
+	    Def = def_union(Union),
+	    dump_field_value(DDL, Bytes, Indent, MaybeName, field_type_union(Union ^ union_options), Offset, Size, !Context, !IO)
+	)
     ).
 
 :- pred dump_array(ddl::in, bytes::in, int::in, int::in, field_type::in, int::in, int::in, int::in, context::in, context::out, io::di, io::uo) is det.

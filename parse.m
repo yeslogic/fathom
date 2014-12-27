@@ -26,19 +26,28 @@ parse(Str, Res) :-
 :- pred parse_ddl(src::in, ddl::out, ps::in, ps::out) is semidet.
 
 parse_ddl(Src, Structs, !PS) :-
-    one_or_more(parse_struct_def, Src, Structs, !PS).
+    one_or_more(parse_ddl_def, Src, Structs, !PS).
 
-:- pred parse_struct_def(src::in, pair(string, struct_def)::out, ps::in, ps::out) is semidet.
+:- pred parse_ddl_def(src::in, pair(string, ddl_def)::out, ps::in, ps::out) is semidet.
 
-parse_struct_def(Src, Ident-Struct, !PS) :-
+parse_ddl_def(Src, Ident-Def, !PS) :-
     skip_ws_comments(Src, _, !PS),
     identifier(Src, Ident, !PS),
     punct(":", Src, _, !PS),
-    keyword(kw_struct, Src, !PS),
-    punct("{", Src, _, !PS),
-    comma_separated_list(parse_field_def, Src, Fields, !PS),
-    punct("}", Src, _, !PS),
-    Struct = struct_def(Ident, Fields).
+    ( if keyword(kw_struct, Src, !PS) then
+	punct("{", Src, _, !PS),
+	comma_separated_list(parse_field_def, Src, Fields, !PS),
+	punct("}", Src, _, !PS),
+	Struct = struct_def(Ident, Fields),
+	Def = def_struct(Struct)
+    else
+	keyword(kw_union, Src, !PS),
+	punct("{", Src, _, !PS),
+	comma_separated_list(identifier, Src, Options, !PS),
+	punct("}", Src, _, !PS),
+	Union = union_def(Ident, Options),
+	Def = def_union(Union)
+    ).
 
 :- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
 
@@ -148,7 +157,8 @@ parse_field_value(Src, Value, !PS) :-
 %--------------------------------------------------------------------%
 
 :- type keyword
-    --->    kw_struct
+    --->    kw_union
+    ;	    kw_struct
     ;	    kw_byte
     ;	    kw_uint8
     ;	    kw_uint16
@@ -158,6 +168,7 @@ parse_field_value(Src, Value, !PS) :-
 :- mode keyword_string(in, out) is det.
 :- mode keyword_string(out, in) is semidet.
 
+keyword_string(kw_union, "union").
 keyword_string(kw_struct, "struct").
 keyword_string(kw_byte, "byte").
 keyword_string(kw_uint8, "uint8").
