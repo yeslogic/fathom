@@ -109,7 +109,7 @@ parse_array_size(Src, ArraySize, !PS) :-
 :- pred parse_field_values(src::in, list(field_value)::out, ps::in, ps::out) is semidet.
 
 parse_field_values(Src, Values, !PS) :-
-    ( if punct("=>", Src, _, !PS) then
+    ( if punct("=", Src, _, !PS) then
 	parse_field_value(Src, V, !PS),
 	( if punct("|", Src, _, !PS) then
 	    separated_list("|", parse_field_value, Src, Vs, !PS),

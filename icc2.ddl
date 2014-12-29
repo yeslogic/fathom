@@ -1,10 +1,20 @@
 
 // @pragma big_endian;
 
+// FIXME tables must (should?) be 4-byte aligned
+// FIXME padding bytes between tables must (should?) be zero
+
 // @root
 ICC: struct {
     header: Header,
-    tag_table: TagTable
+    tag_table: struct {
+	num_tags: uint32,
+	tag_array: struct[num_tags] {
+	    tag_signature: byte[4],
+	    tag_offset: uint32 @offset(ICC) => Tag(tag_signature) & byte[length],
+	    tag_length: uint32 // does not include padding
+	}
+    }
 }
 
 // @assert sizeof(Header) = 128;
@@ -15,20 +25,20 @@ Header: struct {
     profile_version_number: struct {
 	major_revision: byte,
 	minor_revision: byte,
-	_reserved1: byte => 0,
-	_reserved2: byte => 0
+	_reserved1: byte = 0,
+	_reserved2: byte = 0
     },
-    profile_device_class_signature: byte[4] =>
+    profile_device_class_signature: byte[4] =
 	'scnr' | 'mntr' | 'prtr' | 'link' | 'spac' | 'abst' | 'nmcl',
-    color_space_signature: byte[4] =>
+    color_space_signature: byte[4] =
 	'XYZ ' | 'Lab ' | 'Luv ' | 'YCbr' | 'Yxy ' | 'RGB ' | 'GRAY' |
 	'HSV ' | 'HLS ' | 'CMYK' | 'CMY ' |
 	'2CLR' | '3CLR' | '4CLR' | '5CLR' | '6CLR' | '7CLR' | '8CLR' |
 	'9CLR' | 'ACLR' | 'BCLR' | 'CCLR' | 'DCLR' | 'ECLR' | 'FCLR',
-    profile_connection_space: byte[4] => 'XYZ ' | 'Lab ',
+    profile_connection_space: byte[4] = 'XYZ ' | 'Lab ',
     creation_date_time: byte[12],
-    profile_file_signature: byte[4] => 'acsp',
-    primary_platform_signature: byte[4] =>
+    profile_file_signature: byte[4] = 'acsp',
+    primary_platform_signature: byte[4] =
 	'APPL' | 'MSFT' | 'SGI ' | 'SUNW' | 'TGNT' | 0 | *,
     cmm_flags: byte[4], // bitfield
     device_manufacturer: byte[4],
@@ -39,15 +49,6 @@ Header: struct {
     profile_creator_signature: byte[4],
     // ICC 4 has profile_id: byte[16],
     _padding: byte[44]
-}
-
-TagTable: struct {
-    num_tags: uint32,
-    tag_array: struct[num_tags] {
-	tag_signature: byte[4],
-	tag_offset: uint32, // => offset(Tag) from ICC, must be 4-byte aligned
-	tag_length: uint32 // does not include padding
-    }
 }
 
 Tag: struct {
