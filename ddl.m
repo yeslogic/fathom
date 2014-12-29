@@ -5,7 +5,7 @@
 
 :- interface.
 
-:- import_module list, assoc_list, string, char.
+:- import_module list, assoc_list, maybe, string, char.
 
 :- type ddl == assoc_list(string, ddl_def).
 
@@ -28,12 +28,11 @@
 :- type field_def
     --->    field_def(
 		field_name :: string,
-		field_type :: field_type,
-		field_values :: list(field_value)
+		field_type :: field_type
 	    ).
 
 :- type field_type
-    --->    field_type_word(word_type)
+    --->    field_type_word(word_type, word_values)
     ;	    field_type_array(array_size, field_type)
     ;	    field_type_struct(list(field_def))
     ;	    field_type_union(list(string))
@@ -43,15 +42,36 @@
     --->    array_size_fixed(int)
     ;	    array_size_variable(string).
 
-:- type field_value
-    --->    field_value_any
-    ;	    field_value_int(int)
-    ;	    field_value_tag(char, char, char, char).
+:- type word_values
+    --->    word_values(
+		word_values_any :: maybe(word_interp),
+		word_values_enum :: assoc_list(word_value, word_interp)
+	    ).
 
 :- type word_type
     --->    uint8
     ;	    uint16
     ;	    uint32.
+
+:- type word_value
+    --->    word_value_int(int)
+    ;	    word_value_tag(char, char, char, char).
+
+:- type word_interp
+    --->    word_interp_none
+    ;	    word_interp_error
+    ;	    word_interp_offset(offset).
+
+:- type offset
+    --->    offset(
+		offset_base :: offset_base,
+		offset_type :: string
+	    ).
+
+:- type offset_base
+    --->    offset_base_struct
+    ;	    offset_base_root
+    ;	    offset_base_named(string).
 
 :- type context == assoc_list(string, int).
 
@@ -132,7 +152,7 @@ struct_fields_size(DDL, Context, [F|Fs]) = Size :-
 field_type_fixed_size(DDL, FieldType, Size) :-
     require_complete_switch [FieldType]
     (
-	FieldType = field_type_word(Word),
+	FieldType = field_type_word(Word, _Values),
 	Size = word_type_size(Word)
     ;
 	FieldType = field_type_array(ArraySize, Type),
@@ -159,7 +179,7 @@ field_type_fixed_size(DDL, FieldType, Size) :-
 
 field_type_size(DDL, Context, FieldType) = Size :-
     (
-	FieldType = field_type_word(Word),
+	FieldType = field_type_word(Word, _Values),
 	Size = word_type_size(Word)
     ;
 	FieldType = field_type_array(ArraySize, Type),

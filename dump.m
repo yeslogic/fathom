@@ -86,8 +86,8 @@ match_field(DDL, Bytes, Field, Offset, Context) :-
     Type = Field ^ field_type,
     require_complete_switch [Type]
     (
-	Type = field_type_word(WordType),
-	member(Value, Field ^ field_values),
+	Type = field_type_word(WordType, WordValues),
+	member(Value-_Interp, WordValues ^ word_values_enum),
 	match_word(Bytes, WordType, Value, Offset)
     ;
 	Type = field_type_array(_, _),
@@ -104,18 +104,16 @@ match_field(DDL, Bytes, Field, Offset, Context) :-
 	match_def(DDL, Bytes, Def, Offset, Context)
     ).
 
-:- pred match_word(bytes::in, word_type::in, field_value::in, int::in) is semidet.
+:- pred match_word(bytes::in, word_type::in, word_value::in, int::in) is semidet.
 
 match_word(Bytes, WordType, Value, Offset) :-
     Size = word_type_size(WordType),
     Word = get_byte_range_as_uint(Bytes, Offset, Size, 0),
     require_complete_switch [Value]
     (
-	Value = field_value_any % FIXME wrong
+	Value = word_value_int(Word)
     ;
-	Value = field_value_int(Word)
-    ;
-	Value = field_value_tag(C1, C2, C3, C4),
+	Value = word_value_tag(C1, C2, C3, C4),
 	B1 = char.to_int(C1),
 	B2 = char.to_int(C2),
 	B3 = char.to_int(C3),
@@ -154,7 +152,7 @@ dump_field(DDL, Bytes, Indent, Field, !Offset, !Context, !IO) :-
 
 dump_field_value(DDL, Bytes, Indent, MaybeName, Type, Offset, Size, !Context, !IO) :-
     (
-	Type = field_type_word(WordType),
+	Type = field_type_word(WordType, _WordValues),
 	Size = word_type_size(WordType),
 	Word = get_byte_range_as_uint(Bytes, Offset, Size, 0),
 	write_int(Word, !IO),
@@ -214,6 +212,7 @@ dump_array(DDL, Bytes, Indent, Length, Type, Index, Offset, Size, !Context, !IO)
 	true
     ).
 
+/*
 :- pred write_field_value(list(field_value)::in, list(int)::in, io::di, io::uo) is det.
 
 write_field_value(FieldValues, Bs, !IO) :-
@@ -234,6 +233,7 @@ write_field_value(FieldValues, Bs, !IO) :-
     else
 	write(Bs, !IO)
     ).
+*/
 
 :- pred write_bytes(list(int)::in, io::di, io::uo) is det.
 

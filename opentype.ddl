@@ -19,7 +19,7 @@ OffsetTable: struct {
     table_records: struct[num_tables] { // FIXME sorted by tag
 	tag: uint32,
 	checksum: uint32,
-	offset: uint32 @offset(@root) => bytes[length] & Table(tag),
+	offset: uint32 @offset(@root) => Table, // FIXME bytes[length]
 	length: uint32
     }
 }
@@ -43,7 +43,7 @@ TTCHeader2: struct {
     offset_tables: uint32[num_fonts] @offset => OffsetTable,
     dsig_tag: uint32 = 0 | 'DSIG',
     dsig_length: uint32,
-    dsig_offset: uint32 = 0 | @offset => bytes[dsig_length] & DSIG
+    dsig_offset: uint32 = 0 | @offset => DSIG // FIXME bytes[dsig_length]
     // FIXME if dsig_tag = 0 -> dsig_length = 0
     // FIXME if dsig_tag = 0 -> dsig_offset = 0
 }

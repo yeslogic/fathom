@@ -16,7 +16,7 @@
 
 :- implementation.
 
-:- import_module list, pair, maybe, unit.
+:- import_module assoc_list, list, pair, maybe, unit, char, int.
 
 parse(Str, Res) :-
     promise_equivalent_solutions [Res] (
@@ -26,7 +26,8 @@ parse(Str, Res) :-
 :- pred parse_ddl(src::in, ddl::out, ps::in, ps::out) is semidet.
 
 parse_ddl(Src, Structs, !PS) :-
-    one_or_more(parse_ddl_def, Src, Structs, !PS).
+    one_or_more(parse_ddl_def, Src, Structs, !PS),
+    eof(Src, _, !PS).
 
 :- pred parse_ddl_def(src::in, pair(string, ddl_def)::out, ps::in, ps::out) is semidet.
 
@@ -55,8 +56,7 @@ parse_field_def(Src, Field, !PS) :-
     identifier(Src, Name, !PS),
     punct(":", Src, _, !PS),
     parse_field_type(Src, Type, !PS),
-    parse_field_values(Src, Values, !PS),
-    Field = field_def(Name, Type, Values).
+    Field = field_def(Name, Type).
 
 :- pred parse_field_type(src::in, field_type::out, ps::in, ps::out) is semidet.
 
@@ -80,19 +80,26 @@ parse_field_type(Src, Type, !PS) :-
 	    Array = yes(ArraySize),
 	    Type = field_type_array(ArraySize, Type0)
 	)
-    else
-	( if parse_word_type(Src, WordType, !PS) then
-	    Type0 = field_type_word(WordType)
-	else
-	    identifier(Src, Ident, !PS),
-	    Type0 = field_type_ref(Ident)
-	),
+    else if identifier(Src, Ident, !PS) then
+	Type0 = field_type_ref(Ident),
 	( if punct("[", Src, _, !PS) then
 	    parse_array_size(Src, ArraySize, !PS),
 	    punct("]", Src, _, !PS),
 	    Type = field_type_array(ArraySize, Type0)
 	else
 	    Type = Type0
+	)
+    else
+	parse_word_type(Src, WordType, !PS),
+	( if punct("[", Src, _, !PS) then
+	    parse_array_size(Src, ArraySize, !PS),
+	    punct("]", Src, _, !PS),
+	    parse_word_values(Src, WordValues, !PS),
+	    Type0 = field_type_word(WordType, WordValues),
+	    Type = field_type_array(ArraySize, Type0)
+	else
+	    parse_word_values(Src, WordValues, !PS),
+	    Type = field_type_word(WordType, WordValues)
 	)
     ).
 
@@ -106,19 +113,80 @@ parse_array_size(Src, ArraySize, !PS) :-
 	ArraySize = array_size_variable(Ident)
     ).
 
-:- pred parse_field_values(src::in, list(field_value)::out, ps::in, ps::out) is semidet.
+:- pred parse_word_values(src::in, word_values::out, ps::in, ps::out) is semidet.
 
-parse_field_values(Src, Values, !PS) :-
+parse_word_values(Src, Values, !PS) :-
     ( if punct("=", Src, _, !PS) then
-	parse_field_value(Src, V, !PS),
-	( if punct("|", Src, _, !PS) then
-	    separated_list("|", parse_field_value, Src, Vs, !PS),
-	    Values = [V|Vs]
+	parse_word_value(Src, V, !PS),
+	parse_word_values0([V], Src, Values, !PS)
+    else
+	( if parse_word_interp(Src, Interp, !PS) then
+	    AnyInterp = yes(Interp)
 	else
-	    Values = [V]
+	    AnyInterp = no
+	),
+	Values = word_values(AnyInterp, [])
+    ).
+
+:- pred parse_word_values0(assoc_list(word_value, word_interp)::in, src::in, word_values::out, ps::in, ps::out) is semidet.
+
+parse_word_values0(Vs, Src, Values, !PS) :-
+    ( if punct("|", Src, _, !PS) then
+	( if parse_word_value(Src, V, !PS) then
+	    parse_word_values0([V|Vs], Src, Values, !PS)
+	else
+	    parse_word_interp(Src, Interp, !PS),
+	    Values = word_values(yes(Interp), Vs)
 	)
     else
-	Values = []
+	Values = word_values(no, Vs)
+    ).
+
+:- pred parse_word_value(src::in, pair(word_value, word_interp)::out, ps::in, ps::out) is semidet.
+
+parse_word_value(Src, Value-Interp, !PS) :-
+    ( if hex_literal(Src, N, !PS) then
+	Value = word_value_int(N)
+    else if int_literal(Src, N, !PS) then
+	Value = word_value_int(N)
+    else
+	next_char(Src, '\'', !PS),
+	next_char(Src, C1, !PS),
+	next_char(Src, C2, !PS),
+	next_char(Src, C3, !PS),
+	next_char(Src, C4, !PS),
+	next_char(Src, '\'', !PS),
+	skip_ws_comments(Src, _, !PS),
+	Value = word_value_tag(C1, C2, C3, C4)
+    ),
+    ( if parse_word_interp(Src, Interp0, !PS) then
+	Interp = Interp0
+    else
+	Interp = word_interp_none
+    ).
+
+:- pred parse_word_interp(src::in, word_interp::out, ps::in, ps::out) is semidet.
+
+parse_word_interp(Src, Interp, !PS) :-
+    at_rule(at_offset, Src, !PS),
+    ( if punct("(", Src, _, !PS) then
+	parse_offset_base(Src, Base, !PS),
+	punct(")", Src, _, !PS)
+    else
+	Base = offset_base_struct
+    ),
+    punct("=>", Src, _, !PS),
+    identifier(Src, Ident, !PS),
+    Interp = word_interp_offset(offset(Base, Ident)).
+
+:- pred parse_offset_base(src::in, offset_base::out, ps::in, ps::out) is semidet.
+
+parse_offset_base(Src, Base, !PS) :-
+    ( if at_rule(at_root, Src, !PS) then
+	Base = offset_base_root
+    else
+	identifier(Src, Ident, !PS),
+	Base = offset_base_named(Ident)
     ).
 
 :- pred parse_word_type(src::in, word_type::out, ps::in, ps::out) is semidet.
@@ -134,24 +202,6 @@ parse_word_type(Src, Type, !PS) :-
 	Type = uint32
     else
 	fail
-    ).
-
-:- pred parse_field_value(src::in, field_value::out, ps::in, ps::out) is semidet.
-
-parse_field_value(Src, Value, !PS) :-
-    ( if punct("*", Src, _, !PS) then
-	Value = field_value_any
-    else if int_literal(Src, N, !PS) then
-	Value = field_value_int(N)
-    else
-	next_char(Src, '\'', !PS),
-	next_char(Src, C1, !PS),
-	next_char(Src, C2, !PS),
-	next_char(Src, C3, !PS),
-	next_char(Src, C4, !PS),
-	next_char(Src, '\'', !PS),
-	skip_ws_comments(Src, _, !PS),
-	Value = field_value_tag(C1, C2, C3, C4)
     ).
 
 %--------------------------------------------------------------------%
@@ -181,6 +231,27 @@ keyword(Keyword, Src, !PS) :-
     keyword_string(Keyword, Str),
     parsing_utils.keyword(identifier_chars, Str, Src, _, !PS).
 
+%--------------------------------------------------------------------%
+
+:- type at_rule
+    --->    at_offset
+    ;	    at_root.
+
+:- pred at_rule_string(at_rule, string).
+:- mode at_rule_string(in, out) is det.
+
+at_rule_string(at_offset, "offset").
+at_rule_string(at_root, "root").
+
+:- pred at_rule(at_rule::in, src::in, ps::in, ps::out) is semidet.
+
+at_rule(AtRule, Src, !PS) :-
+    at_rule_string(AtRule, Str),
+    next_char(Src, '@', !PS),
+    parsing_utils.keyword(identifier_chars, Str, Src, _, !PS).
+
+%--------------------------------------------------------------------%
+
 :- pred identifier(src::in, string::out, ps::in, ps::out) is semidet.
 
 identifier(Src, Ident, !PS) :-
@@ -196,6 +267,34 @@ identifier_chars_init =
 
 identifier_chars =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789".
+
+%--------------------------------------------------------------------%
+
+:- pred hex_literal(src::in, int::out, ps::in, ps::out) is semidet.
+
+hex_literal(Src, N, !PS) :-
+    next_char(Src, '0', !PS),
+    next_char(Src, 'x', !PS),
+    hex_digit(Src, N0, !PS),
+    hex_digits(N0, Src, N, !PS).
+
+:- pred hex_digit(src::in, int::out, ps::in, ps::out) is semidet.
+
+hex_digit(Src, N, !PS) :-
+    next_char(Src, C, !PS),
+    char.digit_to_int(C, N),
+    N < 16.
+
+:- pred hex_digits(int::in, src::in, int::out, ps::in, ps::out) is semidet.
+
+hex_digits(N0, Src, N, !PS) :-
+    ( if hex_digit(Src, N1, !PS) then
+	hex_digits(N0 * 16 + N1, Src, N, !PS)
+    else
+	N = N0
+    ).
+
+%--------------------------------------------------------------------%
 
 :- pred skip_ws_comments(src::in, unit::out, ps::in, ps::out) is semidet.
 

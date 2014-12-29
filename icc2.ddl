@@ -11,7 +11,7 @@ ICC: struct {
 	num_tags: uint32,
 	tag_array: struct[num_tags] {
 	    tag_signature: byte[4],
-	    tag_offset: uint32 @offset(ICC) => Tag(tag_signature) & byte[length],
+	    tag_offset: uint32 @offset(ICC) => Tag, // FIXME byte[length]
 	    tag_length: uint32 // does not include padding
 	}
     }
@@ -39,7 +39,7 @@ Header: struct {
     creation_date_time: byte[12],
     profile_file_signature: byte[4] = 'acsp',
     primary_platform_signature: byte[4] =
-	'APPL' | 'MSFT' | 'SGI ' | 'SUNW' | 'TGNT' | 0 | *,
+	'APPL' | 'MSFT' | 'SGI ' | 'SUNW' | 'TGNT' | 0,
     cmm_flags: byte[4], // bitfield
     device_manufacturer: byte[4],
     device_model: byte[4],
