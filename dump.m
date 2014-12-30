@@ -18,39 +18,47 @@
 
 :- import_module list, int, char, maybe, pair.
 
+:- type ditem
+    --->    ditem(
+		ditem_name :: string,
+		ditem_value :: ditem_value
+	    ).
+
+:- type ditem_value
+    --->    choice(ditem)
+    ;	    fields(list(ditem))
+    ;	    array(list(ditem_value))
+    ;	    word(int).
+
+%--------------------------------------------------------------------%
+
 dump_root(DDL, Bytes, Def, !IO) :-
-    dump_def(DDL, Bytes, 0, Def, 0, _Offset, [], !IO).
+    dump_def(DDL, Bytes, Def, Item, 0, _Offset, []),
+    write_item(0, Item, !IO).
 
-:- pred dump_def(ddl::in, bytes::in, int::in, ddl_def::in, int::in, int::out, context::in, io::di, io::uo) is det.
+:- pred dump_def(ddl::in, bytes::in, ddl_def::in, ditem::out, int::in, int::out, context::in) is det.
 
-dump_def(DDL, Bytes, Indent, Def, !Offset, Context0, !IO) :-
+dump_def(DDL, Bytes, Def, Item, !Offset, Context0) :-
     (
 	Def = def_union(Union),
-	dump_union(DDL, Bytes, Indent, Union, !Offset, Context0, !IO)
+	dump_union_options(DDL, Bytes, Union ^ union_options, Item0, !Offset, Context0),
+	Item = ditem(Union ^ union_name, choice(Item0))
     ;
 	Def = def_struct(Struct),
-	dump_struct(DDL, Bytes, Indent, Struct, !Offset, Context0, !IO)
+	dump_struct_fields(DDL, Bytes, Struct ^ struct_fields, Fields, !Offset, Context0),
+	Item = ditem(Struct ^ struct_name, fields(Fields))
     ).
 
-:- pred dump_union(ddl::in, bytes::in, int::in, union_def::in, int::in, int::out, context::in, io::di, io::uo) is det.
+:- pred dump_union_options(ddl::in, bytes::in, list(string)::in, ditem::out, int::in, int::out, context::in) is det.
 
-dump_union(DDL, Bytes, Indent, Union, !Offset, Context0, !IO) :-
-    write_indent(Indent, !IO),
-    write_string(Union ^ union_name, !IO),
-    write_string(" {\n", !IO),
-    dump_union_options(DDL, Bytes, Indent+1, Union ^ union_options, !Offset, Context0, !IO),
-    write_indent(Indent, !IO),
-    write_string("}\n", !IO).
-
-:- pred dump_union_options(ddl::in, bytes::in, int::in, list(string)::in, int::in, int::out, context::in, io::di, io::uo) is det.
-
-dump_union_options(_DDL, _Bytes, _Indent, [], !Offset, _Context0, !IO).
-dump_union_options(DDL, Bytes, Indent, [Option|Options], !Offset, Context0, !IO) :-
+% FIXME
+dump_union_options(_DDL, _Bytes, [], ditem("HELP", fields([])), !Offset, _Context0).
+dump_union_options(DDL, Bytes, [Option|Options], Item, !Offset, Context0) :-
     Def = ddl_resolve(DDL, Option),
     ( if match_def(DDL, Bytes, Def, !.Offset, Context0) then
-	dump_def(DDL, Bytes, Indent, Def, !Offset, Context0, !IO)
+	dump_def(DDL, Bytes, Def, Item, !Offset, Context0)
     else
-	dump_union_options(DDL, Bytes, Indent, Options, !Offset, Context0, !IO)
+	dump_union_options(DDL, Bytes, Options, Item, !Offset, Context0)
     ).
 
 :- pred match_def(ddl::in, bytes::in, ddl_def::in, int::in, context::in) is semidet.
@@ -121,41 +129,28 @@ match_word(Bytes, WordType, Value, Offset) :-
 	Word = (((((B1 << 8) \/ B2) << 8) \/ B3) << 8) \/ B4
     ).
 
-:- pred dump_struct(ddl::in, bytes::in, int::in, struct_def::in, int::in, int::out, context::in, io::di, io::uo) is det.
+:- pred dump_struct_fields(ddl::in, bytes::in, list(field_def)::in, list(ditem)::out, int::in, int::out, context::in) is det.
 
-dump_struct(DDL, Bytes, Indent, Struct, !Offset, Context0, !IO) :-
-    write_indent(Indent, !IO),
-    write_string(Struct ^ struct_name, !IO),
-    write_string(" {\n", !IO),
-    dump_struct_fields(DDL, Bytes, Indent+1, Struct ^ struct_fields, !Offset, Context0, !IO),
-    write_indent(Indent, !IO),
-    write_string("}\n", !IO).
+dump_struct_fields(_DDL, _Bytes, [], [], !Offset, _Context).
+dump_struct_fields(DDL, Bytes, [Field|Fields], [Item|Items], !Offset, Context0) :-
+    dump_field(DDL, Bytes, Field, Item, !Offset, Context0, Context),
+    dump_struct_fields(DDL, Bytes, Fields, Items, !Offset, Context).
 
-:- pred dump_struct_fields(ddl::in, bytes::in, int::in, list(field_def)::in, int::in, int::out, context::in, io::di, io::uo) is det.
+:- pred dump_field(ddl::in, bytes::in, field_def::in, ditem::out, int::in, int::out, context::in, context::out) is det.
 
-dump_struct_fields(_DDL, _Bytes, _Indent, [], !Offset, _Context, !IO).
-dump_struct_fields(DDL, Bytes, Indent, [Field|Fields], !Offset, Context0, !IO) :-
-    dump_field(DDL, Bytes, Indent, Field, !Offset, Context0, Context, !IO),
-    dump_struct_fields(DDL, Bytes, Indent, Fields, !Offset, Context, !IO).
-
-:- pred dump_field(ddl::in, bytes::in, int::in, field_def::in, int::in, int::out, context::in, context::out, io::di, io::uo) is det.
-
-dump_field(DDL, Bytes, Indent, Field, !Offset, !Context, !IO) :-
-    write_indent(Indent, !IO),
-    write_string(Field ^ field_name, !IO),
-    write_string(" = ", !IO),
-    dump_field_value(DDL, Bytes, Indent, yes(Field ^ field_name), Field ^ field_type, !.Offset, Size, !Context, !IO),
+dump_field(DDL, Bytes, Field, Item, !Offset, !Context) :-
+    dump_field_value(DDL, Bytes, yes(Field ^ field_name), Field ^ field_type, Value, !.Offset, Size, !Context),
     !:Offset = !.Offset + Size,
-    write_string(",\n", !IO).
+    Item = ditem(Field ^ field_name, Value).
 
-:- pred dump_field_value(ddl::in, bytes::in, int::in, maybe(string)::in, field_type::in, int::in, int::out, context::in, context::out, io::di, io::uo) is det.
+:- pred dump_field_value(ddl::in, bytes::in, maybe(string)::in, field_type::in, ditem_value::out, int::in, int::out, context::in, context::out) is det.
 
-dump_field_value(DDL, Bytes, Indent, MaybeName, Type, Offset, Size, !Context, !IO) :-
+dump_field_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context) :-
     (
 	Type = field_type_word(WordType, _WordValues),
 	Size = word_type_size(WordType),
 	Word = get_byte_range_as_uint(Bytes, Offset, Size, 0),
-	write_int(Word, !IO),
+	Value = word(Word),
 	( if MaybeName = yes(Name) then
 	    !:Context = [Name-Word|!.Context]
 	else
@@ -170,46 +165,39 @@ dump_field_value(DDL, Bytes, Indent, MaybeName, Type, Offset, Size, !Context, !I
 	    Length = context_resolve(!.Context, Name)
 	),
 	FieldSize = field_type_size(DDL, !.Context, Type0),
-	write_string("[", !IO),
-	dump_array(DDL, Bytes, Indent, Length, Type0, 0, Offset, FieldSize, !Context, !IO),
-	write_string("]", !IO),
+	dump_array(DDL, Bytes, Length, Type0, 0, Offset, FieldSize, Values, !Context),
+	Value = array(Values),
 	Size = Length * FieldSize
     ;
 	Type = field_type_struct(Fields0),
-	write_string("{\n", !IO),
-	dump_struct_fields(DDL, Bytes, Indent+1, Fields0, Offset, NextOffset, [], !IO),
-	Size = NextOffset - Offset,
-	write_indent(Indent, !IO),
-	write_string("}", !IO)
+	dump_struct_fields(DDL, Bytes, Fields0, Fields, Offset, NextOffset, []),
+	Value = fields(Fields),
+	Size = NextOffset - Offset
     ;
 	Type = field_type_union(_Options),
+	Value = fields([]), % FIXME
 	Size = 0
-	% FIXME
     ;
 	Type = field_type_ref(Name),
 	Def = ddl_resolve(DDL, Name),
 	(
 	    Def = def_struct(Struct),
-	    dump_field_value(DDL, Bytes, Indent, MaybeName, field_type_struct(Struct ^ struct_fields), Offset, Size, !Context, !IO)
+	    dump_field_value(DDL, Bytes, MaybeName, field_type_struct(Struct ^ struct_fields), Value, Offset, Size, !Context)
 	;
 	    Def = def_union(Union),
-	    dump_field_value(DDL, Bytes, Indent, MaybeName, field_type_union(Union ^ union_options), Offset, Size, !Context, !IO)
+	    dump_field_value(DDL, Bytes, MaybeName, field_type_union(Union ^ union_options), Value, Offset, Size, !Context)
 	)
     ).
 
-:- pred dump_array(ddl::in, bytes::in, int::in, int::in, field_type::in, int::in, int::in, int::in, context::in, context::out, io::di, io::uo) is det.
+:- pred dump_array(ddl::in, bytes::in, int::in, field_type::in, int::in, int::in, int::in, list(ditem_value)::out, context::in, context::out) is det.
 
-dump_array(DDL, Bytes, Indent, Length, Type, Index, Offset, Size, !Context, !IO) :-
+dump_array(DDL, Bytes, Length, Type, Index, Offset, Size, Values, !Context) :-
     ( if Index < Length then
-	dump_field_value(DDL, Bytes, Indent, no, Type, Offset + Index*Size, _Size0, !Context, !IO),
-	( if Index < Length - 1 then
-	    write_string(",", !IO),
-	    dump_array(DDL, Bytes, Indent, Length, Type, Index+1, Offset, Size, !Context, !IO)
-	else
-	    true
-	)
+	dump_field_value(DDL, Bytes, no, Type, Value, Offset + Index*Size, _Size0, !Context),
+	dump_array(DDL, Bytes, Length, Type, Index+1, Offset, Size, Values0, !Context),
+	Values = [Value|Values0]
     else
-	true
+	Values = []
     ).
 
 /*
@@ -279,12 +267,59 @@ get_byte_range(Bytes, Offset, Length) = Bs :-
 
 %--------------------------------------------------------------------%
 
+:- pred write_item(int::in, ditem::in, io::di, io::uo) is det.
+
+write_item(Tab, Item, !IO) :-
+    write_indent(Tab, !IO),
+    write_string(Item ^ ditem_name, !IO),
+    write_string(" = ", !IO),
+    write_item_value(Tab, Item ^ ditem_value, !IO),
+    nl(!IO).
+
+:- pred write_item_value(int::in, ditem_value::in, io::di, io::uo) is det.
+
+write_item_value(Tab, Value, !IO) :-
+    (
+	Value = choice(Item),
+	write_string("{\n", !IO),
+	write_item(Tab+1, Item, !IO),
+	write_string("\n", !IO),
+	write_indent(Tab, !IO),
+	write_string("}", !IO)
+    ;
+	Value = fields(Items),
+	write_string("{\n", !IO),
+	foldl(write_item(Tab+1), Items, !IO),
+	write_indent(Tab, !IO),
+	write_string("}", !IO)
+    ;
+	Value = array(Values),
+	write_string("[", !IO),
+	write_array(Tab+1, Values, !IO),
+	write_string("]", !IO)
+    ;
+	Value = word(N),
+	write_int(N, !IO)
+    ).
+
+:- pred write_array(int::in, list(ditem_value)::in, io::di, io::uo) is det.
+
+write_array(_Tab, [], !IO).
+write_array(Tab, [Value|Values], !IO) :-
+    write_item_value(Tab, Value, !IO),
+    ( if Values = [] then
+	true
+    else
+	write_string(", ", !IO),
+	write_array(Tab, Values, !IO)
+    ).
+
 :- pred write_indent(int::in, io::di, io::uo) is det.
 
-write_indent(Indent, !IO) :-
-    ( if Indent > 0 then
+write_indent(Tab, !IO) :-
+    ( if Tab > 0 then
 	write_string("    ", !IO),
-	write_indent(Indent-1, !IO)
+	write_indent(Tab-1, !IO)
     else
 	true
     ).
