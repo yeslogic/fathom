@@ -73,27 +73,27 @@
     ;	    offset_base_root
     ;	    offset_base_named(string).
 
-:- type context == assoc_list(string, int).
+:- type scope == assoc_list(string, int).
 
 :- func word_type_size(word_type) = int.
 
 :- pred ddl_def_fixed_size(ddl::in, ddl_def::in, int::out) is semidet.
 
-:- func ddl_def_size(ddl, context, ddl_def) = int.
+:- func ddl_def_size(ddl, scope, ddl_def) = int.
 
 :- pred union_options_fixed_size(ddl::in, list(string)::in, int::out) is semidet.
 
-:- func union_options_size(ddl, context, list(string)) = int.
+:- func union_options_size(ddl, scope, list(string)) = int.
 
 :- pred struct_fields_fixed_size(ddl::in, list(field_def)::in, int::out) is semidet.
 
-:- func struct_fields_size(ddl, context, list(field_def)) = int.
+:- func struct_fields_size(ddl, scope, list(field_def)) = int.
 
 :- pred field_type_fixed_size(ddl::in, field_type::in, int::out) is semidet.
 
-:- func field_type_size(ddl, context, field_type) = int.
+:- func field_type_size(ddl, scope, field_type) = int.
 
-:- func context_resolve(context, string) = int.
+:- func scope_resolve(scope, string) = int.
 
 :- func ddl_resolve(ddl, string) = ddl_def.
 
@@ -119,13 +119,13 @@ ddl_def_fixed_size(DDL, Def, Size) :-
 	struct_fields_fixed_size(DDL, Struct ^ struct_fields, Size)
     ).
 
-ddl_def_size(DDL, Context, Def) = Size :-
+ddl_def_size(DDL, Scope, Def) = Size :-
     (
 	Def = def_union(Union),
-	Size = union_options_size(DDL, Context, Union ^ union_options)
+	Size = union_options_size(DDL, Scope, Union ^ union_options)
     ;
 	Def = def_struct(Struct),
-	Size = struct_fields_size(DDL, Context, Struct ^ struct_fields)
+	Size = struct_fields_size(DDL, Scope, Struct ^ struct_fields)
     ).
 
 union_options_fixed_size(DDL, Opts, Size) :-
@@ -134,7 +134,7 @@ union_options_fixed_size(DDL, Opts, Size) :-
     Sizes = [Size|_],
     all [X] ( member(X, Sizes), X = Size ).
 
-union_options_size(_DDL, _Context, _Opts) = _Size :-
+union_options_size(_DDL, _Scope, _Opts) = _Size :-
     abort("uh oh!").
 
 struct_fields_fixed_size(_DDL, [], 0).
@@ -143,10 +143,10 @@ struct_fields_fixed_size(DDL, [F|Fs], Size) :-
     struct_fields_fixed_size(DDL, Fs, Size1),
     Size = Size0 + Size1.
 
-struct_fields_size(_DDL, _Context, []) = 0.
-struct_fields_size(DDL, Context, [F|Fs]) = Size :-
-    Size0 = field_type_size(DDL, Context, F ^ field_type),
-    Size1 = struct_fields_size(DDL, Context, Fs),
+struct_fields_size(_DDL, _Scope, []) = 0.
+struct_fields_size(DDL, Scope, [F|Fs]) = Size :-
+    Size0 = field_type_size(DDL, Scope, F ^ field_type),
+    Size1 = struct_fields_size(DDL, Scope, Fs),
     Size = Size0 + Size1.
 
 field_type_fixed_size(DDL, FieldType, Size) :-
@@ -177,7 +177,7 @@ field_type_fixed_size(DDL, FieldType, Size) :-
 	ddl_def_fixed_size(DDL, Def, Size)
     ).
 
-field_type_size(DDL, Context, FieldType) = Size :-
+field_type_size(DDL, Scope, FieldType) = Size :-
     (
 	FieldType = field_type_word(Word, _Values),
 	Size = word_type_size(Word)
@@ -187,26 +187,26 @@ field_type_size(DDL, Context, FieldType) = Size :-
 	    ArraySize = array_size_fixed(Length)
 	;
 	    ArraySize = array_size_variable(Name),
-	    Length = context_resolve(Context, Name)
+	    Length = scope_resolve(Scope, Name)
 	),
-	Size = Length * field_type_size(DDL, Context, Type)
+	Size = Length * field_type_size(DDL, Scope, Type)
     ;
 	FieldType = field_type_struct(Fields),
-	Size = struct_fields_size(DDL, Context, Fields)
+	Size = struct_fields_size(DDL, Scope, Fields)
     ;
 	FieldType = field_type_union(Options),
-	Size = union_options_size(DDL, Context, Options)
+	Size = union_options_size(DDL, Scope, Options)
     ;
 	FieldType = field_type_ref(Name),
 	Def = ddl_resolve(DDL, Name),
-	Size = ddl_def_size(DDL, Context, Def)
+	Size = ddl_def_size(DDL, Scope, Def)
     ).
 
-context_resolve(Context, Name) = Value :-
-    ( if search(Context, Name, Value0) then
+scope_resolve(Scope, Name) = Value :-
+    ( if search(Scope, Name, Value0) then
 	Value = Value0
     else
-	abort("context missing: "++Name)
+	abort("scope missing: "++Name)
     ).
 
 ddl_resolve(DDL, Name) = Def :-
