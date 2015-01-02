@@ -36,7 +36,8 @@
     ;	    field_type_array(array_size, field_type)
     ;	    field_type_struct(list(field_def))
     ;	    field_type_union(list(string))
-    ;	    field_type_ref(string).
+    ;	    field_type_named(string)
+    ;	    field_type_tag_magic(string).
 
 :- type array_size
     --->    array_size_fixed(int)
@@ -65,7 +66,7 @@
 :- type offset
     --->    offset(
 		offset_base :: offset_base,
-		offset_type :: string
+		offset_type :: field_type
 	    ).
 
 :- type offset_base
@@ -93,9 +94,13 @@
 
 :- func field_type_size(ddl, scope, field_type) = int.
 
+:- func tag_num_to_string(int) = string.
+
 :- func scope_resolve(scope, string) = int.
 
-:- func ddl_resolve(ddl, string) = ddl_def.
+:- pred ddl_search(ddl::in, string::in, ddl_def::out) is semidet.
+
+:- func ddl_lookup_det(ddl, string) = ddl_def.
 
 %--------------------------------------------------------------------%
 
@@ -129,7 +134,7 @@ ddl_def_size(DDL, Scope, Def) = Size :-
     ).
 
 union_options_fixed_size(DDL, Opts, Size) :-
-    Defs = map(ddl_resolve(DDL), Opts),
+    Defs = map(ddl_lookup_det(DDL), Opts),
     map(ddl_def_fixed_size(DDL), Defs, Sizes),
     Sizes = [Size|_],
     all [X] ( member(X, Sizes), X = Size ).
@@ -172,9 +177,12 @@ field_type_fixed_size(DDL, FieldType, Size) :-
 	FieldType = field_type_union(Options),
 	union_options_fixed_size(DDL, Options, Size)
     ;
-	FieldType = field_type_ref(Name),
-	Def = ddl_resolve(DDL, Name),
+	FieldType = field_type_named(Name),
+	Def = ddl_lookup_det(DDL, Name),
 	ddl_def_fixed_size(DDL, Def, Size)
+    ;
+	FieldType = field_type_tag_magic(_Name),
+	fail
     ).
 
 field_type_size(DDL, Scope, FieldType) = Size :-
@@ -197,9 +205,31 @@ field_type_size(DDL, Scope, FieldType) = Size :-
 	FieldType = field_type_union(Options),
 	Size = union_options_size(DDL, Scope, Options)
     ;
-	FieldType = field_type_ref(Name),
-	Def = ddl_resolve(DDL, Name),
+	FieldType = field_type_named(Name),
+	Def = ddl_lookup_det(DDL, Name),
 	Size = ddl_def_size(DDL, Scope, Def)
+    ;
+	FieldType = field_type_tag_magic(Name),
+	TagNum = scope_resolve(Scope, Name),
+	TagStr = tag_num_to_string(TagNum),
+	Def = ddl_lookup_det(DDL, TagStr),
+	Size = ddl_def_size(DDL, Scope, Def)
+    ).
+
+tag_num_to_string(N) = Tag :-
+    B0 = (N >> 24) /\ 0xFF,
+    B1 = (N >> 16) /\ 0xFF,
+    B2 = (N >> 8) /\ 0xFF,
+    B3 = N /\ 0xFF,
+    ( if
+	char.from_int(B0, C0),
+	char.from_int(B1, C1),
+	char.from_int(B2, C2),
+	char.from_int(B3, C3)
+    then
+	Tag = string.from_char_list([C0,C1,C2,C3])
+    else
+	abort("not a tag: "++int_to_string(N))
     ).
 
 scope_resolve(Scope, Name) = Value :-
@@ -209,11 +239,14 @@ scope_resolve(Scope, Name) = Value :-
 	abort("scope missing: "++Name)
     ).
 
-ddl_resolve(DDL, Name) = Def :-
+ddl_search(DDL, Name, Def) :-
+    search(DDL, Name, Def).
+
+ddl_lookup_det(DDL, Name) = Def :-
     ( if search(DDL, Name, Def0) then
 	Def = Def0
     else
-	abort("unknown type ref: "++Name)
+	abort("unknown type: "++Name)
     ).
 
 %--------------------------------------------------------------------%

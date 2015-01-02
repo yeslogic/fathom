@@ -81,7 +81,7 @@ parse_field_type(Src, Type, !PS) :-
 	    Type = field_type_array(ArraySize, Type0)
 	)
     else if identifier(Src, Ident, !PS) then
-	Type0 = field_type_ref(Ident),
+	Type0 = field_type_named(Ident),
 	( if punct("[", Src, _, !PS) then
 	    parse_array_size(Src, ArraySize, !PS),
 	    punct("]", Src, _, !PS),
@@ -177,7 +177,15 @@ parse_word_interp(Src, Interp, !PS) :-
     ),
     punct("=>", Src, _, !PS),
     identifier(Src, Ident, !PS),
-    Interp = word_interp_offset(offset(Base, Ident)).
+    ( if Ident = "tag_magic" then
+	punct("(", Src, _, !PS),
+	identifier(Src, TagName, !PS),
+	punct(")", Src, _, !PS),
+	Type = field_type_tag_magic(TagName)
+    else
+	Type = field_type_named(Ident)
+    ),
+    Interp = word_interp_offset(offset(Base, Type)).
 
 :- pred parse_offset_base(src::in, offset_base::out, ps::in, ps::out) is semidet.
 

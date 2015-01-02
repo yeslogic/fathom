@@ -89,7 +89,7 @@ dump_def(DDL, Bytes, Def, Item, !Offset, Context0, !Refs) :-
 % FIXME
 dump_union_options(_DDL, _Bytes, [], ditem("HELP", fields([])), !Offset, _Context0, !Refs).
 dump_union_options(DDL, Bytes, [Option|Options], Item, !Offset, Context0, !Refs) :-
-    Def = ddl_resolve(DDL, Option),
+    Def = ddl_lookup_det(DDL, Option),
     ( if match_def(DDL, Bytes, Def, !.Offset, Context0) then
 	dump_def(DDL, Bytes, Def, Item, !Offset, Context0, !Refs)
     else
@@ -110,7 +110,7 @@ match_def(DDL, Bytes, Def, Offset, Context) :-
 :- pred match_union_options(ddl::in, bytes::in, list(string)::in, int::in, context::in) is semidet.
 
 match_union_options(DDL, Bytes, Options, Offset, Context) :-
-    member(Def0, map(ddl_resolve(DDL), Options)),
+    member(Def0, map(ddl_lookup_det(DDL), Options)),
     match_def(DDL, Bytes, Def0, Offset, Context).
 
 :- pred match_struct_fields(ddl::in, bytes::in, list(field_def)::in, int::in, context::in) is semidet.
@@ -142,8 +142,14 @@ match_field(DDL, Bytes, Field, Offset, Context) :-
 	Type = field_type_union(Options),
 	match_union_options(DDL, Bytes, Options, Offset, Context)
     ;
-	Type = field_type_ref(Name),
-	Def = ddl_resolve(DDL, Name),
+	Type = field_type_named(Name),
+	Def = ddl_lookup_det(DDL, Name),
+	match_def(DDL, Bytes, Def, Offset, Context)
+    ;
+	Type = field_type_tag_magic(Name),
+	TagNum = scope_resolve(Context ^ context_scope, Name),
+	TagStr = tag_num_to_string(TagNum),
+	Def = ddl_lookup_det(DDL, TagStr),
 	match_def(DDL, Bytes, Def, Offset, Context)
     ).
 
@@ -205,8 +211,20 @@ dump_field_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Re
 	Value = fields([]), % FIXME
 	Size = 0
     ;
-	Type = field_type_ref(Name),
-	Def = ddl_resolve(DDL, Name),
+	Type = field_type_named(Name),
+	Def = ddl_lookup_det(DDL, Name),
+	(
+	    Def = def_struct(Struct),
+	    dump_field_value(DDL, Bytes, MaybeName, field_type_struct(Struct ^ struct_fields), Value, Offset, Size, !Context, !Refs)
+	;
+	    Def = def_union(Union),
+	    dump_field_value(DDL, Bytes, MaybeName, field_type_union(Union ^ union_options), Value, Offset, Size, !Context, !Refs)
+	)
+    ;
+	Type = field_type_tag_magic(Name),
+	TagNum = scope_resolve(!.Context ^ context_scope, Name),
+	TagStr = tag_num_to_string(TagNum),
+	Def = ddl_lookup_det(DDL, TagStr),
 	(
 	    Def = def_struct(Struct),
 	    dump_field_value(DDL, Bytes, MaybeName, field_type_struct(Struct ^ struct_fields), Value, Offset, Size, !Context, !Refs)
@@ -234,9 +252,7 @@ update_refs(DDL, Context, Word, WordValues, !Refs) :-
 	WordValues ^ word_values_enum = [],
 	( if WordValues ^ word_values_any = yes(Interp) then
 	    ( if Interp = word_interp_offset(Offset) then
-		NewOffset = calc_offset(Context, Offset, Word),
-		Def = ddl_resolve(DDL, Offset ^ offset_type),
-		!:Refs = [NewOffset - {Context,Def}|!.Refs]
+		make_ref_from_offset(DDL, Context, Offset, Word, !Refs)
 	    else
 		true
 	    )
@@ -247,15 +263,44 @@ update_refs(DDL, Context, Word, WordValues, !Refs) :-
 	WordValues ^ word_values_enum = [V-Interp|Vs],
 	( if match_word_value(Word, V) then
 	    ( if Interp = word_interp_offset(Offset) then
-		NewOffset = calc_offset(Context, Offset, Word),
-		Def = ddl_resolve(DDL, Offset ^ offset_type),
-		!:Refs = [NewOffset - {Context,Def}|!.Refs]
+		make_ref_from_offset(DDL, Context, Offset, Word, !Refs)
 	    else
 		true
 	    )
 	else
 	    WordValues0 = WordValues ^ word_values_enum := Vs,
 	    update_refs(DDL, Context, Word, WordValues0, !Refs)
+	)
+    ).
+
+:- pred make_ref_from_offset(ddl::in, context::in, offset::in, int::in, refs::in, refs::out) is det.
+
+make_ref_from_offset(DDL, Context, Offset, Word, !Refs) :-
+    NewOffset = calc_offset(Context, Offset, Word),
+    (
+	Offset ^ offset_type = field_type_word(_, _),
+	abort("unhandled field type")
+    ;
+	Offset ^ offset_type = field_type_array(_, _),
+	abort("unhandled field type")
+    ;
+	Offset ^ offset_type = field_type_struct(_),
+	abort("unhandled field type")
+    ;
+	Offset ^ offset_type = field_type_union(_),
+	abort("unhandled field type")
+    ;
+	Offset ^ offset_type = field_type_named(Name),
+	Def = ddl_lookup_det(DDL, Name),
+	!:Refs = [NewOffset - {Context,Def}|!.Refs]
+    ;
+	Offset ^ offset_type = field_type_tag_magic(Name),
+	TagNum = scope_resolve(Context ^ context_scope, Name),
+	TagStr = tag_num_to_string(TagNum),
+	( if ddl_search(DDL, TagStr, Def) then
+	    !:Refs = [NewOffset - {Context,Def}|!.Refs]
+	else
+	    trace [io(!IO)] ( write_string("failed type lookup for tag: "++TagStr++"\n", !IO) )
 	)
     ).
 
