@@ -156,9 +156,9 @@ parse_word_value(Src, Value-Interp, !PS) :-
 	next_char(Src, C3, !PS),
 	next_char(Src, C4, !PS),
 	next_char(Src, '\'', !PS),
-	skip_ws_comments(Src, _, !PS),
 	Value = word_value_tag(C1, C2, C3, C4)
     ),
+    skip_ws_comments(Src, _, !PS),
     ( if parse_word_interp(Src, Interp0, !PS) then
 	Interp = Interp0
     else
