@@ -26,7 +26,7 @@
 	    ).
 
 :- type ditem_value
-    --->    choice(ditem)
+    --->    item(ditem)
     ;	    fields(list(ditem))
     ;	    array(list(ditem_value))
     ;	    word(int).
@@ -38,7 +38,7 @@
 		context_scope :: assoc_list(string, int)
 	    ).
 
-:- type refs == assoc_list(int, {context, ddl_def}).
+:- type refs == assoc_list(int, {context, ddl_def, list(string)}).
 
 :- type dump == assoc_list({int, ddl_def}, ditem).
 
@@ -46,7 +46,7 @@
 
 dump_root(DDL, Bytes, Def, !IO) :-
     Context = context(0, [], []),
-    Refs = [0-{Context,Def}],
+    Refs = [0-{Context,Def,[]}],
     dump(DDL, Bytes, Refs, [], Dump),
     foldl(write_dump, sort(Dump), !IO).
 
@@ -57,29 +57,28 @@ dump(DDL, Bytes, Refs, Dump0, Dump) :-
 	Refs = [],
 	Dump = Dump0
     ;
-	Refs = [Offset - {Context, Def}|Refs0],
+	Refs = [Offset - {Context, Def, Args}|Refs0],
 	( if search(Dump0, {Offset, Def}, _Item) then
 	    dump(DDL, Bytes, Refs0, Dump0, Dump)
 	else
-	    dump_def(DDL, Bytes, Def, Item, Offset, _EndOffset, Context, Refs0, Refs1),
+	    dump_def(DDL, Bytes, Def, Args, Item, Offset, _EndOffset, Context, Refs0, Refs1),
 	    dump(DDL, Bytes, Refs1, [{Offset, Def}-Item|Dump0], Dump)
 	)
     ).
 
-:- pred dump_def(ddl::in, bytes::in, ddl_def::in, ditem::out, int::in, int::out, context::in, refs::in, refs::out) is det.
+:- pred dump_def(ddl::in, bytes::in, ddl_def::in, list(string)::in, ditem::out, int::in, int::out, context::in, refs::in, refs::out) is det.
 
-dump_def(DDL, Bytes, Def, Item, !Offset, Context0, !Refs) :-
+dump_def(DDL, Bytes, Def, Args0, Item, !Offset, Context0, !Refs) :-
+    Name = Def ^ def_name,
+    Args = map(scope_resolve(Context0 ^ context_scope), Args0),
+    Context = context_nested(Context0, Name, !.Offset),
     (
-	Def = def_union(Union),
-	Name = Union ^ union_name,
-	Context = context_nested(Context0, Name, !.Offset),
-	dump_union_options(DDL, Bytes, Union ^ union_options, Item0, !Offset, Context, !Refs),
-	Value = choice(Item0)
+	Def ^ def_body = def_union(Options),
+	dump_union_options(DDL, Bytes, Options, Item0, !Offset, Context, !Refs),
+	Value = item(Item0)
     ;
-	Def = def_struct(Struct),
-	Name = Struct ^ struct_name,
-	Context = context_nested(Context0, Name, !.Offset),
-	dump_struct_fields(DDL, Bytes, Struct ^ struct_fields, Fields, !Offset, Context, !Refs),
+	Def ^ def_body = def_struct(Fields0),
+	dump_struct_fields(DDL, Bytes, Fields0, Fields, !Offset, Context, !Refs),
 	Value = fields(Fields)
     ),
     Item = ditem(Name, Value).
@@ -91,7 +90,7 @@ dump_union_options(_DDL, _Bytes, [], ditem("HELP", fields([])), !Offset, _Contex
 dump_union_options(DDL, Bytes, [Option|Options], Item, !Offset, Context0, !Refs) :-
     Def = ddl_lookup_det(DDL, Option),
     ( if match_def(DDL, Bytes, Def, !.Offset, Context0) then
-	dump_def(DDL, Bytes, Def, Item, !Offset, Context0, !Refs)
+	dump_def(DDL, Bytes, Def, [], Item, !Offset, Context0, !Refs)
     else
 	dump_union_options(DDL, Bytes, Options, Item, !Offset, Context0, !Refs)
     ).
@@ -100,11 +99,11 @@ dump_union_options(DDL, Bytes, [Option|Options], Item, !Offset, Context0, !Refs)
 
 match_def(DDL, Bytes, Def, Offset, Context) :-
     (
-	Def = def_union(Union),
-	match_union_options(DDL, Bytes, Union ^ union_options, Offset, Context)
+	Def ^ def_body = def_union(Options),
+	match_union_options(DDL, Bytes, Options, Offset, Context)
     ;
-	Def = def_struct(Struct),
-	match_struct_fields(DDL, Bytes, Struct ^ struct_fields, Offset, Context)
+	Def ^ def_body = def_struct(Fields),
+	match_struct_fields(DDL, Bytes, Fields, Offset, Context)
     ).
 
 :- pred match_union_options(ddl::in, bytes::in, list(string)::in, int::in, context::in) is semidet.
@@ -142,7 +141,7 @@ match_field(DDL, Bytes, Field, Offset, Context) :-
 	Type = field_type_union(Options),
 	match_union_options(DDL, Bytes, Options, Offset, Context)
     ;
-	Type = field_type_named(Name),
+	Type = field_type_named(Name, _Args0), % FIXME
 	Def = ddl_lookup_det(DDL, Name),
 	match_def(DDL, Bytes, Def, Offset, Context)
     ;
@@ -211,27 +210,19 @@ dump_field_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Re
 	Value = fields([]), % FIXME
 	Size = 0
     ;
-	Type = field_type_named(Name),
+	Type = field_type_named(Name, Args),
 	Def = ddl_lookup_det(DDL, Name),
-	(
-	    Def = def_struct(Struct),
-	    dump_field_value(DDL, Bytes, MaybeName, field_type_struct(Struct ^ struct_fields), Value, Offset, Size, !Context, !Refs)
-	;
-	    Def = def_union(Union),
-	    dump_field_value(DDL, Bytes, MaybeName, field_type_union(Union ^ union_options), Value, Offset, Size, !Context, !Refs)
-	)
+	dump_def(DDL, Bytes, Def, Args, Item, Offset, NewOffset, !.Context, !Refs),
+	Value = item(Item),
+	Size = NewOffset - Offset
     ;
 	Type = field_type_tag_magic(Name),
 	TagNum = scope_resolve(!.Context ^ context_scope, Name),
 	TagStr = tag_num_to_string(TagNum),
 	Def = ddl_lookup_det(DDL, TagStr),
-	(
-	    Def = def_struct(Struct),
-	    dump_field_value(DDL, Bytes, MaybeName, field_type_struct(Struct ^ struct_fields), Value, Offset, Size, !Context, !Refs)
-	;
-	    Def = def_union(Union),
-	    dump_field_value(DDL, Bytes, MaybeName, field_type_union(Union ^ union_options), Value, Offset, Size, !Context, !Refs)
-	)
+	dump_def(DDL, Bytes, Def, [], Item, Offset, NewOffset, !.Context, !Refs),
+	Value = item(Item),
+	Size = NewOffset - Offset
     ).
 
 :- pred dump_array(ddl::in, bytes::in, int::in, field_type::in, int::in, int::in, int::in, list(ditem_value)::out, context::in, context::out, refs::in, refs::out) is det.
@@ -290,15 +281,15 @@ make_ref_from_offset(DDL, Context, Offset, Word, !Refs) :-
 	Offset ^ offset_type = field_type_union(_),
 	abort("unhandled field type")
     ;
-	Offset ^ offset_type = field_type_named(Name),
+	Offset ^ offset_type = field_type_named(Name, Args),
 	Def = ddl_lookup_det(DDL, Name),
-	!:Refs = [NewOffset - {Context,Def}|!.Refs]
+	!:Refs = [NewOffset - {Context,Def,Args}|!.Refs]
     ;
 	Offset ^ offset_type = field_type_tag_magic(Name),
 	TagNum = scope_resolve(Context ^ context_scope, Name),
 	TagStr = tag_num_to_string(TagNum),
 	( if ddl_search(DDL, TagStr, Def) then
-	    !:Refs = [NewOffset - {Context,Def}|!.Refs]
+	    !:Refs = [NewOffset - {Context,Def,[]}|!.Refs]
 	else
 	    trace [io(!IO)] ( write_string("failed type lookup for tag: "++TagStr++"\n", !IO) )
 	)
@@ -394,7 +385,7 @@ write_item(Tab, Item, !IO) :-
 
 write_item_value(Tab, Value, !IO) :-
     (
-	Value = choice(Item),
+	Value = item(Item),
 	write_string("{\n", !IO),
 	write_item(Tab+1, Item, !IO),
 	write_string("\n", !IO),

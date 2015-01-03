@@ -10,20 +10,15 @@
 :- type ddl == assoc_list(string, ddl_def).
 
 :- type ddl_def
-    --->    def_union(union_def)
-    ;	    def_struct(struct_def).
-
-:- type union_def
-    --->    union_def(
-		union_name :: string,
-		union_options :: list(string)
+    --->    ddl_def(
+		def_name :: string,
+		def_args :: list(string),
+		def_body :: def_body
 	    ).
 
-:- type struct_def
-    --->    struct_def(
-		struct_name :: string,
-		struct_fields :: list(field_def)
-	    ).
+:- type def_body
+    --->    def_union(list(string))
+    ;	    def_struct(list(field_def)).
 
 :- type field_def
     --->    field_def(
@@ -36,7 +31,7 @@
     ;	    field_type_array(array_size, field_type)
     ;	    field_type_struct(list(field_def))
     ;	    field_type_union(list(string))
-    ;	    field_type_named(string)
+    ;	    field_type_named(string, list(string))
     ;	    field_type_tag_magic(string).
 
 :- type array_size
@@ -88,19 +83,11 @@
 
 :- func word_type_size(word_type) = int.
 
-:- pred ddl_def_fixed_size(ddl::in, ddl_def::in, int::out) is semidet.
-
-:- func ddl_def_size(ddl, scope, ddl_def) = int.
-
-:- pred union_options_fixed_size(ddl::in, list(string)::in, int::out) is semidet.
+:- func ddl_def_size(ddl, scope, ddl_def, list(int)) = int.
 
 :- func union_options_size(ddl, scope, list(string)) = int.
 
-:- pred struct_fields_fixed_size(ddl::in, list(field_def)::in, int::out) is semidet.
-
 :- func struct_fields_size(ddl, scope, list(field_def)) = int.
-
-:- pred field_type_fixed_size(ddl::in, field_type::in, int::out) is semidet.
 
 :- func field_type_size(ddl, scope, field_type) = int.
 
@@ -126,76 +113,23 @@ word_type_size(uint8) = 1.
 word_type_size(uint16) = 2.
 word_type_size(uint32) = 4.
 
-ddl_def_fixed_size(DDL, Def, Size) :-
-    require_complete_switch [Def]
+ddl_def_size(DDL, Scope, Def, _Args) = Size :-
     (
-	Def = def_union(Union),
-	union_options_fixed_size(DDL, Union ^ union_options, Size)
+	Def ^ def_body = def_union(Options),
+	Size = union_options_size(DDL, Scope, Options)
     ;
-	Def = def_struct(Struct),
-	struct_fields_fixed_size(DDL, Struct ^ struct_fields, Size)
+	Def ^ def_body = def_struct(Fields),
+	Size = struct_fields_size(DDL, Scope, Fields)
     ).
-
-ddl_def_size(DDL, Scope, Def) = Size :-
-    (
-	Def = def_union(Union),
-	Size = union_options_size(DDL, Scope, Union ^ union_options)
-    ;
-	Def = def_struct(Struct),
-	Size = struct_fields_size(DDL, Scope, Struct ^ struct_fields)
-    ).
-
-union_options_fixed_size(DDL, Opts, Size) :-
-    Defs = map(ddl_lookup_det(DDL), Opts),
-    map(ddl_def_fixed_size(DDL), Defs, Sizes),
-    Sizes = [Size|_],
-    all [X] ( member(X, Sizes), X = Size ).
 
 union_options_size(_DDL, _Scope, _Opts) = _Size :-
     abort("uh oh!").
-
-struct_fields_fixed_size(_DDL, [], 0).
-struct_fields_fixed_size(DDL, [F|Fs], Size) :-
-    field_type_fixed_size(DDL, F ^ field_type, Size0),
-    struct_fields_fixed_size(DDL, Fs, Size1),
-    Size = Size0 + Size1.
 
 struct_fields_size(_DDL, _Scope, []) = 0.
 struct_fields_size(DDL, Scope, [F|Fs]) = Size :-
     Size0 = field_type_size(DDL, Scope, F ^ field_type),
     Size1 = struct_fields_size(DDL, Scope, Fs),
     Size = Size0 + Size1.
-
-field_type_fixed_size(DDL, FieldType, Size) :-
-    require_complete_switch [FieldType]
-    (
-	FieldType = field_type_word(Word, _Values),
-	Size = word_type_size(Word)
-    ;
-	FieldType = field_type_array(ArraySize, Type),
-	require_complete_switch [ArraySize]
-	(
-	    ArraySize = array_size_fixed(Length),
-	    field_type_fixed_size(DDL, Type, Size0),
-	    Size = Length * Size0
-	;
-	    ArraySize = array_size_expr(_),
-	    fail
-	)
-    ;
-	FieldType = field_type_struct(Fields),
-	struct_fields_fixed_size(DDL, Fields, Size)
-    ;
-	FieldType = field_type_union(Options),
-	union_options_fixed_size(DDL, Options, Size)
-    ;
-	FieldType = field_type_named(Name),
-	Def = ddl_lookup_det(DDL, Name),
-	ddl_def_fixed_size(DDL, Def, Size)
-    ;
-	FieldType = field_type_tag_magic(_Name),
-	fail
-    ).
 
 field_type_size(DDL, Scope, FieldType) = Size :-
     (
@@ -217,15 +151,16 @@ field_type_size(DDL, Scope, FieldType) = Size :-
 	FieldType = field_type_union(Options),
 	Size = union_options_size(DDL, Scope, Options)
     ;
-	FieldType = field_type_named(Name),
+	FieldType = field_type_named(Name, Args0),
 	Def = ddl_lookup_det(DDL, Name),
-	Size = ddl_def_size(DDL, Scope, Def)
+	Args = map(scope_resolve(Scope), Args0),
+	Size = ddl_def_size(DDL, Scope, Def, Args)
     ;
 	FieldType = field_type_tag_magic(Name),
 	TagNum = scope_resolve(Scope, Name),
 	TagStr = tag_num_to_string(TagNum),
 	Def = ddl_lookup_det(DDL, TagStr),
-	Size = ddl_def_size(DDL, Scope, Def)
+	Size = ddl_def_size(DDL, Scope, Def, [])
     ).
 
 eval_expr(Scope, Expr) = Res :-

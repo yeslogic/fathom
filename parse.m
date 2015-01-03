@@ -34,21 +34,26 @@ parse_ddl(Src, Structs, !PS) :-
 parse_ddl_def(Src, Ident-Def, !PS) :-
     skip_ws_comments(Src, _, !PS),
     identifier(Src, Ident, !PS),
+    ( if punct("(", Src, _, !PS) then
+	parse_args(Src, Args, !PS),
+	punct(")", Src, _, !PS)
+    else
+	Args = []
+    ),
     punct(":", Src, _, !PS),
     ( if keyword(kw_struct, Src, !PS) then
 	punct("{", Src, _, !PS),
 	comma_separated_list(parse_field_def, Src, Fields, !PS),
 	punct("}", Src, _, !PS),
-	Struct = struct_def(Ident, Fields),
-	Def = def_struct(Struct)
+	Body = def_struct(Fields)
     else
 	keyword(kw_union, Src, !PS),
 	punct("{", Src, _, !PS),
 	comma_separated_list(identifier, Src, Options, !PS),
 	punct("}", Src, _, !PS),
-	Union = union_def(Ident, Options),
-	Def = def_union(Union)
-    ).
+	Body = def_union(Options)
+    ),
+    Def = ddl_def(Ident, Args, Body).
 
 :- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
 
@@ -81,7 +86,13 @@ parse_field_type(Src, Type, !PS) :-
 	    Type = field_type_array(ArraySize, Type0)
 	)
     else if identifier(Src, Ident, !PS) then
-	Type0 = field_type_named(Ident),
+	( if punct("(", Src, _, !PS) then
+	    parse_args(Src, Args, !PS),
+	    punct(")", Src, _, !PS),
+	    Type0 = field_type_named(Ident, Args)
+	else
+	    Type0 = field_type_named(Ident, [])
+	),
 	( if punct("[", Src, _, !PS) then
 	    parse_array_size(Src, ArraySize, !PS),
 	    punct("]", Src, _, !PS),
@@ -101,6 +112,17 @@ parse_field_type(Src, Type, !PS) :-
 	    parse_word_values(Src, WordValues, !PS),
 	    Type = field_type_word(WordType, WordValues)
 	)
+    ).
+
+:- pred parse_args(src::in, list(string)::out, ps::in, ps::out) is semidet.
+
+parse_args(Src, Args, !PS) :-
+    identifier(Src, Ident, !PS),
+    ( if punct(",", Src, _, !PS) then
+	parse_args(Src, Args0, !PS),
+	Args = [Ident|Args0]
+    else
+	Args = [Ident]
     ).
 
 :- pred parse_array_size(src::in, array_size::out, ps::in, ps::out) is semidet.
@@ -214,7 +236,13 @@ parse_word_interp(Src, Interp, !PS) :-
 	punct(")", Src, _, !PS),
 	Type = field_type_tag_magic(TagName)
     else
-	Type = field_type_named(Ident)
+	( if punct("(", Src, _, !PS) then
+	    parse_args(Src, Args, !PS),
+	    punct(")", Src, _, !PS),
+	    Type = field_type_named(Ident, Args)
+	else
+	    Type = field_type_named(Ident, [])
+	)
     ),
     Interp = word_interp_offset(offset(Base, Type)).
 
