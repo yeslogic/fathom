@@ -193,8 +193,8 @@ dump_field_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Re
 	(
 	    ArraySize = array_size_fixed(Length)
 	;
-	    ArraySize = array_size_variable(Name),
-	    Length = scope_resolve(!.Context ^ context_scope, Name)
+	    ArraySize = array_size_expr(Expr),
+	    Length = eval_expr(!.Context ^ context_scope, Expr)
 	),
 	FieldSize = field_type_size(DDL, !.Context ^ context_scope, Type0),
 	dump_array(DDL, Bytes, Length, Type0, 0, Offset, FieldSize, Values, !Context, !Refs),

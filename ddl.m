@@ -41,7 +41,17 @@
 
 :- type array_size
     --->    array_size_fixed(int)
-    ;	    array_size_variable(string).
+    ;	    array_size_expr(expr).
+
+:- type expr
+    --->    expr_field(string)
+    ;	    expr_const(int)
+    ;	    expr_op(expr_op, expr, expr).
+
+:- type expr_op
+    --->    expr_add
+    ;	    expr_sub
+    ;	    expr_mul.
 
 :- type word_values
     --->    word_values(
@@ -93,6 +103,8 @@
 :- pred field_type_fixed_size(ddl::in, field_type::in, int::out) is semidet.
 
 :- func field_type_size(ddl, scope, field_type) = int.
+
+:- func eval_expr(scope, expr) = int.
 
 :- func tag_num_to_string(int) = string.
 
@@ -167,7 +179,7 @@ field_type_fixed_size(DDL, FieldType, Size) :-
 	    field_type_fixed_size(DDL, Type, Size0),
 	    Size = Length * Size0
 	;
-	    ArraySize = array_size_variable(_),
+	    ArraySize = array_size_expr(_),
 	    fail
 	)
     ;
@@ -194,8 +206,8 @@ field_type_size(DDL, Scope, FieldType) = Size :-
 	(
 	    ArraySize = array_size_fixed(Length)
 	;
-	    ArraySize = array_size_variable(Name),
-	    Length = scope_resolve(Scope, Name)
+	    ArraySize = array_size_expr(Expr),
+	    Length = eval_expr(Scope, Expr)
 	),
 	Size = Length * field_type_size(DDL, Scope, Type)
     ;
@@ -214,6 +226,28 @@ field_type_size(DDL, Scope, FieldType) = Size :-
 	TagStr = tag_num_to_string(TagNum),
 	Def = ddl_lookup_det(DDL, TagStr),
 	Size = ddl_def_size(DDL, Scope, Def)
+    ).
+
+eval_expr(Scope, Expr) = Res :-
+    (
+	Expr = expr_field(Name),
+	Res = scope_resolve(Scope, Name)
+    ;
+	Expr = expr_const(Res)
+    ;
+	Expr = expr_op(Op, Lhs0, Rhs0),
+	Lhs = eval_expr(Scope, Lhs0),
+	Rhs = eval_expr(Scope, Rhs0),
+	(
+	    Op = expr_add,
+	    Res = Lhs + Rhs
+	;
+	    Op = expr_sub,
+	    Res = Lhs - Rhs
+	;
+	    Op = expr_mul,
+	    Res = Lhs * Rhs
+	)
     ).
 
 tag_num_to_string(N) = Tag :-

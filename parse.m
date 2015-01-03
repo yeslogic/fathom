@@ -110,7 +110,38 @@ parse_array_size(Src, ArraySize, !PS) :-
 	ArraySize = array_size_fixed(N)
     else
 	identifier(Src, Ident, !PS),
-	ArraySize = array_size_variable(Ident)
+	Expr0 = expr_field(Ident),
+	parse_expr(Expr0, Src, Expr, !PS),
+	ArraySize = array_size_expr(Expr)
+    ).
+
+:- pred parse_expr(expr::in, src::in, expr::out, ps::in, ps::out) is semidet.
+
+parse_expr(Expr0, Src, Expr, !PS) :-
+    ( if punct("+", Src, _, !PS) then
+	parse_term(Src, Expr1, !PS),
+	Expr2 = expr_op(expr_add, Expr0, Expr1),
+	parse_expr(Expr2, Src, Expr, !PS)
+    else if punct("-", Src, _, !PS) then
+	parse_term(Src, Expr1, !PS),
+	Expr2 = expr_op(expr_sub, Expr0, Expr1),
+	parse_expr(Expr2, Src, Expr, !PS)
+    else if punct("*", Src, _, !PS) then
+	parse_term(Src, Expr1, !PS),
+	Expr2 = expr_op(expr_mul, Expr0, Expr1),
+	parse_expr(Expr2, Src, Expr, !PS)
+    else
+	Expr = Expr0
+    ).
+
+:- pred parse_term(src::in, expr::out, ps::in, ps::out) is semidet.
+
+parse_term(Src, Expr, !PS) :-
+    ( if int_literal(Src, N, !PS) then
+	Expr = expr_const(N)
+    else
+	identifier(Src, Ident, !PS),
+	Expr = expr_field(Ident)
     ).
 
 :- pred parse_word_values(src::in, word_values::out, ps::in, ps::out) is semidet.
