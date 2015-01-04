@@ -267,6 +267,12 @@ parse_word_type(Src, Type, !PS) :-
 	Type = uint16
     else if keyword(kw_uint32, Src, !PS) then
 	Type = uint32
+    else if keyword(kw_int8, Src, !PS) then
+	Type = int8
+    else if keyword(kw_int16, Src, !PS) then
+	Type = int16
+    else if keyword(kw_int32, Src, !PS) then
+	Type = int32
     else
 	fail
     ).
@@ -279,7 +285,10 @@ parse_word_type(Src, Type, !PS) :-
     ;	    kw_byte
     ;	    kw_uint8
     ;	    kw_uint16
-    ;	    kw_uint32.
+    ;	    kw_uint32
+    ;	    kw_int8
+    ;	    kw_int16
+    ;	    kw_int32.
 
 :- pred keyword_string(keyword, string).
 :- mode keyword_string(in, out) is det.
@@ -291,6 +300,9 @@ keyword_string(kw_byte, "byte").
 keyword_string(kw_uint8, "uint8").
 keyword_string(kw_uint16, "uint16").
 keyword_string(kw_uint32, "uint32").
+keyword_string(kw_int8, "int8").
+keyword_string(kw_int16, "int16").
+keyword_string(kw_int32, "int32").
 
 :- pred keyword(keyword::in, src::in, ps::in, ps::out) is semidet.
 
