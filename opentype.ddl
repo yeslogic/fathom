@@ -88,11 +88,13 @@ Feature: struct {
     lookup_list_index: uint16[lookup_count] // FIXME index into LookupList
 }
 
+// FIXME duplicated below for GSUB and GPOS
 LookupList: struct {
     lookup_count: uint16,
     lookup: uint16[lookup_count] @offset => Lookup
 }
 
+// FIXME duplicated below for GSUB and GPOS
 Lookup: struct {
     lookup_type: uint16,
     lookup_flag: uint16, // bitfield
@@ -152,7 +154,79 @@ GSUB: struct {
     version: uint32 = 0x00010000,
     script_list: uint16 @offset => ScriptList,
     feature_list: uint16 @offset => FeatureList,
-    lookup_list: uint16 @offset => LookupList
+    lookup_list: uint16 @offset => LookupListGSUB
+}
+
+LookupListGSUB: struct {
+    lookup_count: uint16,
+    lookup: uint16[lookup_count] @offset => LookupGSUB
+}
+
+LookupGSUB: union {
+    LookupGSUB1,
+    LookupGSUB2,
+    LookupGSUB3,
+    LookupGSUB4,
+    LookupGSUB5,
+    LookupGSUB6,
+    LookupGSUB7,
+    LookupGSUB8
+}
+
+LookupGSUB1: struct {
+    lookup_type: uint16 = 1,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => SingleSubst
+}
+
+LookupGSUB2: struct {
+    lookup_type: uint16 = 2,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => MultipleSubst
+}
+
+LookupGSUB3: struct {
+    lookup_type: uint16 = 3,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => AlternateSubst
+}
+
+LookupGSUB4: struct {
+    lookup_type: uint16 = 4,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => LigatureSubst
+}
+
+LookupGSUB5: struct {
+    lookup_type: uint16 = 5,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => ContextSubst
+}
+
+LookupGSUB6: struct {
+    lookup_type: uint16 = 6,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => ChainContextSubst
+}
+
+LookupGSUB7: struct {
+    lookup_type: uint16 = 7,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => ExtensionSubst
+}
+
+LookupGSUB8: struct {
+    lookup_type: uint16 = 8,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => ReverseChainSingleSubst
 }
 
 SingleSubst: union {
@@ -383,7 +457,87 @@ GPOS: struct {
     version: uint32 = 0x00010000,
     script_list: uint16 @offset => ScriptList,
     feature_list: uint16 @offset => FeatureList,
-    lookup_list: uint16 @offset => LookupList
+    lookup_list: uint16 @offset => LookupListGPOS
+}
+
+LookupListGPOS: struct {
+    lookup_count: uint16,
+    lookup: uint16[lookup_count] @offset => LookupGPOS
+}
+
+LookupGPOS: union {
+    LookupGPOS1,
+    LookupGPOS2,
+    LookupGPOS3,
+    LookupGPOS4,
+    LookupGPOS5,
+    LookupGPOS6,
+    LookupGPOS7,
+    LookupGPOS8,
+    LookupGPOS9
+}
+
+LookupGPOS1: struct {
+    lookup_type: uint16 = 1,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => SinglePos
+}
+
+LookupGPOS2: struct {
+    lookup_type: uint16 = 2,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => PairPos
+}
+
+LookupGPOS3: struct {
+    lookup_type: uint16 = 3,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => CursivePos
+}
+
+LookupGPOS4: struct {
+    lookup_type: uint16 = 4,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => MarkBasePos
+}
+
+LookupGPOS5: struct {
+    lookup_type: uint16 = 5,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => MarkLigPos
+}
+
+LookupGPOS6: struct {
+    lookup_type: uint16 = 6,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => MarkMarkPos
+}
+
+LookupGPOS7: struct {
+    lookup_type: uint16 = 7,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => ContextPos
+}
+
+LookupGPOS8: struct {
+    lookup_type: uint16 = 8,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => ChainContextPos
+}
+
+LookupGPOS9: struct {
+    lookup_type: uint16 = 9,
+    lookup_flag: uint16,
+    sub_table_count: uint16,
+    sub_table: uint16[sub_table_count] @offset => ExtensionPos
 }
 
 SinglePos: union {
