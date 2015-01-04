@@ -70,7 +70,7 @@ dump(DDL, Bytes, Refs, Dump0, Dump) :-
 
 dump_def(DDL, Bytes, Def, Args0, Item, !Offset, Context0, !Refs) :-
     Name = Def ^ def_name,
-    Args = map(scope_resolve(Context0 ^ context_scope), Args0),
+    _Args = map(scope_resolve(Context0 ^ context_scope), Args0), % FIXME
     Context = context_nested(Context0, Name, !.Offset),
     (
 	Def ^ def_body = def_union(Options),
@@ -162,9 +162,20 @@ match_word(Bytes, WordType, Value, Offset) :-
 :- pred dump_struct_fields(ddl::in, bytes::in, list(field_def)::in, list(ditem)::out, int::in, int::out, context::in, refs::in, refs::out) is det.
 
 dump_struct_fields(_DDL, _Bytes, [], [], !Offset, _Context, !Refs).
-dump_struct_fields(DDL, Bytes, [Field|Fields], [Item|Items], !Offset, Context0, !Refs) :-
-    dump_field(DDL, Bytes, Field, Item, !Offset, Context0, Context, !Refs),
-    dump_struct_fields(DDL, Bytes, Fields, Items, !Offset, Context, !Refs).
+dump_struct_fields(DDL, Bytes, [Field|Fields], Items, !Offset, Context0, !Refs) :-
+    ( if Field ^ field_cond = yes(Cond) => match_cond(Context0, Cond) then
+	dump_field(DDL, Bytes, Field, Item, !Offset, Context0, Context, !Refs),
+	dump_struct_fields(DDL, Bytes, Fields, Items0, !Offset, Context, !Refs),
+	Items = [Item|Items0]
+    else
+	dump_struct_fields(DDL, Bytes, Fields, Items, !Offset, Context0, !Refs)
+    ).
+
+:- pred match_cond(context::in, expr::in) is semidet.
+
+match_cond(Context, Expr) :-
+    Val = eval_expr(Context ^ context_scope, Expr),
+    Val \= 0.
 
 :- pred dump_field(ddl::in, bytes::in, field_def::in, ditem::out, int::in, int::out, context::in, context::out, refs::in, refs::out) is det.
 
@@ -188,13 +199,8 @@ dump_field_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Re
 	    true
 	)
     ;
-	Type = field_type_array(ArraySize, Type0),
-	(
-	    ArraySize = array_size_fixed(Length)
-	;
-	    ArraySize = array_size_expr(Expr),
-	    Length = eval_expr(!.Context ^ context_scope, Expr)
-	),
+	Type = field_type_array(SizeExpr, Type0),
+	Length = eval_expr(!.Context ^ context_scope, SizeExpr),
 	FieldSize = field_type_size(DDL, !.Context ^ context_scope, Type0),
 	dump_array(DDL, Bytes, Length, Type0, 0, Offset, FieldSize, Values, !Context, !Refs),
 	Value = array(Values),

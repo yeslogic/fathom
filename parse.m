@@ -58,19 +58,27 @@ parse_ddl_def(Src, Ident-Def, !PS) :-
 :- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
 
 parse_field_def(Src, Field, !PS) :-
+    ( if at_rule(at_if, Src, !PS) then
+	skip_ws_comments(Src, _, !PS),
+	parse_expr(Src, Expr, !PS),
+	punct(":", Src, _, !PS),
+	Cond = yes(Expr)
+    else
+	Cond = no
+    ),
     identifier(Src, Name, !PS),
     punct(":", Src, _, !PS),
     parse_field_type(Src, Type, !PS),
-    Field = field_def(Name, Type).
+    Field = field_def(Name, Type, Cond).
 
 :- pred parse_field_type(src::in, field_type::out, ps::in, ps::out) is semidet.
 
 parse_field_type(Src, Type, !PS) :-
     ( if keyword(kw_struct, Src, !PS) then
 	( if punct("[", Src, _, !PS) then
-	    parse_array_size(Src, ArraySize0, !PS),
+	    parse_expr(Src, SizeExpr0, !PS),
 	    punct("]", Src, _, !PS),
-	    Array = yes(ArraySize0)
+	    Array = yes(SizeExpr0)
 	else
 	    Array = no
 	),
@@ -82,8 +90,8 @@ parse_field_type(Src, Type, !PS) :-
 	    Array = no,
 	    Type = Type0
 	;
-	    Array = yes(ArraySize),
-	    Type = field_type_array(ArraySize, Type0)
+	    Array = yes(SizeExpr),
+	    Type = field_type_array(SizeExpr, Type0)
 	)
     else if identifier(Src, Ident, !PS) then
 	( if punct("(", Src, _, !PS) then
@@ -94,20 +102,20 @@ parse_field_type(Src, Type, !PS) :-
 	    Type0 = field_type_named(Ident, [])
 	),
 	( if punct("[", Src, _, !PS) then
-	    parse_array_size(Src, ArraySize, !PS),
+	    parse_expr(Src, SizeExpr, !PS),
 	    punct("]", Src, _, !PS),
-	    Type = field_type_array(ArraySize, Type0)
+	    Type = field_type_array(SizeExpr, Type0)
 	else
 	    Type = Type0
 	)
     else
 	parse_word_type(Src, WordType, !PS),
 	( if punct("[", Src, _, !PS) then
-	    parse_array_size(Src, ArraySize, !PS),
+	    parse_expr(Src, SizeExpr, !PS),
 	    punct("]", Src, _, !PS),
 	    parse_word_values(Src, WordValues, !PS),
 	    Type0 = field_type_word(WordType, WordValues),
-	    Type = field_type_array(ArraySize, Type0)
+	    Type = field_type_array(SizeExpr, Type0)
 	else
 	    parse_word_values(Src, WordValues, !PS),
 	    Type = field_type_word(WordType, WordValues)
@@ -125,33 +133,31 @@ parse_args(Src, Args, !PS) :-
 	Args = [Ident]
     ).
 
-:- pred parse_array_size(src::in, array_size::out, ps::in, ps::out) is semidet.
+:- pred parse_expr(src::in, expr::out, ps::in, ps::out) is semidet.
 
-parse_array_size(Src, ArraySize, !PS) :-
-    ( if int_literal(Src, N, !PS) then
-	ArraySize = array_size_fixed(N)
-    else
-	identifier(Src, Ident, !PS),
-	Expr0 = expr_field(Ident),
-	parse_expr(Expr0, Src, Expr, !PS),
-	ArraySize = array_size_expr(Expr)
-    ).
+parse_expr(Src, Expr, !PS) :-
+    parse_term(Src, Expr0, !PS),
+    parse_expr0(Expr0, Src, Expr, !PS).
 
-:- pred parse_expr(expr::in, src::in, expr::out, ps::in, ps::out) is semidet.
+:- pred parse_expr0(expr::in, src::in, expr::out, ps::in, ps::out) is semidet.
 
-parse_expr(Expr0, Src, Expr, !PS) :-
+parse_expr0(Expr0, Src, Expr, !PS) :-
     ( if punct("+", Src, _, !PS) then
 	parse_term(Src, Expr1, !PS),
 	Expr2 = expr_op(expr_add, Expr0, Expr1),
-	parse_expr(Expr2, Src, Expr, !PS)
+	parse_expr0(Expr2, Src, Expr, !PS)
     else if punct("-", Src, _, !PS) then
 	parse_term(Src, Expr1, !PS),
 	Expr2 = expr_op(expr_sub, Expr0, Expr1),
-	parse_expr(Expr2, Src, Expr, !PS)
+	parse_expr0(Expr2, Src, Expr, !PS)
     else if punct("*", Src, _, !PS) then
 	parse_term(Src, Expr1, !PS),
 	Expr2 = expr_op(expr_mul, Expr0, Expr1),
-	parse_expr(Expr2, Src, Expr, !PS)
+	parse_expr0(Expr2, Src, Expr, !PS)
+    else if punct("&", Src, _, !PS) then
+	parse_term(Src, Expr1, !PS),
+	Expr2 = expr_op(expr_and, Expr0, Expr1),
+	parse_expr0(Expr2, Src, Expr, !PS)
     else
 	Expr = Expr0
     ).
@@ -159,7 +165,9 @@ parse_expr(Expr0, Src, Expr, !PS) :-
 :- pred parse_term(src::in, expr::out, ps::in, ps::out) is semidet.
 
 parse_term(Src, Expr, !PS) :-
-    ( if int_literal(Src, N, !PS) then
+    ( if hex_literal(Src, N, !PS) then
+	Expr = expr_const(N)
+    else if int_literal(Src, N, !PS) then
 	Expr = expr_const(N)
     else
 	identifier(Src, Ident, !PS),
@@ -314,13 +322,15 @@ keyword(Keyword, Src, !PS) :-
 
 :- type at_rule
     --->    at_offset
-    ;	    at_root.
+    ;	    at_root
+    ;	    at_if.
 
 :- pred at_rule_string(at_rule, string).
 :- mode at_rule_string(in, out) is det.
 
 at_rule_string(at_offset, "offset").
 at_rule_string(at_root, "root").
+at_rule_string(at_if, "if").
 
 :- pred at_rule(at_rule::in, src::in, ps::in, ps::out) is semidet.
 

@@ -23,20 +23,17 @@
 :- type field_def
     --->    field_def(
 		field_name :: string,
-		field_type :: field_type
+		field_type :: field_type,
+		field_cond :: maybe(expr)
 	    ).
 
 :- type field_type
     --->    field_type_word(word_type, word_values)
-    ;	    field_type_array(array_size, field_type)
+    ;	    field_type_array(expr, field_type)
     ;	    field_type_struct(list(field_def))
     ;	    field_type_union(list(string))
     ;	    field_type_named(string, list(string))
     ;	    field_type_tag_magic(string).
-
-:- type array_size
-    --->    array_size_fixed(int)
-    ;	    array_size_expr(expr).
 
 :- type expr
     --->    expr_field(string)
@@ -46,7 +43,8 @@
 :- type expr_op
     --->    expr_add
     ;	    expr_sub
-    ;	    expr_mul.
+    ;	    expr_mul
+    ;	    expr_and.
 
 :- type word_values
     --->    word_values(
@@ -142,13 +140,8 @@ field_type_size(DDL, Scope, FieldType) = Size :-
 	FieldType = field_type_word(Word, _Values),
 	Size = word_type_size(Word)
     ;
-	FieldType = field_type_array(ArraySize, Type),
-	(
-	    ArraySize = array_size_fixed(Length)
-	;
-	    ArraySize = array_size_expr(Expr),
-	    Length = eval_expr(Scope, Expr)
-	),
+	FieldType = field_type_array(SizeExpr, Type),
+	Length = eval_expr(Scope, SizeExpr),
 	Size = Length * field_type_size(DDL, Scope, Type)
     ;
 	FieldType = field_type_struct(Fields),
@@ -188,6 +181,9 @@ eval_expr(Scope, Expr) = Res :-
 	;
 	    Op = expr_mul,
 	    Res = Lhs * Rhs
+	;
+	    Op = expr_and,
+	    Res = Lhs /\ Rhs
 	)
     ).
 
