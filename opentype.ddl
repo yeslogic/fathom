@@ -341,7 +341,7 @@ ContextSubstFormat2: struct {
 
 SubClassSet: struct {
     sub_class_rule_count: uint16,
-    sub_class_rule: uint16[sub_class_rule_count] @offset => SubClassRule
+    sub_class_rule: uint16[sub_class_rule_count] @offset => SubClassRule // FIXME can be NULL
 }
 
 SubClassRule: struct {
@@ -395,7 +395,7 @@ ChainContextSubstFormat2: struct {
     input_class_def: uint16 @offset => ClassDef,
     lookahead_class_def: uint16 @offset => ClassDef,
     chain_sub_class_set_count: uint16,
-    chain_sub_class_set: uint16[chain_sub_class_set_count] @offset => ChainSubClassSet
+    chain_sub_class_set: uint16[chain_sub_class_set_count] @offset => ChainSubClassSet // FIXME can be NULL
 }
 
 ChainSubClassSet: struct {
@@ -632,7 +632,7 @@ MarkBasePosFormat1: struct {
 BaseArray(class_count): struct {
     base_count: uint16,
     base_record: struct[base_count] {
-	base_anchor: uint16[class_count] @offset => Anchor
+	base_anchor: uint16[class_count] @offset => Anchor // FIXME can be NULL
     }
 }
 
