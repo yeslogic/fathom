@@ -70,8 +70,9 @@ dump(DDL, Bytes, Refs, Dump0, Dump) :-
 
 dump_def(DDL, Bytes, Def, Args0, Item, !Offset, Context0, !Refs) :-
     Name = Def ^ def_name,
-    _Args = map(scope_resolve(Context0 ^ context_scope), Args0), % FIXME
-    Context = context_nested(Context0, Name, !.Offset),
+    ArgValues = map(scope_resolve(Context0 ^ context_scope), Args0),
+    Args = from_corresponding_lists(Def ^ def_args, ArgValues),
+    Context = context_nested(Context0, Name, Args, !.Offset),
     (
 	Def ^ def_body = def_union(Options),
 	dump_union_options(DDL, Bytes, Options, Item0, !Offset, Context, !Refs),
@@ -340,10 +341,12 @@ calc_offset(Context, Offset, V) = NewOffset :-
 	)
     ).
 
-:- func context_nested(context, string, int) = context.
+:- func context_nested(context, string, assoc_list(string, int), int) = context.
 
-context_nested(Context, Name, Offset) =
-    Context ^ context_stack := [Name-Offset|Context ^ context_stack].
+context_nested(Context, Name, Args, Offset) =
+    (Context
+	^ context_stack := [Name-Offset|Context ^ context_stack])
+	^ context_scope := Args ++ Context ^ context_scope.
 
 :- func get_byte_range_as_uint(bytes, int, int, int) = int.
 
