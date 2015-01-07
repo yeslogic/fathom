@@ -16,7 +16,7 @@ OffsetTable: struct {
     search_range: uint16, // (Maximum power of 2 <= numTables) x 16
     entry_selector: uint16, // Log2(maximum power of 2 <= numTables)
     range_shift: uint16, // NumTables x 16-searchRange
-    table_records: struct[num_tables] { // FIXME sorted by tag
+    table_records[num_tables]: struct { // FIXME sorted by tag
 	tag: uint32,
 	checksum: uint32,
 	offset: uint32 @offset(@root) => tag_magic(tag), // FIXME byte[length]
@@ -33,14 +33,14 @@ TTCHeader1: struct {
     ttc_tag: uint32 = 'ttcf',
     version: uint32 = 0x00010000,
     num_fonts: uint32,
-    offset_tables: uint32[num_fonts] @offset => OffsetTable
+    offset_tables[num_fonts]: uint32 @offset => OffsetTable
 }
 
 TTCHeader2: struct {
     ttc_tag: uint32 = 'ttcf',
     version: uint32 = 0x00020000,
     num_fonts: uint32,
-    offset_tables: uint32[num_fonts] @offset => OffsetTable,
+    offset_tables[num_fonts]: uint32 @offset => OffsetTable,
     dsig_tag: uint32 = 0 | 'DSIG',
     dsig_length: uint32,
     dsig_offset: uint32 = 0 | @offset => DSIG // FIXME byte[dsig_length]
@@ -52,7 +52,7 @@ TTCHeader2: struct {
 
 ScriptList: struct {
     script_count: uint16,
-    script_records: struct[script_count] { // FIXME sorted by script_tag
+    script_records[script_count]: struct { // FIXME sorted by script_tag
 	script_tag: uint32,
 	script: uint16 @offset(ScriptList) => Script
     }
@@ -61,7 +61,7 @@ ScriptList: struct {
 Script: struct {
     default_lang_sys: uint16 = 0 | @offset => LangSys,
     lang_sys_count: uint16,
-    lang_sys_records: struct[lang_sys_count] { // FIXME sorted by lang_sys_tag
+    lang_sys_records[lang_sys_count]: struct { // FIXME sorted by lang_sys_tag
 	lang_sys_tag: uint32,
 	lang_sys: uint16 @offset(Script) => LangSys
     }
@@ -71,12 +71,12 @@ LangSys: struct {
     lookup_order: uint16 = 0,
     req_feature_index: uint16, // FIXME feature index or 0xFFFF
     feature_count: uint16,
-    feature_index: uint16[feature_count] // FIXME index into FeatureList
+    feature_index[feature_count]: uint16 // FIXME index into FeatureList
 }
 
 FeatureList: struct {
     feature_count: uint16,
-    feature_records: struct[feature_count] { // FIXME sorted by feature_tag
+    feature_records[feature_count]: struct { // FIXME sorted by feature_tag
 	feature_tag: uint32,
 	feature: uint16 @offset(FeatureList) => Feature
     }
@@ -85,13 +85,13 @@ FeatureList: struct {
 Feature: struct {
     feature_params: uint16 = 0,
     lookup_count: uint16,
-    lookup_list_index: uint16[lookup_count] // FIXME index into LookupList
+    lookup_list_index[lookup_count]: uint16 // FIXME index into LookupList
 }
 
 // FIXME duplicated below for GSUB and GPOS
 LookupList: struct {
     lookup_count: uint16,
-    lookup: uint16[lookup_count] @offset => Lookup
+    lookup[lookup_count]: uint16 @offset => Lookup
 }
 
 // FIXME duplicated below for GSUB and GPOS
@@ -99,7 +99,7 @@ Lookup: struct {
     lookup_type: uint16,
     lookup_flag: uint16, // bitfield
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] // FIXME @offset => SubTable
+    sub_table[sub_table_count]: uint16 // FIXME @offset => SubTable
     //FIXME mark_filtering_set: uint16 // index into GDEF, only present if UseMarkFilteringSet
 }
 
@@ -111,13 +111,13 @@ Coverage: union {
 CoverageFormat1: struct {
     coverage_format: uint16 = 1,
     glyph_count: uint16,
-    glyph_array: uint16[glyph_count] // FIXME sorted numerically
+    glyph_array[glyph_count]: uint16 // FIXME sorted numerically
 }
 
 CoverageFormat2: struct {
     coverage_format: uint16 = 2,
     range_count: uint16,
-    range_record: struct[range_count] {
+    range_record[range_count]: struct {
 	// FIXME start =< end
 	start: uint16,
 	end: uint16,
@@ -134,13 +134,13 @@ ClassDefFormat1: struct {
     class_format: uint16 = 1,
     start_glyph: uint16,
     glyph_count: uint16,
-    class_value_array: uint16[glyph_count]
+    class_value_array[glyph_count]: uint16
 }
 
 ClassDefFormat2: struct {
     class_format: uint16 = 2,
     class_range_count: uint16,
-    class_range_record: struct[class_range_count] {
+    class_range_record[class_range_count]: struct {
 	// FIXME start =< end
 	start: uint16,
 	end: uint16,
@@ -159,7 +159,7 @@ GSUB: struct {
 
 LookupListGSUB: struct {
     lookup_count: uint16,
-    lookup: uint16[lookup_count] @offset => LookupGSUB
+    lookup[lookup_count]: uint16 @offset => LookupGSUB
 }
 
 LookupGSUB: union {
@@ -177,56 +177,56 @@ LookupGSUB1: struct {
     lookup_type: uint16 = 1,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => SingleSubst
+    sub_table[sub_table_count]: uint16 @offset => SingleSubst
 }
 
 LookupGSUB2: struct {
     lookup_type: uint16 = 2,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => MultipleSubst
+    sub_table[sub_table_count]: uint16 @offset => MultipleSubst
 }
 
 LookupGSUB3: struct {
     lookup_type: uint16 = 3,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => AlternateSubst
+    sub_table[sub_table_count]: uint16 @offset => AlternateSubst
 }
 
 LookupGSUB4: struct {
     lookup_type: uint16 = 4,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => LigatureSubst
+    sub_table[sub_table_count]: uint16 @offset => LigatureSubst
 }
 
 LookupGSUB5: struct {
     lookup_type: uint16 = 5,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => ContextSubst
+    sub_table[sub_table_count]: uint16 @offset => ContextSubst
 }
 
 LookupGSUB6: struct {
     lookup_type: uint16 = 6,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => ChainContextSubst
+    sub_table[sub_table_count]: uint16 @offset => ChainContextSubst
 }
 
 LookupGSUB7: struct {
     lookup_type: uint16 = 7,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => ExtensionSubst
+    sub_table[sub_table_count]: uint16 @offset => ExtensionSubst
 }
 
 LookupGSUB8: struct {
     lookup_type: uint16 = 8,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => ReverseChainSingleSubst
+    sub_table[sub_table_count]: uint16 @offset => ReverseChainSingleSubst
 }
 
 SingleSubst: union {
@@ -244,7 +244,7 @@ SingleSubstFormat2: struct {
     subst_format: uint16 = 2,
     coverage: uint16 @offset => Coverage,
     glyph_count: uint16,
-    substitute: uint16[glyph_count]
+    substitute[glyph_count]: uint16
 }
 
 MultipleSubst: union {
@@ -255,12 +255,12 @@ MultipleSubstFormat1: struct {
     subst_format: uint16 = 1,
     coverage: uint16 @offset => Coverage,
     sequence_count: uint16,
-    sequence: uint16[sequence_count] @offset => Sequence
+    sequence[sequence_count]: uint16 @offset => Sequence
 }
 
 Sequence: struct {
     glyph_count: uint16, // FIXME > 0
-    substitute: uint16[glyph_count]
+    substitute[glyph_count]: uint16
 }
 
 AlternateSubst: union {
@@ -271,12 +271,12 @@ AlternateSubstFormat1: struct {
     subst_format: uint16 = 1,
     coverage: uint16 @offset => Coverage,
     alternate_set_count: uint16,
-    alternate_set: uint16[alternate_set_count] @offset => AlternateSet
+    alternate_set[alternate_set_count]: uint16 @offset => AlternateSet
 }
 
 AlternateSet: struct {
     glyph_count: uint16,
-    alternate: uint16[glyph_count]
+    alternate[glyph_count]: uint16
 }
 
 LigatureSubst: union {
@@ -287,18 +287,18 @@ LigatureSubstFormat1: struct {
     subst_format: uint16 = 1,
     coverage: uint16 @offset => Coverage,
     lig_set_count: uint16,
-    ligature_set: uint16[lig_set_count] @offset => LigatureSet
+    ligature_set[lig_set_count]: uint16 @offset => LigatureSet
 }
 
 LigatureSet: struct {
     ligature_count: uint16,
-    ligature: uint16[ligature_count] @offset => Ligature
+    ligature[ligature_count]: uint16 @offset => Ligature
 }
 
 Ligature: struct {
     lig_glyph: uint16,
-    comp_count: uint16,
-    component: uint16[comp_count - 1]
+    comp_count: uint16, // FIXME > 0
+    component[comp_count - 1]: uint16
 }
 
 SubstLookupRecord: struct {
@@ -316,19 +316,19 @@ ContextSubstFormat1: struct {
     subst_format: uint16 = 1,
     coverage: uint16 @offset => Coverage,
     sub_rule_set_count: uint16, // FIXME must equal glyph_count in Coverage
-    sub_rule_set: uint16[sub_rule_set_count] @offset => SubRuleSet
+    sub_rule_set[sub_rule_set_count]: uint16 @offset => SubRuleSet
 }
 
 SubRuleSet: struct {
     sub_rule_count: uint16,
-    sub_rule: uint16[sub_rule_count] @offset => SubRule
+    sub_rule[sub_rule_count]: uint16 @offset => SubRule
 }
 
 SubRule: struct {
-    glyph_count: uint16,
+    glyph_count: uint16, // FIXME > 0
     subst_count: uint16,
-    input: uint16[glyph_count - 1],
-    substs: SubstLookupRecord[subst_count]
+    input[glyph_count - 1]: uint16,
+    substs[subst_count]: SubstLookupRecord
 }
 
 ContextSubstFormat2: struct {
@@ -336,27 +336,27 @@ ContextSubstFormat2: struct {
     coverage: uint16 @offset => Coverage,
     class_def: uint16 @offset => ClassDef,
     sub_class_count: uint16,
-    sub_class_set: uint16[sub_class_count] @offset => SubClassSet
+    sub_class_set[sub_class_count]: uint16 @offset => SubClassSet
 }
 
 SubClassSet: struct {
     sub_class_rule_count: uint16,
-    sub_class_rule: uint16[sub_class_rule_count] @offset => SubClassRule // FIXME can be NULL
+    sub_class_rule[sub_class_rule_count]: uint16 @offset => SubClassRule // FIXME can be NULL
 }
 
 SubClassRule: struct {
-    glyph_count: uint16,
+    glyph_count: uint16, // FIXME > 0
     subst_count: uint16,
-    class: uint16[glyph_count - 1],
-    substs: SubstLookupRecord[subst_count]
+    class[glyph_count - 1]: uint16,
+    substs[subst_count]: SubstLookupRecord
 }
 
 ContextSubstFormat3: struct {
     subst_format: uint16 = 3,
     glyph_count: uint16,
     subst_count: uint16,
-    coverage: uint16[glyph_count] @offset => Coverage,
-    substs: SubstLookupRecord[subst_count]
+    coverage[glyph_count]: uint16 @offset => Coverage,
+    substs[subst_count]: SubstLookupRecord
 }
 
 ChainContextSubst: union {
@@ -369,23 +369,23 @@ ChainContextSubstFormat1: struct {
     subst_format: uint16 = 1,
     coverage: uint16 @offset => Coverage,
     chain_sub_rule_set_count: uint16,
-    chain_sub_rule_set: uint16[chain_sub_rule_set_count] @offset => ChainSubRuleSet
+    chain_sub_rule_set[chain_sub_rule_set_count]: uint16 @offset => ChainSubRuleSet
 }
 
 ChainSubRuleSet: struct {
     chain_sub_rule_count: uint16,
-    chain_sub_rule: uint16[chain_sub_rule_count] @offset => ChainSubRule
+    chain_sub_rule[chain_sub_rule_count]: uint16 @offset => ChainSubRule
 }
 
 ChainSubRule: struct {
     backtrack_glyph_count: uint16,
-    backtrack: uint16[backtrack_glyph_count],
+    backtrack[backtrack_glyph_count]: uint16,
     input_glyph_count: uint16,
-    input: uint16[input_glyph_count],
+    input[input_glyph_count]: uint16,
     lookahead_glyph_count: uint16,
-    lookahead: uint16[lookahead_glyph_count],
+    lookahead[lookahead_glyph_count]: uint16,
     subst_count: uint16,
-    substs: SubstLookupRecord[subst_count]
+    substs[subst_count]: SubstLookupRecord
 }
 
 ChainContextSubstFormat2: struct {
@@ -395,35 +395,35 @@ ChainContextSubstFormat2: struct {
     input_class_def: uint16 @offset => ClassDef,
     lookahead_class_def: uint16 @offset => ClassDef,
     chain_sub_class_set_count: uint16,
-    chain_sub_class_set: uint16[chain_sub_class_set_count] @offset => ChainSubClassSet // FIXME can be NULL
+    chain_sub_class_set[chain_sub_class_set_count]: uint16 @offset => ChainSubClassSet // FIXME can be NULL
 }
 
 ChainSubClassSet: struct {
     chain_sub_class_rule_count: uint16,
-    chain_sub_class_rule: uint16[chain_sub_class_rule_count] @offset => ChainSubClassRule
+    chain_sub_class_rule[chain_sub_class_rule_count]: uint16 @offset => ChainSubClassRule
 }
 
 ChainSubClassRule: struct{
     backtrack_glyph_count: uint16,
-    backtrack: uint16[backtrack_glyph_count],
-    input_glyph_count: uint16,
-    input: uint16[input_glyph_count - 1],
+    backtrack[backtrack_glyph_count]: uint16,
+    input_glyph_count: uint16, // FIXME > 0
+    input[input_glyph_count - 1]: uint16,
     lookahead_glyph_count: uint16,
-    lookahead: uint16[lookahead_glyph_count],
+    lookahead[lookahead_glyph_count]: uint16,
     subst_count: uint16,
-    substs: SubstLookupRecord[subst_count]
+    substs[subst_count]: SubstLookupRecord
 }
 
 ChainContextSubstFormat3: struct {
     subst_format: uint16 = 3,
     backtrack_glyph_count: uint16,
-    backtrack: uint16[backtrack_glyph_count] @offset => Coverage,
+    backtrack[backtrack_glyph_count]: uint16 @offset => Coverage,
     input_glyph_count: uint16,
-    input: uint16[input_glyph_count] @offset => Coverage,
+    input[input_glyph_count]: uint16 @offset => Coverage,
     lookahead_glyph_count: uint16,
-    lookahead: uint16[lookahead_glyph_count] @offset => Coverage,
+    lookahead[lookahead_glyph_count]: uint16 @offset => Coverage,
     subst_count: uint16,
-    substs: SubstLookupRecord[subst_count]
+    substs[subst_count]: SubstLookupRecord
 }
 
 ExtensionSubst: union {
@@ -444,11 +444,11 @@ ReverseChainSingleSubstFormat1: struct {
     subst_format: uint16 = 1,
     coverage: uint16 @offset => Coverage,
     backtrack_glyph_count: uint16,
-    backtrack: uint16[backtrack_glyph_count] @offset => Coverage,
+    backtrack[backtrack_glyph_count]: uint16 @offset => Coverage,
     lookahead_glyph_count: uint16,
-    lookahead: uint16[lookahead_glyph_count] @offset => Coverage,
+    lookahead[lookahead_glyph_count]: uint16 @offset => Coverage,
     glyph_count: uint16,
-    substitute: uint16[glyph_count]
+    substitute[glyph_count]: uint16
 }
 
 // GPOS table
@@ -462,7 +462,7 @@ GPOS: struct {
 
 LookupListGPOS: struct {
     lookup_count: uint16,
-    lookup: uint16[lookup_count] @offset => LookupGPOS
+    lookup[lookup_count]: uint16 @offset => LookupGPOS
 }
 
 LookupGPOS: union {
@@ -481,63 +481,63 @@ LookupGPOS1: struct {
     lookup_type: uint16 = 1,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => SinglePos
+    sub_table[sub_table_count]: uint16 @offset => SinglePos
 }
 
 LookupGPOS2: struct {
     lookup_type: uint16 = 2,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => PairPos
+    sub_table[sub_table_count]: uint16 @offset => PairPos
 }
 
 LookupGPOS3: struct {
     lookup_type: uint16 = 3,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => CursivePos
+    sub_table[sub_table_count]: uint16 @offset => CursivePos
 }
 
 LookupGPOS4: struct {
     lookup_type: uint16 = 4,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => MarkBasePos
+    sub_table[sub_table_count]: uint16 @offset => MarkBasePos
 }
 
 LookupGPOS5: struct {
     lookup_type: uint16 = 5,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => MarkLigPos
+    sub_table[sub_table_count]: uint16 @offset => MarkLigPos
 }
 
 LookupGPOS6: struct {
     lookup_type: uint16 = 6,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => MarkMarkPos
+    sub_table[sub_table_count]: uint16 @offset => MarkMarkPos
 }
 
 LookupGPOS7: struct {
     lookup_type: uint16 = 7,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => ContextPos
+    sub_table[sub_table_count]: uint16 @offset => ContextPos
 }
 
 LookupGPOS8: struct {
     lookup_type: uint16 = 8,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => ChainContextPos
+    sub_table[sub_table_count]: uint16 @offset => ChainContextPos
 }
 
 LookupGPOS9: struct {
     lookup_type: uint16 = 9,
     lookup_flag: uint16,
     sub_table_count: uint16,
-    sub_table: uint16[sub_table_count] @offset => ExtensionPos
+    sub_table[sub_table_count]: uint16 @offset => ExtensionPos
 }
 
 SinglePos: union {
@@ -557,7 +557,7 @@ SinglePosFormat2: struct {
     coverage: uint16 @offset => Coverage,
     value_format: uint16,
     value_count: uint16,
-    value: ValueRecord(value_format)[value_count]
+    value[value_count]: ValueRecord(value_format)
 }
 
 PairPos: union {
@@ -571,12 +571,12 @@ PairPosFormat1: struct {
     value_format1: uint16,
     value_format2: uint16,
     pair_set_count: uint16,
-    pair_set_offset: uint16[pair_set_count] @offset => PairSet(value_format1, value_format2)
+    pair_set_offset[pair_set_count]: uint16 @offset => PairSet(value_format1, value_format2)
 }
 
 PairSet(value_format1, value_format2): struct {
     pair_value_count: uint16,
-    pair_value_record: PairValueRecord(value_format1, value_format2)[pair_value_count]
+    pair_value_record[pair_value_count]: PairValueRecord(value_format1, value_format2)
 }
 
 PairValueRecord(value_format1, value_format2): struct {
@@ -594,8 +594,8 @@ PairPosFormat2: struct {
     class_def2: uint16 @offset => ClassDef,
     class1_count: uint16,
     class2_count: uint16,
-    class1_record: struct[class1_count] {
-	class2_record: struct[class2_count] {
+    class1_record[class1_count]: struct {
+	class2_record[class2_count]: struct {
 	    value1: ValueRecord(value_format1),
 	    value2: ValueRecord(value_format2)
 	}
@@ -610,7 +610,7 @@ CursivePosFormat1: struct {
     pos_format: uint16 = 1,
     coverage: uint16 @offset => Coverage,
     entry_exit_count: uint16,
-    entry_exit_record: struct[entry_exit_count] {
+    entry_exit_record[entry_exit_count]: struct {
 	entry_anchor: uint16 @offset => Anchor,
 	exit_anchor: uint16 @offset => Anchor
     }
@@ -631,8 +631,8 @@ MarkBasePosFormat1: struct {
 
 BaseArray(class_count): struct {
     base_count: uint16,
-    base_record: struct[base_count] {
-	base_anchor: uint16[class_count] @offset => Anchor // FIXME can be NULL
+    base_record[base_count]: struct {
+	base_anchor[class_count]: uint16 @offset => Anchor // FIXME can be NULL
     }
 }
 
@@ -651,13 +651,13 @@ MarkLigPosFormat1: struct {
 
 LigatureArray(class_count): struct {
     ligature_count: uint16,
-    ligature_attach: uint16[ligature_count] @offset => LigatureAttach(class_count)
+    ligature_attach[ligature_count]: uint16 @offset => LigatureAttach(class_count)
 }
 
 LigatureAttach(class_count): struct {
     component_count: uint16,
-    component_record: struct[component_count] {
-	ligature_anchor: uint16[class_count] // FIXME 0 | @offset => Anchor
+    component_record[component_count]: struct {
+	ligature_anchor[class_count]: uint16 // FIXME 0 | @offset => Anchor
     }
 }
 
@@ -676,8 +676,8 @@ MarkMarkPosFormat1: struct {
 
 Mark2Array(class_count): struct {
     mark2_count: uint16,
-    mark2_record: struct[mark2_count] {
-	mark2_anchor: uint16[class_count] @offset => Anchor
+    mark2_record[mark2_count]: struct {
+	mark2_anchor[class_count]: uint16 @offset => Anchor
     }
 }
 
@@ -696,19 +696,19 @@ ContextPosFormat1: struct {
     pos_format: uint16 = 1,
     coverage: uint16 @offset => Coverage,
     pos_rule_set_count: uint16,
-    pos_rule_set: uint16[pos_rule_set_count] @offset => PosRuleSet
+    pos_rule_set[pos_rule_set_count]: uint16 @offset => PosRuleSet
 }
 
 PosRuleSet: struct {
     pos_rule_count: uint16,
-    pos_rule: uint16[pos_rule_count] @offset => PosRule
+    pos_rule[pos_rule_count]: uint16 @offset => PosRule
 }
 
 PosRule: struct {
-    glyph_count: uint16,
+    glyph_count: uint16, // FIXME > 0
     pos_count: uint16,
-    input: uint16[glyph_count - 1],
-    pos_lookup_record: PosLookupRecord[pos_count]
+    input[glyph_count - 1]: uint16,
+    pos_lookup_record[pos_count]: PosLookupRecord
 }
 
 ContextPosFormat2: struct {
@@ -716,27 +716,27 @@ ContextPosFormat2: struct {
     coverage: uint16 @offset => Coverage,
     class_def: uint16 @offset => ClassDef,
     pos_class_set_count: uint16,
-    pos_class_set: uint16[pos_class_set_count] // FIXME 0 | @offset => PosClassSet
+    pos_class_set[pos_class_set_count]: uint16 // FIXME 0 | @offset => PosClassSet
 }
 
 PosClassSet: struct {
     pos_class_rule_count: uint16,
-    pos_class_rule: uint16[pos_class_rule_count] @offset => PosClassRule
+    pos_class_rule[pos_class_rule_count]: uint16 @offset => PosClassRule
 }
 
 PosClassRule: struct {
-    glyph_count: uint16,
+    glyph_count: uint16, // FIXME > 0
     pos_count: uint16,
-    class: uint16[glyph_count - 1],
-    pos_lookup_record: PosLookupRecord[pos_count]
+    class[glyph_count - 1]: uint16,
+    pos_lookup_record[pos_count]: PosLookupRecord
 }
 
 ContextPosFormat3: struct {
     pos_format: uint16 = 3,
     glyph_count: uint16,
     pos_count: uint16,
-    coverage: uint16[glyph_count] @offset => Coverage,
-    pos_lookup_record: PosLookupRecord[pos_count]
+    coverage[glyph_count]: uint16 @offset => Coverage,
+    pos_lookup_record[pos_count]: PosLookupRecord
 }
 
 ChainContextPos: union {
@@ -749,23 +749,23 @@ ChainContextPosFormat1: struct {
     pos_format: uint16 = 1,
     coverage: uint16 @offset => Coverage,
     chain_pos_rule_set_count: uint16,
-    chain_pos_rule_set: uint16[chain_pos_rule_set_count] @offset => ChainPosRuleSet
+    chain_pos_rule_set[chain_pos_rule_set_count]: uint16 @offset => ChainPosRuleSet
 }
 
 ChainPosRuleSet: struct {
     chain_pos_rule_count: uint16,
-    chain_pos_rule: uint16[chain_pos_rule_count] @offset => ChainPosRule
+    chain_pos_rule[chain_pos_rule_count]: uint16 @offset => ChainPosRule
 }
 
 ChainPosRule: struct {
     backtrack_glyph_count: uint16,
-    backtrack: uint16[backtrack_glyph_count],
-    input_glyph_count: uint16,
-    input: uint16[input_glyph_count - 1],
+    backtrack[backtrack_glyph_count]: uint16,
+    input_glyph_count: uint16, // FIXME > 0
+    input[input_glyph_count - 1]: uint16,
     lookahead_glyph_count: uint16,
-    lookahead: uint16[lookahead_glyph_count],
+    lookahead[lookahead_glyph_count]: uint16,
     pos_count: uint16,
-    pos_lookup_record: PosLookupRecord[pos_count]
+    pos_lookup_record[pos_count]: PosLookupRecord
 }
 
 ChainContextPosFormat2: struct {
@@ -775,35 +775,35 @@ ChainContextPosFormat2: struct {
     input_class_def: uint16 @offset => ClassDef,
     lookahead_class_def: uint16 @offset => ClassDef,
     chain_pos_class_set_count: uint16,
-    chain_pos_class_set: uint16[chain_pos_class_set_count] // FIXME 0 | @offset => ChainPosClassSet
+    chain_pos_class_set[chain_pos_class_set_count]: uint16 // FIXME 0 | @offset => ChainPosClassSet
 }
 
 ChainPosClassSet: struct {
     chain_pos_class_rule_count: uint16,
-    chain_pos_class_rule: uint16[chain_pos_class_rule_count] @offset => ChainPosClassRule
+    chain_pos_class_rule[chain_pos_class_rule_count]: uint16 @offset => ChainPosClassRule
 }
 
 ChainPosClassRule: struct {
     backtrack_glyph_count: uint16,
-    backtrack: uint16[backtrack_glyph_count],
-    input_glyph_count: uint16,
-    input: uint16[input_glyph_count - 1],
+    backtrack[backtrack_glyph_count]: uint16,
+    input_glyph_count: uint16, // FIXME > 0
+    input[input_glyph_count - 1]: uint16,
     lookahead_glyph_count: uint16,
-    lookahead: uint16[lookahead_glyph_count],
+    lookahead[lookahead_glyph_count]: uint16,
     pos_count: uint16,
-    pos_lookup_record: PosLookupRecord[pos_count]
+    pos_lookup_record[pos_count]: PosLookupRecord
 }
 
 ChainContextPosFormat3: struct {
     pos_format: uint16 = 3,
     backtrack_glyph_count: uint16,
-    backtrack: uint16[backtrack_glyph_count] @offset => Coverage,
+    backtrack[backtrack_glyph_count]: uint16 @offset => Coverage,
     input_glyph_count: uint16,
-    input: uint16[input_glyph_count] @offset => Coverage,
+    input[input_glyph_count]: uint16 @offset => Coverage,
     lookahead_glyph_count: uint16,
-    lookahead: uint16[lookahead_glyph_count] @offset => Coverage,
+    lookahead[lookahead_glyph_count]: uint16 @offset => Coverage,
     pos_count: uint16,
-    pos_lookup_record: PosLookupRecord[pos_count]
+    pos_lookup_record[pos_count]: PosLookupRecord
 }
 
 ExtensionPos: union {
@@ -856,7 +856,7 @@ AnchorFormat3: struct {
 
 MarkArray: struct {
     mark_count: uint16,
-    mark_record: struct[mark_count] {
+    mark_record[mark_count]: struct {
 	class: uint16,
 	mark_anchor: uint16 @offset => Anchor
     }

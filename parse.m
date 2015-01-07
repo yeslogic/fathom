@@ -67,8 +67,22 @@ parse_field_def(Src, Field, !PS) :-
 	Cond = no
     ),
     identifier(Src, Name, !PS),
+    ( if punct("[", Src, _, !PS) then
+	parse_expr(Src, SizeExpr0, !PS),
+	punct("]", Src, _, !PS),
+	Array = yes(SizeExpr0)
+    else
+	Array = no
+    ),
     punct(":", Src, _, !PS),
-    parse_field_type(Src, Type, !PS),
+    parse_field_type(Src, Type0, !PS),
+    (
+	Array = no,
+	Type = Type0
+    ;
+	Array = yes(SizeExpr),
+	Type = field_type_array(SizeExpr, Type0)
+    ),
     Field = field_def(Name, Type, Cond).
 
 :- pred parse_field_type(src::in, field_type::out, ps::in, ps::out) is semidet.
