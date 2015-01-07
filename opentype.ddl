@@ -341,7 +341,7 @@ ContextSubstFormat2: struct {
 
 SubClassSet: struct {
     sub_class_rule_count: uint16,
-    sub_class_rule[sub_class_rule_count]: uint16 @offset => SubClassRule // FIXME can be NULL
+    sub_class_rule[sub_class_rule_count]: uint16 = 0 | @offset => SubClassRule
 }
 
 SubClassRule: struct {
@@ -395,7 +395,7 @@ ChainContextSubstFormat2: struct {
     input_class_def: uint16 @offset => ClassDef,
     lookahead_class_def: uint16 @offset => ClassDef,
     chain_sub_class_set_count: uint16,
-    chain_sub_class_set[chain_sub_class_set_count]: uint16 @offset => ChainSubClassSet // FIXME can be NULL
+    chain_sub_class_set[chain_sub_class_set_count]: uint16 = 0 | @offset => ChainSubClassSet
 }
 
 ChainSubClassSet: struct {
@@ -632,7 +632,7 @@ MarkBasePosFormat1: struct {
 BaseArray(class_count): struct {
     base_count: uint16,
     base_record[base_count]: struct {
-	base_anchor[class_count]: uint16 @offset => Anchor // FIXME can be NULL
+	base_anchor[class_count]: uint16 = 0 | @offset => Anchor
     }
 }
 
@@ -657,7 +657,7 @@ LigatureArray(class_count): struct {
 LigatureAttach(class_count): struct {
     component_count: uint16,
     component_record[component_count]: struct {
-	ligature_anchor[class_count]: uint16 // FIXME 0 | @offset => Anchor
+	ligature_anchor[class_count]: uint16 = 0 | @offset => Anchor
     }
 }
 
@@ -716,7 +716,7 @@ ContextPosFormat2: struct {
     coverage: uint16 @offset => Coverage,
     class_def: uint16 @offset => ClassDef,
     pos_class_set_count: uint16,
-    pos_class_set[pos_class_set_count]: uint16 // FIXME 0 | @offset => PosClassSet
+    pos_class_set[pos_class_set_count]: uint16 = 0 | @offset => PosClassSet
 }
 
 PosClassSet: struct {
@@ -775,7 +775,7 @@ ChainContextPosFormat2: struct {
     input_class_def: uint16 @offset => ClassDef,
     lookahead_class_def: uint16 @offset => ClassDef,
     chain_pos_class_set_count: uint16,
-    chain_pos_class_set[chain_pos_class_set_count]: uint16 // FIXME 0 | @offset => ChainPosClassSet
+    chain_pos_class_set[chain_pos_class_set_count]: uint16 = 0 | @offset => ChainPosClassSet
 }
 
 ChainPosClassSet: struct {
@@ -821,10 +821,10 @@ ValueRecord(value_format): struct {
     @if value_format & 0x02: y_placement: int16,
     @if value_format & 0x04: x_advance: uint16,
     @if value_format & 0x08: y_advance: uint16,
-    @if value_format & 0x10: x_pla_device: uint16, // FIXME  => 0 | @offset(PosTable) => Device
-    @if value_format & 0x20: y_pla_device: uint16, // FIXME  => 0 | @offset(PosTable) => Device
-    @if value_format & 0x40: x_adv_device: uint16, // FIXME  => 0 | @offset(PosTable) => Device
-    @if value_format & 0x80: y_adv_device: uint16 // FIXME  => 0 | @offset(PosTable) => Device
+    @if value_format & 0x10: x_pla_device: uint16 = 0 | @offset(PosTable) => Device,
+    @if value_format & 0x20: y_pla_device: uint16 = 0 | @offset(PosTable) => Device,
+    @if value_format & 0x40: x_adv_device: uint16 = 0 | @offset(PosTable) => Device,
+    @if value_format & 0x80: y_adv_device: uint16 = 0 | @offset(PosTable) => Device
 }
 
 Anchor: union {
