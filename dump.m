@@ -136,6 +136,9 @@ match_field(DDL, Bytes, Field, Offset, Context) :-
 	Type = field_type_array(_, _),
 	fail
     ;
+	Type = field_type_zero_or_more(_),
+	fail
+    ;
 	Type = field_type_struct(Fields),
 	match_struct_fields(DDL, Bytes, Fields, Offset, Context)
     ;
@@ -207,6 +210,10 @@ dump_field_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Re
 	Value = array(Values),
 	Size = Length * FieldSize
     ;
+	Type = field_type_zero_or_more(Type0),
+	dump_zero_or_more(DDL, Bytes, Type0, Offset, Size, Values, !Context, !Refs),
+	Value = array(Values)
+    ;
 	Type = field_type_struct(Fields0),
 	NestedContext = !.Context, % FIXME?
 	dump_struct_fields(DDL, Bytes, Fields0, Fields, Offset, NextOffset, NestedContext, !Refs),
@@ -241,6 +248,19 @@ dump_array(DDL, Bytes, Length, Type, Index, Offset, Size, Values, !Context, !Ref
 	Values = [Value|Values0]
     else
 	Values = []
+    ).
+
+:- pred dump_zero_or_more(ddl::in, bytes::in, field_type::in, int::in, int::out, list(ditem_value)::out, context::in, context::out, refs::in, refs::out) is det.
+
+dump_zero_or_more(DDL, Bytes, Type, Offset, Size, Values, !Context, !Refs) :-
+    ( if Offset < length(Bytes) then
+	dump_field_value(DDL, Bytes, no, Type, Value, Offset, Size0, !Context, !Refs),
+	dump_zero_or_more(DDL, Bytes, Type, Offset+Size0, Size1, Values0, !Context, !Refs),
+	Values = [Value|Values0],
+	Size = Size0 + Size1
+    else
+	Values = [],
+	Size = 0
     ).
 
 :- pred update_refs(ddl::in, context::in, int::in, word_values::in, refs::in, refs::out) is det.
@@ -280,6 +300,9 @@ make_ref_from_offset(DDL, Context, Offset, Word, !Refs) :-
 	abort("unhandled field type")
     ;
 	Offset ^ offset_type = field_type_array(_, _),
+	abort("unhandled field type")
+    ;
+	Offset ^ offset_type = field_type_zero_or_more(_),
 	abort("unhandled field type")
     ;
 	Offset ^ offset_type = field_type_struct(_),

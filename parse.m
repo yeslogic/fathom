@@ -55,6 +55,11 @@ parse_ddl_def(Src, Ident-Def, !PS) :-
     ),
     Def = ddl_def(Ident, Args, Body).
 
+:- type multiplicity
+    --->    mult_singular
+    ;	    mult_array(expr)
+    ;	    mult_zero_or_more.
+
 :- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
 
 parse_field_def(Src, Field, !PS) :-
@@ -67,46 +72,49 @@ parse_field_def(Src, Field, !PS) :-
 	Cond = no
     ),
     identifier(Src, Name, !PS),
+    parse_multiplicity(Src, Mult, !PS),
+    punct(":", Src, _, !PS),
+    parse_field_type(Src, Type0, !PS),
+    Type = apply_multiplicity(Mult, Type0),
+    Field = field_def(Name, Type, Cond).
+
+:- func apply_multiplicity(multiplicity, field_type) = field_type.
+
+apply_multiplicity(Mult, Type0) = Type :-
+    (
+	Mult = mult_singular,
+	Type = Type0
+    ;
+	Mult = mult_array(SizeExpr),
+	Type = field_type_array(SizeExpr, Type0)
+    ;
+	Mult = mult_zero_or_more,
+	Type = field_type_zero_or_more(Type0)
+    ).
+
+:- pred parse_multiplicity(src::in, multiplicity::out, ps::in, ps::out) is semidet.
+
+parse_multiplicity(Src, Mult, !PS) :-
     ( if punct("[", Src, _, !PS) then
 	parse_expr(Src, SizeExpr0, !PS),
 	punct("]", Src, _, !PS),
-	Array = yes(SizeExpr0)
+	Mult = mult_array(SizeExpr0)
+    else if punct("*", Src, _, !PS) then
+	Mult = mult_zero_or_more
     else
-	Array = no
-    ),
-    punct(":", Src, _, !PS),
-    parse_field_type(Src, Type0, !PS),
-    (
-	Array = no,
-	Type = Type0
-    ;
-	Array = yes(SizeExpr),
-	Type = field_type_array(SizeExpr, Type0)
-    ),
-    Field = field_def(Name, Type, Cond).
+	Mult = mult_singular
+    ).
 
 :- pred parse_field_type(src::in, field_type::out, ps::in, ps::out) is semidet.
 
 parse_field_type(Src, Type, !PS) :-
     ( if keyword(kw_struct, Src, !PS) then
-	( if punct("[", Src, _, !PS) then
-	    parse_expr(Src, SizeExpr0, !PS),
-	    punct("]", Src, _, !PS),
-	    Array = yes(SizeExpr0)
-	else
-	    Array = no
-	),
+	parse_multiplicity(Src, Mult, !PS),
 	punct("{", Src, _, !PS),
 	comma_separated_list(parse_field_def, Src, Fields, !PS),
 	punct("}", Src, _, !PS),
 	Type0 = field_type_struct(Fields),
-	(
-	    Array = no,
-	    Type = Type0
-	;
-	    Array = yes(SizeExpr),
-	    Type = field_type_array(SizeExpr, Type0)
-	)
+	Type = apply_multiplicity(Mult, Type0)
     else if identifier(Src, Ident, !PS) then
 	( if punct("(", Src, _, !PS) then
 	    parse_args(Src, Args, !PS),
@@ -115,25 +123,14 @@ parse_field_type(Src, Type, !PS) :-
 	else
 	    Type0 = field_type_named(Ident, [])
 	),
-	( if punct("[", Src, _, !PS) then
-	    parse_expr(Src, SizeExpr, !PS),
-	    punct("]", Src, _, !PS),
-	    Type = field_type_array(SizeExpr, Type0)
-	else
-	    Type = Type0
-	)
+	parse_multiplicity(Src, Mult, !PS),
+	Type = apply_multiplicity(Mult, Type0)
     else
 	parse_word_type(Src, WordType, !PS),
-	( if punct("[", Src, _, !PS) then
-	    parse_expr(Src, SizeExpr, !PS),
-	    punct("]", Src, _, !PS),
-	    parse_word_values(Src, WordValues, !PS),
-	    Type0 = field_type_word(WordType, WordValues),
-	    Type = field_type_array(SizeExpr, Type0)
-	else
-	    parse_word_values(Src, WordValues, !PS),
-	    Type = field_type_word(WordType, WordValues)
-	)
+	parse_multiplicity(Src, Mult, !PS),
+	parse_word_values(Src, WordValues, !PS),
+	Type0 = field_type_word(WordType, WordValues),
+	Type = apply_multiplicity(Mult, Type0)
     ).
 
 :- pred parse_args(src::in, list(string)::out, ps::in, ps::out) is semidet.

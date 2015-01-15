@@ -30,6 +30,7 @@
 :- type field_type
     --->    field_type_word(word_type, word_values)
     ;	    field_type_array(expr, field_type)
+    ;	    field_type_zero_or_more(field_type)
     ;	    field_type_struct(list(field_def))
     ;	    field_type_union(list(string))
     ;	    field_type_named(string, list(string))
@@ -143,6 +144,9 @@ field_type_size(DDL, Scope, FieldType) = Size :-
 	FieldType = field_type_array(SizeExpr, Type),
 	Length = eval_expr(Scope, SizeExpr),
 	Size = Length * field_type_size(DDL, Scope, Type)
+    ;
+	FieldType = field_type_zero_or_more(_Type),
+	abort("FIXME zero_or_more has undefined size")
     ;
 	FieldType = field_type_struct(Fields),
 	Size = struct_fields_size(DDL, Scope, Fields)
