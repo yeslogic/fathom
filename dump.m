@@ -1,6 +1,6 @@
 :- module dump.
 
-% Copyright (C) 2014 YesLogic Pty. Ltd.
+% Copyright (C) 2014-2015 YesLogic Pty. Ltd.
 % All rights reserved.
 
 :- interface.
@@ -139,6 +139,9 @@ match_field(DDL, Bytes, Field, Offset, Context) :-
 	Type = field_type_zero_or_more(_),
 	fail
     ;
+	Type = field_type_sized(_, _),
+	fail
+    ;
 	Type = field_type_struct(Fields),
 	match_struct_fields(DDL, Bytes, Fields, Offset, Context)
     ;
@@ -152,8 +155,11 @@ match_field(DDL, Bytes, Field, Offset, Context) :-
 	Type = field_type_tag_magic(Name),
 	TagNum = scope_resolve(Context ^ context_scope, Name),
 	TagStr = tag_num_to_string(TagNum),
-	Def = ddl_lookup_det(DDL, TagStr),
-	match_def(DDL, Bytes, Def, Offset, Context)
+	( if ddl_search(DDL, TagStr, Def) then
+	    match_def(DDL, Bytes, Def, Offset, Context)
+	else
+	    fail
+	)
     ).
 
 :- pred match_word(bytes::in, word_type::in, word_value::in, int::in) is semidet.
@@ -214,6 +220,10 @@ dump_field_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Re
 	dump_zero_or_more(DDL, Bytes, Type0, Offset, Size, Values, !Context, !Refs),
 	Value = array(Values)
     ;
+	Type = field_type_sized(Type0, SizeExpr),
+	Size = eval_expr(!.Context ^ context_scope, SizeExpr),
+	dump_field_value(DDL, Bytes, no, Type0, Value, Offset, _Size, !Context, !Refs)
+    ;
 	Type = field_type_struct(Fields0),
 	NestedContext = !.Context, % FIXME?
 	dump_struct_fields(DDL, Bytes, Fields0, Fields, Offset, NextOffset, NestedContext, !Refs),
@@ -233,10 +243,15 @@ dump_field_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Re
 	Type = field_type_tag_magic(Name),
 	TagNum = scope_resolve(!.Context ^ context_scope, Name),
 	TagStr = tag_num_to_string(TagNum),
-	Def = ddl_lookup_det(DDL, TagStr),
-	dump_def(DDL, Bytes, Def, [], Item, Offset, NewOffset, !.Context, !Refs),
-	Value = item(Item),
-	Size = NewOffset - Offset
+	( if ddl_search(DDL, TagStr, Def) then
+	    dump_def(DDL, Bytes, Def, [], Item, Offset, NewOffset, !.Context, !Refs),
+	    Value = item(Item),
+	    Size = NewOffset - Offset
+	else
+	    % FIXME
+	    Value = item(ditem("Unknown tag: "++TagStr, fields([]))),
+	    Size = 0
+	)
     ).
 
 :- pred dump_array(ddl::in, bytes::in, int::in, field_type::in, int::in, int::in, int::in, list(ditem_value)::out, context::in, context::out, refs::in, refs::out) is det.
@@ -303,6 +318,9 @@ make_ref_from_offset(DDL, Context, Offset, Word, !Refs) :-
 	abort("unhandled field type")
     ;
 	Offset ^ offset_type = field_type_zero_or_more(_),
+	abort("unhandled field type")
+    ;
+	Offset ^ offset_type = field_type_sized(_, _),
 	abort("unhandled field type")
     ;
 	Offset ^ offset_type = field_type_struct(_),

@@ -13,7 +13,7 @@ PNG: struct {
 Chunk: struct {
     length: uint32, // FIXME < 2^31
     type: uint32, // FIXME [a-zA-Z]{4} also includes chunk property bits
-    data: byte[length], // FIXME chunk data
+    data: tag_magic(type) & length,
     crc: uint32 // FIXME derived from type+data bytes
 }
 

@@ -1,6 +1,6 @@
 :- module parse.
 
-% Copyright (C) 2014 YesLogic Pty. Ltd.
+% Copyright (C) 2014-2015 YesLogic Pty. Ltd.
 % All rights reserved.
 
 :- interface.
@@ -114,9 +114,14 @@ parse_field_type(Src, Type, !PS) :-
 	comma_separated_list(parse_field_def, Src, Fields, !PS),
 	punct("}", Src, _, !PS),
 	Type0 = field_type_struct(Fields),
-	Type = apply_multiplicity(Mult, Type0)
+	Type1 = apply_multiplicity(Mult, Type0)
     else if identifier(Src, Ident, !PS) then
-	( if punct("(", Src, _, !PS) then
+	( if Ident = "tag_magic" then
+	    punct("(", Src, _, !PS),
+	    identifier(Src, TagName, !PS),
+	    punct(")", Src, _, !PS),
+	    Type0 = field_type_tag_magic(TagName)
+	else if punct("(", Src, _, !PS) then
 	    parse_args(Src, Args, !PS),
 	    punct(")", Src, _, !PS),
 	    Type0 = field_type_named(Ident, Args)
@@ -124,13 +129,19 @@ parse_field_type(Src, Type, !PS) :-
 	    Type0 = field_type_named(Ident, [])
 	),
 	parse_multiplicity(Src, Mult, !PS),
-	Type = apply_multiplicity(Mult, Type0)
+	Type1 = apply_multiplicity(Mult, Type0)
     else
 	parse_word_type(Src, WordType, !PS),
 	parse_multiplicity(Src, Mult, !PS),
 	parse_word_values(Src, WordValues, !PS),
 	Type0 = field_type_word(WordType, WordValues),
-	Type = apply_multiplicity(Mult, Type0)
+	Type1 = apply_multiplicity(Mult, Type0)
+    ),
+    ( if punct("&", Src, _, !PS) then
+	parse_expr(Src, Expr, !PS),
+	Type = field_type_sized(Type1, Expr)
+    else
+	Type = Type1
     ).
 
 :- pred parse_args(src::in, list(string)::out, ps::in, ps::out) is semidet.
@@ -248,21 +259,7 @@ parse_word_interp(Src, Interp, !PS) :-
 	Base = offset_base_struct
     ),
     punct("=>", Src, _, !PS),
-    identifier(Src, Ident, !PS),
-    ( if Ident = "tag_magic" then
-	punct("(", Src, _, !PS),
-	identifier(Src, TagName, !PS),
-	punct(")", Src, _, !PS),
-	Type = field_type_tag_magic(TagName)
-    else
-	( if punct("(", Src, _, !PS) then
-	    parse_args(Src, Args, !PS),
-	    punct(")", Src, _, !PS),
-	    Type = field_type_named(Ident, Args)
-	else
-	    Type = field_type_named(Ident, [])
-	)
-    ),
+    parse_field_type(Src, Type, !PS),
     Interp = word_interp_offset(offset(Base, Type)).
 
 :- pred parse_offset_base(src::in, offset_base::out, ps::in, ps::out) is semidet.

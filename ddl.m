@@ -1,6 +1,6 @@
 :- module ddl.
 
-% Copyright (C) 2014 YesLogic Pty. Ltd.
+% Copyright (C) 2014-2015 YesLogic Pty. Ltd.
 % All rights reserved.
 
 :- interface.
@@ -31,6 +31,7 @@
     --->    field_type_word(word_type, word_values)
     ;	    field_type_array(expr, field_type)
     ;	    field_type_zero_or_more(field_type)
+    ;	    field_type_sized(field_type, expr)
     ;	    field_type_struct(list(field_def))
     ;	    field_type_union(list(string))
     ;	    field_type_named(string, list(string))
@@ -147,6 +148,9 @@ field_type_size(DDL, Scope, FieldType) = Size :-
     ;
 	FieldType = field_type_zero_or_more(_Type),
 	abort("FIXME zero_or_more has undefined size")
+    ;
+	FieldType = field_type_sized(_Type, SizeExpr),
+	Size = eval_expr(Scope, SizeExpr)
     ;
 	FieldType = field_type_struct(Fields),
 	Size = struct_fields_size(DDL, Scope, Fields)
