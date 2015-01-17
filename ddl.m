@@ -54,9 +54,11 @@
     --->    uint8
     ;	    uint16
     ;	    uint32
+    ;	    uint64
     ;	    int8
     ;	    int16
-    ;	    int32.
+    ;	    int32
+    ;	    int64.
 
 :- type word_value
     --->    word_value_int(int)
@@ -111,9 +113,11 @@
 word_type_size(uint8) = 1.
 word_type_size(uint16) = 2.
 word_type_size(uint32) = 4.
+word_type_size(uint64) = 8.
 word_type_size(int8) = 1.
 word_type_size(int16) = 2.
 word_type_size(int32) = 4.
+word_type_size(int64) = 8.
 
 ddl_def_size(DDL, Scope, Def, _Args) = Size :-
     Size = ddl_type_size(DDL, Scope, Def ^ def_type).
