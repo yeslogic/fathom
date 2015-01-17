@@ -13,29 +13,25 @@
     --->    ddl_def(
 		def_name :: string,
 		def_args :: list(string),
-		def_body :: def_body
+		def_type :: ddl_type
 	    ).
 
-:- type def_body
-    --->    def_union(list(string))
-    ;	    def_struct(list(field_def)).
+:- type ddl_type
+    --->    ddl_type_word(word_type, word_values)
+    ;	    ddl_type_array(expr, ddl_type)
+    ;	    ddl_type_zero_or_more(ddl_type)
+    ;	    ddl_type_sized(ddl_type, expr)
+    ;	    ddl_type_struct(list(field_def))
+    ;	    ddl_type_union(list(string))
+    ;	    ddl_type_named(string, list(string))
+    ;	    ddl_type_tag_magic(string).
 
 :- type field_def
     --->    field_def(
 		field_name :: string,
-		field_type :: field_type,
+		field_type :: ddl_type,
 		field_cond :: maybe(expr)
 	    ).
-
-:- type field_type
-    --->    field_type_word(word_type, word_values)
-    ;	    field_type_array(expr, field_type)
-    ;	    field_type_zero_or_more(field_type)
-    ;	    field_type_sized(field_type, expr)
-    ;	    field_type_struct(list(field_def))
-    ;	    field_type_union(list(string))
-    ;	    field_type_named(string, list(string))
-    ;	    field_type_tag_magic(string).
 
 :- type expr
     --->    expr_field(string)
@@ -74,7 +70,7 @@
 :- type offset
     --->    offset(
 		offset_base :: offset_base,
-		offset_type :: field_type
+		offset_type :: ddl_type
 	    ).
 
 :- type offset_base
@@ -92,7 +88,7 @@
 
 :- func struct_fields_size(ddl, scope, list(field_def)) = int.
 
-:- func field_type_size(ddl, scope, field_type) = int.
+:- func ddl_type_size(ddl, scope, ddl_type) = int.
 
 :- func eval_expr(scope, expr) = int.
 
@@ -120,50 +116,44 @@ word_type_size(int16) = 2.
 word_type_size(int32) = 4.
 
 ddl_def_size(DDL, Scope, Def, _Args) = Size :-
-    (
-	Def ^ def_body = def_union(Options),
-	Size = union_options_size(DDL, Scope, Options)
-    ;
-	Def ^ def_body = def_struct(Fields),
-	Size = struct_fields_size(DDL, Scope, Fields)
-    ).
+    Size = ddl_type_size(DDL, Scope, Def ^ def_type).
 
 union_options_size(_DDL, _Scope, _Opts) = _Size :-
     abort("uh oh!").
 
 struct_fields_size(_DDL, _Scope, []) = 0.
 struct_fields_size(DDL, Scope, [F|Fs]) = Size :-
-    Size0 = field_type_size(DDL, Scope, F ^ field_type),
+    Size0 = ddl_type_size(DDL, Scope, F ^ field_type),
     Size1 = struct_fields_size(DDL, Scope, Fs),
     Size = Size0 + Size1.
 
-field_type_size(DDL, Scope, FieldType) = Size :-
+ddl_type_size(DDL, Scope, Type) = Size :-
     (
-	FieldType = field_type_word(Word, _Values),
+	Type = ddl_type_word(Word, _Values),
 	Size = word_type_size(Word)
     ;
-	FieldType = field_type_array(SizeExpr, Type),
+	Type = ddl_type_array(SizeExpr, Type0),
 	Length = eval_expr(Scope, SizeExpr),
-	Size = Length * field_type_size(DDL, Scope, Type)
+	Size = Length * ddl_type_size(DDL, Scope, Type0)
     ;
-	FieldType = field_type_zero_or_more(_Type),
+	Type = ddl_type_zero_or_more(_Type0),
 	abort("FIXME zero_or_more has undefined size")
     ;
-	FieldType = field_type_sized(_Type, SizeExpr),
+	Type = ddl_type_sized(_Type0, SizeExpr),
 	Size = eval_expr(Scope, SizeExpr)
     ;
-	FieldType = field_type_struct(Fields),
+	Type = ddl_type_struct(Fields),
 	Size = struct_fields_size(DDL, Scope, Fields)
     ;
-	FieldType = field_type_union(Options),
+	Type = ddl_type_union(Options),
 	Size = union_options_size(DDL, Scope, Options)
     ;
-	FieldType = field_type_named(Name, Args0),
+	Type = ddl_type_named(Name, Args0),
 	Def = ddl_lookup_det(DDL, Name),
 	Args = map(scope_resolve(Scope), Args0),
 	Size = ddl_def_size(DDL, Scope, Def, Args)
     ;
-	FieldType = field_type_tag_magic(Name),
+	Type = ddl_type_tag_magic(Name),
 	TagNum = scope_resolve(Scope, Name),
 	TagStr = tag_num_to_string(TagNum),
 	Def = ddl_lookup_det(DDL, TagStr),

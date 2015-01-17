@@ -45,15 +45,15 @@ parse_ddl_def(Src, Ident-Def, !PS) :-
 	punct("{", Src, _, !PS),
 	comma_separated_list(parse_field_def, Src, Fields, !PS),
 	punct("}", Src, _, !PS),
-	Body = def_struct(Fields)
+	Type = ddl_type_struct(Fields)
     else
 	keyword(kw_union, Src, !PS),
 	punct("{", Src, _, !PS),
 	comma_separated_list(identifier, Src, Options, !PS),
 	punct("}", Src, _, !PS),
-	Body = def_union(Options)
+	Type = ddl_type_union(Options)
     ),
-    Def = ddl_def(Ident, Args, Body).
+    Def = ddl_def(Ident, Args, Type).
 
 :- type multiplicity
     --->    mult_singular
@@ -74,11 +74,11 @@ parse_field_def(Src, Field, !PS) :-
     identifier(Src, Name, !PS),
     parse_multiplicity(Src, Mult, !PS),
     punct(":", Src, _, !PS),
-    parse_field_type(Src, Type0, !PS),
+    parse_ddl_type(Src, Type0, !PS),
     Type = apply_multiplicity(Mult, Type0),
     Field = field_def(Name, Type, Cond).
 
-:- func apply_multiplicity(multiplicity, field_type) = field_type.
+:- func apply_multiplicity(multiplicity, ddl_type) = ddl_type.
 
 apply_multiplicity(Mult, Type0) = Type :-
     (
@@ -86,10 +86,10 @@ apply_multiplicity(Mult, Type0) = Type :-
 	Type = Type0
     ;
 	Mult = mult_array(SizeExpr),
-	Type = field_type_array(SizeExpr, Type0)
+	Type = ddl_type_array(SizeExpr, Type0)
     ;
 	Mult = mult_zero_or_more,
-	Type = field_type_zero_or_more(Type0)
+	Type = ddl_type_zero_or_more(Type0)
     ).
 
 :- pred parse_multiplicity(src::in, multiplicity::out, ps::in, ps::out) is semidet.
@@ -105,28 +105,28 @@ parse_multiplicity(Src, Mult, !PS) :-
 	Mult = mult_singular
     ).
 
-:- pred parse_field_type(src::in, field_type::out, ps::in, ps::out) is semidet.
+:- pred parse_ddl_type(src::in, ddl_type::out, ps::in, ps::out) is semidet.
 
-parse_field_type(Src, Type, !PS) :-
+parse_ddl_type(Src, Type, !PS) :-
     ( if keyword(kw_struct, Src, !PS) then
 	parse_multiplicity(Src, Mult, !PS),
 	punct("{", Src, _, !PS),
 	comma_separated_list(parse_field_def, Src, Fields, !PS),
 	punct("}", Src, _, !PS),
-	Type0 = field_type_struct(Fields),
+	Type0 = ddl_type_struct(Fields),
 	Type1 = apply_multiplicity(Mult, Type0)
     else if identifier(Src, Ident, !PS) then
 	( if Ident = "tag_magic" then
 	    punct("(", Src, _, !PS),
 	    identifier(Src, TagName, !PS),
 	    punct(")", Src, _, !PS),
-	    Type0 = field_type_tag_magic(TagName)
+	    Type0 = ddl_type_tag_magic(TagName)
 	else if punct("(", Src, _, !PS) then
 	    parse_args(Src, Args, !PS),
 	    punct(")", Src, _, !PS),
-	    Type0 = field_type_named(Ident, Args)
+	    Type0 = ddl_type_named(Ident, Args)
 	else
-	    Type0 = field_type_named(Ident, [])
+	    Type0 = ddl_type_named(Ident, [])
 	),
 	parse_multiplicity(Src, Mult, !PS),
 	Type1 = apply_multiplicity(Mult, Type0)
@@ -134,12 +134,12 @@ parse_field_type(Src, Type, !PS) :-
 	parse_word_type(Src, WordType, !PS),
 	parse_multiplicity(Src, Mult, !PS),
 	parse_word_values(Src, WordValues, !PS),
-	Type0 = field_type_word(WordType, WordValues),
+	Type0 = ddl_type_word(WordType, WordValues),
 	Type1 = apply_multiplicity(Mult, Type0)
     ),
     ( if punct("&", Src, _, !PS) then
 	parse_expr(Src, Expr, !PS),
-	Type = field_type_sized(Type1, Expr)
+	Type = ddl_type_sized(Type1, Expr)
     else
 	Type = Type1
     ).
@@ -259,7 +259,7 @@ parse_word_interp(Src, Interp, !PS) :-
 	Base = offset_base_struct
     ),
     punct("=>", Src, _, !PS),
-    parse_field_type(Src, Type, !PS),
+    parse_ddl_type(Src, Type, !PS),
     Interp = word_interp_offset(offset(Base, Type)).
 
 :- pred parse_offset_base(src::in, offset_base::out, ps::in, ps::out) is semidet.
