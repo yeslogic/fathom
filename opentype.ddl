@@ -48,6 +48,26 @@ TTCHeader2: struct {
     // FIXME if dsig_tag = 0 -> dsig_offset = 0
 }
 
+head: struct {
+    version: uint32 = 0x00010000,
+    font_revision: uint32, // FIXME 16.16 fixed point
+    check_sum_adjustment: uint32, // FIXME see spec
+    magic_number: uint32 = 0x5F0F3CF5,
+    flags: uint16, // FIXME see spec
+    units_per_em: uint16, // FIXME see spec
+    created: int64, // FIXME longdatetime
+    modified: int64, // FIXME longdatetime
+    x_min: int16,
+    y_min: int16,
+    x_max: int16,
+    y_max: int16,
+    mac_style: uint16, // FIXME see spec
+    lowest_rec_ppem: uint16, // FIXME see spec
+    font_direction_hint: int16, // deprecated
+    index_to_loc_format: int16 = 0 | 1,
+    glyph_data_format: int16 = 0
+}
+
 // Common structs for OpenType Layout
 
 ScriptList: struct {
