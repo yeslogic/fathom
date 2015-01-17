@@ -68,6 +68,26 @@ head: struct {
     glyph_data_format: int16 = 0
 }
 
+hhea: struct {
+    version: uint32 = 0x00010000,
+    ascender: int16,
+    descender: int16,
+    line_gap: int16,
+    advance_width_max: uint16,
+    min_left_side_bearing: int16,
+    min_right_side_bearing: int16,
+    x_max_extent: int16,
+    caret_slope_rise: int16,
+    caret_slope_run: int16,
+    caret_offset: int16,
+    reserved1: int16 = 0,
+    reserved2: int16 = 0,
+    reserved3: int16 = 0,
+    reserved4: int16 = 0,
+    metric_data_format: int16 = 0,
+    number_of_h_metrics: uint16
+}
+
 // Common structs for OpenType Layout
 
 ScriptList: struct {
