@@ -88,6 +88,34 @@ hhea: struct {
     number_of_h_metrics: uint16
 }
 
+maxp: union {
+    maxp05,
+    maxp10
+}
+
+maxp05: struct {
+    version: uint32 = 0x00005000,
+    num_glyphs: uint16
+}
+
+maxp10: struct {
+    version: uint32 = 0x00010000,
+    num_glyphs: uint16,
+    max_points: uint16,
+    max_contours: uint16,
+    max_composite_points: uint16,
+    max_composite_contours: uint16,
+    max_zones: uint16,
+    max_twilight_points: uint16,
+    max_storage: uint16,
+    max_function_defs: uint16,
+    max_instruction_defs: uint16,
+    max_stack_elements: uint16,
+    max_size_of_instructions: uint16,
+    max_component_elements: uint16,
+    max_component_depth: uint16
+}
+
 // Common structs for OpenType Layout
 
 ScriptList: struct {
