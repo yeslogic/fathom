@@ -116,6 +116,51 @@ maxp10: struct {
     max_component_depth: uint16
 }
 
+cmap: struct {
+    version: uint16 = 0,
+    num_tables: uint16,
+    encoding[num_tables]: struct {
+	platform_id: uint16,
+	encoding_id: uint16,
+	offset: uint32 @offset => cmap_subtable
+    }
+}
+
+cmap_subtable: union {
+    cmap_subtable0,
+    // FIXME cmap_subtable2
+    cmap_subtable4
+    // FIXME cmap_subtable6
+    // FIXME cmap_subtable8
+    // FIXME cmap_subtable10
+    // FIXME cmap_subtable12
+    // FIXME cmap_subtable13
+    // FIXME cmap_subtable14
+}
+
+cmap_subtable0: struct {
+    format: uint16 = 0,
+    length: uint16,
+    language: uint16,
+    glyph_id_array: byte[256]
+}
+
+cmap_subtable4: struct {
+    format: uint16 = 4,
+    length: uint16,
+    language: uint16,
+    seg_count_x2: uint16, // FIXME 2 * seg_count
+    search_range: uint16,
+    entry_selector: uint16,
+    range_shift: uint16,
+    end_count: uint16[seg_count_x2 / 2],
+    reserved_pad: uint16 = 0,
+    start_count: uint16[seg_count_x2 / 2],
+    id_delta: int16[seg_count_x2 / 2],
+    id_range_offset: uint16[seg_count_x2 / 2], // FIXME offsets into glyph_id_array or 0
+    glyph_id_array: uint16 // FIXME length?
+}
+
 // Common structs for OpenType Layout
 
 ScriptList: struct {
