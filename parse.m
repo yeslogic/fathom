@@ -176,6 +176,10 @@ parse_expr0(Expr0, Src, Expr, !PS) :-
 	parse_term(Src, Expr1, !PS),
 	Expr2 = expr_op(expr_mul, Expr0, Expr1),
 	parse_expr0(Expr2, Src, Expr, !PS)
+    else if punct("/", Src, _, !PS) then
+	parse_term(Src, Expr1, !PS),
+	Expr2 = expr_op(expr_div, Expr0, Expr1),
+	parse_expr0(Expr2, Src, Expr, !PS)
     else if punct("&", Src, _, !PS) then
 	parse_term(Src, Expr1, !PS),
 	Expr2 = expr_op(expr_and, Expr0, Expr1),

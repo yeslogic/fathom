@@ -42,6 +42,7 @@
     --->    expr_add
     ;	    expr_sub
     ;	    expr_mul
+    ;	    expr_div
     ;	    expr_and.
 
 :- type word_values
@@ -183,6 +184,9 @@ eval_expr(Scope, Expr) = Res :-
 	;
 	    Op = expr_mul,
 	    Res = Lhs * Rhs
+	;
+	    Op = expr_div,
+	    Res = Lhs / Rhs
 	;
 	    Op = expr_and,
 	    Res = Lhs /\ Rhs
