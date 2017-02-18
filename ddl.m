@@ -1,6 +1,6 @@
 :- module ddl.
 
-% Copyright (C) 2014-2015 YesLogic Pty. Ltd.
+% Copyright (C) 2014-2015, 2017 YesLogic Pty. Ltd.
 % All rights reserved.
 
 :- interface.
@@ -204,7 +204,12 @@ tag_num_to_string(N) = Tag :-
 	char.from_int(B2, C2),
 	char.from_int(B3, C3)
     then
-	Tag = string.from_char_list([C0,C1,C2,C3])
+	Tag0 = string.from_char_list([C0,C1,C2,C3]),
+        ( if Tag0 = "OS/2" then
+            Tag = "OS2"
+        else
+            Tag = Tag0
+        )
     else
 	abort("not a tag: "++int_to_string(N))
     ).
