@@ -21,7 +21,7 @@
 
 :- type ditem
     --->    ditem(
-		ditem_name :: string,
+		ditem_name :: maybe(string),
 		ditem_value :: ditem_value
 	    ).
 
@@ -38,32 +38,44 @@
 		context_scope :: assoc_list(string, int)
 	    ).
 
-:- type refs == assoc_list(int, {context, ddl_def, list(string)}).
+:- type refs == assoc_list(int, {context, ref}).
 
-:- type dump == assoc_list({int, ddl_def}, ditem).
+:- type ref
+    --->    ref_def(ddl_def, list(string))
+    ;       ref_type(ddl_type).
+
+:- type dump == assoc_list({int, ref}, ditem).
 
 %--------------------------------------------------------------------%
 
 dump_root(DDL, Bytes, Def, !IO) :-
     Context = context(0, [], []),
-    Refs = [0-{Context,Def,[]}],
+    Refs = [0-{Context,ref_def(Def,[])}],
     dump(DDL, Bytes, Refs, [], Dump),
     foldl(write_dump, sort(Dump), !IO).
 
-:- pred dump(ddl::in, bytes::in, refs::in, dump::in, dump::out).
+:- pred dump(ddl::in, bytes::in, refs::in, dump::in, dump::out) is det.
 
 dump(DDL, Bytes, Refs, Dump0, Dump) :-
     (
 	Refs = [],
 	Dump = Dump0
     ;
-	Refs = [Offset - {Context, Def, Args}|Refs0],
-	( if search(Dump0, {Offset, Def}, _Item) then
-	    dump(DDL, Bytes, Refs0, Dump0, Dump)
-	else
-	    dump_def(DDL, Bytes, Def, Args, Item, Offset, _EndOffset, Context, Refs0, Refs1),
-	    dump(DDL, Bytes, Refs1, [{Offset, Def}-Item|Dump0], Dump)
-	)
+	Refs = [Offset - {Context, Ref}|Refs0],
+        ( if search(Dump0, {Offset, Ref}, _Item) then
+            dump(DDL, Bytes, Refs0, Dump0, Dump)
+        else
+            (
+                Ref = ref_def(Def, Args),
+                dump_def(DDL, Bytes, Def, Args, Item, Offset, _EndOffset, Context, Refs0, Refs1),
+                dump(DDL, Bytes, Refs1, [{Offset, Ref}-Item|Dump0], Dump)
+            ;
+                Ref = ref_type(Type),
+                dump_value(DDL, Bytes, no, Type, Value, Offset, _Size, Context, _NewContext, Refs0, Refs1),
+                Item = ditem(no, Value),
+                dump(DDL, Bytes, Refs1, [{Offset, Ref}-Item|Dump0], Dump)
+            )
+        )
     ).
 
 :- pred dump_def(ddl::in, bytes::in, ddl_def::in, list(string)::in, ditem::out, int::in, int::out, context::in, refs::in, refs::out) is det.
@@ -75,12 +87,12 @@ dump_def(DDL, Bytes, Def, Args0, Item, !Offset, Context0, !Refs) :-
     Context = context_nested(Context0, Name, Args, !.Offset),
     dump_value(DDL, Bytes, no, Def ^ def_type, Value, !.Offset, Size, Context, _NewContext, !Refs),
     !:Offset = !.Offset + Size,
-    Item = ditem(Name, Value).
+    Item = ditem(yes(Name), Value).
 
 :- pred dump_union_options(ddl::in, bytes::in, list(string)::in, ditem::out, int::in, int::out, context::in, refs::in, refs::out) is det.
 
 % FIXME
-dump_union_options(_DDL, _Bytes, [], ditem("HELP", fields([])), !Offset, _Context0, !Refs).
+dump_union_options(_DDL, _Bytes, [], ditem(yes("HELP"), fields([])), !Offset, _Context0, !Refs).
 dump_union_options(DDL, Bytes, [Option|Options], Item, !Offset, Context0, !Refs) :-
     Def = ddl_lookup_det(DDL, Option),
     ( if match_def(DDL, Bytes, Def, !.Offset, Context0) then
@@ -177,7 +189,7 @@ match_cond(Context, Expr) :-
 
 dump_field(DDL, Bytes, Field, Item, !Offset, !Context, !Refs) :-
     dump_value(DDL, Bytes, yes(Field ^ field_name), Field ^ field_type, Value, !.Offset, Size, !Context, !Refs),
-    Item = ditem(Field ^ field_name, Value),
+    Item = ditem(yes(Field ^ field_name), Value),
     !:Offset = !.Offset + Size.
 
 :- pred dump_value(ddl::in, bytes::in, maybe(string)::in, ddl_type::in, ditem_value::out, int::in, int::out, context::in, context::out, refs::in, refs::out) is det.
@@ -237,7 +249,7 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Refs) :-
 	    Size = NewOffset - Offset
 	else
 	    % FIXME
-	    Value = item(ditem("Unknown tag: "++TagStr, fields([]))),
+	    Value = item(ditem(yes("Unknown tag: "++TagStr), fields([]))),
 	    Size = 0
 	)
     ).
@@ -298,34 +310,27 @@ update_refs(DDL, Context, Word, WordValues, !Refs) :-
 
 make_ref_from_offset(DDL, Context, Offset, Word, !Refs) :-
     NewOffset = calc_offset(Context, Offset, Word),
+    Type = Offset ^ offset_type,
     (
-	Offset ^ offset_type = ddl_type_word(_, _),
-	abort("unhandled field type")
+        (
+            Type = ddl_type_word(_, _) ;
+            Type = ddl_type_array(_, _) ;
+            Type = ddl_type_zero_or_more(_) ;
+            Type = ddl_type_sized(_, _) ;
+            Type = ddl_type_struct(_) ;
+            Type = ddl_type_union(_)
+        ),
+        !:Refs = [NewOffset - {Context,ref_type(Type)}|!.Refs]
     ;
-	Offset ^ offset_type = ddl_type_array(_, _),
-	abort("unhandled field type")
-    ;
-	Offset ^ offset_type = ddl_type_zero_or_more(_),
-	abort("unhandled field type")
-    ;
-	Offset ^ offset_type = ddl_type_sized(_, _),
-	abort("unhandled field type")
-    ;
-	Offset ^ offset_type = ddl_type_struct(_),
-	abort("unhandled field type")
-    ;
-	Offset ^ offset_type = ddl_type_union(_),
-	abort("unhandled field type")
-    ;
-	Offset ^ offset_type = ddl_type_named(Name, Args),
+	Type = ddl_type_named(Name, Args),
 	Def = ddl_lookup_det(DDL, Name),
-	!:Refs = [NewOffset - {Context,Def,Args}|!.Refs]
+	!:Refs = [NewOffset - {Context,ref_def(Def,Args)}|!.Refs]
     ;
-	Offset ^ offset_type = ddl_type_tag_magic(Name),
+	Type = ddl_type_tag_magic(Name),
 	TagNum = scope_resolve(Context ^ context_scope, Name),
 	TagStr = tag_num_to_string(TagNum),
 	( if ddl_search(DDL, TagStr, Def) then
-	    !:Refs = [NewOffset - {Context,Def,[]}|!.Refs]
+	    !:Refs = [NewOffset - {Context,ref_def(Def,[])}|!.Refs]
 	else
 	    trace [io(!IO)] ( write_string("failed type lookup for tag: "++TagStr++"\n", !IO) )
 	)
@@ -403,9 +408,9 @@ get_byte_range(Bytes, Offset, Length) = Bs :-
 
 %--------------------------------------------------------------------%
 
-:- pred write_dump(pair({int, ddl_def}, ditem)::in, io::di, io::uo) is det.
+:- pred write_dump(pair({int, ref}, ditem)::in, io::di, io::uo) is det.
 
-write_dump({Offset, _Def} - Item, !IO) :-
+write_dump({Offset, _Ref} - Item, !IO) :-
     write_int(Offset, !IO),
     write_string(": ", !IO),
     write_item(0, Item, !IO).
@@ -414,8 +419,13 @@ write_dump({Offset, _Def} - Item, !IO) :-
 
 write_item(Tab, Item, !IO) :-
     write_indent(Tab, !IO),
-    write_string(Item ^ ditem_name, !IO),
-    write_string(" = ", !IO),
+    (
+        Item ^ ditem_name = yes(Name),
+        write_string(Name, !IO),
+        write_string(" = ", !IO)
+    ;
+        Item ^ ditem_name = no
+    ),
     write_item_value(Tab, Item ^ ditem_value, !IO),
     nl(!IO).
 
