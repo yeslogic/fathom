@@ -116,6 +116,27 @@ maxp10: struct {
     max_component_depth: uint16
 }
 
+name: struct {
+    format: uint16 = 0 | 1,
+    count: uint16,
+    stringOffset: uint16, // FIXME offset to start of string storage from start of table
+    nameRecord: struct[count] {
+        platformID: uint16,
+        encodingID: uint16,
+        languageID: uint16,
+        nameID: uint16,
+        length: uint16,
+        offset: uint16 @offset_scope(stringOffset) => uint8[length] ~ string
+    },
+    @if format = 1 {
+        langTagCount: uint16,
+        langTagRecord: struct[langTagCount] {
+            length: uint16,
+            offset: uint16 @offset_scope(stringOffset) => uint8[length] ~ string
+        }
+    }
+}
+
 cmap: struct {
     version: uint16 = 0,
     num_tables: uint16,
