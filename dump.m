@@ -367,11 +367,24 @@ calc_offset(Context, Offset, V) = NewOffset :-
 	Offset ^ offset_base = offset_base_root,
 	NewOffset = Context ^ context_root + V
     ;
-	Offset ^ offset_base = offset_base_named(Name),
+	Offset ^ offset_base = offset_base_stack(Name),
 	( if search(Context ^ context_stack, Name, StructOffset) then
 	    NewOffset = StructOffset + V
 	else
 	    abort("context stack missing: "++Name)
+	)
+    ;
+	Offset ^ offset_base = offset_base_scope(Name),
+	( if search(Context ^ context_scope, Name, ScopeOffset) then
+            (
+                Context ^ context_stack = [],
+                abort("context stack underflow")
+            ;
+                Context ^ context_stack = [_-StructOffset|_],
+                NewOffset = StructOffset + ScopeOffset + V
+            )
+	else
+	    abort("context scope missing: "++Name)
 	)
     ).
 

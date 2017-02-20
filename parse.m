@@ -360,12 +360,19 @@ parse_word_value(Src, Value-Interp, !PS) :-
 :- pred parse_word_interp(src::in, word_interp::out, ps::in, ps::out) is semidet.
 
 parse_word_interp(Src, Interp, !PS) :-
-    at_rule(at_offset, Src, !PS),
-    ( if punct("(", Src, _, !PS) then
-	parse_offset_base(Src, Base, !PS),
-	punct(")", Src, _, !PS)
+    ( if at_rule(at_offset, Src, !PS) then
+        ( if punct("(", Src, _, !PS) then
+            parse_offset_base(Src, Base, !PS),
+            punct(")", Src, _, !PS)
+        else
+            Base = offset_base_struct
+        )
     else
-	Base = offset_base_struct
+        at_rule(at_offset_scope, Src, !PS),
+        punct("(", Src, _, !PS),
+	identifier(Src, Ident, !PS),
+	Base = offset_base_scope(Ident),
+        punct(")", Src, _, !PS)
     ),
     punct("=>", Src, _, !PS),
     parse_ddl_type(Src, Type, !PS),
@@ -378,7 +385,7 @@ parse_offset_base(Src, Base, !PS) :-
 	Base = offset_base_root
     else
 	identifier(Src, Ident, !PS),
-	Base = offset_base_named(Ident)
+	Base = offset_base_stack(Ident)
     ).
 
 :- pred parse_word_type(src::in, word_type::out, ps::in, ps::out) is semidet.
@@ -447,6 +454,7 @@ keyword(Keyword, Src, !PS) :-
 
 :- type at_rule
     --->    at_offset
+    ;       at_offset_scope
     ;	    at_root
     ;	    at_if.
 
@@ -454,6 +462,7 @@ keyword(Keyword, Src, !PS) :-
 :- mode at_rule_string(in, out) is det.
 
 at_rule_string(at_offset, "offset").
+at_rule_string(at_offset_scope, "offset_scope").
 at_rule_string(at_root, "root").
 at_rule_string(at_if, "if").
 

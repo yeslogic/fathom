@@ -100,7 +100,8 @@
 :- type offset_base
     --->    offset_base_struct
     ;	    offset_base_root
-    ;	    offset_base_named(string).
+    ;	    offset_base_stack(string)
+    ;       offset_base_scope(string).
 
 :- type scope == assoc_list(string, int).
 
