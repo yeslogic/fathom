@@ -29,7 +29,8 @@
     --->    item(ditem)
     ;	    fields(list(ditem))
     ;	    array(list(ditem_value))
-    ;	    word(int).
+    ;	    word(int)
+    ;       string(string).
 
 :- type context
     --->    context(
@@ -71,7 +72,7 @@ dump(DDL, Bytes, Refs, Dump0, Dump) :-
                 dump(DDL, Bytes, Refs1, [{Offset, Ref}-Item|Dump0], Dump)
             ;
                 Ref = ref_type(Type),
-                dump_value(DDL, Bytes, no, Type, Value, Offset, _Size, Context, _NewContext, Refs0, Refs1),
+                dump_value(DDL, Bytes, no, Type, Value, Offset, no, _Size, Context, _NewContext, Refs0, Refs1),
                 Item = ditem(no, Value),
                 dump(DDL, Bytes, Refs1, [{Offset, Ref}-Item|Dump0], Dump)
             )
@@ -85,7 +86,7 @@ dump_def(DDL, Bytes, Def, Args0, Item, !Offset, Context0, !Refs) :-
     ArgValues = map(scope_resolve(Context0 ^ context_scope), Args0),
     Args = from_corresponding_lists(Def ^ def_args, ArgValues),
     Context = context_nested(Context0, Name, Args, !.Offset),
-    dump_value(DDL, Bytes, no, Def ^ def_type, Value, !.Offset, Size, Context, _NewContext, !Refs),
+    dump_value(DDL, Bytes, no, Def ^ def_type, Value, !.Offset, no, Size, Context, _NewContext, !Refs),
     !:Offset = !.Offset + Size,
     Item = ditem(yes(Name), Value).
 
@@ -158,6 +159,9 @@ match_type(DDL, Bytes, Type, Offset, Context) :-
 	else
 	    fail
 	)
+    ;
+        Type = ddl_type_string,
+        fail
     ).
 
 :- pred match_word(bytes::in, word_type::in, word_value::in, int::in) is semidet.
@@ -188,13 +192,13 @@ match_cond(Context, Expr) :-
 :- pred dump_field(ddl::in, bytes::in, field_def::in, ditem::out, int::in, int::out, context::in, context::out, refs::in, refs::out) is det.
 
 dump_field(DDL, Bytes, Field, Item, !Offset, !Context, !Refs) :-
-    dump_value(DDL, Bytes, yes(Field ^ field_name), Field ^ field_type, Value, !.Offset, Size, !Context, !Refs),
+    dump_value(DDL, Bytes, yes(Field ^ field_name), Field ^ field_type, Value, !.Offset, no, Size, !Context, !Refs),
     Item = ditem(yes(Field ^ field_name), Value),
     !:Offset = !.Offset + Size.
 
-:- pred dump_value(ddl::in, bytes::in, maybe(string)::in, ddl_type::in, ditem_value::out, int::in, int::out, context::in, context::out, refs::in, refs::out) is det.
+:- pred dump_value(ddl::in, bytes::in, maybe(string)::in, ddl_type::in, ditem_value::out, int::in, maybe(int)::in, int::out, context::in, context::out, refs::in, refs::out) is det.
 
-dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Refs) :-
+dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, MaybeSize, Size, !Context, !Refs) :-
     (
 	Type = ddl_type_word(WordType, WordValues),
 	Size = word_type_size(WordType),
@@ -220,7 +224,7 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Refs) :-
     ;
 	Type = ddl_type_sized(Type0, SizeExpr),
 	Size = eval_expr_int(!.Context ^ context_scope, SizeExpr),
-	dump_value(DDL, Bytes, no, Type0, Value, Offset, _Size, !Context, !Refs)
+	dump_value(DDL, Bytes, no, Type0, Value, Offset, yes(Size), _Size, !Context, !Refs)
     ;
 	Type = ddl_type_struct(Fields0),
 	NestedContext = !.Context, % FIXME?
@@ -252,13 +256,35 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Refs) :-
 	    Value = item(ditem(yes("Unknown tag: "++TagStr), fields([]))),
 	    Size = 0
 	)
+    ;
+        Type = ddl_type_string,
+        (
+            MaybeSize = yes(Size0),
+            Bs = get_byte_range(Bytes, Offset, Size0),
+            ( if Cs = ucs2_hack(Bs) then
+                Str = from_char_list(Cs)
+            else
+                Str = "<<non-ASCII string>>"
+            ),
+            Value = string(Str),
+            Size = Size0
+        ;
+            MaybeSize = no,
+            abort("FIXME no size for string")
+        )
     ).
+
+:- func ucs2_hack(list(int)) = list(char).
+:- mode ucs2_hack(in) = out is semidet.
+
+ucs2_hack([]) = [].
+ucs2_hack([0,B|Bs]) = [C|ucs2_hack(Bs)] :- char.from_int(B, C).
 
 :- pred dump_array(ddl::in, bytes::in, int::in, ddl_type::in, int::in, int::in, int::in, list(ditem_value)::out, context::in, context::out, refs::in, refs::out) is det.
 
 dump_array(DDL, Bytes, Length, Type, Index, Offset, Size, Values, !Context, !Refs) :-
     ( if Index < Length then
-	dump_value(DDL, Bytes, no, Type, Value, Offset + Index*Size, _Size0, !Context, !Refs),
+	dump_value(DDL, Bytes, no, Type, Value, Offset + Index*Size, no, _Size0, !Context, !Refs),
 	dump_array(DDL, Bytes, Length, Type, Index+1, Offset, Size, Values0, !Context, !Refs),
 	Values = [Value|Values0]
     else
@@ -269,7 +295,7 @@ dump_array(DDL, Bytes, Length, Type, Index, Offset, Size, Values, !Context, !Ref
 
 dump_zero_or_more(DDL, Bytes, Type, Offset, Size, Values, !Context, !Refs) :-
     ( if Offset < length(Bytes) then
-	dump_value(DDL, Bytes, no, Type, Value, Offset, Size0, !Context, !Refs),
+	dump_value(DDL, Bytes, no, Type, Value, Offset, no, Size0, !Context, !Refs),
 	dump_zero_or_more(DDL, Bytes, Type, Offset+Size0, Size1, Values0, !Context, !Refs),
 	Values = [Value|Values0],
 	Size = Size0 + Size1
@@ -318,7 +344,8 @@ make_ref_from_offset(DDL, Context, Offset, Word, !Refs) :-
             Type = ddl_type_zero_or_more(_) ;
             Type = ddl_type_sized(_, _) ;
             Type = ddl_type_struct(_) ;
-            Type = ddl_type_union(_)
+            Type = ddl_type_union(_) ;
+            Type = ddl_type_string
         ),
         !:Refs = [NewOffset - {Context,ref_type(Type)}|!.Refs]
     ;
@@ -466,6 +493,9 @@ write_item_value(Tab, Value, !IO) :-
     ;
 	Value = word(N),
 	write_int(N, !IO)
+    ;
+        Value = string(Str),
+        write(Str, !IO)
     ).
 
 :- pred write_array(int::in, list(ditem_value)::in, io::di, io::uo) is det.

@@ -24,7 +24,8 @@
     ;	    ddl_type_struct(list(field_def))
     ;	    ddl_type_union(list(string))
     ;	    ddl_type_named(string, list(string))
-    ;	    ddl_type_tag_magic(string).
+    ;	    ddl_type_tag_magic(string)
+    ;       ddl_type_string.
 
 :- type field_def
     --->    field_def(
@@ -187,6 +188,9 @@ ddl_type_size(DDL, Scope, Type) = Size :-
 	TagStr = tag_num_to_string(TagNum),
 	Def = ddl_lookup_det(DDL, TagStr),
 	Size = ddl_def_size(DDL, Scope, Def, [])
+    ;
+        Type = ddl_type_string,
+        abort("FIXME string has undefined size")
     ).
 
 eval_expr_bool(Scope, Expr) = Res :-

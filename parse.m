@@ -176,6 +176,8 @@ parse_base_type(Src, Type, !PS) :-
 	    identifier(Src, TagName, !PS),
 	    punct(")", Src, _, !PS),
 	    Type0 = ddl_type_tag_magic(TagName)
+        else if Ident = "string" then
+            Type0 = ddl_type_string
 	else if punct("(", Src, _, !PS) then
 	    parse_args(Src, Args, !PS),
 	    punct(")", Src, _, !PS),
