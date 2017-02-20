@@ -43,7 +43,7 @@ parse_ddl_def(Src, Ident-Def, !PS) :-
     punct(":", Src, _, !PS),
     ( if keyword(kw_struct, Src, !PS) then
 	punct("{", Src, _, !PS),
-	comma_separated_list(parse_field_def, Src, Fields, !PS),
+        parse_field_defs(Src, Fields, !PS),
 	punct("}", Src, _, !PS),
 	Type = ddl_type_struct(Fields)
     else
@@ -60,17 +60,44 @@ parse_ddl_def(Src, Ident-Def, !PS) :-
     ;	    mult_array(expr_int)
     ;	    mult_zero_or_more.
 
-:- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
+:- pred parse_field_defs(src::in, list(field_def)::out, ps::in, ps::out) is semidet.
 
-parse_field_def(Src, Field, !PS) :-
+parse_field_defs(Src, Fields, !PS) :-
     ( if at_rule(at_if, Src, !PS) then
 	skip_ws_comments(Src, _, !PS),
 	parse_expr_bool(Src, Expr, !PS),
         Cond = yes(Expr),
-        punct(":", Src, _, !PS)
+        ( if punct("{", Src, _, !PS) then
+            comma_separated_list(parse_field_def(Cond), Src, Fields0, !PS),
+            punct("}", Src, _, !PS),
+            parse_field_defs(Src, Fields1, !PS),
+            Fields = Fields0 ++ Fields1
+        else
+            punct(":", Src, _, !PS),
+            parse_field_def(Cond, Src, FieldDef, !PS),
+            ( if punct(",", Src, _, !PS) then
+                parse_field_defs(Src, Fields0, !PS),
+                Fields = [FieldDef|Fields0]
+            else
+                Fields = [FieldDef]
+            )
+        )
     else
-	Cond = no
-    ),
+        ( if parse_field_def(no, Src, FieldDef, !PS) then
+            ( if punct(",", Src, _, !PS) then
+                parse_field_defs(Src, Fields0, !PS),
+                Fields = [FieldDef|Fields0]
+            else
+                Fields = [FieldDef]
+            )
+        else
+            Fields = []
+        )
+    ).
+
+:- pred parse_field_def(maybe(expr_bool)::in, src::in, field_def::out, ps::in, ps::out) is semidet.
+
+parse_field_def(Cond, Src, Field, !PS) :-
     identifier(Src, Name, !PS),
     parse_multiplicity(Src, Mult, !PS),
     punct(":", Src, _, !PS),
@@ -116,7 +143,7 @@ parse_ddl_type(Src, Type, !PS) :-
     ( if keyword(kw_struct, Src, !PS) then
 	parse_multiplicity(Src, Mult, !PS),
 	punct("{", Src, _, !PS),
-	comma_separated_list(parse_field_def, Src, Fields, !PS),
+        parse_field_defs(Src, Fields, !PS),
 	punct("}", Src, _, !PS),
 	Type0 = ddl_type_struct(Fields),
 	Type1 = apply_multiplicity(Mult, Type0)
