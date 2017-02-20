@@ -161,6 +161,56 @@ cmap_subtable4: struct {
     glyph_id_array: uint16 // FIXME length?
 }
 
+// OS/2 table
+
+OS2: struct {
+    version: uint16,
+    xAvgCharWidth: int16,
+    usWeightClass: uint16,
+    usWidthClass: uint16,
+    fsType: uint16,
+    ySubscriptXSize: int16,
+    ySubscriptYSize: int16,
+    ySubscriptXOffset: int16,
+    ySubscriptYOffset: int16,
+    ySuperscriptXSize: int16,
+    ySuperscriptYSize: int16,
+    ySuperscriptXOffset: int16,
+    ySuperscriptYOffset: int16,
+    yStrikeoutSize: int16,
+    yStrikeoutPosition: int16,
+    sFamilyClass: int16,
+    panose: uint8[10],
+    ulUnicodeRange1: uint32,
+    ulUnicodeRange2: uint32,
+    ulUnicodeRange3: uint32,
+    ulUnicodeRange4: uint32,
+    achVendID: uint32, // Tag
+    fsSelection: uint16,
+    usFirstCharIndex: uint16,
+    usLastCharIndex: uint16,
+    sTypoAscender: int16,
+    sTypoDescender: int16,
+    sTypoLineGap: int16,
+    usWinAscent: uint16,
+    usWinDescent: uint16,
+    @if version >= 1 {
+        ulCodePageRange1: uint32,
+        ulCodePageRange2: uint32
+    }
+    @if version >= 2 {
+        sxHeight: int16,
+        sCapHeight: int16,
+        usDefaultChar: uint16,
+        usBreakChar: uint16,
+        usMaxContext: uint16
+    }
+    @if version >= 5 {
+        usLowerOpticalPointSize: uint16,
+        usUpperOpticalPointSize: uint16
+    }
+}
+
 // Common structs for OpenType Layout
 
 ScriptList: struct {
