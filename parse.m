@@ -140,13 +140,36 @@ parse_multiplicity(Src, Mult, !PS) :-
 :- pred parse_ddl_type(src::in, ddl_type::out, ps::in, ps::out) is semidet.
 
 parse_ddl_type(Src, Type, !PS) :-
+    parse_base_type(Src, Type1, !PS),
+    ( if punct("&", Src, _, !PS) then
+	parse_expr(Src, SizeExpr0, !PS),
+        ( if SizeExpr0 = expr_int(SizeExpr1) then
+            SizeExpr = SizeExpr1
+        else
+            fail_with_message("expr must be int", Src, SizeExpr, !PS)
+        ),
+	Type = ddl_type_sized(Type1, SizeExpr)
+    else if punct("~", Src, _, !PS) then
+        ( if Type1 = ddl_type_array(SizeExpr, ddl_type_word(uint8, word_values(no, []))) then
+            parse_base_type(Src, Type2, !PS),
+            Type = ddl_type_sized(Type2, SizeExpr)
+        else
+            fail_with_message("sized type must be uint8[]", Src, Type, !PS)
+        )
+    else
+	Type = Type1
+    ).
+
+:- pred parse_base_type(src::in, ddl_type::out, ps::in, ps::out) is semidet.
+
+parse_base_type(Src, Type, !PS) :-
     ( if keyword(kw_struct, Src, !PS) then
 	parse_multiplicity(Src, Mult, !PS),
 	punct("{", Src, _, !PS),
         parse_field_defs(Src, Fields, !PS),
 	punct("}", Src, _, !PS),
 	Type0 = ddl_type_struct(Fields),
-	Type1 = apply_multiplicity(Mult, Type0)
+	Type = apply_multiplicity(Mult, Type0)
     else if identifier(Src, Ident, !PS) then
 	( if Ident = "tag_magic" then
 	    punct("(", Src, _, !PS),
@@ -161,24 +184,13 @@ parse_ddl_type(Src, Type, !PS) :-
 	    Type0 = ddl_type_named(Ident, [])
 	),
 	parse_multiplicity(Src, Mult, !PS),
-	Type1 = apply_multiplicity(Mult, Type0)
+	Type = apply_multiplicity(Mult, Type0)
     else
 	parse_word_type(Src, WordType, !PS),
 	parse_multiplicity(Src, Mult, !PS),
 	parse_word_values(Src, WordValues, !PS),
 	Type0 = ddl_type_word(WordType, WordValues),
-	Type1 = apply_multiplicity(Mult, Type0)
-    ),
-    ( if punct("&", Src, _, !PS) then
-	parse_expr(Src, SizeExpr0, !PS),
-        ( if SizeExpr0 = expr_int(SizeExpr1) then
-            SizeExpr = SizeExpr1
-        else
-            fail_with_message("expr must be int", Src, SizeExpr, !PS)
-        ),
-	Type = ddl_type_sized(Type1, SizeExpr)
-    else
-	Type = Type1
+	Type = apply_multiplicity(Mult, Type0)
     ).
 
 :- pred parse_args(src::in, list(string)::out, ps::in, ps::out) is semidet.
