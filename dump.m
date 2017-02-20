@@ -1,6 +1,6 @@
 :- module dump.
 
-% Copyright (C) 2014-2015 YesLogic Pty. Ltd.
+% Copyright (C) 2014-2015, 2017 YesLogic Pty. Ltd.
 % All rights reserved.
 
 :- interface.
@@ -16,7 +16,7 @@
 
 :- implementation.
 
-:- import_module list, assoc_list, int, char, maybe, pair, string.
+:- import_module list, assoc_list, int, char, maybe, bool, pair, string.
 :- import_module abort.
 
 :- type ditem
@@ -167,11 +167,11 @@ dump_struct_fields(DDL, Bytes, [Field|Fields], Items, !Offset, Context0, !Refs) 
 	dump_struct_fields(DDL, Bytes, Fields, Items, !Offset, Context0, !Refs)
     ).
 
-:- pred match_cond(context::in, expr::in) is semidet.
+:- pred match_cond(context::in, expr_bool::in) is semidet.
 
 match_cond(Context, Expr) :-
-    Val = eval_expr(Context ^ context_scope, Expr),
-    Val \= 0.
+    Val = eval_expr_bool(Context ^ context_scope, Expr),
+    Val = yes.
 
 :- pred dump_field(ddl::in, bytes::in, field_def::in, ditem::out, int::in, int::out, context::in, context::out, refs::in, refs::out) is det.
 
@@ -196,7 +196,7 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Refs) :-
 	)
     ;
 	Type = ddl_type_array(SizeExpr, Type0),
-	Length = eval_expr(!.Context ^ context_scope, SizeExpr),
+	Length = eval_expr_int(!.Context ^ context_scope, SizeExpr),
 	FieldSize = ddl_type_size(DDL, !.Context ^ context_scope, Type0),
 	dump_array(DDL, Bytes, Length, Type0, 0, Offset, FieldSize, Values, !Context, !Refs),
 	Value = array(Values),
@@ -207,7 +207,7 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, Size, !Context, !Refs) :-
 	Value = array(Values)
     ;
 	Type = ddl_type_sized(Type0, SizeExpr),
-	Size = eval_expr(!.Context ^ context_scope, SizeExpr),
+	Size = eval_expr_int(!.Context ^ context_scope, SizeExpr),
 	dump_value(DDL, Bytes, no, Type0, Value, Offset, _Size, !Context, !Refs)
     ;
 	Type = ddl_type_struct(Fields0),

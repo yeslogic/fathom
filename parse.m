@@ -1,6 +1,6 @@
 :- module parse.
 
-% Copyright (C) 2014-2015 YesLogic Pty. Ltd.
+% Copyright (C) 2014-2015, 2017 YesLogic Pty. Ltd.
 % All rights reserved.
 
 :- interface.
@@ -57,7 +57,7 @@ parse_ddl_def(Src, Ident-Def, !PS) :-
 
 :- type multiplicity
     --->    mult_singular
-    ;	    mult_array(expr)
+    ;	    mult_array(expr_int)
     ;	    mult_zero_or_more.
 
 :- pred parse_field_def(src::in, field_def::out, ps::in, ps::out) is semidet.
@@ -65,9 +65,9 @@ parse_ddl_def(Src, Ident-Def, !PS) :-
 parse_field_def(Src, Field, !PS) :-
     ( if at_rule(at_if, Src, !PS) then
 	skip_ws_comments(Src, _, !PS),
-	parse_expr(Src, Expr, !PS),
-	punct(":", Src, _, !PS),
-	Cond = yes(Expr)
+	parse_expr_bool(Src, Expr, !PS),
+        Cond = yes(Expr),
+        punct(":", Src, _, !PS)
     else
 	Cond = no
     ),
@@ -97,8 +97,13 @@ apply_multiplicity(Mult, Type0) = Type :-
 parse_multiplicity(Src, Mult, !PS) :-
     ( if punct("[", Src, _, !PS) then
 	parse_expr(Src, SizeExpr0, !PS),
+        ( if SizeExpr0 = expr_int(SizeExpr1) then
+            SizeExpr = SizeExpr1
+        else
+            fail_with_message("expr must be int", Src, SizeExpr, !PS)
+        ),
 	punct("]", Src, _, !PS),
-	Mult = mult_array(SizeExpr0)
+	Mult = mult_array(SizeExpr)
     else if punct("*", Src, _, !PS) then
 	Mult = mult_zero_or_more
     else
@@ -138,8 +143,13 @@ parse_ddl_type(Src, Type, !PS) :-
 	Type1 = apply_multiplicity(Mult, Type0)
     ),
     ( if punct("&", Src, _, !PS) then
-	parse_expr(Src, Expr, !PS),
-	Type = ddl_type_sized(Type1, Expr)
+	parse_expr(Src, SizeExpr0, !PS),
+        ( if SizeExpr0 = expr_int(SizeExpr1) then
+            SizeExpr = SizeExpr1
+        else
+            fail_with_message("expr must be int", Src, SizeExpr, !PS)
+        ),
+	Type = ddl_type_sized(Type1, SizeExpr)
     else
 	Type = Type1
     ).
@@ -155,40 +165,108 @@ parse_args(Src, Args, !PS) :-
 	Args = [Ident]
     ).
 
+:- pred parse_expr_bool(src::in, expr_bool::out, ps::in, ps::out) is semidet.
+
+parse_expr_bool(Src, Expr, !PS) :-
+    parse_expr(Src, Expr0, !PS),
+    (
+        Expr0 = expr_bool(Expr)
+    ;
+        Expr0 = expr_int(Expr1),
+        Expr = expr_rel(expr_ne, Expr1, expr_const(0))
+    ).
+
 :- pred parse_expr(src::in, expr::out, ps::in, ps::out) is semidet.
 
 parse_expr(Src, Expr, !PS) :-
-    parse_term(Src, Expr0, !PS),
+    parse_expr_rel(Src, Expr0, !PS),
     parse_expr0(Expr0, Src, Expr, !PS).
 
 :- pred parse_expr0(expr::in, src::in, expr::out, ps::in, ps::out) is semidet.
 
 parse_expr0(Expr0, Src, Expr, !PS) :-
-    ( if punct("+", Src, _, !PS) then
-	parse_term(Src, Expr1, !PS),
-	Expr2 = expr_op(expr_add, Expr0, Expr1),
-	parse_expr0(Expr2, Src, Expr, !PS)
-    else if punct("-", Src, _, !PS) then
-	parse_term(Src, Expr1, !PS),
-	Expr2 = expr_op(expr_sub, Expr0, Expr1),
-	parse_expr0(Expr2, Src, Expr, !PS)
-    else if punct("*", Src, _, !PS) then
-	parse_term(Src, Expr1, !PS),
-	Expr2 = expr_op(expr_mul, Expr0, Expr1),
-	parse_expr0(Expr2, Src, Expr, !PS)
-    else if punct("/", Src, _, !PS) then
-	parse_term(Src, Expr1, !PS),
-	Expr2 = expr_op(expr_div, Expr0, Expr1),
-	parse_expr0(Expr2, Src, Expr, !PS)
-    else if punct("&", Src, _, !PS) then
-	parse_term(Src, Expr1, !PS),
-	Expr2 = expr_op(expr_and, Expr0, Expr1),
-	parse_expr0(Expr2, Src, Expr, !PS)
+    ( if punct(",", Src, _, !PS) then
+        Expr0 = expr_bool(ExprB0),
+	parse_expr_rel(Src, Expr1, !PS),
+        Expr1 = expr_bool(ExprB1),
+	Expr2 = expr_bool_op(expr_and, ExprB0, ExprB1),
+	parse_expr0(expr_bool(Expr2), Src, Expr, !PS)
+    else if punct(";", Src, _, !PS) then
+        Expr0 = expr_bool(ExprB0),
+	parse_expr_rel(Src, Expr1, !PS),
+        Expr1 = expr_bool(ExprB1),
+	Expr2 = expr_bool_op(expr_or, ExprB0, ExprB1),
+	parse_expr0(expr_bool(Expr2), Src, Expr, !PS)
     else
 	Expr = Expr0
     ).
 
-:- pred parse_term(src::in, expr::out, ps::in, ps::out) is semidet.
+:- pred parse_expr_rel(src::in, expr::out, ps::in, ps::out) is semidet.
+
+parse_expr_rel(Src, Expr, !PS) :-
+    parse_expr_int(Src, Expr0, !PS),
+    parse_expr_rel0(Expr0, Src, Expr, !PS).
+
+:- pred parse_expr_rel0(expr_int::in, src::in, expr::out, ps::in, ps::out) is semidet.
+
+parse_expr_rel0(Expr0, Src, Expr, !PS) :-
+    % careful, order of punct calls is important!
+    ( if punct("=<", Src, _, !PS) then
+	parse_expr_int(Src, Expr1, !PS),
+	Expr = expr_bool(expr_rel(expr_lte, Expr0, Expr1))
+    else if punct(">=", Src, _, !PS) then
+	parse_expr_int(Src, Expr1, !PS),
+	Expr = expr_bool(expr_rel(expr_gte, Expr0, Expr1))
+    else if punct("=", Src, _, !PS) then
+	parse_expr_int(Src, Expr1, !PS),
+	Expr = expr_bool(expr_rel(expr_eq, Expr0, Expr1))
+    else if punct("<>", Src, _, !PS) then
+	parse_expr_int(Src, Expr1, !PS),
+	Expr = expr_bool(expr_rel(expr_ne, Expr0, Expr1))
+    else if punct("<", Src, _, !PS) then
+	parse_expr_int(Src, Expr1, !PS),
+	Expr = expr_bool(expr_rel(expr_lt, Expr0, Expr1))
+    else if punct(">", Src, _, !PS) then
+	parse_expr_int(Src, Expr1, !PS),
+	Expr = expr_bool(expr_rel(expr_gt, Expr0, Expr1))
+    else
+	Expr = expr_int(Expr0)
+    ).
+
+:- pred parse_expr_int(src::in, expr_int::out, ps::in, ps::out) is semidet.
+
+parse_expr_int(Src, Expr, !PS) :-
+    parse_term(Src, Expr0, !PS),
+    parse_expr_int0(Expr0, Src, Expr, !PS).
+
+:- pred parse_expr_int0(expr_int::in, src::in, expr_int::out, ps::in, ps::out) is semidet.
+
+parse_expr_int0(Expr0, Src, Expr, !PS) :-
+    ( if punct("+", Src, _, !PS) then
+	parse_term(Src, Expr1, !PS),
+	Expr2 = expr_int_op(expr_add, Expr0, Expr1),
+	parse_expr_int0(Expr2, Src, Expr, !PS)
+    else if punct("-", Src, _, !PS) then
+	parse_term(Src, Expr1, !PS),
+	Expr2 = expr_int_op(expr_sub, Expr0, Expr1),
+	parse_expr_int0(Expr2, Src, Expr, !PS)
+    else if punct("*", Src, _, !PS) then
+	parse_term(Src, Expr1, !PS),
+	Expr2 = expr_int_op(expr_mul, Expr0, Expr1),
+	parse_expr_int0(Expr2, Src, Expr, !PS)
+    else if punct("/", Src, _, !PS) then
+	parse_term(Src, Expr1, !PS),
+	Expr2 = expr_int_op(expr_div, Expr0, Expr1),
+	parse_expr_int0(Expr2, Src, Expr, !PS)
+    else if punct("&", Src, _, !PS) then
+	parse_term(Src, Expr1, !PS),
+	Expr2 = expr_int_op(expr_and_bits, Expr0, Expr1),
+	parse_expr_int0(Expr2, Src, Expr, !PS)
+    else
+	Expr = Expr0
+    ).
+
+:- pred parse_term(src::in, expr_int::out, ps::in, ps::out) is semidet.
 
 parse_term(Src, Expr, !PS) :-
     ( if hex_literal(Src, N, !PS) then

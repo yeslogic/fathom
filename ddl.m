@@ -5,7 +5,7 @@
 
 :- interface.
 
-:- import_module list, assoc_list, maybe, string, char.
+:- import_module list, assoc_list, maybe, bool, string, char.
 
 :- type ddl == assoc_list(string, ddl_def).
 
@@ -18,9 +18,9 @@
 
 :- type ddl_type
     --->    ddl_type_word(word_type, word_values)
-    ;	    ddl_type_array(expr, ddl_type)
+    ;	    ddl_type_array(expr_int, ddl_type)
     ;	    ddl_type_zero_or_more(ddl_type)
-    ;	    ddl_type_sized(ddl_type, expr)
+    ;	    ddl_type_sized(ddl_type, expr_int)
     ;	    ddl_type_struct(list(field_def))
     ;	    ddl_type_union(list(string))
     ;	    ddl_type_named(string, list(string))
@@ -30,20 +30,41 @@
     --->    field_def(
 		field_name :: string,
 		field_type :: ddl_type,
-		field_cond :: maybe(expr)
+		field_cond :: maybe(expr_bool)
 	    ).
 
 :- type expr
+    --->    expr_bool(expr_bool)
+    ;       expr_int(expr_int).
+
+:- type expr_bool
+    --->    expr_not(expr_bool)
+    ;       expr_bool_op(expr_op_bool, expr_bool, expr_bool)
+    ;       expr_rel(expr_op_rel, expr_int, expr_int).
+
+:- type expr_int
     --->    expr_field(string)
     ;	    expr_const(int)
-    ;	    expr_op(expr_op, expr, expr).
+    ;	    expr_int_op(expr_op_int, expr_int, expr_int).
 
-:- type expr_op
+:- type expr_op_bool
+    --->    expr_and
+    ;       expr_or.
+
+:- type expr_op_rel
+    --->    expr_eq
+    ;       expr_ne
+    ;       expr_lt
+    ;       expr_gt
+    ;       expr_lte
+    ;       expr_gte.
+
+:- type expr_op_int
     --->    expr_add
     ;	    expr_sub
     ;	    expr_mul
     ;	    expr_div
-    ;	    expr_and.
+    ;	    expr_and_bits.
 
 :- type word_values
     --->    word_values(
@@ -93,7 +114,9 @@
 
 :- func ddl_type_size(ddl, scope, ddl_type) = int.
 
-:- func eval_expr(scope, expr) = int.
+:- func eval_expr_bool(scope, expr_bool) = bool.
+
+:- func eval_expr_int(scope, expr_int) = int.
 
 :- func tag_num_to_string(int) = string.
 
@@ -138,14 +161,14 @@ ddl_type_size(DDL, Scope, Type) = Size :-
 	Size = word_type_size(Word)
     ;
 	Type = ddl_type_array(SizeExpr, Type0),
-	Length = eval_expr(Scope, SizeExpr),
+	Length = eval_expr_int(Scope, SizeExpr),
 	Size = Length * ddl_type_size(DDL, Scope, Type0)
     ;
 	Type = ddl_type_zero_or_more(_Type0),
 	abort("FIXME zero_or_more has undefined size")
     ;
 	Type = ddl_type_sized(_Type0, SizeExpr),
-	Size = eval_expr(Scope, SizeExpr)
+	Size = eval_expr_int(Scope, SizeExpr)
     ;
 	Type = ddl_type_struct(Fields),
 	Size = struct_fields_size(DDL, Scope, Fields)
@@ -165,16 +188,57 @@ ddl_type_size(DDL, Scope, Type) = Size :-
 	Size = ddl_def_size(DDL, Scope, Def, [])
     ).
 
-eval_expr(Scope, Expr) = Res :-
+eval_expr_bool(Scope, Expr) = Res :-
+    (
+        Expr = expr_not(Expr0),
+        Res0 = eval_expr_bool(Scope, Expr0),
+        Res = not(Res0)
+    ;
+        Expr = expr_rel(Op, Lhs0, Rhs0),
+	Lhs = eval_expr_int(Scope, Lhs0),
+	Rhs = eval_expr_int(Scope, Rhs0),
+        (
+            Op = expr_eq,
+            Res = ( if Lhs = Rhs then yes else no )
+        ;
+            Op = expr_ne,
+            Res = ( if Lhs \= Rhs then yes else no )
+        ;
+            Op = expr_lt,
+            Res = ( if Lhs < Rhs then yes else no )
+        ;
+            Op = expr_gt,
+            Res = ( if Lhs > Rhs then yes else no )
+        ;
+            Op = expr_lte,
+            Res = ( if Lhs =< Rhs then yes else no )
+        ;
+            Op = expr_gte,
+            Res = ( if Lhs >= Rhs then yes else no )
+	)
+    ;
+        Expr = expr_bool_op(Op, Lhs0, Rhs0),
+	Lhs = eval_expr_bool(Scope, Lhs0),
+	Rhs = eval_expr_bool(Scope, Rhs0),
+        (
+            Op = expr_and,
+            Res = Lhs `and` Rhs
+        ;
+            Op = expr_or,
+            Res = Lhs `or` Rhs
+        )
+    ).
+
+eval_expr_int(Scope, Expr) = Res :-
     (
 	Expr = expr_field(Name),
 	Res = scope_resolve(Scope, Name)
     ;
 	Expr = expr_const(Res)
     ;
-	Expr = expr_op(Op, Lhs0, Rhs0),
-	Lhs = eval_expr(Scope, Lhs0),
-	Rhs = eval_expr(Scope, Rhs0),
+	Expr = expr_int_op(Op, Lhs0, Rhs0),
+	Lhs = eval_expr_int(Scope, Lhs0),
+	Rhs = eval_expr_int(Scope, Rhs0),
 	(
 	    Op = expr_add,
 	    Res = Lhs + Rhs
@@ -188,9 +252,9 @@ eval_expr(Scope, Expr) = Res :-
 	    Op = expr_div,
 	    Res = Lhs / Rhs
 	;
-	    Op = expr_and,
+	    Op = expr_and_bits,
 	    Res = Lhs /\ Rhs
-	)
+        )
     ).
 
 tag_num_to_string(N) = Tag :-
