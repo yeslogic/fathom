@@ -276,6 +276,8 @@ tag_num_to_string(N) = Tag :-
 	Tag0 = string.from_char_list([C0,C1,C2,C3]),
         ( if Tag0 = "OS/2" then
             Tag = "OS2"
+        else if Tag0 = "CFF " then
+            Tag = "CFF"
         else
             Tag = Tag0
         )
