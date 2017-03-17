@@ -45,6 +45,7 @@
 
 :- type expr_int
     --->    expr_field(string)
+    ;       expr_index(string, expr_int)
     ;	    expr_const(int)
     ;	    expr_int_op(expr_op_int, expr_int, expr_int).
 
@@ -104,7 +105,11 @@
     ;	    offset_base_stack(string)
     ;       offset_base_scope(string).
 
-:- type scope == assoc_list(string, int).
+:- type scope == assoc_list(string, scope_item).
+
+:- type scope_item
+    --->    scope_int(int)
+    ;       scope_array(list(int)).
 
 :- func word_type_size(word_type) = int.
 
@@ -122,7 +127,9 @@
 
 :- func tag_num_to_string(int) = string.
 
-:- func scope_resolve(scope, string) = int.
+:- func scope_resolve(scope, string) = scope_item.
+
+:- func scope_resolve_int(scope, string) = int.
 
 :- pred ddl_search(ddl::in, string::in, ddl_def::out) is semidet.
 
@@ -180,14 +187,14 @@ ddl_type_size(DDL, Scope, Type) = Size :-
     ;
 	Type = ddl_type_named(Name, Args0),
 	Def = ddl_lookup_det(DDL, Name),
-	Args = map(scope_resolve(Scope), Args0),
+	Args = map(scope_resolve_int(Scope), Args0),
 	Size = ddl_def_size(DDL, Scope, Def, Args)
     ;
 	Type = ddl_type_tag_magic(Name),
-	TagNum = scope_resolve(Scope, Name),
-	TagStr = tag_num_to_string(TagNum),
-	Def = ddl_lookup_det(DDL, TagStr),
-	Size = ddl_def_size(DDL, Scope, Def, [])
+	TagNum = scope_resolve_int(Scope, Name),
+        TagStr = tag_num_to_string(TagNum),
+        Def = ddl_lookup_det(DDL, TagStr),
+        Size = ddl_def_size(DDL, Scope, Def, [])
     ;
         Type = ddl_type_string,
         abort("FIXME string has undefined size")
@@ -237,7 +244,24 @@ eval_expr_bool(Scope, Expr) = Res :-
 eval_expr_int(Scope, Expr) = Res :-
     (
 	Expr = expr_field(Name),
-	Res = scope_resolve(Scope, Name)
+	Item = scope_resolve(Scope, Name),
+        (
+            Item = scope_int(Res)
+        ;
+            Item = scope_array(_),
+            abort("scope item is array, expected int: "++Name)
+        )
+    ;
+        Expr = expr_index(Name, Expr0),
+        Index = eval_expr_int(Scope, Expr0),
+        Item = scope_resolve(Scope, Name),
+        (
+            Item = scope_int(_),
+            abort("scope item is int, expected array: "++Name)
+        ;
+            Item = scope_array(Array),
+            Res = det_index0(Array, Index)
+        )
     ;
 	Expr = expr_const(Res)
     ;
@@ -290,6 +314,15 @@ scope_resolve(Scope, Name) = Value :-
 	Value = Value0
     else
 	abort("scope missing: "++Name)
+    ).
+
+scope_resolve_int(Scope, Name) = Value :-
+    Item = scope_resolve(Scope, Name),
+    (
+        Item = scope_int(Value)
+    ;
+        Item = scope_array(_),
+        abort("scope item is array, expected int: "++Name)
     ).
 
 ddl_search(DDL, Name, Def) :-

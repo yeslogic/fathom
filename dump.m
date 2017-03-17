@@ -36,7 +36,7 @@
     --->    context(
 		context_root :: int,
 		context_stack :: assoc_list(string, int),
-		context_scope :: assoc_list(string, int)
+		context_scope :: scope
 	    ).
 
 :- type refs == assoc_list(int, {context, ref}).
@@ -152,7 +152,7 @@ match_type(DDL, Bytes, Type, Offset, Context) :-
 	match_def(DDL, Bytes, Def, Offset, Context)
     ;
 	Type = ddl_type_tag_magic(Name),
-	TagNum = scope_resolve(Context ^ context_scope, Name),
+	TagNum = scope_resolve_int(Context ^ context_scope, Name),
 	TagStr = tag_num_to_string(TagNum),
 	( if ddl_search(DDL, TagStr, Def) then
 	    match_def(DDL, Bytes, Def, Offset, Context)
@@ -206,7 +206,7 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, MaybeSize, Size, !Context
 	update_refs(DDL, !.Context, Word, WordValues, !Refs),
 	Value = word(Word),
 	( if MaybeName = yes(Name) then
-	    !Context ^ context_scope := [Name-Word|!.Context ^ context_scope]
+	    !Context ^ context_scope := [Name-scope_int(Word)|!.Context ^ context_scope]
 	else
 	    true
 	)
@@ -216,7 +216,16 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, MaybeSize, Size, !Context
 	FieldSize = ddl_type_size(DDL, !.Context ^ context_scope, Type0),
 	dump_array(DDL, Bytes, Length, Type0, 0, Offset, FieldSize, Values, !Context, !Refs),
 	Value = array(Values),
-	Size = Length * FieldSize
+	Size = Length * FieldSize,
+        ( if
+            MaybeName = yes(Name),
+            Type0 = ddl_type_word(WordType, _)
+        then
+	    get_word_array(DDL, Bytes, Length, WordType, 0, Offset, FieldSize, Words, !Context, !Refs),
+	    !Context ^ context_scope := [Name-scope_array(Words)|!.Context ^ context_scope]
+        else
+            true
+        )
     ;
 	Type = ddl_type_zero_or_more(Type0),
 	dump_zero_or_more(DDL, Bytes, Type0, Offset, Size, Values, !Context, !Refs),
@@ -245,7 +254,7 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, MaybeSize, Size, !Context
 	Size = NewOffset - Offset
     ;
 	Type = ddl_type_tag_magic(Name),
-	TagNum = scope_resolve(!.Context ^ context_scope, Name),
+	TagNum = scope_resolve_int(!.Context ^ context_scope, Name),
 	TagStr = tag_num_to_string(TagNum),
 	( if ddl_search(DDL, TagStr, Def) then
 	    dump_def(DDL, Bytes, Def, [], Item, Offset, NewOffset, !.Context, !Refs),
@@ -279,6 +288,17 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, MaybeSize, Size, !Context
 
 ucs2_hack([]) = [].
 ucs2_hack([0,B|Bs]) = [C|ucs2_hack(Bs)] :- char.from_int(B, C).
+
+:- pred get_word_array(ddl::in, bytes::in, int::in, word_type::in, int::in, int::in, int::in, list(int)::out, context::in, context::out, refs::in, refs::out) is det.
+
+get_word_array(DDL, Bytes, Length, WordType, Index, Offset, Size, Values, !Context, !Refs) :-
+    ( if Index < Length then
+	Word = get_byte_range_as_uint(Bytes, Offset + Index*Size, Size, 0),
+	get_word_array(DDL, Bytes, Length, WordType, Index+1, Offset, Size, Values0, !Context, !Refs),
+	Values = [Word|Values0]
+    else
+	Values = []
+    ).
 
 :- pred dump_array(ddl::in, bytes::in, int::in, ddl_type::in, int::in, int::in, int::in, list(ditem_value)::out, context::in, context::out, refs::in, refs::out) is det.
 
@@ -354,7 +374,7 @@ make_ref_from_offset(DDL, Context, Offset, Word, !Refs) :-
 	!:Refs = [NewOffset - {Context,ref_def(Def,Args)}|!.Refs]
     ;
 	Type = ddl_type_tag_magic(Name),
-	TagNum = scope_resolve(Context ^ context_scope, Name),
+	TagNum = scope_resolve_int(Context ^ context_scope, Name),
 	TagStr = tag_num_to_string(TagNum),
 	( if ddl_search(DDL, TagStr, Def) then
 	    !:Refs = [NewOffset - {Context,ref_def(Def,[])}|!.Refs]
@@ -402,7 +422,10 @@ calc_offset(Context, Offset, V) = NewOffset :-
 	)
     ;
 	Offset ^ offset_base = offset_base_scope(Name),
-	( if search(Context ^ context_scope, Name, ScopeOffset) then
+	( if
+            search(Context ^ context_scope, Name, ScopeOffset0),
+            ScopeOffset0 = scope_int(ScopeOffset)
+        then
             (
                 Context ^ context_stack = [],
                 abort("context stack underflow")
@@ -415,7 +438,7 @@ calc_offset(Context, Offset, V) = NewOffset :-
 	)
     ).
 
-:- func context_nested(context, string, assoc_list(string, int), int) = context.
+:- func context_nested(context, string, scope, int) = context.
 
 context_nested(Context, Name, Args, Offset) =
     (Context

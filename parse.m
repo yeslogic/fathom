@@ -316,7 +316,13 @@ parse_term(Src, Expr, !PS) :-
 	Expr = expr_const(N)
     else
 	identifier(Src, Ident, !PS),
-	Expr = expr_field(Ident)
+        ( if punct("[", Src, _, !PS) then
+            parse_expr_int(Src, Expr0, !PS),
+            punct("]", Src, _, !PS),
+            Expr = expr_index(Ident, Expr0)
+        else
+            Expr = expr_field(Ident)
+        )
     ).
 
 :- pred parse_word_values(src::in, word_values::out, ps::in, ps::out) is semidet.
