@@ -19,10 +19,27 @@ OffsetTable: struct {
     table_records[num_tables]: struct { // FIXME sorted by tag
 	tag: uint32,
 	checksum: uint32,
-	offset: uint32 @offset(@root) => tag_magic(tag), // FIXME byte[length]
+	//FIXME offset: uint32 @offset(@root) => byte[length] ~ tag_magic(tag),
+	offset: uint32 @offset(@root) => tag_magic(tag),
 	length: uint32
     }
 }
+
+// FIXME additional constraints
+//@require OffsetTable {
+//    all i:
+//	all j:
+//	    i < j -> table_records[i].tag < table_records[j].tag
+//
+//    exists i: table_records[i].tag = 'cmap'
+//    exists i: table_records[i].tag = 'head'
+//    exists i: table_records[i].tag = 'hhea'
+//    exists i: table_records[i].tag = 'hmtx'
+//    exists i: table_records[i].tag = 'maxp'
+//    exists i: table_records[i].tag = 'name'
+//    exists i: table_records[i].tag = 'OS/2'
+//    exists i: table_records[i].tag = 'post'
+//}
 
 TTCHeader: union {
     TTCHeader1,
@@ -88,9 +105,18 @@ hhea: struct {
     number_of_h_metrics: uint16
 }
 
+// FIXME tricky
+//hmtx: struct {
+//    h_metrics: struct[hhea.number_of_h_metrics] {
+//	advance_width: uint16,
+//	lsb: int16
+//    },
+//    left_side_bearing: int16[maxp.num_glyphs - hhea.number_of_h_metrics]
+//}
+
 maxp: union {
-    maxp05,
-    maxp10
+    maxp05, // FIXME for OpenType/CFF fonts
+    maxp10  // FIXME for TrueType/sfnt fonts
 }
 
 maxp05: struct {
@@ -134,6 +160,33 @@ name: struct {
             length: uint16,
             offset: uint16 @offset_scope(stringOffset) => uint8[length] ~ string
         }
+    }
+}
+
+CFF: struct {
+    header: CFFHeader,
+    name: CFFIndex,
+    top: CFFIndex,
+    string: CFFIndex,
+    global_subr: CFFIndex
+}
+
+CFFHeader: struct {
+    major: byte,
+    minor: byte,
+    hdrSize: byte, // FIXME >= 4
+    offSize: byte = 1 | 2 | 3 | 4,
+    extra: byte[hdrSize-4]
+}
+
+CFFIndex: struct {
+    count: uint16,
+    @if count > 0 {
+        offSize: byte = 1 | 2 | 3 | 4,
+        offsets[count+1]: byte, // FIXME should be offSize
+            // FIXME offset[0] = 1
+            // FIXME offset[n] =< offset[n+1]
+        data[offsets[count]-1]: byte
     }
 }
 
@@ -302,7 +355,9 @@ CoverageFormat2: struct {
     coverage_format: uint16 = 2,
     range_count: uint16,
     range_record[range_count]: struct {
-	// FIXME start =< end
+	// FIXME start =< end, ranges sorted numerically
+        // FIXME first range has start_coverage_index = 0
+        // FIXME subsequent ranges index based on length of previous
 	start: uint16,
 	end: uint16,
 	start_coverage_index: uint16
