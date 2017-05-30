@@ -421,21 +421,15 @@ calc_offset(Context, Offset, V) = NewOffset :-
 	    abort("context stack missing: "++Name)
 	)
     ;
-	Offset ^ offset_base = offset_base_scope(Name),
-	( if
-            search(Context ^ context_scope, Name, ScopeOffset0),
-            ScopeOffset0 = scope_int(ScopeOffset)
-        then
-            (
-                Context ^ context_stack = [],
-                abort("context stack underflow")
-            ;
-                Context ^ context_stack = [_-StructOffset|_],
-                NewOffset = StructOffset + ScopeOffset + V
-            )
-	else
-	    abort("context scope missing: "++Name)
-	)
+	Offset ^ offset_base = offset_base_expr(Expr),
+	Offset0 = eval_expr_int(Context ^ context_scope, Expr),
+        (
+            Context ^ context_stack = [],
+            abort("context stack underflow")
+        ;
+            Context ^ context_stack = [_-StructOffset|_],
+            NewOffset = StructOffset + Offset0 + V
+        )
     ).
 
 :- func context_nested(context, string, scope, int) = context.

@@ -49,11 +49,21 @@ parse_ddl_def(Src, Ident-Def, !PS) :-
     else
 	keyword(kw_union, Src, !PS),
 	punct("{", Src, _, !PS),
-	comma_separated_list(identifier, Src, Options, !PS),
+        parse_union_options(Src, Options, !PS),
 	punct("}", Src, _, !PS),
 	Type = ddl_type_union(Options)
     ),
     Def = ddl_def(Ident, Args, Type).
+
+:- pred parse_union_options(src::in, list(string)::out, ps::in, ps::out) is semidet.
+
+parse_union_options(Src, Options, !PS) :-
+    ( if identifier(Src, Name, !PS) then
+        parse_union_options(Src, Options0, !PS),
+        Options = [Name|Options0]
+    else
+        Options = []
+    ).
 
 :- type multiplicity
     --->    mult_singular
@@ -68,28 +78,21 @@ parse_field_defs(Src, Fields, !PS) :-
 	parse_expr_bool(Src, Expr, !PS),
         Cond = yes(Expr),
         ( if punct("{", Src, _, !PS) then
-            comma_separated_list(parse_field_def(Cond), Src, Fields0, !PS),
+            % FIXME what about nested @if ??
+            parse_field_defs(Src, Fields0, !PS),
             punct("}", Src, _, !PS),
             parse_field_defs(Src, Fields1, !PS),
             Fields = Fields0 ++ Fields1
         else
             punct(":", Src, _, !PS),
             parse_field_def(Cond, Src, FieldDef, !PS),
-            ( if punct(",", Src, _, !PS) then
-                parse_field_defs(Src, Fields0, !PS),
-                Fields = [FieldDef|Fields0]
-            else
-                Fields = [FieldDef]
-            )
+            parse_field_defs(Src, Fields0, !PS),
+            Fields = [FieldDef|Fields0]
         )
     else
         ( if parse_field_def(no, Src, FieldDef, !PS) then
-            ( if punct(",", Src, _, !PS) then
-                parse_field_defs(Src, Fields0, !PS),
-                Fields = [FieldDef|Fields0]
-            else
-                Fields = [FieldDef]
-            )
+            parse_field_defs(Src, Fields0, !PS),
+            Fields = [FieldDef|Fields0]
         else
             Fields = []
         )
@@ -390,8 +393,8 @@ parse_word_interp(Src, Interp, !PS) :-
     else
         at_rule(at_offset_scope, Src, !PS),
         punct("(", Src, _, !PS),
-	identifier(Src, Ident, !PS),
-	Base = offset_base_scope(Ident),
+        parse_expr_int(Src, Expr, !PS),
+	Base = offset_base_expr(Expr),
         punct(")", Src, _, !PS)
     ),
     punct("=>", Src, _, !PS),
