@@ -2,7 +2,9 @@
 #![allow(unused_variables)]
 
 enum ExprBool {
-    Eq(Box<ExprInt>, Box<ExprInt>)
+    Or(Box<ExprBool>, Box<ExprBool>),
+    Eq(Box<ExprInt>, Box<ExprInt>),
+    Gt(Box<ExprInt>, Box<ExprInt>)
 }
 
 enum ExprInt {
@@ -26,11 +28,16 @@ enum IntType {
 }
 
 struct StructType {
-    fields: Vec<FieldType>,
+    items: Vec<StructItem>,
     conds: Vec<ExprBool>
 }
 
-struct FieldType {
+enum StructItem {
+    Field(Field),
+    CondSection(ExprBool, StructType)
+}
+
+struct Field {
     field_name: String,
     field_type: Type
 }
@@ -45,12 +52,12 @@ fn match_type(buf: &[u8], ddl_type: Type) -> bool {
 }
 
 fn main() {
-    let f1 = FieldType {
+    let f1 = Field {
         field_name: String::from("version"),
         field_type: Type::Int(IntType::Uint8)
     };
 
-    let f2 = FieldType {
+    let f2 = Field {
         field_name: String::from("length"),
         field_type: Type::Int(IntType::Uint8)
     };
@@ -60,18 +67,46 @@ fn main() {
         array_type: Type::Int(IntType::Uint8)
     };
 
-    let f3 = FieldType {
+    let f3 = Field {
         field_name: String::from("values"),
         field_type: Type::Array(Box::new(atype))
     };
 
-    let c1 = ExprBool::Eq(
-        Box::new(ExprInt::Field(String::from("version"))),
-        Box::new(ExprInt::Const(1))
-    );
+    let f4 = Field {
+        field_name: String::from("extra"),
+        field_type: Type::Int(IntType::Uint8)
+    };
+
+    let c1 =
+        ExprBool::Or(
+            Box::new(ExprBool::Eq(
+                Box::new(ExprInt::Field(String::from("version"))),
+                Box::new(ExprInt::Const(1))
+            )),
+            Box::new(ExprBool::Eq(
+                Box::new(ExprInt::Field(String::from("version"))),
+                Box::new(ExprInt::Const(2))
+            ))
+        );
+
+    let c2 =
+        ExprBool::Gt(
+            Box::new(ExprInt::Field(String::from("version"))),
+            Box::new(ExprInt::Const(1))
+        );
+
+    let s1 = StructType {
+        items: vec![StructItem::Field(f4)],
+        conds: vec![]
+    };
 
     let s = StructType {
-        fields: vec![f1, f2, f3],
+        items: vec![
+            StructItem::Field(f1),
+            StructItem::Field(f2),
+            StructItem::Field(f3),
+            StructItem::CondSection(c2, s1)
+        ],
         conds: vec![c1]
     };
 
