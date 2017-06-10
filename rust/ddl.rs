@@ -54,7 +54,7 @@ struct ArrayType {
     array_type: Type
 }
 
-fn match_type(buf: &[u8], ddl_type: Type) -> bool {
+fn match_type(buf: &[u8], ddl_type: &Type) -> bool {
     false // FIXME not yet implemented
 }
 
@@ -127,10 +127,39 @@ fn main() {
 
     let ddl = Type::Struct(Box::new(s));
 
-    let buf: [u8; 0] = []; // FIXME load from file
+    // empty buffer
+    test(&[], &ddl);
 
-    let b = match_type(&buf, ddl);
+    // buffer too short
+    test(&[1], &ddl);
 
+    // version number wrong
+    test(&[3, 0], &ddl);
+
+    // valid!
+    test(&[1, 0], &ddl);
+
+    // valid with one array item
+    test(&[1, 1, 0x11, 0x22], &ddl);
+
+    // valid with two array items
+    test(&[1, 2, 0x11, 0x22, 0x33, 0x44], &ddl);
+
+    // array too short
+    test(&[1, 4, 0x11, 0x22, 0x33, 0x44], &ddl);
+
+    // valid with link
+    test(&[2, 0, 0, 4, 0x11, 0x22], &ddl);
+
+    // valid with array and link
+    test(&[2, 1, 0x11, 0x22, 0, 6, 0x33, 0x44], &ddl);
+
+    // invalid link
+    test(&[2, 0, 0, 8, 0x11, 0x22], &ddl);
+}
+
+fn test(buf: &[u8], ddl: &Type) {
+    let b = match_type(buf, ddl);
     println!("match result: {}", b);
 }
 
