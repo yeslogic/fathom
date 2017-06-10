@@ -29,6 +29,7 @@ enum IntType {
 
 struct StructType {
     items: Vec<StructItem>,
+    links: Vec<Link>,
     conds: Vec<ExprBool>
 }
 
@@ -40,6 +41,12 @@ enum StructItem {
 struct Field {
     field_name: String,
     field_type: Type
+}
+
+struct Link {
+    link_name: String,
+    link_offset: ExprInt,
+    link_type: Type
 }
 
 struct ArrayType {
@@ -64,7 +71,7 @@ fn main() {
 
     let atype = ArrayType {
         array_length: ExprInt::Field(String::from("length")),
-        array_type: Type::Int(IntType::Uint8)
+        array_type: Type::Int(IntType::Uint16)
     };
 
     let f3 = Field {
@@ -74,7 +81,7 @@ fn main() {
 
     let f4 = Field {
         field_name: String::from("extra"),
-        field_type: Type::Int(IntType::Uint8)
+        field_type: Type::Int(IntType::Uint16)
     };
 
     let c1 =
@@ -95,8 +102,15 @@ fn main() {
             Box::new(ExprInt::Const(1))
         );
 
+    let l1 = Link {
+        link_name: String::from("extra_data"),
+        link_offset: ExprInt::Field(String::from("extra")),
+        link_type: Type::Int(IntType::Uint16)
+    };
+
     let s1 = StructType {
         items: vec![StructItem::Field(f4)],
+        links: vec![l1],
         conds: vec![]
     };
 
@@ -107,6 +121,7 @@ fn main() {
             StructItem::Field(f3),
             StructItem::CondSection(c2, s1)
         ],
+        links: vec![],
         conds: vec![c1]
     };
 
