@@ -161,9 +161,9 @@ Conditional types can differ depending on other values, and are expressed using 
   else { type3 }
 
   switch {
-    case expr1 { type1 }
-    case expr2 { type2 }
-    default { type3 }
+    type1 when x = 1
+    type2 when x = 2
+    type3 otherwise
   }
 
 The final else can be omitted from an if-else expression, which is equivalent to matching the empty type:
@@ -188,9 +188,9 @@ This would not be a valid switch as the expressions are not mutually exclusive.
 Example of a switch expression:
 
   switch {
-    case x = 1 { type1 }
-    case x = 2 { type2 }
-    default { type3 }
+    type1 when x = 1
+    type2 when x = 2
+    type3 otherwise
   }
 
 As well as returning entire types, conditional expressions can also return fields to allow structs to optionally include fields depending on the value of other fields in the struct, for example:
