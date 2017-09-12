@@ -20,7 +20,7 @@
 
 parse(Str, Res) :-
     promise_equivalent_solutions [Res] (
-	parsing_utils.parse(Str, skip_ws_comments, parse_ddl, Res)
+        parsing_utils.parse(Str, skip_ws_comments, parse_ddl, Res)
     ).
 
 :- pred parse_ddl(src::in, ddl::out, ps::in, ps::out) is semidet.
@@ -35,23 +35,23 @@ parse_ddl_def(Src, Ident-Def, !PS) :-
     skip_ws_comments(Src, _, !PS),
     identifier(Src, Ident, !PS),
     ( if punct("(", Src, _, !PS) then
-	parse_args(Src, Args, !PS),
-	punct(")", Src, _, !PS)
+        parse_args(Src, Args, !PS),
+        punct(")", Src, _, !PS)
     else
-	Args = []
+        Args = []
     ),
     punct(":", Src, _, !PS),
     ( if keyword(kw_struct, Src, !PS) then
-	punct("{", Src, _, !PS),
+        punct("{", Src, _, !PS),
         parse_field_defs(Src, Fields, !PS),
-	punct("}", Src, _, !PS),
-	Type = ddl_type_struct(Fields)
+        punct("}", Src, _, !PS),
+        Type = ddl_type_struct(Fields)
     else
-	keyword(kw_union, Src, !PS),
-	punct("{", Src, _, !PS),
+        keyword(kw_union, Src, !PS),
+        punct("{", Src, _, !PS),
         parse_union_options(Src, Options, !PS),
-	punct("}", Src, _, !PS),
-	Type = ddl_type_union(Options)
+        punct("}", Src, _, !PS),
+        Type = ddl_type_union(Options)
     ),
     Def = ddl_def(Ident, Args, Type).
 
@@ -67,15 +67,15 @@ parse_union_options(Src, Options, !PS) :-
 
 :- type multiplicity
     --->    mult_singular
-    ;	    mult_array(expr_int)
-    ;	    mult_zero_or_more.
+    ;       mult_array(expr_int)
+    ;       mult_zero_or_more.
 
 :- pred parse_field_defs(src::in, list(field_def)::out, ps::in, ps::out) is semidet.
 
 parse_field_defs(Src, Fields, !PS) :-
     ( if at_rule(at_if, Src, !PS) then
-	skip_ws_comments(Src, _, !PS),
-	parse_expr_bool(Src, Expr, !PS),
+        skip_ws_comments(Src, _, !PS),
+        parse_expr_bool(Src, Expr, !PS),
         Cond = yes(Expr),
         ( if punct("{", Src, _, !PS) then
             % FIXME what about nested @if ??
@@ -112,32 +112,32 @@ parse_field_def(Cond, Src, Field, !PS) :-
 
 apply_multiplicity(Mult, Type0) = Type :-
     (
-	Mult = mult_singular,
-	Type = Type0
+        Mult = mult_singular,
+        Type = Type0
     ;
-	Mult = mult_array(SizeExpr),
-	Type = ddl_type_array(SizeExpr, Type0)
+        Mult = mult_array(SizeExpr),
+        Type = ddl_type_array(SizeExpr, Type0)
     ;
-	Mult = mult_zero_or_more,
-	Type = ddl_type_zero_or_more(Type0)
+        Mult = mult_zero_or_more,
+        Type = ddl_type_zero_or_more(Type0)
     ).
 
 :- pred parse_multiplicity(src::in, multiplicity::out, ps::in, ps::out) is semidet.
 
 parse_multiplicity(Src, Mult, !PS) :-
     ( if punct("[", Src, _, !PS) then
-	parse_expr(Src, SizeExpr0, !PS),
+        parse_expr(Src, SizeExpr0, !PS),
         ( if SizeExpr0 = expr_int(SizeExpr1) then
             SizeExpr = SizeExpr1
         else
             fail_with_message("expr must be int", Src, SizeExpr, !PS)
         ),
-	punct("]", Src, _, !PS),
-	Mult = mult_array(SizeExpr)
+        punct("]", Src, _, !PS),
+        Mult = mult_array(SizeExpr)
     else if punct("*", Src, _, !PS) then
-	Mult = mult_zero_or_more
+        Mult = mult_zero_or_more
     else
-	Mult = mult_singular
+        Mult = mult_singular
     ).
 
 :- pred parse_ddl_type(src::in, ddl_type::out, ps::in, ps::out) is semidet.
@@ -145,13 +145,13 @@ parse_multiplicity(Src, Mult, !PS) :-
 parse_ddl_type(Src, Type, !PS) :-
     parse_base_type(Src, Type1, !PS),
     ( if punct("&", Src, _, !PS) then
-	parse_expr(Src, SizeExpr0, !PS),
+        parse_expr(Src, SizeExpr0, !PS),
         ( if SizeExpr0 = expr_int(SizeExpr1) then
             SizeExpr = SizeExpr1
         else
             fail_with_message("expr must be int", Src, SizeExpr, !PS)
         ),
-	Type = ddl_type_sized(Type1, SizeExpr)
+        Type = ddl_type_sized(Type1, SizeExpr)
     else if punct("~", Src, _, !PS) then
         ( if Type1 = ddl_type_array(SizeExpr, ddl_type_word(uint8, word_values(no, []))) then
             parse_base_type(Src, Type2, !PS),
@@ -160,42 +160,42 @@ parse_ddl_type(Src, Type, !PS) :-
             fail_with_message("sized type must be uint8[]", Src, Type, !PS)
         )
     else
-	Type = Type1
+        Type = Type1
     ).
 
 :- pred parse_base_type(src::in, ddl_type::out, ps::in, ps::out) is semidet.
 
 parse_base_type(Src, Type, !PS) :-
     ( if keyword(kw_struct, Src, !PS) then
-	parse_multiplicity(Src, Mult, !PS),
-	punct("{", Src, _, !PS),
+        parse_multiplicity(Src, Mult, !PS),
+        punct("{", Src, _, !PS),
         parse_field_defs(Src, Fields, !PS),
-	punct("}", Src, _, !PS),
-	Type0 = ddl_type_struct(Fields),
-	Type = apply_multiplicity(Mult, Type0)
+        punct("}", Src, _, !PS),
+        Type0 = ddl_type_struct(Fields),
+        Type = apply_multiplicity(Mult, Type0)
     else if identifier(Src, Ident, !PS) then
-	( if Ident = "tag_magic" then
-	    punct("(", Src, _, !PS),
-	    identifier(Src, TagName, !PS),
-	    punct(")", Src, _, !PS),
-	    Type0 = ddl_type_tag_magic(TagName)
+        ( if Ident = "tag_magic" then
+            punct("(", Src, _, !PS),
+            identifier(Src, TagName, !PS),
+            punct(")", Src, _, !PS),
+            Type0 = ddl_type_tag_magic(TagName)
         else if Ident = "string" then
             Type0 = ddl_type_string
-	else if punct("(", Src, _, !PS) then
-	    parse_args(Src, Args, !PS),
-	    punct(")", Src, _, !PS),
-	    Type0 = ddl_type_named(Ident, Args)
-	else
-	    Type0 = ddl_type_named(Ident, [])
-	),
-	parse_multiplicity(Src, Mult, !PS),
-	Type = apply_multiplicity(Mult, Type0)
+        else if punct("(", Src, _, !PS) then
+            parse_args(Src, Args, !PS),
+            punct(")", Src, _, !PS),
+            Type0 = ddl_type_named(Ident, Args)
+        else
+            Type0 = ddl_type_named(Ident, [])
+        ),
+        parse_multiplicity(Src, Mult, !PS),
+        Type = apply_multiplicity(Mult, Type0)
     else
-	parse_word_type(Src, WordType, !PS),
-	parse_multiplicity(Src, Mult, !PS),
-	parse_word_values(Src, WordValues, !PS),
-	Type0 = ddl_type_word(WordType, WordValues),
-	Type = apply_multiplicity(Mult, Type0)
+        parse_word_type(Src, WordType, !PS),
+        parse_multiplicity(Src, Mult, !PS),
+        parse_word_values(Src, WordValues, !PS),
+        Type0 = ddl_type_word(WordType, WordValues),
+        Type = apply_multiplicity(Mult, Type0)
     ).
 
 :- pred parse_args(src::in, list(string)::out, ps::in, ps::out) is semidet.
@@ -203,10 +203,10 @@ parse_base_type(Src, Type, !PS) :-
 parse_args(Src, Args, !PS) :-
     identifier(Src, Ident, !PS),
     ( if punct(",", Src, _, !PS) then
-	parse_args(Src, Args0, !PS),
-	Args = [Ident|Args0]
+        parse_args(Src, Args0, !PS),
+        Args = [Ident|Args0]
     else
-	Args = [Ident]
+        Args = [Ident]
     ).
 
 :- pred parse_expr_bool(src::in, expr_bool::out, ps::in, ps::out) is semidet.
@@ -231,18 +231,18 @@ parse_expr(Src, Expr, !PS) :-
 parse_expr0(Expr0, Src, Expr, !PS) :-
     ( if punct(",", Src, _, !PS) then
         Expr0 = expr_bool(ExprB0),
-	parse_expr_rel(Src, Expr1, !PS),
+        parse_expr_rel(Src, Expr1, !PS),
         Expr1 = expr_bool(ExprB1),
-	Expr2 = expr_bool_op(expr_and, ExprB0, ExprB1),
-	parse_expr0(expr_bool(Expr2), Src, Expr, !PS)
+        Expr2 = expr_bool_op(expr_and, ExprB0, ExprB1),
+        parse_expr0(expr_bool(Expr2), Src, Expr, !PS)
     else if punct(";", Src, _, !PS) then
         Expr0 = expr_bool(ExprB0),
-	parse_expr_rel(Src, Expr1, !PS),
+        parse_expr_rel(Src, Expr1, !PS),
         Expr1 = expr_bool(ExprB1),
-	Expr2 = expr_bool_op(expr_or, ExprB0, ExprB1),
-	parse_expr0(expr_bool(Expr2), Src, Expr, !PS)
+        Expr2 = expr_bool_op(expr_or, ExprB0, ExprB1),
+        parse_expr0(expr_bool(Expr2), Src, Expr, !PS)
     else
-	Expr = Expr0
+        Expr = Expr0
     ).
 
 :- pred parse_expr_rel(src::in, expr::out, ps::in, ps::out) is semidet.
@@ -256,25 +256,25 @@ parse_expr_rel(Src, Expr, !PS) :-
 parse_expr_rel0(Expr0, Src, Expr, !PS) :-
     % careful, order of punct calls is important!
     ( if punct("=<", Src, _, !PS) then
-	parse_expr_int(Src, Expr1, !PS),
-	Expr = expr_bool(expr_rel(expr_lte, Expr0, Expr1))
+        parse_expr_int(Src, Expr1, !PS),
+        Expr = expr_bool(expr_rel(expr_lte, Expr0, Expr1))
     else if punct(">=", Src, _, !PS) then
-	parse_expr_int(Src, Expr1, !PS),
-	Expr = expr_bool(expr_rel(expr_gte, Expr0, Expr1))
+        parse_expr_int(Src, Expr1, !PS),
+        Expr = expr_bool(expr_rel(expr_gte, Expr0, Expr1))
     else if punct("=", Src, _, !PS) then
-	parse_expr_int(Src, Expr1, !PS),
-	Expr = expr_bool(expr_rel(expr_eq, Expr0, Expr1))
+        parse_expr_int(Src, Expr1, !PS),
+        Expr = expr_bool(expr_rel(expr_eq, Expr0, Expr1))
     else if punct("<>", Src, _, !PS) then
-	parse_expr_int(Src, Expr1, !PS),
-	Expr = expr_bool(expr_rel(expr_ne, Expr0, Expr1))
+        parse_expr_int(Src, Expr1, !PS),
+        Expr = expr_bool(expr_rel(expr_ne, Expr0, Expr1))
     else if punct("<", Src, _, !PS) then
-	parse_expr_int(Src, Expr1, !PS),
-	Expr = expr_bool(expr_rel(expr_lt, Expr0, Expr1))
+        parse_expr_int(Src, Expr1, !PS),
+        Expr = expr_bool(expr_rel(expr_lt, Expr0, Expr1))
     else if punct(">", Src, _, !PS) then
-	parse_expr_int(Src, Expr1, !PS),
-	Expr = expr_bool(expr_rel(expr_gt, Expr0, Expr1))
+        parse_expr_int(Src, Expr1, !PS),
+        Expr = expr_bool(expr_rel(expr_gt, Expr0, Expr1))
     else
-	Expr = expr_int(Expr0)
+        Expr = expr_int(Expr0)
     ).
 
 :- pred parse_expr_int(src::in, expr_int::out, ps::in, ps::out) is semidet.
@@ -287,38 +287,38 @@ parse_expr_int(Src, Expr, !PS) :-
 
 parse_expr_int0(Expr0, Src, Expr, !PS) :-
     ( if punct("+", Src, _, !PS) then
-	parse_term(Src, Expr1, !PS),
-	Expr2 = expr_int_op(expr_add, Expr0, Expr1),
-	parse_expr_int0(Expr2, Src, Expr, !PS)
+        parse_term(Src, Expr1, !PS),
+        Expr2 = expr_int_op(expr_add, Expr0, Expr1),
+        parse_expr_int0(Expr2, Src, Expr, !PS)
     else if punct("-", Src, _, !PS) then
-	parse_term(Src, Expr1, !PS),
-	Expr2 = expr_int_op(expr_sub, Expr0, Expr1),
-	parse_expr_int0(Expr2, Src, Expr, !PS)
+        parse_term(Src, Expr1, !PS),
+        Expr2 = expr_int_op(expr_sub, Expr0, Expr1),
+        parse_expr_int0(Expr2, Src, Expr, !PS)
     else if punct("*", Src, _, !PS) then
-	parse_term(Src, Expr1, !PS),
-	Expr2 = expr_int_op(expr_mul, Expr0, Expr1),
-	parse_expr_int0(Expr2, Src, Expr, !PS)
+        parse_term(Src, Expr1, !PS),
+        Expr2 = expr_int_op(expr_mul, Expr0, Expr1),
+        parse_expr_int0(Expr2, Src, Expr, !PS)
     else if punct("/", Src, _, !PS) then
-	parse_term(Src, Expr1, !PS),
-	Expr2 = expr_int_op(expr_div, Expr0, Expr1),
-	parse_expr_int0(Expr2, Src, Expr, !PS)
+        parse_term(Src, Expr1, !PS),
+        Expr2 = expr_int_op(expr_div, Expr0, Expr1),
+        parse_expr_int0(Expr2, Src, Expr, !PS)
     else if punct("&", Src, _, !PS) then
-	parse_term(Src, Expr1, !PS),
-	Expr2 = expr_int_op(expr_and_bits, Expr0, Expr1),
-	parse_expr_int0(Expr2, Src, Expr, !PS)
+        parse_term(Src, Expr1, !PS),
+        Expr2 = expr_int_op(expr_and_bits, Expr0, Expr1),
+        parse_expr_int0(Expr2, Src, Expr, !PS)
     else
-	Expr = Expr0
+        Expr = Expr0
     ).
 
 :- pred parse_term(src::in, expr_int::out, ps::in, ps::out) is semidet.
 
 parse_term(Src, Expr, !PS) :-
     ( if hex_literal(Src, N, !PS) then
-	Expr = expr_const(N)
+        Expr = expr_const(N)
     else if int_literal(Src, N, !PS) then
-	Expr = expr_const(N)
+        Expr = expr_const(N)
     else
-	identifier(Src, Ident, !PS),
+        identifier(Src, Ident, !PS),
         ( if punct("[", Src, _, !PS) then
             parse_expr_int(Src, Expr0, !PS),
             punct("]", Src, _, !PS),
@@ -332,52 +332,52 @@ parse_term(Src, Expr, !PS) :-
 
 parse_word_values(Src, Values, !PS) :-
     ( if punct("=", Src, _, !PS) then
-	parse_word_value(Src, V, !PS),
-	parse_word_values0([V], Src, Values, !PS)
+        parse_word_value(Src, V, !PS),
+        parse_word_values0([V], Src, Values, !PS)
     else
-	( if parse_word_interp(Src, Interp, !PS) then
-	    AnyInterp = yes(Interp)
-	else
-	    AnyInterp = no
-	),
-	Values = word_values(AnyInterp, [])
+        ( if parse_word_interp(Src, Interp, !PS) then
+            AnyInterp = yes(Interp)
+        else
+            AnyInterp = no
+        ),
+        Values = word_values(AnyInterp, [])
     ).
 
 :- pred parse_word_values0(assoc_list(word_value, word_interp)::in, src::in, word_values::out, ps::in, ps::out) is semidet.
 
 parse_word_values0(Vs, Src, Values, !PS) :-
     ( if punct("|", Src, _, !PS) then
-	( if parse_word_value(Src, V, !PS) then
-	    parse_word_values0([V|Vs], Src, Values, !PS)
-	else
-	    parse_word_interp(Src, Interp, !PS),
-	    Values = word_values(yes(Interp), Vs)
-	)
+        ( if parse_word_value(Src, V, !PS) then
+            parse_word_values0([V|Vs], Src, Values, !PS)
+        else
+            parse_word_interp(Src, Interp, !PS),
+            Values = word_values(yes(Interp), Vs)
+        )
     else
-	Values = word_values(no, Vs)
+        Values = word_values(no, Vs)
     ).
 
 :- pred parse_word_value(src::in, pair(word_value, word_interp)::out, ps::in, ps::out) is semidet.
 
 parse_word_value(Src, Value-Interp, !PS) :-
     ( if hex_literal(Src, N, !PS) then
-	Value = word_value_int(N)
+        Value = word_value_int(N)
     else if int_literal(Src, N, !PS) then
-	Value = word_value_int(N)
+        Value = word_value_int(N)
     else
-	next_char(Src, '\'', !PS),
-	next_char(Src, C1, !PS),
-	next_char(Src, C2, !PS),
-	next_char(Src, C3, !PS),
-	next_char(Src, C4, !PS),
-	next_char(Src, '\'', !PS),
-	Value = word_value_tag(C1, C2, C3, C4)
+        next_char(Src, '\'', !PS),
+        next_char(Src, C1, !PS),
+        next_char(Src, C2, !PS),
+        next_char(Src, C3, !PS),
+        next_char(Src, C4, !PS),
+        next_char(Src, '\'', !PS),
+        Value = word_value_tag(C1, C2, C3, C4)
     ),
     skip_ws_comments(Src, _, !PS),
     ( if parse_word_interp(Src, Interp0, !PS) then
-	Interp = Interp0
+        Interp = Interp0
     else
-	Interp = word_interp_none
+        Interp = word_interp_none
     ).
 
 :- pred parse_word_interp(src::in, word_interp::out, ps::in, ps::out) is semidet.
@@ -394,7 +394,7 @@ parse_word_interp(Src, Interp, !PS) :-
         at_rule(at_offset_scope, Src, !PS),
         punct("(", Src, _, !PS),
         parse_expr_int(Src, Expr, !PS),
-	Base = offset_base_expr(Expr),
+        Base = offset_base_expr(Expr),
         punct(")", Src, _, !PS)
     ),
     punct("=>", Src, _, !PS),
@@ -405,51 +405,51 @@ parse_word_interp(Src, Interp, !PS) :-
 
 parse_offset_base(Src, Base, !PS) :-
     ( if at_rule(at_root, Src, !PS) then
-	Base = offset_base_root
+        Base = offset_base_root
     else
-	identifier(Src, Ident, !PS),
-	Base = offset_base_stack(Ident)
+        identifier(Src, Ident, !PS),
+        Base = offset_base_stack(Ident)
     ).
 
 :- pred parse_word_type(src::in, word_type::out, ps::in, ps::out) is semidet.
 
 parse_word_type(Src, Type, !PS) :-
     ( if keyword(kw_byte, Src, !PS) then
-	Type = uint8
+        Type = uint8
     else if keyword(kw_uint8, Src, !PS) then
-	Type = uint8
+        Type = uint8
     else if keyword(kw_uint16, Src, !PS) then
-	Type = uint16
+        Type = uint16
     else if keyword(kw_uint32, Src, !PS) then
-	Type = uint32
+        Type = uint32
     else if keyword(kw_uint64, Src, !PS) then
-	Type = uint64
+        Type = uint64
     else if keyword(kw_int8, Src, !PS) then
-	Type = int8
+        Type = int8
     else if keyword(kw_int16, Src, !PS) then
-	Type = int16
+        Type = int16
     else if keyword(kw_int32, Src, !PS) then
-	Type = int32
+        Type = int32
     else if keyword(kw_int64, Src, !PS) then
-	Type = int64
+        Type = int64
     else
-	fail
+        fail
     ).
 
 %--------------------------------------------------------------------%
 
 :- type keyword
     --->    kw_union
-    ;	    kw_struct
-    ;	    kw_byte
-    ;	    kw_uint8
-    ;	    kw_uint16
-    ;	    kw_uint32
-    ;	    kw_uint64
-    ;	    kw_int8
-    ;	    kw_int16
-    ;	    kw_int32
-    ;	    kw_int64.
+    ;       kw_struct
+    ;       kw_byte
+    ;       kw_uint8
+    ;       kw_uint16
+    ;       kw_uint32
+    ;       kw_uint64
+    ;       kw_int8
+    ;       kw_int16
+    ;       kw_int32
+    ;       kw_int64.
 
 :- pred keyword_string(keyword, string).
 :- mode keyword_string(in, out) is det.
@@ -478,8 +478,8 @@ keyword(Keyword, Src, !PS) :-
 :- type at_rule
     --->    at_offset
     ;       at_offset_scope
-    ;	    at_root
-    ;	    at_if.
+    ;       at_root
+    ;       at_if.
 
 :- pred at_rule_string(at_rule, string).
 :- mode at_rule_string(in, out) is det.
@@ -535,9 +535,9 @@ hex_digit(Src, N, !PS) :-
 
 hex_digits(N0, Src, N, !PS) :-
     ( if hex_digit(Src, N1, !PS) then
-	hex_digits(N0 * 16 + N1, Src, N, !PS)
+        hex_digits(N0 * 16 + N1, Src, N, !PS)
     else
-	N = N0
+        N = N0
     ).
 
 %--------------------------------------------------------------------%
@@ -547,13 +547,13 @@ hex_digits(N0, Src, N, !PS) :-
 skip_ws_comments(Src, Res, !PS) :-
     whitespace(Src, _, !PS),
     ( if
-	next_char(Src, '/', !PS),
-	next_char(Src, '/', !PS)
+        next_char(Src, '/', !PS),
+        next_char(Src, '/', !PS)
     then
         skip_to_eol(Src, _, !PS),
         skip_ws_comments(Src, Res, !PS)
     else
-        Res = unit 
+        Res = unit
     ).
 
 %--------------------------------------------------------------------%

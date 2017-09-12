@@ -87,25 +87,25 @@ set_bytes_from_list([B|Bs], N, Bytes) :-
 :- mode set_byte(in, in, in) is det.
 
 :- pragma foreign_proc(c,
-	set_byte(Bytes::in, N::in, B::in),
-	[will_not_call_mercury, thread_safe], "
+        set_byte(Bytes::in, N::in, B::in),
+        [will_not_call_mercury, thread_safe], "
     Bytes->bytes[N] = B;
 ").
 
 %--------------------------------------------------------------------%
 
 :- pragma foreign_proc(c,
-	bytes_from_array(Array::in) = (Bytes::out),
-	[will_not_call_mercury, thread_safe, promise_pure], "
+        bytes_from_array(Array::in) = (Bytes::out),
+        [will_not_call_mercury, thread_safe, promise_pure], "
     {
-	int i;
+        int i;
 
-	new_bytes(Array->size, &Bytes, MR_ALLOC_ID);
+        new_bytes(Array->size, &Bytes, MR_ALLOC_ID);
 
-	for (i = 0; i < Array->size; ++i)
-	{
-	    Bytes->bytes[i] = Array->elements[i];
-	}
+        for (i = 0; i < Array->size; ++i)
+        {
+            Bytes->bytes[i] = Array->elements[i];
+        }
     }
 ").
 
@@ -130,8 +130,8 @@ set_ucs2_bytes_from_list([U|Us], N, Bytes) :-
 :- mode set_ucs2_bytes(in, in, in) is det.
 
 :- pragma foreign_proc(c,
-	set_ucs2_bytes(Bytes::in, N::in, U::in),
-	[will_not_call_mercury, thread_safe], "
+        set_ucs2_bytes(Bytes::in, N::in, U::in),
+        [will_not_call_mercury, thread_safe], "
     Bytes->bytes[N] = U >> 8;
     Bytes->bytes[N+1] = U & 0xFF;
 ").
@@ -139,17 +139,17 @@ set_ucs2_bytes_from_list([U|Us], N, Bytes) :-
 %--------------------------------------------------------------------%
 
 :- pragma foreign_proc(c,
-	string_to_bytes(S::in) = (Bytes::out),
-	[will_not_call_mercury, thread_safe, promise_pure], "
+        string_to_bytes(S::in) = (Bytes::out),
+        [will_not_call_mercury, thread_safe, promise_pure], "
     {
-	int i;
+        int i;
 
-	new_bytes(strlen(S), &Bytes, MR_ALLOC_ID);
+        new_bytes(strlen(S), &Bytes, MR_ALLOC_ID);
 
-	for (i = 0; i < Bytes->length; ++i)
-	{
-	    Bytes->bytes[i] = S[i];
-	}
+        for (i = 0; i < Bytes->length; ++i)
+        {
+            Bytes->bytes[i] = S[i];
+        }
     }
 ").
 
@@ -160,8 +160,8 @@ int32_to_bytes(Int) = bytes([B0,B1,B2,B3]) :-
     B3 = (Int /\ 0xFF000000) >> 24.
 
 :- pragma foreign_proc(c,
-	length(Bytes::in) = (Length::out),
-	[will_not_call_mercury, thread_safe, promise_pure], "
+        length(Bytes::in) = (Length::out),
+        [will_not_call_mercury, thread_safe, promise_pure], "
     Length = Bytes->length;
 ").
 
@@ -170,66 +170,66 @@ bytes_to_list(Bytes) = map(get_byte(Bytes), 0 .. length(Bytes) - 1).
 :- func get_byte(bytes, int) = int.
 
 :- pragma foreign_proc(c,
-	get_byte(Bytes::in, Index::in) = (Byte::out),
-	[will_not_call_mercury, thread_safe, promise_pure], "
+        get_byte(Bytes::in, Index::in) = (Byte::out),
+        [will_not_call_mercury, thread_safe, promise_pure], "
     Byte = Bytes->bytes[Index];
 ").
 
 :- pragma foreign_proc(c,
-	take(Take::in, Bytes0::in) = (Bytes::out),
-	[will_not_call_mercury, thread_safe, promise_pure], "
+        take(Take::in, Bytes0::in) = (Bytes::out),
+        [will_not_call_mercury, thread_safe, promise_pure], "
     {
-	int i;
+        int i;
 
-	new_bytes(Take, &Bytes, MR_ALLOC_ID);
+        new_bytes(Take, &Bytes, MR_ALLOC_ID);
 
-	if (Take <= Bytes0->length)
-	{
-	    for (i = 0; i < Take; ++i)
-	    {
-		Bytes->bytes[i] = Bytes0->bytes[i];
-	    }
-	}
-	else
-	{
-	    for (i = 0; i < Bytes0->length; ++i)
-	    {
-		Bytes->bytes[i] = Bytes0->bytes[i];
-	    }
-	    
-	    for (i = Bytes0->length; i < Take; ++i)
-	    {
-		Bytes->bytes[i] = 0;
-	    }
-	}
+        if (Take <= Bytes0->length)
+        {
+            for (i = 0; i < Take; ++i)
+            {
+                Bytes->bytes[i] = Bytes0->bytes[i];
+            }
+        }
+        else
+        {
+            for (i = 0; i < Bytes0->length; ++i)
+            {
+                Bytes->bytes[i] = Bytes0->bytes[i];
+            }
+
+            for (i = Bytes0->length; i < Take; ++i)
+            {
+                Bytes->bytes[i] = 0;
+            }
+        }
     }
 ").
 
 :- pragma foreign_proc(c,
-	get_byte(Bytes::in, Pos::in, Byte::out),
-	[will_not_call_mercury, thread_safe, promise_pure], "
+        get_byte(Bytes::in, Pos::in, Byte::out),
+        [will_not_call_mercury, thread_safe, promise_pure], "
     if (Pos >= 0 && Pos < Bytes->length)
     {
-	Byte = Bytes->bytes[Pos];
+        Byte = Bytes->bytes[Pos];
 
-	SUCCESS_INDICATOR = 1;
+        SUCCESS_INDICATOR = 1;
     }
     else
     {
-	SUCCESS_INDICATOR = 0;
+        SUCCESS_INDICATOR = 0;
     }
 ").
 
 :- pragma foreign_proc(c,
-	bytes_equal(Bytes1::in, Bytes2::in),
-	[will_not_call_mercury, thread_safe, promise_pure], "
+        bytes_equal(Bytes1::in, Bytes2::in),
+        [will_not_call_mercury, thread_safe, promise_pure], "
     if (Bytes1->length == Bytes2->length)
     {
-	SUCCESS_INDICATOR = (memcmp(Bytes1->bytes, Bytes2->bytes, Bytes1->length) == 0);
+        SUCCESS_INDICATOR = (memcmp(Bytes1->bytes, Bytes2->bytes, Bytes1->length) == 0);
     }
     else
     {
-	SUCCESS_INDICATOR = 0;
+        SUCCESS_INDICATOR = 0;
     }
 ").
 
@@ -237,50 +237,50 @@ bytes_to_list(Bytes) = map(get_byte(Bytes), 0 .. length(Bytes) - 1).
 :- mode make_new_bytes(in, out) is det.
 
 :- pragma foreign_proc(c,
-	make_new_bytes(Length::in, Bytes::out),
-	[will_not_call_mercury, thread_safe], "
+        make_new_bytes(Length::in, Bytes::out),
+        [will_not_call_mercury, thread_safe], "
     new_bytes(Length, &Bytes, MR_ALLOC_ID);
 ").
 
 read_stream(Stream, Res, !IO) :-
     read_stream0(Stream, Bytes, Res0, !IO),
     ( if Res0 = 0 then
-	Res = ok(Bytes)
+        Res = ok(Bytes)
     else
-	Res = error("error reading stream")
+        Res = error("error reading stream")
     ).
 
 :- pred read_stream0(binary_input_stream, bytes, int, io, io).
 :- mode read_stream0(in, out, out, di, uo) is det.
 
 :- pragma foreign_proc(c,
-	read_stream0(Stream::in, Bytes::out, Res::out, IO0::di, IO::uo),
-	[will_not_call_mercury, thread_safe, promise_pure], "
+        read_stream0(Stream::in, Bytes::out, Res::out, IO0::di, IO::uo),
+        [will_not_call_mercury, thread_safe, promise_pure], "
     {
-	int file_size;
+        int file_size;
 
-	Res = 1;
-	
-	if (fseek(MR_file(*(MercuryFile *)Stream), 0, SEEK_END) != 0)
-	    goto read_stream_error;
+        Res = 1;
 
-	file_size = ftell(MR_file(*(MercuryFile *)Stream));
+        if (fseek(MR_file(*(MercuryFile *)Stream), 0, SEEK_END) != 0)
+            goto read_stream_error;
 
-	if (file_size < 0) goto read_stream_error;
-	    
-	if (fseek(MR_file(*(MercuryFile *)Stream), 0, SEEK_SET) != 0)
-	    goto read_stream_error;
-	
-	new_bytes(file_size, &Bytes, MR_ALLOC_ID);
+        file_size = ftell(MR_file(*(MercuryFile *)Stream));
 
-	if (fread(Bytes->bytes, 1, file_size, MR_file(*(MercuryFile *)Stream)) < 0)
-	    goto read_stream_error;
+        if (file_size < 0) goto read_stream_error;
 
-	Res = 0;
+        if (fseek(MR_file(*(MercuryFile *)Stream), 0, SEEK_SET) != 0)
+            goto read_stream_error;
+
+        new_bytes(file_size, &Bytes, MR_ALLOC_ID);
+
+        if (fread(Bytes->bytes, 1, file_size, MR_file(*(MercuryFile *)Stream)) < 0)
+            goto read_stream_error;
+
+        Res = 0;
 
     read_stream_error:
-	
-	IO = IO0;
+
+        IO = IO0;
     }
 ").
 

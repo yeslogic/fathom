@@ -30,9 +30,9 @@ IHDR: struct {
 PLTE: struct {
     // FIXME number of entries == chunk length / 3, from 1..256
     entries: struct* {
-	red: byte,
-	green: byte,
-	blue: byte
+        red: byte,
+        green: byte,
+        blue: byte
     }
 }
 

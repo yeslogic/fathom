@@ -17,11 +17,11 @@ OffsetTable: struct {
     entry_selector: uint16 // Log2(maximum power of 2 <= numTables)
     range_shift: uint16 // NumTables x 16-searchRange
     table_records[num_tables]: struct { // FIXME sorted by tag
-	tag: uint32
-	checksum: uint32
-	//FIXME offset: uint32 @offset(@root) => byte[length] ~ tag_magic(tag)
-	offset: uint32 @offset(@root) => tag_magic(tag)
-	length: uint32
+        tag: uint32
+        checksum: uint32
+        //FIXME offset: uint32 @offset(@root) => byte[length] ~ tag_magic(tag)
+        offset: uint32 @offset(@root) => tag_magic(tag)
+        length: uint32
         //@link(@root + offset, length, table(tag))
     }
 }
@@ -29,8 +29,8 @@ OffsetTable: struct {
 // FIXME additional constraints
 //@require OffsetTable {
 //    all i:
-//	all j:
-//	    i < j -> table_records[i].tag < table_records[j].tag
+//        all j:
+//            i < j -> table_records[i].tag < table_records[j].tag
 //
 //    exists i: table_records[i].tag = 'cmap'
 //    exists i: table_records[i].tag = 'head'
@@ -111,8 +111,8 @@ hhea: struct {
 // FIXME tricky
 //hmtx: struct {
 //    h_metrics: struct[hhea.number_of_h_metrics] {
-//	advance_width: uint16
-//	lsb: int16
+//        advance_width: uint16
+//        lsb: int16
 //    }
 //    left_side_bearing: int16[maxp.num_glyphs - hhea.number_of_h_metrics]
 //}
@@ -199,9 +199,9 @@ cmap: struct {
     version: uint16 = 0
     num_tables: uint16
     encoding[num_tables]: struct {
-	platform_id: uint16
-	encoding_id: uint16
-	offset: uint32 @offset => cmap_subtable
+        platform_id: uint16
+        encoding_id: uint16
+        offset: uint32 @offset => cmap_subtable
     }
 }
 
@@ -295,8 +295,8 @@ OS2: struct {
 ScriptList: struct {
     script_count: uint16
     script_records[script_count]: struct { // FIXME sorted by script_tag
-	script_tag: uint32
-	script: uint16 @offset(ScriptList) => Script
+        script_tag: uint32
+        script: uint16 @offset(ScriptList) => Script
     }
 }
 
@@ -304,8 +304,8 @@ Script: struct {
     default_lang_sys: uint16 = 0 | @offset => LangSys
     lang_sys_count: uint16
     lang_sys_records[lang_sys_count]: struct { // FIXME sorted by lang_sys_tag
-	lang_sys_tag: uint32
-	lang_sys: uint16 @offset(Script) => LangSys
+        lang_sys_tag: uint32
+        lang_sys: uint16 @offset(Script) => LangSys
     }
 }
 
@@ -319,8 +319,8 @@ LangSys: struct {
 FeatureList: struct {
     feature_count: uint16
     feature_records[feature_count]: struct { // FIXME sorted by feature_tag
-	feature_tag: uint32
-	feature: uint16 @offset(FeatureList) => Feature
+        feature_tag: uint32
+        feature: uint16 @offset(FeatureList) => Feature
     }
 }
 
@@ -360,12 +360,12 @@ CoverageFormat2: struct {
     coverage_format: uint16 = 2
     range_count: uint16
     range_record[range_count]: struct {
-	// FIXME start =< end, ranges sorted numerically
+        // FIXME start =< end, ranges sorted numerically
         // FIXME first range has start_coverage_index = 0
         // FIXME subsequent ranges index based on length of previous
-	start: uint16
-	end: uint16
-	start_coverage_index: uint16
+        start: uint16
+        end: uint16
+        start_coverage_index: uint16
     }
 }
 
@@ -385,10 +385,10 @@ ClassDefFormat2: struct {
     class_format: uint16 = 2
     class_range_count: uint16
     class_range_record[class_range_count]: struct {
-	// FIXME start =< end
-	start: uint16
-	end: uint16
-	class: uint16
+        // FIXME start =< end
+        start: uint16
+        end: uint16
+        class: uint16
     }
 }
 
@@ -839,10 +839,10 @@ PairPosFormat2: struct {
     class1_count: uint16
     class2_count: uint16
     class1_record[class1_count]: struct {
-	class2_record[class2_count]: struct {
-	    value1: ValueRecord(value_format1)
-	    value2: ValueRecord(value_format2)
-	}
+        class2_record[class2_count]: struct {
+            value1: ValueRecord(value_format1)
+            value2: ValueRecord(value_format2)
+        }
     }
 }
 
@@ -855,8 +855,8 @@ CursivePosFormat1: struct {
     coverage: uint16 @offset => Coverage
     entry_exit_count: uint16
     entry_exit_record[entry_exit_count]: struct {
-	entry_anchor: uint16 @offset => Anchor
-	exit_anchor: uint16 @offset => Anchor
+        entry_anchor: uint16 @offset => Anchor
+        exit_anchor: uint16 @offset => Anchor
     }
 }
 
@@ -876,7 +876,7 @@ MarkBasePosFormat1: struct {
 BaseArray(class_count): struct {
     base_count: uint16
     base_record[base_count]: struct {
-	base_anchor[class_count]: uint16 = 0 | @offset => Anchor
+        base_anchor[class_count]: uint16 = 0 | @offset => Anchor
     }
 }
 
@@ -901,7 +901,7 @@ LigatureArray(class_count): struct {
 LigatureAttach(class_count): struct {
     component_count: uint16
     component_record[component_count]: struct {
-	ligature_anchor[class_count]: uint16 = 0 | @offset => Anchor
+        ligature_anchor[class_count]: uint16 = 0 | @offset => Anchor
     }
 }
 
@@ -921,7 +921,7 @@ MarkMarkPosFormat1: struct {
 Mark2Array(class_count): struct {
     mark2_count: uint16
     mark2_record[mark2_count]: struct {
-	mark2_anchor[class_count]: uint16 @offset => Anchor
+        mark2_anchor[class_count]: uint16 @offset => Anchor
     }
 }
 
@@ -1101,7 +1101,7 @@ AnchorFormat3: struct {
 MarkArray: struct {
     mark_count: uint16
     mark_record[mark_count]: struct {
-	class: uint16
-	mark_anchor: uint16 @offset => Anchor
+        class: uint16
+        mark_anchor: uint16 @offset => Anchor
     }
 }

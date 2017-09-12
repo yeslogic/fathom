@@ -22,9 +22,9 @@ abort(Msg) :- error(Msg).
 
 exception_to_string(Univ) = S :-
     ( if univ_to_type(Univ, software_error(Msg)) then
-	S = Msg
+        S = Msg
     else
-	S = string(univ_value(Univ))
+        S = string(univ_value(Univ))
     ).
 
 %--------------------------------------------------------------------%
