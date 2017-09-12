@@ -19,6 +19,11 @@ mod tests {
                 len : u16le,
                 data : [Point; len],
             };
+
+            Formats =
+                | { format : u16, data: u16 }
+                | { format : u16, point: Point }
+                | { format : u16, array: Array };
         ";
 
         assert_eq!(
@@ -42,6 +47,23 @@ mod tests {
                                 IntExpr::var("len"),
                             )
                         ),
+                    ])
+                ),
+                Definition::new(
+                    "Formats",
+                    Type::Union(vec![
+                        Type::Struct(vec![
+                            Field::new("format", Type::ident("u16")),
+                            Field::new("data", Type::ident("u16")),
+                        ]),
+                        Type::Struct(vec![
+                            Field::new("format", Type::ident("u16")),
+                            Field::new("point", Type::ident("Point")),
+                        ]),
+                        Type::Struct(vec![
+                            Field::new("format", Type::ident("u16")),
+                            Field::new("array", Type::ident("Array")),
+                        ]),
                     ])
                 ),
             ])

@@ -18,13 +18,17 @@ Ident: &'input str = {
 AtomicType: Type = {
     Ident => Type::ident(<>),
     "(" <Type> ")",
-    "{" <fields: (<Field> ",")*> "}" => Type::Struct(fields),
+    "{" <fields: (<Field> ",")*> <last: Field?> "}" => {
+        let mut fields = fields;
+        fields.extend(last);
+        Type::Struct(fields)
+    },
     "[" <elem: Type> ";" <size: IntExpr> "]" => Type::Array(Box::new(elem), size),
 };
 
 Type: Type = {
     AtomicType,
-    <tys: (<AtomicType> "|")+> <last: AtomicType> => {
+    "|"? <tys: (<AtomicType> "|")+> <last: AtomicType> => {
         let mut tys = tys;
         tys.push(last);
         Type::Union(tys)
