@@ -1,0 +1,22 @@
+[package]
+name = "ddl"
+description = "A binary data definition language"
+version = "0.1.0"
+authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
+readme = "README.md"
+license = "Apache-2.0"
+homepage = "https://github.com/yeslogic/ddl"
+documentation = "https://docs.rs/ddl"
+repository = "https://github.com/yeslogic/ddl"
+categories = ["parsing"]
+keywords = ["binary", "byte", "parser", "parsing", "endian", "big-endian", "little-endian"]
+
+[dependencies]
+lalrpop-util = "0.13.1"
+regex = "0.2.0"
+
+[build-dependencies]
+lalrpop = "0.13.1"
+
+[dev-dependencies]
+pretty_assertions = "0.3.4"

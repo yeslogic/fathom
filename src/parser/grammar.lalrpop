@@ -1,0 +1,45 @@
+use std::str::FromStr;
+use ast::{Definition, Field, IntExpr, Type};
+
+grammar;
+
+pub Definitions: Vec<Definition> = {
+    Definition*,
+};
+
+Definition: Definition = {
+    <name: Ident> "=" <ty: Type> ";" => Definition::new(name, ty),
+};
+
+Ident: &'input str = {
+    r"[_a-zA-Z][_a-zA-Z0-9]*",
+};
+
+AtomicType: Type = {
+    Ident => Type::ident(<>),
+    "(" <Type> ")",
+    "{" <fields: (<Field> ",")*> "}" => Type::Struct(fields),
+    "[" <elem: Type> ";" <size: IntExpr> "]" => Type::Array(Box::new(elem), size),
+};
+
+Type: Type = {
+    AtomicType,
+    <tys: (<AtomicType> "|")+> <last: AtomicType> => {
+        let mut tys = tys;
+        tys.push(last);
+        Type::Union(tys)
+    },
+};
+
+IntExpr: IntExpr = {
+    Num => IntExpr::Const(<>),
+    Ident => IntExpr::var(<>),
+};
+
+Num: u32 = {
+    r"[0-9]+" => u32::from_str(<>).unwrap(),
+};
+
+Field: Field = {
+    <name: Ident> ":" <ty: Type> => Field::new(name, ty),
+};
