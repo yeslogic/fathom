@@ -10,6 +10,21 @@ OpenType: union {
     TTCHeader
 }
 
+Table(tag): switch {
+    head when tag = tag_head
+    hhea when tag = tag_hhea
+    maxp when tag = tag_maxp
+    name when tag = tag_name
+    CFF when tag = tag_CFF
+    cmap when tag = tag_cmap
+    //OS2 OS/2 !!!
+    GSUB when tag = tag_GSUB
+    GPOS when tag = tag_GPOS
+    UnknownTable otherwise
+}
+
+UnknownTable: struct { }
+
 OffsetTable: struct {
     sfnt_version: uint32 = 0x00010000 | 'OTTO' // FIXME Apple allows 'true' and 'typ1' ?
     num_tables: uint16
@@ -19,8 +34,8 @@ OffsetTable: struct {
     table_records[num_tables]: struct { // FIXME sorted by tag
         tag: uint32
         checksum: uint32
-        //FIXME offset: uint32 @offset(@root) => byte[length] ~ tag_magic(tag)
-        offset: uint32 @offset(@root) => tag_magic(tag)
+        //FIXME offset: uint32 @offset(@root) => byte[length] ~ Table(tag)
+        offset: uint32 @offset(@root) => Table(tag)
         length: uint32
         //@link(@root + offset, length, table(tag))
     }
@@ -29,8 +44,8 @@ OffsetTable: struct {
 // FIXME additional constraints
 //@require OffsetTable {
 //    all i:
-//        all j:
-//            i < j -> table_records[i].tag < table_records[j].tag
+//      all j:
+//          i < j -> table_records[i].tag < table_records[j].tag
 //
 //    exists i: table_records[i].tag = 'cmap'
 //    exists i: table_records[i].tag = 'head'
@@ -111,8 +126,8 @@ hhea: struct {
 // FIXME tricky
 //hmtx: struct {
 //    h_metrics: struct[hhea.number_of_h_metrics] {
-//        advance_width: uint16
-//        lsb: int16
+//      advance_width: uint16
+//      lsb: int16
 //    }
 //    left_side_bearing: int16[maxp.num_glyphs - hhea.number_of_h_metrics]
 //}

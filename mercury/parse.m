@@ -41,18 +41,7 @@ parse_ddl_def(Src, Ident-Def, !PS) :-
         Args = []
     ),
     punct(":", Src, _, !PS),
-    ( if keyword(kw_struct, Src, !PS) then
-        punct("{", Src, _, !PS),
-        parse_field_defs(Src, Fields, !PS),
-        punct("}", Src, _, !PS),
-        Type = ddl_type_struct(Fields)
-    else
-        keyword(kw_union, Src, !PS),
-        punct("{", Src, _, !PS),
-        parse_union_options(Src, Options, !PS),
-        punct("}", Src, _, !PS),
-        Type = ddl_type_union(Options)
-    ),
+    parse_ddl_type(Src, Type, !PS),
     Def = ddl_def(Ident, Args, Type).
 
 :- pred parse_union_options(src::in, list(string)::out, ps::in, ps::out) is semidet.
@@ -173,6 +162,16 @@ parse_base_type(Src, Type, !PS) :-
         punct("}", Src, _, !PS),
         Type0 = ddl_type_struct(Fields),
         Type = apply_multiplicity(Mult, Type0)
+    else if keyword(kw_union, Src, !PS) then
+        punct("{", Src, _, !PS),
+        parse_union_options(Src, Options, !PS),
+        punct("}", Src, _, !PS),
+        Type = ddl_type_union(Options)
+    else if keyword(kw_switch, Src, !PS) then
+        punct("{", Src, _, !PS),
+        parse_switch(Src, Cases, Default, !PS),
+        punct("}", Src, _, !PS),
+        Type = ddl_type_switch(Cases, Default)
     else if identifier(Src, Ident, !PS) then
         ( if Ident = "tag_magic" then
             punct("(", Src, _, !PS),
@@ -196,6 +195,21 @@ parse_base_type(Src, Type, !PS) :-
         parse_word_values(Src, WordValues, !PS),
         Type0 = ddl_type_word(WordType, WordValues),
         Type = apply_multiplicity(Mult, Type0)
+    ).
+
+:- pred parse_switch(src::in, assoc_list(expr_bool, ddl_type)::out, ddl_type::out, ps::in, ps::out) is semidet.
+
+parse_switch(Src, Cases, Default, !PS) :-
+    parse_ddl_type(Src, Type, !PS),
+    ( if keyword(kw_when, Src, !PS) then
+        parse_expr_bool(Src, Expr, !PS),
+        skip_ws_comments(Src, _, !PS),
+        parse_switch(Src, Cases0, Default, !PS),
+        Cases = [Expr-Type|Cases0]
+    else
+        keyword(kw_otherwise, Src, !PS),
+        Cases = [],
+        Default = Type
     ).
 
 :- pred parse_args(src::in, list(string)::out, ps::in, ps::out) is semidet.
@@ -319,14 +333,32 @@ parse_term(Src, Expr, !PS) :-
         Expr = expr_const(N)
     else
         identifier(Src, Ident, !PS),
-        ( if punct("[", Src, _, !PS) then
-            parse_expr_int(Src, Expr0, !PS),
-            punct("]", Src, _, !PS),
-            Expr = expr_index(Ident, Expr0)
+        ( if
+            string.remove_prefix("tag_", Ident, Tag),
+            string.length(Tag) =< 4
+        then
+            % FIXME just a quick hack until a proper tag function
+            Cs = string.to_char_list(string.pad_right(Tag, ' ', 4)),
+            tag_to_int(Cs, 0, N),
+            Expr = expr_const(N)
         else
-            Expr = expr_field(Ident)
+            ( if punct("[", Src, _, !PS) then
+                parse_expr_int(Src, Expr0, !PS),
+                punct("]", Src, _, !PS),
+                Expr = expr_index(Ident, Expr0)
+            else
+                Expr = expr_field(Ident)
+            )
         )
     ).
+
+:- pred tag_to_int(list(char), int, int).
+:- mode tag_to_int(in, in, out) is det.
+
+tag_to_int([], N, N).
+tag_to_int([C|Cs], N0, N) :-
+    N1 = N0*256 + char.to_int(C),
+    tag_to_int(Cs, N1, N).
 
 :- pred parse_word_values(src::in, word_values::out, ps::in, ps::out) is semidet.
 
@@ -441,6 +473,9 @@ parse_word_type(Src, Type, !PS) :-
 :- type keyword
     --->    kw_union
     ;       kw_struct
+    ;       kw_switch
+    ;       kw_when
+    ;       kw_otherwise
     ;       kw_byte
     ;       kw_uint8
     ;       kw_uint16
@@ -457,6 +492,9 @@ parse_word_type(Src, Type, !PS) :-
 
 keyword_string(kw_union, "union").
 keyword_string(kw_struct, "struct").
+keyword_string(kw_switch, "switch").
+keyword_string(kw_when, "when").
+keyword_string(kw_otherwise, "otherwise").
 keyword_string(kw_byte, "byte").
 keyword_string(kw_uint8, "uint8").
 keyword_string(kw_uint16, "uint16").

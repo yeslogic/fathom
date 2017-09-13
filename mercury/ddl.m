@@ -23,6 +23,7 @@
     ;       ddl_type_sized(ddl_type, expr_int)
     ;       ddl_type_struct(list(field_def))
     ;       ddl_type_union(list(string))
+    ;       ddl_type_switch(assoc_list(expr_bool, ddl_type), ddl_type)
     ;       ddl_type_named(string, list(string))
     ;       ddl_type_tag_magic(string)
     ;       ddl_type_string.
@@ -135,11 +136,14 @@
 
 :- func ddl_lookup_det(ddl, string) = ddl_def.
 
+:- pred simplify_type(scope, ddl_type, ddl_type).
+:- mode simplify_type(in, in, out) is det.
+
 %--------------------------------------------------------------------%
 
 :- implementation.
 
-:- import_module int.
+:- import_module int, pair.
 
 :- import_module abort.
 
@@ -184,6 +188,9 @@ ddl_type_size(DDL, Scope, Type) = Size :-
     ;
         Type = ddl_type_union(Options),
         Size = union_options_size(DDL, Scope, Options)
+    ;
+        Type = ddl_type_switch(_, _),
+        abort("FIXME switch size ???")
     ;
         Type = ddl_type_named(Name, Args0),
         Def = ddl_lookup_det(DDL, Name),
@@ -333,6 +340,43 @@ ddl_lookup_det(DDL, Name) = Def :-
         Def = Def0
     else
         abort("unknown type: "++Name)
+    ).
+
+%--------------------------------------------------------------------%
+
+simplify_type(Scope, Type0, Type) :-
+    (
+        (
+            Type0 = ddl_type_word(_, _) ;
+            Type0 = ddl_type_array(_, _) ;
+            Type0 = ddl_type_zero_or_more(_) ;
+            Type0 = ddl_type_sized(_, _) ;
+            Type0 = ddl_type_struct(_) ;
+            Type0 = ddl_type_union(_) ;
+            Type0 = ddl_type_named(_, _) ;
+            Type0 = ddl_type_tag_magic(_) ;
+            Type0 = ddl_type_string
+        ),
+        Type = Type0
+    ;
+        Type0 = ddl_type_switch(Cases, Default),
+        eval_switch(Scope, Cases, Default, Type)
+    ).
+
+:- pred eval_switch(scope, assoc_list(expr_bool, ddl_type), ddl_type, ddl_type).
+:- mode eval_switch(in, in, in, out) is det.
+
+eval_switch(Scope, Cases, Default, Type) :-
+    (
+        Cases = [Expr-Type0|Cases0],
+        ( if eval_expr_bool(Scope, Expr) = yes then
+            Type = Type0
+        else
+            eval_switch(Scope, Cases0, Default, Type)
+        )
+    ;
+        Cases = [],
+        Type = Default
     ).
 
 %--------------------------------------------------------------------%

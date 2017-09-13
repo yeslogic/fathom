@@ -125,7 +125,8 @@ match_struct_fields(DDL, Bytes, Fields, Offset, Context) :-
 
 :- pred match_type(ddl::in, bytes::in, ddl_type::in, int::in, context::in) is semidet.
 
-match_type(DDL, Bytes, Type, Offset, Context) :-
+match_type(DDL, Bytes, Type0, Offset, Context) :-
+    simplify_type(Context ^ context_scope, Type0, Type),
     require_complete_switch [Type]
     (
         Type = ddl_type_word(WordType, WordValues),
@@ -146,6 +147,9 @@ match_type(DDL, Bytes, Type, Offset, Context) :-
     ;
         Type = ddl_type_union(Options),
         match_union_options(DDL, Bytes, Options, Offset, Context)
+    ;
+        Type = ddl_type_switch(_, _),
+        abort("match_type: switch")
     ;
         Type = ddl_type_named(Name, _Args0), % FIXME
         Def = ddl_lookup_det(DDL, Name),
@@ -198,7 +202,8 @@ dump_field(DDL, Bytes, Field, Item, !Offset, !Context, !Refs) :-
 
 :- pred dump_value(ddl::in, bytes::in, maybe(string)::in, ddl_type::in, ditem_value::out, int::in, maybe(int)::in, int::out, context::in, context::out, refs::in, refs::out) is det.
 
-dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, MaybeSize, Size, !Context, !Refs) :-
+dump_value(DDL, Bytes, MaybeName, Type0, Value, Offset, MaybeSize, Size, !Context, !Refs) :-
+    simplify_type(!.Context ^ context_scope, Type0, Type),
     (
         Type = ddl_type_word(WordType, WordValues),
         Size = word_type_size(WordType),
@@ -211,15 +216,15 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, MaybeSize, Size, !Context
             true
         )
     ;
-        Type = ddl_type_array(SizeExpr, Type0),
+        Type = ddl_type_array(SizeExpr, Type1),
         Length = eval_expr_int(!.Context ^ context_scope, SizeExpr),
-        FieldSize = ddl_type_size(DDL, !.Context ^ context_scope, Type0),
-        dump_array(DDL, Bytes, Length, Type0, 0, Offset, FieldSize, Values, !Context, !Refs),
+        FieldSize = ddl_type_size(DDL, !.Context ^ context_scope, Type1),
+        dump_array(DDL, Bytes, Length, Type1, 0, Offset, FieldSize, Values, !Context, !Refs),
         Value = array(Values),
         Size = Length * FieldSize,
         ( if
             MaybeName = yes(Name),
-            Type0 = ddl_type_word(WordType, _)
+            Type1 = ddl_type_word(WordType, _)
         then
             get_word_array(DDL, Bytes, Length, WordType, 0, Offset, FieldSize, Words, !Context, !Refs),
             !Context ^ context_scope := [Name-scope_array(Words)|!.Context ^ context_scope]
@@ -227,13 +232,13 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, MaybeSize, Size, !Context
             true
         )
     ;
-        Type = ddl_type_zero_or_more(Type0),
-        dump_zero_or_more(DDL, Bytes, Type0, Offset, Size, Values, !Context, !Refs),
+        Type = ddl_type_zero_or_more(Type1),
+        dump_zero_or_more(DDL, Bytes, Type1, Offset, Size, Values, !Context, !Refs),
         Value = array(Values)
     ;
-        Type = ddl_type_sized(Type0, SizeExpr),
+        Type = ddl_type_sized(Type1, SizeExpr),
         Size = eval_expr_int(!.Context ^ context_scope, SizeExpr),
-        dump_value(DDL, Bytes, no, Type0, Value, Offset, yes(Size), _Size, !Context, !Refs)
+        dump_value(DDL, Bytes, no, Type1, Value, Offset, yes(Size), _Size, !Context, !Refs)
     ;
         Type = ddl_type_struct(Fields0),
         NestedContext = !.Context, % FIXME?
@@ -246,6 +251,9 @@ dump_value(DDL, Bytes, MaybeName, Type, Value, Offset, MaybeSize, Size, !Context
         dump_union_options(DDL, Bytes, Options, Item, Offset, NextOffset, NestedContext, !Refs),
         Value = item(Item),
         Size = NextOffset - Offset
+    ;
+        Type = ddl_type_switch(_, _),
+        abort("dump_value: switch")
     ;
         Type = ddl_type_named(Name, Args),
         Def = ddl_lookup_det(DDL, Name),
@@ -356,7 +364,7 @@ update_refs(DDL, Context, Word, WordValues, !Refs) :-
 
 make_ref_from_offset(DDL, Context, Offset, Word, !Refs) :-
     NewOffset = calc_offset(Context, Offset, Word),
-    Type = Offset ^ offset_type,
+    simplify_type(Context ^ context_scope, Offset ^ offset_type, Type),
     (
         (
             Type = ddl_type_word(_, _) ;
@@ -368,6 +376,9 @@ make_ref_from_offset(DDL, Context, Offset, Word, !Refs) :-
             Type = ddl_type_string
         ),
         !:Refs = [NewOffset - {Context,ref_type(Type)}|!.Refs]
+    ;
+        Type = ddl_type_switch(_, _),
+        abort("make_ref_from_offset: switch")
     ;
         Type = ddl_type_named(Name, Args),
         Def = ddl_lookup_det(DDL, Name),
