@@ -44,8 +44,12 @@ Type: Type = {
 };
 
 IntExpr: IntExpr = {
-    <lo: @L> <value: Num> <hi: @R> => IntExpr::const_((Bp(lo), Bp(hi)), value),
-    <lo: @L> <name: Ident> <hi: @R> => IntExpr::var((Bp(lo), Bp(hi)), name),
+    <lo: @L> <value: Num> <hi: @R> => {
+        IntExpr::const_((Bp(lo), Bp(hi)), value)
+    },
+    <lo: @L> <name: Ident> <hi: @R> => {
+        IntExpr::var((Bp(lo), Bp(hi)), name)
+    },
 };
 
 Num: u32 = {
