@@ -161,6 +161,13 @@ impl Span {
         }
     }
 
+    pub fn start() -> Span {
+        Span {
+            lo: BytePos(0),
+            hi: BytePos(0),
+        }
+    }
+
     /// Get the low byte position
     pub fn lo(self) -> BytePos {
         self.lo
@@ -307,6 +314,12 @@ impl Span {
             span: self,
             value: value.into(),
         }
+    }
+}
+
+impl From<(BytePos, BytePos)> for Span {
+    fn from((lo, hi): (BytePos, BytePos)) -> Span {
+        Span::new(lo, hi)
     }
 }
 

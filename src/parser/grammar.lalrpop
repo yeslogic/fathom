@@ -1,5 +1,7 @@
 use std::str::FromStr;
+
 use ast::{Definition, Field, IntExpr, Type};
+use source::BytePos as Bp;
 
 grammar;
 
@@ -8,7 +10,9 @@ pub Definitions: Vec<Definition> = {
 };
 
 Definition: Definition = {
-    <name: Ident> "=" <ty: Type> ";" => Definition::new(name, ty),
+    <lo: @L> <name: Ident> "=" <ty: Type> ";" <hi: @R> => {
+        Definition::new((Bp(lo), Bp(hi)), name, ty)
+    },
 };
 
 Ident: &'input str = {
@@ -16,28 +20,32 @@ Ident: &'input str = {
 };
 
 AtomicType: Type = {
-    Ident => Type::ident(<>),
+    <lo: @L> <name: Ident> <hi: @R> => {
+        Type::ident((Bp(lo), Bp(hi)), name)
+    },
     "(" <Type> ")",
-    "{" <fields: (<Field> ",")*> <last: Field?> "}" => {
+    <lo: @L> "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
         let mut fields = fields;
         fields.extend(last);
-        Type::Struct(fields)
+        Type::struct_((Bp(lo), Bp(hi)), fields)
     },
-    "[" <elem: Type> ";" <size: IntExpr> "]" => Type::Array(Box::new(elem), size),
+    <lo: @L> "[" <elem: Type> ";" <size: IntExpr> "]" <hi: @R> => {
+        Type::array((Bp(lo), Bp(hi)), Box::new(elem), size)
+    },
 };
 
 Type: Type = {
     AtomicType,
-    "|"? <tys: (<AtomicType> "|")+> <last: AtomicType> => {
+    <lo: @L> "|"? <tys: (<AtomicType> "|")+> <last: AtomicType> <hi: @R> => {
         let mut tys = tys;
         tys.push(last);
-        Type::Union(tys)
+        Type::union((Bp(lo), Bp(hi)), tys)
     },
 };
 
 IntExpr: IntExpr = {
-    Num => IntExpr::Const(<>),
-    Ident => IntExpr::var(<>),
+    <lo: @L> <value: Num> <hi: @R> => IntExpr::const_((Bp(lo), Bp(hi)), value),
+    <lo: @L> <name: Ident> <hi: @R> => IntExpr::var((Bp(lo), Bp(hi)), name),
 };
 
 Num: u32 = {
@@ -45,5 +53,7 @@ Num: u32 = {
 };
 
 Field: Field = {
-    <name: Ident> ":" <ty: Type> => Field::new(name, ty),
+    <lo: @L> <name: Ident> ":" <ty: Type> <hi: @R> => {
+        Field::new((Bp(lo), Bp(hi)), name, ty)
+    },
 };
