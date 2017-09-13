@@ -18,9 +18,14 @@ pub struct Definition {
 }
 
 impl Definition {
-    pub fn new<Sp: Into<Span>, S: Into<String>>(span: Sp, name: S, ty: Type) -> Definition {
+    pub fn new<Sp, S>(span: Sp, name: S, ty: Type) -> Definition
+    where
+        Sp: Into<Span>,
+        S: Into<String>,
+    {
         let span = span.into();
         let name = name.into();
+
         Definition { span, name, ty }
     }
 }
@@ -35,11 +40,18 @@ pub enum IntExpr {
 }
 
 impl IntExpr {
-    pub fn const_<Sp: Into<Span>>(span: Sp, value: u32) -> IntExpr {
+    pub fn const_<Sp>(span: Sp, value: u32) -> IntExpr
+    where
+        Sp: Into<Span>,
+    {
         IntExpr::Const(span.into(), value)
     }
 
-    pub fn var<Sp: Into<Span>, S: Into<String>>(span: Sp, name: S) -> IntExpr {
+    pub fn var<Sp, S>(span: Sp, name: S) -> IntExpr
+    where
+        Sp: Into<Span>,
+        S: Into<String>,
+    {
         IntExpr::Var(span.into(), name.into())
     }
 }
@@ -57,19 +69,33 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn ident<Sp: Into<Span>, S: Into<String>>(span: Sp, name: S) -> Type {
+    pub fn ident<Sp, S>(span: Sp, name: S) -> Type
+    where
+        Sp: Into<Span>,
+        S: Into<String>,
+    {
         Type::Ident(span.into(), name.into())
     }
 
-    pub fn array<Sp: Into<Span>, T: Into<Box<Type>>>(span: Sp, ty: T, size: IntExpr) -> Type {
+    pub fn array<Sp, T>(span: Sp, ty: T, size: IntExpr) -> Type
+    where
+        Sp: Into<Span>,
+        T: Into<Box<Type>>,
+    {
         Type::Array(span.into(), ty.into(), size)
     }
 
-    pub fn union<Sp: Into<Span>>(span: Sp, tys: Vec<Type>) -> Type {
+    pub fn union<Sp>(span: Sp, tys: Vec<Type>) -> Type
+    where
+        Sp: Into<Span>,
+    {
         Type::Union(span.into(), tys)
     }
 
-    pub fn struct_<Sp: Into<Span>>(span: Sp, fields: Vec<Field>) -> Type {
+    pub fn struct_<Sp>(span: Sp, fields: Vec<Field>) -> Type
+    where
+        Sp: Into<Span>,
+    {
         Type::Struct(span.into(), fields)
     }
 }
@@ -83,9 +109,14 @@ pub struct Field {
 }
 
 impl Field {
-    pub fn new<Sp: Into<Span>, S: Into<String>>(span: Sp, name: S, ty: Type) -> Field {
+    pub fn new<Sp, S>(span: Sp, name: S, ty: Type) -> Field
+    where
+        Sp: Into<Span>,
+        S: Into<String>,
+    {
         let span = span.into();
         let name = name.into();
+
         Field { span, name, ty }
     }
 }
