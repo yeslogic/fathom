@@ -20,11 +20,23 @@ impl LineIndex {
     pub fn number(self) -> LineNumber {
         LineNumber(self.0 + 1)
     }
+
+    /// Apply the function `f` to the underlying index and return the wrapped result
+    pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> LineIndex {
+        LineIndex(f(self.0))
+    }
 }
 
 /// A 1-indexed line number. Useful for pretty printing source locations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LineNumber(pub usize);
+
+impl LineNumber {
+    /// Apply the function `f` to the underlying number and return the wrapped result
+    pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> LineNumber {
+        LineNumber(f(self.0))
+    }
+}
 
 /// A zero-indexed column offest into a source file
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -42,15 +54,34 @@ impl ColumnIndex {
     pub fn number(self) -> ColumnNumber {
         ColumnNumber(self.0 + 1)
     }
+
+    /// Apply the function `f` to the underlying index and return the wrapped result
+    pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> ColumnIndex {
+        ColumnIndex(f(self.0))
+    }
 }
 
 /// A 1-indexed column number. Useful for pretty printing source locations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ColumnNumber(pub usize);
 
+impl ColumnNumber {
+    /// Apply the function `f` to the underlying number and return the wrapped result
+    pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> ColumnNumber {
+        ColumnNumber(f(self.0))
+    }
+}
+
 /// A byte offset in a source file
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct BytePos(pub usize);
+
+impl BytePos {
+    /// Apply the function `f` to the underlying position and return the wrapped result
+    pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> BytePos {
+        BytePos(f(self.0))
+    }
+}
 
 impl Add for BytePos {
     type Output = BytePos;
@@ -71,6 +102,13 @@ impl Sub for BytePos {
 /// A unicode character offset in a source file
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct CharPos(pub usize);
+
+impl CharPos {
+    /// Apply the function `f` to the underlying position and return the wrapped result
+    pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> CharPos {
+        CharPos(f(self.0))
+    }
+}
 
 impl Add for CharPos {
     type Output = CharPos;
@@ -279,6 +317,16 @@ impl Span {
 pub struct Spanned<T> {
     pub span: Span,
     pub value: T,
+}
+
+impl<T> Spanned<T> {
+    /// Apply the function `f` to the underlying value and return the wrapped result
+    pub fn map<U, F: FnMut(T) -> U>(self, mut f: F) -> Spanned<U> {
+        Spanned {
+            span: self.span,
+            value: f(self.value),
+        }
+    }
 }
 
 /// Some source code
