@@ -56,8 +56,22 @@ impl IntExpr {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TypeConst {
+    U8,
+    U16,
+    U32,
+    U64,
+    I8,
+    I16,
+    I32,
+    I64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
+    /// A type constant
+    Const(Span, TypeConst),
     /// A type identifier: `T1`, `u16be`, `u32`
     Ident(Span, String),
     /// An array of the specified type, with a size: `[T; n]`
