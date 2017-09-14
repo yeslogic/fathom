@@ -2,6 +2,11 @@
 
 use source::Span;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Kind {
+    Type,
+}
+
 /// A type definition
 ///
 /// ```plain
@@ -30,29 +35,29 @@ impl Definition {
     }
 }
 
-/// An integer expression
+/// An expression
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum IntExpr {
+pub enum Expr {
     /// An integer constant: `0`, `1`, `2`, ...
     Const(Span, u32),
     /// An variable, referring to an integer that exists in the current context: `len`, `num_tables`
     Var(Span, String),
 }
 
-impl IntExpr {
-    pub fn const_<Sp>(span: Sp, value: u32) -> IntExpr
+impl Expr {
+    pub fn const_<Sp>(span: Sp, value: u32) -> Expr
     where
         Sp: Into<Span>,
     {
-        IntExpr::Const(span.into(), value)
+        Expr::Const(span.into(), value)
     }
 
-    pub fn var<Sp, S>(span: Sp, name: S) -> IntExpr
+    pub fn var<Sp, S>(span: Sp, name: S) -> Expr
     where
         Sp: Into<Span>,
         S: Into<String>,
     {
-        IntExpr::Var(span.into(), name.into())
+        Expr::Var(span.into(), name.into())
     }
 }
 
@@ -75,7 +80,7 @@ pub enum Type {
     /// A type identifier: `T1`, `u16be`, `u32`
     Ident(Span, String),
     /// An array of the specified type, with a size: `[T; n]`
-    Array(Span, Box<Type>, IntExpr),
+    Array(Span, Box<Type>, Expr),
     /// A union of two types: `T1 | T2`
     Union(Span, Vec<Type>),
     /// A struct type, with fields: `{ field : T, ... }`
@@ -91,7 +96,7 @@ impl Type {
         Type::Ident(span.into(), name.into())
     }
 
-    pub fn array<Sp, T>(span: Sp, ty: T, size: IntExpr) -> Type
+    pub fn array<Sp, T>(span: Sp, ty: T, size: Expr) -> Type
     where
         Sp: Into<Span>,
         T: Into<Box<Type>>,

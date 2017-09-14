@@ -66,7 +66,7 @@ mod tests {
                                 Type::array(
                                     (Bp(167), Bp(179)),
                                     Type::ident((Bp(168), Bp(173)), "Point"),
-                                    IntExpr::var((Bp(175), Bp(178)), "len"),
+                                    Expr::var((Bp(175), Bp(178)), "len"),
                                 )
                             ),
                         ],

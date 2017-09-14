@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ast::{IntExpr, Type, TypeConst};
+use ast::{Expr, Kind, Type, TypeConst};
 use source::Span;
 
 /// An environment of bindings and types
@@ -45,7 +45,7 @@ impl<'a> Env<'a> {
     where
         S: Into<String>,
     {
-        self.tys.insert(name.into(), ty);
+        self.bindings.insert(name.into(), ty);
     }
 
     pub fn lookup_ty(&self, name: &str) -> Option<&Type> {
@@ -81,7 +81,7 @@ impl<'a> Env<'a> {
     ///         α                   variables
     ///         τ₁ + τ₂             sum
     ///         Σ x:τ₁ .τ₂          dependent pair
-    ///         τ₁ seq(τ₂, e, τ₃)   sequence
+    ///         [τ; e]              array
     /// ```
     ///
     /// In the `ast`, we represent the above as the following:
@@ -113,6 +113,7 @@ impl<'a> Env<'a> {
     /// ```plain
     /// e ::=
     ///         x           variables
+    ///         n           integer number
     /// ```
     ///
     /// # Judgments
@@ -137,18 +138,23 @@ impl<'a> Env<'a> {
     ///     Γ ⊢ τ₁ : Type        Γ, x:τ₁ ⊢ τ₂ : Type
     /// ―――――――――――――――――――――――――――――――――――――――――――――――――― (DEPENDENT-PAIR)
     ///              Γ ⊢ Σ x:τ₁ .τ₂ : Type
+    ///
+    ///
+    ///     Γ ⊢ τ : Type        Γ ⊢ e : Int
+    /// ―――――――――――――――――――――――――――――――――――――――――― (ARRAY)
+    ///              [τ; e] : Type
     /// ```
-    pub fn check_ty(&self, ty: &Type) -> Result<(), ()> {
+    pub fn check_ty(&self, ty: &Type) -> Result<Kind, ()> {
         match *ty {
             // CONST
-            Type::Const(_, _) => Ok(()), // Easypeasy
+            Type::Const(_, _) => Ok(Kind::Type), // Easypeasy
 
             // VAR
             Type::Ident(_, ref ident) => {
                 // TODO: kind of ident?
                 // α ∈ Γ
                 match self.lookup_ty(ident) {
-                    Some(_) => Ok(()),
+                    Some(_) => Ok(Kind::Type),
                     None => Err(()),
                 }
             }
@@ -159,7 +165,7 @@ impl<'a> Env<'a> {
                     // Γ ⊢ τ₁ : Type
                     self.check_ty(&ty)?;
                 }
-                Ok(())
+                Ok(Kind::Type)
             }
 
             // DEPENDENT-PAIR
@@ -172,20 +178,31 @@ impl<'a> Env<'a> {
                     // Γ, x:τ₁ ⊢ τ₂ : Type
                     inner_env.add_binding(field.name.clone(), field.ty.clone());
                 }
-                Ok(())
+                Ok(Kind::Type)
             }
 
-            // SEQUENCE
+            // ARRAY
             Type::Array(_, ref ty, ref size) => {
                 self.check_ty(ty)?;
-                self.check_expr(size)?;
-                Ok(())
+                match self.check_expr(size)? {
+                    Type::Const(_, _) => Ok(Kind::Type), // FIXME: should be int
+                    ty => Err(()),
+                }
             }
         }
     }
 
-    pub fn check_expr(&self, _: &IntExpr) -> Result<(), ()> {
-        unimplemented!()
+    /// # `Γ ⊢ e : τ`
+    pub fn check_expr(&self, expr: &Expr) -> Result<Type, ()> {
+        match *expr {
+            Expr::Const(_, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
+            Expr::Var(_, ref name) => {
+                match self.lookup_binding(name) {
+                    Some(ty) => Ok(ty.clone()),
+                    None => Err(()),
+                }
+            }
+        }
     }
 }
 
@@ -214,7 +231,7 @@ pub mod tests {
         let env = Env::default();
         let ty = Type::Const(Span::start(), TypeConst::I16);
 
-        assert_eq!(env.check_ty(&ty), Ok(()));
+        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
 
     #[test]
@@ -222,7 +239,7 @@ pub mod tests {
         let env = Env::default();
         let defs = &parser::parse("Id = u8;").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Ok(()));
+        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
     }
 
     #[test]
@@ -238,13 +255,55 @@ pub mod tests {
         let env = Env::default();
         let defs = &parser::parse("Id = u8 | u16 | i32;").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Ok(()));
+        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
     }
 
     #[test]
     fn union_element_missing() {
         let env = Env::default();
         let defs = &parser::parse("Id = u8 | Foo | i32;").unwrap();
+
+        assert_eq!(env.check_ty(&defs[0].ty), Err(()));
+    }
+
+    #[test]
+    fn pair() {
+        let env = Env::default();
+        let defs = &parser::parse("Point = { x: u8, y: u8 };").unwrap();
+
+        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
+    }
+
+    #[test]
+    fn dependent_pair() {
+        let env = Env::default();
+        let defs = &parser::parse("Id = { len: u8, data: [u8; len] };").unwrap();
+
+        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
+    }
+
+    #[test]
+    fn array() {
+        let env = Env::default();
+        let defs = &parser::parse("Id = [u8; 16];").unwrap();
+
+        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
+    }
+
+    #[test]
+    fn array_len() {
+        let mut env = Env::default();
+        env.add_binding("len", Type::Const(Span::start(), TypeConst::U32));
+        let defs = &parser::parse("Id = [u8; len];").unwrap();
+
+        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
+    }
+
+    #[test]
+    fn array_bad_type() {
+        let mut env = Env::default();
+        env.add_binding("len", Type::struct_(Span::start(), vec![]));
+        let defs = &parser::parse("Id = [u8; len];").unwrap();
 
         assert_eq!(env.check_ty(&defs[0].ty), Err(()));
     }

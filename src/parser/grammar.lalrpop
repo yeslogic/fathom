@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use ast::{Definition, Field, IntExpr, Type};
+use ast::{Definition, Field, Expr, Type};
 use source::BytePos as Bp;
 
 grammar;
@@ -29,7 +29,7 @@ AtomicType: Type = {
         fields.extend(last);
         Type::struct_((Bp(lo), Bp(hi)), fields)
     },
-    <lo: @L> "[" <elem: Type> ";" <size: IntExpr> "]" <hi: @R> => {
+    <lo: @L> "[" <elem: Type> ";" <size: Expr> "]" <hi: @R> => {
         Type::array((Bp(lo), Bp(hi)), Box::new(elem), size)
     },
 };
@@ -43,12 +43,12 @@ Type: Type = {
     },
 };
 
-IntExpr: IntExpr = {
+Expr: Expr = {
     <lo: @L> <value: Num> <hi: @R> => {
-        IntExpr::const_((Bp(lo), Bp(hi)), value)
+        Expr::const_((Bp(lo), Bp(hi)), value)
     },
     <lo: @L> <name: Ident> <hi: @R> => {
-        IntExpr::var((Bp(lo), Bp(hi)), name)
+        Expr::var((Bp(lo), Bp(hi)), name)
     },
 };
 
