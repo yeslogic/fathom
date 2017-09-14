@@ -64,11 +64,19 @@ ARRAY TYPES
 
 Arrays are a multiple of any fixed size type:
 
- - type[length]
+  type[length]
+
+  type[]
 
 The length can be any integer expression as long as it only depends on values located before the array.
 
-Because the array element type has fixed size, the array itself will also have fixed size if the length is known in advance, or variable size if the length depends upon another value.
+If the length is omitted then the array will be as long as possible to consume
+all available bytes.
+
+FIXME is it an error if it *doesn't* consume all available bytes due to
+alignment issues?
+
+Because the array element type has fixed size, the array itself will also have fixed size if the length is known in advance, or variable size if the length depends upon another value, or unknown size if the length is unspecified.
 
 
 STRUCT TYPES
