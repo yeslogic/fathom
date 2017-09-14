@@ -3,6 +3,18 @@ use std::collections::HashMap;
 use ast::{Expr, Kind, Type, TypeConst};
 use source::Span;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeError {
+    UnboundType(Span, String),
+    ExpectedUnsignedIntInArraySizeExpr(Span, Type),
+    FailedToEvaluateArraySize(Span, ExprError),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExprError {
+    UnboundVariable(Span, String),
+}
+
 /// An environment of bindings and types
 ///
 /// ```plain
@@ -144,18 +156,18 @@ impl<'a> Env<'a> {
     /// ―――――――――――――――――――――――――――――――――――――――――― (ARRAY)
     ///              [τ; e] : Type
     /// ```
-    pub fn check_ty(&self, ty: &Type) -> Result<Kind, ()> {
+    pub fn check_ty(&self, ty: &Type) -> Result<Kind, TypeError> {
         match *ty {
             // CONST
             Type::Const(_, _) => Ok(Kind::Type), // Easypeasy
 
             // VAR
-            Type::Ident(_, ref ident) => {
+            Type::Ident(span, ref ident) => {
                 // TODO: kind of ident?
                 // α ∈ Γ
                 match self.lookup_ty(ident) {
                     Some(_) => Ok(Kind::Type),
-                    None => Err(()),
+                    None => Err(TypeError::UnboundType(span, ident.clone())),
                 }
             }
 
@@ -182,24 +194,28 @@ impl<'a> Env<'a> {
             }
 
             // ARRAY
-            Type::Array(_, ref ty, ref size) => {
+            Type::Array(span, ref ty, ref size) => {
                 self.check_ty(ty)?;
-                match self.check_expr(size)? {
+                let expr_ty = self.check_expr(size).map_err(|err| {
+                    TypeError::FailedToEvaluateArraySize(span, err)
+                })?;
+
+                match expr_ty {
                     Type::Const(_, _) => Ok(Kind::Type), // FIXME: should be int
-                    ty => Err(()),
+                    ty => Err(TypeError::ExpectedUnsignedIntInArraySizeExpr(span, ty)),
                 }
             }
         }
     }
 
     /// # `Γ ⊢ e : τ`
-    pub fn check_expr(&self, expr: &Expr) -> Result<Type, ()> {
+    pub fn check_expr(&self, expr: &Expr) -> Result<Type, ExprError> {
         match *expr {
             Expr::Const(_, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
-            Expr::Var(_, ref name) => {
+            Expr::Var(span, ref name) => {
                 match self.lookup_binding(name) {
                     Some(ty) => Ok(ty.clone()),
-                    None => Err(()),
+                    None => Err(ExprError::UnboundVariable(span, name.clone())),
                 }
             }
         }
@@ -224,6 +240,7 @@ impl Default for Env<'static> {
 #[cfg(test)]
 pub mod tests {
     use parser;
+    use source::BytePos as B;
     use super::*;
 
     #[test]
@@ -247,7 +264,13 @@ pub mod tests {
         let env = Env::default();
         let defs = &parser::parse("Id = Foo;").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Err(()));
+        assert_eq!(
+            env.check_ty(&defs[0].ty),
+            Err(TypeError::UnboundType(
+                Span::new(B(5), B(8)),
+                "Foo".to_owned(),
+            ))
+        );
     }
 
     #[test]
@@ -263,7 +286,13 @@ pub mod tests {
         let env = Env::default();
         let defs = &parser::parse("Id = u8 | Foo | i32;").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Err(()));
+        assert_eq!(
+            env.check_ty(&defs[0].ty),
+            Err(TypeError::UnboundType(
+                Span::new(B(10), B(13)),
+                "Foo".to_owned(),
+            ))
+        );
     }
 
     #[test]
@@ -302,9 +331,16 @@ pub mod tests {
     #[test]
     fn array_bad_type() {
         let mut env = Env::default();
-        env.add_binding("len", Type::struct_(Span::start(), vec![]));
+        let len_ty = Type::struct_(Span::start(), vec![]);
+        env.add_binding("len", len_ty.clone());
         let defs = &parser::parse("Id = [u8; len];").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Err(()));
+        assert_eq!(
+            env.check_ty(&defs[0].ty),
+            Err(TypeError::ExpectedUnsignedIntInArraySizeExpr(
+                Span::new(B(5), B(14)),
+                len_ty,
+            ))
+        );
     }
 }
