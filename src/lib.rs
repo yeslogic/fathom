@@ -4,6 +4,8 @@ extern crate pretty_assertions;
 
 pub mod ast;
 pub mod check;
-pub mod env;
+mod env;
 pub mod parser;
 pub mod source;
+
+pub use env::Env;

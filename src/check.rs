@@ -1,4 +1,4 @@
-use ast::{Expr, Kind, Type, TypeConst};
+use ast::{Definition, Expr, Kind, Type, TypeConst};
 use env::Env;
 use source::Span;
 
@@ -15,6 +15,17 @@ pub enum ExprError {
 }
 
 impl<'a> Env<'a> {
+    pub fn check_defs<I: IntoIterator<Item = Definition>>(
+        &mut self,
+        defs: I,
+    ) -> Result<(), TypeError> {
+        for def in defs {
+            self.check_ty(&def.ty)?;
+            self.add_ty(def.name, def.ty);
+        }
+        Ok(())
+    }
+
     /// Check that the given definitions specify a valid data format
     ///
     /// This implements the `Γ ⊢ τ : κ` judgement rule, as described below
@@ -161,7 +172,11 @@ impl<'a> Env<'a> {
                     None => Err(ExprError::UnboundVariable(span, name.clone())),
                 }
             }
-            _ => unimplemented!(),
+            Expr::Neg(_, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
+            Expr::Add(_, _, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
+            Expr::Sub(_, _, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
+            Expr::Mul(_, _, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
+            Expr::Div(_, _, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
         }
     }
 }
