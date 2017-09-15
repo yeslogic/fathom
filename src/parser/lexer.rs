@@ -30,10 +30,7 @@ pub enum ErrorCode {
     UnrecognizedToken,
 }
 
-/// A token in the sorce file, to be emitted by the `Lexer`
-///
-/// This will then be passed to the parser in order to construct an abstract
-/// syntax tree.
+/// A token in the source file, to be emitted by the `Lexer`
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token<'input> {
     // Data
@@ -51,7 +48,7 @@ pub enum Token<'input> {
     Star, // *
     FSlash, // /
 
-    // Delimeters
+    // Delimiters
     LParen, // (
     RParen, // )
     LBrace, // {
