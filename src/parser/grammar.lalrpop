@@ -34,7 +34,7 @@ AtomicType: Type = {
     },
 };
 
-Type: Type = {
+pub Type: Type = {
     AtomicType,
     <lo: @L> "|"? <tys: (<AtomicType> "|")+> <last: AtomicType> <hi: @R> => {
         let mut tys = tys;
@@ -43,7 +43,7 @@ Type: Type = {
     },
 };
 
-Expr: Expr = {
+pub Expr: Expr = {
     <lo: @L> <value: Num> <hi: @R> => {
         Expr::const_((Bp(lo), Bp(hi)), value)
     },

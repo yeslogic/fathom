@@ -254,20 +254,20 @@ pub mod tests {
     #[test]
     fn ident() {
         let env = Env::default();
-        let defs = &parser::parse("Id = u8;").unwrap();
+        let ty = parser::parse_ty("u8").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
+        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
 
     #[test]
     fn ident_missing() {
         let env = Env::default();
-        let defs = &parser::parse("Id = Foo;").unwrap();
+        let ty = parser::parse_ty("Foo").unwrap();
 
         assert_eq!(
-            env.check_ty(&defs[0].ty),
+            env.check_ty(&ty),
             Err(TypeError::UnboundType(
-                Span::new(B(5), B(8)),
+                Span::new(B(0), B(3)),
                 "Foo".to_owned(),
             ))
         );
@@ -276,20 +276,20 @@ pub mod tests {
     #[test]
     fn union() {
         let env = Env::default();
-        let defs = &parser::parse("Id = u8 | u16 | i32;").unwrap();
+        let ty = parser::parse_ty("u8 | u16 | i32").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
+        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
 
     #[test]
     fn union_element_missing() {
         let env = Env::default();
-        let defs = &parser::parse("Id = u8 | Foo | i32;").unwrap();
+        let ty = parser::parse_ty("u8 | Foo | i32").unwrap();
 
         assert_eq!(
-            env.check_ty(&defs[0].ty),
+            env.check_ty(&ty),
             Err(TypeError::UnboundType(
-                Span::new(B(10), B(13)),
+                Span::new(B(5), B(8)),
                 "Foo".to_owned(),
             ))
         );
@@ -298,34 +298,34 @@ pub mod tests {
     #[test]
     fn pair() {
         let env = Env::default();
-        let defs = &parser::parse("Point = { x: u8, y: u8 };").unwrap();
+        let ty = parser::parse_ty("{ x: u8, y: u8 }").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
+        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
 
     #[test]
     fn dependent_pair() {
         let env = Env::default();
-        let defs = &parser::parse("Id = { len: u8, data: [u8; len] };").unwrap();
+        let ty = parser::parse_ty("{ len: u8, data: [u8; len] }").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
+        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
 
     #[test]
     fn array() {
         let env = Env::default();
-        let defs = &parser::parse("Id = [u8; 16];").unwrap();
+        let ty = parser::parse_ty("[u8; 16]").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
+        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
 
     #[test]
     fn array_len() {
         let mut env = Env::default();
         env.add_binding("len", Type::Const(Span::start(), TypeConst::U32));
-        let defs = &parser::parse("Id = [u8; len];").unwrap();
+        let ty = parser::parse_ty("[u8; len]").unwrap();
 
-        assert_eq!(env.check_ty(&defs[0].ty), Ok(Kind::Type));
+        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
 
     #[test]
@@ -333,12 +333,12 @@ pub mod tests {
         let mut env = Env::default();
         let len_ty = Type::struct_(Span::start(), vec![]);
         env.add_binding("len", len_ty.clone());
-        let defs = &parser::parse("Id = [u8; len];").unwrap();
+        let ty = parser::parse_ty("[u8; len]").unwrap();
 
         assert_eq!(
-            env.check_ty(&defs[0].ty),
+            env.check_ty(&ty),
             Err(TypeError::ExpectedUnsignedIntInArraySizeExpr(
-                Span::new(B(5), B(14)),
+                Span::new(B(0), B(9)),
                 len_ty,
             ))
         );

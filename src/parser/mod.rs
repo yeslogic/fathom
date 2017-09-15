@@ -1,6 +1,8 @@
 mod grammar;
 
 pub use self::grammar::parse_Definitions as parse;
+pub use self::grammar::parse_Expr as parse_expr;
+pub use self::grammar::parse_Type as parse_ty;
 
 #[cfg(test)]
 mod tests {
