@@ -3,12 +3,12 @@ use std::str::CharIndices;
 use source::BytePos;
 use unicode_xid::UnicodeXID;
 
-fn is_ident_start(c: char) -> bool {
-    UnicodeXID::is_xid_start(c) || c == '_'
+fn is_ident_start(ch: char) -> bool {
+    UnicodeXID::is_xid_start(ch) || ch == '_'
 }
 
-fn is_ident_continue(c: char) -> bool {
-    UnicodeXID::is_xid_continue(c) || c == '_'
+fn is_ident_continue(ch: char) -> bool {
+    UnicodeXID::is_xid_continue(ch) || ch == '_'
 }
 
 fn is_digit(ch: char) -> bool {
