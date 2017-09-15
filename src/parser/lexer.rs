@@ -181,10 +181,11 @@ mod tests {
     }
 
     #[test]
-    fn ident() {
+    fn data() {
         test! {
-            r#"  u8   "#,
-            r#"  ~~   "# => Token::Ident("u8"),
+            "  u8  1234   ",
+            "  ~~         " => Token::Ident("u8"),
+            "      ~~~~   " => Token::IntLiteral(1234),
         };
     }
 
