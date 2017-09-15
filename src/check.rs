@@ -331,7 +331,7 @@ pub mod tests {
     #[test]
     fn array_bad_type() {
         let mut env = Env::default();
-        let len_ty = Type::struct_(Span::start(), vec![]);
+        let len_ty = parser::parse_ty("{}").unwrap();
         env.add_binding("len", len_ty.clone());
         let ty = parser::parse_ty("[u8; len]").unwrap();
 
