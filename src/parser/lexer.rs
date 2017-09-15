@@ -15,17 +15,25 @@ fn is_digit(ch: char) -> bool {
     ch.is_digit(10)
 }
 
+/// An error that occurred while lexing the source file
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Error {
+    /// The location where the lexer error occured
     pub location: BytePos,
+    /// The error code
     pub code: ErrorCode,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ErrorCode {
+    /// An unexpected token was encountered while lexing the source file
     UnrecognizedToken,
 }
 
+/// A token in the sorce file, to be emitted by the `Lexer`
+///
+/// This will then be passed to the parser in order to construct an abstract
+/// syntax tree.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token<'input> {
     // Data
@@ -52,6 +60,8 @@ pub enum Token<'input> {
     RBracket, // ]
 }
 
+/// An iterator over a source string that yeilds `Token`s for subsequent use by
+/// the parser
 pub struct Lexer<'input> {
     src: &'input str,
     chars: CharIndices<'input>,
@@ -59,6 +69,7 @@ pub struct Lexer<'input> {
 }
 
 impl<'input> Lexer<'input> {
+    /// Create a new lexer from the source string
     pub fn new(src: &'input str) -> Self {
         let mut chars = src.char_indices();
 
@@ -69,16 +80,20 @@ impl<'input> Lexer<'input> {
         }
     }
 
+    /// Bump the current position in the source string by one character,
+    /// returning the current character and byte position.
     fn bump(&mut self) -> Option<(BytePos, char)> {
         let current = self.lookahead;
         self.lookahead = self.chars.next();
         current.map(|(index, ch)| (BytePos(index), ch))
     }
 
+    /// Return a slice of the source string
     fn slice(&self, start: BytePos, end: BytePos) -> &'input str {
         &self.src[start.0..end.0]
     }
 
+    /// Test a predicate againt the next character in the source
     fn test_lookahead<F>(&self, mut pred: F) -> bool
     where
         F: FnMut(char) -> bool,
@@ -86,6 +101,9 @@ impl<'input> Lexer<'input> {
         self.lookahead.map_or(false, |(_, ch)| pred(ch))
     }
 
+    /// Consume characters while the predicate matches for the current
+    /// character, then return the consumed slice and the end byte
+    /// position.
     fn take_while<F>(&mut self, start: BytePos, mut keep_going: F) -> (BytePos, &'input str)
     where
         F: FnMut(char) -> bool,
@@ -93,6 +111,9 @@ impl<'input> Lexer<'input> {
         self.take_until(start, |ch| !keep_going(ch))
     }
 
+    /// Consume characters until the predicate matches for the next character
+    /// in the lookahead, then return the consumed slice and the end byte
+    /// position.
     fn take_until<F>(&mut self, start: BytePos, mut terminate: F) -> (BytePos, &'input str)
     where
         F: FnMut(char) -> bool,
@@ -109,11 +130,13 @@ impl<'input> Lexer<'input> {
         (eof, self.slice(start, eof))
     }
 
+    /// Consume an identifier token
     fn ident(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
         let (end, ident) = self.take_while(start, is_ident_continue);
         (start, Token::Ident(ident), end)
     }
 
+    /// Consume an integer literal token
     fn int_literal(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
         let (end, int) = self.take_while(start, is_digit);
         (start, Token::IntLiteral(int.parse().unwrap()), end)
@@ -166,6 +189,9 @@ impl<'input> Iterator for Lexer<'input> {
 mod tests {
     use super::*;
 
+    /// A handy macro to give us a nice syntax for declaring test cases
+    ///
+    /// This was inspired by the tests in the LALRPOP lexer
     macro_rules! test {
         ($src:expr, $($span:expr => $token:expr,)*) => {{
             let lexed_tokens: Vec<_> = Lexer::new($src).collect();
