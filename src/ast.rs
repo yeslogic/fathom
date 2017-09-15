@@ -39,7 +39,7 @@ impl Definition {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
     /// An integer constant: `0`, `1`, `2`, ...
-    Const(Span, u32),
+    Const(Span, u64),
     /// A variable, referring to an integer that exists in the current context: `len`, `num_tables`
     Var(Span, String),
     /// Integer negation: `-x`
@@ -56,7 +56,7 @@ pub enum Expr {
 
 impl Expr {
     /// An integer constant: `0`, `1`, `2`, ...
-    pub fn const_<Sp>(span: Sp, value: u32) -> Expr
+    pub fn const_<Sp>(span: Sp, value: u64) -> Expr
     where
         Sp: Into<Span>,
     {

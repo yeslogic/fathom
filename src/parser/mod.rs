@@ -1,8 +1,36 @@
+use lalrpop_util;
+
+use ast::{Definition, Expr, Type};
+use env::Env;
+use source::BytePos;
+
+mod lexer;
 mod grammar;
 
-pub use self::grammar::parse_Definitions as parse;
-pub use self::grammar::parse_Expr as parse_expr;
-pub use self::grammar::parse_Type as parse_ty;
+use self::lexer::{Lexer, Error as LexerError, Token};
+
+pub type ParseError<'input> = lalrpop_util::ParseError<BytePos, Token<'input>, LexerError>;
+
+pub fn parse<'input, 'env>(
+    env: &'env Env,
+    src: &'input str,
+) -> Result<Vec<Definition>, ParseError<'input>> {
+    grammar::parse_Definitions(env, Lexer::new(src))
+}
+
+pub fn parse_expr<'input, 'env>(
+    env: &'env Env,
+    src: &'input str,
+) -> Result<Expr, ParseError<'input>> {
+    grammar::parse_Expr(env, Lexer::new(src))
+}
+
+pub fn parse_ty<'input, 'env>(
+    env: &'env Env,
+    src: &'input str,
+) -> Result<Type, ParseError<'input>> {
+    grammar::parse_Type(env, Lexer::new(src))
+}
 
 #[cfg(test)]
 mod tests {
@@ -10,6 +38,46 @@ mod tests {
     use env::Env;
     use source::BytePos as B;
     use super::*;
+
+    #[test]
+    fn parse_ty_ident() {
+        let src = "
+            Point
+        ";
+
+        assert_eq!(
+            parse_ty(&Env::default(), src),
+            Ok(Type::ident((B(13), B(18)), "Point"))
+        );
+    }
+
+    #[test]
+    fn parse_ty_empty_struct() {
+        let src = "{}";
+
+        assert_eq!(
+            parse_ty(&Env::default(), src),
+            Ok(Type::struct_((B(0), B(2)), vec![]))
+        );
+    }
+
+    #[test]
+    fn parse_simple_definition() {
+        let src = "
+            Offset32 = u32;
+        ";
+
+        assert_eq!(
+            parse(&Env::default(), src),
+            Ok(vec![
+                Definition::new(
+                    (B(13), B(28)),
+                    "Offset32",
+                    Type::const_((B(0), B(0)), TypeConst::U32)
+                ),
+            ])
+        );
+    }
 
     #[test]
     fn parse_definition() {

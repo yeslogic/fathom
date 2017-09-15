@@ -27,6 +27,12 @@ impl LineIndex {
     }
 }
 
+impl Default for LineIndex {
+    fn default() -> LineIndex {
+        LineIndex(0)
+    }
+}
+
 /// A 1-indexed line number. Useful for pretty printing source locations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LineNumber(pub usize);
@@ -61,6 +67,12 @@ impl ColumnIndex {
     }
 }
 
+impl Default for ColumnIndex {
+    fn default() -> ColumnIndex {
+        ColumnIndex(0)
+    }
+}
+
 /// A 1-indexed column number. Useful for pretty printing source locations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ColumnNumber(pub usize);
@@ -80,6 +92,12 @@ impl BytePos {
     /// Apply the function `f` to the underlying position and return the wrapped result
     pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> BytePos {
         BytePos(f(self.0))
+    }
+}
+
+impl Default for BytePos {
+    fn default() -> BytePos {
+        BytePos(0)
     }
 }
 
@@ -107,6 +125,12 @@ impl CharPos {
     /// Apply the function `f` to the underlying position and return the wrapped result
     pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> CharPos {
         CharPos(f(self.0))
+    }
+}
+
+impl Default for CharPos {
+    fn default() -> CharPos {
+        CharPos(0)
     }
 }
 

@@ -1,40 +1,65 @@
-use std::str::FromStr;
-
 use ast::{Definition, Field, Expr, Type};
 use env::Env;
-use source::BytePos as B;
+use parser::lexer::{Token, Error as LexerError};
+use source::BytePos;
 
-grammar(env: &Env);
+grammar<'input, 'env>(env: &'env Env);
+
+extern {
+    type Location = BytePos;
+    type Error = LexerError;
+
+    enum Token<'input> {
+        // Data
+        "Ident" => Token::Ident(<&'input str>),
+        "IntLiteral" => Token::IntLiteral(<u64>),
+
+        // Symbols
+        "=" => Token::Equals,
+        ";" => Token::Semi,
+        "," => Token::Comma,
+        "|" => Token::Pipe,
+        ":" => Token::Colon,
+        "+" => Token::Plus,
+        "-" => Token::Minus,
+        "*" => Token::Star,
+        "/" => Token::FSlash,
+
+        // Delimeters
+        "(" => Token::LParen,
+        ")" => Token::RParen,
+        "{" => Token::LBrace,
+        "}" => Token::RBrace,
+        "[" => Token::LBracket,
+        "]" => Token::RBracket,
+    }
+}
 
 pub Definitions: Vec<Definition> = {
     Definition*,
 };
 
 Definition: Definition = {
-    <lo: @L> <name: Ident> "=" <ty: Type> ";" <hi: @R> => {
-        Definition::new((B(lo), B(hi)), name, ty)
+    <lo: @L> <name: "Ident"> "=" <ty: Type> ";" <hi: @R> => {
+        Definition::new((lo, hi), name, ty)
     },
 };
 
-Ident: &'input str = {
-    r"[_a-zA-Z][_a-zA-Z0-9]*",
-};
-
 AtomicType: Type = {
-    <lo: @L> <name: Ident> <hi: @R> => {
+    <lo: @L> <name: "Ident"> <hi: @R> => {
         match env.lookup_ty(&name) {
             Some(ty) => ty.clone(),
-            None => Type::ident((B(lo), B(hi)), name),
+            None => Type::ident((lo, hi), name),
         }
     },
     "(" <Type> ")",
     <lo: @L> "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
         let mut fields = fields;
         fields.extend(last);
-        Type::struct_((B(lo), B(hi)), fields)
+        Type::struct_((lo, hi), fields)
     },
     <lo: @L> "[" <elem: Type> ";" <size: Expr> "]" <hi: @R> => {
-        Type::array((B(lo), B(hi)), Box::new(elem), size)
+        Type::array((lo, hi), elem, size)
     },
 };
 
@@ -43,7 +68,7 @@ pub Type: Type = {
     <lo: @L> "|"? <tys: (<AtomicType> "|")+> <last: AtomicType> <hi: @R> => {
         let mut tys = tys;
         tys.push(last);
-        Type::union((B(lo), B(hi)), tys)
+        Type::union((lo, hi), tys)
     },
 };
 
@@ -52,42 +77,38 @@ pub Expr = AddExpr;
 AddExpr : Expr = {
     MulExpr,
     <lo: @L> <lhs: MulExpr> "+" <rhs: MulExpr> <hi: @R> => {
-        Expr::add((B(lo), B(hi)), lhs, rhs)
+        Expr::add((lo, hi), lhs, rhs)
     },
     <lo: @L> <lhs: MulExpr> "-" <rhs: MulExpr> <hi: @R> => {
-        Expr::sub((B(lo), B(hi)), lhs, rhs)
+        Expr::sub((lo, hi), lhs, rhs)
     },
 };
 
 MulExpr : Expr = {
     AtomicExpr,
     <lo: @L> <lhs: AtomicExpr> "*" <rhs: AtomicExpr> <hi: @R> => {
-        Expr::mul((B(lo), B(hi)), lhs, rhs)
+        Expr::mul((lo, hi), lhs, rhs)
     },
     <lo: @L> <lhs: AtomicExpr> "/" <rhs: AtomicExpr> <hi: @R> => {
-        Expr::div((B(lo), B(hi)), lhs, rhs)
+        Expr::div((lo, hi), lhs, rhs)
     },
 };
 
 AtomicExpr : Expr = {
     "(" <expr: Expr> ")" => expr,
-    <lo: @L> <value: Num> <hi: @R> => {
-        Expr::const_((B(lo), B(hi)), value)
+    <lo: @L> <value: "IntLiteral"> <hi: @R> => {
+        Expr::const_((lo, hi), value)
     },
-    <lo: @L> <name: Ident> <hi: @R> => {
-        Expr::var((B(lo), B(hi)), name)
+    <lo: @L> <name: "Ident"> <hi: @R> => {
+        Expr::var((lo, hi), name)
     },
     <lo: @L> "-" <expr: AtomicExpr> <hi: @R> => {
-        Expr::neg((B(lo), B(hi)), expr)
+        Expr::neg((lo, hi), expr)
     },
-};
-
-Num: u32 = {
-    r"[0-9]+" => u32::from_str(<>).unwrap(),
 };
 
 Field: Field = {
-    <lo: @L> <name: Ident> ":" <ty: Type> <hi: @R> => {
-        Field::new((B(lo), B(hi)), name, ty)
+    <lo: @L> <name: "Ident"> ":" <ty: Type> <hi: @R> => {
+        Field::new((lo, hi), name, ty)
     },
 };
