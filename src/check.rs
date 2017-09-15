@@ -161,6 +161,7 @@ impl<'a> Env<'a> {
                     None => Err(ExprError::UnboundVariable(span, name.clone())),
                 }
             }
+            _ => unimplemented!(),
         }
     }
 }

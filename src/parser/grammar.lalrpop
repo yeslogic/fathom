@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use ast::{Definition, Field, Expr, Type};
 use env::Env;
-use source::BytePos as Bp;
+use source::BytePos as B;
 
 grammar(env: &Env);
 
@@ -12,7 +12,7 @@ pub Definitions: Vec<Definition> = {
 
 Definition: Definition = {
     <lo: @L> <name: Ident> "=" <ty: Type> ";" <hi: @R> => {
-        Definition::new((Bp(lo), Bp(hi)), name, ty)
+        Definition::new((B(lo), B(hi)), name, ty)
     },
 };
 
@@ -24,17 +24,17 @@ AtomicType: Type = {
     <lo: @L> <name: Ident> <hi: @R> => {
         match env.lookup_ty(&name) {
             Some(ty) => ty.clone(),
-            None => Type::ident((Bp(lo), Bp(hi)), name),
+            None => Type::ident((B(lo), B(hi)), name),
         }
     },
     "(" <Type> ")",
     <lo: @L> "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
         let mut fields = fields;
         fields.extend(last);
-        Type::struct_((Bp(lo), Bp(hi)), fields)
+        Type::struct_((B(lo), B(hi)), fields)
     },
     <lo: @L> "[" <elem: Type> ";" <size: Expr> "]" <hi: @R> => {
-        Type::array((Bp(lo), Bp(hi)), Box::new(elem), size)
+        Type::array((B(lo), B(hi)), Box::new(elem), size)
     },
 };
 
@@ -43,16 +43,42 @@ pub Type: Type = {
     <lo: @L> "|"? <tys: (<AtomicType> "|")+> <last: AtomicType> <hi: @R> => {
         let mut tys = tys;
         tys.push(last);
-        Type::union((Bp(lo), Bp(hi)), tys)
+        Type::union((B(lo), B(hi)), tys)
     },
 };
 
-pub Expr: Expr = {
+pub Expr = AddExpr;
+
+AddExpr : Expr = {
+    MulExpr,
+    <lo: @L> <lhs: MulExpr> "+" <rhs: MulExpr> <hi: @R> => {
+        Expr::add((B(lo), B(hi)), lhs, rhs)
+    },
+    <lo: @L> <lhs: MulExpr> "-" <rhs: MulExpr> <hi: @R> => {
+        Expr::sub((B(lo), B(hi)), lhs, rhs)
+    },
+};
+
+MulExpr : Expr = {
+    AtomicExpr,
+    <lo: @L> <lhs: AtomicExpr> "*" <rhs: AtomicExpr> <hi: @R> => {
+        Expr::mul((B(lo), B(hi)), lhs, rhs)
+    },
+    <lo: @L> <lhs: AtomicExpr> "/" <rhs: AtomicExpr> <hi: @R> => {
+        Expr::div((B(lo), B(hi)), lhs, rhs)
+    },
+};
+
+AtomicExpr : Expr = {
+    "(" <expr: Expr> ")" => expr,
     <lo: @L> <value: Num> <hi: @R> => {
-        Expr::const_((Bp(lo), Bp(hi)), value)
+        Expr::const_((B(lo), B(hi)), value)
     },
     <lo: @L> <name: Ident> <hi: @R> => {
-        Expr::var((Bp(lo), Bp(hi)), name)
+        Expr::var((B(lo), B(hi)), name)
+    },
+    <lo: @L> "-" <expr: AtomicExpr> <hi: @R> => {
+        Expr::neg((B(lo), B(hi)), expr)
     },
 };
 
@@ -62,6 +88,6 @@ Num: u32 = {
 
 Field: Field = {
     <lo: @L> <name: Ident> ":" <ty: Type> <hi: @R> => {
-        Field::new((Bp(lo), Bp(hi)), name, ty)
+        Field::new((B(lo), B(hi)), name, ty)
     },
 };
