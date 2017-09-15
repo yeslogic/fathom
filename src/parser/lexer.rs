@@ -26,10 +26,6 @@ pub enum ErrorCode {
     UnrecognizedToken,
 }
 
-fn error<T>(code: ErrorCode, location: BytePos) -> Result<T, Error> {
-    Err(Error { location, code })
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token<'input> {
     // Data
@@ -155,7 +151,10 @@ impl<'input> Iterator for Lexer<'input> {
                 ch if is_digit(ch) => Some(Ok(self.int_literal(start))),
                 ch if is_ident_start(ch) => Some(Ok(self.ident(start))),
                 ch if ch.is_whitespace() => continue,
-                _ => Some(error(ErrorCode::UnrecognizedToken, start)),
+                _ => Some(Err(Error {
+                    code: ErrorCode::UnrecognizedToken,
+                    location: start,
+                })),
             };
         }
 
