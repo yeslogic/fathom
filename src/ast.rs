@@ -88,6 +88,13 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn const_<Sp>(span: Sp, ty: TypeConst) -> Type
+    where
+        Sp: Into<Span>,
+    {
+        Type::Const(span.into(), ty)
+    }
+
     pub fn ident<Sp, S>(span: Sp, name: S) -> Type
     where
         Sp: Into<Span>,

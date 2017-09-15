@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
 use ast::{Definition, Field, Expr, Type};
+use env::Env;
 use source::BytePos as Bp;
 
-grammar;
+grammar(env: &Env);
 
 pub Definitions: Vec<Definition> = {
     Definition*,
@@ -21,7 +22,10 @@ Ident: &'input str = {
 
 AtomicType: Type = {
     <lo: @L> <name: Ident> <hi: @R> => {
-        Type::ident((Bp(lo), Bp(hi)), name)
+        match env.lookup_ty(&name) {
+            Some(ty) => ty.clone(),
+            None => Type::ident((Bp(lo), Bp(hi)), name),
+        }
     },
     "(" <Type> ")",
     <lo: @L> "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {

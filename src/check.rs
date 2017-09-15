@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use ast::{Expr, Kind, Type, TypeConst};
+use env::Env;
 use source::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,63 +14,7 @@ pub enum ExprError {
     UnboundVariable(Span, String),
 }
 
-/// An environment of bindings and types
-///
-/// ```plain
-/// Γ ::=
-///         ·           empty environment
-///         Γ, x:σ      environment extension
-/// ```
-#[derive(Debug)]
-pub struct Env<'a> {
-    parent: Option<&'a Env<'a>>,
-    tys: HashMap<String, Type>,
-    bindings: HashMap<String, Type>,
-}
-
 impl<'a> Env<'a> {
-    pub fn new() -> Env<'static> {
-        Env {
-            parent: None,
-            tys: HashMap::new(),
-            bindings: HashMap::new(),
-        }
-    }
-
-    pub fn extend(&self) -> Env {
-        Env {
-            parent: Some(self),
-            tys: HashMap::new(),
-            bindings: HashMap::new(),
-        }
-    }
-
-    pub fn add_ty<S>(&mut self, name: S, ty: Type)
-    where
-        S: Into<String>,
-    {
-        self.tys.insert(name.into(), ty);
-    }
-
-    pub fn add_binding<S>(&mut self, name: S, ty: Type)
-    where
-        S: Into<String>,
-    {
-        self.bindings.insert(name.into(), ty);
-    }
-
-    pub fn lookup_ty(&self, name: &str) -> Option<&Type> {
-        self.tys.get(name).or_else(|| {
-            self.parent.and_then(|env| env.lookup_ty(name))
-        })
-    }
-
-    pub fn lookup_binding(&self, name: &str) -> Option<&Type> {
-        self.bindings.get(name).or_else(|| {
-            self.parent.and_then(|env| env.lookup_binding(name))
-        })
-    }
-
     /// Check that the given definitions specify a valid data format
     ///
     /// This implements the `Γ ⊢ τ : κ` judgement rule, as described below
@@ -222,21 +165,6 @@ impl<'a> Env<'a> {
     }
 }
 
-impl Default for Env<'static> {
-    fn default() -> Env<'static> {
-        let mut env = Env::new();
-        env.add_ty("u8", Type::Const(Span::start(), TypeConst::U8));
-        env.add_ty("u16", Type::Const(Span::start(), TypeConst::U16));
-        env.add_ty("u32", Type::Const(Span::start(), TypeConst::U32));
-        env.add_ty("u64", Type::Const(Span::start(), TypeConst::U64));
-        env.add_ty("i8", Type::Const(Span::start(), TypeConst::I8));
-        env.add_ty("i16", Type::Const(Span::start(), TypeConst::I16));
-        env.add_ty("i32", Type::Const(Span::start(), TypeConst::I32));
-        env.add_ty("i64", Type::Const(Span::start(), TypeConst::I64));
-        env
-    }
-}
-
 #[cfg(test)]
 pub mod tests {
     use parser;
@@ -254,7 +182,7 @@ pub mod tests {
     #[test]
     fn ident() {
         let env = Env::default();
-        let ty = parser::parse_ty("u8").unwrap();
+        let ty = parser::parse_ty(&env, "u8").unwrap();
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
@@ -262,7 +190,7 @@ pub mod tests {
     #[test]
     fn ident_missing() {
         let env = Env::default();
-        let ty = parser::parse_ty("Foo").unwrap();
+        let ty = parser::parse_ty(&env, "Foo").unwrap();
 
         assert_eq!(
             env.check_ty(&ty),
@@ -276,7 +204,7 @@ pub mod tests {
     #[test]
     fn union() {
         let env = Env::default();
-        let ty = parser::parse_ty("u8 | u16 | i32").unwrap();
+        let ty = parser::parse_ty(&env, "u8 | u16 | i32").unwrap();
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
@@ -284,7 +212,7 @@ pub mod tests {
     #[test]
     fn union_element_missing() {
         let env = Env::default();
-        let ty = parser::parse_ty("u8 | Foo | i32").unwrap();
+        let ty = parser::parse_ty(&env, "u8 | Foo | i32").unwrap();
 
         assert_eq!(
             env.check_ty(&ty),
@@ -298,7 +226,7 @@ pub mod tests {
     #[test]
     fn pair() {
         let env = Env::default();
-        let ty = parser::parse_ty("{ x: u8, y: u8 }").unwrap();
+        let ty = parser::parse_ty(&env, "{ x: u8, y: u8 }").unwrap();
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
@@ -306,7 +234,7 @@ pub mod tests {
     #[test]
     fn dependent_pair() {
         let env = Env::default();
-        let ty = parser::parse_ty("{ len: u8, data: [u8; len] }").unwrap();
+        let ty = parser::parse_ty(&env, "{ len: u8, data: [u8; len] }").unwrap();
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
@@ -314,7 +242,7 @@ pub mod tests {
     #[test]
     fn array() {
         let env = Env::default();
-        let ty = parser::parse_ty("[u8; 16]").unwrap();
+        let ty = parser::parse_ty(&env, "[u8; 16]").unwrap();
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
@@ -323,7 +251,7 @@ pub mod tests {
     fn array_len() {
         let mut env = Env::default();
         env.add_binding("len", Type::Const(Span::start(), TypeConst::U32));
-        let ty = parser::parse_ty("[u8; len]").unwrap();
+        let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
@@ -331,9 +259,9 @@ pub mod tests {
     #[test]
     fn array_bad_type() {
         let mut env = Env::default();
-        let len_ty = parser::parse_ty("{}").unwrap();
+        let len_ty = parser::parse_ty(&env, "{}").unwrap();
         env.add_binding("len", len_ty.clone());
-        let ty = parser::parse_ty("[u8; len]").unwrap();
+        let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
         assert_eq!(
             env.check_ty(&ty),
