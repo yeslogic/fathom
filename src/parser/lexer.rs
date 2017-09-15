@@ -147,35 +147,35 @@ impl<'input> Iterator for Lexer<'input> {
         while let Some((start, ch)) = self.bump() {
             let end = start.map(|x| x + 1);
 
-            return match ch {
-                '=' => Some(Ok((start, Token::Equals, end))),
-                ';' => Some(Ok((start, Token::Semi, end))),
-                ',' => Some(Ok((start, Token::Comma, end))),
-                '|' => Some(Ok((start, Token::Pipe, end))),
-                ':' => Some(Ok((start, Token::Colon, end))),
-                '+' => Some(Ok((start, Token::Plus, end))),
-                '-' => Some(Ok((start, Token::Minus, end))),
-                '*' => Some(Ok((start, Token::Star, end))),
+            return Some(match ch {
+                '=' => Ok((start, Token::Equals, end)),
+                ';' => Ok((start, Token::Semi, end)),
+                ',' => Ok((start, Token::Comma, end)),
+                '|' => Ok((start, Token::Pipe, end)),
+                ':' => Ok((start, Token::Colon, end)),
+                '+' => Ok((start, Token::Plus, end)),
+                '-' => Ok((start, Token::Minus, end)),
+                '*' => Ok((start, Token::Star, end)),
                 '/' if self.test_lookahead(|ch| ch == '/') => {
                     // Line comments
                     self.take_until(start, |ch| ch == '\n');
                     continue;
                 }
-                '/' => Some(Ok((start, Token::FSlash, end))),
-                '(' => Some(Ok((start, Token::LParen, end))),
-                ')' => Some(Ok((start, Token::RParen, end))),
-                '{' => Some(Ok((start, Token::LBrace, end))),
-                '}' => Some(Ok((start, Token::RBrace, end))),
-                '[' => Some(Ok((start, Token::LBracket, end))),
-                ']' => Some(Ok((start, Token::RBracket, end))),
-                ch if is_digit(ch) => Some(Ok(self.int_literal(start))),
-                ch if is_ident_start(ch) => Some(Ok(self.ident(start))),
+                '/' => Ok((start, Token::FSlash, end)),
+                '(' => Ok((start, Token::LParen, end)),
+                ')' => Ok((start, Token::RParen, end)),
+                '{' => Ok((start, Token::LBrace, end)),
+                '}' => Ok((start, Token::RBrace, end)),
+                '[' => Ok((start, Token::LBracket, end)),
+                ']' => Ok((start, Token::RBracket, end)),
+                ch if is_digit(ch) => Ok(self.int_literal(start)),
+                ch if is_ident_start(ch) => Ok(self.ident(start)),
                 ch if ch.is_whitespace() => continue,
-                _ => Some(Err(Error {
+                _ => Err(Error {
                     code: ErrorCode::UnrecognizedToken,
                     location: start,
-                })),
-            };
+                }),
+            });
         }
 
         None
