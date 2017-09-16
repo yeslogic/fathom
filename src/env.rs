@@ -11,13 +11,13 @@ use source::Span;
 ///         Γ, x:σ      environment extension
 /// ```
 #[derive(Debug)]
-pub struct Env<'a> {
-    parent: Option<&'a Env<'a>>,
+pub struct Env<'parent> {
+    parent: Option<&'parent Env<'parent>>,
     tys: HashMap<String, Type>,
     bindings: HashMap<String, Type>,
 }
 
-impl<'a> Env<'a> {
+impl<'parent> Env<'parent> {
     pub fn new() -> Env<'static> {
         Env {
             parent: None,

@@ -14,7 +14,7 @@ pub enum ExprError {
     UnboundVariable(Span, String),
 }
 
-impl<'a> Env<'a> {
+impl<'parent> Env<'parent> {
     pub fn check_defs<I: IntoIterator<Item = Definition>>(
         &mut self,
         defs: I,
