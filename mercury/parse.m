@@ -331,6 +331,9 @@ parse_term(Src, Expr, !PS) :-
         Expr = expr_const(N)
     else if int_literal(Src, N, !PS) then
         Expr = expr_const(N)
+    else if punct("(", Src, _, !PS) then
+        parse_expr_int(Src, Expr, !PS),
+        punct(")", Src, _, !PS)
     else
         identifier(Src, Ident, !PS),
         ( if
