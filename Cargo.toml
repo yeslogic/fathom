@@ -14,7 +14,7 @@ keywords = ["binary", "byte", "parser", "parsing", "endian", "big-endian", "litt
 [dependencies]
 lalrpop-util = "0.13.1"
 regex = "0.2.0"
-unicode-xid = "*"
+unicode-xid = "0.1.0"
 
 [build-dependencies]
 lalrpop = "0.13.1"
