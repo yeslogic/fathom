@@ -13,6 +13,26 @@ widely than that in the future.
 
 [Open Type Font specification]: https://www.microsoft.com/typography/otspec/otff.htm
 
+### Planned features
+
+- [x] External DSL
+- [ ] Advanced type system
+    - [ ] Polymorphic types
+        - [ ] Types depending on values
+        - [x] Dependant arrays: eg: `Array(u8, 4)`
+        - [ ] Parametrised Endianness: eg: `Body(E: Endianness) = ...`
+    - [x] Dependant records: eg: `{ len: u8, data: Array(u8, len) }`
+    - [ ] Unions
+    - [ ] Constraints
+    - [ ] Pointer offsets
+- [ ] Rust codegen:
+    - [ ] zero copy
+    - [ ] push/pull modes
+- [ ] Library of example formats: demonstrate how the language can be used to describe common formats
+- [ ] Specification generation: output readable format specifications
+- [ ] Graphvis output
+- [ ] Formal specification
+
 ## Inspiration
 
 [dloss/binary-parsing](https://github.com/dloss/binary-parsing):
