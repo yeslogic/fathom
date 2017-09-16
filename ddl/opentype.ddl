@@ -241,9 +241,9 @@ cmap_subtable0: struct {
 
 cmap_subtable4: struct {
     format: uint16 = 4
-    length: uint16
+    length: uint16 // @where length >= 16
     language: uint16
-    seg_count_x2: uint16 // FIXME 2 * seg_count
+    seg_count_x2: uint16 // @where seg_count_x2 =< (length - 16)/4
     search_range: uint16
     entry_selector: uint16
     range_shift: uint16
@@ -252,7 +252,7 @@ cmap_subtable4: struct {
     start_count: uint16[seg_count_x2 / 2]
     id_delta: int16[seg_count_x2 / 2]
     id_range_offset: uint16[seg_count_x2 / 2] // FIXME offsets into glyph_id_array or 0
-    glyph_id_array: uint16 // FIXME length?
+    glyph_id_array: uint16[(length/2 - 8) - (2*seg_count_x2)]
 }
 
 // OS/2 table
