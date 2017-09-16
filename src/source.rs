@@ -1,6 +1,6 @@
 //! Various source mapping utilities
 
-use std::cmp;
+use std::{cmp, fmt, io};
 use std::path::{Path, PathBuf};
 use std::ops::{Add, Sub};
 
@@ -44,6 +44,12 @@ impl LineNumber {
     }
 }
 
+impl fmt::Display for LineNumber {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// A zero-indexed column offest into a source file
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ColumnIndex(pub usize);
@@ -81,6 +87,12 @@ impl ColumnNumber {
     /// Apply the function `f` to the underlying number and return the wrapped result
     pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> ColumnNumber {
         ColumnNumber(f(self.0))
+    }
+}
+
+impl fmt::Display for ColumnNumber {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
@@ -400,6 +412,18 @@ impl Source {
             line_offsets,
             end_offset,
         }
+    }
+
+    /// Read some source code from a file
+    pub fn from_file(name: PathBuf) -> io::Result<Source> {
+        use std::fs::File;
+        use std::io::Read;
+
+        let mut file = File::open(&name)?;
+        let mut src = String::new();
+        file.read_to_string(&mut src)?;
+
+        Ok(Source::new(Some(name), src))
     }
 
     /// The name of the file that the source came from
