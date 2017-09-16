@@ -17,17 +17,17 @@ widely than that in the future.
 
 - [x] External DSL
 - [ ] Advanced type system
-    - [ ] Polymorphic types
-        - [ ] Types depending on values
-        - [x] Dependant arrays: eg: `Array(u8, 4)`
-        - [ ] Parametrised Endianness: eg: `Body(E: Endianness) = ...`
-    - [x] Dependant records: eg: `{ len: u8, data: Array(u8, len) }`
-    - [ ] Unions
-    - [ ] Constraints
-    - [ ] Pointer offsets
+  - [ ] Polymorphic types
+    - [ ] Types depending on values
+    - [x] Dependant arrays: eg: `Array(u8, 4)`
+    - [ ] Parametrised Endianness: eg: `Body(E: Endianness) = ...`
+  - [x] Dependant records: eg: `{ len: u8, data: Array(u8, len) }`
+  - [ ] Unions
+  - [ ] Constraints
+  - [ ] Pointer offsets
 - [ ] Rust codegen:
-    - [ ] zero copy
-    - [ ] push/pull modes
+  - [ ] zero copy
+  - [ ] push/pull modes
 - [ ] Library of example formats: demonstrate how the language can be used to describe common formats
 - [ ] Specification generation: output readable format specifications
 - [ ] Graphvis output
@@ -42,19 +42,19 @@ as file formats, network protocols or bitstreams.
 ### Exisiting Tools
 
 - [Kaitai Struct](http://kaitai.io):
-    Uses YAML as a way of marking up the data definitions. Lots of nice
-    examples, a nice graphvis output, and a nice web-based IDE. It lacks a
-    formal foundation however, and YAML can be hard to read.
+  Uses YAML as a way of marking up the data definitions. Lots of nice
+  examples, a nice graphvis output, and a nice web-based IDE. It lacks a
+  formal foundation however, and YAML can be hard to read.
 - [PADS](https://pads.cs.tufts.edu):
-    We like the PADS approach, but it is geard more towards log files and
-    misses things like pointer offsets which are needed to support many
-    binary formats. We also believe that Rust is a better compilation target
-    and that providing a binary parser language at the same level of quality
-    as LALRPOP will be a great boost to the ecosystem.
+  We like the PADS approach, but it is geard more towards log files and
+  misses things like pointer offsets which are needed to support many
+  binary formats. We also believe that Rust is a better compilation target
+  and that providing a binary parser language at the same level of quality
+  as LALRPOP will be a great boost to the ecosystem.
 - [Nom](https://github.com/Geal/nom):
-    A Rust parser combinator library geared towards describing binary
-    formats. It is fast and zero copy, but we belive that the combinator
-    approach is too low-level for formally describing format specifications.
+  A Rust parser combinator library geared towards describing binary
+  formats. It is fast and zero copy, but we belive that the combinator
+  approach is too low-level for formally describing format specifications.
 
 ### Research papers
 
