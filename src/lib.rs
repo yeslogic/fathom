@@ -5,6 +5,7 @@ extern crate pretty_assertions;
 extern crate unicode_xid;
 
 pub mod ast;
+pub mod compilers;
 pub mod check;
 mod env;
 pub mod parser;
