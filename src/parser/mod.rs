@@ -5,6 +5,7 @@ use env::Env;
 use source::BytePos;
 
 mod lexer;
+#[allow(unused_extern_crates)]
 mod grammar;
 
 use self::lexer::{Lexer, Error as LexerError, Token};
