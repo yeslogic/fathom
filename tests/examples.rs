@@ -3,6 +3,7 @@ extern crate ddl;
 use ddl::Env;
 
 #[test]
+#[ignore]
 fn cmap() {
     const SRC: &str = include_str!("../examples/ddl/cmap.ddl");
 
@@ -12,6 +13,7 @@ fn cmap() {
 }
 
 #[test]
+#[ignore]
 fn edid() {
     const SRC: &str = include_str!("../examples/ddl/edid.ddl");
 
@@ -30,6 +32,7 @@ fn heroes_of_might_and_magic_bmp() {
 }
 
 #[test]
+#[ignore]
 fn object_id() {
     const SRC: &str = include_str!("../examples/ddl/object_id.ddl");
 
