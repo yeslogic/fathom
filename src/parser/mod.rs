@@ -54,11 +54,11 @@ mod tests {
 
     #[test]
     fn parse_ty_empty_struct() {
-        let src = "{}";
+        let src = "struct {}";
 
         assert_eq!(
             parse_ty(&Env::default(), src),
-            Ok(Type::struct_((B(0), B(2)), vec![]))
+            Ok(Type::struct_((B(0), B(9)), vec![]))
         );
     }
 
@@ -83,115 +83,116 @@ mod tests {
     #[test]
     fn parse_definition() {
         let src = "
-            Point = {
+            Point = struct {
                 x : u32be,
                 y : u32be,
             };
 
-            Array = {
+            Array = struct {
                 len : u16le,
                 data : [Point; len],
             };
 
-            Formats =
-                | { format : u16, data: u16 }
-                | { format : u16, point: Point }
-                | { format : u16, array: Array };
+            Formats = union {
+                struct { format : u16, data: u16 },
+                struct { format : u16, point: Point },
+                struct { format : u16, array: Array },
+            };
         ";
 
         assert_eq!(
             parse(&Env::default(), src),
             Ok(vec![
                 Definition::new(
-                    (B(13), B(91)),
+                    (B(13), B(98)),
                     "Point",
                     Type::struct_(
-                        (B(21), B(90)),
+                        (B(21), B(97)),
                         vec![
                             Field::new(
-                                (B(39), B(48)),
+                                (B(46), B(55)),
                                 "x",
-                                Type::ident((B(43), B(48)), "u32be")
+                                Type::ident((B(50), B(55)), "u32be")
                             ),
                             Field::new(
-                                (B(66), B(75)),
+                                (B(73), B(82)),
                                 "y",
-                                Type::ident((B(70), B(75)), "u32be")
+                                Type::ident((B(77), B(82)), "u32be")
                             ),
                         ],
                     )
                 ),
                 Definition::new(
-                    (B(105), B(195)),
+                    (B(112), B(209)),
                     "Array",
                     Type::struct_(
-                        (B(113), B(194)),
+                        (B(120), B(208)),
                         vec![
                             Field::new(
-                                (B(131), B(142)),
+                                (B(145), B(156)),
                                 "len",
-                                Type::ident((B(137), B(142)), "u16le")
+                                Type::ident((B(151), B(156)), "u16le")
                             ),
                             Field::new(
-                                (B(160), B(179)),
+                                (B(174), B(193)),
                                 "data",
                                 Type::array(
-                                    (B(167), B(179)),
-                                    Type::ident((B(168), B(173)), "Point"),
-                                    Expr::var((B(175), B(178)), "len"),
+                                    (B(181), B(193)),
+                                    Type::ident((B(182), B(187)), "Point"),
+                                    Expr::var((B(189), B(192)), "len"),
                                 )
                             ),
                         ],
                     )
                 ),
                 Definition::new(
-                    (B(209), B(363)),
+                    (B(223), B(417)),
                     "Formats",
                     Type::union(
-                        (B(235), B(362)),
+                        (B(233), B(416)),
                         vec![
                             Type::struct_(
-                                (B(237), B(264)),
+                                (B(257), B(291)),
                                 vec![
                                     Field::new(
-                                        (B(239), B(251)),
+                                        (B(266), B(278)),
                                         "format",
                                         Type::const_((B(0), B(0)), TypeConst::U16)
                                     ),
                                     Field::new(
-                                        (B(253), B(262)),
+                                        (B(280), B(289)),
                                         "data",
                                         Type::const_((B(0), B(0)), TypeConst::U16)
                                     ),
                                 ]
                             ),
                             Type::struct_(
-                                (B(283), B(313)),
+                                (B(309), B(346)),
                                 vec![
                                     Field::new(
-                                        (B(285), B(297)),
+                                        (B(318), B(330)),
                                         "format",
                                         Type::const_((B(0), B(0)), TypeConst::U16)
                                     ),
                                     Field::new(
-                                        (B(299), B(311)),
+                                        (B(332), B(344)),
                                         "point",
-                                        Type::ident((B(306), B(311)), "Point")
+                                        Type::ident((B(339), B(344)), "Point")
                                     ),
                                 ]
                             ),
                             Type::struct_(
-                                (B(332), B(362)),
+                                (B(364), B(401)),
                                 vec![
                                     Field::new(
-                                        (B(334), B(346)),
+                                        (B(373), B(385)),
                                         "format",
                                         Type::const_((B(0), B(0)), TypeConst::U16)
                                     ),
                                     Field::new(
-                                        (B(348), B(360)),
+                                        (B(387), B(399)),
                                         "array",
-                                        Type::ident((B(355), B(360)), "Array")
+                                        Type::ident((B(394), B(399)), "Array")
                                     ),
                                 ]
                             ),

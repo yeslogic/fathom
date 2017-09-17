@@ -3,7 +3,7 @@
 Offset32 = u32;
 
 /// https://www.microsoft.com/typography/otspec/cmap.htm
-CMap = {
+CMap = struct {
     /// Table version number (0).
     version: u16,
     /// Number of encoding tables that follow.
@@ -11,7 +11,7 @@ CMap = {
     encodingRecords: [EncodingRecord; numTables],
 };
 
-EncodingRecord = {
+EncodingRecord = struct {
     /// Platform ID.
     platformID: u16,
     /// Platform-specific encoding ID.
@@ -20,20 +20,20 @@ EncodingRecord = {
     offset: Offset32,
 };
 
-CMapSubtable =
-    | Format0
+CMapSubtable = union {
+    Format0,
     // TODO: Format2
     // TODO: Format4
-    | Format6
-    | Format8
+    Format6,
+    Format8,
     // TODO: Format10
-    | Format12
-    | Format13
-    | Format14
-    ;
+    Format12,
+    Format13,
+    Format14,
+};
 
 /// Format 0: Byte encoding table
-Format0 = {
+Format0 = struct {
     /// Format number is set to 0.
     format: u16 = 0,
     /// This is the length in bytes of the subtable.
@@ -49,7 +49,7 @@ Format0 = {
 // TODO: Format4
 
 /// Format 6: Trimmed table mapping
-Format6 = {
+Format6 = struct {
     /// Format number is set to 6.
     format: u16 = 6,
     /// This is the length in bytes of the subtable.
@@ -66,7 +66,7 @@ Format6 = {
 };
 
 /// Format 8: mixed 16-bit and 32-bit coverage
-Format8 = = {
+Format8 = struct {
     /// Subtable format; set to 8.
     format: u16 = 8,
     /// Reserved; set to 0
@@ -85,7 +85,7 @@ Format8 = = {
     groups: [Format8SequentialMapGroup; num_groups],
 };
 
-Format8SequentialMapGroup = = {
+Format8SequentialMapGroup = struct {
     /// First character code in this group; note that if this group is for one
     /// or more 16-bit character codes (which is determined from the is32
     /// array), this 32-bit value will have the high 16-bits set to zero
@@ -100,7 +100,7 @@ Format8SequentialMapGroup = = {
 // TODO: Format10
 
 // Format 12: Segmented coverage
-Format12 = {
+Format12 = struct {
     /// Subtable format; set to 12.
     format: u16 = 12,
     /// Reserved; set to 0
@@ -116,7 +116,7 @@ Format12 = {
     groups: [Format12SequentialMapGroup; num_groups],
 };
 
-Format12SequentialMapGroup = {
+Format12SequentialMapGroup = struct {
     /// First character code in this group
     start_char_code: u32,
     /// Last character code in this group
@@ -126,7 +126,7 @@ Format12SequentialMapGroup = {
 };
 
 // Format 13: Many-to-one range mappings
-Format13 = {
+Format13 = struct {
     /// Subtable format; set to 13.
     format: u16 = 13,
     /// Reserved; set to 0
@@ -142,7 +142,7 @@ Format13 = {
     groups: [ConstantMapGroup; num_groups],
 };
 
-ConstantMapGroup = {
+ConstantMapGroup = struct {
     /// First character code in this group
     start_char_code: u32,
     /// Last character code in this group
@@ -152,7 +152,7 @@ ConstantMapGroup = {
 };
 
 /// Format 14: Unicode Variation Sequences
-Format14 = {
+Format14 = struct {
     /// Subtable format. Set to 14.
     format: u16,
     /// Byte length of this subtable (including this header)
@@ -163,7 +163,7 @@ Format14 = {
     var_selector: [VariationSelector; num_var_selector_records],
 };
 
-VariationSelector = {
+VariationSelector = struct {
     /// Variation selector
     var_selector: u24,
     /// Offset from the start of the format 14 subtable to Default UVS Table. May be 0.
@@ -173,14 +173,14 @@ VariationSelector = {
 };
 
 /// Default UVS table
-DefaultUVS = {
+DefaultUVS = struct {
     /// Number of Unicode character ranges.
     num_unicode_value_ranges: u32,
     /// Array of UnicodeRange records.
     ranges: [UnicodeRange; num_unicode_value_ranges],
 };
 
-UnicodeRange = {
+UnicodeRange = struct {
     /// First value in this range
     start_unicode_value: u24,
     /// Number of additional values in this range
@@ -188,14 +188,14 @@ UnicodeRange = {
 };
 
 /// NonDefaultUVS Table
-NonDefaultUVS = {
+NonDefaultUVS = struct {
     /// Number of UVS Mappings that follow
     num_uvs_mappings: u32,
     /// Array of UVSMapping records.
     uvs_mappings: [UVSMapping; num_uvs_mappings]
 };
 
-UVSMapping = {
+UVSMapping = struct {
     /// Base Unicode value of the UVS
     unicode_value: u24,
     /// Glyph ID of the UVS

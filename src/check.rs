@@ -220,7 +220,7 @@ pub mod tests {
     #[test]
     fn union() {
         let env = Env::default();
-        let ty = parser::parse_ty(&env, "u8 | u16 | i32").unwrap();
+        let ty = parser::parse_ty(&env, "union { u8, u16, i32 }").unwrap();
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
@@ -228,12 +228,12 @@ pub mod tests {
     #[test]
     fn union_element_missing() {
         let env = Env::default();
-        let ty = parser::parse_ty(&env, "u8 | Foo | i32").unwrap();
+        let ty = parser::parse_ty(&env, "union { u8, Foo, i32 }").unwrap();
 
         assert_eq!(
             env.check_ty(&ty),
             Err(TypeError::UnboundType(
-                Span::new(B(5), B(8)),
+                Span::new(B(12), B(15)),
                 "Foo".to_owned(),
             ))
         );
@@ -242,7 +242,7 @@ pub mod tests {
     #[test]
     fn pair() {
         let env = Env::default();
-        let ty = parser::parse_ty(&env, "{ x: u8, y: u8 }").unwrap();
+        let ty = parser::parse_ty(&env, "struct { x: u8, y: u8 }").unwrap();
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
@@ -250,7 +250,7 @@ pub mod tests {
     #[test]
     fn dependent_pair() {
         let env = Env::default();
-        let ty = parser::parse_ty(&env, "{ len: u8, data: [u8; len] }").unwrap();
+        let ty = parser::parse_ty(&env, "struct { len: u8, data: [u8; len] }").unwrap();
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
@@ -266,7 +266,8 @@ pub mod tests {
     #[test]
     fn array_len() {
         let mut env = Env::default();
-        env.add_binding("len", Type::Const(Span::start(), TypeConst::U32));
+        let len_ty = Type::Const(Span::start(), TypeConst::U32);
+        env.add_binding("len", len_ty);
         let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
@@ -275,7 +276,7 @@ pub mod tests {
     #[test]
     fn array_bad_type() {
         let mut env = Env::default();
-        let len_ty = parser::parse_ty(&env, "{}").unwrap();
+        let len_ty = parser::parse_ty(&env, "struct {}").unwrap();
         env.add_binding("len", len_ty.clone());
         let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 

@@ -144,9 +144,9 @@ pub enum Type {
     Ident(Span, String),
     /// An array of the specified type, with a size: `[T; n]`
     Array(Span, Box<Type>, Expr),
-    /// A union of two types: `T1 | T2`
+    /// A union of types: `union { T, ... }`
     Union(Span, Vec<Type>),
-    /// A struct type, with fields: `{ field : T, ... }`
+    /// A struct type, with fields: `struct { field : T, ... }`
     Struct(Span, Vec<Field>),
 }
 
@@ -177,7 +177,7 @@ impl Type {
         Type::Array(span.into(), ty.into(), size)
     }
 
-    /// A union of two types: `T1 | T2`
+    /// A union of types: `union { T, ... }`
     pub fn union<Sp>(span: Sp, tys: Vec<Type>) -> Type
     where
         Sp: Into<Span>,
@@ -185,7 +185,7 @@ impl Type {
         Type::Union(span.into(), tys)
     }
 
-    /// A struct type, with fields: `{ field : T, ... }`
+    /// A struct type, with fields: `struct { field : T, ... }`
     pub fn struct_<Sp>(span: Sp, fields: Vec<Field>) -> Type
     where
         Sp: Into<Span>,

@@ -37,10 +37,10 @@ widely than that in the future.
       - [x] 64 bit
   - [ ] Polymorphic types
     - [ ] Types depending on values
-    - [x] Dependant arrays: eg: `Array(u8, 4)`
-    - [ ] Parametrised Endianness: eg: `Body(E: Endianness) = ...`
-  - [x] Dependant records: eg: `{ len: u8, data: Array(u8, len) }`
-  - [ ] Unions
+    - [x] Dependant arrays: eg. `Array(u8, 4)`
+    - [ ] Parametrised Endianness: eg. `Body(E: Endianness) = ...`
+  - [x] Dependant records: eg. `struct { len: u8, data: Array(u8, len) }`
+  - [x] Unions: eg. `union { T1, T2 }`
   - [ ] Constraints `x where expr`
   - [ ] Pointer offsets
 - [ ] Backends

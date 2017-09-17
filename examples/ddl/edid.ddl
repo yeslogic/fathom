@@ -1,7 +1,7 @@
 //! endian: le
 
 /// https://en.wikipedia.org/wiki/Extended_Display_Identification_Data
-Edid = {
+Edid = struct {
     /// Header information
     header: Header,
     /// Basic display parameters
@@ -11,7 +11,7 @@ Edid = {
     // TODO: Standard timing information.
 };
 
-Header = {
+Header = struct {
     /// Fixed header pattern
     magic: [u8; 8] = [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00],
     /// Manufacturer ID
@@ -30,7 +30,7 @@ Header = {
     edid_version_minor: u8,
 };
 
-DisplayParams = {
+DisplayParams = struct {
     /// Video input parameters bitmap
     input_flags: u8,
     /// Maximum horizontal image size, in centimetres (max 292 cm/115 in at 16:9 aspect ratio)

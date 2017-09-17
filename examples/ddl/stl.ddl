@@ -1,13 +1,13 @@
 //! endian: le
 //! file-extension: stl
 
-Vec3d = {
+Vec3d = struct {
     x: f32,
     y: f32,
     z: f32,
 };
 
-Triangle = {
+Triangle = struct {
     /// Normal vector
     normal: Vec3d,
     /// Coordinates of the vertices
@@ -15,7 +15,7 @@ Triangle = {
 };
 
 /// https://en.wikipedia.org/wiki/STL_(file_format)
-Stl = {
+Stl = struct {
     /// Generally ignored
     header: [u8; 80],
     /// Number of triangles that follow

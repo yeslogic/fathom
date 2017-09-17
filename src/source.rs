@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::ops::{Add, Sub};
 
 /// A zero-indexed line offest into a source file
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LineIndex(pub usize);
 
 impl LineIndex {
@@ -33,14 +33,30 @@ impl Default for LineIndex {
     }
 }
 
+impl fmt::Debug for LineIndex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "LineIndex(")?;
+        self.0.fmt(f)?;
+        write!(f, ")")
+    }
+}
+
 /// A 1-indexed line number. Useful for pretty printing source locations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LineNumber(pub usize);
 
 impl LineNumber {
     /// Apply the function `f` to the underlying number and return the wrapped result
     pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> LineNumber {
         LineNumber(f(self.0))
+    }
+}
+
+impl fmt::Debug for LineNumber {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "LineNumber(")?;
+        self.0.fmt(f)?;
+        write!(f, ")")
     }
 }
 
@@ -51,7 +67,7 @@ impl fmt::Display for LineNumber {
 }
 
 /// A zero-indexed column offest into a source file
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ColumnIndex(pub usize);
 
 impl ColumnIndex {
@@ -79,14 +95,30 @@ impl Default for ColumnIndex {
     }
 }
 
+impl fmt::Debug for ColumnIndex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ColumnIndex(")?;
+        self.0.fmt(f)?;
+        write!(f, ")")
+    }
+}
+
 /// A 1-indexed column number. Useful for pretty printing source locations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ColumnNumber(pub usize);
 
 impl ColumnNumber {
     /// Apply the function `f` to the underlying number and return the wrapped result
     pub fn map<F: FnMut(usize) -> usize>(self, mut f: F) -> ColumnNumber {
         ColumnNumber(f(self.0))
+    }
+}
+
+impl fmt::Debug for ColumnNumber {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ColumnNumber(")?;
+        self.0.fmt(f)?;
+        write!(f, ")")
     }
 }
 
@@ -97,7 +129,7 @@ impl fmt::Display for ColumnNumber {
 }
 
 /// A byte offset in a source file
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BytePos(pub usize);
 
 impl BytePos {
@@ -129,8 +161,16 @@ impl Sub for BytePos {
     }
 }
 
+impl fmt::Debug for BytePos {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BytePos(")?;
+        self.0.fmt(f)?;
+        write!(f, ")")
+    }
+}
+
 /// A unicode character offset in a source file
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CharPos(pub usize);
 
 impl CharPos {
@@ -159,6 +199,14 @@ impl Sub for CharPos {
 
     fn sub(self, rhs: CharPos) -> CharPos {
         CharPos(self.0 - rhs.0)
+    }
+}
+
+impl fmt::Debug for CharPos {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "CharPos(")?;
+        self.0.fmt(f)?;
+        write!(f, ")")
     }
 }
 

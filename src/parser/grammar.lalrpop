@@ -16,6 +16,10 @@ extern {
         "HexLiteral" => Token::HexLiteral(<u64>),
         "DecLiteral" => Token::DecLiteral(<u64>),
 
+        // Keywords
+        "struct" => Token::Struct,
+        "union" => Token::Union,
+
         // Symbols
         "=" => Token::Equals,
         ";" => Token::Semi,
@@ -55,10 +59,15 @@ AtomicType: Type = {
         }
     },
     "(" <Type> ")",
-    <lo: @L> "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
+    <lo: @L> "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
         let mut fields = fields;
         fields.extend(last);
         Type::struct_((lo, hi), fields)
+    },
+    <lo: @L> "union" "{" <tys: (<Type> ",")+> <last: Type?> "}" <hi: @R> => {
+        let mut tys = tys;
+        tys.extend(last);
+        Type::union((lo, hi), tys)
     },
     <lo: @L> "[" <elem: Type> ";" <size: Expr> "]" <hi: @R> => {
         Type::array((lo, hi), elem, size)
@@ -67,11 +76,6 @@ AtomicType: Type = {
 
 pub Type: Type = {
     AtomicType,
-    <lo: @L> "|"? <tys: (<AtomicType> "|")+> <last: AtomicType> <hi: @R> => {
-        let mut tys = tys;
-        tys.push(last);
-        Type::union((lo, hi), tys)
-    },
 };
 
 pub Expr = AddExpr;

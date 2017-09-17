@@ -55,6 +55,10 @@ pub enum Token<'input> {
     HexLiteral(u64),
     DecLiteral(u64),
 
+    // Keywords
+    Struct,
+    Union,
+
     // Symbols
     Equals, // =
     Semi, // ;
@@ -148,7 +152,14 @@ impl<'input> Lexer<'input> {
     /// Consume an identifier token
     fn ident(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
         let (end, ident) = self.take_while(start, is_ident_continue);
-        (start, Token::Ident(ident), end)
+
+        let token = match ident {
+            "struct" => Token::Struct,
+            "union" => Token::Union,
+            ident => Token::Ident(ident),
+        };
+
+        (start, token, end)
     }
 
     /// Consume a binary literal token
@@ -252,6 +263,15 @@ mod tests {
             "      ~~~~~~~~~                  " => Token::BinLiteral(37),
             "                 ~~~~~~~         " => Token::HexLiteral(458662),
             "                          ~~~~   " => Token::DecLiteral(1234),
+        };
+    }
+
+    #[test]
+    fn keywords() {
+        test! {
+            "  struct  union  ",
+            "  ~~~~~~         " => Token::Struct,
+            "          ~~~~~  " => Token::Union,
         };
     }
 
