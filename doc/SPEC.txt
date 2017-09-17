@@ -1,13 +1,14 @@
-
 EXPRESSIONS
 ===========
 
 Integer expressions:
 
  - numbers: 3, -10, 0xFF
- - symbols: count, hdrSize
+ - identifiers: count, hdrSize
  - arithmetic: count - 1, hdrSize*4
  - indexing: values[6], offset[i+1]
+ - properties: struct.field, array.length
+ - functions: sizeof(type)
 
 FIXME bitwise arithmetic?
 FIXME what about strings?
@@ -27,17 +28,17 @@ Boolean expressions:
 TYPES
 =====
 
-Types match sequences of bytes and interpret them as values such as integers, arrays, and structs.
+Types match sequences of bytes and describe their interpretation as values such as integers, arrays, and structs.
 
-Types can have a fixed, variable, or unknown size:
+The size of a type refers to the length of the byte sequences that it matches, which can be fixed, variable, or unlimited.
 
- - Fixed size types always match the same number of bytes and this number is known in advance.
+ - Fixed size types always match the same number of bytes and this number is known in advance, before any of the bytes are read.
 
- - Variable size types can match a different number of bytes depending on the content of those bytes or other values.
+ - Variable size types can match a different number of bytes depending on the content of those bytes, for example a struct containing a length field and a variable length array.
 
- - Unknown size types can match any number of bytes and are only constrained by the number of bytes available.
+ - Unlimited size types can match any number of bytes and are only constrained by the number of bytes available.
 
-FIXME maybe unknown size types should be "unlimited" size types?
+The size of a type may also depend on values from the environment that need to be evaluated before the actual size can be determined.
 
 
 INTEGER TYPES
@@ -52,11 +53,14 @@ The integer types always match if there are sufficient bytes available and any a
 
 FIXME we could rename these to u8/u16/u32 etc. like Rust to save typing if we think that's easier
 
-FIXME CFF sometimes uses *three* byte offsets; I'm not sure if we need to introduce uint24 or if we can just use an array of three bytes.
-
 FIXME we will need an option to specify whether integers are big endian or little endian; currently big endian is assumed just for compatibility with OpenType.
 
 FIXME we will also need an option to specify the default alignment for integer fields and a way to override this for specific fields.
+
+> sizeof(int8) = 1
+> sizeof(int16) = 2
+> sizeof(int32) = 4
+> ...
 
 
 ARRAY TYPES
@@ -66,17 +70,56 @@ Arrays are a multiple of any fixed size type:
 
   type[length]
 
-  type[]
+  type[] (see existential types)
 
 The length can be any integer expression as long as it only depends on values located before the array.
 
-If the length is omitted then the array will be as long as possible to consume
-all available bytes.
+Because the array element type has fixed size, the array itself will also have fixed size if the length is known in advance, or variable size if the length depends upon another value.
 
-FIXME is it an error if it *doesn't* consume all available bytes due to
-alignment issues?
+> sizeof(type[length]) = sizeof(type) * length
 
-Because the array element type has fixed size, the array itself will also have fixed size if the length is known in advance, or variable size if the length depends upon another value, or unknown size if the length is unspecified.
+
+EXISTENTIAL TYPES
+=================
+
+Existential types are parameterised by a variable of unknown value:
+
+  exists x: type
+
+The value of this variable can be determined from constraints expressed on it elsewhere, such as a @where clause.
+
+For arrays of unknown length there is a shorthand syntax where if the length is omitted it is treated as introducing a new unnamed variable:
+
+  type[]
+
+  exists x: type[x]
+
+This allows the length of trailing arrays to be expressed simply:
+
+  struct MyStruct {
+    length: uint32
+    field1: uint32
+    field2: uint32
+    data: uint32[]
+    @where sizeof(MyStruct) = length
+  }
+
+This is equivalent to:
+
+  struct MyStruct {
+    length: uint32
+    field1: uint32
+    field2: uint32
+    data: exists x: uint32[x]
+    @where sizeof(MyStruct) = length
+  }
+
+And the constraint simplifies as follows:
+
+  sizeof(MyStruct) = length
+  sizeof(length) + sizeof(field1) + sizeof(field2) + sizeof(uint32)*x = length
+  (x + 3)*sizeof(uint32) = length
+  x = length/sizeof(uint32) - 3
 
 
 STRUCT TYPES
@@ -107,6 +150,10 @@ Note the restriction on field ordering means the reverse would not be a valid st
 
 It would be impossible to locate the count field without looking past the array, but the array size depends on the count field, so this struct is impossible to process and is erroneous.
 
+> sizeof(struct {}) = 0
+> sizeof(struct {field: type | fields}) =
+>   sizeof(type) + sizeof(struct {fields})
+
 
 WHERE CLAUSES
 =============
@@ -119,7 +166,7 @@ Where clauses place constraints upon the values of struct fields and consist of 
   hdrSize: byte
   @where hdrSize >= 4
 
-If an expression is false then the struct type will not match.
+If the expression is false then the struct type will not match.
 
 Simple constraints can be represented directly on field declarations with this shorthand syntax:
 
@@ -132,6 +179,74 @@ This is exactly equivalent to declaring the constraints with a separate where cl
 Where clauses can include multiple constraints with conjunctions using the comma operator:
 
   @where version = 0x00010000, hdrSize >= 4
+
+
+CONDITIONAL TYPES
+=================
+
+Conditional types depend on other values and are expressed using if-else and switch expressions:
+
+  if expr1 { type1 }
+  else if expr2 { type2 }
+  else { type3 }
+
+  switch {
+    type1 when expr1
+    type2 when expr2
+    type3 otherwise
+  }
+
+The final else can be omitted from an if-else expression, which is equivalent to matching the empty type:
+
+  if epxr1 { type1 }
+
+  if expr1 { type1 }
+  else { empty }
+
+The case expressions in a switch must be mutually exclusive.
+
+FIXME is the default otherwise case in switch expressions mandatory?
+
+Example of an if-else expression:
+
+  if x = 1 { type1 }
+  else if y > 3 { type2 }
+  else { type3 }
+
+This would not be a valid switch as the expressions are not mutually exclusive.
+
+Example of a switch expression:
+
+  switch {
+    type1 when x = 1
+    type2 when x = 2
+    type3 otherwise
+  }
+
+Every switch can be trivially translated to an if-else:
+
+  if x = 1 { type1 }
+  else if x = 2 { type2 }
+  else { type3 }
+
+As well as returning entire types, conditional expressions can also return fields to allow structs to optionally include fields depending on the value of other fields in the struct, for example:
+
+  struct {
+    version: uint32
+    @if version > 1 {
+      extra: uint32
+      more: uint32
+    }
+  }
+
+FIXME do we need to use @if and @switch with the @ for clearer syntax?
+
+A struct containing an @if rule cannot be fixed size.
+
+FIXME what if the if only depends on a type argument?
+
+> sizeof(if X { type1 } else { type2 }) =
+>   if X sizeof(type1) else sizeof(type2)
 
 
 CHOICE TYPES
@@ -158,64 +273,7 @@ It must be possible to distinguish the options in the choice by looking at the f
 
 A choice has fixed size if all of its options have the same fixed size, or variable size if at least one of its options has variable size, or unknown size if at least one of its options has unknown size.
 
-
-CONDITIONAL TYPES
-=================
-
-Conditional types can differ depending on other values, and are expressed using if-else and switch expressions:
-
-  if expr1 { type1 }
-  else if expr2 { type2 }
-  else { type3 }
-
-  switch {
-    type1 when x = 1
-    type2 when x = 2
-    type3 otherwise
-  }
-
-The final else can be omitted from an if-else expression, which is equivalent to matching the empty type:
-
-  if epxr1 { type1 }
-
-  if expr1 { type1 }
-  else { empty }
-
-The case expressions in a switch statement must be mutually exclusive.
-
-FIXME is the default case in switch expressions mandatory?
-
-Example of an if-else expression:
-
-  if x = 1 { type1 }
-  else if y > 3 { type2 }
-  else { type3 }
-
-This would not be a valid switch as the expressions are not mutually exclusive.
-
-Example of a switch expression:
-
-  switch {
-    type1 when x = 1
-    type2 when x = 2
-    type3 otherwise
-  }
-
-As well as returning entire types, conditional expressions can also return fields to allow structs to optionally include fields depending on the value of other fields in the struct, for example:
-
-  struct {
-    version: uint32
-    @if version > 1 {
-      extra: uint32
-      more: uint32
-    }
-  }
-
-FIXME do we need to use @if and @switch with the @ for clearer syntax?
-
-A struct containing an @if rule cannot be fixed size.
-
-FIXME what if the if only depends on a type argument?
+A choice type can be converted to a switch type.
 
 
 EMPTY TYPE
@@ -251,6 +309,8 @@ The end type does not consume any bytes but only matches if there are no availab
 
 Nothing can follow an end value as it can never match.
 
+FIXME there may be a better way of doing this, maybe in a @where clause
+
 
 REPEATING TYPES
 ===============
@@ -271,6 +331,8 @@ The number of repetitions can be specified explicitly or constrained by introduc
 A repeating type must be followed by another type. If the repeat is intended to consume all the available bytes then it can be followed by the end type.
 
 FIXME must the type that follows the repeat be distinguishable from the type within the repeat?
+
+> sizeof(repeat count type) = sum of sizeof each type matched
 
 
 LINKS
