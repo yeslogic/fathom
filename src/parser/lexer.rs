@@ -11,7 +11,15 @@ fn is_ident_continue(ch: char) -> bool {
     UnicodeXID::is_xid_continue(ch) || ch == '_'
 }
 
-fn is_digit(ch: char) -> bool {
+fn is_bin_digit(ch: char) -> bool {
+    ch.is_digit(2)
+}
+
+fn is_hex_digit(ch: char) -> bool {
+    ch.is_digit(16)
+}
+
+fn is_dec_digit(ch: char) -> bool {
     ch.is_digit(10)
 }
 
@@ -24,10 +32,18 @@ pub struct Error {
     pub code: ErrorCode,
 }
 
+fn error<T>(location: BytePos, code: ErrorCode) -> Result<T, Error> {
+    Err(Error { location, code })
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ErrorCode {
-    /// An unexpected token was encountered while lexing the source file
+    /// An unexpected token was encountered
     UnrecognizedToken,
+    /// Expected a binary literal
+    ExpectedBinLiteral,
+    /// Expected a hexidecimal literal
+    ExpectedHexLiteral,
 }
 
 /// A token in the source file, to be emitted by the `Lexer`
@@ -35,7 +51,9 @@ pub enum ErrorCode {
 pub enum Token<'input> {
     // Data
     Ident(&'input str),
-    IntLiteral(u64),
+    BinLiteral(u64),
+    HexLiteral(u64),
+    DecLiteral(u64),
 
     // Symbols
     Equals, // =
@@ -133,10 +151,35 @@ impl<'input> Lexer<'input> {
         (start, Token::Ident(ident), end)
     }
 
-    /// Consume an integer literal token
-    fn int_literal(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
-        let (end, int) = self.take_while(start, is_digit);
-        (start, Token::IntLiteral(int.parse().unwrap()), end)
+    /// Consume a binary literal token
+    fn bin_literal(&mut self, start: BytePos) -> Result<(BytePos, Token<'input>, BytePos), Error> {
+        self.bump(); // skip 'b'
+        let (end, src) = self.take_while(start.map(|x| x + 2), is_bin_digit);
+        if src.is_empty() {
+            error(start, ErrorCode::ExpectedBinLiteral)
+        } else {
+            let int = u64::from_str_radix(src, 2).unwrap();
+            Ok((start, Token::BinLiteral(int), end))
+        }
+    }
+
+    /// Consume a hexidecimal literal token
+    fn hex_literal(&mut self, start: BytePos) -> Result<(BytePos, Token<'input>, BytePos), Error> {
+        self.bump(); // skip 'x'
+        let (end, src) = self.take_while(start.map(|x| x + 2), is_hex_digit);
+        if src.is_empty() {
+            error(start, ErrorCode::ExpectedHexLiteral)
+        } else {
+            let int = u64::from_str_radix(src, 16).unwrap();
+            Ok((start, Token::HexLiteral(int), end))
+        }
+    }
+
+    /// Consume a decimal literal token
+    fn dec_literal(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
+        let (end, src) = self.take_while(start, is_dec_digit);
+        let int = u64::from_str_radix(src, 10).unwrap();
+        (start, Token::DecLiteral(int), end)
     }
 }
 
@@ -168,13 +211,12 @@ impl<'input> Iterator for Lexer<'input> {
                 '}' => Ok((start, Token::RBrace, end)),
                 '[' => Ok((start, Token::LBracket, end)),
                 ']' => Ok((start, Token::RBracket, end)),
-                ch if is_digit(ch) => Ok(self.int_literal(start)),
+                '0' if self.test_lookahead(|x| x == 'b') => self.bin_literal(start),
+                '0' if self.test_lookahead(|x| x == 'x') => self.hex_literal(start),
+                ch if is_dec_digit(ch) => Ok(self.dec_literal(start)),
                 ch if is_ident_start(ch) => Ok(self.ident(start)),
                 ch if ch.is_whitespace() => continue,
-                _ => Err(Error {
-                    code: ErrorCode::UnrecognizedToken,
-                    location: start,
-                }),
+                _ => error(start, ErrorCode::UnrecognizedToken),
             });
         }
 
@@ -205,9 +247,11 @@ mod tests {
     #[test]
     fn data() {
         test! {
-            "  u8  1234   ",
-            "  ~~         " => Token::Ident("u8"),
-            "      ~~~~   " => Token::IntLiteral(1234),
+            "  u8  0b0100101  0x6Ffa6  1234   ",
+            "  ~~                             " => Token::Ident("u8"),
+            "      ~~~~~~~~~                  " => Token::BinLiteral(37),
+            "                 ~~~~~~~         " => Token::HexLiteral(458662),
+            "                          ~~~~   " => Token::DecLiteral(1234),
         };
     }
 
@@ -247,7 +291,7 @@ mod tests {
             "~       " => Token::LBracket,
             " ~~     " => Token::Ident("u8"),
             "   ~    " => Token::Semi,
-            "     ~~ " => Token::IntLiteral(34),
+            "     ~~ " => Token::DecLiteral(34),
             "       ~" => Token::RBracket,
         };
     }

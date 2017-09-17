@@ -12,7 +12,9 @@ extern {
     enum Token<'input> {
         // Data
         "Ident" => Token::Ident(<&'input str>),
-        "IntLiteral" => Token::IntLiteral(<u64>),
+        "BinLiteral" => Token::BinLiteral(<u64>),
+        "HexLiteral" => Token::HexLiteral(<u64>),
+        "DecLiteral" => Token::DecLiteral(<u64>),
 
         // Symbols
         "=" => Token::Equals,
@@ -96,7 +98,13 @@ MulExpr : Expr = {
 
 AtomicExpr : Expr = {
     "(" <expr: Expr> ")" => expr,
-    <lo: @L> <value: "IntLiteral"> <hi: @R> => {
+    <lo: @L> <value: "BinLiteral"> <hi: @R> => {
+        Expr::const_((lo, hi), value)
+    },
+    <lo: @L> <value: "HexLiteral"> <hi: @R> => {
+        Expr::const_((lo, hi), value)
+    },
+    <lo: @L> <value: "DecLiteral"> <hi: @R> => {
         Expr::const_((lo, hi), value)
     },
     <lo: @L> <name: "Ident"> <hi: @R> => {
