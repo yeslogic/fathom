@@ -49,7 +49,14 @@ widely than that in the future.
     - [ ] push/pull modes
   - [ ] Graphvis DOT output
   - [ ] HTML Formatted Specification
-- [ ] Formal specification
+- [ ] Tooling
+  - [ ] Pretty error messages
+  - [ ] Textmate syntax highlighting
+  - [ ] Language server (via Language Server Protocol)
+  - [ ] Binary explorer tool
+- [ ] Verification
+  - [ ] Fuzz generated parsers
+  - [ ] Formal specification
 
 ## Inspiration
 
