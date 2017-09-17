@@ -99,12 +99,17 @@ impl<'input> Lexer<'input> {
         }
     }
 
+    /// Return the next character in the source string
+    fn lookahead(&self) -> Option<(BytePos, char)> {
+        self.lookahead.map(|(index, ch)| (BytePos(index), ch))
+    }
+
     /// Bump the current position in the source string by one character,
     /// returning the current character and byte position.
     fn bump(&mut self) -> Option<(BytePos, char)> {
-        let current = self.lookahead;
+        let current = self.lookahead();
         self.lookahead = self.chars.next();
-        current.map(|(index, ch)| (BytePos(index), ch))
+        current
     }
 
     /// Return a slice of the source string
@@ -137,9 +142,9 @@ impl<'input> Lexer<'input> {
     where
         F: FnMut(char) -> bool,
     {
-        while let Some((end, ch)) = self.lookahead {
+        while let Some((end, ch)) = self.lookahead() {
             if terminate(ch) {
-                return (BytePos(end), self.slice(start, BytePos(end)));
+                return (end, self.slice(start, end));
             } else {
                 self.bump();
             }
