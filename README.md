@@ -16,21 +16,39 @@ widely than that in the future.
 ### Planned features
 
 - [x] External DSL
-- [ ] Advanced type system
+- [ ] Type system
+  - [ ] Byte-aligned numeric types
+    - [ ] Unsigned integers
+      - [x] 1-byte (8-bit)
+      - [x] 2-byte (16-bit)
+      - [ ] 3-byte (24-bit)
+      - [x] 4-byte (32-bit)
+      - [x] 8-byte (64-bit)
+      - [ ] n-byte
+    - [ ] Two's complement signed integers
+      - [x] 1-byte (8-bit)
+      - [x] 2-byte (16-bit)
+      - [ ] 3-byte (24-bit)
+      - [x] 4-byte (32-bit)
+      - [x] 8-byte (64-bit)
+      - [ ] n-byte
+    - [ ] IEEE 754 Floating point numbers
+      - [ ] 32 bit
+      - [ ] 64 bit
   - [ ] Polymorphic types
     - [ ] Types depending on values
     - [x] Dependant arrays: eg: `Array(u8, 4)`
     - [ ] Parametrised Endianness: eg: `Body(E: Endianness) = ...`
   - [x] Dependant records: eg: `{ len: u8, data: Array(u8, len) }`
   - [ ] Unions
-  - [ ] Constraints
+  - [ ] Constraints `x where expr`
   - [ ] Pointer offsets
-- [ ] Rust codegen:
-  - [ ] zero copy
-  - [ ] push/pull modes
-- [ ] Library of example formats: demonstrate how the language can be used to describe common formats
-- [ ] Specification generation: output readable format specifications
-- [ ] Graphvis output
+- [ ] Backends
+  - [ ] Rust codegen:
+    - [ ] zero copy
+    - [ ] push/pull modes
+  - [ ] Graphvis DOT output
+  - [ ] HTML Formatted Specification
 - [ ] Formal specification
 
 ## Inspiration
