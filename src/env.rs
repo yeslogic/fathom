@@ -61,17 +61,27 @@ impl<'parent> Env<'parent> {
     }
 }
 
+const BUILT_INS: [(&str, TypeConst); 10] = [
+    ("u8", TypeConst::U8),
+    ("u16", TypeConst::U16),
+    ("u32", TypeConst::U32),
+    ("u64", TypeConst::U64),
+    ("i8", TypeConst::I8),
+    ("i16", TypeConst::I16),
+    ("i32", TypeConst::I32),
+    ("i64", TypeConst::I64),
+    ("f32", TypeConst::F32),
+    ("f64", TypeConst::F64),
+];
+
 impl Default for Env<'static> {
     fn default() -> Env<'static> {
         let mut env = Env::new();
-        env.add_ty("u8", Type::Const(Span::start(), TypeConst::U8));
-        env.add_ty("u16", Type::Const(Span::start(), TypeConst::U16));
-        env.add_ty("u32", Type::Const(Span::start(), TypeConst::U32));
-        env.add_ty("u64", Type::Const(Span::start(), TypeConst::U64));
-        env.add_ty("i8", Type::Const(Span::start(), TypeConst::I8));
-        env.add_ty("i16", Type::Const(Span::start(), TypeConst::I16));
-        env.add_ty("i32", Type::Const(Span::start(), TypeConst::I32));
-        env.add_ty("i64", Type::Const(Span::start(), TypeConst::I64));
+
+        for &(ident, ty_const) in &BUILT_INS {
+            env.add_ty(ident, Type::Const(Span::start(), ty_const));
+        }
+
         env
     }
 }

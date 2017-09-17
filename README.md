@@ -32,9 +32,9 @@ widely than that in the future.
       - [x] 4-byte (32-bit)
       - [x] 8-byte (64-bit)
       - [ ] n-byte
-    - [ ] IEEE 754 Floating point numbers
-      - [ ] 32 bit
-      - [ ] 64 bit
+    - [x] IEEE 754 Floating point numbers
+      - [x] 32 bit
+      - [x] 64 bit
   - [ ] Polymorphic types
     - [ ] Types depending on values
     - [x] Dependant arrays: eg: `Array(u8, 4)`

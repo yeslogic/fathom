@@ -40,3 +40,12 @@ fn object_id() {
     let defs = ddl::parser::parse(&env, SRC).unwrap();
     env.check_defs(defs).unwrap();
 }
+
+#[test]
+fn stl() {
+    const SRC: &str = include_str!("../examples/ddl/stl.ddl");
+
+    let mut env = Env::default();
+    let defs = ddl::parser::parse(&env, SRC).unwrap();
+    env.check_defs(defs).unwrap();
+}
