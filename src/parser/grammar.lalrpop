@@ -55,7 +55,7 @@ AtomicType: Type = {
     <lo: @L> <name: "Ident"> <hi: @R> => {
         match env.lookup_ty(&name) {
             Some(ty) => ty.clone(),
-            None => Type::ident((lo, hi), name),
+            None => Type::var((lo, hi), name),
         }
     },
     "(" <Type> ")",

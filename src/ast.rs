@@ -38,24 +38,25 @@ impl Definition {
 /// An expression
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
-    /// An integer constant: `0`, `1`, `2`, ...
+    /// An integer constant: eg. `0`, `1`, `2`, ...
     Const(Span, u64),
-    /// A variable, referring to an integer that exists in the current context: `len`, `num_tables`
+    /// A variable, referring to an integer that exists in the current
+    /// context: eg. `len`, `num_tables`
     Var(Span, String),
-    /// Integer negation: `-x`
+    /// Integer negation: eg. `-x`
     Neg(Span, Box<Expr>),
-    /// Integer addition: `x + y`
+    /// Integer addition: eg. `x + y`
     Add(Span, Box<Expr>, Box<Expr>),
-    /// Integer subtraction: `x - y`
+    /// Integer subtraction: eg. `x - y`
     Sub(Span, Box<Expr>, Box<Expr>),
-    /// Integer multiplication: `x * y`
+    /// Integer multiplication: eg. `x * y`
     Mul(Span, Box<Expr>, Box<Expr>),
-    /// Integer division: `x / y`
+    /// Integer division: eg. `x / y`
     Div(Span, Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
-    /// An integer constant: `0`, `1`, `2`, ...
+    /// An integer constant: eg. `0`, `1`, `2`, ...
     pub fn const_<Sp>(span: Sp, value: u64) -> Expr
     where
         Sp: Into<Span>,
@@ -63,7 +64,7 @@ impl Expr {
         Expr::Const(span.into(), value)
     }
 
-    /// A variable, referring to an integer that exists in the current context: `len`, `num_tables`
+    /// A variable, referring to an integer that exists in the current context: eg. `len`, `num_tables`
     pub fn var<Sp, S>(span: Sp, name: S) -> Expr
     where
         Sp: Into<Span>,
@@ -72,7 +73,7 @@ impl Expr {
         Expr::Var(span.into(), name.into())
     }
 
-    /// Integer negation: `-x`
+    /// Integer negation: eg. `-x`
     pub fn neg<Sp, T>(span: Sp, x: T) -> Expr
     where
         Sp: Into<Span>,
@@ -81,7 +82,7 @@ impl Expr {
         Expr::Neg(span.into(), x.into())
     }
 
-    /// Integer addition: `x + y`
+    /// Integer addition: eg. `x + y`
     pub fn add<Sp, T, U>(span: Sp, x: T, y: U) -> Expr
     where
         Sp: Into<Span>,
@@ -91,7 +92,7 @@ impl Expr {
         Expr::Add(span.into(), x.into(), y.into())
     }
 
-    /// Integer subtraction: `x - y`
+    /// Integer subtraction: eg. `x - y`
     pub fn sub<Sp, T, U>(span: Sp, x: T, y: U) -> Expr
     where
         Sp: Into<Span>,
@@ -101,7 +102,7 @@ impl Expr {
         Expr::Sub(span.into(), x.into(), y.into())
     }
 
-    /// Integer multiplication: `x * y`
+    /// Integer multiplication: eg. `x * y`
     pub fn mul<Sp, T, U>(span: Sp, x: T, y: U) -> Expr
     where
         Sp: Into<Span>,
@@ -111,7 +112,7 @@ impl Expr {
         Expr::Mul(span.into(), x.into(), y.into())
     }
 
-    /// Integer division: `x / y`
+    /// Integer division: eg. `x / y`
     pub fn div<Sp, T, U>(span: Sp, x: T, y: U) -> Expr
     where
         Sp: Into<Span>,
@@ -143,13 +144,13 @@ pub enum TypeConst {
 pub enum Type {
     /// A type constant
     Const(Span, TypeConst),
-    /// A type identifier: `T1`, `u16be`, `u32`
-    Ident(Span, String),
-    /// An array of the specified type, with a size: `[T; n]`
+    /// A type variable: eg. `T`
+    Var(Span, String),
+    /// An array of the specified type, with a size: eg. `[T; n]`
     Array(Span, Box<Type>, Expr),
-    /// A union of types: `union { T, ... }`
+    /// A union of types: eg. `union { T, ... }`
     Union(Span, Vec<Type>),
-    /// A struct type, with fields: `struct { field : T, ... }`
+    /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Span, Vec<Field>),
 }
 
@@ -178,16 +179,16 @@ impl Type {
         Type::Const(span.into(), TypeConst::F(bytes, endianness))
     }
 
-    /// A type identifier: `T1`, `u16be`, `u32`
-    pub fn ident<Sp, S>(span: Sp, name: S) -> Type
+    /// A type variable: eg. `T`
+    pub fn var<Sp, S>(span: Sp, name: S) -> Type
     where
         Sp: Into<Span>,
         S: Into<String>,
     {
-        Type::Ident(span.into(), name.into())
+        Type::Var(span.into(), name.into())
     }
 
-    /// An array of the specified type, with a size: `[T; n]`
+    /// An array of the specified type, with a size: eg. `[T; n]`
     pub fn array<Sp, T>(span: Sp, ty: T, size: Expr) -> Type
     where
         Sp: Into<Span>,
@@ -196,7 +197,7 @@ impl Type {
         Type::Array(span.into(), ty.into(), size)
     }
 
-    /// A union of types: `union { T, ... }`
+    /// A union of types: eg. `union { T, ... }`
     pub fn union<Sp>(span: Sp, tys: Vec<Type>) -> Type
     where
         Sp: Into<Span>,
@@ -204,7 +205,7 @@ impl Type {
         Type::Union(span.into(), tys)
     }
 
-    /// A struct type, with fields: `struct { field : T, ... }`
+    /// A struct type, with fields: eg. `struct { field : T, ... }`
     pub fn struct_<Sp>(span: Sp, fields: Vec<Field>) -> Type
     where
         Sp: Into<Span>,

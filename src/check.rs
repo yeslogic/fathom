@@ -52,16 +52,16 @@ impl<'parent> Env<'parent> {
     ///
     /// In the `ast`, we represent the above as the following:
     ///
-    /// - `Type::Ident`: variables
+    /// - `Type::Var`: variables
     ///
     /// - `Type::Union`: series of unions
     ///
     /// - `Type::Struct`: nested dependent pairs
     ///
-    ///   For example, the record:
+    ///   For example, the struct:
     ///
     ///   ```plain
-    ///   { len : u16, reserved : u16, data : [u16; len] }
+    ///   struct { len : u16, reserved : u16, data : [u16; len] }
     ///   ```
     ///
     ///   Would be desugared into:
@@ -116,12 +116,12 @@ impl<'parent> Env<'parent> {
             Type::Const(_, _) => Ok(Kind::Type), // Easypeasy
 
             // VAR
-            Type::Ident(span, ref ident) => {
-                // TODO: kind of ident?
+            Type::Var(span, ref name) => {
+                // TODO: kind of var?
                 // α ∈ Γ
-                match self.lookup_ty(ident) {
+                match self.lookup_ty(name) {
                     Some(_) => Ok(Kind::Type),
-                    None => Err(TypeError::UnboundType(span, ident.clone())),
+                    None => Err(TypeError::UnboundType(span, name.clone())),
                 }
             }
 
@@ -196,7 +196,7 @@ pub mod tests {
     }
 
     #[test]
-    fn ident() {
+    fn var() {
         let env = Env::default();
         let ty = parser::parse_ty(&env, "u8").unwrap();
 
@@ -204,7 +204,7 @@ pub mod tests {
     }
 
     #[test]
-    fn ident_missing() {
+    fn var_missing() {
         let env = Env::default();
         let ty = parser::parse_ty(&env, "Foo").unwrap();
 

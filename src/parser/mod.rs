@@ -12,6 +12,22 @@ use self::lexer::{Lexer, Error as LexerError, Token};
 
 pub type ParseError<'input> = lalrpop_util::ParseError<BytePos, Token<'input>, LexerError>;
 
+// pub enum ParseError<L, T, E> {
+//     InvalidToken {
+//         location: L,
+//     },
+//     UnrecognizedToken {
+//         token: Option<(L, T, L)>,
+//         expected: Vec<String>,
+//     },
+//     ExtraToken {
+//         token: (L, T, L),
+//     },
+//     User {
+//         error: E,
+//     },
+// }
+
 pub fn parse<'input, 'env>(
     env: &'env Env,
     src: &'input str,
@@ -41,14 +57,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_ty_ident() {
+    fn parse_ty_var() {
         let src = "
             Point
         ";
 
         assert_eq!(
             parse_ty(&Env::default(), src),
-            Ok(Type::ident((B(13), B(18)), "Point"))
+            Ok(Type::var((B(13), B(18)), "Point"))
         );
     }
 
@@ -138,7 +154,7 @@ mod tests {
                                 "data",
                                 Type::array(
                                     (B(181), B(193)),
-                                    Type::ident((B(182), B(187)), "Point"),
+                                    Type::var((B(182), B(187)), "Point"),
                                     Expr::var((B(189), B(192)), "len"),
                                 )
                             ),
@@ -177,7 +193,7 @@ mod tests {
                                     Field::new(
                                         (B(332), B(344)),
                                         "point",
-                                        Type::ident((B(339), B(344)), "Point")
+                                        Type::var((B(339), B(344)), "Point")
                                     ),
                                 ]
                             ),
@@ -192,7 +208,7 @@ mod tests {
                                     Field::new(
                                         (B(387), B(399)),
                                         "array",
-                                        Type::ident((B(394), B(399)), "Array")
+                                        Type::var((B(394), B(399)), "Array")
                                     ),
                                 ]
                             ),
