@@ -1,4 +1,4 @@
-use ast::{Definition, Expr, Kind, Type, TypeConst};
+use ast::{Definition, Endianness, Expr, Kind, Type};
 use env::Env;
 use source::Span;
 
@@ -165,18 +165,18 @@ impl<'parent> Env<'parent> {
     /// # `Γ ⊢ e : τ`
     pub fn check_expr(&self, expr: &Expr) -> Result<Type, ExprError> {
         match *expr {
-            Expr::Const(_, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
+            Expr::Const(_, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
             Expr::Var(span, ref name) => {
                 match self.lookup_binding(name) {
                     Some(ty) => Ok(ty.clone()),
                     None => Err(ExprError::UnboundVariable(span, name.clone())),
                 }
             }
-            Expr::Neg(_, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
-            Expr::Add(_, _, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
-            Expr::Sub(_, _, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
-            Expr::Mul(_, _, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
-            Expr::Div(_, _, _) => Ok(Type::Const(Span::start(), TypeConst::U32)), // FIXME
+            Expr::Neg(_, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
+            Expr::Add(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
+            Expr::Sub(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
+            Expr::Mul(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
+            Expr::Div(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
         }
     }
 }
@@ -190,7 +190,7 @@ pub mod tests {
     #[test]
     fn ty_const() {
         let env = Env::default();
-        let ty = Type::Const(Span::start(), TypeConst::I16);
+        let ty = Type::i(Span::start(), 16, Endianness::Target);
 
         assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
     }
@@ -266,7 +266,7 @@ pub mod tests {
     #[test]
     fn array_len() {
         let mut env = Env::default();
-        let len_ty = Type::Const(Span::start(), TypeConst::U32);
+        let len_ty = Type::u(Span::start(), 32, Endianness::Target);
         env.add_binding("len", len_ty);
         let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 

@@ -74,7 +74,7 @@ mod tests {
                 Definition::new(
                     (B(13), B(28)),
                     "Offset32",
-                    Type::const_((B(0), B(0)), TypeConst::U32)
+                    Type::u((B(0), B(0)), 4, Endianness::Target)
                 ),
             ])
         );
@@ -112,12 +112,12 @@ mod tests {
                             Field::new(
                                 (B(46), B(55)),
                                 "x",
-                                Type::ident((B(50), B(55)), "u32be")
+                                Type::u((B(0), B(0)), 4, Endianness::Big)
                             ),
                             Field::new(
                                 (B(73), B(82)),
                                 "y",
-                                Type::ident((B(77), B(82)), "u32be")
+                                Type::u((B(0), B(0)), 4, Endianness::Big)
                             ),
                         ],
                     )
@@ -131,7 +131,7 @@ mod tests {
                             Field::new(
                                 (B(145), B(156)),
                                 "len",
-                                Type::ident((B(151), B(156)), "u16le")
+                                Type::u((B(0), B(0)), 2, Endianness::Little)
                             ),
                             Field::new(
                                 (B(174), B(193)),
@@ -157,12 +157,12 @@ mod tests {
                                     Field::new(
                                         (B(266), B(278)),
                                         "format",
-                                        Type::const_((B(0), B(0)), TypeConst::U16)
+                                        Type::u((B(0), B(0)), 2, Endianness::Target)
                                     ),
                                     Field::new(
                                         (B(280), B(289)),
                                         "data",
-                                        Type::const_((B(0), B(0)), TypeConst::U16)
+                                        Type::u((B(0), B(0)), 2, Endianness::Target)
                                     ),
                                 ]
                             ),
@@ -172,7 +172,7 @@ mod tests {
                                     Field::new(
                                         (B(318), B(330)),
                                         "format",
-                                        Type::const_((B(0), B(0)), TypeConst::U16)
+                                        Type::u((B(0), B(0)), 2, Endianness::Target)
                                     ),
                                     Field::new(
                                         (B(332), B(344)),
@@ -187,7 +187,7 @@ mod tests {
                                     Field::new(
                                         (B(373), B(385)),
                                         "format",
-                                        Type::const_((B(0), B(0)), TypeConst::U16)
+                                        Type::u((B(0), B(0)), 2, Endianness::Target)
                                     ),
                                     Field::new(
                                         (B(387), B(399)),

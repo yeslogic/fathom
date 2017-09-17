@@ -123,17 +123,20 @@ impl Expr {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Endianness {
+    Little,
+    Big,
+    Target,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TypeConst {
-    U8,
-    U16,
-    U32,
-    U64,
-    I8,
-    I16,
-    I32,
-    I64,
-    F32,
-    F64,
+    /// Unsigned integer
+    U(usize, Endianness),
+    /// Signed integer
+    I(usize, Endianness),
+    /// IEEE 754 floating point
+    F(usize, Endianness),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,12 +154,28 @@ pub enum Type {
 }
 
 impl Type {
-    /// A type constant
-    pub fn const_<Sp>(span: Sp, ty: TypeConst) -> Type
+    /// A unsigned integer type
+    pub fn u<Sp>(span: Sp, bytes: usize, endianness: Endianness) -> Type
     where
         Sp: Into<Span>,
     {
-        Type::Const(span.into(), ty)
+        Type::Const(span.into(), TypeConst::U(bytes, endianness))
+    }
+
+    /// A signed integer type
+    pub fn i<Sp>(span: Sp, bytes: usize, endianness: Endianness) -> Type
+    where
+        Sp: Into<Span>,
+    {
+        Type::Const(span.into(), TypeConst::I(bytes, endianness))
+    }
+
+    /// An IEEE 754 floating point type
+    pub fn f<Sp>(span: Sp, bytes: usize, endianness: Endianness) -> Type
+    where
+        Sp: Into<Span>,
+    {
+        Type::Const(span.into(), TypeConst::F(bytes, endianness))
     }
 
     /// A type identifier: `T1`, `u16be`, `u32`

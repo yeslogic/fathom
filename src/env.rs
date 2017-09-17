@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ast::{Type, TypeConst};
+use ast::{Endianness, Type, TypeConst};
 use source::Span;
 
 /// An environment of bindings and types
@@ -61,17 +61,39 @@ impl<'parent> Env<'parent> {
     }
 }
 
-const BUILT_INS: [(&str, TypeConst); 10] = [
-    ("u8", TypeConst::U8),
-    ("u16", TypeConst::U16),
-    ("u32", TypeConst::U32),
-    ("u64", TypeConst::U64),
-    ("i8", TypeConst::I8),
-    ("i16", TypeConst::I16),
-    ("i32", TypeConst::I32),
-    ("i64", TypeConst::I64),
-    ("f32", TypeConst::F32),
-    ("f64", TypeConst::F64),
+const BUILT_INS: [(&str, TypeConst); 30] = [
+    ("u8", TypeConst::U(1, Endianness::Target)),
+    ("u16", TypeConst::U(2, Endianness::Target)),
+    ("u32", TypeConst::U(4, Endianness::Target)),
+    ("u64", TypeConst::U(8, Endianness::Target)),
+    ("i8", TypeConst::I(1, Endianness::Target)),
+    ("i16", TypeConst::I(2, Endianness::Target)),
+    ("i32", TypeConst::I(4, Endianness::Target)),
+    ("i64", TypeConst::I(8, Endianness::Target)),
+    ("f32", TypeConst::F(4, Endianness::Target)),
+    ("f64", TypeConst::F(8, Endianness::Target)),
+
+    ("u8le", TypeConst::U(1, Endianness::Little)),
+    ("u16le", TypeConst::U(2, Endianness::Little)),
+    ("u32le", TypeConst::U(4, Endianness::Little)),
+    ("u64le", TypeConst::U(8, Endianness::Little)),
+    ("i8le", TypeConst::I(1, Endianness::Little)),
+    ("i16le", TypeConst::I(2, Endianness::Little)),
+    ("i32le", TypeConst::I(4, Endianness::Little)),
+    ("i64le", TypeConst::I(8, Endianness::Little)),
+    ("f32le", TypeConst::F(4, Endianness::Little)),
+    ("f64le", TypeConst::F(8, Endianness::Little)),
+
+    ("u8be", TypeConst::U(1, Endianness::Big)),
+    ("u16be", TypeConst::U(2, Endianness::Big)),
+    ("u32be", TypeConst::U(4, Endianness::Big)),
+    ("u64be", TypeConst::U(8, Endianness::Big)),
+    ("i8be", TypeConst::I(1, Endianness::Big)),
+    ("i16be", TypeConst::I(2, Endianness::Big)),
+    ("i32be", TypeConst::I(4, Endianness::Big)),
+    ("i64be", TypeConst::I(8, Endianness::Big)),
+    ("f32be", TypeConst::F(4, Endianness::Big)),
+    ("f64be", TypeConst::F(8, Endianness::Big)),
 ];
 
 impl Default for Env<'static> {
