@@ -1,5 +1,7 @@
 //! The syntax of our data description language
 
+use std::fmt;
+
 use source::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -130,7 +132,7 @@ pub enum Endianness {
     Target,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum TypeConst {
     /// Unsigned integer
     U(usize, Endianness),
@@ -138,6 +140,16 @@ pub enum TypeConst {
     I(usize, Endianness),
     /// IEEE 754 floating point
     F(usize, Endianness),
+}
+
+impl fmt::Debug for TypeConst {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            TypeConst::U(b, e) => write!(f, "U({:?}, {:?})", b, e),
+            TypeConst::I(b, e) => write!(f, "I({:?}, {:?})", b, e),
+            TypeConst::F(b, e) => write!(f, "F({:?}, {:?})", b, e),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

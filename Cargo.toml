@@ -20,4 +20,5 @@ unicode-xid = "0.1.0"
 lalrpop = "0.13.1"
 
 [dev-dependencies]
+difference = "1.0.0"
 pretty_assertions = "0.3.4"

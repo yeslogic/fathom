@@ -51,9 +51,7 @@ pub fn parse_ty<'input, 'env>(
 
 #[cfg(test)]
 mod tests {
-    use ast::*;
     use env::Env;
-    use source::BytePos as B;
     use super::*;
 
     #[test]
@@ -62,20 +60,14 @@ mod tests {
             Point
         ";
 
-        assert_eq!(
-            parse_ty(&Env::default(), src),
-            Ok(Type::var((B(13), B(18)), "Point"))
-        );
+        assert_snapshot!(parse_ty_var, parse_ty(&Env::default(), src));
     }
 
     #[test]
     fn parse_ty_empty_struct() {
         let src = "struct {}";
 
-        assert_eq!(
-            parse_ty(&Env::default(), src),
-            Ok(Type::struct_((B(0), B(9)), vec![]))
-        );
+        assert_snapshot!(parse_ty_empty_struct, parse_ty(&Env::default(), src));
     }
 
     #[test]
@@ -84,16 +76,7 @@ mod tests {
             Offset32 = u32;
         ";
 
-        assert_eq!(
-            parse(&Env::default(), src),
-            Ok(vec![
-                Definition::new(
-                    (B(13), B(28)),
-                    "Offset32",
-                    Type::u((B(0), B(0)), 4, Endianness::Target)
-                ),
-            ])
-        );
+        assert_snapshot!(parse_simple_definition, parse(&Env::default(), src));
     }
 
     #[test]
@@ -116,106 +99,6 @@ mod tests {
             };
         ";
 
-        assert_eq!(
-            parse(&Env::default(), src),
-            Ok(vec![
-                Definition::new(
-                    (B(13), B(98)),
-                    "Point",
-                    Type::struct_(
-                        (B(21), B(97)),
-                        vec![
-                            Field::new(
-                                (B(46), B(55)),
-                                "x",
-                                Type::u((B(0), B(0)), 4, Endianness::Big)
-                            ),
-                            Field::new(
-                                (B(73), B(82)),
-                                "y",
-                                Type::u((B(0), B(0)), 4, Endianness::Big)
-                            ),
-                        ],
-                    )
-                ),
-                Definition::new(
-                    (B(112), B(209)),
-                    "Array",
-                    Type::struct_(
-                        (B(120), B(208)),
-                        vec![
-                            Field::new(
-                                (B(145), B(156)),
-                                "len",
-                                Type::u((B(0), B(0)), 2, Endianness::Little)
-                            ),
-                            Field::new(
-                                (B(174), B(193)),
-                                "data",
-                                Type::array(
-                                    (B(181), B(193)),
-                                    Type::var((B(182), B(187)), "Point"),
-                                    Expr::var((B(189), B(192)), "len"),
-                                )
-                            ),
-                        ],
-                    )
-                ),
-                Definition::new(
-                    (B(223), B(417)),
-                    "Formats",
-                    Type::union(
-                        (B(233), B(416)),
-                        vec![
-                            Type::struct_(
-                                (B(257), B(291)),
-                                vec![
-                                    Field::new(
-                                        (B(266), B(278)),
-                                        "format",
-                                        Type::u((B(0), B(0)), 2, Endianness::Target)
-                                    ),
-                                    Field::new(
-                                        (B(280), B(289)),
-                                        "data",
-                                        Type::u((B(0), B(0)), 2, Endianness::Target)
-                                    ),
-                                ]
-                            ),
-                            Type::struct_(
-                                (B(309), B(346)),
-                                vec![
-                                    Field::new(
-                                        (B(318), B(330)),
-                                        "format",
-                                        Type::u((B(0), B(0)), 2, Endianness::Target)
-                                    ),
-                                    Field::new(
-                                        (B(332), B(344)),
-                                        "point",
-                                        Type::var((B(339), B(344)), "Point")
-                                    ),
-                                ]
-                            ),
-                            Type::struct_(
-                                (B(364), B(401)),
-                                vec![
-                                    Field::new(
-                                        (B(373), B(385)),
-                                        "format",
-                                        Type::u((B(0), B(0)), 2, Endianness::Target)
-                                    ),
-                                    Field::new(
-                                        (B(387), B(399)),
-                                        "array",
-                                        Type::var((B(394), B(399)), "Array")
-                                    ),
-                                ]
-                            ),
-                        ],
-                    )
-                ),
-            ])
-        );
+        assert_snapshot!(parse_definition, parse(&Env::default(), src));
     }
 }
