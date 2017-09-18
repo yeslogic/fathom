@@ -1,3 +1,111 @@
+//! Typechecking for our DDL
+//!
+//! # Syntax
+//!
+//! ## Kinds
+//!
+//! ```plain
+//! κ ::=
+//!         Type        kind of types
+//! ```
+//!
+//! ## Expressions
+//!
+//! ```plain
+//! e ::=
+//!         x           variables
+//!         n           integer number
+//! ```
+//!
+//! ## Boolean Expressions
+//!
+//! ```plain
+//! b ::=
+//!         true        true value
+//!         false       false value
+//!         ¬b          not
+//!         b₁ ∨ b₂     disjunction
+//!         b₁ ∧ b₂     conjunction
+//!         e₁ = e₂     equality
+//!         e₁ ≠ e₂     inequality
+//!         e₁ < e₂     less than
+//!         e₁ ≤ e₂     less than or equal
+//!         e₁ > e₂     greater than
+//!         e₁ ≥ e₂     greater than or equal
+//! ```
+//!
+//! ## Terms
+//!
+//! ```plain
+//! τ ::=
+//!         c                   type constants
+//!         α                   variables
+//!         τ₁ + τ₂             sum
+//!         Σ x:τ₁ .τ₂          dependent pair
+//!         [τ; e]              array
+//!         { x:τ | b }         constrained type
+//! ```
+//!
+//! In the `ast`, we represent the above as the following:
+//!
+//! - `Type::Var`: variables
+//!
+//! - `Type::Union`: series of unions
+//!
+//! - `Type::Struct`: nested dependent pairs
+//!
+//!   For example, the struct:
+//!
+//!   ```plain
+//!   struct { len : u16, reserved : u16, data : [u16; len] }
+//!   ```
+//!
+//!   Would be desugared into:
+//!
+//!   ```plain
+//!   Σ len:u16 . Σ reserved:u16 . [u16; len]
+//!   ```
+//!
+//!   Note how later fields have access to the data in previous fields.
+//!
+//! - `Type::Array`: TODO
+//!
+//! - `Type::Where`: constrained type
+//!
+//! # Judgments
+//!
+//! ## `Γ ⊢ τ : κ`
+//!
+//! ```plain
+//! ―――――――――――――――――――― (CONST)
+//!     Γ ⊢ c : Type
+//!
+//!
+//!         α ∈ Γ
+//! ―――――――――――――――――――― (VAR)
+//!     Γ ⊢ α : Type
+//!
+//!
+//!     Γ ⊢ τ₁ : Type        Γ ⊢ τ₂ : Type
+//! ―――――――――――――――――――――――――――――――――――――――――― (SUM)
+//!              Γ ⊢ τ₁ + τ₂ : Type
+//!
+//!
+//!     Γ ⊢ τ₁ : Type        Γ, x:τ₁ ⊢ τ₂ : Type
+//! ―――――――――――――――――――――――――――――――――――――――――――――――――― (DEPENDENT-PAIR)
+//!              Γ ⊢ Σ x:τ₁ .τ₂ : Type
+//!
+//!
+//!     Γ ⊢ τ : Type        Γ ⊢ e : Int
+//! ―――――――――――――――――――――――――――――――――――――――――― (ARRAY)
+//!              [τ; e] : Type
+//!
+//!
+//!     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
+//! ―――――――――――――――――――――――――――――――――――――――――― (CON)
+//!               { x:τ | b }
+//! ```
+
 use ast::{BoolExpr, Definition, Endianness, Expr, Kind, Type};
 use env::Env;
 use source::Span;
@@ -7,6 +115,7 @@ pub enum TypeError {
     UnboundType(Span, String),
     ExpectedUnsignedIntInArraySizeExpr(Span, Type),
     FailedToEvaluateArraySize(Span, ExprError),
+    FailedToEvaluatePredicate(Span, ExprError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,106 +135,7 @@ impl<'parent> Env<'parent> {
         Ok(())
     }
 
-    /// Check that the given definitions specify a valid data format
-    ///
-    /// This implements the `Γ ⊢ τ : κ` judgement rule, as described below
-    ///
-    /// # Syntax
-    ///
-    /// ## Kinds
-    ///
-    /// ```plain
-    /// κ ::=
-    ///         Type        kind of types
-    /// ```
-    ///
-    /// ## Expressions
-    ///
-    /// ```plain
-    /// e ::=
-    ///         x           variables
-    ///         n           integer number
-    /// ```
-    ///
-    /// ## Boolean Expressions
-    ///
-    /// ```plain
-    /// b ::=
-    ///         true        true value
-    ///         false       false value
-    /// ```
-    ///
-    /// ## Terms
-    ///
-    /// ```plain
-    /// τ ::=
-    ///         c                   type constants
-    ///         α                   variables
-    ///         τ₁ + τ₂             sum
-    ///         Σ x:τ₁ .τ₂          dependent pair
-    ///         [τ; e]              array
-    ///         { x:τ | b }         constrained type
-    /// ```
-    ///
-    /// In the `ast`, we represent the above as the following:
-    ///
-    /// - `Type::Var`: variables
-    ///
-    /// - `Type::Union`: series of unions
-    ///
-    /// - `Type::Struct`: nested dependent pairs
-    ///
-    ///   For example, the struct:
-    ///
-    ///   ```plain
-    ///   struct { len : u16, reserved : u16, data : [u16; len] }
-    ///   ```
-    ///
-    ///   Would be desugared into:
-    ///
-    ///   ```plain
-    ///   Σ len:u16 . Σ reserved:u16 . [u16; len]
-    ///   ```
-    ///
-    ///   Note how later fields have access to the data in previous fields.
-    ///
-    /// - `Type::Array`: TODO
-    ///
-    /// - `Type::Where`: constrained type
-    ///
-    /// # Judgments
-    ///
-    /// ## `Γ ⊢ τ : κ`
-    ///
-    /// ```plain
-    /// ―――――――――――――――――――― (CONST)
-    ///     Γ ⊢ c : Type
-    ///
-    ///
-    ///         α ∈ Γ
-    /// ―――――――――――――――――――― (VAR)
-    ///     Γ ⊢ α : Type
-    ///
-    ///
-    ///     Γ ⊢ τ₁ : Type        Γ ⊢ τ₂ : Type
-    /// ―――――――――――――――――――――――――――――――――――――――――― (SUM)
-    ///              Γ ⊢ τ₁ + τ₂ : Type
-    ///
-    ///
-    ///     Γ ⊢ τ₁ : Type        Γ, x:τ₁ ⊢ τ₂ : Type
-    /// ―――――――――――――――――――――――――――――――――――――――――――――――――― (DEPENDENT-PAIR)
-    ///              Γ ⊢ Σ x:τ₁ .τ₂ : Type
-    ///
-    ///
-    ///     Γ ⊢ τ : Type        Γ ⊢ e : Int
-    /// ―――――――――――――――――――――――――――――――――――――――――― (ARRAY)
-    ///              [τ; e] : Type
-    ///
-    ///
-    ///     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
-    /// ―――――――――――――――――――――――――――――――――――――――――― (CON)
-    ///               { x:τ | b }
-    /// ```
+    /// `Γ ⊢ τ : κ`
     pub fn check_ty(&self, ty: &Type) -> Result<Kind, TypeError> {
         match *ty {
             // CONST
@@ -177,13 +187,15 @@ impl<'parent> Env<'parent> {
             }
 
             // CON
-            Type::Where(_, ref ty, ref param, ref pred) => {
+            Type::Where(span, ref ty, ref param, ref pred) => {
                 self.check_ty(ty)?;
 
                 let mut inner_env = self.extend();
                 // TODO: prevent name shadowing?
                 inner_env.add_binding(param.clone(), (**ty).clone());
-                inner_env.check_bool_expr(pred);
+                inner_env.check_bool_expr(pred).map_err(|err| {
+                    TypeError::FailedToEvaluatePredicate(span, err)
+                })?;
                 Ok(Kind::Type)
             }
         }
@@ -207,10 +219,26 @@ impl<'parent> Env<'parent> {
         }
     }
 
-    /// # `Γ ⊢ b : τ`
-    pub fn check_bool_expr(&self, expr: &BoolExpr) {
+    /// `Γ ⊢ b : τ`
+    pub fn check_bool_expr(&self, expr: &BoolExpr) -> Result<(), ExprError> {
         match *expr {
-            BoolExpr::Const(_, _) => {}
+            BoolExpr::Const(_, _) => Ok(()),
+            BoolExpr::Not(_, ref value) => self.check_bool_expr(value),
+            BoolExpr::Or(_, ref lhs, ref rhs) |
+            BoolExpr::And(_, ref lhs, ref rhs) => {
+                self.check_bool_expr(lhs)?;
+                self.check_bool_expr(rhs)
+            }
+            BoolExpr::Eq(_, ref lhs, ref rhs) |
+            BoolExpr::Ne(_, ref lhs, ref rhs) |
+            BoolExpr::Le(_, ref lhs, ref rhs) |
+            BoolExpr::Lt(_, ref lhs, ref rhs) |
+            BoolExpr::Gt(_, ref lhs, ref rhs) |
+            BoolExpr::Ge(_, ref lhs, ref rhs) => {
+                self.check_expr(lhs)?;
+                self.check_expr(rhs)?;
+                Ok(())
+            }
         }
     }
 }

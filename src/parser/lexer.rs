@@ -5,7 +5,7 @@ use unicode_xid::UnicodeXID;
 
 fn is_symbol(ch: char) -> bool {
     match ch {
-        ':' | ',' | '=' | '/' | '>' | '-' | '|' | '+' | ';' | '*' => true,
+        '&' | '!' | ':' | ',' | '=' | '/' | '>' | '<' | '-' | '|' | '+' | ';' | '*' => true,
         _ => false,
     }
 }
@@ -68,11 +68,19 @@ pub enum Token<'input> {
     Where,
 
     // Symbols
+    Ampersand, // &
+    Bang, // !
+    BangEqual, // !=
     Colon, // :
     Comma, // ,
     Equal, // =
+    EqualEqual, // ==
     EqualGreater, // =>
     ForwardSlash, // /
+    Greater, // >
+    GreaterEqual, // >=
+    Less, // <
+    LessEqual, // <=
     Minus, // -
     Pipe, // |
     Plus, // +
@@ -221,11 +229,19 @@ impl<'input> Iterator for Lexer<'input> {
                     let (end, symbol) = self.take_while(start, is_symbol);
 
                     match symbol {
+                        "&" => Ok((start, Token::Ampersand, end)),
+                        "!" => Ok((start, Token::Bang, end)),
+                        "!=" => Ok((start, Token::BangEqual, end)),
                         ":" => Ok((start, Token::Colon, end)),
                         "," => Ok((start, Token::Comma, end)),
                         "=" => Ok((start, Token::Equal, end)),
+                        "==" => Ok((start, Token::EqualEqual, end)),
                         "=>" => Ok((start, Token::EqualGreater, end)),
                         "/" => Ok((start, Token::ForwardSlash, end)),
+                        ">" => Ok((start, Token::Greater, end)),
+                        ">=" => Ok((start, Token::GreaterEqual, end)),
+                        "<" => Ok((start, Token::Less, end)),
+                        "<=" => Ok((start, Token::LessEqual, end)),
                         "-" => Ok((start, Token::Minus, end)),
                         "|" => Ok((start, Token::Pipe, end)),
                         "+" => Ok((start, Token::Plus, end)),
@@ -302,17 +318,25 @@ mod tests {
     #[test]
     fn symbols() {
         test! {
-            " : , = => / - | + ; * ",
-            " ~                    " => Token::Colon,
-            "   ~                  " => Token::Comma,
-            "     ~                " => Token::Equal,
-            "       ~~             " => Token::EqualGreater,
-            "          ~           " => Token::ForwardSlash,
-            "            ~         " => Token::Minus,
-            "              ~       " => Token::Pipe,
-            "                ~     " => Token::Plus,
-            "                  ~   " => Token::Semi,
-            "                    ~ " => Token::Star,
+            " & ! != : , = == => / > >= < <= - | + ; * ",
+            " ~                                        " => Token::Ampersand,
+            "   ~                                      " => Token::Bang,
+            "     ~~                                   " => Token::BangEqual,
+            "        ~                                 " => Token::Colon,
+            "          ~                               " => Token::Comma,
+            "            ~                             " => Token::Equal,
+            "              ~~                          " => Token::EqualEqual,
+            "                 ~~                       " => Token::EqualGreater,
+            "                    ~                     " => Token::ForwardSlash,
+            "                      ~                   " => Token::Greater,
+            "                        ~~                " => Token::GreaterEqual,
+            "                           ~              " => Token::Less,
+            "                             ~~           " => Token::LessEqual,
+            "                                ~         " => Token::Minus,
+            "                                  ~       " => Token::Pipe,
+            "                                    ~     " => Token::Plus,
+            "                                      ~   " => Token::Semi,
+            "                                        ~ " => Token::Star,
         }
     }
 

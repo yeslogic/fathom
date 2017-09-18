@@ -42,6 +42,24 @@ impl Definition {
 pub enum BoolExpr {
     /// A boolean constant: eg. `true`, `false`
     Const(Span, bool),
+    /// Not: eg. `!x`
+    Not(Span, Box<BoolExpr>),
+    /// Boolean disjunction: eg. `x | y`
+    Or(Span, Box<BoolExpr>, Box<BoolExpr>),
+    /// Boolean conjunction: eg. `x & y`
+    And(Span, Box<BoolExpr>, Box<BoolExpr>),
+    /// Integer equality: eg. `x == y`
+    Eq(Span, Box<Expr>, Box<Expr>),
+    /// Integer inequality: eg. `x != y`
+    Ne(Span, Box<Expr>, Box<Expr>),
+    /// Integer less-than-or-equal-to: eg. `x <= y`
+    Le(Span, Box<Expr>, Box<Expr>),
+    /// Integer less-than: eg. `x < y`
+    Lt(Span, Box<Expr>, Box<Expr>),
+    /// Integer greater-than: eg. `x > y`
+    Gt(Span, Box<Expr>, Box<Expr>),
+    /// Integer greater-than-or-equal: eg. `x >= y`
+    Ge(Span, Box<Expr>, Box<Expr>),
 }
 
 impl BoolExpr {
@@ -51,6 +69,95 @@ impl BoolExpr {
         Sp: Into<Span>,
     {
         BoolExpr::Const(span.into(), value)
+    }
+
+    /// Not: eg. `!x`
+    pub fn not<Sp, T>(span: Sp, value: T) -> BoolExpr
+    where
+        Sp: Into<Span>,
+        T: Into<Box<BoolExpr>>,
+    {
+        BoolExpr::Not(span.into(), value.into())
+    }
+
+    /// Boolean disjunction: eg. `x | y`
+    pub fn or<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
+    where
+        Sp: Into<Span>,
+        T: Into<Box<BoolExpr>>,
+        U: Into<Box<BoolExpr>>,
+    {
+        BoolExpr::Or(span.into(), lhs.into(), rhs.into())
+    }
+
+    /// Boolean conjunction: eg. `x & y`
+    pub fn and<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
+    where
+        Sp: Into<Span>,
+        T: Into<Box<BoolExpr>>,
+        U: Into<Box<BoolExpr>>,
+    {
+        BoolExpr::And(span.into(), lhs.into(), rhs.into())
+    }
+
+    /// Integer equality: eg. `x == y`
+    pub fn eq<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
+    where
+        Sp: Into<Span>,
+        T: Into<Box<Expr>>,
+        U: Into<Box<Expr>>,
+    {
+        BoolExpr::Eq(span.into(), lhs.into(), rhs.into())
+    }
+
+    /// Integer inequality: eg. `x != y`
+    pub fn ne<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
+    where
+        Sp: Into<Span>,
+        T: Into<Box<Expr>>,
+        U: Into<Box<Expr>>,
+    {
+        BoolExpr::Ne(span.into(), lhs.into(), rhs.into())
+    }
+
+    /// Integer less-than-or-equal-to: eg. `x <= y`
+    pub fn le<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
+    where
+        Sp: Into<Span>,
+        T: Into<Box<Expr>>,
+        U: Into<Box<Expr>>,
+    {
+        BoolExpr::Le(span.into(), lhs.into(), rhs.into())
+    }
+
+    /// Integer less-than: eg. `x < y`
+    pub fn lt<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
+    where
+        Sp: Into<Span>,
+        T: Into<Box<Expr>>,
+        U: Into<Box<Expr>>,
+    {
+        BoolExpr::Lt(span.into(), lhs.into(), rhs.into())
+    }
+
+    /// Integer greater-than: eg. `x > y`
+    pub fn gt<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
+    where
+        Sp: Into<Span>,
+        T: Into<Box<Expr>>,
+        U: Into<Box<Expr>>,
+    {
+        BoolExpr::Gt(span.into(), lhs.into(), rhs.into())
+    }
+
+    /// Integer greater-than-or-equal: eg. `x >= y`
+    pub fn ge<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
+    where
+        Sp: Into<Span>,
+        T: Into<Box<Expr>>,
+        U: Into<Box<Expr>>,
+    {
+        BoolExpr::Ge(span.into(), lhs.into(), rhs.into())
     }
 }
 

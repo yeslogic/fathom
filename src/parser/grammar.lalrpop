@@ -24,11 +24,19 @@ extern {
         "where" => Token::Where,
 
         // Symbols
+        "&" => Token::Ampersand,
+        "!" => Token::Bang,
+        "!=" => Token::BangEqual,
         ":" => Token::Colon,
         "," => Token::Comma,
         "=" => Token::Equal,
+        "==" => Token::EqualEqual,
         "=>" => Token::EqualGreater,
         "/" => Token::ForwardSlash,
+        ">" => Token::Greater,
+        ">=" => Token::GreaterEqual,
+        "<" => Token::Less,
+        "<=" => Token::LessEqual,
         "-" => Token::Minus,
         "|" => Token::Pipe,
         "+" => Token::Plus,
@@ -85,7 +93,11 @@ pub Type: Type = {
     },
 };
 
-BoolExpr: BoolExpr = {
+AtomicBoolExpr: BoolExpr = {
+    "(" <expr: BoolExpr> ")" => expr,
+    <lo: @L> "!" <value: AtomicBoolExpr> <hi: @R> => {
+        BoolExpr::not((lo, hi), value)
+    },
     <lo: @L> <name: "Ident"> <hi: @R> =>? {
         match name {
             "true" => Ok(BoolExpr::const_((lo, hi), true)),
@@ -100,7 +112,60 @@ BoolExpr: BoolExpr = {
     },
 };
 
-pub Expr = AddExpr;
+pub BoolExpr: BoolExpr = {
+    AtomicBoolExpr,
+    <lo: @L> <lhs: AtomicBoolExpr> "|" <rhs: AtomicBoolExpr> <hi: @R> => {
+        BoolExpr::or((lo, hi), lhs, rhs)
+    },
+    <lo: @L> <lhs: AtomicBoolExpr> "&" <rhs: AtomicBoolExpr> <hi: @R> => {
+        BoolExpr::and((lo, hi), lhs, rhs)
+    },
+
+    // FIXME:
+    //
+    //   LALRPOP does not yet support ambiguous grammars.
+    //
+    //   The following symbols can be reduced in two ways:
+    //     "(" "Ident" ")"
+    //
+    //   They could be reduced like so:
+    //     "(" "Ident"          ╷ ")"
+    //     │   ├─AtomicBoolExpr─┤   │
+    //     │   └─BoolExpr───────┘   │
+    //     └─AtomicBoolExpr─────────┘
+    //
+    //   Alternatively, they could be reduced like so:
+    //     "(" "Ident"      ╷ ")"
+    //     │   ├─AtomicExpr─┤   │
+    //     │   ├─MulExpr────┤   │
+    //     │   ├─AddExpr────┤   │
+    //     │   └─Expr───────┘   │
+    //     └─AtomicExpr─────────┘
+    //
+
+    // <lo: @L> <lhs: Expr> "==" <rhs: Expr> <hi: @R> => {
+    //     BoolExpr::eq((lo, hi), lhs, rhs)
+    // },
+    // <lo: @L> <lhs: Expr> "!=" <rhs: Expr> <hi: @R> => {
+    //     BoolExpr::ne((lo, hi), lhs, rhs)
+    // },
+    // <lo: @L> <lhs: Expr> "<=" <rhs: Expr> <hi: @R> => {
+    //     BoolExpr::le((lo, hi), lhs, rhs)
+    // },
+    // <lo: @L> <lhs: Expr> "<" <rhs: Expr> <hi: @R> => {
+    //     BoolExpr::lt((lo, hi), lhs, rhs)
+    // },
+    // <lo: @L> <lhs: Expr> ">" <rhs: Expr> <hi: @R> => {
+    //     BoolExpr::gt((lo, hi), lhs, rhs)
+    // },
+    // <lo: @L> <lhs: Expr> ">=" <rhs: Expr> <hi: @R> => {
+    //     BoolExpr::ge((lo, hi), lhs, rhs)
+    // },
+};
+
+pub Expr = {
+    AddExpr,
+};
 
 AddExpr : Expr = {
     MulExpr,

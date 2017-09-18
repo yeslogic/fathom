@@ -1,6 +1,6 @@
 use lalrpop_util;
 
-use ast::{Definition, Expr, Type};
+use ast::{BoolExpr, Definition, Expr, Type};
 use env::Env;
 use source::BytePos;
 
@@ -42,6 +42,13 @@ pub fn parse_expr<'input, 'env>(
     grammar::parse_Expr(env, Lexer::new(src))
 }
 
+pub fn parse_bool_expr<'input, 'env>(
+    env: &'env Env,
+    src: &'input str,
+) -> Result<BoolExpr, ParseError<'input>> {
+    grammar::parse_BoolExpr(env, Lexer::new(src))
+}
+
 pub fn parse_ty<'input, 'env>(
     env: &'env Env,
     src: &'input str,
@@ -53,6 +60,27 @@ pub fn parse_ty<'input, 'env>(
 mod tests {
     use env::Env;
     use super::*;
+
+    #[test]
+    fn parse_bool_expr_atomic() {
+        let src = "
+            !((true | (false)))
+        ";
+
+        assert_snapshot!(parse_bool_expr, parse_bool_expr(&Env::default(), src));
+    }
+
+    #[test]
+    fn parse_bool_expr_operators() {
+        let src = "
+            (true & false) | (true | false)
+        ";
+
+        assert_snapshot!(
+            parse_bool_expr_operators,
+            parse_bool_expr(&Env::default(), src)
+        );
+    }
 
     #[test]
     fn parse_ty_var() {

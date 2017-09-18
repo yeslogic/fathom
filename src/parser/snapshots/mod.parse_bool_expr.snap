@@ -1,0 +1,28 @@
+Ok(
+    Not(
+        Span {
+            lo: BytePos(13),
+            hi: BytePos(32)
+        },
+        Or(
+            Span {
+                lo: BytePos(16),
+                hi: BytePos(30)
+            },
+            Const(
+                Span {
+                    lo: BytePos(16),
+                    hi: BytePos(20)
+                },
+                true
+            ),
+            Const(
+                Span {
+                    lo: BytePos(24),
+                    hi: BytePos(29)
+                },
+                false
+            )
+        )
+    )
+)
