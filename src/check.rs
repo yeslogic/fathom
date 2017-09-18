@@ -71,40 +71,6 @@
 //! - `Type::Array`: TODO
 //!
 //! - `Type::Where`: constrained type
-//!
-//! # Judgments
-//!
-//! ## `Γ ⊢ τ : κ`
-//!
-//! ```plain
-//! ―――――――――――――――――――― (CONST)
-//!     Γ ⊢ c : Type
-//!
-//!
-//!         α ∈ Γ
-//! ―――――――――――――――――――― (VAR)
-//!     Γ ⊢ α : Type
-//!
-//!
-//!     Γ ⊢ τ₁ : Type        Γ ⊢ τ₂ : Type
-//! ―――――――――――――――――――――――――――――――――――――――――― (SUM)
-//!              Γ ⊢ τ₁ + τ₂ : Type
-//!
-//!
-//!     Γ ⊢ τ₁ : Type        Γ, x:τ₁ ⊢ τ₂ : Type
-//! ―――――――――――――――――――――――――――――――――――――――――――――――――― (DEPENDENT-PAIR)
-//!              Γ ⊢ Σ x:τ₁ .τ₂ : Type
-//!
-//!
-//!     Γ ⊢ τ : Type        Γ ⊢ e : Int
-//! ―――――――――――――――――――――――――――――――――――――――――― (ARRAY)
-//!              [τ; e] : Type
-//!
-//!
-//!     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
-//! ―――――――――――――――――――――――――――――――――――――――――― (CON)
-//!               { x:τ | b }
-//! ```
 
 use ast::{BoolExpr, Definition, Endianness, Expr, Kind, Type};
 use env::Env;
@@ -136,6 +102,36 @@ impl<'parent> Env<'parent> {
     }
 
     /// `Γ ⊢ τ : κ`
+    ///
+    /// ```plain
+    /// ―――――――――――――――――――― (CONST)
+    ///     Γ ⊢ c : Type
+    ///
+    ///
+    ///         α ∈ Γ
+    /// ―――――――――――――――――――― (VAR)
+    ///     Γ ⊢ α : Type
+    ///
+    ///
+    ///     Γ ⊢ τ₁ : Type        Γ ⊢ τ₂ : Type
+    /// ―――――――――――――――――――――――――――――――――――――――――― (SUM)
+    ///              Γ ⊢ τ₁ + τ₂ : Type
+    ///
+    ///
+    ///     Γ ⊢ τ₁ : Type        Γ, x:τ₁ ⊢ τ₂ : Type
+    /// ―――――――――――――――――――――――――――――――――――――――――――――――――― (DEPENDENT-PAIR)
+    ///              Γ ⊢ Σ x:τ₁ .τ₂ : Type
+    ///
+    ///
+    ///     Γ ⊢ τ : Type        Γ ⊢ e : Int
+    /// ―――――――――――――――――――――――――――――――――――――――――― (ARRAY)
+    ///              [τ; e] : Type
+    ///
+    ///
+    ///     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
+    /// ―――――――――――――――――――――――――――――――――――――――――― (CON)
+    ///               { x:τ | b }
+    /// ```
     pub fn check_ty(&self, ty: &Type) -> Result<Kind, TypeError> {
         match *ty {
             // CONST
@@ -201,7 +197,7 @@ impl<'parent> Env<'parent> {
         }
     }
 
-    /// # `Γ ⊢ e : τ`
+    /// `Γ ⊢ e : τ`
     pub fn check_expr(&self, expr: &Expr) -> Result<Type, ExprError> {
         match *expr {
             Expr::Const(_, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
