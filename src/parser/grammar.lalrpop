@@ -114,10 +114,10 @@ AtomicBoolExpr: BoolExpr = {
 
 pub BoolExpr: BoolExpr = {
     AtomicBoolExpr,
-    <lo: @L> <lhs: AtomicBoolExpr> "|" <rhs: AtomicBoolExpr> <hi: @R> => {
+    <lo: @L> <lhs: AtomicBoolExpr> "|" <rhs: BoolExpr> <hi: @R> => {
         BoolExpr::or((lo, hi), lhs, rhs)
     },
-    <lo: @L> <lhs: AtomicBoolExpr> "&" <rhs: AtomicBoolExpr> <hi: @R> => {
+    <lo: @L> <lhs: AtomicBoolExpr> "&" <rhs: BoolExpr> <hi: @R> => {
         BoolExpr::and((lo, hi), lhs, rhs)
     },
 
@@ -169,20 +169,20 @@ pub Expr = {
 
 AddExpr : Expr = {
     MulExpr,
-    <lo: @L> <lhs: MulExpr> "+" <rhs: MulExpr> <hi: @R> => {
+    <lo: @L> <lhs: MulExpr> "+" <rhs: AddExpr> <hi: @R> => {
         Expr::add((lo, hi), lhs, rhs)
     },
-    <lo: @L> <lhs: MulExpr> "-" <rhs: MulExpr> <hi: @R> => {
+    <lo: @L> <lhs: MulExpr> "-" <rhs: AddExpr> <hi: @R> => {
         Expr::sub((lo, hi), lhs, rhs)
     },
 };
 
 MulExpr : Expr = {
     AtomicExpr,
-    <lo: @L> <lhs: AtomicExpr> "*" <rhs: AtomicExpr> <hi: @R> => {
+    <lo: @L> <lhs: AtomicExpr> "*" <rhs: MulExpr> <hi: @R> => {
         Expr::mul((lo, hi), lhs, rhs)
     },
-    <lo: @L> <lhs: AtomicExpr> "/" <rhs: AtomicExpr> <hi: @R> => {
+    <lo: @L> <lhs: AtomicExpr> "/" <rhs: MulExpr> <hi: @R> => {
         Expr::div((lo, hi), lhs, rhs)
     },
 };

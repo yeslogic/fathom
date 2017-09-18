@@ -83,6 +83,58 @@ mod tests {
     }
 
     #[test]
+    fn parse_add_expr() {
+        let src = "x + y + z";
+
+        assert_snapshot!(parse_add_expr, parse_expr(&Env::default(), src));
+    }
+
+    #[test]
+    fn parse_sub_expr() {
+        let src = "x - y - z";
+
+        assert_snapshot!(parse_sub_expr, parse_expr(&Env::default(), src));
+    }
+
+    #[test]
+    fn parse_add_expr_mixed() {
+        let src = "x + y + z - z + x";
+
+        assert_snapshot!(parse_add_expr_mixed, parse_expr(&Env::default(), src));
+    }
+
+    #[test]
+    fn parse_mul_expr() {
+        let src = "x * y * z";
+
+        assert_snapshot!(parse_mul_expr, parse_expr(&Env::default(), src));
+    }
+
+    #[test]
+    fn parse_div_expr() {
+        let src = "x / y / z";
+
+        assert_snapshot!(parse_div_expr, parse_expr(&Env::default(), src));
+    }
+
+    #[test]
+    fn parse_mul_expr_mixed() {
+        let src = "x * y * z / z * x";
+
+        assert_snapshot!(parse_mul_expr_mixed, parse_expr(&Env::default(), src));
+    }
+
+    #[test]
+    fn parse_mixed_arithmetic_expr() {
+        let src = "x + y * z / z - x * a";
+
+        assert_snapshot!(
+            parse_mixed_arithmetic_expr,
+            parse_expr(&Env::default(), src)
+        );
+    }
+
+    #[test]
     fn parse_ty_var() {
         let src = "
             Point

@@ -1,0 +1,61 @@
+Ok(
+    Add(
+        Span {
+            lo: BytePos(0),
+            hi: BytePos(17)
+        },
+        Var(
+            Span {
+                lo: BytePos(0),
+                hi: BytePos(1)
+            },
+            "x"
+        ),
+        Add(
+            Span {
+                lo: BytePos(4),
+                hi: BytePos(17)
+            },
+            Var(
+                Span {
+                    lo: BytePos(4),
+                    hi: BytePos(5)
+                },
+                "y"
+            ),
+            Sub(
+                Span {
+                    lo: BytePos(8),
+                    hi: BytePos(17)
+                },
+                Var(
+                    Span {
+                        lo: BytePos(8),
+                        hi: BytePos(9)
+                    },
+                    "z"
+                ),
+                Add(
+                    Span {
+                        lo: BytePos(12),
+                        hi: BytePos(17)
+                    },
+                    Var(
+                        Span {
+                            lo: BytePos(12),
+                            hi: BytePos(13)
+                        },
+                        "z"
+                    ),
+                    Var(
+                        Span {
+                            lo: BytePos(16),
+                            hi: BytePos(17)
+                        },
+                        "x"
+                    )
+                )
+            )
+        )
+    )
+)
