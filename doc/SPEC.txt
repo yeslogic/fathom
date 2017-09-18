@@ -9,6 +9,7 @@ Integer expressions:
  - indexing: values[6], offset[i+1]
  - properties: struct.field, array.length
  - functions: sizeof(type)
+ - conditionals: if x > 3 { x } else { 0 }
 
 FIXME bitwise arithmetic?
 FIXME what about strings?
@@ -191,6 +192,20 @@ Where clauses can include multiple constraints with conjunctions using the comma
 FIXME implies extra syntax sugar for unnamed struct field access
 
 > sizeof(name: type @where expr) = sizeof(type)
+
+
+INTERPRETED TYPES
+=================
+
+Interpreted types have a value determined by an expression in terms of their original value:
+
+  name: type1 @as type2 = expr
+
+For example, this can be used to interpret 24-bit integers as 32-bit:
+
+  x: uint8[3] @as uint32 = x[0] << 24 | x[1] << 16 | x[2]
+
+> sizeof(name: type1 @as type2) = sizeof(type1)
 
 
 CONDITIONAL TYPES
