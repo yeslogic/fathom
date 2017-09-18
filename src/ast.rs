@@ -66,7 +66,7 @@ pub enum Cmp {
     Lt,
     /// Greater than: eg. `x > y`
     Gt,
-    /// Reater than or equal: eg. `x >= y`
+    /// Greater than or equal: eg. `x >= y`
     Ge,
 }
 
@@ -75,6 +75,7 @@ pub enum Cmp {
 pub enum BoolExpr {
     /// A boolean constant: eg. `true`, `false`
     Const(Span, bool),
+    /// An unary operator expression
     Unop(Span, BoolUnop, Box<BoolExpr>),
     /// A binary operator expression
     Binop(Span, BoolBinop, Box<BoolExpr>, Box<BoolExpr>),
@@ -91,7 +92,7 @@ impl BoolExpr {
         BoolExpr::Const(span.into(), value)
     }
 
-    /// A boolean binary operator
+    /// An unary operator expression
     pub fn unop<Sp, T>(span: Sp, op: BoolUnop, value: T) -> BoolExpr
     where
         Sp: Into<Span>,
