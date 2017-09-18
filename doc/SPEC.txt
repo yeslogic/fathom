@@ -190,6 +190,8 @@ Where clauses can include multiple constraints with conjunctions using the comma
 
 FIXME implies extra syntax sugar for unnamed struct field access
 
+> sizeof(name: type @where expr) = sizeof(type)
+
 
 CONDITIONAL TYPES
 =================
