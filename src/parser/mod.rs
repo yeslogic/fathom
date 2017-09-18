@@ -135,6 +135,16 @@ mod tests {
     }
 
     #[test]
+    fn parse_mixed_arithmetic_expr_parenthesized() {
+        let src = "(x + y) * z / (z - x) * a";
+
+        assert_snapshot!(
+            parse_mixed_arithmetic_expr_parenthesized,
+            parse_expr(&Env::default(), src)
+        );
+    }
+
+    #[test]
     fn parse_ty_var() {
         let src = "
             Point
