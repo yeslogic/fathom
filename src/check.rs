@@ -1,4 +1,4 @@
-use ast::{Definition, Endianness, Expr, Kind, Type};
+use ast::{BoolExpr, Definition, Endianness, Expr, Kind, Type};
 use env::Env;
 use source::Span;
 
@@ -39,6 +39,22 @@ impl<'parent> Env<'parent> {
     ///         Type        kind of types
     /// ```
     ///
+    /// ## Expressions
+    ///
+    /// ```plain
+    /// e ::=
+    ///         x           variables
+    ///         n           integer number
+    /// ```
+    ///
+    /// ## Boolean Expressions
+    ///
+    /// ```plain
+    /// b ::=
+    ///         true        true value
+    ///         false       false value
+    /// ```
+    ///
     /// ## Terms
     ///
     /// ```plain
@@ -48,6 +64,7 @@ impl<'parent> Env<'parent> {
     ///         τ₁ + τ₂             sum
     ///         Σ x:τ₁ .τ₂          dependent pair
     ///         [τ; e]              array
+    ///         { x:τ | b }         constrained type
     /// ```
     ///
     /// In the `ast`, we represent the above as the following:
@@ -74,13 +91,7 @@ impl<'parent> Env<'parent> {
     ///
     /// - `Type::Array`: TODO
     ///
-    /// ## Expressions
-    ///
-    /// ```plain
-    /// e ::=
-    ///         x           variables
-    ///         n           integer number
-    /// ```
+    /// - `Type::Where`: constrained type
     ///
     /// # Judgments
     ///
@@ -109,6 +120,11 @@ impl<'parent> Env<'parent> {
     ///     Γ ⊢ τ : Type        Γ ⊢ e : Int
     /// ―――――――――――――――――――――――――――――――――――――――――― (ARRAY)
     ///              [τ; e] : Type
+    ///
+    ///
+    ///     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
+    /// ―――――――――――――――――――――――――――――――――――――――――― (CON)
+    ///               { x:τ | b }
     /// ```
     pub fn check_ty(&self, ty: &Type) -> Result<Kind, TypeError> {
         match *ty {
@@ -159,6 +175,17 @@ impl<'parent> Env<'parent> {
                     ty => Err(TypeError::ExpectedUnsignedIntInArraySizeExpr(span, ty)),
                 }
             }
+
+            // CON
+            Type::Where(_, ref ty, ref param, ref pred) => {
+                self.check_ty(ty)?;
+
+                let mut inner_env = self.extend();
+                // TODO: prevent name shadowing?
+                inner_env.add_binding(param.clone(), (**ty).clone());
+                inner_env.check_bool_expr(pred);
+                Ok(Kind::Type)
+            }
         }
     }
 
@@ -177,6 +204,13 @@ impl<'parent> Env<'parent> {
             Expr::Sub(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
             Expr::Mul(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
             Expr::Div(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
+        }
+    }
+
+    /// # `Γ ⊢ b : τ`
+    pub fn check_bool_expr(&self, expr: &BoolExpr) {
+        match *expr {
+            BoolExpr::Const(_, _) => {}
         }
     }
 }

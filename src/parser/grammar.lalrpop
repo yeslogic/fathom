@@ -1,6 +1,8 @@
-use ast::{Definition, Field, Expr, Type};
+use lalrpop_util::ParseError;
+
+use ast::{BoolExpr, Definition, Field, Expr, Type};
 use env::Env;
-use parser::lexer::{Token, Error as LexerError};
+use parser::lexer::{Token, Error as LexerError, ErrorCode as LexerErrorCode};
 use source::BytePos;
 
 grammar<'input, 'env>(env: &'env Env);
@@ -19,11 +21,13 @@ extern {
         // Keywords
         "struct" => Token::Struct,
         "union" => Token::Union,
+        "where" => Token::Where,
 
         // Symbols
         ":" => Token::Colon,
         "," => Token::Comma,
         "=" => Token::Equal,
+        "=>" => Token::EqualGreater,
         "/" => Token::ForwardSlash,
         "-" => Token::Minus,
         "|" => Token::Pipe,
@@ -76,6 +80,24 @@ AtomicType: Type = {
 
 pub Type: Type = {
     AtomicType,
+    <lo: @L> <ty: Type> "where" <param: "Ident"> "=>" <pred: BoolExpr> <hi: @R> => {
+        Type::where_((lo, hi), ty, param, pred)
+    },
+};
+
+BoolExpr: BoolExpr = {
+    <lo: @L> <name: "Ident"> <hi: @R> =>? {
+        match name {
+            "true" => Ok(BoolExpr::const_((lo, hi), true)),
+            "false" => Ok(BoolExpr::const_((lo, hi), false)),
+            _ => Err(ParseError::User {
+                error: LexerError {
+                    location: lo,
+                    code: LexerErrorCode::UnexpectedCharacter,
+                },
+            })
+        }
+    },
 };
 
 pub Expr = AddExpr;

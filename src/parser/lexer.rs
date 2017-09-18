@@ -3,6 +3,13 @@ use std::str::CharIndices;
 use source::BytePos;
 use unicode_xid::UnicodeXID;
 
+fn is_symbol(ch: char) -> bool {
+    match ch {
+        ':' | ',' | '=' | '/' | '>' | '-' | '|' | '+' | ';' | '*' => true,
+        _ => false,
+    }
+}
+
 fn is_ident_start(ch: char) -> bool {
     UnicodeXID::is_xid_start(ch) || ch == '_'
 }
@@ -38,8 +45,8 @@ fn error<T>(location: BytePos, code: ErrorCode) -> Result<T, Error> {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ErrorCode {
-    /// An unexpected token was encountered
-    UnrecognizedToken,
+    /// An unexpected character was encountered
+    UnexpectedCharacter,
     /// Expected a binary literal
     ExpectedBinLiteral,
     /// Expected a hexidecimal literal
@@ -58,11 +65,13 @@ pub enum Token<'input> {
     // Keywords
     Struct,
     Union,
+    Where,
 
     // Symbols
     Colon, // :
     Comma, // ,
     Equal, // =
+    EqualGreater, // =>
     ForwardSlash, // /
     Minus, // -
     Pipe, // |
@@ -161,6 +170,7 @@ impl<'input> Lexer<'input> {
         let token = match ident {
             "struct" => Token::Struct,
             "union" => Token::Union,
+            "where" => Token::Where,
             ident => Token::Ident(ident),
         };
 
@@ -207,20 +217,28 @@ impl<'input> Iterator for Lexer<'input> {
             let end = start.map(|x| x + 1);
 
             return Some(match ch {
-                ':' => Ok((start, Token::Colon, end)),
-                ',' => Ok((start, Token::Comma, end)),
-                '=' => Ok((start, Token::Equal, end)),
-                '/' if self.test_lookahead(|ch| ch == '/') => {
-                    // Line comments
-                    self.take_until(start, |ch| ch == '\n');
-                    continue;
+                ch if is_symbol(ch) => {
+                    let (end, symbol) = self.take_while(start, is_symbol);
+
+                    match symbol {
+                        ":" => Ok((start, Token::Colon, end)),
+                        "," => Ok((start, Token::Comma, end)),
+                        "=" => Ok((start, Token::Equal, end)),
+                        "=>" => Ok((start, Token::EqualGreater, end)),
+                        "/" => Ok((start, Token::ForwardSlash, end)),
+                        "-" => Ok((start, Token::Minus, end)),
+                        "|" => Ok((start, Token::Pipe, end)),
+                        "+" => Ok((start, Token::Plus, end)),
+                        ";" => Ok((start, Token::Semi, end)),
+                        "*" => Ok((start, Token::Star, end)),
+                        symbol if symbol.starts_with("//") => {
+                            // Line comments
+                            self.take_until(start, |ch| ch == '\n');
+                            continue;
+                        }
+                        _ => error(start, ErrorCode::UnexpectedCharacter),
+                    }
                 }
-                '/' => Ok((start, Token::ForwardSlash, end)),
-                '-' => Ok((start, Token::Minus, end)),
-                '|' => Ok((start, Token::Pipe, end)),
-                '+' => Ok((start, Token::Plus, end)),
-                ';' => Ok((start, Token::Semi, end)),
-                '*' => Ok((start, Token::Star, end)),
                 '(' => Ok((start, Token::LParen, end)),
                 ')' => Ok((start, Token::RParen, end)),
                 '{' => Ok((start, Token::LBrace, end)),
@@ -232,7 +250,7 @@ impl<'input> Iterator for Lexer<'input> {
                 ch if is_dec_digit(ch) => Ok(self.dec_literal(start)),
                 ch if is_ident_start(ch) => Ok(self.ident(start)),
                 ch if ch.is_whitespace() => continue,
-                _ => error(start, ErrorCode::UnrecognizedToken),
+                _ => error(start, ErrorCode::UnexpectedCharacter),
             });
         }
 
@@ -274,25 +292,27 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  struct  union  ",
-            "  ~~~~~~         " => Token::Struct,
-            "          ~~~~~  " => Token::Union,
+            "  struct  union  where ",
+            "  ~~~~~~               " => Token::Struct,
+            "          ~~~~~        " => Token::Union,
+            "                 ~~~~~ " => Token::Where,
         };
     }
 
     #[test]
     fn symbols() {
         test! {
-            " : , = / - | + ; * ",
-            " ~                 " => Token::Colon,
-            "   ~               " => Token::Comma,
-            "     ~             " => Token::Equal,
-            "       ~           " => Token::ForwardSlash,
-            "         ~         " => Token::Minus,
-            "           ~       " => Token::Pipe,
-            "             ~     " => Token::Plus,
-            "               ~   " => Token::Semi,
-            "                 ~ " => Token::Star,
+            " : , = => / - | + ; * ",
+            " ~                    " => Token::Colon,
+            "   ~                  " => Token::Comma,
+            "     ~                " => Token::Equal,
+            "       ~~             " => Token::EqualGreater,
+            "          ~           " => Token::ForwardSlash,
+            "            ~         " => Token::Minus,
+            "              ~       " => Token::Pipe,
+            "                ~     " => Token::Plus,
+            "                  ~   " => Token::Semi,
+            "                    ~ " => Token::Star,
         }
     }
 

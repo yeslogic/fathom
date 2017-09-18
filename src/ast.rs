@@ -37,6 +37,23 @@ impl Definition {
     }
 }
 
+/// A boolean expression
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BoolExpr {
+    /// A boolean constant: eg. `true`, `false`
+    Const(Span, bool),
+}
+
+impl BoolExpr {
+    /// A boolean constant: eg. `true`, `false`
+    pub fn const_<Sp>(span: Sp, value: bool) -> BoolExpr
+    where
+        Sp: Into<Span>,
+    {
+        BoolExpr::Const(span.into(), value)
+    }
+}
+
 /// An expression
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
@@ -164,6 +181,8 @@ pub enum Type {
     Union(Span, Vec<Type>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Span, Vec<Field>),
+    /// A type constrained by a predicate: eg. `T where x => x == 3`
+    Where(Span, Box<Type>, String, BoolExpr),
 }
 
 impl Type {
@@ -223,6 +242,16 @@ impl Type {
         Sp: Into<Span>,
     {
         Type::Struct(span.into(), fields)
+    }
+
+    /// A type constrained by a predicate: eg. `T where x => x == 3`
+    pub fn where_<Sp, T, S>(span: Sp, ty: T, param: S, pred: BoolExpr) -> Type
+    where
+        Sp: Into<Span>,
+        T: Into<Box<Type>>,
+        S: Into<String>,
+    {
+        Type::Where(span.into(), ty.into(), param.into(), pred)
     }
 }
 

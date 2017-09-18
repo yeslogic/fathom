@@ -71,12 +71,34 @@ mod tests {
     }
 
     #[test]
+    fn parse_ty_where() {
+        let src = "
+            struct {
+                x: u32 where x => true,
+            }
+            where x => true
+            where x => false
+        ";
+
+        assert_snapshot!(parse_ty_where, parse_ty(&Env::default(), src));
+    }
+
+    #[test]
     fn parse_simple_definition() {
         let src = "
             Offset32 = u32;
         ";
 
         assert_snapshot!(parse_simple_definition, parse(&Env::default(), src));
+    }
+
+    #[test]
+    fn parse_array_with_constant_size() {
+        let src = "
+            Point = [f32; 3];
+        ";
+
+        assert_snapshot!(parse_array_with_constant_size, parse(&Env::default(), src));
     }
 
     #[test]

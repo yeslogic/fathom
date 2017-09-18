@@ -46,7 +46,7 @@ pub fn snapshot_changes<T: fmt::Debug>(file: &mut File, value: &T) -> Option<Cha
     if found == expected {
         None
     } else {
-        Some(Changeset::new(&found, &expected, ""))
+        Some(Changeset::new(&found, &expected, "\n"))
     }
 }
 
