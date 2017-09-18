@@ -35,7 +35,7 @@ CMapSubtable = union {
 /// Format 0: Byte encoding table
 Format0 = struct {
     /// Format number is set to 0.
-    format: u16 = 0,
+    format: u16 where format => format == 0,
     /// This is the length in bytes of the subtable.
     length: u16,
     /// Please see “Note on the language field in 'cmap' subtables“ in this document.
@@ -51,7 +51,7 @@ Format0 = struct {
 /// Format 6: Trimmed table mapping
 Format6 = struct {
     /// Format number is set to 6.
-    format: u16 = 6,
+    format: u16 where format => format == 6,
     /// This is the length in bytes of the subtable.
     length: u16,
     /// Please see “Note on the language field in 'cmap' subtables“ in this
@@ -68,7 +68,7 @@ Format6 = struct {
 /// Format 8: mixed 16-bit and 32-bit coverage
 Format8 = struct {
     /// Subtable format; set to 8.
-    format: u16 = 8,
+    format: u16 where format => format == 8,
     /// Reserved; set to 0
     reserved: u16,
     /// Byte length of this subtable (including the header)
@@ -102,7 +102,7 @@ Format8SequentialMapGroup = struct {
 // Format 12: Segmented coverage
 Format12 = struct {
     /// Subtable format; set to 12.
-    format: u16 = 12,
+    format: u16 where format => format == 12,
     /// Reserved; set to 0
     reserved: u16,
     /// Byte length of this subtable (including the header)
@@ -128,7 +128,7 @@ Format12SequentialMapGroup = struct {
 // Format 13: Many-to-one range mappings
 Format13 = struct {
     /// Subtable format; set to 13.
-    format: u16 = 13,
+    format: u16 where format => format == 13,
     /// Reserved; set to 0
     reserved: u16,
     /// Byte length of this subtable (including the header)
@@ -154,7 +154,7 @@ ConstantMapGroup = struct {
 /// Format 14: Unicode Variation Sequences
 Format14 = struct {
     /// Subtable format. Set to 14.
-    format: u16,
+    format: u16 where format => format == 14,
     /// Byte length of this subtable (including this header)
     length: u32,
     /// Number of variation Selector Records
@@ -165,7 +165,7 @@ Format14 = struct {
 
 VariationSelector = struct {
     /// Variation selector
-    var_selector: u24,
+    var_selector: [u8; 3], // FIXME: should be u24
     /// Offset from the start of the format 14 subtable to Default UVS Table. May be 0.
     default_uvs_offset: Offset32,
     /// Offset from the start of the format 14 subtable to Non-Default UVS Table. May be 0.
@@ -182,7 +182,7 @@ DefaultUVS = struct {
 
 UnicodeRange = struct {
     /// First value in this range
-    start_unicode_value: u24,
+    start_unicode_value: [u8; 3], // FIXME: should be u24
     /// Number of additional values in this range
     additional_count: u8,
 };
@@ -197,7 +197,7 @@ NonDefaultUVS = struct {
 
 UVSMapping = struct {
     /// Base Unicode value of the UVS
-    unicode_value: u24,
+    unicode_value: [u8; 3], // FIXME: should be u24
     /// Glyph ID of the UVS
     glyph_id: u16,
 };

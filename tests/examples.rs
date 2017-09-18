@@ -32,7 +32,6 @@ fn heroes_of_might_and_magic_bmp() {
 }
 
 #[test]
-#[ignore]
 fn object_id() {
     const SRC: &str = include_str!("../examples/ddl/object_id.ddl");
 
