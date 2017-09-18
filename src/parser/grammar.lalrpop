@@ -1,6 +1,6 @@
 use lalrpop_util::ParseError;
 
-use ast::{BoolExpr, Definition, Field, Expr, Type};
+use ast::{Binop, BoolBinop, BoolExpr, BoolUnop, Definition, Field, Expr, Type, Unop};
 use env::Env;
 use parser::lexer::{Token, Error as LexerError, ErrorCode as LexerErrorCode};
 use source::BytePos;
@@ -96,7 +96,7 @@ pub Type: Type = {
 AtomicBoolExpr: BoolExpr = {
     "(" <expr: BoolExpr> ")" => expr,
     <lo: @L> "!" <value: AtomicBoolExpr> <hi: @R> => {
-        BoolExpr::not((lo, hi), value)
+        BoolExpr::unop((lo, hi), BoolUnop::Not, value)
     },
     <lo: @L> <name: "Ident"> <hi: @R> =>? {
         match name {
@@ -115,10 +115,10 @@ AtomicBoolExpr: BoolExpr = {
 pub BoolExpr: BoolExpr = {
     AtomicBoolExpr,
     <lo: @L> <lhs: AtomicBoolExpr> "|" <rhs: BoolExpr> <hi: @R> => {
-        BoolExpr::or((lo, hi), lhs, rhs)
+        BoolExpr::binop((lo, hi), BoolBinop::Or, lhs, rhs)
     },
     <lo: @L> <lhs: AtomicBoolExpr> "&" <rhs: BoolExpr> <hi: @R> => {
-        BoolExpr::and((lo, hi), lhs, rhs)
+        BoolExpr::binop((lo, hi), BoolBinop::And, lhs, rhs)
     },
 
     // FIXME:
@@ -144,22 +144,22 @@ pub BoolExpr: BoolExpr = {
     //
 
     // <lo: @L> <lhs: Expr> "==" <rhs: Expr> <hi: @R> => {
-    //     BoolExpr::eq((lo, hi), lhs, rhs)
+    //     BoolExpr::cmp((lo, hi), Cmp::Eq, lhs, rhs)
     // },
     // <lo: @L> <lhs: Expr> "!=" <rhs: Expr> <hi: @R> => {
-    //     BoolExpr::ne((lo, hi), lhs, rhs)
+    //     BoolExpr::cmp((lo, hi), Cmp::Ne, lhs, rhs)
     // },
     // <lo: @L> <lhs: Expr> "<=" <rhs: Expr> <hi: @R> => {
-    //     BoolExpr::le((lo, hi), lhs, rhs)
+    //     BoolExpr::cmp((lo, hi), Cmp::Le, lhs, rhs)
     // },
     // <lo: @L> <lhs: Expr> "<" <rhs: Expr> <hi: @R> => {
-    //     BoolExpr::lt((lo, hi), lhs, rhs)
+    //     BoolExpr::cmp((lo, hi), Cmp::Lt, lhs, rhs)
     // },
     // <lo: @L> <lhs: Expr> ">" <rhs: Expr> <hi: @R> => {
-    //     BoolExpr::gt((lo, hi), lhs, rhs)
+    //     BoolExpr::cmp((lo, hi), Cmp::Gt, lhs, rhs)
     // },
     // <lo: @L> <lhs: Expr> ">=" <rhs: Expr> <hi: @R> => {
-    //     BoolExpr::ge((lo, hi), lhs, rhs)
+    //     BoolExpr::cmp((lo, hi), Cmp::Ge, lhs, rhs)
     // },
 };
 
@@ -170,20 +170,20 @@ pub Expr = {
 AddExpr : Expr = {
     MulExpr,
     <lo: @L> <lhs: MulExpr> "+" <rhs: AddExpr> <hi: @R> => {
-        Expr::add((lo, hi), lhs, rhs)
+        Expr::binop((lo, hi), Binop::Add, lhs, rhs)
     },
     <lo: @L> <lhs: MulExpr> "-" <rhs: AddExpr> <hi: @R> => {
-        Expr::sub((lo, hi), lhs, rhs)
+        Expr::binop((lo, hi), Binop::Sub, lhs, rhs)
     },
 };
 
 MulExpr : Expr = {
     AtomicExpr,
     <lo: @L> <lhs: AtomicExpr> "*" <rhs: MulExpr> <hi: @R> => {
-        Expr::mul((lo, hi), lhs, rhs)
+        Expr::binop((lo, hi), Binop::Mul, lhs, rhs)
     },
     <lo: @L> <lhs: AtomicExpr> "/" <rhs: MulExpr> <hi: @R> => {
-        Expr::div((lo, hi), lhs, rhs)
+        Expr::binop((lo, hi), Binop::Div, lhs, rhs)
     },
 };
 
@@ -202,7 +202,7 @@ AtomicExpr : Expr = {
         Expr::var((lo, hi), name)
     },
     <lo: @L> "-" <expr: AtomicExpr> <hi: @R> => {
-        Expr::neg((lo, hi), expr)
+        Expr::unop((lo, hi), Unop::Neg, expr)
     },
 };
 

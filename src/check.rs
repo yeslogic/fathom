@@ -72,7 +72,7 @@
 //!
 //! - `Type::Where`: constrained type
 
-use ast::{BoolExpr, Definition, Endianness, Expr, Kind, Type};
+use ast::{BoolExpr, BoolUnop, Definition, Endianness, Expr, Kind, Type, Unop};
 use env::Env;
 use source::Span;
 
@@ -207,11 +207,8 @@ impl<'parent> Env<'parent> {
                     None => Err(ExprError::UnboundVariable(span, name.clone())),
                 }
             }
-            Expr::Neg(_, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
-            Expr::Add(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
-            Expr::Sub(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
-            Expr::Mul(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
-            Expr::Div(_, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
+            Expr::Unop(_, Unop::Neg, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
+            Expr::Binop(_, _, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
         }
     }
 
@@ -219,18 +216,12 @@ impl<'parent> Env<'parent> {
     pub fn check_bool_expr(&self, expr: &BoolExpr) -> Result<(), ExprError> {
         match *expr {
             BoolExpr::Const(_, _) => Ok(()),
-            BoolExpr::Not(_, ref value) => self.check_bool_expr(value),
-            BoolExpr::Or(_, ref lhs, ref rhs) |
-            BoolExpr::And(_, ref lhs, ref rhs) => {
+            BoolExpr::Unop(_, BoolUnop::Not, ref value) => self.check_bool_expr(value),
+            BoolExpr::Binop(_, _, ref lhs, ref rhs) => {
                 self.check_bool_expr(lhs)?;
                 self.check_bool_expr(rhs)
             }
-            BoolExpr::Eq(_, ref lhs, ref rhs) |
-            BoolExpr::Ne(_, ref lhs, ref rhs) |
-            BoolExpr::Le(_, ref lhs, ref rhs) |
-            BoolExpr::Lt(_, ref lhs, ref rhs) |
-            BoolExpr::Gt(_, ref lhs, ref rhs) |
-            BoolExpr::Ge(_, ref lhs, ref rhs) => {
+            BoolExpr::Cmp(_, _, ref lhs, ref rhs) => {
                 self.check_expr(lhs)?;
                 self.check_expr(rhs)?;
                 Ok(())

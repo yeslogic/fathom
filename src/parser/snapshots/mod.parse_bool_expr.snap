@@ -1,14 +1,16 @@
 Ok(
-    Not(
+    Unop(
         Span {
             lo: BytePos(13),
             hi: BytePos(32)
         },
-        Or(
+        Not,
+        Binop(
             Span {
                 lo: BytePos(16),
                 hi: BytePos(30)
             },
+            Or,
             Const(
                 Span {
                     lo: BytePos(16),

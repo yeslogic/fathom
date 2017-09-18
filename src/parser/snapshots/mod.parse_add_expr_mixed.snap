@@ -1,9 +1,10 @@
 Ok(
-    Add(
+    Binop(
         Span {
             lo: BytePos(0),
             hi: BytePos(17)
         },
+        Add,
         Var(
             Span {
                 lo: BytePos(0),
@@ -11,11 +12,12 @@ Ok(
             },
             "x"
         ),
-        Add(
+        Binop(
             Span {
                 lo: BytePos(4),
                 hi: BytePos(17)
             },
+            Add,
             Var(
                 Span {
                     lo: BytePos(4),
@@ -23,11 +25,12 @@ Ok(
                 },
                 "y"
             ),
-            Sub(
+            Binop(
                 Span {
                     lo: BytePos(8),
                     hi: BytePos(17)
                 },
+                Sub,
                 Var(
                     Span {
                         lo: BytePos(8),
@@ -35,11 +38,12 @@ Ok(
                     },
                     "z"
                 ),
-                Add(
+                Binop(
                     Span {
                         lo: BytePos(12),
                         hi: BytePos(17)
                     },
+                    Add,
                     Var(
                         Span {
                             lo: BytePos(12),

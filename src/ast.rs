@@ -37,29 +37,49 @@ impl Definition {
     }
 }
 
+/// A boolean unary operator
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum BoolUnop {
+    /// Not: eg. `!x`
+    Not,
+}
+
+/// A boolean binary operator
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum BoolBinop {
+    /// Disjunction: eg. `x | y`
+    Or,
+    /// Conjunction: eg. `x & y`
+    And,
+}
+
+/// A comparison operator
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Cmp {
+    /// Equality: eg. `x == y`
+    Eq,
+    /// Inequality: eg. `x != y`
+    Ne,
+    /// Less than or equal: eg. `x <= y`
+    Le,
+    /// Less than: eg. `x < y`
+    Lt,
+    /// Greater than: eg. `x > y`
+    Gt,
+    /// Reater than or equal: eg. `x >= y`
+    Ge,
+}
+
 /// A boolean expression
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BoolExpr {
     /// A boolean constant: eg. `true`, `false`
     Const(Span, bool),
-    /// Not: eg. `!x`
-    Not(Span, Box<BoolExpr>),
-    /// Boolean disjunction: eg. `x | y`
-    Or(Span, Box<BoolExpr>, Box<BoolExpr>),
-    /// Boolean conjunction: eg. `x & y`
-    And(Span, Box<BoolExpr>, Box<BoolExpr>),
-    /// Integer equality: eg. `x == y`
-    Eq(Span, Box<Expr>, Box<Expr>),
-    /// Integer inequality: eg. `x != y`
-    Ne(Span, Box<Expr>, Box<Expr>),
-    /// Integer less-than-or-equal-to: eg. `x <= y`
-    Le(Span, Box<Expr>, Box<Expr>),
-    /// Integer less-than: eg. `x < y`
-    Lt(Span, Box<Expr>, Box<Expr>),
-    /// Integer greater-than: eg. `x > y`
-    Gt(Span, Box<Expr>, Box<Expr>),
-    /// Integer greater-than-or-equal: eg. `x >= y`
-    Ge(Span, Box<Expr>, Box<Expr>),
+    Unop(Span, BoolUnop, Box<BoolExpr>),
+    /// A binary operator expression
+    Binop(Span, BoolBinop, Box<BoolExpr>, Box<BoolExpr>),
+    /// A comparison operator expression
+    Cmp(Span, Cmp, Box<Expr>, Box<Expr>),
 }
 
 impl BoolExpr {
@@ -71,94 +91,54 @@ impl BoolExpr {
         BoolExpr::Const(span.into(), value)
     }
 
-    /// Not: eg. `!x`
-    pub fn not<Sp, T>(span: Sp, value: T) -> BoolExpr
+    /// A boolean binary operator
+    pub fn unop<Sp, T>(span: Sp, op: BoolUnop, value: T) -> BoolExpr
     where
         Sp: Into<Span>,
         T: Into<Box<BoolExpr>>,
     {
-        BoolExpr::Not(span.into(), value.into())
+        BoolExpr::Unop(span.into(), op, value.into())
     }
 
-    /// Boolean disjunction: eg. `x | y`
-    pub fn or<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<BoolExpr>>,
-        U: Into<Box<BoolExpr>>,
-    {
-        BoolExpr::Or(span.into(), lhs.into(), rhs.into())
-    }
-
-    /// Boolean conjunction: eg. `x & y`
-    pub fn and<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
+    /// A binary operator expression
+    pub fn binop<Sp, T, U>(span: Sp, op: BoolBinop, lhs: T, rhs: U) -> BoolExpr
     where
         Sp: Into<Span>,
         T: Into<Box<BoolExpr>>,
         U: Into<Box<BoolExpr>>,
     {
-        BoolExpr::And(span.into(), lhs.into(), rhs.into())
+        BoolExpr::Binop(span.into(), op, lhs.into(), rhs.into())
     }
 
-    /// Integer equality: eg. `x == y`
-    pub fn eq<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
+    /// A comparison operator expression
+    pub fn cmp<Sp, T, U>(span: Sp, op: Cmp, lhs: T, rhs: U) -> BoolExpr
     where
         Sp: Into<Span>,
         T: Into<Box<Expr>>,
         U: Into<Box<Expr>>,
     {
-        BoolExpr::Eq(span.into(), lhs.into(), rhs.into())
+        BoolExpr::Cmp(span.into(), op, lhs.into(), rhs.into())
     }
+}
 
-    /// Integer inequality: eg. `x != y`
-    pub fn ne<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<Expr>>,
-        U: Into<Box<Expr>>,
-    {
-        BoolExpr::Ne(span.into(), lhs.into(), rhs.into())
-    }
+/// An unary operator
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Unop {
+    /// Negation: eg. `-x`
+    Neg,
+}
 
-    /// Integer less-than-or-equal-to: eg. `x <= y`
-    pub fn le<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<Expr>>,
-        U: Into<Box<Expr>>,
-    {
-        BoolExpr::Le(span.into(), lhs.into(), rhs.into())
-    }
-
-    /// Integer less-than: eg. `x < y`
-    pub fn lt<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<Expr>>,
-        U: Into<Box<Expr>>,
-    {
-        BoolExpr::Lt(span.into(), lhs.into(), rhs.into())
-    }
-
-    /// Integer greater-than: eg. `x > y`
-    pub fn gt<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<Expr>>,
-        U: Into<Box<Expr>>,
-    {
-        BoolExpr::Gt(span.into(), lhs.into(), rhs.into())
-    }
-
-    /// Integer greater-than-or-equal: eg. `x >= y`
-    pub fn ge<Sp, T, U>(span: Sp, lhs: T, rhs: U) -> BoolExpr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<Expr>>,
-        U: Into<Box<Expr>>,
-    {
-        BoolExpr::Ge(span.into(), lhs.into(), rhs.into())
-    }
+/// A binary operator
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Binop {
+    /// Addition: eg. `x + y`
+    Add,
+    /// Subtraction: eg. `x - y`
+    Sub,
+    /// Multiplication: eg. `x * y`
+    Mul,
+    /// Division: eg. `x / y`
+    Div,
 }
 
 /// An expression
@@ -169,16 +149,10 @@ pub enum Expr {
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     Var(Span, String),
-    /// Integer negation: eg. `-x`
-    Neg(Span, Box<Expr>),
-    /// Integer addition: eg. `x + y`
-    Add(Span, Box<Expr>, Box<Expr>),
-    /// Integer subtraction: eg. `x - y`
-    Sub(Span, Box<Expr>, Box<Expr>),
-    /// Integer multiplication: eg. `x * y`
-    Mul(Span, Box<Expr>, Box<Expr>),
-    /// Integer division: eg. `x / y`
-    Div(Span, Box<Expr>, Box<Expr>),
+    /// An unary operator expression
+    Unop(Span, Unop, Box<Expr>),
+    /// A binary operator expression
+    Binop(Span, Binop, Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
@@ -199,53 +173,23 @@ impl Expr {
         Expr::Var(span.into(), name.into())
     }
 
-    /// Integer negation: eg. `-x`
-    pub fn neg<Sp, T>(span: Sp, x: T) -> Expr
+    /// An unary operator expression
+    pub fn unop<Sp, T>(span: Sp, op: Unop, x: T) -> Expr
     where
         Sp: Into<Span>,
         T: Into<Box<Expr>>,
     {
-        Expr::Neg(span.into(), x.into())
+        Expr::Unop(span.into(), op, x.into())
     }
 
-    /// Integer addition: eg. `x + y`
-    pub fn add<Sp, T, U>(span: Sp, x: T, y: U) -> Expr
+    /// A binary operator expression
+    pub fn binop<Sp, T, U>(span: Sp, op: Binop, x: T, y: U) -> Expr
     where
         Sp: Into<Span>,
         T: Into<Box<Expr>>,
         U: Into<Box<Expr>>,
     {
-        Expr::Add(span.into(), x.into(), y.into())
-    }
-
-    /// Integer subtraction: eg. `x - y`
-    pub fn sub<Sp, T, U>(span: Sp, x: T, y: U) -> Expr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<Expr>>,
-        U: Into<Box<Expr>>,
-    {
-        Expr::Sub(span.into(), x.into(), y.into())
-    }
-
-    /// Integer multiplication: eg. `x * y`
-    pub fn mul<Sp, T, U>(span: Sp, x: T, y: U) -> Expr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<Expr>>,
-        U: Into<Box<Expr>>,
-    {
-        Expr::Mul(span.into(), x.into(), y.into())
-    }
-
-    /// Integer division: eg. `x / y`
-    pub fn div<Sp, T, U>(span: Sp, x: T, y: U) -> Expr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<Expr>>,
-        U: Into<Box<Expr>>,
-    {
-        Expr::Div(span.into(), x.into(), y.into())
+        Expr::Binop(span.into(), op, x.into(), y.into())
     }
 }
 

@@ -1,9 +1,10 @@
 Ok(
-    Mul(
+    Binop(
         Span {
             lo: BytePos(0),
             hi: BytePos(9)
         },
+        Mul,
         Var(
             Span {
                 lo: BytePos(0),
@@ -11,11 +12,12 @@ Ok(
             },
             "x"
         ),
-        Mul(
+        Binop(
             Span {
                 lo: BytePos(4),
                 hi: BytePos(9)
             },
+            Mul,
             Var(
                 Span {
                     lo: BytePos(4),
