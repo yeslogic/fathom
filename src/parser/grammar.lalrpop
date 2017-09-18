@@ -21,15 +21,15 @@ extern {
         "union" => Token::Union,
 
         // Symbols
-        "=" => Token::Equals,
-        ";" => Token::Semi,
-        "," => Token::Comma,
-        "|" => Token::Pipe,
         ":" => Token::Colon,
-        "+" => Token::Plus,
+        "," => Token::Comma,
+        "=" => Token::Equal,
+        "/" => Token::ForwardSlash,
         "-" => Token::Minus,
+        "|" => Token::Pipe,
+        "+" => Token::Plus,
+        ";" => Token::Semi,
         "*" => Token::Star,
-        "/" => Token::FSlash,
 
         // Delimeters
         "(" => Token::LParen,

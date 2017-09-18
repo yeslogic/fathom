@@ -52,23 +52,23 @@ pub enum Token<'input> {
     // Data
     Ident(&'input str),
     BinLiteral(u64),
-    HexLiteral(u64),
     DecLiteral(u64),
+    HexLiteral(u64),
 
     // Keywords
     Struct,
     Union,
 
     // Symbols
-    Equals, // =
-    Semi, // ;
-    Comma, // ,
-    Pipe, // |
     Colon, // :
-    Plus, // +
+    Comma, // ,
+    Equal, // =
+    ForwardSlash, // /
     Minus, // -
+    Pipe, // |
+    Plus, // +
+    Semi, // ;
     Star, // *
-    FSlash, // /
 
     // Delimiters
     LParen, // (
@@ -207,20 +207,20 @@ impl<'input> Iterator for Lexer<'input> {
             let end = start.map(|x| x + 1);
 
             return Some(match ch {
-                '=' => Ok((start, Token::Equals, end)),
-                ';' => Ok((start, Token::Semi, end)),
-                ',' => Ok((start, Token::Comma, end)),
-                '|' => Ok((start, Token::Pipe, end)),
                 ':' => Ok((start, Token::Colon, end)),
-                '+' => Ok((start, Token::Plus, end)),
-                '-' => Ok((start, Token::Minus, end)),
-                '*' => Ok((start, Token::Star, end)),
+                ',' => Ok((start, Token::Comma, end)),
+                '=' => Ok((start, Token::Equal, end)),
                 '/' if self.test_lookahead(|ch| ch == '/') => {
                     // Line comments
                     self.take_until(start, |ch| ch == '\n');
                     continue;
                 }
-                '/' => Ok((start, Token::FSlash, end)),
+                '/' => Ok((start, Token::ForwardSlash, end)),
+                '-' => Ok((start, Token::Minus, end)),
+                '|' => Ok((start, Token::Pipe, end)),
+                '+' => Ok((start, Token::Plus, end)),
+                ';' => Ok((start, Token::Semi, end)),
+                '*' => Ok((start, Token::Star, end)),
                 '(' => Ok((start, Token::LParen, end)),
                 ')' => Ok((start, Token::RParen, end)),
                 '{' => Ok((start, Token::LBrace, end)),
@@ -283,16 +283,16 @@ mod tests {
     #[test]
     fn symbols() {
         test! {
-            " = ; , | : + - * / ",
-            " ~                 " => Token::Equals,
-            "   ~               " => Token::Semi,
-            "     ~             " => Token::Comma,
-            "       ~           " => Token::Pipe,
-            "         ~         " => Token::Colon,
-            "           ~       " => Token::Plus,
-            "             ~     " => Token::Minus,
-            "               ~   " => Token::Star,
-            "                 ~ " => Token::FSlash,
+            " : , = / - | + ; * ",
+            " ~                 " => Token::Colon,
+            "   ~               " => Token::Comma,
+            "     ~             " => Token::Equal,
+            "       ~           " => Token::ForwardSlash,
+            "         ~         " => Token::Minus,
+            "           ~       " => Token::Pipe,
+            "             ~     " => Token::Plus,
+            "               ~   " => Token::Semi,
+            "                 ~ " => Token::Star,
         }
     }
 
