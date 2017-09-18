@@ -101,8 +101,8 @@ This allows the length of trailing arrays to be expressed simply:
     field1: uint32
     field2: uint32
     data: uint32[]
-    @where sizeof(MyStruct) = length
   }
+  @where sizeof(MyStruct) = length
 
 This is equivalent to:
 
@@ -111,8 +111,8 @@ This is equivalent to:
     field1: uint32
     field2: uint32
     data: exists x: uint32[x]
-    @where sizeof(MyStruct) = length
   }
+  @where sizeof(MyStruct) = length
 
 And the constraint simplifies as follows:
 
@@ -155,30 +155,40 @@ It would be impossible to locate the count field without looking past the array,
 >   sizeof(type) + sizeof(struct {fields})
 
 
-WHERE CLAUSES
-=============
+CONSTRAINED TYPES
+=================
 
-Where clauses place constraints upon the values of struct fields and consist of a @where keyword followed by a boolean expression:
+Constrained types consist of a named value of a type followed by a @where clause with a boolean expression that constrains the value:
 
-  version: uint32
-  @where version = 0x00010000
+  name: type @where expr
 
-  hdrSize: byte
-  @where hdrSize >= 4
+If the expression evaluates to false then the type will not match.
 
-If the expression is false then the struct type will not match.
+This can be used directly on struct fields:
 
-Simple constraints can be represented directly on field declarations with this shorthand syntax:
+  version: uint32 @where version = 0x00010000
 
-  version: uint32 = 0x00010000
+  hdrSize: byte @where hdrSize >= 4
 
-  hdrSize: byte >= 4
+Or on any other types, such as array items:
 
-This is exactly equivalent to declaring the constraints with a separate where clause.
+  data: (x: uint16 @where x > 0)[length]
+
+Simple relational constraints can be represented using shorthand syntax without introducing a variable name:
+
+  uint32 = 0x00010000
+
+  uint8 >= 4
 
 Where clauses can include multiple constraints with conjunctions using the comma operator:
 
+  struct {
+    version: uint32
+    hdrSize: uint32
+  }
   @where version = 0x00010000, hdrSize >= 4
+
+FIXME implies extra syntax sugar for unnamed struct field access
 
 
 CONDITIONAL TYPES
