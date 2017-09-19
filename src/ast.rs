@@ -165,7 +165,8 @@ impl Expr {
         Expr::Const(span.into(), value)
     }
 
-    /// A variable, referring to an integer that exists in the current context: eg. `len`, `num_tables`
+    /// A variable, referring to an integer that exists in the current context:
+    /// eg. `len`, `num_tables`
     pub fn var<Sp, S>(span: Sp, name: S) -> Expr
     where
         Sp: Into<Span>,
