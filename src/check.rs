@@ -103,40 +103,40 @@ impl<'parent> Env<'parent> {
     /// `Γ ⊢ τ : κ`
     ///
     /// ```plain
-    /// ―――――――――――――――――――― (CONST)
+    /// ―――――――――――――――――――― (K-CONST)
     ///     Γ ⊢ c : Type
     ///
     ///
     ///         α ∈ Γ
-    /// ―――――――――――――――――――― (VAR)
+    /// ―――――――――――――――――――― (K-VAR)
     ///     Γ ⊢ α : Type
     ///
     ///
     ///     Γ ⊢ τ₁ : Type        Γ ⊢ τ₂ : Type
-    /// ―――――――――――――――――――――――――――――――――――――――――― (SUM)
+    /// ―――――――――――――――――――――――――――――――――――――――――― (K-SUM)
     ///              Γ ⊢ τ₁ + τ₂ : Type
     ///
     ///
     ///     Γ ⊢ τ₁ : Type        Γ, x:τ₁ ⊢ τ₂ : Type
-    /// ―――――――――――――――――――――――――――――――――――――――――――――――――― (DEPENDENT-PAIR)
+    /// ―――――――――――――――――――――――――――――――――――――――――――――――――― (K-DEPENDENT-PAIR)
     ///              Γ ⊢ Σ x:τ₁ .τ₂ : Type
     ///
     ///
     ///     Γ ⊢ τ : Type        Γ ⊢ e : Int
-    /// ―――――――――――――――――――――――――――――――――――――――――― (ARRAY)
+    /// ―――――――――――――――――――――――――――――――――――――――――― (K-ARRAY)
     ///             Γ ⊢ [τ; e] : Type
     ///
     ///
     ///     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
-    /// ―――――――――――――――――――――――――――――――――――――――――― (CON)
+    /// ―――――――――――――――――――――――――――――――――――――――――― (K-CON)
     ///           Γ ⊢ { x:τ | b } : Type
     /// ```
     pub fn kind_of(&self, ty: &Type) -> Result<Kind, KindError> {
         match *ty {
-            // CONST
+            // K-CONST
             Type::Const(_) => Ok(Kind::Type), // Easypeasy
 
-            // VAR
+            // K-VAR
             Type::Var(span, ref name) => {
                 // TODO: kind of var?
                 // α ∈ Γ
@@ -146,7 +146,7 @@ impl<'parent> Env<'parent> {
                 }
             }
 
-            // SUM
+            // K-SUM
             Type::Union(_, ref tys) => {
                 for ty in tys {
                     // Γ ⊢ τ₁ : Type
@@ -155,7 +155,7 @@ impl<'parent> Env<'parent> {
                 Ok(Kind::Type)
             }
 
-            // DEPENDENT-PAIR
+            // K-DEPENDENT-PAIR
             Type::Struct(_, ref fields) => {
                 // TODO: prevent name shadowing?
                 let mut inner_env = self.extend();
@@ -168,7 +168,7 @@ impl<'parent> Env<'parent> {
                 Ok(Kind::Type)
             }
 
-            // ARRAY
+            // K-ARRAY
             Type::Array(span, ref ty, ref size) => {
                 self.kind_of(ty)?;
                 let expr_ty = self.type_of(size).map_err(|err| {
@@ -181,7 +181,7 @@ impl<'parent> Env<'parent> {
                 }
             }
 
-            // CON
+            // K-CON
             Type::Where(span, ref ty, ref param, ref pred) => {
                 self.kind_of(ty)?;
 
@@ -301,22 +301,41 @@ impl<'parent> Env<'parent> {
     }
 
     /// `Γ ⊢ e : τ`
+    ///
+    /// ```plain
+    /// ―――――――――――――――――――――――――――― (T-TRUE)
+    ///       Γ ⊢ true : Bool
+    ///
+    ///
+    /// ―――――――――――――――――――――――――――― (T-FALSE)
+    ///       Γ ⊢ false : Bool
+    ///
+    ///
+    ///           x : τ ∈ Γ
+    /// ―――――――――――――――――――――――――――― (T-VAR)
+    ///           Γ ⊢ x : τ
+    /// ```
     pub fn type_of(&self, expr: &Expr) -> Result<Type, TypeError> {
         match *expr {
+            // T-TRUE, T-FALSE
             Expr::Const(_, Const::Bool(_)) => Ok(Type::bool()),
+            // FIXME: T-???
             Expr::Const(_, Const::UInt(_)) => Ok(Type::unknown_int()),
+            // T-VAR
             Expr::Var(span, ref name) => {
                 match self.lookup_binding(name) {
                     Some(ty) => Ok(ty.clone()),
                     None => Err(TypeError::UnboundVariable(span, name.clone())),
                 }
             }
+            // FIXME: T-???
             Expr::Unop(_, op, ref value) => {
                 match op {
                     Unop::Not => self.type_of_bool_unop(value),
                     Unop::Neg => self.type_of_int_unop(value),
                 }
             }
+            // FIXME: T-???
             Expr::Binop(_, op, ref lhs, ref rhs) => {
                 match op {
                     Binop::Or | Binop::And => self.type_of_bool_binop(lhs, rhs),
