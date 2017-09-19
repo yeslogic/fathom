@@ -78,7 +78,7 @@ use source::Span;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KindError {
     UnboundType(Span, String),
-    ExpectedUnsignedIntInArraySizeExpr(Span, Type),
+    ExpectedUIntArraySize(Span, Type),
     FailedToEvaluateArraySize(Span, TypeError),
     FailedToEvaluatePredicate(Span, TypeError),
 }
@@ -176,8 +176,9 @@ impl<'parent> Env<'parent> {
                 })?;
 
                 match expr_ty {
-                    Type::Const(_) => Ok(Kind::Type), // FIXME: should be int
-                    ty => Err(KindError::ExpectedUnsignedIntInArraySizeExpr(span, ty)),
+                    Type::Const(TypeConst::UnknownInt) |
+                    Type::Const(TypeConst::U(_, _)) => Ok(Kind::Type),
+                    ty => Err(KindError::ExpectedUIntArraySize(span, ty)),
                 }
             }
 
@@ -445,7 +446,23 @@ pub mod tests {
     }
 
     #[test]
-    fn array_bad_type() {
+    fn array_singned_int_size() {
+        let mut env = Env::default();
+        let len_ty = parser::parse_ty(&env, "i8").unwrap();
+        env.add_binding("len", len_ty.clone());
+        let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
+
+        assert_eq!(
+            env.kind_of(&ty),
+            Err(KindError::ExpectedUIntArraySize(
+                Span::new(B(0), B(9)),
+                len_ty,
+            ))
+        );
+    }
+
+    #[test]
+    fn array_struct_size() {
         let mut env = Env::default();
         let len_ty = parser::parse_ty(&env, "struct {}").unwrap();
         env.add_binding("len", len_ty.clone());
@@ -453,7 +470,7 @@ pub mod tests {
 
         assert_eq!(
             env.kind_of(&ty),
-            Err(KindError::ExpectedUnsignedIntInArraySizeExpr(
+            Err(KindError::ExpectedUIntArraySize(
                 Span::new(B(0), B(9)),
                 len_ty,
             ))
