@@ -38,7 +38,7 @@ Where(
                                 lo: BytePos(56),
                                 hi: BytePos(60)
                             },
-                            true
+                            Bool(true)
                         )
                     )
                 }
@@ -50,7 +50,7 @@ Where(
                 lo: BytePos(99),
                 hi: BytePos(103)
             },
-            true
+            Bool(true)
         )
     ),
     "x",
@@ -59,6 +59,6 @@ Where(
             lo: BytePos(127),
             hi: BytePos(132)
         },
-        false
+        Bool(false)
     )
 )

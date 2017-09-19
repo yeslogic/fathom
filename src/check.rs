@@ -72,7 +72,7 @@
 //!
 //! - `Type::Where`: constrained type
 
-use ast::{BoolExpr, BoolUnop, Definition, Endianness, Expr, Kind, Type, Unop};
+use ast::{Binop, Definition, Expr, Kind, Type, TypeConst, Unop};
 use env::Env;
 use source::Span;
 
@@ -189,42 +189,122 @@ impl<'parent> Env<'parent> {
                 let mut inner_env = self.extend();
                 // TODO: prevent name shadowing?
                 inner_env.add_binding(param.clone(), (**ty).clone());
-                inner_env.check_bool_expr(pred).map_err(|err| {
-                    TypeError::FailedToEvaluatePredicate(span, err)
-                })?;
-                Ok(Kind::Type)
+                match self.check_expr(pred) {
+                    Ok(Type::Const(_, TypeConst::Bool)) => Ok(Kind::Type),
+                    Ok(_) => unimplemented!(), // FIXME: better errors
+                    Err(err) => Err(TypeError::FailedToEvaluatePredicate(span, err)),
+                }
             }
         }
     }
 
     /// `Γ ⊢ e : τ`
     pub fn check_expr(&self, expr: &Expr) -> Result<Type, ExprError> {
+        use ast::TypeConst::{Bool, I, U, UnknownInt};
+        use ast::Type::Const;
+
         match *expr {
-            Expr::Const(_, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
+            Expr::Const(_, _) => Ok(Type::unknown_int(Span::start())),
             Expr::Var(span, ref name) => {
                 match self.lookup_binding(name) {
                     Some(ty) => Ok(ty.clone()),
                     None => Err(ExprError::UnboundVariable(span, name.clone())),
                 }
             }
-            Expr::Unop(_, Unop::Neg, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
-            Expr::Binop(_, _, _, _) => Ok(Type::u(Span::start(), 32, Endianness::Target)), // FIXME
-        }
-    }
-
-    /// `Γ ⊢ b : τ`
-    pub fn check_bool_expr(&self, expr: &BoolExpr) -> Result<(), ExprError> {
-        match *expr {
-            BoolExpr::Const(_, _) => Ok(()),
-            BoolExpr::Unop(_, BoolUnop::Not, ref value) => self.check_bool_expr(value),
-            BoolExpr::Binop(_, _, ref lhs, ref rhs) => {
-                self.check_bool_expr(lhs)?;
-                self.check_bool_expr(rhs)
+            Expr::Unop(_, op, ref value) => {
+                match op {
+                    Unop::Not => {
+                        match self.check_expr(value)? {
+                            ty @ Const(_, Bool) => Ok(ty),
+                            _ => unimplemented!(), // FIXME: better errors
+                        }
+                    }
+                    Unop::Neg => {
+                        match self.check_expr(value)? {
+                            ty @ Const(_, UnknownInt) |
+                            ty @ Const(_, U(_, _)) |
+                            ty @ Const(_, I(_, _)) => Ok(ty),
+                            _ => unimplemented!(), // FIXME: better errors
+                        }
+                    }
+                }
             }
-            BoolExpr::Cmp(_, _, ref lhs, ref rhs) => {
-                self.check_expr(lhs)?;
-                self.check_expr(rhs)?;
-                Ok(())
+            Expr::Binop(_, op, ref lhs, ref rhs) => {
+                match op {
+                    Binop::Or | Binop::And => {
+                        let lhs_ty = self.check_expr(lhs)?;
+                        let rhs_ty = self.check_expr(rhs)?;
+
+                        match (lhs_ty, rhs_ty) {
+                            (ty @ Const(_, Bool), Const(_, Bool)) => Ok(ty),
+                            (_, _) => unimplemented!(), // FIXME: better errors
+                        }
+                    }
+                    Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                        let lhs_ty = self.check_expr(lhs)?;
+                        let rhs_ty = self.check_expr(rhs)?;
+
+                        // FIXME: Ugh
+                        match (lhs_ty, rhs_ty) {
+                            // Coerce to LHS if the RHS is less specific
+                            (Const(_, U(_, _)), Const(_, UnknownInt)) |
+                            (Const(_, I(_, _)), Const(_, UnknownInt)) |
+                            // Coerce to RHS if the LHS is less specific
+                            (Const(_, UnknownInt), Const(_, U(_, _))) |
+                            (Const(_, UnknownInt), Const(_, I(_, _))) => Ok(Type::bool(Span::start())),
+                            // Same type if LHS == RHS
+                            (Const(_, U(ls, le)), Const(_, U(rs, re))) => {
+                                if ls == rs && le == re {
+                                    Ok(Type::bool(Span::start()))
+                                } else {
+                                    unimplemented!()
+                                }
+                            }
+                            // Same type if LHS == RHS
+                            (Const(_, I(ls, le)), Const(_, I(rs, re))) => {
+                                if ls == rs && le == re {
+                                    Ok(Type::bool(Span::start()))
+                                } else {
+                                    unimplemented!()
+                                }
+                            }
+                            // Error!
+                            (_, _) => unimplemented!(), // FIXME: better errors
+                        }
+                    }
+                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
+                        let lhs_ty = self.check_expr(lhs)?;
+                        let rhs_ty = self.check_expr(rhs)?;
+
+                        // FIXME: Ugh
+                        match (lhs_ty, rhs_ty) {
+                            // Coerce to LHS if the RHS is less specific
+                            (lhs_ty @ Const(_, U(_, _)), Const(_, UnknownInt)) |
+                            (lhs_ty @ Const(_, I(_, _)), Const(_, UnknownInt)) => Ok(lhs_ty),
+                            // Coerce to RHS if the LHS is less specific
+                            (Const(_, UnknownInt), rhs_ty @ Const(_, U(_, _))) |
+                            (Const(_, UnknownInt), rhs_ty @ Const(_, I(_, _))) => Ok(rhs_ty),
+                            // Same type if LHS == RHS
+                            (Const(span, U(ls, le)), Const(_, U(rs, re))) => {
+                                if ls == rs && le == re {
+                                    Ok(Const(span, U(ls, le)))
+                                } else {
+                                    unimplemented!()
+                                }
+                            }
+                            // Same type if LHS == RHS
+                            (Const(span, I(ls, le)), Const(_, I(rs, re))) => {
+                                if ls == rs && le == re {
+                                    Ok(Const(span, I(ls, le)))
+                                } else {
+                                    unimplemented!()
+                                }
+                            }
+                            // Error!
+                            (_, _) => unimplemented!(), // FIXME: better errors
+                        }
+                    }
+                }
             }
         }
     }
@@ -232,6 +312,7 @@ impl<'parent> Env<'parent> {
 
 #[cfg(test)]
 pub mod tests {
+    use ast::Endianness;
     use parser;
     use source::BytePos as B;
     use super::*;

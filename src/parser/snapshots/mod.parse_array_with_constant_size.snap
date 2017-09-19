@@ -22,7 +22,7 @@
                     lo: BytePos(27),
                     hi: BytePos(28)
                 },
-                3
+                UInt(3)
             )
         )
     }

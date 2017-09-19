@@ -37,25 +37,39 @@ impl Definition {
     }
 }
 
-/// A boolean unary operator
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum BoolUnop {
-    /// Not: eg. `!x`
-    Not,
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum Const {
+    /// A boolean constant: eg. `true`, `false`
+    Bool(bool),
+    /// An integer constant: eg. `0`, `1`, `2`, ...
+    UInt(u64),
 }
 
-/// A boolean binary operator
+impl fmt::Debug for Const {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Const::Bool(value) => write!(f, "Bool({:?})", value),
+            Const::UInt(value) => write!(f, "UInt({:?})", value),
+        }
+    }
+}
+
+/// An unary operator
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum BoolBinop {
+pub enum Unop {
+    /// Not: eg. `!x`
+    Not,
+    /// Negation: eg. `-x`
+    Neg,
+}
+
+/// A binary operator
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Binop {
     /// Disjunction: eg. `x | y`
     Or,
     /// Conjunction: eg. `x & y`
     And,
-}
-
-/// A comparison operator
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Cmp {
     /// Equality: eg. `x == y`
     Eq,
     /// Inequality: eg. `x != y`
@@ -68,70 +82,6 @@ pub enum Cmp {
     Gt,
     /// Greater than or equal: eg. `x >= y`
     Ge,
-}
-
-/// A boolean expression
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BoolExpr {
-    /// A boolean constant: eg. `true`, `false`
-    Const(Span, bool),
-    /// An unary operator expression
-    Unop(Span, BoolUnop, Box<BoolExpr>),
-    /// A binary operator expression
-    Binop(Span, BoolBinop, Box<BoolExpr>, Box<BoolExpr>),
-    /// A comparison operator expression
-    Cmp(Span, Cmp, Box<Expr>, Box<Expr>),
-}
-
-impl BoolExpr {
-    /// A boolean constant: eg. `true`, `false`
-    pub fn const_<Sp>(span: Sp, value: bool) -> BoolExpr
-    where
-        Sp: Into<Span>,
-    {
-        BoolExpr::Const(span.into(), value)
-    }
-
-    /// An unary operator expression
-    pub fn unop<Sp, T>(span: Sp, op: BoolUnop, value: T) -> BoolExpr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<BoolExpr>>,
-    {
-        BoolExpr::Unop(span.into(), op, value.into())
-    }
-
-    /// A binary operator expression
-    pub fn binop<Sp, T, U>(span: Sp, op: BoolBinop, lhs: T, rhs: U) -> BoolExpr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<BoolExpr>>,
-        U: Into<Box<BoolExpr>>,
-    {
-        BoolExpr::Binop(span.into(), op, lhs.into(), rhs.into())
-    }
-
-    /// A comparison operator expression
-    pub fn cmp<Sp, T, U>(span: Sp, op: Cmp, lhs: T, rhs: U) -> BoolExpr
-    where
-        Sp: Into<Span>,
-        T: Into<Box<Expr>>,
-        U: Into<Box<Expr>>,
-    {
-        BoolExpr::Cmp(span.into(), op, lhs.into(), rhs.into())
-    }
-}
-
-/// An unary operator
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Unop {
-    /// Negation: eg. `-x`
-    Neg,
-}
-
-/// A binary operator
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Binop {
     /// Addition: eg. `x + y`
     Add,
     /// Subtraction: eg. `x - y`
@@ -145,8 +95,8 @@ pub enum Binop {
 /// An expression
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
-    /// An integer constant: eg. `0`, `1`, `2`, ...
-    Const(Span, u64),
+    /// A constant value
+    Const(Span, Const),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     Var(Span, String),
@@ -157,12 +107,20 @@ pub enum Expr {
 }
 
 impl Expr {
-    /// An integer constant: eg. `0`, `1`, `2`, ...
-    pub fn const_<Sp>(span: Sp, value: u64) -> Expr
+    /// A boolean constant: eg. `true`, `false`
+    pub fn bool<Sp>(span: Sp, value: bool) -> Expr
     where
         Sp: Into<Span>,
     {
-        Expr::Const(span.into(), value)
+        Expr::Const(span.into(), Const::Bool(value))
+    }
+
+    /// An integer constant: eg. `0`, `1`, `2`, ...
+    pub fn uint<Sp>(span: Sp, value: u64) -> Expr
+    where
+        Sp: Into<Span>,
+    {
+        Expr::Const(span.into(), Const::UInt(value))
     }
 
     /// A variable, referring to an integer that exists in the current context:
@@ -204,6 +162,13 @@ pub enum Endianness {
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum TypeConst {
+    /// Boolean
+    Bool,
+    /// An unknown integer
+    ///
+    /// This is usually produced by integer literals
+    // FIXME: Should we add a minumum size to ensure the validity of coercions?
+    UnknownInt,
     /// Unsigned integer
     U(usize, Endianness),
     /// Signed integer
@@ -215,6 +180,8 @@ pub enum TypeConst {
 impl fmt::Debug for TypeConst {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            TypeConst::Bool => write!(f, "Bool"),
+            TypeConst::UnknownInt => write!(f, "UnknownInt"),
             TypeConst::U(b, e) => write!(f, "U({:?}, {:?})", b, e),
             TypeConst::I(b, e) => write!(f, "I({:?}, {:?})", b, e),
             TypeConst::F(b, e) => write!(f, "F({:?}, {:?})", b, e),
@@ -235,10 +202,26 @@ pub enum Type {
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Span, Vec<Field>),
     /// A type constrained by a predicate: eg. `T where x => x == 3`
-    Where(Span, Box<Type>, String, BoolExpr),
+    Where(Span, Box<Type>, String, Expr),
 }
 
 impl Type {
+    /// An integer of unknown size and endianess
+    pub fn bool<Sp>(span: Sp) -> Type
+    where
+        Sp: Into<Span>,
+    {
+        Type::Const(span.into(), TypeConst::Bool)
+    }
+
+    /// An integer of unknown size and endianess
+    pub fn unknown_int<Sp>(span: Sp) -> Type
+    where
+        Sp: Into<Span>,
+    {
+        Type::Const(span.into(), TypeConst::UnknownInt)
+    }
+
     /// A unsigned integer type
     pub fn u<Sp>(span: Sp, bytes: usize, endianness: Endianness) -> Type
     where
@@ -298,7 +281,7 @@ impl Type {
     }
 
     /// A type constrained by a predicate: eg. `T where x => x == 3`
-    pub fn where_<Sp, T, S>(span: Sp, ty: T, param: S, pred: BoolExpr) -> Type
+    pub fn where_<Sp, T, S>(span: Sp, ty: T, param: S, pred: Expr) -> Type
     where
         Sp: Into<Span>,
         T: Into<Box<Type>>,
