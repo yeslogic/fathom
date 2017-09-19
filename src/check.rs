@@ -71,7 +71,7 @@
 //!
 //! - `Type::Where`: constrained type
 
-use ast::{Binop, Definition, Expr, Kind, Type, TypeConst, Unop};
+use ast::{Binop, Const, Definition, Expr, Kind, Type, TypeConst, Unop};
 use env::Env;
 use source::Span;
 
@@ -197,13 +197,114 @@ impl<'parent> Env<'parent> {
         }
     }
 
-    /// `Γ ⊢ e : τ`
-    pub fn type_of(&self, expr: &Expr) -> Result<Type, TypeError> {
-        use ast::TypeConst::{Bool, I, U, UnknownInt};
+    fn type_of_bool_unop(&self, value: &Expr) -> Result<Type, TypeError> {
+        match self.type_of(value)? {
+            ty @ Type::Const(_, TypeConst::Bool) => Ok(ty),
+            _ => unimplemented!(), // FIXME: better errors
+        }
+    }
+
+    fn type_of_int_unop(&self, value: &Expr) -> Result<Type, TypeError> {
+        match self.type_of(value)? {
+            ty @ Type::Const(_, TypeConst::UnknownInt) |
+            ty @ Type::Const(_, TypeConst::U(_, _)) |
+            ty @ Type::Const(_, TypeConst::I(_, _)) => Ok(ty),
+            _ => unimplemented!(), // FIXME: better errors
+        }
+    }
+
+    fn type_of_bool_binop(&self, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
+        use ast::TypeConst::Bool;
         use ast::Type::Const;
 
+        let lhs_ty = self.type_of(lhs)?;
+        let rhs_ty = self.type_of(rhs)?;
+
+        match (lhs_ty, rhs_ty) {
+            (ty @ Const(_, Bool), Const(_, Bool)) => Ok(ty),
+            (_, _) => unimplemented!(), // FIXME: better errors
+        }
+    }
+
+    fn type_of_comparison_binop(&self, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
+        use ast::TypeConst::{I, U, UnknownInt};
+        use ast::Type::Const;
+
+        let lhs_ty = self.type_of(lhs)?;
+        let rhs_ty = self.type_of(rhs)?;
+
+        // FIXME: Ugh
+        match (lhs_ty, rhs_ty) {
+            // Coerce to LHS if the RHS is less specific
+            (Const(_, U(_, _)), Const(_, UnknownInt)) |
+            (Const(_, I(_, _)), Const(_, UnknownInt)) |
+            // Coerce to RHS if the LHS is less specific
+            (Const(_, UnknownInt), Const(_, U(_, _))) |
+            (Const(_, UnknownInt), Const(_, I(_, _))) => {
+                Ok(Type::bool(Span::start()))
+            }
+            // Same type if LHS == RHS
+            (Const(_, U(ls, le)), Const(_, U(rs, re))) => {
+                if ls == rs && le == re {
+                    Ok(Type::bool(Span::start()))
+                } else {
+                    unimplemented!()
+                }
+            }
+            // Same type if LHS == RHS
+            (Const(_, I(ls, le)), Const(_, I(rs, re))) => {
+                if ls == rs && le == re {
+                    Ok(Type::bool(Span::start()))
+                } else {
+                    unimplemented!()
+                }
+            }
+            // Error!
+            (_, _) => unimplemented!(), // FIXME: better errors
+        }
+    }
+
+    fn type_of_int_binop(&self, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
+        use ast::TypeConst::{I, U, UnknownInt};
+        use ast::Type::Const;
+
+        let lhs_ty = self.type_of(lhs)?;
+        let rhs_ty = self.type_of(rhs)?;
+
+        // FIXME: Ugh
+        match (lhs_ty, rhs_ty) {
+            // Coerce to LHS if the RHS is less specific
+            (lhs_ty @ Const(_, U(_, _)), Const(_, UnknownInt)) |
+            (lhs_ty @ Const(_, I(_, _)), Const(_, UnknownInt)) => Ok(lhs_ty),
+            // Coerce to RHS if the LHS is less specific
+            (Const(_, UnknownInt), rhs_ty @ Const(_, U(_, _))) |
+            (Const(_, UnknownInt), rhs_ty @ Const(_, I(_, _))) => Ok(rhs_ty),
+            // Same type if LHS == RHS
+            (Const(span, U(ls, le)), Const(_, U(rs, re))) => {
+                if ls == rs && le == re {
+                    Ok(Const(span, U(ls, le)))
+                } else {
+                    unimplemented!()
+                }
+            }
+            // Same type if LHS == RHS
+            (Const(span, I(ls, le)), Const(_, I(rs, re))) => {
+                if ls == rs && le == re {
+                    Ok(Const(span, I(ls, le)))
+                } else {
+                    unimplemented!()
+                }
+            }
+            // Error!
+            (_, _) => unimplemented!(), // FIXME: better errors
+        }
+    }
+
+    /// `Γ ⊢ e : τ`
+    pub fn type_of(&self, expr: &Expr) -> Result<Type, TypeError> {
         match *expr {
-            Expr::Const(_, _) => Ok(Type::unknown_int(Span::start())),
+            Expr::Const(_, Const::Bool(_)) => Ok(Type::bool(Span::start())),
+            Expr::Const(_, Const::UInt(_)) => Ok(Type::unknown_int(Span::start())),
             Expr::Var(span, ref name) => {
                 match self.lookup_binding(name) {
                     Some(ty) => Ok(ty.clone()),
@@ -212,98 +313,18 @@ impl<'parent> Env<'parent> {
             }
             Expr::Unop(_, op, ref value) => {
                 match op {
-                    Unop::Not => {
-                        match self.type_of(value)? {
-                            ty @ Const(_, Bool) => Ok(ty),
-                            _ => unimplemented!(), // FIXME: better errors
-                        }
-                    }
-                    Unop::Neg => {
-                        match self.type_of(value)? {
-                            ty @ Const(_, UnknownInt) |
-                            ty @ Const(_, U(_, _)) |
-                            ty @ Const(_, I(_, _)) => Ok(ty),
-                            _ => unimplemented!(), // FIXME: better errors
-                        }
-                    }
+                    Unop::Not => self.type_of_bool_unop(value),
+                    Unop::Neg => self.type_of_int_unop(value),
                 }
             }
             Expr::Binop(_, op, ref lhs, ref rhs) => {
                 match op {
-                    Binop::Or | Binop::And => {
-                        let lhs_ty = self.type_of(lhs)?;
-                        let rhs_ty = self.type_of(rhs)?;
-
-                        match (lhs_ty, rhs_ty) {
-                            (ty @ Const(_, Bool), Const(_, Bool)) => Ok(ty),
-                            (_, _) => unimplemented!(), // FIXME: better errors
-                        }
-                    }
+                    Binop::Or | Binop::And => self.type_of_bool_binop(lhs, rhs),
                     Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                        let lhs_ty = self.type_of(lhs)?;
-                        let rhs_ty = self.type_of(rhs)?;
-
-                        // FIXME: Ugh
-                        match (lhs_ty, rhs_ty) {
-                            // Coerce to LHS if the RHS is less specific
-                            (Const(_, U(_, _)), Const(_, UnknownInt)) |
-                            (Const(_, I(_, _)), Const(_, UnknownInt)) |
-                            // Coerce to RHS if the LHS is less specific
-                            (Const(_, UnknownInt), Const(_, U(_, _))) |
-                            (Const(_, UnknownInt), Const(_, I(_, _))) => {
-                                Ok(Type::bool(Span::start()))
-                            }
-                            // Same type if LHS == RHS
-                            (Const(_, U(ls, le)), Const(_, U(rs, re))) => {
-                                if ls == rs && le == re {
-                                    Ok(Type::bool(Span::start()))
-                                } else {
-                                    unimplemented!()
-                                }
-                            }
-                            // Same type if LHS == RHS
-                            (Const(_, I(ls, le)), Const(_, I(rs, re))) => {
-                                if ls == rs && le == re {
-                                    Ok(Type::bool(Span::start()))
-                                } else {
-                                    unimplemented!()
-                                }
-                            }
-                            // Error!
-                            (_, _) => unimplemented!(), // FIXME: better errors
-                        }
+                        self.type_of_comparison_binop(lhs, rhs)
                     }
                     Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                        let lhs_ty = self.type_of(lhs)?;
-                        let rhs_ty = self.type_of(rhs)?;
-
-                        // FIXME: Ugh
-                        match (lhs_ty, rhs_ty) {
-                            // Coerce to LHS if the RHS is less specific
-                            (lhs_ty @ Const(_, U(_, _)), Const(_, UnknownInt)) |
-                            (lhs_ty @ Const(_, I(_, _)), Const(_, UnknownInt)) => Ok(lhs_ty),
-                            // Coerce to RHS if the LHS is less specific
-                            (Const(_, UnknownInt), rhs_ty @ Const(_, U(_, _))) |
-                            (Const(_, UnknownInt), rhs_ty @ Const(_, I(_, _))) => Ok(rhs_ty),
-                            // Same type if LHS == RHS
-                            (Const(span, U(ls, le)), Const(_, U(rs, re))) => {
-                                if ls == rs && le == re {
-                                    Ok(Const(span, U(ls, le)))
-                                } else {
-                                    unimplemented!()
-                                }
-                            }
-                            // Same type if LHS == RHS
-                            (Const(span, I(ls, le)), Const(_, I(rs, re))) => {
-                                if ls == rs && le == re {
-                                    Ok(Const(span, I(ls, le)))
-                                } else {
-                                    unimplemented!()
-                                }
-                            }
-                            // Error!
-                            (_, _) => unimplemented!(), // FIXME: better errors
-                        }
+                        self.type_of_int_binop(lhs, rhs)
                     }
                 }
             }
