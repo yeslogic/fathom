@@ -1,19 +1,8 @@
 //! endian: le
 
-/// https://en.wikipedia.org/wiki/Extended_Display_Identification_Data
-Edid = struct {
-    /// Header information
-    header: Header,
-    /// Basic display parameters
-    display_params: DisplayParams,
-    // TODO: Chromaticity coordinates.
-    // TODO: Established timing bitmap.
-    // TODO: Standard timing information.
-};
-
 Header = struct {
     /// Fixed header pattern
-    magic: [u8; 8] = [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00],
+    magic: [u8; 8], // FIXME: constrain to [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00]
     /// Manufacturer ID
     mfg_bytes: u16,
     /// Manufacturer product code
@@ -41,4 +30,15 @@ DisplayParams = struct {
     gamma_mod: u8,
     /// Supported features bitmap
     features_flags: u8,
+};
+
+/// https://en.wikipedia.org/wiki/Extended_Display_Identification_Data
+Edid = struct {
+    /// Header information
+    header: Header,
+    /// Basic display parameters
+    display_params: DisplayParams,
+    // TODO: Chromaticity coordinates.
+    // TODO: Established timing bitmap.
+    // TODO: Standard timing information.
 };

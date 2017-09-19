@@ -13,7 +13,6 @@ fn cmap() {
 }
 
 #[test]
-#[ignore]
 fn edid() {
     const SRC: &str = include_str!("../examples/ddl/edid.ddl");
 
