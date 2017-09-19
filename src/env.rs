@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use ast::{Endianness, Type, TypeConst};
-use source::Span;
 
 /// An environment of bindings and types
 ///
@@ -101,7 +100,7 @@ impl Default for Env<'static> {
         let mut env = Env::new();
 
         for &(ident, ty_const) in &BUILT_INS {
-            env.add_ty(ident, Type::Const(Span::start(), ty_const));
+            env.add_ty(ident, Type::Const(ty_const));
         }
 
         env

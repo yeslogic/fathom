@@ -26,10 +26,6 @@ Where(
                             hi: BytePos(60)
                         },
                         Const(
-                            Span {
-                                lo: BytePos(0),
-                                hi: BytePos(0)
-                            },
                             U(4, Target)
                         ),
                         "x",

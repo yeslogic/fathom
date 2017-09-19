@@ -192,7 +192,7 @@ impl fmt::Debug for TypeConst {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     /// A type constant
-    Const(Span, TypeConst),
+    Const(TypeConst),
     /// A type variable: eg. `T`
     Var(Span, String),
     /// An array of the specified type, with a size: eg. `[T; n]`
@@ -207,43 +207,28 @@ pub enum Type {
 
 impl Type {
     /// An integer of unknown size and endianess
-    pub fn bool<Sp>(span: Sp) -> Type
-    where
-        Sp: Into<Span>,
-    {
-        Type::Const(span.into(), TypeConst::Bool)
+    pub fn bool() -> Type {
+        Type::Const(TypeConst::Bool)
     }
 
     /// An integer of unknown size and endianess
-    pub fn unknown_int<Sp>(span: Sp) -> Type
-    where
-        Sp: Into<Span>,
-    {
-        Type::Const(span.into(), TypeConst::UnknownInt)
+    pub fn unknown_int() -> Type {
+        Type::Const(TypeConst::UnknownInt)
     }
 
     /// A unsigned integer type
-    pub fn u<Sp>(span: Sp, bytes: usize, endianness: Endianness) -> Type
-    where
-        Sp: Into<Span>,
-    {
-        Type::Const(span.into(), TypeConst::U(bytes, endianness))
+    pub fn u(bytes: usize, endianness: Endianness) -> Type {
+        Type::Const(TypeConst::U(bytes, endianness))
     }
 
     /// A signed integer type
-    pub fn i<Sp>(span: Sp, bytes: usize, endianness: Endianness) -> Type
-    where
-        Sp: Into<Span>,
-    {
-        Type::Const(span.into(), TypeConst::I(bytes, endianness))
+    pub fn i(bytes: usize, endianness: Endianness) -> Type {
+        Type::Const(TypeConst::I(bytes, endianness))
     }
 
     /// An IEEE 754 floating point type
-    pub fn f<Sp>(span: Sp, bytes: usize, endianness: Endianness) -> Type
-    where
-        Sp: Into<Span>,
-    {
-        Type::Const(span.into(), TypeConst::F(bytes, endianness))
+    pub fn f(bytes: usize, endianness: Endianness) -> Type {
+        Type::Const(TypeConst::F(bytes, endianness))
     }
 
     /// A type variable: eg. `T`

@@ -134,7 +134,7 @@ impl<'parent> Env<'parent> {
     pub fn kind_of(&self, ty: &Type) -> Result<Kind, KindError> {
         match *ty {
             // CONST
-            Type::Const(_, _) => Ok(Kind::Type), // Easypeasy
+            Type::Const(_) => Ok(Kind::Type), // Easypeasy
 
             // VAR
             Type::Var(span, ref name) => {
@@ -176,7 +176,7 @@ impl<'parent> Env<'parent> {
                 })?;
 
                 match expr_ty {
-                    Type::Const(_, _) => Ok(Kind::Type), // FIXME: should be int
+                    Type::Const(_) => Ok(Kind::Type), // FIXME: should be int
                     ty => Err(KindError::ExpectedUnsignedIntInArraySizeExpr(span, ty)),
                 }
             }
@@ -189,7 +189,7 @@ impl<'parent> Env<'parent> {
                 // TODO: prevent name shadowing?
                 inner_env.add_binding(param.clone(), (**ty).clone());
                 match self.type_of(pred) {
-                    Ok(Type::Const(_, TypeConst::Bool)) => Ok(Kind::Type),
+                    Ok(Type::Const(TypeConst::Bool)) => Ok(Kind::Type),
                     Ok(_) => unimplemented!(), // FIXME: better errors
                     Err(err) => Err(KindError::FailedToEvaluatePredicate(span, err)),
                 }
@@ -199,16 +199,16 @@ impl<'parent> Env<'parent> {
 
     fn type_of_bool_unop(&self, value: &Expr) -> Result<Type, TypeError> {
         match self.type_of(value)? {
-            ty @ Type::Const(_, TypeConst::Bool) => Ok(ty),
+            ty @ Type::Const(TypeConst::Bool) => Ok(ty),
             _ => unimplemented!(), // FIXME: better errors
         }
     }
 
     fn type_of_int_unop(&self, value: &Expr) -> Result<Type, TypeError> {
         match self.type_of(value)? {
-            ty @ Type::Const(_, TypeConst::UnknownInt) |
-            ty @ Type::Const(_, TypeConst::U(_, _)) |
-            ty @ Type::Const(_, TypeConst::I(_, _)) => Ok(ty),
+            ty @ Type::Const(TypeConst::UnknownInt) |
+            ty @ Type::Const(TypeConst::U(_, _)) |
+            ty @ Type::Const(TypeConst::I(_, _)) => Ok(ty),
             _ => unimplemented!(), // FIXME: better errors
         }
     }
@@ -221,7 +221,7 @@ impl<'parent> Env<'parent> {
         let rhs_ty = self.type_of(rhs)?;
 
         match (lhs_ty, rhs_ty) {
-            (ty @ Const(_, Bool), Const(_, Bool)) => Ok(ty),
+            (ty @ Const(Bool), Const(Bool)) => Ok(ty),
             (_, _) => unimplemented!(), // FIXME: better errors
         }
     }
@@ -236,25 +236,25 @@ impl<'parent> Env<'parent> {
         // FIXME: Ugh
         match (lhs_ty, rhs_ty) {
             // Coerce to LHS if the RHS is less specific
-            (Const(_, U(_, _)), Const(_, UnknownInt)) |
-            (Const(_, I(_, _)), Const(_, UnknownInt)) |
+            (Const(U(_, _)), Const(UnknownInt)) |
+            (Const(I(_, _)), Const(UnknownInt)) |
             // Coerce to RHS if the LHS is less specific
-            (Const(_, UnknownInt), Const(_, U(_, _))) |
-            (Const(_, UnknownInt), Const(_, I(_, _))) => {
-                Ok(Type::bool(Span::start()))
+            (Const(UnknownInt), Const(U(_, _))) |
+            (Const(UnknownInt), Const(I(_, _))) => {
+                Ok(Type::bool())
             }
             // Same type if LHS == RHS
-            (Const(_, U(ls, le)), Const(_, U(rs, re))) => {
+            (Const(U(ls, le)), Const(U(rs, re))) => {
                 if ls == rs && le == re {
-                    Ok(Type::bool(Span::start()))
+                    Ok(Type::bool())
                 } else {
                     unimplemented!()
                 }
             }
             // Same type if LHS == RHS
-            (Const(_, I(ls, le)), Const(_, I(rs, re))) => {
+            (Const(I(ls, le)), Const(I(rs, re))) => {
                 if ls == rs && le == re {
-                    Ok(Type::bool(Span::start()))
+                    Ok(Type::bool())
                 } else {
                     unimplemented!()
                 }
@@ -274,23 +274,23 @@ impl<'parent> Env<'parent> {
         // FIXME: Ugh
         match (lhs_ty, rhs_ty) {
             // Coerce to LHS if the RHS is less specific
-            (lhs_ty @ Const(_, U(_, _)), Const(_, UnknownInt)) |
-            (lhs_ty @ Const(_, I(_, _)), Const(_, UnknownInt)) => Ok(lhs_ty),
+            (lhs_ty @ Const(U(_, _)), Const(UnknownInt)) |
+            (lhs_ty @ Const(I(_, _)), Const(UnknownInt)) => Ok(lhs_ty),
             // Coerce to RHS if the LHS is less specific
-            (Const(_, UnknownInt), rhs_ty @ Const(_, U(_, _))) |
-            (Const(_, UnknownInt), rhs_ty @ Const(_, I(_, _))) => Ok(rhs_ty),
+            (Const(UnknownInt), rhs_ty @ Const(U(_, _))) |
+            (Const(UnknownInt), rhs_ty @ Const(I(_, _))) => Ok(rhs_ty),
             // Same type if LHS == RHS
-            (Const(span, U(ls, le)), Const(_, U(rs, re))) => {
+            (Const(U(ls, le)), Const(U(rs, re))) => {
                 if ls == rs && le == re {
-                    Ok(Const(span, U(ls, le)))
+                    Ok(Const(U(ls, le)))
                 } else {
                     unimplemented!()
                 }
             }
             // Same type if LHS == RHS
-            (Const(span, I(ls, le)), Const(_, I(rs, re))) => {
+            (Const(I(ls, le)), Const(I(rs, re))) => {
                 if ls == rs && le == re {
-                    Ok(Const(span, I(ls, le)))
+                    Ok(Const(I(ls, le)))
                 } else {
                     unimplemented!()
                 }
@@ -303,8 +303,8 @@ impl<'parent> Env<'parent> {
     /// `Γ ⊢ e : τ`
     pub fn type_of(&self, expr: &Expr) -> Result<Type, TypeError> {
         match *expr {
-            Expr::Const(_, Const::Bool(_)) => Ok(Type::bool(Span::start())),
-            Expr::Const(_, Const::UInt(_)) => Ok(Type::unknown_int(Span::start())),
+            Expr::Const(_, Const::Bool(_)) => Ok(Type::bool()),
+            Expr::Const(_, Const::UInt(_)) => Ok(Type::unknown_int()),
             Expr::Var(span, ref name) => {
                 match self.lookup_binding(name) {
                     Some(ty) => Ok(ty.clone()),
@@ -342,7 +342,7 @@ pub mod tests {
     #[test]
     fn ty_const() {
         let env = Env::default();
-        let ty = Type::i(Span::start(), 16, Endianness::Target);
+        let ty = Type::i(16, Endianness::Target);
 
         assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
     }
@@ -418,7 +418,7 @@ pub mod tests {
     #[test]
     fn array_len() {
         let mut env = Env::default();
-        let len_ty = Type::u(Span::start(), 32, Endianness::Target);
+        let len_ty = Type::u(32, Endianness::Target);
         env.add_binding("len", len_ty);
         let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 

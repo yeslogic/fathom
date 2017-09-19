@@ -18,10 +18,6 @@
                     },
                     name: "x",
                     ty: Const(
-                        Span {
-                            lo: BytePos(0),
-                            hi: BytePos(0)
-                        },
                         U(4, Big)
                     )
                 },
@@ -32,10 +28,6 @@
                     },
                     name: "y",
                     ty: Const(
-                        Span {
-                            lo: BytePos(0),
-                            hi: BytePos(0)
-                        },
                         U(4, Big)
                     )
                 }
@@ -61,10 +53,6 @@
                     },
                     name: "len",
                     ty: Const(
-                        Span {
-                            lo: BytePos(0),
-                            hi: BytePos(0)
-                        },
                         U(2, Little)
                     )
                 },
@@ -123,10 +111,6 @@
                             },
                             name: "format",
                             ty: Const(
-                                Span {
-                                    lo: BytePos(0),
-                                    hi: BytePos(0)
-                                },
                                 U(2, Target)
                             )
                         },
@@ -137,10 +121,6 @@
                             },
                             name: "data",
                             ty: Const(
-                                Span {
-                                    lo: BytePos(0),
-                                    hi: BytePos(0)
-                                },
                                 U(2, Target)
                             )
                         }
@@ -159,10 +139,6 @@
                             },
                             name: "format",
                             ty: Const(
-                                Span {
-                                    lo: BytePos(0),
-                                    hi: BytePos(0)
-                                },
                                 U(2, Target)
                             )
                         },
@@ -195,10 +171,6 @@
                             },
                             name: "format",
                             ty: Const(
-                                Span {
-                                    lo: BytePos(0),
-                                    hi: BytePos(0)
-                                },
                                 U(2, Target)
                             )
                         },

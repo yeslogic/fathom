@@ -11,10 +11,6 @@
                 hi: BytePos(29)
             },
             Const(
-                Span {
-                    lo: BytePos(0),
-                    hi: BytePos(0)
-                },
                 F(4, Target)
             ),
             Const(
