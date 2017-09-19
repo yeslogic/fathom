@@ -228,7 +228,6 @@ impl<'parent> Env<'parent> {
     }
 
     fn type_of_comparison_binop(&self, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
-        use ast::TypeConst::{I, U, UnknownInt};
         use ast::Type::Const;
 
         let lhs_ty = self.type_of(lhs)?;
@@ -237,15 +236,15 @@ impl<'parent> Env<'parent> {
         // FIXME: Ugh
         match (lhs_ty, rhs_ty) {
             // Coerce to LHS if the RHS is less specific
-            (Const(U(_, _)), Const(UnknownInt)) |
-            (Const(I(_, _)), Const(UnknownInt)) |
+            (Const(TypeConst::U(_, _)), Const(TypeConst::UnknownInt)) |
+            (Const(TypeConst::I(_, _)), Const(TypeConst::UnknownInt)) |
             // Coerce to RHS if the LHS is less specific
-            (Const(UnknownInt), Const(U(_, _))) |
-            (Const(UnknownInt), Const(I(_, _))) => {
+            (Const(TypeConst::UnknownInt), Const(TypeConst::U(_, _))) |
+            (Const(TypeConst::UnknownInt), Const(TypeConst::I(_, _))) => {
                 Ok(Type::bool())
             }
             // Same type if LHS == RHS
-            (Const(U(ls, le)), Const(U(rs, re))) => {
+            (Const(TypeConst::U(ls, le)), Const(TypeConst::U(rs, re))) => {
                 if ls == rs && le == re {
                     Ok(Type::bool())
                 } else {
@@ -253,7 +252,7 @@ impl<'parent> Env<'parent> {
                 }
             }
             // Same type if LHS == RHS
-            (Const(I(ls, le)), Const(I(rs, re))) => {
+            (Const(TypeConst::I(ls, le)), Const(TypeConst::I(rs, re))) => {
                 if ls == rs && le == re {
                     Ok(Type::bool())
                 } else {
@@ -266,7 +265,6 @@ impl<'parent> Env<'parent> {
     }
 
     fn type_of_int_binop(&self, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
-        use ast::TypeConst::{I, U, UnknownInt};
         use ast::Type::Const;
 
         let lhs_ty = self.type_of(lhs)?;
@@ -275,23 +273,23 @@ impl<'parent> Env<'parent> {
         // FIXME: Ugh
         match (lhs_ty, rhs_ty) {
             // Coerce to LHS if the RHS is less specific
-            (lhs_ty @ Const(U(_, _)), Const(UnknownInt)) |
-            (lhs_ty @ Const(I(_, _)), Const(UnknownInt)) => Ok(lhs_ty),
+            (lhs_ty @ Const(TypeConst::U(_, _)), Const(TypeConst::UnknownInt)) |
+            (lhs_ty @ Const(TypeConst::I(_, _)), Const(TypeConst::UnknownInt)) => Ok(lhs_ty),
             // Coerce to RHS if the LHS is less specific
-            (Const(UnknownInt), rhs_ty @ Const(U(_, _))) |
-            (Const(UnknownInt), rhs_ty @ Const(I(_, _))) => Ok(rhs_ty),
+            (Const(TypeConst::UnknownInt), rhs_ty @ Const(TypeConst::U(_, _))) |
+            (Const(TypeConst::UnknownInt), rhs_ty @ Const(TypeConst::I(_, _))) => Ok(rhs_ty),
             // Same type if LHS == RHS
-            (Const(U(ls, le)), Const(U(rs, re))) => {
+            (Const(TypeConst::U(ls, le)), Const(TypeConst::U(rs, re))) => {
                 if ls == rs && le == re {
-                    Ok(Const(U(ls, le)))
+                    Ok(Const(TypeConst::U(ls, le)))
                 } else {
                     unimplemented!()
                 }
             }
             // Same type if LHS == RHS
-            (Const(I(ls, le)), Const(I(rs, re))) => {
+            (Const(TypeConst::I(ls, le)), Const(TypeConst::I(rs, re))) => {
                 if ls == rs && le == re {
-                    Ok(Const(I(ls, le)))
+                    Ok(Const(TypeConst::I(ls, le)))
                 } else {
                     unimplemented!()
                 }
