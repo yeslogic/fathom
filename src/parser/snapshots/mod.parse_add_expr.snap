@@ -1,37 +1,35 @@
-Ok(
-    Binop(
+Binop(
+    Span {
+        lo: BytePos(0),
+        hi: BytePos(9)
+    },
+    Add,
+    Var(
         Span {
             lo: BytePos(0),
+            hi: BytePos(1)
+        },
+        "x"
+    ),
+    Binop(
+        Span {
+            lo: BytePos(4),
             hi: BytePos(9)
         },
         Add,
         Var(
             Span {
-                lo: BytePos(0),
-                hi: BytePos(1)
-            },
-            "x"
-        ),
-        Binop(
-            Span {
                 lo: BytePos(4),
+                hi: BytePos(5)
+            },
+            "y"
+        ),
+        Var(
+            Span {
+                lo: BytePos(8),
                 hi: BytePos(9)
             },
-            Add,
-            Var(
-                Span {
-                    lo: BytePos(4),
-                    hi: BytePos(5)
-                },
-                "y"
-            ),
-            Var(
-                Span {
-                    lo: BytePos(8),
-                    hi: BytePos(9)
-                },
-                "z"
-            )
+            "z"
         )
     )
 )

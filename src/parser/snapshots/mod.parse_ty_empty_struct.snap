@@ -1,9 +1,7 @@
-Ok(
-    Struct(
-        Span {
-            lo: BytePos(0),
-            hi: BytePos(9)
-        },
-        []
-    )
+Struct(
+    Span {
+        lo: BytePos(0),
+        hi: BytePos(9)
+    },
+    []
 )

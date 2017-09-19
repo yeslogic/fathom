@@ -1,66 +1,64 @@
-Ok(
+Where(
+    Span {
+        lo: BytePos(13),
+        hi: BytePos(132)
+    },
     Where(
         Span {
             lo: BytePos(13),
-            hi: BytePos(132)
+            hi: BytePos(103)
         },
-        Where(
+        Struct(
             Span {
                 lo: BytePos(13),
-                hi: BytePos(103)
+                hi: BytePos(75)
             },
-            Struct(
-                Span {
-                    lo: BytePos(13),
-                    hi: BytePos(75)
-                },
-                [
-                    Field {
-                        span: Span {
-                            lo: BytePos(38),
+            [
+                Field {
+                    span: Span {
+                        lo: BytePos(38),
+                        hi: BytePos(60)
+                    },
+                    name: "x",
+                    ty: Where(
+                        Span {
+                            lo: BytePos(41),
                             hi: BytePos(60)
                         },
-                        name: "x",
-                        ty: Where(
+                        Const(
                             Span {
-                                lo: BytePos(41),
+                                lo: BytePos(0),
+                                hi: BytePos(0)
+                            },
+                            U(4, Target)
+                        ),
+                        "x",
+                        Const(
+                            Span {
+                                lo: BytePos(56),
                                 hi: BytePos(60)
                             },
-                            Const(
-                                Span {
-                                    lo: BytePos(0),
-                                    hi: BytePos(0)
-                                },
-                                U(4, Target)
-                            ),
-                            "x",
-                            Const(
-                                Span {
-                                    lo: BytePos(56),
-                                    hi: BytePos(60)
-                                },
-                                true
-                            )
+                            true
                         )
-                    }
-                ]
-            ),
-            "x",
-            Const(
-                Span {
-                    lo: BytePos(99),
-                    hi: BytePos(103)
-                },
-                true
-            )
+                    )
+                }
+            ]
         ),
         "x",
         Const(
             Span {
-                lo: BytePos(127),
-                hi: BytePos(132)
+                lo: BytePos(99),
+                hi: BytePos(103)
             },
-            false
+            true
         )
+    ),
+    "x",
+    Const(
+        Span {
+            lo: BytePos(127),
+            hi: BytePos(132)
+        },
+        false
     )
 )

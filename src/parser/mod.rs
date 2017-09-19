@@ -67,7 +67,10 @@ mod tests {
             !((true | (false)))
         ";
 
-        assert_snapshot!(parse_bool_expr, parse_bool_expr(&Env::default(), src));
+        assert_snapshot!(
+            parse_bool_expr,
+            parse_bool_expr(&Env::default(), src).unwrap()
+        );
     }
 
     #[test]
@@ -78,7 +81,7 @@ mod tests {
 
         assert_snapshot!(
             parse_bool_expr_operators,
-            parse_bool_expr(&Env::default(), src)
+            parse_bool_expr(&Env::default(), src).unwrap()
         );
     }
 
@@ -86,42 +89,48 @@ mod tests {
     fn parse_add_expr() {
         let src = "x + y + z";
 
-        assert_snapshot!(parse_add_expr, parse_expr(&Env::default(), src));
+        assert_snapshot!(parse_add_expr, parse_expr(&Env::default(), src).unwrap());
     }
 
     #[test]
     fn parse_sub_expr() {
         let src = "x - y - z";
 
-        assert_snapshot!(parse_sub_expr, parse_expr(&Env::default(), src));
+        assert_snapshot!(parse_sub_expr, parse_expr(&Env::default(), src).unwrap());
     }
 
     #[test]
     fn parse_add_expr_mixed() {
         let src = "x + y + z - z + x";
 
-        assert_snapshot!(parse_add_expr_mixed, parse_expr(&Env::default(), src));
+        assert_snapshot!(
+            parse_add_expr_mixed,
+            parse_expr(&Env::default(), src).unwrap()
+        );
     }
 
     #[test]
     fn parse_mul_expr() {
         let src = "x * y * z";
 
-        assert_snapshot!(parse_mul_expr, parse_expr(&Env::default(), src));
+        assert_snapshot!(parse_mul_expr, parse_expr(&Env::default(), src).unwrap());
     }
 
     #[test]
     fn parse_div_expr() {
         let src = "x / y / z";
 
-        assert_snapshot!(parse_div_expr, parse_expr(&Env::default(), src));
+        assert_snapshot!(parse_div_expr, parse_expr(&Env::default(), src).unwrap());
     }
 
     #[test]
     fn parse_mul_expr_mixed() {
         let src = "x * y * z / z * x";
 
-        assert_snapshot!(parse_mul_expr_mixed, parse_expr(&Env::default(), src));
+        assert_snapshot!(
+            parse_mul_expr_mixed,
+            parse_expr(&Env::default(), src).unwrap()
+        );
     }
 
     #[test]
@@ -130,7 +139,7 @@ mod tests {
 
         assert_snapshot!(
             parse_mixed_arithmetic_expr,
-            parse_expr(&Env::default(), src)
+            parse_expr(&Env::default(), src).unwrap()
         );
     }
 
@@ -140,7 +149,7 @@ mod tests {
 
         assert_snapshot!(
             parse_mixed_arithmetic_expr_parenthesized,
-            parse_expr(&Env::default(), src)
+            parse_expr(&Env::default(), src).unwrap()
         );
     }
 
@@ -150,14 +159,17 @@ mod tests {
             Point
         ";
 
-        assert_snapshot!(parse_ty_var, parse_ty(&Env::default(), src));
+        assert_snapshot!(parse_ty_var, parse_ty(&Env::default(), src).unwrap());
     }
 
     #[test]
     fn parse_ty_empty_struct() {
         let src = "struct {}";
 
-        assert_snapshot!(parse_ty_empty_struct, parse_ty(&Env::default(), src));
+        assert_snapshot!(
+            parse_ty_empty_struct,
+            parse_ty(&Env::default(), src).unwrap()
+        );
     }
 
     #[test]
@@ -170,7 +182,7 @@ mod tests {
             where x => false
         ";
 
-        assert_snapshot!(parse_ty_where, parse_ty(&Env::default(), src));
+        assert_snapshot!(parse_ty_where, parse_ty(&Env::default(), src).unwrap());
     }
 
     #[test]
@@ -179,7 +191,10 @@ mod tests {
             Offset32 = u32;
         ";
 
-        assert_snapshot!(parse_simple_definition, parse(&Env::default(), src));
+        assert_snapshot!(
+            parse_simple_definition,
+            parse(&Env::default(), src).unwrap()
+        );
     }
 
     #[test]
@@ -188,7 +203,10 @@ mod tests {
             Point = [f32; 3];
         ";
 
-        assert_snapshot!(parse_array_with_constant_size, parse(&Env::default(), src));
+        assert_snapshot!(
+            parse_array_with_constant_size,
+            parse(&Env::default(), src).unwrap()
+        );
     }
 
     #[test]
@@ -211,6 +229,6 @@ mod tests {
             };
         ";
 
-        assert_snapshot!(parse_definition, parse(&Env::default(), src));
+        assert_snapshot!(parse_definition, parse(&Env::default(), src).unwrap());
     }
 }

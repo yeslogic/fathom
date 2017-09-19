@@ -1,31 +1,29 @@
-Ok(
-    [
-        Definition {
-            span: Span {
-                lo: BytePos(13),
-                hi: BytePos(30)
+[
+    Definition {
+        span: Span {
+            lo: BytePos(13),
+            hi: BytePos(30)
+        },
+        name: "Point",
+        ty: Array(
+            Span {
+                lo: BytePos(21),
+                hi: BytePos(29)
             },
-            name: "Point",
-            ty: Array(
+            Const(
                 Span {
-                    lo: BytePos(21),
-                    hi: BytePos(29)
+                    lo: BytePos(0),
+                    hi: BytePos(0)
                 },
-                Const(
-                    Span {
-                        lo: BytePos(0),
-                        hi: BytePos(0)
-                    },
-                    F(4, Target)
-                ),
-                Const(
-                    Span {
-                        lo: BytePos(27),
-                        hi: BytePos(28)
-                    },
-                    3
-                )
+                F(4, Target)
+            ),
+            Const(
+                Span {
+                    lo: BytePos(27),
+                    hi: BytePos(28)
+                },
+                3
             )
-        }
-    ]
-)
+        )
+    }
+]

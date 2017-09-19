@@ -1,18 +1,16 @@
-Ok(
-    [
-        Definition {
-            span: Span {
-                lo: BytePos(13),
-                hi: BytePos(28)
+[
+    Definition {
+        span: Span {
+            lo: BytePos(13),
+            hi: BytePos(28)
+        },
+        name: "Offset32",
+        ty: Const(
+            Span {
+                lo: BytePos(0),
+                hi: BytePos(0)
             },
-            name: "Offset32",
-            ty: Const(
-                Span {
-                    lo: BytePos(0),
-                    hi: BytePos(0)
-                },
-                U(4, Target)
-            )
-        }
-    ]
-)
+            U(4, Target)
+        )
+    }
+]

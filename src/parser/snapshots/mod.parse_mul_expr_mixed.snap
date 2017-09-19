@@ -1,63 +1,61 @@
-Ok(
-    Binop(
+Binop(
+    Span {
+        lo: BytePos(0),
+        hi: BytePos(17)
+    },
+    Mul,
+    Var(
         Span {
             lo: BytePos(0),
+            hi: BytePos(1)
+        },
+        "x"
+    ),
+    Binop(
+        Span {
+            lo: BytePos(4),
             hi: BytePos(17)
         },
         Mul,
         Var(
             Span {
-                lo: BytePos(0),
-                hi: BytePos(1)
+                lo: BytePos(4),
+                hi: BytePos(5)
             },
-            "x"
+            "y"
         ),
         Binop(
             Span {
-                lo: BytePos(4),
+                lo: BytePos(8),
                 hi: BytePos(17)
             },
-            Mul,
+            Div,
             Var(
                 Span {
-                    lo: BytePos(4),
-                    hi: BytePos(5)
+                    lo: BytePos(8),
+                    hi: BytePos(9)
                 },
-                "y"
+                "z"
             ),
             Binop(
                 Span {
-                    lo: BytePos(8),
+                    lo: BytePos(12),
                     hi: BytePos(17)
                 },
-                Div,
+                Mul,
                 Var(
                     Span {
-                        lo: BytePos(8),
-                        hi: BytePos(9)
+                        lo: BytePos(12),
+                        hi: BytePos(13)
                     },
                     "z"
                 ),
-                Binop(
+                Var(
                     Span {
-                        lo: BytePos(12),
+                        lo: BytePos(16),
                         hi: BytePos(17)
                     },
-                    Mul,
-                    Var(
-                        Span {
-                            lo: BytePos(12),
-                            hi: BytePos(13)
-                        },
-                        "z"
-                    ),
-                    Var(
-                        Span {
-                            lo: BytePos(16),
-                            hi: BytePos(17)
-                        },
-                        "x"
-                    )
+                    "x"
                 )
             )
         )

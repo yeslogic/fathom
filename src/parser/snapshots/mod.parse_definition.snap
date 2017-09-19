@@ -1,226 +1,224 @@
-Ok(
-    [
-        Definition {
-            span: Span {
-                lo: BytePos(13),
-                hi: BytePos(98)
-            },
-            name: "Point",
-            ty: Struct(
-                Span {
-                    lo: BytePos(21),
-                    hi: BytePos(97)
-                },
-                [
-                    Field {
-                        span: Span {
-                            lo: BytePos(46),
-                            hi: BytePos(55)
-                        },
-                        name: "x",
-                        ty: Const(
-                            Span {
-                                lo: BytePos(0),
-                                hi: BytePos(0)
-                            },
-                            U(4, Big)
-                        )
-                    },
-                    Field {
-                        span: Span {
-                            lo: BytePos(73),
-                            hi: BytePos(82)
-                        },
-                        name: "y",
-                        ty: Const(
-                            Span {
-                                lo: BytePos(0),
-                                hi: BytePos(0)
-                            },
-                            U(4, Big)
-                        )
-                    }
-                ]
-            )
+[
+    Definition {
+        span: Span {
+            lo: BytePos(13),
+            hi: BytePos(98)
         },
-        Definition {
-            span: Span {
-                lo: BytePos(112),
-                hi: BytePos(209)
+        name: "Point",
+        ty: Struct(
+            Span {
+                lo: BytePos(21),
+                hi: BytePos(97)
             },
-            name: "Array",
-            ty: Struct(
-                Span {
-                    lo: BytePos(120),
-                    hi: BytePos(208)
-                },
-                [
-                    Field {
-                        span: Span {
-                            lo: BytePos(145),
-                            hi: BytePos(156)
-                        },
-                        name: "len",
-                        ty: Const(
-                            Span {
-                                lo: BytePos(0),
-                                hi: BytePos(0)
-                            },
-                            U(2, Little)
-                        )
+            [
+                Field {
+                    span: Span {
+                        lo: BytePos(46),
+                        hi: BytePos(55)
                     },
-                    Field {
-                        span: Span {
-                            lo: BytePos(174),
+                    name: "x",
+                    ty: Const(
+                        Span {
+                            lo: BytePos(0),
+                            hi: BytePos(0)
+                        },
+                        U(4, Big)
+                    )
+                },
+                Field {
+                    span: Span {
+                        lo: BytePos(73),
+                        hi: BytePos(82)
+                    },
+                    name: "y",
+                    ty: Const(
+                        Span {
+                            lo: BytePos(0),
+                            hi: BytePos(0)
+                        },
+                        U(4, Big)
+                    )
+                }
+            ]
+        )
+    },
+    Definition {
+        span: Span {
+            lo: BytePos(112),
+            hi: BytePos(209)
+        },
+        name: "Array",
+        ty: Struct(
+            Span {
+                lo: BytePos(120),
+                hi: BytePos(208)
+            },
+            [
+                Field {
+                    span: Span {
+                        lo: BytePos(145),
+                        hi: BytePos(156)
+                    },
+                    name: "len",
+                    ty: Const(
+                        Span {
+                            lo: BytePos(0),
+                            hi: BytePos(0)
+                        },
+                        U(2, Little)
+                    )
+                },
+                Field {
+                    span: Span {
+                        lo: BytePos(174),
+                        hi: BytePos(193)
+                    },
+                    name: "data",
+                    ty: Array(
+                        Span {
+                            lo: BytePos(181),
                             hi: BytePos(193)
                         },
-                        name: "data",
-                        ty: Array(
+                        Var(
                             Span {
-                                lo: BytePos(181),
-                                hi: BytePos(193)
+                                lo: BytePos(182),
+                                hi: BytePos(187)
                             },
-                            Var(
-                                Span {
-                                    lo: BytePos(182),
-                                    hi: BytePos(187)
-                                },
-                                "Point"
-                            ),
-                            Var(
-                                Span {
-                                    lo: BytePos(189),
-                                    hi: BytePos(192)
-                                },
-                                "len"
-                            )
+                            "Point"
+                        ),
+                        Var(
+                            Span {
+                                lo: BytePos(189),
+                                hi: BytePos(192)
+                            },
+                            "len"
                         )
-                    }
-                ]
-            )
+                    )
+                }
+            ]
+        )
+    },
+    Definition {
+        span: Span {
+            lo: BytePos(223),
+            hi: BytePos(417)
         },
-        Definition {
-            span: Span {
-                lo: BytePos(223),
-                hi: BytePos(417)
+        name: "Formats",
+        ty: Union(
+            Span {
+                lo: BytePos(233),
+                hi: BytePos(416)
             },
-            name: "Formats",
-            ty: Union(
-                Span {
-                    lo: BytePos(233),
-                    hi: BytePos(416)
-                },
-                [
-                    Struct(
-                        Span {
-                            lo: BytePos(257),
-                            hi: BytePos(291)
-                        },
-                        [
-                            Field {
-                                span: Span {
-                                    lo: BytePos(266),
-                                    hi: BytePos(278)
-                                },
-                                name: "format",
-                                ty: Const(
-                                    Span {
-                                        lo: BytePos(0),
-                                        hi: BytePos(0)
-                                    },
-                                    U(2, Target)
-                                )
+            [
+                Struct(
+                    Span {
+                        lo: BytePos(257),
+                        hi: BytePos(291)
+                    },
+                    [
+                        Field {
+                            span: Span {
+                                lo: BytePos(266),
+                                hi: BytePos(278)
                             },
-                            Field {
-                                span: Span {
-                                    lo: BytePos(280),
-                                    hi: BytePos(289)
+                            name: "format",
+                            ty: Const(
+                                Span {
+                                    lo: BytePos(0),
+                                    hi: BytePos(0)
                                 },
-                                name: "data",
-                                ty: Const(
-                                    Span {
-                                        lo: BytePos(0),
-                                        hi: BytePos(0)
-                                    },
-                                    U(2, Target)
-                                )
-                            }
-                        ]
-                    ),
-                    Struct(
-                        Span {
-                            lo: BytePos(309),
-                            hi: BytePos(346)
+                                U(2, Target)
+                            )
                         },
-                        [
-                            Field {
-                                span: Span {
-                                    lo: BytePos(318),
-                                    hi: BytePos(330)
-                                },
-                                name: "format",
-                                ty: Const(
-                                    Span {
-                                        lo: BytePos(0),
-                                        hi: BytePos(0)
-                                    },
-                                    U(2, Target)
-                                )
+                        Field {
+                            span: Span {
+                                lo: BytePos(280),
+                                hi: BytePos(289)
                             },
-                            Field {
-                                span: Span {
-                                    lo: BytePos(332),
+                            name: "data",
+                            ty: Const(
+                                Span {
+                                    lo: BytePos(0),
+                                    hi: BytePos(0)
+                                },
+                                U(2, Target)
+                            )
+                        }
+                    ]
+                ),
+                Struct(
+                    Span {
+                        lo: BytePos(309),
+                        hi: BytePos(346)
+                    },
+                    [
+                        Field {
+                            span: Span {
+                                lo: BytePos(318),
+                                hi: BytePos(330)
+                            },
+                            name: "format",
+                            ty: Const(
+                                Span {
+                                    lo: BytePos(0),
+                                    hi: BytePos(0)
+                                },
+                                U(2, Target)
+                            )
+                        },
+                        Field {
+                            span: Span {
+                                lo: BytePos(332),
+                                hi: BytePos(344)
+                            },
+                            name: "point",
+                            ty: Var(
+                                Span {
+                                    lo: BytePos(339),
                                     hi: BytePos(344)
                                 },
-                                name: "point",
-                                ty: Var(
-                                    Span {
-                                        lo: BytePos(339),
-                                        hi: BytePos(344)
-                                    },
-                                    "Point"
-                                )
-                            }
-                        ]
-                    ),
-                    Struct(
-                        Span {
-                            lo: BytePos(364),
-                            hi: BytePos(401)
-                        },
-                        [
-                            Field {
-                                span: Span {
-                                    lo: BytePos(373),
-                                    hi: BytePos(385)
-                                },
-                                name: "format",
-                                ty: Const(
-                                    Span {
-                                        lo: BytePos(0),
-                                        hi: BytePos(0)
-                                    },
-                                    U(2, Target)
-                                )
+                                "Point"
+                            )
+                        }
+                    ]
+                ),
+                Struct(
+                    Span {
+                        lo: BytePos(364),
+                        hi: BytePos(401)
+                    },
+                    [
+                        Field {
+                            span: Span {
+                                lo: BytePos(373),
+                                hi: BytePos(385)
                             },
-                            Field {
-                                span: Span {
-                                    lo: BytePos(387),
+                            name: "format",
+                            ty: Const(
+                                Span {
+                                    lo: BytePos(0),
+                                    hi: BytePos(0)
+                                },
+                                U(2, Target)
+                            )
+                        },
+                        Field {
+                            span: Span {
+                                lo: BytePos(387),
+                                hi: BytePos(399)
+                            },
+                            name: "array",
+                            ty: Var(
+                                Span {
+                                    lo: BytePos(394),
                                     hi: BytePos(399)
                                 },
-                                name: "array",
-                                ty: Var(
-                                    Span {
-                                        lo: BytePos(394),
-                                        hi: BytePos(399)
-                                    },
-                                    "Array"
-                                )
-                            }
-                        ]
-                    )
-                ]
-            )
-        }
-    ]
-)
+                                "Array"
+                            )
+                        }
+                    ]
+                )
+            ]
+        )
+    }
+]
