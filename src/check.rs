@@ -33,7 +33,7 @@
 //!         e₁ / e₂     division
 //! ```
 //!
-//! ## Terms
+//! ## Types
 //!
 //! ```plain
 //! τ ::=
@@ -76,15 +76,15 @@ use env::Env;
 use source::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeError {
+pub enum KindError {
     UnboundType(Span, String),
     ExpectedUnsignedIntInArraySizeExpr(Span, Type),
-    FailedToEvaluateArraySize(Span, ExprError),
-    FailedToEvaluatePredicate(Span, ExprError),
+    FailedToEvaluateArraySize(Span, TypeError),
+    FailedToEvaluatePredicate(Span, TypeError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ExprError {
+pub enum TypeError {
     UnboundVariable(Span, String),
 }
 
@@ -92,9 +92,9 @@ impl<'parent> Env<'parent> {
     pub fn check_defs<I: IntoIterator<Item = Definition>>(
         &mut self,
         defs: I,
-    ) -> Result<(), TypeError> {
+    ) -> Result<(), KindError> {
         for def in defs {
-            self.check_ty(&def.ty)?;
+            self.kind_of(&def.ty)?;
             self.add_ty(def.name, def.ty);
         }
         Ok(())
@@ -124,14 +124,14 @@ impl<'parent> Env<'parent> {
     ///
     ///     Γ ⊢ τ : Type        Γ ⊢ e : Int
     /// ―――――――――――――――――――――――――――――――――――――――――― (ARRAY)
-    ///              [τ; e] : Type
+    ///             Γ ⊢ [τ; e] : Type
     ///
     ///
     ///     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
     /// ―――――――――――――――――――――――――――――――――――――――――― (CON)
-    ///               { x:τ | b }
+    ///           Γ ⊢ { x:τ | b } : Type
     /// ```
-    pub fn check_ty(&self, ty: &Type) -> Result<Kind, TypeError> {
+    pub fn kind_of(&self, ty: &Type) -> Result<Kind, KindError> {
         match *ty {
             // CONST
             Type::Const(_, _) => Ok(Kind::Type), // Easypeasy
@@ -142,7 +142,7 @@ impl<'parent> Env<'parent> {
                 // α ∈ Γ
                 match self.lookup_ty(name) {
                     Some(_) => Ok(Kind::Type),
-                    None => Err(TypeError::UnboundType(span, name.clone())),
+                    None => Err(KindError::UnboundType(span, name.clone())),
                 }
             }
 
@@ -150,7 +150,7 @@ impl<'parent> Env<'parent> {
             Type::Union(_, ref tys) => {
                 for ty in tys {
                     // Γ ⊢ τ₁ : Type
-                    self.check_ty(&ty)?;
+                    self.kind_of(&ty)?;
                 }
                 Ok(Kind::Type)
             }
@@ -161,7 +161,7 @@ impl<'parent> Env<'parent> {
                 let mut inner_env = self.extend();
                 for field in fields {
                     // Γ ⊢ τ₁ : Type
-                    inner_env.check_ty(&field.ty)?;
+                    inner_env.kind_of(&field.ty)?;
                     // Γ, x:τ₁ ⊢ τ₂ : Type
                     inner_env.add_binding(field.name.clone(), field.ty.clone());
                 }
@@ -170,35 +170,35 @@ impl<'parent> Env<'parent> {
 
             // ARRAY
             Type::Array(span, ref ty, ref size) => {
-                self.check_ty(ty)?;
-                let expr_ty = self.check_expr(size).map_err(|err| {
-                    TypeError::FailedToEvaluateArraySize(span, err)
+                self.kind_of(ty)?;
+                let expr_ty = self.type_of(size).map_err(|err| {
+                    KindError::FailedToEvaluateArraySize(span, err)
                 })?;
 
                 match expr_ty {
                     Type::Const(_, _) => Ok(Kind::Type), // FIXME: should be int
-                    ty => Err(TypeError::ExpectedUnsignedIntInArraySizeExpr(span, ty)),
+                    ty => Err(KindError::ExpectedUnsignedIntInArraySizeExpr(span, ty)),
                 }
             }
 
             // CON
             Type::Where(span, ref ty, ref param, ref pred) => {
-                self.check_ty(ty)?;
+                self.kind_of(ty)?;
 
                 let mut inner_env = self.extend();
                 // TODO: prevent name shadowing?
                 inner_env.add_binding(param.clone(), (**ty).clone());
-                match self.check_expr(pred) {
+                match self.type_of(pred) {
                     Ok(Type::Const(_, TypeConst::Bool)) => Ok(Kind::Type),
                     Ok(_) => unimplemented!(), // FIXME: better errors
-                    Err(err) => Err(TypeError::FailedToEvaluatePredicate(span, err)),
+                    Err(err) => Err(KindError::FailedToEvaluatePredicate(span, err)),
                 }
             }
         }
     }
 
     /// `Γ ⊢ e : τ`
-    pub fn check_expr(&self, expr: &Expr) -> Result<Type, ExprError> {
+    pub fn type_of(&self, expr: &Expr) -> Result<Type, TypeError> {
         use ast::TypeConst::{Bool, I, U, UnknownInt};
         use ast::Type::Const;
 
@@ -207,19 +207,19 @@ impl<'parent> Env<'parent> {
             Expr::Var(span, ref name) => {
                 match self.lookup_binding(name) {
                     Some(ty) => Ok(ty.clone()),
-                    None => Err(ExprError::UnboundVariable(span, name.clone())),
+                    None => Err(TypeError::UnboundVariable(span, name.clone())),
                 }
             }
             Expr::Unop(_, op, ref value) => {
                 match op {
                     Unop::Not => {
-                        match self.check_expr(value)? {
+                        match self.type_of(value)? {
                             ty @ Const(_, Bool) => Ok(ty),
                             _ => unimplemented!(), // FIXME: better errors
                         }
                     }
                     Unop::Neg => {
-                        match self.check_expr(value)? {
+                        match self.type_of(value)? {
                             ty @ Const(_, UnknownInt) |
                             ty @ Const(_, U(_, _)) |
                             ty @ Const(_, I(_, _)) => Ok(ty),
@@ -231,8 +231,8 @@ impl<'parent> Env<'parent> {
             Expr::Binop(_, op, ref lhs, ref rhs) => {
                 match op {
                     Binop::Or | Binop::And => {
-                        let lhs_ty = self.check_expr(lhs)?;
-                        let rhs_ty = self.check_expr(rhs)?;
+                        let lhs_ty = self.type_of(lhs)?;
+                        let rhs_ty = self.type_of(rhs)?;
 
                         match (lhs_ty, rhs_ty) {
                             (ty @ Const(_, Bool), Const(_, Bool)) => Ok(ty),
@@ -240,8 +240,8 @@ impl<'parent> Env<'parent> {
                         }
                     }
                     Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                        let lhs_ty = self.check_expr(lhs)?;
-                        let rhs_ty = self.check_expr(rhs)?;
+                        let lhs_ty = self.type_of(lhs)?;
+                        let rhs_ty = self.type_of(rhs)?;
 
                         // FIXME: Ugh
                         match (lhs_ty, rhs_ty) {
@@ -274,8 +274,8 @@ impl<'parent> Env<'parent> {
                         }
                     }
                     Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                        let lhs_ty = self.check_expr(lhs)?;
-                        let rhs_ty = self.check_expr(rhs)?;
+                        let lhs_ty = self.type_of(lhs)?;
+                        let rhs_ty = self.type_of(rhs)?;
 
                         // FIXME: Ugh
                         match (lhs_ty, rhs_ty) {
@@ -323,7 +323,7 @@ pub mod tests {
         let env = Env::default();
         let ty = Type::i(Span::start(), 16, Endianness::Target);
 
-        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
+        assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
     }
 
     #[test]
@@ -331,7 +331,7 @@ pub mod tests {
         let env = Env::default();
         let ty = parser::parse_ty(&env, "u8").unwrap();
 
-        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
+        assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
     }
 
     #[test]
@@ -340,8 +340,8 @@ pub mod tests {
         let ty = parser::parse_ty(&env, "Foo").unwrap();
 
         assert_eq!(
-            env.check_ty(&ty),
-            Err(TypeError::UnboundType(
+            env.kind_of(&ty),
+            Err(KindError::UnboundType(
                 Span::new(B(0), B(3)),
                 "Foo".to_owned(),
             ))
@@ -353,7 +353,7 @@ pub mod tests {
         let env = Env::default();
         let ty = parser::parse_ty(&env, "union { u8, u16, i32 }").unwrap();
 
-        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
+        assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
     }
 
     #[test]
@@ -362,8 +362,8 @@ pub mod tests {
         let ty = parser::parse_ty(&env, "union { u8, Foo, i32 }").unwrap();
 
         assert_eq!(
-            env.check_ty(&ty),
-            Err(TypeError::UnboundType(
+            env.kind_of(&ty),
+            Err(KindError::UnboundType(
                 Span::new(B(12), B(15)),
                 "Foo".to_owned(),
             ))
@@ -375,7 +375,7 @@ pub mod tests {
         let env = Env::default();
         let ty = parser::parse_ty(&env, "struct { x: u8, y: u8 }").unwrap();
 
-        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
+        assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
     }
 
     #[test]
@@ -383,7 +383,7 @@ pub mod tests {
         let env = Env::default();
         let ty = parser::parse_ty(&env, "struct { len: u8, data: [u8; len] }").unwrap();
 
-        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
+        assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
     }
 
     #[test]
@@ -391,7 +391,7 @@ pub mod tests {
         let env = Env::default();
         let ty = parser::parse_ty(&env, "[u8; 16]").unwrap();
 
-        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
+        assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
     }
 
     #[test]
@@ -401,7 +401,7 @@ pub mod tests {
         env.add_binding("len", len_ty);
         let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
-        assert_eq!(env.check_ty(&ty), Ok(Kind::Type));
+        assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
     }
 
     #[test]
@@ -412,8 +412,8 @@ pub mod tests {
         let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
         assert_eq!(
-            env.check_ty(&ty),
-            Err(TypeError::ExpectedUnsignedIntInArraySizeExpr(
+            env.kind_of(&ty),
+            Err(KindError::ExpectedUnsignedIntInArraySizeExpr(
                 Span::new(B(0), B(9)),
                 len_ty,
             ))
