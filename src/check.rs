@@ -15,23 +15,22 @@
 //! e ::=
 //!         x           variables
 //!         n           integer number
-//! ```
-//!
-//! ## Boolean Expressions
-//!
-//! ```plain
-//! b ::=
 //!         true        true value
 //!         false       false value
-//!         ¬b          not
-//!         b₁ ∨ b₂     disjunction
-//!         b₁ ∧ b₂     conjunction
+//!         -e          negation
+//!         ¬e          not
+//!         e₁ ∨ e₂     disjunction
+//!         e₁ ∧ e₂     conjunction
 //!         e₁ = e₂     equality
 //!         e₁ ≠ e₂     inequality
 //!         e₁ < e₂     less than
 //!         e₁ ≤ e₂     less than or equal
 //!         e₁ > e₂     greater than
 //!         e₁ ≥ e₂     greater than or equal
+//!         e₁ + e₂     addition
+//!         e₁ - e₂     subtraction
+//!         e₁ * e₂     multiplication
+//!         e₁ / e₂     division
 //! ```
 //!
 //! ## Terms
@@ -43,7 +42,7 @@
 //!         τ₁ + τ₂             sum
 //!         Σ x:τ₁ .τ₂          dependent pair
 //!         [τ; e]              array
-//!         { x:τ | b }         constrained type
+//!         { x:τ | e }         constrained type
 //! ```
 //!
 //! In the `ast`, we represent the above as the following:
@@ -251,7 +250,9 @@ impl<'parent> Env<'parent> {
                             (Const(_, I(_, _)), Const(_, UnknownInt)) |
                             // Coerce to RHS if the LHS is less specific
                             (Const(_, UnknownInt), Const(_, U(_, _))) |
-                            (Const(_, UnknownInt), Const(_, I(_, _))) => Ok(Type::bool(Span::start())),
+                            (Const(_, UnknownInt), Const(_, I(_, _))) => {
+                                Ok(Type::bool(Span::start()))
+                            }
                             // Same type if LHS == RHS
                             (Const(_, U(ls, le)), Const(_, U(rs, re))) => {
                                 if ls == rs && le == re {
