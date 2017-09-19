@@ -78,9 +78,10 @@ use source::Span;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KindError {
     UnboundType(Span, String),
-    ExpectedUIntArraySize(Span, Type),
-    FailedToEvaluateArraySize(Span, TypeError),
-    FailedToEvaluatePredicate(Span, TypeError),
+    ArraySizeExpectedUInt(Span, Type),
+    ArraySizeType(Span, TypeError),
+    WherePredicateExpectedBool(Span, Type),
+    WherePredicateType(Span, TypeError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -171,14 +172,14 @@ impl<'parent> Env<'parent> {
             // K-ARRAY
             Type::Array(span, ref ty, ref size) => {
                 self.kind_of(ty)?;
-                let expr_ty = self.type_of(size).map_err(|err| {
-                    KindError::FailedToEvaluateArraySize(span, err)
-                })?;
+                let expr_ty = self.type_of(size).map_err(
+                    |err| KindError::ArraySizeType(span, err),
+                )?;
 
                 match expr_ty {
                     Type::Const(TypeConst::UnknownInt) |
                     Type::Const(TypeConst::U(_, _)) => Ok(Kind::Type),
-                    ty => Err(KindError::ExpectedUIntArraySize(span, ty)),
+                    ty => Err(KindError::ArraySizeExpectedUInt(span, ty)),
                 }
             }
 
@@ -191,8 +192,8 @@ impl<'parent> Env<'parent> {
                 inner_env.add_binding(param.clone(), (**ty).clone());
                 match self.type_of(pred) {
                     Ok(Type::Const(TypeConst::Bool)) => Ok(Kind::Type),
-                    Ok(_) => unimplemented!(), // FIXME: better errors
-                    Err(err) => Err(KindError::FailedToEvaluatePredicate(span, err)),
+                    Ok(pred_ty) => Err(KindError::WherePredicateExpectedBool(span, pred_ty)),
+                    Err(err) => Err(KindError::WherePredicateType(span, err)),
                 }
             }
         }
@@ -452,7 +453,7 @@ pub mod tests {
 
         assert_eq!(
             env.kind_of(&ty),
-            Err(KindError::ExpectedUIntArraySize(
+            Err(KindError::ArraySizeExpectedUInt(
                 Span::new(B(0), B(9)),
                 len_ty,
             ))
@@ -468,7 +469,7 @@ pub mod tests {
 
         assert_eq!(
             env.kind_of(&ty),
-            Err(KindError::ExpectedUIntArraySize(
+            Err(KindError::ArraySizeExpectedUInt(
                 Span::new(B(0), B(9)),
                 len_ty,
             ))
