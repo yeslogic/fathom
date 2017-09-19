@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::hash_map::Iter;
 
 use ast::{Endianness, Type, TypeConst};
 
@@ -57,6 +58,10 @@ impl<'parent> Env<'parent> {
         self.bindings.get(name).or_else(|| {
             self.parent.and_then(|env| env.lookup_binding(name))
         })
+    }
+
+    pub fn tys(&self) -> Iter<String, Type> {
+        self.tys.iter()
     }
 }
 
