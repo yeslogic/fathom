@@ -91,30 +91,41 @@ pub Type: Type = {
     },
 };
 
+// Use precedence climbing to define the operators
+// https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
+
 pub Expr: Expr = {
-    AddExpr,
-    <lo: @L> <lhs: AddExpr> "|" <rhs: Expr> <hi: @R> => {
+    EqExpr,
+    <lo: @L> <lhs: EqExpr> "|" <rhs: Expr> <hi: @R> => {
         Expr::binop((lo, hi), Binop::Or, lhs, rhs)
     },
-    <lo: @L> <lhs: AddExpr> "&" <rhs: Expr> <hi: @R> => {
+    <lo: @L> <lhs: EqExpr> "&" <rhs: Expr> <hi: @R> => {
         Expr::binop((lo, hi), Binop::And, lhs, rhs)
     },
-    <lo: @L> <lhs: AddExpr> "==" <rhs: Expr> <hi: @R> => {
+};
+
+EqExpr: Expr = {
+    CmpExpr,
+    <lo: @L> <lhs: CmpExpr> "==" <rhs: EqExpr> <hi: @R> => {
         Expr::binop((lo, hi), Binop::Eq, lhs, rhs)
     },
-    <lo: @L> <lhs: AddExpr> "!=" <rhs: Expr> <hi: @R> => {
+    <lo: @L> <lhs: CmpExpr> "!=" <rhs: EqExpr> <hi: @R> => {
         Expr::binop((lo, hi), Binop::Ne, lhs, rhs)
     },
-    <lo: @L> <lhs: AddExpr> "<=" <rhs: Expr> <hi: @R> => {
+};
+
+CmpExpr: Expr = {
+    AddExpr,
+    <lo: @L> <lhs: AddExpr> "<=" <rhs: CmpExpr> <hi: @R> => {
         Expr::binop((lo, hi), Binop::Le, lhs, rhs)
     },
-    <lo: @L> <lhs: AddExpr> "<" <rhs: Expr> <hi: @R> => {
+    <lo: @L> <lhs: AddExpr> "<" <rhs: CmpExpr> <hi: @R> => {
         Expr::binop((lo, hi), Binop::Lt, lhs, rhs)
     },
-    <lo: @L> <lhs: AddExpr> ">" <rhs: Expr> <hi: @R> => {
+    <lo: @L> <lhs: AddExpr> ">" <rhs: CmpExpr> <hi: @R> => {
         Expr::binop((lo, hi), Binop::Gt, lhs, rhs)
     },
-    <lo: @L> <lhs: AddExpr> ">=" <rhs: Expr> <hi: @R> => {
+    <lo: @L> <lhs: AddExpr> ">=" <rhs: CmpExpr> <hi: @R> => {
         Expr::binop((lo, hi), Binop::Ge, lhs, rhs)
     },
 };
