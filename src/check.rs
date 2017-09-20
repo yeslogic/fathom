@@ -13,24 +13,33 @@
 //!
 //! ```plain
 //! e ::=
-//!         x           variables
-//!         ℕ           natural number
-//!         true        true value
-//!         false       false value
-//!         -e          negation
-//!         ¬e          not
-//!         e₁ ∨ e₂     disjunction
-//!         e₁ ∧ e₂     conjunction
-//!         e₁ = e₂     equality
-//!         e₁ ≠ e₂     inequality
-//!         e₁ < e₂     less than
-//!         e₁ ≤ e₂     less than or equal
-//!         e₁ > e₂     greater than
-//!         e₁ ≥ e₂     greater than or equal
-//!         e₁ + e₂     addition
-//!         e₁ - e₂     subtraction
-//!         e₁ * e₂     multiplication
-//!         e₁ / e₂     division
+//!         x                   variables
+//!         ℕ                   natural number
+//!         true                true value
+//!         false               false value
+//!         -e                  negation
+//!         ¬e                  not
+//!         op(Rel, e₁, e₂)     relational binary operation
+//!         op(Cmp, e₁, e₂)     comparison binary operation
+//!         op(Arith, e₁, e₂)   arithmetic binary operation
+//!
+//! Rel ::=
+//!         ∨                   disjunction operator
+//!         ∧                   conjunction operator
+//!
+//! Cmp ::=
+//!         =                   equality operator
+//!         ≠                   inequality operator
+//!         <                   less than operator
+//!         ≤                   less than or equal operator
+//!         >                   greater than operator
+//!         ≥                   greater than or equal operator
+//!
+//! Arith ::=
+//!         +                   addition operator
+//!         -                   subtraction operator
+//!         *                   multiplication operator
+//!         /                   division operator
 //! ```
 //!
 //! ## Types
@@ -226,7 +235,7 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
             Ok(Kind::Type)
         }
 
-        // K-ARRAY-???
+        // K-ARRAY-...
         Type::Array(span, ref ty, ref size) => {
             kind_of(env, ty)?;
             let expr_ty = type_of(env, size)?;
@@ -286,6 +295,30 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 /// ――――――――――――――――――――――――――――――――――――――――― (T-NEG)
 ///              Γ ⊢ -e : τ
 ///
+///
+///      Γ ⊢ e₁ : Bool       Γ ⊢ e₂ : Bool
+/// ――――――――――――――――――――――――――――――――――――――――― (T-REL)
+///         Γ ⊢ op(Rel, e₁, e₂) : Bool
+///
+///
+///   Γ ⊢ e₁ : τ₁     Γ ⊢ e₂ : τ₂      τ₁ <: τ₂
+/// ―――――――――――――――――――――――――――――――――――――――――――――― (T-CMP-LHS)
+///          Γ ⊢ op(Cmp, e₁, e₂) : Bool
+///
+///
+///   Γ ⊢ e₁ : τ₁     Γ ⊢ e₂ : τ₂      τ₂ <: τ₁
+/// ―――――――――――――――――――――――――――――――――――――――――――――― (T-CMP-RHS)
+///          Γ ⊢ op(Cmp, e₁, e₂) : Bool
+///
+///
+///   Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂      τ₁ <: τ₂
+/// ――――――――――――――――――――――――――――――――――――――――――――― (T-ARITH-LHS)
+///        Γ ⊢ op(Arith, e₁, e₂) : τ₂
+///
+///
+///   Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂      τ₂ <: τ₁
+/// ――――――――――――――――――――――――――――――――――――――――――――― (T-ARITH-RHS)
+///        Γ ⊢ op(Arith, e₁, e₂) : τ₁
 /// ```
 pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
     match *expr {
@@ -319,7 +352,7 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
             let rhs_ty = type_of(env, rhs)?;
 
             match op {
-                // T-REL (TODO)
+                // T-REL
                 Binop::Or | Binop::And => {
                     if lhs_ty != Type::Const(TypeConst::Bool) {
                         Err(TypeError::UnexpectedBinaryLhs(span, lhs_ty))
@@ -329,24 +362,28 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
                         Ok(Type::bool())
                     }
                 }
-                // T-CMP (TODO)
+                // T-CMP-...
                 Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
                     let unknown_int = Type::unknown_int();
 
+                    // T-CMP-LHS
                     if is_subtype(&lhs_ty, &rhs_ty) && is_subtype(&unknown_int, &rhs_ty) {
                         Ok(Type::bool())
+                    // T-CMP-RHS
                     } else if is_subtype(&rhs_ty, &lhs_ty) && is_subtype(&unknown_int, &lhs_ty) {
                         Ok(Type::bool())
                     } else {
                         unimplemented!() // FIXME: Better errors
                     }
                 }
-                // T-ARITH (TODO)
+                // T-ARITH-...
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
                     let unknown_int = Type::unknown_int();
 
+                    // T-ARITH-LHS
                     if is_subtype(&lhs_ty, &rhs_ty) && is_subtype(&unknown_int, &rhs_ty) {
                         Ok(rhs_ty)
+                    // T-ARITH-RHS
                     } else if is_subtype(&rhs_ty, &lhs_ty) && is_subtype(&unknown_int, &lhs_ty) {
                         Ok(lhs_ty)
                     } else {
