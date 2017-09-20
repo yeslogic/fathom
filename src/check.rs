@@ -87,11 +87,16 @@ use source::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KindError {
+    Type(TypeError),
     UnboundType(Span, String),
     ArraySizeExpectedUInt(Span, Type),
-    ArraySizeType(Span, TypeError),
     WherePredicateExpectedBool(Span, Type),
-    WherePredicateType(Span, TypeError),
+}
+
+impl From<TypeError> for KindError {
+    fn from(src: TypeError) -> KindError {
+        KindError::Type(src)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -187,9 +192,7 @@ impl<'parent> Env<'parent> {
             // K-ARRAY-???
             Type::Array(span, ref ty, ref size) => {
                 self.kind_of(ty)?;
-                let expr_ty = self.type_of(size).map_err(
-                    |err| KindError::ArraySizeType(span, err),
-                )?;
+                let expr_ty = self.type_of(size)?;
 
                 match expr_ty {
                     // K-ARRAY-UNKNOWN-INT
@@ -207,10 +210,9 @@ impl<'parent> Env<'parent> {
                 let mut inner_env = self.extend();
                 // TODO: prevent name shadowing?
                 inner_env.add_binding(param.clone(), (**ty).clone());
-                match self.type_of(pred) {
-                    Ok(Type::Const(TypeConst::Bool)) => Ok(Kind::Type),
-                    Ok(pred_ty) => Err(KindError::WherePredicateExpectedBool(span, pred_ty)),
-                    Err(err) => Err(KindError::WherePredicateType(span, err)),
+                match self.type_of(pred)? {
+                    Type::Const(TypeConst::Bool) => Ok(Kind::Type),
+                    pred_ty => Err(KindError::WherePredicateExpectedBool(span, pred_ty)),
                 }
             }
         }
