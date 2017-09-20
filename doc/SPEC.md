@@ -78,10 +78,25 @@ FIXME we will need an option to specify whether integers are big endian or littl
 FIXME we will also need an option to specify the default alignment for integer fields and a way to override this for specific fields.
 
 ```
+sizeof(uint8) = 1
+sizeof(uint16) = 2
+sizeof(uint32) = 4
+sizeof(uint64) = 8
+
 sizeof(int8) = 1
 sizeof(int16) = 2
 sizeof(int32) = 4
-...
+sizeof(int64) = 8
+
+interp(uint8) = {x:int | 0 =< x < 2^8}
+interp(uint16) = {x:int | 0 =< x < 2^16}
+interp(uint32) = {x:int | 0 =< x < 2^32}
+interp(uint64) = {x:int | 0 =< x < 2^64}
+
+interp(int8) = {x:int | -2^7 =< x < 2^7}
+interp(int16) = {x:int | -2^15 =< x < 2^15}
+interp(int32) = {x:int | -2^31 =< x < 2^31}
+interp(int64) = {x:int | -2^63 =< x < 2^63}
 ```
 
 ### Array Types
@@ -97,6 +112,8 @@ Because the array element type has fixed size, the array itself will also have f
 
 ```
 sizeof(type[length]) = sizeof(type) * length
+
+interp(type[length]) = interp(type)[length]
 ```
 
 ### Existential Types
@@ -187,6 +204,10 @@ It would be impossible to locate the count field without looking past the array,
 sizeof(struct {}) = 0
 sizeof(struct {field: type | fields}) =
     sizeof(type) + sizeof(struct {fields})
+
+interp(struct {}) = empty record
+interp(struct {field: type | fields}) =
+    record with field: interp(type) and interp(struct {fields})
 ```
 
 ### Constrained Types
@@ -235,6 +256,8 @@ FIXME implies extra syntax sugar for unnamed struct field access
 
 ```
 sizeof(name: type @where expr) = sizeof(type)
+
+interp(name: type @where expr) = {name: interp(type) | expr}
 ```
 
 ### Interpreted Types
@@ -251,8 +274,12 @@ For example, this can be used to interpret 24-bit integers as 32-bit:
 x: uint8[3] @as uint32 = x[0] << 24 | x[1] << 16 | x[2]
 ```
 
+FIXME the type2 should be a value type, not a binary type!
+
 ```
-sizeof(name: type1 @as type2) = sizeof(type1)
+sizeof(name: type1 @as type2 = expr) = sizeof(type1)
+
+interp(name: type1 @as type2 = expr) = interp(type2) ??? wrong
 ```
 
 ### Conditional Types
@@ -333,6 +360,9 @@ FIXME what if the if only depends on a type argument?
 ```
 sizeof(if X { type1 } else { type2 }) =
     if X sizeof(type1) else sizeof(type2)
+
+interp(if X { type1 } else { type2 }) =
+    if X interp(type1) else interp(type2)
 ```
 
 ### Choice Types
