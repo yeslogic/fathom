@@ -164,11 +164,10 @@ pub enum Endianness {
 pub enum Type {
     /// Boolean
     Bool,
-    /// An unknown integer
+    /// A singleton unsigned integer - matches exactly one integer
     ///
     /// This is usually produced by integer literals
-    // FIXME: Should we add a minumum size to ensure the validity of coercions?
-    UnknownInt,
+    SingletonUInt(u64),
     /// Unsigned integer
     UInt(usize, Endianness),
     /// Signed integer

@@ -53,7 +53,7 @@
 //!         Bool                booleans
 //!         UInt(ℕ, E)          unsigned integer with byte size and endianness
 //!         Int(ℕ, E)           signed integer with byte size and endianness
-//!         UnknownInt(n)       an unknown integer literal
+//!         SingletonUInt(n)    a single unsigned integer
 //!
 //! τ ::=
 //!         c                   type constants
@@ -125,21 +125,31 @@ pub enum TypeError {
 ///        τ <: τ
 ///
 ///
+///                  ℕ₁ ≤ ℕ₂
+/// ―――――――――――――――――――――――――――――――――――――――――― (S-SINGLETON-UINT)
+///   SingletonUInt(ℕ₁) <: SingletonUInt(ℕ₂)
+///
+///
+///         FIXME - check byte size
 /// ――――――――――――――――――――――――――――――――――――― (S-UINT)
-///      UnknownInt(ℕ₂) <: UInt(ℕ₁, E)
+///    SingletonUInt(ℕ₂) <: UInt(ℕ₁, E)
 ///
 ///
+///         FIXME - check byte size
 /// ――――――――――――――――――――――――――――――――――――― (S-INT)
-///      UnknownInt(ℕ₂) <: Int(ℕ₁, E)
+///    SingletonUInt(ℕ₂) <: Int(ℕ₁, E)
 /// ```
 pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
     match (sty, ty) {
         // S-REFL
         (sty, ty) if sty == ty => true,
 
+        // S-SINGLETON-UINT
+        (&Type::SingletonUInt(sn), &Type::SingletonUInt(n)) if sn <= n => true,
+
         // S-UINT, S-INT
-        (&Type::UnknownInt, &Type::UInt(_, _)) |
-        (&Type::UnknownInt, &Type::SInt(_, _)) => true,
+        (&Type::SingletonUInt(_), &Type::UInt(_, _)) |
+        (&Type::SingletonUInt(_), &Type::SInt(_, _)) => true,
 
         (_, _) => false,
     }
@@ -187,8 +197,8 @@ impl<'parent> Env<'parent> {
 ///               Γ ⊢ [τ; e] :
 ///
 ///
-///     Γ ⊢ τ : Type        Γ ⊢ e : UnknownInt(ℕ)
-/// ―――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-UNKNOWN-INT)
+///     Γ ⊢ τ : Type       Γ ⊢ e : SingletonUInt(ℕ)
+/// ―――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-SINGLETON-UINT)
 ///               Γ ⊢ [τ; e] : Type
 ///
 ///
@@ -200,7 +210,7 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
     match *ty {
         // K-CONST
         Type::Bool => Ok(Kind::Type),
-        Type::UnknownInt => Ok(Kind::Type),
+        Type::SingletonUInt(_) => Ok(Kind::Type),
         Type::UInt(_, _) => Ok(Kind::Type),
         Type::SInt(_, _) => Ok(Kind::Type),
         Type::Float(_, _) => Ok(Kind::Type),
@@ -243,8 +253,8 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
             let expr_ty = type_of(env, size)?;
 
             match expr_ty {
-                // K-ARRAY-UNKNOWN-INT
-                Type::UnknownInt |
+                // K-ARRAY-SINGLETON-UINT
+                Type::SingletonUInt(_) |
                 // K-ARRAY-UINT
                 Type::UInt(_, _) => Ok(Kind::Type),
                 ty => Err(KindError::ArraySizeExpectedUInt(span, ty)),
@@ -279,8 +289,8 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 ///       Γ ⊢ false : Bool
 ///
 ///
-/// ―――――――――――――――――――――――――――― (T-UNKNOWN-INT)
-///     Γ ⊢ ℕ : UnknownInt(ℕ)
+/// ―――――――――――――――――――――――――――― (T-SINGLETON-UINT)
+///   Γ ⊢ ℕ : SingletonUInt(ℕ)
 ///
 ///
 ///           x : τ ∈ Γ
@@ -293,7 +303,7 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 ///         Γ ⊢ ¬e : Bool
 ///
 ///
-///     Γ ⊢ e : τ       UnknownInt(ℕ) <: τ
+///     Γ ⊢ e : τ       SingletonUInt(ℕ) <: τ
 /// ――――――――――――――――――――――――――――――――――――――――― (T-NEG)
 ///              Γ ⊢ -e : τ
 ///
@@ -303,22 +313,22 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 ///         Γ ⊢ op(Rel, e₁, e₂) : Bool
 ///
 ///
-///   Γ ⊢ e₁ : τ₁     Γ ⊢ e₂ : τ₂      τ₁ <: τ₂      UnknownInt(ℕ) <: τ₂
+///   Γ ⊢ e₁ : τ₁     Γ ⊢ e₂ : τ₂      τ₁ <: τ₂      SingletonUInt(ℕ) <: τ₂
 /// ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-CMP-LHS)
 ///                      Γ ⊢ op(Cmp, e₁, e₂) : Bool
 ///
 ///
-///   Γ ⊢ e₁ : τ₁     Γ ⊢ e₂ : τ₂      τ₂ <: τ₁      UnknownInt(ℕ) <: τ₁
+///   Γ ⊢ e₁ : τ₁     Γ ⊢ e₂ : τ₂      τ₂ <: τ₁      SingletonUInt(ℕ) <: τ₁
 /// ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-CMP-RHS)
 ///                      Γ ⊢ op(Cmp, e₁, e₂) : Bool
 ///
 ///
-///   Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂      τ₁ <: τ₂      UnknownInt(ℕ) <: τ₂
+///   Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂      τ₁ <: τ₂      SingletonUInt(ℕ) <: τ₂
 /// ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-ARITH-LHS)
 ///                    Γ ⊢ op(Arith, e₁, e₂) : τ₂
 ///
 ///
-///   Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂      τ₂ <: τ₁      UnknownInt(ℕ) <: τ₁
+///   Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂      τ₂ <: τ₁      SingletonUInt(ℕ) <: τ₁
 /// ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-ARITH-RHS)
 ///                    Γ ⊢ op(Arith, e₁, e₂) : τ₁
 /// ```
@@ -327,8 +337,8 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
         // T-TRUE, T-FALSE
         Expr::Const(_, Const::Bool(_)) => Ok(Type::Bool),
 
-        // FIXME: T-UNKNOWN-INT
-        Expr::Const(_, Const::UInt(_)) => Ok(Type::UnknownInt),
+        // T-SINGLETON-UINT
+        Expr::Const(_, Const::UInt(value)) => Ok(Type::SingletonUInt(value)),
 
         // T-VAR
         Expr::Var(span, ref name) => {
@@ -352,7 +362,7 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
                 }
                 // T-NEG
                 Unop::Neg => {
-                    if is_subtype(&Type::UnknownInt, &value_ty) {
+                    if is_subtype(&Type::SingletonUInt(0), &value_ty) {
                         Ok(value_ty)
                     } else {
                         Err(TypeError::UnexpectedUnaryOperand(span, op, value_ty))
@@ -378,7 +388,7 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
                 }
                 // T-CMP-...
                 Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                    let unknown_int = Type::UnknownInt;
+                    let unknown_int = Type::SingletonUInt(0);
 
                     // T-CMP-LHS
                     if is_subtype(&lhs_ty, &rhs_ty) && is_subtype(&unknown_int, &rhs_ty) {
@@ -392,7 +402,7 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
                 }
                 // T-ARITH-...
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                    let unknown_int = Type::UnknownInt;
+                    let unknown_int = Type::SingletonUInt(0);
 
                     // T-ARITH-LHS
                     if is_subtype(&lhs_ty, &rhs_ty) && is_subtype(&unknown_int, &rhs_ty) {
@@ -459,7 +469,7 @@ pub mod tests {
                 let env = Env::default();
                 let expr = parser::parse_expr(&env, "1 + 1").unwrap();
 
-                assert_eq!(type_of(&env, &expr), Ok(Type::UnknownInt));
+                assert_eq!(type_of(&env, &expr), Ok(Type::SingletonUInt(1)));
             }
         }
 
@@ -501,7 +511,7 @@ pub mod tests {
                 let env = Env::default();
                 let expr = parser::parse_expr(&env, "1 * 1").unwrap();
 
-                assert_eq!(type_of(&env, &expr), Ok(Type::UnknownInt));
+                assert_eq!(type_of(&env, &expr), Ok(Type::SingletonUInt(1)));
             }
         }
     }

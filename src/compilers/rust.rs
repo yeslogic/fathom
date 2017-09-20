@@ -39,7 +39,7 @@ fn compile_ty(ty: &Type) -> Tokens {
         Type::SInt(8, Endianness::Target) => quote! { i64 },
         Type::Float(4, Endianness::Target) => quote! { f32 },
         Type::Float(8, Endianness::Target) => quote! { f64 },
-        Type::UnknownInt |
+        Type::SingletonUInt(_) |
         Type::UInt(_, _) |
         Type::SInt(_, _) |
         Type::Float(_, _) => unimplemented!("{:?} not yet handled", ty),
