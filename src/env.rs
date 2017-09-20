@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Iter;
 
-use ast::{Endianness, Type, TypeConst};
+use ast::{Endianness, Type};
 
 /// An environment of bindings and types
 ///
@@ -65,47 +65,47 @@ impl<'parent> Env<'parent> {
     }
 }
 
-const BUILT_INS: [(&str, TypeConst); 30] = [
-    ("u8", TypeConst::U(1, Endianness::Target)),
-    ("u16", TypeConst::U(2, Endianness::Target)),
-    ("u32", TypeConst::U(4, Endianness::Target)),
-    ("u64", TypeConst::U(8, Endianness::Target)),
-    ("i8", TypeConst::I(1, Endianness::Target)),
-    ("i16", TypeConst::I(2, Endianness::Target)),
-    ("i32", TypeConst::I(4, Endianness::Target)),
-    ("i64", TypeConst::I(8, Endianness::Target)),
-    ("f32", TypeConst::F(4, Endianness::Target)),
-    ("f64", TypeConst::F(8, Endianness::Target)),
+const BUILT_INS: [(&str, Type); 30] = [
+    ("u8", Type::UInt(1, Endianness::Target)),
+    ("u16", Type::UInt(2, Endianness::Target)),
+    ("u32", Type::UInt(4, Endianness::Target)),
+    ("u64", Type::UInt(8, Endianness::Target)),
+    ("i8", Type::SInt(1, Endianness::Target)),
+    ("i16", Type::SInt(2, Endianness::Target)),
+    ("i32", Type::SInt(4, Endianness::Target)),
+    ("i64", Type::SInt(8, Endianness::Target)),
+    ("f32", Type::Float(4, Endianness::Target)),
+    ("f64", Type::Float(8, Endianness::Target)),
 
-    ("u8le", TypeConst::U(1, Endianness::Little)),
-    ("u16le", TypeConst::U(2, Endianness::Little)),
-    ("u32le", TypeConst::U(4, Endianness::Little)),
-    ("u64le", TypeConst::U(8, Endianness::Little)),
-    ("i8le", TypeConst::I(1, Endianness::Little)),
-    ("i16le", TypeConst::I(2, Endianness::Little)),
-    ("i32le", TypeConst::I(4, Endianness::Little)),
-    ("i64le", TypeConst::I(8, Endianness::Little)),
-    ("f32le", TypeConst::F(4, Endianness::Little)),
-    ("f64le", TypeConst::F(8, Endianness::Little)),
+    ("u8le", Type::UInt(1, Endianness::Little)),
+    ("u16le", Type::UInt(2, Endianness::Little)),
+    ("u32le", Type::UInt(4, Endianness::Little)),
+    ("u64le", Type::UInt(8, Endianness::Little)),
+    ("i8le", Type::SInt(1, Endianness::Little)),
+    ("i16le", Type::SInt(2, Endianness::Little)),
+    ("i32le", Type::SInt(4, Endianness::Little)),
+    ("i64le", Type::SInt(8, Endianness::Little)),
+    ("f32le", Type::Float(4, Endianness::Little)),
+    ("f64le", Type::Float(8, Endianness::Little)),
 
-    ("u8be", TypeConst::U(1, Endianness::Big)),
-    ("u16be", TypeConst::U(2, Endianness::Big)),
-    ("u32be", TypeConst::U(4, Endianness::Big)),
-    ("u64be", TypeConst::U(8, Endianness::Big)),
-    ("i8be", TypeConst::I(1, Endianness::Big)),
-    ("i16be", TypeConst::I(2, Endianness::Big)),
-    ("i32be", TypeConst::I(4, Endianness::Big)),
-    ("i64be", TypeConst::I(8, Endianness::Big)),
-    ("f32be", TypeConst::F(4, Endianness::Big)),
-    ("f64be", TypeConst::F(8, Endianness::Big)),
+    ("u8be", Type::UInt(1, Endianness::Big)),
+    ("u16be", Type::UInt(2, Endianness::Big)),
+    ("u32be", Type::UInt(4, Endianness::Big)),
+    ("u64be", Type::UInt(8, Endianness::Big)),
+    ("i8be", Type::SInt(1, Endianness::Big)),
+    ("i16be", Type::SInt(2, Endianness::Big)),
+    ("i32be", Type::SInt(4, Endianness::Big)),
+    ("i64be", Type::SInt(8, Endianness::Big)),
+    ("f32be", Type::Float(4, Endianness::Big)),
+    ("f64be", Type::Float(8, Endianness::Big)),
 ];
 
 impl Default for Env<'static> {
     fn default() -> Env<'static> {
         let mut env = Env::new();
 
-        for &(ident, ty_const) in &BUILT_INS {
-            env.add_ty(ident, Type::Const(ty_const));
+        for &(ident, ref ty) in &BUILT_INS {
+            env.add_ty(ident, ty.clone());
         }
 
         env

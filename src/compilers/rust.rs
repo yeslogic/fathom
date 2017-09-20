@@ -25,21 +25,24 @@ fn compile_tokens<W: Write>(env: &Env) -> Tokens {
 
 #[allow(dead_code)]
 fn compile_ty(ty: &Type) -> Tokens {
-    use ast::{Endianness, TypeConst};
+    use ast::Endianness;
 
     match *ty {
-        Type::Const(TypeConst::Bool) => quote! { bool },
-        Type::Const(TypeConst::U(1, Endianness::Target)) => quote! { u8 },
-        Type::Const(TypeConst::U(2, Endianness::Target)) => quote! { u16 },
-        Type::Const(TypeConst::U(4, Endianness::Target)) => quote! { u32 },
-        Type::Const(TypeConst::U(8, Endianness::Target)) => quote! { u64 },
-        Type::Const(TypeConst::I(1, Endianness::Target)) => quote! { i8 },
-        Type::Const(TypeConst::I(2, Endianness::Target)) => quote! { i16 },
-        Type::Const(TypeConst::I(4, Endianness::Target)) => quote! { i32 },
-        Type::Const(TypeConst::I(8, Endianness::Target)) => quote! { i64 },
-        Type::Const(TypeConst::F(4, Endianness::Target)) => quote! { f32 },
-        Type::Const(TypeConst::F(8, Endianness::Target)) => quote! { f64 },
-        Type::Const(ty_const) => unimplemented!("{:?} not yet handled", ty_const),
+        Type::Bool => quote! { bool },
+        Type::UInt(1, Endianness::Target) => quote! { u8 },
+        Type::UInt(2, Endianness::Target) => quote! { u16 },
+        Type::UInt(4, Endianness::Target) => quote! { u32 },
+        Type::UInt(8, Endianness::Target) => quote! { u64 },
+        Type::SInt(1, Endianness::Target) => quote! { i8 },
+        Type::SInt(2, Endianness::Target) => quote! { i16 },
+        Type::SInt(4, Endianness::Target) => quote! { i32 },
+        Type::SInt(8, Endianness::Target) => quote! { i64 },
+        Type::Float(4, Endianness::Target) => quote! { f32 },
+        Type::Float(8, Endianness::Target) => quote! { f64 },
+        Type::UnknownInt |
+        Type::UInt(_, _) |
+        Type::SInt(_, _) |
+        Type::Float(_, _) => unimplemented!("{:?} not yet handled", ty),
         Type::Var(_, _) => unimplemented!(),
         Type::Struct(_, _) => {
             // If exists in compiled environment:

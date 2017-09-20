@@ -5,8 +5,9 @@
             hi: BytePos(28)
         },
         name: "Offset32",
-        ty: Const(
-            U(4, Target)
+        ty: UInt(
+            4,
+            Target
         )
     }
 ]

@@ -17,8 +17,9 @@
                         hi: BytePos(55)
                     },
                     name: "x",
-                    ty: Const(
-                        U(4, Big)
+                    ty: UInt(
+                        4,
+                        Big
                     )
                 },
                 Field {
@@ -27,8 +28,9 @@
                         hi: BytePos(82)
                     },
                     name: "y",
-                    ty: Const(
-                        U(4, Big)
+                    ty: UInt(
+                        4,
+                        Big
                     )
                 }
             ]
@@ -52,8 +54,9 @@
                         hi: BytePos(156)
                     },
                     name: "len",
-                    ty: Const(
-                        U(2, Little)
+                    ty: UInt(
+                        2,
+                        Little
                     )
                 },
                 Field {
@@ -110,8 +113,9 @@
                                 hi: BytePos(278)
                             },
                             name: "format",
-                            ty: Const(
-                                U(2, Target)
+                            ty: UInt(
+                                2,
+                                Target
                             )
                         },
                         Field {
@@ -120,8 +124,9 @@
                                 hi: BytePos(289)
                             },
                             name: "data",
-                            ty: Const(
-                                U(2, Target)
+                            ty: UInt(
+                                2,
+                                Target
                             )
                         }
                     ]
@@ -138,8 +143,9 @@
                                 hi: BytePos(330)
                             },
                             name: "format",
-                            ty: Const(
-                                U(2, Target)
+                            ty: UInt(
+                                2,
+                                Target
                             )
                         },
                         Field {
@@ -170,8 +176,9 @@
                                 hi: BytePos(385)
                             },
                             name: "format",
-                            ty: Const(
-                                U(2, Target)
+                            ty: UInt(
+                                2,
+                                Target
                             )
                         },
                         Field {

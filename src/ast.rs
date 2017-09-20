@@ -160,8 +160,8 @@ pub enum Endianness {
     Target,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum TypeConst {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Type {
     /// Boolean
     Bool,
     /// An unknown integer
@@ -170,29 +170,11 @@ pub enum TypeConst {
     // FIXME: Should we add a minumum size to ensure the validity of coercions?
     UnknownInt,
     /// Unsigned integer
-    U(usize, Endianness),
+    UInt(usize, Endianness),
     /// Signed integer
-    I(usize, Endianness),
+    SInt(usize, Endianness),
     /// IEEE 754 floating point
-    F(usize, Endianness),
-}
-
-impl fmt::Debug for TypeConst {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            TypeConst::Bool => write!(f, "Bool"),
-            TypeConst::UnknownInt => write!(f, "UnknownInt"),
-            TypeConst::U(b, e) => write!(f, "U({:?}, {:?})", b, e),
-            TypeConst::I(b, e) => write!(f, "I({:?}, {:?})", b, e),
-            TypeConst::F(b, e) => write!(f, "F({:?}, {:?})", b, e),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Type {
-    /// A type constant
-    Const(TypeConst),
+    Float(usize, Endianness),
     /// A type variable: eg. `T`
     Var(Span, String),
     /// An array of the specified type, with a size: eg. `[T; n]`
@@ -206,31 +188,6 @@ pub enum Type {
 }
 
 impl Type {
-    /// An integer of unknown size and endianess
-    pub fn bool() -> Type {
-        Type::Const(TypeConst::Bool)
-    }
-
-    /// An integer of unknown size and endianess
-    pub fn unknown_int() -> Type {
-        Type::Const(TypeConst::UnknownInt)
-    }
-
-    /// A unsigned integer type
-    pub fn u(bytes: usize, endianness: Endianness) -> Type {
-        Type::Const(TypeConst::U(bytes, endianness))
-    }
-
-    /// A signed integer type
-    pub fn i(bytes: usize, endianness: Endianness) -> Type {
-        Type::Const(TypeConst::I(bytes, endianness))
-    }
-
-    /// An IEEE 754 floating point type
-    pub fn f(bytes: usize, endianness: Endianness) -> Type {
-        Type::Const(TypeConst::F(bytes, endianness))
-    }
-
     /// A type variable: eg. `T`
     pub fn var<Sp, S>(span: Sp, name: S) -> Type
     where

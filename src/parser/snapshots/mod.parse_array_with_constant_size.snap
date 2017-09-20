@@ -10,8 +10,9 @@
                 lo: BytePos(21),
                 hi: BytePos(29)
             },
-            Const(
-                F(4, Target)
+            Float(
+                4,
+                Target
             ),
             Const(
                 Span {

@@ -90,7 +90,7 @@
 //!
 //! - `Type::Where`: constrained type
 
-use ast::{Binop, Const, Definition, Expr, Kind, Type, TypeConst, Unop};
+use ast::{Binop, Const, Definition, Expr, Kind, Type, Unop};
 use env::Env;
 use source::Span;
 
@@ -133,15 +133,13 @@ pub enum TypeError {
 ///      UnknownInt(ℕ₂) <: Int(ℕ₁, E)
 /// ```
 pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
-    use ast::Type::Const;
-
     match (sty, ty) {
         // S-REFL
         (sty, ty) if sty == ty => true,
 
         // S-UINT, S-INT
-        (&Const(TypeConst::UnknownInt), &Const(TypeConst::U(_, _))) |
-        (&Const(TypeConst::UnknownInt), &Const(TypeConst::I(_, _))) => true,
+        (&Type::UnknownInt, &Type::UInt(_, _)) |
+        (&Type::UnknownInt, &Type::SInt(_, _)) => true,
 
         (_, _) => false,
     }
@@ -201,7 +199,11 @@ impl<'parent> Env<'parent> {
 pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
     match *ty {
         // K-CONST
-        Type::Const(_) => Ok(Kind::Type), // Easypeasy
+        Type::Bool => Ok(Kind::Type),
+        Type::UnknownInt => Ok(Kind::Type),
+        Type::UInt(_, _) => Ok(Kind::Type),
+        Type::SInt(_, _) => Ok(Kind::Type),
+        Type::Float(_, _) => Ok(Kind::Type),
 
         // K-VAR
         Type::Var(span, ref name) => {
@@ -242,9 +244,9 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 
             match expr_ty {
                 // K-ARRAY-UNKNOWN-INT
-                Type::Const(TypeConst::UnknownInt) |
+                Type::UnknownInt |
                 // K-ARRAY-UINT
-                Type::Const(TypeConst::U(_, _)) => Ok(Kind::Type),
+                Type::UInt(_, _) => Ok(Kind::Type),
                 ty => Err(KindError::ArraySizeExpectedUInt(span, ty)),
             }
         }
@@ -257,7 +259,7 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
             // TODO: prevent name shadowing?
             inner_env.add_binding(param.clone(), (**ty).clone());
             match type_of(env, pred)? {
-                Type::Const(TypeConst::Bool) => Ok(Kind::Type),
+                Type::Bool => Ok(Kind::Type),
                 pred_ty => Err(KindError::WherePredicateExpectedBool(span, pred_ty)),
             }
         }
@@ -323,10 +325,10 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
     match *expr {
         // T-TRUE, T-FALSE
-        Expr::Const(_, Const::Bool(_)) => Ok(Type::bool()),
+        Expr::Const(_, Const::Bool(_)) => Ok(Type::Bool),
 
         // FIXME: T-UNKNOWN-INT
-        Expr::Const(_, Const::UInt(_)) => Ok(Type::unknown_int()),
+        Expr::Const(_, Const::UInt(_)) => Ok(Type::UnknownInt),
 
         // T-VAR
         Expr::Var(span, ref name) => {
@@ -342,15 +344,15 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
             match op {
                 // T-NOT
                 Unop::Not => {
-                    if value_ty == Type::Const(TypeConst::Bool) {
-                        Ok(Type::Const(TypeConst::Bool))
+                    if value_ty == Type::Bool {
+                        Ok(Type::Bool)
                     } else {
                         Err(TypeError::UnexpectedUnaryOperand(span, op, value_ty))
                     }
                 }
                 // T-NEG
                 Unop::Neg => {
-                    if is_subtype(&Type::unknown_int(), &value_ty) {
+                    if is_subtype(&Type::UnknownInt, &value_ty) {
                         Ok(value_ty)
                     } else {
                         Err(TypeError::UnexpectedUnaryOperand(span, op, value_ty))
@@ -366,31 +368,31 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
             match op {
                 // T-REL
                 Binop::Or | Binop::And => {
-                    if lhs_ty != Type::Const(TypeConst::Bool) {
+                    if lhs_ty != Type::Bool {
                         Err(TypeError::UnexpectedBinaryLhs(span, lhs_ty))
-                    } else if rhs_ty != Type::Const(TypeConst::Bool) {
+                    } else if rhs_ty != Type::Bool {
                         Err(TypeError::UnexpectedBinaryRhs(span, rhs_ty))
                     } else {
-                        Ok(Type::bool())
+                        Ok(Type::Bool)
                     }
                 }
                 // T-CMP-...
                 Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                    let unknown_int = Type::unknown_int();
+                    let unknown_int = Type::UnknownInt;
 
                     // T-CMP-LHS
                     if is_subtype(&lhs_ty, &rhs_ty) && is_subtype(&unknown_int, &rhs_ty) {
-                        Ok(Type::bool())
+                        Ok(Type::Bool)
                     // T-CMP-RHS
                     } else if is_subtype(&rhs_ty, &lhs_ty) && is_subtype(&unknown_int, &lhs_ty) {
-                        Ok(Type::bool())
+                        Ok(Type::Bool)
                     } else {
                         unimplemented!() // FIXME: Better errors
                     }
                 }
                 // T-ARITH-...
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                    let unknown_int = Type::unknown_int();
+                    let unknown_int = Type::UnknownInt;
 
                     // T-ARITH-LHS
                     if is_subtype(&lhs_ty, &rhs_ty) && is_subtype(&unknown_int, &rhs_ty) {
@@ -425,7 +427,7 @@ pub mod tests {
             #[test]
             fn uint_with_uint() {
                 let mut env = Env::default();
-                let len_ty = Type::u(32, Endianness::Target);
+                let len_ty = Type::UInt(32, Endianness::Target);
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "len + len").unwrap();
@@ -435,7 +437,7 @@ pub mod tests {
             #[test]
             fn unknown_with_uint() {
                 let mut env = Env::default();
-                let len_ty = Type::u(32, Endianness::Target);
+                let len_ty = Type::UInt(32, Endianness::Target);
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "1 + len").unwrap();
@@ -445,7 +447,7 @@ pub mod tests {
             #[test]
             fn uint_with_unknown() {
                 let mut env = Env::default();
-                let len_ty = Type::u(32, Endianness::Target);
+                let len_ty = Type::UInt(32, Endianness::Target);
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "len + 1").unwrap();
@@ -457,7 +459,7 @@ pub mod tests {
                 let env = Env::default();
                 let expr = parser::parse_expr(&env, "1 + 1").unwrap();
 
-                assert_eq!(type_of(&env, &expr), Ok(Type::unknown_int()));
+                assert_eq!(type_of(&env, &expr), Ok(Type::UnknownInt));
             }
         }
 
@@ -467,7 +469,7 @@ pub mod tests {
             #[test]
             fn uint_with_uint() {
                 let mut env = Env::default();
-                let len_ty = Type::u(32, Endianness::Target);
+                let len_ty = Type::UInt(32, Endianness::Target);
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "len * len").unwrap();
@@ -477,7 +479,7 @@ pub mod tests {
             #[test]
             fn unknown_with_uint() {
                 let mut env = Env::default();
-                let len_ty = Type::u(32, Endianness::Target);
+                let len_ty = Type::UInt(32, Endianness::Target);
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "1 * len").unwrap();
@@ -487,7 +489,7 @@ pub mod tests {
             #[test]
             fn uint_with_unknown() {
                 let mut env = Env::default();
-                let len_ty = Type::u(32, Endianness::Target);
+                let len_ty = Type::UInt(32, Endianness::Target);
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "len * 1").unwrap();
@@ -499,7 +501,7 @@ pub mod tests {
                 let env = Env::default();
                 let expr = parser::parse_expr(&env, "1 * 1").unwrap();
 
-                assert_eq!(type_of(&env, &expr), Ok(Type::unknown_int()));
+                assert_eq!(type_of(&env, &expr), Ok(Type::UnknownInt));
             }
         }
     }
@@ -510,7 +512,7 @@ pub mod tests {
         #[test]
         fn ty_const() {
             let env = Env::default();
-            let ty = Type::i(16, Endianness::Target);
+            let ty = Type::SInt(16, Endianness::Target);
 
             assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
         }
@@ -586,7 +588,7 @@ pub mod tests {
         #[test]
         fn array_len() {
             let mut env = Env::default();
-            let len_ty = Type::u(32, Endianness::Target);
+            let len_ty = Type::UInt(32, Endianness::Target);
             env.add_binding("len", len_ty);
             let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
