@@ -130,14 +130,14 @@ pub enum TypeError {
 ///   SingletonUInt(ℕ₁) <: SingletonUInt(ℕ₂)
 ///
 ///
-///         FIXME - check byte size
+///             ℕ₁ ≤ 2^ℕ₂ - 1
 /// ――――――――――――――――――――――――――――――――――――― (S-UINT)
-///    SingletonUInt(ℕ₂) <: UInt(ℕ₁, E)
+///    SingletonUInt(ℕ₁) <: UInt(ℕ₂, E)
 ///
 ///
-///         FIXME - check byte size
+///          ℕ₁ ≤ 2^(ℕ₂ - 1) - 1
 /// ――――――――――――――――――――――――――――――――――――― (S-INT)
-///    SingletonUInt(ℕ₂) <: Int(ℕ₁, E)
+///    SingletonUInt(ℕ₁) <: Int(ℕ₂, E)
 /// ```
 pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
     match (sty, ty) {
@@ -145,10 +145,15 @@ pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
         (sty, ty) if sty == ty => true,
 
         // S-SINGLETON-UINT
+        // FIXME: Use intersection types instead
         (&Type::SingletonUInt(sn), &Type::SingletonUInt(n)) if sn <= n => true,
 
-        // S-UINT, S-INT
-        (&Type::SingletonUInt(_), &Type::UInt(_, _)) |
+        // S-UINT
+        // FIXME: check size
+        (&Type::SingletonUInt(_), &Type::UInt(_, _)) => true,
+
+        // S-INT
+        // FIXME: check size
         (&Type::SingletonUInt(_), &Type::SInt(_, _)) => true,
 
         (_, _) => false,
