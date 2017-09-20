@@ -142,271 +142,271 @@ impl<'parent> Env<'parent> {
         I: IntoIterator<Item = Definition>,
     {
         for def in defs {
-            self.kind_of(&def.ty)?;
+            kind_of(self, &def.ty)?;
             self.add_ty(def.name, def.ty);
         }
         Ok(())
     }
+}
 
-    /// The kinding relation: `Γ ⊢ τ : κ`
-    ///
-    /// # Rules
-    ///
-    /// ```plain
-    /// ―――――――――――――――――――― (K-CONST)
-    ///     Γ ⊢ c : Type
-    ///
-    ///
-    ///         α ∈ Γ
-    /// ―――――――――――――――――――― (K-VAR)
-    ///     Γ ⊢ α : Type
-    ///
-    ///
-    ///     Γ ⊢ τ₁ : Type        Γ ⊢ τ₂ : Type
-    /// ―――――――――――――――――――――――――――――――――――――――――― (K-SUM)
-    ///              Γ ⊢ τ₁ + τ₂ : Type
-    ///
-    ///
-    ///     Γ ⊢ τ₁ : Type        Γ, x:τ₁ ⊢ τ₂ : Type
-    /// ―――――――――――――――――――――――――――――――――――――――――――――――――― (K-DEPENDENT-PAIR)
-    ///              Γ ⊢ Σ x:τ₁ .τ₂ : Type
-    ///
-    ///
-    ///     Γ ⊢ τ : Type        Γ ⊢ e : UInt(ℕ, E)
-    /// ――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-UINT)
-    ///               Γ ⊢ [τ; e] :
-    ///
-    ///
-    ///     Γ ⊢ τ : Type        Γ ⊢ e : UnknownInt(ℕ)
-    /// ―――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-UNKNOWN-INT)
-    ///               Γ ⊢ [τ; e] : Type
-    ///
-    ///
-    ///     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
-    /// ―――――――――――――――――――――――――――――――――――――――――― (K-CON)
-    ///           Γ ⊢ { x:τ | b } : Type
-    /// ```
-    pub fn kind_of(&self, ty: &Type) -> Result<Kind, KindError> {
-        match *ty {
-            // K-CONST
-            Type::Const(_) => Ok(Kind::Type), // Easypeasy
+/// The kinding relation: `Γ ⊢ τ : κ`
+///
+/// # Rules
+///
+/// ```plain
+/// ―――――――――――――――――――― (K-CONST)
+///     Γ ⊢ c : Type
+///
+///
+///         α ∈ Γ
+/// ―――――――――――――――――――― (K-VAR)
+///     Γ ⊢ α : Type
+///
+///
+///     Γ ⊢ τ₁ : Type        Γ ⊢ τ₂ : Type
+/// ―――――――――――――――――――――――――――――――――――――――――― (K-SUM)
+///              Γ ⊢ τ₁ + τ₂ : Type
+///
+///
+///     Γ ⊢ τ₁ : Type        Γ, x:τ₁ ⊢ τ₂ : Type
+/// ―――――――――――――――――――――――――――――――――――――――――――――――――― (K-DEPENDENT-PAIR)
+///              Γ ⊢ Σ x:τ₁ .τ₂ : Type
+///
+///
+///     Γ ⊢ τ : Type        Γ ⊢ e : UInt(ℕ, E)
+/// ――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-UINT)
+///               Γ ⊢ [τ; e] :
+///
+///
+///     Γ ⊢ τ : Type        Γ ⊢ e : UnknownInt(ℕ)
+/// ―――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-UNKNOWN-INT)
+///               Γ ⊢ [τ; e] : Type
+///
+///
+///     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
+/// ―――――――――――――――――――――――――――――――――――――――――― (K-CON)
+///           Γ ⊢ { x:τ | b } : Type
+/// ```
+pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
+    match *ty {
+        // K-CONST
+        Type::Const(_) => Ok(Kind::Type), // Easypeasy
 
-            // K-VAR
-            Type::Var(span, ref name) => {
-                // TODO: kind of var?
-                // α ∈ Γ
-                match self.lookup_ty(name) {
-                    Some(_) => Ok(Kind::Type),
-                    None => Err(KindError::UnboundType(span, name.clone())),
-                }
+        // K-VAR
+        Type::Var(span, ref name) => {
+            // TODO: kind of var?
+            // α ∈ Γ
+            match env.lookup_ty(name) {
+                Some(_) => Ok(Kind::Type),
+                None => Err(KindError::UnboundType(span, name.clone())),
             }
+        }
 
-            // K-SUM
-            Type::Union(_, ref tys) => {
-                for ty in tys {
-                    // Γ ⊢ τ₁ : Type
-                    self.kind_of(&ty)?;
-                }
-                Ok(Kind::Type)
+        // K-SUM
+        Type::Union(_, ref tys) => {
+            for ty in tys {
+                // Γ ⊢ τ₁ : Type
+                kind_of(env, &ty)?;
             }
+            Ok(Kind::Type)
+        }
 
-            // K-DEPENDENT-PAIR
-            Type::Struct(_, ref fields) => {
-                // TODO: prevent name shadowing?
-                let mut inner_env = self.extend();
-                for field in fields {
-                    // Γ ⊢ τ₁ : Type
-                    inner_env.kind_of(&field.ty)?;
-                    // Γ, x:τ₁ ⊢ τ₂ : Type
-                    inner_env.add_binding(field.name.clone(), field.ty.clone());
-                }
-                Ok(Kind::Type)
+        // K-DEPENDENT-PAIR
+        Type::Struct(_, ref fields) => {
+            // TODO: prevent name shadowing?
+            let mut inner_env = env.extend();
+            for field in fields {
+                // Γ ⊢ τ₁ : Type
+                kind_of(&inner_env, &field.ty)?;
+                // Γ, x:τ₁ ⊢ τ₂ : Type
+                inner_env.add_binding(field.name.clone(), field.ty.clone());
             }
+            Ok(Kind::Type)
+        }
 
-            // K-ARRAY-???
-            Type::Array(span, ref ty, ref size) => {
-                self.kind_of(ty)?;
-                let expr_ty = self.type_of(size)?;
+        // K-ARRAY-???
+        Type::Array(span, ref ty, ref size) => {
+            kind_of(env, ty)?;
+            let expr_ty = type_of(env, size)?;
 
-                match expr_ty {
-                    // K-ARRAY-UNKNOWN-INT
-                    Type::Const(TypeConst::UnknownInt) |
-                    // K-ARRAY-UINT
-                    Type::Const(TypeConst::U(_, _)) => Ok(Kind::Type),
-                    ty => Err(KindError::ArraySizeExpectedUInt(span, ty)),
-                }
+            match expr_ty {
+                // K-ARRAY-UNKNOWN-INT
+                Type::Const(TypeConst::UnknownInt) |
+                // K-ARRAY-UINT
+                Type::Const(TypeConst::U(_, _)) => Ok(Kind::Type),
+                ty => Err(KindError::ArraySizeExpectedUInt(span, ty)),
             }
+        }
 
-            // K-CON
-            Type::Where(span, ref ty, ref param, ref pred) => {
-                self.kind_of(ty)?;
+        // K-CON
+        Type::Where(span, ref ty, ref param, ref pred) => {
+            kind_of(env, ty)?;
 
-                let mut inner_env = self.extend();
-                // TODO: prevent name shadowing?
-                inner_env.add_binding(param.clone(), (**ty).clone());
-                match self.type_of(pred)? {
-                    Type::Const(TypeConst::Bool) => Ok(Kind::Type),
-                    pred_ty => Err(KindError::WherePredicateExpectedBool(span, pred_ty)),
-                }
+            let mut inner_env = env.extend();
+            // TODO: prevent name shadowing?
+            inner_env.add_binding(param.clone(), (**ty).clone());
+            match type_of(env, pred)? {
+                Type::Const(TypeConst::Bool) => Ok(Kind::Type),
+                pred_ty => Err(KindError::WherePredicateExpectedBool(span, pred_ty)),
             }
         }
     }
+}
 
-    fn type_of_bool_binop(&self, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
-        use ast::TypeConst::Bool;
-        use ast::Type::Const;
+fn type_of_bool_binop(env: &Env, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
+    use ast::TypeConst::Bool;
+    use ast::Type::Const;
 
-        let lhs_ty = self.type_of(lhs)?;
-        let rhs_ty = self.type_of(rhs)?;
+    let lhs_ty = type_of(env, lhs)?;
+    let rhs_ty = type_of(env, rhs)?;
 
-        match (lhs_ty, rhs_ty) {
-            (ty @ Const(Bool), Const(Bool)) => Ok(ty),
-            (_, _) => unimplemented!(), // FIXME: better errors
-        }
+    match (lhs_ty, rhs_ty) {
+        (ty @ Const(Bool), Const(Bool)) => Ok(ty),
+        (_, _) => unimplemented!(), // FIXME: better errors
     }
+}
 
-    fn type_of_comparison_binop(&self, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
-        use ast::Type::Const;
+fn type_of_comparison_binop(env: &Env, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
+    use ast::Type::Const;
 
-        let lhs_ty = self.type_of(lhs)?;
-        let rhs_ty = self.type_of(rhs)?;
+    let lhs_ty = type_of(env, lhs)?;
+    let rhs_ty = type_of(env, rhs)?;
 
-        // FIXME: Ugh
-        match (lhs_ty, rhs_ty) {
-            // Coerce to LHS if the RHS is less specific
-            (Const(TypeConst::U(_, _)), Const(TypeConst::UnknownInt)) |
-            (Const(TypeConst::I(_, _)), Const(TypeConst::UnknownInt)) |
-            // Coerce to RHS if the LHS is less specific
-            (Const(TypeConst::UnknownInt), Const(TypeConst::U(_, _))) |
-            (Const(TypeConst::UnknownInt), Const(TypeConst::I(_, _))) => {
+    // FIXME: Ugh
+    match (lhs_ty, rhs_ty) {
+        // Coerce to LHS if the RHS is less specific
+        (Const(TypeConst::U(_, _)), Const(TypeConst::UnknownInt)) |
+        (Const(TypeConst::I(_, _)), Const(TypeConst::UnknownInt)) |
+        // Coerce to RHS if the LHS is less specific
+        (Const(TypeConst::UnknownInt), Const(TypeConst::U(_, _))) |
+        (Const(TypeConst::UnknownInt), Const(TypeConst::I(_, _))) => {
+            Ok(Type::bool())
+        }
+        // Same type if LHS == RHS
+        (Const(TypeConst::U(ls, le)), Const(TypeConst::U(rs, re))) => {
+            if ls == rs && le == re {
                 Ok(Type::bool())
+            } else {
+                unimplemented!()
             }
-            // Same type if LHS == RHS
-            (Const(TypeConst::U(ls, le)), Const(TypeConst::U(rs, re))) => {
-                if ls == rs && le == re {
-                    Ok(Type::bool())
-                } else {
-                    unimplemented!()
-                }
-            }
-            // Same type if LHS == RHS
-            (Const(TypeConst::I(ls, le)), Const(TypeConst::I(rs, re))) => {
-                if ls == rs && le == re {
-                    Ok(Type::bool())
-                } else {
-                    unimplemented!()
-                }
-            }
-            // Error!
-            (_, _) => unimplemented!(), // FIXME: better errors
         }
-    }
-
-    fn type_of_int_binop(&self, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
-        use ast::Type::Const;
-
-        let lhs_ty = self.type_of(lhs)?;
-        let rhs_ty = self.type_of(rhs)?;
-
-        // FIXME: Ugh
-        match (lhs_ty, rhs_ty) {
-            (ty @ Const(TypeConst::UnknownInt), Const(TypeConst::UnknownInt)) |
-            // Coerce to LHS if the RHS is less specific
-            (ty @ Const(TypeConst::U(_, _)), Const(TypeConst::UnknownInt)) |
-            (ty @ Const(TypeConst::I(_, _)), Const(TypeConst::UnknownInt)) |
-            // Coerce to RHS if the LHS is less specific
-            (Const(TypeConst::UnknownInt), ty @ Const(TypeConst::U(_, _))) |
-            (Const(TypeConst::UnknownInt), ty @ Const(TypeConst::I(_, _))) => Ok(ty),
-            // Same type if LHS == RHS
-            (Const(TypeConst::U(ls, le)), Const(TypeConst::U(rs, re))) => {
-                if ls == rs && le == re {
-                    Ok(Const(TypeConst::U(ls, le)))
-                } else {
-                    unimplemented!()
-                }
+        // Same type if LHS == RHS
+        (Const(TypeConst::I(ls, le)), Const(TypeConst::I(rs, re))) => {
+            if ls == rs && le == re {
+                Ok(Type::bool())
+            } else {
+                unimplemented!()
             }
-            // Same type if LHS == RHS
-            (Const(TypeConst::I(ls, le)), Const(TypeConst::I(rs, re))) => {
-                if ls == rs && le == re {
-                    Ok(Const(TypeConst::I(ls, le)))
-                } else {
-                    unimplemented!()
-                }
-            }
-            // Error!
-            (_, _) => unimplemented!(), // FIXME: better errors
         }
+        // Error!
+        (_, _) => unimplemented!(), // FIXME: better errors
     }
+}
 
-    /// The typing relation: `Γ ⊢ e : τ`
-    ///
-    /// # Rules
-    ///
-    /// ```plain
-    /// ―――――――――――――――――――――――――――― (T-TRUE)
-    ///       Γ ⊢ true : Bool
-    ///
-    ///
-    /// ―――――――――――――――――――――――――――― (T-FALSE)
-    ///       Γ ⊢ false : Bool
-    ///
-    ///
-    /// ―――――――――――――――――――――――――――― (T-UNKNOWN-INT)
-    ///     Γ ⊢ ℕ : UnknownInt(ℕ)
-    ///
-    ///
-    ///           x : τ ∈ Γ
-    /// ―――――――――――――――――――――――――――― (T-VAR)
-    ///           Γ ⊢ x : τ
-    ///
-    ///
-    ///         Γ ⊢ e : Bool
-    /// ―――――――――――――――――――――――――――― (T-NOT)
-    ///         Γ ⊢ ¬e : Bool
-    ///
-    ///
-    ///     Γ ⊢ e : τ       UnknownInt(ℕ) <: τ
-    /// ――――――――――――――――――――――――――――――――――――――――― (T-NEG)
-    ///              Γ ⊢ -e : τ
-    ///
-    /// ```
-    pub fn type_of(&self, expr: &Expr) -> Result<Type, TypeError> {
-        match *expr {
-            // T-TRUE, T-FALSE
-            Expr::Const(_, Const::Bool(_)) => Ok(Type::bool()),
+fn type_of_int_binop(env: &Env, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
+    use ast::Type::Const;
 
-            // FIXME: T-UNKNOWN-INT
-            Expr::Const(_, Const::UInt(_)) => Ok(Type::unknown_int()),
+    let lhs_ty = type_of(env, lhs)?;
+    let rhs_ty = type_of(env, rhs)?;
 
-            // T-VAR
-            Expr::Var(span, ref name) => {
-                match self.lookup_binding(name) {
-                    Some(ty) => Ok(ty.clone()),
-                    None => Err(TypeError::UnboundVariable(span, name.clone())),
-                }
+    // FIXME: Ugh
+    match (lhs_ty, rhs_ty) {
+        (ty @ Const(TypeConst::UnknownInt), Const(TypeConst::UnknownInt)) |
+        // Coerce to LHS if the RHS is less specific
+        (ty @ Const(TypeConst::U(_, _)), Const(TypeConst::UnknownInt)) |
+        (ty @ Const(TypeConst::I(_, _)), Const(TypeConst::UnknownInt)) |
+        // Coerce to RHS if the LHS is less specific
+        (Const(TypeConst::UnknownInt), ty @ Const(TypeConst::U(_, _))) |
+        (Const(TypeConst::UnknownInt), ty @ Const(TypeConst::I(_, _))) => Ok(ty),
+        // Same type if LHS == RHS
+        (Const(TypeConst::U(ls, le)), Const(TypeConst::U(rs, re))) => {
+            if ls == rs && le == re {
+                Ok(Const(TypeConst::U(ls, le)))
+            } else {
+                unimplemented!()
             }
-
-            Expr::Unop(span, op, ref value) => {
-                match (op, self.type_of(value)?) {
-                    // T-NOT
-                    (Unop::Not, ty @ Type::Const(TypeConst::Bool)) => Ok(ty),
-                    (Unop::Not, ty) => Err(TypeError::Unexpected(span, ty)),
-                    // T-NEG
-                    (Unop::Neg, ref ty) if is_subtype(&Type::unknown_int(), ty) => Ok(ty.clone()),
-                    (Unop::Neg, ty) => Err(TypeError::Unexpected(span, ty)),
-                }
+        }
+        // Same type if LHS == RHS
+        (Const(TypeConst::I(ls, le)), Const(TypeConst::I(rs, re))) => {
+            if ls == rs && le == re {
+                Ok(Const(TypeConst::I(ls, le)))
+            } else {
+                unimplemented!()
             }
+        }
+        // Error!
+        (_, _) => unimplemented!(), // FIXME: better errors
+    }
+}
 
-            // FIXME: T-???
-            Expr::Binop(_, op, ref lhs, ref rhs) => {
-                match op {
-                    Binop::Or | Binop::And => self.type_of_bool_binop(lhs, rhs),
-                    Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                        self.type_of_comparison_binop(lhs, rhs)
-                    }
-                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                        self.type_of_int_binop(lhs, rhs)
-                    }
+/// The typing relation: `Γ ⊢ e : τ`
+///
+/// # Rules
+///
+/// ```plain
+/// ―――――――――――――――――――――――――――― (T-TRUE)
+///       Γ ⊢ true : Bool
+///
+///
+/// ―――――――――――――――――――――――――――― (T-FALSE)
+///       Γ ⊢ false : Bool
+///
+///
+/// ―――――――――――――――――――――――――――― (T-UNKNOWN-INT)
+///     Γ ⊢ ℕ : UnknownInt(ℕ)
+///
+///
+///           x : τ ∈ Γ
+/// ―――――――――――――――――――――――――――― (T-VAR)
+///           Γ ⊢ x : τ
+///
+///
+///         Γ ⊢ e : Bool
+/// ―――――――――――――――――――――――――――― (T-NOT)
+///         Γ ⊢ ¬e : Bool
+///
+///
+///     Γ ⊢ e : τ       UnknownInt(ℕ) <: τ
+/// ――――――――――――――――――――――――――――――――――――――――― (T-NEG)
+///              Γ ⊢ -e : τ
+///
+/// ```
+pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
+    match *expr {
+        // T-TRUE, T-FALSE
+        Expr::Const(_, Const::Bool(_)) => Ok(Type::bool()),
+
+        // FIXME: T-UNKNOWN-INT
+        Expr::Const(_, Const::UInt(_)) => Ok(Type::unknown_int()),
+
+        // T-VAR
+        Expr::Var(span, ref name) => {
+            match env.lookup_binding(name) {
+                Some(ty) => Ok(ty.clone()),
+                None => Err(TypeError::UnboundVariable(span, name.clone())),
+            }
+        }
+
+        Expr::Unop(span, op, ref value) => {
+            match (op, type_of(env, value)?) {
+                // T-NOT
+                (Unop::Not, ty @ Type::Const(TypeConst::Bool)) => Ok(ty),
+                (Unop::Not, ty) => Err(TypeError::Unexpected(span, ty)),
+                // T-NEG
+                (Unop::Neg, ref ty) if is_subtype(&Type::unknown_int(), ty) => Ok(ty.clone()),
+                (Unop::Neg, ty) => Err(TypeError::Unexpected(span, ty)),
+            }
+        }
+
+        // FIXME: T-???
+        Expr::Binop(_, op, ref lhs, ref rhs) => {
+            match op {
+                Binop::Or | Binop::And => type_of_bool_binop(env, lhs, rhs),
+                Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                    type_of_comparison_binop(env, lhs, rhs)
+                }
+                Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
+                    type_of_int_binop(env, lhs, rhs)
                 }
             }
         }
@@ -435,7 +435,7 @@ pub mod tests {
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "len + len").unwrap();
-                assert_eq!(env.type_of(&expr), Ok(len_ty));
+                assert_eq!(type_of(&env, &expr), Ok(len_ty));
             }
 
             #[test]
@@ -445,7 +445,7 @@ pub mod tests {
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "1 + len").unwrap();
-                assert_eq!(env.type_of(&expr), Ok(len_ty.clone()));
+                assert_eq!(type_of(&env, &expr), Ok(len_ty.clone()));
             }
 
             #[test]
@@ -455,7 +455,7 @@ pub mod tests {
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "len + 1").unwrap();
-                assert_eq!(env.type_of(&expr), Ok(len_ty.clone()));
+                assert_eq!(type_of(&env, &expr), Ok(len_ty.clone()));
             }
 
             #[test]
@@ -463,7 +463,7 @@ pub mod tests {
                 let env = Env::default();
                 let expr = parser::parse_expr(&env, "1 + 1").unwrap();
 
-                assert_eq!(env.type_of(&expr), Ok(Type::unknown_int()));
+                assert_eq!(type_of(&env, &expr), Ok(Type::unknown_int()));
             }
         }
 
@@ -477,7 +477,7 @@ pub mod tests {
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "len * len").unwrap();
-                assert_eq!(env.type_of(&expr), Ok(len_ty));
+                assert_eq!(type_of(&env, &expr), Ok(len_ty));
             }
 
             #[test]
@@ -487,7 +487,7 @@ pub mod tests {
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "1 * len").unwrap();
-                assert_eq!(env.type_of(&expr), Ok(len_ty.clone()));
+                assert_eq!(type_of(&env, &expr), Ok(len_ty.clone()));
             }
 
             #[test]
@@ -497,7 +497,7 @@ pub mod tests {
                 env.add_binding("len", len_ty.clone());
 
                 let expr = parser::parse_expr(&env, "len * 1").unwrap();
-                assert_eq!(env.type_of(&expr), Ok(len_ty.clone()));
+                assert_eq!(type_of(&env, &expr), Ok(len_ty.clone()));
             }
 
             #[test]
@@ -505,7 +505,7 @@ pub mod tests {
                 let env = Env::default();
                 let expr = parser::parse_expr(&env, "1 * 1").unwrap();
 
-                assert_eq!(env.type_of(&expr), Ok(Type::unknown_int()));
+                assert_eq!(type_of(&env, &expr), Ok(Type::unknown_int()));
             }
         }
     }
@@ -518,7 +518,7 @@ pub mod tests {
             let env = Env::default();
             let ty = Type::i(16, Endianness::Target);
 
-            assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
         }
 
         #[test]
@@ -526,7 +526,7 @@ pub mod tests {
             let env = Env::default();
             let ty = parser::parse_ty(&env, "u8").unwrap();
 
-            assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
         }
 
         #[test]
@@ -535,7 +535,7 @@ pub mod tests {
             let ty = parser::parse_ty(&env, "Foo").unwrap();
 
             assert_eq!(
-                env.kind_of(&ty),
+                kind_of(&env, &ty),
                 Err(KindError::UnboundType(
                     Span::new(B(0), B(3)),
                     "Foo".to_owned(),
@@ -548,7 +548,7 @@ pub mod tests {
             let env = Env::default();
             let ty = parser::parse_ty(&env, "union { u8, u16, i32 }").unwrap();
 
-            assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
         }
 
         #[test]
@@ -557,7 +557,7 @@ pub mod tests {
             let ty = parser::parse_ty(&env, "union { u8, Foo, i32 }").unwrap();
 
             assert_eq!(
-                env.kind_of(&ty),
+                kind_of(&env, &ty),
                 Err(KindError::UnboundType(
                     Span::new(B(12), B(15)),
                     "Foo".to_owned(),
@@ -570,7 +570,7 @@ pub mod tests {
             let env = Env::default();
             let ty = parser::parse_ty(&env, "struct { x: u8, y: u8 }").unwrap();
 
-            assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
         }
 
         #[test]
@@ -578,7 +578,7 @@ pub mod tests {
             let env = Env::default();
             let ty = parser::parse_ty(&env, "struct { len: u8, data: [u8; len] }").unwrap();
 
-            assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
         }
 
         #[test]
@@ -586,7 +586,7 @@ pub mod tests {
             let env = Env::default();
             let ty = parser::parse_ty(&env, "[u8; 16]").unwrap();
 
-            assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
         }
 
         #[test]
@@ -596,7 +596,7 @@ pub mod tests {
             env.add_binding("len", len_ty);
             let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
-            assert_eq!(env.kind_of(&ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
         }
 
         #[test]
@@ -607,7 +607,7 @@ pub mod tests {
             let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
             assert_eq!(
-                env.kind_of(&ty),
+                kind_of(&env, &ty),
                 Err(KindError::ArraySizeExpectedUInt(
                     Span::new(B(0), B(9)),
                     len_ty,
@@ -623,7 +623,7 @@ pub mod tests {
             let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
             assert_eq!(
-                env.kind_of(&ty),
+                kind_of(&env, &ty),
                 Err(KindError::ArraySizeExpectedUInt(
                     Span::new(B(0), B(9)),
                     len_ty,
