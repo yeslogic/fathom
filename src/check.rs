@@ -14,7 +14,7 @@
 //! ```plain
 //! e ::=
 //!         x           variables
-//!         n           integer number
+//!         ℕ           natural number
 //!         true        true value
 //!         false       false value
 //!         -e          negation
@@ -36,6 +36,16 @@
 //! ## Types
 //!
 //! ```plain
+//! E ::=
+//!         Le                  little endian
+//!         Be                  big endian
+//!
+//! c ::=
+//!         Bool                booleans
+//!         UInt(ℕ, E)          unsigned integer with byte size and endianness
+//!         Int(ℕ, E)           signed integer with byte size and endianness
+//!         UnknownInt(n)       an unknown integer literal
+//!
 //! τ ::=
 //!         c                   type constants
 //!         α                   variables
@@ -90,10 +100,10 @@ pub enum TypeError {
 }
 
 impl<'parent> Env<'parent> {
-    pub fn check_defs<I: IntoIterator<Item = Definition>>(
-        &mut self,
-        defs: I,
-    ) -> Result<(), KindError> {
+    pub fn check_defs<I>(&mut self, defs: I) -> Result<(), KindError>
+    where
+        I: IntoIterator<Item = Definition>,
+    {
         for def in defs {
             self.kind_of(&def.ty)?;
             self.add_ty(def.name, def.ty);
@@ -123,9 +133,14 @@ impl<'parent> Env<'parent> {
     ///              Γ ⊢ Σ x:τ₁ .τ₂ : Type
     ///
     ///
-    ///     Γ ⊢ τ : Type        Γ ⊢ e : Int
-    /// ―――――――――――――――――――――――――――――――――――――――――― (K-ARRAY)
-    ///             Γ ⊢ [τ; e] : Type
+    ///     Γ ⊢ τ : Type        Γ ⊢ e : UInt(ℕ, E)
+    /// ――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-UINT)
+    ///               Γ ⊢ [τ; e] :
+    ///
+    ///
+    ///     Γ ⊢ τ : Type        Γ ⊢ e : UnknownInt(ℕ)
+    /// ―――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-UNKNOWN-INT)
+    ///               Γ ⊢ [τ; e] : Type
     ///
     ///
     ///     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
@@ -169,7 +184,7 @@ impl<'parent> Env<'parent> {
                 Ok(Kind::Type)
             }
 
-            // K-ARRAY
+            // K-ARRAY-???
             Type::Array(span, ref ty, ref size) => {
                 self.kind_of(ty)?;
                 let expr_ty = self.type_of(size).map_err(
@@ -177,7 +192,9 @@ impl<'parent> Env<'parent> {
                 )?;
 
                 match expr_ty {
+                    // K-ARRAY-UNKNOWN-INT
                     Type::Const(TypeConst::UnknownInt) |
+                    // K-ARRAY-UINT
                     Type::Const(TypeConst::U(_, _)) => Ok(Kind::Type),
                     ty => Err(KindError::ArraySizeExpectedUInt(span, ty)),
                 }
@@ -311,6 +328,10 @@ impl<'parent> Env<'parent> {
     ///       Γ ⊢ false : Bool
     ///
     ///
+    /// ―――――――――――――――――――――――――――― (T-UNKNOWN-INT)
+    ///     Γ ⊢ ℕ : UnknownInt(ℕ)
+    ///
+    ///
     ///           x : τ ∈ Γ
     /// ―――――――――――――――――――――――――――― (T-VAR)
     ///           Γ ⊢ x : τ
@@ -319,7 +340,7 @@ impl<'parent> Env<'parent> {
         match *expr {
             // T-TRUE, T-FALSE
             Expr::Const(_, Const::Bool(_)) => Ok(Type::bool()),
-            // FIXME: T-???
+            // FIXME: T-UNKNOWN-INT
             Expr::Const(_, Const::UInt(_)) => Ok(Type::unknown_int()),
             // T-VAR
             Expr::Var(span, ref name) => {
