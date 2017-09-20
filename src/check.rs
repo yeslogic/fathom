@@ -337,13 +337,25 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
         }
 
         Expr::Unop(span, op, ref value) => {
-            match (op, type_of(env, value)?) {
+            let value_ty = type_of(env, value)?;
+
+            match op {
                 // T-NOT
-                (Unop::Not, ty @ Type::Const(TypeConst::Bool)) => Ok(ty),
-                (Unop::Not, ty) => Err(TypeError::UnexpectedUnaryOperand(span, op, ty)),
+                Unop::Not => {
+                    if value_ty == Type::Const(TypeConst::Bool) {
+                        Ok(Type::Const(TypeConst::Bool))
+                    } else {
+                        Err(TypeError::UnexpectedUnaryOperand(span, op, value_ty))
+                    }
+                }
                 // T-NEG
-                (Unop::Neg, ref ty) if is_subtype(&Type::unknown_int(), ty) => Ok(ty.clone()),
-                (Unop::Neg, ty) => Err(TypeError::UnexpectedUnaryOperand(span, op, ty)),
+                Unop::Neg => {
+                    if is_subtype(&Type::unknown_int(), &value_ty) {
+                        Ok(value_ty)
+                    } else {
+                        Err(TypeError::UnexpectedUnaryOperand(span, op, value_ty))
+                    }
+                }
             }
         }
 
