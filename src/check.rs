@@ -104,6 +104,36 @@ pub enum TypeError {
     UnboundVariable(Span, String),
 }
 
+/// The subtyping relation: `τ₁ <: τ₂`
+///
+/// # Rules
+///
+/// ```plain
+/// ―――――――――――――――――――― (S-REFL)
+///        τ <: τ
+///
+///
+/// ――――――――――――――――――――――――――――――――――――― (S-UINT)
+///      UnknownInt(ℕ₂) <: UInt(ℕ₁, E)
+///
+///
+/// ――――――――――――――――――――――――――――――――――――― (S-INT)
+///      UnknownInt(ℕ₂) <: Int(ℕ₁, E)
+/// ```
+pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
+    use ast::Type::Const;
+
+    match (sty, ty) {
+        // S-REFL
+        (sty, ty) if sty == ty => true,
+        // S-UINT
+        (&Const(TypeConst::UnknownInt), &Const(TypeConst::U(_, _))) => true,
+        // S-INT
+        (&Const(TypeConst::UnknownInt), &Const(TypeConst::I(_, _))) => true,
+        (_, _) => false,
+    }
+}
+
 impl<'parent> Env<'parent> {
     pub fn check_defs<I>(&mut self, defs: I) -> Result<(), KindError>
     where
@@ -116,7 +146,9 @@ impl<'parent> Env<'parent> {
         Ok(())
     }
 
-    /// `Γ ⊢ τ : κ`
+    /// The kinding relation: `Γ ⊢ τ : κ`
+    ///
+    /// # Rules
     ///
     /// ```plain
     /// ―――――――――――――――――――― (K-CONST)
@@ -319,7 +351,9 @@ impl<'parent> Env<'parent> {
         }
     }
 
-    /// `Γ ⊢ e : τ`
+    /// The typing relation: `Γ ⊢ e : τ`
+    ///
+    /// # Rules
     ///
     /// ```plain
     /// ―――――――――――――――――――――――――――― (T-TRUE)
