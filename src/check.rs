@@ -102,7 +102,9 @@ impl From<TypeError> for KindError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeError {
     UnboundVariable(Span, String),
-    Unexpected(Span, Type),
+    UnexpectedUnaryOperand(Span, Unop, Type),
+    UnexpectedBinaryLhs(Span, Type),
+    UnexpectedBinaryRhs(Span, Type),
 }
 
 /// The subtyping relation: `τ₁ <: τ₂`
@@ -253,92 +255,6 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
     }
 }
 
-fn type_of_bool_binop(env: &Env, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
-    use ast::TypeConst::Bool;
-    use ast::Type::Const;
-
-    let lhs_ty = type_of(env, lhs)?;
-    let rhs_ty = type_of(env, rhs)?;
-
-    match (lhs_ty, rhs_ty) {
-        (ty @ Const(Bool), Const(Bool)) => Ok(ty),
-        (_, _) => unimplemented!(), // FIXME: better errors
-    }
-}
-
-fn type_of_comparison_binop(env: &Env, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
-    use ast::Type::Const;
-
-    let lhs_ty = type_of(env, lhs)?;
-    let rhs_ty = type_of(env, rhs)?;
-
-    // FIXME: Ugh
-    match (lhs_ty, rhs_ty) {
-        // Coerce to LHS if the RHS is less specific
-        (Const(TypeConst::U(_, _)), Const(TypeConst::UnknownInt)) |
-        (Const(TypeConst::I(_, _)), Const(TypeConst::UnknownInt)) |
-        // Coerce to RHS if the LHS is less specific
-        (Const(TypeConst::UnknownInt), Const(TypeConst::U(_, _))) |
-        (Const(TypeConst::UnknownInt), Const(TypeConst::I(_, _))) => {
-            Ok(Type::bool())
-        }
-        // Same type if LHS == RHS
-        (Const(TypeConst::U(ls, le)), Const(TypeConst::U(rs, re))) => {
-            if ls == rs && le == re {
-                Ok(Type::bool())
-            } else {
-                unimplemented!()
-            }
-        }
-        // Same type if LHS == RHS
-        (Const(TypeConst::I(ls, le)), Const(TypeConst::I(rs, re))) => {
-            if ls == rs && le == re {
-                Ok(Type::bool())
-            } else {
-                unimplemented!()
-            }
-        }
-        // Error!
-        (_, _) => unimplemented!(), // FIXME: better errors
-    }
-}
-
-fn type_of_int_binop(env: &Env, lhs: &Expr, rhs: &Expr) -> Result<Type, TypeError> {
-    use ast::Type::Const;
-
-    let lhs_ty = type_of(env, lhs)?;
-    let rhs_ty = type_of(env, rhs)?;
-
-    // FIXME: Ugh
-    match (lhs_ty, rhs_ty) {
-        (ty @ Const(TypeConst::UnknownInt), Const(TypeConst::UnknownInt)) |
-        // Coerce to LHS if the RHS is less specific
-        (ty @ Const(TypeConst::U(_, _)), Const(TypeConst::UnknownInt)) |
-        (ty @ Const(TypeConst::I(_, _)), Const(TypeConst::UnknownInt)) |
-        // Coerce to RHS if the LHS is less specific
-        (Const(TypeConst::UnknownInt), ty @ Const(TypeConst::U(_, _))) |
-        (Const(TypeConst::UnknownInt), ty @ Const(TypeConst::I(_, _))) => Ok(ty),
-        // Same type if LHS == RHS
-        (Const(TypeConst::U(ls, le)), Const(TypeConst::U(rs, re))) => {
-            if ls == rs && le == re {
-                Ok(Const(TypeConst::U(ls, le)))
-            } else {
-                unimplemented!()
-            }
-        }
-        // Same type if LHS == RHS
-        (Const(TypeConst::I(ls, le)), Const(TypeConst::I(rs, re))) => {
-            if ls == rs && le == re {
-                Ok(Const(TypeConst::I(ls, le)))
-            } else {
-                unimplemented!()
-            }
-        }
-        // Error!
-        (_, _) => unimplemented!(), // FIXME: better errors
-    }
-}
-
 /// The typing relation: `Γ ⊢ e : τ`
 ///
 /// # Rules
@@ -391,22 +307,51 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
             match (op, type_of(env, value)?) {
                 // T-NOT
                 (Unop::Not, ty @ Type::Const(TypeConst::Bool)) => Ok(ty),
-                (Unop::Not, ty) => Err(TypeError::Unexpected(span, ty)),
+                (Unop::Not, ty) => Err(TypeError::UnexpectedUnaryOperand(span, op, ty)),
                 // T-NEG
                 (Unop::Neg, ref ty) if is_subtype(&Type::unknown_int(), ty) => Ok(ty.clone()),
-                (Unop::Neg, ty) => Err(TypeError::Unexpected(span, ty)),
+                (Unop::Neg, ty) => Err(TypeError::UnexpectedUnaryOperand(span, op, ty)),
             }
         }
 
-        // FIXME: T-???
-        Expr::Binop(_, op, ref lhs, ref rhs) => {
+        Expr::Binop(span, op, ref lhs, ref rhs) => {
+            let lhs_ty = type_of(env, lhs)?;
+            let rhs_ty = type_of(env, rhs)?;
+
             match op {
-                Binop::Or | Binop::And => type_of_bool_binop(env, lhs, rhs),
-                Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                    type_of_comparison_binop(env, lhs, rhs)
+                // T-REL (TODO)
+                Binop::Or | Binop::And => {
+                    if lhs_ty != Type::Const(TypeConst::Bool) {
+                        Err(TypeError::UnexpectedBinaryLhs(span, lhs_ty))
+                    } else if rhs_ty != Type::Const(TypeConst::Bool) {
+                        Err(TypeError::UnexpectedBinaryRhs(span, rhs_ty))
+                    } else {
+                        Ok(Type::bool())
+                    }
                 }
+                // T-CMP (TODO)
+                Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                    let unknown_int = Type::unknown_int();
+
+                    if is_subtype(&lhs_ty, &rhs_ty) && is_subtype(&unknown_int, &rhs_ty) {
+                        Ok(Type::bool())
+                    } else if is_subtype(&rhs_ty, &lhs_ty) && is_subtype(&unknown_int, &lhs_ty) {
+                        Ok(Type::bool())
+                    } else {
+                        unimplemented!() // FIXME: Better errors
+                    }
+                }
+                // T-ARITH (TODO)
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                    type_of_int_binop(env, lhs, rhs)
+                    let unknown_int = Type::unknown_int();
+
+                    if is_subtype(&lhs_ty, &rhs_ty) && is_subtype(&unknown_int, &rhs_ty) {
+                        Ok(rhs_ty)
+                    } else if is_subtype(&rhs_ty, &lhs_ty) && is_subtype(&unknown_int, &lhs_ty) {
+                        Ok(lhs_ty)
+                    } else {
+                        unimplemented!() // FIXME: Better errors
+                    }
                 }
             }
         }
