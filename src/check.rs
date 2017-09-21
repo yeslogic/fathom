@@ -146,7 +146,7 @@ pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
         (sty, ty) if sty == ty => true,
 
         // S-SINGLETON-UINT
-        // FIXME: Use intersection types instead
+        // FIXME: This is actually treating the singleton as a positive range from zero!
         (&Type::SingletonUInt(sn), &Type::SingletonUInt(n)) if sn <= n => true,
 
         // S-UINT
@@ -415,6 +415,7 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
                     }
                 }
                 // T-ARITH-...
+                // FIXME: These rules are incompatible with the way we formulated S-SINGLETON-UINT
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
                     // T-ARITH-LHS
                     if is_subtype(&lhs_ty, &rhs_ty) && is_numeric(&rhs_ty) {
