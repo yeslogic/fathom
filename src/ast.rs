@@ -7,6 +7,7 @@ use source::Span;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
     Type,
+    Binary,
 }
 
 /// A type definition

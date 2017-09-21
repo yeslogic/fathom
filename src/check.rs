@@ -1,13 +1,6 @@
-//! Typechecking for our DDL
+//! Typechecking
 //!
 //! # Syntax
-//!
-//! ## Kinds
-//!
-//! ```plain
-//! κ ::=
-//!         Type        kind of types
-//! ```
 //!
 //! ## Expressions
 //!
@@ -49,27 +42,32 @@
 //!         Le                  little endian
 //!         Be                  big endian
 //!
-//! c ::=
+//! τ ::=
+//!         α                   variables
 //!         Bool                booleans
 //!         UInt(ℕ, E)          unsigned integer with byte size and endianness
-//!         Int(ℕ, E)           signed integer with byte size and endianness
-//!         SingletonUInt(n)    a single unsigned integer
-//!
-//! τ ::=
-//!         c                   type constants
-//!         α                   variables
+//!         SInt(ℕ, E)          two's complement signed integer with byte size and endianness
+//!         SingletonUInt(ℕ)    a single unsigned integer
 //!         τ₁ + τ₂             sum
 //!         Σ x:τ₁ .τ₂          dependent pair
 //!         [τ; e]              array
 //!         { x:τ | e }         constrained type
 //! ```
 //!
+//! ## Kinds
+//!
+//! ```plain
+//! κ ::=
+//!         Type        kind of types
+//!         Binary      kind of binary types
+//! ```
+//!
+//! # Types in the AST
+//!
 //! In the `ast`, we represent the above as the following:
 //!
 //! - `Type::Var`: variables
-//!
 //! - `Type::Union`: series of unions
-//!
 //! - `Type::Struct`: nested dependent pairs
 //!
 //!   For example, the struct:
@@ -87,7 +85,6 @@
 //!   Note how later fields have access to the data in previous fields.
 //!
 //! - `Type::Array`: TODO
-//!
 //! - `Type::Where`: constrained type
 
 use ast::{Binop, Const, Definition, Expr, Kind, Type, Unop};
@@ -138,7 +135,7 @@ pub enum TypeError {
 ///
 ///          ℕ₁ ≤ 2^(ℕ₂ - 1) - 1
 /// ――――――――――――――――――――――――――――――――――――― (S-INT)
-///    SingletonUInt(ℕ₁) <: Int(ℕ₂, E)
+///    SingletonUInt(ℕ₁) <: SInt(ℕ₂, E)
 /// ```
 pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
     match (sty, ty) {
@@ -165,8 +162,8 @@ pub fn is_numeric(ty: &Type) -> bool {
     match *ty {
         Type::SingletonUInt(_) |
         Type::UInt(_, _) |
-        Type::SInt(_, _) |
-        Type::Float(_, _) => true,
+        Type::SInt(_, _) => true,
+        // Ignore floats for now...
         _ => false,
     }
 }
@@ -177,8 +174,10 @@ impl<'parent> Env<'parent> {
         I: IntoIterator<Item = Definition>,
     {
         for def in defs {
-            kind_of(self, &def.ty)?;
-            self.add_ty(def.name, def.ty);
+            match kind_of(self, &def.ty)? {
+                Kind::Type => unimplemented!(), // FIXME: Better errors
+                Kind::Binary => self.add_ty(def.name, def.ty),
+            }
         }
         Ok(())
     }
@@ -189,54 +188,77 @@ impl<'parent> Env<'parent> {
 /// # Rules
 ///
 /// ```plain
-/// ―――――――――――――――――――― (K-CONST)
-///     Γ ⊢ c : Type
+/// ――――――――――――――――――――――― (K-BOOL)
+///    Γ ⊢ Bool : Type
 ///
 ///
-///         α ∈ Γ
+/// ――――――――――――――――――――――――――――――――――― (K-SINGLETON-UINT)
+///    Γ ⊢ SingletonUInt(ℕ) : Binary
+///
+///
+///             ℕ > 0
+/// ―――――――――――――――――――――――――――――――――――  (K-UINT)
+///      Γ ⊢ UInt(ℕ, E) : Binary
+///
+///
+///             ℕ > 0
+/// ―――――――――――――――――――――――――――――――――――  (K-SINT)
+///      Γ ⊢ SInt(ℕ, E) : Binary
+///
+///
+///        α ∈ Γ
 /// ―――――――――――――――――――― (K-VAR)
-///     Γ ⊢ α : Type
+///    Γ ⊢ α : Binary
 ///
 ///
-///     Γ ⊢ τ₁ : Type        Γ ⊢ τ₂ : Type
+///     Γ ⊢ τ₁ : Binary     Γ ⊢ τ₂ : Binary
 /// ―――――――――――――――――――――――――――――――――――――――――― (K-SUM)
-///              Γ ⊢ τ₁ + τ₂ : Type
+///              Γ ⊢ τ₁ + τ₂ : Binary
 ///
 ///
-///     Γ ⊢ τ₁ : Type        Γ, x:τ₁ ⊢ τ₂ : Type
-/// ―――――――――――――――――――――――――――――――――――――――――――――――――― (K-DEPENDENT-PAIR)
-///              Γ ⊢ Σ x:τ₁ .τ₂ : Type
+///     Γ ⊢ τ₁ : Binary        Γ, x:τ₁ ⊢ τ₂ : Binary
+/// ―――――――――――――――――――――――――――――――――――――――――――――――――――――― (K-DEPENDENT-PAIR)
+///              Γ ⊢ Σ x:τ₁ .τ₂ : Binary
 ///
 ///
-///     Γ ⊢ τ : Type        Γ ⊢ e : UInt(ℕ, E)
-/// ――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-UINT)
-///               Γ ⊢ [τ; e] :
+///     Γ ⊢ τ : Binary      Γ ⊢ e : UInt(ℕ, E)
+/// ―――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-UINT)
+///               Γ ⊢ [τ; e] : Binary
 ///
 ///
-///     Γ ⊢ τ : Type       Γ ⊢ e : SingletonUInt(ℕ)
-/// ―――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-SINGLETON-UINT)
-///               Γ ⊢ [τ; e] : Type
+///     Γ ⊢ τ : Binary     Γ ⊢ e : SingletonUInt(ℕ)
+/// ――――――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-SINGLETON-UINT)
+///               Γ ⊢ [τ; e] : Binary
 ///
 ///
-///     Γ ⊢ τ : Type      Γ, x:τ ⊢ b : Bool
+///     Γ ⊢ τ : Binary    Γ, x:τ ⊢ e : Bool
 /// ―――――――――――――――――――――――――――――――――――――――――― (K-CON)
-///           Γ ⊢ { x:τ | b } : Type
+///           Γ ⊢ { x:τ | e } : Binary
 /// ```
 pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
     match *ty {
-        // K-CONST
+        // K-BOOL
         Type::Bool => Ok(Kind::Type),
-        Type::SingletonUInt(_) => Ok(Kind::Type),
-        Type::UInt(_, _) => Ok(Kind::Type),
-        Type::SInt(_, _) => Ok(Kind::Type),
-        Type::Float(_, _) => Ok(Kind::Type),
+
+        // K-SINGLETON-UINT
+        Type::SingletonUInt(_) => Ok(Kind::Binary),
+
+        // K-UINT
+        Type::UInt(size, _) if size > 0 => Ok(Kind::Binary),
+        Type::UInt(_, _) => unimplemented!(), // FIXME: Better errors
+
+        // K-SINT
+        Type::SInt(size, _) if size > 0 => Ok(Kind::Binary),
+        Type::SInt(_, _) => unimplemented!(), // FIXME: Better errors
+
+        // K-???
+        Type::Float(_, _) => Ok(Kind::Binary),
 
         // K-VAR
         Type::Var(span, ref name) => {
-            // TODO: kind of var?
-            // α ∈ Γ
+            // TODO: kind of var? - expecting only binary types in the context
             match env.lookup_ty(name) {
-                Some(_) => Ok(Kind::Type),
+                Some(_) => Ok(Kind::Binary),
                 None => Err(KindError::UnboundType(span, name.clone())),
             }
         }
@@ -244,10 +266,12 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
         // K-SUM
         Type::Union(_, ref tys) => {
             for ty in tys {
-                // Γ ⊢ τ₁ : Type
-                kind_of(env, &ty)?;
+                match kind_of(env, &ty)? {
+                    Kind::Type => unimplemented!(), // FIXME: Better errors
+                    Kind::Binary => {}
+                }
             }
-            Ok(Kind::Type)
+            Ok(Kind::Binary)
         }
 
         // K-DEPENDENT-PAIR
@@ -255,38 +279,45 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
             // TODO: prevent name shadowing?
             let mut inner_env = env.extend();
             for field in fields {
-                // Γ ⊢ τ₁ : Type
-                kind_of(&inner_env, &field.ty)?;
-                // Γ, x:τ₁ ⊢ τ₂ : Type
-                inner_env.add_binding(field.name.clone(), field.ty.clone());
+                match kind_of(&inner_env, &field.ty)? {
+                    Kind::Type => unimplemented!(), // FIXME: Better errors
+                    Kind::Binary => inner_env.add_binding(field.name.clone(), field.ty.clone()),
+                }
             }
-            Ok(Kind::Type)
+            Ok(Kind::Binary)
         }
 
         // K-ARRAY-...
         Type::Array(span, ref ty, ref size) => {
-            kind_of(env, ty)?;
-            let expr_ty = type_of(env, size)?;
+            match kind_of(env, ty)? {
+                Kind::Type => unimplemented!(), // FIXME: Better errors
+                Kind::Binary => {
+                    let expr_ty = type_of(env, size)?;
 
-            match expr_ty {
-                // K-ARRAY-SINGLETON-UINT
-                Type::SingletonUInt(_) |
-                // K-ARRAY-UINT
-                Type::UInt(_, _) => Ok(Kind::Type),
-                ty => Err(KindError::ArraySizeExpectedUInt(span, ty)),
+                    match expr_ty {
+                        // K-ARRAY-SINGLETON-UINT
+                        Type::SingletonUInt(_) |
+                        // K-ARRAY-UINT
+                        Type::UInt(_, _) => Ok(Kind::Binary),
+                        ty => Err(KindError::ArraySizeExpectedUInt(span, ty)),
+                    }
+                }
             }
         }
 
         // K-CON
         Type::Where(span, ref ty, ref param, ref pred) => {
-            kind_of(env, ty)?;
-
-            let mut inner_env = env.extend();
-            // TODO: prevent name shadowing?
-            inner_env.add_binding(param.clone(), (**ty).clone());
-            match type_of(env, pred)? {
-                Type::Bool => Ok(Kind::Type),
-                pred_ty => Err(KindError::WherePredicateExpectedBool(span, pred_ty)),
+            match kind_of(env, ty)? {
+                Kind::Type => unimplemented!(), // FIXME: Better errors
+                Kind::Binary => {
+                    let mut inner_env = env.extend();
+                    // TODO: prevent name shadowing?
+                    inner_env.add_binding(param.clone(), (**ty).clone());
+                    match type_of(env, pred)? {
+                        Type::Bool => Ok(Kind::Binary),
+                        pred_ty => Err(KindError::WherePredicateExpectedBool(span, pred_ty)),
+                    }
+                }
             }
         }
     }
@@ -537,7 +568,7 @@ pub mod tests {
             let env = Env::default();
             let ty = Type::SInt(16, Endianness::Target);
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
         }
 
         #[test]
@@ -545,7 +576,7 @@ pub mod tests {
             let env = Env::default();
             let ty = parser::parse_ty(&env, "u8").unwrap();
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
         }
 
         #[test]
@@ -567,7 +598,7 @@ pub mod tests {
             let env = Env::default();
             let ty = parser::parse_ty(&env, "union { u8, u16, i32 }").unwrap();
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
         }
 
         #[test]
@@ -589,7 +620,7 @@ pub mod tests {
             let env = Env::default();
             let ty = parser::parse_ty(&env, "struct { x: u8, y: u8 }").unwrap();
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
         }
 
         #[test]
@@ -597,7 +628,7 @@ pub mod tests {
             let env = Env::default();
             let ty = parser::parse_ty(&env, "struct { len: u8, data: [u8; len] }").unwrap();
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
         }
 
         #[test]
@@ -605,7 +636,7 @@ pub mod tests {
             let env = Env::default();
             let ty = parser::parse_ty(&env, "[u8; 16]").unwrap();
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
         }
 
         #[test]
@@ -615,7 +646,7 @@ pub mod tests {
             env.add_binding("len", len_ty);
             let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Type));
+            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
         }
 
         #[test]
