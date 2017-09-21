@@ -114,6 +114,7 @@ pub enum TypeError {
     UnexpectedUnaryOperand(Span, Unop, Type),
     UnexpectedBinaryLhs(Span, Type),
     UnexpectedBinaryRhs(Span, Type),
+    ExpectedNumericOperands(Span, Type, Type),
 }
 
 /// The subtyping relation: `τ₁ <: τ₂`
@@ -157,6 +158,16 @@ pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
         (&Type::SingletonUInt(_), &Type::SInt(_, _)) => true,
 
         (_, _) => false,
+    }
+}
+
+pub fn is_numeric(ty: &Type) -> bool {
+    match *ty {
+        Type::SingletonUInt(_) |
+        Type::UInt(_, _) |
+        Type::SInt(_, _) |
+        Type::Float(_, _) => true,
+        _ => false,
     }
 }
 
@@ -308,8 +319,8 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 ///         Γ ⊢ ¬e : Bool
 ///
 ///
-///     Γ ⊢ e : τ       SingletonUInt(ℕ) <: τ
-/// ――――――――――――――――――――――――――――――――――――――――― (T-NEG)
+///     Γ ⊢ e : τ       isNumeric(τ)
+/// ――――――――――――――――――――――――――――――――――― (T-NEG)
 ///              Γ ⊢ -e : τ
 ///
 ///
@@ -318,23 +329,23 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 ///         Γ ⊢ op(Rel, e₁, e₂) : Bool
 ///
 ///
-///   Γ ⊢ e₁ : τ₁     Γ ⊢ e₂ : τ₂      τ₁ <: τ₂      SingletonUInt(ℕ) <: τ₂
-/// ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-CMP-LHS)
+///   Γ ⊢ e₁ : τ₁     Γ ⊢ e₂ : τ₂      τ₁ <: τ₂      isNumeric(τ₂)
+/// ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-CMP-LHS)
 ///                      Γ ⊢ op(Cmp, e₁, e₂) : Bool
 ///
 ///
-///   Γ ⊢ e₁ : τ₁     Γ ⊢ e₂ : τ₂      τ₂ <: τ₁      SingletonUInt(ℕ) <: τ₁
-/// ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-CMP-RHS)
+///   Γ ⊢ e₁ : τ₁     Γ ⊢ e₂ : τ₂      τ₂ <: τ₁      isNumeric(τ₁)
+/// ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-CMP-RHS)
 ///                      Γ ⊢ op(Cmp, e₁, e₂) : Bool
 ///
 ///
-///   Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂      τ₁ <: τ₂      SingletonUInt(ℕ) <: τ₂
-/// ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-ARITH-LHS)
+///   Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂      τ₁ <: τ₂      isNumeric(τ₂)
+/// ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-ARITH-LHS)
 ///                    Γ ⊢ op(Arith, e₁, e₂) : τ₂
 ///
 ///
-///   Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂      τ₂ <: τ₁      SingletonUInt(ℕ) <: τ₁
-/// ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-ARITH-RHS)
+///   Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂      τ₂ <: τ₁      isNumeric(τ₁)
+/// ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (T-ARITH-RHS)
 ///                    Γ ⊢ op(Arith, e₁, e₂) : τ₁
 /// ```
 pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
@@ -367,7 +378,7 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
                 }
                 // T-NEG
                 Unop::Neg => {
-                    if is_subtype(&Type::SingletonUInt(0), &value_ty) {
+                    if is_numeric(&value_ty) {
                         Ok(value_ty)
                     } else {
                         Err(TypeError::UnexpectedUnaryOperand(span, op, value_ty))
@@ -393,30 +404,26 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
                 }
                 // T-CMP-...
                 Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                    let unknown_int = Type::SingletonUInt(0);
-
                     // T-CMP-LHS
-                    if is_subtype(&lhs_ty, &rhs_ty) && is_subtype(&unknown_int, &rhs_ty) {
+                    if is_subtype(&lhs_ty, &rhs_ty) && is_numeric(&rhs_ty) {
                         Ok(Type::Bool)
                     // T-CMP-RHS
-                    } else if is_subtype(&rhs_ty, &lhs_ty) && is_subtype(&unknown_int, &lhs_ty) {
+                    } else if is_subtype(&rhs_ty, &lhs_ty) && is_numeric(&lhs_ty) {
                         Ok(Type::Bool)
                     } else {
-                        unimplemented!() // FIXME: Better errors
+                        Err(TypeError::ExpectedNumericOperands(span, lhs_ty, rhs_ty))
                     }
                 }
                 // T-ARITH-...
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                    let unknown_int = Type::SingletonUInt(0);
-
                     // T-ARITH-LHS
-                    if is_subtype(&lhs_ty, &rhs_ty) && is_subtype(&unknown_int, &rhs_ty) {
+                    if is_subtype(&lhs_ty, &rhs_ty) && is_numeric(&rhs_ty) {
                         Ok(rhs_ty)
                     // T-ARITH-RHS
-                    } else if is_subtype(&rhs_ty, &lhs_ty) && is_subtype(&unknown_int, &lhs_ty) {
+                    } else if is_subtype(&rhs_ty, &lhs_ty) && is_numeric(&lhs_ty) {
                         Ok(lhs_ty)
                     } else {
-                        unimplemented!() // FIXME: Better errors
+                        Err(TypeError::ExpectedNumericOperands(span, lhs_ty, rhs_ty))
                     }
                 }
             }
