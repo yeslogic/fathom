@@ -479,8 +479,6 @@ pub mod tests {
     use source::BytePos as B;
     use super::*;
 
-    // Add expressions
-
     mod type_of {
         use super::*;
 
@@ -572,122 +570,142 @@ pub mod tests {
     mod kind_of {
         use super::*;
 
-        #[test]
-        fn ty_const() {
-            let env = Env::default();
-            let ty = Type::SInt(16, Endianness::Target);
+        mod const_ty {
+            use super::*;
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
+            #[test]
+            fn ty_const() {
+                let env = Env::default();
+                let ty = Type::SInt(16, Endianness::Target);
+
+                assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
+            }
         }
 
-        #[test]
-        fn var() {
-            let env = Env::default();
-            let ty = parser::parse_ty(&env, "u8").unwrap();
+        mod var_ty {
+            use super::*;
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
+            #[test]
+            fn defined() {
+                let env = Env::default();
+                let ty = parser::parse_ty(&env, "u8").unwrap();
+
+                assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
+            }
+
+            #[test]
+            fn undefined() {
+                let env = Env::default();
+                let ty = parser::parse_ty(&env, "Foo").unwrap();
+
+                assert_eq!(
+                    kind_of(&env, &ty),
+                    Err(KindError::UnboundType(
+                        Span::new(B(0), B(3)),
+                        "Foo".to_owned(),
+                    ))
+                );
+            }
         }
 
-        #[test]
-        fn var_missing() {
-            let env = Env::default();
-            let ty = parser::parse_ty(&env, "Foo").unwrap();
+        mod union_ty {
+            use super::*;
 
-            assert_eq!(
-                kind_of(&env, &ty),
-                Err(KindError::UnboundType(
-                    Span::new(B(0), B(3)),
-                    "Foo".to_owned(),
-                ))
-            );
+            #[test]
+            fn simple() {
+                let env = Env::default();
+                let ty = parser::parse_ty(&env, "union { u8, u16, i32 }").unwrap();
+
+                assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
+            }
+
+            #[test]
+            fn undefined_element() {
+                let env = Env::default();
+                let ty = parser::parse_ty(&env, "union { u8, Foo, i32 }").unwrap();
+
+                assert_eq!(
+                    kind_of(&env, &ty),
+                    Err(KindError::UnboundType(
+                        Span::new(B(12), B(15)),
+                        "Foo".to_owned(),
+                    ))
+                );
+            }
         }
 
-        #[test]
-        fn union() {
-            let env = Env::default();
-            let ty = parser::parse_ty(&env, "union { u8, u16, i32 }").unwrap();
+        mod struct_ty {
+            use super::*;
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
+            #[test]
+            fn simple() {
+                let env = Env::default();
+                let ty = parser::parse_ty(&env, "struct { x: u8, y: u8 }").unwrap();
+
+                assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
+            }
+
+            #[test]
+            fn dependent() {
+                let env = Env::default();
+                let ty = parser::parse_ty(&env, "struct { len: u8, data: [u8; len] }").unwrap();
+
+                assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
+            }
         }
 
-        #[test]
-        fn union_element_missing() {
-            let env = Env::default();
-            let ty = parser::parse_ty(&env, "union { u8, Foo, i32 }").unwrap();
+        mod array_ty {
+            use super::*;
 
-            assert_eq!(
-                kind_of(&env, &ty),
-                Err(KindError::UnboundType(
-                    Span::new(B(12), B(15)),
-                    "Foo".to_owned(),
-                ))
-            );
-        }
+            #[test]
+            fn constant_size() {
+                let env = Env::default();
+                let ty = parser::parse_ty(&env, "[u8; 16]").unwrap();
 
-        #[test]
-        fn pair() {
-            let env = Env::default();
-            let ty = parser::parse_ty(&env, "struct { x: u8, y: u8 }").unwrap();
+                assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
+            }
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
-        }
+            #[test]
+            fn constant_variable_size() {
+                let mut env = Env::default();
+                let len_ty = Type::UInt(32, Endianness::Target);
+                env.add_binding("len", len_ty);
+                let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
-        #[test]
-        fn dependent_pair() {
-            let env = Env::default();
-            let ty = parser::parse_ty(&env, "struct { len: u8, data: [u8; len] }").unwrap();
+                assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
+            }
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
-        }
+            #[test]
+            fn signed_int_size() {
+                let mut env = Env::default();
+                let len_ty = parser::parse_ty(&env, "i8").unwrap();
+                env.add_binding("len", len_ty.clone());
+                let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
-        #[test]
-        fn array() {
-            let env = Env::default();
-            let ty = parser::parse_ty(&env, "[u8; 16]").unwrap();
+                assert_eq!(
+                    kind_of(&env, &ty),
+                    Err(KindError::ArraySizeExpectedUInt(
+                        Span::new(B(0), B(9)),
+                        len_ty,
+                    ))
+                );
+            }
 
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
-        }
+            #[test]
+            fn struct_size() {
+                let mut env = Env::default();
+                let len_ty = parser::parse_ty(&env, "struct {}").unwrap();
+                env.add_binding("len", len_ty.clone());
+                let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
 
-        #[test]
-        fn array_len() {
-            let mut env = Env::default();
-            let len_ty = Type::UInt(32, Endianness::Target);
-            env.add_binding("len", len_ty);
-            let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
-
-            assert_eq!(kind_of(&env, &ty), Ok(Kind::Binary));
-        }
-
-        #[test]
-        fn array_singned_int_size() {
-            let mut env = Env::default();
-            let len_ty = parser::parse_ty(&env, "i8").unwrap();
-            env.add_binding("len", len_ty.clone());
-            let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
-
-            assert_eq!(
-                kind_of(&env, &ty),
-                Err(KindError::ArraySizeExpectedUInt(
-                    Span::new(B(0), B(9)),
-                    len_ty,
-                ))
-            );
-        }
-
-        #[test]
-        fn array_struct_size() {
-            let mut env = Env::default();
-            let len_ty = parser::parse_ty(&env, "struct {}").unwrap();
-            env.add_binding("len", len_ty.clone());
-            let ty = parser::parse_ty(&env, "[u8; len]").unwrap();
-
-            assert_eq!(
-                kind_of(&env, &ty),
-                Err(KindError::ArraySizeExpectedUInt(
-                    Span::new(B(0), B(9)),
-                    len_ty,
-                ))
-            );
+                assert_eq!(
+                    kind_of(&env, &ty),
+                    Err(KindError::ArraySizeExpectedUInt(
+                        Span::new(B(0), B(9)),
+                        len_ty,
+                    ))
+                );
+            }
         }
     }
 }
