@@ -7,9 +7,11 @@
 //! ```plain
 //! e ::=
 //!         x                   variables
-//!         ℕ                   natural number
+//!
+//!         n                   natural number
 //!         true                true value
 //!         false               false value
+//!
 //!         -e                  negation
 //!         ¬e                  not
 //!         op(Rel, e₁, e₂)     relational binary operation
@@ -43,11 +45,15 @@
 //!         Be                  big endian
 //!
 //! τ ::=
-//!         α                   variables
+//!         α                   type variables
+//!
 //!         Bool                booleans
-//!         UInt(ℕ, E)          unsigned integer with byte size and endianness
-//!         SInt(ℕ, E)          two's complement signed integer with byte size and endianness
-//!         SingletonUInt(ℕ)    a single unsigned integer
+//!
+//!         UInt(n, E)          unsigned integer with byte size and endianness
+//!         SInt(n, E)          two's complement signed integer with byte size and endianness
+//!         SingletonInt(n)    a single unsigned integer
+//!         RangedInt(n₁, n₂)   a ranged integer
+//!
 //!         τ₁ + τ₂             sum
 //!         Σ x:τ₁ .τ₂          dependent pair
 //!         [τ; e]              array
@@ -119,40 +125,73 @@ pub enum TypeError {
 /// # Rules
 ///
 /// ```plain
+/// minInt(UInt(n, E)) = 0
+/// minInt(SInt(n, E)) = -2⁽ⁿ⁻¹⁾
+///
+/// maxInt(UInt(n, E)) = 2ⁿ - 1
+/// maxInt(SInt(n, E)) = 2⁽ⁿ⁻¹⁾ - 1
+/// ```
+///
+/// ```plain
 /// ―――――――――――――――――――― (S-REFL)
 ///        τ <: τ
 ///
 ///
-///                  ℕ₁ ≤ ℕ₂
-/// ―――――――――――――――――――――――――――――――――――――――――― (S-SINGLETON-UINT)
-///   SingletonUInt(ℕ₁) <: SingletonUInt(ℕ₂)
+///        n₃ ≤ n₁             n₂ ≤ n₄
+/// ―――――――――――――――――――――――――――――――――――――――――― (S-RANGED-INT)
+///   RangedInt(n₁, n₂) <: RangedInt(n₃, n₄)
 ///
 ///
-///             ℕ₁ ≤ 2^ℕ₂ - 1
-/// ――――――――――――――――――――――――――――――――――――― (S-UINT)
-///    SingletonUInt(ℕ₁) <: UInt(ℕ₂, E)
+///          0 ≤ n₁          n₂ ≤ 2^n₃ - 1
+/// ――――――――――――――――――――――――――――――――――――――――――――――― (S-RANGED-INT-UINT)
+///         RangedInt(n₁, n₂) <: UInt(n₃, E)
 ///
 ///
-///          ℕ₁ ≤ 2^(ℕ₂ - 1) - 1
-/// ――――――――――――――――――――――――――――――――――――― (S-INT)
-///    SingletonUInt(ℕ₁) <: SInt(ℕ₂, E)
+///    -2^(n₂ - 1) ≤ n₁       n₂ ≤ 2^(n₃ - 1) - 1
+/// ――――――――――――――――――――――――――――――――――――――――――――――― (S-RANGED-INT-SINT)
+///        RangedInt(n₁, n₂) <: SInt(n₃, E)
+///
+///
+///        n₂ ≤ n₁             n₁ ≤ n₃
+/// ―――――――――――――――――――――――――――――――――――――――――― (S-SINGLETON-RANGED-INT)
+///    SingletonInt(n₁) <: RangedInt(n₂, n₃)
+///
+///
+///          0 ≤ n₁          n₁ ≤ 2^n₂ - 1
+/// ――――――――――――――――――――――――――――――――――――――――――――――― (S-SINGLETON-UINT)
+///         SingletonInt(n₁) <: UInt(n₂, E)
+///
+///
+///    -2^(n₂ - 1) ≤ n₁       n₁ ≤ 2^(n₂ - 1) - 1
+/// ――――――――――――――――――――――――――――――――――――――――――――――― (S-SINGLETON-SINT)
+///        SingletonInt(n₁) <: SInt(n₂, E)
 /// ```
 pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
     match (sty, ty) {
         // S-REFL
         (sty, ty) if sty == ty => true,
 
+        // S-RANGED-INT
+        (&Type::RangedInt(slo, shi), &Type::RangedInt(lo, hi)) if lo <= slo && shi <= hi => true,
+
+        // S-RANGED-INT-UINT
+        // FIXME: check size
+        (&Type::RangedInt(_, _), &Type::UInt(_, _)) => true,
+
+        // S-RANGED-INT-SINT
+        // FIXME: check size
+        (&Type::RangedInt(_, _), &Type::SInt(_, _)) => true,
+
+        // S-SINGLETON-RANGED-INT
+        (&Type::SingletonInt(sn), &Type::RangedInt(lo, hi)) if lo <= sn && sn <= hi => true,
+
         // S-SINGLETON-UINT
-        // FIXME: This is actually treating the singleton as a positive range from zero!
-        (&Type::SingletonUInt(sn), &Type::SingletonUInt(n)) if sn <= n => true,
-
-        // S-UINT
         // FIXME: check size
-        (&Type::SingletonUInt(_), &Type::UInt(_, _)) => true,
+        (&Type::SingletonInt(_), &Type::UInt(_, _)) => true,
 
-        // S-INT
+        // S-SINGLETON-SINT
         // FIXME: check size
-        (&Type::SingletonUInt(_), &Type::SInt(_, _)) => true,
+        (&Type::SingletonInt(_), &Type::SInt(_, _)) => true,
 
         (_, _) => false,
     }
@@ -160,7 +199,8 @@ pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
 
 pub fn is_numeric(ty: &Type) -> bool {
     match *ty {
-        Type::SingletonUInt(_) |
+        Type::SingletonInt(_) |
+        Type::RangedInt(_, _) |
         Type::UInt(_, _) |
         Type::SInt(_, _) => true,
         // Ignore floats for now...
@@ -192,18 +232,23 @@ impl<'parent> Env<'parent> {
 ///    Γ ⊢ Bool : Type
 ///
 ///
-/// ――――――――――――――――――――――――――――――――――― (K-SINGLETON-UINT)
-///    Γ ⊢ SingletonUInt(ℕ) : Binary
+/// ――――――――――――――――――――――――――――――――――― (K-SINGLETON-INT)
+///    Γ ⊢ SingletonInt(n) : Binary
 ///
 ///
-///             ℕ > 0
+///              n₁ ≤ n₂
+/// ―――――――――――――――――――――――――――――――――――  (K-RANGED-INT)
+///    Γ ⊢ RangedInt(n₁, n₂) : Binary
+///
+///
+///               n > 0
 /// ―――――――――――――――――――――――――――――――――――  (K-UINT)
-///      Γ ⊢ UInt(ℕ, E) : Binary
+///      Γ ⊢ UInt(n, E) : Binary
 ///
 ///
-///             ℕ > 0
+///               n > 0
 /// ―――――――――――――――――――――――――――――――――――  (K-SINT)
-///      Γ ⊢ SInt(ℕ, E) : Binary
+///      Γ ⊢ SInt(n, E) : Binary
 ///
 ///
 ///        α ∈ Γ
@@ -221,13 +266,13 @@ impl<'parent> Env<'parent> {
 ///              Γ ⊢ Σ x:τ₁ .τ₂ : Binary
 ///
 ///
-///     Γ ⊢ τ : Binary      Γ ⊢ e : UInt(ℕ, E)
+///     Γ ⊢ τ : Binary      Γ ⊢ e : UInt(n, E)
 /// ―――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-UINT)
 ///               Γ ⊢ [τ; e] : Binary
 ///
 ///
-///     Γ ⊢ τ : Binary     Γ ⊢ e : SingletonUInt(ℕ)
-/// ――――――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-SINGLETON-UINT)
+///     Γ ⊢ τ : Binary     Γ ⊢ e : SingletonInt(n)
+/// ――――――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-SINGLETON-INT)
 ///               Γ ⊢ [τ; e] : Binary
 ///
 ///
@@ -240,8 +285,12 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
         // K-BOOL
         Type::Bool => Ok(Kind::Type),
 
-        // K-SINGLETON-UINT
-        Type::SingletonUInt(_) => Ok(Kind::Binary),
+        // K-SINGLETON-INT
+        Type::SingletonInt(_) => Ok(Kind::Binary),
+
+        // K-RANGED-INT
+        Type::RangedInt(lo, hi) if lo <= hi => Ok(Kind::Binary),
+        Type::RangedInt(_, _) => unimplemented!(), // FIXME: Better errors
 
         // K-UINT
         Type::UInt(size, _) if size > 0 => Ok(Kind::Binary),
@@ -295,8 +344,8 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
                     let expr_ty = type_of(env, size)?;
 
                     match expr_ty {
-                        // K-ARRAY-SINGLETON-UINT
-                        Type::SingletonUInt(_) |
+                        // K-ARRAY-SINGLETON-INT
+                        Type::SingletonInt(_) |
                         // K-ARRAY-UINT
                         Type::UInt(_, _) => Ok(Kind::Binary),
                         ty => Err(KindError::ArraySizeExpectedUInt(span, ty)),
@@ -336,8 +385,8 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 ///       Γ ⊢ false : Bool
 ///
 ///
-/// ―――――――――――――――――――――――――――― (T-SINGLETON-UINT)
-///   Γ ⊢ ℕ : SingletonUInt(ℕ)
+/// ―――――――――――――――――――――――――――― (T-SINGLETON-INT)
+///   Γ ⊢ n : SingletonInt(n)
 ///
 ///
 ///           x : τ ∈ Γ
@@ -384,8 +433,8 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
         // T-TRUE, T-FALSE
         Expr::Const(_, Const::Bool(_)) => Ok(Type::Bool),
 
-        // T-SINGLETON-UINT
-        Expr::Const(_, Const::UInt(value)) => Ok(Type::SingletonUInt(value)),
+        // T-SINGLETON-INT
+        Expr::Const(_, Const::Int(value)) => Ok(Type::SingletonInt(value)),
 
         // T-VAR
         Expr::Var(span, ref name) => {
@@ -446,7 +495,7 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
                     }
                 }
                 // T-ARITH-...
-                // FIXME: These rules are incompatible with the way we formulated S-SINGLETON-UINT
+                // FIXME: These rules are incompatible with the way we formulated S-SINGLETON-INT
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
                     // T-ARITH-LHS
                     if is_subtype(&lhs_ty, &rhs_ty) && is_numeric(&rhs_ty) {
@@ -513,7 +562,7 @@ pub mod tests {
                 let env = Env::default();
                 let expr = parser::parse_expr(&env, "1 + 1").unwrap();
 
-                assert_eq!(type_of(&env, &expr), Ok(Type::SingletonUInt(1)));
+                assert_eq!(type_of(&env, &expr), Ok(Type::SingletonInt(1)));
             }
         }
 
@@ -555,7 +604,7 @@ pub mod tests {
                 let env = Env::default();
                 let expr = parser::parse_expr(&env, "1 * 1").unwrap();
 
-                assert_eq!(type_of(&env, &expr), Ok(Type::SingletonUInt(1)));
+                assert_eq!(type_of(&env, &expr), Ok(Type::SingletonInt(1)));
             }
         }
     }

@@ -12,9 +12,9 @@ extern {
     enum Token<'input> {
         // Data
         "Ident" => Token::Ident(<&'input str>),
-        "BinLiteral" => Token::BinLiteral(<u64>),
-        "HexLiteral" => Token::HexLiteral(<u64>),
-        "DecLiteral" => Token::DecLiteral(<u64>),
+        "BinLiteral" => Token::BinLiteral(<i64>),
+        "HexLiteral" => Token::HexLiteral(<i64>),
+        "DecLiteral" => Token::DecLiteral(<i64>),
 
         // Keywords
         "struct" => Token::Struct,
@@ -153,13 +153,13 @@ MulExpr : Expr = {
 AtomicExpr : Expr = {
     "(" <expr: Expr> ")" => expr,
     <lo: @L> <value: "BinLiteral"> <hi: @R> => {
-        Expr::uint((lo, hi), value)
+        Expr::int((lo, hi), value)
     },
     <lo: @L> <value: "HexLiteral"> <hi: @R> => {
-        Expr::uint((lo, hi), value)
+        Expr::int((lo, hi), value)
     },
     <lo: @L> <value: "DecLiteral"> <hi: @R> => {
-        Expr::uint((lo, hi), value)
+        Expr::int((lo, hi), value)
     },
     <lo: @L> <name: "Ident"> <hi: @R> => {
         match name {

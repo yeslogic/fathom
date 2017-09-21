@@ -43,14 +43,14 @@ pub enum Const {
     /// A boolean constant: eg. `true`, `false`
     Bool(bool),
     /// An integer constant: eg. `0`, `1`, `2`, ...
-    UInt(u64),
+    Int(i64),
 }
 
 impl fmt::Debug for Const {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Const::Bool(value) => write!(f, "Bool({:?})", value),
-            Const::UInt(value) => write!(f, "UInt({:?})", value),
+            Const::Int(value) => write!(f, "Int({:?})", value),
         }
     }
 }
@@ -117,11 +117,11 @@ impl Expr {
     }
 
     /// An integer constant: eg. `0`, `1`, `2`, ...
-    pub fn uint<Sp>(span: Sp, value: u64) -> Expr
+    pub fn int<Sp>(span: Sp, value: i64) -> Expr
     where
         Sp: Into<Span>,
     {
-        Expr::Const(span.into(), Const::UInt(value))
+        Expr::Const(span.into(), Const::Int(value))
     }
 
     /// A variable, referring to an integer that exists in the current context:
@@ -163,20 +163,23 @@ pub enum Endianness {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
+    /// A type variable: eg. `T`
+    Var(Span, String),
+
     /// Boolean
     Bool,
-    /// A singleton unsigned integer - matches exactly one integer
-    ///
-    /// This is usually produced by integer literals
-    SingletonUInt(u64),
+
+    /// A singleton integer - matches exactly one integer
+    SingletonInt(i64),
+    /// A ranged integer - matches a range of integers
+    RangedInt(i64, i64),
     /// Unsigned integer
     UInt(usize, Endianness),
     /// Signed integer
     SInt(usize, Endianness),
     /// IEEE 754 floating point
     Float(usize, Endianness),
-    /// A type variable: eg. `T`
-    Var(Span, String),
+
     /// An array of the specified type, with a size: eg. `[T; n]`
     Array(Span, Box<Type>, Expr),
     /// A union of types: eg. `union { T, ... }`

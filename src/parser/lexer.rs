@@ -58,9 +58,9 @@ pub enum ErrorCode {
 pub enum Token<'input> {
     // Data
     Ident(&'input str),
-    BinLiteral(u64),
-    DecLiteral(u64),
-    HexLiteral(u64),
+    BinLiteral(i64),
+    DecLiteral(i64),
+    HexLiteral(i64),
 
     // Keywords
     Struct,
@@ -192,7 +192,7 @@ impl<'input> Lexer<'input> {
         if src.is_empty() {
             error(start, ErrorCode::ExpectedBinLiteral)
         } else {
-            let int = u64::from_str_radix(src, 2).unwrap();
+            let int = i64::from_str_radix(src, 2).unwrap();
             Ok((start, Token::BinLiteral(int), end))
         }
     }
@@ -204,7 +204,7 @@ impl<'input> Lexer<'input> {
         if src.is_empty() {
             error(start, ErrorCode::ExpectedHexLiteral)
         } else {
-            let int = u64::from_str_radix(src, 16).unwrap();
+            let int = i64::from_str_radix(src, 16).unwrap();
             Ok((start, Token::HexLiteral(int), end))
         }
     }
@@ -212,7 +212,7 @@ impl<'input> Lexer<'input> {
     /// Consume a decimal literal token
     fn dec_literal(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
         let (end, src) = self.take_while(start, is_dec_digit);
-        let int = u64::from_str_radix(src, 10).unwrap();
+        let int = i64::from_str_radix(src, 10).unwrap();
         (start, Token::DecLiteral(int), end)
     }
 }
