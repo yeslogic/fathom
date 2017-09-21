@@ -11,6 +11,7 @@
   - [Existential Types](#existential-types)
   - [Struct Types](#struct-types)
   - [Constrained Types](#constrained-types)
+  - [Intersection Types](#intersection-types)
   - [Interpreted Types](#interpreted-types)
   - [Conditional Types](#conditional-types)
   - [Choice Types](#choice-types)
@@ -258,6 +259,27 @@ FIXME implies extra syntax sugar for unnamed struct field access
 sizeof(name: type @where expr) = sizeof(type)
 
 interp(name: type @where expr) = {name: interp(type) | expr}
+```
+
+### Intersection Types
+
+Intersection types match the same sequence of bytes against two different types and return both of their values:
+
+```
+type1 & type2
+```
+
+For example, this can be used to interpret one 32-bit number as two 16-bit
+numbers:
+
+```
+uint32 & uint16[2]
+```
+
+```
+sizeof(type1 & type2) = sizeof(type1) = sizeof(type2)
+
+interp(type1 & type2) = interp(type1) * interp(type2)
 ```
 
 ### Interpreted Types
