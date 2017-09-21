@@ -265,21 +265,19 @@ interp(name: type @where expr) = {name: interp(type) | expr}
 Interpreted types have a value determined by an expression in terms of their original value:
 
 ```
-name: type1 @as type2 = expr
+name: type1 @as expr
 ```
 
 For example, this can be used to interpret 24-bit integers as 32-bit:
 
 ```
-x: uint8[3] @as uint32 = x[0] << 24 | x[1] << 16 | x[2]
+x: uint8[3] @as x[0] << 24 | x[1] << 16 | x[2]
 ```
 
-FIXME the type2 should be a value type, not a binary type!
-
 ```
-sizeof(name: type1 @as type2 = expr) = sizeof(type1)
+sizeof(name: type1 @as expr) = sizeof(type1)
 
-interp(name: type1 @as type2 = expr) = interp(type2) ??? wrong
+interp(name: type1 @as expr) = typeof(expr)
 ```
 
 ### Conditional Types
