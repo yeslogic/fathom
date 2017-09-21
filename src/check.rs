@@ -51,8 +51,8 @@
 //!
 //!         UInt(n, E)          unsigned integer with byte size and endianness
 //!         SInt(n, E)          two's complement signed integer with byte size and endianness
-//!         SingletonInt(n)    a single unsigned integer
-//!         RangedInt(n₁, n₂)   a ranged integer
+//!         SingletonInt(n)     matches a single integer
+//!         RangedInt(n₁, n₂)   matches a ranged integer
 //!
 //!         τ₁ + τ₂             sum
 //!         Σ x:τ₁ .τ₂          dependent pair
@@ -271,8 +271,8 @@ impl<'parent> Env<'parent> {
 ///               Γ ⊢ [τ; e] : Binary
 ///
 ///
-///     Γ ⊢ τ : Binary     Γ ⊢ e : SingletonInt(n)
-/// ――――――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-SINGLETON-INT)
+///     Γ ⊢ τ : Binary     Γ ⊢ e : SingletonInt(n)      n ≥ 0
+/// ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-SINGLETON-INT)
 ///               Γ ⊢ [τ; e] : Binary
 ///
 ///
@@ -345,7 +345,9 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 
                     match expr_ty {
                         // K-ARRAY-SINGLETON-INT
-                        Type::SingletonInt(_) |
+                        Type::SingletonInt(n) if n >= 0 => Ok(Kind::Binary),
+                        Type::SingletonInt(_) => unimplemented!(), // FIXME: Better errors
+
                         // K-ARRAY-UINT
                         Type::UInt(_, _) => Ok(Kind::Binary),
                         ty => Err(KindError::ArraySizeExpectedUInt(span, ty)),
