@@ -169,8 +169,6 @@ pub enum Type {
     /// Boolean
     Bool,
 
-    /// A singleton integer - matches exactly one integer
-    SingletonInt(i64),
     /// A ranged integer - matches a range of integers
     RangedInt(i64, i64),
     /// Unsigned integer

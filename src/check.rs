@@ -125,14 +125,6 @@ pub enum TypeError {
 /// # Rules
 ///
 /// ```plain
-/// minInt(UInt(n, E)) = 0
-/// minInt(SInt(n, E)) = -2⁽ⁿ⁻¹⁾
-///
-/// maxInt(UInt(n, E)) = 2ⁿ - 1
-/// maxInt(SInt(n, E)) = 2⁽ⁿ⁻¹⁾ - 1
-/// ```
-///
-/// ```plain
 /// ―――――――――――――――――――― (S-REFL)
 ///        τ <: τ
 ///
@@ -150,21 +142,6 @@ pub enum TypeError {
 ///    -2^(n₂ - 1) ≤ n₁       n₂ ≤ 2^(n₃ - 1) - 1
 /// ――――――――――――――――――――――――――――――――――――――――――――――― (S-RANGED-INT-SINT)
 ///        RangedInt(n₁, n₂) <: SInt(n₃, E)
-///
-///
-///        n₂ ≤ n₁             n₁ ≤ n₃
-/// ―――――――――――――――――――――――――――――――――――――――――― (S-SINGLETON-RANGED-INT)
-///    SingletonInt(n₁) <: RangedInt(n₂, n₃)
-///
-///
-///          0 ≤ n₁          n₁ ≤ 2^n₂ - 1
-/// ――――――――――――――――――――――――――――――――――――――――――――――― (S-SINGLETON-UINT)
-///         SingletonInt(n₁) <: UInt(n₂, E)
-///
-///
-///    -2^(n₂ - 1) ≤ n₁       n₁ ≤ 2^(n₂ - 1) - 1
-/// ――――――――――――――――――――――――――――――――――――――――――――――― (S-SINGLETON-SINT)
-///        SingletonInt(n₁) <: SInt(n₂, E)
 /// ```
 pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
     match (sty, ty) {
@@ -182,24 +159,12 @@ pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
         // FIXME: check size
         (&Type::RangedInt(_, _), &Type::SInt(_, _)) => true,
 
-        // S-SINGLETON-RANGED-INT
-        (&Type::SingletonInt(sn), &Type::RangedInt(lo, hi)) if lo <= sn && sn <= hi => true,
-
-        // S-SINGLETON-UINT
-        // FIXME: check size
-        (&Type::SingletonInt(_), &Type::UInt(_, _)) => true,
-
-        // S-SINGLETON-SINT
-        // FIXME: check size
-        (&Type::SingletonInt(_), &Type::SInt(_, _)) => true,
-
         (_, _) => false,
     }
 }
 
 pub fn is_numeric(ty: &Type) -> bool {
     match *ty {
-        Type::SingletonInt(_) |
         Type::RangedInt(_, _) |
         Type::UInt(_, _) |
         Type::SInt(_, _) => true,
@@ -230,10 +195,6 @@ impl<'parent> Env<'parent> {
 /// ```plain
 /// ――――――――――――――――――――――― (K-BOOL)
 ///    Γ ⊢ Bool : Type
-///
-///
-/// ――――――――――――――――――――――――――――――――――― (K-SINGLETON-INT)
-///    Γ ⊢ SingletonInt(n) : Binary
 ///
 ///
 ///              n₁ ≤ n₂
@@ -271,8 +232,8 @@ impl<'parent> Env<'parent> {
 ///               Γ ⊢ [τ; e] : Binary
 ///
 ///
-///     Γ ⊢ τ : Binary     Γ ⊢ e : SingletonInt(n)      n ≥ 0
-/// ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-SINGLETON-INT)
+///    Γ ⊢ τ : Binary    Γ ⊢ e : RangedInt(n₁, n₂)    n₁ ≥ 0
+/// ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― (K-ARRAY-RANGED-INT)
 ///               Γ ⊢ [τ; e] : Binary
 ///
 ///
@@ -284,9 +245,6 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
     match *ty {
         // K-BOOL
         Type::Bool => Ok(Kind::Type),
-
-        // K-SINGLETON-INT
-        Type::SingletonInt(_) => Ok(Kind::Binary),
 
         // K-RANGED-INT
         Type::RangedInt(lo, hi) if lo <= hi => Ok(Kind::Binary),
@@ -344,9 +302,9 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
                     let expr_ty = type_of(env, size)?;
 
                     match expr_ty {
-                        // K-ARRAY-SINGLETON-INT
-                        Type::SingletonInt(n) if n >= 0 => Ok(Kind::Binary),
-                        Type::SingletonInt(_) => unimplemented!(), // FIXME: Better errors
+                        // K-ARRAY-RANGED-INT
+                        Type::RangedInt(lo, _) if lo >= 0 => Ok(Kind::Binary),
+                        Type::RangedInt(_, _) => unimplemented!(), // FIXME: Better errors
 
                         // K-ARRAY-UINT
                         Type::UInt(_, _) => Ok(Kind::Binary),
@@ -387,8 +345,8 @@ pub fn kind_of(env: &Env, ty: &Type) -> Result<Kind, KindError> {
 ///       Γ ⊢ false : Bool
 ///
 ///
-/// ―――――――――――――――――――――――――――― (T-SINGLETON-INT)
-///   Γ ⊢ n : SingletonInt(n)
+/// ―――――――――――――――――――――――――――― (T-RANGED-INT)
+///   Γ ⊢ n : RangedInt(n, n)
 ///
 ///
 ///           x : τ ∈ Γ
@@ -435,8 +393,8 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
         // T-TRUE, T-FALSE
         Expr::Const(_, Const::Bool(_)) => Ok(Type::Bool),
 
-        // T-SINGLETON-INT
-        Expr::Const(_, Const::Int(value)) => Ok(Type::SingletonInt(value)),
+        // T-RANGED-INT
+        Expr::Const(_, Const::Int(value)) => Ok(Type::RangedInt(value, value)),
 
         // T-VAR
         Expr::Var(span, ref name) => {
@@ -564,7 +522,7 @@ pub mod tests {
                 let env = Env::default();
                 let expr = parser::parse_expr(&env, "1 + 1").unwrap();
 
-                assert_eq!(type_of(&env, &expr), Ok(Type::SingletonInt(1)));
+                assert_eq!(type_of(&env, &expr), Ok(Type::RangedInt(1, 1)));
             }
         }
 
@@ -606,7 +564,7 @@ pub mod tests {
                 let env = Env::default();
                 let expr = parser::parse_expr(&env, "1 * 1").unwrap();
 
-                assert_eq!(type_of(&env, &expr), Ok(Type::SingletonInt(1)));
+                assert_eq!(type_of(&env, &expr), Ok(Type::RangedInt(1, 1)));
             }
         }
     }
