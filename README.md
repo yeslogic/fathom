@@ -7,9 +7,9 @@ data formats.
 
 Here is a list of lofty goals that we would like to guide our work:
 
-- Specifications should be defined in declarative and human-readable, with
-  embedded, domain-specific documentation alongside
-- Specifications should be easily to map to efficient deserializers that are
+- Specifications should be defined in declarative way, with embedded,
+  domain-specific documentation alongside
+- Specifications should be easily mapped to efficient deserializers that are
   competitive with hand-written code
 - The metalanguage should have well-specified static and runtime semantics
 - The metalanguage should report bugs or gaps in specifications statically
