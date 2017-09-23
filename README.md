@@ -3,6 +3,16 @@
 A declarative data definition language for formally specifying sound binary
 data formats.
 
+## Example
+
+```plain
+Bitmap = struct {
+    width: u16le,
+    height: u16le,
+    data: [u8; width * height],
+};
+```
+
 ## Goals
 
 Here is a list of lofty goals that we would like to guide our work:
