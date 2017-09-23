@@ -49,6 +49,17 @@ structures, such as file formats, network protocols or bitstreams.
   binary formats. We also believe that Rust is a better compilation target
   and that providing a binary parser language at the same level of quality
   as LALRPOP will be a great boost to the ecosystem.
+- [Restructure](https://github.com/devongovett/restructure):
+  A library for declaratively encode and decode binary data using a JavaScript
+  EDSL. Used in [fontkit](https://github.com/devongovett/fontkit) for describing
+  the Open Type Font specification. Shows promise as nice way to describe
+  binary formats, but JS is not the most flexible host language.
+- [Harfbuzz](https://github.com/behdad/harfbuzz) defines [a handy set of types
+  and macros](https://github.com/behdad/harfbuzz/blob/master/src/hb-open-type-private.hh)
+  that allows binary data to be cast in-place into declaratively descibed Open
+  Type Font tables. Alas, it is in C++, and the API seems extremely prone to
+  human-error. A Rust API would be much more robust in regards to upholding
+  claimed invariants.
 - [Nom](https://github.com/Geal/nom):
   A Rust parser combinator library geared towards describing binary
   formats. It is fast and zero copy, but we belive that the combinator
