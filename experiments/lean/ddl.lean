@@ -42,27 +42,38 @@ namespace ddl
 
   inductive env : Type
     | empty : env
-    | cons : string × kind → env → env
+    | cons_expr : string → type → env → env
+    | cons_type : string → kind → env → env
 
   instance : has_emptyc env :=
     ⟨env.empty⟩
 
-  instance : has_insert (string × kind) env :=
-    ⟨env.cons⟩
+  instance env_insert_expr : has_insert (string × type) env :=
+    ⟨λ binding, env.cons_expr binding.1 binding.2⟩
 
-  def env.mem : string × kind → env → Prop
-    | (_, _) env.empty :=
-        false
-    | (x₁, b₁) (env.cons (x₂, b₂) Γ) :=
-      if x₁ = x₂ then b₁ = b₂ else env.mem (x₁, b₁) Γ
+  instance env_insert_type : has_insert (string × kind) env :=
+    ⟨λ binding, env.cons_type binding.1 binding.2⟩
 
-  instance : has_mem (string × kind) env :=
-    ⟨env.mem⟩
+  protected def env.mem_expr : string → type → env → Prop
+    | _ _ env.empty := false
+    | x₁ τ₁ (env.cons_expr x₂ τ₂ Γ) := if x₁ = x₂ then τ₁ = τ₂ else env.mem_expr x₁ τ₁ Γ
+    | x₁ τ₁ (env.cons_type x₂ _ Γ) := if x₁ = x₂ then false else env.mem_expr x₁ τ₁ Γ
+
+  protected def env.mem_type : string → kind → env → Prop
+    | _ _ env.empty := false
+    | x₁ κ₁ (env.cons_expr x₂ _ Γ) := if x₁ = x₂ then false else env.mem_type x₁ κ₁ Γ
+    | x₁ κ₁ (env.cons_type x₂ κ₂ Γ) := if x₁ = x₂ then κ₁ = κ₂ else env.mem_type x₁ κ₁ Γ
+
+  instance env_mem_expr : has_mem (string × type) env :=
+    ⟨λ binding, env.mem_expr binding.1 binding.2⟩
+
+  instance env_mem_type : has_mem (string × kind) env :=
+    ⟨λ binding, env.mem_type binding.1 binding.2⟩
 
 
   -- RULES
 
-  inductive type_of : env → expr → type → Type
+  inductive type_of : env → expr → type → Prop
     notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := type_of Γ e τ
 
     | true : Π {Γ},
@@ -84,6 +95,10 @@ namespace ddl
         τ[ Γ ⊢ e₂ : type.nat ] →
         τ[ Γ ⊢ e₁ * e₂ : type.nat ]
 
+    | var : Π {Γ x τ},
+        (x, τ) ∈ Γ →
+        τ[ Γ ⊢ expr.var x : τ ]
+
     | interp_nat_to_u8 : Π {Γ e},
         τ[ Γ ⊢ e : type.nat ] →
         τ[ Γ ⊢ expr.interp e : type.u8 ]
@@ -102,7 +117,7 @@ namespace ddl
 
   notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := type_of Γ e τ
 
-  inductive kind_of : env → type → kind → Type
+  inductive kind_of : env → type → kind → Prop
     notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := kind_of Γ τ κ
 
     | bool : Π {Γ},
