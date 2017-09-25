@@ -6,13 +6,16 @@ namespace ddl
     | little
     | big
 
+  inductive op : Type
+    | add
+    | mul
+
   mutual inductive expr, type, kind
     with expr : Type
       | true : expr
       | false : expr
       | nat : ℕ → expr
-      | add : expr → expr → expr
-      | mul : expr → expr → expr
+      | app_op : op -> expr → expr → expr
       | var : string → expr
       | interp : expr → expr
 
@@ -32,8 +35,8 @@ namespace ddl
       | binary : kind
       | arrow : kind → kind → kind
 
-  infix + := expr.add
-  infix * := expr.mul
+  infix + := (expr.app_op op.add)
+  infix * := (expr.app_op op.mul)
   notation `Λ` x `:` κ `,` τ := type.abs x κ τ
   notation κ₁ ` ↣ ` κ₂ := kind.arrow κ₁ κ₂
 
@@ -95,10 +98,18 @@ namespace ddl
     | nat : Π {n},
         expr.nat n ⟹ expr.nat n
 
-    | add : Π {n m},
+    | op_rec_l : Π {op a a' b},
+        a ⟹ a' →
+        expr.app_op op a b ⟹ expr.app_op op a' b
+
+    | op_rec_r : Π {op a b b'},
+        b ⟹ b' →
+        expr.app_op op a b ⟹ expr.app_op op a b'
+
+    | op_add : Π {n m},
         expr.nat n + expr.nat m ⟹ expr.nat (n + m)
 
-    | mul : Π {n m},
+    | op_mul : Π {n m},
         expr.nat n * expr.nat m ⟹ expr.nat (n * m)
 
     | var : Π {x},
