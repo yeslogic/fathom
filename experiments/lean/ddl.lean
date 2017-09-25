@@ -71,7 +71,47 @@ namespace ddl
     ⟨λ binding, env.mem_type binding.1 binding.2⟩
 
 
-  -- RULES
+  -- EVALUATION
+
+  def relation (X : Type) :=
+    X → X → Prop
+
+  inductive multi {X : Type} (R : relation X) : relation X
+    | refl : Π {x : X}, multi x x
+    | step : Π {x y z : X}, R x y → multi y z → multi x z.
+
+  reserve infixl ` ⟹ `:50
+  reserve infixl ` ⟹*`:50
+
+  inductive step : expr → expr → Prop
+    infixl ` ⟹ ` := step
+
+    | true :
+        expr.true ⟹ expr.true
+
+    | false :
+        expr.false ⟹ expr.false
+
+    | nat : Π {n},
+        expr.nat n ⟹ expr.nat n
+
+    | add : Π {n m},
+        expr.nat n + expr.nat m ⟹ expr.nat (n + m)
+
+    | mul : Π {n m},
+        expr.nat n * expr.nat m ⟹ expr.nat (n * m)
+
+    | var : Π {x},
+        expr.var x ⟹ sorry
+
+    | interp : Π {e},
+        expr.interp e ⟹ sorry
+
+  infixl ` ⟹ ` := step
+  infixl ` ⟹* ` := multi step
+
+
+  -- TYPING
 
   inductive type_of : env → expr → type → Prop
     notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := type_of Γ e τ
@@ -116,6 +156,9 @@ namespace ddl
         τ[ Γ ⊢ expr.interp e : type.nat ]
 
   notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := type_of Γ e τ
+
+
+  -- KINDING
 
   inductive kind_of : env → type → kind → Prop
     notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := kind_of Γ τ κ
