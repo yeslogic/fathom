@@ -151,10 +151,10 @@ namespace ddl
     open endianness expr type kind
 
     example : κ[ {("x", binary)} ⊢  array (var "x") (expr.nat 1) : binary ] :=
-      kind_of.array (kind_of.var _) type_of.nat
+      kind_of.array (kind_of.var rfl) type_of.nat
 
     example : κ[ ∅ ⊢  Λ "x" : binary, array (var "x") (expr.nat 1 + expr.nat 2) : (binary ↣ binary) ] :=
-      kind_of.abs (kind_of.array (kind_of.var _)
+      kind_of.abs (kind_of.array (kind_of.var rfl)
                   (type_of.add type_of.nat type_of.nat))
   end
 
