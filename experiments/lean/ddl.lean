@@ -10,11 +10,13 @@ namespace ddl
     | add
     | mul
 
+  inductive value : Type
+    | bool : bool → value
+    | nat : ℕ → value
+
   mutual inductive expr, type, kind
     with expr : Type
-      | true : expr
-      | false : expr
-      | nat : ℕ → expr
+      | const : value → expr
       | app_op : op → expr → expr → expr
       | var : string → expr
       | proj : expr → string → expr
@@ -91,14 +93,8 @@ namespace ddl
   inductive step : expr → expr → Prop
     infixl ` ⟹ ` := step
 
-    | true :
-        expr.true ⟹ expr.true
-
-    | false :
-        expr.false ⟹ expr.false
-
-    | nat : Π {n},
-        expr.nat n ⟹ expr.nat n
+    | const : Π {c},
+        expr.const c ⟹ expr.const c
 
     | op_rec_l : Π {op e₁ e₁' e₂},
         e₁ ⟹ e₁' →
@@ -109,10 +105,12 @@ namespace ddl
         expr.app_op op e₁ e₂ ⟹ expr.app_op op e₁ e₂'
 
     | op_add : Π {n m},
-        expr.nat n + expr.nat m ⟹ expr.nat (n + m)
+        expr.const (value.nat n) + expr.const (value.nat m) ⟹
+            expr.const (value.nat (n + m))
 
     | op_mul : Π {n m},
-        expr.nat n * expr.nat m ⟹ expr.nat (n * m)
+        expr.const (value.nat n) * expr.const (value.nat m) ⟹
+            expr.const (value.nat (n * m))
 
     -- FIXME: Lookup context for var name?
     | var : Π {x},
@@ -135,14 +133,11 @@ namespace ddl
   inductive has_type : env → expr → type → Prop
     notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
 
-    | true : Π {Γ},
-        τ[ Γ ⊢ expr.true : type.bool ]
-
-    | false : Π {Γ},
-        τ[ Γ ⊢ expr.false : type.bool ]
+    | bool : Π {Γ b},
+        τ[ Γ ⊢ expr.const (value.bool b) : type.bool ]
 
     | nat : Π {Γ n},
-        τ[ Γ ⊢ expr.nat n : type.nat ]
+        τ[ Γ ⊢ expr.const (value.nat n) : type.nat ]
 
     | add : Π {Γ e₁ e₂},
         τ[ Γ ⊢ e₁ : type.nat ] →
@@ -234,10 +229,10 @@ namespace ddl
   section
     open endianness expr type kind
 
-    example : κ[ {("x", binary)} ⊢  array (var "x") (expr.nat 1) : binary ] :=
+    example : κ[ {("x", binary)} ⊢  array (var "x") (expr.const (value.nat 1)) : binary ] :=
       has_kind.array (has_kind.var rfl) has_type.nat
 
-    example : κ[ ∅ ⊢  Λ "x" : binary, array (var "x") (expr.nat 1 + expr.nat 2) : (binary ↣ binary) ] :=
+    example : κ[ ∅ ⊢  Λ "x" : binary, array (var "x") (expr.const (value.nat 1) + expr.const (value.nat 2)) : (binary ↣ binary) ] :=
       has_kind.abs (has_kind.array (has_kind.var rfl)
                    (has_type.add has_type.nat has_type.nat))
   end
