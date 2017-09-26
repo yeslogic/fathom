@@ -17,6 +17,7 @@ namespace ddl
       | nat : ℕ → expr
       | app_op : op → expr → expr → expr
       | var : string → expr
+      | proj : expr → string → expr
       | interp : expr → expr
 
     with type : Type
@@ -74,7 +75,7 @@ namespace ddl
     ⟨λ binding, env.mem_type binding.1 binding.2⟩
 
 
-  -- EVALUATION
+  -- EVALUATION RULES
 
   def relation (X : Type) :=
     X → X → Prop
@@ -116,6 +117,10 @@ namespace ddl
     | var : Π {x},
         expr.var x ⟹ sorry
 
+    | proj : Π {x e e'},
+        e ⟹ e' →
+        expr.proj e' x ⟹ sorry
+
     | interp : Π {e e'},
         e ⟹ e' →
         expr.interp e' ⟹ sorry
@@ -124,7 +129,7 @@ namespace ddl
   infixl ` ⟹* ` := multi step
 
 
-  -- TYPING
+  -- TYPING RULES
 
   inductive has_type : env → expr → type → Prop
     notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
@@ -152,6 +157,10 @@ namespace ddl
         (x, τ) ∈ Γ →
         τ[ Γ ⊢ expr.var x : τ ]
 
+    | proj : Π {Γ e x τ₁ τ₂},
+        τ[ Γ ⊢ e : τ₁ ] → -- FIXME: τ₁ : struct
+        τ[ Γ ⊢ expr.proj e x : τ₂ ]
+
     | interp_nat_to_u8 : Π {Γ e},
         τ[ Γ ⊢ e : type.nat ] →
         τ[ Γ ⊢ expr.interp e : type.u8 ]
@@ -170,8 +179,6 @@ namespace ddl
 
   notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
 
-
-  -- KINDING
 
   inductive has_kind : env → type → kind → Prop
     notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := has_kind Γ τ κ
