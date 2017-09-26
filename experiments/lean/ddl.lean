@@ -2,10 +2,6 @@ namespace ddl
 
   -- SYNTAX
 
-  inductive endianness : Type
-    | little
-    | big
-
   inductive op : Type
     | add
     | mul
@@ -26,7 +22,6 @@ namespace ddl
       | bool : type
       | nat : type
       | u8 : type
-      | u16 : endianness → type
       | var : string → type
       | abs : string → kind → type → type
       | app : type → type → type
@@ -161,16 +156,8 @@ namespace ddl
         τ[ Γ ⊢ e : type.nat ] →
         τ[ Γ ⊢ expr.interp e : type.u8 ]
 
-    | interp_nat_to_u16 : Π {Γ e E},
-        τ[ Γ ⊢ e : type.nat ] →
-        τ[ Γ ⊢ expr.interp e : type.u16 E ]
-
     | interp_u8_to_nat : Π {Γ e},
         τ[ Γ ⊢ e : type.u8 ] →
-        τ[ Γ ⊢ expr.interp e : type.nat ]
-
-    | interp_u16_to_nat : Π {Γ e E},
-        τ[ Γ ⊢ e : type.u16 E ] →
         τ[ Γ ⊢ expr.interp e : type.nat ]
 
   notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
@@ -187,9 +174,6 @@ namespace ddl
 
     | u8 : Π {Γ},
         κ[ Γ ⊢ type.u8 : kind.binary ]
-
-    | u16 : Π {Γ E},
-        κ[ Γ ⊢ type.u16 E : kind.binary ]
 
     | var : Π {Γ x κ},
         (x, κ) ∈ Γ →
@@ -227,7 +211,7 @@ namespace ddl
 
 
   section
-    open endianness expr type kind
+    open expr type kind
 
     example : κ[ {("x", binary)} ⊢  array (var "x") (expr.const (value.nat 1)) : binary ] :=
       has_kind.array (has_kind.var rfl) has_type.nat
