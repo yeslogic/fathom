@@ -119,8 +119,8 @@ namespace ddl
 
   -- TYPING
 
-  inductive type_of : env → expr → type → Prop
-    notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := type_of Γ e τ
+  inductive has_type : env → expr → type → Prop
+    notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
 
     | true : Π {Γ},
         τ[ Γ ⊢ expr.true : type.bool ]
@@ -161,13 +161,13 @@ namespace ddl
         τ[ Γ ⊢ e : type.u16 E ] →
         τ[ Γ ⊢ expr.interp e : type.nat ]
 
-  notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := type_of Γ e τ
+  notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
 
 
   -- KINDING
 
-  inductive kind_of : env → type → kind → Prop
-    notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := kind_of Γ τ κ
+  inductive has_kind : env → type → kind → Prop
+    notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := has_kind Γ τ κ
 
     | bool : Π {Γ},
         κ[ Γ ⊢ type.bool : kind.host ]
@@ -208,18 +208,18 @@ namespace ddl
         κ[ insert (x, kind.binary) Γ ⊢ τ₂ : kind.binary ] →
         κ[ Γ ⊢ type.struct x τ₁ τ₂ : kind.binary ]
 
-  notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := kind_of Γ τ κ
+  notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := has_kind Γ τ κ
 
 
   section
     open endianness expr type kind
 
     example : κ[ {("x", binary)} ⊢  array (var "x") (expr.nat 1) : binary ] :=
-      kind_of.array (kind_of.var rfl) type_of.nat
+      has_kind.array (has_kind.var rfl) has_type.nat
 
     example : κ[ ∅ ⊢  Λ "x" : binary, array (var "x") (expr.nat 1 + expr.nat 2) : (binary ↣ binary) ] :=
-      kind_of.abs (kind_of.array (kind_of.var rfl)
-                  (type_of.add type_of.nat type_of.nat))
+      has_kind.abs (has_kind.array (has_kind.var rfl)
+                   (has_type.add has_type.nat has_type.nat))
   end
 
   -- PROOFS
