@@ -17,7 +17,6 @@ namespace ddl
       | var : string → expr
       | proj : expr → string → expr
       | index : expr → expr → expr
-      | interp : expr → expr
 
     with type : Type
       | bool : type
@@ -116,10 +115,6 @@ namespace ddl
         e ⟹ e' →
         expr.proj e' x ⟹ sorry
 
-    | interp : Π {e e'},
-        e ⟹ e' →
-        expr.interp e' ⟹ sorry
-
   infixl ` ⟹ ` := step
   infixl ` ⟹* ` := multi step
 
@@ -157,14 +152,6 @@ namespace ddl
         τ[ Γ ⊢ a : type.array τ e ] →
         τ[ Γ ⊢ i : type.nat ] →
         τ[ Γ ⊢ expr.index a i : τ ]
-
-    | interp_nat_to_u8 : Π {Γ e},
-        τ[ Γ ⊢ e : type.nat ] →
-        τ[ Γ ⊢ expr.interp e : type.u8 ]
-
-    | interp_u8_to_nat : Π {Γ e},
-        τ[ Γ ⊢ e : type.u8 ] →
-        τ[ Γ ⊢ expr.interp e : type.nat ]
 
   notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
 
