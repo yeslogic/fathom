@@ -16,6 +16,7 @@ namespace ddl
       | app_op : op → expr → expr → expr
       | var : string → expr
       | proj : expr → string → expr
+      | index : expr → expr → expr
       | interp : expr → expr
 
     with type : Type
@@ -151,6 +152,11 @@ namespace ddl
     | proj : Π {Γ e x τ₁ τ₂},
         τ[ Γ ⊢ e : τ₁ ] → -- FIXME: τ₁ : struct
         τ[ Γ ⊢ expr.proj e x : τ₂ ]
+
+    | index : Π {Γ a i e τ},
+        τ[ Γ ⊢ a : type.array τ e ] →
+        τ[ Γ ⊢ i : type.nat ] →
+        τ[ Γ ⊢ expr.index a i : τ ]
 
     | interp_nat_to_u8 : Π {Γ e},
         τ[ Γ ⊢ e : type.nat ] →
