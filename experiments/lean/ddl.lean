@@ -95,17 +95,23 @@ namespace ddl
     | nat : Π {n},
         expr.nat n ⟹ expr.nat n
 
-    | add : Π {n m},
+    | add : Π {en n em m},
+        en ⟹ expr.nat n →
+        em ⟹ expr.nat m →
         expr.nat n + expr.nat m ⟹ expr.nat (n + m)
 
-    | mul : Π {n m},
+    | mul : Π {en n em m},
+        en ⟹ expr.nat n →
+        em ⟹ expr.nat m →
         expr.nat n * expr.nat m ⟹ expr.nat (n * m)
 
+    -- FIXME: Lookup context for var name?
     | var : Π {x},
         expr.var x ⟹ sorry
 
-    | interp : Π {e},
-        expr.interp e ⟹ sorry
+    | interp : Π {e e'},
+        e ⟹ e' →
+        expr.interp e' ⟹ sorry
 
   infixl ` ⟹ ` := step
   infixl ` ⟹* ` := multi step
