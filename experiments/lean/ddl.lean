@@ -28,6 +28,7 @@ namespace ddl
       | var : string → type
       | abs : string → kind → type → type
       | app : type → type → type
+      | sum : type → type → type
       | struct : string → type → type → type
       | array : type → expr → type
 
@@ -215,11 +216,16 @@ namespace ddl
         τ[ Γ ⊢ e : type.nat ] →
         κ[ Γ ⊢ type.array τ e : κ ]
 
+    | sum : Π {Γ τ₁ τ₂},
+        κ[ Γ ⊢ τ₁ : kind.binary ] →
+        κ[ Γ ⊢ τ₂ : kind.binary ] →
+        κ[ Γ ⊢ type.sum τ₁ τ₂ : kind.binary ]
+
     -- structs are always binary, and subsequent fields can
     -- access previous fields
     | struct : Π {Γ x τ₁ τ₂},
-        κ[ Γ ⊢ τ₁ : kind.binary ] →
-        κ[ insert (x, kind.binary) Γ ⊢ τ₂ : kind.binary ] →
+        κ[ Γ ⊢ τ₁ : kind.binary ] → -- FIXME: τ₁
+        κ[ insert (x, kind.binary) Γ ⊢ τ₂ : kind.binary ] → -- FIXME: should be `insert (x, τ₁)`?
         κ[ Γ ⊢ type.struct x τ₁ τ₂ : kind.binary ]
 
   notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := has_kind Γ τ κ
