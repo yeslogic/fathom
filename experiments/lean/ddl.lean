@@ -39,6 +39,11 @@ namespace ddl
   notation `Λ` x `:` κ `,` τ := type.abs x κ τ
   notation κ₁ ` ↣ ` κ₂ := kind.arrow κ₁ κ₂
 
+  -- Defined for fully evaluated expressions
+  inductive is_value : expr → Prop
+    | const : Π {v}, is_value (expr.const v)
+    -- TODO: arrays
+
 
   -- ENVIRONMENTS
 
