@@ -16,6 +16,7 @@ namespace ddl
     | var : string → expr
     | proj : expr → string → expr
     | index : expr → expr → expr
+    | cond : expr → expr → expr → expr
 
   mutual inductive type, kind
     with type : Type
@@ -28,6 +29,7 @@ namespace ddl
       | sum : type → type → type
       | struct : string → type → type → type
       | array : type → expr → type
+      | cond : expr → type → type → type
 
     with kind : Type
       | host : kind
@@ -131,26 +133,38 @@ namespace ddl
         e ⟹ e' →
         expr.proj e' x ⟹ sorry
 
+    | cond_rec {c₁ c₂ e₁ e₂} :
+        c₁ ⟹ c₂ →
+        expr.cond c₁ e₁ e₂ ⟹ expr.cond c₂ e₁ e₂
+
+    | cond_true {e₁ e₂} :
+        expr.cond (expr.const (value.bool true)) e₁ e₂ ⟹ e₁
+
+    | cond_false {e₁ e₂} :
+        expr.cond (expr.const (value.bool false)) e₁ e₂ ⟹ e₂
+
+
   infixl ` ⟹ ` := step
   infixl ` ⟹* ` := multi step
 
+  inductive type_eval : env → type → type → Prop
+
+    | var {Γ x τ} :
+        (x, τ) ∈ Γ →
+        type_eval Γ (type.var x) τ
+
+    | cond_rec {Γ c₁ c₂ τ₁ τ₂} :
+        c₁ ⟹ c₂ →
+        type_eval Γ (type.cond c₁ τ₁ τ₂) (type.cond c₂ τ₁ τ₂)
+
+    | cond_true {Γ τ₁ τ₂} :
+        type_eval Γ (type.cond (expr.const (value.bool true)) τ₁ τ₂) τ₁
+
+    | cond_false {Γ τ₁ τ₂} :
+        type_eval Γ (type.cond (expr.const (value.bool false)) τ₁ τ₂) τ₂
+
 
   -- TYPING RULES
-
-  inductive has_rep : env → type → type → Prop
-
-    | u8 {Γ} :
-        has_rep Γ type.u8 type.nat
-
-    | var {Γ x τ₁ τ₂} :
-        (x, τ₁) ∈ Γ →
-        has_rep Γ τ₁ τ₂ →
-        has_rep Γ (type.var x) τ₂
-
-    | array {Γ τ₁ τ₂ e} :
-        has_rep Γ τ₁ τ₂ →
-        has_rep Γ (type.array τ₁ e) (type.array τ₂ e)
-
 
   inductive has_type : env → expr → type → Prop
     notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
@@ -183,6 +197,12 @@ namespace ddl
         τ[ Γ ⊢ a : type.array τ e ] →
         τ[ Γ ⊢ i : type.nat ] →
         τ[ Γ ⊢ expr.index a i : τ ]
+
+    | cond {Γ e₁ e₂ e₃ τ} :
+        τ[ Γ ⊢ e₁ : type.bool ] →
+        τ[ Γ ⊢ e₂ : τ ] →
+        τ[ Γ ⊢ e₃ : τ ] →
+        τ[ Γ ⊢ expr.cond e₁ e₂ e₃ : τ ]
 
   notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
 
@@ -230,6 +250,35 @@ namespace ddl
         κ[ Γ ⊢ τ₁ : kind.binary ] → -- FIXME: τ₁
         κ[ insert (x, kind.binary) Γ ⊢ τ₂ : kind.binary ] → -- FIXME: should be `insert (x, τ₁)`?
         κ[ Γ ⊢ type.struct x τ₁ τ₂ : kind.binary ]
+
+    -- condition branches can have different types, but both
+    -- types must have the same kind
+    | cond {Γ e τ₁ τ₂ κ} :
+        τ[ Γ ⊢ e : type.bool ] →
+        κ[ Γ ⊢ τ₁ : κ ] →
+        κ[ Γ ⊢ τ₂ : κ ] →
+        κ[ Γ ⊢ type.cond e τ₁ τ₂ : κ ]
+
+
+  inductive has_rep : env → type → type → Prop
+
+    | u8 {Γ} :
+        has_rep Γ type.u8 type.nat
+
+    | var {Γ x τ₁ τ₂} :
+        (x, τ₁) ∈ Γ →
+        has_rep Γ τ₁ τ₂ →
+        has_rep Γ (type.var x) τ₂
+
+    | array {Γ τ₁ τ₂ e} :
+        has_rep Γ τ₁ τ₂ →
+        has_rep Γ (type.array τ₁ e) (type.array τ₂ e)
+
+    | cond {Γ e τ₁ τ₂ r₁ r₂} :
+        has_rep Γ τ₁ r₁ →
+        has_rep Γ τ₂ r₂ →
+        has_rep Γ (type.cond e τ₁ τ₂) (type.cond e r₁ r₂)
+
 
   notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := has_kind Γ τ κ
 
@@ -288,6 +337,11 @@ namespace ddl
     | (expr.var x) := env.lookup_expr x Γ
     | (expr.proj _ _) := sorry
     | (expr.index _ _) := sorry
+    | (expr.cond e₁ e₂ e₃) :=
+        match type_check e₁, type_check e₂, type_check e₃ with
+          | some type.bool, some τ₁, some τ₂ := some (type.cond e₁ τ₁ τ₂)
+          | _, _, _ := none
+        end
 
   theorem type_checking_sound {Γ e τ} :
     type_check Γ e = some τ →
