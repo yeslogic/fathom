@@ -10,14 +10,14 @@ namespace ddl
     | bool : bool → value
     | nat : ℕ → value
 
-  mutual inductive expr, type, kind
-    with expr : Type
-      | const : value → expr
-      | app_op : op → expr → expr → expr
-      | var : string → expr
-      | proj : expr → string → expr
-      | index : expr → expr → expr
+  inductive expr : Type
+    | const : value → expr
+    | app_op : op → expr → expr → expr
+    | var : string → expr
+    | proj : expr → string → expr
+    | index : expr → expr → expr
 
+  mutual inductive type, kind
     with type : Type
       | bool : type
       | nat : type
