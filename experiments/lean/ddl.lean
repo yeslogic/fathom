@@ -121,6 +121,21 @@ namespace ddl
 
   -- TYPING RULES
 
+  inductive has_rep : env → type → type → Prop
+
+    | u8 : Π {Γ},
+        has_rep Γ type.u8 type.nat
+
+    | var : Π {Γ x τ₁ τ₂},
+        (x, τ₁) ∈ Γ →
+        has_rep Γ τ₁ τ₂ →
+        has_rep Γ (type.var x) τ₂
+
+    | array : Π {Γ τ₁ τ₂ e},
+        has_rep Γ τ₁ τ₂ →
+        has_rep Γ (type.array τ₁ e) (type.array τ₂ e)
+
+
   inductive has_type : env → expr → type → Prop
     notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
 
