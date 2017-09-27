@@ -61,21 +61,31 @@ namespace ddl
   instance env_insert_type : has_insert (string × kind) env :=
     ⟨λ binding, env.cons_type binding.1 binding.2⟩
 
-  protected def env.mem_expr : string → type → env → Prop
-    | _ _ env.empty := false
-    | x₁ τ₁ (env.cons_expr x₂ τ₂ Γ) := if x₁ = x₂ then τ₁ = τ₂ else env.mem_expr x₁ τ₁ Γ
-    | x₁ τ₁ (env.cons_type x₂ _ Γ) := if x₁ = x₂ then false else env.mem_expr x₁ τ₁ Γ
+  protected def env.mem_expr (x₁ : string) (τ₁ : type) : env → Prop
+    | env.empty := false
+    | (env.cons_expr x₂ τ₂ Γ) := if x₁ = x₂ then τ₁ = τ₂ else env.mem_expr Γ
+    | (env.cons_type x₂ _ Γ) := if x₁ = x₂ then false else env.mem_expr Γ
 
-  protected def env.mem_type : string → kind → env → Prop
-    | _ _ env.empty := false
-    | x₁ κ₁ (env.cons_expr x₂ _ Γ) := if x₁ = x₂ then false else env.mem_type x₁ κ₁ Γ
-    | x₁ κ₁ (env.cons_type x₂ κ₂ Γ) := if x₁ = x₂ then κ₁ = κ₂ else env.mem_type x₁ κ₁ Γ
+  protected def env.mem_type (x₁ : string) (κ₁ : kind) : env → Prop
+    | env.empty := false
+    | (env.cons_expr x₂ _ Γ) := if x₁ = x₂ then false else env.mem_type Γ
+    | (env.cons_type x₂ κ₂ Γ) := if x₁ = x₂ then κ₁ = κ₂ else env.mem_type Γ
 
   instance env_mem_expr : has_mem (string × type) env :=
     ⟨λ binding, env.mem_expr binding.1 binding.2⟩
 
   instance env_mem_type : has_mem (string × kind) env :=
     ⟨λ binding, env.mem_type binding.1 binding.2⟩
+
+  protected def env.lookup_expr (x₁ : string) : env → option type
+    | env.empty := none
+    | (env.cons_expr x₂ τ₂ Γ) := if x₁ = x₂ then some τ₂ else env.lookup_expr Γ
+    | (env.cons_type x₂ _ Γ) := if x₁ = x₂ then none else env.lookup_expr Γ
+
+  protected def env.lookup_type (x₁ : string) : env → option kind
+    | env.empty := none
+    | (env.cons_expr x₂ _ Γ) := if x₁ = x₂ then none else env.lookup_type Γ
+    | (env.cons_type x₂ κ₂ Γ) := if x₁ = x₂ then some κ₂ else env.lookup_type Γ
 
 
   -- EVALUATION RULES
@@ -101,6 +111,7 @@ namespace ddl
         expr.app_op op e₁ e₂ ⟹ expr.app_op op e₁' e₂
 
     | op_rec_r : Π {op e₁ e₂ e₂'},
+        is_value e₁ →
         e₂ ⟹ e₂' →
         expr.app_op op e₁ e₂ ⟹ expr.app_op op e₁ e₂'
 
@@ -219,8 +230,54 @@ namespace ddl
                    (has_type.add has_type.nat has_type.nat))
   end
 
-  -- PROOFS
 
-  -- TODO
+  -- PROGRESS
+  -- https://softwarefoundations.cis.upenn.edu/plf-current/StlcProp.html#lab220
+
+  theorem progress (e : expr) (τ : type) :
+    -- FIXME: Kinding?
+    τ[ ∅ ⊢ e : τ ] →
+    is_value e ∨ ∃ e', e ⟹ e' :=
+      assume h,
+        sorry
+
+
+  -- PRESERVATION
+  -- https://softwarefoundations.cis.upenn.edu/plf-current/StlcProp.html#lab222
+
+  theorem preservation (e e' : expr) (τ : type) :
+    -- FIXME: Kinding?
+    τ[ ∅ ⊢ e : τ ] →
+    e ⟹ e' →
+    τ[ ∅ ⊢ e' : τ ] :=
+      assume hτ hstep,
+        sorry
+
+
+  -- TYPE CHECKING
+  -- https://softwarefoundations.cis.upenn.edu/plf-current/Typechecking.html#lab333
+
+  def type_check (Γ : env) : expr → option type
+    | (expr.const (value.bool _)) := some type.bool
+    | (expr.const (value.nat _)) := some type.nat
+    | (expr.app_op op.add e₁ e₂) :=
+        match type_check e₁, type_check e₂ with
+          | some type.nat, some type.nat := some type.nat
+          | _, _ := none
+        end
+    | (expr.app_op op.mul e₁ e₂) :=
+        match type_check e₁, type_check e₂ with
+          | some type.nat, some type.nat := some type.nat
+          | _, _ := none
+        end
+    | (expr.var x) := env.lookup_expr x Γ
+    | (expr.proj _ _) := sorry
+    | (expr.index _ _) := sorry
+
+  theorem type_checking_sound {Γ e τ} :
+    type_check Γ e = some τ →
+    τ[ Γ ⊢ e : τ ] :=
+      assume htc,
+        sorry
 
 end ddl
