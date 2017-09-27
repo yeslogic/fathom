@@ -1,5 +1,6 @@
 #[cfg(test)]
 extern crate difference;
+extern crate inflector;
 extern crate lalrpop_util;
 #[cfg(test)]
 #[macro_use]

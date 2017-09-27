@@ -12,6 +12,7 @@ categories = ["parsing"]
 keywords = ["binary", "byte", "parser", "parsing", "endian", "big-endian", "little-endian"]
 
 [dependencies]
+Inflector = "0.10.1"
 lalrpop-util = "0.13.1"
 quote = "0.3.15"
 regex = "0.2.0"
