@@ -30,6 +30,7 @@ namespace ddl
       | struct : string → type → type → type
       | array : type → expr → type
       | cond : expr → type → type → type
+      | interp : string → type → expr → type
 
     with kind : Type
       | host : kind
@@ -259,6 +260,10 @@ namespace ddl
         κ[ Γ ⊢ τ₂ : κ ] →
         κ[ Γ ⊢ type.cond e τ₁ τ₂ : κ ]
 
+    -- should it still have binary kind if it's interpreting a binary type?
+    | interp : Π {Γ x e τ₁ κ},
+        κ[ Γ ⊢ τ₁ : κ ] →
+        κ[ Γ ⊢ type.interp x τ₁ e : κ ]
 
   inductive has_rep : env → type → type → Prop
 
@@ -278,6 +283,12 @@ namespace ddl
         has_rep Γ τ₁ r₁ →
         has_rep Γ τ₂ r₂ →
         has_rep Γ (type.cond e τ₁ τ₂) (type.cond e r₁ r₂)
+
+    | interp {Γ x e τ₁ τ₂ τ₃} :
+        has_rep Γ τ₁ τ₂ →
+        τ[ (insert (x, τ₂) Γ) ⊢ e : τ₃ ] →
+        has_rep Γ (type.interp x τ₁ e) τ₃
+
 
 
   notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := has_kind Γ τ κ
