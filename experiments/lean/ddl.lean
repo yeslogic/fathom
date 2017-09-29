@@ -94,8 +94,8 @@ namespace ddl
     X → X → Prop
 
   inductive multi {X : Type} (R : relation X) : relation X
-    | refl : Π {x : X}, multi x x
-    | step : Π {x y z : X}, R x y → multi y z → multi x z.
+    | refl {x : X} : multi x x
+    | step {x y z : X} : R x y → multi y z → multi x z.
 
   reserve infixl ` ⟹ `:50
   reserve infixl ` ⟹*`:50
@@ -103,31 +103,31 @@ namespace ddl
   inductive step : expr → expr → Prop
     infixl ` ⟹ ` := step
 
-    | const : Π {c},
+    | const {c} :
         expr.const c ⟹ expr.const c
 
-    | op_rec_l : Π {op e₁ e₁' e₂},
+    | op_rec_l {op e₁ e₁' e₂} :
         e₁ ⟹ e₁' →
         expr.app_op op e₁ e₂ ⟹ expr.app_op op e₁' e₂
 
-    | op_rec_r : Π {op e₁ e₂ e₂'},
+    | op_rec_r {op e₁ e₂ e₂'} :
         is_value e₁ →
         e₂ ⟹ e₂' →
         expr.app_op op e₁ e₂ ⟹ expr.app_op op e₁ e₂'
 
-    | op_add : Π {n m},
+    | op_add {n m} :
         expr.const (value.nat n) + expr.const (value.nat m) ⟹
             expr.const (value.nat (n + m))
 
-    | op_mul : Π {n m},
+    | op_mul {n m} :
         expr.const (value.nat n) * expr.const (value.nat m) ⟹
             expr.const (value.nat (n * m))
 
     -- FIXME: Lookup context for var name?
-    | var : Π {x},
+    | var {x} :
         expr.var x ⟹ sorry
 
-    | proj : Π {x e e'},
+    | proj {x e e'} :
         e ⟹ e' →
         expr.proj e' x ⟹ sorry
 
@@ -139,15 +139,15 @@ namespace ddl
 
   inductive has_rep : env → type → type → Prop
 
-    | u8 : Π {Γ},
+    | u8 {Γ} :
         has_rep Γ type.u8 type.nat
 
-    | var : Π {Γ x τ₁ τ₂},
+    | var {Γ x τ₁ τ₂} :
         (x, τ₁) ∈ Γ →
         has_rep Γ τ₁ τ₂ →
         has_rep Γ (type.var x) τ₂
 
-    | array : Π {Γ τ₁ τ₂ e},
+    | array {Γ τ₁ τ₂ e} :
         has_rep Γ τ₁ τ₂ →
         has_rep Γ (type.array τ₁ e) (type.array τ₂ e)
 
@@ -155,31 +155,31 @@ namespace ddl
   inductive has_type : env → expr → type → Prop
     notation `τ[ ` Γ ` ⊢ ` e ` : ` τ ` ]` := has_type Γ e τ
 
-    | bool : Π {Γ b},
+    | bool {Γ b} :
         τ[ Γ ⊢ expr.const (value.bool b) : type.bool ]
 
-    | nat : Π {Γ n},
+    | nat {Γ n} :
         τ[ Γ ⊢ expr.const (value.nat n) : type.nat ]
 
-    | add : Π {Γ e₁ e₂},
+    | add {Γ e₁ e₂} :
         τ[ Γ ⊢ e₁ : type.nat ] →
         τ[ Γ ⊢ e₂ : type.nat ] →
         τ[ Γ ⊢ e₁ + e₂ : type.nat ]
 
-    | mul : Π {Γ e₁ e₂},
+    | mul {Γ e₁ e₂} :
         τ[ Γ ⊢ e₁ : type.nat ] →
         τ[ Γ ⊢ e₂ : type.nat ] →
         τ[ Γ ⊢ e₁ * e₂ : type.nat ]
 
-    | var : Π {Γ x τ},
+    | var {Γ x τ} :
         (x, τ) ∈ Γ →
         τ[ Γ ⊢ expr.var x : τ ]
 
-    | proj : Π {Γ e x τ₁ τ₂},
+    | proj {Γ e x τ₁ τ₂} :
         τ[ Γ ⊢ e : τ₁ ] → -- FIXME: τ₁ : struct
         τ[ Γ ⊢ expr.proj e x : τ₂ ]
 
-    | index : Π {Γ a i e τ},
+    | index {Γ a i e τ} :
         τ[ Γ ⊢ a : type.array τ e ] →
         τ[ Γ ⊢ i : type.nat ] →
         τ[ Γ ⊢ expr.index a i : τ ]
@@ -190,43 +190,43 @@ namespace ddl
   inductive has_kind : env → type → kind → Prop
     notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := has_kind Γ τ κ
 
-    | bool : Π {Γ},
+    | bool {Γ} :
         κ[ Γ ⊢ type.bool : kind.host ]
 
-    | nat : Π {Γ},
+    | nat {Γ} :
         κ[ Γ ⊢ type.nat : kind.host ]
 
-    | u8 : Π {Γ},
+    | u8 {Γ} :
         κ[ Γ ⊢ type.u8 : kind.binary ]
 
-    | var : Π {Γ x κ},
+    | var {Γ x κ} :
         (x, κ) ∈ Γ →
         κ[ Γ ⊢ type.var x : κ ]
 
-    | abs : Π {Γ x τ₁ κ₁ κ₂},
+    | abs {Γ x τ₁ κ₁ κ₂} :
         κ[ (insert (x, κ₁) Γ) ⊢ τ₁ : κ₂ ] →
         κ[ Γ ⊢ Λ x : κ₁, τ₁ : (κ₁ ↣ κ₂) ]
 
-    | app : Π {Γ τ₁ τ₂ κ₁ κ₂},
+    | app {Γ τ₁ τ₂ κ₁ κ₂} :
         κ[ Γ ⊢ τ₁ : (κ₁ ↣ κ₂) ] →
         κ[ Γ ⊢ τ₂ : κ₁ ] →
         κ[ Γ ⊢ type.app τ₁ τ₂ : κ₂ ]
 
     -- arrays take on the kind of their elements
     -- size expressions must always evaluate to natural numbers
-    | array : Π {Γ τ κ e},
+    | array {Γ τ κ e} :
         κ[ Γ ⊢ τ : κ ] →
         τ[ Γ ⊢ e : type.nat ] →
         κ[ Γ ⊢ type.array τ e : κ ]
 
-    | sum : Π {Γ τ₁ τ₂},
+    | sum {Γ τ₁ τ₂} :
         κ[ Γ ⊢ τ₁ : kind.binary ] →
         κ[ Γ ⊢ τ₂ : kind.binary ] →
         κ[ Γ ⊢ type.sum τ₁ τ₂ : kind.binary ]
 
     -- structs are always binary, and subsequent fields can
     -- access previous fields
-    | struct : Π {Γ x τ₁ τ₂},
+    | struct {Γ x τ₁ τ₂} :
         κ[ Γ ⊢ τ₁ : kind.binary ] → -- FIXME: τ₁
         κ[ insert (x, kind.binary) Γ ⊢ τ₂ : kind.binary ] → -- FIXME: should be `insert (x, τ₁)`?
         κ[ Γ ⊢ type.struct x τ₁ τ₂ : kind.binary ]
