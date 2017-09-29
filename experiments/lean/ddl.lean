@@ -293,6 +293,19 @@ namespace ddl
 
   notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := has_kind Γ τ κ
 
+  inductive valueT : type → Type
+    | boolT : bool → valueT type.bool
+    | natT : ℕ → valueT type.nat
+
+  inductive exprT : type → Type
+    | constT {τ} : valueT τ → exprT τ
+    | app_opT : op → exprT type.nat → exprT type.nat → exprT type.nat
+    | varT {Γ:env} {x:string} {τ} : (x, τ) ∈ Γ → exprT τ
+    --| projT : expr → string → expr
+    | indexT {e τ} : exprT (type.array τ e) → exprT type.nat → exprT τ
+    | condT {τ} : exprT type.bool → exprT τ → exprT τ → exprT τ
+
+
 
   section
     open expr type kind
