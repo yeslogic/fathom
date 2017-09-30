@@ -47,7 +47,6 @@ namespace ddl
     | const : Π {v}, is_value (expr.const v)
     -- TODO: arrays
 
-
   -- ENVIRONMENTS
 
   inductive env : Type
@@ -289,9 +288,164 @@ namespace ddl
         τ[ (insert (x, τ₂) Γ) ⊢ e : τ₃ ] →
         has_rep Γ (type.interp x τ₁ e) τ₃
 
-
-
   notation `κ[ ` Γ ` ⊢ ` τ ` : ` κ ` ]` := has_kind Γ τ κ
+
+  -- MATCHING
+
+  inductive byte : Type
+    | byte {n:nat} : n < 256 → byte
+
+  inductive matches : type → list byte → Prop
+
+    | u8 {b} : matches type.u8 (b :: list.nil)
+
+    | struct {x τ₁ τ₂ bs₁ bs₂} :
+        matches τ₁ bs₁ →
+        matches τ₂ bs₂ →
+        matches (type.struct x τ₁ τ₂) (bs₁ ++ bs₂)
+
+    | array_nil {τ} :
+        matches (type.array τ (expr.const (value.nat 0))) list.nil
+
+    | array_cons {τ n bs₁ bs₂} :
+        matches τ bs₁ →
+        matches (type.array τ (expr.const (value.nat n))) bs₂ →
+        matches (type.array τ (expr.const (value.nat (nat.succ n)))) (bs₁ ++ bs₂)
+
+  def match_repeat (T:Type) (f:list T → option (list T × list T)) : nat → list T → option (list T × list T)
+    | 0 bs := some (list.nil, bs)
+    | (nat.succ n) bs :=
+        match f bs with
+        | some (bs', bs'') :=
+            match match_repeat n bs'' with
+            | some (bs''', bs'''') := some (bs' ++ bs''', bs'''')
+            | none := none
+            end
+        | none := none
+        end
+
+  def match_type : type → list byte → option (list byte × list byte)
+    | (type.u8) (b :: bs) := some (b::list.nil, bs)
+    | (type.struct _ τ₁ τ₂) bs :=
+        match match_type τ₁ bs with
+        | some (bs', bs'') :=
+            match match_type τ₂ bs'' with
+            | some (bs''', bs'''') := some (bs' ++ bs''', bs'''')
+            | none := none
+            end
+        | none := none
+        end
+    | (type.array τ (expr.const (value.nat n))) bs :=
+        match_repeat byte (match_type τ) n bs
+    | _ _ := none
+
+  theorem match_type_suffix {τ bs bs'} :
+    match_type τ bs = some (bs, list.nil) →
+    match_type τ (bs ++ bs') = some (bs, bs') :=
+    sorry.
+
+  theorem match_type_correct {τ bs} : matches τ bs → match_type τ bs = some (bs, list.nil) :=
+  begin
+    intro h,
+    induction h,
+    {
+        refl
+    },
+    {
+        unfold match_type,
+        have h3 : match_type τ₁ (bs₁ ++ bs₂) = some (bs₁, bs₂),
+        {
+            apply match_type_suffix,
+            apply ih_1
+        },
+        rewrite h3,
+        unfold match_type._match_1,
+        rewrite ih_2,
+        unfold match_type._match_2
+    },
+    {
+        unfold match_type,
+        unfold match_repeat
+    },
+    {
+        unfold match_type,
+        unfold match_type at ih_2,
+        unfold match_repeat,
+        have h3 : match_type τ_1 (bs₁ ++ bs₂) = some (bs₁, bs₂),
+        {
+            apply match_type_suffix,
+            apply ih_1
+        },
+        rewrite h3,
+        unfold match_repeat._match_1,
+        rewrite ih_2,
+        unfold match_repeat._match_2
+    }
+  end
+
+  theorem match_type_correct {τ bs bs' bs''} : match_type τ bs = some (bs', bs'') → matches τ bs' :=
+  begin
+    induction τ,
+    {
+        unfold match_type,
+        intro h,
+        cases h
+    },
+    {
+        unfold match_type,
+        intro h,
+        cases h
+    },
+    {
+        cases bs,
+        {
+            unfold match_type,
+            intro h,
+            cases h
+        },
+        {
+            unfold match_type,
+            intro h,
+            cases h,
+            constructor
+        }
+    },
+    {
+        unfold match_type,
+        intro h,
+        cases h
+    },
+    {
+        unfold match_type,
+        intro h,
+        cases h
+    },
+    {
+        unfold match_type,
+        intro h,
+        cases h
+    },
+    {
+        unfold match_type,
+        intro h,
+        cases h
+    },
+    {
+        unfold match_type,
+        intro h,
+        have h1 : bs = bs' ++ bs'',
+        {
+
+        },
+        {
+
+        }
+        apply matches.struct,
+        sorry
+    }
+    end
+
+  -- EXPERIMENT
 
   inductive valueT : type → Type
     | boolT : bool → valueT type.bool
