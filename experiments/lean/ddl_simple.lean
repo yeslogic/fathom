@@ -114,8 +114,13 @@ namespace ddl
     example : type.size (type.prod type.bit type.unit) = ↑1 := rfl
     example : type.size (type.array type.bit ↑16) = ↑16 := rfl
 
-    def read_bytes : Π (t : type) (buf : list bool) {h : list.length buf ∈ type.size t}, type.embed t :=
-      sorry
+    def read_bits : Π (t : type) (buf : list bool) {h : list.length buf ∈ type.size t}, type.embed t
+      | type.unit           buf       h := unit.star
+      | type.bit            []        h := sorry
+      | type.bit            (x :: xs) h := x
+      | (type.sum t₁ t₂)    buf       h := sorry
+      | (type.prod t₁ t₂)   buf       h := sorry
+      | (type.array t len)  buf       h := sorry
 
   end binary
 
