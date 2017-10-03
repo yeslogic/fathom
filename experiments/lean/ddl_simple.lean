@@ -58,6 +58,9 @@ namespace ddl
       | add : expr type.nat → expr type.nat → expr type.nat
       | mul : expr type.nat → expr type.nat → expr type.nat
 
+    instance has_coe_to_bool : has_coe bool (expr type.bool) := ⟨expr.bool⟩
+    instance has_coe_to_nat : has_coe ℕ (expr type.nat) := ⟨expr.nat⟩
+
     /- embed a host type into Lean -/
     def type.embed : type → Type
       | type.bool := bool
@@ -70,8 +73,8 @@ namespace ddl
       | _ (expr.add e₁ e₂) := nat.add (expr.embed e₁) (expr.embed e₂)
       | _ (expr.mul e₁ e₂) := nat.mul (expr.embed e₁) (expr.embed e₂)
 
-    example : expr.embed (expr.add (expr.nat 1) (expr.nat 2)) = (1 + 2 : ℕ) := rfl
-    example : expr.embed (expr.mul (expr.nat 4) (expr.nat 2)) = (4 * 2 : ℕ) := rfl
+    example : expr.embed (expr.add ↑1 ↑2) = (1 + 2 : ℕ) := rfl
+    example : expr.embed (expr.mul ↑4 ↑2) = (4 * 2 : ℕ) := rfl
 
   end host
 
@@ -98,7 +101,7 @@ namespace ddl
       | (type.array t len) := vector (type.embed t) (host.expr.embed len)
 
     example : type.embed (type.prod type.bit type.bit) = (bool × bool) := rfl
-    example : type.embed (type.array type.bit (host.expr.nat 16)) = vector bool 16 := rfl
+    example : type.embed (type.array type.bit ↑16) = vector bool 16 := rfl
 
     def type.size : type → range
       | type.unit := ↑0
@@ -107,7 +110,11 @@ namespace ddl
       | (type.prod t₁ t₂) := type.size t₁ + type.size t₂
       | (type.array t len) := type.size t * range.exact (host.expr.embed len)
 
-    def read_bytes : Π (t : type) (buf : list bool) {h : list.length buf ∈ (type.size t)}, type.embed t :=
+    example : type.size (type.prod type.bit type.bit) = ↑2 := rfl
+    example : type.size (type.prod type.bit type.unit) = ↑1 := rfl
+    example : type.size (type.array type.bit ↑16) = ↑16 := rfl
+
+    def read_bytes : Π (t : type) (buf : list bool) {h : list.length buf ∈ type.size t}, type.embed t :=
       sorry
 
   end binary
