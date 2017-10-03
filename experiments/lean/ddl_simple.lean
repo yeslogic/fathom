@@ -23,7 +23,7 @@ namespace ddl
     def range.add (r₁ : range) (r₂ : range) : range :=
       { min := r₁.min + r₂.min
       , max := r₁.max + r₂.max
-      , min_le_max := sorry
+      , min_le_max := add_le_add r₁.min_le_max r₂.min_le_max
       }
 
     def range.mul (r₁ : range) (r₂ : range) : range :=
