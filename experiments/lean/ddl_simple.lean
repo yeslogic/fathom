@@ -97,7 +97,6 @@ namespace ddl
     notation k₁ ` ⇒ ` k₂ := kind.arrow k₁ k₂
 
     /- Embed a kind as a Lean term -/
-    @[reducible]
     def kind.embed : kind → Type 1
       | kind.type := Type 0
       | (kind.arrow k₁ k₂) := kind.embed k₁ → kind.embed k₂
