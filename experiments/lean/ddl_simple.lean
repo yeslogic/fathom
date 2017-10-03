@@ -2,6 +2,47 @@ import data.vector
 
 namespace ddl
 
+  namespace range
+
+    structure range : Type :=
+      (min max : ℕ)
+      (min_le_max : min ≤ max)
+
+    def range.exact (n : ℕ) : range :=
+      { min := n
+      , max := n
+      , min_le_max := le_of_eq rfl
+      }
+
+    def range.union (r₁ : range) (r₂ : range) : range :=
+      { min := min r₁.min r₂.min
+      , max := max r₁.max r₂.max
+      , min_le_max := sorry
+      }
+
+    def range.add (r₁ : range) (r₂ : range) : range :=
+      { min := r₁.min + r₂.min
+      , max := r₁.max + r₂.max
+      , min_le_max := sorry
+      }
+
+    def range.mul (r₁ : range) (r₂ : range) : range :=
+      { min := r₁.min * r₂.min
+      , max := r₁.max * r₂.max
+      , min_le_max := sorry
+      }
+
+    def range.mem (n : ℕ) (r : range) : Prop :=
+      r.min ≤ n ∧ n ≤ r.max
+
+    instance : has_add range := ⟨range.add⟩
+    instance : has_mul range := ⟨range.mul⟩
+    instance : has_union range := ⟨range.union⟩
+    instance : has_mem ℕ range := ⟨range.mem⟩
+    instance : has_coe ℕ range := ⟨range.exact⟩
+
+  end range
+
   /- The host language -/
   namespace host
 
@@ -38,6 +79,8 @@ namespace ddl
   /- The binary language -/
   namespace binary
 
+    open range
+
     /- The type system of the binary language -/
     inductive type : Type
       | unit : type
@@ -57,12 +100,15 @@ namespace ddl
     example : type.embed (type.prod type.bit type.bit) = (bool × bool) := rfl
     example : type.embed (type.array type.bit (host.expr.nat 16)) = vector bool 16 := rfl
 
-    def type.max_bits : type → ℕ
-      | type.unit := 0
-      | type.bit := 1
-      | (type.sum t₁ t₂) := max (type.max_bits t₁) (type.max_bits t₂)
-      | (type.prod t₁ t₂) := type.max_bits t₁ + type.max_bits t₂
-      | (type.array t len) := type.max_bits t * host.expr.embed len
+    def type.size : type → range
+      | type.unit := ↑0
+      | type.bit := ↑1
+      | (type.sum t₁ t₂) := type.size t₁ ∪ type.size t₂
+      | (type.prod t₁ t₂) := type.size t₁ + type.size t₂
+      | (type.array t len) := type.size t * range.exact (host.expr.embed len)
+
+    def read_bytes : Π (t : type) (buf : list bool) {h : list.length buf ∈ (type.size t)}, type.embed t :=
+      sorry
 
   end binary
 
