@@ -5,28 +5,32 @@ namespace ddl
   /- The host language -/
   namespace host
 
-    /- The expression syntax of the host language -/
-    inductive expr : Type
-      -- | bool : bool → expr
-      | nat : ℕ → expr
-      | add : expr → expr → expr
-      | mul : expr → expr → expr
-
-
     /- The type syntax of the host language -/
     inductive type : Type
       | bool : type
       | nat : type
 
+    /- The expression syntax of the host language -/
+    inductive expr : type → Type
+      | bool : bool → expr type.bool
+      | nat : ℕ → expr type.nat
+      | add : expr type.nat → expr type.nat → expr type.nat
+      | mul : expr type.nat → expr type.nat → expr type.nat
+
+    /- embed a host type into Lean -/
+    def type.embed : type → Type
+      | type.bool := bool
+      | type.nat := ℕ
 
     /- embed a host expression into Lean -/
-    def expr.embed : expr → ℕ
-      | (expr.nat n) := n
-      | (expr.add e₁ e₂) := expr.embed e₁ + expr.embed e₂
-      | (expr.mul e₁ e₂) := expr.embed e₁ * expr.embed e₂
+    def expr.embed : Π {t}, expr t → type.embed t
+      | _ (expr.bool b)    := b
+      | _ (expr.nat n)     := n
+      | _ (expr.add e₁ e₂) := nat.add (expr.embed e₁) (expr.embed e₂)
+      | _ (expr.mul e₁ e₂) := nat.mul (expr.embed e₁) (expr.embed e₂)
 
-    example : expr.embed (expr.add (expr.nat 1) (expr.nat 2)) = 1 + 2 := rfl
-    example : expr.embed (expr.mul (expr.nat 4) (expr.nat 2)) = 4 * 2 := rfl
+    example : expr.embed (expr.add (expr.nat 1) (expr.nat 2)) = (1 + 2 : ℕ) := rfl
+    example : expr.embed (expr.mul (expr.nat 4) (expr.nat 2)) = (4 * 2 : ℕ) := rfl
 
   end host
 
@@ -39,8 +43,7 @@ namespace ddl
       | bit : type
       | sum : type → type → type
       | prod : type → type → type
-      | array : type → host.expr → type
-
+      | array : type → host.expr host.type.nat → type
 
     /- embed a binary type into Lean -/
     def type.embed : type → Type
