@@ -84,43 +84,77 @@ namespace ddl
 
     open range
 
+    /- Kinds of types in the binary language
+
+       These will let us express quantification and application at the type
+       level.
+    -/
+    inductive kind : Type
+      | type : kind
+      | arrow : kind → kind → kind
+
+    notation `★` := kind.type
+    notation k₁ ` ⇒ ` k₂ := kind.arrow k₁ k₂
+
+    /- Embed a kind as a Lean term -/
+    @[reducible]
+    def kind.embed : kind → Type 1
+      | kind.type := Type 0
+      | (kind.arrow k₁ k₂) := kind.embed k₁ → kind.embed k₂
+
+    /- The environment in wich our types live.
+
+       At the moment types only have access to kinds. Allowing types to also
+       depend on values is a great deal more fiddly to implement!
+    -/
+    def env : Type :=
+      list kind
+
     /- The type system of the binary language -/
-    inductive type : Type
-      | unit : type
-      | bit : type
-      | sum : type → type → type
-      | prod : type → type → type
-      | array : type → host.expr host.type.nat → type
+    inductive type : env → kind → Type
+      | unit  {Γ}       : type Γ ★
+      | bit   {Γ}       : type Γ ★
+      | sum   {Γ}       : type Γ ★ → type Γ ★ → type Γ ★
+      | prod  {Γ}       : type Γ ★ → type Γ ★ → type Γ ★
+      | array {Γ}       : type Γ ★ → host.expr host.type.nat → type Γ ★
+      | all   {Γ k₁ k₂} : type (k₁ :: Γ) k₂ → type Γ (k₁ ⇒ k₂)
+      | app   {Γ k₁ k₂} : type Γ (k₁ ⇒ k₂) → type Γ k₁ → type Γ k₂
 
     /- embed a binary type into Lean -/
-    def type.embed : type → Type
-      | type.unit := unit
-      | type.bit := bool
-      | (type.sum t₁ t₂) := sum (type.embed t₁) (type.embed t₂)
-      | (type.prod t₁ t₂) := type.embed t₁ × type.embed t₂
-      | (type.array t len) := vector (type.embed t) (host.expr.embed len)
+    def type.embed : Π (Γ : env) {k : kind}, type Γ k → kind.embed k
+      | Γ k type.unit           := unit
+      | Γ k type.bit            := bool
+      | Γ k (type.sum t₁ t₂)    := sum (type.embed Γ t₁) (type.embed Γ t₂)
+      | Γ k (type.prod t₁ t₂)   := type.embed Γ t₁ × type.embed Γ t₂
+      | Γ k (type.array t len)  := vector (type.embed Γ t) (host.expr.embed len)
+      | Γ k (type.all _)        := sorry
+      | Γ k (type.app _ _)      := sorry
 
-    example : type.embed (type.prod type.bit type.bit) = (bool × bool) := rfl
-    example : type.embed (type.array type.bit ↑16) = vector bool 16 := rfl
+    example : type.embed [] (type.prod type.bit type.bit) = (bool × bool) := rfl
+    example : type.embed [] (type.array type.bit ↑16) = vector bool 16 := rfl
 
-    def type.size : type → range
-      | type.unit := ↑0
-      | type.bit := ↑1
-      | (type.sum t₁ t₂) := type.size t₁ ∪ type.size t₂
-      | (type.prod t₁ t₂) := type.size t₁ + type.size t₂
-      | (type.array t len) := type.size t * range.exact (host.expr.embed len)
+    def type.size : Π (Γ : env) {k : kind}, type Γ k → range
+      | Γ k type.unit           := ↑0
+      | Γ k type.bit            := ↑1
+      | Γ k (type.sum t₁ t₂)    := type.size Γ t₁ ∪ type.size Γ t₂
+      | Γ k (type.prod t₁ t₂)   := type.size Γ t₁ + type.size Γ t₂
+      | Γ k (type.array t len)  := type.size Γ t * range.exact (host.expr.embed len)
+      | Γ k (type.all t)        := type.size _ t
+      | Γ k (type.app t₁ t₂)    := type.size _ t₁
 
-    example : type.size (type.prod type.bit type.bit) = ↑2 := rfl
-    example : type.size (type.prod type.bit type.unit) = ↑1 := rfl
-    example : type.size (type.array type.bit ↑16) = ↑16 := rfl
+    example : type.size [] (type.prod type.bit type.bit) = ↑2 := rfl
+    example : type.size [] (type.prod type.bit type.unit) = ↑1 := rfl
+    example : type.size [] (type.array type.bit ↑16) = ↑16 := rfl
 
-    def read_bits : Π (t : type) (buf : list bool) {h : list.length buf ∈ type.size t}, type.embed t
-      | type.unit           buf       h := unit.star
-      | type.bit            []        h := sorry
-      | type.bit            (x :: xs) h := x
-      | (type.sum t₁ t₂)    buf       h := sorry
-      | (type.prod t₁ t₂)   buf       h := sorry
-      | (type.array t len)  buf       h := sorry
+    def read_bits : Π (Γ) {k} (t : type Γ k) (buf : list bool) {h : list.length buf ∈ type.size Γ t}, type.embed Γ t
+      | Γ k type.unit           buf       h := unit.star
+      | Γ k type.bit            []        h := sorry
+      | Γ k type.bit            (x :: xs) h := x
+      | Γ k (type.sum t₁ t₂)    buf       h := sorry
+      | Γ k (type.prod t₁ t₂)   buf       h := sorry
+      | Γ k (type.array t len)  buf       h := sorry
+      | Γ k (type.all _)        buf       h := sorry
+      | Γ k (type.app _ _)      buf       h := sorry
 
   end binary
 
