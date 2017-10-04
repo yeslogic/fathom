@@ -101,30 +101,30 @@ namespace ddl
       | kind.type := Type 0
       | (kind.arrow k₁ k₂) := kind.embed k₁ → kind.embed k₂
 
-    /- The environment in which our types live.
+    /- The context in which our types live.
 
        At the moment types only have access to kinds. Allowing types to also
        depend on values is a great deal more fiddly to implement!
     -/
-    def env : ℕ → Type :=
+    def ctx : ℕ → Type :=
       vector kind
 
-    def env.lookup {n} : fin n → env n → kind :=
+    def ctx.lookup {n} : fin n → ctx n → kind :=
       flip vector.nth
 
     /- The type system of the binary language -/
-    inductive type : Π {n}, env n → kind → Type
-      | var   {n} {Γ : env n} (x : fin n) : type Γ (env.lookup x Γ)
-      | unit  {n} {Γ : env n}             : type Γ ★
-      | bit   {n} {Γ : env n}             : type Γ ★
-      | sum   {n} {Γ : env n}             : type Γ ★ → type Γ ★ → type Γ ★
-      | prod  {n} {Γ : env n}             : type Γ ★ → type Γ ★ → type Γ ★
-      | array {n} {Γ : env n}             : type Γ ★ → host.expr host.type.nat → type Γ ★
-      | abs   {n} {Γ : env n} {k₁ k₂}     : type (k₁ :: Γ) k₂ → type Γ (k₁ ⇒ k₂)
-      | app   {n} {Γ : env n} {k₁ k₂}     : type Γ (k₁ ⇒ k₂) → type Γ k₁ → type Γ k₂ -- FIXME: pop type from Γ?
+    inductive type : Π {n}, ctx n → kind → Type
+      | var   {n} {Γ : ctx n} (x : fin n) : type Γ (ctx.lookup x Γ)
+      | unit  {n} {Γ : ctx n}             : type Γ ★
+      | bit   {n} {Γ : ctx n}             : type Γ ★
+      | sum   {n} {Γ : ctx n}             : type Γ ★ → type Γ ★ → type Γ ★
+      | prod  {n} {Γ : ctx n}             : type Γ ★ → type Γ ★ → type Γ ★
+      | array {n} {Γ : ctx n}             : type Γ ★ → host.expr host.type.nat → type Γ ★
+      | abs   {n} {Γ : ctx n} {k₁ k₂}     : type (k₁ :: Γ) k₂ → type Γ (k₁ ⇒ k₂)
+      | app   {n} {Γ : ctx n} {k₁ k₂}     : type Γ (k₁ ⇒ k₂) → type Γ k₁ → type Γ k₂ -- FIXME: pop type from Γ?
 
     /- embed a binary type into Lean -/
-    def type.embed : Π {n} (Γ : env n) {k : kind}, type Γ k → kind.embed k
+    def type.embed : Π {n} (Γ : ctx n) {k : kind}, type Γ k → kind.embed k
       | n Γ k (type.var x)        := sorry
       | n Γ k type.unit           := unit
       | n Γ k type.bit            := bool
@@ -137,7 +137,7 @@ namespace ddl
     example : type.embed vector.nil (type.prod type.bit type.bit) = (bool × bool) := rfl
     example : type.embed vector.nil (type.array type.bit ↑16) = vector bool 16 := rfl
 
-    def type.size : Π {n} (Γ : env n) {k : kind}, type Γ k → range
+    def type.size : Π {n} (Γ : ctx n) {k : kind}, type Γ k → range
       | n Γ k (type.var x)        := sorry
       | n Γ k type.unit           := ↑0
       | n Γ k type.bit            := ↑1
@@ -152,7 +152,7 @@ namespace ddl
     example : type.size vector.nil (type.array type.bit ↑16) = ↑16 := rfl
 
     def read_bits :
-      Π {n : ℕ} (Γ : env n)
+      Π {n : ℕ} (Γ : ctx n)
         {k : kind} (t : type Γ k)
         (buf : list bool) {h : list.length buf ∈ type.size Γ t},
         type.embed Γ t
