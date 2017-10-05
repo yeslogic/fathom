@@ -1,4 +1,17 @@
-/- An attempt at formalising our DDL, in this case embedding the terms in Lean -/
+/- An attempt at formalising our DDL by embedding the terms in Lean.
+
+   We use a similar method as https://mazzo.li/posts/Lambda.html to handle
+   scoping in a way that avoids manual shifting an substitution of indices.
+   Unlike the Agda blog post however we use the context to kindcheck types
+   as opposed to using it to typecheck terms.
+
+   The disadvantage of having constraints expressed directly on the
+   AST is that it will be much more work to translate it into a Rust
+   type checker, as we are leaning heavily on Lean's type system. We
+   will probably also have to try a more standard approach where we
+   express the typing and kinding relations in terms of separate
+   inductive datatypes in order to make this easier.
+-/
 
 import data.vector
 
