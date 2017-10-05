@@ -185,6 +185,8 @@ namespace ddl
     -- encoding so we don't include the argument identifiers
     notation `Σ: ` t₁ `, ` t₂ := type.prod t₁ t₂
     notation `Λ: ` k `, ` t := type.abs k t
+    -- Array type syntax
+    notation `[` t `; ` e `]` := type.array t e
     -- Application operator
     infixl ` ∙ `:50 := type.app
 
@@ -219,7 +221,7 @@ namespace ddl
       | array {Γ t e} :
           has_kind Γ t ★ →
           host.has_type e host.type.nat →
-          has_kind Γ (type.array t e) ★
+          has_kind Γ [t; e] ★
       | abs {Γ t k₁ k₂} :
           has_kind (k₁ :: Γ) t k₁ →
           has_kind Γ (Λ: k₁, t) (k₁ ⇒ k₂)
