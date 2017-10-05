@@ -1,3 +1,5 @@
+/- An attempt at formalising our DDL, in this case embedding the terms in Lean -/
+
 import data.vector
 
 namespace ddl
@@ -189,7 +191,6 @@ namespace ddl
     --                        |  |             |    |
     --                        v  v             |    |
     example : type.embed [] ((Λ→ Λ→ type.sum (#1) (#0)) ∙ type.bit ∙ type.unit) = (bool × unit)  := rfl
-
 
     /- Get the range of bits that a type might occupy -/
     def type.size : Π {n} (Γ : ctx n) {k : kind}, type Γ k → range
