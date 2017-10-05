@@ -6,8 +6,17 @@ import data.vector
 
 namespace ddl
 
+  def relation (α : Type) :=
+    α → α → Prop
+
+  inductive multi {α : Type} (ρ : relation α) : relation α
+    | refl {x : α} : multi x x
+    | step {x y z : α} : ρ x y → multi y z → multi x z.
+
   /- The host language -/
   namespace host
+
+    -- SYNTAX
 
     /- The type syntax of the host language -/
     inductive type : Type
@@ -15,25 +24,31 @@ namespace ddl
       | nat : type
 
 
-    /- embed a host type into Lean -/
-    @[reducible]
-    def type.embed : type → Type
-      | type.bool := bool
-      | type.nat := ℕ
+    /- Binary operators -/
+    inductive binop : Type
+      | add
+      | mul
 
 
     /- The expression syntax of the host language -/
     inductive expr : Type
       | bool : bool → expr
       | nat : ℕ → expr
-      | add : expr → expr → expr
-      | mul : expr → expr → expr
+      | app_binop : binop → expr → expr → expr
 
     instance has_coe_to_bool : has_coe bool expr := ⟨expr.bool⟩
     instance has_coe_to_nat : has_coe ℕ expr  := ⟨expr.nat⟩
-    instance : has_add expr := ⟨expr.add⟩
-    instance : has_mul expr := ⟨expr.add⟩
+    instance : has_add expr := ⟨expr.app_binop binop.add⟩
+    instance : has_mul expr := ⟨expr.app_binop binop.mul⟩
 
+
+    /- 'Stuck' values -/
+    inductive value : expr → Prop
+      | bool {bv} : value (expr.bool bv)
+      | nat {nv} : value (expr.nat nv)
+
+
+    -- TYPING RULES
 
     inductive has_type : expr → type → Prop
       | bool {b} :
@@ -50,40 +65,105 @@ namespace ddl
           has_type (e₁ * e₂) type.nat
 
 
+    /- A correctly typed expression -/
     structure typed_expr : Type :=
       (e : expr)
       (t : type)
       (h : has_type e t)
 
+
+    -- EMBEDDING
+
+    /- embed a host type into Lean -/
+    def type.embed : type → Type
+      | type.bool := bool
+      | type.nat := ℕ
+
+
     def typed_expr.embed : Π (e : typed_expr), type.embed e.t
-      | ⟨expr.bool b,    type.bool, h⟩ := b
-      | ⟨expr.nat n,     type.nat,  h⟩ := n
-      | ⟨expr.add e₁ e₂, type.nat,  h⟩ := sorry
-      | ⟨expr.mul e₁ e₂, type.nat,  h⟩ := sorry
-      | ⟨_,                _,       _⟩ := sorry -- hmmm...
+      | ⟨expr.bool b, type.bool, h⟩ := b
+      | ⟨expr.nat n,  type.nat,  h⟩ := n
+      | ⟨e₁ + e₂,     type.nat,  h⟩ := sorry
+      -- | ⟨e₁ * e₂,     type.nat,  h⟩ := sorry
+      | ⟨_,           _,         _⟩ := sorry -- hmmm...
+
+
+    -- EVALUATION RULES
+
+    reserve infixl ` ⟹ `:50
+    reserve infixl ` ⟹* `:50
+
+    inductive step : expr → expr → Prop
+      infixl ` ⟹ ` := step
+
+      | value {e} :
+          value e →
+          e ⟹ e
+      | binop_rec_l {op e₁ e₁' e₂} :
+          e₁ ⟹ e₁' →
+          expr.app_binop op e₁ e₂ ⟹ expr.app_binop op e₁' e₂
+      | binop_rec_r {op e₁ e₂ e₂'} :
+          value e₁ →
+          e₂ ⟹ e₂' →
+          expr.app_binop op e₁ e₂ ⟹ expr.app_binop op e₁ e₂'
+      | binop_add {nv₁ nv₂} :
+          expr.nat nv₁ + expr.nat nv₂ ⟹ expr.nat (nv₁ + nv₂)
+      | binop_mul {nv₁ nv₂} :
+          expr.nat nv₁ * expr.nat nv₂ ⟹ expr.nat (nv₁ * nv₂)
+
+    infixl ` ⟹ ` := step
+    infixl ` ⟹* ` := multi step
+
+
+    -- PROGRESS
+    -- https://softwarefoundations.cis.upenn.edu/plf-current/StlcProp.html#lab220
+
+    theorem progress (e : expr) (t : type) :
+      has_type e t →
+      value e ∨ ∃ e', e ⟹ e' :=
+    begin
+      intro ht,
+      induction ht,
+      case has_type.bool {
+        exact sorry
+      },
+      case has_type.nat {
+        exact sorry
+      },
+      case has_type.add {
+        exact sorry
+      },
+      case has_type.mul {
+        exact sorry
+      },
+    end
+
+
+    -- PRESERVATION
+    -- https://softwarefoundations.cis.upenn.edu/plf-current/StlcProp.html#lab222
+
+    theorem preservation (e e' : expr) (t : type) :
+      has_type e t →
+      e ⟹ e' →
+      has_type e' t :=
+    begin
+      exact sorry
+    end
 
   end host
 
   /- The binary language -/
   namespace binary
 
-    /- Kinds of types in the binary language
+    -- SYNTAX
 
-       These will let us express quantification and application at the type
-       level.
-    -/
+    /- Kinds of types in the binary language -/
     inductive kind : Type
       | type : kind
       | arrow : kind → kind → kind
 
     notation `★` := kind.type
     notation k₁ ` ⇒ ` k₂ := kind.arrow k₁ k₂
-
-
-    /- Embed a kind as a Lean term -/
-    def kind.embed : kind → Type 1
-      | kind.type := Type 0
-      | (kind.arrow k₁ k₂) := kind.embed k₁ → kind.embed k₂
 
 
     /- The type system of the binary language -/
@@ -105,6 +185,8 @@ namespace ddl
     instance : has_mul type := ⟨type.prod⟩
 
 
+    -- CONTEXTS
+
     def ctx : Type :=
       list kind
 
@@ -112,6 +194,8 @@ namespace ddl
       assume is_lt,
         list.nth_le Γ n is_lt
 
+
+    -- KINDING RULES
 
     inductive has_kind : ctx → type → kind → Type
       | var {Γ} (x) {is_lt} :
@@ -139,6 +223,14 @@ namespace ddl
           has_kind Γ t₁ (k₁ ⇒ k₂) →
           has_kind Γ t₂ k₁ →
           has_kind Γ (t₁ ∙ t₂) k₂
+
+
+    -- EMBEDDING
+
+    /- Embed a kind as a Lean term -/
+    def kind.embed : kind → Type 1
+      | kind.type := Type 0
+      | (kind.arrow k₁ k₂) := kind.embed k₁ → kind.embed k₂
 
   end binary
 
