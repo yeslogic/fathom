@@ -120,6 +120,9 @@ namespace ddl
     def ctx.lookup {n} : fin n → ctx n → kind :=
       flip vector.nth
 
+    lemma ctx.lookup_zero_eq_head : Π {n is_lt} {Γ : ctx n} {k : kind}, ctx.lookup ⟨0, is_lt⟩ (k :: Γ) = k
+      := sorry
+
 
     /- The type system of the binary language -/
     inductive type : Π {n}, ctx n → kind → Type
@@ -143,6 +146,21 @@ namespace ddl
     example : type.closed (★ ⇒ ★)     := type.app (type.abs (type.var 0)) (type.abs (type.var 0))
     example : type.closed (★ ⇒ ★ ⇒ ★) := type.abs (type.abs (type.sum (type.var 1) (type.var 0)))
     example : type.closed (★ ⇒ ★)     := type.app (type.abs (type.abs (type.sum (type.var 1) (type.var 0)))) type.bit
+
+
+    inductive env : Π {n}, ctx n → Type 1
+      | nil : env vector.nil
+      | cons {n} {Γ : ctx n} {k} : kind.embed k → env Γ → env (k :: Γ)
+
+    notation a :: b := env.cons a b
+
+    def env.head {n k} : Π {Γ : ctx (nat.succ n)}, env Γ → kind.embed k :=
+      sorry
+
+    def env.lookup : Π {n} {Γ : ctx n} (m : fin n), env Γ → kind.embed (ctx.lookup m Γ)
+      | n .(vector.nil) m          env.nil   := fin.elim0 m
+      | n .(_ :: _)     ⟨0,     h⟩ (α :: eΓ) := by { rewrite ctx.lookup_zero_eq_head, exact α }
+      | n .(_ :: _)     ⟨m + 1, h⟩ (_ :: eΓ) := sorry
 
 
     /- embed a binary type into Lean -/
