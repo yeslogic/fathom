@@ -174,6 +174,7 @@ namespace ddl
       | sum : type → type → type
       | prod : type → type → type
       | array : type → host.expr → type
+      | cond : type → host.expr → type
       | abs : kind → type → type
       | app : type → type → type
 
@@ -181,12 +182,14 @@ namespace ddl
     prefix `#` := type.var
     -- Overload the `+` operator for constructing sum types
     instance : has_add type := ⟨type.sum⟩
-    -- Product and abstraction notation - note that we are a using nameless
-    -- encoding so we don't include the argument identifiers
-    notation `Σ: ` t₁ `, ` t₂ := type.prod t₁ t₂
-    notation `Λ: ` k `, ` t := type.abs k t
+    -- Product, abstraction and conditional type notation - note that we are a
+    -- using nameless for identifiers encoding so we don't include the argument
+    -- identifiers
+    notation `Σ0: ` t₁ `, ` t₂ := type.prod t₁ t₂
+    notation `Λ0: ` k `, ` t := type.abs k t
+    notation `{0: ` t ` | ` e ` }` := type.cond t e
     -- Array type syntax
-    notation `[` t `; ` e `]` := type.array t e
+    notation `[ ` t `; ` e ` ]` := type.array t e
     -- Application operator
     infixl ` ∙ `:50 := type.app
 
@@ -217,14 +220,18 @@ namespace ddl
       | prod {Γ t₁ t₂} :
           has_kind Γ t₁ ★ →
           has_kind Γ t₂ ★ →
-          has_kind Γ (Σ: t₁, t₂) ★
+          has_kind Γ (Σ0: t₁, t₂) ★
       | array {Γ t e} :
           has_kind Γ t ★ →
           host.has_type e host.type.nat →
-          has_kind Γ [t; e] ★
+          has_kind Γ [ t; e ] ★
+      | cond {Γ t e} :
+          has_kind Γ t ★ →
+          host.has_type e host.type.bool →
+          has_kind Γ {0: t | e } ★
       | abs {Γ t k₁ k₂} :
           has_kind (k₁ :: Γ) t k₁ →
-          has_kind Γ (Λ: k₁, t) (k₁ ⇒ k₂)
+          has_kind Γ (Λ0: k₁, t) (k₁ ⇒ k₂)
       | app {Γ t₁ t₂ k₁ k₂} :
           has_kind Γ t₁ (k₁ ⇒ k₂) →
           has_kind Γ t₂ k₁ →
