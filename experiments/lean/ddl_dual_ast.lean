@@ -177,10 +177,15 @@ namespace ddl
       | abs : kind → type → type
       | app : type → type → type
 
+    -- Type variables
+    prefix `#` := type.var
+    -- Overload the `+` operator for constructing sum types
     instance : has_add type := ⟨type.sum⟩
+    -- Product and abstraction notation - note that we are a using nameless
+    -- encoding so we don't include the argument identifiers
     notation `Σ: ` t₁ `, ` t₂ := type.prod t₁ t₂
     notation `Λ: ` k `, ` t := type.abs k t
-    prefix `#` := type.var
+    -- Application operator
     infixl ` ∙ `:50 := type.app
 
 
