@@ -43,9 +43,9 @@ namespace ddl
 
 
     /- 'Stuck' values -/
-    inductive value : expr → Prop
-      | bool {bv} : value (expr.bool bv)
-      | nat {nv} : value (expr.nat nv)
+    inductive expr.value : expr → Prop
+      | bool {bv} : expr.value (expr.bool bv)
+      | nat {nv} : expr.value (expr.nat nv)
 
 
     -- TYPING RULES
@@ -97,13 +97,13 @@ namespace ddl
       infixl ` ⟹ ` := step
 
       | value {e} :
-          value e →
+          expr.value e →
           e ⟹ e
       | binop_rec_l {op e₁ e₁' e₂} :
           e₁ ⟹ e₁' →
           expr.app_binop op e₁ e₂ ⟹ expr.app_binop op e₁' e₂
       | binop_rec_r {op e₁ e₂ e₂'} :
-          value e₁ →
+          expr.value e₁ →
           e₂ ⟹ e₂' →
           expr.app_binop op e₁ e₂ ⟹ expr.app_binop op e₁ e₂'
       | binop_add {nv₁ nv₂} :
@@ -120,7 +120,7 @@ namespace ddl
 
     theorem progress (e : expr) (t : type) :
       has_type e t →
-      value e ∨ ∃ e', e ⟹ e' :=
+      expr.value e ∨ ∃ e', e ⟹ e' :=
     begin
       intro ht,
       induction ht,
@@ -168,21 +168,20 @@ namespace ddl
 
     /- The type system of the binary language -/
     inductive type : Type
-      | var   : ℕ → type
-      | unit  : type
-      | bit   : type
-      | sum   : type → type → type
-      | prod  : type → type → type
+      | var : ℕ → type
+      | unit : type
+      | bit : type
+      | sum : type → type → type
+      | prod : type → type → type
       | array : type → host.expr → type
-      | abs   : kind → type → type
-      | app   : type → type → type
-
-    notation `Λ ` k `, ` t := type.abs k t
-    prefix `#` := type.var
-    infixl ` ∙ `:50 := type.app
+      | abs : kind → type → type
+      | app : type → type → type
 
     instance : has_add type := ⟨type.sum⟩
-    instance : has_mul type := ⟨type.prod⟩
+    notation `Σ: ` t₁ `, ` t₂ := type.prod t₁ t₂
+    notation `Λ: ` k `, ` t := type.abs k t
+    prefix `#` := type.var
+    infixl ` ∙ `:50 := type.app
 
 
     -- CONTEXTS
@@ -197,7 +196,7 @@ namespace ddl
 
     -- KINDING RULES
 
-    inductive has_kind : ctx → type → kind → Type
+    inductive has_kind : ctx → type → kind → Prop
       | var {Γ} (x) {is_lt} :
           has_kind Γ #x (ctx.lookup x Γ is_lt)
       | unit {Γ} :
@@ -211,14 +210,14 @@ namespace ddl
       | prod {Γ t₁ t₂} :
           has_kind Γ t₁ ★ →
           has_kind Γ t₂ ★ →
-          has_kind Γ (t₁ * t₂) ★
+          has_kind Γ (Σ: t₁, t₂) ★
       | array {Γ t e} :
           has_kind Γ t ★ →
           host.has_type e host.type.nat →
           has_kind Γ (type.array t e) ★
       | abs {Γ t k₁ k₂} :
           has_kind (k₁ :: Γ) t k₁ →
-          has_kind Γ (Λ k₁, t) (k₁ ⇒ k₂)
+          has_kind Γ (Λ: k₁, t) (k₁ ⇒ k₂)
       | app {Γ t₁ t₂ k₁ k₂} :
           has_kind Γ t₁ (k₁ ⇒ k₂) →
           has_kind Γ t₂ k₁ →
