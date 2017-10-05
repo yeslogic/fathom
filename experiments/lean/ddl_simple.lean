@@ -120,8 +120,12 @@ namespace ddl
     def ctx.lookup {n} : fin n → ctx n → kind :=
       flip vector.nth
 
-    lemma ctx.lookup_zero_eq_head : Π {n is_lt} {Γ : ctx n} {k : kind}, ctx.lookup ⟨0, is_lt⟩ (k :: Γ) = k
-      := sorry
+    lemma ctx.lookup_zero_eq_head {n is_lt} {Γ : ctx n} {k : kind} :
+        ctx.lookup ⟨0, is_lt⟩ (k :: Γ) = k :=
+    begin
+      simp [ctx.lookup, flip],
+      exact sorry
+    end
 
 
     /- The type system of the binary language -/
@@ -158,9 +162,6 @@ namespace ddl
 
     notation a :: b := env.cons a b
     notation `[` eΓ:(foldr `, ` (α αs, env.cons α αs) env.nil `]`) := eΓ
-
-    def env.head {n k} : Π {Γ : ctx (nat.succ n)}, env Γ → kind.embed k :=
-      sorry
 
     def env.lookup : Π {n} {Γ : ctx n} (m : fin n), env Γ → kind.embed (ctx.lookup m Γ)
       | n .(vector.nil) m          env.nil   := fin.elim0 m
