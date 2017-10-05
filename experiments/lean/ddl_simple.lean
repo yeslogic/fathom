@@ -135,17 +135,21 @@ namespace ddl
       | abs   {n} {Γ : ctx n} {k₁ k₂}     : type (k₁ :: Γ) k₂ → type Γ (k₁ ⇒ k₂)
       | app   {n} {Γ : ctx n} {k₁ k₂}     : type Γ (k₁ ⇒ k₂) → type Γ k₁ → type Γ k₂ -- FIXME: pop type from Γ?
 
+    notation `Λ→ ` t := type.abs t
+    notation `#` x := type.var x
+    infixl ` ∙ `:50 := type.app
+
 
     def type.closed : kind → Type :=
       type vector.nil
 
     example : type.closed ★           := type.prod type.bit type.bit
     example : type.closed ★           := type.array type.bit ↑16
-    example : type.closed (★ ⇒ ★)     := type.abs (type.var 0)
-    example : type.closed ★           := type.app (type.abs (type.var 0)) type.bit
-    example : type.closed (★ ⇒ ★)     := type.app (type.abs (type.var 0)) (type.abs (type.var 0))
-    example : type.closed (★ ⇒ ★ ⇒ ★) := type.abs (type.abs (type.sum (type.var 1) (type.var 0)))
-    example : type.closed (★ ⇒ ★)     := type.app (type.abs (type.abs (type.sum (type.var 1) (type.var 0)))) type.bit
+    example : type.closed (★ ⇒ ★)     := (Λ→ #0)
+    example : type.closed ★           := (Λ→ #0) ∙ type.bit
+    example : type.closed (★ ⇒ ★)     := (Λ→ #0) ∙ (Λ→ #0)
+    example : type.closed (★ ⇒ ★ ⇒ ★) := (Λ→ Λ→ type.sum (#1) (#0))
+    example : type.closed (★ ⇒ ★)     := (Λ→ Λ→ type.sum (#1) (#0)) ∙ type.bit
 
 
     inductive env : Π {n}, ctx n → Type 1
@@ -175,9 +179,15 @@ namespace ddl
       | n Γ eΓ k (type.abs t)        := λ x, type.embed (x :: eΓ) t
       | n Γ eΓ k (type.app t₁ t₂)    := (type.embed eΓ t₁) (type.embed eΓ t₂)
 
-    example : type.embed [] (type.prod type.bit type.bit)               = (bool × bool)  := rfl
-    example : type.embed [] (type.array type.bit ↑16)                   = vector bool 16 := rfl
-    example : type.embed [] (type.app (type.abs (type.var 0)) type.bit) = bool           := rfl
+    example : type.embed [] (type.prod type.bit type.bit)                       = (bool × bool)  := rfl
+    example : type.embed [] (type.array type.bit ↑16)                           = vector bool 16 := rfl
+    example : type.embed [] ((Λ→ #0) ∙ type.bit)                                = bool           := rfl
+    example : type.embed [] ((Λ→ Λ→ #0) ∙ type.bit ∙ type.unit)                 = unit           := rfl
+    --                        /----------------\
+    --                        |  /-------------|----\
+    --                        |  |             |    |
+    --                        v  v             |    |
+    example : type.embed [] ((Λ→ Λ→ type.sum (#1) (#0)) ∙ type.bit ∙ type.unit) = (bool × unit)  := rfl
 
 
     /- Get the range of bits that a type might occupy -/
