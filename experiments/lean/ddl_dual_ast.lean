@@ -80,12 +80,12 @@ namespace ddl
       | type.nat := ℕ
 
 
-    def typed_expr.embed : Π (e : typed_expr), type.embed e.t
-      | ⟨expr.bool b, type.bool, h⟩ := b
-      | ⟨expr.nat n,  type.nat,  h⟩ := n
-      | ⟨e₁ + e₂,     type.nat,  h⟩ := sorry
-      -- | ⟨e₁ * e₂,     type.nat,  h⟩ := sorry
-      | ⟨_,           _,         _⟩ := sorry -- hmmm...
+    def typed_expr.embed : Π (e : typed_expr), e.t.embed
+      | ⟨expr.bool b,                    type.bool, h⟩ := b
+      | ⟨expr.nat n,                     type.nat,  h⟩ := n
+      | ⟨expr.app_binop binop.add e₁ e₂, type.nat,  h⟩ := sorry
+      | ⟨expr.app_binop binop.mul e₁ e₂, type.nat,  h⟩ := sorry
+      | ⟨_,                              _,         _⟩ := sorry -- hmmm...
 
 
     -- EVALUATION RULES
@@ -118,22 +118,25 @@ namespace ddl
     -- PROGRESS
     -- https://softwarefoundations.cis.upenn.edu/plf-current/StlcProp.html#lab220
 
-    theorem progress (e : expr) (t : type) :
+    theorem progress :
+      Π (e : expr) (t : type),
       has_type e t →
       expr.value e ∨ ∃ e', e ⟹ e' :=
     begin
-      intro ht,
+      intros e t ht,
       induction ht,
-      case has_type.bool {
-        exact sorry
+      case has_type.bool bv {
+        apply or.inl,
+        exact expr.value.bool
       },
       case has_type.nat {
+        apply or.inl,
+        exact expr.value.nat
+      },
+      case has_type.add e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
         exact sorry
       },
-      case has_type.add {
-        exact sorry
-      },
-      case has_type.mul {
+      case has_type.mul e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
         exact sorry
       },
     end
@@ -142,12 +145,26 @@ namespace ddl
     -- PRESERVATION
     -- https://softwarefoundations.cis.upenn.edu/plf-current/StlcProp.html#lab222
 
-    theorem preservation (e e' : expr) (t : type) :
+    theorem preservation :
+      Π (e e' : expr) (t : type),
       has_type e t →
       e ⟹ e' →
       has_type e' t :=
     begin
-      exact sorry
+      intros e e' t ht hs,
+      induction ht,
+      case has_type.bool bv {
+        exact sorry
+      },
+      case has_type.nat {
+        exact sorry
+      },
+      case has_type.add e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
+        exact sorry
+      },
+      case has_type.mul e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
+        exact sorry
+      },
     end
 
   end host
@@ -237,6 +254,13 @@ namespace ddl
           has_kind Γ t₂ k₁ →
           has_kind Γ (t₁ ∙ t₂) k₂
 
+    /- A correctly kinded type -/
+    structure kinded_type : Type :=
+      (Γ : ctx)
+      (t : type)
+      (k : kind)
+      (h : has_kind Γ t k)
+
 
     -- EMBEDDING
 
@@ -244,6 +268,16 @@ namespace ddl
     def kind.embed : kind → Type 1
       | kind.type := Type 0
       | (kind.arrow k₁ k₂) := kind.embed k₁ → kind.embed k₂
+
+    def kinded_type.embed : Π (kt : kinded_type), kt.k.embed :=
+      sorry
+
+
+    -- BINARY DATA PARSING
+
+    -- FIXME: constrain `kt.embed` to be `Type 0`
+    def parse : Π (kt : kinded_type), list bool → /- kt.embed -/ sorry :=
+      sorry
 
   end binary
 
