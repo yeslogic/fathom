@@ -153,6 +153,7 @@ namespace ddl
       | cons {n} {Γ : ctx n} {k} : kind.embed k → env Γ → env (k :: Γ)
 
     notation a :: b := env.cons a b
+    notation `[` eΓ:(foldr `, ` (α αs, env.cons α αs) env.nil `]`) := eΓ
 
     def env.head {n k} : Π {Γ : ctx (nat.succ n)}, env Γ → kind.embed k :=
       sorry
@@ -164,18 +165,19 @@ namespace ddl
 
 
     /- embed a binary type into Lean -/
-    def type.embed : Π {n} (Γ : ctx n) {k : kind}, type Γ k → kind.embed k
-      | n Γ k (type.var x)        := sorry
-      | n Γ k type.unit           := unit
-      | n Γ k type.bit            := bool
-      | n Γ k (type.sum t₁ t₂)    := sum (type.embed Γ t₁) (type.embed Γ t₂)
-      | n Γ k (type.prod t₁ t₂)   := type.embed Γ t₁ × type.embed Γ t₂
-      | n Γ k (type.array t len)  := vector (type.embed Γ t) (host.expr.embed len)
-      | n Γ k (type.abs t)        := λ x, type.embed (_ :: Γ) t -- FIXME: Shift
-      | n Γ k (type.app t₁ t₂)    := (type.embed Γ t₁) (type.embed Γ t₂) -- FIXME: Substitute
+    def type.embed : Π {n} {Γ : ctx n} (eΓ : env Γ) {k : kind}, type Γ k → kind.embed k
+      | n Γ eΓ k (type.var x)        := env.lookup x eΓ
+      | n Γ eΓ k type.unit           := unit
+      | n Γ eΓ k type.bit            := bool
+      | n Γ eΓ k (type.sum t₁ t₂)    := sum (type.embed eΓ t₁) (type.embed eΓ t₂)
+      | n Γ eΓ k (type.prod t₁ t₂)   := type.embed eΓ t₁ × type.embed eΓ t₂
+      | n Γ eΓ k (type.array t len)  := vector (type.embed eΓ t) (host.expr.embed len)
+      | n Γ eΓ k (type.abs t)        := λ x, type.embed (x :: eΓ) t
+      | n Γ eΓ k (type.app t₁ t₂)    := (type.embed eΓ t₁) (type.embed eΓ t₂)
 
-    example : type.embed vector.nil (type.prod type.bit type.bit) = (bool × bool) := rfl
-    example : type.embed vector.nil (type.array type.bit ↑16) = vector bool 16 := rfl
+    example : type.embed [] (type.prod type.bit type.bit)               = (bool × bool)  := rfl
+    example : type.embed [] (type.array type.bit ↑16)                   = vector bool 16 := rfl
+    example : type.embed [] (type.app (type.abs (type.var 0)) type.bit) = bool           := rfl
 
 
     /- Get the range of bits that a type might occupy -/
@@ -197,16 +199,16 @@ namespace ddl
     /- Read a stream of bits into a Lean term using the type to control
        deserialization
     -/
-    def read_bits : Π {n} (Γ : ctx n) {k} (t : type Γ k), list bool → type.embed Γ t
-      | n Γ k (type.var x)        buf       := sorry
-      | n Γ k type.unit           buf       := unit.star
-      | n Γ k type.bit            []        := sorry
-      | n Γ k type.bit            (x :: xs) := x
-      | n Γ k (type.sum t₁ t₂)    buf       := sorry
-      | n Γ k (type.prod t₁ t₂)   buf       := sorry
-      | n Γ k (type.array t len)  buf       := sorry
-      | n Γ k (type.abs _)        buf       := sorry
-      | n Γ k (type.app _ _)      buf       := sorry
+    def read_bits : Π {n} {Γ : ctx n} (eΓ : env Γ) {k} (t : type Γ k), list bool → type.embed eΓ t
+      | n Γ eΓ k (type.var x)        buf       := sorry
+      | n Γ eΓ k type.unit           buf       := unit.star
+      | n Γ eΓ k type.bit            []        := sorry
+      | n Γ eΓ k type.bit            (x :: xs) := x
+      | n Γ eΓ k (type.sum t₁ t₂)    buf       := sorry
+      | n Γ eΓ k (type.prod t₁ t₂)   buf       := sorry
+      | n Γ eΓ k (type.array t len)  buf       := sorry
+      | n Γ eΓ k (type.abs _)        buf       := sorry
+      | n Γ eΓ k (type.app _ _)      buf       := sorry
 
   end binary
 
