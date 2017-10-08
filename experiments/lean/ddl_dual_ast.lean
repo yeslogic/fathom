@@ -196,11 +196,53 @@ namespace ddl
       | abs {} : kind → type → type
       | app {} : type → type → type
 
+    namespace type
+
+      variables {α : Type}
+
+      instance has_coe_from_nat : has_coe ℕ (type α) := ⟨bvar⟩
+      instance has_coe_from_atom : has_coe α (type α) := ⟨fvar⟩
+
+      -- Overload the `+` operator for constructing sum types
+      instance : has_add (type α) := ⟨type.sum⟩
+
+      def map {β : Type} (f : α → β) : type α → type β
+        | (bvar i) := bvar i
+        | (fvar x) := (fvar (f x))
+        | (unit) := unit
+        | (bit) := bit
+        | (sum t₁ t₂) := sum (map t₁) (map t₂)
+        | (prod t₁ t₂) := prod (map t₁) (map t₂)
+        | (array t e) := array (map t) e
+        | (cond t e) := cond (map t) e
+        | (abs k t) := abs k (map t)
+        | (app t₁ t₂) := app (map t₁) (map t₂)
+
+      def bind {β : Type} : type α → (α → type β) → type β
+        | (bvar i)      f := bvar i
+        | (fvar x)      f := (f x)
+        | (unit)        f := unit
+        | (bit)         f := bit
+        | (sum t₁ t₂)   f := sum (bind t₁ f) (bind t₂ f)
+        | (prod t₁ t₂)  f := prod (bind t₁ f) (bind t₂ f)
+        | (array t e)   f := array (bind t f) e
+        | (cond t e)    f := cond (bind t f) e
+        | (abs k t)     f := abs k (bind t f)
+        | (app t₁ t₂)   f := app (bind t₁ f) (bind t₂ f)
+
+      instance : monad type :=
+        { pure := @fvar
+        , bind := @bind
+        , id_map := sorry
+        , pure_bind := sorry
+        , bind_assoc := sorry
+        }
+
+    end type
+
     -- Type variables
     prefix `b#`:0 := type.bvar
     prefix `f#`:50 := type.fvar
-    -- Overload the `+` operator for constructing sum types
-    instance {α} : has_add (type α) := ⟨type.sum⟩
     -- Product, abstraction and conditional type notation - note that we are a
     -- using nameless for identifiers encoding so we don't include the argument
     -- identifiers
@@ -211,6 +253,23 @@ namespace ddl
     notation `[ ` t `; ` e ` ]` := type.array t e
     -- Application operator
     infixl ` ∙ `:50 := type.app
+
+
+    -- SUBSTITUTION
+
+    namespace type
+
+      variables {α : Type} [decidable_eq α]
+
+      def subst (z : α) (u : type α) (t : type α) : type α :=
+        t >>= λ x, if x = z then u else (fvar x)
+
+      notation `[ ` z ` ↦ ` u ` ]` e := subst z u e
+
+      example {x: α} {y : type α} :
+        ([x ↦ y] Λ0: ★, ↑0 ∙ ↑x) = (Λ0: ★, ↑0 ∙ y) := sorry
+
+    end type
 
 
     -- OPENING/CLOSING
@@ -291,9 +350,9 @@ namespace ddl
     -- KINDING RULES
 
     inductive has_kind {α : Type} : ctx → type α → kind → Prop
-      | var {Γ} (x) {k} :
+      | var {Γ} (x : ℕ) {k} :
           ctx.lookup x Γ = some k →
-          has_kind Γ (b# x) k
+          has_kind Γ x k
       | unit {Γ} :
           has_kind Γ type.unit ★
       | bit {Γ} :
