@@ -184,21 +184,23 @@ namespace ddl
 
 
     /- The type system of the binary language -/
-    inductive type : Type
-      | var : ℕ → type
-      | unit : type
-      | bit : type
-      | sum : type → type → type
-      | prod : type → type → type
-      | array : type → host.expr → type
-      | cond : type → host.expr → type
-      | abs : kind → type → type
-      | app : type → type → type
+    inductive type (α : Type) : Type
+      | bvar {} : ℕ → type
+      | fvar {} : α → type
+      | unit {} : type
+      | bit {} : type
+      | sum {} : type → type → type
+      | prod {} : type → type → type
+      | array {} : type → host.expr → type
+      | cond {} : type → host.expr → type
+      | abs {} : kind → type → type
+      | app {} : type → type → type
 
     -- Type variables
-    prefix `#` := type.var
+    prefix `b#`:0 := type.bvar
+    prefix `f#`:50 := type.fvar
     -- Overload the `+` operator for constructing sum types
-    instance : has_add type := ⟨type.sum⟩
+    instance {α} : has_add (type α) := ⟨type.sum⟩
     -- Product, abstraction and conditional type notation - note that we are a
     -- using nameless for identifiers encoding so we don't include the argument
     -- identifiers
@@ -211,21 +213,87 @@ namespace ddl
     infixl ` ∙ `:50 := type.app
 
 
+    -- OPENING/CLOSING
+
+    namespace type
+
+      variables {α : Type} [decidable_eq α]
+
+      def open_var : ℕ → α → type α → type α
+        | i x (bvar i') := if i = i' then fvar x else bvar i'
+        | i x (fvar x') := fvar x'
+        | i x (unit) := unit
+        | i x (bit) := bit
+        | i x (sum t₁ t₂) := sum (open_var i x t₁) (open_var i x t₂)
+        | i x (prod t₁ t₂) := prod (open_var i x t₁) (open_var i x t₂)
+        | i x (array t e) := array (open_var i x t) e
+        | i x (cond t e) := cond (open_var i x t) e
+        | i x (abs k t) := abs k (open_var (i + 1) x t)
+        | i x (app t₁ t₂) := app (open_var i x t₁) (open_var i x t₂)
+
+      def close_var : ℕ → α → type α → type α
+        | i x (bvar i') := bvar i'
+        | i x (fvar x') := if x = x' then bvar i else fvar x'
+        | i x (unit) := unit
+        | i x (bit) := bit
+        | i x (sum t₁ t₂) := sum (close_var i x t₁) (close_var i x t₂)
+        | i x (prod t₁ t₂) := prod (close_var i x t₁) (close_var i x t₂)
+        | i x (array t e) := array (close_var i x t) e
+        | i x (cond t e) := cond (close_var i x t) e
+        | i x (abs k t) := abs k (close_var (i + 1) x t)
+        | i x (app t₁ t₂) := app (close_var i x t₁) (close_var i x t₂)
+
+      theorem close_open_var :
+        Π (x : α) (t : type α),
+        close_var 0 x (open_var 0 x t) = t :=
+      begin
+        exact sorry
+      end
+
+      theorem open_close_var :
+        Π (x : α) (t : type α),
+        open_var 0 x (close_var 0 x t) = t :=
+      begin
+        exact sorry
+      end
+
+    end type
+
+
+    -- SUSTITUTION
+
+    reserve notation `[` x ` / ` s `] ` t
+
+    -- def type.subst := ℕ → type → type → type :=
+    --   | x s (#x') :=
+    --       if x = x' then s else #x'
+    --   | x s (Λ0: k, t) :=
+    --       Λ0:
+
+
     -- CONTEXTS
 
     def ctx : Type :=
       list kind
 
-    def ctx.lookup (n : ℕ) (Γ : ctx) : n < Γ.length → kind :=
-      assume is_lt,
-        list.nth_le Γ n is_lt
+    namespace ctx
+
+      def lookup (n : ℕ) (Γ : ctx) : option kind :=
+          list.nth Γ n
+
+      def lookup_le (n : ℕ) (Γ : ctx) : n < Γ.length → kind :=
+        assume is_le,
+          list.nth_le Γ n is_le
+
+    end ctx
 
 
     -- KINDING RULES
 
-    inductive has_kind : ctx → type → kind → Prop
-      | var {Γ} (x) {is_lt} :
-          has_kind Γ #x (ctx.lookup x Γ is_lt)
+    inductive has_kind {α : Type} : ctx → type α → kind → Prop
+      | var {Γ} (x) {k} :
+          ctx.lookup x Γ = some k →
+          has_kind Γ (b# x) k
       | unit {Γ} :
           has_kind Γ type.unit ★
       | bit {Γ} :
@@ -255,9 +323,9 @@ namespace ddl
           has_kind Γ (t₁ ∙ t₂) k₂
 
     /- A correctly kinded type -/
-    structure kinded_type : Type :=
+    structure kinded_type (α : Type) : Type :=
       (Γ : ctx)
-      (t : type)
+      (t : type α)
       (k : kind)
       (h : has_kind Γ t k)
 
@@ -269,14 +337,14 @@ namespace ddl
       | kind.type := Type 0
       | (kind.arrow k₁ k₂) := kind.embed k₁ → kind.embed k₂
 
-    def kinded_type.embed : Π (kt : kinded_type), kt.k.embed :=
+    def kinded_type.embed {α : Type} : Π (kt : kinded_type α), kt.k.embed :=
       sorry
 
 
     -- BINARY DATA PARSING
 
     -- FIXME: constrain `kt.embed` to be `Type 0`
-    def parse : Π (kt : kinded_type), list bool → /- kt.embed -/ sorry :=
+    def parse {α : Type} : Π (kt : kinded_type α), list bool → /- kt.embed -/ sorry :=
       sorry
 
   end binary
