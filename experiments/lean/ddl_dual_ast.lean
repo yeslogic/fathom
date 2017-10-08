@@ -44,8 +44,8 @@ namespace ddl
 
     /- 'Stuck' values -/
     inductive expr.value : expr → Prop
-      | bool {bv} : expr.value (expr.bool bv)
-      | nat {nv} : expr.value (expr.nat nv)
+      | bool (bv : bool) : expr.value (expr.bool bv)
+      | nat (nv : ℕ) : expr.value (expr.nat nv)
 
 
     -- TYPING RULES
@@ -127,11 +127,11 @@ namespace ddl
       induction ht,
       case has_type.bool bv {
         apply or.inl,
-        exact expr.value.bool
+        exact expr.value.bool bv
       },
-      case has_type.nat {
+      case has_type.nat nv {
         apply or.inl,
-        exact expr.value.nat
+        exact expr.value.nat nv
       },
       case has_type.add e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
         exact sorry
@@ -153,10 +153,10 @@ namespace ddl
     begin
       intros e e' t ht hs,
       induction ht,
-      case has_type.bool bv {
-        exact sorry
+      case has_type.bool bv hsbv {
+        exact sorry,
       },
-      case has_type.nat {
+      case has_type.nat hsnat {
         exact sorry
       },
       case has_type.add e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
@@ -206,18 +206,6 @@ namespace ddl
       -- Overload the `+` operator for constructing sum types
       instance : has_add (type α) := ⟨type.sum⟩
 
-      def map {β : Type} (f : α → β) : type α → type β
-        | (bvar i) := bvar i
-        | (fvar x) := (fvar (f x))
-        | (unit) := unit
-        | (bit) := bit
-        | (sum t₁ t₂) := sum (map t₁) (map t₂)
-        | (prod t₁ t₂) := prod (map t₁) (map t₂)
-        | (array t e) := array (map t) e
-        | (cond t e) := cond (map t) e
-        | (abs k t) := abs k (map t)
-        | (app t₁ t₂) := app (map t₁) (map t₂)
-
       def bind {β : Type} : type α → (α → type β) → type β
         | (bvar i)      f := bvar i
         | (fvar x)      f := (f x)
@@ -233,9 +221,78 @@ namespace ddl
       instance : monad type :=
         { pure := @fvar
         , bind := @bind
-        , id_map := sorry
-        , pure_bind := sorry
-        , bind_assoc := sorry
+        , id_map := begin
+            intros α t,
+            simp [bind, function.comp],
+            induction t,
+              case bvar i { exact rfl },
+              case fvar x { exact rfl },
+              case unit { exact rfl },
+              case bit { exact rfl },
+              case sum t₁ t₂ ht₁ ht₂ {
+                simp [bind, function.comp],
+                rw [ht₁, ht₂],
+              },
+              case prod t₁ t₂ ht₁ ht₂ {
+                simp [bind, function.comp],
+                rw [ht₁, ht₂],
+              },
+              case array t e ht {
+                simp [bind, function.comp],
+                rw [ht],
+              },
+              case cond t e ht {
+                simp [bind, function.comp],
+                rw [ht],
+              },
+              case abs k t ht {
+                simp [bind, function.comp],
+                rw [ht],
+              },
+              case app t₁ t₂ ht₁ ht₂ {
+                simp [bind, function.comp],
+                rw [ht₁, ht₂],
+              },
+          end
+        , pure_bind := by intros; apply rfl
+        , bind_assoc := begin
+            intros α β γ t f g,
+            induction t,
+              case bvar i { exact rfl },
+              case fvar x { exact rfl },
+              case unit { exact rfl },
+              case bit { exact rfl },
+              case sum t₁ t₂ ht₁ ht₂ {
+                simp [bind],
+                simp [bind] at ht₁ ht₂,
+                rw [ht₁, ht₂]
+              },
+              case prod t₁ t₂ ht₁ ht₂ {
+                simp [bind],
+                simp [bind] at ht₁ ht₂,
+                rw [ht₁, ht₂]
+              },
+              case array t e ht {
+                simp [bind],
+                simp [bind] at ht,
+                rw [ht]
+              },
+              case cond t e ht {
+                simp [bind],
+                simp [bind] at ht,
+                rw [ht]
+              },
+              case abs k t ht {
+                simp [bind],
+                simp [bind] at ht,
+                rw [ht]
+              },
+              case app t₁ t₂ ht₁ ht₂ {
+                simp [bind],
+                simp [bind] at ht₁ ht₂,
+                rw [ht₁, ht₂]
+              },
+          end
         }
 
     end type
@@ -306,14 +363,36 @@ namespace ddl
         Π (x : α) (t : type α),
         close_var 0 x (open_var 0 x t) = t :=
       begin
-        exact sorry
+        intros x t,
+        induction t,
+          case bvar i { exact sorry },
+          case fvar x { exact sorry },
+          case unit { exact sorry },
+          case bit { exact sorry },
+          case sum t₁ t₂ ht₁ ht₂ { exact sorry },
+          case prod t₁ t₂ ht₁ ht₂ { exact sorry },
+          case array t e ht { exact sorry },
+          case cond t e ht { exact sorry },
+          case abs k t ht { exact sorry },
+          case app t₁ t₂ ht₁ ht₂ { exact sorry },
       end
 
       theorem open_close_var :
         Π (x : α) (t : type α),
         open_var 0 x (close_var 0 x t) = t :=
       begin
-        exact sorry
+        intros x t,
+        induction t,
+          case bvar i { exact sorry },
+          case fvar x {  exact sorry },
+          case unit { exact sorry },
+          case bit { exact sorry },
+          case sum t₁ t₂ ht₁ ht₂ { exact sorry },
+          case prod t₁ t₂ ht₁ ht₂ { exact sorry },
+          case array t e ht { exact sorry },
+          case cond t e ht { exact sorry },
+          case abs k t ht { exact sorry },
+          case app t₁ t₂ ht₁ ht₂ { exact sorry },
       end
 
     end type
