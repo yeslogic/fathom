@@ -398,17 +398,6 @@ namespace ddl
     end type
 
 
-    -- SUSTITUTION
-
-    reserve notation `[` x ` / ` s `] ` t
-
-    -- def type.subst := ℕ → type → type → type :=
-    --   | x s (#x') :=
-    --       if x = x' then s else #x'
-    --   | x s (Λ0: k, t) :=
-    --       Λ0:
-
-
     -- CONTEXTS
 
     def ctx : Type :=
