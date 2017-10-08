@@ -43,9 +43,9 @@ namespace ddl
 
 
     /- 'Stuck' values -/
-    inductive expr.value : expr → Prop
-      | bool (bv : bool) : expr.value (expr.bool bv)
-      | nat (nv : ℕ) : expr.value (expr.nat nv)
+    inductive value : expr → Prop
+      | bool (bv : bool) : value (expr.bool bv)
+      | nat (nv : ℕ) : value (expr.nat nv)
 
 
     -- TYPING RULES
@@ -97,13 +97,13 @@ namespace ddl
       infixl ` ⟹ ` := step
 
       | value {e} :
-          expr.value e →
+          value e →
           e ⟹ e
       | binop_rec_l {op e₁ e₁' e₂} :
           e₁ ⟹ e₁' →
           expr.app_binop op e₁ e₂ ⟹ expr.app_binop op e₁' e₂
       | binop_rec_r {op e₁ e₂ e₂'} :
-          expr.value e₁ →
+          value e₁ →
           e₂ ⟹ e₂' →
           expr.app_binop op e₁ e₂ ⟹ expr.app_binop op e₁ e₂'
       | binop_add {nv₁ nv₂} :
@@ -121,24 +121,24 @@ namespace ddl
     theorem progress :
       Π (e : expr) (t : type),
       has_type e t →
-      expr.value e ∨ ∃ e', e ⟹ e' :=
+      value e ∨ ∃ e', e ⟹ e' :=
     begin
       intros e t ht,
       induction ht,
-      case has_type.bool bv {
-        apply or.inl,
-        exact expr.value.bool bv
-      },
-      case has_type.nat nv {
-        apply or.inl,
-        exact expr.value.nat nv
-      },
-      case has_type.add e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
-        exact sorry
-      },
-      case has_type.mul e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
-        exact sorry
-      },
+        case has_type.bool bv {
+          apply or.inl,
+          exact value.bool bv
+        },
+        case has_type.nat nv {
+          apply or.inl,
+          exact value.nat nv
+        },
+        case has_type.add e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
+          exact sorry
+        },
+        case has_type.mul e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
+          exact sorry
+        },
     end
 
 
@@ -153,18 +153,18 @@ namespace ddl
     begin
       intros e e' t ht hs,
       induction ht,
-      case has_type.bool bv hsbv {
-        exact sorry,
-      },
-      case has_type.nat hsnat {
-        exact sorry
-      },
-      case has_type.add e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
-        exact sorry
-      },
-      case has_type.mul e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
-        exact sorry
-      },
+        case has_type.bool bv hsbv {
+          exact sorry,
+        },
+        case has_type.nat hsnat {
+          exact sorry
+        },
+        case has_type.add e₁ e₂ ht₁ ht₂ hs₁ hs₂ {
+          exact sorry
+        },
+        case has_type.mul e₁ e₂ ht₁ ht₂ hs₁ hs₂ {
+          exact sorry
+        },
     end
 
   end host
@@ -186,15 +186,15 @@ namespace ddl
     /- The type system of the binary language -/
     inductive type (α : Type) : Type
       | bvar {} : ℕ → type
-      | fvar {} : α → type
+      | fvar : α → type
       | unit {} : type
       | bit {} : type
-      | sum {} : type → type → type
-      | prod {} : type → type → type
-      | array {} : type → host.expr → type
-      | cond {} : type → host.expr → type
-      | abs {} : kind → type → type
-      | app {} : type → type → type
+      | sum : type → type → type
+      | prod : type → type → type
+      | array : type → host.expr → type
+      | cond : type → host.expr → type
+      | abs : kind → type → type
+      | app : type → type → type
 
     namespace type
 
@@ -324,7 +324,7 @@ namespace ddl
       notation `[ ` z ` ↦ ` u ` ]` e := subst z u e
 
       example {x: α} {y : type α} :
-        ([x ↦ y] Λ0: ★, ↑0 ∙ ↑x) = (Λ0: ★, ↑0 ∙ y) := sorry
+          ([x ↦ y] Λ0: ★, ↑0 ∙ ↑x) = (Λ0: ★, ↑0 ∙ y) := sorry
 
     end type
 
