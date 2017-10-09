@@ -2,8 +2,6 @@
    one for binary types.
 -/
 
-import data.vector
-
 namespace ddl
 
   def relation (α : Type) :=
@@ -11,7 +9,7 @@ namespace ddl
 
   inductive multi {α : Type} (ρ : relation α) : relation α
     | refl {x : α} : multi x x
-    | step {x y z : α} : ρ x y → multi y z → multi x z.
+    | step {x y z : α} : ρ x y → multi y z → multi x z
 
   /- The host language -/
   namespace host
@@ -317,9 +315,7 @@ namespace ddl
 
     end type
 
-    -- Type variables
-    prefix `b#`:0 := type.bvar
-    prefix `f#`:50 := type.fvar
+
     -- Product, abstraction and conditional type notation - note that we are a
     -- using nameless for identifiers encoding so we don't include the argument
     -- identifiers
@@ -443,6 +439,9 @@ namespace ddl
       | prod : host.type → binder
       | abs : kind → binder
 
+    prefix `Σ`:max := binder.prod
+    prefix `Λ`:max := binder.abs
+
     def ctx : Type :=
       list binder
 
@@ -474,7 +473,7 @@ namespace ddl
           has_kind Γ (t₁ + t₂) ★
       | prod {Γ t₁ t₂} :
           has_kind Γ t₁ ★ →
-          has_kind (binder.prod ⟦ t₂ ⟧ :: Γ) t₂ ★ →
+          has_kind (Σ ⟦ t₂ ⟧ :: Γ) t₂ ★ →
           has_kind Γ (Σ0: t₁, t₂) ★
       | array {Γ t e} :
           has_kind Γ t ★ →
@@ -485,7 +484,7 @@ namespace ddl
           host.has_type e host.type.bool →
           has_kind Γ {0: t | e } ★
       | abs {Γ t k₁ k₂} :
-          has_kind (binder.abs k₁ :: Γ) t k₁ →
+          has_kind (Λ k₁ :: Γ) t k₁ →
           has_kind Γ (Λ0: k₁, t) (k₁ ⇒ k₂)
       | app {Γ t₁ t₂ k₁ k₂} :
           has_kind Γ t₁ (k₁ ⇒ k₂) →
