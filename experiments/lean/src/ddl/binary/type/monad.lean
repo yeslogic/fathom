@@ -5,9 +5,9 @@ namespace ddl.binary.type
   open ddl
   open ddl.binary
 
-  variables {α : Type}
+  variables {α β : Type}
 
-  def bind {β : Type} : type α → (α → type β) → type β
+  def bind : type α → (α → type β) → type β
     | (bvar i)      f := bvar i
     | (fvar x)      f := (f x)
     | (unit)        f := unit
