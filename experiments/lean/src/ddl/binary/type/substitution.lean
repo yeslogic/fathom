@@ -67,12 +67,12 @@ namespace ddl.binary.type
       case app t₁ t₂ ht₁ ht₂ { exact sorry },
   end
 
-  def subst (z : α) (u : type α) (t : type α) : type α :=
-    t >>= λ x, if x = z then u else (fvar x)
+  def subst (x : α) (src : type α) (dst : type α) : type α :=
+    dst >>= λ x', if x' = x then src else (fvar x)
 
-  notation `[ ` z ` ↦ ` u ` ]` e := subst z u e
+  notation `[ ` x ` ↦ ` src ` ]` dst := subst x src dst
 
-  example {x: α} {y : type α} :
-      ([x ↦ y] Λ0: ★, ↑0 ∙ ↑x) = (Λ0: ★, ↑0 ∙ y) := sorry
+  example {x: α} {t : type α} :
+      ([x ↦ t] Λ0: ★, ↑0 ∙ ↑x) = (Λ0: ★, ↑0 ∙ t) := sorry
 
 end ddl.binary.type
