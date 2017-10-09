@@ -20,8 +20,19 @@ namespace ddl
 
     /- The type syntax of the host language -/
     inductive type : Type
+      | unit : type
       | bool : type
       | nat : type
+      | sum : type → type → type
+      | prod : type → type → type
+      | array : type → type
+
+    namespace type
+
+      instance : has_add type := ⟨type.sum⟩
+      instance : has_mul type := ⟨type.prod⟩
+
+    end type
 
 
     /- Binary operators -/
@@ -38,8 +49,13 @@ namespace ddl
 
     instance has_coe_to_bool : has_coe bool expr := ⟨expr.bool⟩
     instance has_coe_to_nat : has_coe ℕ expr  := ⟨expr.nat⟩
-    instance : has_add expr := ⟨expr.app_binop binop.add⟩
-    instance : has_mul expr := ⟨expr.app_binop binop.mul⟩
+
+    namespace expr
+
+      instance : has_add expr := ⟨app_binop binop.add⟩
+      instance : has_mul expr := ⟨app_binop binop.mul⟩
+
+    end expr
 
 
     /- 'Stuck' values -/
@@ -76,8 +92,12 @@ namespace ddl
 
     /- embed a host type into Lean -/
     def type.embed : type → Type
+      | type.unit := unit
       | type.bool := bool
       | type.nat := ℕ
+      | (type.sum t₁ t₂) := t₁.embed ⊕ t₂.embed
+      | (type.prod t₁ t₂) := t₁.embed × t₂.embed
+      | (type.array t₁) := list t₁.embed
 
 
     def typed_expr.embed : Π (e : typed_expr), e.t.embed
@@ -312,6 +332,25 @@ namespace ddl
     infixl ` ∙ `:50 := type.app
 
 
+    -- REPRESENTATION
+
+    namespace type
+
+      variables {α : Type}
+
+      def repr : type α → host.type
+        | (unit) := host.type.unit
+        | (sum t₁ t₂) := t₁.repr + t₂.repr
+        | (prod t₁ t₂) := t₁.repr * t₂.repr
+        | (array t e) := host.type.array (t.repr)
+        | (cond t e) := t.repr
+        | _ := sorry
+
+      notation `⟦` t `⟧` := repr t
+
+    end type
+
+
     -- SUBSTITUTION
 
     namespace type
@@ -400,15 +439,19 @@ namespace ddl
 
     -- CONTEXTS
 
+    inductive binder : Type
+      | prod : host.type → binder
+      | abs : kind → binder
+
     def ctx : Type :=
-      list kind
+      list binder
 
     namespace ctx
 
-      def lookup (n : ℕ) (Γ : ctx) : option kind :=
+      def lookup (n : ℕ) (Γ : ctx) : option binder :=
           list.nth Γ n
 
-      def lookup_le (n : ℕ) (Γ : ctx) : n < Γ.length → kind :=
+      def lookup_le (n : ℕ) (Γ : ctx) : n < Γ.length → binder :=
         assume is_le,
           list.nth_le Γ n is_le
 
@@ -419,7 +462,7 @@ namespace ddl
 
     inductive has_kind {α : Type} : ctx → type α → kind → Prop
       | var {Γ} (x : ℕ) {k} :
-          ctx.lookup x Γ = some k →
+          ctx.lookup x Γ = some (binder.abs k) →
           has_kind Γ x k
       | unit {Γ} :
           has_kind Γ type.unit ★
@@ -431,7 +474,7 @@ namespace ddl
           has_kind Γ (t₁ + t₂) ★
       | prod {Γ t₁ t₂} :
           has_kind Γ t₁ ★ →
-          has_kind Γ t₂ ★ →
+          has_kind (binder.prod ⟦ t₂ ⟧ :: Γ) t₂ ★ →
           has_kind Γ (Σ0: t₁, t₂) ★
       | array {Γ t e} :
           has_kind Γ t ★ →
@@ -442,7 +485,7 @@ namespace ddl
           host.has_type e host.type.bool →
           has_kind Γ {0: t | e } ★
       | abs {Γ t k₁ k₂} :
-          has_kind (k₁ :: Γ) t k₁ →
+          has_kind (binder.abs k₁ :: Γ) t k₁ →
           has_kind Γ (Λ0: k₁, t) (k₁ ⇒ k₂)
       | app {Γ t₁ t₂ k₁ k₂} :
           has_kind Γ t₁ (k₁ ⇒ k₂) →
