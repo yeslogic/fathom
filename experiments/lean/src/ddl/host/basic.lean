@@ -72,26 +72,6 @@ namespace ddl.host
     (h : has_type e t)
 
 
-  -- EMBEDDING
-
-  /- embed a host type into Lean -/
-  def type.embed : type → Type
-    | type.unit := unit
-    | type.bool := bool
-    | type.nat := ℕ
-    | (type.sum t₁ t₂) := t₁.embed ⊕ t₂.embed
-    | (type.prod t₁ t₂) := t₁.embed × t₂.embed
-    | (type.array t₁) := list t₁.embed
-
-
-  def typed_expr.embed : Π (e : typed_expr), e.t.embed
-    | ⟨expr.bool b,                    type.bool, h⟩ := b
-    | ⟨expr.nat n,                     type.nat,  h⟩ := n
-    | ⟨expr.app_binop binop.add e₁ e₂, type.nat,  h⟩ := sorry
-    | ⟨expr.app_binop binop.mul e₁ e₂, type.nat,  h⟩ := sorry
-    | ⟨_,                              _,         _⟩ := sorry -- hmmm...
-
-
   -- EVALUATION RULES
 
   reserve infixl ` ⟹ `:50
