@@ -27,7 +27,7 @@ namespace ddl.binary
           has_kind Γ type.struct_nil ★
       | struct_cons {Γ l t₁ t₂} :
           has_kind Γ t₁ ★ →
-          has_kind (Σ ⟦ t₂ ⟧ :: Γ) t₂ ★ →
+          has_kind (Σ t₁.repr :: Γ) t₂ ★ →
           has_kind Γ (type.struct_cons l t₁ t₂) ★
       | array {Γ t e} :
           has_kind Γ t ★ →

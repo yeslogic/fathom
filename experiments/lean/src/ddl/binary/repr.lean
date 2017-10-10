@@ -19,8 +19,6 @@ namespace ddl.binary
       | (cond t e) := t.repr
       | _ := sorry
 
-    notation `⟦` t `⟧` := repr t
-
   end type
 
 end ddl.binary
