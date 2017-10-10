@@ -1,5 +1,5 @@
-import ddl.host
-import ddl.binary.kind.syntax
+import ddl.host.basic
+import ddl.binary.basic
 
 namespace ddl.binary
 

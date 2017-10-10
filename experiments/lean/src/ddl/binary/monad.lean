@@ -1,4 +1,4 @@
-import ddl.binary.type.syntax
+import ddl.binary.basic
 
 namespace ddl.binary.type
 

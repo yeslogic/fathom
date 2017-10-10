@@ -1,7 +1,7 @@
 /- Embedding as Lean terms -/
 
-import ddl.binary.kind.syntax
-import ddl.binary.type.semantics
+import ddl.binary.basic
+import ddl.binary.kinding
 
 namespace ddl
 

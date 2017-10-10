@@ -1,9 +1,16 @@
-import ddl.host
-import ddl.binary.kind
+import ddl.host.basic
 
 namespace ddl.binary
 
   open ddl
+
+  /- Kinds of types in the binary language -/
+  inductive kind : Type
+    | type : kind
+    | arrow : kind → kind → kind
+
+  notation `★` := kind.type
+  notation k₁ ` ⇒ ` k₂ := kind.arrow k₁ k₂
 
   /- The type system of the binary language -/
   inductive type (α : Type) : Type
