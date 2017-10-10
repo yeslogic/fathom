@@ -9,15 +9,17 @@ namespace ddl
 
     open ddl.host
 
-    def type.embed : type → Type
-      | type.unit := unit
+    variables {ℓ : Type} [decidable_eq ℓ]
+
+    def type.embed : type ℓ → Type
       | type.bool := bool
       | type.nat := ℕ
       | (type.sum t₁ t₂) := t₁.embed ⊕ t₂.embed
-      | (type.prod t₁ t₂) := t₁.embed × t₂.embed
+      | type.struct_nil := unit
+      | (type.struct_cons _ t₁ t₂) := t₁.embed × t₂.embed
       | (type.array t₁) := list t₁.embed
 
-    def typed_expr.embed : Π (e : typed_expr), e.t.embed
+    def typed_expr.embed : Π (e : typed_expr ℓ), e.t.embed
       | ⟨expr.bool b,                    type.bool, h⟩ := b
       | ⟨expr.nat n,                     type.nat,  h⟩ := n
       | ⟨expr.app_binop binop.add e₁ e₂, type.nat,  h⟩ := sorry
@@ -34,7 +36,7 @@ namespace ddl
       | kind.type := Type 0
       | (kind.arrow k₁ k₂) := kind.embed k₁ → kind.embed k₂
 
-    def type.kinded.embed {α : Type} : Π (tk : type.kinded α), tk.k.embed :=
+    def kinded_type.embed {ℓ α} [decidable_eq ℓ] : Π (kt : kinded_type ℓ α), kt.k.embed :=
       sorry
 
   end binary

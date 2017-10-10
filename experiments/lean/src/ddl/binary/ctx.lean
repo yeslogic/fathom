@@ -2,15 +2,18 @@ import ddl.binary.binder
 
 namespace ddl.binary
 
-  def ctx : Type :=
-    list binder
+
+  def ctx (ℓ : Type) : Type :=
+    list (binder ℓ)
 
   namespace ctx
 
-    def lookup (n : ℕ) (Γ : ctx) : option binder :=
+    variables {ℓ : Type}
+
+    def lookup (n : ℕ) (Γ : ctx ℓ) : option (binder ℓ) :=
         list.nth Γ n
 
-    def lookup_le (n : ℕ) (Γ : ctx) : n < Γ.length → binder :=
+    def lookup_le (n : ℕ) (Γ : ctx ℓ) : n < Γ.length → binder ℓ :=
       assume is_le,
         list.nth_le Γ n is_le
 

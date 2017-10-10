@@ -8,12 +8,13 @@ namespace ddl.binary
 
   namespace type
 
-    variables {α : Type}
+    variables {ℓ α : Type}
 
-    def repr : type α → host.type
-      | (unit) := host.type.unit
+
+    def repr : type ℓ α → host.type ℓ
       | (sum t₁ t₂) := t₁.repr + t₂.repr
-      | (prod t₁ t₂) := t₁.repr * t₂.repr
+      | (struct_nil) := host.type.struct_nil
+      | (struct_cons l t₁ t₂) := host.type.struct_cons l t₁.repr t₂.repr
       | (array t e) := host.type.array (t.repr)
       | (cond t e) := t.repr
       | _ := sorry

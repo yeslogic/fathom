@@ -2,8 +2,11 @@ import ddl.host.basic
 
 namespace ddl.host
 
+  variables {ℓ : Type}
+
+
   /- 'Stuck' values -/
-  inductive value : expr → Prop
+  inductive value : expr ℓ → Prop
     | bool (bv : bool) : value (expr.bool bv)
     | nat (nv : ℕ) : value (expr.nat nv)
 
@@ -11,7 +14,7 @@ namespace ddl.host
   reserve infixl ` ⟹ `:50
   reserve infixl ` ⟹* `:50
 
-  inductive step : expr → expr → Prop
+  inductive step : expr ℓ → expr ℓ → Prop
     infixl ` ⟹ ` := step
 
     | value {e} :

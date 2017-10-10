@@ -5,9 +5,9 @@ namespace ddl.binary
 
   open ddl
 
-  inductive binder : Type
-    | prod : host.type → binder
-    | abs : kind → binder
+  inductive binder (ℓ : Type) : Type
+    | prod : host.type ℓ → binder
+    | abs {} : kind → binder
 
   prefix `Σ`:max := binder.prod
   prefix `Λ`:max := binder.abs

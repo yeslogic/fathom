@@ -4,6 +4,7 @@ namespace ddl.binary
 
   open ddl
 
+
   /- Kinds of types in the binary language -/
   inductive kind : Type
     | type : kind
@@ -12,23 +13,24 @@ namespace ddl.binary
   notation `★` := kind.type
   notation k₁ ` ⇒ ` k₂ := kind.arrow k₁ k₂
 
+
   /- The type system of the binary language -/
-  inductive type (α : Type) : Type
+  inductive type (ℓ α : Type) : Type
     | bvar {} : ℕ → type
-    | fvar : α → type
-    | unit {} : type
+    | fvar {} : α → type
     | bit {} : type
     | sum : type → type → type
-    | prod : type → type → type
-    | array : type → host.expr → type
-    | cond : type → host.expr → type
+    | struct_nil {} : type
+    | struct_cons : ℓ → type → type → type
+    | array : type → host.expr ℓ → type
+    | cond : type → host.expr ℓ → type
     | abs : kind → type → type
     | app : type → type → type
 
-  -- Product, abstraction and conditional type notation - note that we are a
+
+  -- Abstraction and conditional type notation - note that we are a
   -- using nameless for identifiers encoding so we don't include the argument
   -- identifiers
-  notation `Σ0: ` t₁ `, ` t₂ := type.prod t₁ t₂
   notation `Λ0: ` k `, ` t := type.abs k t
   notation `{0: ` t ` | ` e ` }` := type.cond t e
   -- Array type syntax
@@ -38,13 +40,18 @@ namespace ddl.binary
 
   namespace type
 
-    variables {α : Type}
+    variables {ℓ α : Type}
 
-    instance has_coe_from_nat : has_coe ℕ (type α) := ⟨bvar⟩
-    instance has_coe_from_atom : has_coe α (type α) := ⟨fvar⟩
+    instance has_coe_from_nat : has_coe ℕ (type ℓ α) := ⟨bvar⟩
+    instance has_coe_from_atom : has_coe α (type ℓ α) := ⟨fvar⟩
 
     -- Overload the `+` operator for constructing sum types
-    instance : has_add (type α) := ⟨type.sum⟩
+    instance : has_add (type α ℓ) := ⟨type.sum⟩
+
+
+    def lookup (l : ℓ) [decidable_eq ℓ] : type ℓ α → option (type ℓ α)
+      | (struct_cons l' t tr) := if l = l' then some t else lookup tr
+      | _                     := none
 
   end type
 
