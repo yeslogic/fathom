@@ -1,7 +1,6 @@
 use lalrpop_util;
 
-use ast::{Definition, Expr, Type};
-use env::Env;
+use ast::{binary, host};
 use source::BytePos;
 
 mod lexer;
@@ -12,46 +11,22 @@ use self::lexer::{Lexer, Error as LexerError, Token};
 
 pub type ParseError<'input> = lalrpop_util::ParseError<BytePos, Token<'input>, LexerError>;
 
-// pub enum ParseError<L, T, E> {
-//     InvalidToken {
-//         location: L,
-//     },
-//     UnrecognizedToken {
-//         token: Option<(L, T, L)>,
-//         expected: Vec<String>,
-//     },
-//     ExtraToken {
-//         token: (L, T, L),
-//     },
-//     User {
-//         error: E,
-//     },
-// }
-
-pub fn parse<'input, 'env>(
-    env: &'env Env,
+pub fn parse<'input>(
     src: &'input str,
-) -> Result<Vec<Definition>, ParseError<'input>> {
-    grammar::parse_Definitions(env, Lexer::new(src))
+) -> Result<Vec<binary::SpannedDefinition<String>>, ParseError<'input>> {
+    grammar::parse_Definitions(Lexer::new(src))
 }
 
-pub fn parse_expr<'input, 'env>(
-    env: &'env Env,
-    src: &'input str,
-) -> Result<Expr, ParseError<'input>> {
-    grammar::parse_Expr(env, Lexer::new(src))
+pub fn parse_expr<'input>(src: &'input str) -> Result<host::Expr<String>, ParseError<'input>> {
+    grammar::parse_Expr(Lexer::new(src))
 }
 
-pub fn parse_ty<'input, 'env>(
-    env: &'env Env,
-    src: &'input str,
-) -> Result<Type, ParseError<'input>> {
-    grammar::parse_Type(env, Lexer::new(src))
+pub fn parse_ty<'input>(src: &'input str) -> Result<binary::Type<String>, ParseError<'input>> {
+    grammar::parse_Type(Lexer::new(src))
 }
 
 #[cfg(test)]
 mod tests {
-    use env::Env;
     use super::*;
 
     #[test]
@@ -62,7 +37,7 @@ mod tests {
 
         assert_snapshot!(
             parse_expr_bool_atomic,
-            parse_expr(&Env::default(), src).unwrap()
+            parse_expr(src).unwrap()
         );
     }
 
@@ -74,7 +49,7 @@ mod tests {
 
         assert_snapshot!(
             parse_expr_bool_operators,
-            parse_expr(&Env::default(), src).unwrap()
+            parse_expr(src).unwrap()
         );
     }
 
@@ -82,14 +57,14 @@ mod tests {
     fn parse_add_expr() {
         let src = "x + y + z";
 
-        assert_snapshot!(parse_add_expr, parse_expr(&Env::default(), src).unwrap());
+        assert_snapshot!(parse_add_expr, parse_expr(src).unwrap());
     }
 
     #[test]
     fn parse_sub_expr() {
         let src = "x - y - z";
 
-        assert_snapshot!(parse_sub_expr, parse_expr(&Env::default(), src).unwrap());
+        assert_snapshot!(parse_sub_expr, parse_expr(src).unwrap());
     }
 
     #[test]
@@ -98,7 +73,7 @@ mod tests {
 
         assert_snapshot!(
             parse_add_expr_mixed,
-            parse_expr(&Env::default(), src).unwrap()
+            parse_expr(src).unwrap()
         );
     }
 
@@ -106,14 +81,14 @@ mod tests {
     fn parse_mul_expr() {
         let src = "x * y * z";
 
-        assert_snapshot!(parse_mul_expr, parse_expr(&Env::default(), src).unwrap());
+        assert_snapshot!(parse_mul_expr, parse_expr(src).unwrap());
     }
 
     #[test]
     fn parse_div_expr() {
         let src = "x / y / z";
 
-        assert_snapshot!(parse_div_expr, parse_expr(&Env::default(), src).unwrap());
+        assert_snapshot!(parse_div_expr, parse_expr(src).unwrap());
     }
 
     #[test]
@@ -122,7 +97,7 @@ mod tests {
 
         assert_snapshot!(
             parse_mul_expr_mixed,
-            parse_expr(&Env::default(), src).unwrap()
+            parse_expr(src).unwrap()
         );
     }
 
@@ -132,7 +107,7 @@ mod tests {
 
         assert_snapshot!(
             parse_mixed_arithmetic_expr,
-            parse_expr(&Env::default(), src).unwrap()
+            parse_expr(src).unwrap()
         );
     }
 
@@ -142,7 +117,7 @@ mod tests {
 
         assert_snapshot!(
             parse_mixed_arithmetic_expr_parenthesized,
-            parse_expr(&Env::default(), src).unwrap()
+            parse_expr(src).unwrap()
         );
     }
 
@@ -152,7 +127,7 @@ mod tests {
             Point
         ";
 
-        assert_snapshot!(parse_ty_var, parse_ty(&Env::default(), src).unwrap());
+        assert_snapshot!(parse_ty_var, parse_ty(src).unwrap());
     }
 
     #[test]
@@ -161,7 +136,7 @@ mod tests {
 
         assert_snapshot!(
             parse_ty_empty_struct,
-            parse_ty(&Env::default(), src).unwrap()
+            parse_ty(src).unwrap()
         );
     }
 
@@ -169,13 +144,38 @@ mod tests {
     fn parse_ty_where() {
         let src = "
             struct {
-                x: u32 where x => true,
+                x: u32 where x => x == 3,
             }
-            where x => true
-            where x => false
+            where x => x == 2
+            where x => x == 1
         ";
 
-        assert_snapshot!(parse_ty_where, parse_ty(&Env::default(), src).unwrap());
+        assert_snapshot!(
+            parse_ty_where,
+            parse_ty(src).unwrap()
+        );
+    }
+
+    #[test]
+    fn parse_ty_array_dependent() {
+        let src = "
+            struct {
+                len: u32,
+                data1: [f32; len],
+                data2: struct {
+                    data1: [f32; len],
+                    len: u32,
+                    padding1: u8,
+                    padding2: u8,
+                    data2: [f32; len],
+                },
+            }
+        ";
+
+        assert_snapshot!(
+            parse_ty_array_dependent,
+            parse_ty(src).unwrap()
+        );
     }
 
     #[test]
@@ -186,7 +186,7 @@ mod tests {
 
         assert_snapshot!(
             parse_simple_definition,
-            parse(&Env::default(), src).unwrap()
+            parse(src).unwrap()
         );
     }
 
@@ -198,7 +198,7 @@ mod tests {
 
         assert_snapshot!(
             parse_array_with_constant_size,
-            parse(&Env::default(), src).unwrap()
+            parse(src).unwrap()
         );
     }
 
@@ -222,6 +222,6 @@ mod tests {
             };
         ";
 
-        assert_snapshot!(parse_definition, parse(&Env::default(), src).unwrap());
+        assert_snapshot!(parse_definition, parse(src).unwrap());
     }
 }

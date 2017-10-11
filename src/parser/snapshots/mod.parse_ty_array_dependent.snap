@@ -1,0 +1,210 @@
+Struct(
+    [
+        Field {
+            name: Spanned {
+                span: Span {
+                    lo: BytePos(38),
+                    hi: BytePos(41)
+                },
+                value: "len"
+            },
+            value: Spanned {
+                span: Span {
+                    lo: BytePos(43),
+                    hi: BytePos(46)
+                },
+                value: Var(
+                    Free("u32")
+                
+                )
+            }
+        },
+        Field {
+            name: Spanned {
+                span: Span {
+                    lo: BytePos(64),
+                    hi: BytePos(69)
+                },
+                value: "data1"
+            },
+            value: Spanned {
+                span: Span {
+                    lo: BytePos(71),
+                    hi: BytePos(81)
+                },
+                value: Array(
+                    Spanned {
+                        span: Span {
+                            lo: BytePos(72),
+                            hi: BytePos(75)
+                        },
+                        value: Var(
+                            Free("f32")
+                        
+                        )
+                    },
+                    Spanned {
+                        span: Span {
+                            lo: BytePos(77),
+                            hi: BytePos(80)
+                        },
+                        value: Var(
+                            Bound(Named("len", 1))
+                        
+                        )
+                    }
+                )
+            }
+        },
+        Field {
+            name: Spanned {
+                span: Span {
+                    lo: BytePos(99),
+                    hi: BytePos(104)
+                },
+                value: "data2"
+            },
+            value: Spanned {
+                span: Span {
+                    lo: BytePos(106),
+                    hi: BytePos(308)
+                },
+                value: Struct(
+                    [
+                        Field {
+                            name: Spanned {
+                                span: Span {
+                                    lo: BytePos(135),
+                                    hi: BytePos(140)
+                                },
+                                value: "data1"
+                            },
+                            value: Spanned {
+                                span: Span {
+                                    lo: BytePos(142),
+                                    hi: BytePos(152)
+                                },
+                                value: Array(
+                                    Spanned {
+                                        span: Span {
+                                            lo: BytePos(143),
+                                            hi: BytePos(146)
+                                        },
+                                        value: Var(
+                                            Free("f32")
+                                        
+                                        )
+                                    },
+                                    Spanned {
+                                        span: Span {
+                                            lo: BytePos(148),
+                                            hi: BytePos(151)
+                                        },
+                                        value: Var(
+                                            Bound(Named("len", 2))
+                                        
+                                        )
+                                    }
+                                )
+                            }
+                        },
+                        Field {
+                            name: Spanned {
+                                span: Span {
+                                    lo: BytePos(174),
+                                    hi: BytePos(177)
+                                },
+                                value: "len"
+                            },
+                            value: Spanned {
+                                span: Span {
+                                    lo: BytePos(179),
+                                    hi: BytePos(182)
+                                },
+                                value: Var(
+                                    Free("u32")
+                                
+                                )
+                            }
+                        },
+                        Field {
+                            name: Spanned {
+                                span: Span {
+                                    lo: BytePos(204),
+                                    hi: BytePos(212)
+                                },
+                                value: "padding1"
+                            },
+                            value: Spanned {
+                                span: Span {
+                                    lo: BytePos(214),
+                                    hi: BytePos(216)
+                                },
+                                value: Var(
+                                    Free("u8")
+                                
+                                )
+                            }
+                        },
+                        Field {
+                            name: Spanned {
+                                span: Span {
+                                    lo: BytePos(238),
+                                    hi: BytePos(246)
+                                },
+                                value: "padding2"
+                            },
+                            value: Spanned {
+                                span: Span {
+                                    lo: BytePos(248),
+                                    hi: BytePos(250)
+                                },
+                                value: Var(
+                                    Free("u8")
+                                
+                                )
+                            }
+                        },
+                        Field {
+                            name: Spanned {
+                                span: Span {
+                                    lo: BytePos(272),
+                                    hi: BytePos(277)
+                                },
+                                value: "data2"
+                            },
+                            value: Spanned {
+                                span: Span {
+                                    lo: BytePos(279),
+                                    hi: BytePos(289)
+                                },
+                                value: Array(
+                                    Spanned {
+                                        span: Span {
+                                            lo: BytePos(280),
+                                            hi: BytePos(283)
+                                        },
+                                        value: Var(
+                                            Free("f32")
+                                        
+                                        )
+                                    },
+                                    Spanned {
+                                        span: Span {
+                                            lo: BytePos(285),
+                                            hi: BytePos(288)
+                                        },
+                                        value: Var(
+                                            Bound(Named("len", 3))
+                                        
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    ]
+                )
+            }
+        }
+    ]
+)

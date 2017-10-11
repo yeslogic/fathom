@@ -1,13 +1,21 @@
 [
-    Definition {
+    Spanned {
         span: Span {
             lo: BytePos(13),
             hi: BytePos(28)
         },
-        name: "Offset32",
-        ty: UInt(
-            4,
-            Target
-        )
+        value: Definition {
+            name: "Offset32",
+            ty: Spanned {
+                span: Span {
+                    lo: BytePos(24),
+                    hi: BytePos(27)
+                },
+                value: Var(
+                    Free("u32")
+                
+                )
+            }
+        }
     }
 ]

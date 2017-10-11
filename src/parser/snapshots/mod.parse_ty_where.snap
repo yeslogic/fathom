@@ -1,61 +1,149 @@
-Where(
-    Span {
-        lo: BytePos(13),
-        hi: BytePos(132)
-    },
-    Where(
-        Span {
+Cond(
+    Named(Spanned {
+        span: Span {
+            lo: BytePos(126),
+            hi: BytePos(127)
+        },
+        value: "x"
+    }, Spanned {
+        span: Span {
             lo: BytePos(13),
-            hi: BytePos(103)
+            hi: BytePos(107)
         },
-        Struct(
-            Span {
-                lo: BytePos(13),
-                hi: BytePos(75)
-            },
-            [
-                Field {
-                    span: Span {
-                        lo: BytePos(38),
-                        hi: BytePos(60)
-                    },
-                    name: "x",
-                    ty: Where(
-                        Span {
-                            lo: BytePos(41),
-                            hi: BytePos(60)
-                        },
-                        UInt(
-                            4,
-                            Target
-                        ),
-                        "x",
-                        Const(
-                            Span {
-                                lo: BytePos(56),
-                                hi: BytePos(60)
+        value: Cond(
+            Named(Spanned {
+                span: Span {
+                    lo: BytePos(96),
+                    hi: BytePos(97)
+                },
+                value: "x"
+            }, Spanned {
+                span: Span {
+                    lo: BytePos(13),
+                    hi: BytePos(77)
+                },
+                value: Struct(
+                    [
+                        Field {
+                            name: Spanned {
+                                span: Span {
+                                    lo: BytePos(38),
+                                    hi: BytePos(39)
+                                },
+                                value: "x"
                             },
-                            Bool(true)
+                            value: Spanned {
+                                span: Span {
+                                    lo: BytePos(41),
+                                    hi: BytePos(62)
+                                },
+                                value: Cond(
+                                    Named(Spanned {
+                                        span: Span {
+                                            lo: BytePos(51),
+                                            hi: BytePos(52)
+                                        },
+                                        value: "x"
+                                    }, Spanned {
+                                        span: Span {
+                                            lo: BytePos(41),
+                                            hi: BytePos(44)
+                                        },
+                                        value: Var(
+                                            Free("u32")
+                                        
+                                        )
+                                    }),
+                                    Spanned {
+                                        span: Span {
+                                            lo: BytePos(56),
+                                            hi: BytePos(62)
+                                        },
+                                        value: Binop(
+                                            Eq,
+                                            Spanned {
+                                                span: Span {
+                                                    lo: BytePos(56),
+                                                    hi: BytePos(57)
+                                                },
+                                                value: Var(
+                                                    Bound(Named("x", 0))
+                                                
+                                                )
+                                            },
+                                            Spanned {
+                                                span: Span {
+                                                    lo: BytePos(61),
+                                                    hi: BytePos(62)
+                                                },
+                                                value: Const(
+                                                    Int(3)
+                                                )
+                                            }
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    ]
+                )
+            }),
+            Spanned {
+                span: Span {
+                    lo: BytePos(101),
+                    hi: BytePos(107)
+                },
+                value: Binop(
+                    Eq,
+                    Spanned {
+                        span: Span {
+                            lo: BytePos(101),
+                            hi: BytePos(102)
+                        },
+                        value: Var(
+                            Bound(Named("x", 0))
+                        
                         )
-                    )
-                }
-            ]
-        ),
-        "x",
-        Const(
-            Span {
-                lo: BytePos(99),
-                hi: BytePos(103)
-            },
-            Bool(true)
+                    },
+                    Spanned {
+                        span: Span {
+                            lo: BytePos(106),
+                            hi: BytePos(107)
+                        },
+                        value: Const(
+                            Int(2)
+                        )
+                    }
+                )
+            }
         )
-    ),
-    "x",
-    Const(
-        Span {
-            lo: BytePos(127),
-            hi: BytePos(132)
+    }),
+    Spanned {
+        span: Span {
+            lo: BytePos(131),
+            hi: BytePos(137)
         },
-        Bool(false)
-    )
+        value: Binop(
+            Eq,
+            Spanned {
+                span: Span {
+                    lo: BytePos(131),
+                    hi: BytePos(132)
+                },
+                value: Var(
+                    Bound(Named("x", 0))
+                
+                )
+            },
+            Spanned {
+                span: Span {
+                    lo: BytePos(136),
+                    hi: BytePos(137)
+                },
+                value: Const(
+                    Int(1)
+                )
+            }
+        )
+    }
 )

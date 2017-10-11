@@ -1,63 +1,80 @@
 Binop(
-    Span {
-        lo: BytePos(0),
-        hi: BytePos(17)
-    },
     Add,
-    Var(
-        Span {
+    Spanned {
+        span: Span {
             lo: BytePos(0),
             hi: BytePos(1)
         },
-        "x"
-    ),
-    Binop(
-        Span {
+        value: Var(
+            Free("x")
+        
+        )
+    },
+    Spanned {
+        span: Span {
             lo: BytePos(4),
             hi: BytePos(17)
         },
-        Add,
-        Var(
-            Span {
-                lo: BytePos(4),
-                hi: BytePos(5)
-            },
-            "y"
-        ),
-        Binop(
-            Span {
-                lo: BytePos(8),
-                hi: BytePos(17)
-            },
-            Sub,
-            Var(
-                Span {
-                    lo: BytePos(8),
-                    hi: BytePos(9)
+        value: Binop(
+            Add,
+            Spanned {
+                span: Span {
+                    lo: BytePos(4),
+                    hi: BytePos(5)
                 },
-                "z"
-            ),
-            Binop(
-                Span {
-                    lo: BytePos(12),
+                value: Var(
+                    Free("y")
+                
+                )
+            },
+            Spanned {
+                span: Span {
+                    lo: BytePos(8),
                     hi: BytePos(17)
                 },
-                Add,
-                Var(
-                    Span {
-                        lo: BytePos(12),
-                        hi: BytePos(13)
+                value: Binop(
+                    Sub,
+                    Spanned {
+                        span: Span {
+                            lo: BytePos(8),
+                            hi: BytePos(9)
+                        },
+                        value: Var(
+                            Free("z")
+                        
+                        )
                     },
-                    "z"
-                ),
-                Var(
-                    Span {
-                        lo: BytePos(16),
-                        hi: BytePos(17)
-                    },
-                    "x"
+                    Spanned {
+                        span: Span {
+                            lo: BytePos(12),
+                            hi: BytePos(17)
+                        },
+                        value: Binop(
+                            Add,
+                            Spanned {
+                                span: Span {
+                                    lo: BytePos(12),
+                                    hi: BytePos(13)
+                                },
+                                value: Var(
+                                    Free("z")
+                                
+                                )
+                            },
+                            Spanned {
+                                span: Span {
+                                    lo: BytePos(16),
+                                    hi: BytePos(17)
+                                },
+                                value: Var(
+                                    Free("x")
+                                
+                                )
+                            }
+                        )
+                    }
                 )
-            )
+            }
         )
-    )
+    }
 )

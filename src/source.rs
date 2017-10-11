@@ -417,12 +417,37 @@ pub struct Spanned<T> {
 }
 
 impl<T> Spanned<T> {
+    pub fn new<S: Into<Span>, U: Into<T>>(span: S, value: U) -> Spanned<T> {
+        Spanned {
+            span: span.into(),
+            value: value.into(),
+        }
+    }
+
     /// Apply the function `f` to the underlying value and return the wrapped result
     pub fn map<U, F: FnMut(T) -> U>(self, mut f: F) -> Spanned<U> {
         Spanned {
             span: self.span,
             value: f(self.value),
         }
+    }
+}
+
+impl<T> Into<T> for Spanned<T> {
+    fn into(self) -> T {
+        self.value
+    }
+}
+
+impl<T> AsRef<T> for Spanned<T> {
+    fn as_ref(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<T> AsMut<T> for Spanned<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 }
 

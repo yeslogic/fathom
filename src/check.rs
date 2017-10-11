@@ -165,9 +165,7 @@ pub fn is_subtype(sty: &Type, ty: &Type) -> bool {
 
 pub fn is_numeric(ty: &Type) -> bool {
     match *ty {
-        Type::RangedInt(_, _) |
-        Type::UInt(_, _) |
-        Type::SInt(_, _) => true,
+        Type::RangedInt(_, _) | Type::UInt(_, _) | Type::SInt(_, _) => true,
         // Ignore floats for now...
         _ => false,
     }
@@ -397,33 +395,27 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
         Expr::Const(_, Const::Int(value)) => Ok(Type::RangedInt(value, value)),
 
         // T-VAR
-        Expr::Var(span, ref name) => {
-            match env.lookup_binding(name) {
-                Some(ty) => Ok(ty.clone()),
-                None => Err(TypeError::UnboundVariable(span, name.clone())),
-            }
-        }
+        Expr::Var(span, ref name) => match env.lookup_binding(name) {
+            Some(ty) => Ok(ty.clone()),
+            None => Err(TypeError::UnboundVariable(span, name.clone())),
+        },
 
         Expr::Unop(span, op, ref value) => {
             let value_ty = type_of(env, value)?;
 
             match op {
                 // T-NOT
-                Unop::Not => {
-                    if value_ty == Type::Bool {
-                        Ok(Type::Bool)
-                    } else {
-                        Err(TypeError::UnexpectedUnaryOperand(span, op, value_ty))
-                    }
-                }
+                Unop::Not => if value_ty == Type::Bool {
+                    Ok(Type::Bool)
+                } else {
+                    Err(TypeError::UnexpectedUnaryOperand(span, op, value_ty))
+                },
                 // T-NEG
-                Unop::Neg => {
-                    if is_numeric(&value_ty) {
-                        Ok(value_ty)
-                    } else {
-                        Err(TypeError::UnexpectedUnaryOperand(span, op, value_ty))
-                    }
-                }
+                Unop::Neg => if is_numeric(&value_ty) {
+                    Ok(value_ty)
+                } else {
+                    Err(TypeError::UnexpectedUnaryOperand(span, op, value_ty))
+                },
             }
         }
 
@@ -433,15 +425,13 @@ pub fn type_of(env: &Env, expr: &Expr) -> Result<Type, TypeError> {
 
             match op {
                 // T-REL
-                Binop::Or | Binop::And => {
-                    if lhs_ty != Type::Bool {
-                        Err(TypeError::UnexpectedBinaryLhs(span, lhs_ty))
-                    } else if rhs_ty != Type::Bool {
-                        Err(TypeError::UnexpectedBinaryRhs(span, rhs_ty))
-                    } else {
-                        Ok(Type::Bool)
-                    }
-                }
+                Binop::Or | Binop::And => if lhs_ty != Type::Bool {
+                    Err(TypeError::UnexpectedBinaryLhs(span, lhs_ty))
+                } else if rhs_ty != Type::Bool {
+                    Err(TypeError::UnexpectedBinaryRhs(span, rhs_ty))
+                } else {
+                    Ok(Type::Bool)
+                },
                 // T-CMP-...
                 Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
                     // T-CMP-LHS
@@ -603,7 +593,7 @@ pub mod tests {
                     Err(KindError::UnboundType(
                         Span::new(B(0), B(3)),
                         "Foo".to_owned(),
-                    ))
+                    ),)
                 );
             }
         }
@@ -629,7 +619,7 @@ pub mod tests {
                     Err(KindError::UnboundType(
                         Span::new(B(12), B(15)),
                         "Foo".to_owned(),
-                    ))
+                    ),)
                 );
             }
         }
@@ -687,7 +677,7 @@ pub mod tests {
                     Err(KindError::ArraySizeExpectedUInt(
                         Span::new(B(0), B(9)),
                         len_ty,
-                    ))
+                    ),)
                 );
             }
 
@@ -703,7 +693,7 @@ pub mod tests {
                     Err(KindError::ArraySizeExpectedUInt(
                         Span::new(B(0), B(9)),
                         len_ty,
-                    ))
+                    ),)
                 );
             }
         }

@@ -15,7 +15,7 @@ mod test;
 
 pub mod ast;
 pub mod compilers;
-pub mod check;
+// pub mod check;
 mod env;
 pub mod parser;
 pub mod source;
