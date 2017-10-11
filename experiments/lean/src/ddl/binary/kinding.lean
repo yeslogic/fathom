@@ -27,7 +27,7 @@ namespace ddl.binary
           has_kind Γ type.struct_nil ★
       | struct_cons {Γ l t₁ t₂} :
           has_kind Γ t₁ ★ →
-          has_kind (Σ t₁.repr :: Γ) t₂ ★ →
+          has_kind (binder.struct t₁.repr :: Γ) t₂ ★ →
           has_kind Γ (type.struct_cons l t₁ t₂) ★
       | array {Γ t e} :
           has_kind Γ t ★ →
@@ -38,7 +38,7 @@ namespace ddl.binary
           host.has_type e host.type.bool →
           has_kind Γ {0: t | e } ★
       | abs {Γ t k₁ k₂} :
-          has_kind (Λ k₁ :: Γ) t k₁ →
+          has_kind (binder.abs k₁ :: Γ) t k₁ →
           has_kind Γ (Λ0: k₁, t) (k₁ ⇒ k₂)
       | app {Γ t₁ t₂ k₁ k₂} :
           has_kind Γ t₁ (k₁ ⇒ k₂) →
