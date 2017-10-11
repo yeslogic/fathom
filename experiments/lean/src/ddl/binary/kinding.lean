@@ -1,8 +1,8 @@
-import ddl.host.typing
 import ddl.binary.basic
-import ddl.binary.binder
-import ddl.binary.ctx
 import ddl.binary.repr
+import ddl.binder
+import ddl.ctx
+import ddl.host.typing
 
 namespace ddl.binary
 

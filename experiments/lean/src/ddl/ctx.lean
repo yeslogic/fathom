@@ -1,7 +1,6 @@
-import ddl.binary.binder
+import ddl.binder
 
-namespace ddl.binary
-
+namespace ddl
 
   def ctx (ℓ : Type) : Type :=
     list (binder ℓ)
@@ -19,4 +18,4 @@ namespace ddl.binary
 
   end ctx
 
-end ddl.binary
+end ddl
