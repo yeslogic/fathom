@@ -35,8 +35,12 @@ namespace ddl.binary
           has_kind Γ [ t; e ] ★
       | cond {Γ t e} :
           has_kind Γ t ★ →
-          host.has_type e host.type.bool →
+          host.has_type /- FIXME: add binding? -/ e host.type.bool →
           has_kind Γ {0: t | e } ★
+      | interp {Γ t e th} :
+          has_kind Γ t ★ →
+          host.has_type /- FIXME: add binding? -/ e th →
+          has_kind Γ (type.interp t e th) ★
       | abs {Γ t k₁ k₂} :
           has_kind (binder.abs k₁ :: Γ) t k₁ →
           has_kind Γ (Λ0: k₁, t) (k₁ ⇒ k₂)

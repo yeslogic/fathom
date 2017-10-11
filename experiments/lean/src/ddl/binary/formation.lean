@@ -40,6 +40,9 @@ namespace ddl.binary
       | cond {t e} :
           well_formed t →
           well_formed (cond t e)
+      | interp {t e th} :
+          well_formed t →
+          well_formed (interp t e th)
       | abs {t k} :
           well_formed t →
           well_formed (abs k t)

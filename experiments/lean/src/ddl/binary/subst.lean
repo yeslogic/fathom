@@ -19,6 +19,7 @@ namespace ddl.binary
       | i x (struct_cons l t₁ t₂) := struct_cons l (open_var i x t₁) (open_var i x t₂)
       | i x (array t e) := array (open_var i x t) e
       | i x (cond t e) := cond (open_var i x t) e
+      | i x (interp t e th) := interp (open_var i x t) e th
       | i x (abs k t) := abs k (open_var (i + 1) x t)
       | i x (app t₁ t₂) := app (open_var i x t₁) (open_var i x t₂)
 
@@ -32,6 +33,7 @@ namespace ddl.binary
       | i x (struct_cons l t₁ t₂) := struct_cons l (close_var i x t₁) (close_var i x t₂)
       | i x (array t e) := array (close_var i x t) e
       | i x (cond t e) := cond (close_var i x t) e
+      | i x (interp t e th) := interp (close_var i x t) e th
       | i x (abs k t) := abs k (close_var (i + 1) x t)
       | i x (app t₁ t₂) := app (close_var i x t₁) (close_var i x t₂)
 
@@ -50,6 +52,7 @@ namespace ddl.binary
         case struct_cons l t₁ t₂ ht₁ ht₂ { admit },
         case array t e ht { admit },
         case cond t e ht { admit },
+        case interp t e ht hht { admit },
         case abs k t ht { admit },
         case app t₁ t₂ ht₁ ht₂ { admit },
     end
@@ -69,6 +72,7 @@ namespace ddl.binary
         case struct_cons l t₁ t₂ ht₁ ht₂ { admit },
         case array t e ht { admit },
         case cond t e ht { admit },
+        case interp t e ht hht { admit },
         case abs k t ht { admit },
         case app t₁ t₂ ht₁ ht₂ { admit },
     end

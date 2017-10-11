@@ -14,12 +14,13 @@ namespace ddl.binary
 
 
     def repr : type ℓ α → host.type ℓ
-      | (sum t₁ t₂) := t₁.repr + t₂.repr
-      | (struct_nil) := host.type.struct_nil
+      | (sum t₁ t₂)           := t₁.repr + t₂.repr
+      | (struct_nil)          := host.type.struct_nil
       | (struct_cons l t₁ t₂) := host.type.struct_cons l t₁.repr t₂.repr
-      | (array t e) := host.type.array (t.repr)
-      | (cond t e) := t.repr
-      | _ := sorry
+      | (array t e)           := host.type.array (t.repr)
+      | (cond t e)            := t.repr
+      | (interp t e ht)       := ht
+      | _                     := sorry
 
 
     lemma repr_well_formed [decidable_eq ℓ] :
@@ -44,6 +45,10 @@ namespace ddl.binary
           },
           case well_formed.cond t₁ e hbtwf₁ hhtwf₁ {
             exact hhtwf₁,
+          },
+          case well_formed.interp t₁ e ht hbtwf₁ hhtwf₁ {
+            simp [repr],
+            admit,
           },
           case well_formed.abs t₁ k hbtwf₁ { admit },
           case well_formed.app t₁ t₂ hbtwf₁ hbtwf₂ { admit },
