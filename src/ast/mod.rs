@@ -2,8 +2,6 @@
 
 use std::fmt;
 
-use source::Spanned;
-
 pub mod binary;
 pub mod host;
 
@@ -127,31 +125,31 @@ impl<F: fmt::Debug, B: fmt::Debug> fmt::Debug for Named<F, B> {
 /// A field in a struct type
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Field<N, T> {
-    pub name: Spanned<N>,
-    pub value: Spanned<T>,
+    pub name: N,
+    pub value: T,
 }
 
 impl<N, T> Field<N, T> {
-    pub fn new<M: Into<N>, U: Into<T>>(name: Spanned<M>, value: Spanned<U>) -> Field<N, T> {
+    pub fn new<M: Into<N>, U: Into<T>>(name: M, value: U) -> Field<N, T> {
         Field {
-            name: name.map(M::into),
-            value: value.map(U::into),
+            name: name.into(),
+            value: value.into(),
         }
     }
 
     /// Apply the function `f` to the field name and return the wrapped result
-    pub fn map_name<M, F: FnMut(N) -> M>(self, f: F) -> Field<M, T> {
+    pub fn map_name<M, F: FnMut(N) -> M>(self, mut f: F) -> Field<M, T> {
         Field {
-            name: self.name.map(f),
+            name: f(self.name),
             value: self.value,
         }
     }
 
     /// Apply the function `f` to the field value and return the wrapped result
-    pub fn map_value<U, F: FnMut(T) -> U>(self, f: F) -> Field<N, U> {
+    pub fn map_value<U, F: FnMut(T) -> U>(self, mut f: F) -> Field<N, U> {
         Field {
             name: self.name,
-            value: self.value.map(f),
+            value: f(self.value),
         }
     }
 }

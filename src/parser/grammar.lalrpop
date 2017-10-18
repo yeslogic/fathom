@@ -1,8 +1,8 @@
 use ast::{Field};
-use ast::binary::{Definition, Type, SpannedDefinition};
-use ast::host::{Binop, Expr, Unop};
+use ast::binary::{Definition, Type, Definition, SpannedType};
+use ast::host::{Binop, SpannedExpr, Unop};
 use parser::lexer::{Token, Error as LexerError};
-use source::{BytePos, Spanned};
+use source::BytePos;
 
 grammar<'input>();
 
