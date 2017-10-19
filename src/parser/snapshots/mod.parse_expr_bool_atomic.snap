@@ -1,32 +1,38 @@
-Unop(
-    Not,
-    Spanned {
-        span: Span {
-            lo: BytePos(14),
-            hi: BytePos(32)
-        },
-        value: Binop(
-            Or,
-            Spanned {
-                span: Span {
-                    lo: BytePos(16),
-                    hi: BytePos(20)
-                },
-                value: Var(
-                    Free("true")
-                
-                )
+SpannedExpr {
+    span: Span {
+        lo: BytePos(13),
+        hi: BytePos(32)
+    },
+    inner: Unop(
+        Not,
+        SpannedExpr {
+            span: Span {
+                lo: BytePos(14),
+                hi: BytePos(32)
             },
-            Spanned {
-                span: Span {
-                    lo: BytePos(23),
-                    hi: BytePos(30)
+            inner: Binop(
+                Or,
+                SpannedExpr {
+                    span: Span {
+                        lo: BytePos(16),
+                        hi: BytePos(20)
+                    },
+                    inner: Var(
+                        Free("true")
+                    
+                    )
                 },
-                value: Var(
-                    Free("false")
-                
-                )
-            }
-        )
-    }
-)
+                SpannedExpr {
+                    span: Span {
+                        lo: BytePos(23),
+                        hi: BytePos(30)
+                    },
+                    inner: Var(
+                        Free("false")
+                    
+                    )
+                }
+            )
+        }
+    )
+}

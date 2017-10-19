@@ -1,297 +1,219 @@
 [
-    Spanned {
-        span: Span {
-            lo: BytePos(13),
-            hi: BytePos(98)
-        },
-        value: Definition {
-            name: "Point",
-            ty: Spanned {
-                span: Span {
-                    lo: BytePos(21),
-                    hi: BytePos(97)
-                },
-                value: Struct(
-                    [
-                        Field {
-                            name: Spanned {
-                                span: Span {
-                                    lo: BytePos(46),
-                                    hi: BytePos(47)
-                                },
-                                value: "x"
+    Definition {
+        name: "Point",
+        ty: SpannedType {
+            span: Span {
+                lo: BytePos(21),
+                hi: BytePos(97)
+            },
+            inner: Struct(
+                [
+                    Field {
+                        name: "x",
+                        value: SpannedType {
+                            span: Span {
+                                lo: BytePos(50),
+                                hi: BytePos(55)
                             },
-                            value: Spanned {
-                                span: Span {
-                                    lo: BytePos(50),
-                                    hi: BytePos(55)
-                                },
-                                value: Var(
-                                    Free("u32be")
-                                
-                                )
-                            }
-                        },
-                        Field {
-                            name: Spanned {
-                                span: Span {
-                                    lo: BytePos(73),
-                                    hi: BytePos(74)
-                                },
-                                value: "y"
-                            },
-                            value: Spanned {
-                                span: Span {
-                                    lo: BytePos(77),
-                                    hi: BytePos(82)
-                                },
-                                value: Var(
-                                    Free("u32be")
-                                
-                                )
-                            }
+                            inner: Var(
+                                Free("u32be")
+                            
+                            )
                         }
-                    ]
-                )
-            }
+                    },
+                    Field {
+                        name: "y",
+                        value: SpannedType {
+                            span: Span {
+                                lo: BytePos(77),
+                                hi: BytePos(82)
+                            },
+                            inner: Var(
+                                Free("u32be")
+                            
+                            )
+                        }
+                    }
+                ]
+            )
         }
     },
-    Spanned {
-        span: Span {
-            lo: BytePos(112),
-            hi: BytePos(209)
-        },
-        value: Definition {
-            name: "Array",
-            ty: Spanned {
-                span: Span {
-                    lo: BytePos(120),
-                    hi: BytePos(208)
-                },
-                value: Struct(
-                    [
-                        Field {
-                            name: Spanned {
-                                span: Span {
-                                    lo: BytePos(145),
-                                    hi: BytePos(148)
-                                },
-                                value: "len"
+    Definition {
+        name: "Array",
+        ty: SpannedType {
+            span: Span {
+                lo: BytePos(120),
+                hi: BytePos(208)
+            },
+            inner: Struct(
+                [
+                    Field {
+                        name: "len",
+                        value: SpannedType {
+                            span: Span {
+                                lo: BytePos(151),
+                                hi: BytePos(156)
                             },
-                            value: Spanned {
-                                span: Span {
-                                    lo: BytePos(151),
-                                    hi: BytePos(156)
+                            inner: Var(
+                                Free("u16le")
+                            
+                            )
+                        }
+                    },
+                    Field {
+                        name: "data",
+                        value: SpannedType {
+                            span: Span {
+                                lo: BytePos(181),
+                                hi: BytePos(193)
+                            },
+                            inner: Array(
+                                SpannedType {
+                                    span: Span {
+                                        lo: BytePos(182),
+                                        hi: BytePos(187)
+                                    },
+                                    inner: Var(
+                                        Free("Point")
+                                    
+                                    )
                                 },
-                                value: Var(
-                                    Free("u16le")
-                                
-                                )
-                            }
+                                SpannedExpr {
+                                    span: Span {
+                                        lo: BytePos(189),
+                                        hi: BytePos(192)
+                                    },
+                                    inner: Var(
+                                        Bound(Named("len", 0))
+                                    
+                                    )
+                                }
+                            )
+                        }
+                    }
+                ]
+            )
+        }
+    },
+    Definition {
+        name: "Formats",
+        ty: SpannedType {
+            span: Span {
+                lo: BytePos(233),
+                hi: BytePos(416)
+            },
+            inner: Union(
+                [
+                    SpannedType {
+                        span: Span {
+                            lo: BytePos(257),
+                            hi: BytePos(291)
                         },
-                        Field {
-                            name: Spanned {
-                                span: Span {
-                                    lo: BytePos(174),
-                                    hi: BytePos(178)
-                                },
-                                value: "data"
-                            },
-                            value: Spanned {
-                                span: Span {
-                                    lo: BytePos(181),
-                                    hi: BytePos(193)
-                                },
-                                value: Array(
-                                    Spanned {
+                        inner: Struct(
+                            [
+                                Field {
+                                    name: "format",
+                                    value: SpannedType {
                                         span: Span {
-                                            lo: BytePos(182),
-                                            hi: BytePos(187)
+                                            lo: BytePos(275),
+                                            hi: BytePos(278)
                                         },
-                                        value: Var(
+                                        inner: Var(
+                                            Free("u16")
+                                        
+                                        )
+                                    }
+                                },
+                                Field {
+                                    name: "data",
+                                    value: SpannedType {
+                                        span: Span {
+                                            lo: BytePos(286),
+                                            hi: BytePos(289)
+                                        },
+                                        inner: Var(
+                                            Free("u16")
+                                        
+                                        )
+                                    }
+                                }
+                            ]
+                        )
+                    },
+                    SpannedType {
+                        span: Span {
+                            lo: BytePos(309),
+                            hi: BytePos(346)
+                        },
+                        inner: Struct(
+                            [
+                                Field {
+                                    name: "format",
+                                    value: SpannedType {
+                                        span: Span {
+                                            lo: BytePos(327),
+                                            hi: BytePos(330)
+                                        },
+                                        inner: Var(
+                                            Free("u16")
+                                        
+                                        )
+                                    }
+                                },
+                                Field {
+                                    name: "point",
+                                    value: SpannedType {
+                                        span: Span {
+                                            lo: BytePos(339),
+                                            hi: BytePos(344)
+                                        },
+                                        inner: Var(
                                             Free("Point")
                                         
                                         )
-                                    },
-                                    Spanned {
+                                    }
+                                }
+                            ]
+                        )
+                    },
+                    SpannedType {
+                        span: Span {
+                            lo: BytePos(364),
+                            hi: BytePos(401)
+                        },
+                        inner: Struct(
+                            [
+                                Field {
+                                    name: "format",
+                                    value: SpannedType {
                                         span: Span {
-                                            lo: BytePos(189),
-                                            hi: BytePos(192)
+                                            lo: BytePos(382),
+                                            hi: BytePos(385)
                                         },
-                                        value: Var(
-                                            Bound(Named("len", 1))
+                                        inner: Var(
+                                            Free("u16")
                                         
                                         )
                                     }
-                                )
-                            }
-                        }
-                    ]
-                )
-            }
-        }
-    },
-    Spanned {
-        span: Span {
-            lo: BytePos(223),
-            hi: BytePos(417)
-        },
-        value: Definition {
-            name: "Formats",
-            ty: Spanned {
-                span: Span {
-                    lo: BytePos(233),
-                    hi: BytePos(416)
-                },
-                value: Union(
-                    [
-                        Spanned {
-                            span: Span {
-                                lo: BytePos(257),
-                                hi: BytePos(291)
-                            },
-                            value: Struct(
-                                [
-                                    Field {
-                                        name: Spanned {
-                                            span: Span {
-                                                lo: BytePos(266),
-                                                hi: BytePos(272)
-                                            },
-                                            value: "format"
+                                },
+                                Field {
+                                    name: "array",
+                                    value: SpannedType {
+                                        span: Span {
+                                            lo: BytePos(394),
+                                            hi: BytePos(399)
                                         },
-                                        value: Spanned {
-                                            span: Span {
-                                                lo: BytePos(275),
-                                                hi: BytePos(278)
-                                            },
-                                            value: Var(
-                                                Free("u16")
-                                            
-                                            )
-                                        }
-                                    },
-                                    Field {
-                                        name: Spanned {
-                                            span: Span {
-                                                lo: BytePos(280),
-                                                hi: BytePos(284)
-                                            },
-                                            value: "data"
-                                        },
-                                        value: Spanned {
-                                            span: Span {
-                                                lo: BytePos(286),
-                                                hi: BytePos(289)
-                                            },
-                                            value: Var(
-                                                Free("u16")
-                                            
-                                            )
-                                        }
+                                        inner: Var(
+                                            Free("Array")
+                                        
+                                        )
                                     }
-                                ]
-                            )
-                        },
-                        Spanned {
-                            span: Span {
-                                lo: BytePos(309),
-                                hi: BytePos(346)
-                            },
-                            value: Struct(
-                                [
-                                    Field {
-                                        name: Spanned {
-                                            span: Span {
-                                                lo: BytePos(318),
-                                                hi: BytePos(324)
-                                            },
-                                            value: "format"
-                                        },
-                                        value: Spanned {
-                                            span: Span {
-                                                lo: BytePos(327),
-                                                hi: BytePos(330)
-                                            },
-                                            value: Var(
-                                                Free("u16")
-                                            
-                                            )
-                                        }
-                                    },
-                                    Field {
-                                        name: Spanned {
-                                            span: Span {
-                                                lo: BytePos(332),
-                                                hi: BytePos(337)
-                                            },
-                                            value: "point"
-                                        },
-                                        value: Spanned {
-                                            span: Span {
-                                                lo: BytePos(339),
-                                                hi: BytePos(344)
-                                            },
-                                            value: Var(
-                                                Free("Point")
-                                            
-                                            )
-                                        }
-                                    }
-                                ]
-                            )
-                        },
-                        Spanned {
-                            span: Span {
-                                lo: BytePos(364),
-                                hi: BytePos(401)
-                            },
-                            value: Struct(
-                                [
-                                    Field {
-                                        name: Spanned {
-                                            span: Span {
-                                                lo: BytePos(373),
-                                                hi: BytePos(379)
-                                            },
-                                            value: "format"
-                                        },
-                                        value: Spanned {
-                                            span: Span {
-                                                lo: BytePos(382),
-                                                hi: BytePos(385)
-                                            },
-                                            value: Var(
-                                                Free("u16")
-                                            
-                                            )
-                                        }
-                                    },
-                                    Field {
-                                        name: Spanned {
-                                            span: Span {
-                                                lo: BytePos(387),
-                                                hi: BytePos(392)
-                                            },
-                                            value: "array"
-                                        },
-                                        value: Spanned {
-                                            span: Span {
-                                                lo: BytePos(394),
-                                                hi: BytePos(399)
-                                            },
-                                            value: Var(
-                                                Free("Array")
-                                            
-                                            )
-                                        }
-                                    }
-                                ]
-                            )
-                        }
-                    ]
-                )
-            }
+                                }
+                            ]
+                        )
+                    }
+                ]
+            )
         }
     }
 ]

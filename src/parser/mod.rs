@@ -1,27 +1,31 @@
 use lalrpop_util;
 
-use ast::{binary, host};
+use ast::{binary, host, Definition};
 use source::BytePos;
 
 mod lexer;
 #[allow(unused_extern_crates)]
 mod grammar;
 
-use self::lexer::{Lexer, Error as LexerError, Token};
+use self::lexer::{Error as LexerError, Lexer, Token};
 
 pub type ParseError<'input> = lalrpop_util::ParseError<BytePos, Token<'input>, LexerError>;
 
 pub fn parse<'input>(
     src: &'input str,
-) -> Result<Vec<binary::SpannedDefinition<String>>, ParseError<'input>> {
+) -> Result<Vec<Definition<String, binary::SpannedType<String>>>, ParseError<'input>> {
     grammar::parse_Definitions(Lexer::new(src))
 }
 
-pub fn parse_expr<'input>(src: &'input str) -> Result<host::Expr<String>, ParseError<'input>> {
+pub fn parse_expr<'input>(
+    src: &'input str,
+) -> Result<host::SpannedExpr<String>, ParseError<'input>> {
     grammar::parse_Expr(Lexer::new(src))
 }
 
-pub fn parse_ty<'input>(src: &'input str) -> Result<binary::Type<String>, ParseError<'input>> {
+pub fn parse_ty<'input>(
+    src: &'input str,
+) -> Result<binary::SpannedType<String>, ParseError<'input>> {
     grammar::parse_Type(Lexer::new(src))
 }
 
@@ -35,10 +39,7 @@ mod tests {
             !((true | (false)))
         ";
 
-        assert_snapshot!(
-            parse_expr_bool_atomic,
-            parse_expr(src).unwrap()
-        );
+        assert_snapshot!(parse_expr_bool_atomic, parse_expr(src).unwrap());
     }
 
     #[test]
@@ -47,10 +48,7 @@ mod tests {
             (true & false) | (true | false)
         ";
 
-        assert_snapshot!(
-            parse_expr_bool_operators,
-            parse_expr(src).unwrap()
-        );
+        assert_snapshot!(parse_expr_bool_operators, parse_expr(src).unwrap());
     }
 
     #[test]
@@ -71,10 +69,7 @@ mod tests {
     fn parse_add_expr_mixed() {
         let src = "x + y + z - z + x";
 
-        assert_snapshot!(
-            parse_add_expr_mixed,
-            parse_expr(src).unwrap()
-        );
+        assert_snapshot!(parse_add_expr_mixed, parse_expr(src).unwrap());
     }
 
     #[test]
@@ -95,20 +90,14 @@ mod tests {
     fn parse_mul_expr_mixed() {
         let src = "x * y * z / z * x";
 
-        assert_snapshot!(
-            parse_mul_expr_mixed,
-            parse_expr(src).unwrap()
-        );
+        assert_snapshot!(parse_mul_expr_mixed, parse_expr(src).unwrap());
     }
 
     #[test]
     fn parse_mixed_arithmetic_expr() {
         let src = "x + y * z / z - x * a";
 
-        assert_snapshot!(
-            parse_mixed_arithmetic_expr,
-            parse_expr(src).unwrap()
-        );
+        assert_snapshot!(parse_mixed_arithmetic_expr, parse_expr(src).unwrap());
     }
 
     #[test]
@@ -134,10 +123,7 @@ mod tests {
     fn parse_ty_empty_struct() {
         let src = "struct {}";
 
-        assert_snapshot!(
-            parse_ty_empty_struct,
-            parse_ty(src).unwrap()
-        );
+        assert_snapshot!(parse_ty_empty_struct, parse_ty(src).unwrap());
     }
 
     #[test]
@@ -150,10 +136,7 @@ mod tests {
             where x => x == 1
         ";
 
-        assert_snapshot!(
-            parse_ty_where,
-            parse_ty(src).unwrap()
-        );
+        assert_snapshot!(parse_ty_where, parse_ty(src).unwrap());
     }
 
     #[test]
@@ -172,10 +155,7 @@ mod tests {
             }
         ";
 
-        assert_snapshot!(
-            parse_ty_array_dependent,
-            parse_ty(src).unwrap()
-        );
+        assert_snapshot!(parse_ty_array_dependent, parse_ty(src).unwrap());
     }
 
     #[test]
@@ -184,10 +164,7 @@ mod tests {
             Offset32 = u32;
         ";
 
-        assert_snapshot!(
-            parse_simple_definition,
-            parse(src).unwrap()
-        );
+        assert_snapshot!(parse_simple_definition, parse(src).unwrap());
     }
 
     #[test]
@@ -196,10 +173,7 @@ mod tests {
             Point = [f32; 3];
         ";
 
-        assert_snapshot!(
-            parse_array_with_constant_size,
-            parse(src).unwrap()
-        );
+        assert_snapshot!(parse_array_with_constant_size, parse(src).unwrap());
     }
 
     #[test]

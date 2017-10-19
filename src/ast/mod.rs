@@ -5,6 +5,29 @@ use std::fmt;
 pub mod binary;
 pub mod host;
 
+/// A type definition
+///
+/// ```plain
+/// Point = {
+///     x : u16,
+///     y : u16,
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Definition<N, T> {
+    pub name: N,
+    pub ty: T,
+}
+
+impl<N, T> Definition<N, T> {
+    pub fn new<N1: Into<N>>(name: N1, ty: T) -> Definition<N, T> {
+        Definition {
+            name: name.into(),
+            ty,
+        }
+    }
+}
+
 /// A variable that can either be free or bound
 ///
 /// We use a locally nameless representation for variable binding.

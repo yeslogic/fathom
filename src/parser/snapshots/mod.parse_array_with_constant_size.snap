@@ -1,38 +1,32 @@
 [
-    Spanned {
-        span: Span {
-            lo: BytePos(13),
-            hi: BytePos(30)
-        },
-        value: Definition {
-            name: "Point",
-            ty: Spanned {
-                span: Span {
-                    lo: BytePos(21),
-                    hi: BytePos(29)
-                },
-                value: Array(
-                    Spanned {
-                        span: Span {
-                            lo: BytePos(22),
-                            hi: BytePos(25)
-                        },
-                        value: Var(
-                            Free("f32")
-                        
-                        )
+    Definition {
+        name: "Point",
+        ty: SpannedType {
+            span: Span {
+                lo: BytePos(21),
+                hi: BytePos(29)
+            },
+            inner: Array(
+                SpannedType {
+                    span: Span {
+                        lo: BytePos(22),
+                        hi: BytePos(25)
                     },
-                    Spanned {
-                        span: Span {
-                            lo: BytePos(27),
-                            hi: BytePos(28)
-                        },
-                        value: Const(
-                            Int(3)
-                        )
-                    }
-                )
-            }
+                    inner: Var(
+                        Free("f32")
+                    
+                    )
+                },
+                SpannedExpr {
+                    span: Span {
+                        lo: BytePos(27),
+                        hi: BytePos(28)
+                    },
+                    inner: Const(
+                        Int(3)
+                    )
+                }
+            )
         }
     }
 ]

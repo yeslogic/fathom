@@ -19,29 +19,6 @@ impl Kind {
     }
 }
 
-/// A type definition
-///
-/// ```plain
-/// Point = {
-///     x : u16,
-///     y : u16,
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Definition<N, T> {
-    pub name: N,
-    pub ty: T,
-}
-
-impl<N, T> Definition<N, T> {
-    pub fn new<N1: Into<N>>(name: N1, ty: T) -> Definition<N, T> {
-        Definition {
-            name: name.into(),
-            ty,
-        }
-    }
-}
-
 /// A binary type
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeF<N, T, E> {

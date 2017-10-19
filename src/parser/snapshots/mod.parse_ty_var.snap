@@ -1,4 +1,10 @@
-Var(
-    Free("Point")
-
-)
+SpannedType {
+    span: Span {
+        lo: BytePos(13),
+        hi: BytePos(18)
+    },
+    inner: Var(
+        Free("Point")
+    
+    )
+}
