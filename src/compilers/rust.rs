@@ -4,7 +4,7 @@ use std::collections::{HashSet, VecDeque};
 use std::io::Write;
 
 use Env;
-use ast::{Endianness, Field, Type};
+use syntax::{Endianness, Field, Type};
 
 /// Compile the symbols in the environment to a Rust parser
 #[allow(unused_variables)]

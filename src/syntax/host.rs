@@ -3,10 +3,12 @@
 use std::fmt;
 
 use source::Span;
-use ast::{Field, Named, Var};
+use syntax::{self, Field, Named, Var};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Const {
+    /// A single bit
+    Bit(bool),
     /// A boolean constant: eg. `true`, `false`
     Bool(bool),
     /// An integer constant: eg. `0`, `1`, `2`, ...
@@ -16,6 +18,7 @@ pub enum Const {
 impl fmt::Debug for Const {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            Const::Bit(value) => write!(f, "Bit({:?})", value),
             Const::Bool(value) => write!(f, "Bool({:?})", value),
             Const::Int(value) => write!(f, "Int({:?})", value),
         }
@@ -77,7 +80,7 @@ pub enum ExprF<N, E> {
 }
 
 /// A host expression AST
-pub trait ExprNode<N>: Sized + AsRef<ExprF<N, Self>> + AsMut<ExprF<N, Self>> {}
+pub trait ExprNode<N>: Clone + AsRef<ExprF<N, Self>> + AsMut<ExprF<N, Self>> {}
 
 /// The recursive innards of an `Expr`
 ///
@@ -92,7 +95,7 @@ pub type ExprRec<N> = ExprF<N, Expr<N>>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Expr<N>(pub ExprRec<N>);
 
-impl<N> ExprNode<N> for Expr<N> {}
+impl<N: Clone> ExprNode<N> for Expr<N> {}
 
 impl<N> Into<ExprRec<N>> for Expr<N> {
     fn into(self) -> ExprRec<N> {
@@ -128,7 +131,7 @@ pub struct SpannedExpr<N> {
     pub inner: SpannedExprRec<N>,
 }
 
-impl<N> ExprNode<N> for SpannedExpr<N> {}
+impl<N: Clone> ExprNode<N> for SpannedExpr<N> {}
 
 impl<N> Into<SpannedExprRec<N>> for SpannedExpr<N> {
     fn into(self) -> SpannedExprRec<N> {
@@ -149,6 +152,11 @@ impl<N> AsMut<SpannedExprRec<N>> for SpannedExpr<N> {
 }
 
 impl<N, E> ExprF<N, E> {
+    /// A bit constant: eg. `0b`, `01`
+    pub fn bit(value: bool) -> ExprF<N, E> {
+        ExprF::Const(Const::Bit(value))
+    }
+
     /// A boolean constant: eg. `true`, `false`
     pub fn bool(value: bool) -> ExprF<N, E> {
         ExprF::Const(Const::Bool(value))
@@ -190,19 +198,6 @@ impl<N, E> ExprF<N, E>
 where
     E: AsRef<ExprF<N, E>> + AsMut<ExprF<N, E>>,
 {
-    /// `true` if the expression contains no free variables
-    pub fn is_closed(&self) -> bool {
-        match *self {
-            ExprF::Var(ref v) => v.is_closed(),
-            ExprF::Const(_) => true,
-            ExprF::Unop(_, ref e1) => E::as_ref(e1).is_closed(),
-            ExprF::Binop(_, ref e1, ref e2) => {
-                E::as_ref(e1).is_closed() && E::as_ref(e2).is_closed()
-            }
-            ExprF::Proj(ref e1, _) => E::as_ref(e1).is_closed(),
-        }
-    }
-
     pub fn abstract_level_with<F>(&mut self, level: u32, f: &F)
     where
         F: Fn(&N) -> Option<Named<N, u32>>,
@@ -244,6 +239,8 @@ where
 pub enum TypeF<N, T, E> {
     /// A type variable: eg. `T`
     Var(Var<N, Named<N, u32>>),
+    /// Bit
+    Bit,
     /// Boolean
     Bool,
     /// Integer
@@ -258,7 +255,7 @@ pub enum TypeF<N, T, E> {
 
 /// A host type AST
 pub trait TypeNode<N, E: ExprNode<N>>
-    : Sized + AsRef<TypeF<N, Self, E>> + AsMut<TypeF<N, Self, E>> {
+    : Clone + AsRef<TypeF<N, Self, E>> + AsMut<TypeF<N, Self, E>> {
 }
 
 /// The recursive innards of a `Type`
@@ -268,28 +265,28 @@ pub trait TypeNode<N, E: ExprNode<N>>
 ///
 /// We could have just inlined this inside `Type`, but this type alias is
 /// handy to have around for defining our conversion impls.
-pub type TypeRec<N> = TypeF<N, Type<N>, Expr<N>>;
+pub type TypeRec<N, E> = TypeF<N, Type<N, E>, E>;
 
 /// A tree of types
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Type<N>(pub TypeRec<N>);
+pub struct Type<N, E>(pub TypeRec<N, E>);
 
-impl<N> TypeNode<N, Expr<N>> for Type<N> {}
+impl<N: Clone, E: ExprNode<N>> TypeNode<N, E> for Type<N, E> {}
 
-impl<N> Into<TypeRec<N>> for Type<N> {
-    fn into(self) -> TypeRec<N> {
-        self.0
+impl<N, E> From<TypeRec<N, E>> for Type<N, E> {
+    fn from(src: TypeRec<N, E>) -> Type<N, E> {
+        Type(src)
     }
 }
 
-impl<N> AsRef<TypeRec<N>> for Type<N> {
-    fn as_ref(&self) -> &TypeRec<N> {
+impl<N, E> AsRef<TypeRec<N, E>> for Type<N, E> {
+    fn as_ref(&self) -> &TypeRec<N, E> {
         &self.0
     }
 }
 
-impl<N> AsMut<TypeRec<N>> for Type<N> {
-    fn as_mut(&mut self) -> &mut TypeRec<N> {
+impl<N, E> AsMut<TypeRec<N, E>> for Type<N, E> {
+    fn as_mut(&mut self) -> &mut TypeRec<N, E> {
         &mut self.0
     }
 }
@@ -301,31 +298,31 @@ impl<N> AsMut<TypeRec<N>> for Type<N> {
 ///
 /// We could have just inlined this inside `SpannedType`, but this type alias is
 /// handy to have around for defining our conversion impls.
-pub type SpannedTypeRec<N> = TypeF<N, SpannedType<N>, SpannedExpr<N>>;
+pub type SpannedTypeRec<N, E> = TypeF<N, SpannedType<N, E>, E>;
 
 /// A tree of types
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SpannedType<N> {
+pub struct SpannedType<N, E> {
     pub span: Span,
-    pub inner: SpannedTypeRec<N>,
+    pub inner: SpannedTypeRec<N, E>,
 }
 
-impl<N> TypeNode<N, SpannedExpr<N>> for SpannedType<N> {}
+impl<N: Clone, E: ExprNode<N>> TypeNode<N, E> for SpannedType<N, E> {}
 
-impl<N> Into<SpannedTypeRec<N>> for SpannedType<N> {
-    fn into(self) -> SpannedTypeRec<N> {
+impl<N, E> Into<SpannedTypeRec<N, E>> for SpannedType<N, E> {
+    fn into(self) -> SpannedTypeRec<N, E> {
         self.inner
     }
 }
 
-impl<N> AsRef<SpannedTypeRec<N>> for SpannedType<N> {
-    fn as_ref(&self) -> &SpannedTypeRec<N> {
+impl<N, E> AsRef<SpannedTypeRec<N, E>> for SpannedType<N, E> {
+    fn as_ref(&self) -> &SpannedTypeRec<N, E> {
         &self.inner
     }
 }
 
-impl<N> AsMut<SpannedTypeRec<N>> for SpannedType<N> {
-    fn as_mut(&mut self) -> &mut SpannedTypeRec<N> {
+impl<N, E> AsMut<SpannedTypeRec<N, E>> for SpannedType<N, E> {
+    fn as_mut(&mut self) -> &mut SpannedTypeRec<N, E> {
         &mut self.inner
     }
 }
@@ -342,8 +339,8 @@ impl<N, T, E> TypeF<N, T, E> {
     }
 
     /// An array of the specified type, with a size: eg. `[T; n]`
-    pub fn array<T1: Into<Box<T>>, E1: Into<Box<E>>>(ty: T1, size: E1) -> TypeF<N, T, E> {
-        TypeF::Array(ty.into(), size.into())
+    pub fn array<T1: Into<Box<T>>, E1: Into<Box<E>>>(elem_ty: T1, size_expr: E1) -> TypeF<N, T, E> {
+        TypeF::Array(elem_ty.into(), size_expr.into())
     }
 
     /// A union of types: eg. `union { T, ... }`
@@ -386,32 +383,21 @@ where
         TypeF::Struct(fields.into_iter().map(f).collect())
     }
 
-    /// `true` if the type contains no free variables in itself or its sub-expressions
-    pub fn is_closed(&self) -> bool {
-        match *self {
-            TypeF::Var(ref v) => v.is_closed(),
-            TypeF::Bool | TypeF::Int => true,
-            TypeF::Array(ref t, ref e) => T::as_ref(t).is_closed() && E::as_ref(e).is_closed(),
-            TypeF::Union(ref ts) => ts.iter().all(|t| T::as_ref(t).is_closed()),
-            TypeF::Struct(ref fs) => fs.iter().all(|f| T::as_ref(&f.value).is_closed()),
-        }
-    }
-
     pub fn abstract_level_with<F>(&mut self, level: u32, f: &F)
     where
         F: Fn(&N) -> Option<Named<N, u32>>,
     {
         match *self {
-            TypeF::Var(ref mut v) => v.abstract_with(f),
-            TypeF::Bool | TypeF::Int => {}
-            TypeF::Array(ref mut ty, ref mut e) => {
-                T::as_mut(ty).abstract_level_with(level, f);
-                E::as_mut(e).abstract_level_with(level, f);
+            TypeF::Var(ref mut var) => var.abstract_with(f),
+            TypeF::Bit | TypeF::Bool | TypeF::Int => {}
+            TypeF::Array(ref mut elem_ty, ref mut size_expr) => {
+                T::as_mut(elem_ty).abstract_level_with(level, f);
+                E::as_mut(size_expr).abstract_level_with(level, f);
             }
             TypeF::Union(ref mut tys) => for ty in tys {
                 T::as_mut(ty).abstract_level_with(level, f);
             },
-            TypeF::Struct(ref mut fs) => for (i, field) in fs.iter_mut().enumerate() {
+            TypeF::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 T::as_mut(&mut field.value).abstract_level_with(level + i as u32, f);
             },
         }
@@ -438,8 +424,6 @@ where
     fn instantiate_level(&mut self, level: u32, src: &TypeF<N, T, E>)
     where
         N: Clone,
-        T: Clone,
-        E: Clone,
     {
         // Bleh: Running into non-lexical liftetime problems here!
         // Just so you know that I'm not going completely insane....
@@ -450,9 +434,9 @@ where
             } else {
                 return;
             },
-            TypeF::Var(Var::Free(_)) | TypeF::Bool | TypeF::Int => return,
-            TypeF::Array(ref mut ty, _) => {
-                T::as_mut(ty).instantiate_level(level, src);
+            TypeF::Var(Var::Free(_)) | TypeF::Bit | TypeF::Bool | TypeF::Int => return,
+            TypeF::Array(ref mut elem_ty, _) => {
+                T::as_mut(elem_ty).instantiate_level(level, src);
                 return;
             }
             TypeF::Union(ref mut tys) => {
@@ -461,9 +445,9 @@ where
                 }
                 return;
             }
-            TypeF::Struct(ref mut fs) => {
-                for (i, f) in fs.iter_mut().enumerate() {
-                    T::as_mut(&mut f.value).instantiate_level(level + i as u32, src);
+            TypeF::Struct(ref mut fields) => {
+                for (i, field) in fields.iter_mut().enumerate() {
+                    T::as_mut(&mut field.value).instantiate_level(level + i as u32, src);
                 }
                 return;
             }
@@ -473,9 +457,19 @@ where
     pub fn instantiate(&mut self, ty: &TypeF<N, T, E>)
     where
         N: Clone,
-        T: Clone,
-        E: Clone,
     {
         self.instantiate_level(0, ty);
+    }
+}
+
+impl<N, T, E> TypeF<N, T, E>
+where
+    N: PartialEq,
+{
+    pub fn lookup_field(&self, name: &N) -> Option<&T> {
+        match *self {
+            TypeF::Struct(ref fields) => syntax::lookup_field(fields, name),
+            _ => None,
+        }
     }
 }

@@ -1,6 +1,6 @@
 use lalrpop_util;
 
-use ast::{binary, host, Definition};
+use syntax::{binary, host, Definition};
 use source::BytePos;
 
 mod lexer;
@@ -13,7 +13,10 @@ pub type ParseError<'input> = lalrpop_util::ParseError<BytePos, Token<'input>, L
 
 pub fn parse<'input>(
     src: &'input str,
-) -> Result<Vec<Definition<String, binary::SpannedType<String>>>, ParseError<'input>> {
+) -> Result<
+    Vec<Definition<String, binary::SpannedType<String, host::SpannedExpr<String>>>>,
+    ParseError<'input>,
+> {
     grammar::parse_Definitions(Lexer::new(src))
 }
 
@@ -25,7 +28,7 @@ pub fn parse_expr<'input>(
 
 pub fn parse_ty<'input>(
     src: &'input str,
-) -> Result<binary::SpannedType<String>, ParseError<'input>> {
+) -> Result<binary::SpannedType<String, host::SpannedExpr<String>>, ParseError<'input>> {
     grammar::parse_Type(Lexer::new(src))
 }
 

@@ -69,14 +69,6 @@ pub enum Var<N, B> {
 }
 
 impl<N, B> Var<N, B> {
-    /// `true` if the variable is free
-    fn is_closed(&self) -> bool {
-        match *self {
-            Var::Free(_) => true,
-            Var::Bound(_) => false,
-        }
-    }
-
     pub fn abstract_with<F>(&mut self, f: &F)
     where
         F: Fn(&N) -> Option<B>,
@@ -176,3 +168,94 @@ impl<N, T> Field<N, T> {
         }
     }
 }
+
+fn lookup_field<'a, N, T>(fields: &'a [Field<N, T>], name: &N) -> Option<&'a T>
+where
+    N: PartialEq,
+{
+    fields
+        .iter()
+        .find(|field| &field.name == name)
+        .map(|field| &field.value)
+}
+
+#[derive(Debug, Clone)]
+pub enum Binding<N, T, E> {
+    Expr(host::Type<N, E>),
+    Type(binary::Kind),
+    TypeDef(T, Option<binary::Kind>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Ctx<N, T, E> {
+    bindings: Vec<Binding<N, T, E>>,
+}
+
+impl<N, T, E> Ctx<N, T, E> {
+    pub fn new() -> Ctx<N, T, E> {
+        Ctx {
+            bindings: Vec::new(),
+        }
+    }
+
+    pub fn extend(&mut self, binding: Binding<N, T, E>) {
+        self.bindings.push(binding);
+    }
+
+    pub fn lookup(&self, i: u32) -> &Binding<N, T, E> {
+        self.bindings
+            .get(i as usize)
+            .expect("ICE: Binder out of range")
+    }
+
+    pub fn lookup_ty(&self, i: u32) -> Option<&host::Type<N, E>> {
+        match *self.lookup(i) {
+            Binding::Expr(ref ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    pub fn lookup_ty_def(&self, i: u32) -> Option<&T> {
+        match *self.lookup(i) {
+            Binding::TypeDef(ref ty, _) => Some(ty),
+            _ => None,
+        }
+    }
+
+    pub fn lookup_kind(&self, i: u32) -> Option<&binary::Kind> {
+        match *self.lookup(i) {
+            Binding::Type(ref kind) => Some(kind),
+            Binding::TypeDef(_, Some(ref kind)) => Some(kind),
+            Binding::TypeDef(_, None) => panic!("ICE: no type recorded for variable"),
+            _ => None,
+        }
+    }
+}
+
+// const BUILT_IN_EXPRS: [(_, _), 2] = [
+//     ("true", ExprF::bool(true)),
+//     ("false", ExprF::bool(false)),
+// ];
+
+// const BUILT_IN_TYS: [(&str, &str, host::Expr); 20] = [
+//     ("u8le", "[bit; 8]", ExprF::Prim(to_u8le)),
+//     ("u16le", "[bit; 16]", ExprF::Prim(to_u16le)),
+//     ("u32le", "[bit; 32]", ExprF::Prim(to_u32le)),
+//     ("u64le", "[bit; 64]", ExprF::Prim(to_u64le)),
+//     ("i8le", "[bit; 8]", ExprF::Prim(to_i8le)),
+//     ("i16le", "[bit; 16]", ExprF::Prim(to_i16le)),
+//     ("i32le", "[bit; 32]", ExprF::Prim(to_i32le)),
+//     ("i64le", "[bit; 64]", ExprF::Prim(to_i64le)),
+//     ("f32le", "[bit; 32]", ExprF::Prim(to_f32le)),
+//     ("f64le", "[bit; 64]", ExprF::Prim(to_f64le)),
+//     ("u8be", "[bit; 8]", ExprF::Prim(to_u8be)),
+//     ("u16be", "[bit; 16]", ExprF::Prim(to_u16be)),
+//     ("u32be", "[bit; 32]", ExprF::Prim(to_u32be)),
+//     ("u64be", "[bit; 64]", ExprF::Prim(to_u64be)),
+//     ("i8be", "[bit; 8]", ExprF::Prim(to_i8be)),
+//     ("i16be", "[bit; 16]", ExprF::Prim(to_i16be)),
+//     ("i32be", "[bit; 32]", ExprF::Prim(to_i32be)),
+//     ("i64be", "[bit; 64]", ExprF::Prim(to_i64be)),
+//     ("f32be", "[bit; 32]", ExprF::Prim(to_f32be)),
+//     ("f64be", "[bit; 64]", ExprF::Prim(to_f64be)),
+// ];
