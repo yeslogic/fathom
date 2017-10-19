@@ -209,7 +209,7 @@ where
         T::as_mut(&mut ty).abstract_with(&|x| {
             params
                 .iter()
-                .position(|param| x == &param.0)
+                .position(|&Named(ref y, _)| x == y)
                 .map(|i| Named(x.clone(), i as u32))
         });
 
@@ -229,7 +229,9 @@ where
             TypeF::Array(ref t, ref e) => T::as_ref(t).is_closed() && E::as_ref(e).is_closed(),
             TypeF::Union(ref ts) => ts.iter().all(|t| T::as_ref(t).is_closed()),
             TypeF::Struct(ref fs) => fs.iter().all(|f| T::as_ref(&f.value).is_closed()),
-            TypeF::Cond(ref t, ref e) => T::as_ref(&t.1).is_closed() && E::as_ref(e).is_closed(),
+            TypeF::Cond(Named(_, ref t), ref e) => {
+                T::as_ref(t).is_closed() && E::as_ref(e).is_closed()
+            }
             TypeF::Abs(_, ref t) => T::as_ref(t).is_closed(),
             TypeF::App(ref t, ref ts) => {
                 T::as_ref(t).is_closed() && ts.iter().all(|t| T::as_ref(t).is_closed())
@@ -248,8 +250,8 @@ where
                 T::as_mut(ty).abstract_level_with(level, f);
                 E::as_mut(e).abstract_level_with(level, f);
             }
-            TypeF::Cond(ref mut ty, ref mut e) => {
-                T::as_mut(&mut ty.1).abstract_level_with(level, f);
+            TypeF::Cond(Named(_, ref mut ty), ref mut e) => {
+                T::as_mut(ty).abstract_level_with(level, f);
                 E::as_mut(e).abstract_level_with(level, f);
             }
             TypeF::Abs(ref params, ref mut ty) => {
@@ -308,8 +310,8 @@ where
                 T::as_mut(ty).instantiate_level(level, src);
                 return;
             }
-            TypeF::Cond(ref mut ty, _) => {
-                T::as_mut(&mut ty.1).instantiate_level(level, src);
+            TypeF::Cond(Named(_, ref mut ty), _) => {
+                T::as_mut(ty).instantiate_level(level, src);
                 return;
             }
             TypeF::Union(ref mut tys) => {
