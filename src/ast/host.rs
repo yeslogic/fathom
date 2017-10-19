@@ -76,6 +76,9 @@ pub enum ExprF<N, E> {
     Proj(Box<E>, N),
 }
 
+/// A host expression AST
+pub trait ExprNode<N>: Sized + AsRef<ExprF<N, Self>> + AsMut<ExprF<N, Self>> {}
+
 /// The recursive innards of an `Expr`
 ///
 /// This does the job of tying the recursive knot for `Expr`, turning
@@ -88,6 +91,8 @@ pub type ExprRec<N> = ExprF<N, Expr<N>>;
 /// A tree of host expressions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Expr<N>(pub ExprRec<N>);
+
+impl<N> ExprNode<N> for Expr<N> {}
 
 impl<N> Into<ExprRec<N>> for Expr<N> {
     fn into(self) -> ExprRec<N> {
@@ -122,6 +127,8 @@ pub struct SpannedExpr<N> {
     pub span: Span,
     pub inner: SpannedExprRec<N>,
 }
+
+impl<N> ExprNode<N> for SpannedExpr<N> {}
 
 impl<N> Into<SpannedExprRec<N>> for SpannedExpr<N> {
     fn into(self) -> SpannedExprRec<N> {
@@ -249,6 +256,11 @@ pub enum TypeF<N, T, E> {
     Struct(Vec<Field<N, T>>),
 }
 
+/// A host type AST
+pub trait TypeNode<N, E: ExprNode<N>>
+    : Sized + AsRef<TypeF<N, Self, E>> + AsMut<TypeF<N, Self, E>> {
+}
+
 /// The recursive innards of a `Type`
 ///
 /// This does the job of tying the recursive knot for `Type`, turning
@@ -261,6 +273,8 @@ pub type TypeRec<N> = TypeF<N, Type<N>, Expr<N>>;
 /// A tree of types
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type<N>(pub TypeRec<N>);
+
+impl<N> TypeNode<N, Expr<N>> for Type<N> {}
 
 impl<N> Into<TypeRec<N>> for Type<N> {
     fn into(self) -> TypeRec<N> {
@@ -295,6 +309,8 @@ pub struct SpannedType<N> {
     pub span: Span,
     pub inner: SpannedTypeRec<N>,
 }
+
+impl<N> TypeNode<N, SpannedExpr<N>> for SpannedType<N> {}
 
 impl<N> Into<SpannedTypeRec<N>> for SpannedType<N> {
     fn into(self) -> SpannedTypeRec<N> {
@@ -338,8 +354,8 @@ impl<N, T, E> TypeF<N, T, E> {
 
 impl<N, T, E> TypeF<N, T, E>
 where
-    T: AsRef<TypeF<N, T, E>> + AsMut<TypeF<N, T, E>>,
-    E: AsRef<ExprF<N, E>> + AsMut<ExprF<N, E>>,
+    T: TypeNode<N, E>,
+    E: ExprNode<N>,
 {
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     pub fn struct_<Fs>(fields: Fs) -> TypeF<N, T, E>

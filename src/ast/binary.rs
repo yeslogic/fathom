@@ -63,6 +63,9 @@ pub enum TypeF<N, T, E> {
     App(Box<T>, Vec<T>),
 }
 
+/// A binary type AST
+pub trait TypeNode<N, E: host::ExprNode<N>>: Sized + AsRef<TypeF<N, Self, E>> + AsMut<TypeF<N, Self, E>> {}
+
 /// The recursive innards of a `Type`
 ///
 /// This does the job of tying the recursive knot for `Type`, turning
@@ -75,6 +78,8 @@ pub type TypeRec<N> = TypeF<N, Type<N>, host::Expr<N>>;
 /// A tree of binary types
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type<N>(pub TypeRec<N>);
+
+impl<N> TypeNode<N, host::Expr<N>> for Type<N> {}
 
 impl<N> Into<TypeRec<N>> for Type<N> {
     fn into(self) -> TypeRec<N> {
@@ -109,6 +114,8 @@ pub struct SpannedType<N> {
     pub span: Span,
     pub inner: SpannedTypeRec<N>,
 }
+
+impl<N> TypeNode<N, host::SpannedExpr<N>> for SpannedType<N> {}
 
 impl<N> Into<SpannedTypeRec<N>> for SpannedType<N> {
     fn into(self) -> SpannedTypeRec<N> {
@@ -152,8 +159,8 @@ impl<N, T, E> TypeF<N, T, E> {
 
 impl<N, T, E> TypeF<N, T, E>
 where
-    T: AsRef<TypeF<N, T, E>> + AsMut<TypeF<N, T, E>>,
-    E: AsRef<host::ExprF<N, E>> + AsMut<host::ExprF<N, E>>,
+    T: TypeNode<N, E>,
+    E: host::ExprNode<N>,
 {
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     pub fn struct_<Fs>(fields: Fs) -> TypeF<N, T, E>
