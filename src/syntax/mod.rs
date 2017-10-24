@@ -265,30 +265,39 @@ impl<N> Ctx<N> {
     }
 }
 
-// const BUILT_IN_EXPRS: [(_, _), 2] = [
-//     ("true", ExprF::bool(true)),
-//     ("false", ExprF::bool(false)),
-// ];
+// fn base_definitions<N: Name>() -> Vec<Definition<N>> {
+//     fn prim_array_ty<N: Name, T>(size: i64, prim_name: &'static str) -> Type<N> {
+//         use self::binary::{Type, TypeConst};
+//         use self::host::Expr;
 
-// const BUILT_IN_TYS: [(&str, &str, host::Expr); 20] = [
-//     ("u8le", "[bit; 8]", ExprF::Prim(to_u8le)),
-//     ("u16le", "[bit; 16]", ExprF::Prim(to_u16le)),
-//     ("u32le", "[bit; 32]", ExprF::Prim(to_u32le)),
-//     ("u64le", "[bit; 64]", ExprF::Prim(to_u64le)),
-//     ("i8le", "[bit; 8]", ExprF::Prim(to_i8le)),
-//     ("i16le", "[bit; 16]", ExprF::Prim(to_i16le)),
-//     ("i32le", "[bit; 32]", ExprF::Prim(to_i32le)),
-//     ("i64le", "[bit; 64]", ExprF::Prim(to_i64le)),
-//     ("f32le", "[bit; 32]", ExprF::Prim(to_f32le)),
-//     ("f64le", "[bit; 64]", ExprF::Prim(to_f64le)),
-//     ("u8be", "[bit; 8]", ExprF::Prim(to_u8be)),
-//     ("u16be", "[bit; 16]", ExprF::Prim(to_u16be)),
-//     ("u32be", "[bit; 32]", ExprF::Prim(to_u32be)),
-//     ("u64be", "[bit; 64]", ExprF::Prim(to_u64be)),
-//     ("i8be", "[bit; 8]", ExprF::Prim(to_i8be)),
-//     ("i16be", "[bit; 16]", ExprF::Prim(to_i16be)),
-//     ("i32be", "[bit; 32]", ExprF::Prim(to_i32be)),
-//     ("i64be", "[bit; 64]", ExprF::Prim(to_i64be)),
-//     ("f32be", "[bit; 32]", ExprF::Prim(to_f32be)),
-//     ("f64be", "[bit; 64]", ExprF::Prim(to_f64be)),
-// ];
+//         let bit_ty = Type::Const(TypeConst::Bit);
+//         let array_ty = Type::array(bit_ty, Expr::int(size));
+
+//         Type::interp(array_ty, host::Expr::Prim(prim_name))
+//     }
+
+//     vec![
+//         // TODO: "true" = Expr::bool(true)
+//         // TODO: "false" = Expr::bool(false)
+//         Definition::new("u8le", prim_array_ty(8, "from_u8le")),
+//         Definition::new("u16le", prim_array_ty(16, "from_u16le")),
+//         Definition::new("u32le", prim_array_ty(32, "from_u32le")),
+//         Definition::new("u64le", prim_array_ty(64, "from_u64le")),
+//         Definition::new("i8le", prim_array_ty(8, "from_i8le")),
+//         Definition::new("i16le", prim_array_ty(16, "from_i16le")),
+//         Definition::new("i32le", prim_array_ty(32, "from_i32le")),
+//         Definition::new("i64le", prim_array_ty(64, "from_i64le")),
+//         Definition::new("f32le", prim_array_ty(32, "from_f32le")),
+//         Definition::new("f64le", prim_array_ty(64, "from_f64le")),
+//         Definition::new("u8be", prim_array_ty(8, "from_u8be")),
+//         Definition::new("u16be", prim_array_ty(16, "from_u16be")),
+//         Definition::new("u32be", prim_array_ty(32, "from_u32be")),
+//         Definition::new("u64be", prim_array_ty(64, "from_u64be")),
+//         Definition::new("i8be", prim_array_ty(8, "from_i8be")),
+//         Definition::new("i16be", prim_array_ty(16, "from_i16be")),
+//         Definition::new("i32be", prim_array_ty(32, "from_i32be")),
+//         Definition::new("i64be", prim_array_ty(64, "from_i64be")),
+//         Definition::new("f32be", prim_array_ty(32, "from_f32be")),
+//         Definition::new("f64be", prim_array_ty(64, "from_f64be")),
+//     ];
+// }
