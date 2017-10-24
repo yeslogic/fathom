@@ -99,6 +99,11 @@ impl<F: fmt::Debug, B: fmt::Debug> fmt::Debug for Var<F, B> {
     }
 }
 
+/// Trait alias for types that work well as names in the AST
+pub trait Name: Clone + PartialEq + fmt::Debug + fmt::Display {}
+
+impl<T: Clone + PartialEq + fmt::Debug + fmt::Display> Name for T {}
+
 /// A variable with a name that is ignored for comparisons. This is useful for
 /// improving error reporting when converting free varables to a named form.
 ///

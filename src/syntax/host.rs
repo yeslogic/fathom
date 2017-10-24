@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use syntax::{self, Field, Named, Var};
+use syntax::{self, Field, Name, Named, Var};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Const {
@@ -78,7 +78,7 @@ pub enum Expr<N> {
     Proj(Box<Expr<N>>, N),
 }
 
-impl<N> Expr<N> {
+impl<N: Name> Expr<N> {
     /// A bit constant: eg. `0b`, `01`
     pub fn bit(value: bool) -> Expr<N> {
         Expr::Const(Const::Bit(value))
@@ -148,10 +148,7 @@ impl<N> Expr<N> {
         self.abstract_level_with(0, &f);
     }
 
-    pub fn abstract_name(&mut self, x: &N)
-    where
-        N: PartialEq + Clone,
-    {
+    pub fn abstract_name(&mut self, x: &N) {
         self.abstract_with(&|y| if x == y {
             Some(Named(x.clone(), 0))
         } else {
@@ -185,7 +182,7 @@ pub enum Type<N> {
     Struct(Vec<Field<N, Type<N>>>),
 }
 
-impl<N> Type<N> {
+impl<N: Name> Type<N> {
     /// A free type variable: eg. `T`
     pub fn fvar<N1: Into<N>>(x: N1) -> Type<N> {
         Type::Var(Var::Free(x.into()))
@@ -212,7 +209,6 @@ impl<N> Type<N> {
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     pub fn struct_<Fs>(fields: Fs) -> Type<N>
     where
-        N: PartialEq + Clone,
         Fs: IntoIterator<Item = Field<N, Type<N>>>,
     {
         // We maintain a list of the seen field names. This will allow us to
@@ -238,10 +234,7 @@ impl<N> Type<N> {
         Type::Struct(fields.into_iter().map(f).collect())
     }
 
-    pub fn lookup_field(&self, name: &N) -> Option<&Type<N>>
-    where
-        N: PartialEq,
-    {
+    pub fn lookup_field(&self, name: &N) -> Option<&Type<N>> {
         match *self {
             Type::Struct(ref fields) => syntax::lookup_field(fields, name),
             _ => None,
@@ -275,10 +268,7 @@ impl<N> Type<N> {
         self.abstract_level_with(0, &f);
     }
 
-    pub fn abstract_name(&mut self, x: &N)
-    where
-        N: PartialEq + Clone,
-    {
+    pub fn abstract_name(&mut self, x: &N) {
         self.abstract_with(&|y| if x == y {
             Some(Named(x.clone(), 0))
         } else {
@@ -286,10 +276,7 @@ impl<N> Type<N> {
         })
     }
 
-    fn instantiate_level(&mut self, level: u32, src: &Type<N>)
-    where
-        N: Clone,
-    {
+    fn instantiate_level(&mut self, level: u32, src: &Type<N>) {
         // Bleh: Running into non-lexical liftetime problems here!
         // Just so you know that I'm not going completely insane....
         // FIXME: ensure that expressions are not bound at the same level
@@ -319,10 +306,7 @@ impl<N> Type<N> {
         };
     }
 
-    pub fn instantiate(&mut self, ty: &Type<N>)
-    where
-        N: Clone,
-    {
+    pub fn instantiate(&mut self, ty: &Type<N>) {
         self.instantiate_level(0, ty);
     }
 }

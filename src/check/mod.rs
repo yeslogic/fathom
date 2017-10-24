@@ -1,7 +1,7 @@
 //! Type and kind-checking for our DDL
 
 use syntax::{binary, host};
-use syntax::{Binding, Ctx, Named, Var};
+use syntax::{Binding, Ctx, Name, Named, Var};
 
 #[cfg(test)]
 mod tests;
@@ -23,10 +23,7 @@ pub enum TypeError<N> {
 
 /// Returns the type of a host expression, checking that it is properly formed
 /// in the environment
-pub fn ty_of<N>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N>, TypeError<N>>
-where
-    N: Clone + PartialEq,
-{
+pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N>, TypeError<N>> {
     use syntax::host::{Binop, Const, Expr, Type, TypeConst, Unop};
 
     match *expr {
@@ -104,16 +101,10 @@ where
 
 // Kinding
 
-pub fn simplify_ty<N>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<N>
-where
-    N: Clone + PartialEq,
-{
+pub fn simplify_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<N> {
     use syntax::binary::Type;
 
-    fn compute_ty<N>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Option<binary::Type<N>>
-    where
-        N: Clone + PartialEq,
-    {
+    fn compute_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Option<binary::Type<N>> {
         match *ty {
             Type::Var(Var::Bound(Named(_, i))) => ctx.lookup_ty_def(i).cloned(),
             Type::App(ref fn_ty, ref arg_ty) => match **fn_ty {
@@ -162,10 +153,7 @@ impl<N> From<TypeError<N>> for KindError<N> {
 
 /// Returns the kind of a binary type, checking that it is properly formed in
 /// the environment
-pub fn kind_of<N>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Kind, KindError<N>>
-where
-    N: Clone + PartialEq,
-{
+pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Kind, KindError<N>> {
     use syntax::binary::{Kind, Type, TypeConst};
 
     match *ty {

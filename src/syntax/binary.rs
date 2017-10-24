@@ -1,6 +1,6 @@
 //! The syntax of our data description language
 
-use syntax::{self, host, Field, Named, Var};
+use syntax::{self, host, Field, Name, Named, Var};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -43,7 +43,7 @@ pub enum Type<N> {
     App(Box<Type<N>>, Box<Type<N>>),
 }
 
-impl<N> Type<N> {
+impl<N: Name> Type<N> {
     /// A free type variable: eg. `T`
     pub fn fvar<N1: Into<N>>(x: N1) -> Type<N> {
         Type::Var(Var::Free(x.into()))
@@ -75,7 +75,6 @@ impl<N> Type<N> {
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     pub fn struct_<Fs>(fields: Fs) -> Type<N>
     where
-        N: PartialEq + Clone,
         Fs: IntoIterator<Item = Field<N, Type<N>>>,
     {
         // We maintain a list of the seen field names. This will allow us to
@@ -104,7 +103,6 @@ impl<N> Type<N> {
     /// A type constrained by a predicate: eg. `T where x => x == 3`
     pub fn cond<N1, T1, E1>(ty: T1, param: N1, pred: E1) -> Type<N>
     where
-        N: PartialEq + Clone,
         N1: Into<N>,
         T1: Into<Box<Type<N>>>,
         E1: Into<Box<host::Expr<N>>>,
@@ -119,7 +117,6 @@ impl<N> Type<N> {
     /// Type abstraction: eg. `\(a : Type) -> T`
     pub fn abs<T1>(param: Named<N, Kind>, body_ty: T1) -> Type<N>
     where
-        N: PartialEq + Clone,
         T1: Into<Box<Type<N>>>,
     {
         let mut body_ty = body_ty.into();
@@ -127,10 +124,7 @@ impl<N> Type<N> {
         Type::Abs(param, body_ty)
     }
 
-    pub fn lookup_field(&self, name: &N) -> Option<&Type<N>>
-    where
-        N: PartialEq,
-    {
+    pub fn lookup_field(&self, name: &N) -> Option<&Type<N>> {
         match *self {
             Type::Struct(ref fields) => syntax::lookup_field(fields, name),
             _ => None,
@@ -175,10 +169,7 @@ impl<N> Type<N> {
         self.abstract_level_with(0, &f);
     }
 
-    pub fn abstract_name(&mut self, x: &N)
-    where
-        N: PartialEq + Clone,
-    {
+    pub fn abstract_name(&mut self, x: &N) {
         self.abstract_with(&|y| if x == y {
             Some(Named(x.clone(), 0))
         } else {
@@ -186,10 +177,7 @@ impl<N> Type<N> {
         });
     }
 
-    fn instantiate_level(&mut self, level: u32, src: &Type<N>)
-    where
-        N: Clone,
-    {
+    fn instantiate_level(&mut self, level: u32, src: &Type<N>) {
         // Bleh: Running into non-lexical liftetime problems here!
         // Just so you know that I'm not going completely insane....
         // FIXME: ensure that expressions are not bound at the same level
@@ -232,17 +220,11 @@ impl<N> Type<N> {
         };
     }
 
-    pub fn instantiate(&mut self, ty: &Type<N>)
-    where
-        N: Clone,
-    {
+    pub fn instantiate(&mut self, ty: &Type<N>) {
         self.instantiate_level(0, ty);
     }
 
-    pub fn repr(&self) -> Result<host::Type<N>, ()>
-    where
-        N: Clone,
-    {
+    pub fn repr(&self) -> Result<host::Type<N>, ()> {
         match *self {
             Type::Var(ref v) => Ok(host::Type::Var(v.clone()).into()),
             Type::Const(TypeConst::Bit) => Ok(host::Type::Const(host::TypeConst::Bit).into()),
