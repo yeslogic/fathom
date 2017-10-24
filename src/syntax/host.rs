@@ -234,17 +234,23 @@ where
     }
 }
 
-/// A host type
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeF<N, T, E> {
-    /// A type variable: eg. `T`
-    Var(Var<N, Named<N, u32>>),
+pub enum TypeConst {
     /// Bit
     Bit,
     /// Boolean
     Bool,
     /// Integer
     Int,
+}
+
+/// A host type
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeF<N, T, E> {
+    /// A type variable: eg. `T`
+    Var(Var<N, Named<N, u32>>),
+    /// A type constant
+    Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
     Array(Box<T>, Box<E>),
     /// A union of types: eg. `union { T, ... }`
@@ -389,7 +395,7 @@ where
     {
         match *self {
             TypeF::Var(ref mut var) => var.abstract_with(f),
-            TypeF::Bit | TypeF::Bool | TypeF::Int => {}
+            TypeF::Const(_) => {}
             TypeF::Array(ref mut elem_ty, ref mut size_expr) => {
                 T::as_mut(elem_ty).abstract_level_with(level, f);
                 E::as_mut(size_expr).abstract_level_with(level, f);
@@ -434,7 +440,7 @@ where
             } else {
                 return;
             },
-            TypeF::Var(Var::Free(_)) | TypeF::Bit | TypeF::Bool | TypeF::Int => return,
+            TypeF::Var(Var::Free(_)) | TypeF::Const(_) => return,
             TypeF::Array(ref mut elem_ty, _) => {
                 T::as_mut(elem_ty).instantiate_level(level, src);
                 return;

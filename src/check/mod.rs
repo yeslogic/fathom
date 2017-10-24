@@ -29,13 +29,13 @@ where
     T: binary::TypeNode<N, E>,
     E: host::ExprNode<N>,
 {
-    use syntax::host::{Binop, Const, ExprF, Type, TypeF, Unop};
+    use syntax::host::{Binop, Const, ExprF, Type, TypeConst, TypeF, Unop};
 
     match *expr.as_ref() {
         // Constants are easy!
-        ExprF::Const(Const::Bit(_)) => Ok(Type(TypeF::Bit)),
-        ExprF::Const(Const::Bool(_)) => Ok(Type(TypeF::Bool)),
-        ExprF::Const(Const::Int(_)) => Ok(Type(TypeF::Int)),
+        ExprF::Const(Const::Bit(_)) => Ok(Type(TypeF::Const(TypeConst::Bit))),
+        ExprF::Const(Const::Bool(_)) => Ok(Type(TypeF::Const(TypeConst::Bool))),
+        ExprF::Const(Const::Int(_)) => Ok(Type(TypeF::Const(TypeConst::Int))),
 
         // Variables
         ExprF::Var(Var::Free(ref x)) => Err(TypeError::UnboundVariable(x.clone())),
@@ -47,11 +47,11 @@ where
         // Unary operators
         ExprF::Unop(op, ref expr) => match op {
             Unop::Neg => match ty_of(ctx, &**expr)? {
-                Type(TypeF::Int) => Ok(Type(TypeF::Int)),
+                Type(TypeF::Const(TypeConst::Int)) => Ok(Type(TypeF::Const(TypeConst::Int))),
                 ty1 => Err(TypeError::NegOperand(ty1)),
             },
             Unop::Not => match ty_of(ctx, &**expr)? {
-                Type(TypeF::Bool) => Ok(Type(TypeF::Bool)),
+                Type(TypeF::Const(TypeConst::Bool)) => Ok(Type(TypeF::Const(TypeConst::Bool))),
                 ty1 => Err(TypeError::NotOperand(ty1)),
             },
         },
@@ -64,23 +64,30 @@ where
             match op {
                 // Relational operators
                 Binop::Or | Binop::And => match (lhs_ty, ty2) {
-                    (Type(TypeF::Bool), Type(TypeF::Bool)) => Ok(Type(TypeF::Bool)),
+                    (Type(TypeF::Const(TypeConst::Bool)), Type(TypeF::Const(TypeConst::Bool))) => {
+                        Ok(Type(TypeF::Const(TypeConst::Bool)))
+                    }
                     (lhs_ty, ty2) => Err(TypeError::RelOperands(op, lhs_ty, ty2)),
                 },
 
                 // Comparison operators
-                Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                    match (lhs_ty, ty2) {
-                        (Type(TypeF::Bit), Type(TypeF::Bit)) |
-                        (Type(TypeF::Bool), Type(TypeF::Bool)) |
-                        (Type(TypeF::Int), Type(TypeF::Int)) => Ok(Type(TypeF::Bool)),
-                        (lhs_ty, ty2) => Err(TypeError::CmpOperands(op, lhs_ty, ty2)),
+                Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => match (
+                    lhs_ty,
+                    ty2,
+                ) {
+                    (Type(TypeF::Const(TypeConst::Bit)), Type(TypeF::Const(TypeConst::Bit))) |
+                    (Type(TypeF::Const(TypeConst::Bool)), Type(TypeF::Const(TypeConst::Bool))) |
+                    (Type(TypeF::Const(TypeConst::Int)), Type(TypeF::Const(TypeConst::Int))) => {
+                        Ok(Type(TypeF::Const(TypeConst::Bool)))
                     }
-                }
+                    (lhs_ty, ty2) => Err(TypeError::CmpOperands(op, lhs_ty, ty2)),
+                },
 
                 // Arithmetic operators
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => match (lhs_ty, ty2) {
-                    (Type(TypeF::Int), Type(TypeF::Int)) => Ok(Type(TypeF::Int)),
+                    (Type(TypeF::Const(TypeConst::Int)), Type(TypeF::Const(TypeConst::Int))) => {
+                        Ok(Type(TypeF::Const(TypeConst::Int)))
+                    }
                     (lhs_ty, ty2) => Err(TypeError::ArithOperands(op, lhs_ty, ty2)),
                 },
             }
@@ -168,7 +175,7 @@ where
     T: binary::TypeNode<N, E>,
     E: host::ExprNode<N>,
 {
-    use syntax::binary::{Kind, TypeF};
+    use syntax::binary::{Kind, TypeConst, TypeF};
 
     match *ty.as_ref() {
         // Variables
@@ -179,7 +186,7 @@ where
         },
 
         // Bit type
-        TypeF::Bit => Ok(Kind::Type),
+        TypeF::Const(TypeConst::Bit) => Ok(Kind::Type),
 
         // Array types
         TypeF::Array(ref elem_ty, ref size_expr) => {
@@ -188,7 +195,7 @@ where
             }
 
             match ty_of(ctx, &**size_expr)? {
-                host::Type(host::TypeF::Int) => Ok(Kind::Type),
+                host::Type(host::TypeF::Const(host::TypeConst::Int)) => Ok(Kind::Type),
                 _ => Err(KindError::ExpectedIntegerArraySize),
             }
         }
@@ -200,7 +207,7 @@ where
             }
 
             match ty_of(ctx, &**pred_expr)? {
-                host::Type(host::TypeF::Bool) => Ok(Kind::Type),
+                host::Type(host::TypeF::Const(host::TypeConst::Bool)) => Ok(Kind::Type),
                 _ => Err(KindError::ExpectedBooleanCondPredicate),
             }
         }

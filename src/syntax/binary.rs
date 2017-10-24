@@ -18,13 +18,18 @@ impl Kind {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeConst {
+    Bit,
+}
+
 /// A binary type
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeF<N, T, E> {
     /// A type variable: eg. `T`
     Var(Var<N, Named<N, u32>>),
-    /// Bit
-    Bit,
+    /// Type constant
+    Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
     Array(Box<T>, Box<E>),
     /// A union of types: eg. `union { T, ... }`
@@ -206,7 +211,7 @@ where
     {
         match *self {
             TypeF::Var(ref mut v) => v.abstract_with(f),
-            TypeF::Bit => {}
+            TypeF::Const(_) => {}
             TypeF::Array(ref mut elem_ty, ref mut size_expr) => {
                 T::as_mut(elem_ty).abstract_level_with(level, f);
                 E::as_mut(size_expr).abstract_level_with(level, f);
@@ -262,7 +267,7 @@ where
             } else {
                 return;
             },
-            TypeF::Var(Var::Free(_)) | TypeF::Bit => return,
+            TypeF::Var(Var::Free(_)) | TypeF::Const(_) => return,
             TypeF::Array(ref mut elem_ty, _) => {
                 T::as_mut(elem_ty).instantiate_level(level, src);
                 return;
@@ -308,7 +313,7 @@ where
     {
         match *self {
             TypeF::Var(ref v) => Ok(host::TypeF::Var(v.clone()).into()),
-            TypeF::Bit => Ok(host::TypeF::Bit.into()),
+            TypeF::Const(TypeConst::Bit) => Ok(host::TypeF::Const(host::TypeConst::Bit).into()),
             TypeF::Array(ref elem_ty, ref size_expr) => {
                 let elem_repr_ty = Box::new(T::as_ref(elem_ty).repr()?);
                 let size_expr = size_expr.clone();
