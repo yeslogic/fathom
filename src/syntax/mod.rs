@@ -213,7 +213,7 @@ pub enum Binding<N> {
 
 #[derive(Debug, Clone)]
 pub struct Ctx<N> {
-    bindings: Vec<Binding<N>>,
+    bindings: Vec<Named<N, Binding<N>>>,
 }
 
 impl<N> Ctx<N> {
@@ -223,34 +223,42 @@ impl<N> Ctx<N> {
         }
     }
 
-    pub fn extend(&mut self, binding: Binding<N>) {
+    pub fn extend(&mut self, binding: Named<N, Binding<N>>) {
         self.bindings.push(binding);
     }
 
-    pub fn lookup(&self, i: u32) -> &Binding<N> {
-        self.bindings
+    pub fn lookup(&self, i: u32) -> Named<&N, &Binding<N>> {
+        let Named(ref name, ref binding) = *self.bindings
             .get(i as usize)
-            .expect("ICE: Binder out of range")
+            .expect("ICE: Binder out of range");
+
+        Named(name, binding)
     }
 
-    pub fn lookup_ty(&self, i: u32) -> Option<&host::Type<N>> {
-        match *self.lookup(i) {
-            Binding::Expr(ref ty) => Some(ty),
+    pub fn lookup_ty(&self, i: u32) -> Option<Named<&N, &host::Type<N>>> {
+        let Named(name, binding) = self.lookup(i);
+
+        match *binding {
+            Binding::Expr(ref ty) => Some(Named(name, ty)),
             _ => None,
         }
     }
 
-    pub fn lookup_ty_def(&self, i: u32) -> Option<&binary::Type<N>> {
-        match *self.lookup(i) {
-            Binding::TypeDef(ref ty, _) => Some(ty),
+    pub fn lookup_ty_def(&self, i: u32) -> Option<Named<&N, &binary::Type<N>>> {
+        let Named(name, binding) = self.lookup(i);
+
+        match *binding {
+            Binding::TypeDef(ref ty, _) => Some(Named(name, ty)),
             _ => None,
         }
     }
 
-    pub fn lookup_kind(&self, i: u32) -> Option<&binary::Kind> {
-        match *self.lookup(i) {
-            Binding::Type(ref kind) => Some(kind),
-            Binding::TypeDef(_, Some(ref kind)) => Some(kind),
+    pub fn lookup_kind(&self, i: u32) -> Option<Named<&N, &binary::Kind>> {
+        let Named(name, binding) = self.lookup(i);
+
+        match *binding {
+            Binding::Type(ref kind) => Some(Named(name, kind)),
+            Binding::TypeDef(_, Some(ref kind)) => Some(Named(name, kind)),
             Binding::TypeDef(_, None) => panic!("ICE: no type recorded for variable"),
             _ => None,
         }

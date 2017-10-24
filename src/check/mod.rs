@@ -35,7 +35,7 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
         // Variables
         Expr::Var(Var::Free(ref x)) => Err(TypeError::UnboundVariable(x.clone())),
         Expr::Var(Var::Bound(Named(_, i))) => match ctx.lookup_ty(i) {
-            Some(ty) => Ok(ty.clone()),
+            Some(Named(_, ty)) => Ok(ty.clone()),
             None => Err(TypeError::TypeInExpressionPosition),
         },
 
@@ -106,7 +106,10 @@ pub fn simplify_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<
 
     fn compute_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Option<binary::Type<N>> {
         match *ty {
-            Type::Var(Var::Bound(Named(_, i))) => ctx.lookup_ty_def(i).cloned(),
+            Type::Var(Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
+                Some(Named(_, def_ty)) => Some(def_ty.clone()),
+                None => None,
+            },
             Type::App(ref fn_ty, ref arg_ty) => match **fn_ty {
                 Type::Abs(_, ref body_ty) => {
                     // FIXME: Avoid clone
@@ -160,7 +163,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         // Variables
         Type::Var(Var::Free(ref x)) => Err(KindError::UnboundVariable(x.clone())),
         Type::Var(Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
-            Some(kind) => Ok(kind.clone()),
+            Some(Named(_, kind)) => Ok(kind.clone()),
             None => Err(KindError::ValueInExpressionPosition),
         },
 
@@ -192,10 +195,10 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Type abstraction
-        Type::Abs(Named(_, ref param_kind), ref body_ty) => {
+        Type::Abs(Named(ref name, ref param_kind), ref body_ty) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
-            ctx.extend(Binding::Type(param_kind.clone()));
+            ctx.extend(Named(name.clone(), Binding::Type(param_kind.clone())));
             Ok(Kind::arrow(param_kind.clone(), kind_of(&ctx, &**body_ty)?))
         }
 
@@ -222,7 +225,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
 
                 let field_ty = simplify_ty(&ctx, &field.value);
                 let repr_ty = field_ty.repr().unwrap(); // FIXME: unwrap
-                ctx.extend(Binding::Expr(repr_ty));
+                ctx.extend(Named(field.name.clone(), Binding::Expr(repr_ty)));
             }
 
             Ok(Kind::Type)
