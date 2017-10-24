@@ -14,7 +14,7 @@ pub type ParseError<'input> = lalrpop_util::ParseError<BytePos, Token<'input>, L
 pub fn parse<'input>(
     src: &'input str,
 ) -> Result<
-    Vec<Definition<String, binary::Type<String>>>,
+    Vec<Definition<String>>,
     ParseError<'input>,
 > {
     grammar::parse_Definitions(Lexer::new(src))

@@ -57,11 +57,11 @@ extern {
 }
 
 
-pub Definitions: Vec<Definition<String, Type<String>>> = {
+pub Definitions: Vec<Definition<String>> = {
     Definition*,
 };
 
-Definition: Definition<String, Type<String>> = {
+Definition: Definition<String> = {
     <name: "Ident"> "=" <ty: PrimaryType> ";" => {
         Definition::new(name, ty)
     },

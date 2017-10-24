@@ -14,16 +14,16 @@ pub mod host;
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Definition<N, T> {
+pub struct Definition<N> {
     pub name: N,
-    pub ty: T,
+    pub ty: Box<binary::Type<N>>,
 }
 
-impl<N, T> Definition<N, T> {
-    pub fn new<N1: Into<N>>(name: N1, ty: T) -> Definition<N, T> {
+impl<N> Definition<N> {
+    pub fn new<N1: Into<N>, T1: Into<Box<binary::Type<N>>>>(name: N1, ty: T1) -> Definition<N> {
         Definition {
             name: name.into(),
-            ty,
+            ty: ty.into(),
         }
     }
 }
