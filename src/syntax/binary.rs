@@ -136,7 +136,7 @@ impl<N: Name> Type<N> {
         F: Fn(&N) -> Option<Named<N, u32>>,
     {
         match *self {
-            Type::Var(ref mut v) => v.abstract_with(f),
+            Type::Var(ref mut var) => var.abstract_with(f),
             Type::Const(_) => {}
             Type::Array(ref mut elem_ty, ref mut size_expr) => {
                 elem_ty.abstract_level_with(level, f);

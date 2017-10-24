@@ -129,14 +129,14 @@ impl<N: Name> Expr<N> {
         F: Fn(&N) -> Option<Named<N, u32>>,
     {
         match *self {
-            Expr::Var(ref mut v) => v.abstract_with(f),
+            Expr::Var(ref mut var) => var.abstract_with(f),
             Expr::Const(_) => {}
-            Expr::Unop(_, ref mut e1) | Expr::Proj(ref mut e1, _) => {
-                e1.abstract_level_with(level, f);
+            Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
+                expr.abstract_level_with(level, f);
             }
-            Expr::Binop(_, ref mut e1, ref mut e2) => {
-                e1.abstract_level_with(level, f);
-                e2.abstract_level_with(level, f);
+            Expr::Binop(_, ref mut lhs_expr, ref mut rhs_expr) => {
+                lhs_expr.abstract_level_with(level, f);
+                rhs_expr.abstract_level_with(level, f);
             }
         }
     }
