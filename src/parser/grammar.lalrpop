@@ -93,7 +93,9 @@ AtomicType: Type<String> = {
     },
     "(" <ty: PrimaryType> ")" => ty,
     "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" => {
-        Type::struct_(fields.into_iter().chain(last))
+        let mut fields = fields;
+        fields.extend(last);
+        Type::struct_(fields)
     },
     "union" "{" <tys: (<PrimaryType> ",")+> <last: PrimaryType?> "}" => {
         let mut tys = tys;

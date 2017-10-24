@@ -31,7 +31,7 @@ impl<N> Definition<N> {
 pub fn abstract_defs<N: Name>(mut defs: Vec<Definition<N>>) -> Vec<Definition<N>> {
     // We maintain a list of the seen definition names. This will allow us to
     // recover the index of these variables as we abstract later definitions...
-    let mut seen_names = Vec::new();
+    let mut seen_names = Vec::with_capacity(defs.len());
 
     for def in &mut defs {
         def.ty.abstract_with(&|x| {

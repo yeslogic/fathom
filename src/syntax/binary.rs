@@ -73,31 +73,24 @@ impl<N: Name> Type<N> {
     }
 
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_<Fs>(fields: Fs) -> Type<N>
-    where
-        Fs: IntoIterator<Item = Field<N, Type<N>>>,
-    {
+    pub fn struct_(mut fields: Vec<Field<N, Type<N>>>) -> Type<N> {
         // We maintain a list of the seen field names. This will allow us to
         // recover the index of these variables as we abstract later fields...
-        let mut seen_names = Vec::new();
-        let f = |field: Field<N, Type<N>>| {
-            let field = field.map_value(|mut ty| {
-                ty.abstract_with(&|x| {
-                    seen_names
-                        .iter()
-                        .position(|y| x == y)
-                        .map(|i| Named(x.clone(), i as u32))
-                });
-                ty
+        let mut seen_names = Vec::with_capacity(fields.len());
+
+        for field in &mut fields {
+            field.value.abstract_with(&|x| {
+                seen_names
+                    .iter()
+                    .position(|y| x == y)
+                    .map(|i| Named(x.clone(), i as u32))
             });
 
             // Record that the field has been 'seen'
             seen_names.push(field.name.clone());
+        }
 
-            field
-        };
-
-        Type::Struct(fields.into_iter().map(f).collect())
+        Type::Struct(fields)
     }
 
     /// A type constrained by a predicate: eg. `T where x => x == 3`
