@@ -28,6 +28,26 @@ impl<N> Definition<N> {
     }
 }
 
+pub fn abstract_defs<N: Name>(mut defs: Vec<Definition<N>>) -> Vec<Definition<N>> {
+    // We maintain a list of the seen definition names. This will allow us to
+    // recover the index of these variables as we abstract later definitions...
+    let mut seen_names = Vec::new();
+
+    for def in &mut defs {
+        def.ty.abstract_with(&|x| {
+            seen_names
+                .iter()
+                .position(|y| x == y)
+                .map(|i| Named(x.clone(), i as u32))
+        });
+
+        // Record that the definition has been 'seen'
+        seen_names.push(def.name.clone());
+    }
+
+    defs
+}
+
 /// A variable that can either be free or bound
 ///
 /// We use a locally nameless representation for variable binding.
