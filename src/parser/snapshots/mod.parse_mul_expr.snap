@@ -2,17 +2,14 @@ Binop(
     Mul,
     Var(
         Free("x")
-    
     ),
     Binop(
         Mul,
         Var(
             Free("y")
-        
         ),
         Var(
             Free("z")
-        
         )
     )
 )

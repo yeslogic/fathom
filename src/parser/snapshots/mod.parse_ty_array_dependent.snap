@@ -4,7 +4,6 @@ Struct(
             name: "len",
             value: Var(
                 Free("u32")
-            
             )
         },
         Field {
@@ -12,11 +11,9 @@ Struct(
             value: Array(
                 Var(
                     Free("f32")
-                
                 ),
                 Var(
                     Bound(Named("len", 0))
-                
                 )
             )
         },
@@ -29,11 +26,9 @@ Struct(
                         value: Array(
                             Var(
                                 Free("f32")
-                            
                             ),
                             Var(
                                 Bound(Named("len", 0))
-                            
                             )
                         )
                     },
@@ -41,21 +36,18 @@ Struct(
                         name: "len",
                         value: Var(
                             Free("u32")
-                        
                         )
                     },
                     Field {
                         name: "padding1",
                         value: Var(
                             Free("u8")
-                        
                         )
                     },
                     Field {
                         name: "padding2",
                         value: Var(
                             Free("u8")
-                        
                         )
                     },
                     Field {
@@ -63,11 +55,9 @@ Struct(
                         value: Array(
                             Var(
                                 Free("f32")
-                            
                             ),
                             Var(
                                 Bound(Named("len", 1))
-                            
                             )
                         )
                     }

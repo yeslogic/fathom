@@ -2,7 +2,6 @@ Binop(
     Add,
     Var(
         Free("x")
-    
     ),
     Binop(
         Sub,
@@ -10,17 +9,14 @@ Binop(
             Mul,
             Var(
                 Free("y")
-            
             ),
             Binop(
                 Div,
                 Var(
                     Free("z")
-                
                 ),
                 Var(
                     Free("z")
-                
                 )
             )
         ),
@@ -28,11 +24,9 @@ Binop(
             Mul,
             Var(
                 Free("x")
-            
             ),
             Var(
                 Free("a")
-            
             )
         )
     )

@@ -2,17 +2,14 @@ Binop(
     Div,
     Var(
         Free("x")
-    
     ),
     Binop(
         Div,
         Var(
             Free("y")
-        
         ),
         Var(
             Free("z")
-        
         )
     )
 )

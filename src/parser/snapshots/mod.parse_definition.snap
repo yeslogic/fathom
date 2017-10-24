@@ -7,14 +7,12 @@
                     name: "x",
                     value: Var(
                         Free("u32be")
-                    
                     )
                 },
                 Field {
                     name: "y",
                     value: Var(
                         Free("u32be")
-                    
                     )
                 }
             ]
@@ -28,7 +26,6 @@
                     name: "len",
                     value: Var(
                         Free("u16le")
-                    
                     )
                 },
                 Field {
@@ -36,11 +33,9 @@
                     value: Array(
                         Var(
                             Bound(Named("Point", 0))
-                        
                         ),
                         Var(
                             Bound(Named("len", 0))
-                        
                         )
                     )
                 }
@@ -57,14 +52,12 @@
                             name: "format",
                             value: Var(
                                 Free("u16")
-                            
                             )
                         },
                         Field {
                             name: "data",
                             value: Var(
                                 Free("u16")
-                            
                             )
                         }
                     ]
@@ -75,14 +68,12 @@
                             name: "format",
                             value: Var(
                                 Free("u16")
-                            
                             )
                         },
                         Field {
                             name: "point",
                             value: Var(
                                 Bound(Named("Point", 0))
-                            
                             )
                         }
                     ]
@@ -93,14 +84,12 @@
                             name: "format",
                             value: Var(
                                 Free("u16")
-                            
                             )
                         },
                         Field {
                             name: "array",
                             value: Var(
                                 Bound(Named("Array", 1))
-                            
                             )
                         }
                     ]

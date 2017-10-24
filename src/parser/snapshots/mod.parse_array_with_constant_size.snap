@@ -4,7 +4,6 @@
         ty: Array(
             Var(
                 Free("f32")
-            
             ),
             Const(
                 Int(3)

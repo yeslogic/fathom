@@ -7,13 +7,11 @@ Cond(
                     value: Cond(
                         Named("x", Var(
                             Free("u32")
-                        
                         )),
                         Binop(
                             Eq,
                             Var(
                                 Bound(Named("x", 0))
-                            
                             ),
                             Const(
                                 Int(3)
@@ -27,7 +25,6 @@ Cond(
             Eq,
             Var(
                 Bound(Named("x", 0))
-            
             ),
             Const(
                 Int(2)
@@ -38,7 +35,6 @@ Cond(
         Eq,
         Var(
             Bound(Named("x", 0))
-        
         ),
         Const(
             Int(1)

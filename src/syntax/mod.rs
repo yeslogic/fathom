@@ -115,7 +115,7 @@ impl<F: fmt::Debug, B: fmt::Debug> fmt::Debug for Var<F, B> {
                 i.fmt(f)?;
             }
         }
-        writeln!(f, ")")
+        write!(f, ")")
     }
 }
 

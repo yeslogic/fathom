@@ -4,11 +4,9 @@ Unop(
         Or,
         Var(
             Free("true")
-        
         ),
         Var(
             Free("false")
-        
         )
     )
 )
