@@ -1,48 +1,18 @@
-SpannedExpr {
-    span: Span {
-        lo: BytePos(0),
-        hi: BytePos(9)
-    },
-    inner: Binop(
+Binop(
+    Sub,
+    Var(
+        Free("x")
+    
+    ),
+    Binop(
         Sub,
-        SpannedExpr {
-            span: Span {
-                lo: BytePos(0),
-                hi: BytePos(1)
-            },
-            inner: Var(
-                Free("x")
-            
-            )
-        },
-        SpannedExpr {
-            span: Span {
-                lo: BytePos(4),
-                hi: BytePos(9)
-            },
-            inner: Binop(
-                Sub,
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(4),
-                        hi: BytePos(5)
-                    },
-                    inner: Var(
-                        Free("y")
-                    
-                    )
-                },
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(8),
-                        hi: BytePos(9)
-                    },
-                    inner: Var(
-                        Free("z")
-                    
-                    )
-                }
-            )
-        }
+        Var(
+            Free("y")
+        
+        ),
+        Var(
+            Free("z")
+        
+        )
     )
-}
+)

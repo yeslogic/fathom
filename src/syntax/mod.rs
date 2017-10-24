@@ -180,42 +180,42 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub enum Binding<N, T, E> {
-    Expr(host::Type<N, E>),
+pub enum Binding<N> {
+    Expr(host::Type<N>),
     Type(binary::Kind),
-    TypeDef(T, Option<binary::Kind>),
+    TypeDef(binary::Type<N>, Option<binary::Kind>),
 }
 
 #[derive(Debug, Clone)]
-pub struct Ctx<N, T, E> {
-    bindings: Vec<Binding<N, T, E>>,
+pub struct Ctx<N> {
+    bindings: Vec<Binding<N>>,
 }
 
-impl<N, T, E> Ctx<N, T, E> {
-    pub fn new() -> Ctx<N, T, E> {
+impl<N> Ctx<N> {
+    pub fn new() -> Ctx<N> {
         Ctx {
             bindings: Vec::new(),
         }
     }
 
-    pub fn extend(&mut self, binding: Binding<N, T, E>) {
+    pub fn extend(&mut self, binding: Binding<N>) {
         self.bindings.push(binding);
     }
 
-    pub fn lookup(&self, i: u32) -> &Binding<N, T, E> {
+    pub fn lookup(&self, i: u32) -> &Binding<N> {
         self.bindings
             .get(i as usize)
             .expect("ICE: Binder out of range")
     }
 
-    pub fn lookup_ty(&self, i: u32) -> Option<&host::Type<N, E>> {
+    pub fn lookup_ty(&self, i: u32) -> Option<&host::Type<N>> {
         match *self.lookup(i) {
             Binding::Expr(ref ty) => Some(ty),
             _ => None,
         }
     }
 
-    pub fn lookup_ty_def(&self, i: u32) -> Option<&T> {
+    pub fn lookup_ty_def(&self, i: u32) -> Option<&binary::Type<N>> {
         match *self.lookup(i) {
             Binding::TypeDef(ref ty, _) => Some(ty),
             _ => None,

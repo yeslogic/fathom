@@ -1,131 +1,47 @@
-SpannedType {
-    span: Span {
-        lo: BytePos(13),
-        hi: BytePos(137)
-    },
-    inner: Cond(
-        Named("x", SpannedType {
-            span: Span {
-                lo: BytePos(13),
-                hi: BytePos(107)
-            },
-            inner: Cond(
-                Named("x", SpannedType {
-                    span: Span {
-                        lo: BytePos(13),
-                        hi: BytePos(77)
-                    },
-                    inner: Struct(
-                        [
-                            Field {
-                                name: "x",
-                                value: SpannedType {
-                                    span: Span {
-                                        lo: BytePos(41),
-                                        hi: BytePos(62)
-                                    },
-                                    inner: Cond(
-                                        Named("x", SpannedType {
-                                            span: Span {
-                                                lo: BytePos(41),
-                                                hi: BytePos(44)
-                                            },
-                                            inner: Var(
-                                                Free("u32")
-                                            
-                                            )
-                                        }),
-                                        SpannedExpr {
-                                            span: Span {
-                                                lo: BytePos(56),
-                                                hi: BytePos(62)
-                                            },
-                                            inner: Binop(
-                                                Eq,
-                                                SpannedExpr {
-                                                    span: Span {
-                                                        lo: BytePos(56),
-                                                        hi: BytePos(57)
-                                                    },
-                                                    inner: Var(
-                                                        Bound(Named("x", 0))
-                                                    
-                                                    )
-                                                },
-                                                SpannedExpr {
-                                                    span: Span {
-                                                        lo: BytePos(61),
-                                                        hi: BytePos(62)
-                                                    },
-                                                    inner: Const(
-                                                        Int(3)
-                                                    )
-                                                }
-                                            )
-                                        }
-                                    )
-                                }
-                            }
-                        ]
-                    )
-                }),
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(101),
-                        hi: BytePos(107)
-                    },
-                    inner: Binop(
-                        Eq,
-                        SpannedExpr {
-                            span: Span {
-                                lo: BytePos(101),
-                                hi: BytePos(102)
-                            },
-                            inner: Var(
+Cond(
+    Named("x", Cond(
+        Named("x", Struct(
+            [
+                Field {
+                    name: "x",
+                    value: Cond(
+                        Named("x", Var(
+                            Free("u32")
+                        
+                        )),
+                        Binop(
+                            Eq,
+                            Var(
                                 Bound(Named("x", 0))
                             
+                            ),
+                            Const(
+                                Int(3)
                             )
-                        },
-                        SpannedExpr {
-                            span: Span {
-                                lo: BytePos(106),
-                                hi: BytePos(107)
-                            },
-                            inner: Const(
-                                Int(2)
-                            )
-                        }
+                        )
                     )
                 }
+            ]
+        )),
+        Binop(
+            Eq,
+            Var(
+                Bound(Named("x", 0))
+            
+            ),
+            Const(
+                Int(2)
             )
-        }),
-        SpannedExpr {
-            span: Span {
-                lo: BytePos(131),
-                hi: BytePos(137)
-            },
-            inner: Binop(
-                Eq,
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(131),
-                        hi: BytePos(132)
-                    },
-                    inner: Var(
-                        Bound(Named("x", 0))
-                    
-                    )
-                },
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(136),
-                        hi: BytePos(137)
-                    },
-                    inner: Const(
-                        Int(1)
-                    )
-                }
-            )
-        }
+        )
+    )),
+    Binop(
+        Eq,
+        Var(
+            Bound(Named("x", 0))
+        
+        ),
+        Const(
+            Int(1)
+        )
     )
-}
+)

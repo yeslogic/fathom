@@ -14,7 +14,7 @@ pub type ParseError<'input> = lalrpop_util::ParseError<BytePos, Token<'input>, L
 pub fn parse<'input>(
     src: &'input str,
 ) -> Result<
-    Vec<Definition<String, binary::SpannedType<String, host::SpannedExpr<String>>>>,
+    Vec<Definition<String, binary::Type<String>>>,
     ParseError<'input>,
 > {
     grammar::parse_Definitions(Lexer::new(src))
@@ -22,13 +22,13 @@ pub fn parse<'input>(
 
 pub fn parse_expr<'input>(
     src: &'input str,
-) -> Result<host::SpannedExpr<String>, ParseError<'input>> {
+) -> Result<host::Expr<String>, ParseError<'input>> {
     grammar::parse_Expr(Lexer::new(src))
 }
 
 pub fn parse_ty<'input>(
     src: &'input str,
-) -> Result<binary::SpannedType<String, host::SpannedExpr<String>>, ParseError<'input>> {
+) -> Result<binary::Type<String>, ParseError<'input>> {
     grammar::parse_Type(Lexer::new(src))
 }
 

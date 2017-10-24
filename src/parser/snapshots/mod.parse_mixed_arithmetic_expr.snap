@@ -1,105 +1,39 @@
-SpannedExpr {
-    span: Span {
-        lo: BytePos(0),
-        hi: BytePos(21)
-    },
-    inner: Binop(
-        Add,
-        SpannedExpr {
-            span: Span {
-                lo: BytePos(0),
-                hi: BytePos(1)
-            },
-            inner: Var(
+Binop(
+    Add,
+    Var(
+        Free("x")
+    
+    ),
+    Binop(
+        Sub,
+        Binop(
+            Mul,
+            Var(
+                Free("y")
+            
+            ),
+            Binop(
+                Div,
+                Var(
+                    Free("z")
+                
+                ),
+                Var(
+                    Free("z")
+                
+                )
+            )
+        ),
+        Binop(
+            Mul,
+            Var(
                 Free("x")
             
+            ),
+            Var(
+                Free("a")
+            
             )
-        },
-        SpannedExpr {
-            span: Span {
-                lo: BytePos(4),
-                hi: BytePos(21)
-            },
-            inner: Binop(
-                Sub,
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(4),
-                        hi: BytePos(13)
-                    },
-                    inner: Binop(
-                        Mul,
-                        SpannedExpr {
-                            span: Span {
-                                lo: BytePos(4),
-                                hi: BytePos(5)
-                            },
-                            inner: Var(
-                                Free("y")
-                            
-                            )
-                        },
-                        SpannedExpr {
-                            span: Span {
-                                lo: BytePos(8),
-                                hi: BytePos(13)
-                            },
-                            inner: Binop(
-                                Div,
-                                SpannedExpr {
-                                    span: Span {
-                                        lo: BytePos(8),
-                                        hi: BytePos(9)
-                                    },
-                                    inner: Var(
-                                        Free("z")
-                                    
-                                    )
-                                },
-                                SpannedExpr {
-                                    span: Span {
-                                        lo: BytePos(12),
-                                        hi: BytePos(13)
-                                    },
-                                    inner: Var(
-                                        Free("z")
-                                    
-                                    )
-                                }
-                            )
-                        }
-                    )
-                },
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(16),
-                        hi: BytePos(21)
-                    },
-                    inner: Binop(
-                        Mul,
-                        SpannedExpr {
-                            span: Span {
-                                lo: BytePos(16),
-                                hi: BytePos(17)
-                            },
-                            inner: Var(
-                                Free("x")
-                            
-                            )
-                        },
-                        SpannedExpr {
-                            span: Span {
-                                lo: BytePos(20),
-                                hi: BytePos(21)
-                            },
-                            inner: Var(
-                                Free("a")
-                            
-                            )
-                        }
-                    )
-                }
-            )
-        }
+        )
     )
-}
+)

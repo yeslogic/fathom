@@ -1,67 +1,25 @@
-SpannedExpr {
-    span: Span {
-        lo: BytePos(13),
-        hi: BytePos(44)
-    },
-    inner: Binop(
+Binop(
+    Or,
+    Binop(
+        And,
+        Var(
+            Free("true")
+        
+        ),
+        Var(
+            Free("false")
+        
+        )
+    ),
+    Binop(
         Or,
-        SpannedExpr {
-            span: Span {
-                lo: BytePos(13),
-                hi: BytePos(27)
-            },
-            inner: Binop(
-                And,
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(14),
-                        hi: BytePos(18)
-                    },
-                    inner: Var(
-                        Free("true")
-                    
-                    )
-                },
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(21),
-                        hi: BytePos(26)
-                    },
-                    inner: Var(
-                        Free("false")
-                    
-                    )
-                }
-            )
-        },
-        SpannedExpr {
-            span: Span {
-                lo: BytePos(30),
-                hi: BytePos(44)
-            },
-            inner: Binop(
-                Or,
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(31),
-                        hi: BytePos(35)
-                    },
-                    inner: Var(
-                        Free("true")
-                    
-                    )
-                },
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(38),
-                        hi: BytePos(43)
-                    },
-                    inner: Var(
-                        Free("false")
-                    
-                    )
-                }
-            )
-        }
+        Var(
+            Free("true")
+        
+        ),
+        Var(
+            Free("false")
+        
+        )
     )
-}
+)

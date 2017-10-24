@@ -1,32 +1,14 @@
 [
     Definition {
         name: "Point",
-        ty: SpannedType {
-            span: Span {
-                lo: BytePos(21),
-                hi: BytePos(29)
-            },
-            inner: Array(
-                SpannedType {
-                    span: Span {
-                        lo: BytePos(22),
-                        hi: BytePos(25)
-                    },
-                    inner: Var(
-                        Free("f32")
-                    
-                    )
-                },
-                SpannedExpr {
-                    span: Span {
-                        lo: BytePos(27),
-                        hi: BytePos(28)
-                    },
-                    inner: Const(
-                        Int(3)
-                    )
-                }
+        ty: Array(
+            Var(
+                Free("f32")
+            
+            ),
+            Const(
+                Int(3)
             )
-        }
+        )
     }
 ]

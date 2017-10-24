@@ -10,83 +10,80 @@ mod tests;
 
 /// An error that was encountered during type checking
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeError<N, E> {
-    FieldNotFound(N, host::Type<N, E>),
+pub enum TypeError<N> {
+    FieldNotFound(N, host::Type<N>),
     TypeInExpressionPosition,
     UnboundVariable(N),
-    NegOperand(host::Type<N, E>),
-    NotOperand(host::Type<N, E>),
-    RelOperands(host::Binop, host::Type<N, E>, host::Type<N, E>),
-    CmpOperands(host::Binop, host::Type<N, E>, host::Type<N, E>),
-    ArithOperands(host::Binop, host::Type<N, E>, host::Type<N, E>),
+    NegOperand(host::Type<N>),
+    NotOperand(host::Type<N>),
+    RelOperands(host::Binop, host::Type<N>, host::Type<N>),
+    CmpOperands(host::Binop, host::Type<N>, host::Type<N>),
+    ArithOperands(host::Binop, host::Type<N>, host::Type<N>),
 }
 
 /// Returns the type of a host expression, checking that it is properly formed
 /// in the environment
-pub fn ty_of<N, T, E>(ctx: &Ctx<N, T, E>, expr: &E) -> Result<host::Type<N, E>, TypeError<N, E>>
+pub fn ty_of<N>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N>, TypeError<N>>
 where
     N: Clone + PartialEq,
-    T: binary::TypeNode<N, E>,
-    E: host::ExprNode<N>,
 {
-    use syntax::host::{Binop, Const, ExprF, Type, TypeConst, TypeF, Unop};
+    use syntax::host::{Binop, Const, Expr, Type, TypeConst, Unop};
 
-    match *expr.as_ref() {
+    match *expr {
         // Constants are easy!
-        ExprF::Const(Const::Bit(_)) => Ok(Type(TypeF::Const(TypeConst::Bit))),
-        ExprF::Const(Const::Bool(_)) => Ok(Type(TypeF::Const(TypeConst::Bool))),
-        ExprF::Const(Const::Int(_)) => Ok(Type(TypeF::Const(TypeConst::Int))),
+        Expr::Const(Const::Bit(_)) => Ok(Type::Const(TypeConst::Bit)),
+        Expr::Const(Const::Bool(_)) => Ok(Type::Const(TypeConst::Bool)),
+        Expr::Const(Const::Int(_)) => Ok(Type::Const(TypeConst::Int)),
 
         // Variables
-        ExprF::Var(Var::Free(ref x)) => Err(TypeError::UnboundVariable(x.clone())),
-        ExprF::Var(Var::Bound(Named(_, i))) => match ctx.lookup_ty(i) {
+        Expr::Var(Var::Free(ref x)) => Err(TypeError::UnboundVariable(x.clone())),
+        Expr::Var(Var::Bound(Named(_, i))) => match ctx.lookup_ty(i) {
             Some(ty) => Ok(ty.clone()),
             None => Err(TypeError::TypeInExpressionPosition),
         },
 
         // Unary operators
-        ExprF::Unop(op, ref expr) => match op {
+        Expr::Unop(op, ref expr) => match op {
             Unop::Neg => match ty_of(ctx, &**expr)? {
-                Type(TypeF::Const(TypeConst::Int)) => Ok(Type(TypeF::Const(TypeConst::Int))),
+                Type::Const(TypeConst::Int) => Ok(Type::Const(TypeConst::Int)),
                 ty1 => Err(TypeError::NegOperand(ty1)),
             },
             Unop::Not => match ty_of(ctx, &**expr)? {
-                Type(TypeF::Const(TypeConst::Bool)) => Ok(Type(TypeF::Const(TypeConst::Bool))),
+                Type::Const(TypeConst::Bool) => Ok(Type::Const(TypeConst::Bool)),
                 ty1 => Err(TypeError::NotOperand(ty1)),
             },
         },
 
         // Binary operators
-        ExprF::Binop(op, ref lhs_expr, ref rhs_expr) => {
+        Expr::Binop(op, ref lhs_expr, ref rhs_expr) => {
             let lhs_ty = ty_of(ctx, &**lhs_expr)?;
             let ty2 = ty_of(ctx, &**rhs_expr)?;
 
             match op {
                 // Relational operators
                 Binop::Or | Binop::And => match (lhs_ty, ty2) {
-                    (Type(TypeF::Const(TypeConst::Bool)), Type(TypeF::Const(TypeConst::Bool))) => {
-                        Ok(Type(TypeF::Const(TypeConst::Bool)))
+                    (Type::Const(TypeConst::Bool), Type::Const(TypeConst::Bool)) => {
+                        Ok(Type::Const(TypeConst::Bool))
                     }
                     (lhs_ty, ty2) => Err(TypeError::RelOperands(op, lhs_ty, ty2)),
                 },
 
                 // Comparison operators
-                Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => match (
-                    lhs_ty,
-                    ty2,
-                ) {
-                    (Type(TypeF::Const(TypeConst::Bit)), Type(TypeF::Const(TypeConst::Bit))) |
-                    (Type(TypeF::Const(TypeConst::Bool)), Type(TypeF::Const(TypeConst::Bool))) |
-                    (Type(TypeF::Const(TypeConst::Int)), Type(TypeF::Const(TypeConst::Int))) => {
-                        Ok(Type(TypeF::Const(TypeConst::Bool)))
+                Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                    match (lhs_ty, ty2) {
+                        (Type::Const(TypeConst::Bit), Type::Const(TypeConst::Bit)) |
+                        (Type::Const(TypeConst::Bool), Type::Const(TypeConst::Bool)) |
+                        (Type::Const(TypeConst::Int), Type::Const(TypeConst::Int)) => {
+                            Ok(Type::Const(TypeConst::Bool))
+                        }
+                        (lhs_ty, ty2) => Err(TypeError::CmpOperands(op, lhs_ty, ty2)),
                     }
-                    (lhs_ty, ty2) => Err(TypeError::CmpOperands(op, lhs_ty, ty2)),
-                },
+                }
 
                 // Arithmetic operators
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => match (lhs_ty, ty2) {
-                    (Type(TypeF::Const(TypeConst::Int)), Type(TypeF::Const(TypeConst::Int))) => {
-                        Ok(Type(TypeF::Const(TypeConst::Int)))
+                    (Type::Const(TypeConst::Int), Type::Const(TypeConst::Int)) => {
+                        Ok(Type::Const(TypeConst::Int))
                     }
                     (lhs_ty, ty2) => Err(TypeError::ArithOperands(op, lhs_ty, ty2)),
                 },
@@ -94,10 +91,10 @@ where
         }
 
         // Field projection
-        ExprF::Proj(ref expr, ref name) => {
+        Expr::Proj(ref expr, ref name) => {
             let expr_ty = ty_of(ctx, &**expr)?;
 
-            match expr_ty.as_ref().lookup_field(name) {
+            match expr_ty.lookup_field(name) {
                 None => Err(TypeError::FieldNotFound(name.clone(), expr_ty.clone())),
                 Some(fty) => Ok(fty.clone()),
             }
@@ -107,27 +104,23 @@ where
 
 // Kinding
 
-pub fn simplify_ty<N, T, E>(ctx: &Ctx<N, T, E>, ty: &T) -> T
+pub fn simplify_ty<N>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<N>
 where
     N: Clone + PartialEq,
-    T: binary::TypeNode<N, E>,
-    E: host::ExprNode<N>,
 {
-    use syntax::binary::TypeF;
+    use syntax::binary::Type;
 
-    fn compute_ty<N, T, E>(ctx: &Ctx<N, T, E>, ty: &T) -> Option<T>
+    fn compute_ty<N>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Option<binary::Type<N>>
     where
         N: Clone + PartialEq,
-        T: binary::TypeNode<N, E>,
-        E: host::ExprNode<N>,
     {
-        match *ty.as_ref() {
-            TypeF::Var(Var::Bound(Named(_, i))) => ctx.lookup_ty_def(i).cloned(),
-            TypeF::App(ref fn_ty, ref arg_ty) => match *T::as_ref(fn_ty) {
-                TypeF::Abs(_, ref body_ty) => {
+        match *ty {
+            Type::Var(Var::Bound(Named(_, i))) => ctx.lookup_ty_def(i).cloned(),
+            Type::App(ref fn_ty, ref arg_ty) => match **fn_ty {
+                Type::Abs(_, ref body_ty) => {
                     // FIXME: Avoid clone
                     let mut body = (**body_ty).clone();
-                    T::as_mut(&mut body).instantiate(T::as_ref(arg_ty));
+                    body.instantiate(arg_ty);
                     Some(body)
                 }
                 _ => None,
@@ -136,8 +129,8 @@ where
         }
     }
 
-    let ty = match *ty.as_ref() {
-        TypeF::App(ref fn_ty, _) => simplify_ty(ctx, &**fn_ty),
+    let ty = match *ty {
+        Type::App(ref fn_ty, _) => simplify_ty(ctx, &**fn_ty),
         // FIXME: Avoid clone
         _ => ty.clone(),
     };
@@ -150,7 +143,7 @@ where
 
 /// An error that was encountered during kind checking
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum KindError<N, E> {
+pub enum KindError<N> {
     ValueInExpressionPosition,
     ExpectedTypeKind,
     ExpectedArrowKind,
@@ -158,62 +151,60 @@ pub enum KindError<N, E> {
     ExpectedBooleanCondPredicate,
     MismatchedArguments(binary::Kind, binary::Kind),
     UnboundVariable(N),
-    Type(TypeError<N, E>),
+    Type(TypeError<N>),
 }
 
-impl<N, E> From<TypeError<N, E>> for KindError<N, E> {
-    fn from(src: TypeError<N, E>) -> KindError<N, E> {
+impl<N> From<TypeError<N>> for KindError<N> {
+    fn from(src: TypeError<N>) -> KindError<N> {
         KindError::Type(src)
     }
 }
 
 /// Returns the kind of a binary type, checking that it is properly formed in
 /// the environment
-pub fn kind_of<N, T, E>(ctx: &Ctx<N, T, E>, ty: &T) -> Result<binary::Kind, KindError<N, E>>
+pub fn kind_of<N>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Kind, KindError<N>>
 where
     N: Clone + PartialEq,
-    T: binary::TypeNode<N, E>,
-    E: host::ExprNode<N>,
 {
-    use syntax::binary::{Kind, TypeConst, TypeF};
+    use syntax::binary::{Kind, Type, TypeConst};
 
-    match *ty.as_ref() {
+    match *ty {
         // Variables
-        TypeF::Var(Var::Free(ref x)) => Err(KindError::UnboundVariable(x.clone())),
-        TypeF::Var(Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
+        Type::Var(Var::Free(ref x)) => Err(KindError::UnboundVariable(x.clone())),
+        Type::Var(Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
             Some(kind) => Ok(kind.clone()),
             None => Err(KindError::ValueInExpressionPosition),
         },
 
         // Bit type
-        TypeF::Const(TypeConst::Bit) => Ok(Kind::Type),
+        Type::Const(TypeConst::Bit) => Ok(Kind::Type),
 
         // Array types
-        TypeF::Array(ref elem_ty, ref size_expr) => {
+        Type::Array(ref elem_ty, ref size_expr) => {
             if kind_of(ctx, &**elem_ty)? != Kind::Type {
                 return Err(KindError::ExpectedTypeKind);
             }
 
             match ty_of(ctx, &**size_expr)? {
-                host::Type(host::TypeF::Const(host::TypeConst::Int)) => Ok(Kind::Type),
+                host::Type::Const(host::TypeConst::Int) => Ok(Kind::Type),
                 _ => Err(KindError::ExpectedIntegerArraySize),
             }
         }
 
         // Conditional types
-        TypeF::Cond(Named(_, ref ty), ref pred_expr) => {
+        Type::Cond(Named(_, ref ty), ref pred_expr) => {
             if kind_of(ctx, &**ty)? != Kind::Type {
                 return Err(KindError::ExpectedTypeKind);
             }
 
             match ty_of(ctx, &**pred_expr)? {
-                host::Type(host::TypeF::Const(host::TypeConst::Bool)) => Ok(Kind::Type),
+                host::Type::Const(host::TypeConst::Bool) => Ok(Kind::Type),
                 _ => Err(KindError::ExpectedBooleanCondPredicate),
             }
         }
 
         // Type abstraction
-        TypeF::Abs(Named(_, ref param_kind), ref body_ty) => {
+        Type::Abs(Named(_, ref param_kind), ref body_ty) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
             ctx.extend(Binding::Type(param_kind.clone()));
@@ -221,7 +212,7 @@ where
         }
 
         // Union types
-        TypeF::Union(ref tys) => {
+        Type::Union(ref tys) => {
             for ty in tys {
                 if kind_of(ctx, ty)? != Kind::Type {
                     return Err(KindError::ExpectedTypeKind);
@@ -232,7 +223,7 @@ where
         }
 
         // Struct type
-        TypeF::Struct(ref fields) => {
+        Type::Struct(ref fields) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
 
@@ -242,7 +233,7 @@ where
                 }
 
                 let field_ty = simplify_ty(&ctx, &field.value);
-                let repr_ty = T::as_ref(&field_ty).repr().unwrap(); // FIXME: unwrap
+                let repr_ty = field_ty.repr().unwrap(); // FIXME: unwrap
                 ctx.extend(Binding::Expr(repr_ty));
             }
 
@@ -250,7 +241,7 @@ where
         }
 
         // Type application
-        TypeF::App(ref fn_ty, ref arg_ty) => {
+        Type::App(ref fn_ty, ref arg_ty) => {
             let fn_kind = kind_of(ctx, &**fn_ty)?;
             let arg_kind = kind_of(ctx, &**arg_ty)?;
 

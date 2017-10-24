@@ -1,8 +1,8 @@
 use syntax::{Definition, Field};
-use syntax::binary::{SpannedType, SpannedTypeRec, TypeF};
-use syntax::host::{Binop, ExprF, SpannedExpr, SpannedExprRec, Unop};
+use syntax::binary::Type;
+use syntax::host::{Binop, Expr, Unop};
 use parser::lexer::{Token, Error as LexerError};
-use source::{BytePos, Span};
+use source::BytePos;
 
 
 grammar<'input>();
@@ -57,18 +57,18 @@ extern {
 }
 
 
-pub Definitions: Vec<Definition<String, SpannedType<String, SpannedExpr<String>>>> = {
+pub Definitions: Vec<Definition<String, Type<String>>> = {
     Definition*,
 };
 
-Definition: Definition<String, SpannedType<String, SpannedExpr<String>>> = {
-    <name: "Ident"> "=" <ty: SpannedType<PrimaryType>> ";" => {
+Definition: Definition<String, Type<String>> = {
+    <name: "Ident"> "=" <ty: PrimaryType> ";" => {
         Definition::new(name, ty)
     },
 };
 
-Field: Field<String, SpannedType<String, SpannedExpr<String>>> = {
-    <name: "Ident"> ":" <ty: SpannedType<PrimaryType>> => {
+Field: Field<String, Type<String>> = {
+    <name: "Ident"> ":" <ty: PrimaryType> => {
         Field::new(name, ty)
     },
 };
@@ -76,131 +76,119 @@ Field: Field<String, SpannedType<String, SpannedExpr<String>>> = {
 
 // Types
 
-pub Type: SpannedType<String, SpannedExpr<String>> = {
-    <ty: SpannedType<PrimaryType>> => ty,
+pub Type: Type<String> = {
+    <ty: PrimaryType> => ty,
 };
 
-SpannedType<T>: SpannedType<String, SpannedExpr<String>> = {
-    <lo: @L> <inner: T> <hi: @R> => {
-        SpannedType { span: Span::new(lo, hi), inner }
-    }
-};
-
-PrimaryType: SpannedTypeRec<String, SpannedExpr<String>> = {
+PrimaryType: Type<String> = {
     AtomicType,
-    <ty: SpannedType<PrimaryType>> "where" <param: "Ident"> "=>" <pred: SpannedExpr<PrimaryExpr>> => {
-        TypeF::cond(ty, param, pred)
+    <ty: PrimaryType> "where" <param: "Ident"> "=>" <pred: PrimaryExpr> => {
+        Type::cond(ty, param, pred)
     },
 };
 
-AtomicType: SpannedTypeRec<String, SpannedExpr<String>> = {
+AtomicType: Type<String> = {
     <name: "Ident"> => {
-        TypeF::fvar(name)
+        Type::fvar(name)
     },
     "(" <ty: PrimaryType> ")" => ty,
     "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" => {
-        TypeF::struct_(fields.into_iter().chain(last))
+        Type::struct_(fields.into_iter().chain(last))
     },
-    "union" "{" <tys: (<SpannedType<PrimaryType>> ",")+> <last: SpannedType<PrimaryType>?> "}" => {
+    "union" "{" <tys: (<PrimaryType> ",")+> <last: PrimaryType?> "}" => {
         let mut tys = tys;
         tys.extend(last);
-        TypeF::union(tys)
+        Type::union(tys)
     },
-    "[" <elem: SpannedType<PrimaryType>> ";" <size: SpannedExpr<PrimaryExpr>> "]" => {
-        TypeF::array(elem, size)
+    "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" => {
+        Type::array(elem, size)
     },
 };
 
 
 // Expressions
 
-pub Expr: SpannedExpr<String> = {
-    <expr: SpannedExpr<PrimaryExpr>> => expr,
-};
-
-SpannedExpr<E>: SpannedExpr<String> = {
-    <lo: @L> <inner: E> <hi: @R> => {
-        SpannedExpr { span: Span::new(lo, hi), inner }
-    }
+pub Expr: Expr<String> = {
+    <expr: PrimaryExpr> => expr,
 };
 
 // Use precedence climbing to define the operators
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 
-PrimaryExpr: SpannedExprRec<String> = {
+PrimaryExpr: Expr<String> = {
     EqExpr,
-    <lhs: SpannedExpr<EqExpr>> "|" <rhs: SpannedExpr<PrimaryExpr>> => {
-        ExprF::binop(Binop::Or, lhs, rhs)
+    <lhs: EqExpr> "|" <rhs: PrimaryExpr> => {
+        Expr::binop(Binop::Or, lhs, rhs)
     },
-    <lhs: SpannedExpr<EqExpr>> "&" <rhs: SpannedExpr<PrimaryExpr>> => {
-        ExprF::binop(Binop::And, lhs, rhs)
+    <lhs: EqExpr> "&" <rhs: PrimaryExpr> => {
+        Expr::binop(Binop::And, lhs, rhs)
     },
 };
 
-EqExpr: SpannedExprRec<String> = {
+EqExpr: Expr<String> = {
     CmpExpr,
-    <lhs: SpannedExpr<CmpExpr>> "==" <rhs: SpannedExpr<EqExpr>> => {
-        ExprF::binop(Binop::Eq, lhs, rhs)
+    <lhs: CmpExpr> "==" <rhs: EqExpr> => {
+        Expr::binop(Binop::Eq, lhs, rhs)
     },
-    <lhs: SpannedExpr<CmpExpr>> "!=" <rhs: SpannedExpr<EqExpr>> => {
-        ExprF::binop(Binop::Ne, lhs, rhs)
+    <lhs: CmpExpr> "!=" <rhs: EqExpr> => {
+        Expr::binop(Binop::Ne, lhs, rhs)
     },
 };
 
-CmpExpr: SpannedExprRec<String> = {
+CmpExpr: Expr<String> = {
     AddExpr,
-    <lhs: SpannedExpr<AddExpr>> "<=" <rhs: SpannedExpr<CmpExpr>> => {
-        ExprF::binop(Binop::Le, lhs, rhs)
+    <lhs: AddExpr> "<=" <rhs: CmpExpr> => {
+        Expr::binop(Binop::Le, lhs, rhs)
     },
-    <lhs: SpannedExpr<AddExpr>> "<" <rhs: SpannedExpr<CmpExpr>> => {
-        ExprF::binop(Binop::Lt, lhs, rhs)
+    <lhs: AddExpr> "<" <rhs: CmpExpr> => {
+        Expr::binop(Binop::Lt, lhs, rhs)
     },
-    <lhs: SpannedExpr<AddExpr>> ">" <rhs: SpannedExpr<CmpExpr>> => {
-        ExprF::binop(Binop::Gt, lhs, rhs)
+    <lhs: AddExpr> ">" <rhs: CmpExpr> => {
+        Expr::binop(Binop::Gt, lhs, rhs)
     },
-    <lhs: SpannedExpr<AddExpr>> ">=" <rhs: SpannedExpr<CmpExpr>> => {
-        ExprF::binop(Binop::Ge, lhs, rhs)
+    <lhs: AddExpr> ">=" <rhs: CmpExpr> => {
+        Expr::binop(Binop::Ge, lhs, rhs)
     },
 };
 
-AddExpr: SpannedExprRec<String> = {
+AddExpr: Expr<String> = {
     MulExpr,
-    <lhs: SpannedExpr<MulExpr>> "+" <rhs: SpannedExpr<AddExpr>> => {
-        ExprF::binop(Binop::Add, lhs, rhs)
+    <lhs: MulExpr> "+" <rhs: AddExpr> => {
+        Expr::binop(Binop::Add, lhs, rhs)
     },
-    <lhs: SpannedExpr<MulExpr>> "-" <rhs: SpannedExpr<AddExpr>> => {
-        ExprF::binop(Binop::Sub, lhs, rhs)
+    <lhs: MulExpr> "-" <rhs: AddExpr> => {
+        Expr::binop(Binop::Sub, lhs, rhs)
     },
 };
 
-MulExpr: SpannedExprRec<String> = {
+MulExpr: Expr<String> = {
     AtomicExpr,
-    <lhs: SpannedExpr<AtomicExpr>> "*" <rhs: SpannedExpr<MulExpr>> => {
-        ExprF::binop(Binop::Mul, lhs, rhs)
+    <lhs: AtomicExpr> "*" <rhs: MulExpr> => {
+        Expr::binop(Binop::Mul, lhs, rhs)
     },
-    <lhs: SpannedExpr<AtomicExpr>> "/" <rhs: SpannedExpr<MulExpr>> => {
-        ExprF::binop(Binop::Div, lhs, rhs)
+    <lhs: AtomicExpr> "/" <rhs: MulExpr> => {
+        Expr::binop(Binop::Div, lhs, rhs)
     },
 };
 
-AtomicExpr: SpannedExprRec<String> = {
+AtomicExpr: Expr<String> = {
     "(" <expr: PrimaryExpr> ")" => expr,
     <value: "BinLiteral"> => {
-        ExprF::int(value)
+        Expr::int(value)
     },
     <value: "HexLiteral"> => {
-        ExprF::int(value)
+        Expr::int(value)
     },
     <value: "DecLiteral"> => {
-        ExprF::int(value)
+        Expr::int(value)
     },
     <name: "Ident"> => {
-        ExprF::fvar(name)
+        Expr::fvar(name)
     },
-    "-" <expr: SpannedExpr<AtomicExpr>> => {
-        ExprF::unop(Unop::Neg, expr)
+    "-" <expr: AtomicExpr> => {
+        Expr::unop(Unop::Neg, expr)
     },
-    "!" <value: SpannedExpr<AtomicExpr>> => {
-        ExprF::unop(Unop::Not, value)
+    "!" <value: AtomicExpr> => {
+        Expr::unop(Unop::Not, value)
     },
 };
