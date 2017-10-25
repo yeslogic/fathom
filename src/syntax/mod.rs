@@ -178,7 +178,7 @@ where
         .map(|field| &field.value)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Binding<N> {
     Expr(host::Type<N>),
     Type(binary::Kind),
@@ -209,31 +209,34 @@ impl<N> Ctx<N> {
         Named(name, binding)
     }
 
-    pub fn lookup_ty(&self, i: u32) -> Option<Named<&N, &host::Type<N>>> {
+    pub fn lookup_ty(&self, i: u32) -> Result<Named<&N, &host::Type<N>>, Named<&N, &Binding<N>>> {
         let Named(name, binding) = self.lookup(i);
 
         match *binding {
-            Binding::Expr(ref ty) => Some(Named(name, ty)),
-            _ => None,
+            Binding::Expr(ref ty) => Ok(Named(name, ty)),
+            _ => Err(Named(name, binding)),
         }
     }
 
-    pub fn lookup_ty_def(&self, i: u32) -> Option<Named<&N, &binary::Type<N>>> {
+    pub fn lookup_ty_def(
+        &self,
+        i: u32,
+    ) -> Result<Named<&N, &binary::Type<N>>, Named<&N, &Binding<N>>> {
         let Named(name, binding) = self.lookup(i);
 
         match *binding {
-            Binding::TypeDef(ref ty, _) => Some(Named(name, ty)),
-            _ => None,
+            Binding::TypeDef(ref ty, _) => Ok(Named(name, ty)),
+            _ => Err(Named(name, binding)),
         }
     }
 
-    pub fn lookup_kind(&self, i: u32) -> Option<Named<&N, &binary::Kind>> {
+    pub fn lookup_kind(&self, i: u32) -> Result<Named<&N, &binary::Kind>, Named<&N, &Binding<N>>> {
         let Named(name, binding) = self.lookup(i);
 
         match *binding {
-            Binding::Type(ref kind) => Some(Named(name, kind)),
-            Binding::TypeDef(_, ref kind) => Some(Named(name, kind)),
-            _ => None,
+            Binding::Type(ref kind) => Ok(Named(name, kind)),
+            Binding::TypeDef(_, ref kind) => Ok(Named(name, kind)),
+            _ => Err(Named(name, binding)),
         }
     }
 }
@@ -264,7 +267,6 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
         Definition::new("i64", prim_array_ty(64, "from_i64")),
         Definition::new("f32", prim_array_ty(32, "from_f32")),
         Definition::new("f64", prim_array_ty(64, "from_f64")),
-
         // Little endian primitives
         Definition::new("u8le", prim_array_ty(8, "from_u8le")),
         Definition::new("u16le", prim_array_ty(16, "from_u16le")),
@@ -276,7 +278,6 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
         Definition::new("i64le", prim_array_ty(64, "from_i64le")),
         Definition::new("f32le", prim_array_ty(32, "from_f32le")),
         Definition::new("f64le", prim_array_ty(64, "from_f64le")),
-
         // Big endian primitives
         Definition::new("u8be", prim_array_ty(8, "from_u8be")),
         Definition::new("u16be", prim_array_ty(16, "from_u16be")),
