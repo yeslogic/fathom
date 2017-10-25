@@ -26,7 +26,7 @@ pub enum TypeConst {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type<N> {
     /// A type variable: eg. `T`
-    Var(Var<N, Named<N, u32>>),
+    Var(Var<N, u32>),
     /// Type constant
     Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
@@ -86,12 +86,9 @@ impl<N: Name> Type<N> {
         let mut seen_names = Vec::with_capacity(fields.len());
 
         for field in &mut fields {
-            field.value.abstract_with(&|level, x| {
-                seen_names
-                    .iter()
-                    .position(|y| x == y)
-                    .map(|i| Named(x.clone(), level + i as u32))
-            });
+            for name in &seen_names {
+                field.value.abstract_name(name);
+            }
 
             // Record that the field has been 'seen'
             seen_names.push(field.name.clone());
@@ -138,58 +135,44 @@ impl<N: Name> Type<N> {
         }
     }
 
-    fn abstract_level_with<F>(&mut self, level: u32, f: &F)
-    where
-        F: Fn(u32, &N) -> Option<Named<N, u32>>,
-    {
+    fn abstract_name_at(&mut self, name: &N, level: u32) {
         match *self {
-            Type::Var(ref mut var) => var.abstract_level_with(level, f),
+            Type::Var(ref mut var) => var.abstract_name_at(name, level),
             Type::Const(_) => {}
             Type::Array(ref mut elem_ty, ref mut size_expr) => {
-                elem_ty.abstract_level_with(level, f);
-                size_expr.abstract_level_with(level, f);
+                elem_ty.abstract_name_at(name, level);
+                size_expr.abstract_name_at(name, level);
             }
             Type::Union(ref mut tys) => for ty in tys {
-                ty.abstract_level_with(level, f);
+                ty.abstract_name_at(name, level);
             },
             Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                field.value.abstract_level_with(level + i as u32, f);
+                field.value.abstract_name_at(name, level + i as u32);
             },
             Type::Cond(ref mut ty, ref mut pred) => {
-                ty.abstract_level_with(level, f);
-                pred.abstract_level_with(level + 1, f);
+                ty.abstract_name_at(name, level);
+                pred.abstract_name_at(name, level + 1);
             }
             Type::Interp(ref mut ty, ref mut conv, ref mut repr_ty) => {
-                ty.abstract_level_with(level, f);
-                conv.abstract_level_with(level + 1, f);
-                repr_ty.abstract_level_with(level, f);
+                ty.abstract_name_at(name, level);
+                conv.abstract_name_at(name, level + 1);
+                repr_ty.abstract_name_at(name, level);
             }
             Type::Abs(_, ref mut body_ty) => {
-                body_ty.abstract_level_with(level + 1, f);
+                body_ty.abstract_name_at(name, level + 1);
             }
             Type::App(ref mut fn_ty, ref mut arg_ty) => {
-                fn_ty.abstract_level_with(level, f);
-                arg_ty.abstract_level_with(level, f);
+                fn_ty.abstract_name_at(name, level);
+                arg_ty.abstract_name_at(name, level);
             }
-        };
+        }
     }
 
-    pub fn abstract_with<F>(&mut self, f: &F)
-    where
-        F: Fn(u32, &N) -> Option<Named<N, u32>>,
-    {
-        self.abstract_level_with(0, &f);
+    pub fn abstract_name(&mut self, name: &N) {
+        self.abstract_name_at(name, 0);
     }
 
-    pub fn abstract_name(&mut self, x: &N) {
-        self.abstract_with(&|level, y| if x == y {
-            Some(Named(x.clone(), level))
-        } else {
-            None
-        });
-    }
-
-    fn instantiate_level(&mut self, level: u32, src: &Type<N>) {
+    fn instantiate_at(&mut self, level: u32, src: &Type<N>) {
         // Bleh: Running into non-lexical liftetime problems here!
         // Just so you know that I'm not going completely insane....
         // FIXME: ensure that expressions are not bound at the same level
@@ -201,43 +184,43 @@ impl<N: Name> Type<N> {
             },
             Type::Var(Var::Free(_)) | Type::Const(_) => return,
             Type::Array(ref mut elem_ty, _) => {
-                elem_ty.instantiate_level(level, src);
+                elem_ty.instantiate_at(level, src);
                 return;
             }
             Type::Cond(ref mut ty, _) => {
-                ty.instantiate_level(level + 1, src);
+                ty.instantiate_at(level + 1, src);
                 return;
             }
             Type::Interp(ref mut ty, _, _) => {
-                ty.instantiate_level(level + 1, src);
+                ty.instantiate_at(level + 1, src);
                 return;
             }
             Type::Union(ref mut tys) => {
                 for ty in tys {
-                    ty.instantiate_level(level, src);
+                    ty.instantiate_at(level, src);
                 }
                 return;
             }
             Type::Struct(ref mut fields) => {
                 for (i, field) in fields.iter_mut().enumerate() {
-                    field.value.instantiate_level(level + i as u32, src);
+                    field.value.instantiate_at(level + i as u32, src);
                 }
                 return;
             }
             Type::Abs(_, ref mut ty) => {
-                ty.instantiate_level(level + 1, src);
+                ty.instantiate_at(level + 1, src);
                 return;
             }
             Type::App(ref mut ty, ref mut arg_ty) => {
-                ty.instantiate_level(level, src);
-                arg_ty.instantiate_level(level, src);
+                ty.instantiate_at(level, src);
+                arg_ty.instantiate_at(level, src);
                 return;
             }
         };
     }
 
     pub fn instantiate(&mut self, ty: &Type<N>) {
-        self.instantiate_level(0, ty);
+        self.instantiate_at(0, ty);
     }
 
     pub fn repr(&self) -> Result<host::Type<N>, ()> {

@@ -71,7 +71,7 @@ pub enum Expr<N> {
     Prim(&'static str, Box<Type<N>>),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
-    Var(Var<N, Named<N, u32>>),
+    Var(Var<N, u32>),
     /// An unary operator expression
     Unop(Unop, Box<Expr<N>>),
     /// A binary operator expression
@@ -146,40 +146,26 @@ impl<N: Name> Expr<N> {
         Expr::Abs(Named(param_name, param_ty.into()), body_expr)
     }
 
-    pub fn abstract_level_with<F>(&mut self, level: u32, f: &F)
-    where
-        F: Fn(u32, &N) -> Option<Named<N, u32>>,
-    {
+    pub fn abstract_name_at(&mut self, name: &N, level: u32) {
         match *self {
-            Expr::Var(ref mut var) => var.abstract_level_with(level, f),
+            Expr::Var(ref mut var) => var.abstract_name_at(name, level),
             Expr::Const(_) => {}
-            Expr::Prim(_, ref mut repr_ty) => repr_ty.abstract_level_with(level, f),
+            Expr::Prim(_, ref mut repr_ty) => repr_ty.abstract_name_at(name, level),
             Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
-                expr.abstract_level_with(level, f);
+                expr.abstract_name_at(name, level);
             }
             Expr::Binop(_, ref mut lhs_expr, ref mut rhs_expr) => {
-                lhs_expr.abstract_level_with(level, f);
-                rhs_expr.abstract_level_with(level, f);
+                lhs_expr.abstract_name_at(name, level);
+                rhs_expr.abstract_name_at(name, level);
             }
             Expr::Abs(_, ref mut body_expr) => {
-                body_expr.abstract_level_with(level + 1, f);
+                body_expr.abstract_name_at(name, level + 1);
             }
         }
     }
 
-    pub fn abstract_with<F>(&mut self, f: &F)
-    where
-        F: Fn(u32, &N) -> Option<Named<N, u32>>,
-    {
-        self.abstract_level_with(0, &f);
-    }
-
-    pub fn abstract_name(&mut self, x: &N) {
-        self.abstract_with(&|level, y| if x == y {
-            Some(Named(x.clone(), level))
-        } else {
-            None
-        });
+    pub fn abstract_name(&mut self, name: &N) {
+        self.abstract_name_at(name, 0);
     }
 }
 
@@ -197,7 +183,7 @@ pub enum TypeConst {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type<N> {
     /// A type variable: eg. `T`
-    Var(Var<N, Named<N, u32>>),
+    Var(Var<N, u32>),
     /// A type constant
     Const(TypeConst),
     /// Arrow type: eg. `T -> U`
@@ -264,12 +250,9 @@ impl<N: Name> Type<N> {
         let mut seen_names = Vec::with_capacity(fields.len());
 
         for field in &mut fields {
-            field.value.abstract_with(&|level, x| {
-                seen_names
-                    .iter()
-                    .position(|y| x == y)
-                    .map(|i| Named(x.clone(), level + i as u32))
-            });
+            for name in &seen_names {
+                field.value.abstract_name(name);
+            }
 
             // Record that the field has been 'seen'
             seen_names.push(field.name.clone());
@@ -285,46 +268,32 @@ impl<N: Name> Type<N> {
         }
     }
 
-    pub fn abstract_level_with<F>(&mut self, level: u32, f: &F)
-    where
-        F: Fn(u32, &N) -> Option<Named<N, u32>>,
-    {
+    pub fn abstract_name_at(&mut self, name: &N, level: u32) {
         match *self {
-            Type::Var(ref mut var) => var.abstract_level_with(level, f),
+            Type::Var(ref mut var) => var.abstract_name_at(name, level),
             Type::Const(_) => {}
             Type::Arrow(ref mut lhs_ty, ref mut rhs_ty) => {
-                lhs_ty.abstract_level_with(level, f);
-                rhs_ty.abstract_level_with(level, f);
+                lhs_ty.abstract_name_at(name, level);
+                rhs_ty.abstract_name_at(name, level);
             }
             Type::Array(ref mut elem_ty, ref mut size_expr) => {
-                elem_ty.abstract_level_with(level, f);
-                size_expr.abstract_level_with(level, f);
+                elem_ty.abstract_name_at(name, level);
+                size_expr.abstract_name_at(name, level);
             }
             Type::Union(ref mut tys) => for ty in tys {
-                ty.abstract_level_with(level, f);
+                ty.abstract_name_at(name, level);
             },
             Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                field.value.abstract_level_with(level + i as u32, f);
+                field.value.abstract_name_at(name, level + i as u32);
             },
         }
     }
 
-    pub fn abstract_with<F>(&mut self, f: &F)
-    where
-        F: Fn(u32, &N) -> Option<Named<N, u32>>,
-    {
-        self.abstract_level_with(0, &f);
+    pub fn abstract_name(&mut self, name: &N) {
+        self.abstract_name_at(name, 0)
     }
 
-    pub fn abstract_name(&mut self, x: &N) {
-        self.abstract_with(&|level, y| if x == y {
-            Some(Named(x.clone(), level))
-        } else {
-            None
-        })
-    }
-
-    fn instantiate_level(&mut self, level: u32, src: &Type<N>) {
+    fn instantiate_at(&mut self, level: u32, src: &Type<N>) {
         // Bleh: Running into non-lexical liftetime problems here!
         // Just so you know that I'm not going completely insane....
         // FIXME: ensure that expressions are not bound at the same level
@@ -336,23 +305,23 @@ impl<N: Name> Type<N> {
             },
             Type::Var(Var::Free(_)) | Type::Const(_) => return,
             Type::Arrow(ref mut lhs_ty, ref mut rhs_ty) => {
-                lhs_ty.instantiate_level(level, src);
-                rhs_ty.instantiate_level(level, src);
+                lhs_ty.instantiate_at(level, src);
+                rhs_ty.instantiate_at(level, src);
                 return;
             }
             Type::Array(ref mut elem_ty, _) => {
-                elem_ty.instantiate_level(level, src);
+                elem_ty.instantiate_at(level, src);
                 return;
             }
             Type::Union(ref mut tys) => {
                 for ty in tys {
-                    ty.instantiate_level(level, src);
+                    ty.instantiate_at(level, src);
                 }
                 return;
             }
             Type::Struct(ref mut fields) => {
                 for (i, field) in fields.iter_mut().enumerate() {
-                    field.value.instantiate_level(level + i as u32, src);
+                    field.value.instantiate_at(level + i as u32, src);
                 }
                 return;
             }
@@ -360,6 +329,6 @@ impl<N: Name> Type<N> {
     }
 
     pub fn instantiate(&mut self, ty: &Type<N>) {
-        self.instantiate_level(0, ty);
+        self.instantiate_at(0, ty);
     }
 }

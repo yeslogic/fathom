@@ -65,20 +65,14 @@ pub enum Var<N, B> {
     /// A free, unbound variable
     Free(N),
     /// A bound variable
-    Bound(B),
+    Bound(Named<N, B>),
 }
 
-impl<N, B> Var<N, B> {
-    pub fn abstract_level_with<F>(&mut self, level: u32, f: &F)
-    where
-        F: Fn(u32, &N) -> Option<B>,
-    {
+impl<N: Name, B> Var<N, B> {
+    pub fn abstract_name_at(&mut self, name: &N, level: B) {
         *self = match *self {
-            Var::Free(ref n) => match f(level, n) {
-                None => return,
-                Some(i) => Var::Bound(i),
-            },
-            Var::Bound(_) => return,
+            Var::Free(ref n) if n == name => Var::Bound(Named(n.clone(), level)),
+            Var::Free(_) | Var::Bound(_) => return,
         }
     }
 }
