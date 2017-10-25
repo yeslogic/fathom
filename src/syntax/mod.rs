@@ -28,26 +28,6 @@ impl<N> Definition<N> {
     }
 }
 
-pub fn abstract_defs<N: Name>(mut defs: Vec<Definition<N>>) -> Vec<Definition<N>> {
-    // We maintain a list of the seen definition names. This will allow us to
-    // recover the index of these variables as we abstract later definitions...
-    let mut seen_names = Vec::with_capacity(defs.len());
-
-    for def in &mut defs {
-        def.ty.abstract_with(&|x| {
-            seen_names
-                .iter()
-                .position(|y| x == y)
-                .map(|i| Named(x.clone(), i as u32))
-        });
-
-        // Record that the definition has been 'seen'
-        seen_names.push(def.name.clone());
-    }
-
-    defs
-}
-
 /// A variable that can either be free or bound
 ///
 /// We use a locally nameless representation for variable binding.
@@ -208,7 +188,7 @@ where
 pub enum Binding<N> {
     Expr(host::Type<N>),
     Type(binary::Kind),
-    TypeDef(binary::Type<N>, Option<binary::Kind>),
+    TypeDef(binary::Type<N>, binary::Kind),
 }
 
 #[derive(Debug, Clone)]
@@ -258,14 +238,13 @@ impl<N> Ctx<N> {
 
         match *binding {
             Binding::Type(ref kind) => Some(Named(name, kind)),
-            Binding::TypeDef(_, Some(ref kind)) => Some(Named(name, kind)),
-            Binding::TypeDef(_, None) => panic!("ICE: no type recorded for variable"),
+            Binding::TypeDef(_, ref kind) => Some(Named(name, kind)),
             _ => None,
         }
     }
 }
 
-pub fn base_definitions<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
+pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
     fn prim_array_ty<N: Name>(size: i64, conv_name: &'static str) -> binary::Type<N> {
         use self::binary::Type;
         use self::host::Expr;

@@ -1,7 +1,7 @@
 //! Type and kind-checking for our DDL
 
 use syntax::{binary, host};
-use syntax::{Binding, Ctx, Name, Named, Var};
+use syntax::{Binding, Ctx, Definition, Name, Named, Var};
 
 #[cfg(test)]
 mod tests;
@@ -215,7 +215,8 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
                 return Err(KindError::ExpectedTypeKind);
             }
 
-            if ty_of(ctx, &**conv_expr)? == host::Type::arrow(ty.repr().unwrap(), host_ty.clone()) {
+            if ty_of(ctx, &**conv_expr)? != host::Type::arrow(ty.repr().unwrap(), host_ty.clone()) {
+                // FIXME
                 return Err(unimplemented!());
             }
 
@@ -277,4 +278,41 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
             }
         }
     }
+}
+
+pub fn check_defs<'a, N: 'a + Name, Defs>(defs: Defs) -> Result<(), KindError<N>>
+where
+    Defs: IntoIterator<Item = &'a Definition<N>>,
+{
+    let mut ctx = Ctx::new();
+    // We maintain a list of the seen definition names. This will allow us to
+    // recover the index of these variables as we abstract later definitions...
+    let mut seen_names = Vec::new();
+
+    for def in defs {
+        let mut def_ty = def.ty.clone();
+
+        // Kind of ugly and inefficient - can't we just substitute directly?
+        // Should handle mutually recursive bindings as well...
+
+        def_ty.abstract_with(&|x| {
+            seen_names
+                .iter()
+                .position(|y| x == y)
+                .map(|i| Named(x.clone(), i as u32))
+        });
+
+        for (i, _) in seen_names.iter().enumerate() {
+            let Named(_, ty) = ctx.lookup_ty_def(i as u32).unwrap();
+            def_ty.instantiate(ty);
+        }
+
+        let def_kind = kind_of(&ctx, &*def_ty)?;
+        ctx.extend(Named(def.name.clone(), Binding::TypeDef(*def_ty, def_kind)));
+
+        // Record that the definition has been 'seen'
+        seen_names.push(def.name.clone());
+    }
+
+    Ok(())
 }

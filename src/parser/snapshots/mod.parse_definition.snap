@@ -32,7 +32,7 @@
                     name: "data",
                     value: Array(
                         Var(
-                            Bound(Named("Point", 0))
+                            Free("Point")
                         ),
                         Var(
                             Bound(Named("len", 0))
@@ -73,7 +73,7 @@
                         Field {
                             name: "point",
                             value: Var(
-                                Bound(Named("Point", 0))
+                                Free("Point")
                             )
                         }
                     ]
@@ -89,7 +89,7 @@
                         Field {
                             name: "array",
                             value: Var(
-                                Bound(Named("Array", 1))
+                                Free("Array")
                             )
                         }
                     ]
