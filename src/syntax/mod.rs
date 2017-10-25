@@ -265,8 +265,8 @@ impl<N> Ctx<N> {
     }
 }
 
-// fn base_definitions<N: Name>() -> Vec<Definition<N>> {
-//     fn prim_array_ty<N: Name, T>(size: i64, prim_name: &'static str) -> Type<N> {
+// pub fn base_definitions<N: Name>() -> Vec<Definition<N>> {
+//     fn prim_array_ty<N: Name>(size: i64, prim_name: &'static str) -> Type<N> {
 //         use self::binary::{Type, TypeConst};
 //         use self::host::Expr;
 

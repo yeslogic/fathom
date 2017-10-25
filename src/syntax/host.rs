@@ -207,6 +207,21 @@ impl<N: Name> Type<N> {
         Type::Var(Var::Bound(Named(x.into(), i)))
     }
 
+    /// Bit type constant
+    pub fn bit() -> Type<N> {
+        Type::Const(TypeConst::Bit)
+    }
+
+    /// Boolean type constant
+    pub fn bool() -> Type<N> {
+        Type::Const(TypeConst::Bool)
+    }
+
+    /// Integer type constant
+    pub fn int() -> Type<N> {
+        Type::Const(TypeConst::Int)
+    }
+
     /// Arrow type: eg. `T -> U`
     pub fn arrow<T1: Into<Box<Type<N>>>, E1: Into<Box<Type<N>>>>(
         lhs_ty: T1,

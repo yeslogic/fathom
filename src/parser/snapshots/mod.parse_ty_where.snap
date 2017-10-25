@@ -1,22 +1,60 @@
 Cond(
-    Named("x", Cond(
-        Named("x", Struct(
+    Cond(
+        Struct(
             [
                 Field {
                     name: "x",
                     value: Cond(
-                        Named("x", Var(
+                        Var(
                             Free("u32")
-                        )),
-                        Binop(
-                            Eq,
-                            Var(
-                                Bound(Named("x", 0))
-                            ),
-                            Const(
-                                Int(3)
+                        ),
+                        Abs(
+                            Named("x", Var(
+                                Free("u32")
+                            )),
+                            Binop(
+                                Eq,
+                                Var(
+                                    Bound(Named("x", 0))
+                                ),
+                                Const(
+                                    Int(3)
+                                )
                             )
                         )
+                    )
+                }
+            ]
+        ),
+        Abs(
+            Named("x", Struct(
+                [
+                    Field {
+                        name: "x",
+                        value: Var(
+                            Free("u32")
+                        )
+                    }
+                ]
+            )),
+            Binop(
+                Eq,
+                Var(
+                    Bound(Named("x", 0))
+                ),
+                Const(
+                    Int(2)
+                )
+            )
+        )
+    ),
+    Abs(
+        Named("x", Struct(
+            [
+                Field {
+                    name: "x",
+                    value: Var(
+                        Free("u32")
                     )
                 }
             ]
@@ -27,17 +65,8 @@ Cond(
                 Bound(Named("x", 0))
             ),
             Const(
-                Int(2)
+                Int(1)
             )
-        )
-    )),
-    Binop(
-        Eq,
-        Var(
-            Bound(Named("x", 0))
-        ),
-        Const(
-            Int(1)
         )
     )
 )

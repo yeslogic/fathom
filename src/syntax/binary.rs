@@ -36,13 +36,9 @@ pub enum Type<N> {
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Vec<Field<N, Type<N>>>),
     /// A type constrained by a predicate: eg. `T where x => x == 3`
-    Cond(Named<N, Box<Type<N>>>, Box<host::Expr<N>>),
+    Cond(Box<Type<N>>, Box<host::Expr<N>>),
     /// An interpreted type
-    Interp(
-        Named<N, Box<Type<N>>>,
-        Box<host::Expr<N>>,
-        Box<host::Type<N>>,
-    ),
+    Interp(Box<Type<N>>, Box<host::Expr<N>>, Box<host::Type<N>>),
     /// Type abstraction: eg. `\(a : Type) -> T`
     Abs(Named<N, Kind>, Box<Type<N>>),
     /// Type application: eg. `T U V`
@@ -100,32 +96,22 @@ impl<N: Name> Type<N> {
     }
 
     /// A type constrained by a predicate: eg. `T where x => x == 3`
-    pub fn cond<N1, T1, E1>(ty: T1, param: N1, pred: E1) -> Type<N>
+    pub fn cond<T1, E1>(ty: T1, pred: E1) -> Type<N>
     where
-        N1: Into<N>,
         T1: Into<Box<Type<N>>>,
         E1: Into<Box<host::Expr<N>>>,
     {
-        let param = param.into();
-        let mut pred = pred.into();
-        pred.abstract_name(&param);
-
-        Type::Cond(Named(param, ty.into()), pred)
+        Type::Cond(ty.into(), pred.into())
     }
 
     /// An interpreted type
-    pub fn interp<N1, T1, E1, T2>(ty: T1, param: N1, conv_expr: E1, repr_ty: T2) -> Type<N>
+    pub fn interp<T1, E1, T2>(ty: T1, conv: E1, repr_ty: T2) -> Type<N>
     where
-        N1: Into<N>,
         T1: Into<Box<Type<N>>>,
         E1: Into<Box<host::Expr<N>>>,
         T2: Into<Box<host::Type<N>>>,
     {
-        let param = param.into();
-        let mut conv_expr = conv_expr.into();
-        conv_expr.abstract_name(&param);
-
-        Type::Interp(Named(param, ty.into()), conv_expr, repr_ty.into())
+        Type::Interp(ty.into(), conv.into(), repr_ty.into())
     }
 
     /// Type abstraction: eg. `\(a : Type) -> T`
@@ -162,13 +148,13 @@ impl<N: Name> Type<N> {
             Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 field.value.abstract_level_with(level + i as u32, f);
             },
-            Type::Cond(Named(_, ref mut ty), ref mut pred_expr) => {
+            Type::Cond(ref mut ty, ref mut pred) => {
                 ty.abstract_level_with(level, f);
-                pred_expr.abstract_level_with(level + 1, f);
+                pred.abstract_level_with(level + 1, f);
             }
-            Type::Interp(Named(_, ref mut ty), ref mut cond_expr, ref mut repr_ty) => {
+            Type::Interp(ref mut ty, ref mut conv, ref mut repr_ty) => {
                 ty.abstract_level_with(level, f);
-                cond_expr.abstract_level_with(level + 1, f);
+                conv.abstract_level_with(level + 1, f);
                 repr_ty.abstract_level_with(level, f);
             }
             Type::Abs(_, ref mut body_ty) => {
@@ -211,11 +197,11 @@ impl<N: Name> Type<N> {
                 elem_ty.instantiate_level(level, src);
                 return;
             }
-            Type::Cond(Named(_, ref mut ty), _) => {
+            Type::Cond(ref mut ty, _) => {
                 ty.instantiate_level(level + 1, src);
                 return;
             }
-            Type::Interp(Named(_, ref mut ty), _, _) => {
+            Type::Interp(ref mut ty, _, _) => {
                 ty.instantiate_level(level + 1, src);
                 return;
             }
@@ -257,8 +243,8 @@ impl<N: Name> Type<N> {
 
                 Ok(host::Type::Array(elem_repr_ty, size_expr).into())
             }
-            Type::Cond(Named(_, ref ty), _) => ty.repr(),
-            Type::Interp(Named(_, _), _, ref repr_ty) => Ok((**repr_ty).clone()),
+            Type::Cond(ref ty, _) => ty.repr(),
+            Type::Interp(_, _, ref repr_ty) => Ok((**repr_ty).clone()),
             Type::Union(ref tys) => {
                 let repr_tys = tys.iter().map(Type::repr).collect::<Result<_, _>>()?;
 

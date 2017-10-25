@@ -1,4 +1,4 @@
-use syntax::{self, Definition, Field};
+use syntax::{self, Definition, Field, Named};
 use syntax::binary::Type;
 use syntax::host::{Binop, Expr, Unop};
 use parser::lexer::{Token, Error as LexerError};
@@ -83,7 +83,9 @@ pub Type: Type<String> = {
 PrimaryType: Type<String> = {
     AtomicType,
     <ty: PrimaryType> "where" <param: "Ident"> "=>" <pred: PrimaryExpr> => {
-        Type::cond(ty, param, pred)
+        // FIXME: unwrap
+        let repr_ty = Box::new(ty.repr().unwrap());
+        Type::cond(ty, Expr::abs(Named(param.to_owned(), repr_ty), pred))
     },
 };
 

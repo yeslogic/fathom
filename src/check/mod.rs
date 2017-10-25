@@ -187,7 +187,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
                 return Err(KindError::ExpectedTypeKind);
             }
 
-            if ty_of(ctx, &**size_expr)? != host::Type::Const(host::TypeConst::Int) {
+            if ty_of(ctx, &**size_expr)? != host::Type::int() {
                 return Err(KindError::ExpectedIntegerArraySize);
             }
 
@@ -195,12 +195,14 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Conditional types
-        Type::Cond(Named(_, ref ty), ref pred_expr) => {
+        Type::Cond(ref ty, ref pred_expr) => {
             if kind_of(ctx, &**ty)? != Kind::Type {
                 return Err(KindError::ExpectedTypeKind);
             }
 
-            if ty_of(ctx, &**pred_expr)? != host::Type::Const(host::TypeConst::Bool) {
+            if ty_of(ctx, &**pred_expr)?
+                != host::Type::arrow(ty.repr().unwrap(), host::Type::bool())
+            {
                 return Err(KindError::ExpectedBooleanCondPredicate);
             }
 
@@ -208,12 +210,12 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Interpreted types
-        Type::Interp(Named(_, ref ty), ref conv_expr, ref host_ty) => {
+        Type::Interp(ref ty, ref conv_expr, ref host_ty) => {
             if kind_of(ctx, &**ty)? != Kind::Type {
                 return Err(KindError::ExpectedTypeKind);
             }
 
-            if ty_of(ctx, &**conv_expr)? == **host_ty {
+            if ty_of(ctx, &**conv_expr)? == host::Type::arrow(ty.repr().unwrap(), host_ty.clone()) {
                 return Err(unimplemented!());
             }
 

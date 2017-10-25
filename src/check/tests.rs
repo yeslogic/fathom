@@ -3,7 +3,7 @@ use super::*;
 
 mod ty_of {
     use super::*;
-    use self::host::{Type, TypeConst};
+    use self::host::Type;
 
     #[test]
     fn const_int() {
@@ -11,7 +11,7 @@ mod ty_of {
         let src = "1";
         let expr = parser::parse_expr(src).unwrap();
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Type::Const(TypeConst::Int)));
+        assert_eq!(ty_of(&ctx, &expr), Ok(Type::int()));
     }
 
     #[test]
@@ -20,7 +20,7 @@ mod ty_of {
         let src = "-(1 + 2)";
         let expr = parser::parse_expr(src).unwrap();
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Type::Const(TypeConst::Int)));
+        assert_eq!(ty_of(&ctx, &expr), Ok(Type::int()));
     }
 
     #[test]
@@ -47,7 +47,7 @@ mod ty_of {
         let src = "!(1 == 2)";
         let expr = parser::parse_expr(src).unwrap();
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Type::Const(TypeConst::Bool)));
+        assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
 
     #[test]
@@ -56,7 +56,7 @@ mod ty_of {
         let src = "1 + (1 * -2)";
         let expr = parser::parse_expr(src).unwrap();
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Type::Const(TypeConst::Int)));
+        assert_eq!(ty_of(&ctx, &expr), Ok(Type::int()));
     }
 
     #[test]
@@ -65,7 +65,7 @@ mod ty_of {
         let src = "1 + (1 * 2) == 3";
         let expr = parser::parse_expr(src).unwrap();
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Type::Const(TypeConst::Bool)));
+        assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
 
     #[test]
@@ -74,7 +74,7 @@ mod ty_of {
         let src = "1 + (1 * 2) != 3";
         let expr = parser::parse_expr(src).unwrap();
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Type::Const(TypeConst::Bool)));
+        assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
 
     #[test]
@@ -83,7 +83,7 @@ mod ty_of {
         let src = "(1 == 1) == (3 == 3)";
         let expr = parser::parse_expr(src).unwrap();
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Type::Const(TypeConst::Bool)));
+        assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
 
     #[test]
@@ -92,7 +92,7 @@ mod ty_of {
         let src = "(1 == 1) != (3 == 3)";
         let expr = parser::parse_expr(src).unwrap();
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Type::Const(TypeConst::Bool)));
+        assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
 
     #[test]
@@ -101,6 +101,6 @@ mod ty_of {
         let src = "(1 == 3) & (2 == 2) | (1 == 2)";
         let expr = parser::parse_expr(src).unwrap();
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Type::Const(TypeConst::Bool)));
+        assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
 }
