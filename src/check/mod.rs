@@ -96,6 +96,17 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
                 Some(fty) => Ok(fty.clone()),
             }
         }
+
+        // Abstraction
+        Expr::Abs(Named(ref name, ref param_ty), ref body_expr) => {
+            // FIXME: avoid cloning the environment
+            let mut ctx = ctx.clone();
+            ctx.extend(Named(name.clone(), Binding::Expr((**param_ty).clone())));
+            Ok(Type::arrow(
+                (**param_ty).clone(),
+                ty_of(&ctx, &**body_expr)?,
+            ))
+        }
     }
 }
 
@@ -176,10 +187,11 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
                 return Err(KindError::ExpectedTypeKind);
             }
 
-            match ty_of(ctx, &**size_expr)? {
-                host::Type::Const(host::TypeConst::Int) => Ok(Kind::Type),
-                _ => Err(KindError::ExpectedIntegerArraySize),
+            if ty_of(ctx, &**size_expr)? != host::Type::Const(host::TypeConst::Int) {
+                return Err(KindError::ExpectedIntegerArraySize);
             }
+
+            Ok(Kind::Type)
         }
 
         // Conditional types
@@ -188,10 +200,24 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
                 return Err(KindError::ExpectedTypeKind);
             }
 
-            match ty_of(ctx, &**pred_expr)? {
-                host::Type::Const(host::TypeConst::Bool) => Ok(Kind::Type),
-                _ => Err(KindError::ExpectedBooleanCondPredicate),
+            if ty_of(ctx, &**pred_expr)? != host::Type::Const(host::TypeConst::Bool) {
+                return Err(KindError::ExpectedBooleanCondPredicate);
             }
+
+            Ok(Kind::Type)
+        }
+
+        // Interpreted types
+        Type::Interp(Named(_, ref ty), ref conv_expr, ref host_ty) => {
+            if kind_of(ctx, &**ty)? != Kind::Type {
+                return Err(KindError::ExpectedTypeKind);
+            }
+
+            if ty_of(ctx, &**conv_expr)? == **host_ty {
+                return Err(unimplemented!());
+            }
+
+            Ok(Kind::Type)
         }
 
         // Type abstraction

@@ -37,6 +37,12 @@ pub enum Type<N> {
     Struct(Vec<Field<N, Type<N>>>),
     /// A type constrained by a predicate: eg. `T where x => x == 3`
     Cond(Named<N, Box<Type<N>>>, Box<host::Expr<N>>),
+    /// An interpreted type
+    Interp(
+        Named<N, Box<Type<N>>>,
+        Box<host::Expr<N>>,
+        Box<host::Type<N>>,
+    ),
     /// Type abstraction: eg. `\(a : Type) -> T`
     Abs(Named<N, Kind>, Box<Type<N>>),
     /// Type application: eg. `T U V`
@@ -107,6 +113,21 @@ impl<N: Name> Type<N> {
         Type::Cond(Named(param, ty.into()), pred)
     }
 
+    /// An interpreted type
+    pub fn interp<N1, T1, E1, T2>(ty: T1, param: N1, conv_expr: E1, repr_ty: T2) -> Type<N>
+    where
+        N1: Into<N>,
+        T1: Into<Box<Type<N>>>,
+        E1: Into<Box<host::Expr<N>>>,
+        T2: Into<Box<host::Type<N>>>,
+    {
+        let param = param.into();
+        let mut conv_expr = conv_expr.into();
+        conv_expr.abstract_name(&param);
+
+        Type::Interp(Named(param, ty.into()), conv_expr, repr_ty.into())
+    }
+
     /// Type abstraction: eg. `\(a : Type) -> T`
     pub fn abs<T1>(param: Named<N, Kind>, body_ty: T1) -> Type<N>
     where
@@ -135,19 +156,24 @@ impl<N: Name> Type<N> {
                 elem_ty.abstract_level_with(level, f);
                 size_expr.abstract_level_with(level, f);
             }
-            Type::Cond(Named(_, ref mut ty), ref mut pred_expr) => {
-                ty.abstract_level_with(level, f);
-                pred_expr.abstract_level_with(level, f);
-            }
-            Type::Abs(_, ref mut body_ty) => {
-                body_ty.abstract_level_with(level + 1, f);
-            }
             Type::Union(ref mut tys) => for ty in tys {
                 ty.abstract_level_with(level, f);
             },
             Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 field.value.abstract_level_with(level + i as u32, f);
             },
+            Type::Cond(Named(_, ref mut ty), ref mut pred_expr) => {
+                ty.abstract_level_with(level, f);
+                pred_expr.abstract_level_with(level + 1, f);
+            }
+            Type::Interp(Named(_, ref mut ty), ref mut cond_expr, ref mut repr_ty) => {
+                ty.abstract_level_with(level, f);
+                cond_expr.abstract_level_with(level + 1, f);
+                repr_ty.abstract_level_with(level, f);
+            }
+            Type::Abs(_, ref mut body_ty) => {
+                body_ty.abstract_level_with(level + 1, f);
+            }
             Type::App(ref mut fn_ty, ref mut arg_ty) => {
                 fn_ty.abstract_level_with(level, f);
                 arg_ty.abstract_level_with(level, f);
@@ -186,7 +212,11 @@ impl<N: Name> Type<N> {
                 return;
             }
             Type::Cond(Named(_, ref mut ty), _) => {
-                ty.instantiate_level(level, src);
+                ty.instantiate_level(level + 1, src);
+                return;
+            }
+            Type::Interp(Named(_, ref mut ty), _, _) => {
+                ty.instantiate_level(level + 1, src);
                 return;
             }
             Type::Union(ref mut tys) => {
@@ -228,6 +258,7 @@ impl<N: Name> Type<N> {
                 Ok(host::Type::Array(elem_repr_ty, size_expr).into())
             }
             Type::Cond(Named(_, ref ty), _) => ty.repr(),
+            Type::Interp(Named(_, _), _, ref repr_ty) => Ok((**repr_ty).clone()),
             Type::Union(ref tys) => {
                 let repr_tys = tys.iter().map(Type::repr).collect::<Result<_, _>>()?;
 

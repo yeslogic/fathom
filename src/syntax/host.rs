@@ -76,6 +76,8 @@ pub enum Expr<N> {
     Binop(Binop, Box<Expr<N>>, Box<Expr<N>>),
     /// Field projection, eg: `x.field`
     Proj(Box<Expr<N>>, N),
+    /// Abstraction, eg: `\(x : T) -> x`
+    Abs(Named<N, Box<Type<N>>>, Box<Expr<N>>),
 }
 
 impl<N: Name> Expr<N> {
@@ -124,6 +126,13 @@ impl<N: Name> Expr<N> {
         Expr::Proj(e.into(), field.into())
     }
 
+    /// Abstraction, eg: `\(x : T) -> x`
+    pub fn abs<E1: Into<Box<Expr<N>>>>(param: Named<N, Box<Type<N>>>, body_expr: E1) -> Expr<N> {
+        let mut body_expr = body_expr.into();
+        body_expr.abstract_name(&param.0);
+        Expr::Abs(param, body_expr)
+    }
+
     pub fn abstract_level_with<F>(&mut self, level: u32, f: &F)
     where
         F: Fn(&N) -> Option<Named<N, u32>>,
@@ -137,6 +146,9 @@ impl<N: Name> Expr<N> {
             Expr::Binop(_, ref mut lhs_expr, ref mut rhs_expr) => {
                 lhs_expr.abstract_level_with(level, f);
                 rhs_expr.abstract_level_with(level, f);
+            }
+            Expr::Abs(_, ref mut body_expr) => {
+                body_expr.abstract_level_with(level + 1, f);
             }
         }
     }
@@ -174,6 +186,8 @@ pub enum Type<N> {
     Var(Var<N, Named<N, u32>>),
     /// A type constant
     Const(TypeConst),
+    /// Arrow type: eg. `T -> U`
+    Arrow(Box<Type<N>>, Box<Type<N>>),
     /// An array of the specified type, with a size: eg. `[T; n]`
     Array(Box<Type<N>>, Box<Expr<N>>),
     /// A union of types: eg. `union { T, ... }`
@@ -191,6 +205,14 @@ impl<N: Name> Type<N> {
     /// A bound type variable
     pub fn bvar<N1: Into<N>>(x: N, i: u32) -> Type<N> {
         Type::Var(Var::Bound(Named(x.into(), i)))
+    }
+
+    /// Arrow type: eg. `T -> U`
+    pub fn arrow<T1: Into<Box<Type<N>>>, E1: Into<Box<Type<N>>>>(
+        lhs_ty: T1,
+        rhs_ty: E1,
+    ) -> Type<N> {
+        Type::Arrow(lhs_ty.into(), rhs_ty.into())
     }
 
     /// An array of the specified type, with a size: eg. `[T; n]`
@@ -241,6 +263,10 @@ impl<N: Name> Type<N> {
         match *self {
             Type::Var(ref mut var) => var.abstract_with(f),
             Type::Const(_) => {}
+            Type::Arrow(ref mut lhs_ty, ref mut rhs_ty) => {
+                lhs_ty.abstract_level_with(level, f);
+                rhs_ty.abstract_level_with(level, f);
+            }
             Type::Array(ref mut elem_ty, ref mut size_expr) => {
                 elem_ty.abstract_level_with(level, f);
                 size_expr.abstract_level_with(level, f);
@@ -280,6 +306,11 @@ impl<N: Name> Type<N> {
                 return;
             },
             Type::Var(Var::Free(_)) | Type::Const(_) => return,
+            Type::Arrow(ref mut lhs_ty, ref mut rhs_ty) => {
+                lhs_ty.instantiate_level(level, src);
+                rhs_ty.instantiate_level(level, src);
+                return;
+            }
             Type::Array(ref mut elem_ty, _) => {
                 elem_ty.instantiate_level(level, src);
                 return;
