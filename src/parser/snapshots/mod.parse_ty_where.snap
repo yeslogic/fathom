@@ -1,61 +1,72 @@
-Where(
-    Span {
-        lo: BytePos(13),
-        hi: BytePos(132)
-    },
-    Where(
-        Span {
-            lo: BytePos(13),
-            hi: BytePos(103)
-        },
+Cond(
+    Cond(
         Struct(
-            Span {
-                lo: BytePos(13),
-                hi: BytePos(75)
-            },
             [
                 Field {
-                    span: Span {
-                        lo: BytePos(38),
-                        hi: BytePos(60)
-                    },
                     name: "x",
-                    ty: Where(
-                        Span {
-                            lo: BytePos(41),
-                            hi: BytePos(60)
-                        },
-                        UInt(
-                            4,
-                            Target
+                    value: Cond(
+                        Var(
+                            Free("u32")
                         ),
-                        "x",
-                        Const(
-                            Span {
-                                lo: BytePos(56),
-                                hi: BytePos(60)
-                            },
-                            Bool(true)
+                        Abs(
+                            Named("x", Var(
+                                Free("u32")
+                            )),
+                            Binop(
+                                Eq,
+                                Var(
+                                    Bound(Named("x", 0))
+                                ),
+                                Const(
+                                    Int(3)
+                                )
+                            )
                         )
                     )
                 }
             ]
         ),
-        "x",
-        Const(
-            Span {
-                lo: BytePos(99),
-                hi: BytePos(103)
-            },
-            Bool(true)
+        Abs(
+            Named("x", Struct(
+                [
+                    Field {
+                        name: "x",
+                        value: Var(
+                            Free("u32")
+                        )
+                    }
+                ]
+            )),
+            Binop(
+                Eq,
+                Var(
+                    Bound(Named("x", 0))
+                ),
+                Const(
+                    Int(2)
+                )
+            )
         )
     ),
-    "x",
-    Const(
-        Span {
-            lo: BytePos(127),
-            hi: BytePos(132)
-        },
-        Bool(false)
+    Abs(
+        Named("x", Struct(
+            [
+                Field {
+                    name: "x",
+                    value: Var(
+                        Free("u32")
+                    )
+                }
+            ]
+        )),
+        Binop(
+            Eq,
+            Var(
+                Bound(Named("x", 0))
+            ),
+            Const(
+                Int(1)
+            )
+        )
     )
 )

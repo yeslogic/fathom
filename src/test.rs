@@ -73,14 +73,17 @@ macro_rules! assert_snapshot {
                             println!("{}", changes);
                             println!("In file {:?}", file_name);
                             println!();
-                            println!("Rerun the failing test with REGENERATE_SNAPSHOTS=1 regenerate the saved snapshot");
+                            println!("Rerun the failing test with REGENERATE_SNAPSHOTS=1 \
+                                      regenerate the saved snapshot");
                             println!();
                             panic!();
                         }
                     }
                     Err(err) => {
                         match err.kind() {
-                            ErrorKind::NotFound => $crate::test::regenerate_snapshot(&file_name, value).unwrap(),
+                            ErrorKind::NotFound => {
+                                $crate::test::regenerate_snapshot(&file_name, value).unwrap()
+                            }
                             _ => panic!("{}", err),
                         }
                     }

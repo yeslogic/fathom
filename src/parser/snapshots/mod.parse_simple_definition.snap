@@ -1,13 +1,8 @@
 [
     Definition {
-        span: Span {
-            lo: BytePos(13),
-            hi: BytePos(28)
-        },
         name: "Offset32",
-        ty: UInt(
-            4,
-            Target
+        ty: Var(
+            Free("u32")
         )
     }
 ]

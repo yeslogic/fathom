@@ -4,7 +4,7 @@ use std::collections::{HashSet, VecDeque};
 use std::io::Write;
 
 use Env;
-use ast::{Endianness, Field, Type};
+use syntax::{Endianness, Field, Type};
 
 /// Compile the symbols in the environment to a Rust parser
 #[allow(unused_variables)]
@@ -22,7 +22,10 @@ enum NameHint {
 }
 
 enum CompileJob {
-    Struct { name: String, fields: Vec<Field> },
+    Struct {
+        name: String,
+        fields: Vec<Field<Type>>,
+    },
     Union { name: String, elems: Vec<Type> },
 }
 
@@ -233,9 +236,9 @@ impl CompilerEnv {
             Type::Float(4, Endianness::Target) => quote! { f32 },
             Type::Float(8, Endianness::Target) => quote! { f64 },
 
-            Type::UInt(_, _) |
-            Type::SInt(_, _) |
-            Type::Float(_, _) => unimplemented!("{:?} not yet handled outside of structs", ty),
+            Type::UInt(_, _) | Type::SInt(_, _) | Type::Float(_, _) => {
+                unimplemented!("{:?} not yet handled outside of structs", ty)
+            }
 
             Type::RangedInt(_, _) => {
                 // Sould never happen!

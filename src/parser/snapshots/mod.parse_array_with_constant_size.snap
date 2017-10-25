@@ -1,24 +1,11 @@
 [
     Definition {
-        span: Span {
-            lo: BytePos(13),
-            hi: BytePos(30)
-        },
         name: "Point",
         ty: Array(
-            Span {
-                lo: BytePos(21),
-                hi: BytePos(29)
-            },
-            Float(
-                4,
-                Target
+            Var(
+                Free("f32")
             ),
             Const(
-                Span {
-                    lo: BytePos(27),
-                    hi: BytePos(28)
-                },
                 Int(3)
             )
         )

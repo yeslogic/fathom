@@ -1,0 +1,30 @@
+Abs(
+    Named("z", Type),
+    App(
+        Abs(
+            Named("y", Type),
+            App(
+                Var(
+                    Bound(Named("y", 0))
+                ),
+                Abs(
+                    Named("x", Type),
+                    Var(
+                        Bound(Named("x", 0))
+                    )
+                )
+            )
+        ),
+        Abs(
+            Named("x", Type),
+            App(
+                Var(
+                    Bound(Named("z", 1))
+                ),
+                Var(
+                    Bound(Named("x", 0))
+                )
+            )
+        )
+    )
+)

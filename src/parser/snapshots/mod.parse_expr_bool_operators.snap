@@ -1,49 +1,21 @@
 Binop(
-    Span {
-        lo: BytePos(13),
-        hi: BytePos(44)
-    },
     Or,
     Binop(
-        Span {
-            lo: BytePos(14),
-            hi: BytePos(26)
-        },
         And,
-        Const(
-            Span {
-                lo: BytePos(14),
-                hi: BytePos(18)
-            },
-            Bool(true)
+        Var(
+            Free("true")
         ),
-        Const(
-            Span {
-                lo: BytePos(21),
-                hi: BytePos(26)
-            },
-            Bool(false)
+        Var(
+            Free("false")
         )
     ),
     Binop(
-        Span {
-            lo: BytePos(31),
-            hi: BytePos(43)
-        },
         Or,
-        Const(
-            Span {
-                lo: BytePos(31),
-                hi: BytePos(35)
-            },
-            Bool(true)
+        Var(
+            Free("true")
         ),
-        Const(
-            Span {
-                lo: BytePos(38),
-                hi: BytePos(43)
-            },
-            Bool(false)
+        Var(
+            Free("false")
         )
     )
 )

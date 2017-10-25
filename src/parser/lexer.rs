@@ -68,30 +68,30 @@ pub enum Token<'input> {
     Where,
 
     // Symbols
-    Ampersand, // &
-    Bang, // !
-    BangEqual, // !=
-    Colon, // :
-    Comma, // ,
-    Equal, // =
-    EqualEqual, // ==
+    Ampersand,    // &
+    Bang,         // !
+    BangEqual,    // !=
+    Colon,        // :
+    Comma,        // ,
+    Equal,        // =
+    EqualEqual,   // ==
     EqualGreater, // =>
     ForwardSlash, // /
-    Greater, // >
+    Greater,      // >
     GreaterEqual, // >=
-    Less, // <
-    LessEqual, // <=
-    Minus, // -
-    Pipe, // |
-    Plus, // +
-    Semi, // ;
-    Star, // *
+    Less,         // <
+    LessEqual,    // <=
+    Minus,        // -
+    Pipe,         // |
+    Plus,         // +
+    Semi,         // ;
+    Star,         // *
 
     // Delimiters
-    LParen, // (
-    RParen, // )
-    LBrace, // {
-    RBrace, // }
+    LParen,   // (
+    RParen,   // )
+    LBrace,   // {
+    RBrace,   // }
     LBracket, // [
     RBracket, // ]
 }

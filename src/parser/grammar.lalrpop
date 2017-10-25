@@ -1,9 +1,14 @@
-use ast::{Binop, Definition, Field, Expr, Type, Unop};
-use env::Env;
+use syntax::{Definition, Field};
+use syntax::binary::Type;
+use syntax::host::{Binop, Expr, Unop};
 use parser::lexer::{Token, Error as LexerError};
 use source::BytePos;
 
-grammar<'input, 'env>(env: &'env Env);
+
+grammar<'input>();
+
+
+// Tokens
 
 extern {
     type Location = BytePos;
@@ -51,133 +56,143 @@ extern {
     }
 }
 
-pub Definitions: Vec<Definition> = {
+
+pub Definitions: Vec<Definition<String>> = {
     Definition*,
 };
 
-Definition: Definition = {
-    <lo: @L> <name: "Ident"> "=" <ty: Type> ";" <hi: @R> => {
-        Definition::new((lo, hi), name, ty)
+Definition: Definition<String> = {
+    <name: "Ident"> "=" <ty: PrimaryType> ";" => {
+        Definition::new(name, ty)
     },
 };
 
-AtomicType: Type = {
-    <lo: @L> <name: "Ident"> <hi: @R> => {
-        match env.lookup_ty(&name) {
-            Some(ty) => ty.clone(),
-            None => Type::var((lo, hi), name),
-        }
+Field: Field<String, Type<String>> = {
+    <name: "Ident"> ":" <ty: PrimaryType> => {
+        Field::new(name, ty)
     },
-    "(" <Type> ")",
-    <lo: @L> "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
+};
+
+
+// Types
+
+pub Type: Type<String> = {
+    <ty: PrimaryType> => ty,
+};
+
+PrimaryType: Type<String> = {
+    AtomicType,
+    <ty: PrimaryType> "where" <param: "Ident"> "=>" <pred: PrimaryExpr> => {
+        // FIXME: unwrap
+        let repr_ty = Box::new(ty.repr().unwrap());
+        Type::cond(ty, Expr::abs((param, repr_ty), pred))
+    },
+};
+
+AtomicType: Type<String> = {
+    <name: "Ident"> => {
+        Type::fvar(name)
+    },
+    "(" <ty: PrimaryType> ")" => ty,
+    "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" => {
         let mut fields = fields;
         fields.extend(last);
-        Type::struct_((lo, hi), fields)
+        Type::struct_(fields)
     },
-    <lo: @L> "union" "{" <tys: (<Type> ",")+> <last: Type?> "}" <hi: @R> => {
+    "union" "{" <tys: (<PrimaryType> ",")+> <last: PrimaryType?> "}" => {
         let mut tys = tys;
         tys.extend(last);
-        Type::union((lo, hi), tys)
+        Type::union(tys)
     },
-    <lo: @L> "[" <elem: Type> ";" <size: Expr> "]" <hi: @R> => {
-        Type::array((lo, hi), elem, size)
+    "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" => {
+        Type::array(elem, size)
     },
 };
 
-pub Type: Type = {
-    AtomicType,
-    <lo: @L> <ty: Type> "where" <param: "Ident"> "=>" <pred: Expr> <hi: @R> => {
-        Type::where_((lo, hi), ty, param, pred)
-    },
+
+// Expressions
+
+pub Expr: Expr<String> = {
+    <expr: PrimaryExpr> => expr,
 };
 
 // Use precedence climbing to define the operators
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 
-pub Expr: Expr = {
+PrimaryExpr: Expr<String> = {
     EqExpr,
-    <lo: @L> <lhs: EqExpr> "|" <rhs: Expr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Or, lhs, rhs)
+    <lhs: EqExpr> "|" <rhs: PrimaryExpr> => {
+        Expr::binop(Binop::Or, lhs, rhs)
     },
-    <lo: @L> <lhs: EqExpr> "&" <rhs: Expr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::And, lhs, rhs)
+    <lhs: EqExpr> "&" <rhs: PrimaryExpr> => {
+        Expr::binop(Binop::And, lhs, rhs)
     },
 };
 
-EqExpr: Expr = {
+EqExpr: Expr<String> = {
     CmpExpr,
-    <lo: @L> <lhs: CmpExpr> "==" <rhs: EqExpr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Eq, lhs, rhs)
+    <lhs: CmpExpr> "==" <rhs: EqExpr> => {
+        Expr::binop(Binop::Eq, lhs, rhs)
     },
-    <lo: @L> <lhs: CmpExpr> "!=" <rhs: EqExpr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Ne, lhs, rhs)
+    <lhs: CmpExpr> "!=" <rhs: EqExpr> => {
+        Expr::binop(Binop::Ne, lhs, rhs)
     },
 };
 
-CmpExpr: Expr = {
+CmpExpr: Expr<String> = {
     AddExpr,
-    <lo: @L> <lhs: AddExpr> "<=" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Le, lhs, rhs)
+    <lhs: AddExpr> "<=" <rhs: CmpExpr> => {
+        Expr::binop(Binop::Le, lhs, rhs)
     },
-    <lo: @L> <lhs: AddExpr> "<" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Lt, lhs, rhs)
+    <lhs: AddExpr> "<" <rhs: CmpExpr> => {
+        Expr::binop(Binop::Lt, lhs, rhs)
     },
-    <lo: @L> <lhs: AddExpr> ">" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Gt, lhs, rhs)
+    <lhs: AddExpr> ">" <rhs: CmpExpr> => {
+        Expr::binop(Binop::Gt, lhs, rhs)
     },
-    <lo: @L> <lhs: AddExpr> ">=" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Ge, lhs, rhs)
+    <lhs: AddExpr> ">=" <rhs: CmpExpr> => {
+        Expr::binop(Binop::Ge, lhs, rhs)
     },
 };
 
-AddExpr : Expr = {
+AddExpr: Expr<String> = {
     MulExpr,
-    <lo: @L> <lhs: MulExpr> "+" <rhs: AddExpr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Add, lhs, rhs)
+    <lhs: MulExpr> "+" <rhs: AddExpr> => {
+        Expr::binop(Binop::Add, lhs, rhs)
     },
-    <lo: @L> <lhs: MulExpr> "-" <rhs: AddExpr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Sub, lhs, rhs)
+    <lhs: MulExpr> "-" <rhs: AddExpr> => {
+        Expr::binop(Binop::Sub, lhs, rhs)
     },
 };
 
-MulExpr : Expr = {
+MulExpr: Expr<String> = {
     AtomicExpr,
-    <lo: @L> <lhs: AtomicExpr> "*" <rhs: MulExpr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Mul, lhs, rhs)
+    <lhs: AtomicExpr> "*" <rhs: MulExpr> => {
+        Expr::binop(Binop::Mul, lhs, rhs)
     },
-    <lo: @L> <lhs: AtomicExpr> "/" <rhs: MulExpr> <hi: @R> => {
-        Expr::binop((lo, hi), Binop::Div, lhs, rhs)
-    },
-};
-
-AtomicExpr : Expr = {
-    "(" <expr: Expr> ")" => expr,
-    <lo: @L> <value: "BinLiteral"> <hi: @R> => {
-        Expr::int((lo, hi), value)
-    },
-    <lo: @L> <value: "HexLiteral"> <hi: @R> => {
-        Expr::int((lo, hi), value)
-    },
-    <lo: @L> <value: "DecLiteral"> <hi: @R> => {
-        Expr::int((lo, hi), value)
-    },
-    <lo: @L> <name: "Ident"> <hi: @R> => {
-        match name {
-            "true" => Expr::bool((lo, hi), true),
-            "false" => Expr::bool((lo, hi), false),
-            name => Expr::var((lo, hi), name),
-        }
-    },
-    <lo: @L> "-" <expr: AtomicExpr> <hi: @R> => {
-        Expr::unop((lo, hi), Unop::Neg, expr)
-    },
-    <lo: @L> "!" <value: AtomicExpr> <hi: @R> => {
-        Expr::unop((lo, hi), Unop::Not, value)
+    <lhs: AtomicExpr> "/" <rhs: MulExpr> => {
+        Expr::binop(Binop::Div, lhs, rhs)
     },
 };
 
-Field: Field = {
-    <lo: @L> <name: "Ident"> ":" <ty: Type> <hi: @R> => {
-        Field::new((lo, hi), name, ty)
+AtomicExpr: Expr<String> = {
+    "(" <expr: PrimaryExpr> ")" => expr,
+    <value: "BinLiteral"> => {
+        Expr::int(value)
+    },
+    <value: "HexLiteral"> => {
+        Expr::int(value)
+    },
+    <value: "DecLiteral"> => {
+        Expr::int(value)
+    },
+    <name: "Ident"> => {
+        Expr::fvar(name)
+    },
+    "-" <expr: AtomicExpr> => {
+        Expr::unop(Unop::Neg, expr)
+    },
+    "!" <value: AtomicExpr> => {
+        Expr::unop(Unop::Not, value)
     },
 };

@@ -377,52 +377,11 @@ impl Span {
     pub fn until(self, end: Span) -> Span {
         Span::new(self.lo(), end.lo())
     }
-
-    /// Wrap a value in the span
-    ///
-    /// ```rust
-    /// use ddl::source::{BytePos, Span, Spanned};
-    ///
-    /// enum Expr {
-    ///     Var(String),
-    ///     Abs(String, Spanned<Box<Expr>>),
-    ///     App(Spanned<Box<Expr>>, Spanned<Box<Expr>>),
-    /// }
-    ///
-    /// let span = Span::new(BytePos(2), BytePos(5));
-    /// let expr = Expr::Var("x".to_owned());
-    /// let x: Spanned<Box<Expr>> = span.with(expr);
-    /// ```
-    pub fn with<T: Into<U>, U>(self, value: T) -> Spanned<U> {
-        Spanned {
-            span: self,
-            value: value.into(),
-        }
-    }
 }
 
 impl From<(BytePos, BytePos)> for Span {
     fn from((lo, hi): (BytePos, BytePos)) -> Span {
         Span::new(lo, hi)
-    }
-}
-
-/// A value with an associated `Span`
-///
-/// Construct a `Spanned<T>` in a fluent way using `Span::with`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Spanned<T> {
-    pub span: Span,
-    pub value: T,
-}
-
-impl<T> Spanned<T> {
-    /// Apply the function `f` to the underlying value and return the wrapped result
-    pub fn map<U, F: FnMut(T) -> U>(self, mut f: F) -> Spanned<U> {
-        Spanned {
-            span: self.span,
-            value: f(self.value),
-        }
     }
 }
 
