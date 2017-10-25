@@ -258,6 +258,16 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
     vec![
         // TODO: "true" = Expr::bool(true)
         // TODO: "false" = Expr::bool(false)
+        Definition::new("u8", prim_array_ty(8, "from_u8")),
+        Definition::new("u16", prim_array_ty(16, "from_u16")),
+        Definition::new("u32", prim_array_ty(32, "from_u32")),
+        Definition::new("u64", prim_array_ty(64, "from_u64")),
+        Definition::new("i8", prim_array_ty(8, "from_i8")),
+        Definition::new("i16", prim_array_ty(16, "from_i16")),
+        Definition::new("i32", prim_array_ty(32, "from_i32")),
+        Definition::new("i64", prim_array_ty(64, "from_i64")),
+        Definition::new("f32", prim_array_ty(32, "from_f32")),
+        Definition::new("f64", prim_array_ty(64, "from_f64")),
         Definition::new("u8le", prim_array_ty(8, "from_u8le")),
         Definition::new("u16le", prim_array_ty(16, "from_u16le")),
         Definition::new("u32le", prim_array_ty(32, "from_u32le")),
