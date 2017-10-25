@@ -28,9 +28,9 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
 
     match *expr {
         // Constants are easy!
-        Expr::Const(Const::Bit(_)) => Ok(Type::Const(TypeConst::Bit)),
-        Expr::Const(Const::Bool(_)) => Ok(Type::Const(TypeConst::Bool)),
-        Expr::Const(Const::Int(_)) => Ok(Type::Const(TypeConst::Int)),
+        Expr::Const(Const::Bit(_)) => Ok(Type::bit()),
+        Expr::Const(Const::Bool(_)) => Ok(Type::bool()),
+        Expr::Const(Const::Int(_)) => Ok(Type::int()),
 
         // Variables
         Expr::Var(Var::Free(ref x)) => Err(TypeError::UnboundVariable(x.clone())),
@@ -45,11 +45,11 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
         // Unary operators
         Expr::Unop(op, ref expr) => match op {
             Unop::Neg => match ty_of(ctx, &**expr)? {
-                Type::Const(TypeConst::Int) => Ok(Type::Const(TypeConst::Int)),
+                Type::Const(TypeConst::Int) => Ok(Type::int()),
                 ty1 => Err(TypeError::NegOperand(ty1)),
             },
             Unop::Not => match ty_of(ctx, &**expr)? {
-                Type::Const(TypeConst::Bool) => Ok(Type::Const(TypeConst::Bool)),
+                Type::Const(TypeConst::Bool) => Ok(Type::bool()),
                 ty1 => Err(TypeError::NotOperand(ty1)),
             },
         },
@@ -63,28 +63,25 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
                 // Relational operators
                 Binop::Or | Binop::And => match (lhs_ty, ty2) {
                     (Type::Const(TypeConst::Bool), Type::Const(TypeConst::Bool)) => {
-                        Ok(Type::Const(TypeConst::Bool))
+                        Ok(Type::bool())
                     }
                     (lhs_ty, ty2) => Err(TypeError::RelOperands(op, lhs_ty, ty2)),
                 },
 
                 // Comparison operators
-                Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                    match (lhs_ty, ty2) {
-                        (Type::Const(TypeConst::Bit), Type::Const(TypeConst::Bit)) |
-                        (Type::Const(TypeConst::Bool), Type::Const(TypeConst::Bool)) |
-                        (Type::Const(TypeConst::Int), Type::Const(TypeConst::Int)) => {
-                            Ok(Type::Const(TypeConst::Bool))
-                        }
-                        (lhs_ty, ty2) => Err(TypeError::CmpOperands(op, lhs_ty, ty2)),
-                    }
-                }
+                Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => match (
+                    lhs_ty,
+                    ty2,
+                ) {
+                    (Type::Const(TypeConst::Bit), Type::Const(TypeConst::Bit)) |
+                    (Type::Const(TypeConst::Bool), Type::Const(TypeConst::Bool)) |
+                    (Type::Const(TypeConst::Int), Type::Const(TypeConst::Int)) => Ok(Type::bool()),
+                    (lhs_ty, ty2) => Err(TypeError::CmpOperands(op, lhs_ty, ty2)),
+                },
 
                 // Arithmetic operators
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => match (lhs_ty, ty2) {
-                    (Type::Const(TypeConst::Int), Type::Const(TypeConst::Int)) => {
-                        Ok(Type::Const(TypeConst::Int))
-                    }
+                    (Type::Const(TypeConst::Int), Type::Const(TypeConst::Int)) => Ok(Type::int()),
                     (lhs_ty, ty2) => Err(TypeError::ArithOperands(op, lhs_ty, ty2)),
                 },
             }
