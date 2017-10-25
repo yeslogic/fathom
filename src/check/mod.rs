@@ -101,7 +101,7 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
         Expr::Abs(Named(ref name, ref param_ty), ref body_expr) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
-            ctx.extend(Named(name.clone(), Binding::Expr((**param_ty).clone())));
+            ctx.extend(name.clone(), Binding::Expr((**param_ty).clone()));
             Ok(Type::arrow(
                 (**param_ty).clone(),
                 ty_of(&ctx, &**body_expr)?,
@@ -227,7 +227,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         Type::Abs(Named(ref name, ref param_kind), ref body_ty) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
-            ctx.extend(Named(name.clone(), Binding::Type(param_kind.clone())));
+            ctx.extend(name.clone(), Binding::Type(param_kind.clone()));
             Ok(Kind::arrow(param_kind.clone(), kind_of(&ctx, &**body_ty)?))
         }
 
@@ -254,7 +254,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
 
                 let field_ty = simplify_ty(&ctx, &field.value);
                 let repr_ty = field_ty.repr().unwrap(); // FIXME: unwrap
-                ctx.extend(Named(field.name.clone(), Binding::Expr(repr_ty)));
+                ctx.extend(field.name.clone(), Binding::Expr(repr_ty));
             }
 
             Ok(Kind::Type)
@@ -305,7 +305,7 @@ where
         }
 
         let def_kind = kind_of(&ctx, &*def_ty)?;
-        ctx.extend(Named(def.name.clone(), Binding::TypeDef(*def_ty, def_kind)));
+        ctx.extend(def.name.clone(), Binding::TypeDef(*def_ty, def_kind));
 
         // Record that the definition has been 'seen'
         seen_names.push(def.name.clone());

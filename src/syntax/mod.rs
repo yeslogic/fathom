@@ -197,8 +197,8 @@ impl<N> Ctx<N> {
         }
     }
 
-    pub fn extend(&mut self, binding: Named<N, Binding<N>>) {
-        self.bindings.push(binding);
+    pub fn extend(&mut self, name: N, binding: Binding<N>) {
+        self.bindings.push(Named(name, binding));
     }
 
     pub fn lookup(&self, i: u32) -> Named<&N, &Binding<N>> {
