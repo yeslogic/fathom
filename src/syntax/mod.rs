@@ -202,9 +202,9 @@ impl<N> Ctx<N> {
     }
 
     pub fn lookup(&self, i: u32) -> Named<&N, &Binding<N>> {
-        let Named(ref name, ref binding) = *self.bindings
-            .get(i as usize)
-            .expect("ICE: Binder out of range");
+        assert!(self.bindings.len() > i as usize, "ICE: Binder out of range");
+
+        let Named(ref name, ref binding) = self.bindings[self.bindings.len() - i as usize - 1];
 
         Named(name, binding)
     }
@@ -252,6 +252,8 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
     vec![
         // TODO: "true" = Expr::bool(true)
         // TODO: "false" = Expr::bool(false)
+
+        // Native endian primitives (Do we need these?)
         Definition::new("u8", prim_array_ty(8, "from_u8")),
         Definition::new("u16", prim_array_ty(16, "from_u16")),
         Definition::new("u32", prim_array_ty(32, "from_u32")),
@@ -262,6 +264,8 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
         Definition::new("i64", prim_array_ty(64, "from_i64")),
         Definition::new("f32", prim_array_ty(32, "from_f32")),
         Definition::new("f64", prim_array_ty(64, "from_f64")),
+
+        // Little endian primitives
         Definition::new("u8le", prim_array_ty(8, "from_u8le")),
         Definition::new("u16le", prim_array_ty(16, "from_u16le")),
         Definition::new("u32le", prim_array_ty(32, "from_u32le")),
@@ -272,6 +276,8 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
         Definition::new("i64le", prim_array_ty(64, "from_i64le")),
         Definition::new("f32le", prim_array_ty(32, "from_f32le")),
         Definition::new("f64le", prim_array_ty(64, "from_f64le")),
+
+        // Big endian primitives
         Definition::new("u8be", prim_array_ty(8, "from_u8be")),
         Definition::new("u16be", prim_array_ty(16, "from_u16be")),
         Definition::new("u32be", prim_array_ty(32, "from_u32be")),

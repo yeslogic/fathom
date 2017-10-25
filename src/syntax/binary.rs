@@ -86,8 +86,8 @@ impl<N: Name> Type<N> {
         let mut seen_names = Vec::with_capacity(fields.len());
 
         for field in &mut fields {
-            for name in &seen_names {
-                field.value.abstract_name(name);
+            for (level, name) in seen_names.iter().rev().enumerate() {
+                field.value.abstract_name_at(name, level as u32);
             }
 
             // Record that the field has been 'seen'
@@ -135,7 +135,7 @@ impl<N: Name> Type<N> {
         }
     }
 
-    fn abstract_name_at(&mut self, name: &N, level: u32) {
+    pub fn abstract_name_at(&mut self, name: &N, level: u32) {
         match *self {
             Type::Var(ref mut var) => var.abstract_name_at(name, level),
             Type::Const(_) => {}

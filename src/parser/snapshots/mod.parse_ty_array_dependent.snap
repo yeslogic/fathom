@@ -28,7 +28,7 @@ Struct(
                                 Free("f32")
                             ),
                             Var(
-                                Bound(Named("len", 0))
+                                Bound(Named("len", 1))
                             )
                         )
                     },
@@ -57,7 +57,7 @@ Struct(
                                 Free("f32")
                             ),
                             Var(
-                                Bound(Named("len", 1))
+                                Bound(Named("len", 2))
                             )
                         )
                     }

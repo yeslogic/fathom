@@ -295,8 +295,8 @@ where
         // Kind of ugly and inefficient - can't we just substitute directly?
         // Should handle mutually recursive bindings as well...
 
-        for name in &seen_names {
-            def_ty.abstract_name(name);
+        for (level, name) in seen_names.iter().rev().enumerate() {
+            def_ty.abstract_name_at(name, level as u32);
         }
 
         for (i, _) in seen_names.iter().enumerate() {
