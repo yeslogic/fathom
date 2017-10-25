@@ -86,11 +86,11 @@ impl<N: Name> Type<N> {
         let mut seen_names = Vec::with_capacity(fields.len());
 
         for field in &mut fields {
-            field.value.abstract_with(&|x| {
+            field.value.abstract_with(&|level, x| {
                 seen_names
                     .iter()
                     .position(|y| x == y)
-                    .map(|i| Named(x.clone(), i as u32))
+                    .map(|i| Named(x.clone(), level + i as u32))
             });
 
             // Record that the field has been 'seen'
@@ -120,13 +120,15 @@ impl<N: Name> Type<N> {
     }
 
     /// Type abstraction: eg. `\(a : Type) -> T`
-    pub fn abs<T1>(param: Named<N, Kind>, body_ty: T1) -> Type<N>
+    pub fn abs<N1, T1>((param_name, param_kind): (N1, Kind), body_ty: T1) -> Type<N>
     where
+        N1: Into<N>,
         T1: Into<Box<Type<N>>>,
     {
+        let param_name = param_name.into();
         let mut body_ty = body_ty.into();
-        body_ty.abstract_name(&param.0);
-        Type::Abs(param, body_ty)
+        body_ty.abstract_name(&param_name);
+        Type::Abs(Named(param_name, param_kind), body_ty)
     }
 
     pub fn lookup_field(&self, name: &N) -> Option<&Type<N>> {
@@ -138,10 +140,10 @@ impl<N: Name> Type<N> {
 
     fn abstract_level_with<F>(&mut self, level: u32, f: &F)
     where
-        F: Fn(&N) -> Option<Named<N, u32>>,
+        F: Fn(u32, &N) -> Option<Named<N, u32>>,
     {
         match *self {
-            Type::Var(ref mut var) => var.abstract_with(f),
+            Type::Var(ref mut var) => var.abstract_level_with(level, f),
             Type::Const(_) => {}
             Type::Array(ref mut elem_ty, ref mut size_expr) => {
                 elem_ty.abstract_level_with(level, f);
@@ -174,14 +176,14 @@ impl<N: Name> Type<N> {
 
     pub fn abstract_with<F>(&mut self, f: &F)
     where
-        F: Fn(&N) -> Option<Named<N, u32>>,
+        F: Fn(u32, &N) -> Option<Named<N, u32>>,
     {
         self.abstract_level_with(0, &f);
     }
 
     pub fn abstract_name(&mut self, x: &N) {
-        self.abstract_with(&|y| if x == y {
-            Some(Named(x.clone(), 0))
+        self.abstract_with(&|level, y| if x == y {
+            Some(Named(x.clone(), level))
         } else {
             None
         });
@@ -264,6 +266,81 @@ impl<N: Name> Type<N> {
                 Ok(host::Type::Struct(repr_fields).into())
             }
             Type::Abs(_, _) | Type::App(_, _) => Err(()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod ty {
+        use super::*;
+
+        mod abs {
+            use super::*;
+            use self::Kind as K;
+
+            type T = Type<&'static str>;
+
+            #[test]
+            fn id() {
+                // λx.λy. x
+                // λ  λ   1
+                let ty = T::abs(("x", K::Type), T::fvar("x"));
+
+                assert_snapshot!(ty_abs_id, ty);
+            }
+
+            // Examples from https://en.wikipedia.org/wiki/De_Bruijn_index
+
+            #[test]
+            fn k_combinator() {
+                // λx.λy. x
+                // λ  λ   1
+                let ty = T::abs(("x", K::Type), T::abs(("y", K::Type), T::fvar("x")));
+
+                assert_snapshot!(ty_abs_k_combinator, ty);
+            }
+
+            #[test]
+            fn s_combinator() {
+                // λx.λy.λz. x z (y z)
+                // λ  λ  λ   2 0 (1 0)
+                let ty = T::abs(
+                    ("x", K::Type),
+                    T::abs(
+                        ("y", K::Type),
+                        T::abs(
+                            ("z", K::Type),
+                            T::app(
+                                T::app(T::fvar("x"), T::fvar("z")),
+                                T::app(T::fvar("y"), T::fvar("z")),
+                            ),
+                        ),
+                    ),
+                );
+
+                assert_snapshot!(ty_abs_s_combinator, ty);
+            }
+
+            #[test]
+            fn complex() {
+                // λz.(λy. y (λx. x)) (λx. z x)
+                // λ  (λ   0 (λ   0)) (λ   1 0)
+                let ty = T::abs(
+                    ("z", K::Type),
+                    T::app(
+                        T::abs(
+                            ("y", K::Type),
+                            T::app(T::fvar("y"), T::abs(("x", K::Type), T::fvar("x"))),
+                        ),
+                        T::abs(("x", K::Type), T::app(T::fvar("z"), T::fvar("x"))),
+                    ),
+                );
+
+                assert_snapshot!(ty_abs_complex, ty);
+            }
         }
     }
 }

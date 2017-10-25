@@ -295,11 +295,11 @@ where
         // Kind of ugly and inefficient - can't we just substitute directly?
         // Should handle mutually recursive bindings as well...
 
-        def_ty.abstract_with(&|x| {
+        def_ty.abstract_with(&|level, x| {
             seen_names
                 .iter()
                 .position(|y| x == y)
-                .map(|i| Named(x.clone(), i as u32))
+                .map(|i| Named(x.clone(), level + i as u32))
         });
 
         for (i, _) in seen_names.iter().enumerate() {

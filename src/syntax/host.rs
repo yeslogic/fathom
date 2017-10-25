@@ -134,18 +134,24 @@ impl<N: Name> Expr<N> {
     }
 
     /// Abstraction, eg: `\(x : T) -> x`
-    pub fn abs<E1: Into<Box<Expr<N>>>>(param: Named<N, Box<Type<N>>>, body_expr: E1) -> Expr<N> {
+    pub fn abs<N1, T1, E1>((param_name, param_ty): (N1, T1), body_expr: E1) -> Expr<N>
+    where
+        N1: Into<N>,
+        T1: Into<Box<Type<N>>>,
+        E1: Into<Box<Expr<N>>>,
+    {
+        let param_name = param_name.into();
         let mut body_expr = body_expr.into();
-        body_expr.abstract_name(&param.0);
-        Expr::Abs(param, body_expr)
+        body_expr.abstract_name(&param_name);
+        Expr::Abs(Named(param_name, param_ty.into()), body_expr)
     }
 
     pub fn abstract_level_with<F>(&mut self, level: u32, f: &F)
     where
-        F: Fn(&N) -> Option<Named<N, u32>>,
+        F: Fn(u32, &N) -> Option<Named<N, u32>>,
     {
         match *self {
-            Expr::Var(ref mut var) => var.abstract_with(f),
+            Expr::Var(ref mut var) => var.abstract_level_with(level, f),
             Expr::Const(_) => {}
             Expr::Prim(_, ref mut repr_ty) => repr_ty.abstract_level_with(level, f),
             Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
@@ -163,14 +169,14 @@ impl<N: Name> Expr<N> {
 
     pub fn abstract_with<F>(&mut self, f: &F)
     where
-        F: Fn(&N) -> Option<Named<N, u32>>,
+        F: Fn(u32, &N) -> Option<Named<N, u32>>,
     {
         self.abstract_level_with(0, &f);
     }
 
     pub fn abstract_name(&mut self, x: &N) {
-        self.abstract_with(&|y| if x == y {
-            Some(Named(x.clone(), 0))
+        self.abstract_with(&|level, y| if x == y {
+            Some(Named(x.clone(), level))
         } else {
             None
         });
@@ -258,11 +264,11 @@ impl<N: Name> Type<N> {
         let mut seen_names = Vec::with_capacity(fields.len());
 
         for field in &mut fields {
-            field.value.abstract_with(&|x| {
+            field.value.abstract_with(&|level, x| {
                 seen_names
                     .iter()
                     .position(|y| x == y)
-                    .map(|i| Named(x.clone(), i as u32))
+                    .map(|i| Named(x.clone(), level + i as u32))
             });
 
             // Record that the field has been 'seen'
@@ -281,10 +287,10 @@ impl<N: Name> Type<N> {
 
     pub fn abstract_level_with<F>(&mut self, level: u32, f: &F)
     where
-        F: Fn(&N) -> Option<Named<N, u32>>,
+        F: Fn(u32, &N) -> Option<Named<N, u32>>,
     {
         match *self {
-            Type::Var(ref mut var) => var.abstract_with(f),
+            Type::Var(ref mut var) => var.abstract_level_with(level, f),
             Type::Const(_) => {}
             Type::Arrow(ref mut lhs_ty, ref mut rhs_ty) => {
                 lhs_ty.abstract_level_with(level, f);
@@ -305,14 +311,14 @@ impl<N: Name> Type<N> {
 
     pub fn abstract_with<F>(&mut self, f: &F)
     where
-        F: Fn(&N) -> Option<Named<N, u32>>,
+        F: Fn(u32, &N) -> Option<Named<N, u32>>,
     {
         self.abstract_level_with(0, &f);
     }
 
     pub fn abstract_name(&mut self, x: &N) {
-        self.abstract_with(&|y| if x == y {
-            Some(Named(x.clone(), 0))
+        self.abstract_with(&|level, y| if x == y {
+            Some(Named(x.clone(), level))
         } else {
             None
         })

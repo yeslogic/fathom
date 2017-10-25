@@ -69,12 +69,12 @@ pub enum Var<N, B> {
 }
 
 impl<N, B> Var<N, B> {
-    pub fn abstract_with<F>(&mut self, f: &F)
+    pub fn abstract_level_with<F>(&mut self, level: u32, f: &F)
     where
-        F: Fn(&N) -> Option<B>,
+        F: Fn(u32, &N) -> Option<B>,
     {
         *self = match *self {
-            Var::Free(ref n) => match f(n) {
+            Var::Free(ref n) => match f(level, n) {
                 None => return,
                 Some(i) => Var::Bound(i),
             },

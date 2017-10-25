@@ -1,0 +1,6 @@
+Abs(
+    Named("x", Type),
+    Var(
+        Bound(Named("x", 0))
+    )
+)
