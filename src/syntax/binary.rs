@@ -56,6 +56,11 @@ impl<N: Name> Type<N> {
         Type::Var(Var::Bound(Named(x.into(), i)))
     }
 
+    /// Bit type constant
+    pub fn bit() -> Type<N> {
+        Type::Const(TypeConst::Bit)
+    }
+
     /// An array of the specified type, with a size: eg. `[T; n]`
     pub fn array<T1: Into<Box<Type<N>>>, E1: Into<Box<host::Expr<N>>>>(
         elem_ty: T1,

@@ -265,39 +265,39 @@ impl<N> Ctx<N> {
     }
 }
 
-// pub fn base_definitions<N: Name>() -> Vec<Definition<N>> {
-//     fn prim_array_ty<N: Name>(size: i64, prim_name: &'static str) -> Type<N> {
-//         use self::binary::{Type, TypeConst};
-//         use self::host::Expr;
+pub fn base_definitions<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
+    fn prim_array_ty<N: Name>(size: i64, conv_name: &'static str) -> binary::Type<N> {
+        use self::binary::Type;
+        use self::host::Expr;
 
-//         let bit_ty = Type::Const(TypeConst::Bit);
-//         let array_ty = Type::array(bit_ty, Expr::int(size));
+        let array_ty = Type::array(Type::bit(), Expr::int(size));
+        let conv_ty = host::Type::arrow(array_ty.repr().unwrap(), host::Type::int());
 
-//         Type::interp(array_ty, host::Expr::Prim(prim_name))
-//     }
+        Type::interp(array_ty, Expr::prim(conv_name, conv_ty), host::Type::int())
+    }
 
-//     vec![
-//         // TODO: "true" = Expr::bool(true)
-//         // TODO: "false" = Expr::bool(false)
-//         Definition::new("u8le", prim_array_ty(8, "from_u8le")),
-//         Definition::new("u16le", prim_array_ty(16, "from_u16le")),
-//         Definition::new("u32le", prim_array_ty(32, "from_u32le")),
-//         Definition::new("u64le", prim_array_ty(64, "from_u64le")),
-//         Definition::new("i8le", prim_array_ty(8, "from_i8le")),
-//         Definition::new("i16le", prim_array_ty(16, "from_i16le")),
-//         Definition::new("i32le", prim_array_ty(32, "from_i32le")),
-//         Definition::new("i64le", prim_array_ty(64, "from_i64le")),
-//         Definition::new("f32le", prim_array_ty(32, "from_f32le")),
-//         Definition::new("f64le", prim_array_ty(64, "from_f64le")),
-//         Definition::new("u8be", prim_array_ty(8, "from_u8be")),
-//         Definition::new("u16be", prim_array_ty(16, "from_u16be")),
-//         Definition::new("u32be", prim_array_ty(32, "from_u32be")),
-//         Definition::new("u64be", prim_array_ty(64, "from_u64be")),
-//         Definition::new("i8be", prim_array_ty(8, "from_i8be")),
-//         Definition::new("i16be", prim_array_ty(16, "from_i16be")),
-//         Definition::new("i32be", prim_array_ty(32, "from_i32be")),
-//         Definition::new("i64be", prim_array_ty(64, "from_i64be")),
-//         Definition::new("f32be", prim_array_ty(32, "from_f32be")),
-//         Definition::new("f64be", prim_array_ty(64, "from_f64be")),
-//     ];
-// }
+    vec![
+        // TODO: "true" = Expr::bool(true)
+        // TODO: "false" = Expr::bool(false)
+        Definition::new("u8le", prim_array_ty(8, "from_u8le")),
+        Definition::new("u16le", prim_array_ty(16, "from_u16le")),
+        Definition::new("u32le", prim_array_ty(32, "from_u32le")),
+        Definition::new("u64le", prim_array_ty(64, "from_u64le")),
+        Definition::new("i8le", prim_array_ty(8, "from_i8le")),
+        Definition::new("i16le", prim_array_ty(16, "from_i16le")),
+        Definition::new("i32le", prim_array_ty(32, "from_i32le")),
+        Definition::new("i64le", prim_array_ty(64, "from_i64le")),
+        Definition::new("f32le", prim_array_ty(32, "from_f32le")),
+        Definition::new("f64le", prim_array_ty(64, "from_f64le")),
+        Definition::new("u8be", prim_array_ty(8, "from_u8be")),
+        Definition::new("u16be", prim_array_ty(16, "from_u16be")),
+        Definition::new("u32be", prim_array_ty(32, "from_u32be")),
+        Definition::new("u64be", prim_array_ty(64, "from_u64be")),
+        Definition::new("i8be", prim_array_ty(8, "from_i8be")),
+        Definition::new("i16be", prim_array_ty(16, "from_i16be")),
+        Definition::new("i32be", prim_array_ty(32, "from_i32be")),
+        Definition::new("i64be", prim_array_ty(64, "from_i64be")),
+        Definition::new("f32be", prim_array_ty(32, "from_f32be")),
+        Definition::new("f64be", prim_array_ty(64, "from_f64be")),
+    ]
+}

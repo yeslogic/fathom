@@ -39,6 +39,9 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
             None => Err(TypeError::TypeInExpressionPosition),
         },
 
+        // Primitive expressions
+        Expr::Prim(_, ref repr_ty) => Ok((**repr_ty).clone()),
+
         // Unary operators
         Expr::Unop(op, ref expr) => match op {
             Unop::Neg => match ty_of(ctx, &**expr)? {

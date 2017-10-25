@@ -67,6 +67,8 @@ pub enum Binop {
 pub enum Expr<N> {
     /// A constant value
     Const(Const),
+    /// Primitive expressions
+    Prim(&'static str, Box<Type<N>>),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     Var(Var<N, Named<N, u32>>),
@@ -94,6 +96,11 @@ impl<N: Name> Expr<N> {
     /// An integer constant: eg. `0`, `1`, `2`, ...
     pub fn int(value: i64) -> Expr<N> {
         Expr::Const(Const::Int(value))
+    }
+
+    /// Primitive expressions
+    pub fn prim<T1: Into<Box<Type<N>>>>(name: &'static str, repr_ty: T1) -> Expr<N> {
+        Expr::Prim(name, repr_ty.into())
     }
 
     /// A free variable, referring to an integer that exists in the current
@@ -140,6 +147,7 @@ impl<N: Name> Expr<N> {
         match *self {
             Expr::Var(ref mut var) => var.abstract_with(f),
             Expr::Const(_) => {}
+            Expr::Prim(_, ref mut repr_ty) => repr_ty.abstract_level_with(level, f),
             Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
                 expr.abstract_level_with(level, f);
             }
