@@ -8,6 +8,12 @@ mod tests;
 
 // Typing
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExpectedType<N> {
+    Array,
+    Actual(host::Type<N>),
+}
+
 /// An error that was encountered during type checking
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeError<N> {
@@ -22,10 +28,10 @@ pub enum TypeError<N> {
     Mismatch {
         expr: host::Expr<N>,
         found: host::Type<N>,
-        expected: host::Type<N>,
+        expected: ExpectedType<N>,
     },
-    /// Unexpected operand types in a binary operator expression
-    BinopOperands {
+    /// Unexpected operand types in a equality comparison
+    EqualityOperands {
         expr: host::Expr<N>,
         lhs_ty: host::Type<N>,
         rhs_ty: host::Type<N>,
@@ -41,18 +47,16 @@ pub enum TypeError<N> {
 /// Returns the type of a host expression, checking that it is properly formed
 /// in the environment
 pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N>, TypeError<N>> {
-    use syntax::host::{Binop, Const, Expr, Type, TypeConst, Unop};
+    use syntax::host::{Binop, Expr, Type, TypeConst, Unop};
 
     match *expr {
         // Constants are easy!
-        Expr::Const(Const::Bit(_)) => Ok(Type::bit()),
-        Expr::Const(Const::Bool(_)) => Ok(Type::bool()),
-        Expr::Const(Const::Int(_)) => Ok(Type::int()),
+        Expr::Const(c) => Ok(Type::Const(c.ty_const_of())),
 
         // Variables
-        Expr::Var(Var::Free(ref x)) => Err(TypeError::UnboundVariable {
+        Expr::Var(Var::Free(ref name)) => Err(TypeError::UnboundVariable {
             expr: expr.clone(),
-            name: x.clone(),
+            name: name.clone(),
         }),
         Expr::Var(Var::Bound(Named(_, i))) => match ctx.lookup_ty(i) {
             Ok(Named(_, ty)) => Ok(ty.clone()),
@@ -67,66 +71,61 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
 
         // Unary operators
         Expr::Unop(op, ref expr) => match op {
-            Unop::Neg => match ty_of(ctx, &**expr)? {
-                Type::Const(TypeConst::Int) => Ok(Type::int()),
-                expr_ty => Err(TypeError::Mismatch {
-                    expr: (**expr).clone(),
-                    found: expr_ty,
-                    expected: Type::int(),
-                }),
-            },
-            Unop::Not => match ty_of(ctx, &**expr)? {
-                Type::Const(TypeConst::Bool) => Ok(Type::bool()),
-                expr_ty => Err(TypeError::Mismatch {
-                    expr: (**expr).clone(),
-                    found: expr_ty,
-                    expected: Type::bool(),
-                }),
-            },
+            Unop::Neg => {
+                expect_ty(ctx, &**expr, Type::int())?;
+                Ok(Type::int())
+            }
+            Unop::Not => {
+                expect_ty(ctx, &**expr, Type::bool())?;
+                Ok(Type::bool())
+            }
         },
 
         // Binary operators
         Expr::Binop(op, ref lhs_expr, ref rhs_expr) => {
-            let lhs_ty = ty_of(ctx, &**lhs_expr)?;
-            let rhs_ty = ty_of(ctx, &**rhs_expr)?;
-
             match op {
                 // Relational operators
-                Binop::Or | Binop::And => match (lhs_ty, rhs_ty) {
-                    (Type::Const(TypeConst::Bool), Type::Const(TypeConst::Bool)) => {
-                        Ok(Type::bool())
-                    }
-                    (lhs_ty, rhs_ty) => Err(TypeError::BinopOperands {
-                        expr: expr.clone(),
-                        lhs_ty,
-                        rhs_ty,
-                    }),
-                },
+                Binop::Or | Binop::And => {
+                    expect_ty(ctx, &**lhs_expr, Type::bool())?;
+                    expect_ty(ctx, &**rhs_expr, Type::bool())?;
 
-                // Comparison operators
-                Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => match (
-                    lhs_ty,
-                    rhs_ty,
-                ) {
-                    (Type::Const(TypeConst::Bit), Type::Const(TypeConst::Bit)) |
-                    (Type::Const(TypeConst::Bool), Type::Const(TypeConst::Bool)) |
-                    (Type::Const(TypeConst::Int), Type::Const(TypeConst::Int)) => Ok(Type::bool()),
-                    (lhs_ty, rhs_ty) => Err(TypeError::BinopOperands {
-                        expr: expr.clone(),
-                        lhs_ty,
-                        rhs_ty,
-                    }),
-                },
+                    Ok(Type::bool())
+                }
+
+                // Equality operators
+                Binop::Eq | Binop::Ne => {
+                    let lhs_ty = ty_of(ctx, &**lhs_expr)?;
+                    let rhs_ty = ty_of(ctx, &**rhs_expr)?;
+
+                    match (lhs_ty, rhs_ty) {
+                        (Type::Const(TypeConst::Bit), Type::Const(TypeConst::Bit)) |
+                        (Type::Const(TypeConst::Bool), Type::Const(TypeConst::Bool)) |
+                        (Type::Const(TypeConst::Int), Type::Const(TypeConst::Int)) => {
+                            Ok(Type::bool())
+                        }
+                        (lhs_ty, rhs_ty) => Err(TypeError::EqualityOperands {
+                            expr: expr.clone(),
+                            lhs_ty,
+                            rhs_ty,
+                        }),
+                    }
+                }
+
+                // Comparison ops
+                Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                    expect_ty(ctx, &**lhs_expr, Type::int())?;
+                    expect_ty(ctx, &**rhs_expr, Type::int())?;
+
+                    Ok(Type::int())
+                }
 
                 // Arithmetic operators
-                Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => match (lhs_ty, rhs_ty) {
-                    (Type::Const(TypeConst::Int), Type::Const(TypeConst::Int)) => Ok(Type::int()),
-                    (lhs_ty, rhs_ty) => Err(TypeError::BinopOperands {
-                        expr: expr.clone(),
-                        lhs_ty,
-                        rhs_ty,
-                    }),
-                },
+                Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
+                    expect_ty(ctx, &**lhs_expr, Type::int())?;
+                    expect_ty(ctx, &**rhs_expr, Type::int())?;
+
+                    Ok(Type::int())
+                }
             }
         }
 
@@ -140,6 +139,21 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
                     struct_expr: (**struct_expr).clone(),
                     struct_ty: struct_ty.clone(),
                     field_name: field_name.clone(),
+                }),
+            }
+        }
+
+        // Array subscript
+        Expr::Subscript(ref array_expr, ref index_expr) => {
+            expect_ty(ctx, &**index_expr, Type::int())?;
+
+            match ty_of(ctx, &**array_expr)? {
+                // Check if index is in bounds?
+                Type::Array(elem_ty, _) => Ok(*elem_ty),
+                found => Err(TypeError::Mismatch {
+                    expr: (**array_expr).clone(),
+                    expected: ExpectedType::Array,
+                    found,
                 }),
             }
         }
@@ -193,6 +207,12 @@ pub fn simplify_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExpectedKind {
+    Arrow,
+    Actual(binary::Kind),
+}
+
 /// An error that was encountered during kind checking
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KindError<N> {
@@ -206,7 +226,7 @@ pub enum KindError<N> {
     /// One kind was expected, but another was found
     Mismatch {
         ty: binary::Type<N>,
-        expected: binary::Kind,
+        expected: ExpectedKind,
         found: binary::Kind,
     },
     /// A repr error
@@ -234,9 +254,9 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
 
     match *ty {
         // Variables
-        Type::Var(Var::Free(ref x)) => Err(KindError::UnboundVariable {
+        Type::Var(Var::Free(ref name)) => Err(KindError::UnboundVariable {
             ty: ty.clone(),
-            name: x.clone(),
+            name: name.clone(),
         }),
         Type::Var(Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
             Ok(Named(_, kind)) => Ok(kind.clone()),
@@ -314,21 +334,17 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Type application
-        Type::App(ref fn_ty, ref arg_ty) => {
-            match kind_of(ctx, &**fn_ty)? {
-                Kind::Type => Err(KindError::Mismatch {
-                    ty: (**fn_ty).clone(),
-                    found: Kind::Type,
-                    // FIXME: Kind of args are unknown at this point - therefore
-                    // they shouldn't be `Kind::Type`!
-                    expected: Kind::arrow(Kind::Type, Kind::Type),
-                }),
-                Kind::Arrow(param_kind, ret_kind) => {
-                    expect_kind(ctx, &**arg_ty, *param_kind)?;
-                    Ok(*ret_kind)
-                }
+        Type::App(ref fn_ty, ref arg_ty) => match kind_of(ctx, &**fn_ty)? {
+            Kind::Type => Err(KindError::Mismatch {
+                ty: (**fn_ty).clone(),
+                found: Kind::Type,
+                expected: ExpectedKind::Arrow,
+            }),
+            Kind::Arrow(param_kind, ret_kind) => {
+                expect_kind(ctx, &**arg_ty, *param_kind)?;
+                Ok(*ret_kind)
             }
-        }
+        },
     }
 }
 
@@ -380,7 +396,7 @@ fn expect_ty<N: Name>(
     } else {
         Err(TypeError::Mismatch {
             expr: expr.clone(),
-            expected,
+            expected: ExpectedType::Actual(expected),
             found,
         })
     }
@@ -398,7 +414,7 @@ fn expect_kind<N: Name>(
     } else {
         Err(KindError::Mismatch {
             ty: ty.clone(),
-            expected,
+            expected: ExpectedKind::Actual(expected),
             found,
         })
     }

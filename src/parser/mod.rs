@@ -127,6 +127,20 @@ mod tests {
     }
 
     #[test]
+    fn parse_proj_expr() {
+        let src = "-foo.bar.x";
+
+        assert_snapshot!(parse_proj_expr, parse_expr(src).unwrap());
+    }
+
+    #[test]
+    fn parse_subscript_expr() {
+        let src = "-foo[23 + (2 + 3)][index]";
+
+        assert_snapshot!(parse_subscript_expr, parse_expr(src).unwrap());
+    }
+
+    #[test]
     fn parse_ty_var() {
         let src = "
             Point
