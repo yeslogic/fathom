@@ -1,6 +1,6 @@
 # DDL (placeholder name)
 
-A declarative data definition language for formally specifying sound binary
+A declarative data definition language for formally specifying binary
 data formats.
 
 ## Example
@@ -53,12 +53,10 @@ structures, such as file formats, network protocols or bitstreams.
   Uses YAML as a way of marking up the data definitions. Lots of nice
   examples, a nice graphvis output, and a nice web-based IDE. It lacks a
   formal foundation however, and YAML can be hard to read.
-- [PADS](https://pads.cs.tufts.edu):
-  We like the PADS approach, but it is geard more towards log files and
+- [IPADS/DDC](https://www.cs.princeton.edu/~dpw/papers/700popl06.pdf):
+  We like the IPADS/DDC approach, but it is geard more towards log files and
   misses things like pointer offsets which are needed to support many
-  binary formats. We also believe that Rust is a better compilation target
-  and that providing a binary parser language at the same level of quality
-  as LALRPOP will be a great boost to the ecosystem.
+  binary formats.
 - [Restructure](https://github.com/devongovett/restructure):
   A library for declaratively encode and decode binary data using a JavaScript
   EDSL. Used in [fontkit](https://github.com/devongovett/fontkit) for describing
@@ -77,7 +75,7 @@ structures, such as file formats, network protocols or bitstreams.
 
 ### Research papers
 
-- [PADS/ML: A Functional Data Description Language](https://www.cs.princeton.edu/~dpw/papers/padsml06.pdf)
+- [The Next 700 Data Description Languages](https://www.cs.princeton.edu/~dpw/papers/700popl06.pdf)
 - [DataScript](http://people.cs.vt.edu/%7Egback/papers/gback-datascript-gpce2002.pdf)
 - [Packet Types: Abstract Specification of Network Protocol Messages](http://conferences.sigcomm.org/sigcomm/2000/conf/paper/sigcomm2000-9-2.pdf)
 - [Nail: A Practical Tool for Parsing and Generating Data Formats](https://www.usenix.org/system/files/conference/osdi14/osdi14-paper-bangert.pdf)
