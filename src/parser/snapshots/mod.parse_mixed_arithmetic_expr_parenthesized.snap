@@ -1,31 +1,75 @@
 Binop(
+    Span {
+        lo: BytePos(0),
+        hi: BytePos(25)
+    },
     Mul,
     Binop(
+        Span {
+            lo: BytePos(1),
+            hi: BytePos(6)
+        },
         Add,
         Var(
+            Span {
+                lo: BytePos(1),
+                hi: BytePos(2)
+            },
             Free("x")
         ),
         Var(
+            Span {
+                lo: BytePos(5),
+                hi: BytePos(6)
+            },
             Free("y")
         )
     ),
     Binop(
+        Span {
+            lo: BytePos(10),
+            hi: BytePos(25)
+        },
         Div,
         Var(
+            Span {
+                lo: BytePos(10),
+                hi: BytePos(11)
+            },
             Free("z")
         ),
         Binop(
+            Span {
+                lo: BytePos(14),
+                hi: BytePos(25)
+            },
             Mul,
             Binop(
+                Span {
+                    lo: BytePos(15),
+                    hi: BytePos(20)
+                },
                 Sub,
                 Var(
+                    Span {
+                        lo: BytePos(15),
+                        hi: BytePos(16)
+                    },
                     Free("z")
                 ),
                 Var(
+                    Span {
+                        lo: BytePos(19),
+                        hi: BytePos(20)
+                    },
                     Free("x")
                 )
             ),
             Var(
+                Span {
+                    lo: BytePos(24),
+                    hi: BytePos(25)
+                },
                 Free("a")
             )
         )

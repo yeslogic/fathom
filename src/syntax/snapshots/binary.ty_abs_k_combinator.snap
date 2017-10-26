@@ -1,8 +1,20 @@
 Abs(
+    Span {
+        lo: BytePos(0),
+        hi: BytePos(0)
+    },
     Named("x", Type),
     Abs(
+        Span {
+            lo: BytePos(0),
+            hi: BytePos(0)
+        },
         Named("y", Type),
         Var(
+            Span {
+                lo: BytePos(0),
+                hi: BytePos(0)
+            },
             Bound(Named("x", 1))
         )
     )

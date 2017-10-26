@@ -2,10 +2,22 @@
     Definition {
         name: "Point",
         ty: Array(
+            Span {
+                lo: BytePos(21),
+                hi: BytePos(29)
+            },
             Var(
+                Span {
+                    lo: BytePos(22),
+                    hi: BytePos(25)
+                },
                 Free("f32")
             ),
             Const(
+                Span {
+                    lo: BytePos(27),
+                    hi: BytePos(28)
+                },
                 Int(3)
             )
         )

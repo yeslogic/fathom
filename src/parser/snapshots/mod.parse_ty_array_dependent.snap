@@ -1,18 +1,38 @@
 Struct(
+    Span {
+        lo: BytePos(13),
+        hi: BytePos(323)
+    },
     [
         Field {
             name: "len",
             value: Var(
+                Span {
+                    lo: BytePos(43),
+                    hi: BytePos(46)
+                },
                 Free("u32")
             )
         },
         Field {
             name: "data1",
             value: Array(
+                Span {
+                    lo: BytePos(71),
+                    hi: BytePos(81)
+                },
                 Var(
+                    Span {
+                        lo: BytePos(72),
+                        hi: BytePos(75)
+                    },
                     Free("f32")
                 ),
                 Var(
+                    Span {
+                        lo: BytePos(77),
+                        hi: BytePos(80)
+                    },
                     Bound(Named("len", 0))
                 )
             )
@@ -20,14 +40,30 @@ Struct(
         Field {
             name: "data2",
             value: Struct(
+                Span {
+                    lo: BytePos(106),
+                    hi: BytePos(308)
+                },
                 [
                     Field {
                         name: "data1",
                         value: Array(
+                            Span {
+                                lo: BytePos(142),
+                                hi: BytePos(152)
+                            },
                             Var(
+                                Span {
+                                    lo: BytePos(143),
+                                    hi: BytePos(146)
+                                },
                                 Free("f32")
                             ),
                             Var(
+                                Span {
+                                    lo: BytePos(148),
+                                    hi: BytePos(151)
+                                },
                                 Bound(Named("len", 1))
                             )
                         )
@@ -35,28 +71,52 @@ Struct(
                     Field {
                         name: "len",
                         value: Var(
+                            Span {
+                                lo: BytePos(179),
+                                hi: BytePos(182)
+                            },
                             Free("u32")
                         )
                     },
                     Field {
                         name: "padding1",
                         value: Var(
+                            Span {
+                                lo: BytePos(214),
+                                hi: BytePos(216)
+                            },
                             Free("u8")
                         )
                     },
                     Field {
                         name: "padding2",
                         value: Var(
+                            Span {
+                                lo: BytePos(248),
+                                hi: BytePos(250)
+                            },
                             Free("u8")
                         )
                     },
                     Field {
                         name: "data2",
                         value: Array(
+                            Span {
+                                lo: BytePos(279),
+                                hi: BytePos(289)
+                            },
                             Var(
+                                Span {
+                                    lo: BytePos(280),
+                                    hi: BytePos(283)
+                                },
                                 Free("f32")
                             ),
                             Var(
+                                Span {
+                                    lo: BytePos(285),
+                                    hi: BytePos(288)
+                                },
                                 Bound(Named("len", 2))
                             )
                         )

@@ -51,14 +51,14 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
 
     match *expr {
         // Constants are easy!
-        Expr::Const(c) => Ok(Type::Const(c.ty_const_of())),
+        Expr::Const(_, c) => Ok(Type::Const(c.ty_const_of())),
 
         // Variables
-        Expr::Var(Var::Free(ref name)) => Err(TypeError::UnboundVariable {
+        Expr::Var(_, Var::Free(ref name)) => Err(TypeError::UnboundVariable {
             expr: expr.clone(),
             name: name.clone(),
         }),
-        Expr::Var(Var::Bound(Named(_, i))) => match ctx.lookup_ty(i) {
+        Expr::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty(i) {
             Ok(Named(_, ty)) => Ok(ty.clone()),
             Err(Named(name, binding)) => Err(TypeError::ExprBindingExpected {
                 expr: expr.clone(),
@@ -70,7 +70,7 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
         Expr::Prim(_, ref repr_ty) => Ok((**repr_ty).clone()),
 
         // Unary operators
-        Expr::Unop(op, ref expr) => match op {
+        Expr::Unop(_, op, ref expr) => match op {
             Unop::Neg => {
                 expect_ty(ctx, &**expr, Type::int())?;
                 Ok(Type::int())
@@ -82,7 +82,7 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
         },
 
         // Binary operators
-        Expr::Binop(op, ref lhs_expr, ref rhs_expr) => {
+        Expr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
             match op {
                 // Relational operators
                 Binop::Or | Binop::And => {
@@ -130,7 +130,7 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
         }
 
         // Field projection
-        Expr::Proj(ref struct_expr, ref field_name) => {
+        Expr::Proj(_, ref struct_expr, ref field_name) => {
             let struct_ty = ty_of(ctx, &**struct_expr)?;
 
             match struct_ty.lookup_field(field_name).cloned() {
@@ -144,7 +144,7 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
         }
 
         // Array subscript
-        Expr::Subscript(ref array_expr, ref index_expr) => {
+        Expr::Subscript(_, ref array_expr, ref index_expr) => {
             expect_ty(ctx, &**index_expr, Type::int())?;
 
             match ty_of(ctx, &**array_expr)? {
@@ -159,7 +159,7 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
         }
 
         // Abstraction
-        Expr::Abs(Named(ref param_name, ref param_ty), ref body_expr) => {
+        Expr::Abs(_, Named(ref param_name, ref param_ty), ref body_expr) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
             ctx.extend(param_name.clone(), Binding::Expr((**param_ty).clone()));
@@ -178,12 +178,12 @@ pub fn simplify_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<
 
     fn compute_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Option<binary::Type<N>> {
         match *ty {
-            Type::Var(Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
+            Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
                 Ok(Named(_, def_ty)) => Some(def_ty.clone()),
                 Err(_) => None,
             },
-            Type::App(ref fn_ty, ref arg_ty) => match **fn_ty {
-                Type::Abs(_, ref body_ty) => {
+            Type::App(_, ref fn_ty, ref arg_ty) => match **fn_ty {
+                Type::Abs(_, _, ref body_ty) => {
                     // FIXME: Avoid clone
                     let mut body = (**body_ty).clone();
                     body.instantiate(arg_ty);
@@ -196,7 +196,7 @@ pub fn simplify_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<
     }
 
     let ty = match *ty {
-        Type::App(ref fn_ty, _) => simplify_ty(ctx, &**fn_ty),
+        Type::App(_, ref fn_ty, _) => simplify_ty(ctx, &**fn_ty),
         // FIXME: Avoid clone
         _ => ty.clone(),
     };
@@ -254,11 +254,11 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
 
     match *ty {
         // Variables
-        Type::Var(Var::Free(ref name)) => Err(KindError::UnboundVariable {
+        Type::Var(_, Var::Free(ref name)) => Err(KindError::UnboundVariable {
             ty: ty.clone(),
             name: name.clone(),
         }),
-        Type::Var(Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
+        Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
             Ok(Named(_, kind)) => Ok(kind.clone()),
             Err(Named(name, binding)) => Err(KindError::TypeBindingExpected {
                 ty: ty.clone(),
@@ -270,7 +270,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         Type::Const(TypeConst::Bit) => Ok(Kind::Type),
 
         // Array types
-        Type::Array(ref elem_ty, ref size_expr) => {
+        Type::Array(_, ref elem_ty, ref size_expr) => {
             expect_ty_kind(ctx, &**elem_ty)?;
             expect_ty(ctx, &**size_expr, host::Type::int())?;
 
@@ -278,7 +278,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Conditional types
-        Type::Cond(ref ty, ref pred_expr) => {
+        Type::Cond(_, ref ty, ref pred_expr) => {
             expect_ty_kind(ctx, &**ty)?;
             expect_ty(
                 ctx,
@@ -290,7 +290,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Interpreted types
-        Type::Interp(ref ty, ref conv_expr, ref host_ty) => {
+        Type::Interp(_, ref ty, ref conv_expr, ref host_ty) => {
             expect_ty_kind(ctx, &**ty)?;
             expect_ty(
                 ctx,
@@ -302,7 +302,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Type abstraction
-        Type::Abs(Named(ref name, ref param_kind), ref body_ty) => {
+        Type::Abs(_, Named(ref name, ref param_kind), ref body_ty) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
             ctx.extend(name.clone(), Binding::Type(param_kind.clone()));
@@ -310,7 +310,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Union types
-        Type::Union(ref tys) => {
+        Type::Union(_, ref tys) => {
             for ty in tys {
                 expect_ty_kind(ctx, ty)?;
             }
@@ -319,7 +319,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Struct type
-        Type::Struct(ref fields) => {
+        Type::Struct(_, ref fields) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
 
@@ -334,7 +334,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Type application
-        Type::App(ref fn_ty, ref arg_ty) => match kind_of(ctx, &**fn_ty)? {
+        Type::App(_, ref fn_ty, ref arg_ty) => match kind_of(ctx, &**fn_ty)? {
             Kind::Type => Err(KindError::Mismatch {
                 ty: (**fn_ty).clone(),
                 found: Kind::Type,

@@ -5,7 +5,7 @@ use syntax::binary::Type;
 use syntax::host::{Binop, Expr, Unop};
 use parser::GrammarError;
 use parser::lexer::Token;
-use source::BytePos;
+use source::{BytePos, Span};
 
 
 grammar<'input>();
@@ -86,31 +86,31 @@ pub Type: Type<String> = {
 
 PrimaryType: Type<String> = {
     AtomicType,
-    <ty: PrimaryType> "where" <param: "Ident"> "=>" <pred: PrimaryExpr> =>? {
+    <lo1: @L> <ty: PrimaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryExpr> <hi: @R> =>? {
         let repr_ty = Box::new(ty.repr().map_err(|err| {
             ParseError::User { error: GrammarError::from(err) }
         })?);
-        Ok(Type::cond(ty, Expr::abs((param, repr_ty), pred)))
+        Ok(Type::cond(Span::new(lo1, hi), ty, Expr::abs(Span::new(lo2, hi), (param, repr_ty), pred)))
     },
 };
 
 AtomicType: Type<String> = {
-    <name: "Ident"> => {
-        Type::fvar(name)
+    <lo: @L> <name: "Ident"> <hi: @R> => {
+        Type::fvar(Span::new(lo, hi), name)
     },
     "(" <ty: PrimaryType> ")" => ty,
-    "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" => {
+    <lo: @L> "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
         let mut fields = fields;
         fields.extend(last);
-        Type::struct_(fields)
+        Type::struct_(Span::new(lo, hi), fields)
     },
-    "union" "{" <tys: (<PrimaryType> ",")+> <last: PrimaryType?> "}" => {
+    <lo: @L> "union" "{" <tys: (<PrimaryType> ",")+> <last: PrimaryType?> "}" <hi: @R> => {
         let mut tys = tys;
         tys.extend(last);
-        Type::union(tys)
+        Type::union(Span::new(lo, hi), tys)
     },
-    "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" => {
-        Type::array(elem, size)
+    <lo: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <hi: @R> => {
+        Type::array(Span::new(lo, hi), elem, size)
     },
 };
 
@@ -126,88 +126,88 @@ pub Expr: Expr<String> = {
 
 PrimaryExpr: Expr<String> = {
     EqExpr,
-    <lhs: EqExpr> "|" <rhs: PrimaryExpr> => {
-        Expr::binop(Binop::Or, lhs, rhs)
+    <lo: @L> <lhs: EqExpr> "|" <rhs: PrimaryExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Or, lhs, rhs)
     },
-    <lhs: EqExpr> "&" <rhs: PrimaryExpr> => {
-        Expr::binop(Binop::And, lhs, rhs)
+    <lo: @L> <lhs: EqExpr> "&" <rhs: PrimaryExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::And, lhs, rhs)
     },
 };
 
 EqExpr: Expr<String> = {
     CmpExpr,
-    <lhs: CmpExpr> "==" <rhs: EqExpr> => {
-        Expr::binop(Binop::Eq, lhs, rhs)
+    <lo: @L> <lhs: CmpExpr> "==" <rhs: EqExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Eq, lhs, rhs)
     },
-    <lhs: CmpExpr> "!=" <rhs: EqExpr> => {
-        Expr::binop(Binop::Ne, lhs, rhs)
+    <lo: @L> <lhs: CmpExpr> "!=" <rhs: EqExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Ne, lhs, rhs)
     },
 };
 
 CmpExpr: Expr<String> = {
     AddExpr,
-    <lhs: AddExpr> "<=" <rhs: CmpExpr> => {
-        Expr::binop(Binop::Le, lhs, rhs)
+    <lo: @L> <lhs: AddExpr> "<=" <rhs: CmpExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Le, lhs, rhs)
     },
-    <lhs: AddExpr> "<" <rhs: CmpExpr> => {
-        Expr::binop(Binop::Lt, lhs, rhs)
+    <lo: @L> <lhs: AddExpr> "<" <rhs: CmpExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Lt, lhs, rhs)
     },
-    <lhs: AddExpr> ">" <rhs: CmpExpr> => {
-        Expr::binop(Binop::Gt, lhs, rhs)
+    <lo: @L> <lhs: AddExpr> ">" <rhs: CmpExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Gt, lhs, rhs)
     },
-    <lhs: AddExpr> ">=" <rhs: CmpExpr> => {
-        Expr::binop(Binop::Ge, lhs, rhs)
+    <lo: @L> <lhs: AddExpr> ">=" <rhs: CmpExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Ge, lhs, rhs)
     },
 };
 
 AddExpr: Expr<String> = {
     MulExpr,
-    <lhs: MulExpr> "+" <rhs: AddExpr> => {
-        Expr::binop(Binop::Add, lhs, rhs)
+    <lo: @L> <lhs: MulExpr> "+" <rhs: AddExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Add, lhs, rhs)
     },
-    <lhs: MulExpr> "-" <rhs: AddExpr> => {
-        Expr::binop(Binop::Sub, lhs, rhs)
+    <lo: @L> <lhs: MulExpr> "-" <rhs: AddExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Sub, lhs, rhs)
     },
 };
 
 MulExpr: Expr<String> = {
     PrefixExpr,
-    <lhs: PrefixExpr> "*" <rhs: MulExpr> => {
-        Expr::binop(Binop::Mul, lhs, rhs)
+    <lo: @L> <lhs: PrefixExpr> "*" <rhs: MulExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Mul, lhs, rhs)
     },
-    <lhs: PrefixExpr> "/" <rhs: MulExpr> => {
-        Expr::binop(Binop::Div, lhs, rhs)
+    <lo: @L> <lhs: PrefixExpr> "/" <rhs: MulExpr> <hi: @R> => {
+        Expr::binop(Span::new(lo, hi), Binop::Div, lhs, rhs)
     },
 };
 
 PrefixExpr: Expr<String> = {
     AtomicExpr,
-    "-" <expr: AtomicExpr> => {
-        Expr::unop(Unop::Neg, expr)
+    <lo: @L> "-" <expr: AtomicExpr> <hi: @R> => {
+        Expr::unop(Span::new(lo, hi), Unop::Neg, expr)
     },
-    "!" <value: AtomicExpr> => {
-        Expr::unop(Unop::Not, value)
+    <lo: @L> "!" <value: AtomicExpr> <hi: @R> => {
+        Expr::unop(Span::new(lo, hi), Unop::Not, value)
     },
 };
 
 AtomicExpr: Expr<String> = {
     "(" <expr: PrimaryExpr> ")" => expr,
-    <value: "BinLiteral"> => {
-        Expr::int(value)
+    <lo: @L> <value: "BinLiteral"> <hi: @R> => {
+        Expr::int(Span::new(lo, hi), value)
     },
-    <value: "HexLiteral"> => {
-        Expr::int(value)
+    <lo: @L> <value: "HexLiteral"> <hi: @R> => {
+        Expr::int(Span::new(lo, hi), value)
     },
-    <value: "DecLiteral"> => {
-        Expr::int(value)
+    <lo: @L> <value: "DecLiteral"> <hi: @R> => {
+        Expr::int(Span::new(lo, hi), value)
     },
-    <name: "Ident"> => {
-        Expr::fvar(name)
+    <lo: @L> <name: "Ident"> <hi: @R> => {
+        Expr::fvar(Span::new(lo, hi), name)
     },
-    <struct_expr: AtomicExpr> "." <field_name: "Ident"> => {
-        Expr::proj(struct_expr, field_name)
+    <lo: @L> <struct_expr: AtomicExpr> "." <field_name: "Ident"> <hi: @R> => {
+        Expr::proj(Span::new(lo, hi), struct_expr, field_name)
     },
-    <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" => {
-        Expr::subscript(array_expr, index_expr)
+    <lo: @L> <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" <hi: @R> => {
+        Expr::subscript(Span::new(lo, hi), array_expr, index_expr)
     },
 };

@@ -2,6 +2,10 @@
     Definition {
         name: "Offset32",
         ty: Var(
+            Span {
+                lo: BytePos(24),
+                hi: BytePos(27)
+            },
             Free("u32")
         )
     }
