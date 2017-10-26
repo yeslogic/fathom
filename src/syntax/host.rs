@@ -324,37 +324,25 @@ impl<N: Name> Type<N> {
     }
 
     fn instantiate_at(&mut self, level: u32, src: &Type<N>) {
-        // Bleh: Running into non-lexical liftetime problems here!
-        // Just so you know that I'm not going completely insane....
         // FIXME: ensure that expressions are not bound at the same level
-        *self = match *self {
-            Type::Var(Var::Bound(ref i)) => if *i == level {
-                src.clone()
-            } else {
-                return;
+        match *self {
+            Type::Var(Var::Bound(Named(_, i))) => if i == level {
+                *self = src.clone();
             },
-            Type::Var(Var::Free(_)) | Type::Const(_) => return,
+            Type::Var(Var::Free(_)) | Type::Const(_) => {}
             Type::Arrow(ref mut lhs_ty, ref mut rhs_ty) => {
                 lhs_ty.instantiate_at(level, src);
                 rhs_ty.instantiate_at(level, src);
-                return;
             }
             Type::Array(ref mut elem_ty, _) => {
                 elem_ty.instantiate_at(level, src);
-                return;
             }
-            Type::Union(ref mut tys) => {
-                for ty in tys {
-                    ty.instantiate_at(level, src);
-                }
-                return;
-            }
-            Type::Struct(ref mut fields) => {
-                for (i, field) in fields.iter_mut().enumerate() {
-                    field.value.instantiate_at(level + i as u32, src);
-                }
-                return;
-            }
+            Type::Union(ref mut tys) => for ty in tys {
+                ty.instantiate_at(level, src);
+            },
+            Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
+                field.value.instantiate_at(level + i as u32, src);
+            },
         };
     }
 

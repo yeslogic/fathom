@@ -186,50 +186,35 @@ impl<N: Name> Type<N> {
     }
 
     fn instantiate_at(&mut self, level: u32, src: &Type<N>) {
-        // Bleh: Running into non-lexical liftetime problems here!
-        // Just so you know that I'm not going completely insane....
         // FIXME: ensure that expressions are not bound at the same level
-        *self = match *self {
-            Type::Var(_, Var::Bound(ref i)) => if *i == level {
-                src.clone()
-            } else {
-                return;
+        match *self {
+            Type::Var(_, Var::Bound(Named(_, i))) => if i == level {
+                *self = src.clone();
             },
-            Type::Var(_, Var::Free(_)) | Type::Const(_) => return,
+            Type::Var(_, Var::Free(_)) | Type::Const(_) => {}
             Type::Array(_, ref mut elem_ty, _) => {
                 elem_ty.instantiate_at(level, src);
-                return;
             }
             Type::Cond(_, ref mut ty, _) => {
                 ty.instantiate_at(level + 1, src);
-                return;
             }
             Type::Interp(_, ref mut ty, _, _) => {
                 ty.instantiate_at(level + 1, src);
-                return;
             }
-            Type::Union(_, ref mut tys) => {
-                for ty in tys {
-                    ty.instantiate_at(level, src);
-                }
-                return;
-            }
-            Type::Struct(_, ref mut fields) => {
-                for (i, field) in fields.iter_mut().enumerate() {
-                    field.value.instantiate_at(level + i as u32, src);
-                }
-                return;
-            }
+            Type::Union(_, ref mut tys) => for ty in tys {
+                ty.instantiate_at(level, src);
+            },
+            Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
+                field.value.instantiate_at(level + i as u32, src);
+            },
             Type::Abs(_, _, ref mut ty) => {
                 ty.instantiate_at(level + 1, src);
-                return;
             }
             Type::App(_, ref mut ty, ref mut arg_ty) => {
                 ty.instantiate_at(level, src);
                 arg_ty.instantiate_at(level, src);
-                return;
             }
-        };
+        }
     }
 
     pub fn instantiate(&mut self, ty: &Type<N>) {
