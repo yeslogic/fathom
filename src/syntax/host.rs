@@ -88,6 +88,8 @@ pub enum Expr<N> {
     Binop(Binop, Box<Expr<N>>, Box<Expr<N>>),
     /// Field projection, eg: `x.field`
     Proj(Box<Expr<N>>, N),
+    /// Array index, eg: `x[i]`
+    Subscript(Box<Expr<N>>, Box<Expr<N>>),
     /// Abstraction, eg: `\(x : T) -> x`
     Abs(Named<N, Box<Type<N>>>, Box<Expr<N>>),
 }
@@ -139,8 +141,16 @@ impl<N: Name> Expr<N> {
     }
 
     /// Field projection, eg: `x.field`
-    pub fn proj<E1: Into<Box<Expr<N>>>, M: Into<N>>(e: E1, field: M) -> Expr<N> {
-        Expr::Proj(e.into(), field.into())
+    pub fn proj<E1: Into<Box<Expr<N>>>, M: Into<N>>(expr: E1, field_name: M) -> Expr<N> {
+        Expr::Proj(expr.into(), field_name.into())
+    }
+
+    /// Array subscript, eg: `x[i]`
+    pub fn subscript<E1: Into<Box<Expr<N>>>, E2: Into<Box<Expr<N>>>>(
+        expr: E1,
+        index_expr: E2,
+    ) -> Expr<N> {
+        Expr::Subscript(expr.into(), index_expr.into())
     }
 
     /// Abstraction, eg: `\(x : T) -> x`
@@ -167,6 +177,10 @@ impl<N: Name> Expr<N> {
             Expr::Binop(_, ref mut lhs_expr, ref mut rhs_expr) => {
                 lhs_expr.abstract_name_at(name, level);
                 rhs_expr.abstract_name_at(name, level);
+            }
+            Expr::Subscript(ref mut array_expr, ref mut index_expr) => {
+                array_expr.abstract_name_at(name, level);
+                index_expr.abstract_name_at(name, level);
             }
             Expr::Abs(_, ref mut body_expr) => {
                 body_expr.abstract_name_at(name, level + 1);

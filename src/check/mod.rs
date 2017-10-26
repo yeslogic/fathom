@@ -8,6 +8,12 @@ mod tests;
 
 // Typing
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExpectedType<N> {
+    Array,
+    Actual(host::Type<N>),
+}
+
 /// An error that was encountered during type checking
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeError<N> {
@@ -22,7 +28,7 @@ pub enum TypeError<N> {
     Mismatch {
         expr: host::Expr<N>,
         found: host::Type<N>,
-        expected: host::Type<N>,
+        expected: ExpectedType<N>,
     },
     /// Unexpected operand types in a equality comparison
     EqualityOperands {
@@ -137,6 +143,21 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
             }
         }
 
+        // Array subscript
+        Expr::Subscript(ref array_expr, ref index_expr) => {
+            expect_ty(ctx, &**index_expr, Type::int())?;
+
+            match ty_of(ctx, &**array_expr)? {
+                // Check if index is in bounds?
+                Type::Array(elem_ty, _) => Ok(*elem_ty),
+                found => Err(TypeError::Mismatch {
+                    expr: (**array_expr).clone(),
+                    expected: ExpectedType::Array,
+                    found,
+                }),
+            }
+        }
+
         // Abstraction
         Expr::Abs(Named(ref param_name, ref param_ty), ref body_expr) => {
             // FIXME: avoid cloning the environment
@@ -186,6 +207,12 @@ pub fn simplify_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExpectedKind {
+    Arrow,
+    Actual(binary::Kind),
+}
+
 /// An error that was encountered during kind checking
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KindError<N> {
@@ -199,7 +226,7 @@ pub enum KindError<N> {
     /// One kind was expected, but another was found
     Mismatch {
         ty: binary::Type<N>,
-        expected: binary::Kind,
+        expected: ExpectedKind,
         found: binary::Kind,
     },
     /// A repr error
@@ -307,21 +334,17 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Type application
-        Type::App(ref fn_ty, ref arg_ty) => {
-            match kind_of(ctx, &**fn_ty)? {
-                Kind::Type => Err(KindError::Mismatch {
-                    ty: (**fn_ty).clone(),
-                    found: Kind::Type,
-                    // FIXME: Kind of args are unknown at this point - therefore
-                    // they shouldn't be `Kind::Type`!
-                    expected: Kind::arrow(Kind::Type, Kind::Type),
-                }),
-                Kind::Arrow(param_kind, ret_kind) => {
-                    expect_kind(ctx, &**arg_ty, *param_kind)?;
-                    Ok(*ret_kind)
-                }
+        Type::App(ref fn_ty, ref arg_ty) => match kind_of(ctx, &**fn_ty)? {
+            Kind::Type => Err(KindError::Mismatch {
+                ty: (**fn_ty).clone(),
+                found: Kind::Type,
+                expected: ExpectedKind::Arrow,
+            }),
+            Kind::Arrow(param_kind, ret_kind) => {
+                expect_kind(ctx, &**arg_ty, *param_kind)?;
+                Ok(*ret_kind)
             }
-        }
+        },
     }
 }
 
@@ -373,7 +396,7 @@ fn expect_ty<N: Name>(
     } else {
         Err(TypeError::Mismatch {
             expr: expr.clone(),
-            expected,
+            expected: ExpectedType::Actual(expected),
             found,
         })
     }
@@ -391,7 +414,7 @@ fn expect_kind<N: Name>(
     } else {
         Err(KindError::Mismatch {
             ty: ty.clone(),
-            expected,
+            expected: ExpectedKind::Actual(expected),
             found,
         })
     }

@@ -35,6 +35,7 @@ extern {
         "!=" => Token::BangEqual,
         ":" => Token::Colon,
         "," => Token::Comma,
+        "." => Token::Dot,
         "=" => Token::Equal,
         "==" => Token::EqualEqual,
         "=>" => Token::EqualGreater,
@@ -170,12 +171,22 @@ AddExpr: Expr<String> = {
 };
 
 MulExpr: Expr<String> = {
-    AtomicExpr,
-    <lhs: AtomicExpr> "*" <rhs: MulExpr> => {
+    PrefixExpr,
+    <lhs: PrefixExpr> "*" <rhs: MulExpr> => {
         Expr::binop(Binop::Mul, lhs, rhs)
     },
-    <lhs: AtomicExpr> "/" <rhs: MulExpr> => {
+    <lhs: PrefixExpr> "/" <rhs: MulExpr> => {
         Expr::binop(Binop::Div, lhs, rhs)
+    },
+};
+
+PrefixExpr: Expr<String> = {
+    AtomicExpr,
+    "-" <expr: AtomicExpr> => {
+        Expr::unop(Unop::Neg, expr)
+    },
+    "!" <value: AtomicExpr> => {
+        Expr::unop(Unop::Not, value)
     },
 };
 
@@ -193,10 +204,10 @@ AtomicExpr: Expr<String> = {
     <name: "Ident"> => {
         Expr::fvar(name)
     },
-    "-" <expr: AtomicExpr> => {
-        Expr::unop(Unop::Neg, expr)
+    <struct_expr: AtomicExpr> "." <field_name: "Ident"> => {
+        Expr::proj(struct_expr, field_name)
     },
-    "!" <value: AtomicExpr> => {
-        Expr::unop(Unop::Not, value)
+    <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" => {
+        Expr::subscript(array_expr, index_expr)
     },
 };

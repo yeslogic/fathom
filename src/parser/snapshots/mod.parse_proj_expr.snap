@@ -1,0 +1,12 @@
+Unop(
+    Neg,
+    Proj(
+        Proj(
+            Var(
+                Free("foo")
+            ),
+            "bar"
+        ),
+        "x"
+    )
+)

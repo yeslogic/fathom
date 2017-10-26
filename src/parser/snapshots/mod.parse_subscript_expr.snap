@@ -1,0 +1,28 @@
+Unop(
+    Neg,
+    Subscript(
+        Subscript(
+            Var(
+                Free("foo")
+            ),
+            Binop(
+                Add,
+                Const(
+                    Int(23)
+                ),
+                Binop(
+                    Add,
+                    Const(
+                        Int(2)
+                    ),
+                    Const(
+                        Int(3)
+                    )
+                )
+            )
+        ),
+        Var(
+            Free("index")
+        )
+    )
+)

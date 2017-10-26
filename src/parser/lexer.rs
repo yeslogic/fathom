@@ -5,7 +5,7 @@ use unicode_xid::UnicodeXID;
 
 fn is_symbol(ch: char) -> bool {
     match ch {
-        '&' | '!' | ':' | ',' | '=' | '/' | '>' | '<' | '-' | '|' | '+' | ';' | '*' => true,
+        '&' | '!' | ':' | ',' | '.' | '=' | '/' | '>' | '<' | '-' | '|' | '+' | ';' | '*' => true,
         _ => false,
     }
 }
@@ -73,6 +73,7 @@ pub enum Token<'input> {
     BangEqual,    // !=
     Colon,        // :
     Comma,        // ,
+    Dot,          // .
     Equal,        // =
     EqualEqual,   // ==
     EqualGreater, // =>
@@ -234,6 +235,7 @@ impl<'input> Iterator for Lexer<'input> {
                         "!=" => Ok((start, Token::BangEqual, end)),
                         ":" => Ok((start, Token::Colon, end)),
                         "," => Ok((start, Token::Comma, end)),
+                        "." => Ok((start, Token::Dot, end)),
                         "=" => Ok((start, Token::Equal, end)),
                         "==" => Ok((start, Token::EqualEqual, end)),
                         "=>" => Ok((start, Token::EqualGreater, end)),
@@ -318,25 +320,26 @@ mod tests {
     #[test]
     fn symbols() {
         test! {
-            " & ! != : , = == => / > >= < <= - | + ; * ",
-            " ~                                        " => Token::Ampersand,
-            "   ~                                      " => Token::Bang,
-            "     ~~                                   " => Token::BangEqual,
-            "        ~                                 " => Token::Colon,
-            "          ~                               " => Token::Comma,
-            "            ~                             " => Token::Equal,
-            "              ~~                          " => Token::EqualEqual,
-            "                 ~~                       " => Token::EqualGreater,
-            "                    ~                     " => Token::ForwardSlash,
-            "                      ~                   " => Token::Greater,
-            "                        ~~                " => Token::GreaterEqual,
-            "                           ~              " => Token::Less,
-            "                             ~~           " => Token::LessEqual,
-            "                                ~         " => Token::Minus,
-            "                                  ~       " => Token::Pipe,
-            "                                    ~     " => Token::Plus,
-            "                                      ~   " => Token::Semi,
-            "                                        ~ " => Token::Star,
+            " & ! != : , . = == => / > >= < <= - | + ; * ",
+            " ~                                          " => Token::Ampersand,
+            "   ~                                        " => Token::Bang,
+            "     ~~                                     " => Token::BangEqual,
+            "        ~                                   " => Token::Colon,
+            "          ~                                 " => Token::Comma,
+            "            ~                               " => Token::Dot,
+            "              ~                             " => Token::Equal,
+            "                ~~                          " => Token::EqualEqual,
+            "                   ~~                       " => Token::EqualGreater,
+            "                      ~                     " => Token::ForwardSlash,
+            "                        ~                   " => Token::Greater,
+            "                          ~~                " => Token::GreaterEqual,
+            "                             ~              " => Token::Less,
+            "                               ~~           " => Token::LessEqual,
+            "                                  ~         " => Token::Minus,
+            "                                    ~       " => Token::Pipe,
+            "                                      ~     " => Token::Plus,
+            "                                        ~   " => Token::Semi,
+            "                                          ~ " => Token::Star,
         }
     }
 
