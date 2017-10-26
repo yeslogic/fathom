@@ -1,7 +1,10 @@
+use lalrpop_util::ParseError;
+
 use syntax::{Definition, Field};
 use syntax::binary::Type;
 use syntax::host::{Binop, Expr, Unop};
-use parser::lexer::{Token, Error as LexerError};
+use parser::GrammarError;
+use parser::lexer::Token;
 use source::BytePos;
 
 
@@ -12,7 +15,7 @@ grammar<'input>();
 
 extern {
     type Location = BytePos;
-    type Error = LexerError;
+    type Error = GrammarError<String>;
 
     enum Token<'input> {
         // Data
@@ -82,10 +85,11 @@ pub Type: Type<String> = {
 
 PrimaryType: Type<String> = {
     AtomicType,
-    <ty: PrimaryType> "where" <param: "Ident"> "=>" <pred: PrimaryExpr> => {
-        // FIXME: unwrap
-        let repr_ty = Box::new(ty.repr().unwrap());
-        Type::cond(ty, Expr::abs((param, repr_ty), pred))
+    <ty: PrimaryType> "where" <param: "Ident"> "=>" <pred: PrimaryExpr> =>? {
+        let repr_ty = Box::new(ty.repr().map_err(|err| {
+            ParseError::User { error: GrammarError::from(err) }
+        })?);
+        Ok(Type::cond(ty, Expr::abs((param, repr_ty), pred)))
     },
 };
 
