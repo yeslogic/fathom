@@ -17,6 +17,13 @@ impl Kind {
     }
 }
 
+/// An error that occurred when trying to convert a binary type to
+/// its host representation
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReprError<N> {
+    NoCorrespondingHostType(Type<N>),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeConst {
     Bit,
@@ -223,7 +230,7 @@ impl<N: Name> Type<N> {
         self.instantiate_at(0, ty);
     }
 
-    pub fn repr(&self) -> Result<host::Type<N>, ()> {
+    pub fn repr(&self) -> Result<host::Type<N>, ReprError<N>> {
         match *self {
             Type::Var(ref v) => Ok(host::Type::Var(v.clone()).into()),
             Type::Const(TypeConst::Bit) => Ok(host::Type::Const(host::TypeConst::Bit).into()),
@@ -248,7 +255,9 @@ impl<N: Name> Type<N> {
 
                 Ok(host::Type::Struct(repr_fields).into())
             }
-            Type::Abs(_, _) | Type::App(_, _) => Err(()),
+            Type::Abs(_, _) | Type::App(_, _) => {
+                Err(ReprError::NoCorrespondingHostType(self.clone()))
+            }
         }
     }
 }

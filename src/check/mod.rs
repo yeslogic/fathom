@@ -209,10 +209,16 @@ pub enum KindError<N> {
         expected: binary::Kind,
         found: binary::Kind,
     },
-    /// No host representation was found for this type
-    NoReprForType { ty: binary::Type<N> },
+    /// A repr error
+    Repr(binary::ReprError<N>),
     /// A type error
     Type(TypeError<N>),
+}
+
+impl<N> From<binary::ReprError<N>> for KindError<N> {
+    fn from(src: binary::ReprError<N>) -> KindError<N> {
+        KindError::Repr(src)
+    }
 }
 
 impl<N> From<TypeError<N>> for KindError<N> {
@@ -257,7 +263,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
             expect_ty(
                 ctx,
                 &**pred_expr,
-                host::Type::arrow(ty.repr().unwrap(), host::Type::bool()),
+                host::Type::arrow(ty.repr()?, host::Type::bool()),
             )?;
 
             Ok(Kind::Type)
@@ -269,7 +275,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
             expect_ty(
                 ctx,
                 &**conv_expr,
-                host::Type::arrow(ty.repr().unwrap(), host_ty.clone()),
+                host::Type::arrow(ty.repr()?, host_ty.clone()),
             )?;
 
             Ok(Kind::Type)
@@ -301,12 +307,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
                 expect_ty_kind(&ctx, &field.value)?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
-                let repr_ty = field_ty.repr().map_err(|_| {
-                    KindError::NoReprForType {
-                        ty: field_ty.clone(),
-                    }
-                })?;
-                ctx.extend(field.name.clone(), Binding::Expr(repr_ty));
+                ctx.extend(field.name.clone(), Binding::Expr(field_ty.repr()?));
             }
 
             Ok(Kind::Type)

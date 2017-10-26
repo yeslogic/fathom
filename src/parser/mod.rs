@@ -9,27 +9,40 @@ mod grammar;
 
 use self::lexer::{Error as LexerError, Lexer, Token};
 
-pub type ParseError<'input> = lalrpop_util::ParseError<BytePos, Token<'input>, LexerError>;
-
-pub fn parse<'input>(
-    src: &'input str,
-) -> Result<
-    Vec<Definition<String>>,
-    ParseError<'input>,
-> {
-    grammar::parse_Definitions(Lexer::new(src))
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GrammarError<N> {
+    Repr(binary::ReprError<N>),
+    Lexer(LexerError),
 }
 
-pub fn parse_expr<'input>(
-    src: &'input str,
-) -> Result<host::Expr<String>, ParseError<'input>> {
-    grammar::parse_Expr(Lexer::new(src))
+impl<N> From<binary::ReprError<N>> for GrammarError<N> {
+    fn from(src: binary::ReprError<N>) -> GrammarError<N> {
+        GrammarError::Repr(src)
+    }
 }
 
-pub fn parse_ty<'input>(
-    src: &'input str,
-) -> Result<binary::Type<String>, ParseError<'input>> {
-    grammar::parse_Type(Lexer::new(src))
+impl<N> From<LexerError> for GrammarError<N> {
+    fn from(src: LexerError) -> GrammarError<N> {
+        GrammarError::Lexer(src)
+    }
+}
+
+pub type ParseError<'input> = lalrpop_util::ParseError<
+    BytePos,
+    Token<'input>,
+    GrammarError<String>,
+>;
+
+pub fn parse<'input>(src: &'input str) -> Result<Vec<Definition<String>>, ParseError<'input>> {
+    grammar::parse_Definitions(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+}
+
+pub fn parse_expr<'input>(src: &'input str) -> Result<host::Expr<String>, ParseError<'input>> {
+    grammar::parse_Expr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+}
+
+pub fn parse_ty<'input>(src: &'input str) -> Result<binary::Type<String>, ParseError<'input>> {
+    grammar::parse_Type(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
 }
 
 #[cfg(test)]
