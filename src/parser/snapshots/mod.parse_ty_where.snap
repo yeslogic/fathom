@@ -1,11 +1,31 @@
 Cond(
+    Span {
+        lo: BytePos(13),
+        hi: BytePos(137)
+    },
     Cond(
+        Span {
+            lo: BytePos(13),
+            hi: BytePos(107)
+        },
         Struct(
+            Span {
+                lo: BytePos(13),
+                hi: BytePos(77)
+            },
             [
                 Field {
                     name: "x",
                     value: Cond(
+                        Span {
+                            lo: BytePos(41),
+                            hi: BytePos(62)
+                        },
                         Var(
+                            Span {
+                                lo: BytePos(41),
+                                hi: BytePos(44)
+                            },
                             Free("u32")
                         ),
                         Abs(

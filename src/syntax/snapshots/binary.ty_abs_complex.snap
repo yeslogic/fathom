@@ -1,27 +1,71 @@
 Abs(
+    Span {
+        lo: BytePos(0),
+        hi: BytePos(0)
+    },
     Named("z", Type),
     App(
+        Span {
+            lo: BytePos(0),
+            hi: BytePos(0)
+        },
         Abs(
+            Span {
+                lo: BytePos(0),
+                hi: BytePos(0)
+            },
             Named("y", Type),
             App(
+                Span {
+                    lo: BytePos(0),
+                    hi: BytePos(0)
+                },
                 Var(
+                    Span {
+                        lo: BytePos(0),
+                        hi: BytePos(0)
+                    },
                     Bound(Named("y", 0))
                 ),
                 Abs(
+                    Span {
+                        lo: BytePos(0),
+                        hi: BytePos(0)
+                    },
                     Named("x", Type),
                     Var(
+                        Span {
+                            lo: BytePos(0),
+                            hi: BytePos(0)
+                        },
                         Bound(Named("x", 0))
                     )
                 )
             )
         ),
         Abs(
+            Span {
+                lo: BytePos(0),
+                hi: BytePos(0)
+            },
             Named("x", Type),
             App(
+                Span {
+                    lo: BytePos(0),
+                    hi: BytePos(0)
+                },
                 Var(
+                    Span {
+                        lo: BytePos(0),
+                        hi: BytePos(0)
+                    },
                     Bound(Named("z", 1))
                 ),
                 Var(
+                    Span {
+                        lo: BytePos(0),
+                        hi: BytePos(0)
+                    },
                     Bound(Named("x", 0))
                 )
             )

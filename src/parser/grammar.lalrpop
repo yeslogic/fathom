@@ -5,7 +5,7 @@ use syntax::binary::Type;
 use syntax::host::{Binop, Expr, Unop};
 use parser::GrammarError;
 use parser::lexer::Token;
-use source::BytePos;
+use source::{BytePos, Span};
 
 
 grammar<'input>();
@@ -86,31 +86,31 @@ pub Type: Type<String> = {
 
 PrimaryType: Type<String> = {
     AtomicType,
-    <ty: PrimaryType> "where" <param: "Ident"> "=>" <pred: PrimaryExpr> =>? {
+    <lo: @L> <ty: PrimaryType> "where" <param: "Ident"> "=>" <pred: PrimaryExpr> <hi: @R> =>? {
         let repr_ty = Box::new(ty.repr().map_err(|err| {
             ParseError::User { error: GrammarError::from(err) }
         })?);
-        Ok(Type::cond(ty, Expr::abs((param, repr_ty), pred)))
+        Ok(Type::cond(Span::new(lo, hi), ty, Expr::abs((param, repr_ty), pred)))
     },
 };
 
 AtomicType: Type<String> = {
-    <name: "Ident"> => {
-        Type::fvar(name)
+    <lo: @L> <name: "Ident"> <hi: @R> => {
+        Type::fvar(Span::new(lo, hi), name)
     },
     "(" <ty: PrimaryType> ")" => ty,
-    "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" => {
+    <lo: @L> "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
         let mut fields = fields;
         fields.extend(last);
-        Type::struct_(fields)
+        Type::struct_(Span::new(lo, hi), fields)
     },
-    "union" "{" <tys: (<PrimaryType> ",")+> <last: PrimaryType?> "}" => {
+    <lo: @L> "union" "{" <tys: (<PrimaryType> ",")+> <last: PrimaryType?> "}" <hi: @R> => {
         let mut tys = tys;
         tys.extend(last);
-        Type::union(tys)
+        Type::union(Span::new(lo, hi), tys)
     },
-    "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" => {
-        Type::array(elem, size)
+    <lo: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <hi: @R> => {
+        Type::array(Span::new(lo, hi), elem, size)
     },
 };
 

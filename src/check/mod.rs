@@ -178,12 +178,12 @@ pub fn simplify_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<
 
     fn compute_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Option<binary::Type<N>> {
         match *ty {
-            Type::Var(Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
+            Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
                 Ok(Named(_, def_ty)) => Some(def_ty.clone()),
                 Err(_) => None,
             },
-            Type::App(ref fn_ty, ref arg_ty) => match **fn_ty {
-                Type::Abs(_, ref body_ty) => {
+            Type::App(_, ref fn_ty, ref arg_ty) => match **fn_ty {
+                Type::Abs(_, _, ref body_ty) => {
                     // FIXME: Avoid clone
                     let mut body = (**body_ty).clone();
                     body.instantiate(arg_ty);
@@ -196,7 +196,7 @@ pub fn simplify_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<
     }
 
     let ty = match *ty {
-        Type::App(ref fn_ty, _) => simplify_ty(ctx, &**fn_ty),
+        Type::App(_, ref fn_ty, _) => simplify_ty(ctx, &**fn_ty),
         // FIXME: Avoid clone
         _ => ty.clone(),
     };
@@ -254,11 +254,11 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
 
     match *ty {
         // Variables
-        Type::Var(Var::Free(ref name)) => Err(KindError::UnboundVariable {
+        Type::Var(_, Var::Free(ref name)) => Err(KindError::UnboundVariable {
             ty: ty.clone(),
             name: name.clone(),
         }),
-        Type::Var(Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
+        Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
             Ok(Named(_, kind)) => Ok(kind.clone()),
             Err(Named(name, binding)) => Err(KindError::TypeBindingExpected {
                 ty: ty.clone(),
@@ -270,7 +270,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         Type::Const(TypeConst::Bit) => Ok(Kind::Type),
 
         // Array types
-        Type::Array(ref elem_ty, ref size_expr) => {
+        Type::Array(_, ref elem_ty, ref size_expr) => {
             expect_ty_kind(ctx, &**elem_ty)?;
             expect_ty(ctx, &**size_expr, host::Type::int())?;
 
@@ -278,7 +278,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Conditional types
-        Type::Cond(ref ty, ref pred_expr) => {
+        Type::Cond(_, ref ty, ref pred_expr) => {
             expect_ty_kind(ctx, &**ty)?;
             expect_ty(
                 ctx,
@@ -290,7 +290,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Interpreted types
-        Type::Interp(ref ty, ref conv_expr, ref host_ty) => {
+        Type::Interp(_, ref ty, ref conv_expr, ref host_ty) => {
             expect_ty_kind(ctx, &**ty)?;
             expect_ty(
                 ctx,
@@ -302,7 +302,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Type abstraction
-        Type::Abs(Named(ref name, ref param_kind), ref body_ty) => {
+        Type::Abs(_, Named(ref name, ref param_kind), ref body_ty) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
             ctx.extend(name.clone(), Binding::Type(param_kind.clone()));
@@ -310,7 +310,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Union types
-        Type::Union(ref tys) => {
+        Type::Union(_, ref tys) => {
             for ty in tys {
                 expect_ty_kind(ctx, ty)?;
             }
@@ -319,7 +319,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Struct type
-        Type::Struct(ref fields) => {
+        Type::Struct(_, ref fields) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
 
@@ -334,7 +334,7 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
         }
 
         // Type application
-        Type::App(ref fn_ty, ref arg_ty) => match kind_of(ctx, &**fn_ty)? {
+        Type::App(_, ref fn_ty, ref arg_ty) => match kind_of(ctx, &**fn_ty)? {
             Kind::Type => Err(KindError::Mismatch {
                 ty: (**fn_ty).clone(),
                 found: Kind::Type,
