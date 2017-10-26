@@ -45,14 +45,12 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
 
     match *expr {
         // Constants are easy!
-        Expr::Const(Const::Bit(_)) => Ok(Type::bit()),
-        Expr::Const(Const::Bool(_)) => Ok(Type::bool()),
-        Expr::Const(Const::Int(_)) => Ok(Type::int()),
+        Expr::Const(c) => Ok(Type::Const(c.ty_const_of())),
 
         // Variables
-        Expr::Var(Var::Free(ref x)) => Err(TypeError::UnboundVariable {
+        Expr::Var(Var::Free(ref name)) => Err(TypeError::UnboundVariable {
             expr: expr.clone(),
-            name: x.clone(),
+            name: name.clone(),
         }),
         Expr::Var(Var::Bound(Named(_, i))) => match ctx.lookup_ty(i) {
             Ok(Named(_, ty)) => Ok(ty.clone()),
@@ -234,9 +232,9 @@ pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Ki
 
     match *ty {
         // Variables
-        Type::Var(Var::Free(ref x)) => Err(KindError::UnboundVariable {
+        Type::Var(Var::Free(ref name)) => Err(KindError::UnboundVariable {
             ty: ty.clone(),
-            name: x.clone(),
+            name: name.clone(),
         }),
         Type::Var(Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
             Ok(Named(_, kind)) => Ok(kind.clone()),

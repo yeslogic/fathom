@@ -14,6 +14,16 @@ pub enum Const {
     Int(i64),
 }
 
+impl Const {
+    pub fn ty_const_of(self) -> TypeConst {
+        match self {
+            Const::Bit(_) => TypeConst::Bit,
+            Const::Bool(_) => TypeConst::Bool,
+            Const::Int(_) => TypeConst::Int,
+        }
+    }
+}
+
 impl fmt::Debug for Const {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
