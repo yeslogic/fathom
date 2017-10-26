@@ -188,13 +188,13 @@ pub enum Binding<N> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Ctx<N> {
+pub struct Context<N> {
     bindings: Vec<Named<N, Binding<N>>>,
 }
 
-impl<N> Ctx<N> {
-    pub fn new() -> Ctx<N> {
-        Ctx {
+impl<N> Context<N> {
+    pub fn new() -> Context<N> {
+        Context {
             bindings: Vec::new(),
         }
     }

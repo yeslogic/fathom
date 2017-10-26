@@ -70,11 +70,11 @@ impl<N: Name> Type<N> {
     }
 
     /// An array of the specified type, with a size: eg. `[T; n]`
-    pub fn array<T1: Into<Box<Type<N>>>, E1: Into<Box<host::Expr<N>>>>(
-        span: Span,
-        elem_ty: T1,
-        size_expr: E1,
-    ) -> Type<N> {
+    pub fn array<T1, E1>(span: Span, elem_ty: T1, size_expr: E1) -> Type<N>
+    where
+        T1: Into<Box<Type<N>>>,
+        E1: Into<Box<host::Expr<N>>>,
+    {
         Type::Array(span, elem_ty.into(), size_expr.into())
     }
 

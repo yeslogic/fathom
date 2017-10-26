@@ -7,7 +7,7 @@ mod ty_of {
 
     #[test]
     fn const_int() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "1";
         let expr = parser::parse_expr(src).unwrap();
 
@@ -16,7 +16,7 @@ mod ty_of {
 
     #[test]
     fn neg_int() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "-(1 + 2)";
         let expr = parser::parse_expr(src).unwrap();
 
@@ -25,7 +25,7 @@ mod ty_of {
 
     #[test]
     fn neg_bool() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "-(1 == 2)";
         let expr = parser::parse_expr(src).unwrap();
 
@@ -34,7 +34,7 @@ mod ty_of {
 
     #[test]
     fn not_int() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "!(1 + 2)";
         let expr = parser::parse_expr(src).unwrap();
 
@@ -43,7 +43,7 @@ mod ty_of {
 
     #[test]
     fn not_bool() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "!(1 == 2)";
         let expr = parser::parse_expr(src).unwrap();
 
@@ -52,7 +52,7 @@ mod ty_of {
 
     #[test]
     fn arith_ops() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "1 + (1 * -2)";
         let expr = parser::parse_expr(src).unwrap();
 
@@ -61,7 +61,7 @@ mod ty_of {
 
     #[test]
     fn cmp_ops_eq_int() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "1 + (1 * 2) == 3";
         let expr = parser::parse_expr(src).unwrap();
 
@@ -70,7 +70,7 @@ mod ty_of {
 
     #[test]
     fn cmp_ops_ne_int() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "1 + (1 * 2) != 3";
         let expr = parser::parse_expr(src).unwrap();
 
@@ -79,7 +79,7 @@ mod ty_of {
 
     #[test]
     fn cmp_ops_eq_bool() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "(1 == 1) == (3 == 3)";
         let expr = parser::parse_expr(src).unwrap();
 
@@ -88,7 +88,7 @@ mod ty_of {
 
     #[test]
     fn cmp_ops_ne_bool() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "(1 == 1) != (3 == 3)";
         let expr = parser::parse_expr(src).unwrap();
 
@@ -97,7 +97,7 @@ mod ty_of {
 
     #[test]
     fn rel_ops() {
-        let ctx = Ctx::new();
+        let ctx = Context::new();
         let src = "(1 == 3) & (2 == 2) | (1 == 2)";
         let expr = parser::parse_expr(src).unwrap();
 

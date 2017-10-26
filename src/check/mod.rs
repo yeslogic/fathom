@@ -1,7 +1,7 @@
 //! Type and kind-checking for our DDL
 
 use syntax::{binary, host};
-use syntax::{Binding, Ctx, Definition, Name, Named, Var};
+use syntax::{Binding, Context, Definition, Name, Named, Var};
 
 #[cfg(test)]
 mod tests;
@@ -46,7 +46,10 @@ pub enum TypeError<N> {
 
 /// Returns the type of a host expression, checking that it is properly formed
 /// in the environment
-pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N>, TypeError<N>> {
+pub fn ty_of<N: Name>(
+    ctx: &Context<N>,
+    expr: &host::Expr<N>,
+) -> Result<host::Type<N>, TypeError<N>> {
     use syntax::host::{Binop, Expr, Type, TypeConst, Unop};
 
     match *expr {
@@ -173,10 +176,10 @@ pub fn ty_of<N: Name>(ctx: &Ctx<N>, expr: &host::Expr<N>) -> Result<host::Type<N
 
 // Kinding
 
-pub fn simplify_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> binary::Type<N> {
+pub fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::Type<N>) -> binary::Type<N> {
     use syntax::binary::Type;
 
-    fn compute_ty<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Option<binary::Type<N>> {
+    fn compute_ty<N: Name>(ctx: &Context<N>, ty: &binary::Type<N>) -> Option<binary::Type<N>> {
         match *ty {
             Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
                 Ok(Named(_, def_ty)) => Some(def_ty.clone()),
@@ -249,7 +252,10 @@ impl<N> From<TypeError<N>> for KindError<N> {
 
 /// Returns the kind of a binary type, checking that it is properly formed in
 /// the environment
-pub fn kind_of<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<binary::Kind, KindError<N>> {
+pub fn kind_of<N: Name>(
+    ctx: &Context<N>,
+    ty: &binary::Type<N>,
+) -> Result<binary::Kind, KindError<N>> {
     use syntax::binary::{Kind, Type, TypeConst};
 
     match *ty {
@@ -352,7 +358,7 @@ pub fn check_defs<'a, N: 'a + Name, Defs>(defs: Defs) -> Result<(), KindError<N>
 where
     Defs: IntoIterator<Item = &'a Definition<N>>,
 {
-    let mut ctx = Ctx::new();
+    let mut ctx = Context::new();
     // We maintain a list of the seen definition names. This will allow us to
     // recover the index of these variables as we abstract later definitions...
     let mut seen_names = Vec::new();
@@ -385,7 +391,7 @@ where
 // Expectations
 
 fn expect_ty<N: Name>(
-    ctx: &Ctx<N>,
+    ctx: &Context<N>,
     expr: &host::Expr<N>,
     expected: host::Type<N>,
 ) -> Result<host::Type<N>, TypeError<N>> {
@@ -403,7 +409,7 @@ fn expect_ty<N: Name>(
 }
 
 fn expect_kind<N: Name>(
-    ctx: &Ctx<N>,
+    ctx: &Context<N>,
     ty: &binary::Type<N>,
     expected: binary::Kind,
 ) -> Result<binary::Kind, KindError<N>> {
@@ -420,6 +426,6 @@ fn expect_kind<N: Name>(
     }
 }
 
-fn expect_ty_kind<N: Name>(ctx: &Ctx<N>, ty: &binary::Type<N>) -> Result<(), KindError<N>> {
+fn expect_ty_kind<N: Name>(ctx: &Context<N>, ty: &binary::Type<N>) -> Result<(), KindError<N>> {
     expect_kind(ctx, ty, binary::Kind::Type).map(|_| ())
 }
