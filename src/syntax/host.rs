@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use source::Span;
 use syntax::{self, Field, Name, Named, Var};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -76,38 +77,38 @@ pub enum Binop {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr<N> {
     /// A constant value
-    Const(Const),
+    Const(Span, Const),
     /// Primitive expressions
     Prim(&'static str, Box<Type<N>>),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
-    Var(Var<N, u32>),
+    Var(Span, Var<N, u32>),
     /// An unary operator expression
-    Unop(Unop, Box<Expr<N>>),
+    Unop(Span, Unop, Box<Expr<N>>),
     /// A binary operator expression
-    Binop(Binop, Box<Expr<N>>, Box<Expr<N>>),
+    Binop(Span, Binop, Box<Expr<N>>, Box<Expr<N>>),
     /// Field projection, eg: `x.field`
-    Proj(Box<Expr<N>>, N),
+    Proj(Span, Box<Expr<N>>, N),
     /// Array index, eg: `x[i]`
-    Subscript(Box<Expr<N>>, Box<Expr<N>>),
+    Subscript(Span, Box<Expr<N>>, Box<Expr<N>>),
     /// Abstraction, eg: `\(x : T) -> x`
-    Abs(Named<N, Box<Type<N>>>, Box<Expr<N>>),
+    Abs(Span, Named<N, Box<Type<N>>>, Box<Expr<N>>),
 }
 
 impl<N: Name> Expr<N> {
     /// A bit constant: eg. `0b`, `01`
-    pub fn bit(value: bool) -> Expr<N> {
-        Expr::Const(Const::Bit(value))
+    pub fn bit(span: Span, value: bool) -> Expr<N> {
+        Expr::Const(span, Const::Bit(value))
     }
 
     /// A boolean constant: eg. `true`, `false`
-    pub fn bool(value: bool) -> Expr<N> {
-        Expr::Const(Const::Bool(value))
+    pub fn bool(span: Span, value: bool) -> Expr<N> {
+        Expr::Const(span, Const::Bool(value))
     }
 
     /// An integer constant: eg. `0`, `1`, `2`, ...
-    pub fn int(value: i64) -> Expr<N> {
-        Expr::Const(Const::Int(value))
+    pub fn int(span: Span, value: i64) -> Expr<N> {
+        Expr::Const(span, Const::Int(value))
     }
 
     /// Primitive expressions
@@ -117,44 +118,49 @@ impl<N: Name> Expr<N> {
 
     /// A free variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
-    pub fn fvar<N1: Into<N>>(x: N1) -> Expr<N> {
-        Expr::Var(Var::Free(x.into()))
+    pub fn fvar<N1: Into<N>>(span: Span, x: N1) -> Expr<N> {
+        Expr::Var(span, Var::Free(x.into()))
     }
 
     /// A bound variable
-    pub fn bvar<N1: Into<N>>(x: N1, i: u32) -> Expr<N> {
-        Expr::Var(Var::Bound(Named(x.into(), i)))
+    pub fn bvar<N1: Into<N>>(span: Span, x: N1, i: u32) -> Expr<N> {
+        Expr::Var(span, Var::Bound(Named(x.into(), i)))
     }
 
     /// An unary operator expression
-    pub fn unop<E1: Into<Box<Expr<N>>>>(op: Unop, x: E1) -> Expr<N> {
-        Expr::Unop(op, x.into())
+    pub fn unop<E1: Into<Box<Expr<N>>>>(span: Span, op: Unop, x: E1) -> Expr<N> {
+        Expr::Unop(span, op, x.into())
     }
 
     /// A binary operator expression
-    pub fn binop<E1: Into<Box<Expr<N>>>, E2: Into<Box<Expr<N>>>>(
-        op: Binop,
-        x: E1,
-        y: E2,
-    ) -> Expr<N> {
-        Expr::Binop(op, x.into(), y.into())
+    pub fn binop<E1, E2>(span: Span, op: Binop, x: E1, y: E2) -> Expr<N>
+    where
+        E1: Into<Box<Expr<N>>>,
+        E2: Into<Box<Expr<N>>>,
+    {
+        Expr::Binop(span, op, x.into(), y.into())
     }
 
     /// Field projection, eg: `x.field`
-    pub fn proj<E1: Into<Box<Expr<N>>>, M: Into<N>>(expr: E1, field_name: M) -> Expr<N> {
-        Expr::Proj(expr.into(), field_name.into())
+    pub fn proj<E1, N1>(span: Span, expr: E1, field_name: N1) -> Expr<N>
+    where
+        E1: Into<Box<Expr<N>>>,
+        N1: Into<N>,
+    {
+        Expr::Proj(span, expr.into(), field_name.into())
     }
 
     /// Array subscript, eg: `x[i]`
-    pub fn subscript<E1: Into<Box<Expr<N>>>, E2: Into<Box<Expr<N>>>>(
-        expr: E1,
-        index_expr: E2,
-    ) -> Expr<N> {
-        Expr::Subscript(expr.into(), index_expr.into())
+    pub fn subscript<E1, E2>(span: Span, expr: E1, index_expr: E2) -> Expr<N>
+    where
+        E1: Into<Box<Expr<N>>>,
+        E2: Into<Box<Expr<N>>>,
+    {
+        Expr::Subscript(span, expr.into(), index_expr.into())
     }
 
     /// Abstraction, eg: `\(x : T) -> x`
-    pub fn abs<N1, T1, E1>((param_name, param_ty): (N1, T1), body_expr: E1) -> Expr<N>
+    pub fn abs<N1, T1, E1>(span: Span, (param_name, param_ty): (N1, T1), body_expr: E1) -> Expr<N>
     where
         N1: Into<N>,
         T1: Into<Box<Type<N>>>,
@@ -163,26 +169,26 @@ impl<N: Name> Expr<N> {
         let param_name = param_name.into();
         let mut body_expr = body_expr.into();
         body_expr.abstract_name(&param_name);
-        Expr::Abs(Named(param_name, param_ty.into()), body_expr)
+        Expr::Abs(span, Named(param_name, param_ty.into()), body_expr)
     }
 
     pub fn abstract_name_at(&mut self, name: &N, level: u32) {
         match *self {
-            Expr::Var(ref mut var) => var.abstract_name_at(name, level),
-            Expr::Const(_) => {}
+            Expr::Var(_, ref mut var) => var.abstract_name_at(name, level),
+            Expr::Const(_, _) => {}
             Expr::Prim(_, ref mut repr_ty) => repr_ty.abstract_name_at(name, level),
-            Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
+            Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
                 expr.abstract_name_at(name, level);
             }
-            Expr::Binop(_, ref mut lhs_expr, ref mut rhs_expr) => {
+            Expr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
                 lhs_expr.abstract_name_at(name, level);
                 rhs_expr.abstract_name_at(name, level);
             }
-            Expr::Subscript(ref mut array_expr, ref mut index_expr) => {
+            Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
                 array_expr.abstract_name_at(name, level);
                 index_expr.abstract_name_at(name, level);
             }
-            Expr::Abs(_, ref mut body_expr) => {
+            Expr::Abs(_, _, ref mut body_expr) => {
                 body_expr.abstract_name_at(name, level + 1);
             }
         }

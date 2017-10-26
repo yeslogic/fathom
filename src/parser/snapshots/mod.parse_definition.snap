@@ -63,6 +63,10 @@
                             Free("Point")
                         ),
                         Var(
+                            Span {
+                                lo: BytePos(189),
+                                hi: BytePos(192)
+                            },
                             Bound(Named("len", 0))
                         )
                     )

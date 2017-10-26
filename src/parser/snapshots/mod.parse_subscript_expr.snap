@@ -1,27 +1,67 @@
 Unop(
+    Span {
+        lo: BytePos(0),
+        hi: BytePos(25)
+    },
     Neg,
     Subscript(
+        Span {
+            lo: BytePos(1),
+            hi: BytePos(25)
+        },
         Subscript(
+            Span {
+                lo: BytePos(1),
+                hi: BytePos(18)
+            },
             Var(
+                Span {
+                    lo: BytePos(1),
+                    hi: BytePos(4)
+                },
                 Free("foo")
             ),
             Binop(
+                Span {
+                    lo: BytePos(5),
+                    hi: BytePos(17)
+                },
                 Add,
                 Const(
+                    Span {
+                        lo: BytePos(5),
+                        hi: BytePos(7)
+                    },
                     Int(23)
                 ),
                 Binop(
+                    Span {
+                        lo: BytePos(11),
+                        hi: BytePos(16)
+                    },
                     Add,
                     Const(
+                        Span {
+                            lo: BytePos(11),
+                            hi: BytePos(12)
+                        },
                         Int(2)
                     ),
                     Const(
+                        Span {
+                            lo: BytePos(15),
+                            hi: BytePos(16)
+                        },
                         Int(3)
                     )
                 )
             )
         ),
         Var(
+            Span {
+                lo: BytePos(19),
+                hi: BytePos(24)
+            },
             Free("index")
         )
     )

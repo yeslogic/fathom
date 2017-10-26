@@ -1,8 +1,24 @@
 Unop(
+    Span {
+        lo: BytePos(0),
+        hi: BytePos(10)
+    },
     Neg,
     Proj(
+        Span {
+            lo: BytePos(1),
+            hi: BytePos(10)
+        },
         Proj(
+            Span {
+                lo: BytePos(1),
+                hi: BytePos(8)
+            },
             Var(
+                Span {
+                    lo: BytePos(1),
+                    hi: BytePos(4)
+                },
                 Free("foo")
             ),
             "bar"

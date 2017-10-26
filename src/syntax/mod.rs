@@ -248,7 +248,7 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
         use self::binary::Type;
         use self::host::Expr;
 
-        let array_ty = Type::array(Span::start(), Type::bit(), Expr::int(size));
+        let array_ty = Type::array(Span::start(), Type::bit(), Expr::int(Span::start(), size));
         let conv_ty = host::Type::arrow(array_ty.repr().unwrap(), host::Type::int());
 
         Type::interp(

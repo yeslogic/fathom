@@ -29,6 +29,10 @@ Struct(
                     Free("f32")
                 ),
                 Var(
+                    Span {
+                        lo: BytePos(77),
+                        hi: BytePos(80)
+                    },
                     Bound(Named("len", 0))
                 )
             )
@@ -56,6 +60,10 @@ Struct(
                                 Free("f32")
                             ),
                             Var(
+                                Span {
+                                    lo: BytePos(148),
+                                    hi: BytePos(151)
+                                },
                                 Bound(Named("len", 1))
                             )
                         )
@@ -105,6 +113,10 @@ Struct(
                                 Free("f32")
                             ),
                             Var(
+                                Span {
+                                    lo: BytePos(285),
+                                    hi: BytePos(288)
+                                },
                                 Bound(Named("len", 2))
                             )
                         )
