@@ -268,8 +268,8 @@ mod tests {
 
             #[test]
             fn id() {
-                // λx.λy. x
-                // λ  λ   1
+                // λx. x
+                // λ   0
                 let ty = T::abs(Span::start(), ("x", K::Type), T::fvar(Span::start(), "x"));
 
                 assert_snapshot!(ty_abs_id, ty);
