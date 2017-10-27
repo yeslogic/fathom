@@ -253,18 +253,20 @@ impl<N: Name> Type<N> {
     }
 
     /// Arrow type: eg. `T -> U`
-    pub fn arrow<T1: Into<Box<Type<N>>>, E1: Into<Box<Type<N>>>>(
-        lhs_ty: T1,
-        rhs_ty: E1,
-    ) -> Type<N> {
+    pub fn arrow<T1, E1>(lhs_ty: T1, rhs_ty: E1) -> Type<N>
+    where
+        T1: Into<Box<Type<N>>>,
+        E1: Into<Box<Type<N>>>,
+    {
         Type::Arrow(lhs_ty.into(), rhs_ty.into())
     }
 
     /// An array of the specified type, with a size: eg. `[T; n]`
-    pub fn array<T1: Into<Box<Type<N>>>, E1: Into<Box<Expr<N>>>>(
-        elem_ty: T1,
-        size_expr: E1,
-    ) -> Type<N> {
+    pub fn array<T1, E1>(elem_ty: T1, size_expr: E1) -> Type<N>
+    where
+        T1: Into<Box<Type<N>>>,
+        E1: Into<Box<Expr<N>>>,
+    {
         Type::Array(elem_ty.into(), size_expr.into())
     }
 
