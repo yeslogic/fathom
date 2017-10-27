@@ -293,6 +293,10 @@ impl<N: Name> Type<N> {
         Type::Struct(fields)
     }
 
+    /// Attempt to lookup the type of a field
+    ///
+    /// Returns `None` if the expression is not a struct or the field is not
+    /// present in the struct.
     pub fn lookup_field(&self, name: &N) -> Option<&Type<N>> {
         match *self {
             Type::Struct(ref fields) => syntax::lookup_field(fields, name),
@@ -321,6 +325,12 @@ impl<N: Name> Type<N> {
         }
     }
 
+    /// Add one layer of abstraction around the type by replacing all the
+    /// free variables called `name` with an appropriate De Bruijn index.
+    ///
+    /// This results in a one 'dangling' index, and so care must be taken
+    /// to wrap it in another type that marks the introduction of a new
+    /// scope.
     pub fn abstract_name(&mut self, name: &N) {
         self.abstract_name_at(name, 0)
     }
@@ -348,6 +358,8 @@ impl<N: Name> Type<N> {
         };
     }
 
+    /// Remove one layer of abstraction in the type by replacing the
+    /// appropriate bound variables with copies of `ty`.
     pub fn instantiate(&mut self, ty: &Type<N>) {
         self.instantiate_at(0, ty);
     }
