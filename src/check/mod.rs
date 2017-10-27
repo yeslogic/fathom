@@ -119,7 +119,7 @@ pub fn ty_of<N: Name>(
                     expect_ty(ctx, &**lhs_expr, Type::int())?;
                     expect_ty(ctx, &**rhs_expr, Type::int())?;
 
-                    Ok(Type::int())
+                    Ok(Type::bool())
                 }
 
                 // Arithmetic operators
@@ -286,11 +286,8 @@ pub fn kind_of<N: Name>(
         // Conditional types
         Type::Cond(_, ref ty, ref pred_expr) => {
             expect_ty_kind(ctx, &**ty)?;
-            expect_ty(
-                ctx,
-                &**pred_expr,
-                host::Type::arrow(ty.repr()?, host::Type::bool()),
-            )?;
+            let pred_ty = host::Type::arrow(ty.repr()?, host::Type::bool());
+            expect_ty(ctx, &**pred_expr, pred_ty)?;
 
             Ok(Kind::Type)
         }
@@ -298,11 +295,8 @@ pub fn kind_of<N: Name>(
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref host_ty) => {
             expect_ty_kind(ctx, &**ty)?;
-            expect_ty(
-                ctx,
-                &**conv_expr,
-                host::Type::arrow(ty.repr()?, host_ty.clone()),
-            )?;
+            let conv_ty = host::Type::arrow(ty.repr()?, host_ty.clone());
+            expect_ty(ctx, &**conv_expr, conv_ty)?;
 
             Ok(Kind::Type)
         }
