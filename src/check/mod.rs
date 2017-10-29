@@ -1,7 +1,8 @@
 //! Type and kind-checking for our DDL
 
 use syntax::{binary, host};
-use syntax::{Binding, Context, Definition, Name, Named, Var};
+use syntax::{Definition, Name, Named, Var};
+use syntax::context::{Binding, Context};
 
 #[cfg(test)]
 mod tests;
