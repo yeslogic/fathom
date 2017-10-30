@@ -5,6 +5,15 @@ mod ty_of {
     use self::host::Type;
 
     #[test]
+    fn var_unbound() {
+        let ctx = Context::new();
+        let src = "foo";
+        let expr = src.parse().unwrap();
+
+        assert!(ty_of(&ctx, &expr).is_err());
+    }
+
+    #[test]
     fn const_int() {
         let ctx = Context::new();
         let src = "1";
@@ -101,5 +110,18 @@ mod ty_of {
         let expr = src.parse().unwrap();
 
         assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
+    }
+}
+
+mod kind_of {
+    use super::*;
+
+    #[test]
+    fn var_unbound() {
+        let ctx = Context::new();
+        let src = "foo";
+        let ty = src.parse().unwrap();
+
+        assert!(kind_of(&ctx, &ty).is_err());
     }
 }
