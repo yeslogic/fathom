@@ -1,6 +1,7 @@
 //! The syntax of our data description language
 
 use std::fmt;
+use std::rc::Rc;
 
 use source::Span;
 use syntax::{self, Field, Name, Named, Var};
@@ -79,23 +80,23 @@ pub enum Expr<N> {
     /// A constant value
     Const(Span, Const),
     /// Primitive expressions
-    Prim(&'static str, BoxType<N>),
+    Prim(&'static str, RcType<N>),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     Var(Span, Var<N, u32>),
     /// An unary operator expression
-    Unop(Span, Unop, BoxExpr<N>),
+    Unop(Span, Unop, RcExpr<N>),
     /// A binary operator expression
-    Binop(Span, Binop, BoxExpr<N>, BoxExpr<N>),
+    Binop(Span, Binop, RcExpr<N>, RcExpr<N>),
     /// Field projection, eg: `x.field`
-    Proj(Span, BoxExpr<N>, N),
+    Proj(Span, RcExpr<N>, N),
     /// Array index, eg: `x[i]`
-    Subscript(Span, BoxExpr<N>, BoxExpr<N>),
+    Subscript(Span, RcExpr<N>, RcExpr<N>),
     /// Abstraction, eg: `\(x : T) -> x`
-    Abs(Span, Named<N, BoxType<N>>, BoxExpr<N>),
+    Abs(Span, Named<N, RcType<N>>, RcExpr<N>),
 }
 
-pub type BoxExpr<N> = Box<Expr<N>>;
+pub type RcExpr<N> = Rc<Expr<N>>;
 
 impl<N: Name> Expr<N> {
     /// A bit constant: eg. `0b`, `01`
@@ -114,7 +115,7 @@ impl<N: Name> Expr<N> {
     }
 
     /// Primitive expressions
-    pub fn prim<T1: Into<BoxType<N>>>(name: &'static str, repr_ty: T1) -> Expr<N> {
+    pub fn prim<T1: Into<RcType<N>>>(name: &'static str, repr_ty: T1) -> Expr<N> {
         Expr::Prim(name, repr_ty.into())
     }
 
@@ -130,15 +131,15 @@ impl<N: Name> Expr<N> {
     }
 
     /// An unary operator expression
-    pub fn unop<E1: Into<BoxExpr<N>>>(span: Span, op: Unop, x: E1) -> Expr<N> {
+    pub fn unop<E1: Into<RcExpr<N>>>(span: Span, op: Unop, x: E1) -> Expr<N> {
         Expr::Unop(span, op, x.into())
     }
 
     /// A binary operator expression
     pub fn binop<E1, E2>(span: Span, op: Binop, x: E1, y: E2) -> Expr<N>
     where
-        E1: Into<BoxExpr<N>>,
-        E2: Into<BoxExpr<N>>,
+        E1: Into<RcExpr<N>>,
+        E2: Into<RcExpr<N>>,
     {
         Expr::Binop(span, op, x.into(), y.into())
     }
@@ -146,7 +147,7 @@ impl<N: Name> Expr<N> {
     /// Field projection, eg: `x.field`
     pub fn proj<E1, N1>(span: Span, expr: E1, field_name: N1) -> Expr<N>
     where
-        E1: Into<BoxExpr<N>>,
+        E1: Into<RcExpr<N>>,
         N1: Into<N>,
     {
         Expr::Proj(span, expr.into(), field_name.into())
@@ -155,8 +156,8 @@ impl<N: Name> Expr<N> {
     /// Array subscript, eg: `x[i]`
     pub fn subscript<E1, E2>(span: Span, expr: E1, index_expr: E2) -> Expr<N>
     where
-        E1: Into<BoxExpr<N>>,
-        E2: Into<BoxExpr<N>>,
+        E1: Into<RcExpr<N>>,
+        E2: Into<RcExpr<N>>,
     {
         Expr::Subscript(span, expr.into(), index_expr.into())
     }
@@ -165,12 +166,12 @@ impl<N: Name> Expr<N> {
     pub fn abs<N1, T1, E1>(span: Span, (param_name, param_ty): (N1, T1), body_expr: E1) -> Expr<N>
     where
         N1: Into<N>,
-        T1: Into<BoxType<N>>,
-        E1: Into<BoxExpr<N>>,
+        T1: Into<RcType<N>>,
+        E1: Into<RcExpr<N>>,
     {
         let param_name = param_name.into();
         let mut body_expr = body_expr.into();
-        body_expr.abstract_name(&param_name);
+        Rc::make_mut(&mut body_expr).abstract_name(&param_name);
         Expr::Abs(span, Named(param_name, param_ty.into()), body_expr)
     }
 
@@ -178,20 +179,20 @@ impl<N: Name> Expr<N> {
         match *self {
             Expr::Var(_, ref mut var) => var.abstract_name_at(name, level),
             Expr::Const(_, _) => {}
-            Expr::Prim(_, ref mut repr_ty) => repr_ty.abstract_name_at(name, level),
+            Expr::Prim(_, ref mut repr_ty) => Rc::make_mut(repr_ty).abstract_name_at(name, level),
             Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
-                expr.abstract_name_at(name, level);
+                Rc::make_mut(expr).abstract_name_at(name, level);
             }
             Expr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
-                lhs_expr.abstract_name_at(name, level);
-                rhs_expr.abstract_name_at(name, level);
+                Rc::make_mut(lhs_expr).abstract_name_at(name, level);
+                Rc::make_mut(rhs_expr).abstract_name_at(name, level);
             }
             Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
-                array_expr.abstract_name_at(name, level);
-                index_expr.abstract_name_at(name, level);
+                Rc::make_mut(array_expr).abstract_name_at(name, level);
+                Rc::make_mut(index_expr).abstract_name_at(name, level);
             }
             Expr::Abs(_, _, ref mut body_expr) => {
-                body_expr.abstract_name_at(name, level + 1);
+                Rc::make_mut(body_expr).abstract_name_at(name, level + 1);
             }
         }
     }
@@ -219,16 +220,16 @@ pub enum Type<N> {
     /// A type constant
     Const(TypeConst),
     /// Arrow type: eg. `T -> U`
-    Arrow(BoxType<N>, BoxType<N>),
+    Arrow(RcType<N>, RcType<N>),
     /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(BoxType<N>, BoxExpr<N>),
+    Array(RcType<N>, RcExpr<N>),
     /// A union of types: eg. `union { T, ... }`
-    Union(Vec<BoxType<N>>),
+    Union(Vec<RcType<N>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    Struct(Vec<Field<N, BoxType<N>>>),
+    Struct(Vec<Field<N, RcType<N>>>),
 }
 
-pub type BoxType<N> = Box<Type<N>>;
+pub type RcType<N> = Rc<Type<N>>;
 
 impl<N: Name> Type<N> {
     /// A free type variable: eg. `T`
@@ -259,8 +260,8 @@ impl<N: Name> Type<N> {
     /// Arrow type: eg. `T -> U`
     pub fn arrow<T1, E1>(lhs_ty: T1, rhs_ty: E1) -> Type<N>
     where
-        T1: Into<BoxType<N>>,
-        E1: Into<BoxType<N>>,
+        T1: Into<RcType<N>>,
+        E1: Into<RcType<N>>,
     {
         Type::Arrow(lhs_ty.into(), rhs_ty.into())
     }
@@ -268,26 +269,26 @@ impl<N: Name> Type<N> {
     /// An array of the specified type, with a size: eg. `[T; n]`
     pub fn array<T1, E1>(elem_ty: T1, size_expr: E1) -> Type<N>
     where
-        T1: Into<BoxType<N>>,
-        E1: Into<BoxExpr<N>>,
+        T1: Into<RcType<N>>,
+        E1: Into<RcExpr<N>>,
     {
         Type::Array(elem_ty.into(), size_expr.into())
     }
 
     /// A union of types: eg. `union { T, ... }`
-    pub fn union(tys: Vec<BoxType<N>>) -> Type<N> {
+    pub fn union(tys: Vec<RcType<N>>) -> Type<N> {
         Type::Union(tys)
     }
 
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_(mut fields: Vec<Field<N, BoxType<N>>>) -> Type<N> {
+    pub fn struct_(mut fields: Vec<Field<N, RcType<N>>>) -> Type<N> {
         // We maintain a list of the seen field names. This will allow us to
         // recover the index of these variables as we abstract later fields...
         let mut seen_names = Vec::with_capacity(fields.len());
 
         for field in &mut fields {
             for (level, name) in seen_names.iter().rev().enumerate() {
-                field.value.abstract_name_at(name, level as u32);
+                Rc::make_mut(&mut field.value).abstract_name_at(name, level as u32);
             }
 
             // Record that the field has been 'seen'
@@ -301,7 +302,7 @@ impl<N: Name> Type<N> {
     ///
     /// Returns `None` if the expression is not a struct or the field is not
     /// present in the struct.
-    pub fn lookup_field(&self, name: &N) -> Option<&BoxType<N>> {
+    pub fn lookup_field(&self, name: &N) -> Option<&RcType<N>> {
         match *self {
             Type::Struct(ref fields) => syntax::lookup_field(fields, name),
             _ => None,
@@ -313,18 +314,18 @@ impl<N: Name> Type<N> {
             Type::Var(ref mut var) => var.abstract_name_at(name, level),
             Type::Const(_) => {}
             Type::Arrow(ref mut lhs_ty, ref mut rhs_ty) => {
-                lhs_ty.abstract_name_at(name, level);
-                rhs_ty.abstract_name_at(name, level);
+                Rc::make_mut(lhs_ty).abstract_name_at(name, level);
+                Rc::make_mut(rhs_ty).abstract_name_at(name, level);
             }
             Type::Array(ref mut elem_ty, ref mut size_expr) => {
-                elem_ty.abstract_name_at(name, level);
-                size_expr.abstract_name_at(name, level);
+                Rc::make_mut(elem_ty).abstract_name_at(name, level);
+                Rc::make_mut(size_expr).abstract_name_at(name, level);
             }
             Type::Union(ref mut tys) => for ty in tys {
-                ty.abstract_name_at(name, level);
+                Rc::make_mut(ty).abstract_name_at(name, level);
             },
             Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                field.value.abstract_name_at(name, level + i as u32);
+                Rc::make_mut(&mut field.value).abstract_name_at(name, level + i as u32);
             },
         }
     }
@@ -347,17 +348,17 @@ impl<N: Name> Type<N> {
             },
             Type::Var(Var::Free(_)) | Type::Const(_) => {}
             Type::Arrow(ref mut lhs_ty, ref mut rhs_ty) => {
-                lhs_ty.instantiate_at(level, src);
-                rhs_ty.instantiate_at(level, src);
+                Rc::make_mut(lhs_ty).instantiate_at(level, src);
+                Rc::make_mut(rhs_ty).instantiate_at(level, src);
             }
             Type::Array(ref mut elem_ty, _) => {
-                elem_ty.instantiate_at(level, src);
+                Rc::make_mut(elem_ty).instantiate_at(level, src);
             }
             Type::Union(ref mut tys) => for ty in tys {
-                ty.instantiate_at(level, src);
+                Rc::make_mut(ty).instantiate_at(level, src);
             },
             Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                field.value.instantiate_at(level + i as u32, src);
+                Rc::make_mut(&mut field.value).instantiate_at(level + i as u32, src);
             },
         };
     }

@@ -1,6 +1,7 @@
 use lalrpop_util;
 
 use std::fmt;
+use std::rc::Rc;
 use std::str::FromStr;
 
 use syntax::{binary, host, Program};
@@ -66,7 +67,7 @@ impl FromStr for host::Expr<String> {
 
     fn from_str(src: &str) -> Result<host::Expr<String>, ParseError> {
         grammar::parse_Expr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map(|expr| *expr)
+            .map(|expr| Rc::try_unwrap(expr).unwrap())
             .map_err(from_lalrpop_err)
     }
 }
@@ -76,7 +77,7 @@ impl FromStr for binary::Type<String> {
 
     fn from_str(src: &str) -> Result<binary::Type<String>, ParseError> {
         grammar::parse_Type(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map(|ty| *ty)
+            .map(|ty| Rc::try_unwrap(ty).unwrap())
             .map_err(from_lalrpop_err)
     }
 }

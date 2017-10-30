@@ -1,5 +1,7 @@
 //! The syntax of our data description language
 
+use std::rc::Rc;
+
 use source::Span;
 use syntax::{self, host, Field, Name, Named, Substitutions, Var};
 
@@ -8,14 +10,14 @@ pub enum Kind {
     /// Kind of types
     Type,
     /// Kind of type functions
-    Arrow(BoxKind, BoxKind),
+    Arrow(RcKind, RcKind),
 }
 
-pub type BoxKind = Box<Kind>;
+pub type RcKind = Rc<Kind>;
 
 impl Kind {
     /// Kind of type functions
-    pub fn arrow<K1: Into<BoxKind>, K2: Into<BoxKind>>(lhs: K1, rhs: K2) -> Kind {
+    pub fn arrow<K1: Into<RcKind>, K2: Into<RcKind>>(lhs: K1, rhs: K2) -> Kind {
         Kind::Arrow(lhs.into(), rhs.into())
     }
 }
@@ -40,22 +42,22 @@ pub enum Type<N> {
     /// Type constant
     Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(Span, BoxType<N>, host::BoxExpr<N>),
+    Array(Span, RcType<N>, host::RcExpr<N>),
     /// A union of types: eg. `union { T, ... }`
-    Union(Span, Vec<BoxType<N>>),
+    Union(Span, Vec<RcType<N>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    Struct(Span, Vec<Field<N, BoxType<N>>>),
+    Struct(Span, Vec<Field<N, RcType<N>>>),
     /// A type constrained by a predicate: eg. `T where x => x == 3`
-    Cond(Span, BoxType<N>, host::BoxExpr<N>),
+    Cond(Span, RcType<N>, host::RcExpr<N>),
     /// An interpreted type
-    Interp(Span, BoxType<N>, host::BoxExpr<N>, host::BoxType<N>),
+    Interp(Span, RcType<N>, host::RcExpr<N>, host::RcType<N>),
     /// Type abstraction: eg. `\(a : Type) -> T`
-    Abs(Span, Named<N, BoxKind>, BoxType<N>),
+    Abs(Span, Named<N, RcKind>, RcType<N>),
     /// Type application: eg. `T U V`
-    App(Span, BoxType<N>, BoxType<N>),
+    App(Span, RcType<N>, RcType<N>),
 }
 
-pub type BoxType<N> = Box<Type<N>>;
+pub type RcType<N> = Rc<Type<N>>;
 
 impl<N: Name> Type<N> {
     /// A free type variable: eg. `T`
@@ -76,35 +78,35 @@ impl<N: Name> Type<N> {
     /// An array of the specified type, with a size: eg. `[T; n]`
     pub fn array<T1, E1>(span: Span, elem_ty: T1, size_expr: E1) -> Type<N>
     where
-        T1: Into<BoxType<N>>,
-        E1: Into<host::BoxExpr<N>>,
+        T1: Into<RcType<N>>,
+        E1: Into<host::RcExpr<N>>,
     {
         Type::Array(span, elem_ty.into(), size_expr.into())
     }
 
     /// A union of types: eg. `union { T, ... }`
-    pub fn union(span: Span, tys: Vec<BoxType<N>>) -> Type<N> {
+    pub fn union(span: Span, tys: Vec<RcType<N>>) -> Type<N> {
         Type::Union(span, tys)
     }
 
     /// Type application: eg. `T U V`
     pub fn app<T1, T2>(span: Span, ty1: T1, ty2: T2) -> Type<N>
     where
-        T1: Into<BoxType<N>>,
-        T2: Into<BoxType<N>>,
+        T1: Into<RcType<N>>,
+        T2: Into<RcType<N>>,
     {
         Type::App(span, ty1.into(), ty2.into())
     }
 
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_(span: Span, mut fields: Vec<Field<N, BoxType<N>>>) -> Type<N> {
+    pub fn struct_(span: Span, mut fields: Vec<Field<N, RcType<N>>>) -> Type<N> {
         // We maintain a list of the seen field names. This will allow us to
         // recover the index of these variables as we abstract later fields...
         let mut seen_names = Vec::with_capacity(fields.len());
 
         for field in &mut fields {
             for (level, name) in seen_names.iter().rev().enumerate() {
-                field.value.abstract_name_at(name, level as u32);
+                Rc::make_mut(&mut field.value).abstract_name_at(name, level as u32);
             }
 
             // Record that the field has been 'seen'
@@ -117,8 +119,8 @@ impl<N: Name> Type<N> {
     /// A type constrained by a predicate: eg. `T where x => x == 3`
     pub fn cond<T1, E1>(span: Span, ty: T1, pred: E1) -> Type<N>
     where
-        T1: Into<BoxType<N>>,
-        E1: Into<host::BoxExpr<N>>,
+        T1: Into<RcType<N>>,
+        E1: Into<host::RcExpr<N>>,
     {
         Type::Cond(span, ty.into(), pred.into())
     }
@@ -126,9 +128,9 @@ impl<N: Name> Type<N> {
     /// An interpreted type
     pub fn interp<T1, E1, T2>(span: Span, ty: T1, conv: E1, repr_ty: T2) -> Type<N>
     where
-        T1: Into<BoxType<N>>,
-        E1: Into<host::BoxExpr<N>>,
-        T2: Into<host::BoxType<N>>,
+        T1: Into<RcType<N>>,
+        E1: Into<host::RcExpr<N>>,
+        T2: Into<host::RcType<N>>,
     {
         Type::Interp(span, ty.into(), conv.into(), repr_ty.into())
     }
@@ -137,12 +139,12 @@ impl<N: Name> Type<N> {
     pub fn abs<N1, K1, T1>(span: Span, (param_name, param_kind): (N1, K1), body_ty: T1) -> Type<N>
     where
         N1: Into<N>,
-        K1: Into<BoxKind>,
-        T1: Into<BoxType<N>>,
+        K1: Into<RcKind>,
+        T1: Into<RcType<N>>,
     {
         let param_name = param_name.into();
         let mut body_ty = body_ty.into();
-        body_ty.abstract_name(&param_name);
+        Rc::make_mut(&mut body_ty).abstract_name(&param_name);
         Type::Abs(span, Named(param_name, param_kind.into()), body_ty)
     }
 
@@ -150,7 +152,7 @@ impl<N: Name> Type<N> {
     ///
     /// Returns `None` if the expression is not a struct or the field is not
     /// present in the struct.
-    pub fn lookup_field(&self, name: &N) -> Option<&BoxType<N>> {
+    pub fn lookup_field(&self, name: &N) -> Option<&RcType<N>> {
         match *self {
             Type::Struct(_, ref fields) => syntax::lookup_field(fields, name),
             _ => None,
@@ -167,40 +169,40 @@ impl<N: Name> Type<N> {
             },
             Type::Var(_, Var::Bound(_)) | Type::Const(_) => return,
             Type::Array(_, ref mut elem_ty, ref mut _size_expr) => {
-                elem_ty.substitute(substs);
-                // size_expr.substitute(substs);
+                Rc::make_mut(elem_ty).substitute(substs);
+                // Rc::make_mut(size_expr).substitute(substs);
                 return;
             }
             Type::Union(_, ref mut tys) => {
                 for ty in tys {
-                    ty.substitute(substs);
+                    Rc::make_mut(ty).substitute(substs);
                 }
                 return;
             }
             Type::Struct(_, ref mut fields) => {
                 for field in fields.iter_mut() {
-                    field.value.substitute(substs);
+                    Rc::make_mut(&mut field.value).substitute(substs);
                 }
                 return;
             }
             Type::Cond(_, ref mut ty, ref mut _pred) => {
-                ty.substitute(substs);
-                // pred.substitute(substs);
+                Rc::make_mut(ty).substitute(substs);
+                // Rc::make_mut(pred).substitute(substs);
                 return;
             }
             Type::Interp(_, ref mut ty, ref mut _conv, ref mut _repr_ty) => {
-                ty.substitute(substs);
-                // conv.substitute(substs);
-                // repr_ty.substitute(substs);
+                Rc::make_mut(ty).substitute(substs);
+                // Rc::make_mut(conv).substitute(substs);
+                // Rc::make_mut(repr_ty).substitute(substs);
                 return;
             }
             Type::Abs(_, _, ref mut body_ty) => {
-                body_ty.substitute(substs);
+                Rc::make_mut(body_ty).substitute(substs);
                 return;
             }
             Type::App(_, ref mut fn_ty, ref mut arg_ty) => {
-                fn_ty.substitute(substs);
-                arg_ty.substitute(substs);
+                Rc::make_mut(fn_ty).substitute(substs);
+                Rc::make_mut(arg_ty).substitute(substs);
                 return;
             }
         };
@@ -213,30 +215,30 @@ impl<N: Name> Type<N> {
             Type::Var(_, ref mut var) => var.abstract_name_at(name, level),
             Type::Const(_) => {}
             Type::Array(_, ref mut elem_ty, ref mut size_expr) => {
-                elem_ty.abstract_name_at(name, level);
-                size_expr.abstract_name_at(name, level);
+                Rc::make_mut(elem_ty).abstract_name_at(name, level);
+                Rc::make_mut(size_expr).abstract_name_at(name, level);
             }
             Type::Union(_, ref mut tys) => for ty in tys {
-                ty.abstract_name_at(name, level);
+                Rc::make_mut(ty).abstract_name_at(name, level);
             },
             Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                field.value.abstract_name_at(name, level + i as u32);
+                Rc::make_mut(&mut field.value).abstract_name_at(name, level + i as u32);
             },
             Type::Cond(_, ref mut ty, ref mut pred) => {
-                ty.abstract_name_at(name, level);
-                pred.abstract_name_at(name, level + 1);
+                Rc::make_mut(ty).abstract_name_at(name, level);
+                Rc::make_mut(pred).abstract_name_at(name, level + 1);
             }
             Type::Interp(_, ref mut ty, ref mut conv, ref mut repr_ty) => {
-                ty.abstract_name_at(name, level);
-                conv.abstract_name_at(name, level + 1);
-                repr_ty.abstract_name_at(name, level);
+                Rc::make_mut(ty).abstract_name_at(name, level);
+                Rc::make_mut(conv).abstract_name_at(name, level + 1);
+                Rc::make_mut(repr_ty).abstract_name_at(name, level);
             }
             Type::Abs(_, _, ref mut body_ty) => {
-                body_ty.abstract_name_at(name, level + 1);
+                Rc::make_mut(body_ty).abstract_name_at(name, level + 1);
             }
             Type::App(_, ref mut fn_ty, ref mut arg_ty) => {
-                fn_ty.abstract_name_at(name, level);
-                arg_ty.abstract_name_at(name, level);
+                Rc::make_mut(fn_ty).abstract_name_at(name, level);
+                Rc::make_mut(arg_ty).abstract_name_at(name, level);
             }
         }
     }
@@ -259,26 +261,26 @@ impl<N: Name> Type<N> {
             },
             Type::Var(_, Var::Free(_)) | Type::Const(_) => {}
             Type::Array(_, ref mut elem_ty, _) => {
-                elem_ty.instantiate_at(level, src);
+                Rc::make_mut(elem_ty).instantiate_at(level, src);
             }
             Type::Cond(_, ref mut ty, _) => {
-                ty.instantiate_at(level + 1, src);
+                Rc::make_mut(ty).instantiate_at(level + 1, src);
             }
             Type::Interp(_, ref mut ty, _, _) => {
-                ty.instantiate_at(level + 1, src);
+                Rc::make_mut(ty).instantiate_at(level + 1, src);
             }
             Type::Union(_, ref mut tys) => for ty in tys {
-                ty.instantiate_at(level, src);
+                Rc::make_mut(ty).instantiate_at(level, src);
             },
             Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                field.value.instantiate_at(level + i as u32, src);
+                Rc::make_mut(&mut field.value).instantiate_at(level + i as u32, src);
             },
             Type::Abs(_, _, ref mut ty) => {
-                ty.instantiate_at(level + 1, src);
+                Rc::make_mut(ty).instantiate_at(level + 1, src);
             }
             Type::App(_, ref mut ty, ref mut arg_ty) => {
-                ty.instantiate_at(level, src);
-                arg_ty.instantiate_at(level, src);
+                Rc::make_mut(ty).instantiate_at(level, src);
+                Rc::make_mut(arg_ty).instantiate_at(level, src);
             }
         }
     }
@@ -290,22 +292,22 @@ impl<N: Name> Type<N> {
     }
 
     /// Returns the host representation of the binary type
-    pub fn repr(&self) -> Result<host::BoxType<N>, ReprError<N>> {
+    pub fn repr(&self) -> Result<host::RcType<N>, ReprError<N>> {
         match *self {
-            Type::Var(_, ref v) => Ok(host::Type::Var(v.clone()).into()),
-            Type::Const(TypeConst::Bit) => Ok(host::Type::Const(host::TypeConst::Bit).into()),
+            Type::Var(_, ref v) => Ok(Rc::new(host::Type::Var(v.clone()))),
+            Type::Const(TypeConst::Bit) => Ok(Rc::new(host::Type::Const(host::TypeConst::Bit))),
             Type::Array(_, ref elem_ty, ref size_expr) => {
                 let elem_repr_ty = elem_ty.repr()?;
                 let size_expr = size_expr.clone();
 
-                Ok(host::Type::array(elem_repr_ty, size_expr).into())
+                Ok(Rc::new(host::Type::array(elem_repr_ty, size_expr)))
             }
             Type::Cond(_, ref ty, _) => ty.repr(),
             Type::Interp(_, _, _, ref repr_ty) => Ok(repr_ty.clone()),
             Type::Union(_, ref tys) => {
                 let repr_tys = tys.iter().map(|ty| ty.repr()).collect::<Result<_, _>>()?;
 
-                Ok(host::Type::Union(repr_tys).into())
+                Ok(Rc::new(host::Type::Union(repr_tys)))
             }
             Type::Struct(_, ref fields) => {
                 let repr_fields = fields
@@ -313,7 +315,7 @@ impl<N: Name> Type<N> {
                     .map(|f| f.value.repr().map(|ty| Field::new(f.name.clone(), ty)))
                     .collect::<Result<_, _>>()?;
 
-                Ok(host::Type::Struct(repr_fields).into())
+                Ok(Rc::new(host::Type::Struct(repr_fields)))
             }
             Type::Abs(_, _, _) | Type::App(_, _, _) => {
                 Err(ReprError::NoCorrespondingHostType(self.clone()))

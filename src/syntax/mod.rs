@@ -3,6 +3,7 @@
 use std::fmt;
 use std::collections::BTreeMap;
 use std::cmp::Ordering;
+use std::rc::Rc;
 
 pub mod binary;
 pub mod context;
@@ -181,11 +182,11 @@ where
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Definition<N> {
     pub name: N,
-    pub ty: Box<binary::Type<N>>,
+    pub ty: binary::RcType<N>,
 }
 
 impl<N> Definition<N> {
-    pub fn new<N1: Into<N>, T1: Into<Box<binary::Type<N>>>>(name: N1, ty: T1) -> Definition<N> {
+    pub fn new<N1: Into<N>, T1: Into<binary::RcType<N>>>(name: N1, ty: T1) -> Definition<N> {
         Definition {
             name: name.into(),
             ty: ty.into(),
@@ -208,7 +209,7 @@ impl<N: Name> Program<N> {
 
         for def in &mut defs {
             for (level, name) in seen_names.iter().rev().enumerate() {
-                def.ty.abstract_name_at(name, level as u32);
+                Rc::make_mut(&mut def.ty).abstract_name_at(name, level as u32);
             }
 
             // Record that the definition has been 'seen'
@@ -220,7 +221,7 @@ impl<N: Name> Program<N> {
 
     pub fn substitute(&mut self, substs: &Substitutions<N>) {
         for def in &mut self.defs {
-            def.ty.substitute(substs);
+            Rc::make_mut(&mut def.ty).substitute(substs);
         }
     }
 }
