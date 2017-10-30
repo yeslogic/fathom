@@ -1,4 +1,3 @@
-use parser;
 use super::*;
 
 mod ty_of {
@@ -9,7 +8,7 @@ mod ty_of {
     fn const_int() {
         let ctx = Context::new();
         let src = "1";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert_eq!(ty_of(&ctx, &expr), Ok(Type::int()));
     }
@@ -18,7 +17,7 @@ mod ty_of {
     fn neg_int() {
         let ctx = Context::new();
         let src = "-(1 + 2)";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert_eq!(ty_of(&ctx, &expr), Ok(Type::int()));
     }
@@ -27,7 +26,7 @@ mod ty_of {
     fn neg_bool() {
         let ctx = Context::new();
         let src = "-(1 == 2)";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert!(ty_of(&ctx, &expr).is_err());
     }
@@ -36,7 +35,7 @@ mod ty_of {
     fn not_int() {
         let ctx = Context::new();
         let src = "!(1 + 2)";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert!(ty_of(&ctx, &expr).is_err());
     }
@@ -45,7 +44,7 @@ mod ty_of {
     fn not_bool() {
         let ctx = Context::new();
         let src = "!(1 == 2)";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
@@ -54,7 +53,7 @@ mod ty_of {
     fn arith_ops() {
         let ctx = Context::new();
         let src = "1 + (1 * -2)";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert_eq!(ty_of(&ctx, &expr), Ok(Type::int()));
     }
@@ -63,7 +62,7 @@ mod ty_of {
     fn cmp_ops_eq_int() {
         let ctx = Context::new();
         let src = "1 + (1 * 2) == 3";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
@@ -72,7 +71,7 @@ mod ty_of {
     fn cmp_ops_ne_int() {
         let ctx = Context::new();
         let src = "1 + (1 * 2) != 3";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
@@ -81,7 +80,7 @@ mod ty_of {
     fn cmp_ops_eq_bool() {
         let ctx = Context::new();
         let src = "(1 == 1) == (3 == 3)";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
@@ -90,7 +89,7 @@ mod ty_of {
     fn cmp_ops_ne_bool() {
         let ctx = Context::new();
         let src = "(1 == 1) != (3 == 3)";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }
@@ -99,7 +98,7 @@ mod ty_of {
     fn rel_ops() {
         let ctx = Context::new();
         let src = "(1 == 3) & (2 == 2) | (1 == 2)";
-        let expr = parser::parse_expr(src).unwrap();
+        let expr = src.parse().unwrap();
 
         assert_eq!(ty_of(&ctx, &expr), Ok(Type::bool()));
     }

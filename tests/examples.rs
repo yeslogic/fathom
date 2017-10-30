@@ -1,13 +1,16 @@
 extern crate ddl;
 
-use ddl::{check, parser, syntax};
+use std::str::FromStr;
+
+use ddl::{check, syntax};
+use ddl::syntax::Program;
 
 #[test]
 #[ignore]
 fn cmap() {
     const SRC: &str = include_str!("../examples/ddl/cmap.ddl");
 
-    let mut program = parser::parse_program(SRC).unwrap();
+    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
 
     for def in &mut program.defs {
@@ -23,7 +26,7 @@ fn cmap() {
 fn edid() {
     const SRC: &str = include_str!("../examples/ddl/edid.ddl");
 
-    let mut program = parser::parse_program(SRC).unwrap();
+    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
 
     for def in &mut program.defs {
@@ -39,7 +42,7 @@ fn edid() {
 fn heroes_of_might_and_magic_bmp() {
     const SRC: &str = include_str!("../examples/ddl/heroes_of_might_and_magic_bmp.ddl");
 
-    let mut program = parser::parse_program(SRC).unwrap();
+    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
 
     for def in &mut program.defs {
@@ -55,7 +58,7 @@ fn heroes_of_might_and_magic_bmp() {
 fn object_id() {
     const SRC: &str = include_str!("../examples/ddl/object_id.ddl");
 
-    let mut program = parser::parse_program(SRC).unwrap();
+    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
 
     for def in &mut program.defs {
@@ -71,7 +74,7 @@ fn object_id() {
 fn stl() {
     const SRC: &str = include_str!("../examples/ddl/stl.ddl");
 
-    let mut program = parser::parse_program(SRC).unwrap();
+    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
 
     for def in &mut program.defs {

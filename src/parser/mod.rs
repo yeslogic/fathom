@@ -1,5 +1,8 @@
 use lalrpop_util;
 
+use std::fmt;
+use std::str::FromStr;
+
 use syntax::{binary, host, Program};
 use source::BytePos;
 
@@ -7,7 +10,7 @@ mod lexer;
 #[allow(unused_extern_crates)]
 mod grammar;
 
-use self::lexer::{Error as LexerError, Lexer, Token};
+use self::lexer::{Error as LexerError, Lexer};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GrammarError<N> {
@@ -27,22 +30,53 @@ impl<N> From<LexerError> for GrammarError<N> {
     }
 }
 
-pub type ParseError<'input> = lalrpop_util::ParseError<
-    BytePos,
-    Token<'input>,
-    GrammarError<String>,
->;
+pub type ParseError = lalrpop_util::ParseError<BytePos, String, GrammarError<String>>;
 
-pub fn parse_program<'input>(src: &'input str) -> Result<Program<String>, ParseError<'input>> {
-    grammar::parse_Program(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+fn from_lalrpop_err<L, T: fmt::Debug, E>(
+    src: lalrpop_util::ParseError<L, T, E>,
+) -> lalrpop_util::ParseError<L, String, E> {
+    use lalrpop_util::ParseError::*;
+
+    match src {
+        InvalidToken { location } => InvalidToken { location },
+        UnrecognizedToken { token, expected } => UnrecognizedToken {
+            token: token.map(|(lo, token, hi)| (lo, format!("{:?}", token), hi)),
+            expected,
+        },
+        ExtraToken {
+            token: (lo, token, hi),
+        } => ExtraToken {
+            token: (lo, format!("{:?}", token), hi),
+        },
+        User { error } => User { error },
+    }
 }
 
-pub fn parse_expr<'input>(src: &'input str) -> Result<host::Expr<String>, ParseError<'input>> {
-    grammar::parse_Expr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+impl FromStr for Program<String> {
+    type Err = ParseError;
+
+    fn from_str(src: &str) -> Result<Program<String>, ParseError> {
+        grammar::parse_Program(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+            .map_err(from_lalrpop_err)
+    }
 }
 
-pub fn parse_ty<'input>(src: &'input str) -> Result<binary::Type<String>, ParseError<'input>> {
-    grammar::parse_Type(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+impl FromStr for host::Expr<String> {
+    type Err = ParseError;
+
+    fn from_str(src: &str) -> Result<host::Expr<String>, ParseError> {
+        grammar::parse_Expr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+            .map_err(from_lalrpop_err)
+    }
+}
+
+impl FromStr for binary::Type<String> {
+    type Err = ParseError;
+
+    fn from_str(src: &str) -> Result<binary::Type<String>, ParseError> {
+        grammar::parse_Type(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+            .map_err(from_lalrpop_err)
+    }
 }
 
 #[cfg(test)]
@@ -55,7 +89,7 @@ mod tests {
             !((true | (false)))
         ";
 
-        assert_snapshot!(parse_expr_bool_atomic, parse_expr(src).unwrap());
+        assert_snapshot!(parse_expr_bool_atomic, host::Expr::from_str(src).unwrap());
     }
 
     #[test]
@@ -64,56 +98,62 @@ mod tests {
             (true & false) | (true | false)
         ";
 
-        assert_snapshot!(parse_expr_bool_operators, parse_expr(src).unwrap());
+        assert_snapshot!(
+            parse_expr_bool_operators,
+            host::Expr::from_str(src).unwrap()
+        );
     }
 
     #[test]
     fn parse_add_expr() {
         let src = "x + y + z";
 
-        assert_snapshot!(parse_add_expr, parse_expr(src).unwrap());
+        assert_snapshot!(parse_add_expr, host::Expr::from_str(src).unwrap());
     }
 
     #[test]
     fn parse_sub_expr() {
         let src = "x - y - z";
 
-        assert_snapshot!(parse_sub_expr, parse_expr(src).unwrap());
+        assert_snapshot!(parse_sub_expr, host::Expr::from_str(src).unwrap());
     }
 
     #[test]
     fn parse_add_expr_mixed() {
         let src = "x + y + z - z + x";
 
-        assert_snapshot!(parse_add_expr_mixed, parse_expr(src).unwrap());
+        assert_snapshot!(parse_add_expr_mixed, host::Expr::from_str(src).unwrap());
     }
 
     #[test]
     fn parse_mul_expr() {
         let src = "x * y * z";
 
-        assert_snapshot!(parse_mul_expr, parse_expr(src).unwrap());
+        assert_snapshot!(parse_mul_expr, host::Expr::from_str(src).unwrap());
     }
 
     #[test]
     fn parse_div_expr() {
         let src = "x / y / z";
 
-        assert_snapshot!(parse_div_expr, parse_expr(src).unwrap());
+        assert_snapshot!(parse_div_expr, host::Expr::from_str(src).unwrap());
     }
 
     #[test]
     fn parse_mul_expr_mixed() {
         let src = "x * y * z / z * x";
 
-        assert_snapshot!(parse_mul_expr_mixed, parse_expr(src).unwrap());
+        assert_snapshot!(parse_mul_expr_mixed, host::Expr::from_str(src).unwrap());
     }
 
     #[test]
     fn parse_mixed_arithmetic_expr() {
         let src = "x + y * z / z - x * a";
 
-        assert_snapshot!(parse_mixed_arithmetic_expr, parse_expr(src).unwrap());
+        assert_snapshot!(
+            parse_mixed_arithmetic_expr,
+            host::Expr::from_str(src).unwrap()
+        );
     }
 
     #[test]
@@ -122,7 +162,7 @@ mod tests {
 
         assert_snapshot!(
             parse_mixed_arithmetic_expr_parenthesized,
-            parse_expr(src).unwrap()
+            host::Expr::from_str(src).unwrap()
         );
     }
 
@@ -130,14 +170,14 @@ mod tests {
     fn parse_proj_expr() {
         let src = "-foo.bar.x";
 
-        assert_snapshot!(parse_proj_expr, parse_expr(src).unwrap());
+        assert_snapshot!(parse_proj_expr, host::Expr::from_str(src).unwrap());
     }
 
     #[test]
     fn parse_subscript_expr() {
         let src = "-foo[23 + (2 + 3)][index]";
 
-        assert_snapshot!(parse_subscript_expr, parse_expr(src).unwrap());
+        assert_snapshot!(parse_subscript_expr, host::Expr::from_str(src).unwrap());
     }
 
     #[test]
@@ -146,14 +186,14 @@ mod tests {
             Point
         ";
 
-        assert_snapshot!(parse_ty_var, parse_ty(src).unwrap());
+        assert_snapshot!(parse_ty_var, binary::Type::from_str(src).unwrap());
     }
 
     #[test]
     fn parse_ty_empty_struct() {
         let src = "struct {}";
 
-        assert_snapshot!(parse_ty_empty_struct, parse_ty(src).unwrap());
+        assert_snapshot!(parse_ty_empty_struct, binary::Type::from_str(src).unwrap());
     }
 
     #[test]
@@ -166,7 +206,7 @@ mod tests {
             where x => x == 1
         ";
 
-        assert_snapshot!(parse_ty_where, parse_ty(src).unwrap());
+        assert_snapshot!(parse_ty_where, binary::Type::from_str(src).unwrap());
     }
 
     #[test]
@@ -185,7 +225,10 @@ mod tests {
             }
         ";
 
-        assert_snapshot!(parse_ty_array_dependent, parse_ty(src).unwrap());
+        assert_snapshot!(
+            parse_ty_array_dependent,
+            binary::Type::from_str(src).unwrap()
+        );
     }
 
     #[test]
@@ -194,7 +237,7 @@ mod tests {
             Offset32 = u32;
         ";
 
-        assert_snapshot!(parse_simple_definition, parse_program(src).unwrap());
+        assert_snapshot!(parse_simple_definition, Program::from_str(src).unwrap());
     }
 
     #[test]
@@ -203,7 +246,10 @@ mod tests {
             Point = [f32; 3];
         ";
 
-        assert_snapshot!(parse_array_with_constant_size, parse_program(src).unwrap());
+        assert_snapshot!(
+            parse_array_with_constant_size,
+            Program::from_str(src).unwrap()
+        );
     }
 
     #[test]
@@ -226,6 +272,6 @@ mod tests {
             };
         ";
 
-        assert_snapshot!(parse_definition, parse_program(src).unwrap());
+        assert_snapshot!(parse_definition, Program::from_str(src).unwrap());
     }
 }
