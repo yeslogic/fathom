@@ -6,29 +6,6 @@ pub mod binary;
 pub mod context;
 pub mod host;
 
-/// A type definition
-///
-/// ```plain
-/// Point = {
-///     x : u16,
-///     y : u16,
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Definition<N> {
-    pub name: N,
-    pub ty: Box<binary::Type<N>>,
-}
-
-impl<N> Definition<N> {
-    pub fn new<N1: Into<N>, T1: Into<Box<binary::Type<N>>>>(name: N1, ty: T1) -> Definition<N> {
-        Definition {
-            name: name.into(),
-            ty: ty.into(),
-        }
-    }
-}
-
 /// A variable that can either be free or bound
 ///
 /// We use a locally nameless representation for variable binding.
@@ -177,6 +154,53 @@ where
         .iter()
         .find(|field| &field.name == name)
         .map(|field| &field.value)
+}
+
+/// A type definition
+///
+/// ```plain
+/// Point = {
+///     x : u16,
+///     y : u16,
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Definition<N> {
+    pub name: N,
+    pub ty: Box<binary::Type<N>>,
+}
+
+impl<N> Definition<N> {
+    pub fn new<N1: Into<N>, T1: Into<Box<binary::Type<N>>>>(name: N1, ty: T1) -> Definition<N> {
+        Definition {
+            name: name.into(),
+            ty: ty.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Program<N> {
+    pub defs: Vec<Definition<N>>,
+}
+
+impl<N: Name> Program<N> {
+    pub fn new(mut defs: Vec<Definition<N>>) -> Program<N> {
+        // We maintain a list of the seen definition names. This will allow us to
+        // recover the index of these variables as we abstract later definitions...
+        let mut seen_names = Vec::new();
+
+        for def in &mut defs {
+            for (level, name) in seen_names.iter().rev().enumerate() {
+                def.ty.abstract_name_at(name, level as u32);
+            }
+
+            // Record that the definition has been 'seen'
+            seen_names.push(def.name.clone());
+        }
+
+        Program { defs }
+    }
 }
 
 pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {

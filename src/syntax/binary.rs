@@ -152,6 +152,52 @@ impl<N: Name> Type<N> {
         }
     }
 
+    /// Replace occurrences of the free variable `name` with the given type
+    pub fn substitute(&mut self, name: &N, src_ty: &Type<N>) {
+        match *self {
+            Type::Var(_, Var::Free(ref n)) if n == name => {}
+            Type::Var(_, _) | Type::Const(_) => return,
+            Type::Array(_, ref mut elem_ty, ref mut _size_expr) => {
+                elem_ty.substitute(name, src_ty);
+                // size_expr.substitute(name, src_ty);
+                return;
+            }
+            Type::Union(_, ref mut tys) => {
+                for ty in tys {
+                    ty.substitute(name, src_ty);
+                }
+                return;
+            }
+            Type::Struct(_, ref mut fields) => {
+                for field in fields.iter_mut() {
+                    field.value.substitute(name, src_ty);
+                }
+                return;
+            }
+            Type::Cond(_, ref mut ty, ref mut _pred) => {
+                ty.substitute(name, src_ty);
+                // pred.substitute(name, src_ty);
+                return;
+            }
+            Type::Interp(_, ref mut ty, ref mut _conv, ref mut _repr_ty) => {
+                ty.substitute(name, src_ty);
+                // conv.substitute(name, src_ty);
+                // repr_ty.substitute(name, src_ty);
+                return;
+            }
+            Type::Abs(_, _, ref mut body_ty) => {
+                body_ty.substitute(name, src_ty);
+                return;
+            }
+            Type::App(_, ref mut fn_ty, ref mut arg_ty) => {
+                fn_ty.substitute(name, src_ty);
+                arg_ty.substitute(name, src_ty);
+                return;
+            }
+        }
+        *self = src_ty.clone();
+    }
+
     pub fn abstract_name_at(&mut self, name: &N, level: u32) {
         match *self {
             Type::Var(_, ref mut var) => var.abstract_name_at(name, level),

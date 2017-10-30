@@ -1,6 +1,6 @@
 use lalrpop_util::ParseError;
 
-use syntax::{Definition, Field};
+use syntax::{Definition, Field, Program};
 use syntax::binary::Type;
 use syntax::host::{Binop, Expr, Unop};
 use parser::GrammarError;
@@ -61,8 +61,10 @@ extern {
 }
 
 
-pub Definitions: Vec<Definition<String>> = {
-    Definition*,
+pub Program: Program<String> = {
+    <defs: Definition*> => {
+        Program::new(defs)
+    },
 };
 
 Definition: Definition<String> = {

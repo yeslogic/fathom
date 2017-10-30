@@ -1,7 +1,7 @@
 //! Type and kind-checking for our DDL
 
 use syntax::{binary, host};
-use syntax::{Definition, Name, Named, Var};
+use syntax::{Name, Named, Program, Var};
 use syntax::context::{Binding, Context};
 
 #[cfg(test)]
@@ -349,35 +349,15 @@ pub fn kind_of<N: Name>(
     }
 }
 
-pub fn check_defs<'a, N: 'a + Name, Defs>(defs: Defs) -> Result<(), KindError<N>>
-where
-    Defs: IntoIterator<Item = &'a Definition<N>>,
-{
+pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> {
     let mut ctx = Context::new();
-    // We maintain a list of the seen definition names. This will allow us to
-    // recover the index of these variables as we abstract later definitions...
-    let mut seen_names = Vec::new();
 
-    for def in defs {
-        let mut def_ty = def.ty.clone();
-
-        // Kind of ugly and inefficient - can't we just substitute directly?
-        // Should handle mutually recursive bindings as well...
-
-        for (level, name) in seen_names.iter().rev().enumerate() {
-            def_ty.abstract_name_at(name, level as u32);
-        }
-
-        for (i, _) in seen_names.iter().enumerate() {
-            let Named(_, ty) = ctx.lookup_ty_def(i as u32).unwrap();
-            def_ty.instantiate(ty);
-        }
-
-        let def_kind = kind_of(&ctx, &*def_ty)?;
-        ctx.extend(def.name.clone(), Binding::TypeDef(*def_ty, def_kind));
-
-        // Record that the definition has been 'seen'
-        seen_names.push(def.name.clone());
+    for def in &program.defs {
+        let def_kind = kind_of(&ctx, &*def.ty)?;
+        ctx.extend(
+            def.name.clone(),
+            Binding::TypeDef((*def.ty).clone(), def_kind),
+        );
     }
 
     Ok(())

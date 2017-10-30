@@ -1,6 +1,6 @@
 use lalrpop_util;
 
-use syntax::{binary, host, Definition};
+use syntax::{binary, host, Program};
 use source::BytePos;
 
 mod lexer;
@@ -33,8 +33,8 @@ pub type ParseError<'input> = lalrpop_util::ParseError<
     GrammarError<String>,
 >;
 
-pub fn parse<'input>(src: &'input str) -> Result<Vec<Definition<String>>, ParseError<'input>> {
-    grammar::parse_Definitions(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+pub fn parse_program<'input>(src: &'input str) -> Result<Program<String>, ParseError<'input>> {
+    grammar::parse_Program(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
 }
 
 pub fn parse_expr<'input>(src: &'input str) -> Result<host::Expr<String>, ParseError<'input>> {
@@ -194,7 +194,7 @@ mod tests {
             Offset32 = u32;
         ";
 
-        assert_snapshot!(parse_simple_definition, parse(src).unwrap());
+        assert_snapshot!(parse_simple_definition, parse_program(src).unwrap());
     }
 
     #[test]
@@ -203,7 +203,7 @@ mod tests {
             Point = [f32; 3];
         ";
 
-        assert_snapshot!(parse_array_with_constant_size, parse(src).unwrap());
+        assert_snapshot!(parse_array_with_constant_size, parse_program(src).unwrap());
     }
 
     #[test]
@@ -226,6 +226,6 @@ mod tests {
             };
         ";
 
-        assert_snapshot!(parse_definition, parse(src).unwrap());
+        assert_snapshot!(parse_definition, parse_program(src).unwrap());
     }
 }
