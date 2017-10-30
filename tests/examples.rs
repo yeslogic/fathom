@@ -55,6 +55,22 @@ fn heroes_of_might_and_magic_bmp() {
 }
 
 #[test]
+fn ieee754() {
+    const SRC: &str = include_str!("../examples/ddl/ieee754.ddl");
+
+    let mut program = Program::from_str(SRC).unwrap();
+    let base_defs = syntax::base_defs();
+
+    for def in &mut program.defs {
+        for base_def in &base_defs {
+            def.ty.substitute(&base_def.name, &base_def.ty);
+        }
+    }
+
+    check::check_program(&program).unwrap();
+}
+
+#[test]
 fn object_id() {
     const SRC: &str = include_str!("../examples/ddl/object_id.ddl");
 

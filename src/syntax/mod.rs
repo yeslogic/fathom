@@ -204,9 +204,10 @@ impl<N: Name> Program<N> {
 }
 
 pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
+    use syntax::binary::{Type, TypeConst};
+
     fn prim_array_ty<N: Name>(size: i64, conv_name: &'static str) -> binary::Type<N> {
         use source::Span;
-        use syntax::binary::Type;
         use syntax::host::Expr;
 
         let array_ty = Type::array(Span::start(), Type::bit(), Expr::int(Span::start(), size));
@@ -223,7 +224,7 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
     vec![
         // TODO: "true" = Expr::bool(true)
         // TODO: "false" = Expr::bool(false)
-
+        Definition::new("bit", Type::Const(TypeConst::Bit)),
         // Native endian primitives (Do we need these?)
         Definition::new("u8", prim_array_ty(8, "from_u8")),
         Definition::new("u16", prim_array_ty(16, "from_u16")),
