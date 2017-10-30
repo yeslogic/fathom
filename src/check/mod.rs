@@ -2,8 +2,9 @@
 
 use std::rc::Rc;
 
+use name::{Name, Named};
 use syntax::{binary, host};
-use syntax::{Name, Named, Program, Var};
+use syntax::{Program, Var};
 use syntax::context::{Binding, Context};
 
 #[cfg(test)]

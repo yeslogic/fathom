@@ -18,5 +18,6 @@ mod test;
 pub mod syntax;
 // pub mod compilers;
 pub mod check;
+pub mod name;
 pub mod parser;
 pub mod source;

@@ -1,5 +1,5 @@
+use name::Named;
 use syntax::{binary, host};
-use syntax::Named;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Binding<N> {

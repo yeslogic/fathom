@@ -2,8 +2,9 @@
 
 use std::rc::Rc;
 
+use name::{Name, Named};
 use source::Span;
-use syntax::{self, host, Field, Name, Named, Substitutions, Var};
+use syntax::{self, host, Field, Substitutions, Var};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
