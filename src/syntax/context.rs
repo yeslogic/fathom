@@ -3,9 +3,9 @@ use syntax::Named;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Binding<N> {
-    Expr(host::Type<N>),
-    Type(binary::Kind),
-    TypeDef(binary::Type<N>, binary::Kind),
+    Expr(host::BoxType<N>),
+    Type(binary::BoxKind),
+    TypeDef(binary::BoxType<N>, binary::BoxKind),
 }
 
 #[derive(Debug, Clone)]
@@ -32,7 +32,10 @@ impl<N> Context<N> {
         Named(name, binding)
     }
 
-    pub fn lookup_ty(&self, i: u32) -> Result<Named<&N, &host::Type<N>>, Named<&N, &Binding<N>>> {
+    pub fn lookup_ty(
+        &self,
+        i: u32,
+    ) -> Result<Named<&N, &host::BoxType<N>>, Named<&N, &Binding<N>>> {
         let Named(name, binding) = self.lookup(i);
 
         match *binding {
@@ -44,7 +47,7 @@ impl<N> Context<N> {
     pub fn lookup_ty_def(
         &self,
         i: u32,
-    ) -> Result<Named<&N, &binary::Type<N>>, Named<&N, &Binding<N>>> {
+    ) -> Result<Named<&N, &binary::BoxType<N>>, Named<&N, &Binding<N>>> {
         let Named(name, binding) = self.lookup(i);
 
         match *binding {
@@ -53,7 +56,10 @@ impl<N> Context<N> {
         }
     }
 
-    pub fn lookup_kind(&self, i: u32) -> Result<Named<&N, &binary::Kind>, Named<&N, &Binding<N>>> {
+    pub fn lookup_kind(
+        &self,
+        i: u32,
+    ) -> Result<Named<&N, &binary::BoxKind>, Named<&N, &Binding<N>>> {
         let Named(name, binding) = self.lookup(i);
 
         match *binding {

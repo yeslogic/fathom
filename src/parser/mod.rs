@@ -66,6 +66,7 @@ impl FromStr for host::Expr<String> {
 
     fn from_str(src: &str) -> Result<host::Expr<String>, ParseError> {
         grammar::parse_Expr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+            .map(|expr| *expr)
             .map_err(from_lalrpop_err)
     }
 }
@@ -75,6 +76,7 @@ impl FromStr for binary::Type<String> {
 
     fn from_str(src: &str) -> Result<binary::Type<String>, ParseError> {
         grammar::parse_Type(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+            .map(|ty| *ty)
             .map_err(from_lalrpop_err)
     }
 }

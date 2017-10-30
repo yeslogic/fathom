@@ -8,12 +8,14 @@ pub enum Kind {
     /// Kind of types
     Type,
     /// Kind of type functions
-    Arrow(Box<Kind>, Box<Kind>),
+    Arrow(BoxKind, BoxKind),
 }
+
+pub type BoxKind = Box<Kind>;
 
 impl Kind {
     /// Kind of type functions
-    pub fn arrow<K1: Into<Box<Kind>>, K2: Into<Box<Kind>>>(lhs: K1, rhs: K2) -> Kind {
+    pub fn arrow<K1: Into<BoxKind>, K2: Into<BoxKind>>(lhs: K1, rhs: K2) -> Kind {
         Kind::Arrow(lhs.into(), rhs.into())
     }
 }
@@ -38,20 +40,22 @@ pub enum Type<N> {
     /// Type constant
     Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(Span, Box<Type<N>>, Box<host::Expr<N>>),
+    Array(Span, BoxType<N>, host::BoxExpr<N>),
     /// A union of types: eg. `union { T, ... }`
-    Union(Span, Vec<Type<N>>),
+    Union(Span, Vec<BoxType<N>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    Struct(Span, Vec<Field<N, Type<N>>>),
+    Struct(Span, Vec<Field<N, BoxType<N>>>),
     /// A type constrained by a predicate: eg. `T where x => x == 3`
-    Cond(Span, Box<Type<N>>, Box<host::Expr<N>>),
+    Cond(Span, BoxType<N>, host::BoxExpr<N>),
     /// An interpreted type
-    Interp(Span, Box<Type<N>>, Box<host::Expr<N>>, Box<host::Type<N>>),
+    Interp(Span, BoxType<N>, host::BoxExpr<N>, host::BoxType<N>),
     /// Type abstraction: eg. `\(a : Type) -> T`
-    Abs(Span, Named<N, Kind>, Box<Type<N>>),
+    Abs(Span, Named<N, BoxKind>, BoxType<N>),
     /// Type application: eg. `T U V`
-    App(Span, Box<Type<N>>, Box<Type<N>>),
+    App(Span, BoxType<N>, BoxType<N>),
 }
+
+pub type BoxType<N> = Box<Type<N>>;
 
 impl<N: Name> Type<N> {
     /// A free type variable: eg. `T`
@@ -72,28 +76,28 @@ impl<N: Name> Type<N> {
     /// An array of the specified type, with a size: eg. `[T; n]`
     pub fn array<T1, E1>(span: Span, elem_ty: T1, size_expr: E1) -> Type<N>
     where
-        T1: Into<Box<Type<N>>>,
-        E1: Into<Box<host::Expr<N>>>,
+        T1: Into<BoxType<N>>,
+        E1: Into<host::BoxExpr<N>>,
     {
         Type::Array(span, elem_ty.into(), size_expr.into())
     }
 
     /// A union of types: eg. `union { T, ... }`
-    pub fn union(span: Span, tys: Vec<Type<N>>) -> Type<N> {
+    pub fn union(span: Span, tys: Vec<BoxType<N>>) -> Type<N> {
         Type::Union(span, tys)
     }
 
     /// Type application: eg. `T U V`
     pub fn app<T1, T2>(span: Span, ty1: T1, ty2: T2) -> Type<N>
     where
-        T1: Into<Box<Type<N>>>,
-        T2: Into<Box<Type<N>>>,
+        T1: Into<BoxType<N>>,
+        T2: Into<BoxType<N>>,
     {
         Type::App(span, ty1.into(), ty2.into())
     }
 
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_(span: Span, mut fields: Vec<Field<N, Type<N>>>) -> Type<N> {
+    pub fn struct_(span: Span, mut fields: Vec<Field<N, BoxType<N>>>) -> Type<N> {
         // We maintain a list of the seen field names. This will allow us to
         // recover the index of these variables as we abstract later fields...
         let mut seen_names = Vec::with_capacity(fields.len());
@@ -113,8 +117,8 @@ impl<N: Name> Type<N> {
     /// A type constrained by a predicate: eg. `T where x => x == 3`
     pub fn cond<T1, E1>(span: Span, ty: T1, pred: E1) -> Type<N>
     where
-        T1: Into<Box<Type<N>>>,
-        E1: Into<Box<host::Expr<N>>>,
+        T1: Into<BoxType<N>>,
+        E1: Into<host::BoxExpr<N>>,
     {
         Type::Cond(span, ty.into(), pred.into())
     }
@@ -122,30 +126,31 @@ impl<N: Name> Type<N> {
     /// An interpreted type
     pub fn interp<T1, E1, T2>(span: Span, ty: T1, conv: E1, repr_ty: T2) -> Type<N>
     where
-        T1: Into<Box<Type<N>>>,
-        E1: Into<Box<host::Expr<N>>>,
-        T2: Into<Box<host::Type<N>>>,
+        T1: Into<BoxType<N>>,
+        E1: Into<host::BoxExpr<N>>,
+        T2: Into<host::BoxType<N>>,
     {
         Type::Interp(span, ty.into(), conv.into(), repr_ty.into())
     }
 
     /// Type abstraction: eg. `\(a : Type) -> T`
-    pub fn abs<N1, T1>(span: Span, (param_name, param_kind): (N1, Kind), body_ty: T1) -> Type<N>
+    pub fn abs<N1, K1, T1>(span: Span, (param_name, param_kind): (N1, K1), body_ty: T1) -> Type<N>
     where
         N1: Into<N>,
-        T1: Into<Box<Type<N>>>,
+        K1: Into<BoxKind>,
+        T1: Into<BoxType<N>>,
     {
         let param_name = param_name.into();
         let mut body_ty = body_ty.into();
         body_ty.abstract_name(&param_name);
-        Type::Abs(span, Named(param_name, param_kind), body_ty)
+        Type::Abs(span, Named(param_name, param_kind.into()), body_ty)
     }
 
     /// Attempt to lookup the type of a field
     ///
     /// Returns `None` if the expression is not a struct or the field is not
     /// present in the struct.
-    pub fn lookup_field(&self, name: &N) -> Option<&Type<N>> {
+    pub fn lookup_field(&self, name: &N) -> Option<&BoxType<N>> {
         match *self {
             Type::Struct(_, ref fields) => syntax::lookup_field(fields, name),
             _ => None,
@@ -285,20 +290,20 @@ impl<N: Name> Type<N> {
     }
 
     /// Returns the host representation of the binary type
-    pub fn repr(&self) -> Result<host::Type<N>, ReprError<N>> {
+    pub fn repr(&self) -> Result<host::BoxType<N>, ReprError<N>> {
         match *self {
             Type::Var(_, ref v) => Ok(host::Type::Var(v.clone()).into()),
             Type::Const(TypeConst::Bit) => Ok(host::Type::Const(host::TypeConst::Bit).into()),
             Type::Array(_, ref elem_ty, ref size_expr) => {
-                let elem_repr_ty = Box::new(elem_ty.repr()?);
+                let elem_repr_ty = elem_ty.repr()?;
                 let size_expr = size_expr.clone();
 
-                Ok(host::Type::Array(elem_repr_ty, size_expr).into())
+                Ok(host::Type::array(elem_repr_ty, size_expr).into())
             }
             Type::Cond(_, ref ty, _) => ty.repr(),
-            Type::Interp(_, _, _, ref repr_ty) => Ok((**repr_ty).clone()),
+            Type::Interp(_, _, _, ref repr_ty) => Ok(repr_ty.clone()),
             Type::Union(_, ref tys) => {
-                let repr_tys = tys.iter().map(Type::repr).collect::<Result<_, _>>()?;
+                let repr_tys = tys.iter().map(|ty| ty.repr()).collect::<Result<_, _>>()?;
 
                 Ok(host::Type::Union(repr_tys).into())
             }

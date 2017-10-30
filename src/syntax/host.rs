@@ -79,21 +79,23 @@ pub enum Expr<N> {
     /// A constant value
     Const(Span, Const),
     /// Primitive expressions
-    Prim(&'static str, Box<Type<N>>),
+    Prim(&'static str, BoxType<N>),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     Var(Span, Var<N, u32>),
     /// An unary operator expression
-    Unop(Span, Unop, Box<Expr<N>>),
+    Unop(Span, Unop, BoxExpr<N>),
     /// A binary operator expression
-    Binop(Span, Binop, Box<Expr<N>>, Box<Expr<N>>),
+    Binop(Span, Binop, BoxExpr<N>, BoxExpr<N>),
     /// Field projection, eg: `x.field`
-    Proj(Span, Box<Expr<N>>, N),
+    Proj(Span, BoxExpr<N>, N),
     /// Array index, eg: `x[i]`
-    Subscript(Span, Box<Expr<N>>, Box<Expr<N>>),
+    Subscript(Span, BoxExpr<N>, BoxExpr<N>),
     /// Abstraction, eg: `\(x : T) -> x`
-    Abs(Span, Named<N, Box<Type<N>>>, Box<Expr<N>>),
+    Abs(Span, Named<N, BoxType<N>>, BoxExpr<N>),
 }
+
+pub type BoxExpr<N> = Box<Expr<N>>;
 
 impl<N: Name> Expr<N> {
     /// A bit constant: eg. `0b`, `01`
@@ -112,7 +114,7 @@ impl<N: Name> Expr<N> {
     }
 
     /// Primitive expressions
-    pub fn prim<T1: Into<Box<Type<N>>>>(name: &'static str, repr_ty: T1) -> Expr<N> {
+    pub fn prim<T1: Into<BoxType<N>>>(name: &'static str, repr_ty: T1) -> Expr<N> {
         Expr::Prim(name, repr_ty.into())
     }
 
@@ -128,15 +130,15 @@ impl<N: Name> Expr<N> {
     }
 
     /// An unary operator expression
-    pub fn unop<E1: Into<Box<Expr<N>>>>(span: Span, op: Unop, x: E1) -> Expr<N> {
+    pub fn unop<E1: Into<BoxExpr<N>>>(span: Span, op: Unop, x: E1) -> Expr<N> {
         Expr::Unop(span, op, x.into())
     }
 
     /// A binary operator expression
     pub fn binop<E1, E2>(span: Span, op: Binop, x: E1, y: E2) -> Expr<N>
     where
-        E1: Into<Box<Expr<N>>>,
-        E2: Into<Box<Expr<N>>>,
+        E1: Into<BoxExpr<N>>,
+        E2: Into<BoxExpr<N>>,
     {
         Expr::Binop(span, op, x.into(), y.into())
     }
@@ -144,7 +146,7 @@ impl<N: Name> Expr<N> {
     /// Field projection, eg: `x.field`
     pub fn proj<E1, N1>(span: Span, expr: E1, field_name: N1) -> Expr<N>
     where
-        E1: Into<Box<Expr<N>>>,
+        E1: Into<BoxExpr<N>>,
         N1: Into<N>,
     {
         Expr::Proj(span, expr.into(), field_name.into())
@@ -153,8 +155,8 @@ impl<N: Name> Expr<N> {
     /// Array subscript, eg: `x[i]`
     pub fn subscript<E1, E2>(span: Span, expr: E1, index_expr: E2) -> Expr<N>
     where
-        E1: Into<Box<Expr<N>>>,
-        E2: Into<Box<Expr<N>>>,
+        E1: Into<BoxExpr<N>>,
+        E2: Into<BoxExpr<N>>,
     {
         Expr::Subscript(span, expr.into(), index_expr.into())
     }
@@ -163,8 +165,8 @@ impl<N: Name> Expr<N> {
     pub fn abs<N1, T1, E1>(span: Span, (param_name, param_ty): (N1, T1), body_expr: E1) -> Expr<N>
     where
         N1: Into<N>,
-        T1: Into<Box<Type<N>>>,
-        E1: Into<Box<Expr<N>>>,
+        T1: Into<BoxType<N>>,
+        E1: Into<BoxExpr<N>>,
     {
         let param_name = param_name.into();
         let mut body_expr = body_expr.into();
@@ -217,14 +219,16 @@ pub enum Type<N> {
     /// A type constant
     Const(TypeConst),
     /// Arrow type: eg. `T -> U`
-    Arrow(Box<Type<N>>, Box<Type<N>>),
+    Arrow(BoxType<N>, BoxType<N>),
     /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(Box<Type<N>>, Box<Expr<N>>),
+    Array(BoxType<N>, BoxExpr<N>),
     /// A union of types: eg. `union { T, ... }`
-    Union(Vec<Type<N>>),
+    Union(Vec<BoxType<N>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    Struct(Vec<Field<N, Type<N>>>),
+    Struct(Vec<Field<N, BoxType<N>>>),
 }
+
+pub type BoxType<N> = Box<Type<N>>;
 
 impl<N: Name> Type<N> {
     /// A free type variable: eg. `T`
@@ -255,8 +259,8 @@ impl<N: Name> Type<N> {
     /// Arrow type: eg. `T -> U`
     pub fn arrow<T1, E1>(lhs_ty: T1, rhs_ty: E1) -> Type<N>
     where
-        T1: Into<Box<Type<N>>>,
-        E1: Into<Box<Type<N>>>,
+        T1: Into<BoxType<N>>,
+        E1: Into<BoxType<N>>,
     {
         Type::Arrow(lhs_ty.into(), rhs_ty.into())
     }
@@ -264,19 +268,19 @@ impl<N: Name> Type<N> {
     /// An array of the specified type, with a size: eg. `[T; n]`
     pub fn array<T1, E1>(elem_ty: T1, size_expr: E1) -> Type<N>
     where
-        T1: Into<Box<Type<N>>>,
-        E1: Into<Box<Expr<N>>>,
+        T1: Into<BoxType<N>>,
+        E1: Into<BoxExpr<N>>,
     {
         Type::Array(elem_ty.into(), size_expr.into())
     }
 
     /// A union of types: eg. `union { T, ... }`
-    pub fn union(tys: Vec<Type<N>>) -> Type<N> {
+    pub fn union(tys: Vec<BoxType<N>>) -> Type<N> {
         Type::Union(tys)
     }
 
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_(mut fields: Vec<Field<N, Type<N>>>) -> Type<N> {
+    pub fn struct_(mut fields: Vec<Field<N, BoxType<N>>>) -> Type<N> {
         // We maintain a list of the seen field names. This will allow us to
         // recover the index of these variables as we abstract later fields...
         let mut seen_names = Vec::with_capacity(fields.len());
@@ -297,7 +301,7 @@ impl<N: Name> Type<N> {
     ///
     /// Returns `None` if the expression is not a struct or the field is not
     /// present in the struct.
-    pub fn lookup_field(&self, name: &N) -> Option<&Type<N>> {
+    pub fn lookup_field(&self, name: &N) -> Option<&BoxType<N>> {
         match *self {
             Type::Struct(ref fields) => syntax::lookup_field(fields, name),
             _ => None,

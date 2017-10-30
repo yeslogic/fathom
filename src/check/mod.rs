@@ -19,28 +19,28 @@ pub enum ExpectedType<N> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeError<N> {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { expr: host::Expr<N>, name: N },
+    UnboundVariable { expr: host::BoxExpr<N>, name: N },
     /// Variable bound in the context was not at the value level
     ExprBindingExpected {
-        expr: host::Expr<N>,
+        expr: host::BoxExpr<N>,
         found: Named<N, Binding<N>>,
     },
     /// One type was expected, but another was found
     Mismatch {
-        expr: host::Expr<N>,
-        found: host::Type<N>,
+        expr: host::BoxExpr<N>,
+        found: host::BoxType<N>,
         expected: ExpectedType<N>,
     },
     /// Unexpected operand types in a equality comparison
     EqualityOperands {
-        expr: host::Expr<N>,
-        lhs_ty: host::Type<N>,
-        rhs_ty: host::Type<N>,
+        expr: host::BoxExpr<N>,
+        lhs_ty: host::BoxType<N>,
+        rhs_ty: host::BoxType<N>,
     },
     /// A field was missing when projecting on a record
     MissingField {
-        struct_expr: host::Expr<N>,
-        struct_ty: host::Type<N>,
+        struct_expr: host::BoxExpr<N>,
+        struct_ty: host::BoxType<N>,
         field_name: N,
     },
 }
@@ -49,13 +49,13 @@ pub enum TypeError<N> {
 /// in the environment
 pub fn ty_of<N: Name>(
     ctx: &Context<N>,
-    expr: &host::Expr<N>,
-) -> Result<host::Type<N>, TypeError<N>> {
+    expr: &host::BoxExpr<N>,
+) -> Result<host::BoxType<N>, TypeError<N>> {
     use syntax::host::{Binop, Expr, Type, TypeConst, Unop};
 
-    match *expr {
+    match **expr {
         // Constants are easy!
-        Expr::Const(_, c) => Ok(Type::Const(c.ty_const_of())),
+        Expr::Const(_, c) => Ok(Box::new(Type::Const(c.ty_const_of()))),
 
         // Variables
         Expr::Var(_, Var::Free(ref name)) => Err(TypeError::UnboundVariable {
@@ -71,17 +71,17 @@ pub fn ty_of<N: Name>(
         },
 
         // Primitive expressions
-        Expr::Prim(_, ref repr_ty) => Ok((**repr_ty).clone()),
+        Expr::Prim(_, ref repr_ty) => Ok(repr_ty.clone()),
 
         // Unary operators
         Expr::Unop(_, op, ref expr) => match op {
             Unop::Neg => {
-                expect_ty(ctx, &**expr, Type::int())?;
-                Ok(Type::int())
+                expect_ty(ctx, expr, Type::int())?;
+                Ok(Box::new(Type::int()))
             }
             Unop::Not => {
-                expect_ty(ctx, &**expr, Type::bool())?;
-                Ok(Type::bool())
+                expect_ty(ctx, expr, Type::bool())?;
+                Ok(Box::new(Type::bool()))
             }
         },
 
@@ -90,57 +90,57 @@ pub fn ty_of<N: Name>(
             match op {
                 // Relational operators
                 Binop::Or | Binop::And => {
-                    expect_ty(ctx, &**lhs_expr, Type::bool())?;
-                    expect_ty(ctx, &**rhs_expr, Type::bool())?;
+                    expect_ty(ctx, lhs_expr, Type::bool())?;
+                    expect_ty(ctx, rhs_expr, Type::bool())?;
 
-                    Ok(Type::bool())
+                    Ok(Box::new(Type::bool()))
                 }
 
                 // Equality operators
                 Binop::Eq | Binop::Ne => {
-                    let lhs_ty = ty_of(ctx, &**lhs_expr)?;
-                    let rhs_ty = ty_of(ctx, &**rhs_expr)?;
+                    let lhs_ty = ty_of(ctx, lhs_expr)?;
+                    let rhs_ty = ty_of(ctx, rhs_expr)?;
 
-                    match (lhs_ty, rhs_ty) {
+                    match (*lhs_ty, *rhs_ty) {
                         (Type::Const(TypeConst::Bit), Type::Const(TypeConst::Bit)) |
                         (Type::Const(TypeConst::Bool), Type::Const(TypeConst::Bool)) |
                         (Type::Const(TypeConst::Int), Type::Const(TypeConst::Int)) => {
-                            Ok(Type::bool())
+                            Ok(Box::new(Type::bool()))
                         }
                         (lhs_ty, rhs_ty) => Err(TypeError::EqualityOperands {
                             expr: expr.clone(),
-                            lhs_ty,
-                            rhs_ty,
+                            lhs_ty: Box::new(lhs_ty),
+                            rhs_ty: Box::new(rhs_ty),
                         }),
                     }
                 }
 
                 // Comparison ops
                 Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                    expect_ty(ctx, &**lhs_expr, Type::int())?;
-                    expect_ty(ctx, &**rhs_expr, Type::int())?;
+                    expect_ty(ctx, lhs_expr, Type::int())?;
+                    expect_ty(ctx, rhs_expr, Type::int())?;
 
-                    Ok(Type::bool())
+                    Ok(Box::new(Type::bool()))
                 }
 
                 // Arithmetic operators
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                    expect_ty(ctx, &**lhs_expr, Type::int())?;
-                    expect_ty(ctx, &**rhs_expr, Type::int())?;
+                    expect_ty(ctx, lhs_expr, Type::int())?;
+                    expect_ty(ctx, rhs_expr, Type::int())?;
 
-                    Ok(Type::int())
+                    Ok(Box::new(Type::int()))
                 }
             }
         }
 
         // Field projection
         Expr::Proj(_, ref struct_expr, ref field_name) => {
-            let struct_ty = ty_of(ctx, &**struct_expr)?;
+            let struct_ty = ty_of(ctx, struct_expr)?;
 
             match struct_ty.lookup_field(field_name).cloned() {
                 Some(field_ty) => Ok(field_ty),
                 None => Err(TypeError::MissingField {
-                    struct_expr: (**struct_expr).clone(),
+                    struct_expr: struct_expr.clone(),
                     struct_ty: struct_ty.clone(),
                     field_name: field_name.clone(),
                 }),
@@ -149,15 +149,15 @@ pub fn ty_of<N: Name>(
 
         // Array subscript
         Expr::Subscript(_, ref array_expr, ref index_expr) => {
-            expect_ty(ctx, &**index_expr, Type::int())?;
+            expect_ty(ctx, index_expr, Type::int())?;
 
-            match ty_of(ctx, &**array_expr)? {
+            match *ty_of(ctx, array_expr)? {
                 // Check if index is in bounds?
-                Type::Array(elem_ty, _) => Ok(*elem_ty),
+                Type::Array(elem_ty, _) => Ok(elem_ty),
                 found => Err(TypeError::Mismatch {
-                    expr: (**array_expr).clone(),
+                    expr: array_expr.clone(),
                     expected: ExpectedType::Array,
-                    found,
+                    found: Box::new(found),
                 }),
             }
         }
@@ -166,10 +166,9 @@ pub fn ty_of<N: Name>(
         Expr::Abs(_, Named(ref param_name, ref param_ty), ref body_expr) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
-            ctx.extend(param_name.clone(), Binding::Expr((**param_ty).clone()));
-            Ok(Type::arrow(
-                (**param_ty).clone(),
-                ty_of(&ctx, &**body_expr)?,
+            ctx.extend(param_name.clone(), Binding::Expr(param_ty.clone()));
+            Ok(Box::new(
+                Type::arrow(param_ty.clone(), ty_of(&ctx, body_expr)?),
             ))
         }
     }
@@ -177,11 +176,14 @@ pub fn ty_of<N: Name>(
 
 // Kinding
 
-pub fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::Type<N>) -> binary::Type<N> {
+pub fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::BoxType<N>) -> binary::BoxType<N> {
     use syntax::binary::Type;
 
-    fn compute_ty<N: Name>(ctx: &Context<N>, ty: &binary::Type<N>) -> Option<binary::Type<N>> {
-        match *ty {
+    fn compute_ty<N: Name>(
+        ctx: &Context<N>,
+        ty: &binary::BoxType<N>,
+    ) -> Option<binary::BoxType<N>> {
+        match **ty {
             Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
                 Ok(Named(_, def_ty)) => Some(def_ty.clone()),
                 Err(_) => None,
@@ -189,7 +191,7 @@ pub fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::Type<N>) -> binary::T
             Type::App(_, ref fn_ty, ref arg_ty) => match **fn_ty {
                 Type::Abs(_, _, ref body_ty) => {
                     // FIXME: Avoid clone
-                    let mut body = (**body_ty).clone();
+                    let mut body = body_ty.clone();
                     body.instantiate(arg_ty);
                     Some(body)
                 }
@@ -199,8 +201,8 @@ pub fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::Type<N>) -> binary::T
         }
     }
 
-    let ty = match *ty {
-        Type::App(_, ref fn_ty, _) => simplify_ty(ctx, &**fn_ty),
+    let ty = match **ty {
+        Type::App(_, ref fn_ty, _) => simplify_ty(ctx, fn_ty),
         // FIXME: Avoid clone
         _ => ty.clone(),
     };
@@ -214,24 +216,24 @@ pub fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::Type<N>) -> binary::T
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpectedKind {
     Arrow,
-    Actual(binary::Kind),
+    Actual(binary::BoxKind),
 }
 
 /// An error that was encountered during kind checking
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KindError<N> {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { ty: binary::Type<N>, name: N },
+    UnboundVariable { ty: binary::BoxType<N>, name: N },
     /// Variable bound in the context was not at the type level
     TypeBindingExpected {
-        ty: binary::Type<N>,
+        ty: binary::BoxType<N>,
         found: Named<N, Binding<N>>,
     },
     /// One kind was expected, but another was found
     Mismatch {
-        ty: binary::Type<N>,
+        ty: binary::BoxType<N>,
         expected: ExpectedKind,
-        found: binary::Kind,
+        found: binary::BoxKind,
     },
     /// A repr error
     Repr(binary::ReprError<N>),
@@ -255,11 +257,11 @@ impl<N> From<TypeError<N>> for KindError<N> {
 /// the environment
 pub fn kind_of<N: Name>(
     ctx: &Context<N>,
-    ty: &binary::Type<N>,
-) -> Result<binary::Kind, KindError<N>> {
+    ty: &binary::BoxType<N>,
+) -> Result<binary::BoxKind, KindError<N>> {
     use syntax::binary::{Kind, Type, TypeConst};
 
-    match *ty {
+    match **ty {
         // Variables
         Type::Var(_, Var::Free(ref name)) => Err(KindError::UnboundVariable {
             ty: ty.clone(),
@@ -274,32 +276,32 @@ pub fn kind_of<N: Name>(
         },
 
         // Bit type
-        Type::Const(TypeConst::Bit) => Ok(Kind::Type),
+        Type::Const(TypeConst::Bit) => Ok(Box::new(Kind::Type)),
 
         // Array types
         Type::Array(_, ref elem_ty, ref size_expr) => {
-            expect_ty_kind(ctx, &**elem_ty)?;
-            expect_ty(ctx, &**size_expr, host::Type::int())?;
+            expect_ty_kind(ctx, elem_ty)?;
+            expect_ty(ctx, size_expr, host::Type::int())?;
 
-            Ok(Kind::Type)
+            Ok(Box::new(Kind::Type))
         }
 
         // Conditional types
         Type::Cond(_, ref ty, ref pred_expr) => {
-            expect_ty_kind(ctx, &**ty)?;
+            expect_ty_kind(ctx, ty)?;
             let pred_ty = host::Type::arrow(ty.repr()?, host::Type::bool());
-            expect_ty(ctx, &**pred_expr, pred_ty)?;
+            expect_ty(ctx, pred_expr, pred_ty)?;
 
-            Ok(Kind::Type)
+            Ok(Box::new(Kind::Type))
         }
 
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref host_ty) => {
-            expect_ty_kind(ctx, &**ty)?;
+            expect_ty_kind(ctx, ty)?;
             let conv_ty = host::Type::arrow(ty.repr()?, host_ty.clone());
-            expect_ty(ctx, &**conv_expr, conv_ty)?;
+            expect_ty(ctx, conv_expr, conv_ty)?;
 
-            Ok(Kind::Type)
+            Ok(Box::new(Kind::Type))
         }
 
         // Type abstraction
@@ -307,7 +309,9 @@ pub fn kind_of<N: Name>(
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
             ctx.extend(name.clone(), Binding::Type(param_kind.clone()));
-            Ok(Kind::arrow(param_kind.clone(), kind_of(&ctx, &**body_ty)?))
+            Ok(Box::new(
+                Kind::arrow(param_kind.clone(), kind_of(&ctx, body_ty)?),
+            ))
         }
 
         // Union types
@@ -316,7 +320,7 @@ pub fn kind_of<N: Name>(
                 expect_ty_kind(ctx, ty)?;
             }
 
-            Ok(Kind::Type)
+            Ok(Box::new(Kind::Type))
         }
 
         // Struct type
@@ -331,19 +335,19 @@ pub fn kind_of<N: Name>(
                 ctx.extend(field.name.clone(), Binding::Expr(field_ty.repr()?));
             }
 
-            Ok(Kind::Type)
+            Ok(Box::new(Kind::Type))
         }
 
         // Type application
-        Type::App(_, ref fn_ty, ref arg_ty) => match kind_of(ctx, &**fn_ty)? {
+        Type::App(_, ref fn_ty, ref arg_ty) => match *kind_of(ctx, fn_ty)? {
             Kind::Type => Err(KindError::Mismatch {
-                ty: (**fn_ty).clone(),
-                found: Kind::Type,
+                ty: fn_ty.clone(),
+                found: Box::new(Kind::Type),
                 expected: ExpectedKind::Arrow,
             }),
             Kind::Arrow(param_kind, ret_kind) => {
-                expect_kind(ctx, &**arg_ty, *param_kind)?;
-                Ok(*ret_kind)
+                expect_kind(ctx, arg_ty, param_kind)?;
+                Ok(ret_kind)
             }
         },
     }
@@ -353,11 +357,8 @@ pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> 
     let mut ctx = Context::new();
 
     for def in &program.defs {
-        let def_kind = kind_of(&ctx, &*def.ty)?;
-        ctx.extend(
-            def.name.clone(),
-            Binding::TypeDef((*def.ty).clone(), def_kind),
-        );
+        let def_kind = kind_of(&ctx, &def.ty)?;
+        ctx.extend(def.name.clone(), Binding::TypeDef(def.ty.clone(), def_kind));
     }
 
     Ok(())
@@ -367,12 +368,12 @@ pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> 
 
 fn expect_ty<N: Name>(
     ctx: &Context<N>,
-    expr: &host::Expr<N>,
+    expr: &host::BoxExpr<N>,
     expected: host::Type<N>,
-) -> Result<host::Type<N>, TypeError<N>> {
+) -> Result<host::BoxType<N>, TypeError<N>> {
     let found = ty_of(ctx, expr)?;
 
-    if found == expected {
+    if *found == expected {
         Ok(found)
     } else {
         Err(TypeError::Mismatch {
@@ -385,9 +386,9 @@ fn expect_ty<N: Name>(
 
 fn expect_kind<N: Name>(
     ctx: &Context<N>,
-    ty: &binary::Type<N>,
-    expected: binary::Kind,
-) -> Result<binary::Kind, KindError<N>> {
+    ty: &binary::BoxType<N>,
+    expected: binary::BoxKind,
+) -> Result<binary::BoxKind, KindError<N>> {
     let found = kind_of(ctx, ty)?;
 
     if found == expected {
@@ -401,6 +402,6 @@ fn expect_kind<N: Name>(
     }
 }
 
-fn expect_ty_kind<N: Name>(ctx: &Context<N>, ty: &binary::Type<N>) -> Result<(), KindError<N>> {
-    expect_kind(ctx, ty, binary::Kind::Type).map(|_| ())
+fn expect_ty_kind<N: Name>(ctx: &Context<N>, ty: &binary::BoxType<N>) -> Result<(), KindError<N>> {
+    expect_kind(ctx, ty, Box::new(binary::Kind::Type)).map(|_| ())
 }

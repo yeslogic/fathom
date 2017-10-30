@@ -1,8 +1,8 @@
 use lalrpop_util::ParseError;
 
 use syntax::{Definition, Field, Program};
-use syntax::binary::Type;
-use syntax::host::{Binop, Expr, Unop};
+use syntax::binary::{BoxType, Type};
+use syntax::host::{Binop, BoxExpr, Expr, Unop};
 use parser::GrammarError;
 use parser::lexer::Token;
 use source::{BytePos, Span};
@@ -73,7 +73,7 @@ Definition: Definition<String> = {
     },
 };
 
-Field: Field<String, Type<String>> = {
+Field: Field<String, BoxType<String>> = {
     <name: "Ident"> ":" <ty: PrimaryType> => {
         Field::new(name, ty)
     },
@@ -82,134 +82,142 @@ Field: Field<String, Type<String>> = {
 
 // Types
 
-pub Type: Type<String> = {
+pub Type: BoxType<String> = {
     <ty: PrimaryType> => ty,
 };
 
-PrimaryType: Type<String> = {
+PrimaryType: BoxType<String> = {
     AtomicType,
     <lo1: @L> <ty: PrimaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryExpr> <hi: @R> =>? {
-        let repr_ty = Box::new(ty.repr().map_err(|err| {
+        let repr_ty = ty.repr().map_err(|err| {
             ParseError::User { error: GrammarError::from(err) }
-        })?);
-        Ok(Type::cond(Span::new(lo1, hi), ty, Expr::abs(Span::new(lo2, hi), (param, repr_ty), pred)))
+        })?;
+        Ok(Box::new(Type::cond(
+            Span::new(lo1, hi),
+            ty,
+            Expr::abs(
+                Span::new(lo2, hi),
+                (param, repr_ty),
+                pred,
+            ),
+        )))
     },
 };
 
-AtomicType: Type<String> = {
+AtomicType: BoxType<String> = {
     <lo: @L> <name: "Ident"> <hi: @R> => {
-        Type::fvar(Span::new(lo, hi), name)
+        Box::new(Type::fvar(Span::new(lo, hi), name))
     },
     "(" <ty: PrimaryType> ")" => ty,
     <lo: @L> "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
         let mut fields = fields;
         fields.extend(last);
-        Type::struct_(Span::new(lo, hi), fields)
+        Box::new(Type::struct_(Span::new(lo, hi), fields))
     },
     <lo: @L> "union" "{" <tys: (<PrimaryType> ",")+> <last: PrimaryType?> "}" <hi: @R> => {
         let mut tys = tys;
         tys.extend(last);
-        Type::union(Span::new(lo, hi), tys)
+        Box::new(Type::union(Span::new(lo, hi), tys))
     },
     <lo: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <hi: @R> => {
-        Type::array(Span::new(lo, hi), elem, size)
+        Box::new(Type::array(Span::new(lo, hi), elem, size))
     },
 };
 
 
 // Expressions
 
-pub Expr: Expr<String> = {
+pub Expr: BoxExpr<String> = {
     <expr: PrimaryExpr> => expr,
 };
 
 // Use precedence climbing to define the operators
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 
-PrimaryExpr: Expr<String> = {
+PrimaryExpr: BoxExpr<String> = {
     EqExpr,
     <lo: @L> <lhs: EqExpr> "|" <rhs: PrimaryExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Or, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Or, lhs, rhs))
     },
     <lo: @L> <lhs: EqExpr> "&" <rhs: PrimaryExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::And, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::And, lhs, rhs))
     },
 };
 
-EqExpr: Expr<String> = {
+EqExpr: BoxExpr<String> = {
     CmpExpr,
     <lo: @L> <lhs: CmpExpr> "==" <rhs: EqExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Eq, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Eq, lhs, rhs))
     },
     <lo: @L> <lhs: CmpExpr> "!=" <rhs: EqExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Ne, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Ne, lhs, rhs))
     },
 };
 
-CmpExpr: Expr<String> = {
+CmpExpr: BoxExpr<String> = {
     AddExpr,
     <lo: @L> <lhs: AddExpr> "<=" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Le, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Le, lhs, rhs))
     },
     <lo: @L> <lhs: AddExpr> "<" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Lt, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Lt, lhs, rhs))
     },
     <lo: @L> <lhs: AddExpr> ">" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Gt, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Gt, lhs, rhs))
     },
     <lo: @L> <lhs: AddExpr> ">=" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Ge, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Ge, lhs, rhs))
     },
 };
 
-AddExpr: Expr<String> = {
+AddExpr: BoxExpr<String> = {
     MulExpr,
     <lo: @L> <lhs: MulExpr> "+" <rhs: AddExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Add, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Add, lhs, rhs))
     },
     <lo: @L> <lhs: MulExpr> "-" <rhs: AddExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Sub, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Sub, lhs, rhs))
     },
 };
 
-MulExpr: Expr<String> = {
+MulExpr: BoxExpr<String> = {
     PrefixExpr,
     <lo: @L> <lhs: PrefixExpr> "*" <rhs: MulExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Mul, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Mul, lhs, rhs))
     },
     <lo: @L> <lhs: PrefixExpr> "/" <rhs: MulExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Div, lhs, rhs)
+        Box::new(Expr::binop(Span::new(lo, hi), Binop::Div, lhs, rhs))
     },
 };
 
-PrefixExpr: Expr<String> = {
+PrefixExpr: BoxExpr<String> = {
     AtomicExpr,
     <lo: @L> "-" <expr: AtomicExpr> <hi: @R> => {
-        Expr::unop(Span::new(lo, hi), Unop::Neg, expr)
+        Box::new(Expr::unop(Span::new(lo, hi), Unop::Neg, expr))
     },
     <lo: @L> "!" <value: AtomicExpr> <hi: @R> => {
-        Expr::unop(Span::new(lo, hi), Unop::Not, value)
+        Box::new(Expr::unop(Span::new(lo, hi), Unop::Not, value))
     },
 };
 
-AtomicExpr: Expr<String> = {
+AtomicExpr: BoxExpr<String> = {
     "(" <expr: PrimaryExpr> ")" => expr,
     <lo: @L> <value: "BinLiteral"> <hi: @R> => {
-        Expr::int(Span::new(lo, hi), value)
+        Box::new(Expr::int(Span::new(lo, hi), value))
     },
     <lo: @L> <value: "HexLiteral"> <hi: @R> => {
-        Expr::int(Span::new(lo, hi), value)
+        Box::new(Expr::int(Span::new(lo, hi), value))
     },
     <lo: @L> <value: "DecLiteral"> <hi: @R> => {
-        Expr::int(Span::new(lo, hi), value)
+        Box::new(Expr::int(Span::new(lo, hi), value))
     },
     <lo: @L> <name: "Ident"> <hi: @R> => {
-        Expr::fvar(Span::new(lo, hi), name)
+        Box::new(Expr::fvar(Span::new(lo, hi), name))
     },
     <lo: @L> <struct_expr: AtomicExpr> "." <field_name: "Ident"> <hi: @R> => {
-        Expr::proj(Span::new(lo, hi), struct_expr, field_name)
+        Box::new(Expr::proj(Span::new(lo, hi), struct_expr, field_name))
     },
     <lo: @L> <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" <hi: @R> => {
-        Expr::subscript(Span::new(lo, hi), array_expr, index_expr)
+        Box::new(Expr::subscript(Span::new(lo, hi), array_expr, index_expr))
     },
 };
