@@ -15,5 +15,6 @@ mod test;
 pub mod syntax;
 pub mod check;
 pub mod name;
+pub mod nominal;
 pub mod parser;
 pub mod source;
