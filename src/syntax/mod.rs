@@ -1,6 +1,8 @@
 //! The syntax of our data description language
 
 use std::fmt;
+use std::collections::BTreeMap;
+use std::cmp::Ordering;
 
 pub mod binary;
 pub mod context;
@@ -72,9 +74,9 @@ impl<F: fmt::Debug, B: fmt::Debug> fmt::Debug for Var<F, B> {
 }
 
 /// Trait alias for types that work well as names in the AST
-pub trait Name: Clone + PartialEq + fmt::Debug + fmt::Display {}
+pub trait Name: Clone + Ord + fmt::Debug + fmt::Display {}
 
-impl<T: Clone + PartialEq + fmt::Debug + fmt::Display> Name for T {}
+impl<T: Clone + Ord + fmt::Debug + fmt::Display> Name for T {}
 
 /// A variable with a name that is ignored for comparisons. This is useful for
 /// improving error reporting when converting free varables to a named form.
@@ -83,7 +85,7 @@ impl<T: Clone + PartialEq + fmt::Debug + fmt::Display> Name for T {}
 ///
 /// - `N`: The name that will be ignored for comparison purposes
 /// - `T`: The type of the variable
-#[derive(Clone, Eq, PartialOrd, Ord)]
+#[derive(Clone, Eq, Ord)]
 pub struct Named<N, T>(pub N, pub T);
 
 impl<N, T: PartialEq> PartialEq for Named<N, T> {
@@ -95,6 +97,18 @@ impl<N, T: PartialEq> PartialEq for Named<N, T> {
 impl<N, T: PartialEq> PartialEq<T> for Named<N, T> {
     fn eq(&self, other: &T) -> bool {
         &self.1 == other
+    }
+}
+
+impl<N, T: PartialOrd> PartialOrd for Named<N, T> {
+    fn partial_cmp(&self, other: &Named<N, T>) -> Option<Ordering> {
+        self.1.partial_cmp(&other.1)
+    }
+}
+
+impl<N, T: PartialOrd> PartialOrd<T> for Named<N, T> {
+    fn partial_cmp(&self, other: &T) -> Option<Ordering> {
+        self.1.partial_cmp(other)
     }
 }
 
@@ -179,6 +193,8 @@ impl<N> Definition<N> {
     }
 }
 
+pub type Substitutions<N> = BTreeMap<N, binary::Type<N>>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Program<N> {
     pub defs: Vec<Definition<N>>,
@@ -201,9 +217,15 @@ impl<N: Name> Program<N> {
 
         Program { defs }
     }
+
+    pub fn substitute(&mut self, substs: &Substitutions<N>) {
+        for def in &mut self.defs {
+            def.ty.substitute(substs);
+        }
+    }
 }
 
-pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
+pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
     use syntax::binary::{Type, TypeConst};
 
     fn prim_array_ty<N: Name>(size: i64, conv_name: &'static str) -> binary::Type<N> {
@@ -221,42 +243,42 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Vec<Definition<N>> {
         )
     }
 
-    vec![
+    btreemap! {
         // TODO: "true" = Expr::bool(true)
         // TODO: "false" = Expr::bool(false)
-        Definition::new("bit", Type::Const(TypeConst::Bit)),
+        "bit".into() => Type::Const(TypeConst::Bit),
         // Native endian primitives (Do we need these?)
-        Definition::new("u8", prim_array_ty(8, "from_u8")),
-        Definition::new("u16", prim_array_ty(16, "from_u16")),
-        Definition::new("u32", prim_array_ty(32, "from_u32")),
-        Definition::new("u64", prim_array_ty(64, "from_u64")),
-        Definition::new("i8", prim_array_ty(8, "from_i8")),
-        Definition::new("i16", prim_array_ty(16, "from_i16")),
-        Definition::new("i32", prim_array_ty(32, "from_i32")),
-        Definition::new("i64", prim_array_ty(64, "from_i64")),
-        Definition::new("f32", prim_array_ty(32, "from_f32")),
-        Definition::new("f64", prim_array_ty(64, "from_f64")),
+        "u8".into() => prim_array_ty(8, "from_u8"),
+        "u16".into() => prim_array_ty(16, "from_u16"),
+        "u32".into() => prim_array_ty(32, "from_u32"),
+        "u64".into() => prim_array_ty(64, "from_u64"),
+        "i8".into() => prim_array_ty(8, "from_i8"),
+        "i16".into() => prim_array_ty(16, "from_i16"),
+        "i32".into() => prim_array_ty(32, "from_i32"),
+        "i64".into() => prim_array_ty(64, "from_i64"),
+        "f32".into() => prim_array_ty(32, "from_f32"),
+        "f64".into() => prim_array_ty(64, "from_f64"),
         // Little endian primitives
-        Definition::new("u8le", prim_array_ty(8, "from_u8le")),
-        Definition::new("u16le", prim_array_ty(16, "from_u16le")),
-        Definition::new("u32le", prim_array_ty(32, "from_u32le")),
-        Definition::new("u64le", prim_array_ty(64, "from_u64le")),
-        Definition::new("i8le", prim_array_ty(8, "from_i8le")),
-        Definition::new("i16le", prim_array_ty(16, "from_i16le")),
-        Definition::new("i32le", prim_array_ty(32, "from_i32le")),
-        Definition::new("i64le", prim_array_ty(64, "from_i64le")),
-        Definition::new("f32le", prim_array_ty(32, "from_f32le")),
-        Definition::new("f64le", prim_array_ty(64, "from_f64le")),
+        "u8le".into() => prim_array_ty(8, "from_u8le"),
+        "u16le".into() => prim_array_ty(16, "from_u16le"),
+        "u32le".into() => prim_array_ty(32, "from_u32le"),
+        "u64le".into() => prim_array_ty(64, "from_u64le"),
+        "i8le".into() => prim_array_ty(8, "from_i8le"),
+        "i16le".into() => prim_array_ty(16, "from_i16le"),
+        "i32le".into() => prim_array_ty(32, "from_i32le"),
+        "i64le".into() => prim_array_ty(64, "from_i64le"),
+        "f32le".into() => prim_array_ty(32, "from_f32le"),
+        "f64le".into() => prim_array_ty(64, "from_f64le"),
         // Big endian primitives
-        Definition::new("u8be", prim_array_ty(8, "from_u8be")),
-        Definition::new("u16be", prim_array_ty(16, "from_u16be")),
-        Definition::new("u32be", prim_array_ty(32, "from_u32be")),
-        Definition::new("u64be", prim_array_ty(64, "from_u64be")),
-        Definition::new("i8be", prim_array_ty(8, "from_i8be")),
-        Definition::new("i16be", prim_array_ty(16, "from_i16be")),
-        Definition::new("i32be", prim_array_ty(32, "from_i32be")),
-        Definition::new("i64be", prim_array_ty(64, "from_i64be")),
-        Definition::new("f32be", prim_array_ty(32, "from_f32be")),
-        Definition::new("f64be", prim_array_ty(64, "from_f64be")),
-    ]
+        "u8be".into() => prim_array_ty(8, "from_u8be"),
+        "u16be".into() => prim_array_ty(16, "from_u16be"),
+        "u32be".into() => prim_array_ty(32, "from_u32be"),
+        "u64be".into() => prim_array_ty(64, "from_u64be"),
+        "i8be".into() => prim_array_ty(8, "from_i8be"),
+        "i16be".into() => prim_array_ty(16, "from_i16be"),
+        "i32be".into() => prim_array_ty(32, "from_i32be"),
+        "i64be".into() => prim_array_ty(64, "from_i64be"),
+        "f32be".into() => prim_array_ty(32, "from_f32be"),
+        "f64be".into() => prim_array_ty(64, "from_f64be"),
+    }
 }

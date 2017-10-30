@@ -10,14 +10,9 @@ use ddl::syntax::Program;
 fn cmap() {
     const SRC: &str = include_str!("../examples/ddl/cmap.ddl");
 
-    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
-
-    for def in &mut program.defs {
-        for base_def in &base_defs {
-            def.ty.substitute(&base_def.name, &base_def.ty);
-        }
-    }
+    let mut program = Program::from_str(SRC).unwrap();
+    program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
 }
@@ -26,14 +21,9 @@ fn cmap() {
 fn edid() {
     const SRC: &str = include_str!("../examples/ddl/edid.ddl");
 
-    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
-
-    for def in &mut program.defs {
-        for base_def in &base_defs {
-            def.ty.substitute(&base_def.name, &base_def.ty);
-        }
-    }
+    let mut program = Program::from_str(SRC).unwrap();
+    program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
 }
@@ -42,14 +32,9 @@ fn edid() {
 fn heroes_of_might_and_magic_bmp() {
     const SRC: &str = include_str!("../examples/ddl/heroes_of_might_and_magic_bmp.ddl");
 
-    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
-
-    for def in &mut program.defs {
-        for base_def in &base_defs {
-            def.ty.substitute(&base_def.name, &base_def.ty);
-        }
-    }
+    let mut program = Program::from_str(SRC).unwrap();
+    program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
 }
@@ -58,14 +43,9 @@ fn heroes_of_might_and_magic_bmp() {
 fn ieee754() {
     const SRC: &str = include_str!("../examples/ddl/ieee754.ddl");
 
-    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
-
-    for def in &mut program.defs {
-        for base_def in &base_defs {
-            def.ty.substitute(&base_def.name, &base_def.ty);
-        }
-    }
+    let mut program = Program::from_str(SRC).unwrap();
+    program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
 }
@@ -74,14 +54,9 @@ fn ieee754() {
 fn object_id() {
     const SRC: &str = include_str!("../examples/ddl/object_id.ddl");
 
-    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
-
-    for def in &mut program.defs {
-        for base_def in &base_defs {
-            def.ty.substitute(&base_def.name, &base_def.ty);
-        }
-    }
+    let mut program = Program::from_str(SRC).unwrap();
+    program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
 }
@@ -90,14 +65,9 @@ fn object_id() {
 fn stl() {
     const SRC: &str = include_str!("../examples/ddl/stl.ddl");
 
-    let mut program = Program::from_str(SRC).unwrap();
     let base_defs = syntax::base_defs();
-
-    for def in &mut program.defs {
-        for base_def in &base_defs {
-            def.ty.substitute(&base_def.name, &base_def.ty);
-        }
-    }
+    let mut program = Program::from_str(SRC).unwrap();
+    program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
 }

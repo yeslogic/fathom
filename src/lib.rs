@@ -2,6 +2,8 @@
 extern crate difference;
 // extern crate inflector;
 extern crate lalrpop_util;
+#[macro_use]
+extern crate maplit;
 #[cfg(test)]
 #[macro_use]
 extern crate pretty_assertions;

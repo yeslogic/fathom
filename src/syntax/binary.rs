@@ -1,7 +1,7 @@
 //! The syntax of our data description language
 
 use source::Span;
-use syntax::{self, host, Field, Name, Named, Var};
+use syntax::{self, host, Field, Name, Named, Substitutions, Var};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -152,50 +152,55 @@ impl<N: Name> Type<N> {
         }
     }
 
-    /// Replace occurrences of the free variable `name` with the given type
-    pub fn substitute(&mut self, name: &N, src_ty: &Type<N>) {
-        match *self {
-            Type::Var(_, Var::Free(ref n)) if n == name => {}
-            Type::Var(_, _) | Type::Const(_) => return,
+    /// Replace occurrences of the free variables that exist as keys on
+    /// `substs` with their corresponding types.
+    pub fn substitute(&mut self, substs: &Substitutions<N>) {
+        let subst_ty = match *self {
+            Type::Var(_, Var::Free(ref name)) => match substs.get(name) {
+                None => return,
+                Some(ty) => ty.clone(),
+            },
+            Type::Var(_, Var::Bound(_)) | Type::Const(_) => return,
             Type::Array(_, ref mut elem_ty, ref mut _size_expr) => {
-                elem_ty.substitute(name, src_ty);
-                // size_expr.substitute(name, src_ty);
+                elem_ty.substitute(substs);
+                // size_expr.substitute(substs);
                 return;
             }
             Type::Union(_, ref mut tys) => {
                 for ty in tys {
-                    ty.substitute(name, src_ty);
+                    ty.substitute(substs);
                 }
                 return;
             }
             Type::Struct(_, ref mut fields) => {
                 for field in fields.iter_mut() {
-                    field.value.substitute(name, src_ty);
+                    field.value.substitute(substs);
                 }
                 return;
             }
             Type::Cond(_, ref mut ty, ref mut _pred) => {
-                ty.substitute(name, src_ty);
-                // pred.substitute(name, src_ty);
+                ty.substitute(substs);
+                // pred.substitute(substs);
                 return;
             }
             Type::Interp(_, ref mut ty, ref mut _conv, ref mut _repr_ty) => {
-                ty.substitute(name, src_ty);
-                // conv.substitute(name, src_ty);
-                // repr_ty.substitute(name, src_ty);
+                ty.substitute(substs);
+                // conv.substitute(substs);
+                // repr_ty.substitute(substs);
                 return;
             }
             Type::Abs(_, _, ref mut body_ty) => {
-                body_ty.substitute(name, src_ty);
+                body_ty.substitute(substs);
                 return;
             }
             Type::App(_, ref mut fn_ty, ref mut arg_ty) => {
-                fn_ty.substitute(name, src_ty);
-                arg_ty.substitute(name, src_ty);
+                fn_ty.substitute(substs);
+                arg_ty.substitute(substs);
                 return;
             }
-        }
-        *self = src_ty.clone();
+        };
+
+        *self = subst_ty.clone();
     }
 
     pub fn abstract_name_at(&mut self, name: &N, level: u32) {
