@@ -1,15 +1,15 @@
 Struct(
     Span {
-        lo: BytePos(13),
-        hi: BytePos(323)
+        lo: BytePos(9),
+        hi: BytePos(279)
     },
     [
         Field {
             name: "len",
             value: Var(
                 Span {
-                    lo: BytePos(43),
-                    hi: BytePos(46)
+                    lo: BytePos(35),
+                    hi: BytePos(38)
                 },
                 Free("u32")
             )
@@ -18,20 +18,20 @@ Struct(
             name: "data1",
             value: Array(
                 Span {
-                    lo: BytePos(71),
-                    hi: BytePos(81)
+                    lo: BytePos(59),
+                    hi: BytePos(69)
                 },
                 Var(
                     Span {
-                        lo: BytePos(72),
-                        hi: BytePos(75)
+                        lo: BytePos(60),
+                        hi: BytePos(63)
                     },
                     Free("f32")
                 ),
                 Var(
                     Span {
-                        lo: BytePos(77),
-                        hi: BytePos(80)
+                        lo: BytePos(65),
+                        hi: BytePos(68)
                     },
                     Bound(Named("len", 0))
                 )
@@ -41,28 +41,28 @@ Struct(
             name: "data2",
             value: Struct(
                 Span {
-                    lo: BytePos(106),
-                    hi: BytePos(308)
+                    lo: BytePos(90),
+                    hi: BytePos(268)
                 },
                 [
                     Field {
                         name: "data1",
                         value: Array(
                             Span {
-                                lo: BytePos(142),
-                                hi: BytePos(152)
+                                lo: BytePos(122),
+                                hi: BytePos(132)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(143),
-                                    hi: BytePos(146)
+                                    lo: BytePos(123),
+                                    hi: BytePos(126)
                                 },
                                 Free("f32")
                             ),
                             Var(
                                 Span {
-                                    lo: BytePos(148),
-                                    hi: BytePos(151)
+                                    lo: BytePos(128),
+                                    hi: BytePos(131)
                                 },
                                 Bound(Named("len", 1))
                             )
@@ -72,8 +72,8 @@ Struct(
                         name: "len",
                         value: Var(
                             Span {
-                                lo: BytePos(179),
-                                hi: BytePos(182)
+                                lo: BytePos(155),
+                                hi: BytePos(158)
                             },
                             Free("u32")
                         )
@@ -82,8 +82,8 @@ Struct(
                         name: "padding1",
                         value: Var(
                             Span {
-                                lo: BytePos(214),
-                                hi: BytePos(216)
+                                lo: BytePos(186),
+                                hi: BytePos(188)
                             },
                             Free("u8")
                         )
@@ -92,8 +92,8 @@ Struct(
                         name: "padding2",
                         value: Var(
                             Span {
-                                lo: BytePos(248),
-                                hi: BytePos(250)
+                                lo: BytePos(216),
+                                hi: BytePos(218)
                             },
                             Free("u8")
                         )
@@ -102,20 +102,20 @@ Struct(
                         name: "data2",
                         value: Array(
                             Span {
-                                lo: BytePos(279),
-                                hi: BytePos(289)
+                                lo: BytePos(243),
+                                hi: BytePos(253)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(280),
-                                    hi: BytePos(283)
+                                    lo: BytePos(244),
+                                    hi: BytePos(247)
                                 },
                                 Free("f32")
                             ),
                             Var(
                                 Span {
-                                    lo: BytePos(285),
-                                    hi: BytePos(288)
+                                    lo: BytePos(249),
+                                    hi: BytePos(252)
                                 },
                                 Bound(Named("len", 2))
                             )

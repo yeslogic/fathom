@@ -7,7 +7,6 @@ use std::rc::Rc;
 use name::{Name, Named};
 
 pub mod binary;
-pub mod context;
 pub mod host;
 
 /// A variable that can either be free or bound
@@ -173,11 +172,11 @@ impl<N: Name> Program<N> {
 }
 
 pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
-    use syntax::binary::{Type, TypeConst};
+    use structural::ast::binary::{Type, TypeConst};
 
     fn prim_array_ty<N: Name>(size: i64, conv_name: &'static str) -> binary::Type<N> {
         use source::Span;
-        use syntax::host::Expr;
+        use structural::ast::host::Expr;
 
         let array_ty = Type::array(Span::start(), Type::bit(), Expr::int(Span::start(), size));
         let conv_ty = host::Type::arrow(array_ty.repr().unwrap(), host::Type::int());

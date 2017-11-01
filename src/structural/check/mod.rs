@@ -3,9 +3,8 @@
 use std::rc::Rc;
 
 use name::{Name, Named};
-use syntax::{binary, host};
-use syntax::{Program, Var};
-use syntax::context::{Binding, Context};
+use structural::ast::{binary, host, Program, Var};
+use structural::context::{Binding, Context};
 
 #[cfg(test)]
 mod tests;
@@ -54,7 +53,7 @@ pub fn ty_of<N: Name>(
     ctx: &Context<N>,
     expr: &host::RcExpr<N>,
 ) -> Result<host::RcType<N>, TypeError<N>> {
-    use syntax::host::{Binop, Expr, Type, TypeConst, Unop};
+    use structural::ast::host::{Binop, Expr, Type, TypeConst, Unop};
 
     match **expr {
         // Constants are easy!
@@ -180,7 +179,7 @@ pub fn ty_of<N: Name>(
 // Kinding
 
 pub fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> binary::RcType<N> {
-    use syntax::binary::Type;
+    use structural::ast::binary::Type;
 
     fn compute_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> Option<binary::RcType<N>> {
         match **ty {
@@ -259,7 +258,7 @@ pub fn kind_of<N: Name>(
     ctx: &Context<N>,
     ty: &binary::RcType<N>,
 ) -> Result<binary::RcKind, KindError<N>> {
-    use syntax::binary::{Kind, Type, TypeConst};
+    use structural::ast::binary::{Kind, Type, TypeConst};
 
     match **ty {
         // Variables
@@ -403,7 +402,7 @@ fn expect_kind<N: Name>(
 }
 
 fn expect_ty_kind<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> Result<(), KindError<N>> {
-    use syntax::binary::Kind;
+    use structural::ast::binary::Kind;
 
     expect_kind(ctx, ty, Rc::new(Kind::Type)).map(|_| ())
 }

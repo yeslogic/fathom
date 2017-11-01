@@ -1,0 +1,7 @@
+Var(
+    Span {
+        lo: BytePos(9),
+        hi: BytePos(14)
+    },
+    Free("Point")
+)

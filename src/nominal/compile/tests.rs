@@ -1,16 +1,16 @@
 use super::*;
-use syntax::host::Expr;
 use source::{BytePos as B, Span};
+use structural::ast::host::Expr;
 
 #[test]
-fn flattens_array() {
+fn compiles_array() {
     let src = "
         A = [struct {}; 256];
         B = A;
     ";
 
     let program = src.parse().unwrap();
-    let found = flatten_program(&program);
+    let found = compile_program(&program);
 
     let mut expected = Program::new();
     expected.define_alias(
@@ -27,13 +27,13 @@ fn flattens_array() {
 }
 
 #[test]
-fn flattens_nested_array() {
+fn compiles_nested_array() {
     let src = "
         A = [[[struct {}; 256]; 256]; 256];
     ";
 
     let program = src.parse().unwrap();
-    let found = flatten_program(&program);
+    let found = compile_program(&program);
 
     let mut expected = Program::new();
     expected.define_alias(
@@ -55,7 +55,7 @@ fn flattens_nested_array() {
 }
 
 #[test]
-fn flattens_nested_struct() {
+fn compiles_nested_struct() {
     let src = "
         A = struct {};
         B = struct {
@@ -65,7 +65,7 @@ fn flattens_nested_struct() {
     ";
 
     let program = src.parse().unwrap();
-    let found = flatten_program(&program);
+    let found = compile_program(&program);
 
     let mut expected = Program::new();
     expected.define_struct("A", vec![]);
@@ -89,7 +89,7 @@ fn flattens_nested_struct() {
 }
 
 #[test]
-fn flattens_union() {
+fn compiles_union() {
     let src = "
         A = struct {};
         B = struct {};
@@ -97,7 +97,7 @@ fn flattens_union() {
     ";
 
     let program = src.parse().unwrap();
-    let found = flatten_program(&program);
+    let found = compile_program(&program);
 
     let mut expected = Program::new();
     expected.define_struct("A", vec![]);
