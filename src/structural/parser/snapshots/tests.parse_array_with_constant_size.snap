@@ -4,20 +4,20 @@ Program {
             name: "Point",
             ty: Array(
                 Span {
-                    lo: BytePos(21),
-                    hi: BytePos(29)
+                    lo: BytePos(17),
+                    hi: BytePos(25)
                 },
                 Var(
                     Span {
-                        lo: BytePos(22),
-                        hi: BytePos(25)
+                        lo: BytePos(18),
+                        hi: BytePos(21)
                     },
                     Free("f32")
                 ),
                 Const(
                     Span {
-                        lo: BytePos(27),
-                        hi: BytePos(28)
+                        lo: BytePos(23),
+                        hi: BytePos(24)
                     },
                     Int(3)
                 )

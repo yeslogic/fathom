@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use name::{Name, Named};
 use source::Span;
-use syntax::{self, host, Field, Substitutions, Var};
+use structural::ast::{self, host, Field, Substitutions, Var};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -155,7 +155,7 @@ impl<N: Name> Type<N> {
     /// present in the struct.
     pub fn lookup_field(&self, name: &N) -> Option<&RcType<N>> {
         match *self {
-            Type::Struct(_, ref fields) => syntax::lookup_field(fields, name),
+            Type::Struct(_, ref fields) => ast::lookup_field(fields, name),
             _ => None,
         }
     }

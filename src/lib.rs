@@ -12,8 +12,8 @@ extern crate unicode_xid;
 #[macro_use]
 mod test;
 
-pub mod syntax;
-pub mod check;
 pub mod name;
-pub mod parser;
 pub mod source;
+
+pub mod nominal;
+pub mod structural;

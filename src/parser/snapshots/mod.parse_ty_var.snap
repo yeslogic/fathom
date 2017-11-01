@@ -1,7 +1,0 @@
-Var(
-    Span {
-        lo: BytePos(13),
-        hi: BytePos(18)
-    },
-    Free("Point")
-)

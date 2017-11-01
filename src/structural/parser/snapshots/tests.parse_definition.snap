@@ -4,16 +4,16 @@ Program {
             name: "Point",
             ty: Struct(
                 Span {
-                    lo: BytePos(21),
-                    hi: BytePos(97)
+                    lo: BytePos(17),
+                    hi: BytePos(81)
                 },
                 [
                     Field {
                         name: "x",
                         value: Var(
                             Span {
-                                lo: BytePos(50),
-                                hi: BytePos(55)
+                                lo: BytePos(42),
+                                hi: BytePos(47)
                             },
                             Free("u32be")
                         )
@@ -22,8 +22,8 @@ Program {
                         name: "y",
                         value: Var(
                             Span {
-                                lo: BytePos(77),
-                                hi: BytePos(82)
+                                lo: BytePos(65),
+                                hi: BytePos(70)
                             },
                             Free("u32be")
                         )
@@ -35,16 +35,16 @@ Program {
             name: "Array",
             ty: Struct(
                 Span {
-                    lo: BytePos(120),
-                    hi: BytePos(208)
+                    lo: BytePos(100),
+                    hi: BytePos(176)
                 },
                 [
                     Field {
                         name: "len",
                         value: Var(
                             Span {
-                                lo: BytePos(151),
-                                hi: BytePos(156)
+                                lo: BytePos(127),
+                                hi: BytePos(132)
                             },
                             Free("u16le")
                         )
@@ -53,20 +53,20 @@ Program {
                         name: "data",
                         value: Array(
                             Span {
-                                lo: BytePos(181),
-                                hi: BytePos(193)
+                                lo: BytePos(153),
+                                hi: BytePos(165)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(182),
-                                    hi: BytePos(187)
+                                    lo: BytePos(154),
+                                    hi: BytePos(159)
                                 },
                                 Bound(Named("Point", 1))
                             ),
                             Var(
                                 Span {
-                                    lo: BytePos(189),
-                                    hi: BytePos(192)
+                                    lo: BytePos(161),
+                                    hi: BytePos(164)
                                 },
                                 Bound(Named("len", 0))
                             )
@@ -79,22 +79,22 @@ Program {
             name: "Formats",
             ty: Union(
                 Span {
-                    lo: BytePos(233),
-                    hi: BytePos(416)
+                    lo: BytePos(197),
+                    hi: BytePos(364)
                 },
                 [
                     Struct(
                         Span {
-                            lo: BytePos(257),
-                            hi: BytePos(291)
+                            lo: BytePos(217),
+                            hi: BytePos(251)
                         },
                         [
                             Field {
                                 name: "format",
                                 value: Var(
                                     Span {
-                                        lo: BytePos(275),
-                                        hi: BytePos(278)
+                                        lo: BytePos(235),
+                                        hi: BytePos(238)
                                     },
                                     Free("u16")
                                 )
@@ -103,8 +103,8 @@ Program {
                                 name: "data",
                                 value: Var(
                                     Span {
-                                        lo: BytePos(286),
-                                        hi: BytePos(289)
+                                        lo: BytePos(246),
+                                        hi: BytePos(249)
                                     },
                                     Free("u16")
                                 )
@@ -113,16 +113,16 @@ Program {
                     ),
                     Struct(
                         Span {
-                            lo: BytePos(309),
-                            hi: BytePos(346)
+                            lo: BytePos(265),
+                            hi: BytePos(302)
                         },
                         [
                             Field {
                                 name: "format",
                                 value: Var(
                                     Span {
-                                        lo: BytePos(327),
-                                        hi: BytePos(330)
+                                        lo: BytePos(283),
+                                        hi: BytePos(286)
                                     },
                                     Free("u16")
                                 )
@@ -131,8 +131,8 @@ Program {
                                 name: "point",
                                 value: Var(
                                     Span {
-                                        lo: BytePos(339),
-                                        hi: BytePos(344)
+                                        lo: BytePos(295),
+                                        hi: BytePos(300)
                                     },
                                     Bound(Named("Point", 2))
                                 )
@@ -141,16 +141,16 @@ Program {
                     ),
                     Struct(
                         Span {
-                            lo: BytePos(364),
-                            hi: BytePos(401)
+                            lo: BytePos(316),
+                            hi: BytePos(353)
                         },
                         [
                             Field {
                                 name: "format",
                                 value: Var(
                                     Span {
-                                        lo: BytePos(382),
-                                        hi: BytePos(385)
+                                        lo: BytePos(334),
+                                        hi: BytePos(337)
                                     },
                                     Free("u16")
                                 )
@@ -159,8 +159,8 @@ Program {
                                 name: "array",
                                 value: Var(
                                     Span {
-                                        lo: BytePos(394),
-                                        hi: BytePos(399)
+                                        lo: BytePos(346),
+                                        hi: BytePos(351)
                                     },
                                     Bound(Named("Array", 1))
                                 )
