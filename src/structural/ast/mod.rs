@@ -1,5 +1,6 @@
 //! The syntax of our data description language
 
+use pretty::{BoxDoc, Doc};
 use std::fmt;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -54,6 +55,13 @@ impl<N: Name, B> Var<N, B> {
         *self = match *self {
             Var::Free(ref n) if n == name => Var::Bound(Named(n.clone(), level)),
             Var::Free(_) | Var::Bound(_) => return,
+        }
+    }
+
+    /// Convert the variable into a pretty-printable document
+    pub fn to_doc(&self) -> Doc<BoxDoc> {
+        match *self {
+            Var::Free(ref name) | Var::Bound(Named(ref name, _)) => Doc::text(name.to_string()),
         }
     }
 }
