@@ -14,6 +14,7 @@ keywords = ["binary", "byte", "parser", "parsing", "endian", "big-endian", "litt
 [dependencies]
 lalrpop-util = "0.13.1"
 maplit = "0.1.6"
+pretty = "0.3.2"
 regex = "0.2.0"
 unicode-xid = "0.1.0"
 

@@ -1,5 +1,7 @@
 //! The syntax of our data description language
 
+use pretty::{BoxDoc, Doc};
+use std::borrow::Cow;
 use std::fmt;
 use std::rc::Rc;
 
@@ -25,6 +27,16 @@ impl Const {
             Const::Int(_) => TypeConst::Int,
         }
     }
+
+    pub fn to_cow_str(self) -> Cow<'static, str> {
+        match self {
+            Const::Bit(false) => "b0".into(),
+            Const::Bit(true) => "b1".into(),
+            Const::Bool(false) => "false".into(),
+            Const::Bool(true) => "true".into(),
+            Const::Int(value) => value.to_string().into(),
+        }
+    }
 }
 
 impl fmt::Debug for Const {
@@ -44,6 +56,15 @@ pub enum Unop {
     Not,
     /// Negation: eg. `-x`
     Neg,
+}
+
+impl Unop {
+    pub fn to_str(self) -> &'static str {
+        match self {
+            Unop::Not => "!",
+            Unop::Neg => "-",
+        }
+    }
 }
 
 /// A binary operator
@@ -73,6 +94,25 @@ pub enum Binop {
     Mul,
     /// Division: eg. `x / y`
     Div,
+}
+
+impl Binop {
+    pub fn to_str(self) -> &'static str {
+        match self {
+            Binop::Or => "|",
+            Binop::And => "&",
+            Binop::Eq => "==",
+            Binop::Ne => "!=",
+            Binop::Le => "<=",
+            Binop::Lt => "<",
+            Binop::Gt => ">",
+            Binop::Ge => ">=",
+            Binop::Add => "+",
+            Binop::Sub => "-",
+            Binop::Mul => "*",
+            Binop::Div => "/",
+        }
+    }
 }
 
 /// A host expression
@@ -201,9 +241,61 @@ impl<N: Name> Expr<N> {
     pub fn abstract_name(&mut self, name: &N) {
         self.abstract_name_at(name, 0);
     }
+
+    /// Convert the expression into a pretty-printable document
+    pub fn to_doc(&self) -> Doc<BoxDoc> {
+        match *self {
+            Expr::Var(_, ref var) => var.to_doc(),
+            Expr::Const(_, c) => Doc::text(c.to_cow_str()),
+            Expr::Prim(name, ref repr_ty) => Doc::nil()
+                .append(Doc::text("(#"))
+                .append(Doc::text(name))
+                .append(Doc::space())
+                .append(Doc::text(":"))
+                .append(Doc::space())
+                .append(repr_ty.to_doc())
+                .append(Doc::text(")")),
+            // FIXME: Omit parens when not needed
+            Expr::Unop(_, op, ref expr) => Doc::nil()
+                .append(Doc::text(op.to_str()))
+                .append(Doc::text("("))
+                .append(expr.to_doc())
+                .append(Doc::text(")")),
+            // FIXME: Omit parens when not needed
+            Expr::Binop(_, op, ref lhs_expr, ref rhs_expr) => Doc::nil()
+                .append(Doc::text("("))
+                .append(lhs_expr.to_doc())
+                .append(Doc::space())
+                .append(Doc::text(op.to_str()))
+                .append(Doc::space())
+                .append(rhs_expr.to_doc())
+                .append(Doc::text(")")),
+            Expr::Proj(_, ref expr, ref field_name) => Doc::nil()
+                .append(expr.to_doc())
+                .append(Doc::text("."))
+                .append(Doc::text(field_name.to_string())),
+            Expr::Subscript(_, ref array_expr, ref index_expr) => Doc::nil()
+                .append(array_expr.to_doc())
+                .append(Doc::text("["))
+                .append(index_expr.to_doc())
+                .append(Doc::text("]")),
+            // FIXME: Param list sugar: \(x y : Foo) (z : Bar) -> ...
+            Expr::Abs(_, Named(ref param_name, ref param_ty), ref body_expr) => Doc::nil()
+                .append(Doc::text("\\"))
+                .append(Doc::text(param_name.to_string()))
+                .append(Doc::space())
+                .append(Doc::text(":"))
+                .append(Doc::space())
+                .append(param_ty.to_doc())
+                .append(Doc::space())
+                .append(Doc::text("->"))
+                .append(Doc::space())
+                .append(body_expr.to_doc()),
+        }
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TypeConst {
     /// Bit
     Bit,
@@ -211,6 +303,16 @@ pub enum TypeConst {
     Bool,
     /// Integer
     Int,
+}
+
+impl TypeConst {
+    pub fn to_str(self) -> &'static str {
+        match self {
+            TypeConst::Bit => "Bit",
+            TypeConst::Bool => "Bool",
+            TypeConst::Int => "Int",
+        }
+    }
 }
 
 /// A host type
@@ -368,5 +470,53 @@ impl<N: Name> Type<N> {
     /// appropriate bound variables with copies of `ty`.
     pub fn instantiate(&mut self, ty: &Type<N>) {
         self.instantiate_at(0, ty);
+    }
+
+    /// Convert the type into a pretty-printable document
+    pub fn to_doc(&self) -> Doc<BoxDoc> {
+        match *self {
+            Type::Var(ref var) => var.to_doc(),
+            Type::Const(c) => Doc::text(c.to_str()),
+            // FIXME: Omit parens when not needed
+            Type::Arrow(ref lhs_ty, ref rhs_ty) => Doc::nil()
+                .append(Doc::text("("))
+                .append(lhs_ty.to_doc())
+                .append(Doc::space())
+                .append(Doc::text("->"))
+                .append(Doc::space())
+                .append(rhs_ty.to_doc())
+                .append(Doc::text(")")),
+            Type::Array(ref elem_ty, ref size_expr) => Doc::nil()
+                .append(Doc::text("["))
+                .append(elem_ty.to_doc())
+                .append(Doc::text(";"))
+                .append(Doc::space())
+                .append(size_expr.to_doc())
+                .append(Doc::text("]")),
+            Type::Union(ref tys) => Doc::nil()
+                .append(Doc::text("union {"))
+                .append(Doc::space())
+                .append(Doc::intersperse(
+                    tys.iter().map(|ty| ty.to_doc()),
+                    Doc::text(",").append(Doc::space()),
+                ))
+                .append(Doc::space())
+                .append(Doc::text("}")),
+            Type::Struct(ref fields) => Doc::nil()
+                .append(Doc::text("struct {"))
+                .append(Doc::space())
+                .append(Doc::intersperse(
+                    fields.iter().map(|field| {
+                        Doc::text(field.name.to_string())
+                            .append(Doc::space())
+                            .append(Doc::text(":"))
+                            .append(Doc::space())
+                            .append(field.value.to_doc())
+                    }),
+                    Doc::text(",").append(Doc::space()),
+                ))
+                .append(Doc::space())
+                .append(Doc::text("}")),
+        }
     }
 }
