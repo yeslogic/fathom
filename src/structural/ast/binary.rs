@@ -1,10 +1,12 @@
 //! The syntax of our data description language
 
+use pretty::{BoxDoc, Doc};
+use std::fmt;
 use std::rc::Rc;
 
 use name::{Name, Named};
 use source::Span;
-use structural::ast::{self, host, Field, Substitutions, Var};
+use structural::ast::{self, host, Field, Substitutions, Var, DEFAULT_PRETTY_WIDTH};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -16,10 +18,51 @@ pub enum Kind {
 
 pub type RcKind = Rc<Kind>;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum KindPrec {
+    Inner,
+    Outer,
+}
+
 impl Kind {
     /// Kind of type functions
     pub fn arrow<K1: Into<RcKind>, K2: Into<RcKind>>(lhs: K1, rhs: K2) -> Kind {
         Kind::Arrow(lhs.into(), rhs.into())
+    }
+
+    /// Convert the kind into a pretty-printable document
+    pub fn to_doc_prec(&self, prec: KindPrec) -> Doc<BoxDoc> {
+        match *self {
+            Kind::Type => Doc::text("Type"),
+            Kind::Arrow(ref lhs_ty, ref rhs_ty) => {
+                let inner = Doc::nil()
+                    .append(lhs_ty.to_doc_prec(KindPrec::Inner))
+                    .append(Doc::space())
+                    .append(Doc::text("->"))
+                    .group()
+                    .append(Doc::space())
+                    .append(rhs_ty.to_doc_prec(KindPrec::Outer));
+
+                match prec {
+                    KindPrec::Outer => inner,
+                    KindPrec::Inner => Doc::nil()
+                        .append(Doc::text("("))
+                        .append(inner)
+                        .append(Doc::text(")")),
+                }
+            }
+        }
+    }
+
+    pub fn to_doc(&self) -> Doc<BoxDoc> {
+        self.to_doc_prec(KindPrec::Outer).group()
+    }
+}
+
+impl fmt::Display for Kind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.to_doc()
+            .render_fmt(f.width().unwrap_or(DEFAULT_PRETTY_WIDTH), f)
     }
 }
 
@@ -30,9 +73,17 @@ pub enum ReprError<N> {
     NoCorrespondingHostType(Type<N>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TypeConst {
     Bit,
+}
+
+impl TypeConst {
+    pub fn to_str(self) -> &'static str {
+        match self {
+            TypeConst::Bit => "Bit",
+        }
+    }
 }
 
 /// A binary type
@@ -323,11 +374,131 @@ impl<N: Name> Type<N> {
             }
         }
     }
+
+    /// Convert the type into a pretty-printable document
+    pub fn to_doc(&self) -> Doc<BoxDoc> {
+        match *self {
+            Type::Var(_, ref var) => Doc::text(var.name().to_string()),
+            Type::Const(c) => Doc::text(c.to_str()),
+            Type::Array(_, ref elem_ty, ref size_expr) => Doc::nil()
+                .append(Doc::text("["))
+                .append(elem_ty.to_doc())
+                .append(Doc::text(";"))
+                .append(Doc::space())
+                .append(size_expr.to_doc())
+                .append(Doc::text("]")),
+            Type::Union(_, ref tys) => Doc::nil()
+                .append(Doc::text("union {"))
+                .append(Doc::space())
+                .append(Doc::concat(tys.iter().map(|ty| {
+                    ty.to_doc().append(Doc::text(",")).append(Doc::newline())
+                })))
+                .append(Doc::space())
+                .append(Doc::text("}")),
+            Type::Struct(_, ref fields) => Doc::nil()
+                .append(Doc::text("struct {"))
+                .append(Doc::space())
+                .append(
+                    Doc::concat(fields.iter().map(|field| {
+                        Doc::text(field.name.to_string())
+                            .append(Doc::space())
+                            .append(Doc::text(":"))
+                            .append(Doc::space())
+                            .append(field.value.to_doc())
+                            .append(Doc::text(","))
+                            .append(Doc::newline())
+                    })).nest(4),
+                )
+                .append(Doc::space())
+                .append(Doc::text("}")),
+            Type::Cond(_, ref ty, ref pred_expr) => Doc::nil()
+                .append(ty.to_doc())
+                .append(Doc::space())
+                .append(Doc::text("where"))
+                .append(Doc::space())
+                // FIXME: clean up  lambda syntax...
+                .append(pred_expr.to_doc()),
+            Type::Interp(_, ref ty, ref conv_expr, ref repr_ty) => Doc::nil()
+                .append(Doc::text("interp("))
+                .append(ty.to_doc())
+                .append(Doc::text(","))
+                .append(Doc::space())
+                .append(conv_expr.to_doc())
+                .append(Doc::space())
+                .append(Doc::text(":"))
+                .append(Doc::space())
+                .append(repr_ty.to_doc())
+                .append(Doc::text(")")),
+            // FIXME: Param list sugar: \(x y : Foo) (z : Bar) -> ...
+            Type::Abs(_, Named(ref param_name, ref param_kind), ref body_ty) => Doc::nil()
+                .append(Doc::text("\\"))
+                .append(Doc::text(param_name.to_string()))
+                .append(Doc::space())
+                .append(Doc::text(":"))
+                .append(Doc::space())
+                .append(param_kind.to_doc())
+                .append(Doc::space())
+                .append(Doc::text("->"))
+                .append(Doc::space())
+                .append(body_ty.to_doc()),
+            Type::App(_, ref fn_ty, ref arg_ty) => Doc::nil()
+                .append(fn_ty.to_doc())
+                .append(Doc::space())
+                .append(arg_ty.to_doc()),
+        }
+    }
+}
+
+impl<N: Name> fmt::Display for Type<N> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.to_doc()
+            .render_fmt(f.width().unwrap_or(DEFAULT_PRETTY_WIDTH), f)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    mod kind {
+        use super::*;
+
+        mod pretty {
+            use super::*;
+
+            #[test]
+            fn fmt_arrow() {
+                let kind = Kind::arrow(
+                    Kind::arrow(Kind::Type, Kind::Type),
+                    Kind::arrow(Kind::Type, Kind::Type),
+                );
+
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                let expected = [
+                    "(Type -> Type) -> Type -> Type",
+                ].join("\n");
+
+                assert_eq!(format!("{}", kind), expected);
+            }
+
+            #[test]
+            fn fmt_arrow_narrow() {
+                let kind = Kind::arrow(
+                    Kind::arrow(Kind::Type, Kind::Type),
+                    Kind::arrow(Kind::Type, Kind::Type),
+                );
+
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                let expected = [
+                    "(Type -> Type) ->",
+                    "Type ->",
+                    "Type",
+                ].join("\n");
+
+                assert_eq!(format!("{:20}", kind), expected);
+            }
+        }
+    }
 
     mod ty {
         use super::*;

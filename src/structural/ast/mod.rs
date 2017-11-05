@@ -9,6 +9,8 @@ use name::{Name, Named};
 pub mod binary;
 pub mod host;
 
+pub const DEFAULT_PRETTY_WIDTH: usize = 80;
+
 /// A variable that can either be free or bound
 ///
 /// We use a locally nameless representation for variable binding.
@@ -54,6 +56,12 @@ impl<N: Name, B> Var<N, B> {
         *self = match *self {
             Var::Free(ref n) if n == name => Var::Bound(Named(n.clone(), level)),
             Var::Free(_) | Var::Bound(_) => return,
+        }
+    }
+
+    pub fn name(&self) -> &N {
+        match *self {
+            Var::Free(ref name) | Var::Bound(Named(ref name, _)) => name,
         }
     }
 }
