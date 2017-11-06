@@ -33,7 +33,7 @@ namespace ddl.binary
           has_kind Γ t ★ →
           host.has_type e host.type.nat →
           has_kind Γ [ t; e ] ★
-      | cond {Γ t e} :
+      | assert {Γ t e} :
           has_kind Γ t ★ →
           host.has_type /- FIXME: add binding? -/ e host.type.bool →
           has_kind Γ {0: t | e } ★

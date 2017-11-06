@@ -16,7 +16,7 @@ namespace ddl.binary.type
     | (struct_nil)          f := struct_nil
     | (struct_cons l t₁ t₂) f := struct_cons l (bind t₁ f) (bind t₂ f)
     | (array t e)           f := array (bind t f) e
-    | (cond t e)            f := cond (bind t f) e
+    | (assert t e)            f := assert (bind t f) e
     | (interp t e th)       f := interp (bind t f) e th
     | (abs k t)             f := abs k (bind t f)
     | (app t₁ t₂)           f := app (bind t₁ f) (bind t₂ f)
@@ -45,7 +45,7 @@ namespace ddl.binary.type
             simp [bind, function.comp],
             rw [ht],
           },
-          case cond t e ht {
+          case assert t e ht {
             simp [bind, function.comp],
             rw [ht],
           },
@@ -85,7 +85,7 @@ namespace ddl.binary.type
             simp [bind] at ht,
             rw [ht]
           },
-          case cond t e ht {
+          case assert t e ht {
             simp [bind],
             simp [bind] at ht,
             rw [ht]

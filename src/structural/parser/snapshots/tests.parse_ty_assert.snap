@@ -1,9 +1,9 @@
-Cond(
+Assert(
     Span {
         lo: BytePos(9),
         hi: BytePos(117)
     },
-    Cond(
+    Assert(
         Span {
             lo: BytePos(9),
             hi: BytePos(91)
@@ -16,7 +16,7 @@ Cond(
             [
                 Field {
                     name: "x",
-                    value: Cond(
+                    value: Assert(
                         Span {
                             lo: BytePos(33),
                             hi: BytePos(54)

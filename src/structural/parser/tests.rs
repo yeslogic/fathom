@@ -114,7 +114,7 @@ fn parse_ty_empty_struct() {
 }
 
 #[test]
-fn parse_ty_where() {
+fn parse_ty_assert() {
     let src = "
         struct {
             x: u32 where x => x == 3,
@@ -123,7 +123,7 @@ fn parse_ty_where() {
         where x => x == 1
     ";
 
-    assert_snapshot!(parse_ty_where, binary::Type::from_str(src).unwrap());
+    assert_snapshot!(parse_ty_assert, binary::Type::from_str(src).unwrap());
 }
 
 #[test]

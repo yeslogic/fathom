@@ -108,7 +108,7 @@ pub enum Type<N> {
     /// so there is no need to generate new types for these
     Array(RcType<N>, host::RcExpr<N>),
     /// Types dependent on some kind of condition
-    Cond(RcType<N>, host::RcExpr<N>),
+    Assert(RcType<N>, host::RcExpr<N>),
     /// Interpreted types
     Interp(RcType<N>, host::RcExpr<N>, host::RcType<N>),
 }

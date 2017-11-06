@@ -48,8 +48,8 @@ pub enum Type<N> {
     Union(Span, Vec<RcType<N>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Span, Vec<Field<N, RcType<N>>>),
-    /// A type constrained by a predicate: eg. `T where x => x == 3`
-    Cond(Span, RcType<N>, host::RcExpr<N>),
+    /// A type that is constrained by a predicate: eg. `T where x => x == 3`
+    Assert(Span, RcType<N>, host::RcExpr<N>),
     /// An interpreted type
     Interp(Span, RcType<N>, host::RcExpr<N>, host::RcType<N>),
     /// Type abstraction: eg. `\(a : Type) -> T`
@@ -117,13 +117,13 @@ impl<N: Name> Type<N> {
         Type::Struct(span, fields)
     }
 
-    /// A type constrained by a predicate: eg. `T where x => x == 3`
-    pub fn cond<T1, E1>(span: Span, ty: T1, pred: E1) -> Type<N>
+    /// A type that is constrained by a predicate: eg. `T where x => x == 3`
+    pub fn assert<T1, E1>(span: Span, ty: T1, pred: E1) -> Type<N>
     where
         T1: Into<RcType<N>>,
         E1: Into<host::RcExpr<N>>,
     {
-        Type::Cond(span, ty.into(), pred.into())
+        Type::Assert(span, ty.into(), pred.into())
     }
 
     /// An interpreted type
@@ -186,7 +186,7 @@ impl<N: Name> Type<N> {
                 }
                 return;
             }
-            Type::Cond(_, ref mut ty, ref mut _pred) => {
+            Type::Assert(_, ref mut ty, ref mut _pred) => {
                 Rc::make_mut(ty).substitute(substs);
                 // Rc::make_mut(pred).substitute(substs);
                 return;
@@ -225,7 +225,7 @@ impl<N: Name> Type<N> {
             Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 Rc::make_mut(&mut field.value).abstract_name_at(name, level + i as u32);
             },
-            Type::Cond(_, ref mut ty, ref mut pred) => {
+            Type::Assert(_, ref mut ty, ref mut pred) => {
                 Rc::make_mut(ty).abstract_name_at(name, level);
                 Rc::make_mut(pred).abstract_name_at(name, level + 1);
             }
@@ -264,7 +264,7 @@ impl<N: Name> Type<N> {
             Type::Array(_, ref mut elem_ty, _) => {
                 Rc::make_mut(elem_ty).instantiate_at(level, src);
             }
-            Type::Cond(_, ref mut ty, _) => {
+            Type::Assert(_, ref mut ty, _) => {
                 Rc::make_mut(ty).instantiate_at(level + 1, src);
             }
             Type::Interp(_, ref mut ty, _, _) => {
@@ -303,7 +303,7 @@ impl<N: Name> Type<N> {
 
                 Ok(Rc::new(host::Type::array(elem_repr_ty, size_expr)))
             }
-            Type::Cond(_, ref ty, _) => ty.repr(),
+            Type::Assert(_, ref ty, _) => ty.repr(),
             Type::Interp(_, _, _, ref repr_ty) => Ok(repr_ty.clone()),
             Type::Union(_, ref tys) => {
                 let repr_tys = tys.iter().map(|ty| ty.repr()).collect::<Result<_, _>>()?;

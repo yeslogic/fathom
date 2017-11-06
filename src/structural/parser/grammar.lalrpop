@@ -92,7 +92,7 @@ PrimaryType: RcType<String> = {
         let repr_ty = ty.repr().map_err(|err| {
             ParseError::User { error: GrammarError::from(err) }
         })?;
-        Ok(Type::cond(
+        Ok(Type::assert(
             Span::new(lo1, hi),
             ty,
             Expr::abs(
