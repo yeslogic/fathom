@@ -3,8 +3,8 @@ use std::fmt;
 use std::rc::Rc;
 
 use name::Name;
-use structural;
-use structural::ast::{binary, host, Field};
+use syntax;
+use syntax::ast::{binary, host, Field};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Program<N> {
@@ -132,8 +132,8 @@ impl<N: Name> Type<N> {
 
 // Lowering
 
-impl<'a> From<&'a structural::ast::Program<String>> for Program<String> {
-    fn from(src: &'a structural::ast::Program<String>) -> Program<String> {
+impl<'a> From<&'a syntax::ast::Program<String>> for Program<String> {
+    fn from(src: &'a syntax::ast::Program<String>) -> Program<String> {
         let mut program = Program::new();
 
         for def in &src.defs {
@@ -201,7 +201,7 @@ fn lower_ty(
     ty: &binary::RcType<String>,
 ) -> Type<String> {
     use name::Named;
-    use structural::ast::Var;
+    use syntax::ast::Var;
 
     match **ty {
         binary::Type::Var(_, Var::Bound(Named(ref name, _))) => Type::path(name.as_str()),
@@ -246,7 +246,7 @@ fn lower_ty(
 mod tests {
     use super::*;
     use source::{BytePos as B, Span};
-    use structural::ast::host::Expr;
+    use syntax::ast::host::Expr;
 
     #[test]
     fn lowers_array() {

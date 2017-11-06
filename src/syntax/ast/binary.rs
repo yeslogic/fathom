@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use name::{Name, Named};
 use source::Span;
-use structural::ast::{self, host, Field, Substitutions, Var};
+use syntax::ast::{self, host, Field, Substitutions, Var};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {

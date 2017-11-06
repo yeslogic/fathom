@@ -1,11 +1,11 @@
 use lalrpop_util::ParseError;
 
 use source::{BytePos, Span};
-use structural::ast::{Definition, Field, Program};
-use structural::ast::binary::{RcType, Type};
-use structural::ast::host::{Binop, RcExpr, Expr, Unop};
-use structural::parser::GrammarError;
-use structural::parser::lexer::Token;
+use syntax::ast::{Definition, Field, Program};
+use syntax::ast::binary::{RcType, Type};
+use syntax::ast::host::{Binop, RcExpr, Expr, Unop};
+use syntax::parser::GrammarError;
+use syntax::parser::lexer::Token;
 
 
 grammar<'input>();

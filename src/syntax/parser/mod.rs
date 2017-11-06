@@ -4,7 +4,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use structural::ast::{binary, host, Program};
+use syntax::ast::{binary, host, Program};
 use source::BytePos;
 
 mod lexer;

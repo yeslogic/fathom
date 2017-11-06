@@ -1,5 +1,5 @@
 use name::Named;
-use structural::ast::{binary, host};
+use syntax::ast::{binary, host};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Binding<N> {

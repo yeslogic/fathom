@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use name::{Name, Named};
 use source::Span;
-use structural::ast::{self, Field, Var};
+use syntax::ast::{self, Field, Var};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Const {

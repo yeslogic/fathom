@@ -15,5 +15,5 @@ mod test;
 pub mod name;
 pub mod source;
 
-pub mod nominal;
-pub mod structural;
+pub mod ir;
+pub mod syntax;
