@@ -71,8 +71,10 @@ Cond(
                 [
                     Field {
                         name: "x",
-                        value: Var(
-                            Free("u32")
+                        value: Option(
+                            Var(
+                                Free("u32")
+                            )
                         )
                     }
                 ]
@@ -105,15 +107,19 @@ Cond(
             lo: BytePos(106),
             hi: BytePos(117)
         },
-        Named("x", Struct(
-            [
-                Field {
-                    name: "x",
-                    value: Var(
-                        Free("u32")
-                    )
-                }
-            ]
+        Named("x", Option(
+            Struct(
+                [
+                    Field {
+                        name: "x",
+                        value: Option(
+                            Var(
+                                Free("u32")
+                            )
+                        )
+                    }
+                ]
+            )
         )),
         Binop(
             Span {

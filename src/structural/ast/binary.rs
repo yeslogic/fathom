@@ -303,7 +303,11 @@ impl<N: Name> Type<N> {
 
                 Ok(Rc::new(host::Type::array(elem_repr_ty, size_expr)))
             }
-            Type::Cond(_, ref ty, _) => ty.repr(),
+            Type::Cond(_, ref ty, _) => {
+                let repr_ty = ty.repr()?;
+
+                Ok(Rc::new(host::Type::option(repr_ty)))
+            }
             Type::Interp(_, _, _, ref repr_ty) => Ok(repr_ty.clone()),
             Type::Union(_, ref tys) => {
                 let repr_tys = tys.iter().map(|ty| ty.repr()).collect::<Result<_, _>>()?;
