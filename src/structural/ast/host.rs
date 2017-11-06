@@ -222,6 +222,8 @@ pub enum Type<N> {
     Const(TypeConst),
     /// Arrow type: eg. `T -> U`
     Arrow(RcType<N>, RcType<N>),
+    /// Option type: eg. `Option T`
+    Option(RcType<N>),
     /// An array of the specified type, with a size: eg. `[T; n]`
     Array(RcType<N>, RcExpr<N>),
     /// A union of types: eg. `union { T, ... }`
@@ -256,6 +258,11 @@ impl<N: Name> Type<N> {
     /// Integer type constant
     pub fn int() -> Type<N> {
         Type::Const(TypeConst::Int)
+    }
+
+    /// Option type: eg. `Option T`
+    pub fn option<T1: Into<RcType<N>>>(ty: T1) -> Type<N> {
+        Type::Option(ty.into())
     }
 
     /// Arrow type: eg. `T -> U`
@@ -318,6 +325,9 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(lhs_ty).abstract_name_at(name, level);
                 Rc::make_mut(rhs_ty).abstract_name_at(name, level);
             }
+            Type::Option(ref mut ty) => {
+                Rc::make_mut(ty).abstract_name_at(name, level);
+            }
             Type::Array(ref mut elem_ty, ref mut size_expr) => {
                 Rc::make_mut(elem_ty).abstract_name_at(name, level);
                 Rc::make_mut(size_expr).abstract_name_at(name, level);
@@ -354,6 +364,9 @@ impl<N: Name> Type<N> {
             }
             Type::Array(ref mut elem_ty, _) => {
                 Rc::make_mut(elem_ty).instantiate_at(level, src);
+            }
+            Type::Option(ref mut ty) => {
+                Rc::make_mut(ty).instantiate_at(level, src);
             }
             Type::Union(ref mut tys) => for ty in tys {
                 Rc::make_mut(ty).instantiate_at(level, src);
