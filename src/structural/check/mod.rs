@@ -286,7 +286,7 @@ pub fn kind_of<N: Name>(
         }
 
         // Conditional types
-        Type::Cond(_, ref ty, ref pred_expr) => {
+        Type::Assert(_, ref ty, ref pred_expr) => {
             expect_ty_kind(ctx, ty)?;
             let pred_ty = host::Type::arrow(ty.repr()?, host::Type::bool());
             expect_ty(ctx, pred_expr, pred_ty)?;

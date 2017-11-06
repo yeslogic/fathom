@@ -18,7 +18,7 @@ namespace ddl.binary
       | (struct_nil)          := host.type.struct_nil
       | (struct_cons l t₁ t₂) := host.type.struct_cons l t₁.repr t₂.repr
       | (array t e)           := host.type.array (t.repr)
-      | (cond t e)            := t.repr
+      | (assert t e)            := t.repr
       | (interp t e ht)       := ht
       | _                     := sorry
 
@@ -43,7 +43,7 @@ namespace ddl.binary
           case well_formed.array t₁ e hbtwf₁ hhtwf₁ {
             exact host.type.well_formed.array hhtwf₁,
           },
-          case well_formed.cond t₁ e hbtwf₁ hhtwf₁ {
+          case well_formed.assert t₁ e hbtwf₁ hhtwf₁ {
             exact hhtwf₁,
           },
           case well_formed.interp t₁ e ht hbtwf₁ hhtwf₁ {

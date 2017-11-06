@@ -37,9 +37,9 @@ namespace ddl.binary
       | array {t e} :
           well_formed t →
           well_formed (array t e)
-      | cond {t e} :
+      | assert {t e} :
           well_formed t →
-          well_formed (cond t e)
+          well_formed (assert t e)
       | interp {t e th} :
           well_formed t →
           well_formed (interp t e th)

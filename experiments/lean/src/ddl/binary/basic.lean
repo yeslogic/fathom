@@ -23,16 +23,16 @@ namespace ddl.binary
     | struct_nil {} : type
     | struct_cons : ℓ → type → type → type
     | array : type → host.expr ℓ → type
-    | cond : type → host.expr ℓ → type
+    | assert : type → host.expr ℓ → type
     | interp : type → host.expr ℓ → host.type ℓ → type
     | abs : kind → type → type
     | app : type → type → type
 
 
-  -- Abstraction and conditional type notation - note that we are using a
+  -- Abstraction and assertition type notation - note that we are using a
   -- nameless representation so we don't include the argument identifiers
   notation `Λ0: ` k `, ` t := type.abs k t
-  notation `{0: ` t ` | ` e ` }` := type.cond t e
+  notation `{0: ` t ` | ` e ` }` := type.assert t e
   -- Array type syntax
   notation `[ ` t `; ` e ` ]` := type.array t e
   -- Application operator

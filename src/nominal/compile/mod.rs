@@ -99,11 +99,11 @@ fn compile_ty(
 
             Type::path(path.clone())
         }
-        binary::Type::Cond(_, ref ty, ref pred_expr) => {
+        binary::Type::Assert(_, ref ty, ref pred_expr) => {
             let inner_path = path.append_child("Inner");
             let inner_ty = compile_ty(program, &inner_path, ty);
 
-            Type::Cond(Rc::new(inner_ty), pred_expr.clone())
+            Type::Assert(Rc::new(inner_ty), pred_expr.clone())
         }
         binary::Type::Interp(_, ref ty, ref conv_expr, ref conv_ty) => {
             let inner_path = path.append_child("Inner");
