@@ -314,9 +314,9 @@ pub fn kind_of<N: Name>(
         }
 
         // Union types
-        Type::Union(_, ref tys) => {
-            for ty in tys {
-                expect_ty_kind(ctx, ty)?;
+        Type::Union(_, ref fields) => {
+            for field in fields {
+                expect_ty_kind(ctx, &field.value)?;
             }
 
             Ok(Rc::new(Kind::Type))

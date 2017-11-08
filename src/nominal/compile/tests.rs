@@ -93,7 +93,12 @@ fn compiles_union() {
     let src = "
         A = struct {};
         B = struct {};
-        C = union { struct {}, A, B, [A; 256] };
+        C = union {
+            v0 : struct {},
+            v1 : A,
+            v2 : B,
+            v3 : [A; 256],
+        };
     ";
 
     let program = src.parse().unwrap();
@@ -105,13 +110,16 @@ fn compiles_union() {
     expected.define_union(
         "C",
         vec![
-            Type::path("C::Variant0"),
-            Type::path("A"),
-            Type::path("B"),
-            Type::array(Type::path("A"), Expr::int(Span::new(B(88), B(91)), 256)),
+            Field::new("v0", Type::path("C::v0")),
+            Field::new("v1", Type::path("A")),
+            Field::new("v2", Type::path("B")),
+            Field::new(
+                "v3",
+                Type::array(Type::path("A"), Expr::int(Span::new(B(156), B(159)), 256)),
+            ),
         ],
     );
-    expected.define_struct("C::Variant0", vec![]);
+    expected.define_struct("C::v0", vec![]);
 
     assert_eq!(found, expected);
 }

@@ -36,7 +36,7 @@ impl<N: Name> Program<N> {
         self.define(path, Definition::Struct(fields));
     }
 
-    pub fn define_union<P: Into<Path<N>>>(&mut self, path: P, variants: Vec<Type<N>>) {
+    pub fn define_union<P: Into<Path<N>>>(&mut self, path: P, variants: Vec<Field<N, Type<N>>>) {
         self.define(path, Definition::Union(variants));
     }
 }
@@ -96,7 +96,7 @@ pub enum Definition<N> {
     /// Struct definition
     Struct(Vec<Field<N, Type<N>>>),
     /// Union type definition
-    Union(Vec<Type<N>>),
+    Union(Vec<Field<N, Type<N>>>),
 }
 
 /// Structural types
