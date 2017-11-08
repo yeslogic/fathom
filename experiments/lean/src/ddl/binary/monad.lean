@@ -12,11 +12,12 @@ namespace ddl.binary.type
     | (bvar i)              f := bvar i
     | (fvar x)              f := (f x)
     | (bit)                 f := bit
-    | (sum t₁ t₂)           f := sum (bind t₁ f) (bind t₂ f)
+    | (union_nil)           f := union_nil
+    | (union_cons l t₁ t₂)  f := union_cons l (bind t₁ f) (bind t₂ f)
     | (struct_nil)          f := struct_nil
     | (struct_cons l t₁ t₂) f := struct_cons l (bind t₁ f) (bind t₂ f)
     | (array t e)           f := array (bind t f) e
-    | (assert t e)            f := assert (bind t f) e
+    | (assert t e)          f := assert (bind t f) e
     | (interp t e th)       f := interp (bind t f) e th
     | (abs k t)             f := abs k (bind t f)
     | (app t₁ t₂)           f := app (bind t₁ f) (bind t₂ f)
@@ -32,7 +33,8 @@ namespace ddl.binary.type
           case bvar i { exact rfl },
           case fvar x { exact rfl },
           case bit { exact rfl },
-          case sum t₁ t₂ ht₁ ht₂ {
+          case union_nil { exact rfl },
+          case union_cons l t₁ t₂ ht₁ ht₂ {
             simp [bind, function.comp],
             rw [ht₁, ht₂],
           },
@@ -69,7 +71,8 @@ namespace ddl.binary.type
           case bvar i { exact rfl },
           case fvar x { exact rfl },
           case bit { exact rfl },
-          case sum t₁ t₂ ht₁ ht₂ {
+          case union_nil { exact rfl },
+          case union_cons l t₁ t₂ ht₁ ht₂ {
             simp [bind],
             simp [bind] at ht₁ ht₂,
             rw [ht₁, ht₂]

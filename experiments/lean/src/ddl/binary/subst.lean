@@ -14,9 +14,10 @@ namespace ddl.binary
       | i x (bvar i') := if i = i' then fvar x else bvar i'
       | i x (fvar x') := fvar x'
       | i x (bit) := bit
-      | i x (sum t₁ t₂) := sum (open_var i x t₁) (open_var i x t₂)
+      | i x (union_nil) := union_nil
+      | i x (union_cons l t₁ t₂) := union_cons l (open_var i x t₁) (open_var i x t₂)
       | i x (struct_nil) := struct_nil
-      | i x (struct_cons l t₁ t₂) := struct_cons l (open_var i x t₁) (open_var i x t₂)
+      | i x (struct_cons l t₁ t₂) := struct_cons l (open_var i x t₁) (open_var (i + 1) x t₂)
       | i x (array t e) := array (open_var i x t) e
       | i x (assert t e) := assert (open_var i x t) e
       | i x (interp t e th) := interp (open_var i x t) e th
@@ -28,9 +29,10 @@ namespace ddl.binary
       | i x (bvar i') := bvar i'
       | i x (fvar x') := if x = x' then bvar i else fvar x'
       | i x (bit) := bit
-      | i x (sum t₁ t₂) := sum (close_var i x t₁) (close_var i x t₂)
+      | i x (union_nil) := union_nil
+      | i x (union_cons l t₁ t₂) := union_cons l (close_var i x t₁) (close_var i x t₂)
       | i x (struct_nil) := struct_nil
-      | i x (struct_cons l t₁ t₂) := struct_cons l (close_var i x t₁) (close_var i x t₂)
+      | i x (struct_cons l t₁ t₂) := struct_cons l (close_var i x t₁) (close_var (i + 1) x t₂)
       | i x (array t e) := array (close_var i x t) e
       | i x (assert t e) := assert (close_var i x t) e
       | i x (interp t e th) := interp (close_var i x t) e th
@@ -47,7 +49,8 @@ namespace ddl.binary
         case bvar i { admit },
         case fvar x { admit },
         case bit { admit },
-        case sum t₁ t₂ ht₁ ht₂ { admit },
+        case union_nil { admit },
+        case union_cons l t₁ t₂ ht₁ ht₂ { admit },
         case struct_nil { admit },
         case struct_cons l t₁ t₂ ht₁ ht₂ { admit },
         case array t e ht { admit },
@@ -67,7 +70,8 @@ namespace ddl.binary
         case bvar i { admit },
         case fvar x {  admit },
         case bit { admit },
-        case sum t₁ t₂ ht₁ ht₂ { admit },
+        case union_nil { admit },
+        case union_cons l t₁ t₂ ht₁ ht₂ { admit },
         case struct_nil { admit },
         case struct_cons l t₁ t₂ ht₁ ht₂ { admit },
         case array t e ht { admit },

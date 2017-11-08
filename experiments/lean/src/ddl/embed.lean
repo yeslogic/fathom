@@ -14,7 +14,8 @@ namespace ddl
     def type.embed : type ℓ → Type
       | type.bool := bool
       | type.nat := ℕ
-      | (type.sum t₁ t₂) := t₁.embed ⊕ t₂.embed
+      | type.union_nil := empty
+      | (type.union_cons _ t₁ t₂) := t₁.embed ⊕ t₂.embed
       | type.struct_nil := unit
       | (type.struct_cons _ t₁ t₂) := t₁.embed × t₂.embed
       | (type.array t₁) := list t₁.embed

@@ -224,8 +224,8 @@ pub enum Type<N> {
     Arrow(RcType<N>, RcType<N>),
     /// An array of the specified type, with a size: eg. `[T; n]`
     Array(RcType<N>, RcExpr<N>),
-    /// A union of types: eg. `union { T, ... }`
-    Union(Vec<RcType<N>>),
+    /// A union of types: eg. `union { variant : T, ... }`
+    Union(Vec<Field<N, RcType<N>>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Vec<Field<N, RcType<N>>>),
 }
@@ -277,8 +277,8 @@ impl<N: Name> Type<N> {
     }
 
     /// A union of types: eg. `union { T, ... }`
-    pub fn union(tys: Vec<RcType<N>>) -> Type<N> {
-        Type::Union(tys)
+    pub fn union(variants: Vec<Field<N, RcType<N>>>) -> Type<N> {
+        Type::Union(variants)
     }
 
     /// A struct type, with fields: eg. `struct { field : T, ... }`
@@ -322,8 +322,8 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(elem_ty).abstract_name_at(name, level);
                 Rc::make_mut(size_expr).abstract_name_at(name, level);
             }
-            Type::Union(ref mut tys) => for ty in tys {
-                Rc::make_mut(ty).abstract_name_at(name, level);
+            Type::Union(ref mut variants) => for variant in variants {
+                Rc::make_mut(&mut variant.value).abstract_name_at(name, level);
             },
             Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 Rc::make_mut(&mut field.value).abstract_name_at(name, level + i as u32);
@@ -355,8 +355,8 @@ impl<N: Name> Type<N> {
             Type::Array(ref mut elem_ty, _) => {
                 Rc::make_mut(elem_ty).instantiate_at(level, src);
             }
-            Type::Union(ref mut tys) => for ty in tys {
-                Rc::make_mut(ty).instantiate_at(level, src);
+            Type::Union(ref mut variants) => for variant in variants {
+                Rc::make_mut(&mut variant.value).instantiate_at(level, src);
             },
             Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 Rc::make_mut(&mut field.value).instantiate_at(level + i as u32, src);

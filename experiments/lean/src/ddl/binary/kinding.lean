@@ -19,10 +19,12 @@ namespace ddl.binary
           has_kind Γ ↑x k
       | bit {Γ} :
           has_kind Γ type.bit ★
-      | sum {Γ t₁ t₂} :
+      | union_nil {Γ} :
+          has_kind Γ type.union_nil ★
+      | union_cons {Γ l t₁ t₂} :
           has_kind Γ t₁ ★ →
           has_kind Γ t₂ ★ →
-          has_kind Γ (t₁ + t₂) ★
+          has_kind Γ (type.union_cons l t₁ t₂) ★
       | struct_nil {Γ} :
           has_kind Γ type.struct_nil ★
       | struct_cons {Γ l t₁ t₂} :

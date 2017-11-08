@@ -183,9 +183,9 @@ fn parse_definition() {
         };
 
         Formats = union {
-            struct { format : u16, data: u16 },
-            struct { format : u16, point: Point },
-            struct { format : u16, array: Array },
+            u16 : struct { format : u16, data: u16 },
+            point : struct { format : u16, point: Point },
+            array : struct { format : u16, array: Array },
         };
     ";
 

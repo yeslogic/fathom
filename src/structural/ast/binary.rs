@@ -44,9 +44,9 @@ pub enum Type<N> {
     Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
     Array(Span, RcType<N>, host::RcExpr<N>),
-    /// A union of types: eg. `union { T, ... }`
-    Union(Span, Vec<RcType<N>>),
-    /// A struct type, with fields: eg. `struct { field : T, ... }`
+    /// A union of types: eg. `union { field : T, ... }`
+    Union(Span, Vec<Field<N, RcType<N>>>),
+    /// A struct type, with fields: eg. `struct { variant : T, ... }`
     Struct(Span, Vec<Field<N, RcType<N>>>),
     /// A type that is constrained by a predicate: eg. `T where x => x == 3`
     Assert(Span, RcType<N>, host::RcExpr<N>),
@@ -85,9 +85,9 @@ impl<N: Name> Type<N> {
         Type::Array(span, elem_ty.into(), size_expr.into())
     }
 
-    /// A union of types: eg. `union { T, ... }`
-    pub fn union(span: Span, tys: Vec<RcType<N>>) -> Type<N> {
-        Type::Union(span, tys)
+    /// A union of types: eg. `union { variant : T, ... }`
+    pub fn union(span: Span, variants: Vec<Field<N, RcType<N>>>) -> Type<N> {
+        Type::Union(span, variants)
     }
 
     /// Type application: eg. `T U V`
@@ -174,9 +174,9 @@ impl<N: Name> Type<N> {
                 // Rc::make_mut(size_expr).substitute(substs);
                 return;
             }
-            Type::Union(_, ref mut tys) => {
-                for ty in tys {
-                    Rc::make_mut(ty).substitute(substs);
+            Type::Union(_, ref mut variants) => {
+                for variant in variants {
+                    Rc::make_mut(&mut variant.value).substitute(substs);
                 }
                 return;
             }
@@ -219,8 +219,8 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(elem_ty).abstract_name_at(name, level);
                 Rc::make_mut(size_expr).abstract_name_at(name, level);
             }
-            Type::Union(_, ref mut tys) => for ty in tys {
-                Rc::make_mut(ty).abstract_name_at(name, level);
+            Type::Union(_, ref mut variants) => for variant in variants {
+                Rc::make_mut(&mut variant.value).abstract_name_at(name, level);
             },
             Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 Rc::make_mut(&mut field.value).abstract_name_at(name, level + i as u32);
@@ -270,8 +270,8 @@ impl<N: Name> Type<N> {
             Type::Interp(_, ref mut ty, _, _) => {
                 Rc::make_mut(ty).instantiate_at(level + 1, src);
             }
-            Type::Union(_, ref mut tys) => for ty in tys {
-                Rc::make_mut(ty).instantiate_at(level, src);
+            Type::Union(_, ref mut variants) => for variant in variants {
+                Rc::make_mut(&mut variant.value).instantiate_at(level, src);
             },
             Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 Rc::make_mut(&mut field.value).instantiate_at(level + i as u32, src);
@@ -305,15 +305,28 @@ impl<N: Name> Type<N> {
             }
             Type::Assert(_, ref ty, _) => ty.repr(),
             Type::Interp(_, _, _, ref repr_ty) => Ok(repr_ty.clone()),
-            Type::Union(_, ref tys) => {
-                let repr_tys = tys.iter().map(|ty| ty.repr()).collect::<Result<_, _>>()?;
+            Type::Union(_, ref variants) => {
+                let repr_variants = variants
+                    .iter()
+                    .map(|variant| {
+                        variant
+                            .value
+                            .repr()
+                            .map(|ty| Field::new(variant.name.clone(), ty))
+                    })
+                    .collect::<Result<_, _>>()?;
 
-                Ok(Rc::new(host::Type::Union(repr_tys)))
+                Ok(Rc::new(host::Type::Union(repr_variants)))
             }
             Type::Struct(_, ref fields) => {
                 let repr_fields = fields
                     .iter()
-                    .map(|f| f.value.repr().map(|ty| Field::new(f.name.clone(), ty)))
+                    .map(|field| {
+                        field
+                            .value
+                            .repr()
+                            .map(|ty| Field::new(field.name.clone(), ty))
+                    })
                     .collect::<Result<_, _>>()?;
 
                 Ok(Rc::new(host::Type::Struct(repr_fields)))

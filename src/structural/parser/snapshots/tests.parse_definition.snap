@@ -80,93 +80,102 @@ Program {
             ty: Union(
                 Span {
                     lo: BytePos(197),
-                    hi: BytePos(364)
+                    hi: BytePos(386)
                 },
                 [
-                    Struct(
-                        Span {
-                            lo: BytePos(217),
-                            hi: BytePos(251)
-                        },
-                        [
-                            Field {
-                                name: "format",
-                                value: Var(
-                                    Span {
-                                        lo: BytePos(235),
-                                        hi: BytePos(238)
-                                    },
-                                    Free("u16")
-                                )
+                    Field {
+                        name: "u16",
+                        value: Struct(
+                            Span {
+                                lo: BytePos(223),
+                                hi: BytePos(257)
                             },
-                            Field {
-                                name: "data",
-                                value: Var(
-                                    Span {
-                                        lo: BytePos(246),
-                                        hi: BytePos(249)
-                                    },
-                                    Free("u16")
-                                )
-                            }
-                        ]
-                    ),
-                    Struct(
-                        Span {
-                            lo: BytePos(265),
-                            hi: BytePos(302)
-                        },
-                        [
-                            Field {
-                                name: "format",
-                                value: Var(
-                                    Span {
-                                        lo: BytePos(283),
-                                        hi: BytePos(286)
-                                    },
-                                    Free("u16")
-                                )
+                            [
+                                Field {
+                                    name: "format",
+                                    value: Var(
+                                        Span {
+                                            lo: BytePos(241),
+                                            hi: BytePos(244)
+                                        },
+                                        Free("u16")
+                                    )
+                                },
+                                Field {
+                                    name: "data",
+                                    value: Var(
+                                        Span {
+                                            lo: BytePos(252),
+                                            hi: BytePos(255)
+                                        },
+                                        Free("u16")
+                                    )
+                                }
+                            ]
+                        )
+                    },
+                    Field {
+                        name: "point",
+                        value: Struct(
+                            Span {
+                                lo: BytePos(279),
+                                hi: BytePos(316)
                             },
-                            Field {
-                                name: "point",
-                                value: Var(
-                                    Span {
-                                        lo: BytePos(295),
-                                        hi: BytePos(300)
-                                    },
-                                    Bound(Named("Point", 2))
-                                )
-                            }
-                        ]
-                    ),
-                    Struct(
-                        Span {
-                            lo: BytePos(316),
-                            hi: BytePos(353)
-                        },
-                        [
-                            Field {
-                                name: "format",
-                                value: Var(
-                                    Span {
-                                        lo: BytePos(334),
-                                        hi: BytePos(337)
-                                    },
-                                    Free("u16")
-                                )
+                            [
+                                Field {
+                                    name: "format",
+                                    value: Var(
+                                        Span {
+                                            lo: BytePos(297),
+                                            hi: BytePos(300)
+                                        },
+                                        Free("u16")
+                                    )
+                                },
+                                Field {
+                                    name: "point",
+                                    value: Var(
+                                        Span {
+                                            lo: BytePos(309),
+                                            hi: BytePos(314)
+                                        },
+                                        Bound(Named("Point", 2))
+                                    )
+                                }
+                            ]
+                        )
+                    },
+                    Field {
+                        name: "array",
+                        value: Struct(
+                            Span {
+                                lo: BytePos(338),
+                                hi: BytePos(375)
                             },
-                            Field {
-                                name: "array",
-                                value: Var(
-                                    Span {
-                                        lo: BytePos(346),
-                                        hi: BytePos(351)
-                                    },
-                                    Bound(Named("Array", 1))
-                                )
-                            }
-                        ]
-                    )
+                            [
+                                Field {
+                                    name: "format",
+                                    value: Var(
+                                        Span {
+                                            lo: BytePos(356),
+                                            hi: BytePos(359)
+                                        },
+                                        Free("u16")
+                                    )
+                                },
+                                Field {
+                                    name: "array",
+                                    value: Var(
+                                        Span {
+                                            lo: BytePos(368),
+                                            hi: BytePos(373)
+                                        },
+                                        Bound(Named("Array", 1))
+                                    )
+                                }
+                            ]
+                        )
+                    }
                 ]
             )
         }

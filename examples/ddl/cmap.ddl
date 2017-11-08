@@ -21,15 +21,15 @@ EncodingRecord = struct {
 };
 
 CMapSubtable = union {
-    Format0,
+    format0 : Format0,
     // TODO: Format2
     // TODO: Format4
-    Format6,
-    Format8,
+    format6 : Format6,
+    format8 : Format8,
     // TODO: Format10
-    Format12,
-    Format13,
-    Format14,
+    format12 : Format12,
+    format13 : Format13,
+    format14 : Format14,
 };
 
 /// Format 0: Byte encoding table

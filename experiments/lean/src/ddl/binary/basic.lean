@@ -19,7 +19,8 @@ namespace ddl.binary
     | bvar {} : ℕ → type
     | fvar {} : α → type
     | bit {} : type
-    | sum : type → type → type
+    | union_nil {} : type
+    | union_cons : ℓ → type → type → type
     | struct_nil {} : type
     | struct_cons : ℓ → type → type → type
     | array : type → host.expr ℓ → type
@@ -44,10 +45,6 @@ namespace ddl.binary
 
     instance has_coe_from_nat : has_coe ℕ (type ℓ α) := ⟨bvar⟩
     instance has_coe_from_atom : has_coe α (type ℓ α) := ⟨fvar⟩
-
-    -- Overload the `+` operator for constructing sum types
-    instance : has_add (type α ℓ) := ⟨type.sum⟩
-
 
     def lookup (l : ℓ) [decidable_eq ℓ] : type ℓ α → option (type ℓ α)
       | (struct_cons l' t tr) := if l = l' then some t else lookup tr

@@ -114,10 +114,10 @@ AtomicType: RcType<String> = {
         fields.extend(last);
         Type::struct_(Span::new(lo, hi), fields).into()
     },
-    <lo: @L> "union" "{" <tys: (<PrimaryType> ",")+> <last: PrimaryType?> "}" <hi: @R> => {
-        let mut tys = tys;
-        tys.extend(last);
-        Type::union(Span::new(lo, hi), tys).into()
+    <lo: @L> "union" "{" <variants: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
+        let mut variants = variants;
+        variants.extend(last);
+        Type::union(Span::new(lo, hi), variants).into()
     },
     <lo: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <hi: @R> => {
         Type::array(Span::new(lo, hi), elem, size).into()

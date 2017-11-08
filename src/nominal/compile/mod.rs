@@ -57,14 +57,15 @@ fn compile_fields(
 fn compile_variants(
     program: &mut Program<String>,
     path: &Path<String>,
-    variants: &[binary::RcType<String>],
-) -> Vec<Type<String>> {
+    variants: &[Field<String, binary::RcType<String>>],
+) -> Vec<Field<String, Type<String>>> {
     variants
         .iter()
-        .enumerate()
-        .map(|(i, variant_ty)| {
-            let variant_path = path.append_child(format!("Variant{}", i));
-            compile_ty(program, &variant_path, &variant_ty)
+        .map(|variant| {
+            let variant_path = path.append_child(variant.name.clone());
+            let ty = compile_ty(program, &variant_path, &variant.value);
+
+            Field::new(variant.name.clone(), ty)
         })
         .collect()
 }
