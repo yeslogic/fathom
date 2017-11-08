@@ -14,11 +14,12 @@ namespace ddl.binary
 
 
     def repr : type ℓ α → host.type ℓ
-      | (sum t₁ t₂)           := t₁.repr + t₂.repr
+      | (union_nil)           := host.type.union_nil
+      | (union_cons l t₁ t₂)  := host.type.union_cons l t₁.repr t₂.repr
       | (struct_nil)          := host.type.struct_nil
       | (struct_cons l t₁ t₂) := host.type.struct_cons l t₁.repr t₂.repr
       | (array t e)           := host.type.array (t.repr)
-      | (assert t e)            := t.repr
+      | (assert t e)          := t.repr
       | (interp t e ht)       := ht
       | _                     := sorry
 
@@ -33,7 +34,12 @@ namespace ddl.binary
           case well_formed.bvar i { admit },
           case well_formed.fvar x { admit },
           case well_formed.bit { admit },
-          case well_formed.sum t₁ t₂ { admit },
+          case well_formed.union_nil {
+            exact host.type.well_formed.union_nil
+          },
+          case well_formed.union_cons l t₁ t₂ hbtwf₁ hbtwf₂ hbts₂ hhtwf₁ hhtwf₂ {
+            exact host.type.well_formed.union_cons hhtwf₁ hhtwf₂ sorry
+          },
           case well_formed.struct_nil {
             exact host.type.well_formed.struct_nil
           },

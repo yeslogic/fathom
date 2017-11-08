@@ -6,7 +6,8 @@ namespace ddl.host
   inductive type (ℓ : Type) : Type
     | bool {} : type
     | nat {} : type
-    | sum {} : type → type → type
+    | union_nil {} : type
+    | union_cons : ℓ → type → type → type
     | struct_nil {} : type
     | struct_cons : ℓ → type → type → type
     | array {} : type → type
@@ -14,8 +15,6 @@ namespace ddl.host
   namespace type
 
     variables {ℓ : Type}
-
-    instance : has_add (type ℓ) := ⟨type.sum⟩
 
     def lookup (l : ℓ) [decidable_eq ℓ] : type ℓ → option (type ℓ)
       | (struct_cons l' t tr) := if l = l' then some t else lookup tr

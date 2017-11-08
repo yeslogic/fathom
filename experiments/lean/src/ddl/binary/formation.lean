@@ -15,6 +15,10 @@ namespace ddl.binary
       | nil {} : struct struct_nil
       | cons {l t₁ t₂} : struct (struct_cons l t₁ t₂)
 
+    inductive union : type ℓ α → Prop
+      | nil {} : union union_nil
+      | cons {l t₁ t₂} : union (union_cons l t₁ t₂)
+
 
     inductive well_formed : type ℓ α → Prop
       | bvar {} (i) :
@@ -23,10 +27,13 @@ namespace ddl.binary
           well_formed (fvar x)
       | bit {} :
           well_formed bit
-      | sum {t₁ t₂} :
+      | union_nil {} :
+          well_formed union_nil
+      | union_cons {l t₁ t₂} :
           well_formed t₁ →
           well_formed t₂ →
-          well_formed (sum t₁ t₂)
+          union t₂ →
+          well_formed (union_cons l t₁ t₂)
       | struct_nil {} :
           well_formed struct_nil
       | struct_cons {l t₁ t₂} :
