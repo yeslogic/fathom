@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use name::{Name, Named};
-use structural::ast::{binary, host, Program, Var};
+use structural::ast::{binary, host, Field, Program, Var};
 use structural::context::{Binding, Context};
 
 #[cfg(test)]
@@ -133,6 +133,17 @@ pub fn ty_of<N: Name>(
                     Ok(Rc::new(Type::int()))
                 }
             }
+        }
+
+        Expr::Struct(ref fields) => {
+            let field_tys = fields
+                .iter()
+                .map(|field| {
+                    Ok(Field::new(field.name.clone(), ty_of(ctx, &field.value)?))
+                })
+                .collect::<Result<_, _>>()?;
+
+            Ok(Rc::new(Type::Struct(field_tys)))
         }
 
         // Field projection

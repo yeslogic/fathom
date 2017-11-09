@@ -89,6 +89,8 @@ pub enum Expr<N> {
     Unop(Span, Unop, RcExpr<N>),
     /// A binary operator expression
     Binop(Span, Binop, RcExpr<N>, RcExpr<N>),
+    /// A struct initialization expression
+    Struct(Vec<Field<N, RcExpr<N>>>),
     /// Field projection, eg: `x.field`
     Proj(Span, RcExpr<N>, N),
     /// Array index, eg: `x[i]`
@@ -145,6 +147,11 @@ impl<N: Name> Expr<N> {
         Expr::Binop(span, op, x.into(), y.into())
     }
 
+    /// A binary operator expression
+    pub fn struct_(fields: Vec<Field<N, RcExpr<N>>>) -> Expr<N> {
+        Expr::Struct(fields)
+    }
+
     /// Field projection, eg: `x.field`
     pub fn proj<E1, N1>(span: Span, expr: E1, field_name: N1) -> Expr<N>
     where
@@ -188,6 +195,9 @@ impl<N: Name> Expr<N> {
                 Rc::make_mut(lhs_expr).abstract_name_at(name, level);
                 Rc::make_mut(rhs_expr).abstract_name_at(name, level);
             }
+            Expr::Struct(ref mut fields) => for field in fields {
+                Rc::make_mut(&mut field.value).abstract_name_at(name, level);
+            },
             Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
                 Rc::make_mut(array_expr).abstract_name_at(name, level);
                 Rc::make_mut(index_expr).abstract_name_at(name, level);
