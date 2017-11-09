@@ -297,12 +297,7 @@ impl<N: Name> Type<N> {
         match *self {
             Type::Var(_, ref v) => Ok(Rc::new(host::Type::Var(v.clone()))),
             Type::Const(TypeConst::Bit) => Ok(Rc::new(host::Type::Const(host::TypeConst::Bit))),
-            Type::Array(_, ref elem_ty, ref size_expr) => {
-                let elem_repr_ty = elem_ty.repr()?;
-                let size_expr = size_expr.clone();
-
-                Ok(Rc::new(host::Type::array(elem_repr_ty, size_expr)))
-            }
+            Type::Array(_, ref elem_ty, _) => Ok(Rc::new(host::Type::array(elem_ty.repr()?))),
             Type::Assert(_, ref ty, _) => ty.repr(),
             Type::Interp(_, _, _, ref repr_ty) => Ok(repr_ty.clone()),
             Type::Union(_, ref variants) => {

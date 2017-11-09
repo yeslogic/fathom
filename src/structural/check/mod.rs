@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use name::{Name, Named};
-use structural::ast::{binary, host, Program, Var};
+use structural::ast::{binary, host, Field, Program, Var};
 use structural::context::{Binding, Context};
 
 #[cfg(test)]
@@ -135,6 +135,17 @@ pub fn ty_of<N: Name>(
             }
         }
 
+        Expr::Struct(ref fields) => {
+            let field_tys = fields
+                .iter()
+                .map(|field| {
+                    Ok(Field::new(field.name.clone(), ty_of(ctx, &field.value)?))
+                })
+                .collect::<Result<_, _>>()?;
+
+            Ok(Rc::new(Type::Struct(field_tys)))
+        }
+
         // Field projection
         Expr::Proj(_, ref struct_expr, ref field_name) => {
             let struct_ty = ty_of(ctx, struct_expr)?;
@@ -154,8 +165,7 @@ pub fn ty_of<N: Name>(
             expect_ty(ctx, index_expr, Type::int())?;
 
             match *ty_of(ctx, array_expr)? {
-                // Check if index is in bounds?
-                Type::Array(ref elem_ty, _) => Ok(elem_ty.clone()),
+                Type::Array(ref elem_ty) => Ok(elem_ty.clone()),
                 ref found => Err(TypeError::Mismatch {
                     expr: array_expr.clone(),
                     expected: ExpectedType::Array,

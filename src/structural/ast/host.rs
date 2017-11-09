@@ -89,6 +89,8 @@ pub enum Expr<N> {
     Unop(Span, Unop, RcExpr<N>),
     /// A binary operator expression
     Binop(Span, Binop, RcExpr<N>, RcExpr<N>),
+    /// A struct initialization expression
+    Struct(Vec<Field<N, RcExpr<N>>>),
     /// Field projection, eg: `x.field`
     Proj(Span, RcExpr<N>, N),
     /// Array index, eg: `x[i]`
@@ -145,6 +147,11 @@ impl<N: Name> Expr<N> {
         Expr::Binop(span, op, x.into(), y.into())
     }
 
+    /// A binary operator expression
+    pub fn struct_(fields: Vec<Field<N, RcExpr<N>>>) -> Expr<N> {
+        Expr::Struct(fields)
+    }
+
     /// Field projection, eg: `x.field`
     pub fn proj<E1, N1>(span: Span, expr: E1, field_name: N1) -> Expr<N>
     where
@@ -188,6 +195,9 @@ impl<N: Name> Expr<N> {
                 Rc::make_mut(lhs_expr).abstract_name_at(name, level);
                 Rc::make_mut(rhs_expr).abstract_name_at(name, level);
             }
+            Expr::Struct(ref mut fields) => for field in fields {
+                Rc::make_mut(&mut field.value).abstract_name_at(name, level);
+            },
             Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
                 Rc::make_mut(array_expr).abstract_name_at(name, level);
                 Rc::make_mut(index_expr).abstract_name_at(name, level);
@@ -222,8 +232,8 @@ pub enum Type<N> {
     Const(TypeConst),
     /// Arrow type: eg. `T -> U`
     Arrow(RcType<N>, RcType<N>),
-    /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(RcType<N>, RcExpr<N>),
+    /// An array, eg. `[T]`
+    Array(RcType<N>),
     /// A union of types: eg. `union { variant : T, ... }`
     Union(Vec<Field<N, RcType<N>>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
@@ -268,12 +278,8 @@ impl<N: Name> Type<N> {
     }
 
     /// An array of the specified type, with a size: eg. `[T; n]`
-    pub fn array<T1, E1>(elem_ty: T1, size_expr: E1) -> Type<N>
-    where
-        T1: Into<RcType<N>>,
-        E1: Into<RcExpr<N>>,
-    {
-        Type::Array(elem_ty.into(), size_expr.into())
+    pub fn array<T1: Into<RcType<N>>>(elem_ty: T1) -> Type<N> {
+        Type::Array(elem_ty.into())
     }
 
     /// A union of types: eg. `union { T, ... }`
@@ -282,20 +288,7 @@ impl<N: Name> Type<N> {
     }
 
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_(mut fields: Vec<Field<N, RcType<N>>>) -> Type<N> {
-        // We maintain a list of the seen field names. This will allow us to
-        // recover the index of these variables as we abstract later fields...
-        let mut seen_names = Vec::with_capacity(fields.len());
-
-        for field in &mut fields {
-            for (level, name) in seen_names.iter().rev().enumerate() {
-                Rc::make_mut(&mut field.value).abstract_name_at(name, level as u32);
-            }
-
-            // Record that the field has been 'seen'
-            seen_names.push(field.name.clone());
-        }
-
+    pub fn struct_(fields: Vec<Field<N, RcType<N>>>) -> Type<N> {
         Type::Struct(fields)
     }
 
@@ -318,15 +311,14 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(lhs_ty).abstract_name_at(name, level);
                 Rc::make_mut(rhs_ty).abstract_name_at(name, level);
             }
-            Type::Array(ref mut elem_ty, ref mut size_expr) => {
+            Type::Array(ref mut elem_ty) => {
                 Rc::make_mut(elem_ty).abstract_name_at(name, level);
-                Rc::make_mut(size_expr).abstract_name_at(name, level);
             }
             Type::Union(ref mut variants) => for variant in variants {
                 Rc::make_mut(&mut variant.value).abstract_name_at(name, level);
             },
-            Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                Rc::make_mut(&mut field.value).abstract_name_at(name, level + i as u32);
+            Type::Struct(ref mut fields) => for field in fields {
+                Rc::make_mut(&mut field.value).abstract_name_at(name, level);
             },
         }
     }
@@ -352,14 +344,14 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(lhs_ty).instantiate_at(level, src);
                 Rc::make_mut(rhs_ty).instantiate_at(level, src);
             }
-            Type::Array(ref mut elem_ty, _) => {
+            Type::Array(ref mut elem_ty) => {
                 Rc::make_mut(elem_ty).instantiate_at(level, src);
             }
             Type::Union(ref mut variants) => for variant in variants {
                 Rc::make_mut(&mut variant.value).instantiate_at(level, src);
             },
-            Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                Rc::make_mut(&mut field.value).instantiate_at(level + i as u32, src);
+            Type::Struct(ref mut fields) => for field in fields {
+                Rc::make_mut(&mut field.value).instantiate_at(level, src);
             },
         };
     }
