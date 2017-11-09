@@ -288,20 +288,7 @@ impl<N: Name> Type<N> {
     }
 
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_(mut fields: Vec<Field<N, RcType<N>>>) -> Type<N> {
-        // We maintain a list of the seen field names. This will allow us to
-        // recover the index of these variables as we abstract later fields...
-        let mut seen_names = Vec::with_capacity(fields.len());
-
-        for field in &mut fields {
-            for (level, name) in seen_names.iter().rev().enumerate() {
-                Rc::make_mut(&mut field.value).abstract_name_at(name, level as u32);
-            }
-
-            // Record that the field has been 'seen'
-            seen_names.push(field.name.clone());
-        }
-
+    pub fn struct_(fields: Vec<Field<N, RcType<N>>>) -> Type<N> {
         Type::Struct(fields)
     }
 
@@ -330,8 +317,8 @@ impl<N: Name> Type<N> {
             Type::Union(ref mut variants) => for variant in variants {
                 Rc::make_mut(&mut variant.value).abstract_name_at(name, level);
             },
-            Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                Rc::make_mut(&mut field.value).abstract_name_at(name, level + i as u32);
+            Type::Struct(ref mut fields) => for field in fields {
+                Rc::make_mut(&mut field.value).abstract_name_at(name, level);
             },
         }
     }
@@ -363,8 +350,8 @@ impl<N: Name> Type<N> {
             Type::Union(ref mut variants) => for variant in variants {
                 Rc::make_mut(&mut variant.value).instantiate_at(level, src);
             },
-            Type::Struct(ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                Rc::make_mut(&mut field.value).instantiate_at(level + i as u32, src);
+            Type::Struct(ref mut fields) => for field in fields {
+                Rc::make_mut(&mut field.value).instantiate_at(level, src);
             },
         };
     }
