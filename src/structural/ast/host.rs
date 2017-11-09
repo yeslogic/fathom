@@ -222,8 +222,8 @@ pub enum Type<N> {
     Const(TypeConst),
     /// Arrow type: eg. `T -> U`
     Arrow(RcType<N>, RcType<N>),
-    /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(RcType<N>, RcExpr<N>),
+    /// An array, eg. `[T]`
+    Array(RcType<N>),
     /// A union of types: eg. `union { variant : T, ... }`
     Union(Vec<Field<N, RcType<N>>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
@@ -268,12 +268,8 @@ impl<N: Name> Type<N> {
     }
 
     /// An array of the specified type, with a size: eg. `[T; n]`
-    pub fn array<T1, E1>(elem_ty: T1, size_expr: E1) -> Type<N>
-    where
-        T1: Into<RcType<N>>,
-        E1: Into<RcExpr<N>>,
-    {
-        Type::Array(elem_ty.into(), size_expr.into())
+    pub fn array<T1: Into<RcType<N>>>(elem_ty: T1) -> Type<N> {
+        Type::Array(elem_ty.into())
     }
 
     /// A union of types: eg. `union { T, ... }`
@@ -318,9 +314,8 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(lhs_ty).abstract_name_at(name, level);
                 Rc::make_mut(rhs_ty).abstract_name_at(name, level);
             }
-            Type::Array(ref mut elem_ty, ref mut size_expr) => {
+            Type::Array(ref mut elem_ty) => {
                 Rc::make_mut(elem_ty).abstract_name_at(name, level);
-                Rc::make_mut(size_expr).abstract_name_at(name, level);
             }
             Type::Union(ref mut variants) => for variant in variants {
                 Rc::make_mut(&mut variant.value).abstract_name_at(name, level);
@@ -352,7 +347,7 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(lhs_ty).instantiate_at(level, src);
                 Rc::make_mut(rhs_ty).instantiate_at(level, src);
             }
-            Type::Array(ref mut elem_ty, _) => {
+            Type::Array(ref mut elem_ty) => {
                 Rc::make_mut(elem_ty).instantiate_at(level, src);
             }
             Type::Union(ref mut variants) => for variant in variants {

@@ -154,8 +154,7 @@ pub fn ty_of<N: Name>(
             expect_ty(ctx, index_expr, Type::int())?;
 
             match *ty_of(ctx, array_expr)? {
-                // Check if index is in bounds?
-                Type::Array(ref elem_ty, _) => Ok(elem_ty.clone()),
+                Type::Array(ref elem_ty) => Ok(elem_ty.clone()),
                 ref found => Err(TypeError::Mismatch {
                     expr: array_expr.clone(),
                     expected: ExpectedType::Array,
