@@ -151,11 +151,22 @@ impl<N: Name> Type<N> {
 
     /// Attempt to lookup the type of a field
     ///
-    /// Returns `None` if the expression is not a struct or the field is not
+    /// Returns `None` if the type is not a struct or the field is not
     /// present in the struct.
     pub fn lookup_field(&self, name: &N) -> Option<&RcType<N>> {
         match *self {
             Type::Struct(_, ref fields) => ast::lookup_field(fields, name),
+            _ => None,
+        }
+    }
+
+    /// Attempt to lookup the type of a variant
+    ///
+    /// Returns `None` if the type is not a union or the field is not
+    /// present in the union.
+    pub fn lookup_variant(&self, name: &N) -> Option<&RcType<N>> {
+        match *self {
+            Type::Union(_, ref variants) => ast::lookup_field(variants, name),
             _ => None,
         }
     }

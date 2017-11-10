@@ -154,12 +154,30 @@ impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for ParseExp
                 let elem_parser = ParseExpr::from(&**elem_ty);
                 ParseExpr::repeat(elem_parser, RepeatBound::Exact(size_expr.clone()))
             }
-            Type::Union(_, _) => unimplemented!(),
+            Type::Union(_, ref variants) => {
+                let union_ty = src.repr();
+                let lower_variant = |variant: &Field<N, binary::RcType<N>>| {
+                    let variant_parser = Rc::new(ParseExpr::from(&*variant.value));
+                    let variant_expr = Rc::new(Expr::intro(
+                        Span::start(),
+                        variant.name.clone(),
+                        Expr::bvar(Span::start(), "x", 0),
+                        union_ty.clone(),
+                    ));
+
+                    Rc::new(ParseExpr::Sequence(
+                        vec![Named(N::from("x"), variant_parser)],
+                        variant_expr,
+                    ))
+                };
+
+                ParseExpr::choice(variants.iter().map(lower_variant).collect())
+            }
             Type::Struct(_, ref fields) => {
-                let mk_field_parser = |field: &Field<N, binary::RcType<N>>| {
+                let lower_to_field_parser = |field: &Field<N, binary::RcType<N>>| {
                     (field.name.clone(), Rc::new(ParseExpr::from(&*field.value)))
                 };
-                let mk_expr_field = |field: &Field<N, binary::RcType<N>>| {
+                let lower_to_expr_field = |field: &Field<N, binary::RcType<N>>| {
                     Field::new(
                         field.name.clone(),
                         Expr::fvar(Span::start(), field.name.clone()),
@@ -167,8 +185,8 @@ impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for ParseExp
                 };
 
                 ParseExpr::sequence(
-                    fields.iter().map(mk_field_parser).collect(),
-                    Expr::struct_(fields.iter().map(mk_expr_field).collect()),
+                    fields.iter().map(lower_to_field_parser).collect(),
+                    Expr::struct_(fields.iter().map(lower_to_expr_field).collect()),
                 )
             }
             Type::Assert(_, ref ty, ref pred_expr) => {

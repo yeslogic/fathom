@@ -43,9 +43,15 @@ pub enum TypeError<N> {
     },
     /// A field was missing when projecting on a record
     MissingField {
-        struct_expr: host::RcExpr<N>,
+        expr: host::RcExpr<N>,
         struct_ty: host::RcType<N>,
         field_name: N,
+    },
+    /// A variant was missing when introducing on a union
+    MissingVariant {
+        expr: host::RcExpr<N>,
+        union_ty: host::RcType<N>,
+        variant_name: N,
     },
 }
 
@@ -156,9 +162,25 @@ pub fn ty_of<N: Name>(
             match struct_ty.lookup_field(field_name).cloned() {
                 Some(field_ty) => Ok(field_ty),
                 None => Err(TypeError::MissingField {
-                    struct_expr: struct_expr.clone(),
+                    expr: struct_expr.clone(),
                     struct_ty: struct_ty.clone(),
                     field_name: field_name.clone(),
+                }),
+            }
+        }
+
+        // Variant introduction
+        Expr::Intro(_, ref variant_name, ref expr, ref union_ty) => {
+            // FIXME: Kindcheck union_ty
+            match union_ty.lookup_variant(variant_name).cloned() {
+                Some(variant_ty) => {
+                    expect_ty(ctx, expr, variant_ty)?;
+                    Ok(union_ty.clone())
+                }
+                None => Err(TypeError::MissingVariant {
+                    expr: expr.clone(),
+                    union_ty: union_ty.clone(),
+                    variant_name: variant_name.clone(),
                 }),
             }
         }
