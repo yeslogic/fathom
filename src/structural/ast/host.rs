@@ -97,6 +97,8 @@ pub enum Expr<N> {
     Subscript(Span, RcExpr<N>, RcExpr<N>),
     /// Abstraction, eg: `\(x : T) -> x`
     Abs(Span, Named<N, RcType<N>>, RcExpr<N>),
+    /// Application, eg: `f x`
+    App(Span, RcExpr<N>, RcExpr<N>),
 }
 
 pub type RcExpr<N> = Rc<Expr<N>>;
@@ -183,6 +185,15 @@ impl<N: Name> Expr<N> {
         Expr::Abs(span, Named(param_name, param_ty.into()), body_expr)
     }
 
+    /// Application: eg. `f x`
+    pub fn app<E1, E2>(span: Span, fn_expr: E1, arg_expr: E2) -> Expr<N>
+    where
+        E1: Into<RcExpr<N>>,
+        E2: Into<RcExpr<N>>,
+    {
+        Expr::App(span, fn_expr.into(), arg_expr.into())
+    }
+
     pub fn abstract_name_at(&mut self, name: &N, level: u32) {
         match *self {
             Expr::Var(_, ref mut var) => var.abstract_name_at(name, level),
@@ -204,6 +215,10 @@ impl<N: Name> Expr<N> {
             }
             Expr::Abs(_, _, ref mut body_expr) => {
                 Rc::make_mut(body_expr).abstract_name_at(name, level + 1);
+            }
+            Expr::App(_, ref mut fn_expr, ref mut arg_expr) => {
+                Rc::make_mut(fn_expr).abstract_name_at(name, level);
+                Rc::make_mut(arg_expr).abstract_name_at(name, level);
             }
         }
     }

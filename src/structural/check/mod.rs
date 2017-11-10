@@ -14,7 +14,8 @@ mod tests;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpectedType<N> {
     Array,
-    Actual(host::Type<N>),
+    Arrow,
+    Actual(host::RcType<N>),
 }
 
 /// An error that was encountered during type checking
@@ -135,6 +136,7 @@ pub fn ty_of<N: Name>(
             }
         }
 
+        // Struct expressions
         Expr::Struct(ref fields) => {
             let field_tys = fields
                 .iter()
@@ -182,6 +184,22 @@ pub fn ty_of<N: Name>(
             Ok(Rc::new(
                 Type::arrow(param_ty.clone(), ty_of(&ctx, body_expr)?),
             ))
+        }
+
+        // Applications
+        Expr::App(_, ref fn_expr, ref arg_expr) => {
+            let fn_ty = ty_of(ctx, fn_expr)?;
+
+            if let Type::Arrow(ref param_ty, ref ret_ty) = *fn_ty {
+                expect_ty(ctx, arg_expr, param_ty.clone())?;
+                return Ok(ret_ty.clone());
+            }
+
+            Err(TypeError::Mismatch {
+                expr: fn_expr.clone(),
+                expected: ExpectedType::Arrow,
+                found: fn_ty,
+            })
         }
     }
 }
@@ -375,14 +393,18 @@ pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> 
 
 // Expectations
 
-fn expect_ty<N: Name>(
+fn expect_ty<N: Name, T1>(
     ctx: &Context<N>,
     expr: &host::RcExpr<N>,
-    expected: host::Type<N>,
-) -> Result<host::RcType<N>, TypeError<N>> {
+    expected: T1,
+) -> Result<host::RcType<N>, TypeError<N>>
+where
+    T1: Into<host::RcType<N>>,
+{
     let found = ty_of(ctx, expr)?;
+    let expected = expected.into();
 
-    if *found == expected {
+    if found == expected {
         Ok(found)
     } else {
         Err(TypeError::Mismatch {
