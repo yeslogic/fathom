@@ -50,4 +50,3 @@
 //! flat identifiers that do not clash with each other.
 
 pub mod ast;
-pub mod compile;
