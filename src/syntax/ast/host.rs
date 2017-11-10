@@ -5,7 +5,24 @@ use std::rc::Rc;
 
 use name::{Name, Named};
 use source::Span;
-use structural::ast::{self, Field, Var};
+use syntax::ast::{self, Field, Var};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Kind {
+    /// Kind of types
+    Type,
+    /// Kind of type functions
+    Arrow(RcKind, RcKind),
+}
+
+pub type RcKind = Rc<Kind>;
+
+impl Kind {
+    /// Kind of type functions
+    pub fn arrow<K1: Into<RcKind>, K2: Into<RcKind>>(lhs: K1, rhs: K2) -> Kind {
+        Kind::Arrow(lhs.into(), rhs.into())
+    }
+}
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Const {
@@ -93,10 +110,19 @@ pub enum Expr<N> {
     Struct(Vec<Field<N, RcExpr<N>>>),
     /// Field projection, eg: `x.field`
     Proj(Span, RcExpr<N>, N),
+    /// Variant introduction, eg: `.variant1 x : union { variant1 : T }`
+    ///
+    /// We require a type annotation because we don't have inference
+    /// implemented in the type checker yet.
+    //
+    // TODO: add type inference to remove the need for this annotation
+    Intro(Span, N, RcExpr<N>, RcType<N>),
     /// Array index, eg: `x[i]`
     Subscript(Span, RcExpr<N>, RcExpr<N>),
     /// Abstraction, eg: `\(x : T) -> x`
     Abs(Span, Named<N, RcType<N>>, RcExpr<N>),
+    /// Application, eg: `f x`
+    App(Span, RcExpr<N>, RcExpr<N>),
 }
 
 pub type RcExpr<N> = Rc<Expr<N>>;
@@ -161,6 +187,19 @@ impl<N: Name> Expr<N> {
         Expr::Proj(span, expr.into(), field_name.into())
     }
 
+    /// Variant introduction, eg: `.variant1 x : union { variant1 : T }`
+    ///
+    /// We require a type annotation because we don't have inference
+    /// implemented in the type checker yet.
+    pub fn intro<N1, E1, T1>(span: Span, variant_name: N1, expr: E1, union_ty: T1) -> Expr<N>
+    where
+        N1: Into<N>,
+        E1: Into<RcExpr<N>>,
+        T1: Into<RcType<N>>,
+    {
+        Expr::Intro(span, variant_name.into(), expr.into(), union_ty.into())
+    }
+
     /// Array subscript, eg: `x[i]`
     pub fn subscript<E1, E2>(span: Span, expr: E1, index_expr: E2) -> Expr<N>
     where
@@ -183,6 +222,26 @@ impl<N: Name> Expr<N> {
         Expr::Abs(span, Named(param_name, param_ty.into()), body_expr)
     }
 
+    /// Application: eg. `f x`
+    pub fn app<E1, E2>(span: Span, fn_expr: E1, arg_expr: E2) -> Expr<N>
+    where
+        E1: Into<RcExpr<N>>,
+        E2: Into<RcExpr<N>>,
+    {
+        Expr::App(span, fn_expr.into(), arg_expr.into())
+    }
+
+    /// Attempt to lookup the value of a field
+    ///
+    /// Returns `None` if the expression is not a struct or the field is not
+    /// present in the struct.
+    pub fn lookup_field(&self, name: &N) -> Option<&RcExpr<N>> {
+        match *self {
+            Expr::Struct(ref fields) => ast::lookup_field(fields, name),
+            _ => None,
+        }
+    }
+
     pub fn abstract_name_at(&mut self, name: &N, level: u32) {
         match *self {
             Expr::Var(_, ref mut var) => var.abstract_name_at(name, level),
@@ -190,6 +249,10 @@ impl<N: Name> Expr<N> {
             Expr::Prim(_, ref mut repr_ty) => Rc::make_mut(repr_ty).abstract_name_at(name, level),
             Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
                 Rc::make_mut(expr).abstract_name_at(name, level);
+            }
+            Expr::Intro(_, _, ref mut expr, ref mut ty) => {
+                Rc::make_mut(expr).abstract_name_at(name, level);
+                Rc::make_mut(ty).abstract_name_at(name, level);
             }
             Expr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
                 Rc::make_mut(lhs_expr).abstract_name_at(name, level);
@@ -202,8 +265,13 @@ impl<N: Name> Expr<N> {
                 Rc::make_mut(array_expr).abstract_name_at(name, level);
                 Rc::make_mut(index_expr).abstract_name_at(name, level);
             }
-            Expr::Abs(_, _, ref mut body_expr) => {
+            Expr::Abs(_, Named(_, ref mut arg_ty), ref mut body_expr) => {
+                Rc::make_mut(arg_ty).abstract_name_at(name, level);
                 Rc::make_mut(body_expr).abstract_name_at(name, level + 1);
+            }
+            Expr::App(_, ref mut fn_expr, ref mut arg_expr) => {
+                Rc::make_mut(fn_expr).abstract_name_at(name, level);
+                Rc::make_mut(arg_expr).abstract_name_at(name, level);
             }
         }
     }
@@ -238,6 +306,10 @@ pub enum Type<N> {
     Union(Vec<Field<N, RcType<N>>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Vec<Field<N, RcType<N>>>),
+    /// Type abstraction: eg. `\(a : Type) -> T`
+    Abs(Named<N, RcKind>, RcType<N>),
+    /// Type application: eg. `T U V`
+    App(RcType<N>, RcType<N>),
 }
 
 pub type RcType<N> = Rc<Type<N>>;
@@ -292,13 +364,46 @@ impl<N: Name> Type<N> {
         Type::Struct(fields)
     }
 
+    /// Type abstraction: eg. `\(a : Type) -> T`
+    pub fn abs<N1, K1, T1>((param_name, param_kind): (N1, K1), body_ty: T1) -> Type<N>
+    where
+        N1: Into<N>,
+        K1: Into<RcKind>,
+        T1: Into<RcType<N>>,
+    {
+        let param_name = param_name.into();
+        let mut body_ty = body_ty.into();
+        Rc::make_mut(&mut body_ty).abstract_name(&param_name);
+        Type::Abs(Named(param_name, param_kind.into()), body_ty)
+    }
+
+    /// Type application: eg. `T U V`
+    pub fn app<T1, T2>(ty1: T1, ty2: T2) -> Type<N>
+    where
+        T1: Into<RcType<N>>,
+        T2: Into<RcType<N>>,
+    {
+        Type::App(ty1.into(), ty2.into())
+    }
+
     /// Attempt to lookup the type of a field
     ///
-    /// Returns `None` if the expression is not a struct or the field is not
+    /// Returns `None` if the type is not a struct or the field is not
     /// present in the struct.
     pub fn lookup_field(&self, name: &N) -> Option<&RcType<N>> {
         match *self {
             Type::Struct(ref fields) => ast::lookup_field(fields, name),
+            _ => None,
+        }
+    }
+
+    /// Attempt to lookup the type of a variant
+    ///
+    /// Returns `None` if the type is not a union or the field is not
+    /// present in the union.
+    pub fn lookup_variant(&self, name: &N) -> Option<&RcType<N>> {
+        match *self {
+            Type::Union(ref variants) => ast::lookup_field(variants, name),
             _ => None,
         }
     }
@@ -320,6 +425,13 @@ impl<N: Name> Type<N> {
             Type::Struct(ref mut fields) => for field in fields {
                 Rc::make_mut(&mut field.value).abstract_name_at(name, level);
             },
+            Type::Abs(_, ref mut body_ty) => {
+                Rc::make_mut(body_ty).abstract_name_at(name, level + 1);
+            }
+            Type::App(ref mut fn_ty, ref mut arg_ty) => {
+                Rc::make_mut(fn_ty).abstract_name_at(name, level);
+                Rc::make_mut(arg_ty).abstract_name_at(name, level);
+            }
         }
     }
 
@@ -353,6 +465,13 @@ impl<N: Name> Type<N> {
             Type::Struct(ref mut fields) => for field in fields {
                 Rc::make_mut(&mut field.value).instantiate_at(level, src);
             },
+            Type::Abs(_, ref mut ty) => {
+                Rc::make_mut(ty).instantiate_at(level + 1, src);
+            }
+            Type::App(ref mut ty, ref mut arg_ty) => {
+                Rc::make_mut(ty).instantiate_at(level, src);
+                Rc::make_mut(arg_ty).instantiate_at(level, src);
+            }
         };
     }
 

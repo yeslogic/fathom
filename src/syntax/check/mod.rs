@@ -3,9 +3,10 @@
 use std::rc::Rc;
 
 use name::{Name, Named};
-use structural::ast::{binary, host, Field, Program, Var};
-use structural::context::{Binding, Context};
+use syntax::ast::{binary, host, Field, Program, Var};
+use self::context::{Binding, Context};
 
+mod context;
 #[cfg(test)]
 mod tests;
 
@@ -14,7 +15,8 @@ mod tests;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpectedType<N> {
     Array,
-    Actual(host::Type<N>),
+    Arrow,
+    Actual(host::RcType<N>),
 }
 
 /// An error that was encountered during type checking
@@ -41,9 +43,15 @@ pub enum TypeError<N> {
     },
     /// A field was missing when projecting on a record
     MissingField {
-        struct_expr: host::RcExpr<N>,
+        expr: host::RcExpr<N>,
         struct_ty: host::RcType<N>,
         field_name: N,
+    },
+    /// A variant was missing when introducing on a union
+    MissingVariant {
+        expr: host::RcExpr<N>,
+        union_ty: host::RcType<N>,
+        variant_name: N,
     },
 }
 
@@ -53,7 +61,7 @@ pub fn ty_of<N: Name>(
     ctx: &Context<N>,
     expr: &host::RcExpr<N>,
 ) -> Result<host::RcType<N>, TypeError<N>> {
-    use structural::ast::host::{Binop, Expr, Type, TypeConst, Unop};
+    use syntax::ast::host::{Binop, Expr, Type, TypeConst, Unop};
 
     match **expr {
         // Constants are easy!
@@ -135,6 +143,7 @@ pub fn ty_of<N: Name>(
             }
         }
 
+        // Struct expressions
         Expr::Struct(ref fields) => {
             let field_tys = fields
                 .iter()
@@ -153,9 +162,25 @@ pub fn ty_of<N: Name>(
             match struct_ty.lookup_field(field_name).cloned() {
                 Some(field_ty) => Ok(field_ty),
                 None => Err(TypeError::MissingField {
-                    struct_expr: struct_expr.clone(),
+                    expr: struct_expr.clone(),
                     struct_ty: struct_ty.clone(),
                     field_name: field_name.clone(),
+                }),
+            }
+        }
+
+        // Variant introduction
+        Expr::Intro(_, ref variant_name, ref expr, ref union_ty) => {
+            // FIXME: Kindcheck union_ty
+            match union_ty.lookup_variant(variant_name).cloned() {
+                Some(variant_ty) => {
+                    expect_ty(ctx, expr, variant_ty)?;
+                    Ok(union_ty.clone())
+                }
+                None => Err(TypeError::MissingVariant {
+                    expr: expr.clone(),
+                    union_ty: union_ty.clone(),
+                    variant_name: variant_name.clone(),
                 }),
             }
         }
@@ -183,13 +208,29 @@ pub fn ty_of<N: Name>(
                 Type::arrow(param_ty.clone(), ty_of(&ctx, body_expr)?),
             ))
         }
+
+        // Applications
+        Expr::App(_, ref fn_expr, ref arg_expr) => {
+            let fn_ty = ty_of(ctx, fn_expr)?;
+
+            if let Type::Arrow(ref param_ty, ref ret_ty) = *fn_ty {
+                expect_ty(ctx, arg_expr, param_ty.clone())?;
+                return Ok(ret_ty.clone());
+            }
+
+            Err(TypeError::Mismatch {
+                expr: fn_expr.clone(),
+                expected: ExpectedType::Arrow,
+                found: fn_ty,
+            })
+        }
     }
 }
 
 // Kinding
 
 fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> binary::RcType<N> {
-    use structural::ast::binary::Type;
+    use syntax::ast::binary::Type;
 
     fn compute_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> Option<binary::RcType<N>> {
         match **ty {
@@ -244,16 +285,8 @@ pub enum KindError<N> {
         expected: ExpectedKind,
         found: binary::RcKind,
     },
-    /// A repr error
-    Repr(binary::ReprError<N>),
     /// A type error
     Type(TypeError<N>),
-}
-
-impl<N> From<binary::ReprError<N>> for KindError<N> {
-    fn from(src: binary::ReprError<N>) -> KindError<N> {
-        KindError::Repr(src)
-    }
 }
 
 impl<N> From<TypeError<N>> for KindError<N> {
@@ -268,7 +301,7 @@ pub fn kind_of<N: Name>(
     ctx: &Context<N>,
     ty: &binary::RcType<N>,
 ) -> Result<binary::RcKind, KindError<N>> {
-    use structural::ast::binary::{Kind, Type, TypeConst};
+    use syntax::ast::binary::{Kind, Type, TypeConst};
 
     match **ty {
         // Variables
@@ -298,7 +331,7 @@ pub fn kind_of<N: Name>(
         // Conditional types
         Type::Assert(_, ref ty, ref pred_expr) => {
             expect_ty_kind(ctx, ty)?;
-            let pred_ty = host::Type::arrow(ty.repr()?, host::Type::bool());
+            let pred_ty = host::Type::arrow(ty.repr(), host::Type::bool());
             expect_ty(ctx, pred_expr, pred_ty)?;
 
             Ok(Rc::new(Kind::Type))
@@ -307,7 +340,7 @@ pub fn kind_of<N: Name>(
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref host_ty) => {
             expect_ty_kind(ctx, ty)?;
-            let conv_ty = host::Type::arrow(ty.repr()?, host_ty.clone());
+            let conv_ty = host::Type::arrow(ty.repr(), host_ty.clone());
             expect_ty(ctx, conv_expr, conv_ty)?;
 
             Ok(Rc::new(Kind::Type))
@@ -341,7 +374,7 @@ pub fn kind_of<N: Name>(
                 expect_ty_kind(&ctx, &field.value)?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
-                ctx.extend(field.name.clone(), Binding::Expr(field_ty.repr()?));
+                ctx.extend(field.name.clone(), Binding::Expr(field_ty.repr()));
             }
 
             Ok(Rc::new(Kind::Type))
@@ -375,14 +408,18 @@ pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> 
 
 // Expectations
 
-fn expect_ty<N: Name>(
+fn expect_ty<N: Name, T1>(
     ctx: &Context<N>,
     expr: &host::RcExpr<N>,
-    expected: host::Type<N>,
-) -> Result<host::RcType<N>, TypeError<N>> {
+    expected: T1,
+) -> Result<host::RcType<N>, TypeError<N>>
+where
+    T1: Into<host::RcType<N>>,
+{
     let found = ty_of(ctx, expr)?;
+    let expected = expected.into();
 
-    if *found == expected {
+    if found == expected {
         Ok(found)
     } else {
         Err(TypeError::Mismatch {
@@ -412,7 +449,7 @@ fn expect_kind<N: Name>(
 }
 
 fn expect_ty_kind<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> Result<(), KindError<N>> {
-    use structural::ast::binary::Kind;
+    use syntax::ast::binary::Kind;
 
     expect_kind(ctx, ty, Rc::new(Kind::Type)).map(|_| ())
 }

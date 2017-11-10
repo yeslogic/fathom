@@ -2,8 +2,8 @@ extern crate ddl;
 
 use std::str::FromStr;
 
-use ddl::structural::{ast, check};
-use ddl::structural::ast::Program;
+use ddl::syntax::{ast, check};
+use ddl::syntax::ast::Program;
 
 #[test]
 #[ignore]

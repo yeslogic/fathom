@@ -1,11 +1,8 @@
-use lalrpop_util::ParseError;
-
 use source::{BytePos, Span};
-use structural::ast::{Definition, Field, Program};
-use structural::ast::binary::{RcType, Type};
-use structural::ast::host::{Binop, RcExpr, Expr, Unop};
-use structural::parser::GrammarError;
-use structural::parser::lexer::Token;
+use syntax::ast::{Definition, Field, Program};
+use syntax::ast::binary::{RcType, Type};
+use syntax::ast::host::{Binop, RcExpr, Expr, Unop};
+use syntax::parser::lexer::{Error as LexerError, Token};
 
 
 grammar<'input>();
@@ -15,7 +12,7 @@ grammar<'input>();
 
 extern {
     type Location = BytePos;
-    type Error = GrammarError<String>;
+    type Error = LexerError;
 
     enum Token<'input> {
         // Data
@@ -88,19 +85,11 @@ pub Type: RcType<String> = {
 
 PrimaryType: RcType<String> = {
     AtomicType,
-    <lo1: @L> <ty: PrimaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryExpr> <hi: @R> =>? {
-        let repr_ty = ty.repr().map_err(|err| {
-            ParseError::User { error: GrammarError::from(err) }
-        })?;
-        Ok(Type::assert(
-            Span::new(lo1, hi),
-            ty,
-            Expr::abs(
-                Span::new(lo2, hi),
-                (param, repr_ty),
-                pred,
-            ),
-        ).into())
+    <lo1: @L> <ty: PrimaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryExpr> <hi: @R> => {
+        let repr_ty = ty.repr();
+        let pred_expr = Expr::abs(Span::new(lo2, hi), (param, repr_ty), pred);
+
+        Type::assert(Span::new(lo1, hi), ty, pred_expr).into()
     },
 };
 
