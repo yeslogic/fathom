@@ -4,8 +4,9 @@ use std::rc::Rc;
 
 use name::{Name, Named};
 use syntax::ast::{binary, host, Field, Program, Var};
-use syntax::context::{Binding, Context};
+use self::context::{Binding, Context};
 
+mod context;
 #[cfg(test)]
 mod tests;
 

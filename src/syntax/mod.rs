@@ -2,5 +2,4 @@
 
 pub mod ast;
 pub mod check;
-pub mod context;
 pub mod parser;

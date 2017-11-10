@@ -1,3 +1,5 @@
+//! The type checking context and binders
+
 use name::Named;
 use syntax::ast::{binary, host};
 
