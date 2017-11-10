@@ -137,7 +137,7 @@ impl<N: Name> ParseExpr<N> {
 impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for Definition<N> {
     fn from(src: &'a binary::Type<N>) -> Definition<N> {
         Definition {
-            ty: src.repr().unwrap(), // FIXME: unwrap
+            ty: src.repr(),
             parser: Rc::new(ParseExpr::from(src)),
         }
     }

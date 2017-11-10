@@ -21,13 +21,13 @@ impl Kind {
     pub fn arrow<K1: Into<RcKind>, K2: Into<RcKind>>(lhs: K1, rhs: K2) -> Kind {
         Kind::Arrow(lhs.into(), rhs.into())
     }
-}
 
-/// An error that occurred when trying to convert a binary type to
-/// its host representation
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ReprError<N> {
-    NoCorrespondingHostType(Type<N>),
+    pub fn repr(&self) -> host::RcKind {
+        match *self {
+            Kind::Type => Rc::new(host::Kind::Type),
+            Kind::Arrow(ref k1, ref k2) => Rc::new(host::Kind::arrow(k1.repr(), k2.repr())),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -293,41 +293,37 @@ impl<N: Name> Type<N> {
     }
 
     /// Returns the host representation of the binary type
-    pub fn repr(&self) -> Result<host::RcType<N>, ReprError<N>> {
+    pub fn repr(&self) -> host::RcType<N> {
         match *self {
-            Type::Var(_, ref v) => Ok(Rc::new(host::Type::Var(v.clone()))),
-            Type::Const(TypeConst::Bit) => Ok(Rc::new(host::Type::Const(host::TypeConst::Bit))),
-            Type::Array(_, ref elem_ty, _) => Ok(Rc::new(host::Type::array(elem_ty.repr()?))),
+            Type::Var(_, ref v) => Rc::new(host::Type::Var(v.clone())),
+            Type::Const(TypeConst::Bit) => Rc::new(host::Type::Const(host::TypeConst::Bit)),
+            Type::Array(_, ref elem_ty, _) => Rc::new(host::Type::Array(elem_ty.repr())),
             Type::Assert(_, ref ty, _) => ty.repr(),
-            Type::Interp(_, _, _, ref repr_ty) => Ok(repr_ty.clone()),
+            Type::Interp(_, _, _, ref repr_ty) => repr_ty.clone(),
             Type::Union(_, ref variants) => {
                 let repr_variants = variants
                     .iter()
                     .map(|variant| {
-                        variant
-                            .value
-                            .repr()
-                            .map(|ty| Field::new(variant.name.clone(), ty))
+                        Field::new(variant.name.clone(), variant.value.repr())
                     })
-                    .collect::<Result<_, _>>()?;
+                    .collect();
 
-                Ok(Rc::new(host::Type::Union(repr_variants)))
+                Rc::new(host::Type::Union(repr_variants))
             }
             Type::Struct(_, ref fields) => {
                 let repr_fields = fields
                     .iter()
-                    .map(|field| {
-                        field
-                            .value
-                            .repr()
-                            .map(|ty| Field::new(field.name.clone(), ty))
-                    })
-                    .collect::<Result<_, _>>()?;
+                    .map(|field| Field::new(field.name.clone(), field.value.repr()))
+                    .collect();
 
-                Ok(Rc::new(host::Type::Struct(repr_fields)))
+                Rc::new(host::Type::Struct(repr_fields))
             }
-            Type::Abs(_, _, _) | Type::App(_, _, _) => {
-                Err(ReprError::NoCorrespondingHostType(self.clone()))
+            Type::Abs(_, Named(ref name, ref param_kind), ref body_ty) => Rc::new(host::Type::Abs(
+                Named(name.clone(), param_kind.repr()),
+                body_ty.repr(),
+            )),
+            Type::App(_, ref fn_ty, ref arg_ty) => {
+                Rc::new(host::Type::App(fn_ty.repr(), arg_ty.repr()))
             }
         }
     }

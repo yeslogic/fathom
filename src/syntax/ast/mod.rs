@@ -179,7 +179,7 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
         use syntax::ast::host::Expr;
 
         let array_ty = Type::array(Span::start(), Type::bit(), Expr::int(Span::start(), size));
-        let conv_ty = host::Type::arrow(array_ty.repr().unwrap(), host::Type::int());
+        let conv_ty = host::Type::arrow(array_ty.repr(), host::Type::int());
 
         Type::interp(
             Span::start(),

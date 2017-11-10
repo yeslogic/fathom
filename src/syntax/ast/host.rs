@@ -7,6 +7,23 @@ use name::{Name, Named};
 use source::Span;
 use syntax::ast::{self, Field, Var};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Kind {
+    /// Kind of types
+    Type,
+    /// Kind of type functions
+    Arrow(RcKind, RcKind),
+}
+
+pub type RcKind = Rc<Kind>;
+
+impl Kind {
+    /// Kind of type functions
+    pub fn arrow<K1: Into<RcKind>, K2: Into<RcKind>>(lhs: K1, rhs: K2) -> Kind {
+        Kind::Arrow(lhs.into(), rhs.into())
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Const {
     /// A single bit
@@ -253,6 +270,10 @@ pub enum Type<N> {
     Union(Vec<Field<N, RcType<N>>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Vec<Field<N, RcType<N>>>),
+    /// Type abstraction: eg. `\(a : Type) -> T`
+    Abs(Named<N, RcKind>, RcType<N>),
+    /// Type application: eg. `T U V`
+    App(RcType<N>, RcType<N>),
 }
 
 pub type RcType<N> = Rc<Type<N>>;
@@ -307,6 +328,28 @@ impl<N: Name> Type<N> {
         Type::Struct(fields)
     }
 
+    /// Type abstraction: eg. `\(a : Type) -> T`
+    pub fn abs<N1, K1, T1>((param_name, param_kind): (N1, K1), body_ty: T1) -> Type<N>
+    where
+        N1: Into<N>,
+        K1: Into<RcKind>,
+        T1: Into<RcType<N>>,
+    {
+        let param_name = param_name.into();
+        let mut body_ty = body_ty.into();
+        Rc::make_mut(&mut body_ty).abstract_name(&param_name);
+        Type::Abs(Named(param_name, param_kind.into()), body_ty)
+    }
+
+    /// Type application: eg. `T U V`
+    pub fn app<T1, T2>(ty1: T1, ty2: T2) -> Type<N>
+    where
+        T1: Into<RcType<N>>,
+        T2: Into<RcType<N>>,
+    {
+        Type::App(ty1.into(), ty2.into())
+    }
+
     /// Attempt to lookup the type of a field
     ///
     /// Returns `None` if the expression is not a struct or the field is not
@@ -335,6 +378,13 @@ impl<N: Name> Type<N> {
             Type::Struct(ref mut fields) => for field in fields {
                 Rc::make_mut(&mut field.value).abstract_name_at(name, level);
             },
+            Type::Abs(_, ref mut body_ty) => {
+                Rc::make_mut(body_ty).abstract_name_at(name, level + 1);
+            }
+            Type::App(ref mut fn_ty, ref mut arg_ty) => {
+                Rc::make_mut(fn_ty).abstract_name_at(name, level);
+                Rc::make_mut(arg_ty).abstract_name_at(name, level);
+            }
         }
     }
 
@@ -368,6 +418,13 @@ impl<N: Name> Type<N> {
             Type::Struct(ref mut fields) => for field in fields {
                 Rc::make_mut(&mut field.value).instantiate_at(level, src);
             },
+            Type::Abs(_, ref mut ty) => {
+                Rc::make_mut(ty).instantiate_at(level + 1, src);
+            }
+            Type::App(ref mut ty, ref mut arg_ty) => {
+                Rc::make_mut(ty).instantiate_at(level, src);
+                Rc::make_mut(arg_ty).instantiate_at(level, src);
+            }
         };
     }
 

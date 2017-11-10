@@ -262,16 +262,8 @@ pub enum KindError<N> {
         expected: ExpectedKind,
         found: binary::RcKind,
     },
-    /// A repr error
-    Repr(binary::ReprError<N>),
     /// A type error
     Type(TypeError<N>),
-}
-
-impl<N> From<binary::ReprError<N>> for KindError<N> {
-    fn from(src: binary::ReprError<N>) -> KindError<N> {
-        KindError::Repr(src)
-    }
 }
 
 impl<N> From<TypeError<N>> for KindError<N> {
@@ -316,7 +308,7 @@ pub fn kind_of<N: Name>(
         // Conditional types
         Type::Assert(_, ref ty, ref pred_expr) => {
             expect_ty_kind(ctx, ty)?;
-            let pred_ty = host::Type::arrow(ty.repr()?, host::Type::bool());
+            let pred_ty = host::Type::arrow(ty.repr(), host::Type::bool());
             expect_ty(ctx, pred_expr, pred_ty)?;
 
             Ok(Rc::new(Kind::Type))
@@ -325,7 +317,7 @@ pub fn kind_of<N: Name>(
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref host_ty) => {
             expect_ty_kind(ctx, ty)?;
-            let conv_ty = host::Type::arrow(ty.repr()?, host_ty.clone());
+            let conv_ty = host::Type::arrow(ty.repr(), host_ty.clone());
             expect_ty(ctx, conv_expr, conv_ty)?;
 
             Ok(Rc::new(Kind::Type))
@@ -359,7 +351,7 @@ pub fn kind_of<N: Name>(
                 expect_ty_kind(&ctx, &field.value)?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
-                ctx.extend(field.name.clone(), Binding::Expr(field_ty.repr()?));
+                ctx.extend(field.name.clone(), Binding::Expr(field_ty.repr()));
             }
 
             Ok(Rc::new(Kind::Type))
