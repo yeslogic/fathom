@@ -111,25 +111,6 @@ impl<N: Name> ParseExpr<N> {
     pub fn choice(parse_exprs: Vec<RcParseExpr<N>>) -> ParseExpr<N> {
         ParseExpr::Choice(parse_exprs)
     }
-
-    pub fn action<E1, E2>(parse_expr: E1, expr: E2) -> ParseExpr<N>
-    where
-        E1: Into<RcParseExpr<N>>,
-        E2: Into<host::RcExpr<N>>,
-        N: for<'a> From<&'a str>,
-    {
-        use syntax::ast::host::Expr;
-
-        ParseExpr::sequence(
-            // FIXME: generate fresh name?
-            vec![(N::from("x"), parse_expr.into())],
-            Rc::new(Expr::app(
-                Span::start(),
-                expr.into(),
-                Expr::fvar(Span::start(), N::from("x")),
-            )),
-        )
-    }
 }
 
 // Lowering
@@ -161,6 +142,7 @@ impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for ParseExp
                     let variant_expr = Rc::new(Expr::intro(
                         Span::start(),
                         variant.name.clone(),
+                        // FIXME: fresh variable?
                         Expr::bvar(Span::start(), "x", 0),
                         union_ty.clone(),
                     ));
@@ -194,8 +176,17 @@ impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for ParseExp
                 ParseExpr::assert(ty_parser, pred_expr.clone())
             }
             Type::Interp(_, ref ty, ref conv, _) => {
-                let ty_parser = ParseExpr::from(&**ty);
-                ParseExpr::action(ty_parser, conv.clone())
+                let ty_parser = Rc::new(ParseExpr::from(&**ty));
+
+                ParseExpr::Sequence(
+                    // FIXME: generate fresh name?
+                    vec![Named(N::from("x"), ty_parser)],
+                    Rc::new(Expr::app(
+                        Span::start(),
+                        conv.clone(),
+                        Expr::bvar(Span::start(), N::from("x"), 0),
+                    )),
+                )
             }
             Type::Var(_, _) | Type::Abs(_, _, _) | Type::App(_, _, _) => unimplemented!(),
         }
