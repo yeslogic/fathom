@@ -15,6 +15,8 @@ fn cmap() {
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
+
+    ddl::ir::owned::ast::Program::from(&program);
 }
 
 #[test]
@@ -26,6 +28,8 @@ fn edid() {
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
+
+    ddl::ir::owned::ast::Program::from(&program);
 }
 
 #[test]
@@ -37,6 +41,8 @@ fn heroes_of_might_and_magic_bmp() {
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
+
+    ddl::ir::owned::ast::Program::from(&program);
 }
 
 #[test]
@@ -48,6 +54,8 @@ fn ieee754() {
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
+
+    ddl::ir::owned::ast::Program::from(&program);
 }
 
 #[test]
@@ -59,6 +67,8 @@ fn object_id() {
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
+
+    ddl::ir::owned::ast::Program::from(&program);
 }
 
 #[test]
@@ -70,4 +80,6 @@ fn stl() {
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
+
+    ddl::ir::owned::ast::Program::from(&program);
 }
