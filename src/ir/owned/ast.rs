@@ -19,7 +19,7 @@ pub struct Program<N> {
 /// ```plain
 /// define Bmp {
 ///     type = struct {
-///         dimensions : struct {
+///         extents : struct {
 ///             width : u32be,
 ///             height : u32be,
 ///         },
@@ -27,30 +27,30 @@ pub struct Program<N> {
 ///     };
 ///
 ///     parser =
-///         (dimensions :
+///         (extents :
 ///             (width : u32be)
 ///             (height : u32be) => struct { width, height })
-///         (data : u8 ** (dimensions.width * dimensions.height))
-///             => struct { dimensions, height };
+///         (data : u8 ** (extents.width * extents.height))
+///             => struct { extents, height };
 /// };
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Definition<N> {
-    name: N,
-    ty: host::RcType<N>,
-    parser: RcParseExpr<N>,
+    pub name: N,
+    pub ty: host::RcType<N>,
+    pub parser: RcParseExpr<N>,
 }
 
 /// A bounded repitition
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RepeatBound<N> {
+pub enum RepeatBound<E> {
     /// A constant expression that bounds the repition
-    Exact(host::RcExpr<N>),
+    Exact(E),
 }
 
 /// A small parser combinator language
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ParseExpr<N> {
+pub enum ParseExpr<N, E = host::RcExpr<N>> {
     /// A reference to another parser
     Var(Var<N>),
     /// Parse a byte
@@ -62,9 +62,9 @@ pub enum ParseExpr<N> {
     /// ```plain
     /// p1 ** expr
     /// ```
-    Repeat(RcParseExpr<N>, RepeatBound<N>),
+    Repeat(RcParseExpr<N, E>, RepeatBound<E>),
     /// Parse that only succeeds if the predicate holds
-    Assert(RcParseExpr<N>, host::RcExpr<N>),
+    Assert(RcParseExpr<N, E>, E),
     /// Parse the subparsers in sequence, binding the results to the specified names
     /// then executing them in the environment of the given expression
     ///
@@ -75,7 +75,7 @@ pub enum ParseExpr<N> {
     /// ```plain
     /// (x : p1) (y : p2) (z : p3) => expr
     /// ```
-    Sequence(Vec<Named<N, RcParseExpr<N>>>, host::RcExpr<N>),
+    Sequence(Vec<Named<N, RcParseExpr<N, E>>>, E),
     /// Try to match the parsers in order, returning the result of the first on that succeeds
     ///
     /// An empty list of parsers represents a parser that never succeeds
@@ -85,13 +85,13 @@ pub enum ParseExpr<N> {
     /// ```plain
     /// p1 | p2 | p3
     /// ```
-    Choice(Vec<RcParseExpr<N>>),
+    Choice(Vec<RcParseExpr<N, E>>),
 }
 
-pub type RcParseExpr<N> = Rc<ParseExpr<N>>;
+pub type RcParseExpr<N, E = host::RcExpr<N>> = Rc<ParseExpr<N, E>>;
 
 impl<N: Name> ParseExpr<N> {
-    pub fn repeat<E1>(elem_expr: E1, bound: RepeatBound<N>) -> ParseExpr<N>
+    pub fn repeat<E1>(elem_expr: E1, bound: RepeatBound<host::RcExpr<N>>) -> ParseExpr<N>
     where
         E1: Into<RcParseExpr<N>>,
     {

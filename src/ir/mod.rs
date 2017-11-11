@@ -206,5 +206,5 @@
 //! - How should we avoid naming conflicts during the lowering of the owned
 //!   nominal IR to Rust?
 
-pub mod nominal;
 pub mod owned;
+pub mod owned_nominal;
