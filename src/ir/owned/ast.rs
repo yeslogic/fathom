@@ -2,7 +2,14 @@ use std::rc::Rc;
 
 use name::{Name, Named};
 use source::Span;
-use syntax::ast::{binary, host, Field};
+use syntax;
+use syntax::ast::{binary, host, Field, Var};
+
+/// The definitions in this program
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Program<N> {
+    pub defs: Vec<Definition<N>>,
+}
 
 /// The definition of a parseable type
 ///
@@ -25,6 +32,7 @@ use syntax::ast::{binary, host, Field};
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Definition<N> {
+    name: N,
     ty: host::RcType<N>,
     parser: RcParseExpr<N>,
 }
@@ -39,6 +47,8 @@ pub enum RepeatBound<N> {
 /// A small parser combinator language
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseExpr<N> {
+    /// A reference to another parser
+    Var(Var<N, u32>),
     /// Parse a bit
     Bit,
     /// The name of another parsable type
@@ -115,11 +125,20 @@ impl<N: Name> ParseExpr<N> {
 
 // Lowering
 
-impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for Definition<N> {
-    fn from(src: &'a binary::Type<N>) -> Definition<N> {
+impl<'a, N: Name + for<'b> From<&'b str>> From<&'a syntax::ast::Program<N>> for Program<N> {
+    fn from(src: &'a syntax::ast::Program<N>) -> Program<N> {
+        Program {
+            defs: src.defs.iter().map(Definition::from).collect(),
+        }
+    }
+}
+
+impl<'a, N: Name + for<'b> From<&'b str>> From<&'a syntax::ast::Definition<N>> for Definition<N> {
+    fn from(src: &'a syntax::ast::Definition<N>) -> Definition<N> {
         Definition {
-            ty: src.repr(),
-            parser: Rc::new(ParseExpr::from(src)),
+            name: src.name.clone(),
+            ty: src.ty.repr(),
+            parser: Rc::new(ParseExpr::from(&*src.ty)),
         }
     }
 }
@@ -130,6 +149,7 @@ impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for ParseExp
         use syntax::ast::host::Expr;
 
         match *src {
+            Type::Var(_, ref var) => ParseExpr::Var(var.clone()),
             Type::Const(TypeConst::Bit) => ParseExpr::Bit,
             Type::Array(_, ref elem_ty, ref size_expr) => {
                 let elem_parser = ParseExpr::from(&**elem_ty);
@@ -188,7 +208,8 @@ impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for ParseExp
                     )),
                 )
             }
-            Type::Var(_, _) | Type::Abs(_, _, _) | Type::App(_, _, _) => unimplemented!(),
+            Type::Abs(_, _, _) => unimplemented!("Abs: {:?}", src),
+            Type::App(_, _, _) => unimplemented!("App: {:?}", src),
         }
     }
 }
