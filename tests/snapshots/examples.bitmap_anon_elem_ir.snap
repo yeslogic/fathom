@@ -1,0 +1,263 @@
+Program {
+    defs: {
+        Path {
+            base: "Bitmap",
+            children: []
+        }: Struct(
+            [
+                Field {
+                    name: "extents",
+                    value: Path(
+                        Path {
+                            base: "Bitmap",
+                            children: [
+                                "extents"
+                            ]
+                        }
+                    )
+                },
+                Field {
+                    name: "data",
+                    value: Array(
+                        Path(
+                            Path {
+                                base: "Bitmap",
+                                children: [
+                                    "data",
+                                    "Elem"
+                                ]
+                            }
+                        )
+                    )
+                }
+            ],
+            Some(
+                Sequence(
+                    [
+                        Named("data", Repeat(
+                            Sequence(
+                                [
+                                    Named("a", U8),
+                                    Named("b", U8),
+                                    Named("g", U8),
+                                    Named("r", U8)
+                                ],
+                                Struct(
+                                    Path {
+                                        base: "Bitmap",
+                                        children: [
+                                            "Elem"
+                                        ]
+                                    },
+                                    [
+                                        Field {
+                                            name: "r",
+                                            value: Var(
+                                                Bound(Named("r", BoundVar(0, 0)))
+                                            )
+                                        },
+                                        Field {
+                                            name: "g",
+                                            value: Var(
+                                                Bound(Named("g", BoundVar(0, 0)))
+                                            )
+                                        },
+                                        Field {
+                                            name: "b",
+                                            value: Var(
+                                                Bound(Named("b", BoundVar(0, 0)))
+                                            )
+                                        },
+                                        Field {
+                                            name: "a",
+                                            value: Var(
+                                                Bound(Named("a", BoundVar(0, 0)))
+                                            )
+                                        }
+                                    ]
+                                )
+                            ),
+                            Exact(
+                                Binop(
+                                    Mul,
+                                    Proj(
+                                        Var(
+                                            Bound(Named("extents", BoundVar(0, 0)))
+                                        ),
+                                        "width"
+                                    ),
+                                    Proj(
+                                        Var(
+                                            Bound(Named("extents", BoundVar(0, 0)))
+                                        ),
+                                        "height"
+                                    )
+                                )
+                            )
+                        )),
+                        Named("extents", Sequence(
+                            [
+                                Named("height", Sequence(
+                                    [
+                                        Named("x", Repeat(
+                                            U8,
+                                            Exact(
+                                                Const(
+                                                    Int(4)
+                                                )
+                                            )
+                                        ))
+                                    ],
+                                    App(
+                                        Prim(
+                                            "from_u32be",
+                                            Arrow(
+                                                [
+                                                    Array(
+                                                        U8
+                                                    )
+                                                ],
+                                                Int
+                                            )
+                                        ),
+                                        [
+                                            Var(
+                                                Bound(Named("x", BoundVar(0, 0)))
+                                            )
+                                        ]
+                                    )
+                                )),
+                                Named("width", Sequence(
+                                    [
+                                        Named("x", Repeat(
+                                            U8,
+                                            Exact(
+                                                Const(
+                                                    Int(4)
+                                                )
+                                            )
+                                        ))
+                                    ],
+                                    App(
+                                        Prim(
+                                            "from_u32be",
+                                            Arrow(
+                                                [
+                                                    Array(
+                                                        U8
+                                                    )
+                                                ],
+                                                Int
+                                            )
+                                        ),
+                                        [
+                                            Var(
+                                                Bound(Named("x", BoundVar(0, 0)))
+                                            )
+                                        ]
+                                    )
+                                ))
+                            ],
+                            Struct(
+                                Path {
+                                    base: "Bitmap",
+                                    children: []
+                                },
+                                [
+                                    Field {
+                                        name: "width",
+                                        value: Var(
+                                            Bound(Named("width", BoundVar(0, 0)))
+                                        )
+                                    },
+                                    Field {
+                                        name: "height",
+                                        value: Var(
+                                            Bound(Named("height", BoundVar(0, 0)))
+                                        )
+                                    }
+                                ]
+                            )
+                        ))
+                    ],
+                    Struct(
+                        Path {
+                            base: "Bitmap",
+                            children: []
+                        },
+                        [
+                            Field {
+                                name: "extents",
+                                value: Var(
+                                    Bound(Named("extents", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "data",
+                                value: Var(
+                                    Bound(Named("data", BoundVar(0, 0)))
+                                )
+                            }
+                        ]
+                    )
+                )
+            )
+        ),
+        Path {
+            base: "Bitmap",
+            children: [
+                "data",
+                "Elem"
+            ]
+        }: Struct(
+            [
+                Field {
+                    name: "r",
+                    value: U8
+                },
+                Field {
+                    name: "g",
+                    value: U8
+                },
+                Field {
+                    name: "b",
+                    value: U8
+                },
+                Field {
+                    name: "a",
+                    value: U8
+                }
+            ],
+            None
+        ),
+        Path {
+            base: "Bitmap",
+            children: [
+                "extents"
+            ]
+        }: Struct(
+            [
+                Field {
+                    name: "width",
+                    value: Int
+                },
+                Field {
+                    name: "height",
+                    value: Int
+                }
+            ],
+            None
+        ),
+        Path {
+            base: "Bmp",
+            children: []
+        }: Alias(
+            Path(
+                Path {
+                    base: "Bitmap",
+                    children: []
+                }
+            )
+        )
+    }
+}

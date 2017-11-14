@@ -1,0 +1,342 @@
+Program {
+    defs: {
+        Path {
+            base: "DisplayParams",
+            children: []
+        }: Struct(
+            [
+                Field {
+                    name: "input_flags",
+                    value: U8
+                },
+                Field {
+                    name: "screen_size_h",
+                    value: U8
+                },
+                Field {
+                    name: "screen_size_v",
+                    value: U8
+                },
+                Field {
+                    name: "gamma_mod",
+                    value: U8
+                },
+                Field {
+                    name: "features_flags",
+                    value: U8
+                }
+            ],
+            Some(
+                Sequence(
+                    [
+                        Named("features_flags", U8),
+                        Named("gamma_mod", U8),
+                        Named("screen_size_v", U8),
+                        Named("screen_size_h", U8),
+                        Named("input_flags", U8)
+                    ],
+                    Struct(
+                        Path {
+                            base: "DisplayParams",
+                            children: []
+                        },
+                        [
+                            Field {
+                                name: "input_flags",
+                                value: Var(
+                                    Bound(Named("input_flags", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "screen_size_h",
+                                value: Var(
+                                    Bound(Named("screen_size_h", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "screen_size_v",
+                                value: Var(
+                                    Bound(Named("screen_size_v", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "gamma_mod",
+                                value: Var(
+                                    Bound(Named("gamma_mod", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "features_flags",
+                                value: Var(
+                                    Bound(Named("features_flags", BoundVar(0, 0)))
+                                )
+                            }
+                        ]
+                    )
+                )
+            )
+        ),
+        Path {
+            base: "Edid",
+            children: []
+        }: Struct(
+            [
+                Field {
+                    name: "header",
+                    value: Path(
+                        Path {
+                            base: "Header",
+                            children: []
+                        }
+                    )
+                },
+                Field {
+                    name: "display_params",
+                    value: Path(
+                        Path {
+                            base: "DisplayParams",
+                            children: []
+                        }
+                    )
+                }
+            ],
+            Some(
+                Sequence(
+                    [
+                        Named("display_params", Var(
+                            Bound(Named("DisplayParams", BoundVar(1, 0)))
+                        )),
+                        Named("header", Var(
+                            Bound(Named("Header", BoundVar(1, 0)))
+                        ))
+                    ],
+                    Struct(
+                        Path {
+                            base: "Edid",
+                            children: []
+                        },
+                        [
+                            Field {
+                                name: "header",
+                                value: Var(
+                                    Bound(Named("header", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "display_params",
+                                value: Var(
+                                    Bound(Named("display_params", BoundVar(0, 0)))
+                                )
+                            }
+                        ]
+                    )
+                )
+            )
+        ),
+        Path {
+            base: "Header",
+            children: []
+        }: Struct(
+            [
+                Field {
+                    name: "magic",
+                    value: Array(
+                        U8
+                    )
+                },
+                Field {
+                    name: "mfg_bytes",
+                    value: Int
+                },
+                Field {
+                    name: "product_code",
+                    value: Int
+                },
+                Field {
+                    name: "serial",
+                    value: Int
+                },
+                Field {
+                    name: "mfg_week",
+                    value: U8
+                },
+                Field {
+                    name: "mfg_year_mod",
+                    value: U8
+                },
+                Field {
+                    name: "edid_version_major",
+                    value: U8
+                },
+                Field {
+                    name: "edid_version_minor",
+                    value: U8
+                }
+            ],
+            Some(
+                Sequence(
+                    [
+                        Named("edid_version_minor", U8),
+                        Named("edid_version_major", U8),
+                        Named("mfg_year_mod", U8),
+                        Named("mfg_week", U8),
+                        Named("serial", Sequence(
+                            [
+                                Named("x", Repeat(
+                                    U8,
+                                    Exact(
+                                        Const(
+                                            Int(4)
+                                        )
+                                    )
+                                ))
+                            ],
+                            App(
+                                Prim(
+                                    "from_u32le",
+                                    Arrow(
+                                        [
+                                            Array(
+                                                U8
+                                            )
+                                        ],
+                                        Int
+                                    )
+                                ),
+                                [
+                                    Var(
+                                        Bound(Named("x", BoundVar(0, 0)))
+                                    )
+                                ]
+                            )
+                        )),
+                        Named("product_code", Sequence(
+                            [
+                                Named("x", Repeat(
+                                    U8,
+                                    Exact(
+                                        Const(
+                                            Int(2)
+                                        )
+                                    )
+                                ))
+                            ],
+                            App(
+                                Prim(
+                                    "from_u16le",
+                                    Arrow(
+                                        [
+                                            Array(
+                                                U8
+                                            )
+                                        ],
+                                        Int
+                                    )
+                                ),
+                                [
+                                    Var(
+                                        Bound(Named("x", BoundVar(0, 0)))
+                                    )
+                                ]
+                            )
+                        )),
+                        Named("mfg_bytes", Sequence(
+                            [
+                                Named("x", Repeat(
+                                    U8,
+                                    Exact(
+                                        Const(
+                                            Int(2)
+                                        )
+                                    )
+                                ))
+                            ],
+                            App(
+                                Prim(
+                                    "from_u16le",
+                                    Arrow(
+                                        [
+                                            Array(
+                                                U8
+                                            )
+                                        ],
+                                        Int
+                                    )
+                                ),
+                                [
+                                    Var(
+                                        Bound(Named("x", BoundVar(0, 0)))
+                                    )
+                                ]
+                            )
+                        )),
+                        Named("magic", Repeat(
+                            U8,
+                            Exact(
+                                Const(
+                                    Int(8)
+                                )
+                            )
+                        ))
+                    ],
+                    Struct(
+                        Path {
+                            base: "Header",
+                            children: []
+                        },
+                        [
+                            Field {
+                                name: "magic",
+                                value: Var(
+                                    Bound(Named("magic", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "mfg_bytes",
+                                value: Var(
+                                    Bound(Named("mfg_bytes", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "product_code",
+                                value: Var(
+                                    Bound(Named("product_code", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "serial",
+                                value: Var(
+                                    Bound(Named("serial", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "mfg_week",
+                                value: Var(
+                                    Bound(Named("mfg_week", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "mfg_year_mod",
+                                value: Var(
+                                    Bound(Named("mfg_year_mod", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "edid_version_major",
+                                value: Var(
+                                    Bound(Named("edid_version_major", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "edid_version_minor",
+                                value: Var(
+                                    Bound(Named("edid_version_minor", BoundVar(0, 0)))
+                                )
+                            }
+                        ]
+                    )
+                )
+            )
+        )
+    }
+}

@@ -3,14 +3,14 @@
 //! For example, take the following data definition:
 //!
 //! ```plain
-//! Pixel = {
+//! Pixel = struct {
 //!     r : u8,
 //!     g : u8,
 //!     b : u8,
 //!     a : u8,
 //! };
 //!
-//! Bitmap = {
+//! Bitmap = struct {
 //!     magic : [u8; 8] where magic =>
 //!         magic == [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00],
 //!     extents : struct {
@@ -23,61 +23,10 @@
 //! Bmp = Bitmap;
 //! ```
 //!
-//! # Lowering
+//! # Nominal IR
 //!
-//! The following lowering steps world take place:
-//!
-//! ## Owned IR
-//!
-//! This lowers the data definition into a combination of a representation
-//! struct and a parser combinator expression:
-//!
-//! ```plain
-//! Pixel = define {
-//!     type = struct {
-//!         r : u8,
-//!         g : u8,
-//!         b : u8,
-//!         a : u8,
-//!     };
-//!
-//!     parser =
-//!         (r : u8)
-//!         (g : u8)
-//!         (b : u8)
-//!         (a : u8)
-//!             => struct { r, g, b, a };
-//! };
-//!
-//! Bitmap = define {
-//!     type = struct {
-//!         magic : [u8; 8],
-//!         extents : struct {
-//!             width : u32be,
-//!             height : u32be,
-//!         },
-//!         data : [Pixel],
-//!     };
-//!
-//!     parser =
-//!         (magic : assert(\magic ->
-//!             magic == [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00]))
-//!         (extents :
-//!             (width : u32be)
-//!             (height : u32be)
-//!                 => struct { width, height })
-//!         (data : Pixel ** (extents.width * extents.height))
-//!             => struct { magic, extents, height };
-//! };
-//!
-//! Bmp = define {
-//!     type = Bitmap;
-//! };
-//! ```
-//!
-//! ## Owned Nominal IR
-//!
-//! This lowers the owned IR into a nominal form, where structs and unions are
+//! The data definition will be lowered into a combination of a representation
+//! struct and a parser combinator expression, where structs and unions are
 //! each given unique names:
 //!
 //! ```plain
@@ -127,7 +76,7 @@
 //! };
 //! ```
 //!
-//! From there we can finally lower to a nice Rust API:
+//! From there we can lower to a nice Rust API:
 //!
 //! ```rust,ignore
 //! extern crate byteorder;
@@ -207,4 +156,3 @@
 //!   nominal IR to Rust?
 
 pub mod owned;
-pub mod owned_nominal;

@@ -1,0 +1,145 @@
+Program {
+    defs: {
+        Path {
+            base: "ObjectId",
+            children: []
+        }: Struct(
+            [
+                Field {
+                    name: "epoch_time",
+                    value: Int
+                },
+                Field {
+                    name: "machine_id",
+                    value: Array(
+                        U8
+                    )
+                },
+                Field {
+                    name: "process_id",
+                    value: Int
+                },
+                Field {
+                    name: "counter",
+                    value: Array(
+                        U8
+                    )
+                }
+            ],
+            Some(
+                Sequence(
+                    [
+                        Named("counter", Repeat(
+                            U8,
+                            Exact(
+                                Const(
+                                    Int(3)
+                                )
+                            )
+                        )),
+                        Named("process_id", Sequence(
+                            [
+                                Named("x", Repeat(
+                                    U8,
+                                    Exact(
+                                        Const(
+                                            Int(2)
+                                        )
+                                    )
+                                ))
+                            ],
+                            App(
+                                Prim(
+                                    "from_u16le",
+                                    Arrow(
+                                        [
+                                            Array(
+                                                U8
+                                            )
+                                        ],
+                                        Int
+                                    )
+                                ),
+                                [
+                                    Var(
+                                        Bound(Named("x", BoundVar(0, 0)))
+                                    )
+                                ]
+                            )
+                        )),
+                        Named("machine_id", Repeat(
+                            U8,
+                            Exact(
+                                Const(
+                                    Int(3)
+                                )
+                            )
+                        )),
+                        Named("epoch_time", Sequence(
+                            [
+                                Named("x", Repeat(
+                                    U8,
+                                    Exact(
+                                        Const(
+                                            Int(4)
+                                        )
+                                    )
+                                ))
+                            ],
+                            App(
+                                Prim(
+                                    "from_u32le",
+                                    Arrow(
+                                        [
+                                            Array(
+                                                U8
+                                            )
+                                        ],
+                                        Int
+                                    )
+                                ),
+                                [
+                                    Var(
+                                        Bound(Named("x", BoundVar(0, 0)))
+                                    )
+                                ]
+                            )
+                        ))
+                    ],
+                    Struct(
+                        Path {
+                            base: "ObjectId",
+                            children: []
+                        },
+                        [
+                            Field {
+                                name: "epoch_time",
+                                value: Var(
+                                    Bound(Named("epoch_time", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "machine_id",
+                                value: Var(
+                                    Bound(Named("machine_id", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "process_id",
+                                value: Var(
+                                    Bound(Named("process_id", BoundVar(0, 0)))
+                                )
+                            },
+                            Field {
+                                name: "counter",
+                                value: Var(
+                                    Bound(Named("counter", BoundVar(0, 0)))
+                                )
+                            }
+                        ]
+                    )
+                )
+            )
+        )
+    }
+}
