@@ -19,16 +19,19 @@ pub struct Program<N> {
 /// ```plain
 /// define Bmp {
 ///     type = struct {
-///         width : u32be,
-///         height : u32be,
+///         dimensions : struct {
+///             width : u32be,
+///             height : u32be,
+///         },
 ///         data : [u8],
 ///     };
 ///
 ///     parser =
-///         (width : u32be)
-///         (height : u32be)
-///         (data : u8 ** (width * height))
-///             => struct { width, data, height };
+///         (dimensions :
+///             (width : u32be)
+///             (height : u32be) => struct { width, height })
+///         (data : u8 ** (dimensions.width * dimensions.height))
+///             => struct { dimensions, height };
 /// };
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
