@@ -1,14 +1,12 @@
-//! endian: le
-
 Header = struct {
     /// Fixed header pattern
     magic: [u8; 8], // FIXME: constrain to [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00]
     /// Manufacturer ID
-    mfg_bytes: u16,
+    mfg_bytes: u16le,
     /// Manufacturer product code
-    product_code: u16,
+    product_code: u16le,
     /// Serial number
-    serial: u32,
+    serial: u32le,
     /// Week of manufacture. Week numbering is not consistent between manufacturers.
     mfg_week: u8,
     /// Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.

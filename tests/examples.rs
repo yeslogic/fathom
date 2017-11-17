@@ -46,6 +46,7 @@ fn heroes_of_might_and_magic_bmp() {
 }
 
 #[test]
+#[ignore]
 fn ieee754() {
     const SRC: &str = include_str!("../examples/ddl/ieee754.ddl");
 

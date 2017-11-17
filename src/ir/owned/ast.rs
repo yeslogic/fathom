@@ -49,8 +49,8 @@ pub enum RepeatBound<N> {
 pub enum ParseExpr<N> {
     /// A reference to another parser
     Var(Var<N, u32>),
-    /// Parse a bit
-    Bit,
+    /// Parse a byte
+    U8,
     /// The name of another parsable type
     Ident(N),
     /// Parse that is repeated for the given bound
@@ -150,7 +150,7 @@ impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for ParseExp
 
         match *src {
             Type::Var(_, ref var) => ParseExpr::Var(var.clone()),
-            Type::Const(TypeConst::Bit) => ParseExpr::Bit,
+            Type::Const(TypeConst::U8) => ParseExpr::U8,
             Type::Array(_, ref elem_ty, ref size_expr) => {
                 let elem_parser = ParseExpr::from(&**elem_ty);
                 ParseExpr::repeat(elem_parser, RepeatBound::Exact(size_expr.clone()))

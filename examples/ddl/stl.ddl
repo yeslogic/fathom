@@ -1,10 +1,9 @@
-//! endian: le
 //! file-extension: stl
 
 Vec3d = struct {
-    x: f32,
-    y: f32,
-    z: f32,
+    x: f32le,
+    y: f32le,
+    z: f32le,
 };
 
 Triangle = struct {
@@ -19,7 +18,7 @@ Stl = struct {
     /// Generally ignored
     header: [u8; 80],
     /// Number of triangles that follow
-    num_triangles: u32,
+    num_triangles: u32le,
     /// The triangle data
     triangles: [Triangle; num_triangles],
 };
