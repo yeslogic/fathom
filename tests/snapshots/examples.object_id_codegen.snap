@@ -1,0 +1,17 @@
+use std::io;
+use std::io::prelude::*;
+
+pub struct ObjectId {
+    epoch_time: i64,
+    machine_id: Vec<u8>,
+    process_id: i64,
+    counter: Vec<u8>,
+}
+
+impl ObjectId {
+    fn read<R: Read>(reader: &mut R) -> io::Result<ObjectId> {
+        unimplemented!()
+    }
+}
+
+

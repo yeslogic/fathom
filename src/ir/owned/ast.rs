@@ -3,8 +3,8 @@ use std::fmt;
 use std::rc::Rc;
 
 use name::{Name, Named};
-use syntax::ast::Field;
-use syntax::ast::host::{Binop, Const, Unop};
+pub use syntax::ast::Field;
+pub use syntax::ast::host::{Binop, Const, Unop};
 use var::{BoundVar, ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

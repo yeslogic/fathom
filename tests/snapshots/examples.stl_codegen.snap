@@ -1,0 +1,39 @@
+use std::io;
+use std::io::prelude::*;
+
+pub struct Stl {
+    header: Vec<u8>,
+    num_triangles: i64,
+    triangles: Vec<Triangle>,
+}
+
+impl Stl {
+    fn read<R: Read>(reader: &mut R) -> io::Result<Stl> {
+        unimplemented!()
+    }
+}
+
+pub struct Triangle {
+    normal: Vec3d,
+    vertices: Vec<Vec3d>,
+}
+
+impl Triangle {
+    fn read<R: Read>(reader: &mut R) -> io::Result<Triangle> {
+        unimplemented!()
+    }
+}
+
+pub struct Vec3d {
+    x: i64,
+    y: i64,
+    z: i64,
+}
+
+impl Vec3d {
+    fn read<R: Read>(reader: &mut R) -> io::Result<Vec3d> {
+        unimplemented!()
+    }
+}
+
+

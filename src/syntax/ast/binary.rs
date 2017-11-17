@@ -378,7 +378,7 @@ mod tests {
                 // λ   0
                 let ty = T::abs(Span::start(), &["x"], T::fvar(Span::start(), "x"));
 
-                assert_snapshot!(ty_abs_id, ty);
+                assert_debug_snapshot!(ty_abs_id, ty);
             }
 
             // Examples from https://en.wikipedia.org/wiki/De_Bruijn_index
@@ -393,7 +393,7 @@ mod tests {
                     T::abs(Span::start(), &["y"], T::fvar(Span::start(), "x")),
                 );
 
-                assert_snapshot!(ty_abs_k_combinator, ty);
+                assert_debug_snapshot!(ty_abs_k_combinator, ty);
             }
 
             #[test]
@@ -428,7 +428,7 @@ mod tests {
                     ),
                 );
 
-                assert_snapshot!(ty_abs_s_combinator, ty);
+                assert_debug_snapshot!(ty_abs_s_combinator, ty);
             }
 
             #[test]
@@ -467,7 +467,7 @@ mod tests {
                     ),
                 );
 
-                assert_snapshot!(ty_abs_complex, ty);
+                assert_debug_snapshot!(ty_abs_complex, ty);
             }
         }
     }

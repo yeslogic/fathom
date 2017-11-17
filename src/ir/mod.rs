@@ -118,7 +118,7 @@
 //!         let magic = {
 //!             let mut magic = [0; 8];
 //!             buf.read_exact(&mut magic)?;
-//!             if magic == [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00] {
+//!             if !(magic == [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00]) {
 //!                 return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid binary data"));
 //!             }
 //!             magic

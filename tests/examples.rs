@@ -21,7 +21,10 @@ fn bitmap() {
     check::check_program(&program).unwrap();
 
     let ir = ddl::ir::owned::ast::Program::from(&program);
-    assert_snapshot!(bitmap_ir, ir);
+    assert_debug_snapshot!(bitmap_ir, ir);
+
+    let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
+    assert_display_snapshot!(bitmap_codegen, rust_output);
 }
 
 #[test]
@@ -35,7 +38,10 @@ fn bitmap_anon_elem() {
     check::check_program(&program).unwrap();
 
     let ir = ddl::ir::owned::ast::Program::from(&program);
-    assert_snapshot!(bitmap_anon_elem_ir, ir);
+    assert_debug_snapshot!(bitmap_anon_elem_ir, ir);
+
+    let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
+    assert_display_snapshot!(bitmap_anon_elem_codegen, rust_output);
 }
 
 #[test]
@@ -50,7 +56,10 @@ fn cmap() {
     check::check_program(&program).unwrap();
 
     let ir = ddl::ir::owned::ast::Program::from(&program);
-    assert_snapshot!(cmap_ir, ir);
+    assert_debug_snapshot!(cmap_ir, ir);
+
+    let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
+    assert_display_snapshot!(cmap_codegen, rust_output);
 }
 
 #[test]
@@ -64,7 +73,10 @@ fn edid() {
     check::check_program(&program).unwrap();
 
     let ir = ddl::ir::owned::ast::Program::from(&program);
-    assert_snapshot!(edid_ir, ir);
+    assert_debug_snapshot!(edid_ir, ir);
+
+    let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
+    assert_display_snapshot!(edid_codegen, rust_output);
 }
 
 #[test]
@@ -78,7 +90,10 @@ fn heroes_of_might_and_magic_bmp() {
     check::check_program(&program).unwrap();
 
     let ir = ddl::ir::owned::ast::Program::from(&program);
-    assert_snapshot!(heroes_of_might_and_magic_bmp_ir, ir);
+    assert_debug_snapshot!(heroes_of_might_and_magic_bmp_ir, ir);
+
+    let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
+    assert_display_snapshot!(heroes_of_might_and_magic_bmp_codegen, rust_output);
 }
 
 #[test]
@@ -93,7 +108,10 @@ fn ieee754() {
     check::check_program(&program).unwrap();
 
     let ir = ddl::ir::owned::ast::Program::from(&program);
-    assert_snapshot!(ieee754_ir, ir);
+    assert_debug_snapshot!(ieee754_ir, ir);
+
+    let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
+    assert_display_snapshot!(ieee754_codegen, rust_output);
 }
 
 #[test]
@@ -107,7 +125,10 @@ fn object_id() {
     check::check_program(&program).unwrap();
 
     let ir = ddl::ir::owned::ast::Program::from(&program);
-    assert_snapshot!(object_id_ir, ir);
+    assert_debug_snapshot!(object_id_ir, ir);
+
+    let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
+    assert_display_snapshot!(object_id_codegen, rust_output);
 }
 
 #[test]
@@ -121,5 +142,8 @@ fn stl() {
     check::check_program(&program).unwrap();
 
     let ir = ddl::ir::owned::ast::Program::from(&program);
-    assert_snapshot!(stl_ir, ir);
+    assert_debug_snapshot!(stl_ir, ir);
+
+    let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
+    assert_display_snapshot!(stl_codegen, rust_output);
 }

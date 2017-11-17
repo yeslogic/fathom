@@ -1,0 +1,29 @@
+use std::io;
+use std::io::prelude::*;
+
+pub struct Bitmap {
+    extents: Bitmap::extents,
+    data: Vec<Bitmap::data::Elem>,
+}
+
+impl Bitmap {
+    fn read<R: Read>(reader: &mut R) -> io::Result<Bitmap> {
+        unimplemented!()
+    }
+}
+
+pub struct Bitmap::data::Elem {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+}
+
+pub struct Bitmap::extents {
+    width: i64,
+    height: i64,
+}
+
+pub type Bmp = Bitmap;
+
+

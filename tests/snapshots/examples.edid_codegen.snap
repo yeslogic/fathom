@@ -1,0 +1,46 @@
+use std::io;
+use std::io::prelude::*;
+
+pub struct DisplayParams {
+    input_flags: u8,
+    screen_size_h: u8,
+    screen_size_v: u8,
+    gamma_mod: u8,
+    features_flags: u8,
+}
+
+impl DisplayParams {
+    fn read<R: Read>(reader: &mut R) -> io::Result<DisplayParams> {
+        unimplemented!()
+    }
+}
+
+pub struct Edid {
+    header: Header,
+    display_params: DisplayParams,
+}
+
+impl Edid {
+    fn read<R: Read>(reader: &mut R) -> io::Result<Edid> {
+        unimplemented!()
+    }
+}
+
+pub struct Header {
+    magic: Vec<u8>,
+    mfg_bytes: i64,
+    product_code: i64,
+    serial: i64,
+    mfg_week: u8,
+    mfg_year_mod: u8,
+    edid_version_major: u8,
+    edid_version_minor: u8,
+}
+
+impl Header {
+    fn read<R: Read>(reader: &mut R) -> io::Result<Header> {
+        unimplemented!()
+    }
+}
+
+

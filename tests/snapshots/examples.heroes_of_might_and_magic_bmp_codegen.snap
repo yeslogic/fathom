@@ -1,0 +1,17 @@
+use std::io;
+use std::io::prelude::*;
+
+pub struct HerosOfMightAndMagicBmp {
+    magic: i64,
+    width: i64,
+    height: i64,
+    data: Vec<u8>,
+}
+
+impl HerosOfMightAndMagicBmp {
+    fn read<R: Read>(reader: &mut R) -> io::Result<HerosOfMightAndMagicBmp> {
+        unimplemented!()
+    }
+}
+
+
