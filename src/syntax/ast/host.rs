@@ -27,7 +27,7 @@ impl Kind {
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Const {
     /// A single bit
-    Bit(bool),
+    U8(u8),
     /// A boolean constant: eg. `true`, `false`
     Bool(bool),
     /// An integer constant: eg. `0`, `1`, `2`, ...
@@ -37,7 +37,7 @@ pub enum Const {
 impl Const {
     pub fn ty_const_of(self) -> TypeConst {
         match self {
-            Const::Bit(_) => TypeConst::Bit,
+            Const::U8(_) => TypeConst::U8,
             Const::Bool(_) => TypeConst::Bool,
             Const::Int(_) => TypeConst::Int,
         }
@@ -47,7 +47,7 @@ impl Const {
 impl fmt::Debug for Const {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Const::Bit(value) => write!(f, "Bit({:?})", value),
+            Const::U8(value) => write!(f, "U8({:?})", value),
             Const::Bool(value) => write!(f, "Bool({:?})", value),
             Const::Int(value) => write!(f, "Int({:?})", value),
         }
@@ -128,9 +128,9 @@ pub enum Expr<N> {
 pub type RcExpr<N> = Rc<Expr<N>>;
 
 impl<N: Name> Expr<N> {
-    /// A bit constant: eg. `0b`, `01`
-    pub fn bit(span: Span, value: bool) -> Expr<N> {
-        Expr::Const(span, Const::Bit(value))
+    /// A byte constant: eg. `0`, `1`, `2`, ..., `255`
+    pub fn u8(span: Span, value: u8) -> Expr<N> {
+        Expr::Const(span, Const::U8(value))
     }
 
     /// A boolean constant: eg. `true`, `false`
@@ -283,8 +283,8 @@ impl<N: Name> Expr<N> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeConst {
-    /// Bit
-    Bit,
+    /// Byte
+    U8,
     /// Boolean
     Bool,
     /// Integer
@@ -325,9 +325,9 @@ impl<N: Name> Type<N> {
         Type::Var(Var::Bound(Named(x.into(), i)))
     }
 
-    /// Bit type constant
-    pub fn bit() -> Type<N> {
-        Type::Const(TypeConst::Bit)
+    /// Byte type constant
+    pub fn u8() -> Type<N> {
+        Type::Const(TypeConst::U8)
     }
 
     /// Boolean type constant

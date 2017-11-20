@@ -178,7 +178,7 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
         use source::Span;
         use syntax::ast::host::Expr;
 
-        let array_ty = Type::array(Span::start(), Type::bit(), Expr::int(Span::start(), size));
+        let array_ty = Type::array(Span::start(), Type::u8(), Expr::int(Span::start(), size));
         let conv_ty = host::Type::arrow(array_ty.repr(), host::Type::int());
 
         Type::interp(
@@ -192,39 +192,26 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
     btreemap! {
         // TODO: "true" = Expr::bool(true)
         // TODO: "false" = Expr::bool(false)
-        "bit".into() => Type::Const(TypeConst::Bit),
-        // Native endian primitives (Do we need these?)
-        "u8".into() => prim_array_ty(8, "from_u8"),
-        "u16".into() => prim_array_ty(16, "from_u16"),
-        "u32".into() => prim_array_ty(32, "from_u32"),
-        "u64".into() => prim_array_ty(64, "from_u64"),
-        "i8".into() => prim_array_ty(8, "from_i8"),
-        "i16".into() => prim_array_ty(16, "from_i16"),
-        "i32".into() => prim_array_ty(32, "from_i32"),
-        "i64".into() => prim_array_ty(64, "from_i64"),
-        "f32".into() => prim_array_ty(32, "from_f32"),
-        "f64".into() => prim_array_ty(64, "from_f64"),
+        "u8".into() => Type::Const(TypeConst::U8),
         // Little endian primitives
-        "u8le".into() => prim_array_ty(8, "from_u8le"),
-        "u16le".into() => prim_array_ty(16, "from_u16le"),
-        "u32le".into() => prim_array_ty(32, "from_u32le"),
-        "u64le".into() => prim_array_ty(64, "from_u64le"),
+        "u16le".into() => prim_array_ty(2, "from_u16le"),
+        "u32le".into() => prim_array_ty(4, "from_u32le"),
+        "u64le".into() => prim_array_ty(8, "from_u64le"),
         "i8le".into() => prim_array_ty(8, "from_i8le"),
-        "i16le".into() => prim_array_ty(16, "from_i16le"),
-        "i32le".into() => prim_array_ty(32, "from_i32le"),
-        "i64le".into() => prim_array_ty(64, "from_i64le"),
-        "f32le".into() => prim_array_ty(32, "from_f32le"),
-        "f64le".into() => prim_array_ty(64, "from_f64le"),
+        "i16le".into() => prim_array_ty(2, "from_i16le"),
+        "i32le".into() => prim_array_ty(4, "from_i32le"),
+        "i64le".into() => prim_array_ty(8, "from_i64le"),
+        "f32le".into() => prim_array_ty(4, "from_f32le"),
+        "f64le".into() => prim_array_ty(8, "from_f64le"),
         // Big endian primitives
-        "u8be".into() => prim_array_ty(8, "from_u8be"),
-        "u16be".into() => prim_array_ty(16, "from_u16be"),
-        "u32be".into() => prim_array_ty(32, "from_u32be"),
-        "u64be".into() => prim_array_ty(64, "from_u64be"),
+        "u16be".into() => prim_array_ty(2, "from_u16be"),
+        "u32be".into() => prim_array_ty(4, "from_u32be"),
+        "u64be".into() => prim_array_ty(8, "from_u64be"),
         "i8be".into() => prim_array_ty(8, "from_i8be"),
-        "i16be".into() => prim_array_ty(16, "from_i16be"),
-        "i32be".into() => prim_array_ty(32, "from_i32be"),
-        "i64be".into() => prim_array_ty(64, "from_i64be"),
-        "f32be".into() => prim_array_ty(32, "from_f32be"),
-        "f64be".into() => prim_array_ty(64, "from_f64be"),
+        "i16be".into() => prim_array_ty(2, "from_i16be"),
+        "i32be".into() => prim_array_ty(4, "from_i32be"),
+        "i64be".into() => prim_array_ty(8, "from_i64be"),
+        "f32be".into() => prim_array_ty(4, "from_f32be"),
+        "f64be".into() => prim_array_ty(8, "from_f64be"),
     }
 }

@@ -32,7 +32,7 @@ impl Kind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeConst {
-    Bit,
+    U8,
 }
 
 /// A binary type
@@ -71,9 +71,9 @@ impl<N: Name> Type<N> {
         Type::Var(span, Var::Bound(Named(x.into(), i)))
     }
 
-    /// Bit type constant
-    pub fn bit() -> Type<N> {
-        Type::Const(TypeConst::Bit)
+    /// Byte type constant
+    pub fn u8() -> Type<N> {
+        Type::Const(TypeConst::U8)
     }
 
     /// An array of the specified type, with a size: eg. `[T; n]`
@@ -307,7 +307,7 @@ impl<N: Name> Type<N> {
     pub fn repr(&self) -> host::RcType<N> {
         match *self {
             Type::Var(_, ref v) => Rc::new(host::Type::Var(v.clone())),
-            Type::Const(TypeConst::Bit) => Rc::new(host::Type::Const(host::TypeConst::Bit)),
+            Type::Const(TypeConst::U8) => Rc::new(host::Type::Const(host::TypeConst::U8)),
             Type::Array(_, ref elem_ty, _) => Rc::new(host::Type::Array(elem_ty.repr())),
             Type::Assert(_, ref ty, _) => ty.repr(),
             Type::Interp(_, _, _, ref repr_ty) => repr_ty.clone(),
