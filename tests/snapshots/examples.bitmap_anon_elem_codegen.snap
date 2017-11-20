@@ -26,4 +26,3 @@ pub struct Bitmap::extents {
 
 pub type Bmp = Bitmap;
 
-

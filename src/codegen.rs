@@ -1,158 +1,260 @@
+use pretty::{BoxAllocator, DocAllocator, DocBuilder};
 use std::fmt;
 
-use ir::owned::ast::{Definition, Expr, ParseExpr, Program, RepeatBound, Type};
+use ir::owned::ast::{Definition, Expr, Field, ParseExpr, Path, Program, RcType, RepeatBound, Type};
 use ir::owned::ast::{Binop, Const, Unop};
 
 pub struct LowerProgram<'a>(pub &'a Program<String>);
 
 impl<'a> fmt::Display for LowerProgram<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "use std::io;")?;
-        writeln!(f, "use std::io::prelude::*;")?;
-        writeln!(f)?;
-
-        for (path, definition) in &self.0.defs {
-            match *definition {
-                Definition::Alias(ref ty) => {
-                    writeln!(f, "pub type {} = {};", path, LowerType(ty))?;
-                    writeln!(f)?;
-                }
-                Definition::Struct(ref fields, ref parse_expr) => {
-                    writeln!(f, "pub struct {} {{", path)?;
-                    for field in fields {
-                        writeln!(f, "    {}: {},", field.name, LowerType(&field.value))?;
-                    }
-                    writeln!(f, "}}")?;
-                    writeln!(f)?;
-
-                    if let Some(ref parse_expr) = *parse_expr {
-                        writeln!(f, "impl {} {{", path)?;
-                        writeln!(
-                            f,
-                            "    fn read<R: Read>(reader: &mut R) -> io::Result<{}> {{",
-                            path
-                        )?;
-                        writeln!(f, "{}", LowerParseExpr(parse_expr, 2))?;
-                        writeln!(f, "    }}")?;
-                        writeln!(f, "}}")?;
-                        writeln!(f)?;
-                    }
-                }
-                Definition::Union(ref variants, ref parse_expr) => {
-                    writeln!(f, "pub enum {} {{", path)?;
-                    for variant in variants {
-                        writeln!(f, "    {}({}),", variant.name, LowerType(&variant.value))?;
-                    }
-                    writeln!(f, "}}")?;
-                    writeln!(f)?;
-
-                    if let Some(ref parse_expr) = *parse_expr {
-                        writeln!(f, "impl {} {{", path)?;
-                        writeln!(
-                            f,
-                            "    fn read<R: Read>(reader: &mut R) -> io::Result<{}> {{",
-                            path
-                        )?;
-                        writeln!(f, "{}", LowerParseExpr(parse_expr, 2))?;
-                        writeln!(f, "    }}")?;
-                        writeln!(f, "}}")?;
-                        writeln!(f)?;
-                    }
-                }
-            }
-        }
-        Ok(())
+        let DocBuilder(_, ref doc) = lower_program(&BoxAllocator, self.0);
+        doc.render_fmt(f.width().unwrap_or(MAX_WIDTH), f)
     }
 }
 
-struct LowerType<'a>(pub &'a Type<String>);
+const INDENT_WIDTH: usize = 4;
+const MAX_WIDTH: usize = 100;
 
-impl<'a> fmt::Display for LowerType<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self.0 {
-            Type::Path(ref path) => write!(f, "{}", path),
-            Type::Array(ref ty) => write!(f, "Vec<{}>", LowerType(ty)),
-            Type::Arrow(_, _) => unimplemented!(),
-            Type::U8 => write!(f, "u8"),
-            Type::Int => write!(f, "i64"),
-            Type::Bool => write!(f, "bool"),
-        }
+fn lower_program<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    program: &'a Program<String>,
+) -> DocBuilder<'doc, A> {
+    doc.nil()
+        .append(doc.text("use std::io;").append(doc.newline()))
+        .append(doc.text("use std::io::prelude::*;").append(doc.newline()))
+        .append(doc.newline())
+        .append(
+            doc.intersperse(
+                program
+                    .defs
+                    .iter()
+                    .map(|(path, definition)| lower_definition(doc, path, definition)),
+                doc.newline().append(doc.newline()),
+            ),
+        )
+        .append(doc.newline())
+}
+
+fn lower_definition<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    path: &'a Path<String>,
+    definition: &'a Definition<String>,
+) -> DocBuilder<'doc, A> {
+    match *definition {
+        Definition::Alias(ref ty) => lower_alias(doc, path, ty),
+        Definition::Struct(ref fields, ref parse_expr) => match *parse_expr {
+            None => lower_struct(doc, path, fields),
+            Some(ref parse_expr) => lower_struct(doc, path, fields)
+                .append(doc.newline())
+                .append(doc.newline())
+                .append(lower_read_impl(doc, path, parse_expr)),
+        },
+        Definition::Union(ref variants, ref parse_expr) => match *parse_expr {
+            None => lower_union(doc, path, variants),
+            Some(ref parse_expr) => lower_union(doc, path, variants)
+                .append(doc.newline())
+                .append(doc.newline())
+                .append(lower_read_impl(doc, path, parse_expr)),
+        },
     }
 }
 
-struct LowerParseExpr<'a>(pub &'a ParseExpr<String>, pub usize);
+fn lower_alias<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    path: &'a Path<String>,
+    ty: &'a Type<String>,
+) -> DocBuilder<'doc, A> {
+    doc.text("pub type")
+        .append(doc.space())
+        .append(doc.as_string(path))
+        .append(doc.space())
+        .append(doc.text("="))
+        .append(doc.space())
+        .append(lower_ty(doc, ty))
+        .append(doc.text(";"))
+        .group()
+}
 
-impl<'a> fmt::Display for LowerParseExpr<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let write_indent = |f: &mut fmt::Formatter| {
-            for _ in 0..(self.1 * 4) {
-                write!(f, " ")?;
-            }
-            Ok(())
-        };
+fn lower_struct<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    path: &'a Path<String>,
+    fields: &'a [Field<String, RcType<String>>],
+) -> DocBuilder<'doc, A> {
+    doc.text("pub struct")
+        .append(doc.space())
+        .append(doc.as_string(path))
+        .append(doc.space())
+        .append(doc.text("{"))
+        .group()
+        .append(
+            doc.newline()
+                .append(doc.intersperse(
+                    fields.iter().map(|field| {
+                        doc.as_string(&field.name)
+                            .append(doc.text(":"))
+                            .append(doc.space())
+                            .append(lower_ty(doc, &field.value))
+                            .append(doc.text(","))
+                            .group()
+                    }),
+                    doc.newline(),
+                ))
+                .nest(INDENT_WIDTH)
+                .append(doc.newline()),
+        )
+        .append(doc.text("}"))
+}
 
-        match *self.0 {
-            // ParseExpr::Var() => unimplemented!(),
-            ParseExpr::U8 => {
-                write_indent(f)?;
-                write!(f, "buf.read_u8()?")?;
-            },
-            ParseExpr::Ident(ref name) => {
-                write_indent(f)?;
-                write!(f, "{}::read(buf)?", name)?;
-            },
-            ParseExpr::Repeat(ref parse_expr, RepeatBound::Exact(ref size_expr)) => {
-                write_indent(f)?;
-                writeln!(f, "{{")?;
-                write_indent(f)?;
-                writeln!(f, "    (0..{})", LowerExpr(size_expr))?;
-                write_indent(f)?;
-                writeln!(
-                    f,
-                    "        .map(|_| {})",
-                    LowerParseExpr(parse_expr, self.1 + 3)
-                )?;
-                write_indent(f)?;
-                writeln!(f, "        .collect::<Result<_, _>>()?")?;
-                write_indent(f)?;
-                writeln!(f, "}}")?;
-            }
-            ParseExpr::Assert(ref parse_expr, ref pred_expr) => {
-                write_indent(f)?;
-                writeln!(f, "{{")?;
-                write_indent(f)?;
-                writeln!(f, "    let __value = {}?;", LowerParseExpr(parse_expr, self.1 + 1))?;
-                write_indent(f)?;
-                writeln!(f, "    if !({})(__value) {{", LowerExpr(pred_expr))?;
-                write_indent(f)?;
-                writeln!(f, "         return Err(io::Error::new(io::ErrorKind::InvalidData, \"Invalid binary data\"));")?;
-                write_indent(f)?;
-                writeln!(f, "    }}")?;
-                write_indent(f)?;
-                writeln!(f, "    __value")?;
-                write_indent(f)?;
-                writeln!(f, "}}")?;
-            },
-            // ParseExpr::Sequence() => unimplemented!(),
-            // ParseExpr::Choice() => unimplemented!(),
-            _ => {
-                write_indent(f)?;
-                write!(f, "unimplemented!()")?
-            }
-        }
-        Ok(())
+fn lower_union<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    path: &'a Path<String>,
+    variants: &'a [Field<String, RcType<String>>],
+) -> DocBuilder<'doc, A> {
+    doc.text("pub enum")
+        .append(doc.space())
+        .append(doc.as_string(path))
+        .append(doc.space())
+        .append(doc.text("{"))
+        .group()
+        .append(
+            doc.newline()
+                .append(doc.intersperse(
+                    variants.iter().map(|variant| {
+                        // FIXME: Case conversion
+                        doc.as_string(&variant.name)
+                            .append(doc.text("("))
+                            .append(lower_ty(doc, &variant.value))
+                            .append(doc.text("),"))
+                            .group()
+                    }),
+                    doc.newline(),
+                ))
+                .nest(INDENT_WIDTH)
+                .append(doc.newline()),
+        )
+        .append(doc.text("}"))
+}
+
+fn lower_read_impl<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    path: &'a Path<String>,
+    parse_expr: &'a ParseExpr<String>,
+) -> DocBuilder<'doc, A> {
+    doc.text("impl")
+        .append(doc.space())
+        .append(doc.as_string(path))
+        .append(doc.space())
+        .append(doc.text("{"))
+        .group()
+        .append(
+            doc.newline()
+                .append(
+                    doc.text("fn read<R: Read>(reader: &mut R) -> io::Result<")
+                        .append(doc.as_string(path))
+                        .append(doc.text(">"))
+                        .append(doc.space())
+                        .append(doc.text("{"))
+                        .group(),
+                )
+                .append(
+                    doc.newline()
+                        .append(lower_parse_expr(doc, parse_expr))
+                        .nest(INDENT_WIDTH),
+                )
+                .append(doc.newline())
+                .append(doc.text("}"))
+                .nest(INDENT_WIDTH)
+                .append(doc.newline()),
+        )
+        .append(doc.text("}"))
+}
+
+fn lower_ty<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    ty: &'a Type<String>,
+) -> DocBuilder<'doc, A> {
+    match *ty {
+        Type::Path(ref path) => doc.as_string(path),
+        Type::Array(ref ty) => doc.text("Vec<")
+            .append(lower_ty(doc, ty))
+            .append(doc.text(">"))
+            .group(),
+        // FIXME: Implement this!
+        Type::Arrow(_, _) => unimplemented!(),
+        Type::U8 => doc.text("u8"),
+        Type::Int => doc.text("i64"),
+        Type::Bool => doc.text("bool"),
     }
 }
 
-struct LowerExpr<'a>(pub &'a Expr<String>);
+fn lower_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    parse_expr: &'a ParseExpr<String>,
+) -> DocBuilder<'doc, A> {
+    match *parse_expr {
+        // FIXME: Implement this!
+        ParseExpr::Var(_) => doc.as_string("unimplemented!()"),
+        ParseExpr::U8 => doc.as_string("buf.read_u8()?"),
+        ParseExpr::Ident(ref name) => doc.as_string(name).append(doc.as_string("::read(buf)?")),
+        ParseExpr::Repeat(ref parse_expr, RepeatBound::Exact(ref size_expr)) => doc.text("{")
+            .append(
+                doc.space()
+                    .append(doc.text("(0.."))
+                    .append(lower_expr(doc, size_expr))
+                    .append(doc.text(").map(|_| "))
+                    .append(lower_parse_expr(doc, parse_expr))
+                    .append(doc.text(").collect::<Result<_, _>>()?")),
+            )
+            .append(doc.space())
+            .append(doc.text("}")),
+        ParseExpr::Assert(ref parse_expr, ref pred_expr) => doc.text("{")
+            .append(
+                doc.newline()
+                    .append(
+                        // FIXME: Hygiene!
+                        doc.text("let __value = ")
+                            .append(lower_parse_expr(doc, parse_expr))
+                            .append(doc.text("?;"))
+                            .group(),
+                    )
+                    .append(doc.newline())
+                    .append(
+                        doc.text("if !(")
+                            .append(lower_expr(doc, pred_expr))
+                            .append(doc.text(")(__value) {"))
+                            .group(),
+                    )
+                    .append(
+                        doc.newline()
+                            .append(doc.text(
+                                r#"return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid binary data"));"#,
+                            ))
+                            .nest(INDENT_WIDTH),
+                    )
+                    .append(doc.newline())
+                    .append(doc.text("}"))
+                    .append(doc.newline())
+                    .append(doc.text("__value")),
+            )
+            .append(doc.newline())
+            .append(doc.text("}")),
+        // FIXME: Implement this!
+        ParseExpr::Sequence(_, _) => doc.as_string("unimplemented!()"),
+        // FIXME: Implement this!
+        ParseExpr::Choice(_) => doc.as_string("unimplemented!()"),
+    }
+}
 
-impl<'a> fmt::Display for LowerExpr<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self.0 {
-            Expr::Const(Const::Bool(value)) => write!(f, "{}", value),
-            Expr::Const(Const::U8(value)) => write!(f, "{}", value),
-            Expr::Const(Const::Int(value)) => write!(f, "{}", value),
-            _ => write!(f, "unimplemented!()"),
-        }
+fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    expr: &'a Expr<String>,
+) -> DocBuilder<'doc, A> {
+    match *expr {
+        Expr::Const(Const::Bool(value)) => doc.as_string(value),
+        Expr::Const(Const::U8(value)) => doc.as_string(value),
+        Expr::Const(Const::Int(value)) => doc.as_string(value),
+        // FIXME: Implement this!
+        _ => doc.as_string("unimplemented!()"),
     }
 }
