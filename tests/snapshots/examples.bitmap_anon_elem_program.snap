@@ -1,0 +1,148 @@
+Program {
+    defs: [
+        Definition {
+            name: "Bitmap",
+            ty: Struct(
+                Span {
+                    lo: BytePos(9),
+                    hi: BytePos(263)
+                },
+                [
+                    Field {
+                        name: "extents",
+                        value: Struct(
+                            Span {
+                                lo: BytePos(32),
+                                hi: BytePos(93)
+                            },
+                            [
+                                Field {
+                                    name: "width",
+                                    value: Var(
+                                        Span {
+                                            lo: BytePos(57),
+                                            hi: BytePos(62)
+                                        },
+                                        Free("u32be")
+                                    )
+                                },
+                                Field {
+                                    name: "height",
+                                    value: Var(
+                                        Span {
+                                            lo: BytePos(81),
+                                            hi: BytePos(86)
+                                        },
+                                        Free("u32be")
+                                    )
+                                }
+                            ]
+                        )
+                    },
+                    Field {
+                        name: "data",
+                        value: Array(
+                            Span {
+                                lo: BytePos(106),
+                                hi: BytePos(260)
+                            },
+                            Struct(
+                                Span {
+                                    lo: BytePos(116),
+                                    hi: BytePos(214)
+                                },
+                                [
+                                    Field {
+                                        name: "r",
+                                        value: Var(
+                                            Span {
+                                                lo: BytePos(141),
+                                                hi: BytePos(143)
+                                            },
+                                            Free("u8")
+                                        )
+                                    },
+                                    Field {
+                                        name: "g",
+                                        value: Var(
+                                            Span {
+                                                lo: BytePos(161),
+                                                hi: BytePos(163)
+                                            },
+                                            Free("u8")
+                                        )
+                                    },
+                                    Field {
+                                        name: "b",
+                                        value: Var(
+                                            Span {
+                                                lo: BytePos(181),
+                                                hi: BytePos(183)
+                                            },
+                                            Free("u8")
+                                        )
+                                    },
+                                    Field {
+                                        name: "a",
+                                        value: Var(
+                                            Span {
+                                                lo: BytePos(201),
+                                                hi: BytePos(203)
+                                            },
+                                            Free("u8")
+                                        )
+                                    }
+                                ]
+                            ),
+                            Binop(
+                                Span {
+                                    lo: BytePos(224),
+                                    hi: BytePos(254)
+                                },
+                                Mul,
+                                Proj(
+                                    Span {
+                                        lo: BytePos(224),
+                                        hi: BytePos(237)
+                                    },
+                                    Var(
+                                        Span {
+                                            lo: BytePos(224),
+                                            hi: BytePos(231)
+                                        },
+                                        Bound(Named("extents", BoundVar(0, 0)))
+                                    ),
+                                    "width"
+                                ),
+                                Proj(
+                                    Span {
+                                        lo: BytePos(240),
+                                        hi: BytePos(254)
+                                    },
+                                    Var(
+                                        Span {
+                                            lo: BytePos(240),
+                                            hi: BytePos(247)
+                                        },
+                                        Bound(Named("extents", BoundVar(0, 0)))
+                                    ),
+                                    "height"
+                                )
+                            )
+                        )
+                    }
+                ]
+            )
+        },
+        Definition {
+            name: "Bmp",
+            ty: Var(
+                Span {
+                    lo: BytePos(272),
+                    hi: BytePos(278)
+                },
+                Bound(Named("Bitmap", BoundVar(0, 0)))
+            )
+        }
+    ]
+}

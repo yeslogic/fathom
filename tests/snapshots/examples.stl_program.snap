@@ -1,0 +1,156 @@
+Program {
+    defs: [
+        Definition {
+            name: "Vec3d",
+            ty: Struct(
+                Span {
+                    lo: BytePos(33),
+                    hi: BytePos(85)
+                },
+                [
+                    Field {
+                        name: "x",
+                        value: Var(
+                            Span {
+                                lo: BytePos(49),
+                                hi: BytePos(54)
+                            },
+                            Free("f32le")
+                        )
+                    },
+                    Field {
+                        name: "y",
+                        value: Var(
+                            Span {
+                                lo: BytePos(63),
+                                hi: BytePos(68)
+                            },
+                            Free("f32le")
+                        )
+                    },
+                    Field {
+                        name: "z",
+                        value: Var(
+                            Span {
+                                lo: BytePos(77),
+                                hi: BytePos(82)
+                            },
+                            Free("f32le")
+                        )
+                    }
+                ]
+            )
+        },
+        Definition {
+            name: "Triangle",
+            ty: Struct(
+                Span {
+                    lo: BytePos(99),
+                    hi: BytePos(212)
+                },
+                [
+                    Field {
+                        name: "normal",
+                        value: Var(
+                            Span {
+                                lo: BytePos(142),
+                                hi: BytePos(147)
+                            },
+                            Bound(Named("Vec3d", BoundVar(0, 0)))
+                        )
+                    },
+                    Field {
+                        name: "vertices",
+                        value: Array(
+                            Span {
+                                lo: BytePos(199),
+                                hi: BytePos(209)
+                            },
+                            Var(
+                                Span {
+                                    lo: BytePos(200),
+                                    hi: BytePos(205)
+                                },
+                                Bound(Named("Vec3d", BoundVar(1, 0)))
+                            ),
+                            Const(
+                                Span {
+                                    lo: BytePos(207),
+                                    hi: BytePos(208)
+                                },
+                                Int(3)
+                            )
+                        )
+                    }
+                ]
+            )
+        },
+        Definition {
+            name: "Stl",
+            ty: Struct(
+                Span {
+                    lo: BytePos(273),
+                    hi: BytePos(465)
+                },
+                [
+                    Field {
+                        name: "header",
+                        value: Array(
+                            Span {
+                                lo: BytePos(320),
+                                hi: BytePos(328)
+                            },
+                            Var(
+                                Span {
+                                    lo: BytePos(321),
+                                    hi: BytePos(323)
+                                },
+                                Free("u8")
+                            ),
+                            Const(
+                                Span {
+                                    lo: BytePos(325),
+                                    hi: BytePos(327)
+                                },
+                                Int(80)
+                            )
+                        )
+                    },
+                    Field {
+                        name: "num_triangles",
+                        value: Var(
+                            Span {
+                                lo: BytePos(389),
+                                hi: BytePos(394)
+                            },
+                            Free("u32le")
+                        )
+                    },
+                    Field {
+                        name: "triangles",
+                        value: Array(
+                            Span {
+                                lo: BytePos(437),
+                                hi: BytePos(462)
+                            },
+                            Var(
+                                Span {
+                                    lo: BytePos(438),
+                                    hi: BytePos(446)
+                                },
+                                Bound(Named("Triangle", BoundVar(2, 0)))
+                            ),
+                            Var(
+                                Span {
+                                    lo: BytePos(448),
+                                    hi: BytePos(461)
+                                },
+                                Bound(Named("num_triangles", BoundVar(0, 0)))
+                            )
+                        )
+                    }
+                ]
+            )
+        }
+    ]
+}

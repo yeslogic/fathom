@@ -1,0 +1,81 @@
+Program {
+    defs: [
+        Definition {
+            name: "ObjectId",
+            ty: Struct(
+                Span {
+                    lo: BytePos(74),
+                    hi: BytePos(229)
+                },
+                [
+                    Field {
+                        name: "epoch_time",
+                        value: Var(
+                            Span {
+                                lo: BytePos(99),
+                                hi: BytePos(104)
+                            },
+                            Free("u32le")
+                        )
+                    },
+                    Field {
+                        name: "machine_id",
+                        value: Array(
+                            Span {
+                                lo: BytePos(122),
+                                hi: BytePos(129)
+                            },
+                            Var(
+                                Span {
+                                    lo: BytePos(123),
+                                    hi: BytePos(125)
+                                },
+                                Free("u8")
+                            ),
+                            Const(
+                                Span {
+                                    lo: BytePos(127),
+                                    hi: BytePos(128)
+                                },
+                                Int(3)
+                            )
+                        )
+                    },
+                    Field {
+                        name: "process_id",
+                        value: Var(
+                            Span {
+                                lo: BytePos(173),
+                                hi: BytePos(178)
+                            },
+                            Free("u16le")
+                        )
+                    },
+                    Field {
+                        name: "counter",
+                        value: Array(
+                            Span {
+                                lo: BytePos(193),
+                                hi: BytePos(200)
+                            },
+                            Var(
+                                Span {
+                                    lo: BytePos(194),
+                                    hi: BytePos(196)
+                                },
+                                Free("u8")
+                            ),
+                            Const(
+                                Span {
+                                    lo: BytePos(198),
+                                    hi: BytePos(199)
+                                },
+                                Int(3)
+                            )
+                        )
+                    }
+                ]
+            )
+        }
+    ]
+}

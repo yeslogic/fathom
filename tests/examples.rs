@@ -14,8 +14,10 @@ use ddl::syntax::ast::Program;
 fn bitmap() {
     const SRC: &str = include_str!("../examples/ddl/bitmap.ddl");
 
-    let base_defs = ast::base_defs();
     let mut program = Program::from_str(SRC).unwrap();
+    assert_debug_snapshot!(bitmap_program, program);
+
+    let base_defs = ast::base_defs();
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
@@ -31,8 +33,10 @@ fn bitmap() {
 fn bitmap_anon_elem() {
     const SRC: &str = include_str!("../examples/ddl/bitmap_anon_elem.ddl");
 
-    let base_defs = ast::base_defs();
     let mut program = Program::from_str(SRC).unwrap();
+    assert_debug_snapshot!(bitmap_anon_elem_program, program);
+
+    let base_defs = ast::base_defs();
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
@@ -49,8 +53,10 @@ fn bitmap_anon_elem() {
 fn cmap() {
     const SRC: &str = include_str!("../examples/ddl/cmap.ddl");
 
-    let base_defs = ast::base_defs();
     let mut program = Program::from_str(SRC).unwrap();
+    assert_debug_snapshot!(cmap_program, program);
+
+    let base_defs = ast::base_defs();
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
@@ -66,8 +72,10 @@ fn cmap() {
 fn edid() {
     const SRC: &str = include_str!("../examples/ddl/edid.ddl");
 
-    let base_defs = ast::base_defs();
     let mut program = Program::from_str(SRC).unwrap();
+    assert_debug_snapshot!(edid_program, program);
+
+    let base_defs = ast::base_defs();
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
@@ -83,8 +91,10 @@ fn edid() {
 fn heroes_of_might_and_magic_bmp() {
     const SRC: &str = include_str!("../examples/ddl/heroes_of_might_and_magic_bmp.ddl");
 
-    let base_defs = ast::base_defs();
     let mut program = Program::from_str(SRC).unwrap();
+    assert_debug_snapshot!(heroes_of_might_and_magic_bmp_program, program);
+
+    let base_defs = ast::base_defs();
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
@@ -101,8 +111,10 @@ fn heroes_of_might_and_magic_bmp() {
 fn ieee754() {
     const SRC: &str = include_str!("../examples/ddl/ieee754.ddl");
 
-    let base_defs = ast::base_defs();
     let mut program = Program::from_str(SRC).unwrap();
+    assert_debug_snapshot!(ieee754_program, program);
+
+    let base_defs = ast::base_defs();
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
@@ -118,8 +130,10 @@ fn ieee754() {
 fn object_id() {
     const SRC: &str = include_str!("../examples/ddl/object_id.ddl");
 
-    let base_defs = ast::base_defs();
     let mut program = Program::from_str(SRC).unwrap();
+    assert_debug_snapshot!(object_id_program, program);
+
+    let base_defs = ast::base_defs();
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();
@@ -135,8 +149,10 @@ fn object_id() {
 fn stl() {
     const SRC: &str = include_str!("../examples/ddl/stl.ddl");
 
-    let base_defs = ast::base_defs();
     let mut program = Program::from_str(SRC).unwrap();
+    assert_debug_snapshot!(stl_program, program);
+
+    let base_defs = ast::base_defs();
     program.substitute(&base_defs);
 
     check::check_program(&program).unwrap();

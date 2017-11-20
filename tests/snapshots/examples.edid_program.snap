@@ -1,0 +1,200 @@
+Program {
+    defs: [
+        Definition {
+            name: "Header",
+            ty: Struct(
+                Span {
+                    lo: BytePos(9),
+                    hi: BytePos(650)
+                },
+                [
+                    Field {
+                        name: "magic",
+                        value: Array(
+                            Span {
+                                lo: BytePos(58),
+                                hi: BytePos(65)
+                            },
+                            Var(
+                                Span {
+                                    lo: BytePos(59),
+                                    hi: BytePos(61)
+                                },
+                                Free("u8")
+                            ),
+                            Const(
+                                Span {
+                                    lo: BytePos(63),
+                                    hi: BytePos(64)
+                                },
+                                Int(8)
+                            )
+                        )
+                    },
+                    Field {
+                        name: "mfg_bytes",
+                        value: Var(
+                            Span {
+                                lo: BytePos(178),
+                                hi: BytePos(183)
+                            },
+                            Free("u16le")
+                        )
+                    },
+                    Field {
+                        name: "product_code",
+                        value: Var(
+                            Span {
+                                lo: BytePos(237),
+                                hi: BytePos(242)
+                            },
+                            Free("u16le")
+                        )
+                    },
+                    Field {
+                        name: "serial",
+                        value: Var(
+                            Span {
+                                lo: BytePos(278),
+                                hi: BytePos(283)
+                            },
+                            Free("u32le")
+                        )
+                    },
+                    Field {
+                        name: "mfg_week",
+                        value: Var(
+                            Span {
+                                lo: BytePos(384),
+                                hi: BytePos(386)
+                            },
+                            Free("u8")
+                        )
+                    },
+                    Field {
+                        name: "mfg_year_mod",
+                        value: Var(
+                            Span {
+                                lo: BytePos(504),
+                                hi: BytePos(506)
+                            },
+                            Free("u8")
+                        )
+                    },
+                    Field {
+                        name: "edid_version_major",
+                        value: Var(
+                            Span {
+                                lo: BytePos(574),
+                                hi: BytePos(576)
+                            },
+                            Free("u8")
+                        )
+                    },
+                    Field {
+                        name: "edid_version_minor",
+                        value: Var(
+                            Span {
+                                lo: BytePos(645),
+                                hi: BytePos(647)
+                            },
+                            Free("u8")
+                        )
+                    }
+                ]
+            )
+        },
+        Definition {
+            name: "DisplayParams",
+            ty: Struct(
+                Span {
+                    lo: BytePos(669),
+                    hi: BytePos(1128)
+                },
+                [
+                    Field {
+                        name: "input_flags",
+                        value: Var(
+                            Span {
+                                lo: BytePos(733),
+                                hi: BytePos(735)
+                            },
+                            Free("u8")
+                        )
+                    },
+                    Field {
+                        name: "screen_size_h",
+                        value: Var(
+                            Span {
+                                lo: BytePos(851),
+                                hi: BytePos(853)
+                            },
+                            Free("u8")
+                        )
+                    },
+                    Field {
+                        name: "screen_size_v",
+                        value: Var(
+                            Span {
+                                lo: BytePos(975),
+                                hi: BytePos(977)
+                            },
+                            Free("u8")
+                        )
+                    },
+                    Field {
+                        name: "gamma_mod",
+                        value: Var(
+                            Span {
+                                lo: BytePos(1065),
+                                hi: BytePos(1067)
+                            },
+                            Free("u8")
+                        )
+                    },
+                    Field {
+                        name: "features_flags",
+                        value: Var(
+                            Span {
+                                lo: BytePos(1123),
+                                hi: BytePos(1125)
+                            },
+                            Free("u8")
+                        )
+                    }
+                ]
+            )
+        },
+        Definition {
+            name: "Edid",
+            ty: Struct(
+                Span {
+                    lo: BytePos(1209),
+                    hi: BytePos(1455)
+                },
+                [
+                    Field {
+                        name: "header",
+                        value: Var(
+                            Span {
+                                lo: BytePos(1257),
+                                hi: BytePos(1263)
+                            },
+                            Bound(Named("Header", BoundVar(1, 0)))
+                        )
+                    },
+                    Field {
+                        name: "display_params",
+                        value: Var(
+                            Span {
+                                lo: BytePos(1318),
+                                hi: BytePos(1331)
+                            },
+                            Bound(Named("DisplayParams", BoundVar(1, 0)))
+                        )
+                    }
+                ]
+            )
+        }
+    ]
+}
