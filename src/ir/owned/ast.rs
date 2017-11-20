@@ -152,8 +152,6 @@ pub enum ParseExpr<N> {
     Var(Var<N>),
     /// Parse a byte
     U8,
-    /// The name of another parsable type
-    Ident(N),
     /// Parse that is repeated for the given bound
     ///
     /// ```plain

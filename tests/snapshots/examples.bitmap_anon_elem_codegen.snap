@@ -8,7 +8,36 @@ pub struct Bitmap {
 
 impl Bitmap {
     fn read<R: Read>(reader: &mut R) -> io::Result<Bitmap> {
-        unimplemented!()
+        let data = (0..(extents.width * extents.height)).map(|_| {
+            let a = buf.read_u8()?;
+            let b = buf.read_u8()?;
+            let g = buf.read_u8()?;
+            let r = buf.read_u8()?;
+            Ok(Bitmap::Elem {
+                r: r,
+                g: g,
+                b: b,
+                a: a,
+            })
+        }).collect::<Result<_, _>>()?;
+        let extents = {
+            let height = {
+                let x = (0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+                Ok(from_u32be(x))
+            };
+            let width = {
+                let x = (0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+                Ok(from_u32be(x))
+            };
+            Ok(Bitmap {
+                width: width,
+                height: height,
+            })
+        };
+        Ok(Bitmap {
+            extents: extents,
+            data: data,
+        })
     }
 }
 

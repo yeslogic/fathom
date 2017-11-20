@@ -10,7 +10,25 @@ pub struct HerosOfMightAndMagicBmp {
 
 impl HerosOfMightAndMagicBmp {
     fn read<R: Read>(reader: &mut R) -> io::Result<HerosOfMightAndMagicBmp> {
-        unimplemented!()
+        let data = (0..(width * height)).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+        let height = {
+            let x = (0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+            Ok(from_u16le(x))
+        };
+        let width = {
+            let x = (0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+            Ok(from_u16le(x))
+        };
+        let magic = {
+            let x = (0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+            Ok(from_u16le(x))
+        };
+        Ok(HerosOfMightAndMagicBmp {
+            magic: magic,
+            width: width,
+            height: height,
+            data: data,
+        })
     }
 }
 
