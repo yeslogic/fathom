@@ -4,28 +4,30 @@ use std::rc::Rc;
 
 use name::{Name, Named};
 use source::Span;
-use syntax::ast::{self, host, Field, Substitutions, Var};
+use syntax::ast::{self, host, Field, Substitutions};
+use var::{BoundVar, ScopeIndex, Var};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Kind {
     /// Kind of types
     Type,
     /// Kind of type functions
-    Arrow(RcKind, RcKind),
+    ///
+    /// For now we only allow type arguments of kind `Type`. We represent this
+    /// as an arity count
+    Arrow { arity: u32 },
 }
-
-pub type RcKind = Rc<Kind>;
 
 impl Kind {
     /// Kind of type functions
-    pub fn arrow<K1: Into<RcKind>, K2: Into<RcKind>>(lhs: K1, rhs: K2) -> Kind {
-        Kind::Arrow(lhs.into(), rhs.into())
+    pub fn arrow(arity: u32) -> Kind {
+        Kind::Arrow { arity }
     }
 
-    pub fn repr(&self) -> host::RcKind {
-        match *self {
-            Kind::Type => Rc::new(host::Kind::Type),
-            Kind::Arrow(ref k1, ref k2) => Rc::new(host::Kind::arrow(k1.repr(), k2.repr())),
+    pub fn repr(self) -> host::Kind {
+        match self {
+            Kind::Type => host::Kind::Type,
+            Kind::Arrow { arity } => host::Kind::arrow(arity),
         }
     }
 }
@@ -39,7 +41,7 @@ pub enum TypeConst {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type<N> {
     /// A type variable: eg. `T`
-    Var(Span, Var<N, u32>),
+    Var(Span, Var<N>),
     /// Type constant
     Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
@@ -52,10 +54,12 @@ pub enum Type<N> {
     Assert(Span, RcType<N>, host::RcExpr<N>),
     /// An interpreted type
     Interp(Span, RcType<N>, host::RcExpr<N>, host::RcType<N>),
-    /// Type abstraction: eg. `\(a : Type) -> T`
-    Abs(Span, Named<N, RcKind>, RcType<N>),
-    /// Type application: eg. `T U V`
-    App(Span, RcType<N>, RcType<N>),
+    /// Type abstraction: eg. `\(a, ..) -> T`
+    ///
+    /// For now we only allow type arguments of kind `Type`
+    Abs(Span, Vec<Named<N, ()>>, RcType<N>),
+    /// Type application: eg. `T(U, V)`
+    App(Span, RcType<N>, Vec<RcType<N>>),
 }
 
 pub type RcType<N> = Rc<Type<N>>;
@@ -67,7 +71,7 @@ impl<N: Name> Type<N> {
     }
 
     /// A bound type variable
-    pub fn bvar<N1: Into<N>>(span: Span, x: N1, i: u32) -> Type<N> {
+    pub fn bvar<N1: Into<N>>(span: Span, x: N1, i: BoundVar) -> Type<N> {
         Type::Var(span, Var::Bound(Named(x.into(), i)))
     }
 
@@ -90,24 +94,16 @@ impl<N: Name> Type<N> {
         Type::Union(span, variants)
     }
 
-    /// Type application: eg. `T U V`
-    pub fn app<T1, T2>(span: Span, ty1: T1, ty2: T2) -> Type<N>
-    where
-        T1: Into<RcType<N>>,
-        T2: Into<RcType<N>>,
-    {
-        Type::App(span, ty1.into(), ty2.into())
-    }
-
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     pub fn struct_(span: Span, mut fields: Vec<Field<N, RcType<N>>>) -> Type<N> {
         // We maintain a list of the seen field names. This will allow us to
         // recover the index of these variables as we abstract later fields...
-        let mut seen_names = Vec::with_capacity(fields.len());
+        let mut seen_names = Vec::<N>::with_capacity(fields.len());
 
         for field in &mut fields {
-            for (level, name) in seen_names.iter().rev().enumerate() {
-                Rc::make_mut(&mut field.value).abstract_name_at(name, level as u32);
+            for (scope, name) in seen_names.iter().rev().enumerate() {
+                Rc::make_mut(&mut field.value)
+                    .abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
             }
 
             // Record that the field has been 'seen'
@@ -136,17 +132,30 @@ impl<N: Name> Type<N> {
         Type::Interp(span, ty.into(), conv.into(), repr_ty.into())
     }
 
-    /// Type abstraction: eg. `\(a : Type) -> T`
-    pub fn abs<N1, K1, T1>(span: Span, (param_name, param_kind): (N1, K1), body_ty: T1) -> Type<N>
+    /// Type abstraction: eg. `\(a, ..) -> T`
+    ///
+    /// For now we only allow type arguments of kind `Type`
+    pub fn abs<T1>(span: Span, param_names: &[N], body_ty: T1) -> Type<N>
     where
-        N1: Into<N>,
-        K1: Into<RcKind>,
         T1: Into<RcType<N>>,
     {
-        let param_name = param_name.into();
+        let params = param_names
+            .iter()
+            .map(|name| Named(name.clone(), ()))
+            .collect();
+
         let mut body_ty = body_ty.into();
-        Rc::make_mut(&mut body_ty).abstract_name(&param_name);
-        Type::Abs(span, Named(param_name, param_kind.into()), body_ty)
+        Rc::make_mut(&mut body_ty).abstract_names(&param_names);
+
+        Type::Abs(span, params, body_ty)
+    }
+
+    /// Type application: eg. `T(U, V)`
+    pub fn app<T1>(span: Span, fn_ty: T1, arg_tys: Vec<RcType<N>>) -> Type<N>
+    where
+        T1: Into<RcType<N>>,
+    {
+        Type::App(span, fn_ty.into(), arg_tys)
     }
 
     /// Attempt to lookup the type of a field
@@ -212,9 +221,13 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(body_ty).substitute(substs);
                 return;
             }
-            Type::App(_, ref mut fn_ty, ref mut arg_ty) => {
+            Type::App(_, ref mut fn_ty, ref mut arg_tys) => {
                 Rc::make_mut(fn_ty).substitute(substs);
-                Rc::make_mut(arg_ty).substitute(substs);
+
+                for arg_ty in arg_tys {
+                    Rc::make_mut(arg_ty).substitute(substs);
+                }
+
                 return;
             }
         };
@@ -222,85 +235,91 @@ impl<N: Name> Type<N> {
         *self = subst_ty.clone();
     }
 
-    pub fn abstract_name_at(&mut self, name: &N, level: u32) {
+    pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
         match *self {
-            Type::Var(_, ref mut var) => var.abstract_name_at(name, level),
+            Type::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             Type::Const(_) => {}
             Type::Array(_, ref mut elem_ty, ref mut size_expr) => {
-                Rc::make_mut(elem_ty).abstract_name_at(name, level);
-                Rc::make_mut(size_expr).abstract_name_at(name, level);
+                Rc::make_mut(elem_ty).abstract_names_at(names, scope);
+                Rc::make_mut(size_expr).abstract_names_at(names, scope);
             }
             Type::Union(_, ref mut variants) => for variant in variants {
-                Rc::make_mut(&mut variant.value).abstract_name_at(name, level);
+                Rc::make_mut(&mut variant.value).abstract_names_at(names, scope);
             },
             Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                Rc::make_mut(&mut field.value).abstract_name_at(name, level + i as u32);
+                Rc::make_mut(&mut field.value).abstract_names_at(names, scope.shift(i as u32));
             },
             Type::Assert(_, ref mut ty, ref mut pred) => {
-                Rc::make_mut(ty).abstract_name_at(name, level);
-                Rc::make_mut(pred).abstract_name_at(name, level + 1);
+                Rc::make_mut(ty).abstract_names_at(names, scope);
+                Rc::make_mut(pred).abstract_names_at(names, scope.succ());
             }
             Type::Interp(_, ref mut ty, ref mut conv, ref mut repr_ty) => {
-                Rc::make_mut(ty).abstract_name_at(name, level);
-                Rc::make_mut(conv).abstract_name_at(name, level + 1);
-                Rc::make_mut(repr_ty).abstract_name_at(name, level);
+                Rc::make_mut(ty).abstract_names_at(names, scope);
+                Rc::make_mut(conv).abstract_names_at(names, scope.succ());
+                Rc::make_mut(repr_ty).abstract_names_at(names, scope);
             }
             Type::Abs(_, _, ref mut body_ty) => {
-                Rc::make_mut(body_ty).abstract_name_at(name, level + 1);
+                Rc::make_mut(body_ty).abstract_names_at(names, scope.succ());
             }
-            Type::App(_, ref mut fn_ty, ref mut arg_ty) => {
-                Rc::make_mut(fn_ty).abstract_name_at(name, level);
-                Rc::make_mut(arg_ty).abstract_name_at(name, level);
+            Type::App(_, ref mut fn_ty, ref mut arg_tys) => {
+                Rc::make_mut(fn_ty).abstract_names_at(names, scope);
+
+                for arg_ty in arg_tys {
+                    Rc::make_mut(arg_ty).abstract_names_at(names, scope);
+                }
             }
         }
     }
 
     /// Add one layer of abstraction around the type by replacing all the
-    /// free variables called `name` with an appropriate De Bruijn index.
+    /// free variables in `names` with an appropriate De Bruijn index.
     ///
     /// This results in a one 'dangling' index, and so care must be taken
     /// to wrap it in another type that marks the introduction of a new
     /// scope.
-    pub fn abstract_name(&mut self, name: &N) {
-        self.abstract_name_at(name, 0);
+    pub fn abstract_names(&mut self, names: &[N]) {
+        self.abstract_names_at(names, ScopeIndex(0));
     }
 
-    fn instantiate_at(&mut self, level: u32, src: &Type<N>) {
-        // FIXME: ensure that expressions are not bound at the same level
+    fn instantiate_at(&mut self, scope: ScopeIndex, tys: &[RcType<N>]) {
+        // FIXME: ensure that expressions are not bound at the same scope
         match *self {
-            Type::Var(_, Var::Bound(Named(_, i))) => if i == level {
-                *self = src.clone();
+            Type::Var(_, Var::Bound(Named(_, var))) => if var.scope == scope {
+                *self = (*tys[var.binding.0 as usize]).clone();
             },
             Type::Var(_, Var::Free(_)) | Type::Const(_) => {}
             Type::Array(_, ref mut elem_ty, _) => {
-                Rc::make_mut(elem_ty).instantiate_at(level, src);
+                Rc::make_mut(elem_ty).instantiate_at(scope, tys);
             }
             Type::Assert(_, ref mut ty, _) => {
-                Rc::make_mut(ty).instantiate_at(level + 1, src);
+                Rc::make_mut(ty).instantiate_at(scope.succ(), tys);
             }
             Type::Interp(_, ref mut ty, _, _) => {
-                Rc::make_mut(ty).instantiate_at(level + 1, src);
+                Rc::make_mut(ty).instantiate_at(scope.succ(), tys);
             }
             Type::Union(_, ref mut variants) => for variant in variants {
-                Rc::make_mut(&mut variant.value).instantiate_at(level, src);
+                Rc::make_mut(&mut variant.value).instantiate_at(scope, tys);
             },
             Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
-                Rc::make_mut(&mut field.value).instantiate_at(level + i as u32, src);
+                Rc::make_mut(&mut field.value).instantiate_at(scope.shift(i as u32), tys);
             },
             Type::Abs(_, _, ref mut ty) => {
-                Rc::make_mut(ty).instantiate_at(level + 1, src);
+                Rc::make_mut(ty).instantiate_at(scope.succ(), tys);
             }
-            Type::App(_, ref mut ty, ref mut arg_ty) => {
-                Rc::make_mut(ty).instantiate_at(level, src);
-                Rc::make_mut(arg_ty).instantiate_at(level, src);
+            Type::App(_, ref mut ty, ref mut arg_tys) => {
+                Rc::make_mut(ty).instantiate_at(scope, tys);
+
+                for arg_ty in arg_tys {
+                    Rc::make_mut(arg_ty).instantiate_at(scope, tys);
+                }
             }
         }
     }
 
     /// Remove one layer of abstraction in the type by replacing the
     /// appropriate bound variables with copies of `ty`.
-    pub fn instantiate(&mut self, ty: &Type<N>) {
-        self.instantiate_at(0, ty);
+    pub fn instantiate(&mut self, tys: &[RcType<N>]) {
+        self.instantiate_at(ScopeIndex(0), tys);
     }
 
     /// Returns the host representation of the binary type
@@ -329,12 +348,13 @@ impl<N: Name> Type<N> {
 
                 Rc::new(host::Type::Struct(repr_fields))
             }
-            Type::Abs(_, Named(ref name, ref param_kind), ref body_ty) => Rc::new(host::Type::Abs(
-                Named(name.clone(), param_kind.repr()),
-                body_ty.repr(),
-            )),
-            Type::App(_, ref fn_ty, ref arg_ty) => {
-                Rc::new(host::Type::App(fn_ty.repr(), arg_ty.repr()))
+            Type::Abs(_, ref params, ref body_ty) => {
+                Rc::new(host::Type::Abs(params.clone(), body_ty.repr()))
+            }
+            Type::App(_, ref fn_ty, ref arg_tys) => {
+                let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();
+
+                Rc::new(host::Type::App(fn_ty.repr(), arg_tys))
             }
         }
     }
@@ -349,7 +369,6 @@ mod tests {
 
         mod abs {
             use super::*;
-            use self::Kind as K;
 
             type T = Type<&'static str>;
 
@@ -357,7 +376,7 @@ mod tests {
             fn id() {
                 // λx. x
                 // λ   0
-                let ty = T::abs(Span::start(), ("x", K::Type), T::fvar(Span::start(), "x"));
+                let ty = T::abs(Span::start(), &["x"], T::fvar(Span::start(), "x"));
 
                 assert_snapshot!(ty_abs_id, ty);
             }
@@ -370,8 +389,8 @@ mod tests {
                 // λ  λ   1
                 let ty = T::abs(
                     Span::start(),
-                    ("x", K::Type),
-                    T::abs(Span::start(), ("y", K::Type), T::fvar(Span::start(), "x")),
+                    &["x"],
+                    T::abs(Span::start(), &["y"], T::fvar(Span::start(), "x")),
                 );
 
                 assert_snapshot!(ty_abs_k_combinator, ty);
@@ -383,25 +402,27 @@ mod tests {
                 // λ  λ  λ   2 0 (1 0)
                 let ty = T::abs(
                     Span::start(),
-                    ("x", K::Type),
+                    &["x"],
                     T::abs(
                         Span::start(),
-                        ("y", K::Type),
+                        &["y"],
                         T::abs(
                             Span::start(),
-                            ("z", K::Type),
+                            &["z"],
                             T::app(
                                 Span::start(),
                                 T::app(
                                     Span::start(),
                                     T::fvar(Span::start(), "x"),
-                                    T::fvar(Span::start(), "z"),
+                                    vec![Rc::new(T::fvar(Span::start(), "z"))],
                                 ),
-                                T::app(
-                                    Span::start(),
-                                    T::fvar(Span::start(), "y"),
-                                    T::fvar(Span::start(), "z"),
-                                ),
+                                vec![
+                                    Rc::new(T::app(
+                                        Span::start(),
+                                        T::fvar(Span::start(), "y"),
+                                        vec![Rc::new(T::fvar(Span::start(), "z"))],
+                                    )),
+                                ],
                             ),
                         ),
                     ),
@@ -416,27 +437,33 @@ mod tests {
                 // λ  (λ   0 (λ   0)) (λ   1 0)
                 let ty = T::abs(
                     Span::start(),
-                    ("z", K::Type),
+                    &["z"],
                     T::app(
                         Span::start(),
                         T::abs(
                             Span::start(),
-                            ("y", K::Type),
+                            &["y"],
                             T::app(
                                 Span::start(),
                                 T::fvar(Span::start(), "y"),
-                                T::abs(Span::start(), ("x", K::Type), T::fvar(Span::start(), "x")),
+                                vec![
+                                    Rc::new(
+                                        T::abs(Span::start(), &["x"], T::fvar(Span::start(), "x")),
+                                    ),
+                                ],
                             ),
                         ),
-                        T::abs(
-                            Span::start(),
-                            ("x", K::Type),
-                            T::app(
+                        vec![
+                            Rc::new(T::abs(
                                 Span::start(),
-                                T::fvar(Span::start(), "z"),
-                                T::fvar(Span::start(), "x"),
-                            ),
-                        ),
+                                &["x"],
+                                T::app(
+                                    Span::start(),
+                                    T::fvar(Span::start(), "z"),
+                                    vec![Rc::new(T::fvar(Span::start(), "x"))],
+                                ),
+                            )),
+                        ],
                     ),
                 );
 

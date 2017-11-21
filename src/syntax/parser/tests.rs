@@ -191,3 +191,25 @@ fn parse_definition() {
 
     assert_snapshot!(parse_definition, Program::from_str(src).unwrap());
 }
+
+#[test]
+fn parse_type_params() {
+    let src = "
+        Pair(T, U) = struct {
+            l : T,
+            r : U,
+        };
+
+        Array(T) = struct {
+            len : u16le,
+            data : [T; len],
+        };
+
+        Data(T, U, V) = struct {
+            blah : U,
+            data : Array(Pair(T, V)),
+        };
+    ";
+
+    assert_snapshot!(parse_type_params, Program::from_str(src).unwrap());
+}

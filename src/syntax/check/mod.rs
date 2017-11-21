@@ -3,8 +3,9 @@
 use std::rc::Rc;
 
 use name::{Name, Named};
-use syntax::ast::{binary, host, Field, Program, Var};
-use self::context::{Binding, Context};
+use syntax::ast::{binary, host, Field, Program};
+use self::context::{Context, Scope};
+use var::Var;
 
 mod context;
 #[cfg(test)]
@@ -27,7 +28,7 @@ pub enum TypeError<N> {
     /// Variable bound in the context was not at the value level
     ExprBindingExpected {
         expr: host::RcExpr<N>,
-        found: Named<N, Binding<N>>,
+        found: Scope<N>,
     },
     /// One type was expected, but another was found
     Mismatch {
@@ -73,10 +74,10 @@ pub fn ty_of<N: Name>(
             name: name.clone(),
         }),
         Expr::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty(i) {
-            Ok(Named(_, ty)) => Ok(ty.clone()),
-            Err(Named(name, binding)) => Err(TypeError::ExprBindingExpected {
+            Ok((_, ty)) => Ok(ty.clone()),
+            Err(scope) => Err(TypeError::ExprBindingExpected {
                 expr: expr.clone(),
-                found: Named(name.clone(), binding.clone()),
+                found: scope.clone(),
             }),
         },
 
@@ -200,22 +201,29 @@ pub fn ty_of<N: Name>(
         }
 
         // Abstraction
-        Expr::Abs(_, Named(ref param_name, ref param_ty), ref body_expr) => {
+        Expr::Abs(_, ref params, ref body_expr) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
-            ctx.extend(param_name.clone(), Binding::Expr(param_ty.clone()));
-            Ok(Rc::new(
-                Type::arrow(param_ty.clone(), ty_of(&ctx, body_expr)?),
-            ))
+            ctx.extend(Scope::ExprAbs(params.clone()));
+            let param_tys = params.iter().map(|param| param.1.clone()).collect();
+
+            Ok(Rc::new(Type::arrow(param_tys, ty_of(&ctx, body_expr)?)))
         }
 
         // Applications
-        Expr::App(_, ref fn_expr, ref arg_expr) => {
+        Expr::App(_, ref fn_expr, ref arg_exprs) => {
             let fn_ty = ty_of(ctx, fn_expr)?;
 
-            if let Type::Arrow(ref param_ty, ref ret_ty) = *fn_ty {
-                expect_ty(ctx, arg_expr, param_ty.clone())?;
-                return Ok(ret_ty.clone());
+            if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty {
+                if arg_exprs.len() == param_tys.len() {
+                    for (arg_expr, param_ty) in arg_exprs.iter().zip(param_tys) {
+                        expect_ty(ctx, arg_expr, param_ty.clone())?;
+                    }
+
+                    return Ok(ret_ty.clone());
+                } else {
+                    unimplemented!(); // FIXME
+                }
             }
 
             Err(TypeError::Mismatch {
@@ -235,14 +243,14 @@ fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> binary::RcT
     fn compute_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> Option<binary::RcType<N>> {
         match **ty {
             Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
-                Ok(Named(_, def_ty)) => Some(def_ty.clone()),
+                Ok((_, def_ty)) => Some(def_ty.clone()),
                 Err(_) => None,
             },
-            Type::App(_, ref fn_ty, ref arg_ty) => match **fn_ty {
+            Type::App(_, ref fn_ty, ref arg_tys) => match **fn_ty {
                 Type::Abs(_, _, ref body_ty) => {
                     // FIXME: Avoid clone
                     let mut body = body_ty.clone();
-                    Rc::make_mut(&mut body).instantiate(arg_ty);
+                    Rc::make_mut(&mut body).instantiate(arg_tys);
                     Some(body)
                 }
                 _ => None,
@@ -263,12 +271,6 @@ fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> binary::RcT
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ExpectedKind {
-    Arrow,
-    Actual(binary::RcKind),
-}
-
 /// An error that was encountered during kind checking
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KindError<N> {
@@ -277,13 +279,13 @@ pub enum KindError<N> {
     /// Variable bound in the context was not at the type level
     TypeBindingExpected {
         ty: binary::RcType<N>,
-        found: Named<N, Binding<N>>,
+        found: Scope<N>,
     },
     /// One kind was expected, but another was found
     Mismatch {
         ty: binary::RcType<N>,
-        expected: ExpectedKind,
-        found: binary::RcKind,
+        expected: binary::Kind,
+        found: binary::Kind,
     },
     /// A type error
     Type(TypeError<N>),
@@ -300,7 +302,7 @@ impl<N> From<TypeError<N>> for KindError<N> {
 pub fn kind_of<N: Name>(
     ctx: &Context<N>,
     ty: &binary::RcType<N>,
-) -> Result<binary::RcKind, KindError<N>> {
+) -> Result<binary::Kind, KindError<N>> {
     use syntax::ast::binary::{Kind, Type, TypeConst};
 
     match **ty {
@@ -310,50 +312,58 @@ pub fn kind_of<N: Name>(
             name: name.clone(),
         }),
         Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
-            Ok(Named(_, kind)) => Ok(kind.clone()),
-            Err(Named(name, binding)) => Err(KindError::TypeBindingExpected {
+            Ok((_, kind)) => Ok(kind.clone()),
+            Err(scope) => Err(KindError::TypeBindingExpected {
                 ty: ty.clone(),
-                found: Named(name.clone(), binding.clone()),
+                found: scope.clone(),
             }),
         },
 
         // Byte type
-        Type::Const(TypeConst::U8) => Ok(Rc::new(Kind::Type)),
+        Type::Const(TypeConst::U8) => Ok(Kind::Type),
 
         // Array types
         Type::Array(_, ref elem_ty, ref size_expr) => {
             expect_ty_kind(ctx, elem_ty)?;
             expect_ty(ctx, size_expr, host::Type::int())?;
 
-            Ok(Rc::new(Kind::Type))
+            Ok(Kind::Type)
         }
 
         // Conditional types
         Type::Assert(_, ref ty, ref pred_expr) => {
             expect_ty_kind(ctx, ty)?;
-            let pred_ty = host::Type::arrow(ty.repr(), host::Type::bool());
+            let pred_ty = host::Type::arrow(vec![ty.repr()], host::Type::bool());
             expect_ty(ctx, pred_expr, pred_ty)?;
 
-            Ok(Rc::new(Kind::Type))
+            Ok(Kind::Type)
         }
 
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref host_ty) => {
             expect_ty_kind(ctx, ty)?;
-            let conv_ty = host::Type::arrow(ty.repr(), host_ty.clone());
+            let conv_ty = host::Type::arrow(vec![ty.repr()], host_ty.clone());
             expect_ty(ctx, conv_expr, conv_ty)?;
 
-            Ok(Rc::new(Kind::Type))
+            Ok(Kind::Type)
         }
 
         // Type abstraction
-        Type::Abs(_, Named(ref name, ref param_kind), ref body_ty) => {
+        Type::Abs(_, ref param_tys, ref body_ty) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
-            ctx.extend(name.clone(), Binding::Type(param_kind.clone()));
-            Ok(Rc::new(
-                Kind::arrow(param_kind.clone(), kind_of(&ctx, body_ty)?),
-            ))
+
+            expect_ty_kind(&ctx, &body_ty)?;
+            let kind = Kind::arrow(param_tys.len() as u32);
+
+            ctx.extend(Scope::TypeAbs(
+                param_tys
+                    .iter()
+                    .map(|named| Named(named.0.clone(), Kind::Type))
+                    .collect(),
+            ));
+
+            Ok(kind)
         }
 
         // Union types
@@ -362,7 +372,7 @@ pub fn kind_of<N: Name>(
                 expect_ty_kind(ctx, &field.value)?;
             }
 
-            Ok(Rc::new(Kind::Type))
+            Ok(Kind::Type)
         }
 
         // Struct type
@@ -374,24 +384,24 @@ pub fn kind_of<N: Name>(
                 expect_ty_kind(&ctx, &field.value)?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
-                ctx.extend(field.name.clone(), Binding::Expr(field_ty.repr()));
+                ctx.extend(Scope::ExprAbs(
+                    vec![Named(field.name.clone(), field_ty.repr())],
+                ));
             }
 
-            Ok(Rc::new(Kind::Type))
+            Ok(Kind::Type)
         }
 
         // Type application
-        Type::App(_, ref fn_ty, ref arg_ty) => match *kind_of(ctx, fn_ty)? {
-            Kind::Type => Err(KindError::Mismatch {
-                ty: fn_ty.clone(),
-                found: Rc::new(Kind::Type),
-                expected: ExpectedKind::Arrow,
-            }),
-            Kind::Arrow(ref param_kind, ref ret_kind) => {
-                expect_kind(ctx, arg_ty, param_kind.clone())?;
-                Ok(ret_kind.clone())
+        Type::App(_, ref fn_ty, ref arg_tys) => {
+            expect_kind(ctx, &fn_ty, Kind::arrow(arg_tys.len() as u32))?;
+
+            for arg_ty in arg_tys {
+                expect_ty_kind(ctx, arg_ty)?
             }
-        },
+
+            Ok(Kind::Type)
+        }
     }
 }
 
@@ -400,7 +410,9 @@ pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> 
 
     for def in &program.defs {
         let def_kind = kind_of(&ctx, &def.ty)?;
-        ctx.extend(def.name.clone(), Binding::TypeDef(def.ty.clone(), def_kind));
+        ctx.extend(Scope::TypeDef(
+            vec![Named(def.name.clone(), (def.ty.clone(), def_kind))],
+        ));
     }
 
     Ok(())
@@ -433,8 +445,8 @@ where
 fn expect_kind<N: Name>(
     ctx: &Context<N>,
     ty: &binary::RcType<N>,
-    expected: binary::RcKind,
-) -> Result<binary::RcKind, KindError<N>> {
+    expected: binary::Kind,
+) -> Result<binary::Kind, KindError<N>> {
     let found = kind_of(ctx, ty)?;
 
     if found == expected {
@@ -442,7 +454,7 @@ fn expect_kind<N: Name>(
     } else {
         Err(KindError::Mismatch {
             ty: ty.clone(),
-            expected: ExpectedKind::Actual(expected),
+            expected: expected,
             found,
         })
     }
@@ -451,5 +463,5 @@ fn expect_kind<N: Name>(
 fn expect_ty_kind<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> Result<(), KindError<N>> {
     use syntax::ast::binary::Kind;
 
-    expect_kind(ctx, ty, Rc::new(Kind::Type)).map(|_| ())
+    expect_kind(ctx, ty, Kind::Type).map(|_| ())
 }

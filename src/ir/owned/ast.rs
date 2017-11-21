@@ -3,7 +3,8 @@ use std::rc::Rc;
 use name::{Name, Named};
 use source::Span;
 use syntax;
-use syntax::ast::{binary, host, Field, Var};
+use syntax::ast::{binary, host, Field};
+use var::{BindingIndex as Bi, BoundVar, ScopeIndex as Si, Var};
 
 /// The definitions in this program
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,7 +49,7 @@ pub enum RepeatBound<N> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseExpr<N> {
     /// A reference to another parser
-    Var(Var<N, u32>),
+    Var(Var<N>),
     /// Parse a byte
     U8,
     /// The name of another parsable type
@@ -111,7 +112,7 @@ impl<N: Name> ParseExpr<N> {
 
         for (name, parse_exprs) in parse_exprs.into_iter().rev() {
             // FIXME: abstract parse exprs???
-            Rc::make_mut(&mut expr).abstract_name(&name);
+            Rc::make_mut(&mut expr).abstract_names(&[name.clone()]);
             named_exprs.push(Named(name, parse_exprs));
         }
 
@@ -163,7 +164,7 @@ impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for ParseExp
                         Span::start(),
                         variant.name.clone(),
                         // FIXME: fresh variable?
-                        Expr::bvar(Span::start(), "x", 0),
+                        Expr::bvar(Span::start(), "x", BoundVar::new(Si(0), Bi(0))),
                         union_ty.clone(),
                     ));
 
@@ -204,7 +205,13 @@ impl<'a, N: Name + for<'b> From<&'b str>> From<&'a binary::Type<N>> for ParseExp
                     Rc::new(Expr::app(
                         Span::start(),
                         conv.clone(),
-                        Expr::bvar(Span::start(), N::from("x"), 0),
+                        vec![
+                            Rc::new(Expr::bvar(
+                                Span::start(),
+                                N::from("x"),
+                                BoundVar::new(Si(0), Bi(0)),
+                            )),
+                        ],
                     )),
                 )
             }

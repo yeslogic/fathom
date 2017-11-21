@@ -5,22 +5,24 @@ use std::rc::Rc;
 
 use name::{Name, Named};
 use source::Span;
-use syntax::ast::{self, Field, Var};
+use syntax::ast::{self, Field};
+use var::{BoundVar, ScopeIndex, Var};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Kind {
     /// Kind of types
     Type,
     /// Kind of type functions
-    Arrow(RcKind, RcKind),
+    ///
+    /// For now we only allow type arguments of kind `Type`. We represent this
+    /// as an arity count
+    Arrow { arity: u32 },
 }
-
-pub type RcKind = Rc<Kind>;
 
 impl Kind {
     /// Kind of type functions
-    pub fn arrow<K1: Into<RcKind>, K2: Into<RcKind>>(lhs: K1, rhs: K2) -> Kind {
-        Kind::Arrow(lhs.into(), rhs.into())
+    pub fn arrow(arity: u32) -> Kind {
+        Kind::Arrow { arity }
     }
 }
 
@@ -101,7 +103,7 @@ pub enum Expr<N> {
     Prim(&'static str, RcType<N>),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
-    Var(Span, Var<N, u32>),
+    Var(Span, Var<N>),
     /// An unary operator expression
     Unop(Span, Unop, RcExpr<N>),
     /// A binary operator expression
@@ -119,10 +121,10 @@ pub enum Expr<N> {
     Intro(Span, N, RcExpr<N>, RcType<N>),
     /// Array index, eg: `x[i]`
     Subscript(Span, RcExpr<N>, RcExpr<N>),
-    /// Abstraction, eg: `\(x : T) -> x`
-    Abs(Span, Named<N, RcType<N>>, RcExpr<N>),
-    /// Application, eg: `f x`
-    App(Span, RcExpr<N>, RcExpr<N>),
+    /// Abstraction, eg: `\(x : T, ..) -> x`
+    Abs(Span, Vec<Named<N, RcType<N>>>, RcExpr<N>),
+    /// Application, eg: `f(x, ..)`
+    App(Span, RcExpr<N>, Vec<RcExpr<N>>),
 }
 
 pub type RcExpr<N> = Rc<Expr<N>>;
@@ -155,7 +157,7 @@ impl<N: Name> Expr<N> {
     }
 
     /// A bound variable
-    pub fn bvar<N1: Into<N>>(span: Span, x: N1, i: u32) -> Expr<N> {
+    pub fn bvar<N1: Into<N>>(span: Span, x: N1, i: BoundVar) -> Expr<N> {
         Expr::Var(span, Var::Bound(Named(x.into(), i)))
     }
 
@@ -209,26 +211,28 @@ impl<N: Name> Expr<N> {
         Expr::Subscript(span, expr.into(), index_expr.into())
     }
 
-    /// Abstraction, eg: `\(x : T) -> x`
-    pub fn abs<N1, T1, E1>(span: Span, (param_name, param_ty): (N1, T1), body_expr: E1) -> Expr<N>
+    /// Abstraction, eg: `\(x : T, ..) -> x`
+    pub fn abs<E1>(span: Span, params: Vec<Named<N, RcType<N>>>, body_expr: E1) -> Expr<N>
     where
-        N1: Into<N>,
-        T1: Into<RcType<N>>,
         E1: Into<RcExpr<N>>,
     {
-        let param_name = param_name.into();
+        let param_names = params
+            .iter()
+            .map(|param| param.0.clone())
+            .collect::<Vec<_>>();
+
         let mut body_expr = body_expr.into();
-        Rc::make_mut(&mut body_expr).abstract_name(&param_name);
-        Expr::Abs(span, Named(param_name, param_ty.into()), body_expr)
+        Rc::make_mut(&mut body_expr).abstract_names(&param_names);
+
+        Expr::Abs(span, params, body_expr)
     }
 
-    /// Application: eg. `f x`
-    pub fn app<E1, E2>(span: Span, fn_expr: E1, arg_expr: E2) -> Expr<N>
+    /// Application, eg: `f(x, ..)`
+    pub fn app<E1>(span: Span, fn_expr: E1, arg_exprs: Vec<RcExpr<N>>) -> Expr<N>
     where
         E1: Into<RcExpr<N>>,
-        E2: Into<RcExpr<N>>,
     {
-        Expr::App(span, fn_expr.into(), arg_expr.into())
+        Expr::App(span, fn_expr.into(), arg_exprs)
     }
 
     /// Attempt to lookup the value of a field
@@ -242,42 +246,48 @@ impl<N: Name> Expr<N> {
         }
     }
 
-    pub fn abstract_name_at(&mut self, name: &N, level: u32) {
+    pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
         match *self {
-            Expr::Var(_, ref mut var) => var.abstract_name_at(name, level),
+            Expr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             Expr::Const(_, _) => {}
-            Expr::Prim(_, ref mut repr_ty) => Rc::make_mut(repr_ty).abstract_name_at(name, level),
+            Expr::Prim(_, ref mut repr_ty) => Rc::make_mut(repr_ty).abstract_names_at(names, scope),
             Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
-                Rc::make_mut(expr).abstract_name_at(name, level);
+                Rc::make_mut(expr).abstract_names_at(names, scope);
             }
             Expr::Intro(_, _, ref mut expr, ref mut ty) => {
-                Rc::make_mut(expr).abstract_name_at(name, level);
-                Rc::make_mut(ty).abstract_name_at(name, level);
+                Rc::make_mut(expr).abstract_names_at(names, scope);
+                Rc::make_mut(ty).abstract_names_at(names, scope);
             }
             Expr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
-                Rc::make_mut(lhs_expr).abstract_name_at(name, level);
-                Rc::make_mut(rhs_expr).abstract_name_at(name, level);
+                Rc::make_mut(lhs_expr).abstract_names_at(names, scope);
+                Rc::make_mut(rhs_expr).abstract_names_at(names, scope);
             }
             Expr::Struct(ref mut fields) => for field in fields {
-                Rc::make_mut(&mut field.value).abstract_name_at(name, level);
+                Rc::make_mut(&mut field.value).abstract_names_at(names, scope);
             },
             Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
-                Rc::make_mut(array_expr).abstract_name_at(name, level);
-                Rc::make_mut(index_expr).abstract_name_at(name, level);
+                Rc::make_mut(array_expr).abstract_names_at(names, scope);
+                Rc::make_mut(index_expr).abstract_names_at(names, scope);
             }
-            Expr::Abs(_, Named(_, ref mut arg_ty), ref mut body_expr) => {
-                Rc::make_mut(arg_ty).abstract_name_at(name, level);
-                Rc::make_mut(body_expr).abstract_name_at(name, level + 1);
+            Expr::Abs(_, ref mut args, ref mut body_expr) => {
+                for &mut Named(_, ref mut arg_ty) in args {
+                    Rc::make_mut(arg_ty).abstract_names_at(names, scope);
+                }
+
+                Rc::make_mut(body_expr).abstract_names_at(names, scope.succ());
             }
-            Expr::App(_, ref mut fn_expr, ref mut arg_expr) => {
-                Rc::make_mut(fn_expr).abstract_name_at(name, level);
-                Rc::make_mut(arg_expr).abstract_name_at(name, level);
+            Expr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
+                Rc::make_mut(fn_expr).abstract_names_at(names, scope);
+
+                for arg_expr in arg_exprs {
+                    Rc::make_mut(arg_expr).abstract_names_at(names, scope);
+                }
             }
         }
     }
 
-    pub fn abstract_name(&mut self, name: &N) {
-        self.abstract_name_at(name, 0);
+    pub fn abstract_names(&mut self, names: &[N]) {
+        self.abstract_names_at(names, ScopeIndex(0));
     }
 }
 
@@ -295,21 +305,23 @@ pub enum TypeConst {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type<N> {
     /// A type variable: eg. `T`
-    Var(Var<N, u32>),
+    Var(Var<N>),
     /// A type constant
     Const(TypeConst),
-    /// Arrow type: eg. `T -> U`
-    Arrow(RcType<N>, RcType<N>),
+    /// Arrow type: eg. `(T, ..) -> U`
+    Arrow(Vec<RcType<N>>, RcType<N>),
     /// An array, eg. `[T]`
     Array(RcType<N>),
     /// A union of types: eg. `union { variant : T, ... }`
     Union(Vec<Field<N, RcType<N>>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Vec<Field<N, RcType<N>>>),
-    /// Type abstraction: eg. `\(a : Type) -> T`
-    Abs(Named<N, RcKind>, RcType<N>),
-    /// Type application: eg. `T U V`
-    App(RcType<N>, RcType<N>),
+    /// Type abstraction: eg. `\(a, ..) -> T`
+    ///
+    /// For now we only allow type arguments of kind `Type`
+    Abs(Vec<Named<N, ()>>, RcType<N>),
+    /// Type application: eg. `T(U, V)`
+    App(RcType<N>, Vec<RcType<N>>),
 }
 
 pub type RcType<N> = Rc<Type<N>>;
@@ -321,7 +333,7 @@ impl<N: Name> Type<N> {
     }
 
     /// A bound type variable
-    pub fn bvar<N1: Into<N>>(x: N, i: u32) -> Type<N> {
+    pub fn bvar<N1: Into<N>>(x: N, i: BoundVar) -> Type<N> {
         Type::Var(Var::Bound(Named(x.into(), i)))
     }
 
@@ -340,13 +352,12 @@ impl<N: Name> Type<N> {
         Type::Const(TypeConst::Int)
     }
 
-    /// Arrow type: eg. `T -> U`
-    pub fn arrow<T1, E1>(lhs_ty: T1, rhs_ty: E1) -> Type<N>
+    /// Arrow type: eg. `(T, ..) -> U`
+    pub fn arrow<T1>(param_tys: Vec<RcType<N>>, ret_ty: T1) -> Type<N>
     where
         T1: Into<RcType<N>>,
-        E1: Into<RcType<N>>,
     {
-        Type::Arrow(lhs_ty.into(), rhs_ty.into())
+        Type::Arrow(param_tys, ret_ty.into())
     }
 
     /// An array of the specified type, with a size: eg. `[T; n]`
@@ -364,26 +375,30 @@ impl<N: Name> Type<N> {
         Type::Struct(fields)
     }
 
-    /// Type abstraction: eg. `\(a : Type) -> T`
-    pub fn abs<N1, K1, T1>((param_name, param_kind): (N1, K1), body_ty: T1) -> Type<N>
+    /// Type abstraction: eg. `\(a, ..) -> T`
+    ///
+    /// For now we only allow type arguments of kind `Type`
+    pub fn abs<T1>(param_names: &[N], body_ty: T1) -> Type<N>
     where
-        N1: Into<N>,
-        K1: Into<RcKind>,
         T1: Into<RcType<N>>,
     {
-        let param_name = param_name.into();
+        let params = param_names
+            .iter()
+            .map(|name| Named(name.clone(), ()))
+            .collect();
+
         let mut body_ty = body_ty.into();
-        Rc::make_mut(&mut body_ty).abstract_name(&param_name);
-        Type::Abs(Named(param_name, param_kind.into()), body_ty)
+        Rc::make_mut(&mut body_ty).abstract_names(&param_names);
+
+        Type::Abs(params, body_ty)
     }
 
-    /// Type application: eg. `T U V`
-    pub fn app<T1, T2>(ty1: T1, ty2: T2) -> Type<N>
+    /// Type application: eg. `T(U, V)`
+    pub fn app<T1>(fn_ty: T1, arg_tys: Vec<RcType<N>>) -> Type<N>
     where
         T1: Into<RcType<N>>,
-        T2: Into<RcType<N>>,
     {
-        Type::App(ty1.into(), ty2.into())
+        Type::App(fn_ty.into(), arg_tys)
     }
 
     /// Attempt to lookup the type of a field
@@ -408,76 +423,87 @@ impl<N: Name> Type<N> {
         }
     }
 
-    pub fn abstract_name_at(&mut self, name: &N, level: u32) {
+    pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
         match *self {
-            Type::Var(ref mut var) => var.abstract_name_at(name, level),
+            Type::Var(ref mut var) => var.abstract_names_at(names, scope),
             Type::Const(_) => {}
-            Type::Arrow(ref mut lhs_ty, ref mut rhs_ty) => {
-                Rc::make_mut(lhs_ty).abstract_name_at(name, level);
-                Rc::make_mut(rhs_ty).abstract_name_at(name, level);
+            Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
+                for param_ty in param_tys {
+                    Rc::make_mut(param_ty).abstract_names_at(names, scope);
+                }
+                Rc::make_mut(ret_ty).abstract_names_at(names, scope);
             }
             Type::Array(ref mut elem_ty) => {
-                Rc::make_mut(elem_ty).abstract_name_at(name, level);
+                Rc::make_mut(elem_ty).abstract_names_at(names, scope);
             }
             Type::Union(ref mut variants) => for variant in variants {
-                Rc::make_mut(&mut variant.value).abstract_name_at(name, level);
+                Rc::make_mut(&mut variant.value).abstract_names_at(names, scope);
             },
             Type::Struct(ref mut fields) => for field in fields {
-                Rc::make_mut(&mut field.value).abstract_name_at(name, level);
+                Rc::make_mut(&mut field.value).abstract_names_at(names, scope);
             },
             Type::Abs(_, ref mut body_ty) => {
-                Rc::make_mut(body_ty).abstract_name_at(name, level + 1);
+                Rc::make_mut(body_ty).abstract_names_at(names, scope.succ());
             }
-            Type::App(ref mut fn_ty, ref mut arg_ty) => {
-                Rc::make_mut(fn_ty).abstract_name_at(name, level);
-                Rc::make_mut(arg_ty).abstract_name_at(name, level);
+            Type::App(ref mut fn_ty, ref mut arg_tys) => {
+                Rc::make_mut(fn_ty).abstract_names_at(names, scope);
+
+                for arg_ty in arg_tys {
+                    Rc::make_mut(arg_ty).abstract_names_at(names, scope);
+                }
             }
         }
     }
 
     /// Add one layer of abstraction around the type by replacing all the
-    /// free variables called `name` with an appropriate De Bruijn index.
+    /// free variables in `names` with an appropriate De Bruijn index.
     ///
     /// This results in a one 'dangling' index, and so care must be taken
     /// to wrap it in another type that marks the introduction of a new
     /// scope.
-    pub fn abstract_name(&mut self, name: &N) {
-        self.abstract_name_at(name, 0)
+    pub fn abstract_names(&mut self, names: &[N]) {
+        self.abstract_names_at(names, ScopeIndex(0))
     }
 
-    fn instantiate_at(&mut self, level: u32, src: &Type<N>) {
-        // FIXME: ensure that expressions are not bound at the same level
+    fn instantiate_at(&mut self, scope: ScopeIndex, tys: &[RcType<N>]) {
+        // FIXME: ensure that expressions are not bound at the same scope
         match *self {
-            Type::Var(Var::Bound(Named(_, i))) => if i == level {
-                *self = src.clone();
+            Type::Var(Var::Bound(Named(_, var))) => if var.scope == scope {
+                *self = (*tys[var.binding.0 as usize]).clone();
             },
             Type::Var(Var::Free(_)) | Type::Const(_) => {}
-            Type::Arrow(ref mut lhs_ty, ref mut rhs_ty) => {
-                Rc::make_mut(lhs_ty).instantiate_at(level, src);
-                Rc::make_mut(rhs_ty).instantiate_at(level, src);
+            Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
+                for param_ty in param_tys {
+                    Rc::make_mut(param_ty).instantiate_at(scope, tys);
+                }
+
+                Rc::make_mut(ret_ty).instantiate_at(scope, tys);
             }
             Type::Array(ref mut elem_ty) => {
-                Rc::make_mut(elem_ty).instantiate_at(level, src);
+                Rc::make_mut(elem_ty).instantiate_at(scope, tys);
             }
             Type::Union(ref mut variants) => for variant in variants {
-                Rc::make_mut(&mut variant.value).instantiate_at(level, src);
+                Rc::make_mut(&mut variant.value).instantiate_at(scope, tys);
             },
             Type::Struct(ref mut fields) => for field in fields {
-                Rc::make_mut(&mut field.value).instantiate_at(level, src);
+                Rc::make_mut(&mut field.value).instantiate_at(scope, tys);
             },
             Type::Abs(_, ref mut ty) => {
-                Rc::make_mut(ty).instantiate_at(level + 1, src);
+                Rc::make_mut(ty).instantiate_at(scope.succ(), tys);
             }
-            Type::App(ref mut ty, ref mut arg_ty) => {
-                Rc::make_mut(ty).instantiate_at(level, src);
-                Rc::make_mut(arg_ty).instantiate_at(level, src);
+            Type::App(ref mut ty, ref mut arg_tys) => {
+                Rc::make_mut(ty).instantiate_at(scope, tys);
+
+                for arg_ty in arg_tys {
+                    Rc::make_mut(arg_ty).instantiate_at(scope, tys);
+                }
             }
         };
     }
 
     /// Remove one layer of abstraction in the type by replacing the
     /// appropriate bound variables with copies of `ty`.
-    pub fn instantiate(&mut self, ty: &Type<N>) {
-        self.instantiate_at(0, ty);
+    pub fn instantiate(&mut self, tys: &[RcType<N>]) {
+        self.instantiate_at(ScopeIndex(0), tys);
     }
 }

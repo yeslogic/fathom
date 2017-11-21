@@ -1,78 +1,13 @@
 //! The syntax of our data description language
 
-use std::fmt;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use name::{Name, Named};
+use name::Name;
+use var::ScopeIndex;
 
 pub mod binary;
 pub mod host;
-
-/// A variable that can either be free or bound
-///
-/// We use a locally nameless representation for variable binding.
-///
-/// # References
-///
-/// - [How I learned to stop worrying and love de Bruijn indices]
-///   (http://disciple-devel.blogspot.com.au/2011/08/how-i-learned-to-stop-worrying-and-love.html)
-/// - [The Locally Nameless Representation]
-///   (https://www.chargueraud.org/research/2009/ln/main.pdf)
-/// - [Locally nameless representation with cofinite quantification]
-///   (http://www.chargueraud.org/softs/ln/)
-/// - [A Locally-nameless Backend for Ott]
-///   (http://www.di.ens.fr/~zappa/projects/ln_ott/)
-/// - [Library STLC_Tutorial]
-///   (https://www.cis.upenn.edu/~plclub/popl08-tutorial/code/coqdoc/STLC_Tutorial.html)
-///
-/// ## Libraries
-///
-/// There are a number of libraries out there for other languages that abstract
-/// away handling locally nameless representations, but I've not yet figured out
-/// how to port them to Rust yet:
-///
-/// - DBLib: Facilities for working with de Bruijn indices in Coq
-///     - [Blog Post](http://gallium.inria.fr/blog/announcing-dblib/)
-///     - [Github](https://github.com/coq-contribs/dblib)
-/// - Bound: Bruijn indices for Haskell
-///     - [Blog Post](https://www.schoolofhaskell.com/user/edwardk/bound)
-///     - [Github](https://github.com/ekmett/bound/)
-///     - [Hackage](https://hackage.haskell.org/package/bound)
-/// - The Penn Locally Nameless Metatheory Library
-///     - [Github](https://github.com/plclub/metalib)
-#[derive(Clone, PartialEq, Eq)]
-pub enum Var<N, B> {
-    /// A free, unbound variable
-    Free(N),
-    /// A bound variable
-    Bound(Named<N, B>),
-}
-
-impl<N: Name, B> Var<N, B> {
-    pub fn abstract_name_at(&mut self, name: &N, level: B) {
-        *self = match *self {
-            Var::Free(ref n) if n == name => Var::Bound(Named(n.clone(), level)),
-            Var::Free(_) | Var::Bound(_) => return,
-        }
-    }
-}
-
-impl<F: fmt::Debug, B: fmt::Debug> fmt::Debug for Var<F, B> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Var::Free(ref x) => {
-                write!(f, "Free(")?;
-                x.fmt(f)?;
-            }
-            Var::Bound(ref i) => {
-                write!(f, "Bound(")?;
-                i.fmt(f)?;
-            }
-        }
-        write!(f, ")")
-    }
-}
 
 /// A field in a struct type
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -150,11 +85,12 @@ impl<N: Name> Program<N> {
     pub fn new(mut defs: Vec<Definition<N>>) -> Program<N> {
         // We maintain a list of the seen definition names. This will allow us to
         // recover the index of these variables as we abstract later definitions...
-        let mut seen_names = Vec::new();
+        let mut seen_names = Vec::<N>::new();
 
         for def in &mut defs {
             for (level, name) in seen_names.iter().rev().enumerate() {
-                Rc::make_mut(&mut def.ty).abstract_name_at(name, level as u32);
+                Rc::make_mut(&mut def.ty)
+                    .abstract_names_at(&[name.clone()], ScopeIndex(level as u32));
             }
 
             // Record that the definition has been 'seen'
@@ -179,7 +115,7 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
         use syntax::ast::host::Expr;
 
         let array_ty = Type::array(Span::start(), Type::u8(), Expr::int(Span::start(), size));
-        let conv_ty = host::Type::arrow(array_ty.repr(), host::Type::int());
+        let conv_ty = host::Type::arrow(vec![array_ty.repr()], host::Type::int());
 
         Type::interp(
             Span::start(),

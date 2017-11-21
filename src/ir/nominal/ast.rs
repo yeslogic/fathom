@@ -201,7 +201,7 @@ fn lower_ty(
     ty: &binary::RcType<String>,
 ) -> Type<String> {
     use name::Named;
-    use syntax::ast::Var;
+    use var::Var;
 
     match **ty {
         binary::Type::Var(_, Var::Bound(Named(ref name, _))) => Type::path(name.as_str()),
