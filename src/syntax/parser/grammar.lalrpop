@@ -1,8 +1,11 @@
+use std::iter;
+
 use source::{BytePos, Span};
 use syntax::ast::{Definition, Field, Program};
 use syntax::ast::binary::{RcType, Type};
 use syntax::ast::host::{Binop, RcExpr, Expr, Unop};
 use syntax::parser::lexer::{Error as LexerError, Token};
+use name::Named;
 
 
 grammar<'input>();
@@ -68,6 +71,14 @@ Definition: Definition<String> = {
     <name: "Ident"> "=" <ty: PrimaryType> ";" => {
         Definition::new(name, ty)
     },
+    <name: "Ident"> <lo: @L> "(" <params: (<"Ident"> ",")*> <last: "Ident"> ")" "=" <ty: PrimaryType> <hi: @R> ";" => {
+        let params = params.into_iter()
+            .chain(iter::once(last))
+            .map(|p| p.to_owned())
+            .collect::<Vec<String>>();
+
+        Definition::new(name, Type::abs(Span::new(lo, hi), &params, ty))
+    },
 };
 
 Field: Field<String, RcType<String>> = {
@@ -87,7 +98,11 @@ PrimaryType: RcType<String> = {
     AtomicType,
     <lo1: @L> <ty: PrimaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryExpr> <hi: @R> => {
         let repr_ty = ty.repr();
-        let pred_expr = Expr::abs(Span::new(lo2, hi), (param, repr_ty), pred);
+        let pred_expr = Expr::abs(
+            Span::new(lo2, hi),
+            vec![Named(param.to_owned(), repr_ty)],
+            pred,
+        );
 
         Type::assert(Span::new(lo1, hi), ty, pred_expr).into()
     },
@@ -96,6 +111,11 @@ PrimaryType: RcType<String> = {
 AtomicType: RcType<String> = {
     <lo: @L> <name: "Ident"> <hi: @R> => {
         Type::fvar(Span::new(lo, hi), name).into()
+    },
+    <lo: @L> <ty: AtomicType> "(" <arg_tys: (<Type> ",")*> <last: Type> ")" <hi: @R> => {
+        let mut arg_tys = arg_tys;
+        arg_tys.push(last);
+        Type::app(Span::new(lo, hi), ty, arg_tys).into()
     },
     "(" <ty: PrimaryType> ")" => ty,
     <lo: @L> "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {

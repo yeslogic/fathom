@@ -3,12 +3,14 @@ Abs(
         lo: BytePos(0),
         hi: BytePos(0)
     },
-    Named("x", Type),
+    [
+        Named("x", ())
+    ],
     Var(
         Span {
             lo: BytePos(0),
             hi: BytePos(0)
         },
-        Bound(Named("x", 0))
+        Bound(Named("x", BoundVar(0, 0)))
     )
 )

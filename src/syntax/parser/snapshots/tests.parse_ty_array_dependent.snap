@@ -33,7 +33,7 @@ Struct(
                         lo: BytePos(65),
                         hi: BytePos(68)
                     },
-                    Bound(Named("len", 0))
+                    Bound(Named("len", BoundVar(0, 0)))
                 )
             )
         },
@@ -64,7 +64,7 @@ Struct(
                                     lo: BytePos(128),
                                     hi: BytePos(131)
                                 },
-                                Bound(Named("len", 1))
+                                Bound(Named("len", BoundVar(1, 0)))
                             )
                         )
                     },
@@ -117,7 +117,7 @@ Struct(
                                     lo: BytePos(249),
                                     hi: BytePos(252)
                                 },
-                                Bound(Named("len", 2))
+                                Bound(Named("len", BoundVar(2, 0)))
                             )
                         )
                     }

@@ -14,6 +14,7 @@ mod test;
 
 pub mod name;
 pub mod source;
+pub mod var;
 
 pub mod ir;
 pub mod syntax;

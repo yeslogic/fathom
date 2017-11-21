@@ -61,14 +61,14 @@ Program {
                                     lo: BytePos(154),
                                     hi: BytePos(159)
                                 },
-                                Bound(Named("Point", 1))
+                                Bound(Named("Point", BoundVar(1, 0)))
                             ),
                             Var(
                                 Span {
                                     lo: BytePos(161),
                                     hi: BytePos(164)
                                 },
-                                Bound(Named("len", 0))
+                                Bound(Named("len", BoundVar(0, 0)))
                             )
                         )
                     }
@@ -139,7 +139,7 @@ Program {
                                             lo: BytePos(309),
                                             hi: BytePos(314)
                                         },
-                                        Bound(Named("Point", 2))
+                                        Bound(Named("Point", BoundVar(2, 0)))
                                     )
                                 }
                             ]
@@ -170,7 +170,7 @@ Program {
                                             lo: BytePos(368),
                                             hi: BytePos(373)
                                         },
-                                        Bound(Named("Array", 1))
+                                        Bound(Named("Array", BoundVar(1, 0)))
                                     )
                                 }
                             ]
