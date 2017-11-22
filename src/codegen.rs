@@ -391,6 +391,8 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
                 Unop::Not => "!",
             };
 
+            // Let's not worry about being pretty with operator precedence here
+            // Just chuck redundant parens around all the things... ¯\_(ツ)_/¯
             doc.text("(")
                 .append(doc.text(op_str))
                 .append(lower_expr(doc, expr))
@@ -413,6 +415,8 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
                 Binop::Div => "/",
             };
 
+            // Let's not worry about being pretty with operator precedence here
+            // Just chuck redundant parens around all the things... ¯\_(ツ)_/¯
             doc.text("(")
                 .append(lower_expr(doc, lhs))
                 .append(doc.space())
