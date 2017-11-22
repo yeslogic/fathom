@@ -37,34 +37,25 @@ Program {
                                 )
                             )
                         )),
-                        Named("process_id", Sequence(
-                            [
-                                Named("x", Repeat(
-                                    U8,
-                                    Exact(
-                                        Const(
-                                            Int(2)
+                        Named("process_id", Apply(
+                            Prim(
+                                "from_u16le",
+                                Arrow(
+                                    [
+                                        Array(
+                                            U8
                                         )
+                                    ],
+                                    Int
+                                )
+                            ),
+                            Repeat(
+                                U8,
+                                Exact(
+                                    Const(
+                                        Int(2)
                                     )
-                                ))
-                            ],
-                            App(
-                                Prim(
-                                    "from_u16le",
-                                    Arrow(
-                                        [
-                                            Array(
-                                                U8
-                                            )
-                                        ],
-                                        Int
-                                    )
-                                ),
-                                [
-                                    Var(
-                                        Bound(Named("x", BoundVar(0, 0)))
-                                    )
-                                ]
+                                )
                             )
                         )),
                         Named("machine_id", Repeat(
@@ -75,34 +66,25 @@ Program {
                                 )
                             )
                         )),
-                        Named("epoch_time", Sequence(
-                            [
-                                Named("x", Repeat(
-                                    U8,
-                                    Exact(
-                                        Const(
-                                            Int(4)
+                        Named("epoch_time", Apply(
+                            Prim(
+                                "from_u32le",
+                                Arrow(
+                                    [
+                                        Array(
+                                            U8
                                         )
+                                    ],
+                                    Int
+                                )
+                            ),
+                            Repeat(
+                                U8,
+                                Exact(
+                                    Const(
+                                        Int(4)
                                     )
-                                ))
-                            ],
-                            App(
-                                Prim(
-                                    "from_u32le",
-                                    Arrow(
-                                        [
-                                            Array(
-                                                U8
-                                            )
-                                        ],
-                                        Int
-                                    )
-                                ),
-                                [
-                                    Var(
-                                        Bound(Named("x", BoundVar(0, 0)))
-                                    )
-                                ]
+                                )
                             )
                         ))
                     ],

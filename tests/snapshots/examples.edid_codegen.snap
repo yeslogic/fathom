@@ -59,18 +59,9 @@ impl Header {
         let edid_version_major = buf.read_u8()?;
         let mfg_year_mod = buf.read_u8()?;
         let mfg_week = buf.read_u8()?;
-        let serial = {
-            let x = (0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
-            Ok(from_u32le(x))
-        };
-        let product_code = {
-            let x = (0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
-            Ok(from_u16le(x))
-        };
-        let mfg_bytes = {
-            let x = (0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
-            Ok(from_u16le(x))
-        };
+        let serial = from_u32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+        let product_code = from_u16le((0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+        let mfg_bytes = from_u16le((0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
         let magic = (0..8).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
         Ok(Header {
             magic: magic,

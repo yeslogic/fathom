@@ -183,6 +183,8 @@ pub enum ParseExpr<N> {
     /// p1 | p2 | p3
     /// ```
     Choice(Vec<RcParseExpr<N>>),
+    /// Applies the result of one parser to an unary function
+    Apply(RcExpr<N>, RcParseExpr<N>),
 }
 
 pub type RcParseExpr<N> = Rc<ParseExpr<N>>;

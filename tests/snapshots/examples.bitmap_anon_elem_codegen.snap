@@ -21,14 +21,8 @@ impl Bitmap {
             })
         }).collect::<Result<_, _>>()?;
         let extents = {
-            let height = {
-                let x = (0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
-                Ok(from_u32be(x))
-            };
-            let width = {
-                let x = (0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
-                Ok(from_u32be(x))
-            };
+            let height = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+            let width = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
             Ok(Bitmap {
                 width: width,
                 height: height,

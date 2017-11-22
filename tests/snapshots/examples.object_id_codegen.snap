@@ -11,15 +11,9 @@ pub struct ObjectId {
 impl ObjectId {
     fn read<R: Read>(reader: &mut R) -> io::Result<ObjectId> {
         let counter = (0..3).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
-        let process_id = {
-            let x = (0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
-            Ok(from_u16le(x))
-        };
+        let process_id = from_u16le((0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
         let machine_id = (0..3).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
-        let epoch_time = {
-            let x = (0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
-            Ok(from_u32le(x))
-        };
+        let epoch_time = from_u32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
         Ok(ObjectId {
             epoch_time: epoch_time,
             machine_id: machine_id,

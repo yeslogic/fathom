@@ -180,94 +180,67 @@ Program {
                         Named("edid_version_major", U8),
                         Named("mfg_year_mod", U8),
                         Named("mfg_week", U8),
-                        Named("serial", Sequence(
-                            [
-                                Named("x", Repeat(
-                                    U8,
-                                    Exact(
-                                        Const(
-                                            Int(4)
+                        Named("serial", Apply(
+                            Prim(
+                                "from_u32le",
+                                Arrow(
+                                    [
+                                        Array(
+                                            U8
                                         )
+                                    ],
+                                    Int
+                                )
+                            ),
+                            Repeat(
+                                U8,
+                                Exact(
+                                    Const(
+                                        Int(4)
                                     )
-                                ))
-                            ],
-                            App(
-                                Prim(
-                                    "from_u32le",
-                                    Arrow(
-                                        [
-                                            Array(
-                                                U8
-                                            )
-                                        ],
-                                        Int
-                                    )
-                                ),
-                                [
-                                    Var(
-                                        Bound(Named("x", BoundVar(0, 0)))
-                                    )
-                                ]
+                                )
                             )
                         )),
-                        Named("product_code", Sequence(
-                            [
-                                Named("x", Repeat(
-                                    U8,
-                                    Exact(
-                                        Const(
-                                            Int(2)
+                        Named("product_code", Apply(
+                            Prim(
+                                "from_u16le",
+                                Arrow(
+                                    [
+                                        Array(
+                                            U8
                                         )
+                                    ],
+                                    Int
+                                )
+                            ),
+                            Repeat(
+                                U8,
+                                Exact(
+                                    Const(
+                                        Int(2)
                                     )
-                                ))
-                            ],
-                            App(
-                                Prim(
-                                    "from_u16le",
-                                    Arrow(
-                                        [
-                                            Array(
-                                                U8
-                                            )
-                                        ],
-                                        Int
-                                    )
-                                ),
-                                [
-                                    Var(
-                                        Bound(Named("x", BoundVar(0, 0)))
-                                    )
-                                ]
+                                )
                             )
                         )),
-                        Named("mfg_bytes", Sequence(
-                            [
-                                Named("x", Repeat(
-                                    U8,
-                                    Exact(
-                                        Const(
-                                            Int(2)
+                        Named("mfg_bytes", Apply(
+                            Prim(
+                                "from_u16le",
+                                Arrow(
+                                    [
+                                        Array(
+                                            U8
                                         )
+                                    ],
+                                    Int
+                                )
+                            ),
+                            Repeat(
+                                U8,
+                                Exact(
+                                    Const(
+                                        Int(2)
                                     )
-                                ))
-                            ],
-                            App(
-                                Prim(
-                                    "from_u16le",
-                                    Arrow(
-                                        [
-                                            Array(
-                                                U8
-                                            )
-                                        ],
-                                        Int
-                                    )
-                                ),
-                                [
-                                    Var(
-                                        Bound(Named("x", BoundVar(0, 0)))
-                                    )
-                                ]
+                                )
                             )
                         )),
                         Named("magic", Repeat(

@@ -214,6 +214,10 @@ fn lower_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             lower_sequence_parse_expr(doc, prec, parse_exprs, expr)
         }
         ParseExpr::Choice(ref parse_exprs) => lower_choice_parse_expr(doc, parse_exprs),
+        ParseExpr::Apply(ref fn_expr, ref parse_expr) => lower_expr(doc, fn_expr)
+            .append(doc.text("("))
+            .append(lower_parse_expr(doc, Prec::Expr, parse_expr))
+            .append(doc.text(")?")),
     }
 }
 

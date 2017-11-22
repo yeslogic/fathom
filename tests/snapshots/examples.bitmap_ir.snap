@@ -55,64 +55,46 @@ Program {
                         )),
                         Named("extents", Sequence(
                             [
-                                Named("height", Sequence(
-                                    [
-                                        Named("x", Repeat(
-                                            U8,
-                                            Exact(
-                                                Const(
-                                                    Int(4)
+                                Named("height", Apply(
+                                    Prim(
+                                        "from_u32be",
+                                        Arrow(
+                                            [
+                                                Array(
+                                                    U8
                                                 )
+                                            ],
+                                            Int
+                                        )
+                                    ),
+                                    Repeat(
+                                        U8,
+                                        Exact(
+                                            Const(
+                                                Int(4)
                                             )
-                                        ))
-                                    ],
-                                    App(
-                                        Prim(
-                                            "from_u32be",
-                                            Arrow(
-                                                [
-                                                    Array(
-                                                        U8
-                                                    )
-                                                ],
-                                                Int
-                                            )
-                                        ),
-                                        [
-                                            Var(
-                                                Bound(Named("x", BoundVar(0, 0)))
-                                            )
-                                        ]
+                                        )
                                     )
                                 )),
-                                Named("width", Sequence(
-                                    [
-                                        Named("x", Repeat(
-                                            U8,
-                                            Exact(
-                                                Const(
-                                                    Int(4)
+                                Named("width", Apply(
+                                    Prim(
+                                        "from_u32be",
+                                        Arrow(
+                                            [
+                                                Array(
+                                                    U8
                                                 )
+                                            ],
+                                            Int
+                                        )
+                                    ),
+                                    Repeat(
+                                        U8,
+                                        Exact(
+                                            Const(
+                                                Int(4)
                                             )
-                                        ))
-                                    ],
-                                    App(
-                                        Prim(
-                                            "from_u32be",
-                                            Arrow(
-                                                [
-                                                    Array(
-                                                        U8
-                                                    )
-                                                ],
-                                                Int
-                                            )
-                                        ),
-                                        [
-                                            Var(
-                                                Bound(Named("x", BoundVar(0, 0)))
-                                            )
-                                        ]
+                                        )
                                     )
                                 ))
                             ],

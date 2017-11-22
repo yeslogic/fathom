@@ -278,18 +278,7 @@ fn ty_parser(path: &Path<String>, ty: &binary::RcType<String>) -> RcParseExpr<St
             ParseExpr::assert(ty_parser, pred_expr)
         }
         binary::Type::Interp(_, ref ty, ref conv_expr, _) => {
-            let ty_parser = ty_parser(path, ty);
-
-            ParseExpr::Sequence(
-                // FIXME: generate fresh name?
-                vec![Named("x".to_owned(), ty_parser)],
-                Rc::new(Expr::App(
-                    lower_expr(path, conv_expr),
-                    vec![
-                        Rc::new(Expr::bvar("x".to_owned(), BoundVar::new(Si(0), Bi(0)))),
-                    ],
-                )),
-            )
+            ParseExpr::Apply(lower_expr(path, conv_expr), ty_parser(path, ty))
         }
         binary::Type::Abs(_, _, _) => unimplemented!("Abs: {:?}", ty),
         binary::Type::App(_, _, _) => unimplemented!("App: {:?}", ty),
