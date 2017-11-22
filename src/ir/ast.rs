@@ -79,6 +79,27 @@ impl<N: Name> Path<N> {
     }
 }
 
+impl Path<String> {
+    /// Join path elements to make a camel-case path
+    ///
+    /// ```rust
+    /// use ddl::ir::ast::Path;
+    ///
+    /// assert_eq!(
+    ///     Path::from("Data3D::some_field::BLARGH::Vec3d").to_camel_case(),
+    ///     "Data3DSomeFieldBlarghVec3d"
+    /// );
+    /// ```
+    pub fn to_camel_case(&self) -> String {
+        use heck::CamelCase;
+
+        self.children
+            .iter()
+            .map(|child| child.to_camel_case())
+            .fold(self.base.to_camel_case(), |acc, child| acc + &child)
+    }
+}
+
 impl<N: fmt::Display> fmt::Display for Path<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.base)?;

@@ -1,5 +1,6 @@
 #[cfg(test)]
 extern crate difference;
+extern crate heck;
 extern crate lalrpop_util;
 #[macro_use]
 extern crate maplit;

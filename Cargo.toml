@@ -12,6 +12,7 @@ categories = ["parsing"]
 keywords = ["binary", "byte", "parser", "parsing", "endian", "big-endian", "little-endian"]
 
 [dependencies]
+heck = "0.3.0"
 lalrpop-util = "0.13.1"
 maplit = "0.1.6"
 pretty = "0.3.2"

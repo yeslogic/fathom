@@ -35,14 +35,14 @@ impl Bitmap {
     }
 }
 
-pub struct Bitmap::data::Elem {
+pub struct BitmapDataElem {
     r: u8,
     g: u8,
     b: u8,
     a: u8,
 }
 
-pub struct Bitmap::extents {
+pub struct BitmapExtents {
     width: i64,
     height: i64,
 }

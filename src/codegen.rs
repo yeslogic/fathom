@@ -68,7 +68,9 @@ fn lower_alias<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 ) -> DocBuilder<'doc, A> {
     doc.text("pub type")
         .append(doc.space())
-        .append(doc.as_string(path))
+        // FIXME: this will break if there is already a definition in scope
+        // that uses the pascalised identifier
+        .append(doc.text(path.to_camel_case()))
         .append(doc.space())
         .append(doc.text("="))
         .append(doc.space())
@@ -84,7 +86,9 @@ fn lower_struct<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 ) -> DocBuilder<'doc, A> {
     doc.text("pub struct")
         .append(doc.space())
-        .append(doc.as_string(path))
+        // FIXME: this will break if there is already a definition in scope
+        // that uses the pascalised identifier
+        .append(doc.text(path.to_camel_case()))
         .append(doc.space())
         .append(doc.text("{"))
         .group()
@@ -112,9 +116,13 @@ fn lower_union<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     path: &'a Path<String>,
     variants: &'a [Field<String, RcType<String>>],
 ) -> DocBuilder<'doc, A> {
+    use heck::CamelCase;
+
     doc.text("pub enum")
         .append(doc.space())
-        .append(doc.as_string(path))
+        // FIXME: this will break if there is already a definition in scope
+        // that uses the pascalised identifier
+        .append(doc.text(path.to_camel_case()))
         .append(doc.space())
         .append(doc.text("{"))
         .group()
@@ -122,8 +130,9 @@ fn lower_union<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             doc.newline()
                 .append(doc.intersperse(
                     variants.iter().map(|variant| {
-                        // FIXME: Case conversion
-                        doc.as_string(&variant.name)
+                        // FIXME: this will break if there is already another
+                        // variant in the enum that uses the pascalised identifier
+                        doc.text(variant.name.to_camel_case())
                             .append(doc.text("("))
                             .append(lower_ty(doc, &variant.value))
                             .append(doc.text("),"))
@@ -144,7 +153,7 @@ fn lower_read_impl<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 ) -> DocBuilder<'doc, A> {
     doc.text("impl")
         .append(doc.space())
-        .append(doc.as_string(path))
+        .append(doc.text(path.to_camel_case()))
         .append(doc.space())
         .append(doc.text("{"))
         .group()
@@ -152,7 +161,7 @@ fn lower_read_impl<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             doc.newline()
                 .append(
                     doc.text("fn read<R: Read>(reader: &mut R) -> io::Result<")
-                        .append(doc.as_string(path))
+                        .append(doc.text(path.to_camel_case()))
                         .append(doc.text(">"))
                         .append(doc.space())
                         .append(doc.text("{"))

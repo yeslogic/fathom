@@ -25,7 +25,7 @@ impl Bitmap {
     }
 }
 
-pub struct Bitmap::extents {
+pub struct BitmapExtents {
     width: i64,
     height: i64,
 }
