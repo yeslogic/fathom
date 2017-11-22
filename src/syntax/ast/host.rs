@@ -153,12 +153,12 @@ impl<N: Name> Expr<N> {
     /// A free variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     pub fn fvar<N1: Into<N>>(span: Span, x: N1) -> Expr<N> {
-        Expr::Var(span, Var::Free(x.into()))
+        Expr::Var(span.into(), Var::free(x))
     }
 
     /// A bound variable
-    pub fn bvar<N1: Into<N>>(span: Span, x: N1, i: BoundVar) -> Expr<N> {
-        Expr::Var(span, Var::Bound(Named(x.into(), i)))
+    pub fn bvar<N1: Into<N>>(span: Span, x: N1, var: BoundVar) -> Expr<N> {
+        Expr::Var(span.into(), Var::bound(x, var))
     }
 
     /// An unary operator expression
@@ -328,13 +328,13 @@ pub type RcType<N> = Rc<Type<N>>;
 
 impl<N: Name> Type<N> {
     /// A free type variable: eg. `T`
-    pub fn fvar<N1: Into<N>>(x: N1) -> Type<N> {
-        Type::Var(Var::Free(x.into()))
+    pub fn fvar<N1: Into<N>>(name: N1) -> Type<N> {
+        Type::Var(Var::free(name))
     }
 
     /// A bound type variable
-    pub fn bvar<N1: Into<N>>(x: N, i: BoundVar) -> Type<N> {
-        Type::Var(Var::Bound(Named(x.into(), i)))
+    pub fn bvar<N1: Into<N>>(name: N1, var: BoundVar) -> Type<N> {
+        Type::Var(Var::bound(name, var))
     }
 
     /// Byte type constant

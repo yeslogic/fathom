@@ -66,13 +66,13 @@ pub type RcType<N> = Rc<Type<N>>;
 
 impl<N: Name> Type<N> {
     /// A free type variable: eg. `T`
-    pub fn fvar<N1: Into<N>>(span: Span, x: N1) -> Type<N> {
-        Type::Var(span, Var::Free(x.into()))
+    pub fn fvar<N1: Into<N>>(span: Span, name: N1) -> Type<N> {
+        Type::Var(span.into(), Var::free(name))
     }
 
     /// A bound type variable
-    pub fn bvar<N1: Into<N>>(span: Span, x: N1, i: BoundVar) -> Type<N> {
-        Type::Var(span, Var::Bound(Named(x.into(), i)))
+    pub fn bvar<N1: Into<N>>(span: Span, name: N1, var: BoundVar) -> Type<N> {
+        Type::Var(span.into(), Var::bound(name, var))
     }
 
     /// Byte type constant

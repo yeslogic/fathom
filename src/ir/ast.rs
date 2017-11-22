@@ -151,16 +151,6 @@ pub enum Type<N> {
 
 pub type RcType<N> = Rc<Type<N>>;
 
-impl<N: Name> Type<N> {
-    pub fn path<P: Into<Path<N>>>(path: P) -> Type<N> {
-        Type::Path(path.into())
-    }
-
-    pub fn array<T1: Into<RcType<N>>>(elem_ty: T1) -> Type<N> {
-        Type::Array(elem_ty.into())
-    }
-}
-
 /// A bounded repitition
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RepeatBound<N> {
@@ -210,43 +200,6 @@ pub enum ParseExpr<N> {
 
 pub type RcParseExpr<N> = Rc<ParseExpr<N>>;
 
-impl<N: Name> ParseExpr<N> {
-    pub fn repeat<E1>(elem_expr: E1, bound: RepeatBound<N>) -> ParseExpr<N>
-    where
-        E1: Into<RcParseExpr<N>>,
-    {
-        ParseExpr::Repeat(elem_expr.into(), bound)
-    }
-
-    pub fn assert<E1, E2>(parse_expr: E1, pred_expr: E2) -> ParseExpr<N>
-    where
-        E1: Into<RcParseExpr<N>>,
-        E2: Into<RcExpr<N>>,
-    {
-        ParseExpr::Assert(parse_expr.into(), pred_expr.into())
-    }
-
-    pub fn sequence<E1>(parse_exprs: Vec<(N, RcParseExpr<N>)>, expr: E1) -> ParseExpr<N>
-    where
-        E1: Into<RcExpr<N>>,
-    {
-        let mut expr = expr.into();
-        let mut named_exprs = Vec::with_capacity(parse_exprs.len());
-
-        for (name, parse_exprs) in parse_exprs.into_iter().rev() {
-            // FIXME: abstract parse exprs???
-            Rc::make_mut(&mut expr).abstract_names(&[name.clone()]);
-            named_exprs.push(Named(name, parse_exprs));
-        }
-
-        ParseExpr::Sequence(named_exprs, expr.into())
-    }
-
-    pub fn choice(parse_exprs: Vec<RcParseExpr<N>>) -> ParseExpr<N> {
-        ParseExpr::Choice(parse_exprs)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr<N> {
     Const(Const),
@@ -265,72 +218,12 @@ pub enum Expr<N> {
 pub type RcExpr<N> = Rc<Expr<N>>;
 
 impl<N: Name> Expr<N> {
-    pub fn u8(value: u8) -> Expr<N> {
-        Expr::Const(Const::U8(value))
+    pub fn fvar<N1: Into<N>>(name: N1) -> Expr<N> {
+        Expr::Var(Var::free(name))
     }
 
-    pub fn bool(value: bool) -> Expr<N> {
-        Expr::Const(Const::Bool(value))
-    }
-
-    pub fn int(value: i64) -> Expr<N> {
-        Expr::Const(Const::Int(value))
-    }
-
-    pub fn prim<T1: Into<RcType<N>>>(name: &'static str, repr_ty: T1) -> Expr<N> {
-        Expr::Prim(name, repr_ty.into())
-    }
-
-    pub fn fvar<N1: Into<N>>(x: N1) -> Expr<N> {
-        Expr::Var(Var::Free(x.into()))
-    }
-
-    pub fn bvar<N1: Into<N>>(x: N1, var: BoundVar) -> Expr<N> {
-        Expr::Var(Var::Bound(Named(x.into(), var)))
-    }
-
-    pub fn unop<E1: Into<RcExpr<N>>>(op: Unop, x: E1) -> Expr<N> {
-        Expr::Unop(op, x.into())
-    }
-
-    pub fn binop<E1, E2>(op: Binop, x: E1, y: E2) -> Expr<N>
-    where
-        E1: Into<RcExpr<N>>,
-        E2: Into<RcExpr<N>>,
-    {
-        Expr::Binop(op, x.into(), y.into())
-    }
-
-    pub fn struct_<P>(path: P, fields: Vec<Field<N, RcExpr<N>>>) -> Expr<N>
-    where
-        P: Into<Path<N>>,
-    {
-        Expr::Struct(path.into(), fields)
-    }
-
-    pub fn proj<E1, N1>(expr: E1, field_name: N1) -> Expr<N>
-    where
-        E1: Into<RcExpr<N>>,
-        N1: Into<N>,
-    {
-        Expr::Proj(expr.into(), field_name.into())
-    }
-
-    pub fn intro<P, N1, E1>(path: P, variant_name: N1, expr: E1) -> Expr<N>
-    where
-        P: Into<Path<N>>,
-        N1: Into<N>,
-        E1: Into<RcExpr<N>>,
-    {
-        Expr::Intro(path.into(), variant_name.into(), expr.into())
-    }
-
-    pub fn subscript<E1, E2>(expr: E1, index_expr: E2) -> Expr<N>
-    where
-        E1: Into<RcExpr<N>>,
-        E2: Into<RcExpr<N>>,
-    {
-        Expr::Subscript(expr.into(), index_expr.into())
+    pub fn bvar<N1: Into<N>>(name: N1, var: BoundVar) -> Expr<N> {
+        Expr::Var(Var::bound(name, var))
     }
 
     pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {

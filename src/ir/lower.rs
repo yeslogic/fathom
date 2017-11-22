@@ -76,6 +76,14 @@ where
         .collect()
 }
 
+/// Lower a type variable to an IR type
+fn lower_ty_var(var: &Var<String>) -> RcType<String> {
+    Rc::new(match *var {
+        Var::Bound(Named(ref name, _)) => Type::Path(Path::new(name.to_string())),
+        Var::Free(_) => unimplemented!(),
+    })
+}
+
 /// Lower binary types to the nominal format
 ///
 /// # Arguments
@@ -89,28 +97,25 @@ fn lower_ty(
     path: &Path<String>,
     ty: &binary::RcType<String>,
 ) -> RcType<String> {
-    use name::Named;
-
     // Mirroring `binary::Type::repr`
-    match **ty {
-        binary::Type::Var(_, Var::Bound(Named(ref name, _))) => Rc::new(Type::path(name.as_str())),
-        binary::Type::Var(_, Var::Free(_)) => unimplemented!(),
-        binary::Type::Const(binary::TypeConst::U8) => Rc::new(Type::U8),
+    Rc::new(match **ty {
+        binary::Type::Var(_, ref var) => return lower_ty_var(var),
+        binary::Type::Const(binary::TypeConst::U8) => Type::U8,
         binary::Type::Array(_, ref elem_ty, _) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_ty(program, &elem_path, elem_ty);
 
-            Rc::new(Type::Array(elem_ty))
+            Type::Array(elem_ty)
         }
-        binary::Type::Assert(_, ref ty, _) => lower_ty(program, path, ty),
-        binary::Type::Interp(_, _, _, ref repr_ty) => lower_repr_ty(path, repr_ty),
+        binary::Type::Assert(_, ref ty, _) => return lower_ty(program, path, ty),
+        binary::Type::Interp(_, _, _, ref repr_ty) => return lower_repr_ty(path, repr_ty),
         binary::Type::Union(_, ref variants) => {
             let lowered_variants = lower_row(path, variants, |variant_path, ty| {
                 lower_ty(program, &variant_path, ty)
             });
             program.define_union(path.clone(), lowered_variants, None);
 
-            Rc::new(Type::path(path.clone()))
+            Type::Path(path.clone())
         }
         binary::Type::Struct(_, ref fields) => {
             let lowered_fields = lower_row(path, fields, |field_path, ty| {
@@ -118,11 +123,11 @@ fn lower_ty(
             });
             program.define_struct(path.clone(), lowered_fields, None);
 
-            Rc::new(Type::path(path.clone()))
+            Type::Path(path.clone())
         }
         binary::Type::Abs(_, _, _) => unimplemented!(),
         binary::Type::App(_, _, _) => unimplemented!(),
-    }
+    })
 }
 
 /// Lower host types to the nominal format
@@ -134,12 +139,11 @@ fn lower_ty(
 /// * `path` - path to the parent struct or union
 /// * `ty` - the type to be lowered
 fn lower_repr_ty(path: &Path<String>, ty: &host::RcType<String>) -> RcType<String> {
-    match **ty {
-        host::Type::Var(Var::Bound(Named(ref name, _))) => Rc::new(Type::path(name.as_str())),
-        host::Type::Var(Var::Free(_)) => unimplemented!(),
-        host::Type::Const(host::TypeConst::U8) => Rc::new(Type::U8),
-        host::Type::Const(host::TypeConst::Int) => Rc::new(Type::Int),
-        host::Type::Const(host::TypeConst::Bool) => Rc::new(Type::Bool),
+    Rc::new(match **ty {
+        host::Type::Var(ref var) => return lower_ty_var(var),
+        host::Type::Const(host::TypeConst::U8) => Type::U8,
+        host::Type::Const(host::TypeConst::Int) => Type::Int,
+        host::Type::Const(host::TypeConst::Bool) => Type::Bool,
         host::Type::Arrow(ref arg_tys, ref ret_ty) => {
             let arg_repr_tys = arg_tys
                 .iter()
@@ -147,22 +151,22 @@ fn lower_repr_ty(path: &Path<String>, ty: &host::RcType<String>) -> RcType<Strin
                 .collect();
             let ret_repr_ty = lower_repr_ty(&path, ret_ty);
 
-            Rc::new(Type::Arrow(arg_repr_tys, ret_repr_ty))
+            Type::Arrow(arg_repr_tys, ret_repr_ty)
         }
         host::Type::Array(ref elem_ty) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_repr_ty(&elem_path, elem_ty);
 
-            Rc::new(Type::Array(elem_ty))
+            Type::Array(elem_ty)
         }
         host::Type::Union(_) | host::Type::Struct(_) => {
             // We expect that the repr type has already had a corresponding type
             // generated for it, so instead we just return the current path.
-            Rc::new(Type::path(path.clone()))
+            Type::Path(path.clone())
         }
         host::Type::Abs(_, _) => unimplemented!(),
         host::Type::App(_, _) => unimplemented!(),
-    }
+    })
 }
 
 /// Lower host expressions to the nominal format
@@ -213,16 +217,22 @@ fn struct_parser(
         (field.name.clone(), ty_parser(path, &field.value))
     };
     let lower_to_expr_field = |field: &Field<String, binary::RcType<String>>| {
-        Field::new(field.name.clone(), Expr::fvar(field.name.clone()))
+        Field::new(field.name.clone(), Expr::Var(Var::free(field.name.clone())))
     };
 
-    Rc::new(ParseExpr::sequence(
-        fields.iter().map(lower_to_field_parser).collect(),
-        Expr::struct_(
-            path.clone(),
-            fields.iter().map(lower_to_expr_field).collect(),
-        ),
-    ))
+    let parse_exprs = fields.iter().map(lower_to_field_parser);
+    let expr_fields = fields.iter().map(lower_to_expr_field);
+
+    let mut expr = Expr::Struct(path.clone(), expr_fields.collect());
+    let mut named_exprs = Vec::with_capacity(parse_exprs.len());
+
+    for (name, parse_exprs) in parse_exprs.rev() {
+        // FIXME: abstract parse exprs???
+        expr.abstract_names(&[name.clone()]);
+        named_exprs.push(Named(name, parse_exprs));
+    }
+
+    Rc::new(ParseExpr::Sequence(named_exprs, Rc::new(expr)))
 }
 
 /// Create a union parser for the given fields
@@ -237,11 +247,11 @@ fn union_parser(
 ) -> RcParseExpr<String> {
     let lower_variant = |variant: &Field<String, binary::RcType<String>>| {
         let variant_parser = ty_parser(path, &variant.value);
-        let variant_expr = Rc::new(Expr::intro(
+        let variant_expr = Rc::new(Expr::Intro(
             path.clone(),
             variant.name.clone(),
             // FIXME: generate fresh name?
-            Expr::bvar("x", BoundVar::new(Si(0), Bi(0))),
+            Rc::new(Expr::Var(Var::bound("x", BoundVar::new(Si(0), Bi(0))))),
         ));
 
         Rc::new(ParseExpr::Sequence(
@@ -250,7 +260,7 @@ fn union_parser(
         ))
     };
 
-    Rc::new(ParseExpr::choice(
+    Rc::new(ParseExpr::Choice(
         variants.iter().map(lower_variant).collect(),
     ))
 }
@@ -266,19 +276,25 @@ fn ty_parser(path: &Path<String>, ty: &binary::RcType<String>) -> RcParseExpr<St
         binary::Type::Var(_, ref var) => ParseExpr::Var(var.clone()),
         binary::Type::Const(binary::TypeConst::U8) => ParseExpr::U8,
         binary::Type::Array(_, ref elem_ty, ref size_expr) => {
-            let elem_parser = ty_parser(&path.append_child("Elem"), elem_ty);
+            let elem_path = path.append_child("Elem");
+            let elem_parser = ty_parser(&elem_path, elem_ty);
             let size_expr = lower_expr(path, size_expr);
-            ParseExpr::repeat(elem_parser, RepeatBound::Exact(size_expr))
+
+            ParseExpr::Repeat(elem_parser, RepeatBound::Exact(size_expr))
         }
         binary::Type::Union(_, ref variants) => return union_parser(path, variants),
         binary::Type::Struct(_, ref fields) => return struct_parser(path, fields),
         binary::Type::Assert(_, ref ty, ref pred_expr) => {
             let ty_parser = ty_parser(path, ty);
             let pred_expr = lower_expr(path, pred_expr);
-            ParseExpr::assert(ty_parser, pred_expr)
+
+            ParseExpr::Assert(ty_parser, pred_expr)
         }
         binary::Type::Interp(_, ref ty, ref conv_expr, _) => {
-            ParseExpr::Apply(lower_expr(path, conv_expr), ty_parser(path, ty))
+            let fn_expr = lower_expr(path, conv_expr);
+            let parser_expr = ty_parser(path, ty);
+
+            ParseExpr::Apply(fn_expr, parser_expr)
         }
         binary::Type::Abs(_, _, _) => unimplemented!("Abs: {:?}", ty),
         binary::Type::App(_, _, _) => unimplemented!("App: {:?}", ty),

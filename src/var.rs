@@ -101,6 +101,14 @@ pub enum Var<N> {
 }
 
 impl<N: Name> Var<N> {
+    pub fn free<N1: Into<N>>(name: N1) -> Var<N> {
+        Var::Free(name.into())
+    }
+
+    pub fn bound<N1: Into<N>>(name: N1, var: BoundVar) -> Var<N> {
+        Var::Bound(Named(name.into(), var))
+    }
+
     pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
         *self = match *self {
             Var::Free(ref n) => match names.iter().position(|name| name == n) {
