@@ -1,12 +1,12 @@
-//! Lowering from the surface syntax to the owned IR
+//! Lowering from the surface syntax to the intermediate representation
 
 use std::rc::Rc;
 
 use name::Named;
 use syntax;
 use syntax::ast::{binary, host, Field};
-use ir::owned::ast::{Expr, ParseExpr, Path, Program, RepeatBound, Type};
-use ir::owned::ast::{RcExpr, RcParseExpr, RcType};
+use ir::ast::{Expr, ParseExpr, Path, Program, RepeatBound, Type};
+use ir::ast::{RcExpr, RcParseExpr, RcType};
 use var::{BindingIndex as Bi, BoundVar, ScopeIndex as Si, Var};
 
 impl<'a> From<&'a syntax::ast::Program<String>> for Program<String> {

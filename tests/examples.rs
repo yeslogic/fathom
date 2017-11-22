@@ -22,7 +22,7 @@ fn bitmap() {
 
     check::check_program(&program).unwrap();
 
-    let ir = ddl::ir::owned::ast::Program::from(&program);
+    let ir = ddl::ir::ast::Program::from(&program);
     assert_debug_snapshot!(bitmap_ir, ir);
 
     let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
@@ -41,7 +41,7 @@ fn bitmap_anon_elem() {
 
     check::check_program(&program).unwrap();
 
-    let ir = ddl::ir::owned::ast::Program::from(&program);
+    let ir = ddl::ir::ast::Program::from(&program);
     assert_debug_snapshot!(bitmap_anon_elem_ir, ir);
 
     let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
@@ -61,7 +61,7 @@ fn cmap() {
 
     check::check_program(&program).unwrap();
 
-    let ir = ddl::ir::owned::ast::Program::from(&program);
+    let ir = ddl::ir::ast::Program::from(&program);
     assert_debug_snapshot!(cmap_ir, ir);
 
     let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
@@ -80,7 +80,7 @@ fn edid() {
 
     check::check_program(&program).unwrap();
 
-    let ir = ddl::ir::owned::ast::Program::from(&program);
+    let ir = ddl::ir::ast::Program::from(&program);
     assert_debug_snapshot!(edid_ir, ir);
 
     let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
@@ -99,7 +99,7 @@ fn heroes_of_might_and_magic_bmp() {
 
     check::check_program(&program).unwrap();
 
-    let ir = ddl::ir::owned::ast::Program::from(&program);
+    let ir = ddl::ir::ast::Program::from(&program);
     assert_debug_snapshot!(heroes_of_might_and_magic_bmp_ir, ir);
 
     let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
@@ -119,7 +119,7 @@ fn ieee754() {
 
     check::check_program(&program).unwrap();
 
-    let ir = ddl::ir::owned::ast::Program::from(&program);
+    let ir = ddl::ir::ast::Program::from(&program);
     assert_debug_snapshot!(ieee754_ir, ir);
 
     let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
@@ -138,7 +138,7 @@ fn object_id() {
 
     check::check_program(&program).unwrap();
 
-    let ir = ddl::ir::owned::ast::Program::from(&program);
+    let ir = ddl::ir::ast::Program::from(&program);
     assert_debug_snapshot!(object_id_ir, ir);
 
     let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
@@ -157,7 +157,7 @@ fn stl() {
 
     check::check_program(&program).unwrap();
 
-    let ir = ddl::ir::owned::ast::Program::from(&program);
+    let ir = ddl::ir::ast::Program::from(&program);
     assert_debug_snapshot!(stl_ir, ir);
 
     let rust_output = ddl::codegen::LowerProgram(&ir).to_string();

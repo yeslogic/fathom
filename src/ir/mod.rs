@@ -1,4 +1,4 @@
-//! Intermediate representations of our DDL
+//! Intermediate representation for our DDL
 //!
 //! For example, take the following data definition:
 //!
@@ -142,7 +142,6 @@
 //!
 //! # Questions
 //!
-//! - Where will we uncurry functions and type constructors?
 //! - What will a cursor-style API look like? I want to be able to jump into
 //!   collections without parsing the entire thing, eg:
 //!
@@ -152,7 +151,10 @@
 //!   let data = bitmap.data().iter.collect::<Vec_>>();
 //!   ```
 //!
-//! - How should we avoid naming conflicts during the lowering of the owned
-//!   nominal IR to Rust?
+//! - How should we avoid naming conflicts during the lowering of the IR to Rust?
 
-pub mod owned;
+pub mod ast;
+mod lower;
+// TODO: parser
+// TODO: type checking
+// TODO: pretty printing

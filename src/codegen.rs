@@ -2,9 +2,9 @@ use pretty::{BoxAllocator, DocAllocator, DocBuilder};
 use std::fmt;
 
 use name::Named;
-use ir::owned::ast::{Definition, Expr, Field, ParseExpr, Path, Program, RepeatBound, Type};
-use ir::owned::ast::{RcParseExpr, RcType};
-use ir::owned::ast::{Binop, Const, Unop};
+use ir::ast::{Definition, Expr, Field, ParseExpr, Path, Program, RepeatBound, Type};
+use ir::ast::{RcParseExpr, RcType};
+use ir::ast::{Binop, Const, Unop};
 use var::Var;
 
 pub struct LowerProgram<'a>(pub &'a Program<String>);

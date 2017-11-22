@@ -1,3 +1,5 @@
+//! Abstract syntax of the intermediate representation
+
 use std::collections::BTreeMap;
 use std::fmt;
 use std::rc::Rc;
