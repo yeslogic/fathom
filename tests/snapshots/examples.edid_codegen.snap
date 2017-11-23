@@ -1,0 +1,78 @@
+use std::io;
+use std::io::prelude::*;
+
+pub struct DisplayParams {
+    input_flags: u8,
+    screen_size_h: u8,
+    screen_size_v: u8,
+    gamma_mod: u8,
+    features_flags: u8,
+}
+
+impl DisplayParams {
+    fn read<R: Read>(reader: &mut R) -> io::Result<DisplayParams> {
+        let input_flags = buf.read_u8()?;
+        let screen_size_h = buf.read_u8()?;
+        let screen_size_v = buf.read_u8()?;
+        let gamma_mod = buf.read_u8()?;
+        let features_flags = buf.read_u8()?;
+        Ok(DisplayParams {
+            input_flags: input_flags,
+            screen_size_h: screen_size_h,
+            screen_size_v: screen_size_v,
+            gamma_mod: gamma_mod,
+            features_flags: features_flags,
+        })
+    }
+}
+
+pub struct Edid {
+    header: Header,
+    display_params: DisplayParams,
+}
+
+impl Edid {
+    fn read<R: Read>(reader: &mut R) -> io::Result<Edid> {
+        let header = Header::read(buf)?;
+        let display_params = DisplayParams::read(buf)?;
+        Ok(Edid {
+            header: header,
+            display_params: display_params,
+        })
+    }
+}
+
+pub struct Header {
+    magic: Vec<u8>,
+    mfg_bytes: i64,
+    product_code: i64,
+    serial: i64,
+    mfg_week: u8,
+    mfg_year_mod: u8,
+    edid_version_major: u8,
+    edid_version_minor: u8,
+}
+
+impl Header {
+    fn read<R: Read>(reader: &mut R) -> io::Result<Header> {
+        let magic = (0..8).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+        let mfg_bytes = from_u16le((0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+        let product_code = from_u16le((0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+        let serial = from_u32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+        let mfg_week = buf.read_u8()?;
+        let mfg_year_mod = buf.read_u8()?;
+        let edid_version_major = buf.read_u8()?;
+        let edid_version_minor = buf.read_u8()?;
+        Ok(Header {
+            magic: magic,
+            mfg_bytes: mfg_bytes,
+            product_code: product_code,
+            serial: serial,
+            mfg_week: mfg_week,
+            mfg_year_mod: mfg_year_mod,
+            edid_version_major: edid_version_major,
+            edid_version_minor: edid_version_minor,
+        })
+    }
+}
+

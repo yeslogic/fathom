@@ -66,13 +66,13 @@ pub type RcType<N> = Rc<Type<N>>;
 
 impl<N: Name> Type<N> {
     /// A free type variable: eg. `T`
-    pub fn fvar<N1: Into<N>>(span: Span, x: N1) -> Type<N> {
-        Type::Var(span, Var::Free(x.into()))
+    pub fn fvar<N1: Into<N>>(span: Span, name: N1) -> Type<N> {
+        Type::Var(span.into(), Var::free(name))
     }
 
     /// A bound type variable
-    pub fn bvar<N1: Into<N>>(span: Span, x: N1, i: BoundVar) -> Type<N> {
-        Type::Var(span, Var::Bound(Named(x.into(), i)))
+    pub fn bvar<N1: Into<N>>(span: Span, name: N1, var: BoundVar) -> Type<N> {
+        Type::Var(span.into(), Var::bound(name, var))
     }
 
     /// Byte type constant
@@ -378,7 +378,7 @@ mod tests {
                 // λ   0
                 let ty = T::abs(Span::start(), &["x"], T::fvar(Span::start(), "x"));
 
-                assert_snapshot!(ty_abs_id, ty);
+                assert_debug_snapshot!(ty_abs_id, ty);
             }
 
             // Examples from https://en.wikipedia.org/wiki/De_Bruijn_index
@@ -393,7 +393,7 @@ mod tests {
                     T::abs(Span::start(), &["y"], T::fvar(Span::start(), "x")),
                 );
 
-                assert_snapshot!(ty_abs_k_combinator, ty);
+                assert_debug_snapshot!(ty_abs_k_combinator, ty);
             }
 
             #[test]
@@ -428,7 +428,7 @@ mod tests {
                     ),
                 );
 
-                assert_snapshot!(ty_abs_s_combinator, ty);
+                assert_debug_snapshot!(ty_abs_s_combinator, ty);
             }
 
             #[test]
@@ -467,7 +467,7 @@ mod tests {
                     ),
                 );
 
-                assert_snapshot!(ty_abs_complex, ty);
+                assert_debug_snapshot!(ty_abs_complex, ty);
             }
         }
     }

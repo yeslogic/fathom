@@ -1,0 +1,56 @@
+use std::io;
+use std::io::prelude::*;
+
+pub struct Bitmap {
+    extents: Bitmap::extents,
+    data: Vec<Pixel>,
+}
+
+impl Bitmap {
+    fn read<R: Read>(reader: &mut R) -> io::Result<Bitmap> {
+        let extents = {
+            let width = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+            let height = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+            Ok(Bitmap {
+                width: width,
+                height: height,
+            })
+        };
+        let data =
+        (0..(extents.width * extents.height)).map(|_| Pixel::read(buf)?).collect::<Result<_, _>>()?;
+        Ok(Bitmap {
+            extents: extents,
+            data: data,
+        })
+    }
+}
+
+pub struct BitmapExtents {
+    width: i64,
+    height: i64,
+}
+
+pub type Bmp = Bitmap;
+
+pub struct Pixel {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+}
+
+impl Pixel {
+    fn read<R: Read>(reader: &mut R) -> io::Result<Pixel> {
+        let r = buf.read_u8()?;
+        let g = buf.read_u8()?;
+        let b = buf.read_u8()?;
+        let a = buf.read_u8()?;
+        Ok(Pixel {
+            r: r,
+            g: g,
+            b: b,
+            a: a,
+        })
+    }
+}
+

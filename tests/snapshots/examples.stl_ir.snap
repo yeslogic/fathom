@@ -1,0 +1,283 @@
+Program {
+    defs: {
+        Path {
+            base: "Stl",
+            children: []
+        }: Struct(
+            [
+                Field {
+                    name: "header",
+                    value: Array(
+                        U8
+                    )
+                },
+                Field {
+                    name: "num_triangles",
+                    value: Int
+                },
+                Field {
+                    name: "triangles",
+                    value: Array(
+                        Path(
+                            Path {
+                                base: "Triangle",
+                                children: []
+                            }
+                        )
+                    )
+                }
+            ],
+            Some(
+                Sequence(
+                    [
+                        Named("header", Repeat(
+                            U8,
+                            Exact(
+                                Const(
+                                    Int(80)
+                                )
+                            )
+                        )),
+                        Named("num_triangles", Apply(
+                            Prim(
+                                "from_u32le",
+                                Arrow(
+                                    [
+                                        Array(
+                                            U8
+                                        )
+                                    ],
+                                    Int
+                                )
+                            ),
+                            Repeat(
+                                U8,
+                                Exact(
+                                    Const(
+                                        Int(4)
+                                    )
+                                )
+                            )
+                        )),
+                        Named("triangles", Repeat(
+                            Var(
+                                Bound(Named("Triangle", BoundVar(2, 0)))
+                            ),
+                            Exact(
+                                Var(
+                                    Bound(Named("num_triangles", BoundVar(0, 0)))
+                                )
+                            )
+                        ))
+                    ],
+                    Struct(
+                        Path {
+                            base: "Stl",
+                            children: []
+                        },
+                        [
+                            Field {
+                                name: "header",
+                                value: Var(
+                                    Bound(Named("header", BoundVar(2, 0)))
+                                )
+                            },
+                            Field {
+                                name: "num_triangles",
+                                value: Var(
+                                    Bound(Named("num_triangles", BoundVar(1, 0)))
+                                )
+                            },
+                            Field {
+                                name: "triangles",
+                                value: Var(
+                                    Bound(Named("triangles", BoundVar(0, 0)))
+                                )
+                            }
+                        ]
+                    )
+                )
+            )
+        ),
+        Path {
+            base: "Triangle",
+            children: []
+        }: Struct(
+            [
+                Field {
+                    name: "normal",
+                    value: Path(
+                        Path {
+                            base: "Vec3d",
+                            children: []
+                        }
+                    )
+                },
+                Field {
+                    name: "vertices",
+                    value: Array(
+                        Path(
+                            Path {
+                                base: "Vec3d",
+                                children: []
+                            }
+                        )
+                    )
+                }
+            ],
+            Some(
+                Sequence(
+                    [
+                        Named("normal", Var(
+                            Bound(Named("Vec3d", BoundVar(0, 0)))
+                        )),
+                        Named("vertices", Repeat(
+                            Var(
+                                Bound(Named("Vec3d", BoundVar(1, 0)))
+                            ),
+                            Exact(
+                                Const(
+                                    Int(3)
+                                )
+                            )
+                        ))
+                    ],
+                    Struct(
+                        Path {
+                            base: "Triangle",
+                            children: []
+                        },
+                        [
+                            Field {
+                                name: "normal",
+                                value: Var(
+                                    Bound(Named("normal", BoundVar(1, 0)))
+                                )
+                            },
+                            Field {
+                                name: "vertices",
+                                value: Var(
+                                    Bound(Named("vertices", BoundVar(0, 0)))
+                                )
+                            }
+                        ]
+                    )
+                )
+            )
+        ),
+        Path {
+            base: "Vec3d",
+            children: []
+        }: Struct(
+            [
+                Field {
+                    name: "x",
+                    value: Int
+                },
+                Field {
+                    name: "y",
+                    value: Int
+                },
+                Field {
+                    name: "z",
+                    value: Int
+                }
+            ],
+            Some(
+                Sequence(
+                    [
+                        Named("x", Apply(
+                            Prim(
+                                "from_f32le",
+                                Arrow(
+                                    [
+                                        Array(
+                                            U8
+                                        )
+                                    ],
+                                    Int
+                                )
+                            ),
+                            Repeat(
+                                U8,
+                                Exact(
+                                    Const(
+                                        Int(4)
+                                    )
+                                )
+                            )
+                        )),
+                        Named("y", Apply(
+                            Prim(
+                                "from_f32le",
+                                Arrow(
+                                    [
+                                        Array(
+                                            U8
+                                        )
+                                    ],
+                                    Int
+                                )
+                            ),
+                            Repeat(
+                                U8,
+                                Exact(
+                                    Const(
+                                        Int(4)
+                                    )
+                                )
+                            )
+                        )),
+                        Named("z", Apply(
+                            Prim(
+                                "from_f32le",
+                                Arrow(
+                                    [
+                                        Array(
+                                            U8
+                                        )
+                                    ],
+                                    Int
+                                )
+                            ),
+                            Repeat(
+                                U8,
+                                Exact(
+                                    Const(
+                                        Int(4)
+                                    )
+                                )
+                            )
+                        ))
+                    ],
+                    Struct(
+                        Path {
+                            base: "Vec3d",
+                            children: []
+                        },
+                        [
+                            Field {
+                                name: "x",
+                                value: Var(
+                                    Bound(Named("x", BoundVar(2, 0)))
+                                )
+                            },
+                            Field {
+                                name: "y",
+                                value: Var(
+                                    Bound(Named("y", BoundVar(1, 0)))
+                                )
+                            },
+                            Field {
+                                name: "z",
+                                value: Var(
+                                    Bound(Named("z", BoundVar(0, 0)))
+                                )
+                            }
+                        ]
+                    )
+                )
+            )
+        )
+    }
+}

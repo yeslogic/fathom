@@ -1,0 +1,25 @@
+use std::io;
+use std::io::prelude::*;
+
+pub struct ObjectId {
+    epoch_time: i64,
+    machine_id: Vec<u8>,
+    process_id: i64,
+    counter: Vec<u8>,
+}
+
+impl ObjectId {
+    fn read<R: Read>(reader: &mut R) -> io::Result<ObjectId> {
+        let epoch_time = from_u32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+        let machine_id = (0..3).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+        let process_id = from_u16le((0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+        let counter = (0..3).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+        Ok(ObjectId {
+            epoch_time: epoch_time,
+            machine_id: machine_id,
+            process_id: process_id,
+            counter: counter,
+        })
+    }
+}
+
