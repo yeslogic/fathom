@@ -34,70 +34,9 @@ Program {
             Some(
                 Sequence(
                     [
-                        Named("data", Repeat(
-                            Sequence(
-                                [
-                                    Named("a", U8),
-                                    Named("b", U8),
-                                    Named("g", U8),
-                                    Named("r", U8)
-                                ],
-                                Struct(
-                                    Path {
-                                        base: "Bitmap",
-                                        children: [
-                                            "Elem"
-                                        ]
-                                    },
-                                    [
-                                        Field {
-                                            name: "r",
-                                            value: Var(
-                                                Bound(Named("r", BoundVar(0, 0)))
-                                            )
-                                        },
-                                        Field {
-                                            name: "g",
-                                            value: Var(
-                                                Bound(Named("g", BoundVar(0, 0)))
-                                            )
-                                        },
-                                        Field {
-                                            name: "b",
-                                            value: Var(
-                                                Bound(Named("b", BoundVar(0, 0)))
-                                            )
-                                        },
-                                        Field {
-                                            name: "a",
-                                            value: Var(
-                                                Bound(Named("a", BoundVar(0, 0)))
-                                            )
-                                        }
-                                    ]
-                                )
-                            ),
-                            Exact(
-                                Binop(
-                                    Mul,
-                                    Proj(
-                                        Var(
-                                            Bound(Named("extents", BoundVar(0, 0)))
-                                        ),
-                                        "width"
-                                    ),
-                                    Proj(
-                                        Var(
-                                            Bound(Named("extents", BoundVar(0, 0)))
-                                        ),
-                                        "height"
-                                    )
-                                )
-                            )
-                        )),
                         Named("extents", Sequence(
                             [
-                                Named("height", Apply(
+                                Named("width", Apply(
                                     Prim(
                                         "from_u32be",
                                         Arrow(
@@ -118,7 +57,7 @@ Program {
                                         )
                                     )
                                 )),
-                                Named("width", Apply(
+                                Named("height", Apply(
                                     Prim(
                                         "from_u32be",
                                         Arrow(
@@ -149,7 +88,7 @@ Program {
                                     Field {
                                         name: "width",
                                         value: Var(
-                                            Bound(Named("width", BoundVar(0, 0)))
+                                            Bound(Named("width", BoundVar(1, 0)))
                                         )
                                     },
                                     Field {
@@ -159,6 +98,67 @@ Program {
                                         )
                                     }
                                 ]
+                            )
+                        )),
+                        Named("data", Repeat(
+                            Sequence(
+                                [
+                                    Named("r", U8),
+                                    Named("g", U8),
+                                    Named("b", U8),
+                                    Named("a", U8)
+                                ],
+                                Struct(
+                                    Path {
+                                        base: "Bitmap",
+                                        children: [
+                                            "Elem"
+                                        ]
+                                    },
+                                    [
+                                        Field {
+                                            name: "r",
+                                            value: Var(
+                                                Bound(Named("r", BoundVar(3, 0)))
+                                            )
+                                        },
+                                        Field {
+                                            name: "g",
+                                            value: Var(
+                                                Bound(Named("g", BoundVar(2, 0)))
+                                            )
+                                        },
+                                        Field {
+                                            name: "b",
+                                            value: Var(
+                                                Bound(Named("b", BoundVar(1, 0)))
+                                            )
+                                        },
+                                        Field {
+                                            name: "a",
+                                            value: Var(
+                                                Bound(Named("a", BoundVar(0, 0)))
+                                            )
+                                        }
+                                    ]
+                                )
+                            ),
+                            Exact(
+                                Binop(
+                                    Mul,
+                                    Proj(
+                                        Var(
+                                            Bound(Named("extents", BoundVar(0, 0)))
+                                        ),
+                                        "width"
+                                    ),
+                                    Proj(
+                                        Var(
+                                            Bound(Named("extents", BoundVar(0, 0)))
+                                        ),
+                                        "height"
+                                    )
+                                )
                             )
                         ))
                     ],
@@ -171,7 +171,7 @@ Program {
                             Field {
                                 name: "extents",
                                 value: Var(
-                                    Bound(Named("extents", BoundVar(0, 0)))
+                                    Bound(Named("extents", BoundVar(1, 0)))
                                 )
                             },
                             Field {

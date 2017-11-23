@@ -29,7 +29,28 @@ Program {
             Some(
                 Sequence(
                     [
-                        Named("counter", Repeat(
+                        Named("epoch_time", Apply(
+                            Prim(
+                                "from_u32le",
+                                Arrow(
+                                    [
+                                        Array(
+                                            U8
+                                        )
+                                    ],
+                                    Int
+                                )
+                            ),
+                            Repeat(
+                                U8,
+                                Exact(
+                                    Const(
+                                        Int(4)
+                                    )
+                                )
+                            )
+                        )),
+                        Named("machine_id", Repeat(
                             U8,
                             Exact(
                                 Const(
@@ -58,32 +79,11 @@ Program {
                                 )
                             )
                         )),
-                        Named("machine_id", Repeat(
+                        Named("counter", Repeat(
                             U8,
                             Exact(
                                 Const(
                                     Int(3)
-                                )
-                            )
-                        )),
-                        Named("epoch_time", Apply(
-                            Prim(
-                                "from_u32le",
-                                Arrow(
-                                    [
-                                        Array(
-                                            U8
-                                        )
-                                    ],
-                                    Int
-                                )
-                            ),
-                            Repeat(
-                                U8,
-                                Exact(
-                                    Const(
-                                        Int(4)
-                                    )
                                 )
                             )
                         ))
@@ -97,19 +97,19 @@ Program {
                             Field {
                                 name: "epoch_time",
                                 value: Var(
-                                    Bound(Named("epoch_time", BoundVar(0, 0)))
+                                    Bound(Named("epoch_time", BoundVar(3, 0)))
                                 )
                             },
                             Field {
                                 name: "machine_id",
                                 value: Var(
-                                    Bound(Named("machine_id", BoundVar(0, 0)))
+                                    Bound(Named("machine_id", BoundVar(2, 0)))
                                 )
                             },
                             Field {
                                 name: "process_id",
                                 value: Var(
-                                    Bound(Named("process_id", BoundVar(0, 0)))
+                                    Bound(Named("process_id", BoundVar(1, 0)))
                                 )
                             },
                             Field {

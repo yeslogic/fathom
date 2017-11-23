@@ -27,21 +27,7 @@ Program {
             Some(
                 Sequence(
                     [
-                        Named("data", Repeat(
-                            U8,
-                            Exact(
-                                Binop(
-                                    Mul,
-                                    Var(
-                                        Bound(Named("width", BoundVar(1, 0)))
-                                    ),
-                                    Var(
-                                        Bound(Named("height", BoundVar(0, 0)))
-                                    )
-                                )
-                            )
-                        )),
-                        Named("height", Apply(
+                        Named("magic", Apply(
                             Prim(
                                 "from_u16le",
                                 Arrow(
@@ -83,7 +69,7 @@ Program {
                                 )
                             )
                         )),
-                        Named("magic", Apply(
+                        Named("height", Apply(
                             Prim(
                                 "from_u16le",
                                 Arrow(
@@ -103,6 +89,20 @@ Program {
                                     )
                                 )
                             )
+                        )),
+                        Named("data", Repeat(
+                            U8,
+                            Exact(
+                                Binop(
+                                    Mul,
+                                    Var(
+                                        Bound(Named("width", BoundVar(1, 0)))
+                                    ),
+                                    Var(
+                                        Bound(Named("height", BoundVar(0, 0)))
+                                    )
+                                )
+                            )
                         ))
                     ],
                     Struct(
@@ -114,19 +114,19 @@ Program {
                             Field {
                                 name: "magic",
                                 value: Var(
-                                    Bound(Named("magic", BoundVar(0, 0)))
+                                    Bound(Named("magic", BoundVar(3, 0)))
                                 )
                             },
                             Field {
                                 name: "width",
                                 value: Var(
-                                    Bound(Named("width", BoundVar(0, 0)))
+                                    Bound(Named("width", BoundVar(2, 0)))
                                 )
                             },
                             Field {
                                 name: "height",
                                 value: Var(
-                                    Bound(Named("height", BoundVar(0, 0)))
+                                    Bound(Named("height", BoundVar(1, 0)))
                                 )
                             },
                             Field {

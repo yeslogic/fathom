@@ -9,9 +9,9 @@ pub struct Stl {
 
 impl Stl {
     fn read<R: Read>(reader: &mut R) -> io::Result<Stl> {
-        let triangles = (0..num_triangles).map(|_| Triangle::read(buf)?).collect::<Result<_, _>>()?;
-        let num_triangles = from_u32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
         let header = (0..80).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+        let num_triangles = from_u32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+        let triangles = (0..num_triangles).map(|_| Triangle::read(buf)?).collect::<Result<_, _>>()?;
         Ok(Stl {
             header: header,
             num_triangles: num_triangles,
@@ -27,8 +27,8 @@ pub struct Triangle {
 
 impl Triangle {
     fn read<R: Read>(reader: &mut R) -> io::Result<Triangle> {
-        let vertices = (0..3).map(|_| Vec3d::read(buf)?).collect::<Result<_, _>>()?;
         let normal = Vec3d::read(buf)?;
+        let vertices = (0..3).map(|_| Vec3d::read(buf)?).collect::<Result<_, _>>()?;
         Ok(Triangle {
             normal: normal,
             vertices: vertices,
@@ -44,9 +44,9 @@ pub struct Vec3d {
 
 impl Vec3d {
     fn read<R: Read>(reader: &mut R) -> io::Result<Vec3d> {
-        let z = from_f32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
-        let y = from_f32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
         let x = from_f32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+        let y = from_f32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+        let z = from_f32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
         Ok(Vec3d {
             x: x,
             y: y,

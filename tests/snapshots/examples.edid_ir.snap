@@ -29,11 +29,11 @@ Program {
             Some(
                 Sequence(
                     [
-                        Named("features_flags", U8),
-                        Named("gamma_mod", U8),
-                        Named("screen_size_v", U8),
+                        Named("input_flags", U8),
                         Named("screen_size_h", U8),
-                        Named("input_flags", U8)
+                        Named("screen_size_v", U8),
+                        Named("gamma_mod", U8),
+                        Named("features_flags", U8)
                     ],
                     Struct(
                         Path {
@@ -44,25 +44,25 @@ Program {
                             Field {
                                 name: "input_flags",
                                 value: Var(
-                                    Bound(Named("input_flags", BoundVar(0, 0)))
+                                    Bound(Named("input_flags", BoundVar(4, 0)))
                                 )
                             },
                             Field {
                                 name: "screen_size_h",
                                 value: Var(
-                                    Bound(Named("screen_size_h", BoundVar(0, 0)))
+                                    Bound(Named("screen_size_h", BoundVar(3, 0)))
                                 )
                             },
                             Field {
                                 name: "screen_size_v",
                                 value: Var(
-                                    Bound(Named("screen_size_v", BoundVar(0, 0)))
+                                    Bound(Named("screen_size_v", BoundVar(2, 0)))
                                 )
                             },
                             Field {
                                 name: "gamma_mod",
                                 value: Var(
-                                    Bound(Named("gamma_mod", BoundVar(0, 0)))
+                                    Bound(Named("gamma_mod", BoundVar(1, 0)))
                                 )
                             },
                             Field {
@@ -103,11 +103,11 @@ Program {
             Some(
                 Sequence(
                     [
-                        Named("display_params", Var(
-                            Bound(Named("DisplayParams", BoundVar(1, 0)))
-                        )),
                         Named("header", Var(
                             Bound(Named("Header", BoundVar(1, 0)))
+                        )),
+                        Named("display_params", Var(
+                            Bound(Named("DisplayParams", BoundVar(1, 0)))
                         ))
                     ],
                     Struct(
@@ -119,7 +119,7 @@ Program {
                             Field {
                                 name: "header",
                                 value: Var(
-                                    Bound(Named("header", BoundVar(0, 0)))
+                                    Bound(Named("header", BoundVar(1, 0)))
                                 )
                             },
                             Field {
@@ -176,13 +176,17 @@ Program {
             Some(
                 Sequence(
                     [
-                        Named("edid_version_minor", U8),
-                        Named("edid_version_major", U8),
-                        Named("mfg_year_mod", U8),
-                        Named("mfg_week", U8),
-                        Named("serial", Apply(
+                        Named("magic", Repeat(
+                            U8,
+                            Exact(
+                                Const(
+                                    Int(8)
+                                )
+                            )
+                        )),
+                        Named("mfg_bytes", Apply(
                             Prim(
-                                "from_u32le",
+                                "from_u16le",
                                 Arrow(
                                     [
                                         Array(
@@ -196,7 +200,7 @@ Program {
                                 U8,
                                 Exact(
                                     Const(
-                                        Int(4)
+                                        Int(2)
                                     )
                                 )
                             )
@@ -222,9 +226,9 @@ Program {
                                 )
                             )
                         )),
-                        Named("mfg_bytes", Apply(
+                        Named("serial", Apply(
                             Prim(
-                                "from_u16le",
+                                "from_u32le",
                                 Arrow(
                                     [
                                         Array(
@@ -238,19 +242,15 @@ Program {
                                 U8,
                                 Exact(
                                     Const(
-                                        Int(2)
+                                        Int(4)
                                     )
                                 )
                             )
                         )),
-                        Named("magic", Repeat(
-                            U8,
-                            Exact(
-                                Const(
-                                    Int(8)
-                                )
-                            )
-                        ))
+                        Named("mfg_week", U8),
+                        Named("mfg_year_mod", U8),
+                        Named("edid_version_major", U8),
+                        Named("edid_version_minor", U8)
                     ],
                     Struct(
                         Path {
@@ -261,43 +261,43 @@ Program {
                             Field {
                                 name: "magic",
                                 value: Var(
-                                    Bound(Named("magic", BoundVar(0, 0)))
+                                    Bound(Named("magic", BoundVar(7, 0)))
                                 )
                             },
                             Field {
                                 name: "mfg_bytes",
                                 value: Var(
-                                    Bound(Named("mfg_bytes", BoundVar(0, 0)))
+                                    Bound(Named("mfg_bytes", BoundVar(6, 0)))
                                 )
                             },
                             Field {
                                 name: "product_code",
                                 value: Var(
-                                    Bound(Named("product_code", BoundVar(0, 0)))
+                                    Bound(Named("product_code", BoundVar(5, 0)))
                                 )
                             },
                             Field {
                                 name: "serial",
                                 value: Var(
-                                    Bound(Named("serial", BoundVar(0, 0)))
+                                    Bound(Named("serial", BoundVar(4, 0)))
                                 )
                             },
                             Field {
                                 name: "mfg_week",
                                 value: Var(
-                                    Bound(Named("mfg_week", BoundVar(0, 0)))
+                                    Bound(Named("mfg_week", BoundVar(3, 0)))
                                 )
                             },
                             Field {
                                 name: "mfg_year_mod",
                                 value: Var(
-                                    Bound(Named("mfg_year_mod", BoundVar(0, 0)))
+                                    Bound(Named("mfg_year_mod", BoundVar(2, 0)))
                                 )
                             },
                             Field {
                                 name: "edid_version_major",
                                 value: Var(
-                                    Bound(Named("edid_version_major", BoundVar(0, 0)))
+                                    Bound(Named("edid_version_major", BoundVar(1, 0)))
                                 )
                             },
                             Field {

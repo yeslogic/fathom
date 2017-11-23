@@ -8,16 +8,16 @@ pub struct Bitmap {
 
 impl Bitmap {
     fn read<R: Read>(reader: &mut R) -> io::Result<Bitmap> {
-        let data =
-        (0..(extents.width * extents.height)).map(|_| Pixel::read(buf)?).collect::<Result<_, _>>()?;
         let extents = {
-            let height = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
             let width = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+            let height = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
             Ok(Bitmap {
                 width: width,
                 height: height,
             })
         };
+        let data =
+        (0..(extents.width * extents.height)).map(|_| Pixel::read(buf)?).collect::<Result<_, _>>()?;
         Ok(Bitmap {
             extents: extents,
             data: data,
@@ -41,10 +41,10 @@ pub struct Pixel {
 
 impl Pixel {
     fn read<R: Read>(reader: &mut R) -> io::Result<Pixel> {
-        let a = buf.read_u8()?;
-        let b = buf.read_u8()?;
-        let g = buf.read_u8()?;
         let r = buf.read_u8()?;
+        let g = buf.read_u8()?;
+        let b = buf.read_u8()?;
+        let a = buf.read_u8()?;
         Ok(Pixel {
             r: r,
             g: g,

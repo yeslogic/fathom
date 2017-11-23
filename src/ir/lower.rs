@@ -213,6 +213,8 @@ fn struct_parser(
     path: &Path<String>,
     fields: &[Field<String, binary::RcType<String>>],
 ) -> RcParseExpr<String> {
+    use var::ScopeIndex;
+
     let lower_to_field_parser = |field: &Field<String, binary::RcType<String>>| {
         (field.name.clone(), ty_parser(path, &field.value))
     };
@@ -223,13 +225,22 @@ fn struct_parser(
     let parse_exprs = fields.iter().map(lower_to_field_parser);
     let expr_fields = fields.iter().map(lower_to_expr_field);
 
-    let mut expr = Expr::Struct(path.clone(), expr_fields.collect());
-    let mut named_exprs = Vec::with_capacity(parse_exprs.len());
+    let mut named_exprs = Vec::with_capacity(fields.len());
+    let mut seen_names = Vec::<String>::with_capacity(fields.len());
 
-    for (name, parse_exprs) in parse_exprs.rev() {
-        // FIXME: abstract parse exprs???
-        expr.abstract_names(&[name.clone()]);
-        named_exprs.push(Named(name, parse_exprs));
+    for (name, mut parse_expr) in parse_exprs {
+        for (scope, name) in seen_names.iter().rev().enumerate() {
+            Rc::make_mut(&mut parse_expr)
+                .abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
+        }
+
+        seen_names.push(name.clone());
+        named_exprs.push(Named(name, parse_expr));
+    }
+
+    let mut expr = Expr::Struct(path.clone(), expr_fields.collect());
+    for (scope, name) in seen_names.iter().rev().enumerate() {
+        expr.abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
     }
 
     Rc::new(ParseExpr::Sequence(named_exprs, Rc::new(expr)))

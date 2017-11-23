@@ -30,13 +30,11 @@ Program {
             Some(
                 Sequence(
                     [
-                        Named("triangles", Repeat(
-                            Var(
-                                Bound(Named("Triangle", BoundVar(2, 0)))
-                            ),
+                        Named("header", Repeat(
+                            U8,
                             Exact(
-                                Var(
-                                    Bound(Named("num_triangles", BoundVar(0, 0)))
+                                Const(
+                                    Int(80)
                                 )
                             )
                         )),
@@ -61,11 +59,13 @@ Program {
                                 )
                             )
                         )),
-                        Named("header", Repeat(
-                            U8,
+                        Named("triangles", Repeat(
+                            Var(
+                                Bound(Named("Triangle", BoundVar(2, 0)))
+                            ),
                             Exact(
-                                Const(
-                                    Int(80)
+                                Var(
+                                    Bound(Named("num_triangles", BoundVar(0, 0)))
                                 )
                             )
                         ))
@@ -79,13 +79,13 @@ Program {
                             Field {
                                 name: "header",
                                 value: Var(
-                                    Bound(Named("header", BoundVar(0, 0)))
+                                    Bound(Named("header", BoundVar(2, 0)))
                                 )
                             },
                             Field {
                                 name: "num_triangles",
                                 value: Var(
-                                    Bound(Named("num_triangles", BoundVar(0, 0)))
+                                    Bound(Named("num_triangles", BoundVar(1, 0)))
                                 )
                             },
                             Field {
@@ -128,6 +128,9 @@ Program {
             Some(
                 Sequence(
                     [
+                        Named("normal", Var(
+                            Bound(Named("Vec3d", BoundVar(0, 0)))
+                        )),
                         Named("vertices", Repeat(
                             Var(
                                 Bound(Named("Vec3d", BoundVar(1, 0)))
@@ -137,9 +140,6 @@ Program {
                                     Int(3)
                                 )
                             )
-                        )),
-                        Named("normal", Var(
-                            Bound(Named("Vec3d", BoundVar(0, 0)))
                         ))
                     ],
                     Struct(
@@ -151,7 +151,7 @@ Program {
                             Field {
                                 name: "normal",
                                 value: Var(
-                                    Bound(Named("normal", BoundVar(0, 0)))
+                                    Bound(Named("normal", BoundVar(1, 0)))
                                 )
                             },
                             Field {
@@ -186,7 +186,7 @@ Program {
             Some(
                 Sequence(
                     [
-                        Named("z", Apply(
+                        Named("x", Apply(
                             Prim(
                                 "from_f32le",
                                 Arrow(
@@ -228,7 +228,7 @@ Program {
                                 )
                             )
                         )),
-                        Named("x", Apply(
+                        Named("z", Apply(
                             Prim(
                                 "from_f32le",
                                 Arrow(
@@ -259,13 +259,13 @@ Program {
                             Field {
                                 name: "x",
                                 value: Var(
-                                    Bound(Named("x", BoundVar(0, 0)))
+                                    Bound(Named("x", BoundVar(2, 0)))
                                 )
                             },
                             Field {
                                 name: "y",
                                 value: Var(
-                                    Bound(Named("y", BoundVar(0, 0)))
+                                    Bound(Named("y", BoundVar(1, 0)))
                                 )
                             },
                             Field {

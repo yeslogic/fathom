@@ -198,6 +198,45 @@ pub enum ParseExpr<N> {
     Apply(RcExpr<N>, RcParseExpr<N>),
 }
 
+impl<N: Name> ParseExpr<N> {
+    pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
+        match *self {
+            ParseExpr::Var(ref mut var) => var.abstract_names_at(names, scope),
+            ParseExpr::U8 => {}
+            ParseExpr::Repeat(ref mut parse_expr, ref mut size_bound) => {
+                Rc::make_mut(parse_expr).abstract_names_at(names, scope);
+
+                match *size_bound {
+                    RepeatBound::Exact(ref mut size_expr) => {
+                        Rc::make_mut(size_expr).abstract_names_at(names, scope);
+                    }
+                }
+            }
+            ParseExpr::Assert(ref mut parse_expr, ref mut pred_expr) => {
+                Rc::make_mut(parse_expr).abstract_names_at(names, scope);
+                Rc::make_mut(pred_expr).abstract_names_at(names, scope);
+            }
+            ParseExpr::Sequence(ref mut parse_exprs, ref mut expr) => {
+                for (i, &mut Named(_, ref mut parse_expr)) in parse_exprs.iter_mut().enumerate() {
+                    Rc::make_mut(parse_expr).abstract_names_at(names, scope.shift(i as u32));
+                }
+                Rc::make_mut(expr).abstract_names_at(names, scope.shift(parse_exprs.len() as u32));
+            }
+            ParseExpr::Choice(ref mut parse_exprs) => for parse_expr in parse_exprs {
+                Rc::make_mut(parse_expr).abstract_names_at(names, scope);
+            },
+            ParseExpr::Apply(ref mut fn_expr, ref mut parse_expr) => {
+                Rc::make_mut(fn_expr).abstract_names_at(names, scope);
+                Rc::make_mut(parse_expr).abstract_names_at(names, scope);
+            }
+        }
+    }
+
+    pub fn abstract_names(&mut self, names: &[N]) {
+        self.abstract_names_at(names, ScopeIndex(0));
+    }
+}
+
 pub type RcParseExpr<N> = Rc<ParseExpr<N>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

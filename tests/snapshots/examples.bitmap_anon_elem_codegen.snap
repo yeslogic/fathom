@@ -8,11 +8,19 @@ pub struct Bitmap {
 
 impl Bitmap {
     fn read<R: Read>(reader: &mut R) -> io::Result<Bitmap> {
+        let extents = {
+            let width = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+            let height = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+            Ok(Bitmap {
+                width: width,
+                height: height,
+            })
+        };
         let data = (0..(extents.width * extents.height)).map(|_| {
-            let a = buf.read_u8()?;
-            let b = buf.read_u8()?;
-            let g = buf.read_u8()?;
             let r = buf.read_u8()?;
+            let g = buf.read_u8()?;
+            let b = buf.read_u8()?;
+            let a = buf.read_u8()?;
             Ok(Bitmap::Elem {
                 r: r,
                 g: g,
@@ -20,14 +28,6 @@ impl Bitmap {
                 a: a,
             })
         }).collect::<Result<_, _>>()?;
-        let extents = {
-            let height = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
-            let width = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
-            Ok(Bitmap {
-                width: width,
-                height: height,
-            })
-        };
         Ok(Bitmap {
             extents: extents,
             data: data,
