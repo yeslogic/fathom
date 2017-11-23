@@ -113,9 +113,9 @@ pub fn ty_of<N: Name>(
                     let rhs_ty = ty_of(ctx, rhs_expr)?;
 
                     match (&*lhs_ty, &*rhs_ty) {
-                        (&Type::Const(TypeConst::U8), &Type::Const(TypeConst::U8)) |
-                        (&Type::Const(TypeConst::Bool), &Type::Const(TypeConst::Bool)) |
-                        (&Type::Const(TypeConst::Int), &Type::Const(TypeConst::Int)) => {
+                        (&Type::Const(TypeConst::U8), &Type::Const(TypeConst::U8))
+                        | (&Type::Const(TypeConst::Bool), &Type::Const(TypeConst::Bool))
+                        | (&Type::Const(TypeConst::Int), &Type::Const(TypeConst::Int)) => {
                             Ok(Rc::new(Type::bool()))
                         }
                         (lhs_ty, rhs_ty) => Err(TypeError::EqualityOperands {
