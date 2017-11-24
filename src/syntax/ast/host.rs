@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::rc::Rc;
+use std::str::FromStr;
 
 use name::{Name, Named};
 use source::Span;
@@ -26,22 +27,51 @@ impl Kind {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum IntSuffix {
+    Signed(SignedType),
+    Unsigned(UnsignedType),
+}
+
+impl FromStr for IntSuffix {
+    type Err = ParseIntSuffixError;
+
+    fn from_str(src: &str) -> Result<IntSuffix, ParseIntSuffixError> {
+        match src {
+            "u8" => Ok(IntSuffix::Unsigned(UnsignedType::U8)),
+            "u16" => Ok(IntSuffix::Unsigned(UnsignedType::U16)),
+            "u32" => Ok(IntSuffix::Unsigned(UnsignedType::U32)),
+            "u64" => Ok(IntSuffix::Unsigned(UnsignedType::U64)),
+            "i8" => Ok(IntSuffix::Signed(SignedType::I8)),
+            "i16" => Ok(IntSuffix::Signed(SignedType::I16)),
+            "i32" => Ok(IntSuffix::Signed(SignedType::I32)),
+            "i64" => Ok(IntSuffix::Signed(SignedType::I64)),
+            "" => Err(ParseIntSuffixError::Missing),
+            _ => Err(ParseIntSuffixError::Invalid),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum ParseIntSuffixError {
+    Invalid,
+    Missing,
+}
+
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Const {
-    /// A single bit
-    U8(u8),
     /// A boolean constant: eg. `true`, `false`
     Bool(bool),
-    /// An integer constant: eg. `0`, `1`, `2`, ...
-    Int(i64),
+    /// An integer constant: eg. `0u8`, `1i64`, `2i16`, ...
+    Int(u64, IntSuffix),
 }
 
 impl Const {
     pub fn ty_const_of(self) -> TypeConst {
         match self {
-            Const::U8(_) => TypeConst::U8,
             Const::Bool(_) => TypeConst::Bool,
-            Const::Int(_) => TypeConst::Int,
+            Const::Int(_, IntSuffix::Unsigned(suffix)) => TypeConst::Unsigned(suffix),
+            Const::Int(_, IntSuffix::Signed(suffix)) => TypeConst::Signed(suffix),
         }
     }
 }
@@ -49,9 +79,8 @@ impl Const {
 impl fmt::Debug for Const {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Const::U8(value) => write!(f, "U8({:?})", value),
             Const::Bool(value) => write!(f, "Bool({:?})", value),
-            Const::Int(value) => write!(f, "Int({:?})", value),
+            Const::Int(value, suffix) => write!(f, "Int({:?}, {:?})", value, suffix),
         }
     }
 }
@@ -130,19 +159,9 @@ pub enum Expr<N> {
 pub type RcExpr<N> = Rc<Expr<N>>;
 
 impl<N: Name> Expr<N> {
-    /// A byte constant: eg. `0`, `1`, `2`, ..., `255`
-    pub fn u8(span: Span, value: u8) -> Expr<N> {
-        Expr::Const(span, Const::U8(value))
-    }
-
     /// A boolean constant: eg. `true`, `false`
     pub fn bool(span: Span, value: bool) -> Expr<N> {
         Expr::Const(span, Const::Bool(value))
-    }
-
-    /// An integer constant: eg. `0`, `1`, `2`, ...
-    pub fn int(span: Span, value: i64) -> Expr<N> {
-        Expr::Const(span, Const::Int(value))
     }
 
     /// Primitive expressions
@@ -291,14 +310,49 @@ impl<N: Name> Expr<N> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeConst {
-    /// Byte
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum FloatType {
+    /// 32-bit float
+    F32,
+    /// 64-bit float
+    F64,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SignedType {
+    /// Signed 8-bit integer
+    I8,
+    /// Signed 16-bit integer
+    I16,
+    /// Signed 32-bit integer
+    I32,
+    /// Signed 64-bit integer
+    I64,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum UnsignedType {
+    /// Unsigned 8-bit integer
     U8,
+    /// Unsigned 16-bit integer
+    U16,
+    /// Unsigned 32-bit integer
+    U32,
+    /// Unsigned 64-bit integer
+    U64,
+}
+
+/// A type constant in the host language
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TypeConst {
     /// Boolean
     Bool,
-    /// Integer
-    Int,
+    /// Float
+    Float(FloatType),
+    /// Signed Integers
+    Signed(SignedType),
+    /// Unsigned Integers
+    Unsigned(UnsignedType),
 }
 
 /// A host type
@@ -337,19 +391,9 @@ impl<N: Name> Type<N> {
         Type::Var(Var::bound(name, var))
     }
 
-    /// Byte type constant
-    pub fn u8() -> Type<N> {
-        Type::Const(TypeConst::U8)
-    }
-
     /// Boolean type constant
     pub fn bool() -> Type<N> {
         Type::Const(TypeConst::Bool)
-    }
-
-    /// Integer type constant
-    pub fn int() -> Type<N> {
-        Type::Const(TypeConst::Int)
     }
 
     /// Arrow type: eg. `(T, ..) -> U`

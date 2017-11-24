@@ -7,91 +7,55 @@ Program {
             [
                 Field {
                     name: "magic",
-                    value: Int
+                    value: Const(
+                        Unsigned(
+                            U16
+                        )
+                    )
                 },
                 Field {
                     name: "width",
-                    value: Int
+                    value: Const(
+                        Unsigned(
+                            U16
+                        )
+                    )
                 },
                 Field {
                     name: "height",
-                    value: Int
+                    value: Const(
+                        Unsigned(
+                            U16
+                        )
+                    )
                 },
                 Field {
                     name: "data",
                     value: Array(
-                        U8
+                        Const(
+                            Unsigned(
+                                U8
+                            )
+                        )
                     )
                 }
             ],
             Some(
                 Sequence(
                     [
-                        Named("magic", Apply(
-                            Prim(
-                                "from_u16le",
-                                Arrow(
-                                    [
-                                        Array(
-                                            U8
-                                        )
-                                    ],
-                                    Int
-                                )
-                            ),
-                            Repeat(
-                                U8,
-                                Exact(
-                                    Const(
-                                        Int(2)
-                                    )
-                                )
-                            )
+                        Named("magic", Const(
+                            U16Le
                         )),
-                        Named("width", Apply(
-                            Prim(
-                                "from_u16le",
-                                Arrow(
-                                    [
-                                        Array(
-                                            U8
-                                        )
-                                    ],
-                                    Int
-                                )
-                            ),
-                            Repeat(
-                                U8,
-                                Exact(
-                                    Const(
-                                        Int(2)
-                                    )
-                                )
-                            )
+                        Named("width", Const(
+                            U16Le
                         )),
-                        Named("height", Apply(
-                            Prim(
-                                "from_u16le",
-                                Arrow(
-                                    [
-                                        Array(
-                                            U8
-                                        )
-                                    ],
-                                    Int
-                                )
-                            ),
-                            Repeat(
-                                U8,
-                                Exact(
-                                    Const(
-                                        Int(2)
-                                    )
-                                )
-                            )
+                        Named("height", Const(
+                            U16Le
                         )),
                         Named("data", Repeat(
-                            U8,
+                            Const(
+                                U8
+                            ),
                             Exact(
                                 Binop(
                                     Mul,

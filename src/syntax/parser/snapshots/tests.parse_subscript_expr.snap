@@ -1,18 +1,18 @@
 Unop(
     Span {
         lo: BytePos(0),
-        hi: BytePos(25)
+        hi: BytePos(34)
     },
     Neg,
     Subscript(
         Span {
             lo: BytePos(1),
-            hi: BytePos(25)
+            hi: BytePos(34)
         },
         Subscript(
             Span {
                 lo: BytePos(1),
-                hi: BytePos(18)
+                hi: BytePos(27)
             },
             Var(
                 Span {
@@ -24,43 +24,43 @@ Unop(
             Binop(
                 Span {
                     lo: BytePos(5),
-                    hi: BytePos(17)
+                    hi: BytePos(26)
                 },
                 Add,
                 Const(
                     Span {
                         lo: BytePos(5),
-                        hi: BytePos(7)
+                        hi: BytePos(10)
                     },
-                    Int(23)
+                    Int(23, Unsigned(U32))
                 ),
                 Binop(
                     Span {
-                        lo: BytePos(11),
-                        hi: BytePos(16)
+                        lo: BytePos(14),
+                        hi: BytePos(25)
                     },
                     Add,
                     Const(
                         Span {
-                            lo: BytePos(11),
-                            hi: BytePos(12)
+                            lo: BytePos(14),
+                            hi: BytePos(18)
                         },
-                        Int(2)
+                        Int(2, Unsigned(U32))
                     ),
                     Const(
                         Span {
-                            lo: BytePos(15),
-                            hi: BytePos(16)
+                            lo: BytePos(21),
+                            hi: BytePos(25)
                         },
-                        Int(3)
+                        Int(3, Unsigned(U32))
                     )
                 )
             )
         ),
         Var(
             Span {
-                lo: BytePos(19),
-                hi: BytePos(24)
+                lo: BytePos(28),
+                hi: BytePos(33)
             },
             Free("index")
         )

@@ -4,7 +4,7 @@ use std::fmt;
 use name::Named;
 use ir::ast::{Definition, Expr, Field, ParseExpr, Path, Program, RepeatBound, Type};
 use ir::ast::{RcParseExpr, RcType};
-use ir::ast::{Binop, Const, Unop};
+use ir::ast::{BinaryTypeConst, Binop, Const, TypeConst, Unop};
 use var::Var;
 
 pub struct LowerProgram<'a>(pub &'a Program<String>);
@@ -24,6 +24,8 @@ fn lower_program<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     program: &'a Program<String>,
 ) -> DocBuilder<'doc, A> {
     doc.nil()
+        .append(doc.text("extern crate ddl_util;").append(doc.newline()))
+        .append(doc.newline())
         .append(doc.text("use std::io;").append(doc.newline()))
         .append(doc.text("use std::io::prelude::*;").append(doc.newline()))
         .append(doc.newline())
@@ -96,7 +98,9 @@ fn lower_struct<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             doc.newline()
                 .append(doc.intersperse(
                     fields.iter().map(|field| {
-                        doc.as_string(&field.name)
+                        doc.text("pub")
+                            .append(doc.space())
+                            .append(doc.as_string(&field.name))
                             .append(doc.text(":"))
                             .append(doc.space())
                             .append(lower_ty(doc, &field.value))
@@ -160,7 +164,7 @@ fn lower_read_impl<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
         .append(
             doc.newline()
                 .append(
-                    doc.text("fn read<R: Read>(reader: &mut R) -> io::Result<")
+                    doc.text("pub fn read<R: Read>(reader: &mut R) -> io::Result<")
                         .append(doc.text(path.to_camel_case()))
                         .append(doc.text(">"))
                         .append(doc.space())
@@ -192,9 +196,28 @@ fn lower_ty<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             .group(),
         // FIXME: Implement this!
         Type::Arrow(_, _) => unimplemented!(),
-        Type::U8 => doc.text("u8"),
-        Type::Int => doc.text("i64"),
-        Type::Bool => doc.text("bool"),
+        Type::Const(ty_const) => lower_ty_const(doc, ty_const),
+    }
+}
+
+fn lower_ty_const<'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    ty_const: TypeConst,
+) -> DocBuilder<'doc, A> {
+    use ir::ast::{FloatType, SignedType, UnsignedType};
+
+    match ty_const {
+        TypeConst::Bool => doc.text("bool"),
+        TypeConst::Float(FloatType::F32) => doc.text("f32"),
+        TypeConst::Float(FloatType::F64) => doc.text("f64"),
+        TypeConst::Signed(SignedType::I8) => doc.text("i8"),
+        TypeConst::Signed(SignedType::I16) => doc.text("i16"),
+        TypeConst::Signed(SignedType::I32) => doc.text("i32"),
+        TypeConst::Signed(SignedType::I64) => doc.text("i64"),
+        TypeConst::Unsigned(UnsignedType::U8) => doc.text("u8"),
+        TypeConst::Unsigned(UnsignedType::U16) => doc.text("u16"),
+        TypeConst::Unsigned(UnsignedType::U32) => doc.text("u32"),
+        TypeConst::Unsigned(UnsignedType::U64) => doc.text("u64"),
     }
 }
 
@@ -212,7 +235,7 @@ fn lower_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     match *parse_expr {
         ParseExpr::Var(Var::Free(_)) => unimplemented!(),
         ParseExpr::Var(Var::Bound(Named(ref name, _))) => lower_named_parse_expr(doc, name),
-        ParseExpr::U8 => doc.as_string("buf.read_u8()?"),
+        ParseExpr::Const(ty_const) => lower_parse_ty_const(doc, ty_const),
         ParseExpr::Repeat(ref parse_expr, ref repeat_bound) => {
             lower_repeat_parse_expr(doc, prec, parse_expr, repeat_bound)
         }
@@ -226,7 +249,7 @@ fn lower_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
         ParseExpr::Apply(ref fn_expr, ref parse_expr) => lower_expr(doc, fn_expr)
             .append(doc.text("("))
             .append(lower_parse_expr(doc, Prec::Expr, parse_expr))
-            .append(doc.text(")?")),
+            .append(doc.text(")")),
     }
 }
 
@@ -234,7 +257,33 @@ fn lower_named_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
     name: &'a str,
 ) -> DocBuilder<'doc, A> {
-    doc.as_string(name).append(doc.as_string("::read(buf)?"))
+    doc.as_string(name).append(doc.as_string("::read(reader)"))
+}
+
+fn lower_parse_ty_const<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    ty_const: BinaryTypeConst,
+) -> DocBuilder<'doc, A> {
+    doc.text(match ty_const {
+        BinaryTypeConst::U8 => "ddl_util::from_u8(reader)",
+        BinaryTypeConst::I8 => "ddl_util::from_i8(reader)",
+        BinaryTypeConst::U16Le => "ddl_util::from_u16le(reader)",
+        BinaryTypeConst::U32Le => "ddl_util::from_u32le(reader)",
+        BinaryTypeConst::U64Le => "ddl_util::from_u64le(reader)",
+        BinaryTypeConst::I16Le => "ddl_util::from_i16le(reader)",
+        BinaryTypeConst::I32Le => "ddl_util::from_i32le(reader)",
+        BinaryTypeConst::I64Le => "ddl_util::from_i64le(reader)",
+        BinaryTypeConst::F32Le => "ddl_util::from_f32le(reader)",
+        BinaryTypeConst::F64Le => "ddl_util::from_f64le(reader)",
+        BinaryTypeConst::U16Be => "ddl_util::from_u16be(reader)",
+        BinaryTypeConst::U32Be => "ddl_util::from_u32be(reader)",
+        BinaryTypeConst::U64Be => "ddl_util::from_u64be(reader)",
+        BinaryTypeConst::I16Be => "ddl_util::from_i16be(reader)",
+        BinaryTypeConst::I32Be => "ddl_util::from_i32be(reader)",
+        BinaryTypeConst::I64Be => "ddl_util::from_i64be(reader)",
+        BinaryTypeConst::F32Be => "ddl_util::from_f32be(reader)",
+        BinaryTypeConst::F64Be => "ddl_util::from_f64be(reader)",
+    })
 }
 
 fn lower_repeat_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
@@ -255,7 +304,7 @@ fn lower_repeat_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
                         .append(doc.text(")"))
                         .group(),
                 )
-                .append(doc.text(".collect::<Result<_, _>>()?"));
+                .append(doc.text(".collect::<Result<_, _>>()"));
 
             match prec {
                 Prec::Block | Prec::Expr => inner_parser,
@@ -275,7 +324,7 @@ fn lower_assert_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             // FIXME: Hygiene!
             doc.text("let __value = ")
                 .append(lower_parse_expr(doc, prec, parse_expr))
-                .append(doc.text("?;"))
+                .append(doc.text(";"))
                 .group(),
         )
         .append(doc.newline())
@@ -324,7 +373,7 @@ fn lower_sequence_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             .group()
             .append(doc.space())
             .append(lower_parse_expr(doc, Prec::Expr, parse_expr))
-            .append(doc.text(";"))
+            .append(doc.text("?;"))
             .group()
             .append(doc.newline())
     })).append(doc.text("Ok(").append(lower_expr(doc, expr)).append(")"));
@@ -379,10 +428,9 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     match *expr {
         // FIXME: Hygiene!
         Expr::Const(Const::Bool(value)) => doc.as_string(value),
-        Expr::Const(Const::U8(value)) => doc.as_string(value),
-        Expr::Const(Const::Int(value)) => doc.as_string(value),
+        Expr::Const(Const::Int(value, _)) => doc.as_string(value),
         // FXIME: Hygiene!
-        Expr::Prim(name, _) => doc.as_string(name),
+        Expr::Prim(name, _) => doc.text("ddl_util::").append(doc.as_string(name)),
         Expr::Var(Var::Free(_)) => unimplemented!(),
         Expr::Var(Var::Bound(Named(ref name, _))) => doc.as_string(name),
         Expr::Unop(op, ref expr) => {
@@ -458,7 +506,11 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             .append(doc.text(")")),
         Expr::Subscript(ref expr, ref index) => lower_expr(doc, expr)
             .append(doc.text("["))
-            .append(lower_expr(doc, index))
+            .append(
+                lower_expr(doc, index)
+                    .append(doc.space())
+                    .append(doc.text("as usize")),
+            )
             .append(doc.text("]")),
         Expr::Abs(_, _) => unimplemented!(),
         Expr::App(ref fn_expr, ref arg_exprs) => {

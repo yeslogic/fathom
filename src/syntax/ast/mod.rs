@@ -110,44 +110,28 @@ impl<N: Name> Program<N> {
 pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
     use syntax::ast::binary::{Type, TypeConst};
 
-    fn prim_array_ty<N: Name>(size: i64, conv_name: &'static str) -> binary::Type<N> {
-        use source::Span;
-        use syntax::ast::host::Expr;
-
-        let array_ty = Type::array(Span::start(), Type::u8(), Expr::int(Span::start(), size));
-        let conv_ty = host::Type::arrow(vec![array_ty.repr()], host::Type::int());
-
-        Type::interp(
-            Span::start(),
-            array_ty,
-            Expr::prim(conv_name, conv_ty),
-            host::Type::int(),
-        )
-    }
-
     btreemap! {
         // TODO: "true" = Expr::bool(true)
         // TODO: "false" = Expr::bool(false)
         "u8".into() => Type::Const(TypeConst::U8),
+        "i8".into() => Type::Const(TypeConst::I8),
         // Little endian primitives
-        "u16le".into() => prim_array_ty(2, "from_u16le"),
-        "u32le".into() => prim_array_ty(4, "from_u32le"),
-        "u64le".into() => prim_array_ty(8, "from_u64le"),
-        "i8le".into() => prim_array_ty(8, "from_i8le"),
-        "i16le".into() => prim_array_ty(2, "from_i16le"),
-        "i32le".into() => prim_array_ty(4, "from_i32le"),
-        "i64le".into() => prim_array_ty(8, "from_i64le"),
-        "f32le".into() => prim_array_ty(4, "from_f32le"),
-        "f64le".into() => prim_array_ty(8, "from_f64le"),
+        "u16le".into() => Type::Const(TypeConst::U16Le),
+        "u32le".into() => Type::Const(TypeConst::U32Le),
+        "u64le".into() => Type::Const(TypeConst::U64Le),
+        "i16le".into() => Type::Const(TypeConst::I16Le),
+        "i32le".into() => Type::Const(TypeConst::I32Le),
+        "i64le".into() => Type::Const(TypeConst::I64Le),
+        "f32le".into() => Type::Const(TypeConst::F32Le),
+        "f64le".into() => Type::Const(TypeConst::F64Le),
         // Big endian primitives
-        "u16be".into() => prim_array_ty(2, "from_u16be"),
-        "u32be".into() => prim_array_ty(4, "from_u32be"),
-        "u64be".into() => prim_array_ty(8, "from_u64be"),
-        "i8be".into() => prim_array_ty(8, "from_i8be"),
-        "i16be".into() => prim_array_ty(2, "from_i16be"),
-        "i32be".into() => prim_array_ty(4, "from_i32be"),
-        "i64be".into() => prim_array_ty(8, "from_i64be"),
-        "f32be".into() => prim_array_ty(4, "from_f32be"),
-        "f64be".into() => prim_array_ty(8, "from_f64be"),
+        "u16be".into() => Type::Const(TypeConst::U16Be),
+        "u32be".into() => Type::Const(TypeConst::U32Be),
+        "u64be".into() => Type::Const(TypeConst::U64Be),
+        "i16be".into() => Type::Const(TypeConst::I16Be),
+        "i32be".into() => Type::Const(TypeConst::I32Be),
+        "i64be".into() => Type::Const(TypeConst::I64Be),
+        "f32be".into() => Type::Const(TypeConst::F32Be),
+        "f64be".into() => Type::Const(TypeConst::F64Be),
     }
 }

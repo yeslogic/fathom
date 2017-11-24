@@ -1,26 +1,28 @@
+extern crate ddl_util;
+
 use std::io;
 use std::io::prelude::*;
 
 pub struct Bitmap {
-    extents: Bitmap::extents,
-    data: Vec<Bitmap::data::Elem>,
+    pub extents: Bitmap::extents,
+    pub data: Vec<Bitmap::data::Elem>,
 }
 
 impl Bitmap {
-    fn read<R: Read>(reader: &mut R) -> io::Result<Bitmap> {
+    pub fn read<R: Read>(reader: &mut R) -> io::Result<Bitmap> {
         let extents = {
-            let width = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
-            let height = from_u32be((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+            let width = ddl_util::from_u32be(reader)?;
+            let height = ddl_util::from_u32be(reader)?;
             Ok(Bitmap {
                 width: width,
                 height: height,
             })
-        };
+        }?;
         let data = (0..(extents.width * extents.height)).map(|_| {
-            let r = buf.read_u8()?;
-            let g = buf.read_u8()?;
-            let b = buf.read_u8()?;
-            let a = buf.read_u8()?;
+            let r = ddl_util::from_u8(reader)?;
+            let g = ddl_util::from_u8(reader)?;
+            let b = ddl_util::from_u8(reader)?;
+            let a = ddl_util::from_u8(reader)?;
             Ok(Bitmap::Elem {
                 r: r,
                 g: g,
@@ -36,15 +38,15 @@ impl Bitmap {
 }
 
 pub struct BitmapDataElem {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
 }
 
 pub struct BitmapExtents {
-    width: i64,
-    height: i64,
+    pub width: u32,
+    pub height: u32,
 }
 
 pub type Bmp = Bitmap;

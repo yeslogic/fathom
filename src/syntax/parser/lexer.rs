@@ -58,9 +58,9 @@ pub enum ErrorCode {
 pub enum Token<'input> {
     // Data
     Ident(&'input str),
-    BinLiteral(i64),
-    DecLiteral(i64),
-    HexLiteral(i64),
+    BinLiteral(u64, &'input str),
+    DecLiteral(u64, &'input str),
+    HexLiteral(u64, &'input str),
 
     // Keywords
     Struct,
@@ -186,6 +186,16 @@ impl<'input> Lexer<'input> {
         (start, token, end)
     }
 
+    /// Consume a literal suffix
+    fn literal_suffix(&mut self, start: BytePos) -> (BytePos, &'input str) {
+        if self.test_lookahead(is_ident_start) {
+            self.bump(); // skip ident start
+            self.take_while(start, is_ident_continue)
+        } else {
+            (start, "")
+        }
+    }
+
     /// Consume a binary literal token
     fn bin_literal(&mut self, start: BytePos) -> Result<(BytePos, Token<'input>, BytePos), Error> {
         self.bump(); // skip 'b'
@@ -193,8 +203,10 @@ impl<'input> Lexer<'input> {
         if src.is_empty() {
             error(start, ErrorCode::ExpectedBinLiteral)
         } else {
-            let int = i64::from_str_radix(src, 2).unwrap();
-            Ok((start, Token::BinLiteral(int), end))
+            let int = u64::from_str_radix(src, 2).unwrap();
+            let (end, suffix) = self.literal_suffix(end);
+
+            Ok((start, Token::BinLiteral(int, suffix), end))
         }
     }
 
@@ -205,16 +217,20 @@ impl<'input> Lexer<'input> {
         if src.is_empty() {
             error(start, ErrorCode::ExpectedHexLiteral)
         } else {
-            let int = i64::from_str_radix(src, 16).unwrap();
-            Ok((start, Token::HexLiteral(int), end))
+            let int = u64::from_str_radix(src, 16).unwrap();
+            let (end, suffix) = self.literal_suffix(end);
+
+            Ok((start, Token::HexLiteral(int, suffix), end))
         }
     }
 
     /// Consume a decimal literal token
     fn dec_literal(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
         let (end, src) = self.take_while(start, is_dec_digit);
-        let int = i64::from_str_radix(src, 10).unwrap();
-        (start, Token::DecLiteral(int), end)
+        let int = u64::from_str_radix(src, 10).unwrap();
+        let (end, suffix) = self.literal_suffix(end);
+
+        (start, Token::DecLiteral(int, suffix), end)
     }
 }
 
@@ -299,11 +315,11 @@ mod tests {
     #[test]
     fn data() {
         test! {
-            "  u8  0b0100101  0x6Ffa6  1234   ",
-            "  ~~                             " => Token::Ident("u8"),
-            "      ~~~~~~~~~                  " => Token::BinLiteral(37),
-            "                 ~~~~~~~         " => Token::HexLiteral(458662),
-            "                          ~~~~   " => Token::DecLiteral(1234),
+            "  u8  0b0100101  0x6Ffa6u32  1234i8  ",
+            "  ~~                                 " => Token::Ident("u8"),
+            "      ~~~~~~~~~                      " => Token::BinLiteral(37, ""),
+            "                 ~~~~~~~~~~          " => Token::HexLiteral(458662, "u32"),
+            "                             ~~~~~~  " => Token::DecLiteral(1234, "i8"),
         };
     }
 
@@ -359,12 +375,12 @@ mod tests {
     #[test]
     fn array_ty() {
         test! {
-            "[u8; 34]",
-            "~       " => Token::LBracket,
-            " ~~     " => Token::Ident("u8"),
-            "   ~    " => Token::Semi,
-            "     ~~ " => Token::DecLiteral(34),
-            "       ~" => Token::RBracket,
+            "[u8; 34u32]",
+            "~          " => Token::LBracket,
+            " ~~        " => Token::Ident("u8"),
+            "   ~       " => Token::Semi,
+            "     ~~~~~ " => Token::DecLiteral(34, "u32"),
+            "          ~" => Token::RBracket,
         };
     }
 

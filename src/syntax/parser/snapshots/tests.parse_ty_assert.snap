@@ -1,17 +1,17 @@
 Assert(
     Span {
         lo: BytePos(9),
-        hi: BytePos(117)
+        hi: BytePos(126)
     },
     Assert(
         Span {
             lo: BytePos(9),
-            hi: BytePos(91)
+            hi: BytePos(97)
         },
         Struct(
             Span {
                 lo: BytePos(9),
-                hi: BytePos(65)
+                hi: BytePos(68)
             },
             [
                 Field {
@@ -19,7 +19,7 @@ Assert(
                     value: Assert(
                         Span {
                             lo: BytePos(33),
-                            hi: BytePos(54)
+                            hi: BytePos(57)
                         },
                         Var(
                             Span {
@@ -31,7 +31,7 @@ Assert(
                         Abs(
                             Span {
                                 lo: BytePos(43),
-                                hi: BytePos(54)
+                                hi: BytePos(57)
                             },
                             [
                                 Named("x", Var(
@@ -41,7 +41,7 @@ Assert(
                             Binop(
                                 Span {
                                     lo: BytePos(48),
-                                    hi: BytePos(54)
+                                    hi: BytePos(57)
                                 },
                                 Eq,
                                 Var(
@@ -54,9 +54,9 @@ Assert(
                                 Const(
                                     Span {
                                         lo: BytePos(53),
-                                        hi: BytePos(54)
+                                        hi: BytePos(57)
                                     },
-                                    Int(3)
+                                    Int(3, Unsigned(U32))
                                 )
                             )
                         )
@@ -66,8 +66,8 @@ Assert(
         ),
         Abs(
             Span {
-                lo: BytePos(80),
-                hi: BytePos(91)
+                lo: BytePos(83),
+                hi: BytePos(97)
             },
             [
                 Named("x", Struct(
@@ -83,31 +83,31 @@ Assert(
             ],
             Binop(
                 Span {
-                    lo: BytePos(85),
-                    hi: BytePos(91)
+                    lo: BytePos(88),
+                    hi: BytePos(97)
                 },
                 Eq,
                 Var(
                     Span {
-                        lo: BytePos(85),
-                        hi: BytePos(86)
+                        lo: BytePos(88),
+                        hi: BytePos(89)
                     },
                     Bound(Named("x", BoundVar(0, 0)))
                 ),
                 Const(
                     Span {
-                        lo: BytePos(90),
-                        hi: BytePos(91)
+                        lo: BytePos(93),
+                        hi: BytePos(97)
                     },
-                    Int(2)
+                    Int(2, Unsigned(U32))
                 )
             )
         )
     ),
     Abs(
         Span {
-            lo: BytePos(106),
-            hi: BytePos(117)
+            lo: BytePos(112),
+            hi: BytePos(126)
         },
         [
             Named("x", Struct(
@@ -123,23 +123,23 @@ Assert(
         ],
         Binop(
             Span {
-                lo: BytePos(111),
-                hi: BytePos(117)
+                lo: BytePos(117),
+                hi: BytePos(126)
             },
             Eq,
             Var(
                 Span {
-                    lo: BytePos(111),
-                    hi: BytePos(112)
+                    lo: BytePos(117),
+                    hi: BytePos(118)
                 },
                 Bound(Named("x", BoundVar(0, 0)))
             ),
             Const(
                 Span {
-                    lo: BytePos(116),
-                    hi: BytePos(117)
+                    lo: BytePos(122),
+                    hi: BytePos(126)
                 },
-                Int(1)
+                Int(1, Unsigned(U32))
             )
         )
     )

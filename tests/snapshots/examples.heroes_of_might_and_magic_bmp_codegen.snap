@@ -1,19 +1,22 @@
+extern crate ddl_util;
+
 use std::io;
 use std::io::prelude::*;
 
 pub struct HerosOfMightAndMagicBmp {
-    magic: i64,
-    width: i64,
-    height: i64,
-    data: Vec<u8>,
+    pub magic: u16,
+    pub width: u16,
+    pub height: u16,
+    pub data: Vec<u8>,
 }
 
 impl HerosOfMightAndMagicBmp {
-    fn read<R: Read>(reader: &mut R) -> io::Result<HerosOfMightAndMagicBmp> {
-        let magic = from_u16le((0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
-        let width = from_u16le((0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
-        let height = from_u16le((0..2).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
-        let data = (0..(width * height)).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
+    pub fn read<R: Read>(reader: &mut R) -> io::Result<HerosOfMightAndMagicBmp> {
+        let magic = ddl_util::from_u16le(reader)?;
+        let width = ddl_util::from_u16le(reader)?;
+        let height = ddl_util::from_u16le(reader)?;
+        let data =
+        (0..(width * height)).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
         Ok(HerosOfMightAndMagicBmp {
             magic: magic,
             width: width,

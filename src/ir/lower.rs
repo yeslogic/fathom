@@ -100,7 +100,7 @@ fn lower_ty(
     // Mirroring `binary::Type::repr`
     Rc::new(match **ty {
         binary::Type::Var(_, ref var) => return lower_ty_var(var),
-        binary::Type::Const(binary::TypeConst::U8) => Type::U8,
+        binary::Type::Const(ty_const) => Type::Const(ty_const.repr()),
         binary::Type::Array(_, ref elem_ty, _) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_ty(program, &elem_path, elem_ty);
@@ -141,9 +141,7 @@ fn lower_ty(
 fn lower_repr_ty(path: &Path<String>, ty: &host::RcType<String>) -> RcType<String> {
     Rc::new(match **ty {
         host::Type::Var(ref var) => return lower_ty_var(var),
-        host::Type::Const(host::TypeConst::U8) => Type::U8,
-        host::Type::Const(host::TypeConst::Int) => Type::Int,
-        host::Type::Const(host::TypeConst::Bool) => Type::Bool,
+        host::Type::Const(ty_const) => Type::Const(ty_const),
         host::Type::Arrow(ref arg_tys, ref ret_ty) => {
             let arg_repr_tys = arg_tys
                 .iter()
@@ -285,7 +283,7 @@ fn union_parser(
 fn ty_parser(path: &Path<String>, ty: &binary::RcType<String>) -> RcParseExpr<String> {
     Rc::new(match **ty {
         binary::Type::Var(_, ref var) => ParseExpr::Var(var.clone()),
-        binary::Type::Const(binary::TypeConst::U8) => ParseExpr::U8,
+        binary::Type::Const(ty_const) => ParseExpr::Const(ty_const),
         binary::Type::Array(_, ref elem_ty, ref size_expr) => {
             let elem_path = path.append_child("Elem");
             let elem_parser = ty_parser(&elem_path, elem_ty);

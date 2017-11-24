@@ -36,47 +36,11 @@ Program {
                     [
                         Named("extents", Sequence(
                             [
-                                Named("width", Apply(
-                                    Prim(
-                                        "from_u32be",
-                                        Arrow(
-                                            [
-                                                Array(
-                                                    U8
-                                                )
-                                            ],
-                                            Int
-                                        )
-                                    ),
-                                    Repeat(
-                                        U8,
-                                        Exact(
-                                            Const(
-                                                Int(4)
-                                            )
-                                        )
-                                    )
+                                Named("width", Const(
+                                    U32Be
                                 )),
-                                Named("height", Apply(
-                                    Prim(
-                                        "from_u32be",
-                                        Arrow(
-                                            [
-                                                Array(
-                                                    U8
-                                                )
-                                            ],
-                                            Int
-                                        )
-                                    ),
-                                    Repeat(
-                                        U8,
-                                        Exact(
-                                            Const(
-                                                Int(4)
-                                            )
-                                        )
-                                    )
+                                Named("height", Const(
+                                    U32Be
                                 ))
                             ],
                             Struct(
@@ -103,10 +67,18 @@ Program {
                         Named("data", Repeat(
                             Sequence(
                                 [
-                                    Named("r", U8),
-                                    Named("g", U8),
-                                    Named("b", U8),
-                                    Named("a", U8)
+                                    Named("r", Const(
+                                        U8
+                                    )),
+                                    Named("g", Const(
+                                        U8
+                                    )),
+                                    Named("b", Const(
+                                        U8
+                                    )),
+                                    Named("a", Const(
+                                        U8
+                                    ))
                                 ],
                                 Struct(
                                     Path {
@@ -195,19 +167,35 @@ Program {
             [
                 Field {
                     name: "r",
-                    value: U8
+                    value: Const(
+                        Unsigned(
+                            U8
+                        )
+                    )
                 },
                 Field {
                     name: "g",
-                    value: U8
+                    value: Const(
+                        Unsigned(
+                            U8
+                        )
+                    )
                 },
                 Field {
                     name: "b",
-                    value: U8
+                    value: Const(
+                        Unsigned(
+                            U8
+                        )
+                    )
                 },
                 Field {
                     name: "a",
-                    value: U8
+                    value: Const(
+                        Unsigned(
+                            U8
+                        )
+                    )
                 }
             ],
             None
@@ -221,11 +209,19 @@ Program {
             [
                 Field {
                     name: "width",
-                    value: Int
+                    value: Const(
+                        Unsigned(
+                            U32
+                        )
+                    )
                 },
                 Field {
                     name: "height",
-                    value: Int
+                    value: Const(
+                        Unsigned(
+                            U32
+                        )
+                    )
                 }
             ],
             None

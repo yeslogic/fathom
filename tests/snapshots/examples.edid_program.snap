@@ -5,7 +5,7 @@ Program {
             ty: Struct(
                 Span {
                     lo: BytePos(9),
-                    hi: BytePos(650)
+                    hi: BytePos(653)
                 },
                 [
                     Field {
@@ -13,7 +13,7 @@ Program {
                         value: Array(
                             Span {
                                 lo: BytePos(58),
-                                hi: BytePos(65)
+                                hi: BytePos(68)
                             },
                             Var(
                                 Span {
@@ -25,9 +25,9 @@ Program {
                             Const(
                                 Span {
                                     lo: BytePos(63),
-                                    hi: BytePos(64)
+                                    hi: BytePos(67)
                                 },
-                                Int(8)
+                                Int(8, Unsigned(U32))
                             )
                         )
                     },
@@ -35,8 +35,8 @@ Program {
                         name: "mfg_bytes",
                         value: Var(
                             Span {
-                                lo: BytePos(178),
-                                hi: BytePos(183)
+                                lo: BytePos(181),
+                                hi: BytePos(186)
                             },
                             Free("u16le")
                         )
@@ -45,8 +45,8 @@ Program {
                         name: "product_code",
                         value: Var(
                             Span {
-                                lo: BytePos(237),
-                                hi: BytePos(242)
+                                lo: BytePos(240),
+                                hi: BytePos(245)
                             },
                             Free("u16le")
                         )
@@ -55,8 +55,8 @@ Program {
                         name: "serial",
                         value: Var(
                             Span {
-                                lo: BytePos(278),
-                                hi: BytePos(283)
+                                lo: BytePos(281),
+                                hi: BytePos(286)
                             },
                             Free("u32le")
                         )
@@ -65,8 +65,8 @@ Program {
                         name: "mfg_week",
                         value: Var(
                             Span {
-                                lo: BytePos(384),
-                                hi: BytePos(386)
+                                lo: BytePos(387),
+                                hi: BytePos(389)
                             },
                             Free("u8")
                         )
@@ -75,8 +75,8 @@ Program {
                         name: "mfg_year_mod",
                         value: Var(
                             Span {
-                                lo: BytePos(504),
-                                hi: BytePos(506)
+                                lo: BytePos(507),
+                                hi: BytePos(509)
                             },
                             Free("u8")
                         )
@@ -85,8 +85,8 @@ Program {
                         name: "edid_version_major",
                         value: Var(
                             Span {
-                                lo: BytePos(574),
-                                hi: BytePos(576)
+                                lo: BytePos(577),
+                                hi: BytePos(579)
                             },
                             Free("u8")
                         )
@@ -95,8 +95,8 @@ Program {
                         name: "edid_version_minor",
                         value: Var(
                             Span {
-                                lo: BytePos(645),
-                                hi: BytePos(647)
+                                lo: BytePos(648),
+                                hi: BytePos(650)
                             },
                             Free("u8")
                         )
@@ -108,16 +108,16 @@ Program {
             name: "DisplayParams",
             ty: Struct(
                 Span {
-                    lo: BytePos(669),
-                    hi: BytePos(1128)
+                    lo: BytePos(672),
+                    hi: BytePos(1131)
                 },
                 [
                     Field {
                         name: "input_flags",
                         value: Var(
                             Span {
-                                lo: BytePos(733),
-                                hi: BytePos(735)
+                                lo: BytePos(736),
+                                hi: BytePos(738)
                             },
                             Free("u8")
                         )
@@ -126,8 +126,8 @@ Program {
                         name: "screen_size_h",
                         value: Var(
                             Span {
-                                lo: BytePos(851),
-                                hi: BytePos(853)
+                                lo: BytePos(854),
+                                hi: BytePos(856)
                             },
                             Free("u8")
                         )
@@ -136,8 +136,8 @@ Program {
                         name: "screen_size_v",
                         value: Var(
                             Span {
-                                lo: BytePos(975),
-                                hi: BytePos(977)
+                                lo: BytePos(978),
+                                hi: BytePos(980)
                             },
                             Free("u8")
                         )
@@ -146,8 +146,8 @@ Program {
                         name: "gamma_mod",
                         value: Var(
                             Span {
-                                lo: BytePos(1065),
-                                hi: BytePos(1067)
+                                lo: BytePos(1068),
+                                hi: BytePos(1070)
                             },
                             Free("u8")
                         )
@@ -156,8 +156,8 @@ Program {
                         name: "features_flags",
                         value: Var(
                             Span {
-                                lo: BytePos(1123),
-                                hi: BytePos(1125)
+                                lo: BytePos(1126),
+                                hi: BytePos(1128)
                             },
                             Free("u8")
                         )
@@ -169,16 +169,16 @@ Program {
             name: "Edid",
             ty: Struct(
                 Span {
-                    lo: BytePos(1209),
-                    hi: BytePos(1455)
+                    lo: BytePos(1212),
+                    hi: BytePos(1458)
                 },
                 [
                     Field {
                         name: "header",
                         value: Var(
                             Span {
-                                lo: BytePos(1257),
-                                hi: BytePos(1263)
+                                lo: BytePos(1260),
+                                hi: BytePos(1266)
                             },
                             Bound(Named("Header", BoundVar(1, 0)))
                         )
@@ -187,8 +187,8 @@ Program {
                         name: "display_params",
                         value: Var(
                             Span {
-                                lo: BytePos(1318),
-                                hi: BytePos(1331)
+                                lo: BytePos(1321),
+                                hi: BytePos(1334)
                             },
                             Bound(Named("DisplayParams", BoundVar(1, 0)))
                         )

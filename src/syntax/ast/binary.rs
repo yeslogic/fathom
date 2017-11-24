@@ -32,9 +32,55 @@ impl Kind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A type constant in the binary language
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TypeConst {
     U8,
+    I8,
+    U16Le,
+    U32Le,
+    U64Le,
+    I16Le,
+    I32Le,
+    I64Le,
+    F32Le,
+    F64Le,
+    U16Be,
+    U32Be,
+    U64Be,
+    I16Be,
+    I32Be,
+    I64Be,
+    F32Be,
+    F64Be,
+}
+
+impl TypeConst {
+    /// Convert a bianary type constant to its corresponding host representation
+    pub fn repr(self) -> host::TypeConst {
+        use syntax::ast::host::{FloatType, SignedType, UnsignedType};
+
+        match self {
+            TypeConst::U8 => host::TypeConst::Unsigned(UnsignedType::U8),
+            TypeConst::I8 => host::TypeConst::Signed(SignedType::I8),
+            TypeConst::U16Le => host::TypeConst::Unsigned(UnsignedType::U16),
+            TypeConst::U32Le => host::TypeConst::Unsigned(UnsignedType::U32),
+            TypeConst::U64Le => host::TypeConst::Unsigned(UnsignedType::U64),
+            TypeConst::I16Le => host::TypeConst::Signed(SignedType::I16),
+            TypeConst::I32Le => host::TypeConst::Signed(SignedType::I32),
+            TypeConst::I64Le => host::TypeConst::Signed(SignedType::I64),
+            TypeConst::F32Le => host::TypeConst::Float(FloatType::F32),
+            TypeConst::F64Le => host::TypeConst::Float(FloatType::F64),
+            TypeConst::U16Be => host::TypeConst::Unsigned(UnsignedType::U16),
+            TypeConst::U32Be => host::TypeConst::Unsigned(UnsignedType::U32),
+            TypeConst::U64Be => host::TypeConst::Unsigned(UnsignedType::U64),
+            TypeConst::I16Be => host::TypeConst::Signed(SignedType::I16),
+            TypeConst::I32Be => host::TypeConst::Signed(SignedType::I32),
+            TypeConst::I64Be => host::TypeConst::Signed(SignedType::I64),
+            TypeConst::F32Be => host::TypeConst::Float(FloatType::F32),
+            TypeConst::F64Be => host::TypeConst::Float(FloatType::F64),
+        }
+    }
 }
 
 /// A binary type
@@ -73,11 +119,6 @@ impl<N: Name> Type<N> {
     /// A bound type variable
     pub fn bvar<N1: Into<N>>(span: Span, name: N1, var: BoundVar) -> Type<N> {
         Type::Var(span.into(), Var::bound(name, var))
-    }
-
-    /// Byte type constant
-    pub fn u8() -> Type<N> {
-        Type::Const(TypeConst::U8)
     }
 
     /// An array of the specified type, with a size: eg. `[T; n]`
@@ -326,7 +367,7 @@ impl<N: Name> Type<N> {
     pub fn repr(&self) -> host::RcType<N> {
         match *self {
             Type::Var(_, ref v) => Rc::new(host::Type::Var(v.clone())),
-            Type::Const(TypeConst::U8) => Rc::new(host::Type::Const(host::TypeConst::U8)),
+            Type::Const(ty_const) => Rc::new(host::Type::Const(ty_const.repr())),
             Type::Array(_, ref elem_ty, _) => Rc::new(host::Type::Array(elem_ty.repr())),
             Type::Assert(_, ref ty, _) => ty.repr(),
             Type::Interp(_, _, _, ref repr_ty) => repr_ty.clone(),

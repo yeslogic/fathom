@@ -1,17 +1,20 @@
+extern crate ddl_util;
+
 use std::io;
 use std::io::prelude::*;
 
 pub struct Stl {
-    header: Vec<u8>,
-    num_triangles: i64,
-    triangles: Vec<Triangle>,
+    pub header: Vec<u8>,
+    pub num_triangles: u32,
+    pub triangles: Vec<Triangle>,
 }
 
 impl Stl {
-    fn read<R: Read>(reader: &mut R) -> io::Result<Stl> {
-        let header = (0..80).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?;
-        let num_triangles = from_u32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
-        let triangles = (0..num_triangles).map(|_| Triangle::read(buf)?).collect::<Result<_, _>>()?;
+    pub fn read<R: Read>(reader: &mut R) -> io::Result<Stl> {
+        let header = (0..80).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
+        let num_triangles = ddl_util::from_u32le(reader)?;
+        let triangles =
+        (0..num_triangles).map(|_| Triangle::read(reader)).collect::<Result<_, _>>()?;
         Ok(Stl {
             header: header,
             num_triangles: num_triangles,
@@ -21,14 +24,14 @@ impl Stl {
 }
 
 pub struct Triangle {
-    normal: Vec3d,
-    vertices: Vec<Vec3d>,
+    pub normal: Vec3d,
+    pub vertices: Vec<Vec3d>,
 }
 
 impl Triangle {
-    fn read<R: Read>(reader: &mut R) -> io::Result<Triangle> {
-        let normal = Vec3d::read(buf)?;
-        let vertices = (0..3).map(|_| Vec3d::read(buf)?).collect::<Result<_, _>>()?;
+    pub fn read<R: Read>(reader: &mut R) -> io::Result<Triangle> {
+        let normal = Vec3d::read(reader)?;
+        let vertices = (0..3).map(|_| Vec3d::read(reader)).collect::<Result<_, _>>()?;
         Ok(Triangle {
             normal: normal,
             vertices: vertices,
@@ -37,16 +40,16 @@ impl Triangle {
 }
 
 pub struct Vec3d {
-    x: i64,
-    y: i64,
-    z: i64,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
 }
 
 impl Vec3d {
-    fn read<R: Read>(reader: &mut R) -> io::Result<Vec3d> {
-        let x = from_f32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
-        let y = from_f32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
-        let z = from_f32le((0..4).map(|_| buf.read_u8()?).collect::<Result<_, _>>()?)?;
+    pub fn read<R: Read>(reader: &mut R) -> io::Result<Vec3d> {
+        let x = ddl_util::from_f32le(reader)?;
+        let y = ddl_util::from_f32le(reader)?;
+        let z = ddl_util::from_f32le(reader)?;
         Ok(Vec3d {
             x: x,
             y: y,

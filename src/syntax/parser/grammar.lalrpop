@@ -1,11 +1,13 @@
 use std::iter;
 
+use lalrpop_util::ParseError::User as UserError;
+use name::Named;
 use source::{BytePos, Span};
 use syntax::ast::{Definition, Field, Program};
 use syntax::ast::binary::{RcType, Type};
-use syntax::ast::host::{Binop, RcExpr, Expr, Unop};
-use syntax::parser::lexer::{Error as LexerError, Token};
-use name::Named;
+use syntax::ast::host::{Binop, Const, Expr, RcExpr, Unop};
+use syntax::parser::GrammarError;
+use syntax::parser::lexer::Token;
 
 
 grammar<'input>();
@@ -15,14 +17,14 @@ grammar<'input>();
 
 extern {
     type Location = BytePos;
-    type Error = LexerError;
+    type Error = GrammarError;
 
     enum Token<'input> {
         // Data
         "Ident" => Token::Ident(<&'input str>),
-        "BinLiteral" => Token::BinLiteral(<i64>),
-        "HexLiteral" => Token::HexLiteral(<i64>),
-        "DecLiteral" => Token::DecLiteral(<i64>),
+        "BinLiteral" => Token::BinLiteral(<u64>, <&'input str>),
+        "HexLiteral" => Token::HexLiteral(<u64>, <&'input str>),
+        "DecLiteral" => Token::DecLiteral(<u64>, <&'input str>),
 
         // Keywords
         "struct" => Token::Struct,
@@ -211,14 +213,23 @@ PrefixExpr: RcExpr<String> = {
 
 AtomicExpr: RcExpr<String> = {
     "(" <expr: PrimaryExpr> ")" => expr,
-    <lo: @L> <value: "BinLiteral"> <hi: @R> => {
-        Expr::int(Span::new(lo, hi), value).into()
+    <lo: @L> <value: "BinLiteral"> <hi: @R> =>? {
+        let suffix = value.1.parse().map_err(|e| UserError { error: GrammarError::from(e) })?;
+        let const_int = Const::Int(value.0, suffix);
+
+        Ok(Expr::Const(Span::new(lo, hi), const_int).into())
     },
-    <lo: @L> <value: "HexLiteral"> <hi: @R> => {
-        Expr::int(Span::new(lo, hi), value).into()
+    <lo: @L> <value: "HexLiteral"> <hi: @R> =>? {
+        let suffix = value.1.parse().map_err(|e| UserError { error: GrammarError::from(e) })?;
+        let const_int = Const::Int(value.0, suffix);
+
+        Ok(Expr::Const(Span::new(lo, hi), const_int).into())
     },
-    <lo: @L> <value: "DecLiteral"> <hi: @R> => {
-        Expr::int(Span::new(lo, hi), value).into()
+    <lo: @L> <value: "DecLiteral"> <hi: @R> =>? {
+        let suffix = value.1.parse().map_err(|e| UserError { error: GrammarError::from(e) })?;
+        let const_int = Const::Int(value.0, suffix);
+
+        Ok(Expr::Const(Span::new(lo, hi), const_int).into())
     },
     <lo: @L> <name: "Ident"> <hi: @R> => {
         Expr::fvar(Span::new(lo, hi), name).into()
