@@ -16,7 +16,7 @@ impl ObjectId {
         let machine_id = (0..3).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
         let process_id = ddl_util::from_u16le(reader)?;
         let counter = (0..3).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
-        Ok(ObjectId {
+        Ok::<_, io::Error>(ObjectId {
             epoch_time: epoch_time,
             machine_id: machine_id,
             process_id: process_id,

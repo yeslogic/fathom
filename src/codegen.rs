@@ -189,7 +189,7 @@ fn lower_ty<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     ty: &'a Type<String>,
 ) -> DocBuilder<'doc, A> {
     match *ty {
-        Type::Path(ref path) => doc.as_string(path),
+        Type::Path(ref path) => doc.text(path.to_camel_case()),
         Type::Array(ref ty) => doc.text("Vec<")
             .append(lower_ty(doc, ty))
             .append(doc.text(">"))
@@ -376,7 +376,11 @@ fn lower_sequence_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             .append(doc.text("?;"))
             .group()
             .append(doc.newline())
-    })).append(doc.text("Ok(").append(lower_expr(doc, expr)).append(")"));
+    })).append(
+            doc.text("Ok::<_, io::Error>(")
+                .append(lower_expr(doc, expr))
+                .append(")"),
+        );
 
     match prec {
         Prec::Block => inner_parser,
@@ -474,7 +478,7 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
                 .append(doc.text(")"))
                 .group()
         }
-        Expr::Struct(ref path, ref fields) => doc.as_string(path)
+        Expr::Struct(ref path, ref fields) => doc.text(path.to_camel_case())
             .append(doc.space())
             .append(doc.text("{"))
             .group()
@@ -498,7 +502,7 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
         Expr::Proj(ref expr, ref field_name) => lower_expr(doc, expr)
             .append(doc.text("."))
             .append(doc.as_string(field_name)),
-        Expr::Intro(ref path, ref variant_name, ref expr) => doc.as_string(path)
+        Expr::Intro(ref path, ref variant_name, ref expr) => doc.text(path.to_camel_case())
             .append(doc.text("::"))
             .append(doc.as_string(variant_name))
             .append(doc.text("("))

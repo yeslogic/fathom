@@ -18,7 +18,7 @@ impl DisplayParams {
         let screen_size_v = ddl_util::from_u8(reader)?;
         let gamma_mod = ddl_util::from_u8(reader)?;
         let features_flags = ddl_util::from_u8(reader)?;
-        Ok(DisplayParams {
+        Ok::<_, io::Error>(DisplayParams {
             input_flags: input_flags,
             screen_size_h: screen_size_h,
             screen_size_v: screen_size_v,
@@ -37,7 +37,7 @@ impl Edid {
     pub fn read<R: Read>(reader: &mut R) -> io::Result<Edid> {
         let header = Header::read(reader)?;
         let display_params = DisplayParams::read(reader)?;
-        Ok(Edid {
+        Ok::<_, io::Error>(Edid {
             header: header,
             display_params: display_params,
         })
@@ -65,7 +65,7 @@ impl Header {
         let mfg_year_mod = ddl_util::from_u8(reader)?;
         let edid_version_major = ddl_util::from_u8(reader)?;
         let edid_version_minor = ddl_util::from_u8(reader)?;
-        Ok(Header {
+        Ok::<_, io::Error>(Header {
             magic: magic,
             mfg_bytes: mfg_bytes,
             product_code: product_code,

@@ -4,7 +4,7 @@ use std::io;
 use std::io::prelude::*;
 
 pub struct Bitmap {
-    pub extents: Bitmap::extents,
+    pub extents: BitmapExtents,
     pub data: Vec<Pixel>,
 }
 
@@ -13,7 +13,7 @@ impl Bitmap {
         let extents = {
             let width = ddl_util::from_u32be(reader)?;
             let height = ddl_util::from_u32be(reader)?;
-            Ok(Bitmap {
+            Ok::<_, io::Error>(BitmapExtents {
                 width: width,
                 height: height,
             })
@@ -22,7 +22,7 @@ impl Bitmap {
         (0..(extents.width
         *
         extents.height)).map(|_| Pixel::read(reader)).collect::<Result<_, _>>()?;
-        Ok(Bitmap {
+        Ok::<_, io::Error>(Bitmap {
             extents: extents,
             data: data,
         })
@@ -49,7 +49,7 @@ impl Pixel {
         let g = ddl_util::from_u8(reader)?;
         let b = ddl_util::from_u8(reader)?;
         let a = ddl_util::from_u8(reader)?;
-        Ok(Pixel {
+        Ok::<_, io::Error>(Pixel {
             r: r,
             g: g,
             b: b,

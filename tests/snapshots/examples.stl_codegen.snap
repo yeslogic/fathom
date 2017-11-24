@@ -15,7 +15,7 @@ impl Stl {
         let num_triangles = ddl_util::from_u32le(reader)?;
         let triangles =
         (0..num_triangles).map(|_| Triangle::read(reader)).collect::<Result<_, _>>()?;
-        Ok(Stl {
+        Ok::<_, io::Error>(Stl {
             header: header,
             num_triangles: num_triangles,
             triangles: triangles,
@@ -32,7 +32,7 @@ impl Triangle {
     pub fn read<R: Read>(reader: &mut R) -> io::Result<Triangle> {
         let normal = Vec3d::read(reader)?;
         let vertices = (0..3).map(|_| Vec3d::read(reader)).collect::<Result<_, _>>()?;
-        Ok(Triangle {
+        Ok::<_, io::Error>(Triangle {
             normal: normal,
             vertices: vertices,
         })
@@ -50,7 +50,7 @@ impl Vec3d {
         let x = ddl_util::from_f32le(reader)?;
         let y = ddl_util::from_f32le(reader)?;
         let z = ddl_util::from_f32le(reader)?;
-        Ok(Vec3d {
+        Ok::<_, io::Error>(Vec3d {
             x: x,
             y: y,
             z: z,

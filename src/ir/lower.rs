@@ -214,7 +214,10 @@ fn struct_parser(
     use var::ScopeIndex;
 
     let lower_to_field_parser = |field: &Field<String, binary::RcType<String>>| {
-        (field.name.clone(), ty_parser(path, &field.value))
+        (
+            field.name.clone(),
+            ty_parser(&path.append_child(field.name.clone()), &field.value),
+        )
     };
     let lower_to_expr_field = |field: &Field<String, binary::RcType<String>>| {
         Field::new(field.name.clone(), Expr::Var(Var::free(field.name.clone())))

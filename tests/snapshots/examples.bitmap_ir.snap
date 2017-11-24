@@ -43,7 +43,9 @@ Program {
                             Struct(
                                 Path {
                                     base: "Bitmap",
-                                    children: []
+                                    children: [
+                                        "extents"
+                                    ]
                                 },
                                 [
                                     Field {

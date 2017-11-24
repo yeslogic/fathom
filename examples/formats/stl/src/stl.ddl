@@ -1,5 +1,3 @@
-//! file-extension: stl
-
 Vec3d = struct {
     x: f32le,
     y: f32le,
