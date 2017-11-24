@@ -5,7 +5,7 @@ Program {
             ty: Array(
                 Span {
                     lo: BytePos(17),
-                    hi: BytePos(25)
+                    hi: BytePos(28)
                 },
                 Var(
                     Span {
@@ -17,9 +17,9 @@ Program {
                 Const(
                     Span {
                         lo: BytePos(23),
-                        hi: BytePos(24)
+                        hi: BytePos(27)
                     },
-                    Int(3)
+                    Int(3, Unsigned(U32))
                 )
             )
         }

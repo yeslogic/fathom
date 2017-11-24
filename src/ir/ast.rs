@@ -6,7 +6,9 @@ use std::rc::Rc;
 
 use name::{Name, Named};
 pub use syntax::ast::Field;
-pub use syntax::ast::host::{Binop, Const, Unop};
+pub use syntax::ast::host::{Binop, Const, TypeConst, Unop};
+pub use syntax::ast::host::{FloatType, SignedType, UnsignedType};
+pub use syntax::ast::binary::TypeConst as BinaryTypeConst;
 use var::{BoundVar, ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -137,6 +139,8 @@ pub enum Definition<N> {
 /// Structural types
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type<N> {
+    /// Type constants
+    Const(TypeConst),
     /// A fully qualified path to a type definition
     Path(Path<N>),
     /// Array types. These are usually available in languages as primitives,
@@ -144,9 +148,6 @@ pub enum Type<N> {
     Array(RcType<N>),
     /// Arrow types.
     Arrow(Vec<RcType<N>>, RcType<N>),
-    U8,
-    Bool,
-    Int,
 }
 
 pub type RcType<N> = Rc<Type<N>>;
@@ -163,8 +164,8 @@ pub enum RepeatBound<N> {
 pub enum ParseExpr<N> {
     /// A reference to another parser
     Var(Var<N>),
-    /// Parse a byte
-    U8,
+    /// Parse a binary constant
+    Const(BinaryTypeConst),
     /// Parse that is repeated for the given bound
     ///
     /// ```plain
@@ -202,7 +203,7 @@ impl<N: Name> ParseExpr<N> {
     pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
         match *self {
             ParseExpr::Var(ref mut var) => var.abstract_names_at(names, scope),
-            ParseExpr::U8 => {}
+            ParseExpr::Const(_) => {}
             ParseExpr::Repeat(ref mut parse_expr, ref mut size_bound) => {
                 Rc::make_mut(parse_expr).abstract_names_at(names, scope);
 

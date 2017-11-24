@@ -92,7 +92,7 @@ fn parse_proj_expr() {
 
 #[test]
 fn parse_subscript_expr() {
-    let src = "-foo[23 + (2 + 3)][index]";
+    let src = "-foo[23u32 + (2u32 + 3u32)][index]";
 
     assert_debug_snapshot!(parse_subscript_expr, host::Expr::from_str(src).unwrap());
 }
@@ -117,10 +117,10 @@ fn parse_ty_empty_struct() {
 fn parse_ty_assert() {
     let src = "
         struct {
-            x: u32 where x => x == 3,
+            x: u32 where x => x == 3u32,
         }
-        where x => x == 2
-        where x => x == 1
+        where x => x == 2u32
+        where x => x == 1u32
     ";
 
     assert_debug_snapshot!(parse_ty_assert, binary::Type::from_str(src).unwrap());
@@ -160,7 +160,7 @@ fn parse_simple_definition() {
 #[test]
 fn parse_array_with_constant_size() {
     let src = "
-        Point = [f32; 3];
+        Point = [f32; 3u32];
     ";
 
     assert_debug_snapshot!(

@@ -1,0 +1,15 @@
+[package]
+name = "ddl-bitmap"
+version = "0.0.0"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+ddl-util = { path = "../../../ddl-util" }
+
+[build-dependencies]
+ddl = { path = "../../.." }
+
+[dev-dependencies]
+difference = "1.0.0"
+pretty_assertions = "0.4.0"

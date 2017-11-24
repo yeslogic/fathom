@@ -8,12 +8,20 @@ Program {
                 Field {
                     name: "header",
                     value: Array(
-                        U8
+                        Const(
+                            Unsigned(
+                                U8
+                            )
+                        )
                     )
                 },
                 Field {
                     name: "num_triangles",
-                    value: Int
+                    value: Const(
+                        Unsigned(
+                            U32
+                        )
+                    )
                 },
                 Field {
                     name: "triangles",
@@ -31,33 +39,17 @@ Program {
                 Sequence(
                     [
                         Named("header", Repeat(
-                            U8,
+                            Const(
+                                U8
+                            ),
                             Exact(
                                 Const(
-                                    Int(80)
+                                    Int(80, Unsigned(U8))
                                 )
                             )
                         )),
-                        Named("num_triangles", Apply(
-                            Prim(
-                                "from_u32le",
-                                Arrow(
-                                    [
-                                        Array(
-                                            U8
-                                        )
-                                    ],
-                                    Int
-                                )
-                            ),
-                            Repeat(
-                                U8,
-                                Exact(
-                                    Const(
-                                        Int(4)
-                                    )
-                                )
-                            )
+                        Named("num_triangles", Const(
+                            U32Le
                         )),
                         Named("triangles", Repeat(
                             Var(
@@ -137,7 +129,7 @@ Program {
                             ),
                             Exact(
                                 Const(
-                                    Int(3)
+                                    Int(3, Unsigned(U8))
                                 )
                             )
                         ))
@@ -172,82 +164,40 @@ Program {
             [
                 Field {
                     name: "x",
-                    value: Int
+                    value: Const(
+                        Float(
+                            F32
+                        )
+                    )
                 },
                 Field {
                     name: "y",
-                    value: Int
+                    value: Const(
+                        Float(
+                            F32
+                        )
+                    )
                 },
                 Field {
                     name: "z",
-                    value: Int
+                    value: Const(
+                        Float(
+                            F32
+                        )
+                    )
                 }
             ],
             Some(
                 Sequence(
                     [
-                        Named("x", Apply(
-                            Prim(
-                                "from_f32le",
-                                Arrow(
-                                    [
-                                        Array(
-                                            U8
-                                        )
-                                    ],
-                                    Int
-                                )
-                            ),
-                            Repeat(
-                                U8,
-                                Exact(
-                                    Const(
-                                        Int(4)
-                                    )
-                                )
-                            )
+                        Named("x", Const(
+                            F32Le
                         )),
-                        Named("y", Apply(
-                            Prim(
-                                "from_f32le",
-                                Arrow(
-                                    [
-                                        Array(
-                                            U8
-                                        )
-                                    ],
-                                    Int
-                                )
-                            ),
-                            Repeat(
-                                U8,
-                                Exact(
-                                    Const(
-                                        Int(4)
-                                    )
-                                )
-                            )
+                        Named("y", Const(
+                            F32Le
                         )),
-                        Named("z", Apply(
-                            Prim(
-                                "from_f32le",
-                                Arrow(
-                                    [
-                                        Array(
-                                            U8
-                                        )
-                                    ],
-                                    Int
-                                )
-                            ),
-                            Repeat(
-                                U8,
-                                Exact(
-                                    Const(
-                                        Int(4)
-                                    )
-                                )
-                            )
+                        Named("z", Const(
+                            F32Le
                         ))
                     ],
                     Struct(

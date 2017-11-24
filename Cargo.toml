@@ -11,6 +11,15 @@ repository = "https://github.com/yeslogic/ddl"
 categories = ["parsing"]
 keywords = ["binary", "byte", "parser", "parsing", "endian", "big-endian", "little-endian"]
 
+[workspace]
+members = [
+    "ddl-util",
+    "examples/formats/bitmap",
+    "examples/formats/edid",
+    "examples/formats/object_id",
+    "examples/formats/stl",
+]
+
 [dependencies]
 heck = "0.3.0"
 lalrpop-util = "0.13.1"

@@ -4,16 +4,16 @@ Program {
             name: "Vec3d",
             ty: Struct(
                 Span {
-                    lo: BytePos(33),
-                    hi: BytePos(85)
+                    lo: BytePos(8),
+                    hi: BytePos(60)
                 },
                 [
                     Field {
                         name: "x",
                         value: Var(
                             Span {
-                                lo: BytePos(49),
-                                hi: BytePos(54)
+                                lo: BytePos(24),
+                                hi: BytePos(29)
                             },
                             Free("f32le")
                         )
@@ -22,8 +22,8 @@ Program {
                         name: "y",
                         value: Var(
                             Span {
-                                lo: BytePos(63),
-                                hi: BytePos(68)
+                                lo: BytePos(38),
+                                hi: BytePos(43)
                             },
                             Free("f32le")
                         )
@@ -32,8 +32,8 @@ Program {
                         name: "z",
                         value: Var(
                             Span {
-                                lo: BytePos(77),
-                                hi: BytePos(82)
+                                lo: BytePos(52),
+                                hi: BytePos(57)
                             },
                             Free("f32le")
                         )
@@ -45,16 +45,16 @@ Program {
             name: "Triangle",
             ty: Struct(
                 Span {
-                    lo: BytePos(99),
-                    hi: BytePos(212)
+                    lo: BytePos(74),
+                    hi: BytePos(189)
                 },
                 [
                     Field {
                         name: "normal",
                         value: Var(
                             Span {
-                                lo: BytePos(142),
-                                hi: BytePos(147)
+                                lo: BytePos(117),
+                                hi: BytePos(122)
                             },
                             Bound(Named("Vec3d", BoundVar(0, 0)))
                         )
@@ -63,22 +63,22 @@ Program {
                         name: "vertices",
                         value: Array(
                             Span {
-                                lo: BytePos(199),
-                                hi: BytePos(209)
+                                lo: BytePos(174),
+                                hi: BytePos(186)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(200),
-                                    hi: BytePos(205)
+                                    lo: BytePos(175),
+                                    hi: BytePos(180)
                                 },
                                 Bound(Named("Vec3d", BoundVar(1, 0)))
                             ),
                             Const(
                                 Span {
-                                    lo: BytePos(207),
-                                    hi: BytePos(208)
+                                    lo: BytePos(182),
+                                    hi: BytePos(185)
                                 },
-                                Int(3)
+                                Int(3, Unsigned(U8))
                             )
                         )
                     }
@@ -89,30 +89,30 @@ Program {
             name: "Stl",
             ty: Struct(
                 Span {
-                    lo: BytePos(273),
-                    hi: BytePos(465)
+                    lo: BytePos(250),
+                    hi: BytePos(444)
                 },
                 [
                     Field {
                         name: "header",
                         value: Array(
                             Span {
-                                lo: BytePos(320),
-                                hi: BytePos(328)
+                                lo: BytePos(297),
+                                hi: BytePos(307)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(321),
-                                    hi: BytePos(323)
+                                    lo: BytePos(298),
+                                    hi: BytePos(300)
                                 },
                                 Free("u8")
                             ),
                             Const(
                                 Span {
-                                    lo: BytePos(325),
-                                    hi: BytePos(327)
+                                    lo: BytePos(302),
+                                    hi: BytePos(306)
                                 },
-                                Int(80)
+                                Int(80, Unsigned(U8))
                             )
                         )
                     },
@@ -120,8 +120,8 @@ Program {
                         name: "num_triangles",
                         value: Var(
                             Span {
-                                lo: BytePos(389),
-                                hi: BytePos(394)
+                                lo: BytePos(368),
+                                hi: BytePos(373)
                             },
                             Free("u32le")
                         )
@@ -130,20 +130,20 @@ Program {
                         name: "triangles",
                         value: Array(
                             Span {
-                                lo: BytePos(437),
-                                hi: BytePos(462)
+                                lo: BytePos(416),
+                                hi: BytePos(441)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(438),
-                                    hi: BytePos(446)
+                                    lo: BytePos(417),
+                                    hi: BytePos(425)
                                 },
                                 Bound(Named("Triangle", BoundVar(2, 0)))
                             ),
                             Var(
                                 Span {
-                                    lo: BytePos(448),
-                                    hi: BytePos(461)
+                                    lo: BytePos(427),
+                                    hi: BytePos(440)
                                 },
                                 Bound(Named("num_triangles", BoundVar(0, 0)))
                             )
