@@ -89,14 +89,14 @@ structures, such as file formats, network protocols or bitstreams.
     - [ ] Unsigned integers
       - [x] 1-byte (8-bit)
       - [x] 2-byte (16-bit)
-      - [ ] 3-byte (24-bit)
+      - [x] 3-byte (24-bit)
       - [x] 4-byte (32-bit)
       - [x] 8-byte (64-bit)
       - [ ] n-byte
     - [ ] Two's complement signed integers
       - [x] 1-byte (8-bit)
       - [x] 2-byte (16-bit)
-      - [ ] 3-byte (24-bit)
+      - [x] 3-byte (24-bit)
       - [x] 4-byte (32-bit)
       - [x] 8-byte (64-bit)
       - [ ] n-byte

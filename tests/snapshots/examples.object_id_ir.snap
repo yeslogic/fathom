@@ -15,11 +15,9 @@ Program {
                 },
                 Field {
                     name: "machine_id",
-                    value: Array(
-                        Const(
-                            Unsigned(
-                                U8
-                            )
+                    value: Const(
+                        Unsigned(
+                            U24
                         )
                     )
                 },
@@ -33,11 +31,9 @@ Program {
                 },
                 Field {
                     name: "counter",
-                    value: Array(
-                        Const(
-                            Unsigned(
-                                U8
-                            )
+                    value: Const(
+                        Unsigned(
+                            U24
                         )
                     )
                 }
@@ -48,28 +44,14 @@ Program {
                         Named("epoch_time", Const(
                             U32Le
                         )),
-                        Named("machine_id", Repeat(
-                            Const(
-                                U8
-                            ),
-                            Exact(
-                                Const(
-                                    Int(3, Unsigned(U32))
-                                )
-                            )
+                        Named("machine_id", Const(
+                            U24Le
                         )),
                         Named("process_id", Const(
                             U16Le
                         )),
-                        Named("counter", Repeat(
-                            Const(
-                                U8
-                            ),
-                            Exact(
-                                Const(
-                                    Int(3, Unsigned(U32))
-                                )
-                            )
+                        Named("counter", Const(
+                            U24Le
                         ))
                     ],
                     Struct(

@@ -348,17 +348,21 @@ pub fn kind_of<N: Name>(
         Type::Const(TypeConst::U8) |
         Type::Const(TypeConst::I8) |
         Type::Const(TypeConst::U16Le) |
+        Type::Const(TypeConst::U24Le) |
         Type::Const(TypeConst::U32Le) |
         Type::Const(TypeConst::U64Le) |
         Type::Const(TypeConst::I16Le) |
+        Type::Const(TypeConst::I24Le) |
         Type::Const(TypeConst::I32Le) |
         Type::Const(TypeConst::I64Le) |
         Type::Const(TypeConst::F32Le) |
         Type::Const(TypeConst::F64Le) |
         Type::Const(TypeConst::U16Be) |
+        Type::Const(TypeConst::U24Be) |
         Type::Const(TypeConst::U32Be) |
         Type::Const(TypeConst::U64Be) |
         Type::Const(TypeConst::I16Be) |
+        Type::Const(TypeConst::I24Be) |
         Type::Const(TypeConst::I32Be) |
         Type::Const(TypeConst::I64Be) |
         Type::Const(TypeConst::F32Be) |

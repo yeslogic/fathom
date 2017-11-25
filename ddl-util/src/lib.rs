@@ -20,6 +20,13 @@ pub fn from_u16le<R: Read>(r: &mut R) -> io::Result<u16> {
 }
 
 #[inline]
+pub fn from_u24le<R: Read>(r: &mut R) -> io::Result<u32> {
+    let mut buf = [0u8; 3];
+    r.read_exact(&mut buf)?;
+    Ok(((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16))
+}
+
+#[inline]
 pub fn from_u32le<R: Read>(r: &mut R) -> io::Result<u32> {
     r.read_u32::<LittleEndian>()
 }
@@ -32,6 +39,13 @@ pub fn from_u64le<R: Read>(r: &mut R) -> io::Result<u64> {
 #[inline]
 pub fn from_i16le<R: Read>(r: &mut R) -> io::Result<i16> {
     r.read_i16::<LittleEndian>()
+}
+
+#[inline]
+pub fn from_i24le<R: Read>(r: &mut R) -> io::Result<i32> {
+    let mut buf = [0u8; 3];
+    r.read_exact(&mut buf)?;
+    Ok(((buf[0] as i32) << 0) | ((buf[1] as i32) << 8) | ((buf[2] as i32) << 16))
 }
 
 #[inline]
@@ -60,6 +74,13 @@ pub fn from_u16be<R: Read>(r: &mut R) -> io::Result<u16> {
 }
 
 #[inline]
+pub fn from_u24be<R: Read>(r: &mut R) -> io::Result<u32> {
+    let mut buf = [0u8; 3];
+    r.read_exact(&mut buf)?;
+    Ok(((buf[2] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[0] as u32) << 16))
+}
+
+#[inline]
 pub fn from_u32be<R: Read>(r: &mut R) -> io::Result<u32> {
     r.read_u32::<BigEndian>()
 }
@@ -72,6 +93,13 @@ pub fn from_u64be<R: Read>(r: &mut R) -> io::Result<u64> {
 #[inline]
 pub fn from_i16be<R: Read>(r: &mut R) -> io::Result<i16> {
     r.read_i16::<BigEndian>()
+}
+
+#[inline]
+pub fn from_i24be<R: Read>(r: &mut R) -> io::Result<i32> {
+    let mut buf = [0u8; 3];
+    r.read_exact(&mut buf)?;
+    Ok(((buf[2] as i32) << 0) | ((buf[1] as i32) << 8) | ((buf[0] as i32) << 16))
 }
 
 #[inline]
