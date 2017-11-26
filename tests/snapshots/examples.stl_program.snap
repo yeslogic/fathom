@@ -46,7 +46,7 @@ Program {
             ty: Struct(
                 Span {
                     lo: BytePos(74),
-                    hi: BytePos(189)
+                    hi: BytePos(407)
                 },
                 [
                     Field {
@@ -81,6 +81,16 @@ Program {
                                 Int(3, Unsigned(U8))
                             )
                         )
+                    },
+                    Field {
+                        name: "attribute_bytes",
+                        value: Var(
+                            Span {
+                                lo: BytePos(399),
+                                hi: BytePos(404)
+                            },
+                            Free("u16le")
+                        )
                     }
                 ]
             )
@@ -89,28 +99,28 @@ Program {
             name: "Stl",
             ty: Struct(
                 Span {
-                    lo: BytePos(250),
-                    hi: BytePos(444)
+                    lo: BytePos(468),
+                    hi: BytePos(662)
                 },
                 [
                     Field {
                         name: "header",
                         value: Array(
                             Span {
-                                lo: BytePos(297),
-                                hi: BytePos(307)
+                                lo: BytePos(515),
+                                hi: BytePos(525)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(298),
-                                    hi: BytePos(300)
+                                    lo: BytePos(516),
+                                    hi: BytePos(518)
                                 },
                                 Free("u8")
                             ),
                             Const(
                                 Span {
-                                    lo: BytePos(302),
-                                    hi: BytePos(306)
+                                    lo: BytePos(520),
+                                    hi: BytePos(524)
                                 },
                                 Int(80, Unsigned(U8))
                             )
@@ -120,8 +130,8 @@ Program {
                         name: "num_triangles",
                         value: Var(
                             Span {
-                                lo: BytePos(368),
-                                hi: BytePos(373)
+                                lo: BytePos(586),
+                                hi: BytePos(591)
                             },
                             Free("u32le")
                         )
@@ -130,20 +140,20 @@ Program {
                         name: "triangles",
                         value: Array(
                             Span {
-                                lo: BytePos(416),
-                                hi: BytePos(441)
+                                lo: BytePos(634),
+                                hi: BytePos(659)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(417),
-                                    hi: BytePos(425)
+                                    lo: BytePos(635),
+                                    hi: BytePos(643)
                                 },
                                 Bound(Named("Triangle", BoundVar(2, 0)))
                             ),
                             Var(
                                 Span {
-                                    lo: BytePos(427),
-                                    hi: BytePos(440)
+                                    lo: BytePos(645),
+                                    hi: BytePos(658)
                                 },
                                 Bound(Named("num_triangles", BoundVar(0, 0)))
                             )

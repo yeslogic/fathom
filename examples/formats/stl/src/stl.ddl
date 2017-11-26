@@ -9,6 +9,11 @@ Triangle = struct {
     normal: Vec3d,
     /// Coordinates of the vertices
     vertices: [Vec3d; 3u8],
+    /// Attribute byte count
+    ///
+    /// The attribute syntax is not documented in the formal specification. It is
+    /// specified that the attribute byte count should be set to zero.
+    attribute_bytes: u16le,
 };
 
 /// https://en.wikipedia.org/wiki/STL_(file_format)

@@ -28,15 +28,18 @@ impl Stl {
 pub struct Triangle {
     pub normal: Vec3d,
     pub vertices: Vec<Vec3d>,
+    pub attribute_bytes: u16,
 }
 
 impl Triangle {
     pub fn read<R: Read>(reader: &mut R) -> io::Result<Triangle> {
         let normal = Vec3d::read(reader)?;
         let vertices = (0..3).map(|_| Vec3d::read(reader)).collect::<Result<_, _>>()?;
+        let attribute_bytes = ddl_util::from_u16le(reader)?;
         Ok::<_, io::Error>(Triangle {
             normal: normal,
             vertices: vertices,
+            attribute_bytes: attribute_bytes,
         })
     }
 }
