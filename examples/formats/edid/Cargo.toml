@@ -11,4 +11,4 @@ ddl-util = { path = "../../../ddl-util" }
 ddl = { path = "../../.." }
 
 [dev-dependencies]
-binary_macros = "0.6.3"
+hex = "0.3.1"
