@@ -3,6 +3,7 @@ extern crate ddl_util;
 use std::io;
 use std::io::prelude::*;
 
+#[derive(Debug, Clone)]
 pub struct Stl {
     pub header: Vec<u8>,
     pub num_triangles: u32,
@@ -23,6 +24,7 @@ impl Stl {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Triangle {
     pub normal: Vec3d,
     pub vertices: Vec<Vec3d>,
@@ -39,6 +41,7 @@ impl Triangle {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Vec3d {
     pub x: f32,
     pub y: f32,

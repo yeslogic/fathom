@@ -86,7 +86,9 @@ fn lower_struct<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     path: &'a Path<String>,
     fields: &'a [Field<String, RcType<String>>],
 ) -> DocBuilder<'doc, A> {
-    doc.text("pub struct")
+    doc.text("#[derive(Debug, Clone)]")
+        .append(doc.newline())
+        .append(doc.text("pub struct"))
         .append(doc.space())
         // FIXME: this will break if there is already a definition in scope
         // that uses the pascalised identifier
