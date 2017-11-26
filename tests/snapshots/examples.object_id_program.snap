@@ -15,7 +15,7 @@ Program {
                                 lo: BytePos(99),
                                 hi: BytePos(104)
                             },
-                            Free("u32le")
+                            Free("i32be")
                         )
                     },
                     Field {
@@ -25,7 +25,7 @@ Program {
                                 lo: BytePos(122),
                                 hi: BytePos(127)
                             },
-                            Free("u24le")
+                            Free("u24be")
                         )
                     },
                     Field {
@@ -35,7 +35,7 @@ Program {
                                 lo: BytePos(145),
                                 hi: BytePos(150)
                             },
-                            Free("u16le")
+                            Free("u16be")
                         )
                     },
                     Field {
@@ -45,7 +45,7 @@ Program {
                                 lo: BytePos(165),
                                 hi: BytePos(170)
                             },
-                            Free("u24le")
+                            Free("u24be")
                         )
                     }
                 ]

@@ -1,3 +1,1 @@
-pub mod parser {
-    include!(concat!(env!("OUT_DIR"), "/object_id.rs"));
-}
+include!(concat!(env!("OUT_DIR"), "/object_id.rs"));

@@ -9,3 +9,6 @@ ddl-util = { path = "../../../ddl-util" }
 
 [build-dependencies]
 ddl = { path = "../../.." }
+
+[dev-dependencies]
+binary_macros = "0.6.3"
