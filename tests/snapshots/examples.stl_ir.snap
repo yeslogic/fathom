@@ -115,6 +115,14 @@ Program {
                             }
                         )
                     )
+                },
+                Field {
+                    name: "attribute_bytes",
+                    value: Const(
+                        Unsigned(
+                            U16
+                        )
+                    )
                 }
             ],
             Some(
@@ -132,6 +140,9 @@ Program {
                                     Int(3, Unsigned(U8))
                                 )
                             )
+                        )),
+                        Named("attribute_bytes", Const(
+                            U16Le
                         ))
                     ],
                     Struct(
@@ -143,13 +154,19 @@ Program {
                             Field {
                                 name: "normal",
                                 value: Var(
-                                    Bound(Named("normal", BoundVar(1, 0)))
+                                    Bound(Named("normal", BoundVar(2, 0)))
                                 )
                             },
                             Field {
                                 name: "vertices",
                                 value: Var(
-                                    Bound(Named("vertices", BoundVar(0, 0)))
+                                    Bound(Named("vertices", BoundVar(1, 0)))
+                                )
+                            },
+                            Field {
+                                name: "attribute_bytes",
+                                value: Var(
+                                    Bound(Named("attribute_bytes", BoundVar(0, 0)))
                                 )
                             }
                         ]
