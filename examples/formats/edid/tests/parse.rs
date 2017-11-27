@@ -16,6 +16,7 @@ fn test_read_edid_mbp_2013_built_in_retina() {
     assert_eq!(edid.header.serial, 0);
     assert_eq!(edid.header.mfg_week, 48);
     assert_eq!(edid.header.mfg_year_mod, 22); // 1990+22 = 2012
+    assert_eq!(edid.header.mfg_year, 2012);
     assert_eq!(edid.header.edid_version_major, 1);
     assert_eq!(edid.header.edid_version_minor, 4);
 

@@ -6,7 +6,7 @@ Program {
             ty: Struct(
                 Span {
                     lo: BytePos(9),
-                    hi: BytePos(653)
+                    hi: BytePos(772)
                 },
                 [
                     Field {
@@ -89,12 +89,59 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Year of manufacture, derived from `mfg_year_mod`",
+                        name: "mfg_year",
+                        value: Compute(
+                            Span {
+                                lo: BytePos(582),
+                                hi: BytePos(628)
+                            },
+                            Const(
+                                Unsigned(
+                                    U16
+                                )
+                            ),
+                            Binop(
+                                Span {
+                                    lo: BytePos(599),
+                                    hi: BytePos(628)
+                                },
+                                Add,
+                                Cast(
+                                    Span {
+                                        lo: BytePos(599),
+                                        hi: BytePos(618)
+                                    },
+                                    Var(
+                                        Span {
+                                            lo: BytePos(599),
+                                            hi: BytePos(611)
+                                        },
+                                        Bound(Named("mfg_year_mod", BoundVar(0, 0)))
+                                    ),
+                                    Const(
+                                        Unsigned(
+                                            U16
+                                        )
+                                    )
+                                ),
+                                Const(
+                                    Span {
+                                        lo: BytePos(621),
+                                        hi: BytePos(628)
+                                    },
+                                    Int(1990, Unsigned(U16))
+                                )
+                            )
+                        )
+                    },
+                    Field {
                         doc: "EDID version, usually 1 (for 1.3)",
                         name: "edid_version_major",
                         value: Var(
                             Span {
-                                lo: BytePos(577),
-                                hi: BytePos(579)
+                                lo: BytePos(696),
+                                hi: BytePos(698)
                             },
                             Free("u8")
                         )
@@ -104,8 +151,8 @@ Program {
                         name: "edid_version_minor",
                         value: Var(
                             Span {
-                                lo: BytePos(648),
-                                hi: BytePos(650)
+                                lo: BytePos(767),
+                                hi: BytePos(769)
                             },
                             Free("u8")
                         )
@@ -118,8 +165,8 @@ Program {
             name: "DisplayParams",
             ty: Struct(
                 Span {
-                    lo: BytePos(672),
-                    hi: BytePos(1131)
+                    lo: BytePos(791),
+                    hi: BytePos(1492)
                 },
                 [
                     Field {
@@ -127,43 +174,104 @@ Program {
                         name: "input_flags",
                         value: Var(
                             Span {
-                                lo: BytePos(736),
-                                hi: BytePos(738)
+                                lo: BytePos(855),
+                                hi: BytePos(857)
                             },
                             Free("u8")
                         )
                     },
                     Field {
-                        doc: "Maximum horizontal image size, in centimetres (max 292 cm/115 in at 16:9 aspect ratio)",
+                        doc: "Maximum horizontal image size, in centimetres (max 292 cm/115 in at\n16:9 aspect ratio)",
                         name: "screen_size_h",
                         value: Var(
                             Span {
-                                lo: BytePos(854),
-                                hi: BytePos(856)
+                                lo: BytePos(981),
+                                hi: BytePos(983)
                             },
                             Free("u8")
                         )
                     },
                     Field {
-                        doc: "Maximum vertical image size, in centimetres. If either byte is 0, undefined (e.g. projector)",
+                        doc: "Maximum vertical image size, in centimetres. If either byte is 0,\nundefined (e.g. projector)",
                         name: "screen_size_v",
                         value: Var(
                             Span {
-                                lo: BytePos(978),
-                                hi: BytePos(980)
+                                lo: BytePos(1113),
+                                hi: BytePos(1115)
                             },
                             Free("u8")
                         )
                     },
                     Field {
-                        doc: "Display gamma, datavalue = (gamma*100)-100 (range 1.00–3.54)",
+                        doc: "Display gamma data, factory default (range 1.00–3.54), where\n`gamma_mod = (gamma×100)-100 = (gamma−1)×100` If 225, gamma is defined\nby DI-EXT block.",
                         name: "gamma_mod",
                         value: Var(
                             Span {
-                                lo: BytePos(1068),
-                                hi: BytePos(1070)
+                                lo: BytePos(1311),
+                                hi: BytePos(1313)
                             },
                             Free("u8")
+                        )
+                    },
+                    Field {
+                        doc: "Display gamma, derived from `gamma_mod`",
+                        name: "gamma",
+                        value: Compute(
+                            Span {
+                                lo: BytePos(1374),
+                                hi: BytePos(1431)
+                            },
+                            Const(
+                                Float(
+                                    F32
+                                )
+                            ),
+                            Binop(
+                                Span {
+                                    lo: BytePos(1391),
+                                    hi: BytePos(1431)
+                                },
+                                Div,
+                                Binop(
+                                    Span {
+                                        lo: BytePos(1392),
+                                        hi: BytePos(1419)
+                                    },
+                                    Add,
+                                    Cast(
+                                        Span {
+                                            lo: BytePos(1392),
+                                            hi: BytePos(1408)
+                                        },
+                                        Var(
+                                            Span {
+                                                lo: BytePos(1392),
+                                                hi: BytePos(1401)
+                                            },
+                                            Bound(Named("gamma_mod", BoundVar(0, 0)))
+                                        ),
+                                        Const(
+                                            Float(
+                                                F32
+                                            )
+                                        )
+                                    ),
+                                    Const(
+                                        Span {
+                                            lo: BytePos(1411),
+                                            hi: BytePos(1419)
+                                        },
+                                        Float(100, F32)
+                                    )
+                                ),
+                                Const(
+                                    Span {
+                                        lo: BytePos(1423),
+                                        hi: BytePos(1431)
+                                    },
+                                    Float(100, F32)
+                                )
+                            )
                         )
                     },
                     Field {
@@ -171,8 +279,8 @@ Program {
                         name: "features_flags",
                         value: Var(
                             Span {
-                                lo: BytePos(1126),
-                                hi: BytePos(1128)
+                                lo: BytePos(1487),
+                                hi: BytePos(1489)
                             },
                             Free("u8")
                         )
@@ -185,8 +293,8 @@ Program {
             name: "Edid",
             ty: Struct(
                 Span {
-                    lo: BytePos(1212),
-                    hi: BytePos(1458)
+                    lo: BytePos(1573),
+                    hi: BytePos(1819)
                 },
                 [
                     Field {
@@ -194,8 +302,8 @@ Program {
                         name: "header",
                         value: Var(
                             Span {
-                                lo: BytePos(1260),
-                                hi: BytePos(1266)
+                                lo: BytePos(1621),
+                                hi: BytePos(1627)
                             },
                             Bound(Named("Header", BoundVar(1, 0)))
                         )
@@ -205,8 +313,8 @@ Program {
                         name: "display_params",
                         value: Var(
                             Span {
-                                lo: BytePos(1321),
-                                hi: BytePos(1334)
+                                lo: BytePos(1682),
+                                hi: BytePos(1695)
                             },
                             Bound(Named("DisplayParams", BoundVar(1, 0)))
                         )

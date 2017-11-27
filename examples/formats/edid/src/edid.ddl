@@ -11,6 +11,8 @@ Header = struct {
     mfg_week: u8,
     /// Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.
     mfg_year_mod: u8,
+    /// Year of manufacture, derived from `mfg_year_mod`
+    mfg_year: compute u16 from mfg_year_mod as u16 + 1990u16,
     /// EDID version, usually 1 (for 1.3)
     edid_version_major: u8,
     /// EDID revision, usually 3 (for 1.3)
@@ -20,12 +22,18 @@ Header = struct {
 DisplayParams = struct {
     /// Video input parameters bitmap
     input_flags: u8,
-    /// Maximum horizontal image size, in centimetres (max 292 cm/115 in at 16:9 aspect ratio)
+    /// Maximum horizontal image size, in centimetres (max 292 cm/115 in at
+    /// 16:9 aspect ratio)
     screen_size_h: u8,
-    /// Maximum vertical image size, in centimetres. If either byte is 0, undefined (e.g. projector)
+    /// Maximum vertical image size, in centimetres. If either byte is 0,
+    /// undefined (e.g. projector)
     screen_size_v: u8,
-    /// Display gamma, datavalue = (gamma*100)-100 (range 1.00–3.54)
+    /// Display gamma data, factory default (range 1.00–3.54), where
+    /// `gamma_mod = (gamma×100)-100 = (gamma−1)×100` If 225, gamma is defined
+    /// by DI-EXT block.
     gamma_mod: u8,
+    /// Display gamma, derived from `gamma_mod`
+    gamma: compute f32 from (gamma_mod as f32 + 100.0f32) / 100.0f32,
     /// Supported features bitmap
     features_flags: u8,
 };

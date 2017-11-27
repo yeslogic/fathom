@@ -16,7 +16,7 @@ pub struct Stl {
 
 impl Stl {
     pub fn read<R: Read>(reader: &mut R) -> io::Result<Stl> {
-        let header = (0..80).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
+        let header = (0..80u8).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
         let num_triangles = ddl_util::from_u32le(reader)?;
         let triangles =
         (0..num_triangles).map(|_| Triangle::read(reader)).collect::<Result<_, _>>()?;
@@ -44,7 +44,7 @@ pub struct Triangle {
 impl Triangle {
     pub fn read<R: Read>(reader: &mut R) -> io::Result<Triangle> {
         let normal = Vec3d::read(reader)?;
-        let vertices = (0..3).map(|_| Vec3d::read(reader)).collect::<Result<_, _>>()?;
+        let vertices = (0..3u8).map(|_| Vec3d::read(reader)).collect::<Result<_, _>>()?;
         let attribute_bytes = ddl_util::from_u16le(reader)?;
         Ok::<_, io::Error>(Triangle {
             normal: normal,

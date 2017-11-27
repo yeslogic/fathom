@@ -6,12 +6,12 @@ use std::rc::Rc;
 
 use name::{Name, Named};
 pub use syntax::ast::Field;
-pub use syntax::ast::host::{Binop, Const, TypeConst, Unop};
+pub use syntax::ast::host::{Binop, Const, IntSuffix, TypeConst, Unop};
 pub use syntax::ast::host::{FloatType, SignedType, UnsignedType};
 pub use syntax::ast::binary::TypeConst as BinaryTypeConst;
 use var::{ScopeIndex, Var};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Program<N> {
     pub defs: BTreeMap<Path<N>, Definition<N>>,
 }
@@ -138,7 +138,7 @@ impl<'a, N: From<&'a str>> From<&'a str> for Path<N> {
 /// Top level type definitions
 ///
 /// The names of these are declared when they are stored in the `Program` struct
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Definition<N> {
     /// Type alias
     Alias(Rc<str>, RcType<N>),
@@ -149,7 +149,7 @@ pub enum Definition<N> {
 }
 
 /// Structural types
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type<N> {
     /// Type constants
     Const(TypeConst),
@@ -165,14 +165,14 @@ pub enum Type<N> {
 pub type RcType<N> = Rc<Type<N>>;
 
 /// A bounded repitition
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RepeatBound<N> {
     /// A constant expression that bounds the repition
     Exact(RcExpr<N>),
 }
 
 /// A small parser combinator language
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ParseExpr<N> {
     /// A reference to another parser
     Var(Var<N>),
@@ -207,6 +207,8 @@ pub enum ParseExpr<N> {
     /// p1 | p2 | p3
     /// ```
     Choice(Vec<RcParseExpr<N>>),
+    /// Returns the result of an expression without consuming any input
+    Compute(RcExpr<N>),
     /// Applies the result of one parser to an unary function
     Apply(RcExpr<N>, RcParseExpr<N>),
 }
@@ -215,7 +217,7 @@ impl<N: Name> ParseExpr<N> {
     pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
         match *self {
             ParseExpr::Var(ref mut var) => var.abstract_names_at(names, scope),
-            ParseExpr::Const(_) => {}
+            ParseExpr::Const(_) | ParseExpr::Compute(_) => {}
             ParseExpr::Repeat(ref mut parse_expr, ref mut size_bound) => {
                 Rc::make_mut(parse_expr).abstract_names_at(names, scope);
 
@@ -252,7 +254,7 @@ impl<N: Name> ParseExpr<N> {
 
 pub type RcParseExpr<N> = Rc<ParseExpr<N>>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr<N> {
     Const(Const),
     Prim(&'static str, RcType<N>),

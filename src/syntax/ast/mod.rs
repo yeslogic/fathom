@@ -10,7 +10,7 @@ pub mod binary;
 pub mod host;
 
 /// A field in a struct type
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone)]
 pub struct Field<N, T> {
     /// Doc comment
     ///
@@ -67,7 +67,7 @@ where
 ///     y : u16,
 /// }
 /// ```
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone)]
 pub struct Definition<N> {
     /// Doc comment
     ///
@@ -88,7 +88,7 @@ impl<N: PartialEq> PartialEq for Definition<N> {
 
 pub type Substitutions<N> = BTreeMap<N, binary::Type<N>>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Program<N> {
     pub definitions: Vec<Definition<N>>,
 }

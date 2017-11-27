@@ -61,12 +61,14 @@ pub enum ParseIntSuffixError {
     #[fail(display = "missing integer suffix")] Missing,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Const {
     /// A boolean constant: eg. `true`, `false`
     Bool(bool),
     /// An integer constant: eg. `0u8`, `1i64`, `2i16`, ...
     Int(u64, IntSuffix),
+    /// A floating point constant: eg. `0f32`, `1.32f64`, ...
+    Float(f64, FloatType),
 }
 
 impl Const {
@@ -75,6 +77,7 @@ impl Const {
             Const::Bool(_) => TypeConst::Bool,
             Const::Int(_, IntSuffix::Unsigned(suffix)) => TypeConst::Unsigned(suffix),
             Const::Int(_, IntSuffix::Signed(suffix)) => TypeConst::Signed(suffix),
+            Const::Float(_, suffix) => TypeConst::Float(suffix),
         }
     }
 }
@@ -84,6 +87,7 @@ impl fmt::Debug for Const {
         match *self {
             Const::Bool(value) => write!(f, "Bool({:?})", value),
             Const::Int(value, suffix) => write!(f, "Int({:?}, {:?})", value, suffix),
+            Const::Float(value, suffix) => write!(f, "Float({:?}, {:?})", value, suffix),
         }
     }
 }
@@ -127,7 +131,7 @@ pub enum Binop {
 }
 
 /// A host expression
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr<N> {
     /// A constant value
     Const(Span, Const),
@@ -248,6 +252,20 @@ pub enum FloatType {
     F64,
 }
 
+impl FromStr for FloatType {
+    type Err = ParseTypeConstError;
+
+    fn from_str(src: &str) -> Result<FloatType, ParseTypeConstError> {
+        match src {
+            "f32" => Ok(FloatType::F32),
+            "f64" => Ok(FloatType::F64),
+            _ => Err(ParseTypeConstError::InvalidName {
+                name: src.to_owned(),
+            }),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SignedType {
     /// Signed 8-bit integer
@@ -319,7 +337,7 @@ impl FromStr for TypeConst {
 }
 
 /// A host type
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type<N> {
     /// A type variable: eg. `T`
     Var(Var<N>),

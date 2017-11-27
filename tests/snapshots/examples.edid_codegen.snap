@@ -7,12 +7,18 @@ use std::io::prelude::*;
 pub struct DisplayParams {
     /// Video input parameters bitmap
     pub input_flags: u8,
-    /// Maximum horizontal image size, in centimetres (max 292 cm/115 in at 16:9 aspect ratio)
+    /// Maximum horizontal image size, in centimetres (max 292 cm/115 in at
+    /// 16:9 aspect ratio)
     pub screen_size_h: u8,
-    /// Maximum vertical image size, in centimetres. If either byte is 0, undefined (e.g. projector)
+    /// Maximum vertical image size, in centimetres. If either byte is 0,
+    /// undefined (e.g. projector)
     pub screen_size_v: u8,
-    /// Display gamma, datavalue = (gamma*100)-100 (range 1.00–3.54)
+    /// Display gamma data, factory default (range 1.00–3.54), where
+    /// `gamma_mod = (gamma×100)-100 = (gamma−1)×100` If 225, gamma is defined
+    /// by DI-EXT block.
     pub gamma_mod: u8,
+    /// Display gamma, derived from `gamma_mod`
+    pub gamma: f32,
     /// Supported features bitmap
     pub features_flags: u8,
 }
@@ -23,12 +29,14 @@ impl DisplayParams {
         let screen_size_h = ddl_util::from_u8(reader)?;
         let screen_size_v = ddl_util::from_u8(reader)?;
         let gamma_mod = ddl_util::from_u8(reader)?;
+        let gamma = Ok::<_, io::Error>(((gamma_mod as f32 + 100f32) / 100f32))?;
         let features_flags = ddl_util::from_u8(reader)?;
         Ok::<_, io::Error>(DisplayParams {
             input_flags: input_flags,
             screen_size_h: screen_size_h,
             screen_size_v: screen_size_v,
             gamma_mod: gamma_mod,
+            gamma: gamma,
             features_flags: features_flags,
         })
     }
@@ -68,6 +76,8 @@ pub struct Header {
     pub mfg_week: u8,
     /// Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.
     pub mfg_year_mod: u8,
+    /// Year of manufacture, derived from `mfg_year_mod`
+    pub mfg_year: u16,
     /// EDID version, usually 1 (for 1.3)
     pub edid_version_major: u8,
     /// EDID revision, usually 3 (for 1.3)
@@ -76,12 +86,13 @@ pub struct Header {
 
 impl Header {
     pub fn read<R: Read>(reader: &mut R) -> io::Result<Header> {
-        let magic = (0..8).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
+        let magic = (0..8u32).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
         let mfg_bytes = ddl_util::from_u16le(reader)?;
         let product_code = ddl_util::from_u16le(reader)?;
         let serial = ddl_util::from_u32le(reader)?;
         let mfg_week = ddl_util::from_u8(reader)?;
         let mfg_year_mod = ddl_util::from_u8(reader)?;
+        let mfg_year = Ok::<_, io::Error>((mfg_year_mod as u16 + 1990u16))?;
         let edid_version_major = ddl_util::from_u8(reader)?;
         let edid_version_minor = ddl_util::from_u8(reader)?;
         Ok::<_, io::Error>(Header {
@@ -91,6 +102,7 @@ impl Header {
             serial: serial,
             mfg_week: mfg_week,
             mfg_year_mod: mfg_year_mod,
+            mfg_year: mfg_year,
             edid_version_major: edid_version_major,
             edid_version_minor: edid_version_minor,
         })

@@ -4,7 +4,7 @@ use name::Named;
 use syntax::ast::{binary, host};
 use var::{BoundVar, ScopeIndex};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Scope<N> {
     ExprAbs(Vec<Named<N, host::RcType<N>>>),
     TypeAbs(Vec<Named<N, binary::Kind>>),

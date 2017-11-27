@@ -27,9 +27,12 @@ extern {
         "BinLiteral" => Token::BinLiteral(<u64>, <&'input str>),
         "HexLiteral" => Token::HexLiteral(<u64>, <&'input str>),
         "DecLiteral" => Token::DecLiteral(<u64>, <&'input str>),
+        "FloatDecLiteral" => Token::FloatDecLiteral(<f64>, <&'input str>),
 
         // Keywords
         "as" => Token::As,
+        "compute" => Token::Compute,
+        "from" => Token::From,
         "struct" => Token::Struct,
         "union" => Token::Union,
         "where" => Token::Where,
@@ -126,6 +129,9 @@ PrimaryBinaryType: binary::RcType<String> = {
         );
 
         binary::Type::Assert(Span::new(lo1, hi), ty, pred_expr.into()).into()
+    },
+    <lo: @L> "compute" <repr_ty: HostType> "from" <expr: PrimaryHostExpr> <hi: @R> => {
+        binary::Type::Compute(Span::new(lo, hi), repr_ty, expr).into()
     },
 };
 
@@ -268,6 +274,12 @@ AtomicHostExpr: host::RcExpr<String> = {
     <lo: @L> <value: "DecLiteral"> <hi: @R> =>? {
         let suffix = value.1.parse().map_err(|e| UserError { error: GrammarError::from(e) })?;
         let const_int = Const::Int(value.0, suffix);
+
+        Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
+    },
+    <lo: @L> <value: "FloatDecLiteral"> <hi: @R> =>? {
+        let suffix = value.1.parse().map_err(|e| UserError { error: GrammarError::from(e) })?;
+        let const_int = Const::Float(value.0, suffix);
 
         Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
     },
