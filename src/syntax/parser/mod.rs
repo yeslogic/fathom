@@ -8,7 +8,6 @@ use syntax::ast::{binary, host, Program};
 use source::BytePos;
 
 mod lexer;
-#[allow(unused_extern_crates)]
 mod grammar;
 
 #[cfg(test)]
