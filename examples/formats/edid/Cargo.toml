@@ -9,6 +9,3 @@ ddl-util = { path = "../../../ddl-util" }
 
 [build-dependencies]
 ddl = { path = "../../.." }
-
-[dev-dependencies]
-hex = "0.3.1"
