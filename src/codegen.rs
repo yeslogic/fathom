@@ -543,6 +543,12 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
                     .append(doc.text("as usize")),
             )
             .append(doc.text("]")),
+        Expr::Cast(ref expr, ref ty) => lower_expr(doc, expr)
+            .append(doc.space())
+            .append(doc.text("as"))
+            .append(doc.space())
+            .append(lower_ty(doc, ty))
+            .group(),
         Expr::Abs(_, _) => unimplemented!(),
         Expr::App(ref fn_expr, ref arg_exprs) => {
             let arg_exprs = arg_exprs.iter().map(|arg_expr| lower_expr(doc, arg_expr));

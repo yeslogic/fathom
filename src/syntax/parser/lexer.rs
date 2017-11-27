@@ -64,9 +64,10 @@ pub enum Token<'input> {
     HexLiteral(u64, &'input str),
 
     // Keywords
-    Struct,
-    Union,
-    Where,
+    As,     // as
+    Struct, // struct
+    Union,  // union
+    Where,  // where
 
     // Symbols
     Ampersand,    // &
@@ -190,6 +191,7 @@ impl<'input> Lexer<'input> {
         let (end, ident) = self.take_while(start, is_ident_continue);
 
         let token = match ident {
+            "as" => Token::As,
             "struct" => Token::Struct,
             "union" => Token::Union,
             "where" => Token::Where,
@@ -347,10 +349,11 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  struct  union  where ",
-            "  ~~~~~~               " => Token::Struct,
-            "          ~~~~~        " => Token::Union,
-            "                 ~~~~~ " => Token::Where,
+            "  as  struct  union  where ",
+            "  ~~                       " => Token::As,
+            "      ~~~~~~               " => Token::Struct,
+            "              ~~~~~        " => Token::Union,
+            "                     ~~~~~ " => Token::Where,
         };
     }
 

@@ -19,6 +19,7 @@ pub enum ExpectedType<N> {
     Arrow,
     Unsigned,
     Signed,
+    Numeric,
     Actual(host::RcType<N>),
 }
 
@@ -56,6 +57,11 @@ pub enum TypeError<N> {
         expr: host::RcExpr<N>,
         union_ty: host::RcType<N>,
         variant_name: N,
+    },
+    /// An invalid type was supplied to the cast expression
+    InvalidCastType {
+        expr: host::RcExpr<N>,
+        found: host::RcType<N>,
     },
 }
 
@@ -220,12 +226,37 @@ pub fn ty_of<N: Name>(
                 }
             }
 
-            match *ty_of(ctx, array_expr)? {
+            let array_ty = ty_of(ctx, array_expr)?;
+            match *array_ty {
                 Type::Array(ref elem_ty) => Ok(elem_ty.clone()),
-                ref found => Err(TypeError::Mismatch {
+                _ => Err(TypeError::Mismatch {
                     expr: array_expr.clone(),
                     expected: ExpectedType::Array,
-                    found: Rc::new(found.clone()),
+                    found: array_ty.clone(),
+                }),
+            }
+        }
+
+        // Cast Expressions
+        Expr::Cast(_, ref src_expr, ref dst_ty) => {
+            let src_ty = ty_of(ctx, src_expr)?;
+
+            match **dst_ty {
+                Type::Const(TypeConst::Float(_)) |
+                Type::Const(TypeConst::Signed(_)) |
+                Type::Const(TypeConst::Unsigned(_)) => match *src_ty {
+                    Type::Const(TypeConst::Float(_)) |
+                    Type::Const(TypeConst::Signed(_)) |
+                    Type::Const(TypeConst::Unsigned(_)) => Ok(dst_ty.clone()),
+                    _ => Err(TypeError::Mismatch {
+                        expr: src_expr.clone(),
+                        expected: ExpectedType::Numeric,
+                        found: src_ty.clone(),
+                    }),
+                },
+                _ => Err(TypeError::InvalidCastType {
+                    expr: expr.clone(),
+                    found: dst_ty.clone(),
                 }),
             }
         }

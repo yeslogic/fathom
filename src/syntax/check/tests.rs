@@ -1,127 +1,114 @@
 use std::rc::Rc;
 
 use super::*;
-use super::host::{SignedType as St, TypeConst as Tc, UnsignedType as Ut};
 
 mod ty_of {
     use super::*;
-    use self::host::Type;
+
+    macro_rules! assert_ty_of {
+        ($given:expr, Ok($expected:expr)) => {{
+            let ctx = Context::new();
+            let expr = Rc::new($given.parse().unwrap());
+            let expected_ty = Rc::new($expected.parse().unwrap());
+
+            assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+        }};
+        ($given:expr, Err(_)) => {{
+            let ctx = Context::new();
+            let expr = Rc::new($given.parse().unwrap());
+
+            assert!(ty_of(&ctx, &expr).is_err());
+        }};
+    }
 
     #[test]
     fn var_unbound() {
-        let ctx = Context::new();
-        let src = "foo";
-        let expr = Rc::new(src.parse().unwrap());
-
-        assert!(ty_of(&ctx, &expr).is_err());
+        assert_ty_of!("foo", Err(_));
     }
 
     #[test]
-    fn const_int() {
-        let ctx = Context::new();
-        let src = "1u8";
-        let expr = Rc::new(src.parse().unwrap());
-        let expected_ty = Rc::new(Type::Const(Tc::Unsigned(Ut::U8)));
-
-        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+    fn const_u8() {
+        assert_ty_of!("1u8", Ok("u8"));
     }
 
     #[test]
-    fn neg_int() {
-        let ctx = Context::new();
-        let src = "-(1i8 + 2i8)";
-        let expr = Rc::new(src.parse().unwrap());
-        let expected_ty = Rc::new(Type::Const(Tc::Signed(St::I8)));
+    fn neg_i8() {
+        assert_ty_of!("-(1i8 + 2i8)", Ok("i8"));
+    }
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+    #[test]
+    fn neg_u8() {
+        assert_ty_of!("-1u8", Err(_));
     }
 
     #[test]
     fn neg_bool() {
-        let ctx = Context::new();
-        let src = "-(1u8 == 2u8)";
-        let expr = Rc::new(src.parse().unwrap());
-
-        assert!(ty_of(&ctx, &expr).is_err());
+        assert_ty_of!("-(1u8 == 2u8)", Err(_));
     }
 
     #[test]
-    fn not_int() {
-        let ctx = Context::new();
-        let src = "!(1u8 + 2u8)";
-        let expr = Rc::new(src.parse().unwrap());
-
-        assert!(ty_of(&ctx, &expr).is_err());
+    fn not_u8() {
+        assert_ty_of!("!(1u8 + 2u8)", Err(_));
     }
 
     #[test]
     fn not_bool() {
-        let ctx = Context::new();
-        let src = "!(1u8 == 2u8)";
-        let expr = Rc::new(src.parse().unwrap());
-        let expected_ty = Rc::new(Type::Const(Tc::Bool));
-
-        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+        assert_ty_of!("!(1u8 == 2u8)", Ok("bool"));
     }
 
     #[test]
     fn arith_ops() {
-        let ctx = Context::new();
-        let src = "1i8 + (1i8 * -2i8)";
-        let expr = Rc::new(src.parse().unwrap());
-        let expected_ty = Rc::new(Type::Const(Tc::Signed(St::I8)));
-
-        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+        assert_ty_of!("1i8 + (1i8 * -2i8)", Ok("i8"));
     }
 
     #[test]
-    fn cmp_ops_eq_int() {
-        let ctx = Context::new();
-        let src = "1u8 + (1u8 * 2u8) == 3u8";
-        let expr = Rc::new(src.parse().unwrap());
-        let expected_ty = Rc::new(Type::Const(Tc::Bool));
-
-        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+    fn cmp_ops_eq_u8() {
+        assert_ty_of!("1u8 + (1u8 * 2u8) == 3u8", Ok("bool"));
     }
 
     #[test]
-    fn cmp_ops_ne_int() {
-        let ctx = Context::new();
-        let src = "1u8 + (1u8 * 2u8) != 3u8";
-        let expr = Rc::new(src.parse().unwrap());
-        let expected_ty = Rc::new(Type::Const(Tc::Bool));
-
-        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+    fn cmp_ops_ne_u8() {
+        assert_ty_of!("1u8 + (1u8 * 2u8) != 3u8", Ok("bool"));
     }
 
     #[test]
     fn cmp_ops_eq_bool() {
-        let ctx = Context::new();
-        let src = "(1u8 == 1u8) == (3u8 == 3u8)";
-        let expr = Rc::new(src.parse().unwrap());
-        let expected_ty = Rc::new(Type::Const(Tc::Bool));
-
-        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+        assert_ty_of!("(1u8 == 1u8) == (3u8 == 3u8)", Ok("bool"));
     }
 
     #[test]
     fn cmp_ops_ne_bool() {
-        let ctx = Context::new();
-        let src = "(1u8 == 1u8) != (3u8 == 3u8)";
-        let expr = Rc::new(src.parse().unwrap());
-        let expected_ty = Rc::new(Type::Const(Tc::Bool));
-
-        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+        assert_ty_of!("(1u8 == 1u8) != (3u8 == 3u8)", Ok("bool"));
     }
 
     #[test]
     fn rel_ops() {
-        let ctx = Context::new();
-        let src = "(1u8 == 3u8) & (2u8 == 2u8) | (1u8 == 2u8)";
-        let expr = Rc::new(src.parse().unwrap());
-        let expected_ty = Rc::new(Type::Const(Tc::Bool));
+        assert_ty_of!("(1u8 == 3u8) & (2u8 == 2u8) | (1u8 == 2u8)", Ok("bool"));
+    }
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+    #[test]
+    fn cast_bool() {
+        assert_ty_of!("(1u8 == 3u8) as u8", Err(_));
+    }
+
+    #[test]
+    fn cast_u8_to_u32() {
+        assert_ty_of!("1u8 as u32", Ok("u32"));
+    }
+
+    #[test]
+    fn cast_u8_to_f32() {
+        assert_ty_of!("1u8 as f32", Ok("f32"));
+    }
+
+    #[test]
+    fn cast_u8_to_f32_to_u16() {
+        assert_ty_of!("1u8 as f32 as u16", Ok("u16"));
+    }
+
+    #[test]
+    fn cast_u8_to_bool() {
+        assert_ty_of!("1u8 as bool", Err(_));
     }
 }
 
