@@ -8,18 +8,16 @@ Program {
                 Field {
                     name: "epoch_time",
                     value: Const(
-                        Unsigned(
-                            U32
+                        Signed(
+                            I32
                         )
                     )
                 },
                 Field {
                     name: "machine_id",
-                    value: Array(
-                        Const(
-                            Unsigned(
-                                U8
-                            )
+                    value: Const(
+                        Unsigned(
+                            U24
                         )
                     )
                 },
@@ -33,11 +31,9 @@ Program {
                 },
                 Field {
                     name: "counter",
-                    value: Array(
-                        Const(
-                            Unsigned(
-                                U8
-                            )
+                    value: Const(
+                        Unsigned(
+                            U24
                         )
                     )
                 }
@@ -46,30 +42,16 @@ Program {
                 Sequence(
                     [
                         Named("epoch_time", Const(
-                            U32Le
+                            I32Be
                         )),
-                        Named("machine_id", Repeat(
-                            Const(
-                                U8
-                            ),
-                            Exact(
-                                Const(
-                                    Int(3, Unsigned(U32))
-                                )
-                            )
+                        Named("machine_id", Const(
+                            U24Be
                         )),
                         Named("process_id", Const(
-                            U16Le
+                            U16Be
                         )),
-                        Named("counter", Repeat(
-                            Const(
-                                U8
-                            ),
-                            Exact(
-                                Const(
-                                    Int(3, Unsigned(U32))
-                                )
-                            )
+                        Named("counter", Const(
+                            U24Be
                         ))
                     ],
                     Struct(

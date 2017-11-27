@@ -5,7 +5,7 @@ Program {
             ty: Struct(
                 Span {
                     lo: BytePos(74),
-                    hi: BytePos(235)
+                    hi: BytePos(173)
                 },
                 [
                     Field {
@@ -15,63 +15,37 @@ Program {
                                 lo: BytePos(99),
                                 hi: BytePos(104)
                             },
-                            Free("u32le")
+                            Free("i32be")
                         )
                     },
                     Field {
                         name: "machine_id",
-                        value: Array(
+                        value: Var(
                             Span {
                                 lo: BytePos(122),
-                                hi: BytePos(132)
+                                hi: BytePos(127)
                             },
-                            Var(
-                                Span {
-                                    lo: BytePos(123),
-                                    hi: BytePos(125)
-                                },
-                                Free("u8")
-                            ),
-                            Const(
-                                Span {
-                                    lo: BytePos(127),
-                                    hi: BytePos(131)
-                                },
-                                Int(3, Unsigned(U32))
-                            )
+                            Free("u24be")
                         )
                     },
                     Field {
                         name: "process_id",
                         value: Var(
                             Span {
-                                lo: BytePos(176),
-                                hi: BytePos(181)
+                                lo: BytePos(145),
+                                hi: BytePos(150)
                             },
-                            Free("u16le")
+                            Free("u16be")
                         )
                     },
                     Field {
                         name: "counter",
-                        value: Array(
+                        value: Var(
                             Span {
-                                lo: BytePos(196),
-                                hi: BytePos(206)
+                                lo: BytePos(165),
+                                hi: BytePos(170)
                             },
-                            Var(
-                                Span {
-                                    lo: BytePos(197),
-                                    hi: BytePos(199)
-                                },
-                                Free("u8")
-                            ),
-                            Const(
-                                Span {
-                                    lo: BytePos(201),
-                                    hi: BytePos(205)
-                                },
-                                Int(3, Unsigned(U32))
-                            )
+                            Free("u24be")
                         )
                     }
                 ]

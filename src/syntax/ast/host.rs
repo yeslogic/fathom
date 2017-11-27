@@ -40,6 +40,7 @@ impl FromStr for IntSuffix {
         match src {
             "u8" => Ok(IntSuffix::Unsigned(UnsignedType::U8)),
             "u16" => Ok(IntSuffix::Unsigned(UnsignedType::U16)),
+            "u24" => Ok(IntSuffix::Unsigned(UnsignedType::U24)),
             "u32" => Ok(IntSuffix::Unsigned(UnsignedType::U32)),
             "u64" => Ok(IntSuffix::Unsigned(UnsignedType::U64)),
             "i8" => Ok(IntSuffix::Signed(SignedType::I8)),
@@ -324,6 +325,8 @@ pub enum SignedType {
     I8,
     /// Signed 16-bit integer
     I16,
+    /// Signed 24-bit integer
+    I24,
     /// Signed 32-bit integer
     I32,
     /// Signed 64-bit integer
@@ -336,6 +339,8 @@ pub enum UnsignedType {
     U8,
     /// Unsigned 16-bit integer
     U16,
+    /// Unsigned 24-bit integer
+    U24,
     /// Unsigned 32-bit integer
     U32,
     /// Unsigned 64-bit integer

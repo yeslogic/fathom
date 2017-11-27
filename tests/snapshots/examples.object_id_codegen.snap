@@ -5,18 +5,18 @@ use std::io::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct ObjectId {
-    pub epoch_time: u32,
-    pub machine_id: Vec<u8>,
+    pub epoch_time: i32,
+    pub machine_id: u32,
     pub process_id: u16,
-    pub counter: Vec<u8>,
+    pub counter: u32,
 }
 
 impl ObjectId {
     pub fn read<R: Read>(reader: &mut R) -> io::Result<ObjectId> {
-        let epoch_time = ddl_util::from_u32le(reader)?;
-        let machine_id = (0..3).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
-        let process_id = ddl_util::from_u16le(reader)?;
-        let counter = (0..3).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
+        let epoch_time = ddl_util::from_i32be(reader)?;
+        let machine_id = ddl_util::from_u24be(reader)?;
+        let process_id = ddl_util::from_u16be(reader)?;
+        let counter = ddl_util::from_u24be(reader)?;
         Ok::<_, io::Error>(ObjectId {
             epoch_time: epoch_time,
             machine_id: machine_id,
