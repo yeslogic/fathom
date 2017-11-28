@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use super::*;
+use super::host::TypeConst as Tc;
 
 mod ty_of {
     use super::*;
@@ -56,8 +57,9 @@ mod ty_of {
         let ctx = Context::new();
         let src = "!(1u8 == 2u8)";
         let expr = Rc::new(src.parse().unwrap());
+        let expected_ty = Rc::new(Type::Const(Tc::Bool));
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Rc::new(Type::bool())));
+        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
     }
 
     // #[test]
@@ -74,8 +76,9 @@ mod ty_of {
         let ctx = Context::new();
         let src = "1u8 + (1u8 * 2u8) == 3u8";
         let expr = Rc::new(src.parse().unwrap());
+        let expected_ty = Rc::new(Type::Const(Tc::Bool));
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Rc::new(Type::bool())));
+        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
     }
 
     #[test]
@@ -83,8 +86,9 @@ mod ty_of {
         let ctx = Context::new();
         let src = "1u8 + (1u8 * 2u8) != 3u8";
         let expr = Rc::new(src.parse().unwrap());
+        let expected_ty = Rc::new(Type::Const(Tc::Bool));
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Rc::new(Type::bool())));
+        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
     }
 
     #[test]
@@ -92,8 +96,9 @@ mod ty_of {
         let ctx = Context::new();
         let src = "(1u8 == 1u8) == (3u8 == 3u8)";
         let expr = Rc::new(src.parse().unwrap());
+        let expected_ty = Rc::new(Type::Const(Tc::Bool));
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Rc::new(Type::bool())));
+        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
     }
 
     #[test]
@@ -101,8 +106,9 @@ mod ty_of {
         let ctx = Context::new();
         let src = "(1u8 == 1u8) != (3u8 == 3u8)";
         let expr = Rc::new(src.parse().unwrap());
+        let expected_ty = Rc::new(Type::Const(Tc::Bool));
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Rc::new(Type::bool())));
+        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
     }
 
     #[test]
@@ -110,8 +116,9 @@ mod ty_of {
         let ctx = Context::new();
         let src = "(1u8 == 3u8) & (2u8 == 2u8) | (1u8 == 2u8)";
         let expr = Rc::new(src.parse().unwrap());
+        let expected_ty = Rc::new(Type::Const(Tc::Bool));
 
-        assert_eq!(ty_of(&ctx, &expr), Ok(Rc::new(Type::bool())));
+        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
     }
 }
 

@@ -8,6 +8,7 @@ use syntax::ast::binary::{RcType, Type};
 use syntax::ast::host::{Binop, Const, Expr, RcExpr, Unop};
 use syntax::parser::GrammarError;
 use syntax::parser::lexer::Token;
+use var::Var;
 
 
 grammar<'input>();
@@ -72,24 +73,38 @@ pub Program: Program<String> = {
 
 Definition: Definition<String> = {
     <doc: "DocComment"*> <name: "Ident"> "=" <ty: PrimaryType> ";" => {
-        Definition::new(doc.join("\n"), name, ty)
+        Definition {
+            doc: doc.join("\n").into(),
+            name: name.to_owned(),
+            ty,
+        }
     },
     <doc: "DocComment"*> <name: "Ident"> <lo: @L>
         "(" <params: (<"Ident"> ",")*> <last: "Ident"> ")" "="
-        <ty: PrimaryType> <hi: @R> ";" =>
+        <body_ty: PrimaryType> <hi: @R> ";" =>
     {
         let params = params.into_iter()
             .chain(iter::once(last))
             .map(|p| p.to_owned())
             .collect::<Vec<String>>();
 
-        Definition::new(doc.join("\n"), name, Type::abs(Span::new(lo, hi), &params, ty))
+        let ty = Type::abs(Span::new(lo, hi), &params, body_ty).into();
+
+        Definition {
+            doc: doc.join("\n").into(),
+            name: name.to_owned(),
+            ty,
+        }
     },
 };
 
 Field: Field<String, RcType<String>> = {
     <doc: "DocComment"*> <name: "Ident"> ":" <ty: PrimaryType> => {
-        Field::new(doc.join("\n"), name, ty)
+        Field {
+            doc: doc.join("\n").into(),
+            name: name.to_owned(),
+            value: ty,
+        }
     },
 };
 
@@ -110,18 +125,18 @@ PrimaryType: RcType<String> = {
             pred,
         );
 
-        Type::assert(Span::new(lo1, hi), ty, pred_expr).into()
+        Type::Assert(Span::new(lo1, hi), ty, pred_expr.into()).into()
     },
 };
 
 AtomicType: RcType<String> = {
     <lo: @L> <name: "Ident"> <hi: @R> => {
-        Type::fvar(Span::new(lo, hi), name).into()
+        Type::Var(Span::new(lo, hi), Var::free(name)).into()
     },
     <lo: @L> <ty: AtomicType> "(" <arg_tys: (<Type> ",")*> <last: Type> ")" <hi: @R> => {
         let mut arg_tys = arg_tys;
         arg_tys.push(last);
-        Type::app(Span::new(lo, hi), ty, arg_tys).into()
+        Type::App(Span::new(lo, hi), ty, arg_tys).into()
     },
     "(" <ty: PrimaryType> ")" => ty,
     <lo: @L> "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
@@ -132,10 +147,10 @@ AtomicType: RcType<String> = {
     <lo: @L> "union" "{" <variants: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
         let mut variants = variants;
         variants.extend(last);
-        Type::union(Span::new(lo, hi), variants).into()
+        Type::Union(Span::new(lo, hi), variants).into()
     },
     <lo: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <hi: @R> => {
-        Type::array(Span::new(lo, hi), elem, size).into()
+        Type::Array(Span::new(lo, hi), elem, size).into()
     },
 };
 
@@ -152,66 +167,66 @@ pub Expr: RcExpr<String> = {
 PrimaryExpr: RcExpr<String> = {
     EqExpr,
     <lo: @L> <lhs: EqExpr> "|" <rhs: PrimaryExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Or, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Or, lhs, rhs).into()
     },
     <lo: @L> <lhs: EqExpr> "&" <rhs: PrimaryExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::And, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::And, lhs, rhs).into()
     },
 };
 
 EqExpr: RcExpr<String> = {
     CmpExpr,
     <lo: @L> <lhs: CmpExpr> "==" <rhs: EqExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Eq, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Eq, lhs, rhs).into()
     },
     <lo: @L> <lhs: CmpExpr> "!=" <rhs: EqExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Ne, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Ne, lhs, rhs).into()
     },
 };
 
 CmpExpr: RcExpr<String> = {
     AddExpr,
     <lo: @L> <lhs: AddExpr> "<=" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Le, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Le, lhs, rhs).into()
     },
     <lo: @L> <lhs: AddExpr> "<" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Lt, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Lt, lhs, rhs).into()
     },
     <lo: @L> <lhs: AddExpr> ">" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Gt, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Gt, lhs, rhs).into()
     },
     <lo: @L> <lhs: AddExpr> ">=" <rhs: CmpExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Ge, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Ge, lhs, rhs).into()
     },
 };
 
 AddExpr: RcExpr<String> = {
     MulExpr,
     <lo: @L> <lhs: MulExpr> "+" <rhs: AddExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Add, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Add, lhs, rhs).into()
     },
     <lo: @L> <lhs: MulExpr> "-" <rhs: AddExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Sub, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Sub, lhs, rhs).into()
     },
 };
 
 MulExpr: RcExpr<String> = {
     PrefixExpr,
     <lo: @L> <lhs: PrefixExpr> "*" <rhs: MulExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Mul, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Mul, lhs, rhs).into()
     },
     <lo: @L> <lhs: PrefixExpr> "/" <rhs: MulExpr> <hi: @R> => {
-        Expr::binop(Span::new(lo, hi), Binop::Div, lhs, rhs).into()
+        Expr::Binop(Span::new(lo, hi), Binop::Div, lhs, rhs).into()
     },
 };
 
 PrefixExpr: RcExpr<String> = {
     AtomicExpr,
     <lo: @L> "-" <expr: AtomicExpr> <hi: @R> => {
-        Expr::unop(Span::new(lo, hi), Unop::Neg, expr).into()
+        Expr::Unop(Span::new(lo, hi), Unop::Neg, expr).into()
     },
     <lo: @L> "!" <value: AtomicExpr> <hi: @R> => {
-        Expr::unop(Span::new(lo, hi), Unop::Not, value).into()
+        Expr::Unop(Span::new(lo, hi), Unop::Not, value).into()
     },
 };
 
@@ -236,12 +251,12 @@ AtomicExpr: RcExpr<String> = {
         Ok(Expr::Const(Span::new(lo, hi), const_int).into())
     },
     <lo: @L> <name: "Ident"> <hi: @R> => {
-        Expr::fvar(Span::new(lo, hi), name).into()
+        Expr::Var(Span::new(lo, hi), Var::free(name)).into()
     },
     <lo: @L> <struct_expr: AtomicExpr> "." <field_name: "Ident"> <hi: @R> => {
-        Expr::proj(Span::new(lo, hi), struct_expr, field_name).into()
+        Expr::Proj(Span::new(lo, hi), struct_expr, field_name.into()).into()
     },
     <lo: @L> <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" <hi: @R> => {
-        Expr::subscript(Span::new(lo, hi), array_expr, index_expr).into()
+        Expr::Subscript(Span::new(lo, hi), array_expr, index_expr).into()
     },
 };

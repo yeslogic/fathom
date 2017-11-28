@@ -5,7 +5,7 @@ use std::rc::Rc;
 use name::{Name, Named};
 use source::Span;
 use syntax::ast::{self, host, Field, Substitutions};
-use var::{BoundVar, ScopeIndex, Var};
+use var::{ScopeIndex, Var};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -119,30 +119,6 @@ pub enum Type<N> {
 pub type RcType<N> = Rc<Type<N>>;
 
 impl<N: Name> Type<N> {
-    /// A free type variable: eg. `T`
-    pub fn fvar<N1: Into<N>>(span: Span, name: N1) -> Type<N> {
-        Type::Var(span.into(), Var::free(name))
-    }
-
-    /// A bound type variable
-    pub fn bvar<N1: Into<N>>(span: Span, name: N1, var: BoundVar) -> Type<N> {
-        Type::Var(span.into(), Var::bound(name, var))
-    }
-
-    /// An array of the specified type, with a size: eg. `[T; n]`
-    pub fn array<T1, E1>(span: Span, elem_ty: T1, size_expr: E1) -> Type<N>
-    where
-        T1: Into<RcType<N>>,
-        E1: Into<host::RcExpr<N>>,
-    {
-        Type::Array(span, elem_ty.into(), size_expr.into())
-    }
-
-    /// A union of types: eg. `union { variant : T, ... }`
-    pub fn union(span: Span, variants: Vec<Field<N, RcType<N>>>) -> Type<N> {
-        Type::Union(span, variants)
-    }
-
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     pub fn struct_(span: Span, mut fields: Vec<Field<N, RcType<N>>>) -> Type<N> {
         // We maintain a list of the seen field names. This will allow us to
@@ -162,25 +138,6 @@ impl<N: Name> Type<N> {
         Type::Struct(span, fields)
     }
 
-    /// A type that is constrained by a predicate: eg. `T where x => x == 3`
-    pub fn assert<T1, E1>(span: Span, ty: T1, pred: E1) -> Type<N>
-    where
-        T1: Into<RcType<N>>,
-        E1: Into<host::RcExpr<N>>,
-    {
-        Type::Assert(span, ty.into(), pred.into())
-    }
-
-    /// An interpreted type
-    pub fn interp<T1, E1, T2>(span: Span, ty: T1, conv: E1, repr_ty: T2) -> Type<N>
-    where
-        T1: Into<RcType<N>>,
-        E1: Into<host::RcExpr<N>>,
-        T2: Into<host::RcType<N>>,
-    {
-        Type::Interp(span, ty.into(), conv.into(), repr_ty.into())
-    }
-
     /// Type abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
@@ -197,14 +154,6 @@ impl<N: Name> Type<N> {
         Rc::make_mut(&mut body_ty).abstract_names(&param_names);
 
         Type::Abs(span, params, body_ty)
-    }
-
-    /// Type application: eg. `T(U, V)`
-    pub fn app<T1>(span: Span, fn_ty: T1, arg_tys: Vec<RcType<N>>) -> Type<N>
-    where
-        T1: Into<RcType<N>>,
-    {
-        Type::App(span, fn_ty.into(), arg_tys)
     }
 
     /// Attempt to lookup the type of a field
@@ -383,11 +332,11 @@ impl<N: Name> Type<N> {
                 let repr_variants = variants
                     .iter()
                     .map(|variant| {
-                        Field::new(
-                            variant.doc.clone(),
-                            variant.name.clone(),
-                            variant.value.repr(),
-                        )
+                        Field {
+                            doc: variant.doc.clone(),
+                            name: variant.name.clone(),
+                            value: variant.value.repr(),
+                        }
                     })
                     .collect();
 
@@ -397,7 +346,11 @@ impl<N: Name> Type<N> {
                 let repr_fields = fields
                     .iter()
                     .map(|field| {
-                        Field::new(field.doc.clone(), field.name.clone(), field.value.repr())
+                        Field {
+                            doc: field.doc.clone(),
+                            name: field.name.clone(),
+                            value: field.value.repr(),
+                        }
                     })
                     .collect();
 
@@ -424,14 +377,14 @@ mod tests {
 
         mod abs {
             use super::*;
-
-            type T = Type<&'static str>;
+            use super::Type as T;
 
             #[test]
             fn id() {
                 // λx. x
                 // λ   0
-                let ty = T::abs(Span::start(), &["x"], T::fvar(Span::start(), "x"));
+                let ty: Type<&'static str> =
+                    T::abs(Span::start(), &["x"], T::Var(Span::start(), Var::free("x")));
 
                 assert_debug_snapshot!(ty_abs_id, ty);
             }
@@ -442,10 +395,10 @@ mod tests {
             fn k_combinator() {
                 // λx.λy. x
                 // λ  λ   1
-                let ty = T::abs(
+                let ty: Type<&'static str> = T::abs(
                     Span::start(),
                     &["x"],
-                    T::abs(Span::start(), &["y"], T::fvar(Span::start(), "x")),
+                    T::abs(Span::start(), &["y"], T::Var(Span::start(), Var::free("x"))),
                 );
 
                 assert_debug_snapshot!(ty_abs_k_combinator, ty);
@@ -455,7 +408,7 @@ mod tests {
             fn s_combinator() {
                 // λx.λy.λz. x z (y z)
                 // λ  λ  λ   2 0 (1 0)
-                let ty = T::abs(
+                let ty: Type<&'static str> = T::abs(
                     Span::start(),
                     &["x"],
                     T::abs(
@@ -464,18 +417,18 @@ mod tests {
                         T::abs(
                             Span::start(),
                             &["z"],
-                            T::app(
+                            T::App(
                                 Span::start(),
-                                T::app(
+                                Rc::new(T::App(
                                     Span::start(),
-                                    T::fvar(Span::start(), "x"),
-                                    vec![Rc::new(T::fvar(Span::start(), "z"))],
-                                ),
+                                    Rc::new(T::Var(Span::start(), Var::free("x"))),
+                                    vec![Rc::new(T::Var(Span::start(), Var::free("z")))],
+                                )),
                                 vec![
-                                    Rc::new(T::app(
+                                    Rc::new(T::App(
                                         Span::start(),
-                                        T::fvar(Span::start(), "y"),
-                                        vec![Rc::new(T::fvar(Span::start(), "z"))],
+                                        Rc::new(T::Var(Span::start(), Var::free("y"))),
+                                        vec![Rc::new(T::Var(Span::start(), Var::free("z")))],
                                     )),
                                 ],
                             ),
@@ -490,32 +443,34 @@ mod tests {
             fn complex() {
                 // λz.(λy. y (λx. x)) (λx. z x)
                 // λ  (λ   0 (λ   0)) (λ   1 0)
-                let ty = T::abs(
+                let ty: Type<&'static str> = T::abs(
                     Span::start(),
                     &["z"],
-                    T::app(
+                    T::App(
                         Span::start(),
-                        T::abs(
+                        Rc::new(T::abs(
                             Span::start(),
                             &["y"],
-                            T::app(
+                            T::App(
                                 Span::start(),
-                                T::fvar(Span::start(), "y"),
+                                Rc::new(T::Var(Span::start(), Var::free("y"))),
                                 vec![
-                                    Rc::new(
-                                        T::abs(Span::start(), &["x"], T::fvar(Span::start(), "x")),
-                                    ),
+                                    Rc::new(T::abs(
+                                        Span::start(),
+                                        &["x"],
+                                        T::Var(Span::start(), Var::free("x")),
+                                    )),
                                 ],
                             ),
-                        ),
+                        )),
                         vec![
                             Rc::new(T::abs(
                                 Span::start(),
                                 &["x"],
-                                T::app(
+                                T::App(
                                     Span::start(),
-                                    T::fvar(Span::start(), "z"),
-                                    vec![Rc::new(T::fvar(Span::start(), "x"))],
+                                    Rc::new(T::Var(Span::start(), Var::free("z"))),
+                                    vec![Rc::new(T::Var(Span::start(), Var::free("x")))],
                                 ),
                             )),
                         ],

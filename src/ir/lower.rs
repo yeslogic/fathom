@@ -81,7 +81,11 @@ where
             let item_path = path.append_child(item.name.clone());
             let ty = lower_value(item_path, &item.value);
 
-            Field::new(item.doc.clone(), item.name.clone(), ty)
+            Field {
+                doc: item.doc.clone(),
+                name: item.name.clone(),
+                value: ty,
+            }
         })
         .collect()
 }
@@ -230,11 +234,11 @@ fn struct_parser(
         )
     };
     let lower_to_expr_field = |field: &Field<String, binary::RcType<String>>| {
-        Field::new(
-            field.doc.clone(),
-            field.name.clone(),
-            Expr::Var(Var::free(field.name.clone())),
-        )
+        Field {
+            doc: field.doc.clone(),
+            name: field.name.clone(),
+            value: Rc::new(Expr::Var(Var::free(field.name.clone()))),
+        }
     };
 
     let parse_exprs = fields.iter().map(lower_to_field_parser);
