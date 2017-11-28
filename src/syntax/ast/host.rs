@@ -48,15 +48,17 @@ impl FromStr for IntSuffix {
             "u32" => Ok(IntSuffix::Unsigned(UnsignedType::U32)),
             "u64" => Ok(IntSuffix::Unsigned(UnsignedType::U64)),
             "" => Err(ParseIntSuffixError::Missing),
-            _ => Err(ParseIntSuffixError::Invalid),
+            _ => Err(ParseIntSuffixError::Invalid {
+                suffix: src.to_owned(),
+            }),
         }
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Fail, Clone, Eq, PartialEq)]
 pub enum ParseIntSuffixError {
-    Invalid,
-    Missing,
+    #[fail(display = "invalid integer suffix: {}", suffix)] Invalid { suffix: String },
+    #[fail(display = "missing integer suffix")] Missing,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -287,8 +289,10 @@ pub enum TypeConst {
     Unsigned(UnsignedType),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct ParseTypeConstError(());
+#[derive(Debug, Fail, Clone, Eq, PartialEq)]
+pub enum ParseTypeConstError {
+    #[fail(display = "invalid type constant name: {}", name)] InvalidName { name: String },
+}
 
 impl FromStr for TypeConst {
     type Err = ParseTypeConstError;
@@ -307,7 +311,9 @@ impl FromStr for TypeConst {
             "u24" => Ok(TypeConst::Unsigned(UnsignedType::U24)),
             "u32" => Ok(TypeConst::Unsigned(UnsignedType::U32)),
             "u64" => Ok(TypeConst::Unsigned(UnsignedType::U64)),
-            _ => Err(ParseTypeConstError(())),
+            _ => Err(ParseTypeConstError::InvalidName {
+                name: src.to_owned(),
+            }),
         }
     }
 }

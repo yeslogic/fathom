@@ -17,11 +17,11 @@ use self::lexer::Lexer;
 
 pub type ParseError = lalrpop_util::ParseError<BytePos, String, GrammarError>;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Fail, Clone, Eq, PartialEq)]
 pub enum GrammarError {
-    Lexer(lexer::Error),
-    IntSuffix(host::ParseIntSuffixError),
-    HostTypeConst(host::ParseTypeConstError),
+    #[fail(display = "{}", _0)] Lexer(lexer::Error),
+    #[fail(display = "{}", _0)] IntSuffix(host::ParseIntSuffixError),
+    #[fail(display = "{}", _0)] HostTypeConst(host::ParseTypeConstError),
 }
 
 impl From<lexer::Error> for GrammarError {

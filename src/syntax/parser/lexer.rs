@@ -31,7 +31,8 @@ fn is_dec_digit(ch: char) -> bool {
 }
 
 /// An error that occurred while lexing the source file
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, Fail, Clone, PartialEq, Eq)]
+#[fail(display = "{:?} at: {:?}", code, location)] // FIXME: use better formatting
 pub struct Error {
     /// The location where the lexer error occured
     pub location: BytePos,
