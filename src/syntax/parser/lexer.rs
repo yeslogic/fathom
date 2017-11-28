@@ -58,6 +58,7 @@ pub enum ErrorCode {
 pub enum Token<'input> {
     // Data
     Ident(&'input str),
+    DocComment(&'input str),
     BinLiteral(u64, &'input str),
     DecLiteral(u64, &'input str),
     HexLiteral(u64, &'input str),
@@ -172,6 +173,18 @@ impl<'input> Lexer<'input> {
         (eof, self.slice(start, eof))
     }
 
+    /// Consume a doc comment
+    fn doc_comment(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
+        let (end, mut comment) = self.take_until(start.map(|x| x + 3), |ch| ch == '\n');
+
+        // Skip preceding space
+        if comment.starts_with(" ") {
+            comment = &comment[1..];
+        }
+
+        (start, Token::DocComment(comment), end)
+    }
+
     /// Consume an identifier token
     fn ident(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
         let (end, ident) = self.take_while(start, is_ident_continue);
@@ -265,8 +278,8 @@ impl<'input> Iterator for Lexer<'input> {
                         "+" => Ok((start, Token::Plus, end)),
                         ";" => Ok((start, Token::Semi, end)),
                         "*" => Ok((start, Token::Star, end)),
+                        symbol if symbol.starts_with("///") => Ok(self.doc_comment(start)),
                         symbol if symbol.starts_with("//") => {
-                            // Line comments
                             self.take_until(start, |ch| ch == '\n');
                             continue;
                         }
@@ -320,6 +333,14 @@ mod tests {
             "      ~~~~~~~~~                      " => Token::BinLiteral(37, ""),
             "                 ~~~~~~~~~~          " => Token::HexLiteral(458662, "u32"),
             "                             ~~~~~~  " => Token::DecLiteral(1234, "i8"),
+        };
+    }
+
+    #[test]
+    fn doc_comment() {
+        test! {
+            "       /// hello this is dog",
+            "       ~~~~~~~~~~~~~~~~~~~~~" => Token::DocComment("hello this is dog"),
         };
     }
 

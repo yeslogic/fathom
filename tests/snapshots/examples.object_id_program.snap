@@ -1,6 +1,7 @@
 Program {
-    defs: [
+    definitions: [
         Definition {
+            doc: "https://docs.mongodb.com/manual/reference/method/ObjectId/",
             name: "ObjectId",
             ty: Struct(
                 Span {
@@ -9,6 +10,7 @@ Program {
                 },
                 [
                     Field {
+                        doc: "",
                         name: "epoch_time",
                         value: Var(
                             Span {
@@ -19,6 +21,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "",
                         name: "machine_id",
                         value: Var(
                             Span {
@@ -29,6 +32,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "",
                         name: "process_id",
                         value: Var(
                             Span {
@@ -39,6 +43,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "",
                         name: "counter",
                         value: Var(
                             Span {

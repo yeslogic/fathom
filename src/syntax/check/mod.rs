@@ -164,7 +164,11 @@ pub fn ty_of<N: Name>(
             let field_tys = fields
                 .iter()
                 .map(|field| {
-                    Ok(Field::new(field.name.clone(), ty_of(ctx, &field.value)?))
+                    Ok(Field::new(
+                        field.doc.clone(),
+                        field.name.clone(),
+                        ty_of(ctx, &field.value)?,
+                    ))
                 })
                 .collect::<Result<_, _>>()?;
 
@@ -463,11 +467,14 @@ pub fn kind_of<N: Name>(
 pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> {
     let mut ctx = Context::new();
 
-    for def in &program.defs {
-        let def_kind = kind_of(&ctx, &def.ty)?;
-        ctx.extend(Scope::TypeDef(
-            vec![Named(def.name.clone(), (def.ty.clone(), def_kind))],
-        ));
+    for definition in &program.definitions {
+        let definition_kind = kind_of(&ctx, &definition.ty)?;
+        ctx.extend(Scope::TypeDef(vec![
+            Named(
+                definition.name.clone(),
+                (definition.ty.clone(), definition_kind),
+            ),
+        ]));
     }
 
     Ok(())

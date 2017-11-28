@@ -22,6 +22,7 @@ extern {
     enum Token<'input> {
         // Data
         "Ident" => Token::Ident(<&'input str>),
+        "DocComment" => Token::DocComment(<&'input str>),
         "BinLiteral" => Token::BinLiteral(<u64>, <&'input str>),
         "HexLiteral" => Token::HexLiteral(<u64>, <&'input str>),
         "DecLiteral" => Token::DecLiteral(<u64>, <&'input str>),
@@ -70,22 +71,25 @@ pub Program: Program<String> = {
 };
 
 Definition: Definition<String> = {
-    <name: "Ident"> "=" <ty: PrimaryType> ";" => {
-        Definition::new(name, ty)
+    <doc: "DocComment"*> <name: "Ident"> "=" <ty: PrimaryType> ";" => {
+        Definition::new(doc.join("\n"), name, ty)
     },
-    <name: "Ident"> <lo: @L> "(" <params: (<"Ident"> ",")*> <last: "Ident"> ")" "=" <ty: PrimaryType> <hi: @R> ";" => {
+    <doc: "DocComment"*> <name: "Ident"> <lo: @L>
+        "(" <params: (<"Ident"> ",")*> <last: "Ident"> ")" "="
+        <ty: PrimaryType> <hi: @R> ";" =>
+    {
         let params = params.into_iter()
             .chain(iter::once(last))
             .map(|p| p.to_owned())
             .collect::<Vec<String>>();
 
-        Definition::new(name, Type::abs(Span::new(lo, hi), &params, ty))
+        Definition::new(doc.join("\n"), name, Type::abs(Span::new(lo, hi), &params, ty))
     },
 };
 
 Field: Field<String, RcType<String>> = {
-    <name: "Ident"> ":" <ty: PrimaryType> => {
-        Field::new(name, ty)
+    <doc: "DocComment"*> <name: "Ident"> ":" <ty: PrimaryType> => {
+        Field::new(doc.join("\n"), name, ty)
     },
 };
 

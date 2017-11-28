@@ -12,13 +12,20 @@ pub mod host;
 /// A field in a struct type
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Field<N, T> {
+    pub doc: String,
     pub name: N,
     pub value: T,
 }
 
 impl<N, T> Field<N, T> {
-    pub fn new<M: Into<N>, U: Into<T>>(name: M, value: U) -> Field<N, T> {
+    pub fn new<D1, N1, T1>(doc: D1, name: N1, value: T1) -> Field<N, T>
+    where
+        D1: Into<String>,
+        N1: Into<N>,
+        T1: Into<T>,
+    {
         Field {
+            doc: doc.into(),
             name: name.into(),
             value: value.into(),
         }
@@ -27,6 +34,7 @@ impl<N, T> Field<N, T> {
     /// Apply the function `f` to the field name and return the wrapped result
     pub fn map_name<M, F: FnMut(N) -> M>(self, mut f: F) -> Field<M, T> {
         Field {
+            doc: self.doc,
             name: f(self.name),
             value: self.value,
         }
@@ -35,6 +43,7 @@ impl<N, T> Field<N, T> {
     /// Apply the function `f` to the field value and return the wrapped result
     pub fn map_value<U, F: FnMut(T) -> U>(self, mut f: F) -> Field<N, U> {
         Field {
+            doc: self.doc,
             name: self.name,
             value: f(self.value),
         }
@@ -54,20 +63,30 @@ where
 /// A type definition
 ///
 /// ```plain
-/// Point = {
+/// Point = struct {
 ///     x : u16,
 ///     y : u16,
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Definition<N> {
+    /// Doc comment
+    pub doc: String,
+    /// The name of the defined type
     pub name: N,
+    /// The binary type
     pub ty: binary::RcType<N>,
 }
 
 impl<N> Definition<N> {
-    pub fn new<N1: Into<N>, T1: Into<binary::RcType<N>>>(name: N1, ty: T1) -> Definition<N> {
+    pub fn new<D1, N1, T1>(doc: D1, name: N1, ty: T1) -> Definition<N>
+    where
+        D1: Into<String>,
+        N1: Into<N>,
+        T1: Into<binary::RcType<N>>,
+    {
         Definition {
+            doc: doc.into(),
             name: name.into(),
             ty: ty.into(),
         }
@@ -78,31 +97,31 @@ pub type Substitutions<N> = BTreeMap<N, binary::Type<N>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Program<N> {
-    pub defs: Vec<Definition<N>>,
+    pub definitions: Vec<Definition<N>>,
 }
 
 impl<N: Name> Program<N> {
-    pub fn new(mut defs: Vec<Definition<N>>) -> Program<N> {
+    pub fn new(mut definitions: Vec<Definition<N>>) -> Program<N> {
         // We maintain a list of the seen definition names. This will allow us to
         // recover the index of these variables as we abstract later definitions...
         let mut seen_names = Vec::<N>::new();
 
-        for def in &mut defs {
+        for definition in &mut definitions {
             for (level, name) in seen_names.iter().rev().enumerate() {
-                Rc::make_mut(&mut def.ty)
+                Rc::make_mut(&mut definition.ty)
                     .abstract_names_at(&[name.clone()], ScopeIndex(level as u32));
             }
 
             // Record that the definition has been 'seen'
-            seen_names.push(def.name.clone());
+            seen_names.push(definition.name.clone());
         }
 
-        Program { defs }
+        Program { definitions }
     }
 
     pub fn substitute(&mut self, substs: &Substitutions<N>) {
-        for def in &mut self.defs {
-            Rc::make_mut(&mut def.ty).substitute(substs);
+        for definition in &mut self.definitions {
+            Rc::make_mut(&mut definition.ty).substitute(substs);
         }
     }
 }

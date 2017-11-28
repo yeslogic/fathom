@@ -1,6 +1,7 @@
 Program {
-    defs: [
+    definitions: [
         Definition {
+            doc: "",
             name: "Header",
             ty: Struct(
                 Span {
@@ -9,6 +10,7 @@ Program {
                 },
                 [
                     Field {
+                        doc: "Fixed header pattern",
                         name: "magic",
                         value: Array(
                             Span {
@@ -32,6 +34,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Manufacturer ID",
                         name: "mfg_bytes",
                         value: Var(
                             Span {
@@ -42,6 +45,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Manufacturer product code",
                         name: "product_code",
                         value: Var(
                             Span {
@@ -52,6 +56,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Serial number",
                         name: "serial",
                         value: Var(
                             Span {
@@ -62,6 +67,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Week of manufacture. Week numbering is not consistent between manufacturers.",
                         name: "mfg_week",
                         value: Var(
                             Span {
@@ -72,6 +78,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.",
                         name: "mfg_year_mod",
                         value: Var(
                             Span {
@@ -82,6 +89,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "EDID version, usually 1 (for 1.3)",
                         name: "edid_version_major",
                         value: Var(
                             Span {
@@ -92,6 +100,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "EDID revision, usually 3 (for 1.3)",
                         name: "edid_version_minor",
                         value: Var(
                             Span {
@@ -105,6 +114,7 @@ Program {
             )
         },
         Definition {
+            doc: "",
             name: "DisplayParams",
             ty: Struct(
                 Span {
@@ -113,6 +123,7 @@ Program {
                 },
                 [
                     Field {
+                        doc: "Video input parameters bitmap",
                         name: "input_flags",
                         value: Var(
                             Span {
@@ -123,6 +134,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Maximum horizontal image size, in centimetres (max 292 cm/115 in at 16:9 aspect ratio)",
                         name: "screen_size_h",
                         value: Var(
                             Span {
@@ -133,6 +145,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Maximum vertical image size, in centimetres. If either byte is 0, undefined (e.g. projector)",
                         name: "screen_size_v",
                         value: Var(
                             Span {
@@ -143,6 +156,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Display gamma, datavalue = (gamma*100)-100 (range 1.00–3.54)",
                         name: "gamma_mod",
                         value: Var(
                             Span {
@@ -153,6 +167,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Supported features bitmap",
                         name: "features_flags",
                         value: Var(
                             Span {
@@ -166,6 +181,7 @@ Program {
             )
         },
         Definition {
+            doc: "https://en.wikipedia.org/wiki/Extended_Display_Identification_Data",
             name: "Edid",
             ty: Struct(
                 Span {
@@ -174,6 +190,7 @@ Program {
                 },
                 [
                     Field {
+                        doc: "Header information",
                         name: "header",
                         value: Var(
                             Span {
@@ -184,6 +201,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Basic display parameters",
                         name: "display_params",
                         value: Var(
                             Span {

@@ -4,8 +4,10 @@ Program {
             base: "ObjectId",
             children: []
         }: Struct(
+            "https://docs.mongodb.com/manual/reference/method/ObjectId/",
             [
                 Field {
+                    doc: "",
                     name: "epoch_time",
                     value: Const(
                         Signed(
@@ -14,6 +16,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "",
                     name: "machine_id",
                     value: Const(
                         Unsigned(
@@ -22,6 +25,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "",
                     name: "process_id",
                     value: Const(
                         Unsigned(
@@ -30,6 +34,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "",
                     name: "counter",
                     value: Const(
                         Unsigned(
@@ -61,24 +66,28 @@ Program {
                         },
                         [
                             Field {
+                                doc: "",
                                 name: "epoch_time",
                                 value: Var(
                                     Bound(Named("epoch_time", BoundVar(3, 0)))
                                 )
                             },
                             Field {
+                                doc: "",
                                 name: "machine_id",
                                 value: Var(
                                     Bound(Named("machine_id", BoundVar(2, 0)))
                                 )
                             },
                             Field {
+                                doc: "",
                                 name: "process_id",
                                 value: Var(
                                     Bound(Named("process_id", BoundVar(1, 0)))
                                 )
                             },
                             Field {
+                                doc: "",
                                 name: "counter",
                                 value: Var(
                                     Bound(Named("counter", BoundVar(0, 0)))

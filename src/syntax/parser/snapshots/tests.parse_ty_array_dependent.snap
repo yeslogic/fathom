@@ -1,10 +1,11 @@
 Struct(
     Span {
         lo: BytePos(9),
-        hi: BytePos(279)
+        hi: BytePos(311)
     },
     [
         Field {
+            doc: "",
             name: "len",
             value: Var(
                 Span {
@@ -15,6 +16,7 @@ Struct(
             )
         },
         Field {
+            doc: "",
             name: "data1",
             value: Array(
                 Span {
@@ -38,14 +40,16 @@ Struct(
             )
         },
         Field {
+            doc: "",
             name: "data2",
             value: Struct(
                 Span {
                     lo: BytePos(90),
-                    hi: BytePos(268)
+                    hi: BytePos(300)
                 },
                 [
                     Field {
+                        doc: "",
                         name: "data1",
                         value: Array(
                             Span {
@@ -69,6 +73,7 @@ Struct(
                         )
                     },
                     Field {
+                        doc: "",
                         name: "len",
                         value: Var(
                             Span {
@@ -79,43 +84,46 @@ Struct(
                         )
                     },
                     Field {
+                        doc: "Doc comment",
                         name: "padding1",
                         value: Var(
                             Span {
-                                lo: BytePos(186),
-                                hi: BytePos(188)
+                                lo: BytePos(218),
+                                hi: BytePos(220)
                             },
                             Free("u8")
                         )
                     },
                     Field {
+                        doc: "",
                         name: "padding2",
                         value: Var(
                             Span {
-                                lo: BytePos(216),
-                                hi: BytePos(218)
+                                lo: BytePos(248),
+                                hi: BytePos(250)
                             },
                             Free("u8")
                         )
                     },
                     Field {
+                        doc: "",
                         name: "data2",
                         value: Array(
                             Span {
-                                lo: BytePos(243),
-                                hi: BytePos(253)
+                                lo: BytePos(275),
+                                hi: BytePos(285)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(244),
-                                    hi: BytePos(247)
+                                    lo: BytePos(276),
+                                    hi: BytePos(279)
                                 },
                                 Free("f32")
                             ),
                             Var(
                                 Span {
-                                    lo: BytePos(249),
-                                    hi: BytePos(252)
+                                    lo: BytePos(281),
+                                    hi: BytePos(284)
                                 },
                                 Bound(Named("len", BoundVar(2, 0)))
                             )
