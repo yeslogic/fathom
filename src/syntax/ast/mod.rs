@@ -10,17 +10,22 @@ pub mod binary;
 pub mod host;
 
 /// A field in a struct type
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Field<N, T> {
-    pub doc: String,
+    /// Doc comment
+    ///
+    /// Note: This is ignored for comparison purposes
+    pub doc: Rc<str>,
+    /// The name of the field
     pub name: N,
+    /// The value that this field is associated with
     pub value: T,
 }
 
 impl<N, T> Field<N, T> {
     pub fn new<D1, N1, T1>(doc: D1, name: N1, value: T1) -> Field<N, T>
     where
-        D1: Into<String>,
+        D1: Into<Rc<str>>,
         N1: Into<N>,
         T1: Into<T>,
     {
@@ -50,6 +55,13 @@ impl<N, T> Field<N, T> {
     }
 }
 
+impl<N: PartialEq, T: PartialEq> PartialEq for Field<N, T> {
+    fn eq(&self, other: &Field<N, T>) -> bool {
+        // Ignoring doc commment
+        self.name == other.name && self.value == other.value
+    }
+}
+
 fn lookup_field<'a, N, T>(fields: &'a [Field<N, T>], name: &N) -> Option<&'a T>
 where
     N: PartialEq,
@@ -68,10 +80,12 @@ where
 ///     y : u16,
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Definition<N> {
     /// Doc comment
-    pub doc: String,
+    ///
+    /// Note: This is ignored for comparison purposes
+    pub doc: Rc<str>,
     /// The name of the defined type
     pub name: N,
     /// The binary type
@@ -81,7 +95,7 @@ pub struct Definition<N> {
 impl<N> Definition<N> {
     pub fn new<D1, N1, T1>(doc: D1, name: N1, ty: T1) -> Definition<N>
     where
-        D1: Into<String>,
+        D1: Into<Rc<str>>,
         N1: Into<N>,
         T1: Into<binary::RcType<N>>,
     {
@@ -90,6 +104,13 @@ impl<N> Definition<N> {
             name: name.into(),
             ty: ty.into(),
         }
+    }
+}
+
+impl<N: PartialEq> PartialEq for Definition<N> {
+    fn eq(&self, other: &Definition<N>) -> bool {
+        // Ignoring doc commment
+        self.name == other.name && self.ty == other.ty
     }
 }
 
