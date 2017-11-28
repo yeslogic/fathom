@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use super::*;
-use super::host::TypeConst as Tc;
+use super::host::{SignedType as St, TypeConst as Tc, UnsignedType as Ut};
 
 mod ty_of {
     use super::*;
@@ -16,23 +16,25 @@ mod ty_of {
         assert!(ty_of(&ctx, &expr).is_err());
     }
 
-    // #[test]
-    // fn const_int() {
-    //     let ctx = Context::new();
-    //     let src = "1u8";
-    //     let expr = Rc::new(src.parse().unwrap());
+    #[test]
+    fn const_int() {
+        let ctx = Context::new();
+        let src = "1u8";
+        let expr = Rc::new(src.parse().unwrap());
+        let expected_ty = Rc::new(Type::Const(Tc::Unsigned(Ut::U8)));
 
-    //     assert_eq!(ty_of(&ctx, &expr), Ok(Rc::new(Type::int())));
-    // }
+        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+    }
 
-    // #[test]
-    // fn neg_int() {
-    //     let ctx = Context::new();
-    //     let src = "-(1u8 + 2u8)";
-    //     let expr = Rc::new(src.parse().unwrap());
+    #[test]
+    fn neg_int() {
+        let ctx = Context::new();
+        let src = "-(1i8 + 2i8)";
+        let expr = Rc::new(src.parse().unwrap());
+        let expected_ty = Rc::new(Type::Const(Tc::Signed(St::I8)));
 
-    //     assert_eq!(ty_of(&ctx, &expr), Ok(Rc::new(Type::int())));
-    // }
+        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+    }
 
     #[test]
     fn neg_bool() {
@@ -62,14 +64,15 @@ mod ty_of {
         assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
     }
 
-    // #[test]
-    // fn arith_ops() {
-    //     let ctx = Context::new();
-    //     let src = "1u8 + (1u8 * -2u8)";
-    //     let expr = Rc::new(src.parse().unwrap());
+    #[test]
+    fn arith_ops() {
+        let ctx = Context::new();
+        let src = "1i8 + (1i8 * -2i8)";
+        let expr = Rc::new(src.parse().unwrap());
+        let expected_ty = Rc::new(Type::Const(Tc::Signed(St::I8)));
 
-    //     assert_eq!(ty_of(&ctx, &expr), Ok(Rc::new(Type::int())));
-    // }
+        assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+    }
 
     #[test]
     fn cmp_ops_eq_int() {
