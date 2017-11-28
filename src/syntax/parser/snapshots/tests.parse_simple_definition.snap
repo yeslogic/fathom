@@ -1,6 +1,7 @@
 Program {
-    defs: [
+    definitions: [
         Definition {
+            doc: "",
             name: "Offset32",
             ty: Var(
                 Span {

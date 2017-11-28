@@ -15,6 +15,7 @@ Assert(
             },
             [
                 Field {
+                    doc: "",
                     name: "x",
                     value: Assert(
                         Span {
@@ -73,6 +74,7 @@ Assert(
                 Named("x", Struct(
                     [
                         Field {
+                            doc: "",
                             name: "x",
                             value: Var(
                                 Free("u32")
@@ -113,6 +115,7 @@ Assert(
             Named("x", Struct(
                 [
                     Field {
+                        doc: "",
                         name: "x",
                         value: Var(
                             Free("u32")

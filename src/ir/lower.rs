@@ -13,14 +13,14 @@ impl<'a> From<&'a syntax::ast::Program<String>> for Program<String> {
     fn from(src: &'a syntax::ast::Program<String>) -> Program<String> {
         let mut program = Program::new();
 
-        for def in &src.defs {
+        for definition in &src.definitions {
             // Begin tracking the path of this definition from the root name of the
             // source definition. This will be appended to in order to provide a
             // fully qualified path through the type definitions, eg:
             // `Foo::field::Entry::Variant2::...`
-            let path = Path::new(def.name.clone());
+            let path = Path::new(definition.name.clone());
 
-            match *def.ty {
+            match *definition.ty {
                 // Structs and unions that are defined at the top level should
                 // get the best names, closest to what the author of the data
                 // definition intended!
@@ -29,19 +29,29 @@ impl<'a> From<&'a syntax::ast::Program<String>> for Program<String> {
                         lower_ty(&mut program, &field_path, ty)
                     });
                     let parse_expr = struct_parser(&path, fields);
-                    program.define_struct(path, lowered_fields, Some(parse_expr));
+                    program.define_struct(
+                        path,
+                        definition.doc.clone(),
+                        lowered_fields,
+                        Some(parse_expr),
+                    );
                 }
                 binary::Type::Union(_, ref variants) => {
                     let lowered_variants = lower_row(&path, variants, |variant_path, ty| {
                         lower_ty(&mut program, &variant_path, ty)
                     });
                     let parse_expr = union_parser(&path, variants);
-                    program.define_union(path, lowered_variants, Some(parse_expr));
+                    program.define_union(
+                        path,
+                        definition.doc.clone(),
+                        lowered_variants,
+                        Some(parse_expr),
+                    );
                 }
                 // Everything else should be an alias
                 _ => {
-                    let ty = lower_ty(&mut program, &path, &def.ty);
-                    program.define_alias(path, ty);
+                    let ty = lower_ty(&mut program, &path, &definition.ty);
+                    program.define_alias(path, definition.doc.clone(), ty);
                 }
             }
         }
@@ -71,7 +81,7 @@ where
             let item_path = path.append_child(item.name.clone());
             let ty = lower_value(item_path, &item.value);
 
-            Field::new(item.name.clone(), ty)
+            Field::new(item.doc.clone(), item.name.clone(), ty)
         })
         .collect()
 }
@@ -113,7 +123,7 @@ fn lower_ty(
             let lowered_variants = lower_row(path, variants, |variant_path, ty| {
                 lower_ty(program, &variant_path, ty)
             });
-            program.define_union(path.clone(), lowered_variants, None);
+            program.define_union(path.clone(), String::new(), lowered_variants, None);
 
             Type::Path(path.clone())
         }
@@ -121,7 +131,7 @@ fn lower_ty(
             let lowered_fields = lower_row(path, fields, |field_path, ty| {
                 lower_ty(program, &field_path, ty)
             });
-            program.define_struct(path.clone(), lowered_fields, None);
+            program.define_struct(path.clone(), String::new(), lowered_fields, None);
 
             Type::Path(path.clone())
         }
@@ -220,7 +230,11 @@ fn struct_parser(
         )
     };
     let lower_to_expr_field = |field: &Field<String, binary::RcType<String>>| {
-        Field::new(field.name.clone(), Expr::Var(Var::free(field.name.clone())))
+        Field::new(
+            field.doc.clone(),
+            field.name.clone(),
+            Expr::Var(Var::free(field.name.clone())),
+        )
     };
 
     let parse_exprs = fields.iter().map(lower_to_field_parser);

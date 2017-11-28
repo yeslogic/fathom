@@ -4,8 +4,10 @@ Program {
             base: "Stl",
             children: []
         }: Struct(
+            "https://en.wikipedia.org/wiki/STL_(file_format)",
             [
                 Field {
+                    doc: "Generally ignored",
                     name: "header",
                     value: Array(
                         Const(
@@ -16,6 +18,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Number of triangles that follow",
                     name: "num_triangles",
                     value: Const(
                         Unsigned(
@@ -24,6 +27,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "The triangle data",
                     name: "triangles",
                     value: Array(
                         Path(
@@ -69,18 +73,21 @@ Program {
                         },
                         [
                             Field {
+                                doc: "Generally ignored",
                                 name: "header",
                                 value: Var(
                                     Bound(Named("header", BoundVar(2, 0)))
                                 )
                             },
                             Field {
+                                doc: "Number of triangles that follow",
                                 name: "num_triangles",
                                 value: Var(
                                     Bound(Named("num_triangles", BoundVar(1, 0)))
                                 )
                             },
                             Field {
+                                doc: "The triangle data",
                                 name: "triangles",
                                 value: Var(
                                     Bound(Named("triangles", BoundVar(0, 0)))
@@ -95,8 +102,10 @@ Program {
             base: "Triangle",
             children: []
         }: Struct(
+            "",
             [
                 Field {
+                    doc: "Normal vector",
                     name: "normal",
                     value: Path(
                         Path {
@@ -106,6 +115,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Coordinates of the vertices",
                     name: "vertices",
                     value: Array(
                         Path(
@@ -117,6 +127,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
                     name: "attribute_bytes",
                     value: Const(
                         Unsigned(
@@ -152,18 +163,21 @@ Program {
                         },
                         [
                             Field {
+                                doc: "Normal vector",
                                 name: "normal",
                                 value: Var(
                                     Bound(Named("normal", BoundVar(2, 0)))
                                 )
                             },
                             Field {
+                                doc: "Coordinates of the vertices",
                                 name: "vertices",
                                 value: Var(
                                     Bound(Named("vertices", BoundVar(1, 0)))
                                 )
                             },
                             Field {
+                                doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
                                 name: "attribute_bytes",
                                 value: Var(
                                     Bound(Named("attribute_bytes", BoundVar(0, 0)))
@@ -178,8 +192,10 @@ Program {
             base: "Vec3d",
             children: []
         }: Struct(
+            "",
             [
                 Field {
+                    doc: "",
                     name: "x",
                     value: Const(
                         Float(
@@ -188,6 +204,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "",
                     name: "y",
                     value: Const(
                         Float(
@@ -196,6 +213,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "",
                     name: "z",
                     value: Const(
                         Float(
@@ -224,18 +242,21 @@ Program {
                         },
                         [
                             Field {
+                                doc: "",
                                 name: "x",
                                 value: Var(
                                     Bound(Named("x", BoundVar(2, 0)))
                                 )
                             },
                             Field {
+                                doc: "",
                                 name: "y",
                                 value: Var(
                                     Bound(Named("y", BoundVar(1, 0)))
                                 )
                             },
                             Field {
+                                doc: "",
                                 name: "z",
                                 value: Var(
                                     Bound(Named("z", BoundVar(0, 0)))

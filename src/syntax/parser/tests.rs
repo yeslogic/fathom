@@ -135,6 +135,7 @@ fn parse_ty_array_dependent() {
             data2: struct {
                 data1: [f32; len],
                 len: u32,
+                /// Doc comment
                 padding1: u8,
                 padding2: u8,
                 data2: [f32; len],
@@ -177,14 +178,19 @@ fn parse_definition() {
             y : u32be,
         };
 
+        /// A doc comment
+        ///
+        /// With some mor text
         Array = struct {
             len : u16le,
             data : [Point; len],
         };
 
         Formats = union {
+            /// A doc comment on a union variant
             u16 : struct { format : u16, data: u16 },
             point : struct { format : u16, point: Point },
+            /// And another doc comment
             array : struct { format : u16, array: Array },
         };
     ";

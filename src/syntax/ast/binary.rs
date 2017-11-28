@@ -383,7 +383,11 @@ impl<N: Name> Type<N> {
                 let repr_variants = variants
                     .iter()
                     .map(|variant| {
-                        Field::new(variant.name.clone(), variant.value.repr())
+                        Field::new(
+                            variant.doc.clone(),
+                            variant.name.clone(),
+                            variant.value.repr(),
+                        )
                     })
                     .collect();
 
@@ -392,7 +396,9 @@ impl<N: Name> Type<N> {
             Type::Struct(_, ref fields) => {
                 let repr_fields = fields
                     .iter()
-                    .map(|field| Field::new(field.name.clone(), field.value.repr()))
+                    .map(|field| {
+                        Field::new(field.doc.clone(), field.name.clone(), field.value.repr())
+                    })
                     .collect();
 
                 Rc::new(host::Type::Struct(repr_fields))

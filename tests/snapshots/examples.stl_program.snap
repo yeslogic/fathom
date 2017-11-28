@@ -1,6 +1,7 @@
 Program {
-    defs: [
+    definitions: [
         Definition {
+            doc: "",
             name: "Vec3d",
             ty: Struct(
                 Span {
@@ -9,6 +10,7 @@ Program {
                 },
                 [
                     Field {
+                        doc: "",
                         name: "x",
                         value: Var(
                             Span {
@@ -19,6 +21,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "",
                         name: "y",
                         value: Var(
                             Span {
@@ -29,6 +32,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "",
                         name: "z",
                         value: Var(
                             Span {
@@ -42,6 +46,7 @@ Program {
             )
         },
         Definition {
+            doc: "",
             name: "Triangle",
             ty: Struct(
                 Span {
@@ -50,6 +55,7 @@ Program {
                 },
                 [
                     Field {
+                        doc: "Normal vector",
                         name: "normal",
                         value: Var(
                             Span {
@@ -60,6 +66,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Coordinates of the vertices",
                         name: "vertices",
                         value: Array(
                             Span {
@@ -83,6 +90,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
                         name: "attribute_bytes",
                         value: Var(
                             Span {
@@ -96,6 +104,7 @@ Program {
             )
         },
         Definition {
+            doc: "https://en.wikipedia.org/wiki/STL_(file_format)",
             name: "Stl",
             ty: Struct(
                 Span {
@@ -104,6 +113,7 @@ Program {
                 },
                 [
                     Field {
+                        doc: "Generally ignored",
                         name: "header",
                         value: Array(
                             Span {
@@ -127,6 +137,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "Number of triangles that follow",
                         name: "num_triangles",
                         value: Var(
                             Span {
@@ -137,6 +148,7 @@ Program {
                         )
                     },
                     Field {
+                        doc: "The triangle data",
                         name: "triangles",
                         value: Array(
                             Span {

@@ -34,26 +34,28 @@ impl<N: Name> Program<N> {
         self.defs.insert(path, def);
     }
 
-    pub fn define_alias<P: Into<Path<N>>>(&mut self, path: P, ty: RcType<N>) {
-        self.define(path, Definition::Alias(ty));
+    pub fn define_alias<P: Into<Path<N>>>(&mut self, path: P, doc: String, ty: RcType<N>) {
+        self.define(path, Definition::Alias(doc, ty));
     }
 
     pub fn define_struct<P: Into<Path<N>>>(
         &mut self,
         path: P,
+        doc: String,
         fields: Vec<Field<N, RcType<N>>>,
         parser: Option<RcParseExpr<N>>,
     ) {
-        self.define(path, Definition::Struct(fields, parser));
+        self.define(path, Definition::Struct(doc, fields, parser));
     }
 
     pub fn define_union<P: Into<Path<N>>>(
         &mut self,
         path: P,
+        doc: String,
         variants: Vec<Field<N, RcType<N>>>,
         parser: Option<RcParseExpr<N>>,
     ) {
-        self.define(path, Definition::Union(variants, parser));
+        self.define(path, Definition::Union(doc, variants, parser));
     }
 }
 
@@ -129,11 +131,11 @@ impl<'a, N: From<&'a str>> From<&'a str> for Path<N> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Definition<N> {
     /// Type alias
-    Alias(RcType<N>),
+    Alias(String, RcType<N>),
     /// Struct definition
-    Struct(Vec<Field<N, RcType<N>>>, Option<RcParseExpr<N>>),
+    Struct(String, Vec<Field<N, RcType<N>>>, Option<RcParseExpr<N>>),
     /// Union type definition
-    Union(Vec<Field<N, RcType<N>>>, Option<RcParseExpr<N>>),
+    Union(String, Vec<Field<N, RcType<N>>>, Option<RcParseExpr<N>>),
 }
 
 /// Structural types

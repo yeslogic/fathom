@@ -1,6 +1,7 @@
 Program {
-    defs: [
+    definitions: [
         Definition {
+            doc: "",
             name: "Point",
             ty: Array(
                 Span {

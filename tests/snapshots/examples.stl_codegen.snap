@@ -3,10 +3,14 @@ extern crate ddl_util;
 use std::io;
 use std::io::prelude::*;
 
+/// https://en.wikipedia.org/wiki/STL_(file_format)
 #[derive(Debug, Clone)]
 pub struct Stl {
+    /// Generally ignored
     pub header: Vec<u8>,
+    /// Number of triangles that follow
     pub num_triangles: u32,
+    /// The triangle data
     pub triangles: Vec<Triangle>,
 }
 
@@ -26,8 +30,14 @@ impl Stl {
 
 #[derive(Debug, Clone)]
 pub struct Triangle {
+    /// Normal vector
     pub normal: Vec3d,
+    /// Coordinates of the vertices
     pub vertices: Vec<Vec3d>,
+    /// Attribute byte count
+    /// 
+    /// The attribute syntax is not documented in the formal specification. It is
+    /// specified that the attribute byte count should be set to zero.
     pub attribute_bytes: u16,
 }
 

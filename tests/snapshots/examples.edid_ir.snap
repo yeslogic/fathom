@@ -4,8 +4,10 @@ Program {
             base: "DisplayParams",
             children: []
         }: Struct(
+            "",
             [
                 Field {
+                    doc: "Video input parameters bitmap",
                     name: "input_flags",
                     value: Const(
                         Unsigned(
@@ -14,6 +16,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Maximum horizontal image size, in centimetres (max 292 cm/115 in at 16:9 aspect ratio)",
                     name: "screen_size_h",
                     value: Const(
                         Unsigned(
@@ -22,6 +25,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Maximum vertical image size, in centimetres. If either byte is 0, undefined (e.g. projector)",
                     name: "screen_size_v",
                     value: Const(
                         Unsigned(
@@ -30,6 +34,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Display gamma, datavalue = (gamma*100)-100 (range 1.00–3.54)",
                     name: "gamma_mod",
                     value: Const(
                         Unsigned(
@@ -38,6 +43,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Supported features bitmap",
                     name: "features_flags",
                     value: Const(
                         Unsigned(
@@ -72,30 +78,35 @@ Program {
                         },
                         [
                             Field {
+                                doc: "Video input parameters bitmap",
                                 name: "input_flags",
                                 value: Var(
                                     Bound(Named("input_flags", BoundVar(4, 0)))
                                 )
                             },
                             Field {
+                                doc: "Maximum horizontal image size, in centimetres (max 292 cm/115 in at 16:9 aspect ratio)",
                                 name: "screen_size_h",
                                 value: Var(
                                     Bound(Named("screen_size_h", BoundVar(3, 0)))
                                 )
                             },
                             Field {
+                                doc: "Maximum vertical image size, in centimetres. If either byte is 0, undefined (e.g. projector)",
                                 name: "screen_size_v",
                                 value: Var(
                                     Bound(Named("screen_size_v", BoundVar(2, 0)))
                                 )
                             },
                             Field {
+                                doc: "Display gamma, datavalue = (gamma*100)-100 (range 1.00–3.54)",
                                 name: "gamma_mod",
                                 value: Var(
                                     Bound(Named("gamma_mod", BoundVar(1, 0)))
                                 )
                             },
                             Field {
+                                doc: "Supported features bitmap",
                                 name: "features_flags",
                                 value: Var(
                                     Bound(Named("features_flags", BoundVar(0, 0)))
@@ -110,8 +121,10 @@ Program {
             base: "Edid",
             children: []
         }: Struct(
+            "https://en.wikipedia.org/wiki/Extended_Display_Identification_Data",
             [
                 Field {
+                    doc: "Header information",
                     name: "header",
                     value: Path(
                         Path {
@@ -121,6 +134,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Basic display parameters",
                     name: "display_params",
                     value: Path(
                         Path {
@@ -147,12 +161,14 @@ Program {
                         },
                         [
                             Field {
+                                doc: "Header information",
                                 name: "header",
                                 value: Var(
                                     Bound(Named("header", BoundVar(1, 0)))
                                 )
                             },
                             Field {
+                                doc: "Basic display parameters",
                                 name: "display_params",
                                 value: Var(
                                     Bound(Named("display_params", BoundVar(0, 0)))
@@ -167,8 +183,10 @@ Program {
             base: "Header",
             children: []
         }: Struct(
+            "",
             [
                 Field {
+                    doc: "Fixed header pattern",
                     name: "magic",
                     value: Array(
                         Const(
@@ -179,6 +197,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Manufacturer ID",
                     name: "mfg_bytes",
                     value: Const(
                         Unsigned(
@@ -187,6 +206,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Manufacturer product code",
                     name: "product_code",
                     value: Const(
                         Unsigned(
@@ -195,6 +215,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Serial number",
                     name: "serial",
                     value: Const(
                         Unsigned(
@@ -203,6 +224,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Week of manufacture. Week numbering is not consistent between manufacturers.",
                     name: "mfg_week",
                     value: Const(
                         Unsigned(
@@ -211,6 +233,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.",
                     name: "mfg_year_mod",
                     value: Const(
                         Unsigned(
@@ -219,6 +242,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "EDID version, usually 1 (for 1.3)",
                     name: "edid_version_major",
                     value: Const(
                         Unsigned(
@@ -227,6 +251,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "EDID revision, usually 3 (for 1.3)",
                     name: "edid_version_minor",
                     value: Const(
                         Unsigned(
@@ -277,48 +302,56 @@ Program {
                         },
                         [
                             Field {
+                                doc: "Fixed header pattern",
                                 name: "magic",
                                 value: Var(
                                     Bound(Named("magic", BoundVar(7, 0)))
                                 )
                             },
                             Field {
+                                doc: "Manufacturer ID",
                                 name: "mfg_bytes",
                                 value: Var(
                                     Bound(Named("mfg_bytes", BoundVar(6, 0)))
                                 )
                             },
                             Field {
+                                doc: "Manufacturer product code",
                                 name: "product_code",
                                 value: Var(
                                     Bound(Named("product_code", BoundVar(5, 0)))
                                 )
                             },
                             Field {
+                                doc: "Serial number",
                                 name: "serial",
                                 value: Var(
                                     Bound(Named("serial", BoundVar(4, 0)))
                                 )
                             },
                             Field {
+                                doc: "Week of manufacture. Week numbering is not consistent between manufacturers.",
                                 name: "mfg_week",
                                 value: Var(
                                     Bound(Named("mfg_week", BoundVar(3, 0)))
                                 )
                             },
                             Field {
+                                doc: "Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.",
                                 name: "mfg_year_mod",
                                 value: Var(
                                     Bound(Named("mfg_year_mod", BoundVar(2, 0)))
                                 )
                             },
                             Field {
+                                doc: "EDID version, usually 1 (for 1.3)",
                                 name: "edid_version_major",
                                 value: Var(
                                     Bound(Named("edid_version_major", BoundVar(1, 0)))
                                 )
                             },
                             Field {
+                                doc: "EDID revision, usually 3 (for 1.3)",
                                 name: "edid_version_minor",
                                 value: Var(
                                     Bound(Named("edid_version_minor", BoundVar(0, 0)))

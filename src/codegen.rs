@@ -45,21 +45,38 @@ fn lower_definition<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     definition: &'a Definition<String>,
 ) -> DocBuilder<'doc, A> {
     match *definition {
-        Definition::Alias(ref ty) => lower_alias(doc, path, ty),
-        Definition::Struct(ref fields, ref parse_expr) => match *parse_expr {
-            None => lower_struct(doc, path, fields),
-            Some(ref parse_expr) => lower_struct(doc, path, fields)
+        Definition::Alias(ref comment, ref ty) => {
+            lower_doc_comment(doc, comment).append(lower_alias(doc, path, ty))
+        }
+        Definition::Struct(ref comment, ref fields, ref parse_expr) => match *parse_expr {
+            None => lower_doc_comment(doc, comment).append(lower_struct(doc, path, fields)),
+            Some(ref parse_expr) => lower_doc_comment(doc, comment)
+                .append(lower_struct(doc, path, fields))
                 .append(doc.newline())
                 .append(doc.newline())
                 .append(lower_read_impl(doc, path, parse_expr)),
         },
-        Definition::Union(ref variants, ref parse_expr) => match *parse_expr {
-            None => lower_union(doc, path, variants),
-            Some(ref parse_expr) => lower_union(doc, path, variants)
+        Definition::Union(ref comment, ref variants, ref parse_expr) => match *parse_expr {
+            None => lower_doc_comment(doc, comment).append(lower_union(doc, path, variants)),
+            Some(ref parse_expr) => lower_doc_comment(doc, comment)
+                .append(lower_union(doc, path, variants))
                 .append(doc.newline())
                 .append(doc.newline())
                 .append(lower_read_impl(doc, path, parse_expr)),
         },
+    }
+}
+
+fn lower_doc_comment<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
+    doc: &'doc A,
+    comment: &'a str,
+) -> DocBuilder<'doc, A> {
+    if comment.is_empty() {
+        doc.nil()
+    } else {
+        doc.concat(comment.lines().map(|line| {
+            doc.text(format!("/// {}", line)).append(doc.newline())
+        }))
     }
 }
 
@@ -100,7 +117,8 @@ fn lower_struct<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             doc.newline()
                 .append(doc.intersperse(
                     fields.iter().map(|field| {
-                        doc.text("pub")
+                        lower_doc_comment(doc, &field.doc)
+                            .append(doc.text("pub"))
                             .append(doc.space())
                             .append(doc.as_string(&field.name))
                             .append(doc.text(":"))
@@ -136,9 +154,10 @@ fn lower_union<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             doc.newline()
                 .append(doc.intersperse(
                     variants.iter().map(|variant| {
-                        // FIXME: this will break if there is already another
-                        // variant in the enum that uses the pascalised identifier
-                        doc.text(variant.name.to_camel_case())
+                        lower_doc_comment(doc, &variant.doc)
+                            // FIXME: this will break if there is already another
+                            // variant in the enum that uses the pascalised identifier
+                            .append(doc.text(variant.name.to_camel_case()))
                             .append(doc.text("("))
                             .append(lower_ty(doc, &variant.value))
                             .append(doc.text("),"))

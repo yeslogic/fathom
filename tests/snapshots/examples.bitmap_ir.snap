@@ -4,8 +4,10 @@ Program {
             base: "Bitmap",
             children: []
         }: Struct(
+            "",
             [
                 Field {
+                    doc: "",
                     name: "extents",
                     value: Path(
                         Path {
@@ -17,6 +19,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "",
                     name: "data",
                     value: Array(
                         Path(
@@ -49,12 +52,14 @@ Program {
                                 },
                                 [
                                     Field {
+                                        doc: "",
                                         name: "width",
                                         value: Var(
                                             Bound(Named("width", BoundVar(1, 0)))
                                         )
                                     },
                                     Field {
+                                        doc: "",
                                         name: "height",
                                         value: Var(
                                             Bound(Named("height", BoundVar(0, 0)))
@@ -93,12 +98,14 @@ Program {
                         },
                         [
                             Field {
+                                doc: "",
                                 name: "extents",
                                 value: Var(
                                     Bound(Named("extents", BoundVar(1, 0)))
                                 )
                             },
                             Field {
+                                doc: "",
                                 name: "data",
                                 value: Var(
                                     Bound(Named("data", BoundVar(0, 0)))
@@ -115,8 +122,10 @@ Program {
                 "extents"
             ]
         }: Struct(
+            "",
             [
                 Field {
+                    doc: "",
                     name: "width",
                     value: Const(
                         Unsigned(
@@ -125,6 +134,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "",
                     name: "height",
                     value: Const(
                         Unsigned(
@@ -139,6 +149,7 @@ Program {
             base: "Bmp",
             children: []
         }: Alias(
+            "",
             Path(
                 Path {
                     base: "Bitmap",
@@ -150,8 +161,10 @@ Program {
             base: "Pixel",
             children: []
         }: Struct(
+            "",
             [
                 Field {
+                    doc: "",
                     name: "r",
                     value: Const(
                         Unsigned(
@@ -160,6 +173,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "",
                     name: "g",
                     value: Const(
                         Unsigned(
@@ -168,6 +182,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "",
                     name: "b",
                     value: Const(
                         Unsigned(
@@ -176,6 +191,7 @@ Program {
                     )
                 },
                 Field {
+                    doc: "",
                     name: "a",
                     value: Const(
                         Unsigned(
@@ -207,24 +223,28 @@ Program {
                         },
                         [
                             Field {
+                                doc: "",
                                 name: "r",
                                 value: Var(
                                     Bound(Named("r", BoundVar(3, 0)))
                                 )
                             },
                             Field {
+                                doc: "",
                                 name: "g",
                                 value: Var(
                                     Bound(Named("g", BoundVar(2, 0)))
                                 )
                             },
                             Field {
+                                doc: "",
                                 name: "b",
                                 value: Var(
                                     Bound(Named("b", BoundVar(1, 0)))
                                 )
                             },
                             Field {
+                                doc: "",
                                 name: "a",
                                 value: Var(
                                     Bound(Named("a", BoundVar(0, 0)))
