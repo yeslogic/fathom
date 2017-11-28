@@ -34,28 +34,38 @@ impl<N: Name> Program<N> {
         self.defs.insert(path, def);
     }
 
-    pub fn define_alias<P: Into<Path<N>>>(&mut self, path: P, doc: String, ty: RcType<N>) {
-        self.define(path, Definition::Alias(doc, ty));
+    pub fn define_alias<P, D>(&mut self, path: P, doc: D, ty: RcType<N>)
+    where
+        P: Into<Path<N>>,
+        D: Into<Rc<str>>,
+    {
+        self.define(path, Definition::Alias(doc.into(), ty));
     }
 
-    pub fn define_struct<P: Into<Path<N>>>(
+    pub fn define_struct<P, D>(
         &mut self,
         path: P,
-        doc: String,
+        doc: D,
         fields: Vec<Field<N, RcType<N>>>,
         parser: Option<RcParseExpr<N>>,
-    ) {
-        self.define(path, Definition::Struct(doc, fields, parser));
+    ) where
+        P: Into<Path<N>>,
+        D: Into<Rc<str>>,
+    {
+        self.define(path, Definition::Struct(doc.into(), fields, parser));
     }
 
-    pub fn define_union<P: Into<Path<N>>>(
+    pub fn define_union<P, D>(
         &mut self,
         path: P,
-        doc: String,
+        doc: D,
         variants: Vec<Field<N, RcType<N>>>,
         parser: Option<RcParseExpr<N>>,
-    ) {
-        self.define(path, Definition::Union(doc, variants, parser));
+    ) where
+        P: Into<Path<N>>,
+        D: Into<Rc<str>>,
+    {
+        self.define(path, Definition::Union(doc.into(), variants, parser));
     }
 }
 
@@ -131,11 +141,11 @@ impl<'a, N: From<&'a str>> From<&'a str> for Path<N> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Definition<N> {
     /// Type alias
-    Alias(String, RcType<N>),
+    Alias(Rc<str>, RcType<N>),
     /// Struct definition
-    Struct(String, Vec<Field<N, RcType<N>>>, Option<RcParseExpr<N>>),
+    Struct(Rc<str>, Vec<Field<N, RcType<N>>>, Option<RcParseExpr<N>>),
     /// Union type definition
-    Union(String, Vec<Field<N, RcType<N>>>, Option<RcParseExpr<N>>),
+    Union(Rc<str>, Vec<Field<N, RcType<N>>>, Option<RcParseExpr<N>>),
 }
 
 /// Structural types
