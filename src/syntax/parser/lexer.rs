@@ -31,7 +31,8 @@ fn is_dec_digit(ch: char) -> bool {
 }
 
 /// An error that occurred while lexing the source file
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, Fail, Clone, PartialEq, Eq)]
+#[fail(display = "{:?} at: {:?}", code, location)] // FIXME: use better formatting
 pub struct Error {
     /// The location where the lexer error occured
     pub location: BytePos,
@@ -64,9 +65,10 @@ pub enum Token<'input> {
     HexLiteral(u64, &'input str),
 
     // Keywords
-    Struct,
-    Union,
-    Where,
+    As,     // as
+    Struct, // struct
+    Union,  // union
+    Where,  // where
 
     // Symbols
     Ampersand,    // &
@@ -190,6 +192,7 @@ impl<'input> Lexer<'input> {
         let (end, ident) = self.take_while(start, is_ident_continue);
 
         let token = match ident {
+            "as" => Token::As,
             "struct" => Token::Struct,
             "union" => Token::Union,
             "where" => Token::Where,
@@ -347,10 +350,11 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  struct  union  where ",
-            "  ~~~~~~               " => Token::Struct,
-            "          ~~~~~        " => Token::Union,
-            "                 ~~~~~ " => Token::Where,
+            "  as  struct  union  where ",
+            "  ~~                       " => Token::As,
+            "      ~~~~~~               " => Token::Struct,
+            "              ~~~~~        " => Token::Union,
+            "                     ~~~~~ " => Token::Where,
         };
     }
 

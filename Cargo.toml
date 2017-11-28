@@ -21,6 +21,8 @@ members = [
 ]
 
 [dependencies]
+failure = "0.1"
+failure_derive = "0.1"
 heck = "0.3.0"
 lalrpop-util = "0.13.1"
 maplit = "0.1.6"

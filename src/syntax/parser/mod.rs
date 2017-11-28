@@ -17,10 +17,11 @@ use self::lexer::Lexer;
 
 pub type ParseError = lalrpop_util::ParseError<BytePos, String, GrammarError>;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Fail, Clone, Eq, PartialEq)]
 pub enum GrammarError {
-    Lexer(lexer::Error),
-    IntSuffix(host::ParseIntSuffixError),
+    #[fail(display = "{}", _0)] Lexer(lexer::Error),
+    #[fail(display = "{}", _0)] IntSuffix(host::ParseIntSuffixError),
+    #[fail(display = "{}", _0)] HostTypeConst(host::ParseTypeConstError),
 }
 
 impl From<lexer::Error> for GrammarError {
@@ -32,6 +33,12 @@ impl From<lexer::Error> for GrammarError {
 impl From<host::ParseIntSuffixError> for GrammarError {
     fn from(src: host::ParseIntSuffixError) -> GrammarError {
         GrammarError::IntSuffix(src)
+    }
+}
+
+impl From<host::ParseTypeConstError> for GrammarError {
+    fn from(src: host::ParseTypeConstError) -> GrammarError {
+        GrammarError::HostTypeConst(src)
     }
 }
 
@@ -68,8 +75,18 @@ impl FromStr for host::Expr<String> {
     type Err = ParseError;
 
     fn from_str(src: &str) -> Result<host::Expr<String>, ParseError> {
-        grammar::parse_Expr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+        grammar::parse_HostExpr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
             .map(|expr| Rc::try_unwrap(expr).unwrap())
+            .map_err(from_lalrpop_err)
+    }
+}
+
+impl FromStr for host::Type<String> {
+    type Err = ParseError;
+
+    fn from_str(src: &str) -> Result<host::Type<String>, ParseError> {
+        grammar::parse_HostType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+            .map(|ty| Rc::try_unwrap(ty).unwrap())
             .map_err(from_lalrpop_err)
     }
 }
@@ -78,7 +95,7 @@ impl FromStr for binary::Type<String> {
     type Err = ParseError;
 
     fn from_str(src: &str) -> Result<binary::Type<String>, ParseError> {
-        grammar::parse_Type(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+        grammar::parse_BinaryType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
             .map(|ty| Rc::try_unwrap(ty).unwrap())
             .map_err(from_lalrpop_err)
     }

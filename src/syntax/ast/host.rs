@@ -38,25 +38,27 @@ impl FromStr for IntSuffix {
 
     fn from_str(src: &str) -> Result<IntSuffix, ParseIntSuffixError> {
         match src {
+            "i8" => Ok(IntSuffix::Signed(SignedType::I8)),
+            "i16" => Ok(IntSuffix::Signed(SignedType::I16)),
+            "i32" => Ok(IntSuffix::Signed(SignedType::I32)),
+            "i64" => Ok(IntSuffix::Signed(SignedType::I64)),
             "u8" => Ok(IntSuffix::Unsigned(UnsignedType::U8)),
             "u16" => Ok(IntSuffix::Unsigned(UnsignedType::U16)),
             "u24" => Ok(IntSuffix::Unsigned(UnsignedType::U24)),
             "u32" => Ok(IntSuffix::Unsigned(UnsignedType::U32)),
             "u64" => Ok(IntSuffix::Unsigned(UnsignedType::U64)),
-            "i8" => Ok(IntSuffix::Signed(SignedType::I8)),
-            "i16" => Ok(IntSuffix::Signed(SignedType::I16)),
-            "i32" => Ok(IntSuffix::Signed(SignedType::I32)),
-            "i64" => Ok(IntSuffix::Signed(SignedType::I64)),
             "" => Err(ParseIntSuffixError::Missing),
-            _ => Err(ParseIntSuffixError::Invalid),
+            _ => Err(ParseIntSuffixError::Invalid {
+                suffix: src.to_owned(),
+            }),
         }
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Fail, Clone, Eq, PartialEq)]
 pub enum ParseIntSuffixError {
-    Invalid,
-    Missing,
+    #[fail(display = "invalid integer suffix: {}", suffix)] Invalid { suffix: String },
+    #[fail(display = "missing integer suffix")] Missing,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -151,6 +153,8 @@ pub enum Expr<N> {
     Intro(Span, N, RcExpr<N>, RcType<N>),
     /// Array index, eg: `x[i]`
     Subscript(Span, RcExpr<N>, RcExpr<N>),
+    /// Cast expression, eg: `x as u32`
+    Cast(Span, RcExpr<N>, RcType<N>),
     /// Abstraction, eg: `\(x : T, ..) -> x`
     Abs(Span, Vec<Named<N, RcType<N>>>, RcExpr<N>),
     /// Application, eg: `f(x, ..)`
@@ -209,6 +213,10 @@ impl<N: Name> Expr<N> {
             Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
                 Rc::make_mut(array_expr).abstract_names_at(names, scope);
                 Rc::make_mut(index_expr).abstract_names_at(names, scope);
+            }
+            Expr::Cast(_, ref mut src_expr, _) => {
+                Rc::make_mut(src_expr).abstract_names_at(names, scope);
+                // TODO: abstract dst_ty???
             }
             Expr::Abs(_, ref mut args, ref mut body_expr) => {
                 for &mut Named(_, ref mut arg_ty) in args {
@@ -279,6 +287,35 @@ pub enum TypeConst {
     Signed(SignedType),
     /// Unsigned Integers
     Unsigned(UnsignedType),
+}
+
+#[derive(Debug, Fail, Clone, Eq, PartialEq)]
+pub enum ParseTypeConstError {
+    #[fail(display = "invalid type constant name: {}", name)] InvalidName { name: String },
+}
+
+impl FromStr for TypeConst {
+    type Err = ParseTypeConstError;
+
+    fn from_str(src: &str) -> Result<TypeConst, ParseTypeConstError> {
+        match src {
+            "bool" => Ok(TypeConst::Bool),
+            "f32" => Ok(TypeConst::Float(FloatType::F32)),
+            "f64" => Ok(TypeConst::Float(FloatType::F64)),
+            "i8" => Ok(TypeConst::Signed(SignedType::I8)),
+            "i16" => Ok(TypeConst::Signed(SignedType::I16)),
+            "i32" => Ok(TypeConst::Signed(SignedType::I32)),
+            "i64" => Ok(TypeConst::Signed(SignedType::I64)),
+            "u8" => Ok(TypeConst::Unsigned(UnsignedType::U8)),
+            "u16" => Ok(TypeConst::Unsigned(UnsignedType::U16)),
+            "u24" => Ok(TypeConst::Unsigned(UnsignedType::U24)),
+            "u32" => Ok(TypeConst::Unsigned(UnsignedType::U32)),
+            "u64" => Ok(TypeConst::Unsigned(UnsignedType::U64)),
+            _ => Err(ParseTypeConstError::InvalidName {
+                name: src.to_owned(),
+            }),
+        }
+    }
 }
 
 /// A host type

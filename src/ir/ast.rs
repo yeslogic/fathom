@@ -263,6 +263,7 @@ pub enum Expr<N> {
     Proj(RcExpr<N>, N),
     Intro(Path<N>, N, RcExpr<N>),
     Subscript(RcExpr<N>, RcExpr<N>),
+    Cast(RcExpr<N>, RcType<N>),
     Abs(Vec<Named<N, RcType<N>>>, RcExpr<N>),
     App(RcExpr<N>, Vec<RcExpr<N>>),
 }
@@ -292,6 +293,10 @@ impl<N: Name> Expr<N> {
             Expr::Subscript(ref mut array_expr, ref mut index_expr) => {
                 Rc::make_mut(array_expr).abstract_names_at(names, scope);
                 Rc::make_mut(index_expr).abstract_names_at(names, scope);
+            }
+            Expr::Cast(ref mut src_expr, _) => {
+                Rc::make_mut(src_expr).abstract_names_at(names, scope);
+                // TODO: abstract dst_ty???
             }
             Expr::Abs(_, ref mut body_expr) => {
                 Rc::make_mut(body_expr).abstract_names_at(names, scope.succ());

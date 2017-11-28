@@ -148,8 +148,6 @@ fn lower_ty(
 ///
 /// # Arguments
 ///
-/// * `program` - the current program. Sub-structs and unions will mutate the
-///   program, creating corresponding top-level definitions
 /// * `path` - path to the parent struct or union
 /// * `ty` - the type to be lowered
 fn lower_repr_ty(path: &Path<String>, ty: &host::RcType<String>) -> RcType<String> {
@@ -210,6 +208,9 @@ fn lower_expr(path: &Path<String>, expr: &host::RcExpr<String>) -> RcExpr<String
         }
         host::Expr::Intro(_, _, _, _) => unimplemented!(),
         host::Expr::Subscript(_, _, _) => unimplemented!(),
+        host::Expr::Cast(_, ref src_expr, ref dst_ty) => {
+            Expr::Cast(lower_expr(path, src_expr), lower_repr_ty(path, dst_ty))
+        }
         host::Expr::Abs(_, _, _) => unimplemented!(),
         host::Expr::App(_, _, _) => unimplemented!(),
     })
