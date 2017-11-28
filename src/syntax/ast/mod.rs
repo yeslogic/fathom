@@ -23,19 +23,6 @@ pub struct Field<N, T> {
 }
 
 impl<N, T> Field<N, T> {
-    pub fn new<D1, N1, T1>(doc: D1, name: N1, value: T1) -> Field<N, T>
-    where
-        D1: Into<Rc<str>>,
-        N1: Into<N>,
-        T1: Into<T>,
-    {
-        Field {
-            doc: doc.into(),
-            name: name.into(),
-            value: value.into(),
-        }
-    }
-
     /// Apply the function `f` to the field name and return the wrapped result
     pub fn map_name<M, F: FnMut(N) -> M>(self, mut f: F) -> Field<M, T> {
         Field {
@@ -90,21 +77,6 @@ pub struct Definition<N> {
     pub name: N,
     /// The binary type
     pub ty: binary::RcType<N>,
-}
-
-impl<N> Definition<N> {
-    pub fn new<D1, N1, T1>(doc: D1, name: N1, ty: T1) -> Definition<N>
-    where
-        D1: Into<Rc<str>>,
-        N1: Into<N>,
-        T1: Into<binary::RcType<N>>,
-    {
-        Definition {
-            doc: doc.into(),
-            name: name.into(),
-            ty: ty.into(),
-        }
-    }
 }
 
 impl<N: PartialEq> PartialEq for Definition<N> {

@@ -7,7 +7,7 @@ use std::str::FromStr;
 use name::{Name, Named};
 use source::Span;
 use syntax::ast::{self, Field};
-use var::{BoundVar, ScopeIndex, Var};
+use var::{ScopeIndex, Var};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -160,77 +160,6 @@ pub enum Expr<N> {
 pub type RcExpr<N> = Rc<Expr<N>>;
 
 impl<N: Name> Expr<N> {
-    /// A boolean constant: eg. `true`, `false`
-    pub fn bool(span: Span, value: bool) -> Expr<N> {
-        Expr::Const(span, Const::Bool(value))
-    }
-
-    /// Primitive expressions
-    pub fn prim<T1: Into<RcType<N>>>(name: &'static str, repr_ty: T1) -> Expr<N> {
-        Expr::Prim(name, repr_ty.into())
-    }
-
-    /// A free variable, referring to an integer that exists in the current
-    /// context: eg. `len`, `num_tables`
-    pub fn fvar<N1: Into<N>>(span: Span, x: N1) -> Expr<N> {
-        Expr::Var(span.into(), Var::free(x))
-    }
-
-    /// A bound variable
-    pub fn bvar<N1: Into<N>>(span: Span, x: N1, var: BoundVar) -> Expr<N> {
-        Expr::Var(span.into(), Var::bound(x, var))
-    }
-
-    /// An unary operator expression
-    pub fn unop<E1: Into<RcExpr<N>>>(span: Span, op: Unop, x: E1) -> Expr<N> {
-        Expr::Unop(span, op, x.into())
-    }
-
-    /// A binary operator expression
-    pub fn binop<E1, E2>(span: Span, op: Binop, x: E1, y: E2) -> Expr<N>
-    where
-        E1: Into<RcExpr<N>>,
-        E2: Into<RcExpr<N>>,
-    {
-        Expr::Binop(span, op, x.into(), y.into())
-    }
-
-    /// A binary operator expression
-    pub fn struct_(fields: Vec<Field<N, RcExpr<N>>>) -> Expr<N> {
-        Expr::Struct(fields)
-    }
-
-    /// Field projection, eg: `x.field`
-    pub fn proj<E1, N1>(span: Span, expr: E1, field_name: N1) -> Expr<N>
-    where
-        E1: Into<RcExpr<N>>,
-        N1: Into<N>,
-    {
-        Expr::Proj(span, expr.into(), field_name.into())
-    }
-
-    /// Variant introduction, eg: `.variant1 x : union { variant1 : T }`
-    ///
-    /// We require a type annotation because we don't have inference
-    /// implemented in the type checker yet.
-    pub fn intro<N1, E1, T1>(span: Span, variant_name: N1, expr: E1, union_ty: T1) -> Expr<N>
-    where
-        N1: Into<N>,
-        E1: Into<RcExpr<N>>,
-        T1: Into<RcType<N>>,
-    {
-        Expr::Intro(span, variant_name.into(), expr.into(), union_ty.into())
-    }
-
-    /// Array subscript, eg: `x[i]`
-    pub fn subscript<E1, E2>(span: Span, expr: E1, index_expr: E2) -> Expr<N>
-    where
-        E1: Into<RcExpr<N>>,
-        E2: Into<RcExpr<N>>,
-    {
-        Expr::Subscript(span, expr.into(), index_expr.into())
-    }
-
     /// Abstraction, eg: `\(x : T, ..) -> x`
     pub fn abs<E1>(span: Span, params: Vec<Named<N, RcType<N>>>, body_expr: E1) -> Expr<N>
     where
@@ -245,14 +174,6 @@ impl<N: Name> Expr<N> {
         Rc::make_mut(&mut body_expr).abstract_names(&param_names);
 
         Expr::Abs(span, params, body_expr)
-    }
-
-    /// Application, eg: `f(x, ..)`
-    pub fn app<E1>(span: Span, fn_expr: E1, arg_exprs: Vec<RcExpr<N>>) -> Expr<N>
-    where
-        E1: Into<RcExpr<N>>,
-    {
-        Expr::App(span, fn_expr.into(), arg_exprs)
     }
 
     /// Attempt to lookup the value of a field
@@ -386,44 +307,6 @@ pub enum Type<N> {
 pub type RcType<N> = Rc<Type<N>>;
 
 impl<N: Name> Type<N> {
-    /// A free type variable: eg. `T`
-    pub fn fvar<N1: Into<N>>(name: N1) -> Type<N> {
-        Type::Var(Var::free(name))
-    }
-
-    /// A bound type variable
-    pub fn bvar<N1: Into<N>>(name: N1, var: BoundVar) -> Type<N> {
-        Type::Var(Var::bound(name, var))
-    }
-
-    /// Boolean type constant
-    pub fn bool() -> Type<N> {
-        Type::Const(TypeConst::Bool)
-    }
-
-    /// Arrow type: eg. `(T, ..) -> U`
-    pub fn arrow<T1>(param_tys: Vec<RcType<N>>, ret_ty: T1) -> Type<N>
-    where
-        T1: Into<RcType<N>>,
-    {
-        Type::Arrow(param_tys, ret_ty.into())
-    }
-
-    /// An array of the specified type, with a size: eg. `[T; n]`
-    pub fn array<T1: Into<RcType<N>>>(elem_ty: T1) -> Type<N> {
-        Type::Array(elem_ty.into())
-    }
-
-    /// A union of types: eg. `union { T, ... }`
-    pub fn union(variants: Vec<Field<N, RcType<N>>>) -> Type<N> {
-        Type::Union(variants)
-    }
-
-    /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_(fields: Vec<Field<N, RcType<N>>>) -> Type<N> {
-        Type::Struct(fields)
-    }
-
     /// Type abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
@@ -440,14 +323,6 @@ impl<N: Name> Type<N> {
         Rc::make_mut(&mut body_ty).abstract_names(&param_names);
 
         Type::Abs(params, body_ty)
-    }
-
-    /// Type application: eg. `T(U, V)`
-    pub fn app<T1>(fn_ty: T1, arg_tys: Vec<RcType<N>>) -> Type<N>
-    where
-        T1: Into<RcType<N>>,
-    {
-        Type::App(fn_ty.into(), arg_tys)
     }
 
     /// Attempt to lookup the type of a field

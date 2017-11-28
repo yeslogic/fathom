@@ -103,7 +103,7 @@ pub fn ty_of<N: Name>(
                 (Unop::Not, &Const(TypeConst::Bool)) => Ok(operand_ty),
                 (Unop::Not, _) => Err(TypeError::Mismatch {
                     expr: expr.clone(),
-                    expected: ExpectedType::Actual(Rc::new(Type::bool())),
+                    expected: ExpectedType::Actual(Rc::new(Type::Const(TypeConst::Bool))),
                     found: operand_ty,
                 }),
             }
@@ -113,32 +113,33 @@ pub fn ty_of<N: Name>(
         Expr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
             use syntax::ast::host::TypeConst::{Signed as S, Unsigned as U};
             use syntax::ast::host::Type::Const as C;
+            use syntax::ast::host::TypeConst as Tc;
 
             let lhs_ty = ty_of(ctx, lhs_expr)?;
             let rhs_ty = ty_of(ctx, rhs_expr)?;
 
             match (op, &*lhs_ty, &*rhs_ty) {
                 // Relational operators
-                (Binop::Or, &C(TypeConst::Bool), &C(TypeConst::Bool)) => Ok(lhs_ty),
-                (Binop::And, &C(TypeConst::Bool), &C(TypeConst::Bool)) => Ok(lhs_ty),
+                (Binop::Or, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
+                (Binop::And, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
 
                 // Equality operators
-                (Binop::Eq, &C(TypeConst::Bool), &C(TypeConst::Bool)) => Ok(lhs_ty),
-                (Binop::Ne, &C(TypeConst::Bool), &C(TypeConst::Bool)) => Ok(lhs_ty),
-                (Binop::Eq, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(Type::bool())),
-                (Binop::Ne, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(Type::bool())),
-                (Binop::Eq, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(Type::bool())),
-                (Binop::Ne, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(Type::bool())),
+                (Binop::Eq, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
+                (Binop::Ne, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
+                (Binop::Eq, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
+                (Binop::Ne, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
+                (Binop::Eq, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
+                (Binop::Ne, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
 
                 // Comparison ops
-                (Binop::Le, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(Type::bool())),
-                (Binop::Lt, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(Type::bool())),
-                (Binop::Gt, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(Type::bool())),
-                (Binop::Ge, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(Type::bool())),
-                (Binop::Le, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(Type::bool())),
-                (Binop::Lt, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(Type::bool())),
-                (Binop::Gt, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(Type::bool())),
-                (Binop::Ge, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(Type::bool())),
+                (Binop::Le, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
+                (Binop::Lt, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
+                (Binop::Gt, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
+                (Binop::Ge, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
+                (Binop::Le, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
+                (Binop::Lt, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
+                (Binop::Gt, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
+                (Binop::Ge, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
 
                 // Arithmetic operators
                 (Binop::Add, &C(S(l)), &C(S(r))) if l == r => Ok(lhs_ty),
@@ -164,11 +165,11 @@ pub fn ty_of<N: Name>(
             let field_tys = fields
                 .iter()
                 .map(|field| {
-                    Ok(Field::new(
-                        field.doc.clone(),
-                        field.name.clone(),
-                        ty_of(ctx, &field.value)?,
-                    ))
+                    Ok(Field {
+                        doc: field.doc.clone(),
+                        name: field.name.clone(),
+                        value: ty_of(ctx, &field.value)?,
+                    })
                 })
                 .collect::<Result<_, _>>()?;
 
@@ -236,7 +237,7 @@ pub fn ty_of<N: Name>(
             ctx.extend(Scope::ExprAbs(params.clone()));
             let param_tys = params.iter().map(|param| param.1.clone()).collect();
 
-            Ok(Rc::new(Type::arrow(param_tys, ty_of(&ctx, body_expr)?)))
+            Ok(Rc::new(Type::Arrow(param_tys, ty_of(&ctx, body_expr)?)))
         }
 
         // Applications
@@ -392,7 +393,10 @@ pub fn kind_of<N: Name>(
         // Conditional types
         Type::Assert(_, ref ty, ref pred_expr) => {
             expect_ty_kind(ctx, ty)?;
-            let pred_ty = host::Type::arrow(vec![ty.repr()], host::Type::bool());
+            let pred_ty = host::Type::Arrow(
+                vec![ty.repr()],
+                Rc::new(host::Type::Const(host::TypeConst::Bool)),
+            );
             expect_ty(ctx, pred_expr, pred_ty)?;
 
             Ok(Kind::Type)
@@ -401,7 +405,7 @@ pub fn kind_of<N: Name>(
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref host_ty) => {
             expect_ty_kind(ctx, ty)?;
-            let conv_ty = host::Type::arrow(vec![ty.repr()], host_ty.clone());
+            let conv_ty = host::Type::Arrow(vec![ty.repr()], host_ty.clone());
             expect_ty(ctx, conv_expr, conv_ty)?;
 
             Ok(Kind::Type)

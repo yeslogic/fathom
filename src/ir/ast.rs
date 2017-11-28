@@ -9,7 +9,7 @@ pub use syntax::ast::Field;
 pub use syntax::ast::host::{Binop, Const, TypeConst, Unop};
 pub use syntax::ast::host::{FloatType, SignedType, UnsignedType};
 pub use syntax::ast::binary::TypeConst as BinaryTypeConst;
-use var::{BoundVar, ScopeIndex, Var};
+use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Program<N> {
@@ -270,14 +270,6 @@ pub enum Expr<N> {
 pub type RcExpr<N> = Rc<Expr<N>>;
 
 impl<N: Name> Expr<N> {
-    pub fn fvar<N1: Into<N>>(name: N1) -> Expr<N> {
-        Expr::Var(Var::free(name))
-    }
-
-    pub fn bvar<N1: Into<N>>(name: N1, var: BoundVar) -> Expr<N> {
-        Expr::Var(Var::bound(name, var))
-    }
-
     pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
         match *self {
             Expr::Var(ref mut var) => var.abstract_names_at(names, scope),
