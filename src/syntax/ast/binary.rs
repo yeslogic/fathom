@@ -67,26 +67,16 @@ impl TypeConst {
         match self {
             TypeConst::U8 => host::TypeConst::Unsigned(UnsignedType::U8),
             TypeConst::I8 => host::TypeConst::Signed(SignedType::I8),
-            TypeConst::U16Le => host::TypeConst::Unsigned(UnsignedType::U16),
-            TypeConst::U24Le => host::TypeConst::Unsigned(UnsignedType::U24),
-            TypeConst::U32Le => host::TypeConst::Unsigned(UnsignedType::U32),
-            TypeConst::U64Le => host::TypeConst::Unsigned(UnsignedType::U64),
-            TypeConst::I16Le => host::TypeConst::Signed(SignedType::I16),
-            TypeConst::I24Le => host::TypeConst::Signed(SignedType::I24),
-            TypeConst::I32Le => host::TypeConst::Signed(SignedType::I32),
-            TypeConst::I64Le => host::TypeConst::Signed(SignedType::I64),
-            TypeConst::F32Le => host::TypeConst::Float(FloatType::F32),
-            TypeConst::F64Le => host::TypeConst::Float(FloatType::F64),
-            TypeConst::U16Be => host::TypeConst::Unsigned(UnsignedType::U16),
-            TypeConst::U24Be => host::TypeConst::Unsigned(UnsignedType::U24),
-            TypeConst::U32Be => host::TypeConst::Unsigned(UnsignedType::U32),
-            TypeConst::U64Be => host::TypeConst::Unsigned(UnsignedType::U64),
-            TypeConst::I16Be => host::TypeConst::Signed(SignedType::I16),
-            TypeConst::I24Be => host::TypeConst::Signed(SignedType::I24),
-            TypeConst::I32Be => host::TypeConst::Signed(SignedType::I32),
-            TypeConst::I64Be => host::TypeConst::Signed(SignedType::I64),
-            TypeConst::F32Be => host::TypeConst::Float(FloatType::F32),
-            TypeConst::F64Be => host::TypeConst::Float(FloatType::F64),
+            TypeConst::U16Le | TypeConst::U16Be => host::TypeConst::Unsigned(UnsignedType::U16),
+            TypeConst::U24Le | TypeConst::U24Be => host::TypeConst::Unsigned(UnsignedType::U24),
+            TypeConst::U32Le | TypeConst::U32Be => host::TypeConst::Unsigned(UnsignedType::U32),
+            TypeConst::U64Le | TypeConst::U64Be => host::TypeConst::Unsigned(UnsignedType::U64),
+            TypeConst::I16Le | TypeConst::I16Be => host::TypeConst::Signed(SignedType::I16),
+            TypeConst::I24Le | TypeConst::I24Be => host::TypeConst::Signed(SignedType::I24),
+            TypeConst::I32Le | TypeConst::I32Be => host::TypeConst::Signed(SignedType::I32),
+            TypeConst::I64Le | TypeConst::I64Be => host::TypeConst::Signed(SignedType::I64),
+            TypeConst::F32Le | TypeConst::F32Be => host::TypeConst::Float(FloatType::F32),
+            TypeConst::F64Le | TypeConst::F64Be => host::TypeConst::Float(FloatType::F64),
         }
     }
 }
@@ -151,7 +141,7 @@ impl<N: Name> Type<N> {
             .collect();
 
         let mut body_ty = body_ty.into();
-        Rc::make_mut(&mut body_ty).abstract_names(&param_names);
+        Rc::make_mut(&mut body_ty).abstract_names(param_names);
 
         Type::Abs(span, params, body_ty)
     }
@@ -327,13 +317,13 @@ impl<N: Name> Type<N> {
             Type::Const(ty_const) => Rc::new(host::Type::Const(ty_const.repr())),
             Type::Array(_, ref elem_ty, _) => Rc::new(host::Type::Array(elem_ty.repr())),
             Type::Assert(_, ref ty, _) => ty.repr(),
-            Type::Interp(_, _, _, ref repr_ty) => repr_ty.clone(),
+            Type::Interp(_, _, _, ref repr_ty) => Rc::clone(repr_ty),
             Type::Union(_, ref variants) => {
                 let repr_variants = variants
                     .iter()
                     .map(|variant| {
                         Field {
-                            doc: variant.doc.clone(),
+                            doc: Rc::clone(&variant.doc),
                             name: variant.name.clone(),
                             value: variant.value.repr(),
                         }
@@ -347,7 +337,7 @@ impl<N: Name> Type<N> {
                     .iter()
                     .map(|field| {
                         Field {
-                            doc: field.doc.clone(),
+                            doc: Rc::clone(&field.doc),
                             name: field.name.clone(),
                             value: field.value.repr(),
                         }

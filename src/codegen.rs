@@ -233,7 +233,7 @@ fn lower_ty_const<'doc, A: DocAllocator<'doc>>(
         TypeConst::Float(FloatType::F64) => doc.text("f64"),
         TypeConst::Signed(SignedType::I8) => doc.text("i8"),
         TypeConst::Signed(SignedType::I16) => doc.text("i16"),
-        TypeConst::Signed(SignedType::I24) => doc.text("i24"),
+        TypeConst::Signed(SignedType::I24) => doc.text("i32"),
         TypeConst::Signed(SignedType::I32) => doc.text("i32"),
         TypeConst::Signed(SignedType::I64) => doc.text("i64"),
         TypeConst::Unsigned(UnsignedType::U8) => doc.text("u8"),
