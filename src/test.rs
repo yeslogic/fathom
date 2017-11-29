@@ -9,12 +9,10 @@ pub fn snapshot_file_name<P: AsRef<Path>>(current_filename: P, unique_name: &str
     let current_dir = current_filename.as_ref().parent().unwrap();
     let current_file_name = current_filename.as_ref().file_name().unwrap();
 
-    let snapshot_file_name = current_dir
+    current_dir
         .join("snapshots")
         .join(current_file_name)
-        .with_extension(format!("{}.snap", unique_name));
-
-    snapshot_file_name
+        .with_extension(format!("{}.snap", unique_name))
 }
 
 pub fn regenerate_snapshot<P: AsRef<Path>, T, F>(path: P, value: &T, write_fn: F) -> io::Result<()>

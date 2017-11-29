@@ -79,19 +79,19 @@ pub fn ty_of<N: Name>(
 
         // Variables
         Expr::Var(_, Var::Free(ref name)) => Err(TypeError::UnboundVariable {
-            expr: expr.clone(),
+            expr: Rc::clone(expr),
             name: name.clone(),
         }),
         Expr::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty(i) {
-            Ok((_, ty)) => Ok(ty.clone()),
+            Ok((_, ty)) => Ok(Rc::clone(ty)),
             Err(scope) => Err(TypeError::ExprBindingExpected {
-                expr: expr.clone(),
+                expr: Rc::clone(expr),
                 found: scope.clone(),
             }),
         },
 
         // Primitive expressions
-        Expr::Prim(_, ref repr_ty) => Ok(repr_ty.clone()),
+        Expr::Prim(_, ref repr_ty) => Ok(Rc::clone(repr_ty)),
 
         // Unary operators
         Expr::Unop(_, op, ref operand_expr) => {
@@ -102,13 +102,13 @@ pub fn ty_of<N: Name>(
             match (op, &*operand_ty) {
                 (Unop::Neg, &Const(TypeConst::Signed(_))) => Ok(operand_ty),
                 (Unop::Neg, _) => Err(TypeError::Mismatch {
-                    expr: expr.clone(),
+                    expr: Rc::clone(expr),
                     expected: ExpectedType::Signed,
                     found: operand_ty,
                 }),
                 (Unop::Not, &Const(TypeConst::Bool)) => Ok(operand_ty),
                 (Unop::Not, _) => Err(TypeError::Mismatch {
-                    expr: expr.clone(),
+                    expr: Rc::clone(expr),
                     expected: ExpectedType::Actual(Rc::new(Type::Const(TypeConst::Bool))),
                     found: operand_ty,
                 }),
@@ -159,7 +159,7 @@ pub fn ty_of<N: Name>(
 
                 (_, _, _) => Err(TypeError::BinaryOperands {
                     context: op,
-                    expr: expr.clone(),
+                    expr: Rc::clone(expr),
                     lhs_ty,
                     rhs_ty,
                 }),
@@ -172,7 +172,7 @@ pub fn ty_of<N: Name>(
                 .iter()
                 .map(|field| {
                     Ok(Field {
-                        doc: field.doc.clone(),
+                        doc: Rc::clone(&field.doc),
                         name: field.name.clone(),
                         value: ty_of(ctx, &field.value)?,
                     })
@@ -189,8 +189,8 @@ pub fn ty_of<N: Name>(
             match struct_ty.lookup_field(field_name).cloned() {
                 Some(field_ty) => Ok(field_ty),
                 None => Err(TypeError::MissingField {
-                    expr: struct_expr.clone(),
-                    struct_ty: struct_ty.clone(),
+                    expr: Rc::clone(struct_expr),
+                    struct_ty: Rc::clone(&struct_ty),
                     field_name: field_name.clone(),
                 }),
             }
@@ -202,11 +202,11 @@ pub fn ty_of<N: Name>(
             match union_ty.lookup_variant(variant_name).cloned() {
                 Some(variant_ty) => {
                     expect_ty(ctx, expr, variant_ty)?;
-                    Ok(union_ty.clone())
+                    Ok(Rc::clone(union_ty))
                 }
                 None => Err(TypeError::MissingVariant {
-                    expr: expr.clone(),
-                    union_ty: union_ty.clone(),
+                    expr: Rc::clone(expr),
+                    union_ty: Rc::clone(union_ty),
                     variant_name: variant_name.clone(),
                 }),
             }
@@ -219,7 +219,7 @@ pub fn ty_of<N: Name>(
                 Type::Const(TypeConst::Unsigned(_)) => {}
                 _ => {
                     return Err(TypeError::Mismatch {
-                        expr: index_expr.clone(),
+                        expr: Rc::clone(index_expr),
                         expected: ExpectedType::Unsigned,
                         found: index_ty,
                     })
@@ -228,11 +228,11 @@ pub fn ty_of<N: Name>(
 
             let array_ty = ty_of(ctx, array_expr)?;
             match *array_ty {
-                Type::Array(ref elem_ty) => Ok(elem_ty.clone()),
+                Type::Array(ref elem_ty) => Ok(Rc::clone(elem_ty)),
                 _ => Err(TypeError::Mismatch {
-                    expr: array_expr.clone(),
+                    expr: Rc::clone(array_expr),
                     expected: ExpectedType::Array,
-                    found: array_ty.clone(),
+                    found: Rc::clone(&array_ty),
                 }),
             }
         }
@@ -247,16 +247,16 @@ pub fn ty_of<N: Name>(
                 Type::Const(TypeConst::Unsigned(_)) => match *src_ty {
                     Type::Const(TypeConst::Float(_)) |
                     Type::Const(TypeConst::Signed(_)) |
-                    Type::Const(TypeConst::Unsigned(_)) => Ok(dst_ty.clone()),
+                    Type::Const(TypeConst::Unsigned(_)) => Ok(Rc::clone(dst_ty)),
                     _ => Err(TypeError::Mismatch {
-                        expr: src_expr.clone(),
+                        expr: Rc::clone(src_expr),
                         expected: ExpectedType::Numeric,
-                        found: src_ty.clone(),
+                        found: Rc::clone(&src_ty),
                     }),
                 },
                 _ => Err(TypeError::InvalidCastType {
-                    expr: expr.clone(),
-                    found: dst_ty.clone(),
+                    expr: Rc::clone(expr),
+                    found: Rc::clone(dst_ty),
                 }),
             }
         }
@@ -266,7 +266,7 @@ pub fn ty_of<N: Name>(
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
             ctx.extend(Scope::ExprAbs(params.clone()));
-            let param_tys = params.iter().map(|param| param.1.clone()).collect();
+            let param_tys = params.iter().map(|param| Rc::clone(&param.1)).collect();
 
             Ok(Rc::new(Type::Arrow(param_tys, ty_of(&ctx, body_expr)?)))
         }
@@ -278,17 +278,17 @@ pub fn ty_of<N: Name>(
             if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty {
                 if arg_exprs.len() == param_tys.len() {
                     for (arg_expr, param_ty) in arg_exprs.iter().zip(param_tys) {
-                        expect_ty(ctx, arg_expr, param_ty.clone())?;
+                        expect_ty(ctx, arg_expr, Rc::clone(param_ty))?;
                     }
 
-                    return Ok(ret_ty.clone());
+                    return Ok(Rc::clone(ret_ty));
                 } else {
                     unimplemented!(); // FIXME
                 }
             }
 
             Err(TypeError::Mismatch {
-                expr: fn_expr.clone(),
+                expr: Rc::clone(fn_expr),
                 expected: ExpectedType::Arrow,
                 found: fn_ty,
             })
@@ -304,13 +304,13 @@ fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> binary::RcT
     fn compute_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> Option<binary::RcType<N>> {
         match **ty {
             Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
-                Ok((_, def_ty)) => Some(def_ty.clone()),
+                Ok((_, def_ty)) => Some(Rc::clone(def_ty)),
                 Err(_) => None,
             },
             Type::App(_, ref fn_ty, ref arg_tys) => match **fn_ty {
                 Type::Abs(_, _, ref body_ty) => {
                     // FIXME: Avoid clone
-                    let mut body = body_ty.clone();
+                    let mut body = Rc::clone(body_ty);
                     Rc::make_mut(&mut body).instantiate(arg_tys);
                     Some(body)
                 }
@@ -323,7 +323,7 @@ fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> binary::RcT
     let ty = match **ty {
         Type::App(_, ref fn_ty, _) => simplify_ty(ctx, fn_ty),
         // FIXME: Avoid clone
-        _ => ty.clone(),
+        _ => Rc::clone(ty),
     };
 
     match compute_ty(ctx, &ty) {
@@ -369,13 +369,13 @@ pub fn kind_of<N: Name>(
     match **ty {
         // Variables
         Type::Var(_, Var::Free(ref name)) => Err(KindError::UnboundVariable {
-            ty: ty.clone(),
+            ty: Rc::clone(ty),
             name: name.clone(),
         }),
         Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
-            Ok((_, kind)) => Ok(kind.clone()),
+            Ok((_, kind)) => Ok(*kind),
             Err(scope) => Err(KindError::TypeBindingExpected {
-                ty: ty.clone(),
+                ty: Rc::clone(ty),
                 found: scope.clone(),
             }),
         },
@@ -413,7 +413,7 @@ pub fn kind_of<N: Name>(
                 host::Type::Const(host::TypeConst::Unsigned(_)) => Ok(Kind::Type),
                 _ => Err(
                     TypeError::Mismatch {
-                        expr: size_expr.clone(),
+                        expr: Rc::clone(size_expr),
                         expected: ExpectedType::Signed,
                         found: size_ty,
                     }.into(),
@@ -436,7 +436,7 @@ pub fn kind_of<N: Name>(
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref host_ty) => {
             expect_ty_kind(ctx, ty)?;
-            let conv_ty = host::Type::Arrow(vec![ty.repr()], host_ty.clone());
+            let conv_ty = host::Type::Arrow(vec![ty.repr()], Rc::clone(host_ty));
             expect_ty(ctx, conv_expr, conv_ty)?;
 
             Ok(Kind::Type)
@@ -447,7 +447,7 @@ pub fn kind_of<N: Name>(
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
 
-            expect_ty_kind(&ctx, &body_ty)?;
+            expect_ty_kind(&ctx, body_ty)?;
             let kind = Kind::arrow(param_tys.len() as u32);
 
             ctx.extend(Scope::TypeAbs(
@@ -488,7 +488,7 @@ pub fn kind_of<N: Name>(
 
         // Type application
         Type::App(_, ref fn_ty, ref arg_tys) => {
-            expect_kind(ctx, &fn_ty, Kind::arrow(arg_tys.len() as u32))?;
+            expect_kind(ctx, fn_ty, Kind::arrow(arg_tys.len() as u32))?;
 
             for arg_ty in arg_tys {
                 expect_ty_kind(ctx, arg_ty)?
@@ -507,7 +507,7 @@ pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> 
         ctx.extend(Scope::TypeDef(vec![
             Named(
                 definition.name.clone(),
-                (definition.ty.clone(), definition_kind),
+                (Rc::clone(&definition.ty), definition_kind),
             ),
         ]));
     }
@@ -532,7 +532,7 @@ where
         Ok(found)
     } else {
         Err(TypeError::Mismatch {
-            expr: expr.clone(),
+            expr: Rc::clone(expr),
             expected: ExpectedType::Actual(expected),
             found,
         })
@@ -550,7 +550,7 @@ fn expect_kind<N: Name>(
         Ok(found)
     } else {
         Err(KindError::Mismatch {
-            ty: ty.clone(),
+            ty: Rc::clone(ty),
             expected: expected,
             found,
         })

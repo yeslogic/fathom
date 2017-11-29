@@ -180,7 +180,7 @@ impl<'input> Lexer<'input> {
         let (end, mut comment) = self.take_until(start.map(|x| x + 3), |ch| ch == '\n');
 
         // Skip preceding space
-        if comment.starts_with(" ") {
+        if comment.starts_with(' ') {
             comment = &comment[1..];
         }
 

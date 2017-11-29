@@ -357,7 +357,7 @@ impl<N: Name> Type<N> {
             .collect();
 
         let mut body_ty = body_ty.into();
-        Rc::make_mut(&mut body_ty).abstract_names(&param_names);
+        Rc::make_mut(&mut body_ty).abstract_names(param_names);
 
         Type::Abs(params, body_ty)
     }

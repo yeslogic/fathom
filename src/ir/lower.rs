@@ -31,7 +31,7 @@ impl<'a> From<&'a syntax::ast::Program<String>> for Program<String> {
                     let parse_expr = struct_parser(&path, fields);
                     program.define_struct(
                         path,
-                        definition.doc.clone(),
+                        Rc::clone(&definition.doc),
                         lowered_fields,
                         Some(parse_expr),
                     );
@@ -43,7 +43,7 @@ impl<'a> From<&'a syntax::ast::Program<String>> for Program<String> {
                     let parse_expr = union_parser(&path, variants);
                     program.define_union(
                         path,
-                        definition.doc.clone(),
+                        Rc::clone(&definition.doc),
                         lowered_variants,
                         Some(parse_expr),
                     );
@@ -51,7 +51,7 @@ impl<'a> From<&'a syntax::ast::Program<String>> for Program<String> {
                 // Everything else should be an alias
                 _ => {
                     let ty = lower_ty(&mut program, &path, &definition.ty);
-                    program.define_alias(path, definition.doc.clone(), ty);
+                    program.define_alias(path, Rc::clone(&definition.doc), ty);
                 }
             }
         }
@@ -82,7 +82,7 @@ where
             let ty = lower_value(item_path, &item.value);
 
             Field {
-                doc: item.doc.clone(),
+                doc: Rc::clone(&item.doc),
                 name: item.name.clone(),
                 value: ty,
             }
@@ -157,9 +157,9 @@ fn lower_repr_ty(path: &Path<String>, ty: &host::RcType<String>) -> RcType<Strin
         host::Type::Arrow(ref arg_tys, ref ret_ty) => {
             let arg_repr_tys = arg_tys
                 .iter()
-                .map(|arg_ty| lower_repr_ty(&path, arg_ty))
+                .map(|arg_ty| lower_repr_ty(path, arg_ty))
                 .collect();
-            let ret_repr_ty = lower_repr_ty(&path, ret_ty);
+            let ret_repr_ty = lower_repr_ty(path, ret_ty);
 
             Type::Arrow(arg_repr_tys, ret_repr_ty)
         }
@@ -198,7 +198,7 @@ fn lower_expr(path: &Path<String>, expr: &host::RcExpr<String>) -> RcExpr<String
             let lowered_fields = lower_row(
                 path,
                 fields,
-                |field_path, expr| lower_expr(&field_path, &expr),
+                |field_path, expr| lower_expr(&field_path, expr),
             );
 
             Expr::Struct(path.clone(), lowered_fields)
@@ -236,7 +236,7 @@ fn struct_parser(
     };
     let lower_to_expr_field = |field: &Field<String, binary::RcType<String>>| {
         Field {
-            doc: field.doc.clone(),
+            doc: Rc::clone(&field.doc),
             name: field.name.clone(),
             value: Rc::new(Expr::Var(Var::free(field.name.clone()))),
         }

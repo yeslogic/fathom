@@ -274,9 +274,8 @@ impl<N: Name> Expr<N> {
     pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
         match *self {
             Expr::Var(ref mut var) => var.abstract_names_at(names, scope),
-            Expr::Const(_) => {}
+            Expr::Const(_) | Expr::Prim(_, _) => {}
             // Expr::Prim(_, ref mut repr_ty) => Rc::make_mut(repr_ty).abstract_names_at(names, scope),
-            Expr::Prim(_, _) => {}
             Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
                 Rc::make_mut(expr).abstract_names_at(names, scope);
             }
