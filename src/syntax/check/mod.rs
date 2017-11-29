@@ -118,62 +118,56 @@ pub fn ty_of<N: Name>(
 
         // Binary operators
         Expr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
-            use syntax::ast::host::TypeConst::{Float as F, Signed as S, Unsigned as U};
-            use syntax::ast::host::Type::Const as C;
-            use syntax::ast::host::TypeConst as Tc;
+            use syntax::ast::host::Type::Const;
+
+            fn binop_err<N: Name>(
+                context: Binop,
+                expr: &host::RcExpr<N>,
+                lhs_ty: host::RcType<N>,
+                rhs_ty: host::RcType<N>,
+            ) -> TypeError<N> {
+                TypeError::BinaryOperands {
+                    context,
+                    expr: Rc::clone(expr),
+                    lhs_ty,
+                    rhs_ty,
+                }
+            }
 
             let lhs_ty = ty_of(ctx, lhs_expr)?;
             let rhs_ty = ty_of(ctx, rhs_expr)?;
 
-            match (op, &*lhs_ty, &*rhs_ty) {
-                // Relational operators
-                (Binop::Or, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
-                (Binop::And, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
-
-                // Equality operators
-                (Binop::Eq, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
-                (Binop::Ne, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
-                (Binop::Eq, &C(F(l)), &C(F(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Ne, &C(F(l)), &C(F(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Eq, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Ne, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Eq, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Ne, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-
-                // Comparison ops
-                (Binop::Le, &C(F(l)), &C(F(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Lt, &C(F(l)), &C(F(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Gt, &C(F(l)), &C(F(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Ge, &C(F(l)), &C(F(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Le, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Lt, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Gt, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Ge, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Le, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Lt, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Gt, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Ge, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-
-                // Arithmetic operators
-                (Binop::Add, &C(F(l)), &C(F(r))) if l == r => Ok(lhs_ty),
-                (Binop::Sub, &C(F(l)), &C(F(r))) if l == r => Ok(lhs_ty),
-                (Binop::Mul, &C(F(l)), &C(F(r))) if l == r => Ok(lhs_ty),
-                (Binop::Div, &C(F(l)), &C(F(r))) if l == r => Ok(lhs_ty),
-                (Binop::Add, &C(S(l)), &C(S(r))) if l == r => Ok(lhs_ty),
-                (Binop::Sub, &C(S(l)), &C(S(r))) if l == r => Ok(lhs_ty),
-                (Binop::Mul, &C(S(l)), &C(S(r))) if l == r => Ok(lhs_ty),
-                (Binop::Div, &C(S(l)), &C(S(r))) if l == r => Ok(lhs_ty),
-                (Binop::Add, &C(U(l)), &C(U(r))) if l == r => Ok(lhs_ty),
-                (Binop::Sub, &C(U(l)), &C(U(r))) if l == r => Ok(lhs_ty),
-                (Binop::Mul, &C(U(l)), &C(U(r))) if l == r => Ok(lhs_ty),
-                (Binop::Div, &C(U(l)), &C(U(r))) if l == r => Ok(lhs_ty),
-
-                (_, _, _) => Err(TypeError::BinaryOperands {
-                    context: op,
-                    expr: Rc::clone(expr),
-                    lhs_ty,
-                    rhs_ty,
-                }),
+            match (&*lhs_ty, &*rhs_ty) {
+                (&Const(TypeConst::Bool), &Const(TypeConst::Bool)) => match op {
+                    Binop::Or | Binop::And | Binop::Eq | Binop::Ne => Ok(lhs_ty),
+                    _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                },
+                (&Const(TypeConst::Float(l)), &Const(TypeConst::Float(r))) if l == r => match op {
+                    Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                        Ok(Rc::new(Const(TypeConst::Bool)))
+                    }
+                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
+                    _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                },
+                (&Const(TypeConst::Signed(l)), &Const(TypeConst::Signed(r))) if l == r => {
+                    match op {
+                        Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                            Ok(Rc::new(Const(TypeConst::Bool)))
+                        }
+                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
+                        _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                    }
+                }
+                (&Const(TypeConst::Unsigned(l)), &Const(TypeConst::Unsigned(r))) if l == r => {
+                    match op {
+                        Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                            Ok(Rc::new(Const(TypeConst::Bool)))
+                        }
+                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
+                        _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                    }
+                }
+                (_, _) => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
             }
         }
 
