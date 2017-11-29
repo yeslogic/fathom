@@ -13,7 +13,7 @@ mod tests;
 
 // Typing
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ExpectedType<N> {
     Array,
     Arrow,
@@ -24,7 +24,7 @@ pub enum ExpectedType<N> {
 }
 
 /// An error that was encountered during type checking
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TypeError<N> {
     /// A variable of the requested name was not bound in this scope
     UnboundVariable { expr: host::RcExpr<N>, name: N },
@@ -100,7 +100,8 @@ pub fn ty_of<N: Name>(
             let operand_ty = ty_of(ctx, operand_expr)?;
 
             match (op, &*operand_ty) {
-                (Unop::Neg, &Const(TypeConst::Signed(_))) => Ok(operand_ty),
+                (Unop::Neg, &Const(TypeConst::Signed(_))) |
+                (Unop::Neg, &Const(TypeConst::Float(_))) => Ok(operand_ty),
                 (Unop::Neg, _) => Err(TypeError::Mismatch {
                     expr: Rc::clone(expr),
                     expected: ExpectedType::Signed,
@@ -117,52 +118,56 @@ pub fn ty_of<N: Name>(
 
         // Binary operators
         Expr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
-            use syntax::ast::host::TypeConst::{Signed as S, Unsigned as U};
-            use syntax::ast::host::Type::Const as C;
-            use syntax::ast::host::TypeConst as Tc;
+            use syntax::ast::host::Type::Const;
+
+            fn binop_err<N: Name>(
+                context: Binop,
+                expr: &host::RcExpr<N>,
+                lhs_ty: host::RcType<N>,
+                rhs_ty: host::RcType<N>,
+            ) -> TypeError<N> {
+                TypeError::BinaryOperands {
+                    context,
+                    expr: Rc::clone(expr),
+                    lhs_ty,
+                    rhs_ty,
+                }
+            }
 
             let lhs_ty = ty_of(ctx, lhs_expr)?;
             let rhs_ty = ty_of(ctx, rhs_expr)?;
 
-            match (op, &*lhs_ty, &*rhs_ty) {
-                // Relational operators
-                (Binop::Or, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
-                (Binop::And, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
-
-                // Equality operators
-                (Binop::Eq, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
-                (Binop::Ne, &C(Tc::Bool), &C(Tc::Bool)) => Ok(lhs_ty),
-                (Binop::Eq, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Ne, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Eq, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Ne, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-
-                // Comparison ops
-                (Binop::Le, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Lt, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Gt, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Ge, &C(S(l)), &C(S(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Le, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Lt, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Gt, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-                (Binop::Ge, &C(U(l)), &C(U(r))) if l == r => Ok(Rc::new(C(Tc::Bool))),
-
-                // Arithmetic operators
-                (Binop::Add, &C(S(l)), &C(S(r))) if l == r => Ok(lhs_ty),
-                (Binop::Sub, &C(S(l)), &C(S(r))) if l == r => Ok(lhs_ty),
-                (Binop::Mul, &C(S(l)), &C(S(r))) if l == r => Ok(lhs_ty),
-                (Binop::Div, &C(S(l)), &C(S(r))) if l == r => Ok(lhs_ty),
-                (Binop::Add, &C(U(l)), &C(U(r))) if l == r => Ok(lhs_ty),
-                (Binop::Sub, &C(U(l)), &C(U(r))) if l == r => Ok(lhs_ty),
-                (Binop::Mul, &C(U(l)), &C(U(r))) if l == r => Ok(lhs_ty),
-                (Binop::Div, &C(U(l)), &C(U(r))) if l == r => Ok(lhs_ty),
-
-                (_, _, _) => Err(TypeError::BinaryOperands {
-                    context: op,
-                    expr: Rc::clone(expr),
-                    lhs_ty,
-                    rhs_ty,
-                }),
+            match (&*lhs_ty, &*rhs_ty) {
+                (&Const(TypeConst::Bool), &Const(TypeConst::Bool)) => match op {
+                    Binop::Or | Binop::And | Binop::Eq | Binop::Ne => Ok(lhs_ty),
+                    _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                },
+                (&Const(TypeConst::Float(l)), &Const(TypeConst::Float(r))) if l == r => match op {
+                    Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                        Ok(Rc::new(Const(TypeConst::Bool)))
+                    }
+                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
+                    _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                },
+                (&Const(TypeConst::Signed(l)), &Const(TypeConst::Signed(r))) if l == r => {
+                    match op {
+                        Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                            Ok(Rc::new(Const(TypeConst::Bool)))
+                        }
+                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
+                        _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                    }
+                }
+                (&Const(TypeConst::Unsigned(l)), &Const(TypeConst::Unsigned(r))) if l == r => {
+                    match op {
+                        Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                            Ok(Rc::new(Const(TypeConst::Bool)))
+                        }
+                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
+                        _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                    }
+                }
+                (_, _) => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
             }
         }
 
@@ -201,7 +206,7 @@ pub fn ty_of<N: Name>(
             // FIXME: Kindcheck union_ty
             match union_ty.lookup_variant(variant_name).cloned() {
                 Some(variant_ty) => {
-                    expect_ty(ctx, expr, variant_ty)?;
+                    expect_ty(ctx, expr, &variant_ty)?;
                     Ok(Rc::clone(union_ty))
                 }
                 None => Err(TypeError::MissingVariant {
@@ -278,7 +283,7 @@ pub fn ty_of<N: Name>(
             if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty {
                 if arg_exprs.len() == param_tys.len() {
                     for (arg_expr, param_ty) in arg_exprs.iter().zip(param_tys) {
-                        expect_ty(ctx, arg_expr, Rc::clone(param_ty))?;
+                        expect_ty(ctx, arg_expr, param_ty)?;
                     }
 
                     return Ok(Rc::clone(ret_ty));
@@ -333,7 +338,7 @@ fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> binary::RcT
 }
 
 /// An error that was encountered during kind checking
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum KindError<N> {
     /// A variable of the requested name was not bound in this scope
     UnboundVariable { ty: binary::RcType<N>, name: N },
@@ -424,20 +429,28 @@ pub fn kind_of<N: Name>(
         // Conditional types
         Type::Assert(_, ref ty, ref pred_expr) => {
             expect_ty_kind(ctx, ty)?;
-            let pred_ty = host::Type::Arrow(
+            let pred_ty = Rc::new(host::Type::Arrow(
                 vec![ty.repr()],
                 Rc::new(host::Type::Const(host::TypeConst::Bool)),
-            );
-            expect_ty(ctx, pred_expr, pred_ty)?;
+            ));
+            expect_ty(ctx, pred_expr, &pred_ty)?;
+
+            Ok(Kind::Type)
+        }
+
+        // Computed types
+        Type::Compute(_, ref repr_ty, ref expr) => {
+            // TODO: kindcheck and simplify repr_ty
+            expect_ty(ctx, expr, repr_ty)?;
 
             Ok(Kind::Type)
         }
 
         // Interpreted types
-        Type::Interp(_, ref ty, ref conv_expr, ref host_ty) => {
+        Type::Interp(_, ref ty, ref conv_expr, ref repr_ty) => {
             expect_ty_kind(ctx, ty)?;
-            let conv_ty = host::Type::Arrow(vec![ty.repr()], Rc::clone(host_ty));
-            expect_ty(ctx, conv_expr, conv_ty)?;
+            let conv_ty = Rc::new(host::Type::Arrow(vec![ty.repr()], Rc::clone(repr_ty)));
+            expect_ty(ctx, conv_expr, &conv_ty)?;
 
             Ok(Kind::Type)
         }
@@ -517,23 +530,19 @@ pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> 
 
 // Expectations
 
-fn expect_ty<N: Name, T1>(
+fn expect_ty<N: Name>(
     ctx: &Context<N>,
     expr: &host::RcExpr<N>,
-    expected: T1,
-) -> Result<host::RcType<N>, TypeError<N>>
-where
-    T1: Into<host::RcType<N>>,
-{
+    expected: &host::RcType<N>,
+) -> Result<host::RcType<N>, TypeError<N>> {
     let found = ty_of(ctx, expr)?;
-    let expected = expected.into();
 
-    if found == expected {
+    if &found == expected {
         Ok(found)
     } else {
         Err(TypeError::Mismatch {
             expr: Rc::clone(expr),
-            expected: ExpectedType::Actual(expected),
+            expected: ExpectedType::Actual(Rc::clone(expected)),
             found,
         })
     }

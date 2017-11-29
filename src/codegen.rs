@@ -4,7 +4,9 @@ use std::fmt;
 use name::Named;
 use ir::ast::{Definition, Expr, Field, ParseExpr, Path, Program, RepeatBound, Type};
 use ir::ast::{RcParseExpr, RcType};
-use ir::ast::{BinaryTypeConst, Binop, Const, TypeConst, Unop};
+use ir::ast::{Binop, Const, Unop};
+use ir::ast::{BinaryTypeConst, IntSuffix, TypeConst};
+use ir::ast::{FloatType, SignedType, UnsignedType};
 use var::Var;
 
 pub struct LowerProgram<'a>(pub &'a Program<String>);
@@ -221,26 +223,42 @@ fn lower_ty<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     }
 }
 
+fn lower_float_ty(ty: FloatType) -> &'static str {
+    match ty {
+        FloatType::F32 => "f32",
+        FloatType::F64 => "f64",
+    }
+}
+
+fn lower_signed_ty(ty: SignedType) -> &'static str {
+    match ty {
+        SignedType::I8 => "i8",
+        SignedType::I16 => "i16",
+        SignedType::I24 => "i32",
+        SignedType::I32 => "i32",
+        SignedType::I64 => "i64",
+    }
+}
+
+fn lower_unsigned_ty(ty: UnsignedType) -> &'static str {
+    match ty {
+        UnsignedType::U8 => "u8",
+        UnsignedType::U16 => "u16",
+        UnsignedType::U24 => "u32",
+        UnsignedType::U32 => "u32",
+        UnsignedType::U64 => "u64",
+    }
+}
+
 fn lower_ty_const<'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
     ty_const: TypeConst,
 ) -> DocBuilder<'doc, A> {
-    use ir::ast::{FloatType, SignedType, UnsignedType};
-
     match ty_const {
         TypeConst::Bool => doc.text("bool"),
-        TypeConst::Float(FloatType::F32) => doc.text("f32"),
-        TypeConst::Float(FloatType::F64) => doc.text("f64"),
-        TypeConst::Signed(SignedType::I8) => doc.text("i8"),
-        TypeConst::Signed(SignedType::I16) => doc.text("i16"),
-        TypeConst::Signed(SignedType::I24) => doc.text("i32"),
-        TypeConst::Signed(SignedType::I32) => doc.text("i32"),
-        TypeConst::Signed(SignedType::I64) => doc.text("i64"),
-        TypeConst::Unsigned(UnsignedType::U8) => doc.text("u8"),
-        TypeConst::Unsigned(UnsignedType::U16) => doc.text("u16"),
-        TypeConst::Unsigned(UnsignedType::U24) => doc.text("u32"),
-        TypeConst::Unsigned(UnsignedType::U32) => doc.text("u32"),
-        TypeConst::Unsigned(UnsignedType::U64) => doc.text("u64"),
+        TypeConst::Float(ty) => doc.text(lower_float_ty(ty)),
+        TypeConst::Signed(ty) => doc.text(lower_signed_ty(ty)),
+        TypeConst::Unsigned(ty) => doc.text(lower_unsigned_ty(ty)),
     }
 }
 
@@ -269,6 +287,9 @@ fn lower_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             lower_sequence_parse_expr(doc, prec, parse_exprs, expr)
         }
         ParseExpr::Choice(ref parse_exprs) => lower_choice_parse_expr(doc, parse_exprs),
+        ParseExpr::Compute(ref expr) => doc.text("Ok::<_, io::Error>(")
+            .append(lower_expr(doc, expr))
+            .append(")"),
         ParseExpr::Apply(ref fn_expr, ref parse_expr) => lower_expr(doc, fn_expr)
             .append(doc.text("("))
             .append(lower_parse_expr(doc, Prec::Expr, parse_expr))
@@ -459,7 +480,12 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     match *expr {
         // FIXME: Hygiene!
         Expr::Const(Const::Bool(value)) => doc.as_string(value),
-        Expr::Const(Const::Int(value, _)) => doc.as_string(value),
+        Expr::Const(Const::Int(value, IntSuffix::Signed(suffix))) => doc.as_string(value)
+            .append(doc.text(lower_signed_ty(suffix))),
+        Expr::Const(Const::Int(value, IntSuffix::Unsigned(suffix))) => doc.as_string(value)
+            .append(doc.text(lower_unsigned_ty(suffix))),
+        Expr::Const(Const::Float(value, suffix)) => doc.as_string(value)
+            .append(doc.text(lower_float_ty(suffix))),
         // FXIME: Hygiene!
         Expr::Prim(name, _) => doc.text("ddl_util::").append(doc.as_string(name)),
         Expr::Var(Var::Free(_)) => unimplemented!(),

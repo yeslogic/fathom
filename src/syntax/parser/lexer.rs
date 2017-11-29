@@ -55,7 +55,7 @@ pub enum ErrorCode {
 }
 
 /// A token in the source file, to be emitted by the `Lexer`
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token<'input> {
     // Data
     Ident(&'input str),
@@ -63,12 +63,15 @@ pub enum Token<'input> {
     BinLiteral(u64, &'input str),
     DecLiteral(u64, &'input str),
     HexLiteral(u64, &'input str),
+    FloatDecLiteral(f64, &'input str),
 
     // Keywords
-    As,     // as
-    Struct, // struct
-    Union,  // union
-    Where,  // where
+    As,      // as
+    Compute, // compute
+    From,    // from
+    Struct,  // struct
+    Union,   // union
+    Where,   // where
 
     // Symbols
     Ampersand,    // &
@@ -193,6 +196,8 @@ impl<'input> Lexer<'input> {
 
         let token = match ident {
             "as" => Token::As,
+            "compute" => Token::Compute,
+            "from" => Token::From,
             "struct" => Token::Struct,
             "union" => Token::Union,
             "where" => Token::Where,
@@ -243,10 +248,20 @@ impl<'input> Lexer<'input> {
     /// Consume a decimal literal token
     fn dec_literal(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
         let (end, src) = self.take_while(start, is_dec_digit);
-        let int = u64::from_str_radix(src, 10).unwrap();
-        let (end, suffix) = self.literal_suffix(end);
 
-        (start, Token::DecLiteral(int, suffix), end)
+        if self.test_lookahead(|ch| ch == '.') {
+            self.bump(); // skip '.'
+            let (end, src) = self.take_while(start, is_dec_digit);
+            let float = src.parse().unwrap();
+            let (end, suffix) = self.literal_suffix(end);
+
+            (start, Token::FloatDecLiteral(float, suffix), end)
+        } else {
+            let int = u64::from_str_radix(src, 10).unwrap();
+            let (end, suffix) = self.literal_suffix(end);
+
+            (start, Token::DecLiteral(int, suffix), end)
+        }
     }
 }
 
@@ -350,11 +365,13 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  as  struct  union  where ",
-            "  ~~                       " => Token::As,
-            "      ~~~~~~               " => Token::Struct,
-            "              ~~~~~        " => Token::Union,
-            "                     ~~~~~ " => Token::Where,
+            "  as  compute  from  struct  union  where ",
+            "  ~~                                      " => Token::As,
+            "      ~~~~~~~                             " => Token::Compute,
+            "               ~~~~                       " => Token::From,
+            "                     ~~~~~~               " => Token::Struct,
+            "                             ~~~~~        " => Token::Union,
+            "                                    ~~~~~ " => Token::Where,
         };
     }
 

@@ -122,7 +122,9 @@ fn lower_ty(
             Type::Array(elem_ty)
         }
         binary::Type::Assert(_, ref ty, _) => return lower_ty(program, path, ty),
-        binary::Type::Interp(_, _, _, ref repr_ty) => return lower_repr_ty(path, repr_ty),
+        binary::Type::Compute(_, ref repr_ty, _) | binary::Type::Interp(_, _, _, ref repr_ty) => {
+            return lower_repr_ty(path, repr_ty)
+        }
         binary::Type::Union(_, ref variants) => {
             let lowered_variants = lower_row(path, variants, |variant_path, ty| {
                 lower_ty(program, &variant_path, ty)
@@ -321,6 +323,7 @@ fn ty_parser(path: &Path<String>, ty: &binary::RcType<String>) -> RcParseExpr<St
 
             ParseExpr::Assert(ty_parser, pred_expr)
         }
+        binary::Type::Compute(_, _, ref expr) => ParseExpr::Compute(lower_expr(path, expr)),
         binary::Type::Interp(_, ref ty, ref conv_expr, _) => {
             let fn_expr = lower_expr(path, conv_expr);
             let parser_expr = ty_parser(path, ty);
