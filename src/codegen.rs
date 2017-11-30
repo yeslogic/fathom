@@ -598,7 +598,8 @@ fn invalid_data_err<'doc, A: DocAllocator<'doc>>(doc: &'doc A) -> DocBuilder<'do
                         .append(doc.text(r#""Invalid binary data""#))
                         .nest(INDENT_WIDTH),
                 )
-                .nest(INDENT_WIDTH),
+                .nest(INDENT_WIDTH)
+                .append(doc.text(")")),
         )
         .append(doc.text(")"))
         .group()
