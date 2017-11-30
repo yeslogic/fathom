@@ -1,8 +1,7 @@
 extern crate byteorder;
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
-use std::io;
-use std::io::prelude::*;
+use std::io::{self, Read};
 
 #[inline]
 pub fn from_u8<R: Read>(r: &mut R) -> io::Result<u8> {
@@ -21,9 +20,7 @@ pub fn from_u16le<R: Read>(r: &mut R) -> io::Result<u16> {
 
 #[inline]
 pub fn from_u24le<R: Read>(r: &mut R) -> io::Result<u32> {
-    let mut buf = [0u8; 3];
-    r.read_exact(&mut buf)?;
-    Ok(((buf[0] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16))
+    r.read_uint::<LittleEndian>(3).map(|x| x as u32)
 }
 
 #[inline]
@@ -43,9 +40,7 @@ pub fn from_i16le<R: Read>(r: &mut R) -> io::Result<i16> {
 
 #[inline]
 pub fn from_i24le<R: Read>(r: &mut R) -> io::Result<i32> {
-    let mut buf = [0u8; 3];
-    r.read_exact(&mut buf)?;
-    Ok(((buf[0] as i32) << 0) | ((buf[1] as i32) << 8) | ((buf[2] as i32) << 16))
+    r.read_int::<LittleEndian>(3).map(|x| x as i32)
 }
 
 #[inline]
@@ -75,9 +70,7 @@ pub fn from_u16be<R: Read>(r: &mut R) -> io::Result<u16> {
 
 #[inline]
 pub fn from_u24be<R: Read>(r: &mut R) -> io::Result<u32> {
-    let mut buf = [0u8; 3];
-    r.read_exact(&mut buf)?;
-    Ok(((buf[2] as u32) << 0) | ((buf[1] as u32) << 8) | ((buf[0] as u32) << 16))
+    r.read_uint::<BigEndian>(3).map(|x| x as u32)
 }
 
 #[inline]
@@ -97,9 +90,7 @@ pub fn from_i16be<R: Read>(r: &mut R) -> io::Result<i16> {
 
 #[inline]
 pub fn from_i24be<R: Read>(r: &mut R) -> io::Result<i32> {
-    let mut buf = [0u8; 3];
-    r.read_exact(&mut buf)?;
-    Ok(((buf[2] as i32) << 0) | ((buf[1] as i32) << 8) | ((buf[0] as i32) << 16))
+    r.read_int::<BigEndian>(3).map(|x| x as i32)
 }
 
 #[inline]
