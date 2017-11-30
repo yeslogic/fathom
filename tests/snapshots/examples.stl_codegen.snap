@@ -35,7 +35,7 @@ pub struct Triangle {
     /// Coordinates of the vertices
     pub vertices: Vec<Vec3d>,
     /// Attribute byte count
-    /// 
+    ///
     /// The attribute syntax is not documented in the formal specification. It is
     /// specified that the attribute byte count should be set to zero.
     pub attribute_bytes: u16,
