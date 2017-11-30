@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use name::{Name, Named};
 use source::Span;
-use syntax::ast::{self, Field};
+use syntax::ast::{self, Field, Substitutions};
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -192,6 +192,55 @@ impl<N: Name> Expr<N> {
         match *self {
             Expr::Struct(ref fields) => ast::lookup_field(fields, name),
             _ => None,
+        }
+    }
+
+    /// Replace occurrences of the free variables that exist as keys on
+    /// `substs` with their corresponding types.
+    pub fn substitute(&mut self, substs: &Substitutions<N>) {
+        match *self {
+            Expr::Var(_, Var::Free(ref name)) => match substs.get(name) {
+                None => {}
+                Some(ty) => panic!("Expected to substitute an expression, but found {:?}", ty),
+            },
+            Expr::Var(_, Var::Bound(_)) | Expr::Const(_, _) => {}
+            Expr::Prim(_, ref mut repr_ty) => Rc::make_mut(repr_ty).substitute(substs),
+            Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
+                Rc::make_mut(expr).substitute(substs);
+            }
+            Expr::Intro(_, _, ref mut expr, ref mut ty) => {
+                Rc::make_mut(expr).substitute(substs);
+                Rc::make_mut(ty).substitute(substs);
+            }
+            Expr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
+                Rc::make_mut(lhs_expr).substitute(substs);
+                Rc::make_mut(rhs_expr).substitute(substs);
+            }
+            Expr::Struct(ref mut fields) => for field in fields {
+                Rc::make_mut(&mut field.value).substitute(substs);
+            },
+            Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
+                Rc::make_mut(array_expr).substitute(substs);
+                Rc::make_mut(index_expr).substitute(substs);
+            }
+            Expr::Cast(_, ref mut src_expr, ref mut dst_ty) => {
+                Rc::make_mut(src_expr).substitute(substs);
+                Rc::make_mut(dst_ty).substitute(substs);
+            }
+            Expr::Abs(_, ref mut args, ref mut body_expr) => {
+                for &mut Named(_, ref mut arg_ty) in args {
+                    Rc::make_mut(arg_ty).substitute(substs);
+                }
+
+                Rc::make_mut(body_expr).substitute(substs);
+            }
+            Expr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
+                Rc::make_mut(fn_expr).substitute(substs);
+
+                for arg_expr in arg_exprs {
+                    Rc::make_mut(arg_expr).substitute(substs);
+                }
+            }
         }
     }
 
@@ -400,6 +449,55 @@ impl<N: Name> Type<N> {
             Type::Union(ref variants) => ast::lookup_field(variants, name),
             _ => None,
         }
+    }
+
+    /// Replace occurrences of the free variables that exist as keys on
+    /// `substs` with their corresponding types.
+    pub fn substitute(&mut self, substs: &Substitutions<N>) {
+        *self = match *self {
+            Type::Var(Var::Free(ref name)) => match substs.get(name) {
+                None => return,
+                Some(ty) => (*ty.repr()).clone(),
+            },
+            Type::Var(Var::Bound(_)) | Type::Const(_) => return,
+            Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
+                for param_ty in param_tys {
+                    Rc::make_mut(param_ty).substitute(substs);
+                }
+                Rc::make_mut(ret_ty).substitute(substs);
+
+                return;
+            }
+            Type::Array(ref mut elem_ty) => {
+                Rc::make_mut(elem_ty).substitute(substs);
+                return;
+            }
+            Type::Union(ref mut variants) => {
+                for variant in variants {
+                    Rc::make_mut(&mut variant.value).substitute(substs);
+                }
+                return;
+            }
+            Type::Struct(ref mut fields) => {
+                for field in fields {
+                    Rc::make_mut(&mut field.value).substitute(substs);
+                }
+                return;
+            }
+            Type::Abs(_, ref mut body_ty) => {
+                Rc::make_mut(body_ty).substitute(substs);
+                return;
+            }
+            Type::App(ref mut fn_ty, ref mut arg_tys) => {
+                Rc::make_mut(fn_ty).substitute(substs);
+
+                for arg_ty in arg_tys {
+                    Rc::make_mut(arg_ty).substitute(substs);
+                }
+
+                return;
+            }
+        };
     }
 
     pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
