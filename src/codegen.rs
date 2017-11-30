@@ -76,8 +76,9 @@ fn lower_doc_comment<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     if comment.is_empty() {
         doc.nil()
     } else {
-        doc.concat(comment.lines().map(|line| {
-            doc.text(format!("/// {}", line)).append(doc.newline())
+        doc.concat(comment.lines().map(|line| match line {
+            "" => doc.text("///").append(doc.newline()),
+            _ => doc.text(format!("/// {}", line)).append(doc.newline()),
         }))
     }
 }
