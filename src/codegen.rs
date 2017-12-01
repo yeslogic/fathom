@@ -278,7 +278,7 @@ fn lower_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
         ParseExpr::Var(Var::Free(_)) => unimplemented!(),
         ParseExpr::Var(Var::Bound(Named(ref name, _))) => lower_named_parse_expr(doc, name),
 
-        ParseExpr::Const(ty_const) => lower_parse_ty_const(doc, ty_const)
+        ParseExpr::Const(ty_const) => lower_parse_ty_const(doc, ty_const),
 
         ParseExpr::Repeat(ref parse_expr, ref repeat_bound) => {
             lower_repeat_parse_expr(doc, prec, parse_expr, repeat_bound)
@@ -389,6 +389,7 @@ fn lower_assert_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             .append(
                 doc.text("if")
                     .append(doc.space())
+                    .append(doc.text("("))
                     .append(pred)
                     .append(doc.space())
                     .append(doc.text("{"))
