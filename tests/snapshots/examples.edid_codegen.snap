@@ -86,15 +86,15 @@ pub struct Header {
 
 impl Header {
     pub fn read<R: Read>(reader: &mut R) -> io::Result<Header> {
-        let magic = {
-            let __value = ddl_util::from_u64le(reader)?;
-            if !(|magic: u64| (magic == 72057594037927680u64))(__value) {
+        let magic = ddl_util::from_u64le(reader).and_then(|__value| {
+        if |magic: u64| (magic == 72057594037927680u64))(__value) {
+                Ok(__value)
+            } else {
                 return
                 Err::<_, io::Error>(io::Error::new(io::ErrorKind::InvalidData,
                         "Invalid binary data"))
             }
-            Ok::<_, io::Error>(__value)
-        }?;
+        })?;
         let mfg_bytes = ddl_util::from_u16le(reader)?;
         let product_code = ddl_util::from_u16le(reader)?;
         let serial = ddl_util::from_u32le(reader)?;
