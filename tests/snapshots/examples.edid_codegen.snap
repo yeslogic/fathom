@@ -65,7 +65,7 @@ impl Edid {
 #[derive(Debug, Clone)]
 pub struct Header {
     /// Fixed header pattern
-    pub magic: Vec<u8>,
+    pub magic: u64,
     /// Manufacturer ID
     pub mfg_bytes: u16,
     /// Manufacturer product code
@@ -86,7 +86,15 @@ pub struct Header {
 
 impl Header {
     pub fn read<R: Read>(reader: &mut R) -> io::Result<Header> {
-        let magic = (0..8u32).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
+        let magic = {
+            let __value = ddl_util::from_u64le(reader)?;
+            if !(|magic: u64| (magic == 72057594037927680u64))(__value) {
+                return
+                Err::<_, io::Error>(io::Error::new(io::ErrorKind::InvalidData,
+                        "Invalid binary data"))
+            }
+            Ok::<_, io::Error>(__value)
+        }?;
         let mfg_bytes = ddl_util::from_u16le(reader)?;
         let product_code = ddl_util::from_u16le(reader)?;
         let serial = ddl_util::from_u32le(reader)?;

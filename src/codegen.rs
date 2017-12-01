@@ -373,7 +373,7 @@ fn lower_assert_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             // FIXME: Hygiene!
             doc.text("let __value = ")
                 .append(lower_parse_expr(doc, prec, parse_expr))
-                .append(doc.text(";"))
+                .append(doc.text("?;"))
                 .group(),
         )
         .append(doc.newline())
@@ -396,12 +396,12 @@ fn lower_assert_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
         .append(doc.newline())
         .append(doc.text("}"))
         .append(doc.newline())
-        .append(doc.text("__value"));
+        .append(doc.text("Ok::<_, io::Error>(__value)"));
 
     match prec {
         Prec::Block => inner_parser,
         Prec::Expr => doc.text("{")
-            .append(inner_parser)
+            .append(inner_parser.nest(INDENT_WIDTH))
             .append(doc.newline())
             .append(doc.text("}")),
     }
@@ -576,7 +576,20 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             .append(doc.space())
             .append(lower_ty(doc, ty))
             .group(),
-        Expr::Abs(_, _) => unimplemented!(),
+        Expr::Abs(ref params, ref body_expr) => doc.text("|")
+            .append(doc.intersperse(
+                params.iter().map(|&Named(ref name, ref ty)| {
+                    doc.as_string(name)
+                        .append(doc.text(":"))
+                        .append(doc.space())
+                        .append(lower_ty(doc, ty))
+                }),
+                doc.text(","),
+            ))
+            .append(doc.text("|"))
+            .append(doc.space())
+            .append(lower_expr(doc, body_expr).nest(INDENT_WIDTH))
+            .group(),
         Expr::App(ref fn_expr, ref arg_exprs) => {
             let arg_exprs = arg_exprs.iter().map(|arg_expr| lower_expr(doc, arg_expr));
 
@@ -589,7 +602,7 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 }
 
 fn invalid_data_err<'doc, A: DocAllocator<'doc>>(doc: &'doc A) -> DocBuilder<'doc, A> {
-    doc.text("Err(")
+    doc.text("Err::<_, io::Error>(")
         .append(
             doc.text("io::Error::new(")
                 .append(

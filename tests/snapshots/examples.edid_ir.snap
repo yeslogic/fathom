@@ -228,11 +228,9 @@ Program {
                 Field {
                     doc: "Fixed header pattern",
                     name: "magic",
-                    value: Array(
-                        Const(
-                            Unsigned(
-                                U8
-                            )
+                    value: Const(
+                        Unsigned(
+                            U64
                         )
                     )
                 },
@@ -312,13 +310,26 @@ Program {
             Some(
                 Sequence(
                     [
-                        Named("magic", Repeat(
+                        Named("magic", Assert(
                             Const(
-                                U8
+                                U64Le
                             ),
-                            Exact(
-                                Const(
-                                    Int(8, Unsigned(U32))
+                            Abs(
+                                [
+                                    Named("magic", Const(
+                                        Unsigned(
+                                            U64
+                                        )
+                                    ))
+                                ],
+                                Binop(
+                                    Eq,
+                                    Var(
+                                        Bound(Named("magic", BoundVar(0, 0)))
+                                    ),
+                                    Const(
+                                        Int(72057594037927680, Unsigned(U64))
+                                    )
                                 )
                             )
                         )),

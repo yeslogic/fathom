@@ -1,6 +1,6 @@
 Header = struct {
     /// Fixed header pattern
-    magic: [u8; 8u32], // FIXME: constrain to [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00]
+    magic: u64le where magic => magic == 0x00ffffffffffff00u64,
     /// Manufacturer ID
     mfg_bytes: u16le,
     /// Manufacturer product code

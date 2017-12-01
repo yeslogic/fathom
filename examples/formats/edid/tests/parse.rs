@@ -3,7 +3,7 @@ extern crate ddl_edid;
 use std::io::Cursor;
 use ddl_edid::Edid;
 
-const MAGIC: [u8; 8] = [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00];
+const MAGIC: u64 = 0x00ff_ffff_ffff_ff00;
 
 #[test]
 fn test_read_edid_mbp_2013_built_in_retina() {
