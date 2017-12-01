@@ -213,8 +213,24 @@ fn lower_expr(path: &Path<String>, expr: &host::RcExpr<String>) -> RcExpr<String
         host::Expr::Cast(_, ref src_expr, ref dst_ty) => {
             Expr::Cast(lower_expr(path, src_expr), lower_repr_ty(path, dst_ty))
         }
-        host::Expr::Abs(_, _, _) => unimplemented!(),
-        host::Expr::App(_, _, _) => unimplemented!(),
+        host::Expr::Abs(_, ref params, ref body_expr) => {
+            let lowered_params = params
+                .iter()
+                .map(|&Named(ref name, ref ty)| {
+                    Named(name.clone(), lower_repr_ty(path, ty))
+                })
+                .collect();
+
+            Expr::Abs(lowered_params, lower_expr(path, body_expr))
+        }
+        host::Expr::App(_, ref fn_expr, ref arg_exprs) => {
+            let lowered_arg_exprs = arg_exprs
+                .iter()
+                .map(|expr| lower_expr(path, expr))
+                .collect();
+
+            Expr::App(lower_expr(path, fn_expr), lowered_arg_exprs)
+        }
     })
 }
 

@@ -179,9 +179,9 @@ impl<N: Name> Type<N> {
                 Some(ty) => ty.clone(),
             },
             Type::Var(_, Var::Bound(_)) | Type::Const(_) | Type::Compute(_, _, _) => return,
-            Type::Array(_, ref mut elem_ty, ref mut _size_expr) => {
+            Type::Array(_, ref mut elem_ty, ref mut size_expr) => {
                 Rc::make_mut(elem_ty).substitute(substs);
-                // Rc::make_mut(size_expr).substitute(substs);
+                Rc::make_mut(size_expr).substitute(substs);
                 return;
             }
             Type::Union(_, ref mut variants) => {
@@ -196,15 +196,15 @@ impl<N: Name> Type<N> {
                 }
                 return;
             }
-            Type::Assert(_, ref mut ty, ref mut _pred) => {
+            Type::Assert(_, ref mut ty, ref mut pred) => {
                 Rc::make_mut(ty).substitute(substs);
-                // Rc::make_mut(pred).substitute(substs);
+                Rc::make_mut(pred).substitute(substs);
                 return;
             }
-            Type::Interp(_, ref mut ty, ref mut _conv, ref mut _repr_ty) => {
+            Type::Interp(_, ref mut ty, ref mut conv, ref mut repr_ty) => {
                 Rc::make_mut(ty).substitute(substs);
-                // Rc::make_mut(conv).substitute(substs);
-                // Rc::make_mut(repr_ty).substitute(substs);
+                Rc::make_mut(conv).substitute(substs);
+                Rc::make_mut(repr_ty).substitute(substs);
                 return;
             }
             Type::Abs(_, _, ref mut body_ty) => {

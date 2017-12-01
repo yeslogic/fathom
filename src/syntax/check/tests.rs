@@ -113,14 +113,37 @@ mod ty_of {
 }
 
 mod kind_of {
+    use std::str::FromStr;
+    use syntax::ast;
+
     use super::*;
+
+    macro_rules! assert_kind_of {
+        ($given:expr, Ok($expected:expr)) => {{
+            let ctx = Context::new();
+            let mut ty = Rc::new(binary::Type::from_str($given).unwrap());
+            Rc::make_mut(&mut ty).substitute(&ast::base_defs());
+
+            assert_eq!(kind_of(&ctx, &ty), Ok($expected));
+        }};
+        ($given:expr, Err(_)) => {{
+            let ctx = Context::new();
+            let ty = Rc::new($given.parse().unwrap());
+
+            assert!(kind_of(&ctx, &ty).is_err());
+        }};
+    }
 
     #[test]
     fn var_unbound() {
-        let ctx = Context::new();
-        let src = "foo";
-        let ty = Rc::new(src.parse().unwrap());
+        assert_kind_of!("foo", Err(_));
+    }
 
-        assert!(kind_of(&ctx, &ty).is_err());
+    #[test]
+    fn assert_magic() {
+        assert_kind_of!(
+            "u64le where magic => magic == 0x00ffffffffffff00u64",
+            Ok(binary::Kind::Type)
+        );
     }
 }

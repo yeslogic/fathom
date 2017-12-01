@@ -277,16 +277,21 @@ fn lower_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     match *parse_expr {
         ParseExpr::Var(Var::Free(_)) => unimplemented!(),
         ParseExpr::Var(Var::Bound(Named(ref name, _))) => lower_named_parse_expr(doc, name),
-        ParseExpr::Const(ty_const) => lower_parse_ty_const(doc, ty_const),
+
+        ParseExpr::Const(ty_const) => lower_parse_ty_const(doc, ty_const)
+
         ParseExpr::Repeat(ref parse_expr, ref repeat_bound) => {
             lower_repeat_parse_expr(doc, prec, parse_expr, repeat_bound)
         }
+
         ParseExpr::Assert(ref parse_expr, ref pred) => {
             lower_assert_parse_expr(doc, prec, parse_expr, pred)
         }
+
         ParseExpr::Sequence(ref parse_exprs, ref expr) => {
             lower_sequence_parse_expr(doc, prec, parse_exprs, expr)
         }
+
         ParseExpr::Choice(ref parse_exprs) => lower_choice_parse_expr(doc, parse_exprs),
         ParseExpr::Compute(ref expr) => doc.text("Ok::<_, io::Error>(")
             .append(lower_expr(doc, expr))
@@ -368,43 +373,37 @@ fn lower_assert_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     parse_expr: &'a ParseExpr<String>,
     pred_expr: &'a Expr<String>,
 ) -> DocBuilder<'doc, A> {
-    let inner_parser = doc.newline()
-        .append(
-            // FIXME: Hygiene!
-            doc.text("let __value = ")
-                .append(lower_parse_expr(doc, prec, parse_expr))
-                .append(doc.text(";"))
-                .group(),
-        )
-        .append(doc.newline())
-        .append(
-            doc.text("if !(")
-                .append(lower_expr(doc, pred_expr))
-                .append(doc.text(")(__value) {"))
-                .group(),
-        )
-        .append(
-            doc.newline()
-                .append(
-                    doc.text("return")
-                        .append(doc.space())
-                        .append(invalid_data_err(doc))
-                        .group(),
-                )
-                .nest(INDENT_WIDTH),
-        )
-        .append(doc.newline())
-        .append(doc.text("}"))
-        .append(doc.newline())
-        .append(doc.text("__value"));
+    let pred = lower_expr(doc, pred_expr).append(doc.text(")(__value)"));
+    let if_true = doc.newline().append(doc.text("Ok(__value)"));
+    let if_false = doc.newline().append(
+        doc.text("return")
+            .append(doc.space())
+            .append(invalid_data_err(doc))
+            .group(),
+    );
 
-    match prec {
-        Prec::Block => inner_parser,
-        Prec::Expr => doc.text("{")
-            .append(inner_parser)
+    lower_parse_expr(doc, prec, parse_expr).append(
+        // FIXME: Hygiene!
+        doc.text(".and_then(|__value| {")
             .append(doc.newline())
-            .append(doc.text("}")),
-    }
+            .append(
+                doc.text("if")
+                    .append(doc.space())
+                    .append(pred)
+                    .append(doc.space())
+                    .append(doc.text("{"))
+                    .group()
+                    .append(if_true.nest(INDENT_WIDTH))
+                    .append(doc.newline())
+                    .append(doc.text("} else {"))
+                    .append(if_false.nest(INDENT_WIDTH))
+                    .append(doc.newline())
+                    .append(doc.text("}"))
+                    .nest(INDENT_WIDTH)
+                    .append(doc.newline()),
+            )
+            .append(doc.text("})")),
+    )
 }
 
 fn lower_sequence_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
@@ -487,10 +486,13 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
             .append(doc.text(lower_unsigned_ty(suffix))),
         Expr::Const(Const::Float(value, suffix)) => doc.as_string(value)
             .append(doc.text(lower_float_ty(suffix))),
+
         // FXIME: Hygiene!
         Expr::Prim(name, _) => doc.text("ddl_util::").append(doc.as_string(name)),
+
         Expr::Var(Var::Free(_)) => unimplemented!(),
         Expr::Var(Var::Bound(Named(ref name, _))) => doc.as_string(name),
+
         Expr::Unop(op, ref expr) => {
             let op_str = match op {
                 Unop::Neg => "-",
@@ -505,6 +507,7 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
                 .append(doc.text(")"))
                 .group()
         }
+
         Expr::Binop(op, ref lhs, ref rhs) => {
             let op_str = match op {
                 Binop::Or => "||",
@@ -532,6 +535,7 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
                 .append(doc.text(")"))
                 .group()
         }
+
         Expr::Struct(ref path, ref fields) => doc.text(path.to_camel_case())
             .append(doc.space())
             .append(doc.text("{"))
@@ -553,15 +557,18 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
                     .append(doc.newline()),
             )
             .append(doc.text("}")),
+
         Expr::Proj(ref expr, ref field_name) => lower_expr(doc, expr)
             .append(doc.text("."))
             .append(doc.as_string(field_name)),
+
         Expr::Intro(ref path, ref variant_name, ref expr) => doc.text(path.to_camel_case())
             .append(doc.text("::"))
             .append(doc.as_string(variant_name))
             .append(doc.text("("))
             .append(lower_expr(doc, expr))
             .append(doc.text(")")),
+
         Expr::Subscript(ref expr, ref index) => lower_expr(doc, expr)
             .append(doc.text("["))
             .append(
@@ -570,13 +577,29 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
                     .append(doc.text("as usize")),
             )
             .append(doc.text("]")),
+
         Expr::Cast(ref expr, ref ty) => lower_expr(doc, expr)
             .append(doc.space())
             .append(doc.text("as"))
             .append(doc.space())
             .append(lower_ty(doc, ty))
             .group(),
-        Expr::Abs(_, _) => unimplemented!(),
+
+        Expr::Abs(ref params, ref body_expr) => doc.text("|")
+            .append(doc.intersperse(
+                params.iter().map(|&Named(ref name, ref ty)| {
+                    doc.as_string(name)
+                        .append(doc.text(":"))
+                        .append(doc.space())
+                        .append(lower_ty(doc, ty))
+                }),
+                doc.text(","),
+            ))
+            .append(doc.text("|"))
+            .append(doc.space())
+            .append(lower_expr(doc, body_expr).nest(INDENT_WIDTH))
+            .group(),
+
         Expr::App(ref fn_expr, ref arg_exprs) => {
             let arg_exprs = arg_exprs.iter().map(|arg_expr| lower_expr(doc, arg_expr));
 
@@ -589,7 +612,7 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 }
 
 fn invalid_data_err<'doc, A: DocAllocator<'doc>>(doc: &'doc A) -> DocBuilder<'doc, A> {
-    doc.text("Err(")
+    doc.text("Err::<_, io::Error>(")
         .append(
             doc.text("io::Error::new(")
                 .append(
@@ -598,7 +621,8 @@ fn invalid_data_err<'doc, A: DocAllocator<'doc>>(doc: &'doc A) -> DocBuilder<'do
                         .append(doc.text(r#""Invalid binary data""#))
                         .nest(INDENT_WIDTH),
                 )
-                .nest(INDENT_WIDTH),
+                .nest(INDENT_WIDTH)
+                .append(doc.text(")")),
         )
         .append(doc.text(")"))
         .group()
