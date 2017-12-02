@@ -79,21 +79,21 @@ pub enum TypeConst {
 impl TypeConst {
     /// Convert a bianary type constant to its corresponding host representation
     pub fn repr(self) -> host::TypeConst {
-        use syntax::ast::host::{FloatType, SignedType, UnsignedType};
+        use syntax::ast::host::{FloatType, IntType};
 
         match self {
             TypeConst::Empty => host::TypeConst::Unit,
             TypeConst::Error => host::TypeConst::Bottom,
-            TypeConst::U8 => host::TypeConst::Unsigned(UnsignedType::U8),
-            TypeConst::I8 => host::TypeConst::Signed(SignedType::I8),
-            TypeConst::U16(_) => host::TypeConst::Unsigned(UnsignedType::U16),
-            TypeConst::U24(_) => host::TypeConst::Unsigned(UnsignedType::U24),
-            TypeConst::U32(_) => host::TypeConst::Unsigned(UnsignedType::U32),
-            TypeConst::U64(_) => host::TypeConst::Unsigned(UnsignedType::U64),
-            TypeConst::I16(_) => host::TypeConst::Signed(SignedType::I16),
-            TypeConst::I24(_) => host::TypeConst::Signed(SignedType::I24),
-            TypeConst::I32(_) => host::TypeConst::Signed(SignedType::I32),
-            TypeConst::I64(_) => host::TypeConst::Signed(SignedType::I64),
+            TypeConst::U8 => host::TypeConst::Int(IntType::u8()),
+            TypeConst::I8 => host::TypeConst::Int(IntType::i8()),
+            TypeConst::U16(_) => host::TypeConst::Int(IntType::u16()),
+            TypeConst::U24(_) => host::TypeConst::Int(IntType::u24()),
+            TypeConst::U32(_) => host::TypeConst::Int(IntType::u32()),
+            TypeConst::U64(_) => host::TypeConst::Int(IntType::u64()),
+            TypeConst::I16(_) => host::TypeConst::Int(IntType::i16()),
+            TypeConst::I24(_) => host::TypeConst::Int(IntType::i24()),
+            TypeConst::I32(_) => host::TypeConst::Int(IntType::i32()),
+            TypeConst::I64(_) => host::TypeConst::Int(IntType::i64()),
             TypeConst::F32(_) => host::TypeConst::Float(FloatType::F32),
             TypeConst::F64(_) => host::TypeConst::Float(FloatType::F64),
         }

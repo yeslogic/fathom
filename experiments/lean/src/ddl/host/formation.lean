@@ -22,8 +22,8 @@ namespace ddl.host
     inductive well_formed : type ℓ → Prop
       | bool {} :
           well_formed bool
-      | nat {} :
-          well_formed nat
+      | arith {at₁} :
+          well_formed (arith at₁)
       | union_nil {} :
           well_formed union_nil
       | union_cons {l t₁ t₂} :

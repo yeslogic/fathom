@@ -32,7 +32,7 @@ impl From<lexer::Error> for GrammarError {
 }
 
 fn parse_ty_const(src: &str) -> Result<host::TypeConst, GrammarError> {
-    use syntax::ast::host::{FloatType, SignedType, TypeConst, UnsignedType};
+    use syntax::ast::host::{FloatType, IntType, TypeConst};
 
     match src {
         "unit" => Ok(TypeConst::Unit),
@@ -40,16 +40,14 @@ fn parse_ty_const(src: &str) -> Result<host::TypeConst, GrammarError> {
         "bool" => Ok(TypeConst::Bool),
         "f32" => Ok(TypeConst::Float(FloatType::F32)),
         "f64" => Ok(TypeConst::Float(FloatType::F64)),
-        "i8" => Ok(TypeConst::Signed(SignedType::I8)),
-        "i16" => Ok(TypeConst::Signed(SignedType::I16)),
-        "i24" => Ok(TypeConst::Signed(SignedType::I24)),
-        "i32" => Ok(TypeConst::Signed(SignedType::I32)),
-        "i64" => Ok(TypeConst::Signed(SignedType::I64)),
-        "u8" => Ok(TypeConst::Unsigned(UnsignedType::U8)),
-        "u16" => Ok(TypeConst::Unsigned(UnsignedType::U16)),
-        "u24" => Ok(TypeConst::Unsigned(UnsignedType::U24)),
-        "u32" => Ok(TypeConst::Unsigned(UnsignedType::U32)),
-        "u64" => Ok(TypeConst::Unsigned(UnsignedType::U64)),
+        "i8" => Ok(TypeConst::Int(IntType::i8())),
+        "i16" => Ok(TypeConst::Int(IntType::i16())),
+        "i32" => Ok(TypeConst::Int(IntType::i32())),
+        "i64" => Ok(TypeConst::Int(IntType::i64())),
+        "u8" => Ok(TypeConst::Int(IntType::u8())),
+        "u16" => Ok(TypeConst::Int(IntType::u16())),
+        "u32" => Ok(TypeConst::Int(IntType::u32())),
+        "u64" => Ok(TypeConst::Int(IntType::u64())),
         _ => Err(GrammarError::InvalidHostTypeName {
             name: src.to_owned(),
         }),

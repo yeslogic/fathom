@@ -1,12 +1,12 @@
 Assert(
     Span {
         lo: BytePos(9),
-        hi: BytePos(126)
+        hi: BytePos(123)
     },
     Assert(
         Span {
             lo: BytePos(9),
-            hi: BytePos(97)
+            hi: BytePos(94)
         },
         Struct(
             Span {
@@ -57,7 +57,15 @@ Assert(
                                         lo: BytePos(53),
                                         hi: BytePos(57)
                                     },
-                                    Int(3, Unsigned(U32))
+                                    Int(
+                                        3,
+                                        Some(
+                                            IntType {
+                                                min: 0,
+                                                max: 4294967295
+                                            }
+                                        )
+                                    )
                                 )
                             )
                         )
@@ -68,7 +76,7 @@ Assert(
         Abs(
             Span {
                 lo: BytePos(83),
-                hi: BytePos(97)
+                hi: BytePos(94)
             },
             [
                 Named("x", Struct(
@@ -86,7 +94,7 @@ Assert(
             Binop(
                 Span {
                     lo: BytePos(88),
-                    hi: BytePos(97)
+                    hi: BytePos(94)
                 },
                 Eq,
                 Var(
@@ -99,17 +107,20 @@ Assert(
                 Const(
                     Span {
                         lo: BytePos(93),
-                        hi: BytePos(97)
+                        hi: BytePos(94)
                     },
-                    Int(2, Unsigned(U32))
+                    Int(
+                        2,
+                        None
+                    )
                 )
             )
         )
     ),
     Abs(
         Span {
-            lo: BytePos(112),
-            hi: BytePos(126)
+            lo: BytePos(109),
+            hi: BytePos(123)
         },
         [
             Named("x", Struct(
@@ -126,23 +137,31 @@ Assert(
         ],
         Binop(
             Span {
-                lo: BytePos(117),
-                hi: BytePos(126)
+                lo: BytePos(114),
+                hi: BytePos(123)
             },
             Eq,
             Var(
                 Span {
-                    lo: BytePos(117),
-                    hi: BytePos(118)
+                    lo: BytePos(114),
+                    hi: BytePos(115)
                 },
                 Bound(Named("x", BoundVar(0, 0)))
             ),
             Const(
                 Span {
-                    lo: BytePos(122),
-                    hi: BytePos(126)
+                    lo: BytePos(119),
+                    hi: BytePos(123)
                 },
-                Int(1, Unsigned(U32))
+                Int(
+                    1,
+                    Some(
+                        IntType {
+                            min: 0,
+                            max: 4294967295
+                        }
+                    )
+                )
             )
         )
     )

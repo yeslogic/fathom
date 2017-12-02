@@ -1,6 +1,7 @@
 //! The syntax of our data description language
 
-use std::fmt;
+use ramp::Int;
+use std::cmp::Ordering;
 use std::rc::Rc;
 
 use name::Named;
@@ -27,39 +28,24 @@ impl Kind {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum IntSuffix {
-    Signed(SignedType),
-    Unsigned(UnsignedType),
-}
-
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Const {
     /// A boolean constant: eg. `true`, `false`
     Bool(bool),
-    /// An integer constant: eg. `0u8`, `1i64`, `2i16`, ...
-    Int(u64, IntSuffix),
+    /// An integer constant: eg. `0u8`, `1i64`, `2i16`, `123` ...
+    Int(u64, Option<IntType>),
     /// A floating point constant: eg. `0f32`, `1.32f64`, ...
     Float(f64, FloatType),
 }
 
 impl Const {
-    pub fn ty_const_of(self) -> TypeConst {
-        match self {
-            Const::Bool(_) => TypeConst::Bool,
-            Const::Int(_, IntSuffix::Unsigned(suffix)) => TypeConst::Unsigned(suffix),
-            Const::Int(_, IntSuffix::Signed(suffix)) => TypeConst::Signed(suffix),
-            Const::Float(_, suffix) => TypeConst::Float(suffix),
-        }
-    }
-}
-
-impl fmt::Debug for Const {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    pub fn ty_const_of(&self) -> TypeConst {
         match *self {
-            Const::Bool(value) => write!(f, "Bool({:?})", value),
-            Const::Int(value, suffix) => write!(f, "Int({:?}, {:?})", value, suffix),
-            Const::Float(value, suffix) => write!(f, "Float({:?}, {:?})", value, suffix),
+            Const::Bool(_) => TypeConst::Bool,
+            Const::Int(x, ref suffix) => {
+                TypeConst::Int(suffix.as_ref().cloned().unwrap_or(IntType::range(x, x)))
+            }
+            Const::Float(_, suffix) => TypeConst::Float(suffix),
         }
     }
 }
@@ -268,36 +254,121 @@ pub enum FloatType {
     F64,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum SignedType {
-    /// Signed 8-bit integer
-    I8,
-    /// Signed 16-bit integer
-    I16,
-    /// Signed 24-bit integer
-    I24,
-    /// Signed 32-bit integer
-    I32,
-    /// Signed 64-bit integer
-    I64,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IntType {
+    min: Int,
+    max: Int,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum UnsignedType {
-    /// Unsigned 8-bit integer
-    U8,
-    /// Unsigned 16-bit integer
-    U16,
-    /// Unsigned 24-bit integer
-    U24,
-    /// Unsigned 32-bit integer
-    U32,
-    /// Unsigned 64-bit integer
-    U64,
+impl IntType {
+    pub fn range<Min: Into<Int>, Max: Into<Int>>(min: Min, max: Max) -> IntType {
+        let min = min.into();
+        let max = max.into();
+
+        if min < max {
+            IntType { min, max }
+        } else {
+            IntType { min, max }
+        }
+    }
+
+    pub fn min(&self) -> &Int {
+        &self.min
+    }
+
+    pub fn max(&self) -> &Int {
+        &self.max
+    }
+
+    pub fn i8() -> IntType {
+        IntType::range(::std::i8::MIN, ::std::i8::MAX)
+    }
+
+    pub fn i16() -> IntType {
+        IntType::range(::std::i16::MIN, ::std::i16::MAX)
+    }
+
+    pub fn i24() -> IntType {
+        // From https://en.wikipedia.org/wiki/24-bit
+        IntType::range(-8_388_608, 8_388_607)
+    }
+
+    pub fn i32() -> IntType {
+        IntType::range(::std::i32::MIN, ::std::i32::MAX)
+    }
+
+    pub fn i64() -> IntType {
+        IntType::range(::std::i64::MIN, ::std::i64::MAX)
+    }
+
+    pub fn u8() -> IntType {
+        IntType::range(::std::u8::MIN, ::std::u8::MAX)
+    }
+
+    pub fn u16() -> IntType {
+        IntType::range(::std::u16::MIN, ::std::u16::MAX)
+    }
+
+    pub fn u24() -> IntType {
+        IntType::range(::std::u32::MIN, 0xFFFFFF)
+    }
+
+    pub fn u32() -> IntType {
+        IntType::range(::std::u32::MIN, ::std::u32::MAX)
+    }
+
+    pub fn u64() -> IntType {
+        IntType::range(::std::u64::MIN, ::std::u64::MAX)
+    }
+
+    pub fn is_nonnegative(&self) -> bool {
+        self.min() >= &Int::zero()
+    }
+}
+
+impl PartialOrd for IntType {
+    fn partial_cmp(&self, other: &IntType) -> Option<Ordering> {
+        match (Int::cmp(self.min(), other.min()), Int::cmp(self.max(), other.max())) {
+            // Equal ranges
+            //
+            // +-----self-----+
+            // +-----other----+
+            (Ordering::Equal, Ordering::Equal) => Some(Ordering::Equal),
+
+            // Disjoint ranges
+            //
+            // +-----self-----?
+            //                    ?-----other-----+
+            (Ordering::Less, Ordering::Less) |
+            //                    ?-----self-----+
+            // +-----other-----?
+            (Ordering::Greater, Ordering::Greater) => None,
+
+            //       +-----self-----+
+            // +-----------other-----------+
+            (Ordering::Greater, Ordering::Less) |
+            //       +-----self-----+
+            // +-----------other----+
+            (Ordering::Greater, Ordering::Equal) |
+            // +-----self-----+
+            // +-----other-----------+
+            (Ordering::Equal, Ordering::Less) => Some(Ordering::Less),
+
+            // +-----------self-----------+
+            //       +-----other-----+
+            (Ordering::Less, Ordering::Greater) |
+            // +-----------self------+
+            //       +-----other-----+
+            (Ordering::Less, Ordering::Equal) |
+            // +-----self-----------+
+            // +-----other-----+
+            (Ordering::Equal, Ordering::Greater) => Some(Ordering::Greater),
+        }
+    }
 }
 
 /// A type constant in the host language
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeConst {
     /// Unit
     Unit,
@@ -308,9 +379,7 @@ pub enum TypeConst {
     /// Float
     Float(FloatType),
     /// Signed Integers
-    Signed(SignedType),
-    /// Unsigned Integers
-    Unsigned(UnsignedType),
+    Int(IntType),
 }
 
 /// A host type

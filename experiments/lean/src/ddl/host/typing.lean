@@ -11,16 +11,24 @@ namespace ddl.host
     inductive has_type : expr ℓ → type ℓ → Prop
       | bool {b} :
           has_type (expr.bool b) type.bool
-      | nat {n} :
-          has_type (expr.nat n) type.nat
+      | arith {ae₁ at₁} :
+          arith.has_type ae₁ at₁ →
+          has_type (expr.arith ae₁) (type.arith at₁)
+      | neg {e₁} :
+          has_type e₁ (type.arith sorry) →
+          has_type (-e₁) (type.arith sorry)
       | add {e₁ e₂} :
-          has_type e₁ type.nat →
-          has_type e₂ type.nat →
-          has_type (e₁ + e₂) type.nat
+          has_type e₁ (type.arith sorry) →
+          has_type e₂ (type.arith sorry) →
+          has_type (e₁ + e₂) (type.arith sorry)
+      | sub {e₁ e₂} :
+          has_type e₁ (type.arith sorry) →
+          has_type e₂ (type.arith sorry) →
+          has_type (e₁ - e₂) (type.arith sorry)
       | mul {e₁ e₂} :
-          has_type e₁ type.nat →
-          has_type e₂ type.nat →
-          has_type (e₁ * e₂) type.nat
+          has_type e₁ (type.arith sorry) →
+          has_type e₂ (type.arith sorry) →
+          has_type (e₁ * e₂) (type.arith sorry)
       | proj {e₁ tr tf l} :
           has_type e₁ tr →
           type.lookup l tr = some tf →

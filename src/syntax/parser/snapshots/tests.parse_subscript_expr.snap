@@ -1,18 +1,18 @@
 Unop(
     Span {
         lo: BytePos(0),
-        hi: BytePos(34)
+        hi: BytePos(31)
     },
     Neg,
     Subscript(
         Span {
             lo: BytePos(1),
-            hi: BytePos(34)
+            hi: BytePos(31)
         },
         Subscript(
             Span {
                 lo: BytePos(1),
-                hi: BytePos(27)
+                hi: BytePos(24)
             },
             Var(
                 Span {
@@ -24,43 +24,62 @@ Unop(
             Binop(
                 Span {
                     lo: BytePos(5),
-                    hi: BytePos(26)
+                    hi: BytePos(23)
                 },
                 Add,
                 Const(
                     Span {
                         lo: BytePos(5),
-                        hi: BytePos(10)
+                        hi: BytePos(7)
                     },
-                    Int(23, Unsigned(U32))
+                    Int(
+                        23,
+                        None
+                    )
                 ),
                 Binop(
                     Span {
-                        lo: BytePos(14),
-                        hi: BytePos(25)
+                        lo: BytePos(11),
+                        hi: BytePos(22)
                     },
                     Add,
                     Const(
                         Span {
-                            lo: BytePos(14),
-                            hi: BytePos(18)
+                            lo: BytePos(11),
+                            hi: BytePos(15)
                         },
-                        Int(2, Unsigned(U32))
+                        Int(
+                            2,
+                            Some(
+                                IntType {
+                                    min: 0,
+                                    max: 4294967295
+                                }
+                            )
+                        )
                     ),
                     Const(
                         Span {
-                            lo: BytePos(21),
-                            hi: BytePos(25)
+                            lo: BytePos(18),
+                            hi: BytePos(22)
                         },
-                        Int(3, Unsigned(U32))
+                        Int(
+                            3,
+                            Some(
+                                IntType {
+                                    min: 0,
+                                    max: 4294967295
+                                }
+                            )
+                        )
                     )
                 )
             )
         ),
         Var(
             Span {
-                lo: BytePos(28),
-                hi: BytePos(33)
+                lo: BytePos(25),
+                hi: BytePos(30)
             },
             Free("index")
         )

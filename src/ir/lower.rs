@@ -190,7 +190,7 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
 fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
     match **ty {
         host::Type::Var(ref var) => lower_ty_var(var),
-        host::Type::Const(ty_const) => Rc::new(Type::Const(ty_const)),
+        host::Type::Const(ref ty_const) => Rc::new(Type::Const(ty_const.clone())),
         host::Type::Arrow(ref arg_tys, ref ret_ty) => {
             let arg_repr_tys = arg_tys
                 .iter()
@@ -249,7 +249,7 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
 /// * `expr` - the expression to be lowered
 fn lower_expr(path: &Path, expr: &host::RcExpr) -> RcExpr {
     Rc::new(match **expr {
-        host::Expr::Const(_, c) => Expr::Const(c),
+        host::Expr::Const(_, ref c) => Expr::Const(c.clone()),
         host::Expr::Var(_, ref var) => Expr::Var(var.clone()),
         host::Expr::Unop(_, op, ref expr) => Expr::Unop(op, lower_expr(path, expr)),
         host::Expr::Binop(_, op, ref lhs, ref rhs) => {
