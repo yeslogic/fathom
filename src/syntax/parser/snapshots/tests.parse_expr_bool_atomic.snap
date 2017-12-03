@@ -1,13 +1,13 @@
 Unop(
     Span {
         lo: BytePos(9),
-        hi: BytePos(28)
+        hi: BytePos(29)
     },
     Not,
     Binop(
         Span {
             lo: BytePos(12),
-            hi: BytePos(26)
+            hi: BytePos(27)
         },
         Or,
         Var(
@@ -19,8 +19,8 @@ Unop(
         ),
         Var(
             Span {
-                lo: BytePos(20),
-                hi: BytePos(25)
+                lo: BytePos(21),
+                hi: BytePos(26)
             },
             Free("false")
         )

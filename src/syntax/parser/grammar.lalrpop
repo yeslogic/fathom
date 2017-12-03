@@ -38,7 +38,8 @@ extern {
         "where" => Token::Where,
 
         // Symbols
-        "&" => Token::Ampersand,
+        "&" => Token::Amp,
+        "&&" => Token::AmpAmp,
         "!" => Token::Bang,
         "!=" => Token::BangEqual,
         ":" => Token::Colon,
@@ -54,6 +55,7 @@ extern {
         "<=" => Token::LessEqual,
         "-" => Token::Minus,
         "|" => Token::Pipe,
+        "||" => Token::PipePipe,
         "+" => Token::Plus,
         ";" => Token::Semi,
         "*" => Token::Star,
@@ -193,10 +195,10 @@ pub HostExpr: host::RcExpr<String> = {
 
 PrimaryHostExpr: host::RcExpr<String> = {
     EqHostExpr,
-    <lo: @L> <lhs: EqHostExpr> "|" <rhs: PrimaryHostExpr> <hi: @R> => {
+    <lo: @L> <lhs: EqHostExpr> "||" <rhs: PrimaryHostExpr> <hi: @R> => {
         host::Expr::Binop(Span::new(lo, hi), Binop::Or, lhs, rhs).into()
     },
-    <lo: @L> <lhs: EqHostExpr> "&" <rhs: PrimaryHostExpr> <hi: @R> => {
+    <lo: @L> <lhs: EqHostExpr> "&&" <rhs: PrimaryHostExpr> <hi: @R> => {
         host::Expr::Binop(Span::new(lo, hi), Binop::And, lhs, rhs).into()
     },
 };

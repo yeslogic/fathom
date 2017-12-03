@@ -83,7 +83,7 @@ mod ty_of {
 
     #[test]
     fn rel_ops() {
-        assert_ty_of!("(1u8 == 3u8) & (2u8 == 2u8) | (1u8 == 2u8)", Ok("bool"));
+        assert_ty_of!("(1u8 == 3u8) && (2u8 == 2u8) || (1u8 == 2u8)", Ok("bool"));
     }
 
     #[test]
