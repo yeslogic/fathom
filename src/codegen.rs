@@ -256,6 +256,7 @@ fn lower_ty_const<'doc, A: DocAllocator<'doc>>(
     ty_const: TypeConst,
 ) -> DocBuilder<'doc, A> {
     match ty_const {
+        TypeConst::Unit => doc.text("()"),
         TypeConst::Bool => doc.text("bool"),
         TypeConst::Float(ty) => doc.text(lower_float_ty(ty)),
         TypeConst::Signed(ty) => doc.text(lower_signed_ty(ty)),
@@ -277,29 +278,31 @@ fn lower_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     match *parse_expr {
         ParseExpr::Var(Var::Free(_)) => unimplemented!(),
         ParseExpr::Var(Var::Bound(Named(ref name, _))) => lower_named_parse_expr(doc, name),
-
         ParseExpr::Const(ty_const) => lower_parse_ty_const(doc, ty_const),
-
         ParseExpr::Repeat(ref parse_expr, ref repeat_bound) => {
             lower_repeat_parse_expr(doc, prec, parse_expr, repeat_bound)
         }
-
         ParseExpr::Assert(ref parse_expr, ref pred) => {
             lower_assert_parse_expr(doc, prec, parse_expr, pred)
         }
-
         ParseExpr::Sequence(ref parse_exprs, ref expr) => {
             lower_sequence_parse_expr(doc, prec, parse_exprs, expr)
         }
-
         ParseExpr::Choice(ref parse_exprs) => lower_choice_parse_expr(doc, parse_exprs),
-        ParseExpr::Compute(ref expr) => doc.text("Ok::<_, io::Error>(")
-            .append(lower_expr(doc, expr))
-            .append(")"),
-        ParseExpr::Apply(ref fn_expr, ref parse_expr) => lower_expr(doc, fn_expr)
-            .append(doc.text("("))
-            .append(lower_parse_expr(doc, Prec::Expr, parse_expr))
-            .append(doc.text(")")),
+        ParseExpr::Apply(ref fn_expr, ref parse_expr) => doc.text("Ok::<_, io::Error>(")
+            .append(
+                doc.newline()
+                    .append(doc.text("("))
+                    .append(lower_expr(doc, fn_expr))
+                    .append(doc.text(")"))
+                    .append(doc.text("("))
+                    .append(lower_parse_expr(doc, Prec::Expr, parse_expr))
+                    .append(doc.text("?)"))
+                    .nest(INDENT_WIDTH)
+                    .append(doc.newline()),
+            )
+            .append(")")
+            .group(),
     }
 }
 
@@ -315,6 +318,7 @@ fn lower_parse_ty_const<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     ty_const: BinaryTypeConst,
 ) -> DocBuilder<'doc, A> {
     doc.text(match ty_const {
+        BinaryTypeConst::Empty => "Ok::<_, io::Error>(())",
         BinaryTypeConst::U8 => "ddl_util::from_u8(reader)",
         BinaryTypeConst::I8 => "ddl_util::from_i8(reader)",
         BinaryTypeConst::U16Le => "ddl_util::from_u16le(reader)",

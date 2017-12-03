@@ -76,28 +76,38 @@ Program {
                         Named("gamma_mod", Const(
                             U8
                         )),
-                        Named("gamma", Compute(
-                            Binop(
-                                Div,
+                        Named("gamma", Apply(
+                            Abs(
+                                [
+                                    Named("_", Const(
+                                        Unit
+                                    ))
+                                ],
                                 Binop(
-                                    Add,
-                                    Cast(
-                                        Var(
-                                            Bound(Named("gamma_mod", BoundVar(0, 0)))
+                                    Div,
+                                    Binop(
+                                        Add,
+                                        Cast(
+                                            Var(
+                                                Bound(Named("gamma_mod", BoundVar(2, 0)))
+                                            ),
+                                            Const(
+                                                Float(
+                                                    F32
+                                                )
+                                            )
                                         ),
                                         Const(
-                                            Float(
-                                                F32
-                                            )
+                                            Float(100, F32)
                                         )
                                     ),
                                     Const(
                                         Float(100, F32)
                                     )
-                                ),
-                                Const(
-                                    Float(100, F32)
                                 )
+                            ),
+                            Const(
+                                Empty
                             )
                         )),
                         Named("features_flags", Const(
@@ -348,22 +358,32 @@ Program {
                         Named("mfg_year_mod", Const(
                             U8
                         )),
-                        Named("mfg_year", Compute(
-                            Binop(
-                                Add,
-                                Cast(
-                                    Var(
-                                        Bound(Named("mfg_year_mod", BoundVar(0, 0)))
+                        Named("mfg_year", Apply(
+                            Abs(
+                                [
+                                    Named("_", Const(
+                                        Unit
+                                    ))
+                                ],
+                                Binop(
+                                    Add,
+                                    Cast(
+                                        Var(
+                                            Bound(Named("mfg_year_mod", BoundVar(2, 0)))
+                                        ),
+                                        Const(
+                                            Unsigned(
+                                                U16
+                                            )
+                                        )
                                     ),
                                     Const(
-                                        Unsigned(
-                                            U16
-                                        )
+                                        Int(1990, Unsigned(U16))
                                     )
-                                ),
-                                Const(
-                                    Int(1990, Unsigned(U16))
                                 )
+                            ),
+                            Const(
+                                Empty
                             )
                         )),
                         Named("edid_version_major", Const(

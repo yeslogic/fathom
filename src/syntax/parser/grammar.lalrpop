@@ -131,7 +131,14 @@ PrimaryBinaryType: binary::RcType<String> = {
         binary::Type::Assert(Span::new(lo1, hi), ty, pred_expr.into()).into()
     },
     <lo: @L> "compute" <repr_ty: HostType> "from" <expr: PrimaryHostExpr> <hi: @R> => {
-        binary::Type::Compute(Span::new(lo, hi), repr_ty, expr).into()
+        let empty = binary::Type::Const(binary::TypeConst::Empty);
+        let conv = host::Expr::abs(
+            Span::new(lo, hi),
+            vec![Named("_".to_owned(), empty.repr())],
+            expr,
+        );
+
+        binary::Type::Interp(Span::new(lo, hi), empty.into(), conv.into(), repr_ty).into()
     },
 };
 
@@ -168,7 +175,7 @@ pub HostType: host::RcType<String> = {
     //
     // We'll just hard-code identifiers for now
     <name: "Ident"> =>? {
-        let ty_const = name.parse().map_err(|e| UserError { error: GrammarError::from(e) })?;
+        let ty_const = super::parse_ty_const(name).map_err(|error| UserError { error })?;
 
         Ok(host::Type::Const(ty_const).into())
     },
@@ -260,25 +267,25 @@ PrefixHostExpr: host::RcExpr<String> = {
 AtomicHostExpr: host::RcExpr<String> = {
     "(" <expr: PrimaryHostExpr> ")" => expr,
     <lo: @L> <value: "BinLiteral"> <hi: @R> =>? {
-        let suffix = value.1.parse().map_err(|e| UserError { error: GrammarError::from(e) })?;
+        let suffix = super::parse_int_suffix(value.1).map_err(|error| UserError { error })?;
         let const_int = Const::Int(value.0, suffix);
 
         Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
     },
     <lo: @L> <value: "HexLiteral"> <hi: @R> =>? {
-        let suffix = value.1.parse().map_err(|e| UserError { error: GrammarError::from(e) })?;
+        let suffix = super::parse_int_suffix(value.1).map_err(|error| UserError { error })?;
         let const_int = Const::Int(value.0, suffix);
 
         Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
     },
     <lo: @L> <value: "DecLiteral"> <hi: @R> =>? {
-        let suffix = value.1.parse().map_err(|e| UserError { error: GrammarError::from(e) })?;
+        let suffix = super::parse_int_suffix(value.1).map_err(|error| UserError { error })?;
         let const_int = Const::Int(value.0, suffix);
 
         Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
     },
     <lo: @L> <value: "FloatDecLiteral"> <hi: @R> =>? {
-        let suffix = value.1.parse().map_err(|e| UserError { error: GrammarError::from(e) })?;
+        let suffix = super::parse_float_suffix(value.1).map_err(|error| UserError { error })?;
         let const_int = Const::Float(value.0, suffix);
 
         Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())

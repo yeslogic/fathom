@@ -386,6 +386,7 @@ pub fn kind_of<N: Name>(
         },
 
         // Type constants
+        Type::Const(TypeConst::Empty) |
         Type::Const(TypeConst::U8) |
         Type::Const(TypeConst::I8) |
         Type::Const(TypeConst::U16Le) |
@@ -434,14 +435,6 @@ pub fn kind_of<N: Name>(
                 Rc::new(host::Type::Const(host::TypeConst::Bool)),
             ));
             expect_ty(ctx, pred_expr, &pred_ty)?;
-
-            Ok(Kind::Type)
-        }
-
-        // Computed types
-        Type::Compute(_, ref repr_ty, ref expr) => {
-            // TODO: kindcheck and simplify repr_ty
-            expect_ty(ctx, expr, repr_ty)?;
 
             Ok(Kind::Type)
         }

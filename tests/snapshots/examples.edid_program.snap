@@ -116,46 +116,60 @@ Program {
                     Field {
                         doc: "Year of manufacture, derived from `mfg_year_mod`",
                         name: "mfg_year",
-                        value: Compute(
+                        value: Interp(
                             Span {
                                 lo: BytePos(551),
                                 hi: BytePos(597)
                             },
                             Const(
-                                Unsigned(
-                                    U16
-                                )
+                                Empty
                             ),
-                            Binop(
+                            Abs(
                                 Span {
-                                    lo: BytePos(568),
+                                    lo: BytePos(551),
                                     hi: BytePos(597)
                                 },
-                                Add,
-                                Cast(
+                                [
+                                    Named("_", Const(
+                                        Unit
+                                    ))
+                                ],
+                                Binop(
                                     Span {
                                         lo: BytePos(568),
-                                        hi: BytePos(587)
-                                    },
-                                    Var(
-                                        Span {
-                                            lo: BytePos(568),
-                                            hi: BytePos(580)
-                                        },
-                                        Bound(Named("mfg_year_mod", BoundVar(0, 0)))
-                                    ),
-                                    Const(
-                                        Unsigned(
-                                            U16
-                                        )
-                                    )
-                                ),
-                                Const(
-                                    Span {
-                                        lo: BytePos(590),
                                         hi: BytePos(597)
                                     },
-                                    Int(1990, Unsigned(U16))
+                                    Add,
+                                    Cast(
+                                        Span {
+                                            lo: BytePos(568),
+                                            hi: BytePos(587)
+                                        },
+                                        Var(
+                                            Span {
+                                                lo: BytePos(568),
+                                                hi: BytePos(580)
+                                            },
+                                            Bound(Named("mfg_year_mod", BoundVar(2, 0)))
+                                        ),
+                                        Const(
+                                            Unsigned(
+                                                U16
+                                            )
+                                        )
+                                    ),
+                                    Const(
+                                        Span {
+                                            lo: BytePos(590),
+                                            hi: BytePos(597)
+                                        },
+                                        Int(1990, Unsigned(U16))
+                                    )
+                                )
+                            ),
+                            Const(
+                                Unsigned(
+                                    U16
                                 )
                             )
                         )
@@ -241,60 +255,74 @@ Program {
                     Field {
                         doc: "Display gamma, derived from `gamma_mod`",
                         name: "gamma",
-                        value: Compute(
+                        value: Interp(
                             Span {
                                 lo: BytePos(1343),
                                 hi: BytePos(1400)
                             },
                             Const(
-                                Float(
-                                    F32
-                                )
+                                Empty
                             ),
-                            Binop(
+                            Abs(
                                 Span {
-                                    lo: BytePos(1360),
+                                    lo: BytePos(1343),
                                     hi: BytePos(1400)
                                 },
-                                Div,
+                                [
+                                    Named("_", Const(
+                                        Unit
+                                    ))
+                                ],
                                 Binop(
                                     Span {
-                                        lo: BytePos(1361),
-                                        hi: BytePos(1388)
+                                        lo: BytePos(1360),
+                                        hi: BytePos(1400)
                                     },
-                                    Add,
-                                    Cast(
+                                    Div,
+                                    Binop(
                                         Span {
                                             lo: BytePos(1361),
-                                            hi: BytePos(1377)
+                                            hi: BytePos(1388)
                                         },
-                                        Var(
+                                        Add,
+                                        Cast(
                                             Span {
                                                 lo: BytePos(1361),
-                                                hi: BytePos(1370)
+                                                hi: BytePos(1377)
                                             },
-                                            Bound(Named("gamma_mod", BoundVar(0, 0)))
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(1361),
+                                                    hi: BytePos(1370)
+                                                },
+                                                Bound(Named("gamma_mod", BoundVar(2, 0)))
+                                            ),
+                                            Const(
+                                                Float(
+                                                    F32
+                                                )
+                                            )
                                         ),
                                         Const(
-                                            Float(
-                                                F32
-                                            )
+                                            Span {
+                                                lo: BytePos(1380),
+                                                hi: BytePos(1388)
+                                            },
+                                            Float(100, F32)
                                         )
                                     ),
                                     Const(
                                         Span {
-                                            lo: BytePos(1380),
-                                            hi: BytePos(1388)
+                                            lo: BytePos(1392),
+                                            hi: BytePos(1400)
                                         },
                                         Float(100, F32)
                                     )
-                                ),
-                                Const(
-                                    Span {
-                                        lo: BytePos(1392),
-                                        hi: BytePos(1400)
-                                    },
-                                    Float(100, F32)
+                                )
+                            ),
+                            Const(
+                                Float(
+                                    F32
                                 )
                             )
                         )
