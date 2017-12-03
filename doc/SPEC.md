@@ -68,7 +68,7 @@ The size of a type may also depend on values from the environment that need to b
 There are types for signed and unsigned integers of various sizes:
 
 - `i8`, `i16`, `i32`, `i64`
-- `byte`/`u8`, `u16`, `u32`, `u64`
+- `u8`, `u16`, `u32`, `u64`
 
 The integer types always match if there are sufficient bytes available and any alignment constraint is met.
 
@@ -173,7 +173,7 @@ Structs are sequences of typed fields with unique names:
 ```
 struct {
     num_tables : u16,
-    tag : [byte; 4],
+    tag : [u8; 4],
 }
 ```
 
@@ -224,7 +224,7 @@ This can be used directly on struct fields:
 ```
 version : u32 @where version == 0x00010000
 
-hdrSize : byte @where hdrSize >= 4
+hdrSize : u8 @where hdrSize >= 4
 ```
 
 Or on any other types, such as array items:
@@ -396,12 +396,12 @@ header = choice {
 };
 
 header1 = struct {
-    type : byte == 1,
+    type : u8 == 1,
     ...
 };
 
 header2 = struct {
-    type : byte == 2,
+    type : u8 == 2,
     ...
 };
 ```
@@ -535,7 +535,7 @@ SID = u16;
 
 CharsetRange1 = struct {
     first : SID,
-    nLeft : byte,
+    nLeft : u8,
 };
 ```
 
@@ -543,7 +543,7 @@ Type declarations can take arguments which are used in the definition of the typ
 
 ```
 Charset0(nGlyphs : u16) = struct {
-    format : byte == 0,
+    format : u8 == 0,
     glyph : [SID; nGlyphs-1],
 };
 ```
@@ -554,7 +554,7 @@ Type declarations can be recursive:
 
 ```
 String = struct {
-    b : byte,
+    b : u8,
     @if b != 0 {
         next : String,
     },
@@ -577,7 +577,7 @@ struct {
 ```
 struct {
     format : u32 == 1,
-    data : [byte; 4],
+    data : [u8; 4],
 }
 ```
 
