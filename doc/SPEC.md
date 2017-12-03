@@ -102,17 +102,17 @@ interp(i64) = {x:int | -2^63 =< x < 2^63}
 
 Arrays are a multiple of any fixed size type:
 
-- `type[length]`
-- `type[]` (see existential types)
+- `[type; length]`
+- `[type]` (see [existential types](#existential-types))
 
 The length can be any integer expression as long as it only depends on values located before the array.
 
 Because the array element type has fixed size, the array itself will also have fixed size if the length is known in advance, or variable size if the length depends upon another value.
 
 ```
-sizeof(type[length]) = sizeof(type) * length
+sizeof([type; length]) = sizeof(type) * length
 
-interp(type[length]) = interp(type)[length]
+interp([type; length]) = [interp(type); length]
 ```
 
 ### Existential Types
@@ -128,9 +128,9 @@ The value of this variable can be determined from constraints expressed on it el
 For arrays of unknown length there is a shorthand syntax where if the length is omitted it is treated as introducing a new unnamed variable:
 
 ```
-type[]
+[type]
 
-exists x: type[x]
+exists x: [type; x]
 ```
 
 This allows the length of trailing arrays to be expressed simply:
@@ -140,7 +140,7 @@ struct MyStruct {
     length: u32
     field1: u32
     field2: u32
-    data: u32[]
+    data: [u32]
 }
 @where sizeof(MyStruct) = length
 ```
@@ -152,7 +152,7 @@ struct MyStruct {
     length: u32
     field1: u32
     field2: u32
-    data: exists x: u32[x]
+    data: exists x: [u32; x]
 }
 @where sizeof(MyStruct) = length
 ```
@@ -173,7 +173,7 @@ Structs are sequences of typed fields with unique names:
 ```
 struct {
     num_tables: u16
-    tag: byte[4]
+    tag: [byte; 4]
 }
 ```
 
@@ -184,7 +184,7 @@ Fields can be referenced by name in expressions, for example to give the size of
 ```
 struct {
     count: u32
-    values: u32[count]
+    values: [u32; count]
 }
 ```
 
@@ -192,7 +192,7 @@ Note the restriction on field ordering means the reverse would not be a valid st
 
 ```
 struct {
-    values: u32[count] // error!
+    values: [u32; count] // error!
     count: u32
 }
 ```
@@ -230,7 +230,7 @@ hdrSize: byte @where hdrSize >= 4
 Or on any other types, such as array items:
 
 ```
-data: (x: u16 @where x > 0)[length]
+data: [(x: u16 @where x > 0); length]
 ```
 
 Simple relational constraints can be represented using shorthand syntax without introducing a variable name:
@@ -271,7 +271,7 @@ For example, this can be used to interpret one 32-bit number as two 16-bit
 numbers:
 
 ```
-u32 & u16[2]
+u32 & [u16; 2]
 ```
 
 ```
@@ -501,11 +501,14 @@ FIXME can types in slices have links that go outside the slice?
 Here are is an example of a pointer link from a struct:
 
 ```
-script_records[script_count]: struct {
-    script_tag: u32
-    script_offset: u16
-    @link script: pointer(???, script) -> Script
-}
+script_records: [
+    struct {
+        script_tag: u32
+        script_offset: u16
+        @link script: pointer(???, script) -> Script
+    };
+    script_count
+]
 ```
 
 It is also possible to create link arrays using a loop expression:
@@ -513,10 +516,11 @@ It is also possible to create link arrays using a loop expression:
 ```
 struct {
     num_fonts: u32
-    offset_tables[num_fonts]: u32
-    @link tables[num_fonts]:
-        for i < num_fonts:
-          pointer(???, offset_tables[i]) -> OffsetTable
+    offset_tables: [u32; num_fonts]
+    @link tables: [
+        for i < num_fonts: pointer(???, offset_tables[i]) -> OffsetTable;
+        num_fonts
+    ]
 }
 ```
 
@@ -538,7 +542,7 @@ Type declarations can take arguments which are used in the definition of the typ
 ```
 Charset0(nGlyphs:u16) := struct {
     format: byte = 0
-    glyph: SID[nGlyphs-1]
+    glyph: [SID; nGlyphs-1]
 }
 ```
 
@@ -569,7 +573,7 @@ struct {
 
 struct {
     format: u32 = 1
-    data: byte[4]
+    data: [byte; 4]
 }
 ```
 
