@@ -137,10 +137,10 @@ This allows the length of trailing arrays to be expressed simply:
 
 ```
 struct MyStruct {
-    length: u32
-    field1: u32
-    field2: u32
-    data: [u32]
+    length: u32,
+    field1: u32,
+    field2: u32,
+    data: [u32],
 }
 @where sizeof(MyStruct) = length
 ```
@@ -149,10 +149,10 @@ This is equivalent to:
 
 ```
 struct MyStruct {
-    length: u32
-    field1: u32
-    field2: u32
-    data: exists x: [u32; x]
+    length: u32,
+    field1: u32,
+    field2: u32,
+    data: exists x: [u32; x],
 }
 @where sizeof(MyStruct) == length
 ```
@@ -172,8 +172,8 @@ Structs are sequences of typed fields with unique names:
 
 ```
 struct {
-    num_tables: u16
-    tag: [byte; 4]
+    num_tables: u16,
+    tag: [byte; 4],
 }
 ```
 
@@ -183,8 +183,8 @@ Fields can be referenced by name in expressions, for example to give the size of
 
 ```
 struct {
-    count: u32
-    values: [u32; count]
+    count: u32,
+    values: [u32; count],
 }
 ```
 
@@ -192,8 +192,8 @@ Note the restriction on field ordering means the reverse would not be a valid st
 
 ```
 struct {
-    values: [u32; count] // error!
-    count: u32
+    values: [u32; count], // error!
+    count: u32,
 }
 ```
 
@@ -245,8 +245,8 @@ Where clauses can include multiple constraints with conjunctions using the comma
 
 ```
 struct {
-    version: u32
-    hdrSize: u32
+    version: u32,
+    hdrSize: u32,
 }
 @where version == 0x00010000 && hdrSize >= 4
 ```
@@ -285,19 +285,19 @@ interp(type1 & type2) == interp(type1) * interp(type2)
 Interpreted types have a value determined by an expression in terms of their original value:
 
 ```
-name: type1 @as expr
+type1 @as expr,
 ```
 
 For example, this can be used to interpret 24-bit integers as 32-bit:
 
 ```
-x: u8[3] @as x[0] << 24 | x[1] << 16 | x[2]
+u8[3] @as x[0] << 24 | x[1] << 16 | x[2],
 ```
 
 ```
-sizeof(name: type1 @as expr) == sizeof(type1)
+sizeof(type1 @as expr) == sizeof(type1)
 
-interp(name: type1 @as expr) == typeof(expr)
+interp(type1 @as expr) == typeof(expr)
 ```
 
 ### Conditional Types
@@ -308,11 +308,13 @@ Conditional types depend on other values and are expressed using if-else and swi
 if expr1 { type1 }
 else if expr2 { type2 }
 else { type3 }
+```
 
+```
 switch {
-    type1 when expr1
-    type2 when expr2
-    type3 otherwise
+    type1 when expr1,
+    type2 when expr2,
+    type3 otherwise,
 }
 ```
 
@@ -343,9 +345,9 @@ Example of a switch expression:
 
 ```
 switch {
-    type1 when x == 1
-    type2 when x == 2
-    type3 otherwise
+    type1 when x == 1,
+    type2 when x == 2,
+    type3 otherwise,
 }
 ```
 
@@ -361,11 +363,11 @@ As well as returning entire types, conditional expressions can also return field
 
 ```
 struct {
-    version: u32
+    version: u32,
     @if version > 1 {
-        extra: u32
-        more: u32
-    }
+        extra: u32,
+        more: u32,
+    },
 }
 ```
 
@@ -388,20 +390,20 @@ interp(if X { type1 } else { type2 }) ==
 Choice types can match one of a set of type options:
 
 ```
-choice {
-    option { header1 }
-    option { header2 }
-}
+header = choice {
+    header1,
+    header2,
+};
 
-header1: struct {
-    type: byte == 1
+header1 = struct {
+    type: byte == 1,
     ...
-}
+};
 
-header2: struct {
-    type: byte == 2
+header2 = struct {
+    type: byte == 2,
     ...
-}
+};
 ```
 
 It must be possible to distinguish the options in the choice by looking at the first field in each option, eg. if the first field in each option is constrained to have a different value. (See definition of distinguishable types below).
@@ -436,9 +438,9 @@ The end type does not consume any bytes but only matches if there are no availab
 
 ```
 struct {
-    first: u32
-    second: u32
-    done: end
+    first: u32,
+    second: u32,
+    done: end,
 }
 ```
 
@@ -503,24 +505,24 @@ Here are is an example of a pointer link from a struct:
 ```
 script_records: [
     struct {
-        script_tag: u32
-        script_offset: u16
-        @link script: pointer(???, script) -> Script
+        script_tag: u32,
+        script_offset: u16,
+        @link script: pointer(???, script) -> Script,
     };
     script_count
-]
+],
 ```
 
 It is also possible to create link arrays using a loop expression:
 
 ```
 struct {
-    num_fonts: u32
-    offset_tables: [u32; num_fonts]
+    num_fonts: u32,
+    offset_tables: [u32; num_fonts],
     @link tables: [
         for i < num_fonts: pointer(???, offset_tables[i]) -> OffsetTable;
         num_fonts
-    ]
+    ],
 }
 ```
 
@@ -529,21 +531,21 @@ struct {
 Type declarations associate a name with a type:
 
 ```
-SID := u16
+SID = u16;
 
-CharsetRange1 := struct {
-    first: SID
-    nLeft: byte
-}
+CharsetRange1 = struct {
+    first: SID,
+    nLeft: byte,
+};
 ```
 
 Type declarations can take arguments which are used in the definition of the type:
 
 ```
-Charset0(nGlyphs:u16) := struct {
-    format: byte == 0
-    glyph: [SID; nGlyphs-1]
-}
+Charset0(nGlyphs : u16) = struct {
+    format: byte == 0,
+    glyph: [SID; nGlyphs-1],
+};
 ```
 
 These arguments must be provided when the type is referenced in order to obtain a usable type.
@@ -551,12 +553,12 @@ These arguments must be provided when the type is referenced in order to obtain 
 Type declarations can be recursive:
 
 ```
-String := struct {
-    b: byte
+String = struct {
+    b: byte,
     @if b != 0 {
-        next: String
-    }
-}
+        next: String,
+    },
+};
 ```
 
 However recursion must be guarded by at least one non-optional field occurring before any recursive mention of the same type.
@@ -567,13 +569,15 @@ Two types are distinguishable if it is possible to decide which one matches a gi
 
 ```
 struct {
-    format: u32 == 0
-    data: u32
+    format: u32 == 0,
+    data: u32,
 }
+```
 
+```
 struct {
-    format: u32 == 1
-    data: [byte; 4]
+    format: u32 == 1,
+    data: [byte; 4],
 }
 ```
 
