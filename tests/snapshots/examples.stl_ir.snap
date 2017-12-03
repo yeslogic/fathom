@@ -53,7 +53,9 @@ Program {
                             )
                         )),
                         Named("num_triangles", Const(
-                            U32Le
+                            U32(
+                                Little
+                            )
                         )),
                         Named("triangles", Repeat(
                             Var(
@@ -153,7 +155,9 @@ Program {
                             )
                         )),
                         Named("attribute_bytes", Const(
-                            U16Le
+                            U16(
+                                Little
+                            )
                         ))
                     ],
                     Struct(
@@ -226,13 +230,19 @@ Program {
                 Sequence(
                     [
                         Named("x", Const(
-                            F32Le
+                            F32(
+                                Little
+                            )
                         )),
                         Named("y", Const(
-                            F32Le
+                            F32(
+                                Little
+                            )
                         )),
                         Named("z", Const(
-                            F32Le
+                            F32(
+                                Little
+                            )
                         ))
                     ],
                     Struct(

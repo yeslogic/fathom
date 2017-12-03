@@ -120,7 +120,7 @@ impl<N: Name> Program<N> {
 }
 
 pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
-    use syntax::ast::binary::{Type, TypeConst};
+    use syntax::ast::binary::{Endianness, Type, TypeConst};
 
     btreemap! {
         // TODO: "true" = Expr::bool(true)
@@ -129,26 +129,26 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
         "u8".into() => Type::Const(TypeConst::U8),
         "i8".into() => Type::Const(TypeConst::I8),
         // Little endian primitives
-        "u16le".into() => Type::Const(TypeConst::U16Le),
-        "u24le".into() => Type::Const(TypeConst::U24Le),
-        "u32le".into() => Type::Const(TypeConst::U32Le),
-        "u64le".into() => Type::Const(TypeConst::U64Le),
-        "i16le".into() => Type::Const(TypeConst::I16Le),
-        "i24le".into() => Type::Const(TypeConst::I24Le),
-        "i32le".into() => Type::Const(TypeConst::I32Le),
-        "i64le".into() => Type::Const(TypeConst::I64Le),
-        "f32le".into() => Type::Const(TypeConst::F32Le),
-        "f64le".into() => Type::Const(TypeConst::F64Le),
+        "u16le".into() => Type::Const(TypeConst::U16(Endianness::Little)),
+        "u24le".into() => Type::Const(TypeConst::U24(Endianness::Little)),
+        "u32le".into() => Type::Const(TypeConst::U32(Endianness::Little)),
+        "u64le".into() => Type::Const(TypeConst::U64(Endianness::Little)),
+        "i16le".into() => Type::Const(TypeConst::I16(Endianness::Little)),
+        "i24le".into() => Type::Const(TypeConst::I24(Endianness::Little)),
+        "i32le".into() => Type::Const(TypeConst::I32(Endianness::Little)),
+        "i64le".into() => Type::Const(TypeConst::I64(Endianness::Little)),
+        "f32le".into() => Type::Const(TypeConst::F32(Endianness::Little)),
+        "f64le".into() => Type::Const(TypeConst::F64(Endianness::Little)),
         // Big endian primitives
-        "u16be".into() => Type::Const(TypeConst::U16Be),
-        "u24be".into() => Type::Const(TypeConst::U24Be),
-        "u32be".into() => Type::Const(TypeConst::U32Be),
-        "u64be".into() => Type::Const(TypeConst::U64Be),
-        "i16be".into() => Type::Const(TypeConst::I16Be),
-        "i24be".into() => Type::Const(TypeConst::I24Be),
-        "i32be".into() => Type::Const(TypeConst::I32Be),
-        "i64be".into() => Type::Const(TypeConst::I64Be),
-        "f32be".into() => Type::Const(TypeConst::F32Be),
-        "f64be".into() => Type::Const(TypeConst::F64Be),
+        "u16be".into() => Type::Const(TypeConst::U16(Endianness::Big)),
+        "u24be".into() => Type::Const(TypeConst::U24(Endianness::Big)),
+        "u32be".into() => Type::Const(TypeConst::U32(Endianness::Big)),
+        "u64be".into() => Type::Const(TypeConst::U64(Endianness::Big)),
+        "i16be".into() => Type::Const(TypeConst::I16(Endianness::Big)),
+        "i24be".into() => Type::Const(TypeConst::I24(Endianness::Big)),
+        "i32be".into() => Type::Const(TypeConst::I32(Endianness::Big)),
+        "i64be".into() => Type::Const(TypeConst::I64(Endianness::Big)),
+        "f32be".into() => Type::Const(TypeConst::F32(Endianness::Big)),
+        "f64be".into() => Type::Const(TypeConst::F64(Endianness::Big)),
     }
 }

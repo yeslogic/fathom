@@ -37,10 +37,14 @@ Program {
                         Named("extents", Sequence(
                             [
                                 Named("width", Const(
-                                    U32Be
+                                    U32(
+                                        Big
+                                    )
                                 )),
                                 Named("height", Const(
-                                    U32Be
+                                    U32(
+                                        Big
+                                    )
                                 ))
                             ],
                             Struct(

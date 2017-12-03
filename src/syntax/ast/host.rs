@@ -8,6 +8,7 @@ use source::Span;
 use syntax::ast::{self, Field, Substitutions};
 use var::{ScopeIndex, Var};
 
+/// Kinds of host type
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Kind {
     /// Kind of types
@@ -266,9 +267,9 @@ impl<N: Name> Expr<N> {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FloatType {
-    /// 32-bit float
+    /// IEE-754 32-bit float
     F32,
-    /// 64-bit float
+    /// IEE-754 64-bit float
     F64,
 }
 

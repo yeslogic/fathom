@@ -8,7 +8,7 @@ use name::{Name, Named};
 pub use syntax::ast::Field;
 pub use syntax::ast::host::{Binop, Const, IntSuffix, TypeConst, Unop};
 pub use syntax::ast::host::{FloatType, SignedType, UnsignedType};
-pub use syntax::ast::binary::TypeConst as BinaryTypeConst;
+pub use syntax::ast::binary::{Endianness, TypeConst as BinaryTypeConst};
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
