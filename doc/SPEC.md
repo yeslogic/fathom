@@ -29,8 +29,8 @@
 
 - numbers: `3`, `-10`, `0xFF`
 - identifiers: `count`, `hdrSize`
-- arithmetic: `count - 1`, `hdrSize*4`
-- indexing: `values[6]`, `offset[i+1]`
+- arithmetic: `count - 1`, `hdrSize * 4`
+- indexing: `values[6]`, `offset[i + 1]`
 - properties: `struct.field`, `array.length`
 - functions: `sizeof(type)`
 - conditionals: `if x > 3 { x } else { 0 }`
@@ -46,8 +46,8 @@ FIXME what about char arrays for tags, eg. 'OS/2' ?
 - conjunction: `a && b`
 - disjunction: `a || b`
 - negation: `!a`
-- `for i < count: offset[i] < offset[i+1]`
-- `exists i < count: table_records[i].tag == 'hmtx'`
+- `for i < count : offset[i] < offset[i+1]`
+- `exists i < count : table_records[i].tag == 'hmtx'`
 
 ## Types
 
@@ -87,15 +87,15 @@ sizeof(i16) == 2
 sizeof(i32) == 4
 sizeof(i64) == 8
 
-interp(u8) == {x:int | 0 <= x < 2^8}
-interp(u16) == {x:int | 0 <= x < 2^16}
-interp(u32) == {x:int | 0 <= x < 2^32}
-interp(u64) == {x:int | 0 <= x < 2^64}
+interp(u8) == { x : int | 0 <= x < 2^8 }
+interp(u16) == { x : int | 0 <= x < 2^16 }
+interp(u32) == { x : int | 0 <= x < 2^32 }
+interp(u64) == { x : int | 0 <= x < 2^64 }
 
-interp(i8) == {x:int | -2^7 <= x < 2^7}
-interp(i16) == {x:int | -2^15 <= x < 2^15}
-interp(i32) == {x:int | -2^31 <= x < 2^31}
-interp(i64) == {x:int | -2^63 <= x < 2^63}
+interp(i8) == { x : int | -2^7 <= x < 2^7 }
+interp(i16) == { x : int | -2^15 <= x < 2^15 }
+interp(i32) == { x : int | -2^31 <= x < 2^31 }
+interp(i64) == { x : int | -2^63 <= x < 2^63 }
 ```
 
 ### Array Types
@@ -120,7 +120,7 @@ interp([type; length]) == [interp(type); length]
 Existential types are parameterised by a variable of unknown value:
 
 ```
-exists x: type
+exists x : type
 ```
 
 The value of this variable can be determined from constraints expressed on it elsewhere, such as a `@where` clause.
@@ -130,17 +130,17 @@ For arrays of unknown length there is a shorthand syntax where if the length is 
 ```
 [type]
 
-exists x: [type; x]
+exists x : [type; x]
 ```
 
 This allows the length of trailing arrays to be expressed simply:
 
 ```
 struct MyStruct {
-    length: u32,
-    field1: u32,
-    field2: u32,
-    data: [u32],
+    length : u32,
+    field1 : u32,
+    field2 : u32,
+    data : [u32],
 }
 @where sizeof(MyStruct) = length
 ```
@@ -149,10 +149,10 @@ This is equivalent to:
 
 ```
 struct MyStruct {
-    length: u32,
-    field1: u32,
-    field2: u32,
-    data: exists x: [u32; x],
+    length : u32,
+    field1 : u32,
+    field2 : u32,
+    data : exists x : [u32; x],
 }
 @where sizeof(MyStruct) == length
 ```
@@ -161,9 +161,9 @@ And the constraint simplifies as follows:
 
 ```
 sizeof(MyStruct) == length
-sizeof(length) + sizeof(field1) + sizeof(field2) + sizeof(u32)*x == length
-(x + 3)*sizeof(u32) == length
-x == length/sizeof(u32) - 3
+sizeof(length) + sizeof(field1) + sizeof(field2) + sizeof(u32) * x == length
+(x + 3) * sizeof(u32) == length
+x == length / sizeof(u32) - 3
 ```
 
 ### Struct Types
@@ -172,8 +172,8 @@ Structs are sequences of typed fields with unique names:
 
 ```
 struct {
-    num_tables: u16,
-    tag: [byte; 4],
+    num_tables : u16,
+    tag : [byte; 4],
 }
 ```
 
@@ -183,8 +183,8 @@ Fields can be referenced by name in expressions, for example to give the size of
 
 ```
 struct {
-    count: u32,
-    values: [u32; count],
+    count : u32,
+    values : [u32; count],
 }
 ```
 
@@ -192,8 +192,8 @@ Note the restriction on field ordering means the reverse would not be a valid st
 
 ```
 struct {
-    values: [u32; count], // error!
-    count: u32,
+    values : [u32; count], // error!
+    count : u32,
 }
 ```
 
@@ -205,8 +205,8 @@ sizeof(struct {field: type | fields}) ==
     sizeof(type) + sizeof(struct {fields})
 
 interp(struct {}) == empty record
-interp(struct {field: type | fields}) ==
-    record with field: interp(type) and interp(struct {fields})
+interp(struct { field : type | fields }) ==
+    record with field : interp(type) and interp(struct { fields })
 ```
 
 ### Constrained Types
@@ -222,15 +222,15 @@ If the expression evaluates to false then the type will not match.
 This can be used directly on struct fields:
 
 ```
-version: u32 @where version == 0x00010000
+version : u32 @where version == 0x00010000
 
-hdrSize: byte @where hdrSize >= 4
+hdrSize : byte @where hdrSize >= 4
 ```
 
 Or on any other types, such as array items:
 
 ```
-data: [(x: u16 @where x > 0); length]
+data : [(x : u16 @where x > 0); length]
 ```
 
 Simple relational constraints can be represented using shorthand syntax without introducing a variable name:
@@ -245,8 +245,8 @@ Where clauses can include multiple constraints with conjunctions using the comma
 
 ```
 struct {
-    version: u32,
-    hdrSize: u32,
+    version : u32,
+    hdrSize : u32,
 }
 @where version == 0x00010000 && hdrSize >= 4
 ```
@@ -254,9 +254,9 @@ struct {
 FIXME implies extra syntax sugar for unnamed struct field access
 
 ```
-sizeof(name: type @where expr) == sizeof(type)
+sizeof(name : type @where expr) == sizeof(type)
 
-interp(name: type @where expr) == {name: interp(type) | expr}
+interp(name : type @where expr) == { name : interp(type) | expr }
 ```
 
 ### Intersection Types
@@ -363,10 +363,10 @@ As well as returning entire types, conditional expressions can also return field
 
 ```
 struct {
-    version: u32,
+    version : u32,
     @if version > 1 {
-        extra: u32,
-        more: u32,
+        extra : u32,
+        more : u32,
     },
 }
 ```
@@ -378,11 +378,11 @@ A struct containing an `@if` rule cannot be fixed size.
 FIXME what if the if only depends on a type argument?
 
 ```
-sizeof(if X { type1 } else { type2 }) ==
-    if X sizeof(type1) else sizeof(type2)
+sizeof(if x { type1 } else { type2 }) ==
+    if x sizeof(type1) else sizeof(type2)
 
-interp(if X { type1 } else { type2 }) ==
-    if X interp(type1) else interp(type2)
+interp(if x { type1 } else { type2 }) ==
+    if x interp(type1) else interp(type2)
 ```
 
 ### Choice Types
@@ -396,12 +396,12 @@ header = choice {
 };
 
 header1 = struct {
-    type: byte == 1,
+    type : byte == 1,
     ...
 };
 
 header2 = struct {
-    type: byte == 2,
+    type : byte == 2,
     ...
 };
 ```
@@ -438,9 +438,9 @@ The end type does not consume any bytes but only matches if there are no availab
 
 ```
 struct {
-    first: u32,
-    second: u32,
-    done: end,
+    first : u32,
+    second : u32,
+    done : end,
 }
 ```
 
@@ -480,9 +480,9 @@ sizeof(repeat count type) == sum of sizeof each type matched
 Links create a reference from one value to another and are created with the `@link` directive:
 
 ```
-@link name: pointer(base, offset) -> Type
+@link name : pointer(base, offset) -> Type
 
-@link name: slice(base, offset, length) -> Type
+@link name : slice(base, offset, length) -> Type
 ```
 
 The name is optional and may be used to refer to the linked value.
@@ -503,11 +503,11 @@ FIXME can types in slices have links that go outside the slice?
 Here are is an example of a pointer link from a struct:
 
 ```
-script_records: [
+script_records : [
     struct {
-        script_tag: u32,
-        script_offset: u16,
-        @link script: pointer(???, script) -> Script,
+        script_tag : u32,
+        script_offset : u16,
+        @link script : pointer(???, script) -> Script,
     };
     script_count
 ],
@@ -517,10 +517,10 @@ It is also possible to create link arrays using a loop expression:
 
 ```
 struct {
-    num_fonts: u32,
-    offset_tables: [u32; num_fonts],
-    @link tables: [
-        for i < num_fonts: pointer(???, offset_tables[i]) -> OffsetTable;
+    num_fonts : u32,
+    offset_tables : [u32; num_fonts],
+    @link tables : [
+        for i < num_fonts : pointer(???, offset_tables[i]) -> OffsetTable;
         num_fonts
     ],
 }
@@ -534,8 +534,8 @@ Type declarations associate a name with a type:
 SID = u16;
 
 CharsetRange1 = struct {
-    first: SID,
-    nLeft: byte,
+    first : SID,
+    nLeft : byte,
 };
 ```
 
@@ -543,8 +543,8 @@ Type declarations can take arguments which are used in the definition of the typ
 
 ```
 Charset0(nGlyphs : u16) = struct {
-    format: byte == 0,
-    glyph: [SID; nGlyphs-1],
+    format : byte == 0,
+    glyph : [SID; nGlyphs-1],
 };
 ```
 
@@ -554,9 +554,9 @@ Type declarations can be recursive:
 
 ```
 String = struct {
-    b: byte,
+    b : byte,
     @if b != 0 {
-        next: String,
+        next : String,
     },
 };
 ```
@@ -569,15 +569,15 @@ Two types are distinguishable if it is possible to decide which one matches a gi
 
 ```
 struct {
-    format: u32 == 0,
-    data: u32,
+    format : u32 == 0,
+    data : u32,
 }
 ```
 
 ```
 struct {
-    format: u32 == 1,
-    data: [byte; 4],
+    format : u32 == 1,
+    data : [byte; 4],
 }
 ```
 
