@@ -46,7 +46,7 @@ FIXME what about char arrays for tags, eg. 'OS/2' ?
 - conjunction: `a && b`
 - disjunction: `a || b`
 - negation: `!a`
-- `for i < count : offset[i] < offset[i+1]`
+- `for i < count : offset[i] < offset[i + 1]`
 - `exists i < count : table_records[i].tag == 'hmtx'`
 
 ## Types
@@ -531,10 +531,10 @@ struct {
 Type declarations associate a name with a type:
 
 ```text
-SID = u16;
+Sid = u16;
 
 CharsetRange1 = struct {
-    first : SID,
+    first : Sid,
     nLeft : u8,
 };
 ```
@@ -542,9 +542,9 @@ CharsetRange1 = struct {
 Type declarations can take arguments which are used in the definition of the type:
 
 ```text
-Charset0(nGlyphs : u16) = struct {
+Charset0(n_glyphs : u16) = struct {
     format : u8 == 0,
-    glyph : [SID; nGlyphs-1],
+    glyph : [Sid; n_glyphs - 1],
 };
 ```
 
