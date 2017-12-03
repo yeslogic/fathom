@@ -2,7 +2,6 @@
 
 use std::fmt;
 use std::rc::Rc;
-use std::str::FromStr;
 
 use name::{Name, Named};
 use source::Span;
@@ -31,34 +30,6 @@ impl Kind {
 pub enum IntSuffix {
     Signed(SignedType),
     Unsigned(UnsignedType),
-}
-
-impl FromStr for IntSuffix {
-    type Err = ParseIntSuffixError;
-
-    fn from_str(src: &str) -> Result<IntSuffix, ParseIntSuffixError> {
-        match src {
-            "i8" => Ok(IntSuffix::Signed(SignedType::I8)),
-            "i16" => Ok(IntSuffix::Signed(SignedType::I16)),
-            "i32" => Ok(IntSuffix::Signed(SignedType::I32)),
-            "i64" => Ok(IntSuffix::Signed(SignedType::I64)),
-            "u8" => Ok(IntSuffix::Unsigned(UnsignedType::U8)),
-            "u16" => Ok(IntSuffix::Unsigned(UnsignedType::U16)),
-            "u24" => Ok(IntSuffix::Unsigned(UnsignedType::U24)),
-            "u32" => Ok(IntSuffix::Unsigned(UnsignedType::U32)),
-            "u64" => Ok(IntSuffix::Unsigned(UnsignedType::U64)),
-            "" => Err(ParseIntSuffixError::Missing),
-            _ => Err(ParseIntSuffixError::Invalid {
-                suffix: src.to_owned(),
-            }),
-        }
-    }
-}
-
-#[derive(Debug, Fail, Clone, Eq, PartialEq)]
-pub enum ParseIntSuffixError {
-    #[fail(display = "invalid integer suffix: {}", suffix)] Invalid { suffix: String },
-    #[fail(display = "missing integer suffix")] Missing,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -301,20 +272,6 @@ pub enum FloatType {
     F64,
 }
 
-impl FromStr for FloatType {
-    type Err = ParseTypeConstError;
-
-    fn from_str(src: &str) -> Result<FloatType, ParseTypeConstError> {
-        match src {
-            "f32" => Ok(FloatType::F32),
-            "f64" => Ok(FloatType::F64),
-            _ => Err(ParseTypeConstError::InvalidName {
-                name: src.to_owned(),
-            }),
-        }
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SignedType {
     /// Signed 8-bit integer
@@ -356,36 +313,6 @@ pub enum TypeConst {
     Signed(SignedType),
     /// Unsigned Integers
     Unsigned(UnsignedType),
-}
-
-#[derive(Debug, Fail, Clone, Eq, PartialEq)]
-pub enum ParseTypeConstError {
-    #[fail(display = "invalid type constant name: {}", name)] InvalidName { name: String },
-}
-
-impl FromStr for TypeConst {
-    type Err = ParseTypeConstError;
-
-    fn from_str(src: &str) -> Result<TypeConst, ParseTypeConstError> {
-        match src {
-            "unit" => Ok(TypeConst::Unit),
-            "bool" => Ok(TypeConst::Bool),
-            "f32" => Ok(TypeConst::Float(FloatType::F32)),
-            "f64" => Ok(TypeConst::Float(FloatType::F64)),
-            "i8" => Ok(TypeConst::Signed(SignedType::I8)),
-            "i16" => Ok(TypeConst::Signed(SignedType::I16)),
-            "i32" => Ok(TypeConst::Signed(SignedType::I32)),
-            "i64" => Ok(TypeConst::Signed(SignedType::I64)),
-            "u8" => Ok(TypeConst::Unsigned(UnsignedType::U8)),
-            "u16" => Ok(TypeConst::Unsigned(UnsignedType::U16)),
-            "u24" => Ok(TypeConst::Unsigned(UnsignedType::U24)),
-            "u32" => Ok(TypeConst::Unsigned(UnsignedType::U32)),
-            "u64" => Ok(TypeConst::Unsigned(UnsignedType::U64)),
-            _ => Err(ParseTypeConstError::InvalidName {
-                name: src.to_owned(),
-            }),
-        }
-    }
 }
 
 /// A host type

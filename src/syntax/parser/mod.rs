@@ -20,8 +20,9 @@ pub type ParseError = lalrpop_util::ParseError<BytePos, String, GrammarError>;
 #[derive(Debug, Fail, Clone, Eq, PartialEq)]
 pub enum GrammarError {
     #[fail(display = "{}", _0)] Lexer(lexer::Error),
-    #[fail(display = "{}", _0)] IntSuffix(host::ParseIntSuffixError),
-    #[fail(display = "{}", _0)] HostTypeConst(host::ParseTypeConstError),
+    #[fail(display = "invalid constant suffix: {}", suffix)] ConstSuffixInvalid { suffix: String },
+    #[fail(display = "missing constant suffix")] ConstSuffixMissing,
+    #[fail(display = "invalid host type name: {}", name)] InvalidHostTypeName { name: String },
 }
 
 impl From<lexer::Error> for GrammarError {
@@ -30,15 +31,61 @@ impl From<lexer::Error> for GrammarError {
     }
 }
 
-impl From<host::ParseIntSuffixError> for GrammarError {
-    fn from(src: host::ParseIntSuffixError) -> GrammarError {
-        GrammarError::IntSuffix(src)
+fn parse_int_suffix(src: &str) -> Result<host::IntSuffix, GrammarError> {
+    use syntax::ast::host::{IntSuffix, SignedType, UnsignedType};
+
+    match src {
+        "i8" => Ok(IntSuffix::Signed(SignedType::I8)),
+        "i16" => Ok(IntSuffix::Signed(SignedType::I16)),
+        "i24" => Ok(IntSuffix::Signed(SignedType::I24)),
+        "i32" => Ok(IntSuffix::Signed(SignedType::I32)),
+        "i64" => Ok(IntSuffix::Signed(SignedType::I64)),
+        "u8" => Ok(IntSuffix::Unsigned(UnsignedType::U8)),
+        "u16" => Ok(IntSuffix::Unsigned(UnsignedType::U16)),
+        "u24" => Ok(IntSuffix::Unsigned(UnsignedType::U24)),
+        "u32" => Ok(IntSuffix::Unsigned(UnsignedType::U32)),
+        "u64" => Ok(IntSuffix::Unsigned(UnsignedType::U64)),
+        "" => Err(GrammarError::ConstSuffixMissing),
+        _ => Err(GrammarError::ConstSuffixInvalid {
+            suffix: src.to_owned(),
+        }),
     }
 }
 
-impl From<host::ParseTypeConstError> for GrammarError {
-    fn from(src: host::ParseTypeConstError) -> GrammarError {
-        GrammarError::HostTypeConst(src)
+fn parse_float_suffix(src: &str) -> Result<host::FloatType, GrammarError> {
+    use syntax::ast::host::FloatType;
+
+    match src {
+        "f32" => Ok(FloatType::F32),
+        "f64" => Ok(FloatType::F64),
+        "" => Err(GrammarError::ConstSuffixMissing),
+        _ => Err(GrammarError::ConstSuffixInvalid {
+            suffix: src.to_owned(),
+        }),
+    }
+}
+
+fn parse_ty_const(src: &str) -> Result<host::TypeConst, GrammarError> {
+    use syntax::ast::host::{FloatType, SignedType, TypeConst, UnsignedType};
+
+    match src {
+        "unit" => Ok(TypeConst::Unit),
+        "bool" => Ok(TypeConst::Bool),
+        "f32" => Ok(TypeConst::Float(FloatType::F32)),
+        "f64" => Ok(TypeConst::Float(FloatType::F64)),
+        "i8" => Ok(TypeConst::Signed(SignedType::I8)),
+        "i16" => Ok(TypeConst::Signed(SignedType::I16)),
+        "i24" => Ok(TypeConst::Signed(SignedType::I24)),
+        "i32" => Ok(TypeConst::Signed(SignedType::I32)),
+        "i64" => Ok(TypeConst::Signed(SignedType::I64)),
+        "u8" => Ok(TypeConst::Unsigned(UnsignedType::U8)),
+        "u16" => Ok(TypeConst::Unsigned(UnsignedType::U16)),
+        "u24" => Ok(TypeConst::Unsigned(UnsignedType::U24)),
+        "u32" => Ok(TypeConst::Unsigned(UnsignedType::U32)),
+        "u64" => Ok(TypeConst::Unsigned(UnsignedType::U64)),
+        _ => Err(GrammarError::InvalidHostTypeName {
+            name: src.to_owned(),
+        }),
     }
 }
 
