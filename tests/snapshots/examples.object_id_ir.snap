@@ -47,16 +47,24 @@ Program {
                 Sequence(
                     [
                         Named("epoch_time", Const(
-                            I32Be
+                            I32(
+                                Big
+                            )
                         )),
                         Named("machine_id", Const(
-                            U24Be
+                            U24(
+                                Big
+                            )
                         )),
                         Named("process_id", Const(
-                            U16Be
+                            U16(
+                                Big
+                            )
                         )),
                         Named("counter", Const(
-                            U24Be
+                            U24(
+                                Big
+                            )
                         ))
                     ],
                     Struct(

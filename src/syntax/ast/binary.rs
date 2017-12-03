@@ -7,6 +7,7 @@ use source::Span;
 use syntax::ast::{self, host, Field, Substitutions};
 use var::{ScopeIndex, Var};
 
+/// Kinds of binary types
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Kind {
     /// Kind of types
@@ -24,6 +25,7 @@ impl Kind {
         Kind::Arrow { arity }
     }
 
+    /// The host representation of the binary kind
     pub fn repr(self) -> host::Kind {
         match self {
             Kind::Type => host::Kind::Type,
@@ -32,33 +34,44 @@ impl Kind {
     }
 }
 
+/// The endianness (byte order) of a type
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Endianness {
+    /// Big endian
+    Big,
+    /// Little endian
+    Little,
+}
+
 /// A type constant in the binary language
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TypeConst {
     /// Empty binary type
     Empty,
+    /// Unsigned 8-bit integer
     U8,
+    /// Signed 8-bit integer
     I8,
-    U16Le,
-    U24Le,
-    U32Le,
-    U64Le,
-    I16Le,
-    I24Le,
-    I32Le,
-    I64Le,
-    F32Le,
-    F64Le,
-    U16Be,
-    U24Be,
-    U32Be,
-    U64Be,
-    I16Be,
-    I24Be,
-    I32Be,
-    I64Be,
-    F32Be,
-    F64Be,
+    /// Unsigned 16-bit integer
+    U16(Endianness),
+    /// Unsigned 24-bit integer
+    U24(Endianness),
+    /// Unsigned 32-bit integer
+    U32(Endianness),
+    /// Unsigned 64-bit integer
+    U64(Endianness),
+    /// Signed 16-bit integer
+    I16(Endianness),
+    /// Signed 24-bit integer
+    I24(Endianness),
+    /// Signed 32-bit integer
+    I32(Endianness),
+    /// Signed 64-bit integer
+    I64(Endianness),
+    /// IEEE-754 32-bit float
+    F32(Endianness),
+    /// IEEE-754 64-bit float
+    F64(Endianness),
 }
 
 impl TypeConst {
@@ -70,16 +83,16 @@ impl TypeConst {
             TypeConst::Empty => host::TypeConst::Unit,
             TypeConst::U8 => host::TypeConst::Unsigned(UnsignedType::U8),
             TypeConst::I8 => host::TypeConst::Signed(SignedType::I8),
-            TypeConst::U16Le | TypeConst::U16Be => host::TypeConst::Unsigned(UnsignedType::U16),
-            TypeConst::U24Le | TypeConst::U24Be => host::TypeConst::Unsigned(UnsignedType::U24),
-            TypeConst::U32Le | TypeConst::U32Be => host::TypeConst::Unsigned(UnsignedType::U32),
-            TypeConst::U64Le | TypeConst::U64Be => host::TypeConst::Unsigned(UnsignedType::U64),
-            TypeConst::I16Le | TypeConst::I16Be => host::TypeConst::Signed(SignedType::I16),
-            TypeConst::I24Le | TypeConst::I24Be => host::TypeConst::Signed(SignedType::I24),
-            TypeConst::I32Le | TypeConst::I32Be => host::TypeConst::Signed(SignedType::I32),
-            TypeConst::I64Le | TypeConst::I64Be => host::TypeConst::Signed(SignedType::I64),
-            TypeConst::F32Le | TypeConst::F32Be => host::TypeConst::Float(FloatType::F32),
-            TypeConst::F64Le | TypeConst::F64Be => host::TypeConst::Float(FloatType::F64),
+            TypeConst::U16(_) => host::TypeConst::Unsigned(UnsignedType::U16),
+            TypeConst::U24(_) => host::TypeConst::Unsigned(UnsignedType::U24),
+            TypeConst::U32(_) => host::TypeConst::Unsigned(UnsignedType::U32),
+            TypeConst::U64(_) => host::TypeConst::Unsigned(UnsignedType::U64),
+            TypeConst::I16(_) => host::TypeConst::Signed(SignedType::I16),
+            TypeConst::I24(_) => host::TypeConst::Signed(SignedType::I24),
+            TypeConst::I32(_) => host::TypeConst::Signed(SignedType::I32),
+            TypeConst::I64(_) => host::TypeConst::Signed(SignedType::I64),
+            TypeConst::F32(_) => host::TypeConst::Float(FloatType::F32),
+            TypeConst::F64(_) => host::TypeConst::Float(FloatType::F64),
         }
     }
 }

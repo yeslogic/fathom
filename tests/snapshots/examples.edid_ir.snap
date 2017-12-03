@@ -322,7 +322,9 @@ Program {
                     [
                         Named("magic", Assert(
                             Const(
-                                U64Le
+                                U64(
+                                    Little
+                                )
                             ),
                             Abs(
                                 [
@@ -344,13 +346,19 @@ Program {
                             )
                         )),
                         Named("mfg_bytes", Const(
-                            U16Le
+                            U16(
+                                Little
+                            )
                         )),
                         Named("product_code", Const(
-                            U16Le
+                            U16(
+                                Little
+                            )
                         )),
                         Named("serial", Const(
-                            U32Le
+                            U32(
+                                Little
+                            )
                         )),
                         Named("mfg_week", Const(
                             U8

@@ -389,26 +389,16 @@ pub fn kind_of<N: Name>(
         Type::Const(TypeConst::Empty) |
         Type::Const(TypeConst::U8) |
         Type::Const(TypeConst::I8) |
-        Type::Const(TypeConst::U16Le) |
-        Type::Const(TypeConst::U24Le) |
-        Type::Const(TypeConst::U32Le) |
-        Type::Const(TypeConst::U64Le) |
-        Type::Const(TypeConst::I16Le) |
-        Type::Const(TypeConst::I24Le) |
-        Type::Const(TypeConst::I32Le) |
-        Type::Const(TypeConst::I64Le) |
-        Type::Const(TypeConst::F32Le) |
-        Type::Const(TypeConst::F64Le) |
-        Type::Const(TypeConst::U16Be) |
-        Type::Const(TypeConst::U24Be) |
-        Type::Const(TypeConst::U32Be) |
-        Type::Const(TypeConst::U64Be) |
-        Type::Const(TypeConst::I16Be) |
-        Type::Const(TypeConst::I24Be) |
-        Type::Const(TypeConst::I32Be) |
-        Type::Const(TypeConst::I64Be) |
-        Type::Const(TypeConst::F32Be) |
-        Type::Const(TypeConst::F64Be) => Ok(Kind::Type),
+        Type::Const(TypeConst::U16(_)) |
+        Type::Const(TypeConst::U24(_)) |
+        Type::Const(TypeConst::U32(_)) |
+        Type::Const(TypeConst::U64(_)) |
+        Type::Const(TypeConst::I16(_)) |
+        Type::Const(TypeConst::I24(_)) |
+        Type::Const(TypeConst::I32(_)) |
+        Type::Const(TypeConst::I64(_)) |
+        Type::Const(TypeConst::F32(_)) |
+        Type::Const(TypeConst::F64(_)) => Ok(Kind::Type),
 
         // Array types
         Type::Array(_, ref elem_ty, ref size_expr) => {
