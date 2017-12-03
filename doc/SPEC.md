@@ -67,37 +67,35 @@ The size of a type may also depend on values from the environment that need to b
 
 There are types for signed and unsigned integers of various sizes:
 
-- `int8`, `int16`, `int32`, `int64`
-- `byte`/`uint8`, `uint16`, `uint32`, `uint64`
+- `i8`, `i16`, `i32`, `i64`
+- `byte`/`u8`, `u16`, `u32`, `u64`
 
 The integer types always match if there are sufficient bytes available and any alignment constraint is met.
-
-FIXME we could rename these to `u8`/`u16`/`u32` etc. like Rust to save typing if we think that's easier
 
 FIXME we will need an option to specify whether integers are big endian or little endian; currently big endian is assumed just for compatibility with OpenType.
 
 FIXME we will also need an option to specify the default alignment for integer fields and a way to override this for specific fields.
 
 ```
-sizeof(uint8) = 1
-sizeof(uint16) = 2
-sizeof(uint32) = 4
-sizeof(uint64) = 8
+sizeof(u8) = 1
+sizeof(u16) = 2
+sizeof(u32) = 4
+sizeof(u64) = 8
 
-sizeof(int8) = 1
-sizeof(int16) = 2
-sizeof(int32) = 4
-sizeof(int64) = 8
+sizeof(i8) = 1
+sizeof(i16) = 2
+sizeof(i32) = 4
+sizeof(i64) = 8
 
-interp(uint8) = {x:int | 0 =< x < 2^8}
-interp(uint16) = {x:int | 0 =< x < 2^16}
-interp(uint32) = {x:int | 0 =< x < 2^32}
-interp(uint64) = {x:int | 0 =< x < 2^64}
+interp(u8) = {x:int | 0 =< x < 2^8}
+interp(u16) = {x:int | 0 =< x < 2^16}
+interp(u32) = {x:int | 0 =< x < 2^32}
+interp(u64) = {x:int | 0 =< x < 2^64}
 
-interp(int8) = {x:int | -2^7 =< x < 2^7}
-interp(int16) = {x:int | -2^15 =< x < 2^15}
-interp(int32) = {x:int | -2^31 =< x < 2^31}
-interp(int64) = {x:int | -2^63 =< x < 2^63}
+interp(i8) = {x:int | -2^7 =< x < 2^7}
+interp(i16) = {x:int | -2^15 =< x < 2^15}
+interp(i32) = {x:int | -2^31 =< x < 2^31}
+interp(i64) = {x:int | -2^63 =< x < 2^63}
 ```
 
 ### Array Types
@@ -139,10 +137,10 @@ This allows the length of trailing arrays to be expressed simply:
 
 ```
 struct MyStruct {
-    length: uint32
-    field1: uint32
-    field2: uint32
-    data: uint32[]
+    length: u32
+    field1: u32
+    field2: u32
+    data: u32[]
 }
 @where sizeof(MyStruct) = length
 ```
@@ -151,10 +149,10 @@ This is equivalent to:
 
 ```
 struct MyStruct {
-    length: uint32
-    field1: uint32
-    field2: uint32
-    data: exists x: uint32[x]
+    length: u32
+    field1: u32
+    field2: u32
+    data: exists x: u32[x]
 }
 @where sizeof(MyStruct) = length
 ```
@@ -163,9 +161,9 @@ And the constraint simplifies as follows:
 
 ```
 sizeof(MyStruct) = length
-sizeof(length) + sizeof(field1) + sizeof(field2) + sizeof(uint32)*x = length
-(x + 3)*sizeof(uint32) = length
-x = length/sizeof(uint32) - 3
+sizeof(length) + sizeof(field1) + sizeof(field2) + sizeof(u32)*x = length
+(x + 3)*sizeof(u32) = length
+x = length/sizeof(u32) - 3
 ```
 
 ### Struct Types
@@ -174,7 +172,7 @@ Structs are sequences of typed fields with unique names:
 
 ```
 struct {
-    num_tables: uint16
+    num_tables: u16
     tag: byte[4]
 }
 ```
@@ -185,8 +183,8 @@ Fields can be referenced by name in expressions, for example to give the size of
 
 ```
 struct {
-    count: uint32
-    values: uint32[count]
+    count: u32
+    values: u32[count]
 }
 ```
 
@@ -194,8 +192,8 @@ Note the restriction on field ordering means the reverse would not be a valid st
 
 ```
 struct {
-    values: uint32[count] // error!
-    count: uint32
+    values: u32[count] // error!
+    count: u32
 }
 ```
 
@@ -224,7 +222,7 @@ If the expression evaluates to false then the type will not match.
 This can be used directly on struct fields:
 
 ```
-version: uint32 @where version = 0x00010000
+version: u32 @where version = 0x00010000
 
 hdrSize: byte @where hdrSize >= 4
 ```
@@ -232,23 +230,23 @@ hdrSize: byte @where hdrSize >= 4
 Or on any other types, such as array items:
 
 ```
-data: (x: uint16 @where x > 0)[length]
+data: (x: u16 @where x > 0)[length]
 ```
 
 Simple relational constraints can be represented using shorthand syntax without introducing a variable name:
 
 ```
-uint32 = 0x00010000
+u32 = 0x00010000
 
-uint8 >= 4
+u8 >= 4
 ```
 
 Where clauses can include multiple constraints with conjunctions using the comma operator:
 
 ```
 struct {
-    version: uint32
-    hdrSize: uint32
+    version: u32
+    hdrSize: u32
 }
 @where version = 0x00010000, hdrSize >= 4
 ```
@@ -273,7 +271,7 @@ For example, this can be used to interpret one 32-bit number as two 16-bit
 numbers:
 
 ```
-uint32 & uint16[2]
+u32 & u16[2]
 ```
 
 ```
@@ -293,7 +291,7 @@ name: type1 @as expr
 For example, this can be used to interpret 24-bit integers as 32-bit:
 
 ```
-x: uint8[3] @as x[0] << 24 | x[1] << 16 | x[2]
+x: u8[3] @as x[0] << 24 | x[1] << 16 | x[2]
 ```
 
 ```
@@ -363,10 +361,10 @@ As well as returning entire types, conditional expressions can also return field
 
 ```
 struct {
-    version: uint32
+    version: u32
     @if version > 1 {
-        extra: uint32
-        more: uint32
+        extra: u32
+        more: u32
     }
 }
 ```
@@ -417,7 +415,7 @@ A choice type can be converted to a switch type.
 The `empty` type does not consume any bytes and thus always matches. It can be used in conditional expressions when something is optional:
 
 ```
-@if version > 1 { uint32 }
+@if version > 1 { u32 }
 @else { empty }
 ```
 
@@ -426,7 +424,7 @@ The `empty` type does not consume any bytes and thus always matches. It can be u
 The `error` type never matches. It can be used in conditional expressions when something is mandatory:
 
 ```
-@if version > 1 { uint32 }
+@if version > 1 { u32 }
 @else { error }
 ```
 
@@ -438,8 +436,8 @@ The end type does not consume any bytes but only matches if there are no availab
 
 ```
 struct {
-    first: uint32
-    second: uint32
+    first: u32
+    second: u32
     done: end
 }
 ```
@@ -504,8 +502,8 @@ Here are is an example of a pointer link from a struct:
 
 ```
 script_records[script_count]: struct {
-    script_tag: uint32
-    script_offset: uint16
+    script_tag: u32
+    script_offset: u16
     @link script: pointer(???, script) -> Script
 }
 ```
@@ -514,8 +512,8 @@ It is also possible to create link arrays using a loop expression:
 
 ```
 struct {
-    num_fonts: uint32
-    offset_tables[num_fonts]: uint32
+    num_fonts: u32
+    offset_tables[num_fonts]: u32
     @link tables[num_fonts]:
         for i < num_fonts:
           pointer(???, offset_tables[i]) -> OffsetTable
@@ -527,7 +525,7 @@ struct {
 Type declarations associate a name with a type:
 
 ```
-SID := uint16
+SID := u16
 
 CharsetRange1 := struct {
     first: SID
@@ -538,7 +536,7 @@ CharsetRange1 := struct {
 Type declarations can take arguments which are used in the definition of the type:
 
 ```
-Charset0(nGlyphs:uint16) := struct {
+Charset0(nGlyphs:u16) := struct {
     format: byte = 0
     glyph: SID[nGlyphs-1]
 }
@@ -565,12 +563,12 @@ Two types are distinguishable if it is possible to decide which one matches a gi
 
 ```
 struct {
-    format: uint32 = 0
-    data: uint32
+    format: u32 = 0
+    data: u32
 }
 
 struct {
-    format: uint32 = 1
+    format: u32 = 1
     data: byte[4]
 }
 ```
