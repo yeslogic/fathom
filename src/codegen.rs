@@ -516,7 +516,7 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
         Expr::Binop(op, ref lhs, ref rhs) => {
             let op_str = match op {
                 Binop::Or => "||",
-                Binop::And => "&",
+                Binop::And => "&&",
                 Binop::Eq => "==",
                 Binop::Ne => "!=",
                 Binop::Le => "<=",

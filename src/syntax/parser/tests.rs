@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn parse_expr_bool_atomic() {
     let src = "
-        !((true | (false)))
+        !((true || (false)))
     ";
 
     assert_debug_snapshot!(parse_expr_bool_atomic, host::Expr::from_str(src).unwrap());
@@ -12,7 +12,7 @@ fn parse_expr_bool_atomic() {
 #[test]
 fn parse_expr_bool_operators() {
     let src = "
-        (true & false) | (true | false)
+        (true && false) || (true || false)
     ";
 
     assert_debug_snapshot!(

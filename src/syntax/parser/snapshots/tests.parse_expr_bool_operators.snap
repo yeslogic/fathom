@@ -1,13 +1,13 @@
 Binop(
     Span {
         lo: BytePos(9),
-        hi: BytePos(40)
+        hi: BytePos(43)
     },
     Or,
     Binop(
         Span {
             lo: BytePos(10),
-            hi: BytePos(22)
+            hi: BytePos(23)
         },
         And,
         Var(
@@ -19,29 +19,29 @@ Binop(
         ),
         Var(
             Span {
-                lo: BytePos(17),
-                hi: BytePos(22)
+                lo: BytePos(18),
+                hi: BytePos(23)
             },
             Free("false")
         )
     ),
     Binop(
         Span {
-            lo: BytePos(27),
-            hi: BytePos(39)
+            lo: BytePos(29),
+            hi: BytePos(42)
         },
         Or,
         Var(
             Span {
-                lo: BytePos(27),
-                hi: BytePos(31)
+                lo: BytePos(29),
+                hi: BytePos(33)
             },
             Free("true")
         ),
         Var(
             Span {
-                lo: BytePos(34),
-                hi: BytePos(39)
+                lo: BytePos(37),
+                hi: BytePos(42)
             },
             Free("false")
         )
