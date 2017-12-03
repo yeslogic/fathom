@@ -76,7 +76,7 @@ FIXME we will need an option to specify whether integers are big endian or littl
 
 FIXME we will also need an option to specify the default alignment for integer fields and a way to override this for specific fields.
 
-```
+```text
 sizeof(u8) == 1
 sizeof(u16) == 2
 sizeof(u32) == 4
@@ -109,7 +109,7 @@ The length can be any integer expression as long as it only depends on values lo
 
 Because the array element type has fixed size, the array itself will also have fixed size if the length is known in advance, or variable size if the length depends upon another value.
 
-```
+```text
 sizeof([type; length]) == sizeof(type) * length
 
 interp([type; length]) == [interp(type); length]
@@ -119,7 +119,7 @@ interp([type; length]) == [interp(type); length]
 
 Existential types are parameterised by a variable of unknown value:
 
-```
+```text
 exists x : type
 ```
 
@@ -127,7 +127,7 @@ The value of this variable can be determined from constraints expressed on it el
 
 For arrays of unknown length there is a shorthand syntax where if the length is omitted it is treated as introducing a new unnamed variable:
 
-```
+```text
 [type]
 
 exists x : [type; x]
@@ -135,7 +135,7 @@ exists x : [type; x]
 
 This allows the length of trailing arrays to be expressed simply:
 
-```
+```text
 struct MyStruct {
     length : u32,
     field1 : u32,
@@ -147,7 +147,7 @@ struct MyStruct {
 
 This is equivalent to:
 
-```
+```text
 struct MyStruct {
     length : u32,
     field1 : u32,
@@ -159,7 +159,7 @@ struct MyStruct {
 
 And the constraint simplifies as follows:
 
-```
+```text
 sizeof(MyStruct) == length
 sizeof(length) + sizeof(field1) + sizeof(field2) + sizeof(u32) * x == length
 (x + 3) * sizeof(u32) == length
@@ -170,7 +170,7 @@ x == length / sizeof(u32) - 3
 
 Structs are sequences of typed fields with unique names:
 
-```
+```text
 struct {
     num_tables : u16,
     tag : [u8; 4],
@@ -181,7 +181,7 @@ A struct has fixed size if all of its fields are fixed size, or variable size if
 
 Fields can be referenced by name in expressions, for example to give the size of an array field later in the struct:
 
-```
+```text
 struct {
     count : u32,
     values : [u32; count],
@@ -190,7 +190,7 @@ struct {
 
 Note the restriction on field ordering means the reverse would not be a valid struct type:
 
-```
+```text
 struct {
     values : [u32; count], // error!
     count : u32,
@@ -199,7 +199,7 @@ struct {
 
 It would be impossible to locate the count field without looking past the array, but the array size depends on the count field, so this struct is impossible to process and is erroneous.
 
-```
+```text
 sizeof(struct {}) == 0
 sizeof(struct {field: type | fields}) ==
     sizeof(type) + sizeof(struct {fields})
@@ -213,7 +213,7 @@ interp(struct { field : type | fields }) ==
 
 Constrained types consist of a named value of a type followed by a `@where` clause with a boolean expression that constrains the value:
 
-```
+```text
 name: type @where expr
 ```
 
@@ -221,7 +221,7 @@ If the expression evaluates to false then the type will not match.
 
 This can be used directly on struct fields:
 
-```
+```text
 version : u32 @where version == 0x00010000
 
 hdrSize : u8 @where hdrSize >= 4
@@ -229,13 +229,13 @@ hdrSize : u8 @where hdrSize >= 4
 
 Or on any other types, such as array items:
 
-```
+```text
 data : [(x : u16 @where x > 0); length]
 ```
 
 Simple relational constraints can be represented using shorthand syntax without introducing a variable name:
 
-```
+```text
 u32 == 0x00010000
 
 u8 >= 4
@@ -243,7 +243,7 @@ u8 >= 4
 
 Where clauses can include multiple constraints with conjunctions using the comma operator:
 
-```
+```text
 struct {
     version : u32,
     hdrSize : u32,
@@ -253,7 +253,7 @@ struct {
 
 FIXME implies extra syntax sugar for unnamed struct field access
 
-```
+```text
 sizeof(name : type @where expr) == sizeof(type)
 
 interp(name : type @where expr) == { name : interp(type) | expr }
@@ -263,18 +263,18 @@ interp(name : type @where expr) == { name : interp(type) | expr }
 
 Intersection types match the same sequence of bytes against two different types and return both of their values:
 
-```
+```text
 type1 & type2
 ```
 
 For example, this can be used to interpret one 32-bit number as two 16-bit
 numbers:
 
-```
+```text
 u32 & [u16; 2]
 ```
 
-```
+```text
 sizeof(type1 & type2) == sizeof(type1) == sizeof(type2)
 
 interp(type1 & type2) == interp(type1) * interp(type2)
@@ -284,17 +284,17 @@ interp(type1 & type2) == interp(type1) * interp(type2)
 
 Interpreted types have a value determined by an expression in terms of their original value:
 
-```
+```text
 type1 @as expr,
 ```
 
 For example, this can be used to interpret 24-bit integers as 32-bit:
 
-```
+```text
 u8[3] @as x[0] << 24 | x[1] << 16 | x[2],
 ```
 
-```
+```text
 sizeof(type1 @as expr) == sizeof(type1)
 
 interp(type1 @as expr) == typeof(expr)
@@ -304,13 +304,13 @@ interp(type1 @as expr) == typeof(expr)
 
 Conditional types depend on other values and are expressed using if-else and switch expressions:
 
-```
+```text
 if expr1 { type1 }
 else if expr2 { type2 }
 else { type3 }
 ```
 
-```
+```text
 switch {
     type1 when expr1,
     type2 when expr2,
@@ -320,7 +320,7 @@ switch {
 
 The final else can be omitted from an if-else expression, which is equivalent to matching the empty type:
 
-```
+```text
 if epxr1 { type1 }
 
 if expr1 { type1 }
@@ -333,7 +333,7 @@ FIXME is the default otherwise case in switch expressions mandatory?
 
 Example of an if-else expression:
 
-```
+```text
 if x == 1 { type1 }
 else if y > 3 { type2 }
 else { type3 }
@@ -343,7 +343,7 @@ This would not be a valid switch as the expressions are not mutually exclusive.
 
 Example of a switch expression:
 
-```
+```text
 switch {
     type1 when x == 1,
     type2 when x == 2,
@@ -353,7 +353,7 @@ switch {
 
 Every switch can be trivially translated to an if-else:
 
-```
+```text
 if x == 1 { type1 }
 else if x == 2 { type2 }
 else { type3 }
@@ -361,7 +361,7 @@ else { type3 }
 
 As well as returning entire types, conditional expressions can also return fields to allow structs to optionally include fields depending on the value of other fields in the struct, for example:
 
-```
+```text
 struct {
     version : u32,
     @if version > 1 {
@@ -377,7 +377,7 @@ A struct containing an `@if` rule cannot be fixed size.
 
 FIXME what if the if only depends on a type argument?
 
-```
+```text
 sizeof(if x { type1 } else { type2 }) ==
     if x sizeof(type1) else sizeof(type2)
 
@@ -389,7 +389,7 @@ interp(if x { type1 } else { type2 }) ==
 
 Choice types can match one of a set of type options:
 
-```
+```text
 header = choice {
     header1,
     header2,
@@ -416,7 +416,7 @@ A choice type can be converted to a switch type.
 
 The `empty` type does not consume any bytes and thus always matches. It can be used in conditional expressions when something is optional:
 
-```
+```text
 @if version > 1 { u32 }
 @else { empty }
 ```
@@ -425,7 +425,7 @@ The `empty` type does not consume any bytes and thus always matches. It can be u
 
 The `error` type never matches. It can be used in conditional expressions when something is mandatory:
 
-```
+```text
 @if version > 1 { u32 }
 @else { error }
 ```
@@ -436,7 +436,7 @@ FIXME do we ever actually need to use the error type given that we already have 
 
 The end type does not consume any bytes but only matches if there are no available bytes remaining. It can be used to ensure that another type has consumed all available bytes:
 
-```
+```text
 struct {
     first : u32,
     second : u32,
@@ -452,7 +452,7 @@ FIXME there may be a better way of doing this, maybe in a `@where` clause
 
 Repeating types are like arrays except the length may not be known in advance and the element type can be fixed or variable size:
 
-```
+```text
 repeat count type
 ```
 
@@ -460,7 +460,7 @@ The element type will be matched zero or more times until it cannot be matched o
 
 The number of repetitions can be specified explicitly or constrained by introducing an integer variable representing the number:
 
-```
+```text
 repeat 10 type
 
 repeat n type
@@ -471,7 +471,7 @@ A repeating type must be followed by another type. If the repeat is intended to 
 
 FIXME must the type that follows the repeat be distinguishable from the type within the repeat?
 
-```
+```text
 sizeof(repeat count type) == sum of sizeof each type matched
 ```
 
@@ -479,7 +479,7 @@ sizeof(repeat count type) == sum of sizeof each type matched
 
 Links create a reference from one value to another and are created with the `@link` directive:
 
-```
+```text
 @link name : pointer(base, offset) -> Type
 
 @link name : slice(base, offset, length) -> Type
@@ -502,7 +502,7 @@ FIXME can types in slices have links that go outside the slice?
 
 Here are is an example of a pointer link from a struct:
 
-```
+```text
 script_records : [
     struct {
         script_tag : u32,
@@ -515,7 +515,7 @@ script_records : [
 
 It is also possible to create link arrays using a loop expression:
 
-```
+```text
 struct {
     num_fonts : u32,
     offset_tables : [u32; num_fonts],
@@ -530,7 +530,7 @@ struct {
 
 Type declarations associate a name with a type:
 
-```
+```text
 SID = u16;
 
 CharsetRange1 = struct {
@@ -541,7 +541,7 @@ CharsetRange1 = struct {
 
 Type declarations can take arguments which are used in the definition of the type:
 
-```
+```text
 Charset0(nGlyphs : u16) = struct {
     format : u8 == 0,
     glyph : [SID; nGlyphs-1],
@@ -552,7 +552,7 @@ These arguments must be provided when the type is referenced in order to obtain 
 
 Type declarations can be recursive:
 
-```
+```text
 String = struct {
     b : u8,
     @if b != 0 {
@@ -567,14 +567,14 @@ However recursion must be guarded by at least one non-optional field occurring b
 
 Two types are distinguishable if it is possible to decide which one matches a given byte sequence just by looking at the first field in each type. For example, these two types are distinguishable:
 
-```
+```text
 struct {
     format : u32 == 0,
     data : u32,
 }
 ```
 
-```
+```text
 struct {
     format : u32 == 1,
     data : [u8; 4],
