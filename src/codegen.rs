@@ -1,6 +1,7 @@
 use pretty::{BoxAllocator, DocAllocator, DocBuilder};
 use std::fmt;
 
+use heck::CamelCase;
 use name::Named;
 use ir::ast::{Definition, Expr, Field, ParseExpr, Path, Program, RepeatBound, Type};
 use ir::ast::{RcParseExpr, RcType};
@@ -310,7 +311,8 @@ fn lower_named_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
     name: &'a str,
 ) -> DocBuilder<'doc, A> {
-    doc.as_string(name).append(doc.as_string("::read(reader)"))
+    doc.text(name.to_camel_case())
+        .append(doc.text("::read(reader)"))
 }
 
 fn lower_parse_ty_const<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
@@ -571,7 +573,7 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 
         Expr::Intro(ref path, ref variant_name, ref expr) => doc.text(path.to_camel_case())
             .append(doc.text("::"))
-            .append(doc.as_string(variant_name))
+            .append(doc.as_string(variant_name.to_camel_case()))
             .append(doc.text("("))
             .append(lower_expr(doc, expr))
             .append(doc.text(")")),
