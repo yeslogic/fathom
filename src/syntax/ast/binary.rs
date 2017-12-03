@@ -35,6 +35,8 @@ impl Kind {
 /// A type constant in the binary language
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TypeConst {
+    /// Empty binary type
+    Empty,
     U8,
     I8,
     U16Le,
@@ -65,6 +67,7 @@ impl TypeConst {
         use syntax::ast::host::{FloatType, SignedType, UnsignedType};
 
         match self {
+            TypeConst::Empty => host::TypeConst::Unit,
             TypeConst::U8 => host::TypeConst::Unsigned(UnsignedType::U8),
             TypeConst::I8 => host::TypeConst::Signed(SignedType::I8),
             TypeConst::U16Le | TypeConst::U16Be => host::TypeConst::Unsigned(UnsignedType::U16),
@@ -96,8 +99,6 @@ pub enum Type<N> {
     Struct(Span, Vec<Field<N, RcType<N>>>),
     /// A type that is constrained by a predicate: eg. `T where x => x == 3`
     Assert(Span, RcType<N>, host::RcExpr<N>),
-    /// A computed type: eg. `compute T from expr`
-    Compute(Span, host::RcType<N>, host::RcExpr<N>),
     /// An interpreted type
     Interp(Span, RcType<N>, host::RcExpr<N>, host::RcType<N>),
     /// Type abstraction: eg. `\(a, ..) -> T`
@@ -178,7 +179,7 @@ impl<N: Name> Type<N> {
                 None => return,
                 Some(ty) => ty.clone(),
             },
-            Type::Var(_, Var::Bound(_)) | Type::Const(_) | Type::Compute(_, _, _) => return,
+            Type::Var(_, Var::Bound(_)) | Type::Const(_) => return,
             Type::Array(_, ref mut elem_ty, ref mut size_expr) => {
                 Rc::make_mut(elem_ty).substitute(substs);
                 Rc::make_mut(size_expr).substitute(substs);
@@ -243,10 +244,6 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(ty).abstract_names_at(names, scope);
                 Rc::make_mut(pred).abstract_names_at(names, scope.succ());
             }
-            Type::Compute(_, ref mut repr_ty, ref mut expr) => {
-                Rc::make_mut(repr_ty).abstract_names_at(names, scope);
-                Rc::make_mut(expr).abstract_names_at(names, scope);
-            }
             Type::Interp(_, ref mut ty, ref mut conv, ref mut repr_ty) => {
                 Rc::make_mut(ty).abstract_names_at(names, scope);
                 Rc::make_mut(conv).abstract_names_at(names, scope.succ());
@@ -281,7 +278,7 @@ impl<N: Name> Type<N> {
             Type::Var(_, Var::Bound(Named(_, var))) => if var.scope == scope {
                 *self = (*tys[var.binding.0 as usize]).clone();
             },
-            Type::Var(_, Var::Free(_)) | Type::Const(_) | Type::Compute(_, _, _) => {}
+            Type::Var(_, Var::Free(_)) | Type::Const(_) => {}
             Type::Array(_, ref mut elem_ty, _) => {
                 Rc::make_mut(elem_ty).instantiate_at(scope, tys);
             }
@@ -323,7 +320,7 @@ impl<N: Name> Type<N> {
             Type::Const(ty_const) => Rc::new(host::Type::Const(ty_const.repr())),
             Type::Array(_, ref elem_ty, _) => Rc::new(host::Type::Array(elem_ty.repr())),
             Type::Assert(_, ref ty, _) => ty.repr(),
-            Type::Compute(_, ref repr_ty, _) | Type::Interp(_, _, _, ref repr_ty) => {
+            Type::Interp(_, _, _, ref repr_ty) => {
                 Rc::clone(repr_ty)
             }
             Type::Union(_, ref variants) => {

@@ -207,8 +207,6 @@ pub enum ParseExpr<N> {
     /// p1 | p2 | p3
     /// ```
     Choice(Vec<RcParseExpr<N>>),
-    /// Returns the result of an expression without consuming any input
-    Compute(RcExpr<N>),
     /// Applies the result of one parser to an unary function
     Apply(RcExpr<N>, RcParseExpr<N>),
 }
@@ -217,7 +215,7 @@ impl<N: Name> ParseExpr<N> {
     pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
         match *self {
             ParseExpr::Var(ref mut var) => var.abstract_names_at(names, scope),
-            ParseExpr::Const(_) | ParseExpr::Compute(_) => {}
+            ParseExpr::Const(_) => {}
             ParseExpr::Repeat(ref mut parse_expr, ref mut size_bound) => {
                 Rc::make_mut(parse_expr).abstract_names_at(names, scope);
 

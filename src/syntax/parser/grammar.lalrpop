@@ -131,7 +131,14 @@ PrimaryBinaryType: binary::RcType<String> = {
         binary::Type::Assert(Span::new(lo1, hi), ty, pred_expr.into()).into()
     },
     <lo: @L> "compute" <repr_ty: HostType> "from" <expr: PrimaryHostExpr> <hi: @R> => {
-        binary::Type::Compute(Span::new(lo, hi), repr_ty, expr).into()
+        let empty = binary::Type::Const(binary::TypeConst::Empty);
+        let conv = host::Expr::abs(
+            Span::new(lo, hi),
+            vec![Named("_".to_owned(), empty.repr())],
+            expr,
+        );
+
+        binary::Type::Interp(Span::new(lo, hi), empty.into(), conv.into(), repr_ty).into()
     },
 };
 

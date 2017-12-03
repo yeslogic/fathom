@@ -29,7 +29,9 @@ impl DisplayParams {
         let screen_size_h = ddl_util::from_u8(reader)?;
         let screen_size_v = ddl_util::from_u8(reader)?;
         let gamma_mod = ddl_util::from_u8(reader)?;
-        let gamma = Ok::<_, io::Error>(((gamma_mod as f32 + 100f32) / 100f32))?;
+        let gamma = Ok::<_, io::Error>(
+            (|_: ()| ((gamma_mod as f32 + 100f32) / 100f32))(Ok::<_, io::Error>(())?)
+        )?;
         let features_flags = ddl_util::from_u8(reader)?;
         Ok::<_, io::Error>(DisplayParams {
             input_flags: input_flags,
@@ -100,7 +102,9 @@ impl Header {
         let serial = ddl_util::from_u32le(reader)?;
         let mfg_week = ddl_util::from_u8(reader)?;
         let mfg_year_mod = ddl_util::from_u8(reader)?;
-        let mfg_year = Ok::<_, io::Error>((mfg_year_mod as u16 + 1990u16))?;
+        let mfg_year = Ok::<_, io::Error>(
+            (|_: ()| (mfg_year_mod as u16 + 1990u16))(Ok::<_, io::Error>(())?)
+        )?;
         let edid_version_major = ddl_util::from_u8(reader)?;
         let edid_version_minor = ddl_util::from_u8(reader)?;
         Ok::<_, io::Error>(Header {

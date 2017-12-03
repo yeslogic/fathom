@@ -346,6 +346,8 @@ pub enum UnsignedType {
 /// A type constant in the host language
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TypeConst {
+    /// Unit
+    Unit,
     /// Boolean
     Bool,
     /// Float
@@ -366,6 +368,7 @@ impl FromStr for TypeConst {
 
     fn from_str(src: &str) -> Result<TypeConst, ParseTypeConstError> {
         match src {
+            "unit" => Ok(TypeConst::Unit),
             "bool" => Ok(TypeConst::Bool),
             "f32" => Ok(TypeConst::Float(FloatType::F32)),
             "f64" => Ok(TypeConst::Float(FloatType::F64)),
