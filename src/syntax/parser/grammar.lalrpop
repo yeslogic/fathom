@@ -193,60 +193,55 @@ pub HostExpr: host::RcExpr<String> = {
 // Use precedence climbing to define the operators
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 
+BinopOr:   Binop = "||"  => Binop::Or;
+BinopAnd:  Binop = "&&"  => Binop::And;
+BinopEq:   Binop = "=="  => Binop::Eq;
+BinopNe:   Binop = "!="  => Binop::Ne;
+BinopLe:   Binop = "<="  => Binop::Le;
+BinopLt:   Binop = "<"   => Binop::Lt;
+BinopGt:   Binop = ">"   => Binop::Gt;
+BinopGe:   Binop = ">="  => Binop::Ge;
+BinopAdd:  Binop = "+"   => Binop::Add;
+BinopSub:  Binop = "-"   => Binop::Sub;
+BinopMul:  Binop = "*"   => Binop::Mul;
+BinopDiv:  Binop = "/"   => Binop::Div;
+
+BinopExpr<Lhs, Op, Rhs>: host::RcExpr<String> = {
+    <lo: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <hi: @R> => {
+        host::Expr::Binop(Span::new(lo, hi), op, lhs, rhs).into()
+    },
+};
+
 PrimaryHostExpr: host::RcExpr<String> = {
     EqHostExpr,
-    <lo: @L> <lhs: EqHostExpr> "||" <rhs: PrimaryHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Or, lhs, rhs).into()
-    },
-    <lo: @L> <lhs: EqHostExpr> "&&" <rhs: PrimaryHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::And, lhs, rhs).into()
-    },
+    BinopExpr<EqHostExpr, BinopOr, PrimaryHostExpr>,
+    BinopExpr<EqHostExpr, BinopAnd, PrimaryHostExpr>,
 };
 
 EqHostExpr: host::RcExpr<String> = {
     CmpHostExpr,
-    <lo: @L> <lhs: CmpHostExpr> "==" <rhs: EqHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Eq, lhs, rhs).into()
-    },
-    <lo: @L> <lhs: CmpHostExpr> "!=" <rhs: EqHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Ne, lhs, rhs).into()
-    },
+    BinopExpr<CmpHostExpr, BinopEq, EqHostExpr>,
+    BinopExpr<CmpHostExpr, BinopNe, EqHostExpr>,
 };
 
 CmpHostExpr: host::RcExpr<String> = {
     AddHostExpr,
-    <lo: @L> <lhs: AddHostExpr> "<=" <rhs: CmpHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Le, lhs, rhs).into()
-    },
-    <lo: @L> <lhs: AddHostExpr> "<" <rhs: CmpHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Lt, lhs, rhs).into()
-    },
-    <lo: @L> <lhs: AddHostExpr> ">" <rhs: CmpHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Gt, lhs, rhs).into()
-    },
-    <lo: @L> <lhs: AddHostExpr> ">=" <rhs: CmpHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Ge, lhs, rhs).into()
-    },
+    BinopExpr<AddHostExpr, BinopLe, CmpHostExpr>,
+    BinopExpr<AddHostExpr, BinopLt, CmpHostExpr>,
+    BinopExpr<AddHostExpr, BinopGt, CmpHostExpr>,
+    BinopExpr<AddHostExpr, BinopGe, CmpHostExpr>,
 };
 
 AddHostExpr: host::RcExpr<String> = {
     MulHostExpr,
-    <lo: @L> <lhs: MulHostExpr> "+" <rhs: AddHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Add, lhs, rhs).into()
-    },
-    <lo: @L> <lhs: MulHostExpr> "-" <rhs: AddHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Sub, lhs, rhs).into()
-    },
+    BinopExpr<MulHostExpr, BinopAdd, AddHostExpr>,
+    BinopExpr<MulHostExpr, BinopSub, AddHostExpr>,
 };
 
 MulHostExpr: host::RcExpr<String> = {
     CastHostExpr,
-    <lo: @L> <lhs: CastHostExpr> "*" <rhs: MulHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Mul, lhs, rhs).into()
-    },
-    <lo: @L> <lhs: CastHostExpr> "/" <rhs: MulHostExpr> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), Binop::Div, lhs, rhs).into()
-    },
+    BinopExpr<CastHostExpr, BinopMul, MulHostExpr>,
+    BinopExpr<CastHostExpr, BinopDiv, MulHostExpr>,
 };
 
 CastHostExpr: host::RcExpr<String> = {
@@ -266,32 +261,32 @@ PrefixHostExpr: host::RcExpr<String> = {
     },
 };
 
-AtomicHostExpr: host::RcExpr<String> = {
-    "(" <expr: PrimaryHostExpr> ")" => expr,
-    <lo: @L> <value: "BinLiteral"> <hi: @R> =>? {
+IntLiteral<Value>: host::RcExpr<String> = {
+    <lo: @L> <value: Value> <hi: @R> =>? {
         let suffix = super::parse_int_suffix(value.1).map_err(|error| UserError { error })?;
         let const_int = Const::Int(value.0, suffix);
 
         Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
-    },
-    <lo: @L> <value: "HexLiteral"> <hi: @R> =>? {
-        let suffix = super::parse_int_suffix(value.1).map_err(|error| UserError { error })?;
-        let const_int = Const::Int(value.0, suffix);
+    }
+};
 
-        Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
-    },
-    <lo: @L> <value: "DecLiteral"> <hi: @R> =>? {
+FloatLiteral<Value>: host::RcExpr<String> = {
+    <lo: @L> <value: Value> <hi: @R> =>? {
         let suffix = super::parse_int_suffix(value.1).map_err(|error| UserError { error })?;
-        let const_int = Const::Int(value.0, suffix);
-
-        Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
-    },
-    <lo: @L> <value: "FloatDecLiteral"> <hi: @R> =>? {
-        let suffix = super::parse_float_suffix(value.1).map_err(|error| UserError { error })?;
         let const_int = Const::Float(value.0, suffix);
 
         Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
-    },
+    }
+};
+
+AtomicHostExpr: host::RcExpr<String> = {
+    "(" <expr: PrimaryHostExpr> ")" => expr,
+
+    IntLiteral<"BinLiteral">,
+    IntLiteral<"HexLiteral">,
+    IntLiteral<"DecLiteral">,
+    FloatLiteral<"FloatDecLiteral">,
+
     <lo: @L> <name: "Ident"> <hi: @R> => {
         host::Expr::Var(Span::new(lo, hi), Var::free(name)).into()
     },
