@@ -41,10 +41,10 @@ FIXME what about char arrays for tags, eg. 'OS/2' ?
 
 ### Boolean expressions
 
-- equality: `x = y`, `x != y`
-- relational: `x < y`, `x > y`, `x =< x`, `x >= y`
-- conjunction: `a, b`
-- disjunction: `a ; b`
+- equality: `x == y`, `x != y`
+- relational: `x < y`, `x > y`, `x <= x`, `x >= y`
+- conjunction: `a && b`
+- disjunction: `a || b`
 - negation: `!a`
 - `for i < count: offset[i] < offset[i+1]`
 - `exists i < count: table_records[i].tag == 'hmtx'`
@@ -77,25 +77,25 @@ FIXME we will need an option to specify whether integers are big endian or littl
 FIXME we will also need an option to specify the default alignment for integer fields and a way to override this for specific fields.
 
 ```
-sizeof(u8) = 1
-sizeof(u16) = 2
-sizeof(u32) = 4
-sizeof(u64) = 8
+sizeof(u8) == 1
+sizeof(u16) == 2
+sizeof(u32) == 4
+sizeof(u64) == 8
 
-sizeof(i8) = 1
-sizeof(i16) = 2
-sizeof(i32) = 4
-sizeof(i64) = 8
+sizeof(i8) == 1
+sizeof(i16) == 2
+sizeof(i32) == 4
+sizeof(i64) == 8
 
-interp(u8) = {x:int | 0 =< x < 2^8}
-interp(u16) = {x:int | 0 =< x < 2^16}
-interp(u32) = {x:int | 0 =< x < 2^32}
-interp(u64) = {x:int | 0 =< x < 2^64}
+interp(u8) == {x:int | 0 <= x < 2^8}
+interp(u16) == {x:int | 0 <= x < 2^16}
+interp(u32) == {x:int | 0 <= x < 2^32}
+interp(u64) == {x:int | 0 <= x < 2^64}
 
-interp(i8) = {x:int | -2^7 =< x < 2^7}
-interp(i16) = {x:int | -2^15 =< x < 2^15}
-interp(i32) = {x:int | -2^31 =< x < 2^31}
-interp(i64) = {x:int | -2^63 =< x < 2^63}
+interp(i8) == {x:int | -2^7 <= x < 2^7}
+interp(i16) == {x:int | -2^15 <= x < 2^15}
+interp(i32) == {x:int | -2^31 <= x < 2^31}
+interp(i64) == {x:int | -2^63 <= x < 2^63}
 ```
 
 ### Array Types
@@ -110,9 +110,9 @@ The length can be any integer expression as long as it only depends on values lo
 Because the array element type has fixed size, the array itself will also have fixed size if the length is known in advance, or variable size if the length depends upon another value.
 
 ```
-sizeof([type; length]) = sizeof(type) * length
+sizeof([type; length]) == sizeof(type) * length
 
-interp([type; length]) = [interp(type); length]
+interp([type; length]) == [interp(type); length]
 ```
 
 ### Existential Types
@@ -154,16 +154,16 @@ struct MyStruct {
     field2: u32
     data: exists x: [u32; x]
 }
-@where sizeof(MyStruct) = length
+@where sizeof(MyStruct) == length
 ```
 
 And the constraint simplifies as follows:
 
 ```
-sizeof(MyStruct) = length
-sizeof(length) + sizeof(field1) + sizeof(field2) + sizeof(u32)*x = length
-(x + 3)*sizeof(u32) = length
-x = length/sizeof(u32) - 3
+sizeof(MyStruct) == length
+sizeof(length) + sizeof(field1) + sizeof(field2) + sizeof(u32)*x == length
+(x + 3)*sizeof(u32) == length
+x == length/sizeof(u32) - 3
 ```
 
 ### Struct Types
@@ -200,12 +200,12 @@ struct {
 It would be impossible to locate the count field without looking past the array, but the array size depends on the count field, so this struct is impossible to process and is erroneous.
 
 ```
-sizeof(struct {}) = 0
-sizeof(struct {field: type | fields}) =
+sizeof(struct {}) == 0
+sizeof(struct {field: type | fields}) ==
     sizeof(type) + sizeof(struct {fields})
 
-interp(struct {}) = empty record
-interp(struct {field: type | fields}) =
+interp(struct {}) == empty record
+interp(struct {field: type | fields}) ==
     record with field: interp(type) and interp(struct {fields})
 ```
 
@@ -222,7 +222,7 @@ If the expression evaluates to false then the type will not match.
 This can be used directly on struct fields:
 
 ```
-version: u32 @where version = 0x00010000
+version: u32 @where version == 0x00010000
 
 hdrSize: byte @where hdrSize >= 4
 ```
@@ -236,7 +236,7 @@ data: [(x: u16 @where x > 0); length]
 Simple relational constraints can be represented using shorthand syntax without introducing a variable name:
 
 ```
-u32 = 0x00010000
+u32 == 0x00010000
 
 u8 >= 4
 ```
@@ -248,15 +248,15 @@ struct {
     version: u32
     hdrSize: u32
 }
-@where version = 0x00010000, hdrSize >= 4
+@where version == 0x00010000 && hdrSize >= 4
 ```
 
 FIXME implies extra syntax sugar for unnamed struct field access
 
 ```
-sizeof(name: type @where expr) = sizeof(type)
+sizeof(name: type @where expr) == sizeof(type)
 
-interp(name: type @where expr) = {name: interp(type) | expr}
+interp(name: type @where expr) == {name: interp(type) | expr}
 ```
 
 ### Intersection Types
@@ -275,9 +275,9 @@ u32 & [u16; 2]
 ```
 
 ```
-sizeof(type1 & type2) = sizeof(type1) = sizeof(type2)
+sizeof(type1 & type2) == sizeof(type1) == sizeof(type2)
 
-interp(type1 & type2) = interp(type1) * interp(type2)
+interp(type1 & type2) == interp(type1) * interp(type2)
 ```
 
 ### Interpreted Types
@@ -295,9 +295,9 @@ x: u8[3] @as x[0] << 24 | x[1] << 16 | x[2]
 ```
 
 ```
-sizeof(name: type1 @as expr) = sizeof(type1)
+sizeof(name: type1 @as expr) == sizeof(type1)
 
-interp(name: type1 @as expr) = typeof(expr)
+interp(name: type1 @as expr) == typeof(expr)
 ```
 
 ### Conditional Types
@@ -332,7 +332,7 @@ FIXME is the default otherwise case in switch expressions mandatory?
 Example of an if-else expression:
 
 ```
-if x = 1 { type1 }
+if x == 1 { type1 }
 else if y > 3 { type2 }
 else { type3 }
 ```
@@ -343,8 +343,8 @@ Example of a switch expression:
 
 ```
 switch {
-    type1 when x = 1
-    type2 when x = 2
+    type1 when x == 1
+    type2 when x == 2
     type3 otherwise
 }
 ```
@@ -352,8 +352,8 @@ switch {
 Every switch can be trivially translated to an if-else:
 
 ```
-if x = 1 { type1 }
-else if x = 2 { type2 }
+if x == 1 { type1 }
+else if x == 2 { type2 }
 else { type3 }
 ```
 
@@ -376,10 +376,10 @@ A struct containing an `@if` rule cannot be fixed size.
 FIXME what if the if only depends on a type argument?
 
 ```
-sizeof(if X { type1 } else { type2 }) =
+sizeof(if X { type1 } else { type2 }) ==
     if X sizeof(type1) else sizeof(type2)
 
-interp(if X { type1 } else { type2 }) =
+interp(if X { type1 } else { type2 }) ==
     if X interp(type1) else interp(type2)
 ```
 
@@ -394,12 +394,12 @@ choice {
 }
 
 header1: struct {
-    type: byte = 1
+    type: byte == 1
     ...
 }
 
 header2: struct {
-    type: byte = 2
+    type: byte == 2
     ...
 }
 ```
@@ -462,7 +462,7 @@ The number of repetitions can be specified explicitly or constrained by introduc
 repeat 10 type
 
 repeat n type
-@where n >= min, n =< max
+@where n >= min && n <= max
 ```
 
 A repeating type must be followed by another type. If the repeat is intended to consume all the available bytes then it can be followed by the end type.
@@ -470,7 +470,7 @@ A repeating type must be followed by another type. If the repeat is intended to 
 FIXME must the type that follows the repeat be distinguishable from the type within the repeat?
 
 ```
-sizeof(repeat count type) = sum of sizeof each type matched
+sizeof(repeat count type) == sum of sizeof each type matched
 ```
 
 ### Links
@@ -541,7 +541,7 @@ Type declarations can take arguments which are used in the definition of the typ
 
 ```
 Charset0(nGlyphs:u16) := struct {
-    format: byte = 0
+    format: byte == 0
     glyph: [SID; nGlyphs-1]
 }
 ```
@@ -567,12 +567,12 @@ Two types are distinguishable if it is possible to decide which one matches a gi
 
 ```
 struct {
-    format: u32 = 0
+    format: u32 == 0
     data: u32
 }
 
 struct {
-    format: u32 = 1
+    format: u32 == 1
     data: [byte; 4]
 }
 ```
