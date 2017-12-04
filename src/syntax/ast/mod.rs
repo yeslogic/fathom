@@ -126,6 +126,7 @@ pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
         // TODO: "true" = Expr::bool(true)
         // TODO: "false" = Expr::bool(false)
         "empty".into() => Type::Const(TypeConst::Empty),
+        "error".into() => Type::Const(TypeConst::Error),
         "u8".into() => Type::Const(TypeConst::U8),
         "i8".into() => Type::Const(TypeConst::I8),
         // Little endian primitives

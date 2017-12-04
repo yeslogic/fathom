@@ -1,0 +1,551 @@
+Program {
+    definitions: [
+        Definition {
+            doc: "Binary data",
+            name: "BinData",
+            ty: Struct(
+                Span {
+                    lo: BytePos(26),
+                    hi: BytePos(398)
+                },
+                [
+                    Field {
+                        doc: "The number of bytes stored",
+                        name: "len",
+                        value: Var(
+                            Span {
+                                lo: BytePos(80),
+                                hi: BytePos(85)
+                            },
+                            Free("i32be")
+                        )
+                    },
+                    Field {
+                        doc: "Binary data subtype\n\n- `0x00`: Generic binary subtype\n- `0x01`: Function\n- `0x02`: Binary (Old)\n- `0x03`: UUID (Old)\n- `0x04`: UUID\n- `0x05`: MD5\n- `0x80`: User defined",
+                        name: "subtype",
+                        value: Var(
+                            Span {
+                                lo: BytePos(341),
+                                hi: BytePos(343)
+                            },
+                            Free("u8")
+                        )
+                    },
+                    Field {
+                        doc: "The binary data",
+                        name: "data",
+                        value: Array(
+                            Span {
+                                lo: BytePos(379),
+                                hi: BytePos(395)
+                            },
+                            Var(
+                                Span {
+                                    lo: BytePos(380),
+                                    hi: BytePos(382)
+                                },
+                                Free("u8")
+                            ),
+                            Cast(
+                                Span {
+                                    lo: BytePos(384),
+                                    hi: BytePos(394)
+                                },
+                                Var(
+                                    Span {
+                                        lo: BytePos(384),
+                                        hi: BytePos(387)
+                                    },
+                                    Bound(Named("len", BoundVar(1, 0)))
+                                ),
+                                Const(
+                                    Unsigned(
+                                        U64
+                                    )
+                                )
+                            )
+                        )
+                    }
+                ]
+            )
+        },
+        Definition {
+            doc: "",
+            name: "ObjectId",
+            ty: Struct(
+                Span {
+                    lo: BytePos(412),
+                    hi: BytePos(511)
+                },
+                [
+                    Field {
+                        doc: "",
+                        name: "epoch_time",
+                        value: Var(
+                            Span {
+                                lo: BytePos(437),
+                                hi: BytePos(442)
+                            },
+                            Free("i32be")
+                        )
+                    },
+                    Field {
+                        doc: "",
+                        name: "machine_id",
+                        value: Var(
+                            Span {
+                                lo: BytePos(460),
+                                hi: BytePos(465)
+                            },
+                            Free("u24be")
+                        )
+                    },
+                    Field {
+                        doc: "",
+                        name: "process_id",
+                        value: Var(
+                            Span {
+                                lo: BytePos(483),
+                                hi: BytePos(488)
+                            },
+                            Free("u16be")
+                        )
+                    },
+                    Field {
+                        doc: "",
+                        name: "counter",
+                        value: Var(
+                            Span {
+                                lo: BytePos(503),
+                                hi: BytePos(508)
+                            },
+                            Free("u24be")
+                        )
+                    }
+                ]
+            )
+        },
+        Definition {
+            doc: "",
+            name: "Element",
+            ty: Struct(
+                Span {
+                    lo: BytePos(524),
+                    hi: BytePos(2268)
+                },
+                [
+                    Field {
+                        doc: "",
+                        name: "elem_type",
+                        value: Var(
+                            Span {
+                                lo: BytePos(549),
+                                hi: BytePos(551)
+                            },
+                            Free("u8")
+                        )
+                    },
+                    Field {
+                        doc: "",
+                        name: "content",
+                        value: Cond(
+                            Span {
+                                lo: BytePos(566),
+                                hi: BytePos(2265)
+                            },
+                            [
+                                Field {
+                                    doc: "64-bit floating point",
+                                    name: "double",
+                                    value: (
+                                        Binop(
+                                            Span {
+                                                lo: BytePos(624),
+                                                hi: BytePos(643)
+                                            },
+                                            Eq,
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(624),
+                                                    hi: BytePos(633)
+                                                },
+                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                            ),
+                                            Const(
+                                                Span {
+                                                    lo: BytePos(637),
+                                                    hi: BytePos(643)
+                                                },
+                                                Int(1, Unsigned(U8))
+                                            )
+                                        ),
+                                        Var(
+                                            Span {
+                                                lo: BytePos(647),
+                                                hi: BytePos(652)
+                                            },
+                                            Free("f64le")
+                                        )
+                                    )
+                                },
+                                Field {
+                                    doc: "Binary data",
+                                    name: "bin_data",
+                                    value: (
+                                        Binop(
+                                            Span {
+                                                lo: BytePos(993),
+                                                hi: BytePos(1012)
+                                            },
+                                            Eq,
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(993),
+                                                    hi: BytePos(1002)
+                                                },
+                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                            ),
+                                            Const(
+                                                Span {
+                                                    lo: BytePos(1006),
+                                                    hi: BytePos(1012)
+                                                },
+                                                Int(5, Unsigned(U8))
+                                            )
+                                        ),
+                                        Var(
+                                            Span {
+                                                lo: BytePos(1016),
+                                                hi: BytePos(1023)
+                                            },
+                                            Bound(Named("BinData", BoundVar(2, 0)))
+                                        )
+                                    )
+                                },
+                                Field {
+                                    doc: "Undefined (value) - deprecated",
+                                    name: "undefined",
+                                    value: (
+                                        Binop(
+                                            Span {
+                                                lo: BytePos(1088),
+                                                hi: BytePos(1107)
+                                            },
+                                            Eq,
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(1088),
+                                                    hi: BytePos(1097)
+                                                },
+                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                            ),
+                                            Const(
+                                                Span {
+                                                    lo: BytePos(1101),
+                                                    hi: BytePos(1107)
+                                                },
+                                                Int(6, Unsigned(U8))
+                                            )
+                                        ),
+                                        Var(
+                                            Span {
+                                                lo: BytePos(1111),
+                                                hi: BytePos(1116)
+                                            },
+                                            Free("empty")
+                                        )
+                                    )
+                                },
+                                Field {
+                                    doc: "ObjectId",
+                                    name: "object_id",
+                                    value: (
+                                        Binop(
+                                            Span {
+                                                lo: BytePos(1159),
+                                                hi: BytePos(1178)
+                                            },
+                                            Eq,
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(1159),
+                                                    hi: BytePos(1168)
+                                                },
+                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                            ),
+                                            Const(
+                                                Span {
+                                                    lo: BytePos(1172),
+                                                    hi: BytePos(1178)
+                                                },
+                                                Int(7, Unsigned(U8))
+                                            )
+                                        ),
+                                        Var(
+                                            Span {
+                                                lo: BytePos(1182),
+                                                hi: BytePos(1190)
+                                            },
+                                            Bound(Named("ObjectId", BoundVar(1, 0)))
+                                        )
+                                    )
+                                },
+                                Field {
+                                    doc: "Boolean\n\n- `0x00`: false\n- `0x01`: true",
+                                    name: "boolean",
+                                    value: (
+                                        Binop(
+                                            Span {
+                                                lo: BytePos(1297),
+                                                hi: BytePos(1316)
+                                            },
+                                            Eq,
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(1297),
+                                                    hi: BytePos(1306)
+                                                },
+                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                            ),
+                                            Const(
+                                                Span {
+                                                    lo: BytePos(1310),
+                                                    hi: BytePos(1316)
+                                                },
+                                                Int(8, Unsigned(U8))
+                                            )
+                                        ),
+                                        Var(
+                                            Span {
+                                                lo: BytePos(1320),
+                                                hi: BytePos(1322)
+                                            },
+                                            Free("u8")
+                                        )
+                                    )
+                                },
+                                Field {
+                                    doc: "UTC datetime",
+                                    name: "utc_datetime",
+                                    value: (
+                                        Binop(
+                                            Span {
+                                                lo: BytePos(1372),
+                                                hi: BytePos(1391)
+                                            },
+                                            Eq,
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(1372),
+                                                    hi: BytePos(1381)
+                                                },
+                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                            ),
+                                            Const(
+                                                Span {
+                                                    lo: BytePos(1385),
+                                                    hi: BytePos(1391)
+                                                },
+                                                Int(9, Unsigned(U8))
+                                            )
+                                        ),
+                                        Var(
+                                            Span {
+                                                lo: BytePos(1395),
+                                                hi: BytePos(1400)
+                                            },
+                                            Free("i64le")
+                                        )
+                                    )
+                                },
+                                Field {
+                                    doc: "Null value",
+                                    name: "null",
+                                    value: (
+                                        Binop(
+                                            Span {
+                                                lo: BytePos(1440),
+                                                hi: BytePos(1459)
+                                            },
+                                            Eq,
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(1440),
+                                                    hi: BytePos(1449)
+                                                },
+                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                            ),
+                                            Const(
+                                                Span {
+                                                    lo: BytePos(1453),
+                                                    hi: BytePos(1459)
+                                                },
+                                                Int(10, Unsigned(U8))
+                                            )
+                                        ),
+                                        Var(
+                                            Span {
+                                                lo: BytePos(1463),
+                                                hi: BytePos(1468)
+                                            },
+                                            Free("empty")
+                                        )
+                                    )
+                                },
+                                Field {
+                                    doc: "32-bit integer",
+                                    name: "int",
+                                    value: (
+                                        Binop(
+                                            Span {
+                                                lo: BytePos(1972),
+                                                hi: BytePos(1991)
+                                            },
+                                            Eq,
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(1972),
+                                                    hi: BytePos(1981)
+                                                },
+                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                            ),
+                                            Const(
+                                                Span {
+                                                    lo: BytePos(1985),
+                                                    hi: BytePos(1991)
+                                                },
+                                                Int(16, Unsigned(U8))
+                                            )
+                                        ),
+                                        Var(
+                                            Span {
+                                                lo: BytePos(1995),
+                                                hi: BytePos(2000)
+                                            },
+                                            Free("i32le")
+                                        )
+                                    )
+                                },
+                                Field {
+                                    doc: "Timestamp",
+                                    name: "timestamp",
+                                    value: (
+                                        Binop(
+                                            Span {
+                                                lo: BytePos(2044),
+                                                hi: BytePos(2063)
+                                            },
+                                            Eq,
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(2044),
+                                                    hi: BytePos(2053)
+                                                },
+                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                            ),
+                                            Const(
+                                                Span {
+                                                    lo: BytePos(2057),
+                                                    hi: BytePos(2063)
+                                                },
+                                                Int(17, Unsigned(U8))
+                                            )
+                                        ),
+                                        Var(
+                                            Span {
+                                                lo: BytePos(2067),
+                                                hi: BytePos(2072)
+                                            },
+                                            Free("u64le")
+                                        )
+                                    )
+                                },
+                                Field {
+                                    doc: "64-bit integer",
+                                    name: "long",
+                                    value: (
+                                        Binop(
+                                            Span {
+                                                lo: BytePos(2116),
+                                                hi: BytePos(2135)
+                                            },
+                                            Eq,
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(2116),
+                                                    hi: BytePos(2125)
+                                                },
+                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                            ),
+                                            Const(
+                                                Span {
+                                                    lo: BytePos(2129),
+                                                    hi: BytePos(2135)
+                                                },
+                                                Int(18, Unsigned(U8))
+                                            )
+                                        ),
+                                        Var(
+                                            Span {
+                                                lo: BytePos(2139),
+                                                hi: BytePos(2144)
+                                            },
+                                            Free("i64le")
+                                        )
+                                    )
+                                }
+                            ]
+                        )
+                    }
+                ]
+            )
+        },
+        Definition {
+            doc: "BSON Document\n\n<http://bsonspec.org/spec.html>",
+            name: "Document",
+            ty: Struct(
+                Span {
+                    lo: BytePos(2340),
+                    hi: BytePos(2599)
+                },
+                [
+                    Field {
+                        doc: "Total number of bytes comprising the document.",
+                        name: "len",
+                        value: Var(
+                            Span {
+                                lo: BytePos(2414),
+                                hi: BytePos(2419)
+                            },
+                            Free("i32be")
+                        )
+                    },
+                    Field {
+                        doc: "The elements that make up this document",
+                        name: "fields",
+                        value: Array(
+                            Span {
+                                lo: BytePos(2482),
+                                hi: BytePos(2496)
+                            },
+                            Var(
+                                Span {
+                                    lo: BytePos(2483),
+                                    hi: BytePos(2490)
+                                },
+                                Bound(Named("Element", BoundVar(1, 0)))
+                            ),
+                            Const(
+                                Span {
+                                    lo: BytePos(2492),
+                                    hi: BytePos(2495)
+                                },
+                                Int(1, Unsigned(U8))
+                            )
+                        )
+                    }
+                ]
+            )
+        }
+    ]
+}

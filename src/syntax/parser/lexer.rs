@@ -67,6 +67,7 @@ pub enum Token<'input> {
 
     // Keywords
     As,      // as
+    Cond,    // cond
     Compute, // compute
     From,    // from
     Struct,  // struct
@@ -198,6 +199,7 @@ impl<'input> Lexer<'input> {
 
         let token = match ident {
             "as" => Token::As,
+            "cond" => Token::Cond,
             "compute" => Token::Compute,
             "from" => Token::From,
             "struct" => Token::Struct,
@@ -369,13 +371,14 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  as  compute  from  struct  union  where ",
-            "  ~~                                      " => Token::As,
-            "      ~~~~~~~                             " => Token::Compute,
-            "               ~~~~                       " => Token::From,
-            "                     ~~~~~~               " => Token::Struct,
-            "                             ~~~~~        " => Token::Union,
-            "                                    ~~~~~ " => Token::Where,
+            "  as  cond compute  from  struct  union  where ",
+            "  ~~                                           " => Token::As,
+            "      ~~~~                                     " => Token::Cond,
+            "           ~~~~~~~                             " => Token::Compute,
+            "                    ~~~~                       " => Token::From,
+            "                          ~~~~~~               " => Token::Struct,
+            "                                  ~~~~~        " => Token::Union,
+            "                                         ~~~~~ " => Token::Where,
         };
     }
 

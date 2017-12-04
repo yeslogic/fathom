@@ -3,6 +3,22 @@ extern crate byteorder;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use std::io::{self, Read};
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Never {}
+
+#[inline]
+pub fn empty() -> io::Result<()> {
+    Ok(())
+}
+
+#[inline]
+pub fn error<T>() -> io::Result<T> {
+    Err(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "Invalid binary data",
+    ))
+}
+
 #[inline]
 pub fn from_u8<R: Read>(r: &mut R) -> io::Result<u8> {
     r.read_u8()

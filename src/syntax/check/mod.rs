@@ -387,6 +387,7 @@ pub fn kind_of<N: Name>(
 
         // Type constants
         Type::Const(TypeConst::Empty) |
+        Type::Const(TypeConst::Error) |
         Type::Const(TypeConst::U8) |
         Type::Const(TypeConst::I8) |
         Type::Const(TypeConst::U16(_)) |
@@ -456,10 +457,13 @@ pub fn kind_of<N: Name>(
             Ok(kind)
         }
 
-        // Union types
-        Type::Union(_, ref fields) => {
-            for field in fields {
-                expect_ty_kind(ctx, &field.value)?;
+        // Conditional types
+        Type::Cond(_, ref options) => {
+            let bool_ty = host::Type::Const(host::TypeConst::Bool).into();
+
+            for option in options {
+                expect_ty(ctx, &option.value.0, &bool_ty)?;
+                expect_ty_kind(ctx, &option.value.1)?;
             }
 
             Ok(Kind::Type)

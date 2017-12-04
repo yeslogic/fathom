@@ -31,45 +31,12 @@ impl From<lexer::Error> for GrammarError {
     }
 }
 
-fn parse_int_suffix(src: &str) -> Result<host::IntSuffix, GrammarError> {
-    use syntax::ast::host::{IntSuffix, SignedType, UnsignedType};
-
-    match src {
-        "i8" => Ok(IntSuffix::Signed(SignedType::I8)),
-        "i16" => Ok(IntSuffix::Signed(SignedType::I16)),
-        "i24" => Ok(IntSuffix::Signed(SignedType::I24)),
-        "i32" => Ok(IntSuffix::Signed(SignedType::I32)),
-        "i64" => Ok(IntSuffix::Signed(SignedType::I64)),
-        "u8" => Ok(IntSuffix::Unsigned(UnsignedType::U8)),
-        "u16" => Ok(IntSuffix::Unsigned(UnsignedType::U16)),
-        "u24" => Ok(IntSuffix::Unsigned(UnsignedType::U24)),
-        "u32" => Ok(IntSuffix::Unsigned(UnsignedType::U32)),
-        "u64" => Ok(IntSuffix::Unsigned(UnsignedType::U64)),
-        "" => Err(GrammarError::ConstSuffixMissing),
-        _ => Err(GrammarError::ConstSuffixInvalid {
-            suffix: src.to_owned(),
-        }),
-    }
-}
-
-fn parse_float_suffix(src: &str) -> Result<host::FloatType, GrammarError> {
-    use syntax::ast::host::FloatType;
-
-    match src {
-        "f32" => Ok(FloatType::F32),
-        "f64" => Ok(FloatType::F64),
-        "" => Err(GrammarError::ConstSuffixMissing),
-        _ => Err(GrammarError::ConstSuffixInvalid {
-            suffix: src.to_owned(),
-        }),
-    }
-}
-
 fn parse_ty_const(src: &str) -> Result<host::TypeConst, GrammarError> {
     use syntax::ast::host::{FloatType, SignedType, TypeConst, UnsignedType};
 
     match src {
         "unit" => Ok(TypeConst::Unit),
+        "bottom" => Ok(TypeConst::Bottom),
         "bool" => Ok(TypeConst::Bool),
         "f32" => Ok(TypeConst::Float(FloatType::F32)),
         "f64" => Ok(TypeConst::Float(FloatType::F64)),

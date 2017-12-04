@@ -30,7 +30,7 @@ impl DisplayParams {
         let screen_size_v = ddl_util::from_u8(reader)?;
         let gamma_mod = ddl_util::from_u8(reader)?;
         let gamma = Ok::<_, io::Error>(
-            (|_: ()| ((gamma_mod as f32 + 100f32) / 100f32))(Ok::<_, io::Error>(())?)
+            (|_: ()| ((gamma_mod as f32) + (100f32)) / (100f32))(ddl_util::empty()?)
         )?;
         let features_flags = ddl_util::from_u8(reader)?;
         Ok::<_, io::Error>(DisplayParams {
@@ -89,12 +89,10 @@ pub struct Header {
 impl Header {
     pub fn read<R: Read>(reader: &mut R) -> io::Result<Header> {
         let magic = ddl_util::from_u64le(reader).and_then(|__value| {
-        if (|magic: u64| (magic == 72057594037927680u64))(__value) {
+        if (|magic: u64| (magic) == (72057594037927680u64))(__value) {
                 Ok(__value)
             } else {
-                return
-                Err::<_, io::Error>(io::Error::new(io::ErrorKind::InvalidData,
-                        "Invalid binary data"))
+                return ddl_util::error()
             }
         })?;
         let mfg_bytes = ddl_util::from_u16le(reader)?;
@@ -103,7 +101,7 @@ impl Header {
         let mfg_week = ddl_util::from_u8(reader)?;
         let mfg_year_mod = ddl_util::from_u8(reader)?;
         let mfg_year = Ok::<_, io::Error>(
-            (|_: ()| (mfg_year_mod as u16 + 1990u16))(Ok::<_, io::Error>(())?)
+            (|_: ()| (mfg_year_mod as u16) + (1990u16))(ddl_util::empty()?)
         )?;
         let edid_version_major = ddl_util::from_u8(reader)?;
         let edid_version_minor = ddl_util::from_u8(reader)?;

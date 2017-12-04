@@ -306,6 +306,8 @@ pub enum UnsignedType {
 pub enum TypeConst {
     /// Unit
     Unit,
+    /// Bottom
+    Bottom,
     /// Boolean
     Bool,
     /// Float

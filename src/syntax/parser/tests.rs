@@ -186,12 +186,15 @@ fn parse_definition() {
             data : [Point; len],
         };
 
-        Formats = union {
-            /// A doc comment on a union variant
-            u16 : struct { format : u16, data: u16 },
-            point : struct { format : u16, point: Point },
-            /// And another doc comment
-            array : struct { format : u16, array: Array },
+        Formats = struct {
+            format : u8,
+            data : cond {
+                /// A doc comment on a union variant
+                u16 : format == 0x00u8 => u16,
+                point : format == 0x01u8 => Point,
+                /// And another doc comment
+                array : format == 0x02u8 => Array,
+            },
         };
     ";
 
