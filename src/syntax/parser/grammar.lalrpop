@@ -272,7 +272,7 @@ IntLiteral<Value>: host::RcExpr<String> = {
 
 FloatLiteral<Value>: host::RcExpr<String> = {
     <lo: @L> <value: Value> <hi: @R> =>? {
-        let suffix = super::parse_int_suffix(value.1).map_err(|error| UserError { error })?;
+        let suffix = super::parse_float_suffix(value.1).map_err(|error| UserError { error })?;
         let const_int = Const::Float(value.0, suffix);
 
         Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
