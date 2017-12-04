@@ -77,7 +77,7 @@ impl Element {
         }
         else
         if (elem_type) == (6u8) {
-            let x = Ok::<_, io::Error>(())?;
+            let x = ddl_util::empty()?;
             Ok::<_, io::Error>(ElementContent::Undefined(x))
         }
         else
@@ -97,7 +97,7 @@ impl Element {
         }
         else
         if (elem_type) == (10u8) {
-            let x = Ok::<_, io::Error>(())?;
+            let x = ddl_util::empty()?;
             Ok::<_, io::Error>(ElementContent::Null(x))
         }
         else
@@ -115,7 +115,7 @@ impl Element {
             let x = ddl_util::from_i64le(reader)?;
             Ok::<_, io::Error>(ElementContent::Long(x))
         } else {
-            Err::<_, io::Error>(io::Error::new(io::ErrorKind::InvalidData, "Invalid binary data"))
+            ddl_util::error()
         }?;
         Ok::<_, io::Error>(Element {
             elem_type: elem_type,

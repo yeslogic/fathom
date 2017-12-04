@@ -48,6 +48,8 @@ pub enum Endianness {
 pub enum TypeConst {
     /// Empty binary type
     Empty,
+    /// Error binary type
+    Error,
     /// Unsigned 8-bit integer
     U8,
     /// Signed 8-bit integer
@@ -81,6 +83,7 @@ impl TypeConst {
 
         match self {
             TypeConst::Empty => host::TypeConst::Unit,
+            TypeConst::Error => host::TypeConst::Bottom,
             TypeConst::U8 => host::TypeConst::Unsigned(UnsignedType::U8),
             TypeConst::I8 => host::TypeConst::Signed(SignedType::I8),
             TypeConst::U16(_) => host::TypeConst::Unsigned(UnsignedType::U16),

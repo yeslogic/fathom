@@ -260,6 +260,7 @@ fn lower_ty_const<'doc, A: DocAllocator<'doc>>(
 ) -> DocBuilder<'doc, A> {
     match ty_const {
         TypeConst::Unit => doc.text("()"),
+        TypeConst::Bottom => doc.text("ddl_util::Never"),
         TypeConst::Bool => doc.text("bool"),
         TypeConst::Float(ty) => doc.text(lower_float_ty(ty)),
         TypeConst::Signed(ty) => doc.text(lower_signed_ty(ty)),
@@ -324,7 +325,8 @@ fn lower_parse_ty_const<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     use ir::ast::Endianness as E;
 
     doc.text(match ty_const {
-        BinaryTypeConst::Empty => "Ok::<_, io::Error>(())",
+        BinaryTypeConst::Empty => "ddl_util::empty()",
+        BinaryTypeConst::Error => "ddl_util::error()",
         BinaryTypeConst::U8 => "ddl_util::from_u8(reader)",
         BinaryTypeConst::I8 => "ddl_util::from_i8(reader)",
         BinaryTypeConst::U16(E::Little) => "ddl_util::from_u16le(reader)",
@@ -388,7 +390,7 @@ fn lower_assert_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     let if_false = doc.newline().append(
         doc.text("return")
             .append(doc.space())
-            .append(invalid_data_err(doc))
+            .append(doc.text("ddl_util::error()"))
             .group(),
     );
 
@@ -455,7 +457,7 @@ fn lower_cond_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     options: &'a [(RcExpr<String>, RcParseExpr<String>)],
 ) -> DocBuilder<'doc, A> {
     if options.is_empty() {
-        invalid_data_err(doc)
+        doc.text("ddl_util::error()")
     } else {
         doc.intersperse(
             options.iter().map(|option| {
@@ -482,7 +484,7 @@ fn lower_cond_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
                     .group()
                     .append(
                         doc.newline()
-                            .append(invalid_data_err(doc))
+                            .append(doc.text("ddl_util::error()"))
                             .nest(INDENT_WIDTH),
                     )
                     .append(doc.newline())
@@ -628,21 +630,4 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
         Prec::Block => inner,
         Prec::Expr => doc.text("(").append(inner).append(doc.text(")")).group(),
     }
-}
-
-fn invalid_data_err<'doc, A: DocAllocator<'doc>>(doc: &'doc A) -> DocBuilder<'doc, A> {
-    doc.text("Err::<_, io::Error>(")
-        .append(
-            doc.text("io::Error::new(")
-                .append(
-                    doc.text("io::ErrorKind::InvalidData,")
-                        .append(doc.space())
-                        .append(doc.text(r#""Invalid binary data""#))
-                        .nest(INDENT_WIDTH),
-                )
-                .nest(INDENT_WIDTH)
-                .append(doc.text(")")),
-        )
-        .append(doc.text(")"))
-        .group()
 }

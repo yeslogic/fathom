@@ -36,6 +36,7 @@ fn parse_ty_const(src: &str) -> Result<host::TypeConst, GrammarError> {
 
     match src {
         "unit" => Ok(TypeConst::Unit),
+        "bottom" => Ok(TypeConst::Bottom),
         "bool" => Ok(TypeConst::Bool),
         "f32" => Ok(TypeConst::Float(FloatType::F32)),
         "f64" => Ok(TypeConst::Float(FloatType::F64)),

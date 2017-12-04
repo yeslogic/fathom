@@ -387,6 +387,7 @@ pub fn kind_of<N: Name>(
 
         // Type constants
         Type::Const(TypeConst::Empty) |
+        Type::Const(TypeConst::Error) |
         Type::Const(TypeConst::U8) |
         Type::Const(TypeConst::I8) |
         Type::Const(TypeConst::U16(_)) |
