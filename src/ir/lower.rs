@@ -36,11 +36,11 @@ impl<'a> From<&'a syntax::ast::Program<String>> for Program<String> {
                         Some(parse_expr),
                     );
                 }
-                binary::Type::Union(_, ref variants) => {
-                    let lowered_variants = lower_row(&path, variants, |variant_path, ty| {
-                        lower_ty(&mut program, &variant_path, ty)
+                binary::Type::Cond(_, ref options) => {
+                    let lowered_variants = lower_row(&path, options, |option_path, &(_, ref ty)| {
+                        lower_ty(&mut program, &option_path, ty)
                     });
-                    let parse_expr = union_parser(&path, variants);
+                    let parse_expr = cond_parser(&path, options);
                     program.define_union(
                         path,
                         Rc::clone(&definition.doc),
@@ -122,12 +122,10 @@ fn lower_ty(
             Type::Array(elem_ty)
         }
         binary::Type::Assert(_, ref ty, _) => return lower_ty(program, path, ty),
-        binary::Type::Interp(_, _, _, ref repr_ty) => {
-            return lower_repr_ty(path, repr_ty)
-        }
-        binary::Type::Union(_, ref variants) => {
-            let lowered_variants = lower_row(path, variants, |variant_path, ty| {
-                lower_ty(program, &variant_path, ty)
+        binary::Type::Interp(_, _, _, ref repr_ty) => return lower_repr_ty(path, repr_ty),
+        binary::Type::Cond(_, ref options) => {
+            let lowered_variants = lower_row(path, options, |option_path, &(_, ref ty)| {
+                lower_ty(program, &option_path, ty)
             });
             program.define_union(path.clone(), String::new(), lowered_variants, None);
 
@@ -290,28 +288,26 @@ fn struct_parser(
 ///
 /// * `path` - path to the parent struct or union
 /// * `fields` - the fields to be used in the parser
-fn union_parser(
+fn cond_parser(
     path: &Path<String>,
-    variants: &[Field<String, binary::RcType<String>>],
+    options: &[Field<String, (host::RcExpr<String>, binary::RcType<String>)>],
 ) -> RcParseExpr<String> {
-    let lower_variant = |variant: &Field<String, binary::RcType<String>>| {
-        let variant_parser = ty_parser(path, &variant.value);
-        let variant_expr = Rc::new(Expr::Intro(
-            path.clone(),
-            variant.name.clone(),
-            // FIXME: generate fresh name?
-            Rc::new(Expr::Var(Var::bound("x", BoundVar::new(Si(0), Bi(0))))),
+    let lower_option = |option: &Field<String, (host::RcExpr<String>, binary::RcType<String>)>| {
+        let pred_expr = lower_expr(path, &option.value.0);
+        let variant_parser = Rc::new(ParseExpr::Sequence(
+            vec![Named("x".to_owned(), ty_parser(path, &option.value.1))],
+            Rc::new(Expr::Intro(
+                path.clone(),
+                option.name.clone(),
+                // FIXME: generate fresh name?
+                Rc::new(Expr::Var(Var::bound("x", BoundVar::new(Si(0), Bi(0))))),
+            )),
         ));
 
-        Rc::new(ParseExpr::Sequence(
-            vec![Named("x".to_owned(), variant_parser)],
-            variant_expr,
-        ))
+        (pred_expr, variant_parser)
     };
 
-    Rc::new(ParseExpr::Choice(
-        variants.iter().map(lower_variant).collect(),
-    ))
+    Rc::new(ParseExpr::Cond(options.iter().map(lower_option).collect()))
 }
 
 /// Create a parser for the given type
@@ -331,7 +327,7 @@ fn ty_parser(path: &Path<String>, ty: &binary::RcType<String>) -> RcParseExpr<St
 
             ParseExpr::Repeat(elem_parser, RepeatBound::Exact(size_expr))
         }
-        binary::Type::Union(_, ref variants) => return union_parser(path, variants),
+        binary::Type::Cond(_, ref options) => return cond_parser(path, options),
         binary::Type::Struct(_, ref fields) => return struct_parser(path, fields),
         binary::Type::Assert(_, ref ty, ref pred_expr) => {
             let ty_parser = ty_parser(path, ty);

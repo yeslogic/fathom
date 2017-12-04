@@ -30,6 +30,25 @@ fn bitmap() {
 }
 
 #[test]
+fn bson() {
+    const SRC: &str = include_str!("../examples/formats/bson/src/bson.ddl");
+
+    let mut program = Program::from_str(SRC).unwrap();
+    assert_debug_snapshot!(bson_program, program);
+
+    let base_defs = ast::base_defs();
+    program.substitute(&base_defs);
+
+    check::check_program(&program).unwrap();
+
+    let ir = ddl::ir::ast::Program::from(&program);
+    assert_debug_snapshot!(bson_ir, ir);
+
+    let rust_output = ddl::codegen::LowerProgram(&ir).to_string();
+    assert_display_snapshot!(bson_codegen, rust_output);
+}
+
+#[test]
 fn edid() {
     const SRC: &str = include_str!("../examples/formats/edid/src/edid.ddl");
 

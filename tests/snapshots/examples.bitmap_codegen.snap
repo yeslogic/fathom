@@ -20,9 +20,9 @@ impl Bitmap {
             })
         }?;
         let data =
-        (0..(extents.width
+        (0..(extents.width)
         *
-        extents.height)).map(|_| Pixel::read(reader)).collect::<Result<_, _>>()?;
+        (extents.height)).map(|_| Pixel::read(reader)).collect::<Result<_, _>>()?;
         Ok::<_, io::Error>(Bitmap {
             extents: extents,
             data: data,

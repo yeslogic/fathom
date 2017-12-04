@@ -15,6 +15,7 @@ keywords = ["binary", "byte", "parser", "parsing", "endian", "big-endian", "litt
 members = [
     "ddl-util",
     "examples/formats/bitmap",
+    "examples/formats/bson",
     "examples/formats/edid",
     "examples/formats/object_id",
     "examples/formats/stl",

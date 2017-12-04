@@ -31,6 +31,7 @@ extern {
 
         // Keywords
         "as" => Token::As,
+        "cond" => Token::Cond,
         "compute" => Token::Compute,
         "from" => Token::From,
         "struct" => Token::Struct,
@@ -103,12 +104,12 @@ Definition: Definition<String> = {
     },
 };
 
-Field: Field<String, binary::RcType<String>> = {
-    <doc: "DocComment"*> <name: "Ident"> ":" <ty: PrimaryBinaryType> => {
+Field<Value>: Field<String, Value> = {
+    <doc: "DocComment"*> <name: "Ident"> ":" <value: Value> => {
         Field {
             doc: doc.join("\n").into(),
             name: name.to_owned(),
-            value: ty,
+            value: value,
         }
     },
 };
@@ -154,15 +155,23 @@ AtomicBinaryType: binary::RcType<String> = {
         binary::Type::App(Span::new(lo, hi), ty, arg_tys).into()
     },
     "(" <ty: PrimaryBinaryType> ")" => ty,
-    <lo: @L> "struct" "{" <fields: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
+    <lo: @L> "struct" "{"
+        <fields: (<Field<BinaryType>> ",")*>
+        <last: Field<BinaryType>?>
+    "}" <hi: @R> =>
+    {
         let mut fields = fields;
         fields.extend(last);
         binary::Type::struct_(Span::new(lo, hi), fields).into()
     },
-    <lo: @L> "union" "{" <variants: (<Field> ",")*> <last: Field?> "}" <hi: @R> => {
-        let mut variants = variants;
-        variants.extend(last);
-        binary::Type::Union(Span::new(lo, hi), variants).into()
+    <lo: @L> "cond" "{"
+        <options: (<Field<(<HostExpr> "=>" <BinaryType>)>> ",")*>
+        <last: Field<(<HostExpr> "=>" <BinaryType>)>?>
+    "}" <hi: @R> =>
+    {
+        let mut options = options;
+        options.extend(last);
+        binary::Type::Cond(Span::new(lo, hi), options).into()
     },
     <lo: @L> "[" <elem: PrimaryBinaryType> ";" <size: PrimaryHostExpr> "]" <hi: @R> => {
         binary::Type::Array(Span::new(lo, hi), elem, size).into()
@@ -263,20 +272,41 @@ PrefixHostExpr: host::RcExpr<String> = {
 
 IntLiteral<Value>: host::RcExpr<String> = {
     <lo: @L> <value: Value> <hi: @R> =>? {
-        let suffix = super::parse_int_suffix(value.1).map_err(|error| UserError { error })?;
-        let const_int = Const::Int(value.0, suffix);
+        use syntax::ast::host::{SignedType, UnsignedType};
+        use syntax::ast::host::IntSuffix::{Signed, Unsigned};
 
-        Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
-    }
+        let float = Const::Int(value.0, match value.1 {
+            "i8" => Signed(SignedType::I8),
+            "i16" => Signed(SignedType::I16),
+            "i24" => Signed(SignedType::I24),
+            "i32" => Signed(SignedType::I32),
+            "i64" => Signed(SignedType::I64),
+            "u8" => Unsigned(UnsignedType::U8),
+            "u16" => Unsigned(UnsignedType::U16),
+            "u24" => Unsigned(UnsignedType::U24),
+            "u32" => Unsigned(UnsignedType::U32),
+            "u64" => Unsigned(UnsignedType::U64),
+            "" => return Err(UserError { error: GrammarError::ConstSuffixMissing }),
+            s => return Err(UserError { error: GrammarError::ConstSuffixInvalid { suffix: s.to_owned() } }),
+        });
+
+        Ok(host::Expr::Const(Span::new(lo, hi), float).into())
+    },
 };
 
 FloatLiteral<Value>: host::RcExpr<String> = {
     <lo: @L> <value: Value> <hi: @R> =>? {
-        let suffix = super::parse_float_suffix(value.1).map_err(|error| UserError { error })?;
-        let const_int = Const::Float(value.0, suffix);
+        use syntax::ast::host::FloatType;
 
-        Ok(host::Expr::Const(Span::new(lo, hi), const_int).into())
-    }
+        let float = Const::Float(value.0, match value.1 {
+            "f32" => FloatType::F32,
+            "f64" => FloatType::F64,
+            "" => return Err(UserError { error: GrammarError::ConstSuffixMissing }),
+            s => return Err(UserError { error: GrammarError::ConstSuffixInvalid { suffix: s.to_owned() } }),
+        });
+
+        Ok(host::Expr::Const(Span::new(lo, hi), float).into())
+    },
 };
 
 AtomicHostExpr: host::RcExpr<String> = {

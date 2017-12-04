@@ -106,8 +106,8 @@ pub enum Type<N> {
     Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
     Array(Span, RcType<N>, host::RcExpr<N>),
-    /// A union of types: eg. `union { field : T, ... }`
-    Union(Span, Vec<Field<N, RcType<N>>>),
+    /// Conditional types: eg. `cond { field : pred => T, ... }`
+    Cond(Span, Vec<Field<N, (host::RcExpr<N>, RcType<N>)>>),
     /// A struct type, with fields: eg. `struct { variant : T, ... }`
     Struct(Span, Vec<Field<N, RcType<N>>>),
     /// A type that is constrained by a predicate: eg. `T where x => x == 3`
@@ -177,9 +177,9 @@ impl<N: Name> Type<N> {
     ///
     /// Returns `None` if the type is not a union or the field is not
     /// present in the union.
-    pub fn lookup_variant(&self, name: &N) -> Option<&RcType<N>> {
+    pub fn lookup_variant(&self, name: &N) -> Option<&(host::RcExpr<N>, RcType<N>)> {
         match *self {
-            Type::Union(_, ref variants) => ast::lookup_field(variants, name),
+            Type::Cond(_, ref options) => ast::lookup_field(options, name),
             _ => None,
         }
     }
@@ -198,9 +198,10 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(size_expr).substitute(substs);
                 return;
             }
-            Type::Union(_, ref mut variants) => {
-                for variant in variants {
-                    Rc::make_mut(&mut variant.value).substitute(substs);
+            Type::Cond(_, ref mut options) => {
+                for option in options {
+                    Rc::make_mut(&mut option.value.0).substitute(substs);
+                    Rc::make_mut(&mut option.value.1).substitute(substs);
                 }
                 return;
             }
@@ -247,8 +248,9 @@ impl<N: Name> Type<N> {
                 Rc::make_mut(elem_ty).abstract_names_at(names, scope);
                 Rc::make_mut(size_expr).abstract_names_at(names, scope);
             }
-            Type::Union(_, ref mut variants) => for variant in variants {
-                Rc::make_mut(&mut variant.value).abstract_names_at(names, scope);
+            Type::Cond(_, ref mut options) => for option in options {
+                Rc::make_mut(&mut option.value.0).abstract_names_at(names, scope);
+                Rc::make_mut(&mut option.value.1).abstract_names_at(names, scope);
             },
             Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 Rc::make_mut(&mut field.value).abstract_names_at(names, scope.shift(i as u32));
@@ -301,8 +303,9 @@ impl<N: Name> Type<N> {
             Type::Interp(_, ref mut ty, _, _) => {
                 Rc::make_mut(ty).instantiate_at(scope.succ(), tys);
             }
-            Type::Union(_, ref mut variants) => for variant in variants {
-                Rc::make_mut(&mut variant.value).instantiate_at(scope, tys);
+            Type::Cond(_, ref mut options) => for option in options {
+                // Rc::make_mut(&mut option.value.0).instantiate_at(scope, tys);
+                Rc::make_mut(&mut option.value.1).instantiate_at(scope, tys);
             },
             Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 Rc::make_mut(&mut field.value).instantiate_at(scope.shift(i as u32), tys);
@@ -333,17 +336,15 @@ impl<N: Name> Type<N> {
             Type::Const(ty_const) => Rc::new(host::Type::Const(ty_const.repr())),
             Type::Array(_, ref elem_ty, _) => Rc::new(host::Type::Array(elem_ty.repr())),
             Type::Assert(_, ref ty, _) => ty.repr(),
-            Type::Interp(_, _, _, ref repr_ty) => {
-                Rc::clone(repr_ty)
-            }
-            Type::Union(_, ref variants) => {
-                let repr_variants = variants
+            Type::Interp(_, _, _, ref repr_ty) => Rc::clone(repr_ty),
+            Type::Cond(_, ref options) => {
+                let repr_variants = options
                     .iter()
                     .map(|variant| {
                         Field {
                             doc: Rc::clone(&variant.doc),
                             name: variant.name.clone(),
-                            value: variant.value.repr(),
+                            value: variant.value.1.repr(),
                         }
                     })
                     .collect();

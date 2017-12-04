@@ -204,9 +204,9 @@ pub enum ParseExpr<N> {
     /// For example:
     ///
     /// ```plain
-    /// p1 | p2 | p3
+    /// (cond1 => p1) | (cond2 => p2) | (cond3 => p3)
     /// ```
-    Choice(Vec<RcParseExpr<N>>),
+    Cond(Vec<(RcExpr<N>, RcParseExpr<N>)>),
     /// Applies the result of one parser to an unary function
     Apply(RcExpr<N>, RcParseExpr<N>),
 }
@@ -235,8 +235,9 @@ impl<N: Name> ParseExpr<N> {
                 }
                 Rc::make_mut(expr).abstract_names_at(names, scope.shift(parse_exprs.len() as u32));
             }
-            ParseExpr::Choice(ref mut parse_exprs) => for parse_expr in parse_exprs {
-                Rc::make_mut(parse_expr).abstract_names_at(names, scope);
+            ParseExpr::Cond(ref mut options) => for option in options {
+                Rc::make_mut(&mut option.0).abstract_names_at(names, scope);
+                Rc::make_mut(&mut option.1).abstract_names_at(names, scope);
             },
             ParseExpr::Apply(ref mut fn_expr, ref mut parse_expr) => {
                 Rc::make_mut(fn_expr).abstract_names_at(names, scope);
