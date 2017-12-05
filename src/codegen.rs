@@ -26,7 +26,15 @@ fn lower_program<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
     program: &'a Program<String>,
 ) -> DocBuilder<'doc, A> {
+    let version_comment = format!(
+        "// auto-generated: \"{} {}\"",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    );
+
     doc.nil()
+        .append(doc.text(version_comment).append(doc.newline()))
+        .append(doc.newline())
         .append(doc.text("extern crate ddl_util;").append(doc.newline()))
         .append(doc.newline())
         .append(doc.text("use std::io;").append(doc.newline()))

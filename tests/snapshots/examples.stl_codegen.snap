@@ -1,3 +1,5 @@
+// auto-generated: "ddl 0.1.0"
+
 extern crate ddl_util;
 
 use std::io;
