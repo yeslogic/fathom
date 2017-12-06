@@ -1,7 +1,7 @@
 //! Variable binding
 
 use std::fmt;
-use name::{Name, Named};
+use name::Named;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct ScopeIndex(pub u32);
@@ -93,23 +93,23 @@ impl fmt::Debug for BoundVar {
 /// - The Penn Locally Nameless Metatheory Library
 ///     - [Github](https://github.com/plclub/metalib)
 #[derive(Clone, PartialEq, Eq)]
-pub enum Var<N> {
+pub enum Var {
     /// A free, unbound variable
-    Free(N),
+    Free(String),
     /// A bound variable
-    Bound(Named<N, BoundVar>),
+    Bound(Named<BoundVar>),
 }
 
-impl<N: Name> Var<N> {
-    pub fn free<N1: Into<N>>(name: N1) -> Var<N> {
+impl Var {
+    pub fn free<N: Into<String>>(name: N) -> Var {
         Var::Free(name.into())
     }
 
-    pub fn bound<N1: Into<N>>(name: N1, var: BoundVar) -> Var<N> {
+    pub fn bound<N: Into<String>>(name: N, var: BoundVar) -> Var {
         Var::Bound(Named(name.into(), var))
     }
 
-    pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         *self = match *self {
             Var::Free(ref n) => match names.iter().position(|name| name == n) {
                 Some(position) => {
@@ -126,7 +126,7 @@ impl<N: Name> Var<N> {
     }
 }
 
-impl<F: fmt::Debug> fmt::Debug for Var<F> {
+impl fmt::Debug for Var {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Var::Free(ref x) => {

@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use name::{Name, Named};
+use name::Named;
 use syntax::ast::{binary, host, Field, Program};
 use self::context::{Context, Scope};
 use var::Var;
@@ -14,63 +14,57 @@ mod tests;
 // Typing
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ExpectedType<N> {
+pub enum ExpectedType {
     Array,
     Arrow,
     Unsigned,
     Signed,
     Numeric,
-    Actual(host::RcType<N>),
+    Actual(host::RcType),
 }
 
 /// An error that was encountered during type checking
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeError<N> {
+pub enum TypeError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { expr: host::RcExpr<N>, name: N },
+    UnboundVariable { expr: host::RcExpr, name: String },
     /// Variable bound in the context was not at the value level
-    ExprBindingExpected {
-        expr: host::RcExpr<N>,
-        found: Scope<N>,
-    },
+    ExprBindingExpected { expr: host::RcExpr, found: Scope },
     /// One type was expected, but another was found
     Mismatch {
-        expr: host::RcExpr<N>,
-        found: host::RcType<N>,
-        expected: ExpectedType<N>,
+        expr: host::RcExpr,
+        found: host::RcType,
+        expected: ExpectedType,
     },
     /// Unexpected operand types in a binary operator expression
     BinaryOperands {
         context: host::Binop,
-        expr: host::RcExpr<N>,
-        lhs_ty: host::RcType<N>,
-        rhs_ty: host::RcType<N>,
+        expr: host::RcExpr,
+        lhs_ty: host::RcType,
+        rhs_ty: host::RcType,
     },
     /// A field was missing when projecting on a record
     MissingField {
-        expr: host::RcExpr<N>,
-        struct_ty: host::RcType<N>,
-        field_name: N,
+        expr: host::RcExpr,
+        struct_ty: host::RcType,
+        field_name: String,
     },
     /// A variant was missing when introducing on a union
     MissingVariant {
-        expr: host::RcExpr<N>,
-        union_ty: host::RcType<N>,
-        variant_name: N,
+        expr: host::RcExpr,
+        union_ty: host::RcType,
+        variant_name: String,
     },
     /// An invalid type was supplied to the cast expression
     InvalidCastType {
-        expr: host::RcExpr<N>,
-        found: host::RcType<N>,
+        expr: host::RcExpr,
+        found: host::RcType,
     },
 }
 
 /// Returns the type of a host expression, checking that it is properly formed
 /// in the environment
-pub fn ty_of<N: Name>(
-    ctx: &Context<N>,
-    expr: &host::RcExpr<N>,
-) -> Result<host::RcType<N>, TypeError<N>> {
+pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeError> {
     use syntax::ast::host::{Binop, Expr, Type, TypeConst, Unop};
 
     match **expr {
@@ -100,8 +94,8 @@ pub fn ty_of<N: Name>(
             let operand_ty = ty_of(ctx, operand_expr)?;
 
             match (op, &*operand_ty) {
-                (Unop::Neg, &Const(TypeConst::Signed(_))) |
-                (Unop::Neg, &Const(TypeConst::Float(_))) => Ok(operand_ty),
+                (Unop::Neg, &Const(TypeConst::Signed(_)))
+                | (Unop::Neg, &Const(TypeConst::Float(_))) => Ok(operand_ty),
                 (Unop::Neg, _) => Err(TypeError::Mismatch {
                     expr: Rc::clone(expr),
                     expected: ExpectedType::Signed,
@@ -120,12 +114,12 @@ pub fn ty_of<N: Name>(
         Expr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
             use syntax::ast::host::Type::Const;
 
-            fn binop_err<N: Name>(
+            fn binop_err(
                 context: Binop,
-                expr: &host::RcExpr<N>,
-                lhs_ty: host::RcType<N>,
-                rhs_ty: host::RcType<N>,
-            ) -> TypeError<N> {
+                expr: &host::RcExpr,
+                lhs_ty: host::RcType,
+                rhs_ty: host::RcType,
+            ) -> TypeError {
                 TypeError::BinaryOperands {
                     context,
                     expr: Rc::clone(expr),
@@ -247,12 +241,12 @@ pub fn ty_of<N: Name>(
             let src_ty = ty_of(ctx, src_expr)?;
 
             match **dst_ty {
-                Type::Const(TypeConst::Float(_)) |
-                Type::Const(TypeConst::Signed(_)) |
-                Type::Const(TypeConst::Unsigned(_)) => match *src_ty {
-                    Type::Const(TypeConst::Float(_)) |
-                    Type::Const(TypeConst::Signed(_)) |
-                    Type::Const(TypeConst::Unsigned(_)) => Ok(Rc::clone(dst_ty)),
+                Type::Const(TypeConst::Float(_))
+                | Type::Const(TypeConst::Signed(_))
+                | Type::Const(TypeConst::Unsigned(_)) => match *src_ty {
+                    Type::Const(TypeConst::Float(_))
+                    | Type::Const(TypeConst::Signed(_))
+                    | Type::Const(TypeConst::Unsigned(_)) => Ok(Rc::clone(dst_ty)),
                     _ => Err(TypeError::Mismatch {
                         expr: Rc::clone(src_expr),
                         expected: ExpectedType::Numeric,
@@ -303,10 +297,10 @@ pub fn ty_of<N: Name>(
 
 // Kinding
 
-fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> binary::RcType<N> {
+fn simplify_ty(ctx: &Context, ty: &binary::RcType) -> binary::RcType {
     use syntax::ast::binary::Type;
 
-    fn compute_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> Option<binary::RcType<N>> {
+    fn compute_ty(ctx: &Context, ty: &binary::RcType) -> Option<binary::RcType> {
         match **ty {
             Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
                 Ok((_, def_ty)) => Some(Rc::clone(def_ty)),
@@ -339,36 +333,30 @@ fn simplify_ty<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> binary::RcT
 
 /// An error that was encountered during kind checking
 #[derive(Debug, Clone, PartialEq)]
-pub enum KindError<N> {
+pub enum KindError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { ty: binary::RcType<N>, name: N },
+    UnboundVariable { ty: binary::RcType, name: String },
     /// Variable bound in the context was not at the type level
-    TypeBindingExpected {
-        ty: binary::RcType<N>,
-        found: Scope<N>,
-    },
+    TypeBindingExpected { ty: binary::RcType, found: Scope },
     /// One kind was expected, but another was found
     Mismatch {
-        ty: binary::RcType<N>,
+        ty: binary::RcType,
         expected: binary::Kind,
         found: binary::Kind,
     },
     /// A type error
-    Type(TypeError<N>),
+    Type(TypeError),
 }
 
-impl<N> From<TypeError<N>> for KindError<N> {
-    fn from(src: TypeError<N>) -> KindError<N> {
+impl From<TypeError> for KindError {
+    fn from(src: TypeError) -> KindError {
         KindError::Type(src)
     }
 }
 
 /// Returns the kind of a binary type, checking that it is properly formed in
 /// the environment
-pub fn kind_of<N: Name>(
-    ctx: &Context<N>,
-    ty: &binary::RcType<N>,
-) -> Result<binary::Kind, KindError<N>> {
+pub fn kind_of(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindError> {
     use syntax::ast::binary::{Kind, Type, TypeConst};
 
     match **ty {
@@ -386,20 +374,20 @@ pub fn kind_of<N: Name>(
         },
 
         // Type constants
-        Type::Const(TypeConst::Empty) |
-        Type::Const(TypeConst::Error) |
-        Type::Const(TypeConst::U8) |
-        Type::Const(TypeConst::I8) |
-        Type::Const(TypeConst::U16(_)) |
-        Type::Const(TypeConst::U24(_)) |
-        Type::Const(TypeConst::U32(_)) |
-        Type::Const(TypeConst::U64(_)) |
-        Type::Const(TypeConst::I16(_)) |
-        Type::Const(TypeConst::I24(_)) |
-        Type::Const(TypeConst::I32(_)) |
-        Type::Const(TypeConst::I64(_)) |
-        Type::Const(TypeConst::F32(_)) |
-        Type::Const(TypeConst::F64(_)) => Ok(Kind::Type),
+        Type::Const(TypeConst::Empty)
+        | Type::Const(TypeConst::Error)
+        | Type::Const(TypeConst::U8)
+        | Type::Const(TypeConst::I8)
+        | Type::Const(TypeConst::U16(_))
+        | Type::Const(TypeConst::U24(_))
+        | Type::Const(TypeConst::U32(_))
+        | Type::Const(TypeConst::U64(_))
+        | Type::Const(TypeConst::I16(_))
+        | Type::Const(TypeConst::I24(_))
+        | Type::Const(TypeConst::I32(_))
+        | Type::Const(TypeConst::I64(_))
+        | Type::Const(TypeConst::F32(_))
+        | Type::Const(TypeConst::F64(_)) => Ok(Kind::Type),
 
         // Array types
         Type::Array(_, ref elem_ty, ref size_expr) => {
@@ -499,7 +487,7 @@ pub fn kind_of<N: Name>(
     }
 }
 
-pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> {
+pub fn check_program(program: &Program) -> Result<(), KindError> {
     let mut ctx = Context::new();
 
     for definition in &program.definitions {
@@ -517,11 +505,11 @@ pub fn check_program<N: Name>(program: &Program<N>) -> Result<(), KindError<N>> 
 
 // Expectations
 
-fn expect_ty<N: Name>(
-    ctx: &Context<N>,
-    expr: &host::RcExpr<N>,
-    expected: &host::RcType<N>,
-) -> Result<host::RcType<N>, TypeError<N>> {
+fn expect_ty(
+    ctx: &Context,
+    expr: &host::RcExpr,
+    expected: &host::RcType,
+) -> Result<host::RcType, TypeError> {
     let found = ty_of(ctx, expr)?;
 
     if &found == expected {
@@ -535,11 +523,11 @@ fn expect_ty<N: Name>(
     }
 }
 
-fn expect_kind<N: Name>(
-    ctx: &Context<N>,
-    ty: &binary::RcType<N>,
+fn expect_kind(
+    ctx: &Context,
+    ty: &binary::RcType,
     expected: binary::Kind,
-) -> Result<binary::Kind, KindError<N>> {
+) -> Result<binary::Kind, KindError> {
     let found = kind_of(ctx, ty)?;
 
     if found == expected {
@@ -553,7 +541,7 @@ fn expect_kind<N: Name>(
     }
 }
 
-fn expect_ty_kind<N: Name>(ctx: &Context<N>, ty: &binary::RcType<N>) -> Result<(), KindError<N>> {
+fn expect_ty_kind(ctx: &Context, ty: &binary::RcType) -> Result<(), KindError> {
     use syntax::ast::binary::Kind;
 
     expect_kind(ctx, ty, Kind::Type).map(|_| ())

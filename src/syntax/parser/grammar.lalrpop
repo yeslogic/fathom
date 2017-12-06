@@ -72,13 +72,13 @@ extern {
 }
 
 
-pub Program: Program<String> = {
+pub Program: Program = {
     <defs: Definition*> => {
         Program::new(defs)
     },
 };
 
-Definition: Definition<String> = {
+Definition: Definition = {
     <doc: "DocComment"*> <name: "Ident"> "=" <ty: PrimaryBinaryType> ";" => {
         Definition {
             doc: doc.join("\n").into(),
@@ -93,8 +93,7 @@ Definition: Definition<String> = {
         let params = params
             .into_iter()
             .chain(iter::once(last))
-            .map(|p| p.to_owned())
-            .collect::<Vec<String>>();
+            .collect::<Vec<_>>();
 
         Definition {
             doc: doc.join("\n").into(),
@@ -104,7 +103,7 @@ Definition: Definition<String> = {
     },
 };
 
-Field<Value>: Field<String, Value> = {
+Field<Value>: Field<Value> = {
     <doc: "DocComment"*> <name: "Ident"> ":" <value: Value> => {
         Field {
             doc: doc.join("\n").into(),
@@ -117,11 +116,11 @@ Field<Value>: Field<String, Value> = {
 
 // Binary Types
 
-pub BinaryType: binary::RcType<String> = {
+pub BinaryType: binary::RcType = {
     <ty: PrimaryBinaryType> => ty,
 };
 
-PrimaryBinaryType: binary::RcType<String> = {
+PrimaryBinaryType: binary::RcType = {
     AtomicBinaryType,
     <lo1: @L> <ty: PrimaryBinaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryHostExpr> <hi: @R> => {
         let repr_ty = ty.repr();
@@ -145,7 +144,7 @@ PrimaryBinaryType: binary::RcType<String> = {
     },
 };
 
-AtomicBinaryType: binary::RcType<String> = {
+AtomicBinaryType: binary::RcType = {
     <lo: @L> <name: "Ident"> <hi: @R> => {
         binary::Type::Var(Span::new(lo, hi), Var::free(name)).into()
     },
@@ -181,7 +180,7 @@ AtomicBinaryType: binary::RcType<String> = {
 
 // Host Types
 
-pub HostType: host::RcType<String> = {
+pub HostType: host::RcType = {
     // FIXME: implement full host type parsing, with proper name binding
     //
     // We'll just hard-code identifiers for now
@@ -195,7 +194,7 @@ pub HostType: host::RcType<String> = {
 
 // Host Expressions
 
-pub HostExpr: host::RcExpr<String> = {
+pub HostExpr: host::RcExpr = {
     <expr: PrimaryHostExpr> => expr,
 };
 
@@ -215,25 +214,25 @@ BinopSub:  Binop = "-"   => Binop::Sub;
 BinopMul:  Binop = "*"   => Binop::Mul;
 BinopDiv:  Binop = "/"   => Binop::Div;
 
-BinopExpr<Lhs, Op, Rhs>: host::RcExpr<String> = {
+BinopExpr<Lhs, Op, Rhs>: host::RcExpr = {
     <lo: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <hi: @R> => {
         host::Expr::Binop(Span::new(lo, hi), op, lhs, rhs).into()
     },
 };
 
-PrimaryHostExpr: host::RcExpr<String> = {
+PrimaryHostExpr: host::RcExpr = {
     EqHostExpr,
     BinopExpr<EqHostExpr, BinopOr, PrimaryHostExpr>,
     BinopExpr<EqHostExpr, BinopAnd, PrimaryHostExpr>,
 };
 
-EqHostExpr: host::RcExpr<String> = {
+EqHostExpr: host::RcExpr = {
     CmpHostExpr,
     BinopExpr<CmpHostExpr, BinopEq, EqHostExpr>,
     BinopExpr<CmpHostExpr, BinopNe, EqHostExpr>,
 };
 
-CmpHostExpr: host::RcExpr<String> = {
+CmpHostExpr: host::RcExpr = {
     AddHostExpr,
     BinopExpr<AddHostExpr, BinopLe, CmpHostExpr>,
     BinopExpr<AddHostExpr, BinopLt, CmpHostExpr>,
@@ -241,26 +240,26 @@ CmpHostExpr: host::RcExpr<String> = {
     BinopExpr<AddHostExpr, BinopGe, CmpHostExpr>,
 };
 
-AddHostExpr: host::RcExpr<String> = {
+AddHostExpr: host::RcExpr = {
     MulHostExpr,
     BinopExpr<MulHostExpr, BinopAdd, AddHostExpr>,
     BinopExpr<MulHostExpr, BinopSub, AddHostExpr>,
 };
 
-MulHostExpr: host::RcExpr<String> = {
+MulHostExpr: host::RcExpr = {
     CastHostExpr,
     BinopExpr<CastHostExpr, BinopMul, MulHostExpr>,
     BinopExpr<CastHostExpr, BinopDiv, MulHostExpr>,
 };
 
-CastHostExpr: host::RcExpr<String> = {
+CastHostExpr: host::RcExpr = {
     PrefixHostExpr,
     <lo: @L> <expr: CastHostExpr> "as" <ty: HostType> <hi: @R> => {
         host::Expr::Cast(Span::new(lo, hi), expr, ty).into()
     },
 };
 
-PrefixHostExpr: host::RcExpr<String> = {
+PrefixHostExpr: host::RcExpr = {
     AtomicHostExpr,
     <lo: @L> "-" <expr: AtomicHostExpr> <hi: @R> => {
         host::Expr::Unop(Span::new(lo, hi), Unop::Neg, expr).into()
@@ -270,7 +269,7 @@ PrefixHostExpr: host::RcExpr<String> = {
     },
 };
 
-IntLiteral<Value>: host::RcExpr<String> = {
+IntLiteral<Value>: host::RcExpr = {
     <lo: @L> <value: Value> <hi: @R> =>? {
         use syntax::ast::host::{SignedType, UnsignedType};
         use syntax::ast::host::IntSuffix::{Signed, Unsigned};
@@ -294,7 +293,7 @@ IntLiteral<Value>: host::RcExpr<String> = {
     },
 };
 
-FloatLiteral<Value>: host::RcExpr<String> = {
+FloatLiteral<Value>: host::RcExpr = {
     <lo: @L> <value: Value> <hi: @R> =>? {
         use syntax::ast::host::FloatType;
 
@@ -309,7 +308,7 @@ FloatLiteral<Value>: host::RcExpr<String> = {
     },
 };
 
-AtomicHostExpr: host::RcExpr<String> = {
+AtomicHostExpr: host::RcExpr = {
     "(" <expr: PrimaryHostExpr> ")" => expr,
 
     IntLiteral<"BinLiteral">,

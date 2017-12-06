@@ -76,39 +76,39 @@ fn from_lalrpop_err<L, T: fmt::Debug, E>(
     }
 }
 
-impl FromStr for Program<String> {
+impl FromStr for Program {
     type Err = ParseError;
 
-    fn from_str(src: &str) -> Result<Program<String>, ParseError> {
+    fn from_str(src: &str) -> Result<Program, ParseError> {
         grammar::parse_Program(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
             .map_err(from_lalrpop_err)
     }
 }
 
-impl FromStr for host::Expr<String> {
+impl FromStr for host::Expr {
     type Err = ParseError;
 
-    fn from_str(src: &str) -> Result<host::Expr<String>, ParseError> {
+    fn from_str(src: &str) -> Result<host::Expr, ParseError> {
         grammar::parse_HostExpr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
             .map(|expr| Rc::try_unwrap(expr).unwrap())
             .map_err(from_lalrpop_err)
     }
 }
 
-impl FromStr for host::Type<String> {
+impl FromStr for host::Type {
     type Err = ParseError;
 
-    fn from_str(src: &str) -> Result<host::Type<String>, ParseError> {
+    fn from_str(src: &str) -> Result<host::Type, ParseError> {
         grammar::parse_HostType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
             .map(|ty| Rc::try_unwrap(ty).unwrap())
             .map_err(from_lalrpop_err)
     }
 }
 
-impl FromStr for binary::Type<String> {
+impl FromStr for binary::Type {
     type Err = ParseError;
 
-    fn from_str(src: &str) -> Result<binary::Type<String>, ParseError> {
+    fn from_str(src: &str) -> Result<binary::Type, ParseError> {
         grammar::parse_BinaryType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
             .map(|ty| Rc::try_unwrap(ty).unwrap())
             .map_err(from_lalrpop_err)

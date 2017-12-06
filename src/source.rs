@@ -479,9 +479,8 @@ impl Source {
     /// ```
     pub fn location(&self, absolute_offset: BytePos) -> Option<(LineIndex, ColumnIndex)> {
         self.line_index(absolute_offset).and_then(|line_index| {
-            self.line_offset(line_index).map(|line_offset| {
-                (line_index, ColumnIndex((absolute_offset - line_offset).0))
-            })
+            self.line_offset(line_index)
+                .map(|line_offset| (line_index, ColumnIndex((absolute_offset - line_offset).0)))
         })
     }
 
