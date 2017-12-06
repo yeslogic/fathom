@@ -9,8 +9,8 @@ use ir::ast::{Expr, ParseExpr, Path, Program, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use var::{BindingIndex as Bi, BoundVar, ScopeIndex as Si, Var};
 
-impl<'a> From<&'a syntax::ast::Program<String>> for Program<String> {
-    fn from(src: &'a syntax::ast::Program<String>) -> Program<String> {
+impl<'a> From<&'a syntax::ast::Program> for Program {
+    fn from(src: &'a syntax::ast::Program) -> Program {
         let mut program = Program::new();
 
         for definition in &src.definitions {
@@ -68,13 +68,9 @@ impl<'a> From<&'a syntax::ast::Program<String>> for Program<String> {
 /// * `row` - the row of entries to be lowered
 /// * `lower_value` - a function that will be called for each entry's
 ///    corresponding value, appending the name of the entry to `path`
-fn lower_row<T, U, F>(
-    path: &Path<String>,
-    row: &[Field<String, T>],
-    mut lower_value: F,
-) -> Vec<Field<String, U>>
+fn lower_row<T, U, F>(path: &Path, row: &[Field<T>], mut lower_value: F) -> Vec<Field<U>>
 where
-    F: FnMut(Path<String>, &T) -> U,
+    F: FnMut(Path, &T) -> U,
 {
     row.iter()
         .map(|item| {
@@ -91,7 +87,7 @@ where
 }
 
 /// Lower a type variable to an IR type
-fn lower_ty_var(var: &Var<String>) -> RcType<String> {
+fn lower_ty_var(var: &Var) -> RcType {
     Rc::new(match *var {
         Var::Bound(Named(ref name, _)) => Type::Path(Path::new(name.to_string())),
         Var::Free(_) => unimplemented!(),
@@ -106,11 +102,7 @@ fn lower_ty_var(var: &Var<String>) -> RcType<String> {
 ///   program, creating corresponding top-level definitions
 /// * `path` - path to the parent struct or union
 /// * `ty` - the type to be lowered
-fn lower_ty(
-    program: &mut Program<String>,
-    path: &Path<String>,
-    ty: &binary::RcType<String>,
-) -> RcType<String> {
+fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
     // Mirroring `binary::Type::repr`
     Rc::new(match **ty {
         binary::Type::Var(_, ref var) => return lower_ty_var(var),
@@ -150,7 +142,7 @@ fn lower_ty(
 ///
 /// * `path` - path to the parent struct or union
 /// * `ty` - the type to be lowered
-fn lower_repr_ty(path: &Path<String>, ty: &host::RcType<String>) -> RcType<String> {
+fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
     Rc::new(match **ty {
         host::Type::Var(ref var) => return lower_ty_var(var),
         host::Type::Const(ty_const) => Type::Const(ty_const),
@@ -185,7 +177,7 @@ fn lower_repr_ty(path: &Path<String>, ty: &host::RcType<String>) -> RcType<Strin
 ///
 /// * `path` - path to the parent struct or union
 /// * `expr` - the expression to be lowered
-fn lower_expr(path: &Path<String>, expr: &host::RcExpr<String>) -> RcExpr<String> {
+fn lower_expr(path: &Path, expr: &host::RcExpr) -> RcExpr {
     Rc::new(match **expr {
         host::Expr::Const(_, c) => Expr::Const(c),
         host::Expr::Prim(name, ref ty) => Expr::Prim(name, lower_repr_ty(path, ty)),
@@ -238,19 +230,16 @@ fn lower_expr(path: &Path<String>, expr: &host::RcExpr<String>) -> RcExpr<String
 ///
 /// * `path` - path to the parent struct or union
 /// * `fields` - the fields to be used in the parser
-fn struct_parser(
-    path: &Path<String>,
-    fields: &[Field<String, binary::RcType<String>>],
-) -> RcParseExpr<String> {
+fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
     use var::ScopeIndex;
 
-    let lower_to_field_parser = |field: &Field<String, binary::RcType<String>>| {
+    let lower_to_field_parser = |field: &Field<binary::RcType>| {
         (
             field.name.clone(),
             ty_parser(&path.append_child(field.name.clone()), &field.value),
         )
     };
-    let lower_to_expr_field = |field: &Field<String, binary::RcType<String>>| {
+    let lower_to_expr_field = |field: &Field<binary::RcType>| {
         Field {
             doc: Rc::clone(&field.doc),
             name: field.name.clone(),
@@ -266,8 +255,7 @@ fn struct_parser(
 
     for (name, mut parse_expr) in parse_exprs {
         for (scope, name) in seen_names.iter().rev().enumerate() {
-            Rc::make_mut(&mut parse_expr)
-                .abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
+            Rc::make_mut(&mut parse_expr).abstract_names_at(&[name], ScopeIndex(scope as u32));
         }
 
         seen_names.push(name.clone());
@@ -276,7 +264,7 @@ fn struct_parser(
 
     let mut expr = Expr::Struct(path.clone(), expr_fields.collect());
     for (scope, name) in seen_names.iter().rev().enumerate() {
-        expr.abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
+        expr.abstract_names_at(&[name], ScopeIndex(scope as u32));
     }
 
     Rc::new(ParseExpr::Sequence(named_exprs, Rc::new(expr)))
@@ -288,11 +276,8 @@ fn struct_parser(
 ///
 /// * `path` - path to the parent struct or union
 /// * `fields` - the fields to be used in the parser
-fn cond_parser(
-    path: &Path<String>,
-    options: &[Field<String, (host::RcExpr<String>, binary::RcType<String>)>],
-) -> RcParseExpr<String> {
-    let lower_option = |option: &Field<String, (host::RcExpr<String>, binary::RcType<String>)>| {
+fn cond_parser(path: &Path, options: &[Field<(host::RcExpr, binary::RcType)>]) -> RcParseExpr {
+    let lower_option = |option: &Field<(host::RcExpr, binary::RcType)>| {
         let pred_expr = lower_expr(path, &option.value.0);
         let variant_parser = Rc::new(ParseExpr::Sequence(
             vec![Named("x".to_owned(), ty_parser(path, &option.value.1))],
@@ -316,7 +301,7 @@ fn cond_parser(
 ///
 /// * `path` - path to the parent struct or union
 /// * `ty` - the binary type to use as a basis for the parser
-fn ty_parser(path: &Path<String>, ty: &binary::RcType<String>) -> RcParseExpr<String> {
+fn ty_parser(path: &Path, ty: &binary::RcType) -> RcParseExpr {
     Rc::new(match **ty {
         binary::Type::Var(_, ref var) => ParseExpr::Var(var.clone()),
         binary::Type::Const(ty_const) => ParseExpr::Const(ty_const),

@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use name::{Name, Named};
+use name::Named;
 use source::Span;
 use syntax::ast::{self, host, Field, Substitutions};
 use var::{ScopeIndex, Var};
@@ -102,42 +102,41 @@ impl TypeConst {
 
 /// A binary type
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type<N> {
+pub enum Type {
     /// A type variable: eg. `T`
-    Var(Span, Var<N>),
+    Var(Span, Var),
     /// Type constant
     Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(Span, RcType<N>, host::RcExpr<N>),
+    Array(Span, RcType, host::RcExpr),
     /// Conditional types: eg. `cond { field : pred => T, ... }`
-    Cond(Span, Vec<Field<N, (host::RcExpr<N>, RcType<N>)>>),
+    Cond(Span, Vec<Field<(host::RcExpr, RcType)>>),
     /// A struct type, with fields: eg. `struct { variant : T, ... }`
-    Struct(Span, Vec<Field<N, RcType<N>>>),
+    Struct(Span, Vec<Field<RcType>>),
     /// A type that is constrained by a predicate: eg. `T where x => x == 3`
-    Assert(Span, RcType<N>, host::RcExpr<N>),
+    Assert(Span, RcType, host::RcExpr),
     /// An interpreted type
-    Interp(Span, RcType<N>, host::RcExpr<N>, host::RcType<N>),
+    Interp(Span, RcType, host::RcExpr, host::RcType),
     /// Type abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    Abs(Span, Vec<Named<N, ()>>, RcType<N>),
+    Abs(Span, Vec<Named<()>>, RcType),
     /// Type application: eg. `T(U, V)`
-    App(Span, RcType<N>, Vec<RcType<N>>),
+    App(Span, RcType, Vec<RcType>),
 }
 
-pub type RcType<N> = Rc<Type<N>>;
+pub type RcType = Rc<Type>;
 
-impl<N: Name> Type<N> {
+impl Type {
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_(span: Span, mut fields: Vec<Field<N, RcType<N>>>) -> Type<N> {
+    pub fn struct_(span: Span, mut fields: Vec<Field<RcType>>) -> Type {
         // We maintain a list of the seen field names. This will allow us to
         // recover the index of these variables as we abstract later fields...
-        let mut seen_names = Vec::<N>::with_capacity(fields.len());
+        let mut seen_names = Vec::<String>::with_capacity(fields.len());
 
         for field in &mut fields {
             for (scope, name) in seen_names.iter().rev().enumerate() {
-                Rc::make_mut(&mut field.value)
-                    .abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
+                Rc::make_mut(&mut field.value).abstract_names_at(&[name], ScopeIndex(scope as u32));
             }
 
             // Record that the field has been 'seen'
@@ -150,13 +149,13 @@ impl<N: Name> Type<N> {
     /// Type abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    pub fn abs<T1>(span: Span, param_names: &[N], body_ty: T1) -> Type<N>
+    pub fn abs<T1>(span: Span, param_names: &[&str], body_ty: T1) -> Type
     where
-        T1: Into<RcType<N>>,
+        T1: Into<RcType>,
     {
         let params = param_names
             .iter()
-            .map(|name| Named(name.clone(), ()))
+            .map(|&name| Named(String::from(name), ()))
             .collect();
 
         let mut body_ty = body_ty.into();
@@ -169,7 +168,7 @@ impl<N: Name> Type<N> {
     ///
     /// Returns `None` if the type is not a struct or the field is not
     /// present in the struct.
-    pub fn lookup_field(&self, name: &N) -> Option<&RcType<N>> {
+    pub fn lookup_field(&self, name: &str) -> Option<&RcType> {
         match *self {
             Type::Struct(_, ref fields) => ast::lookup_field(fields, name),
             _ => None,
@@ -180,7 +179,7 @@ impl<N: Name> Type<N> {
     ///
     /// Returns `None` if the type is not a union or the field is not
     /// present in the union.
-    pub fn lookup_variant(&self, name: &N) -> Option<&(host::RcExpr<N>, RcType<N>)> {
+    pub fn lookup_variant(&self, name: &str) -> Option<&(host::RcExpr, RcType)> {
         match *self {
             Type::Cond(_, ref options) => ast::lookup_field(options, name),
             _ => None,
@@ -189,7 +188,7 @@ impl<N: Name> Type<N> {
 
     /// Replace occurrences of the free variables that exist as keys on
     /// `substs` with their corresponding types.
-    pub fn substitute(&mut self, substs: &Substitutions<N>) {
+    pub fn substitute(&mut self, substs: &Substitutions) {
         let subst_ty = match *self {
             Type::Var(_, Var::Free(ref name)) => match substs.get(name) {
                 None => return,
@@ -243,7 +242,7 @@ impl<N: Name> Type<N> {
         *self = subst_ty.clone();
     }
 
-    pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         match *self {
             Type::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             Type::Const(_) => {}
@@ -286,11 +285,11 @@ impl<N: Name> Type<N> {
     /// This results in a one 'dangling' index, and so care must be taken
     /// to wrap it in another type that marks the introduction of a new
     /// scope.
-    pub fn abstract_names(&mut self, names: &[N]) {
+    pub fn abstract_names(&mut self, names: &[&str]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 
-    fn instantiate_at(&mut self, scope: ScopeIndex, tys: &[RcType<N>]) {
+    fn instantiate_at(&mut self, scope: ScopeIndex, tys: &[RcType]) {
         // FIXME: ensure that expressions are not bound at the same scope
         match *self {
             Type::Var(_, Var::Bound(Named(_, var))) => if var.scope == scope {
@@ -328,12 +327,12 @@ impl<N: Name> Type<N> {
 
     /// Remove one layer of abstraction in the type by replacing the
     /// appropriate bound variables with copies of `ty`.
-    pub fn instantiate(&mut self, tys: &[RcType<N>]) {
+    pub fn instantiate(&mut self, tys: &[RcType]) {
         self.instantiate_at(ScopeIndex(0), tys);
     }
 
     /// Returns the host representation of the binary type
-    pub fn repr(&self) -> host::RcType<N> {
+    pub fn repr(&self) -> host::RcType {
         match *self {
             Type::Var(_, ref v) => Rc::new(host::Type::Var(v.clone())),
             Type::Const(ty_const) => Rc::new(host::Type::Const(ty_const.repr())),
@@ -395,8 +394,7 @@ mod tests {
             fn id() {
                 // λx. x
                 // λ   0
-                let ty: Type<&'static str> =
-                    T::abs(Span::start(), &["x"], T::Var(Span::start(), Var::free("x")));
+                let ty: Type = T::abs(Span::start(), &["x"], T::Var(Span::start(), Var::free("x")));
 
                 assert_debug_snapshot!(ty_abs_id, ty);
             }
@@ -407,7 +405,7 @@ mod tests {
             fn k_combinator() {
                 // λx.λy. x
                 // λ  λ   1
-                let ty: Type<&'static str> = T::abs(
+                let ty: Type = T::abs(
                     Span::start(),
                     &["x"],
                     T::abs(Span::start(), &["y"], T::Var(Span::start(), Var::free("x"))),
@@ -420,7 +418,7 @@ mod tests {
             fn s_combinator() {
                 // λx.λy.λz. x z (y z)
                 // λ  λ  λ   2 0 (1 0)
-                let ty: Type<&'static str> = T::abs(
+                let ty: Type = T::abs(
                     Span::start(),
                     &["x"],
                     T::abs(
@@ -455,7 +453,7 @@ mod tests {
             fn complex() {
                 // λz.(λy. y (λx. x)) (λx. z x)
                 // λ  (λ   0 (λ   0)) (λ   1 0)
-                let ty: Type<&'static str> = T::abs(
+                let ty = T::abs(
                     Span::start(),
                     &["z"],
                     T::App(

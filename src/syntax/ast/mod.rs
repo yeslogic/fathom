@@ -3,7 +3,6 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use name::Name;
 use var::ScopeIndex;
 
 pub mod binary;
@@ -11,29 +10,20 @@ pub mod host;
 
 /// A field in a struct type
 #[derive(Debug, Clone)]
-pub struct Field<N, T> {
+pub struct Field<T> {
     /// Doc comment
     ///
     /// Note: This is ignored for comparison purposes
     pub doc: Rc<str>,
     /// The name of the field
-    pub name: N,
+    pub name: String,
     /// The value that this field is associated with
     pub value: T,
 }
 
-impl<N, T> Field<N, T> {
-    /// Apply the function `f` to the field name and return the wrapped result
-    pub fn map_name<M, F: FnMut(N) -> M>(self, mut f: F) -> Field<M, T> {
-        Field {
-            doc: self.doc,
-            name: f(self.name),
-            value: self.value,
-        }
-    }
-
+impl<T> Field<T> {
     /// Apply the function `f` to the field value and return the wrapped result
-    pub fn map_value<U, F: FnMut(T) -> U>(self, mut f: F) -> Field<N, U> {
+    pub fn map_value<U, F: FnMut(T) -> U>(self, mut f: F) -> Field<U> {
         Field {
             doc: self.doc,
             name: self.name,
@@ -42,17 +32,14 @@ impl<N, T> Field<N, T> {
     }
 }
 
-impl<N: PartialEq, T: PartialEq> PartialEq for Field<N, T> {
-    fn eq(&self, other: &Field<N, T>) -> bool {
+impl<T: PartialEq> PartialEq for Field<T> {
+    fn eq(&self, other: &Field<T>) -> bool {
         // Ignoring doc commment
         self.name == other.name && self.value == other.value
     }
 }
 
-fn lookup_field<'a, N, T>(fields: &'a [Field<N, T>], name: &N) -> Option<&'a T>
-where
-    N: PartialEq,
-{
+fn lookup_field<'a, T>(fields: &'a [Field<T>], name: &str) -> Option<&'a T> {
     fields
         .iter()
         .find(|field| &field.name == name)
@@ -68,41 +55,41 @@ where
 /// }
 /// ```
 #[derive(Debug, Clone)]
-pub struct Definition<N> {
+pub struct Definition {
     /// Doc comment
     ///
     /// Note: This is ignored for comparison purposes
     pub doc: Rc<str>,
     /// The name of the defined type
-    pub name: N,
+    pub name: String,
     /// The binary type
-    pub ty: binary::RcType<N>,
+    pub ty: binary::RcType,
 }
 
-impl<N: PartialEq> PartialEq for Definition<N> {
-    fn eq(&self, other: &Definition<N>) -> bool {
+impl PartialEq for Definition {
+    fn eq(&self, other: &Definition) -> bool {
         // Ignoring doc commment
         self.name == other.name && self.ty == other.ty
     }
 }
 
-pub type Substitutions<N> = BTreeMap<N, binary::Type<N>>;
+pub type Substitutions = BTreeMap<String, binary::Type>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Program<N> {
-    pub definitions: Vec<Definition<N>>,
+pub struct Program {
+    pub definitions: Vec<Definition>,
 }
 
-impl<N: Name> Program<N> {
-    pub fn new(mut definitions: Vec<Definition<N>>) -> Program<N> {
+impl Program {
+    pub fn new(mut definitions: Vec<Definition>) -> Program {
         // We maintain a list of the seen definition names. This will allow us to
         // recover the index of these variables as we abstract later definitions...
-        let mut seen_names = Vec::<N>::new();
+        let mut seen_names = Vec::<String>::new();
 
         for definition in &mut definitions {
             for (level, name) in seen_names.iter().rev().enumerate() {
                 Rc::make_mut(&mut definition.ty)
-                    .abstract_names_at(&[name.clone()], ScopeIndex(level as u32));
+                    .abstract_names_at(&[name], ScopeIndex(level as u32));
             }
 
             // Record that the definition has been 'seen'
@@ -112,14 +99,14 @@ impl<N: Name> Program<N> {
         Program { definitions }
     }
 
-    pub fn substitute(&mut self, substs: &Substitutions<N>) {
+    pub fn substitute(&mut self, substs: &Substitutions) {
         for definition in &mut self.definitions {
             Rc::make_mut(&mut definition.ty).substitute(substs);
         }
     }
 }
 
-pub fn base_defs<N: Name + for<'a> From<&'a str>>() -> Substitutions<N> {
+pub fn base_defs() -> Substitutions {
     use syntax::ast::binary::{Endianness, Type, TypeConst};
 
     btreemap! {

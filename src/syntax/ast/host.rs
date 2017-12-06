@@ -3,7 +3,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use name::{Name, Named};
+use name::Named;
 use source::Span;
 use syntax::ast::{self, Field, Substitutions};
 use var::{ScopeIndex, Var};
@@ -104,54 +104,53 @@ pub enum Binop {
 
 /// A host expression
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr<N> {
+pub enum Expr {
     /// A constant value
     Const(Span, Const),
     /// Primitive expressions
-    Prim(&'static str, RcType<N>),
+    Prim(&'static str, RcType),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
-    Var(Span, Var<N>),
+    Var(Span, Var),
     /// An unary operator expression
-    Unop(Span, Unop, RcExpr<N>),
+    Unop(Span, Unop, RcExpr),
     /// A binary operator expression
-    Binop(Span, Binop, RcExpr<N>, RcExpr<N>),
+    Binop(Span, Binop, RcExpr, RcExpr),
     /// A struct initialization expression
-    Struct(Vec<Field<N, RcExpr<N>>>),
+    Struct(Vec<Field<RcExpr>>),
     /// Field projection, eg: `x.field`
-    Proj(Span, RcExpr<N>, N),
+    Proj(Span, RcExpr, String),
     /// Variant introduction, eg: `.variant1 x : union { variant1 : T }`
     ///
     /// We require a type annotation because we don't have inference
     /// implemented in the type checker yet.
     //
     // TODO: add type inference to remove the need for this annotation
-    Intro(Span, N, RcExpr<N>, RcType<N>),
+    Intro(Span, String, RcExpr, RcType),
     /// Array index, eg: `x[i]`
-    Subscript(Span, RcExpr<N>, RcExpr<N>),
+    Subscript(Span, RcExpr, RcExpr),
     /// Cast expression, eg: `x as u32`
-    Cast(Span, RcExpr<N>, RcType<N>),
+    Cast(Span, RcExpr, RcType),
     /// Abstraction, eg: `\(x : T, ..) -> x`
-    Abs(Span, Vec<Named<N, RcType<N>>>, RcExpr<N>),
+    Abs(Span, Vec<Named<RcType>>, RcExpr),
     /// Application, eg: `f(x, ..)`
-    App(Span, RcExpr<N>, Vec<RcExpr<N>>),
+    App(Span, RcExpr, Vec<RcExpr>),
 }
 
-pub type RcExpr<N> = Rc<Expr<N>>;
+pub type RcExpr = Rc<Expr>;
 
-impl<N: Name> Expr<N> {
+impl Expr {
     /// Abstraction, eg: `\(x : T, ..) -> x`
-    pub fn abs<E1>(span: Span, params: Vec<Named<N, RcType<N>>>, body_expr: E1) -> Expr<N>
+    pub fn abs<E1>(span: Span, params: Vec<Named<RcType>>, body_expr: E1) -> Expr
     where
-        E1: Into<RcExpr<N>>,
+        E1: Into<RcExpr>,
     {
-        let param_names = params
-            .iter()
-            .map(|param| param.0.clone())
-            .collect::<Vec<_>>();
-
         let mut body_expr = body_expr.into();
-        Rc::make_mut(&mut body_expr).abstract_names(&param_names);
+
+        {
+            let param_names = params.iter().map(|param| &*param.0).collect::<Vec<_>>();
+            Rc::make_mut(&mut body_expr).abstract_names(&param_names[..]);
+        }
 
         Expr::Abs(span, params, body_expr)
     }
@@ -160,7 +159,7 @@ impl<N: Name> Expr<N> {
     ///
     /// Returns `None` if the expression is not a struct or the field is not
     /// present in the struct.
-    pub fn lookup_field(&self, name: &N) -> Option<&RcExpr<N>> {
+    pub fn lookup_field(&self, name: &str) -> Option<&RcExpr> {
         match *self {
             Expr::Struct(ref fields) => ast::lookup_field(fields, name),
             _ => None,
@@ -169,7 +168,7 @@ impl<N: Name> Expr<N> {
 
     /// Replace occurrences of the free variables that exist as keys on
     /// `substs` with their corresponding types.
-    pub fn substitute(&mut self, substs: &Substitutions<N>) {
+    pub fn substitute(&mut self, substs: &Substitutions) {
         match *self {
             Expr::Var(_, Var::Free(ref name)) => match substs.get(name) {
                 None => {}
@@ -216,7 +215,7 @@ impl<N: Name> Expr<N> {
         }
     }
 
-    pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         match *self {
             Expr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             Expr::Const(_, _) => {}
@@ -260,7 +259,7 @@ impl<N: Name> Expr<N> {
         }
     }
 
-    pub fn abstract_names(&mut self, names: &[N]) {
+    pub fn abstract_names(&mut self, names: &[&str]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 }
@@ -320,40 +319,40 @@ pub enum TypeConst {
 
 /// A host type
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type<N> {
+pub enum Type {
     /// A type variable: eg. `T`
-    Var(Var<N>),
+    Var(Var),
     /// A type constant
     Const(TypeConst),
     /// Arrow type: eg. `(T, ..) -> U`
-    Arrow(Vec<RcType<N>>, RcType<N>),
+    Arrow(Vec<RcType>, RcType),
     /// An array, eg. `[T]`
-    Array(RcType<N>),
+    Array(RcType),
     /// A union of types: eg. `union { variant : T, ... }`
-    Union(Vec<Field<N, RcType<N>>>),
+    Union(Vec<Field<RcType>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    Struct(Vec<Field<N, RcType<N>>>),
+    Struct(Vec<Field<RcType>>),
     /// Type abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    Abs(Vec<Named<N, ()>>, RcType<N>),
+    Abs(Vec<Named<()>>, RcType),
     /// Type application: eg. `T(U, V)`
-    App(RcType<N>, Vec<RcType<N>>),
+    App(RcType, Vec<RcType>),
 }
 
-pub type RcType<N> = Rc<Type<N>>;
+pub type RcType = Rc<Type>;
 
-impl<N: Name> Type<N> {
+impl Type {
     /// Type abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    pub fn abs<T1>(param_names: &[N], body_ty: T1) -> Type<N>
+    pub fn abs<T1>(param_names: &[&str], body_ty: T1) -> Type
     where
-        T1: Into<RcType<N>>,
+        T1: Into<RcType>,
     {
         let params = param_names
             .iter()
-            .map(|name| Named(name.clone(), ()))
+            .map(|&name| Named(String::from(name), ()))
             .collect();
 
         let mut body_ty = body_ty.into();
@@ -366,7 +365,7 @@ impl<N: Name> Type<N> {
     ///
     /// Returns `None` if the type is not a struct or the field is not
     /// present in the struct.
-    pub fn lookup_field(&self, name: &N) -> Option<&RcType<N>> {
+    pub fn lookup_field(&self, name: &str) -> Option<&RcType> {
         match *self {
             Type::Struct(ref fields) => ast::lookup_field(fields, name),
             _ => None,
@@ -377,7 +376,7 @@ impl<N: Name> Type<N> {
     ///
     /// Returns `None` if the type is not a union or the field is not
     /// present in the union.
-    pub fn lookup_variant(&self, name: &N) -> Option<&RcType<N>> {
+    pub fn lookup_variant(&self, name: &str) -> Option<&RcType> {
         match *self {
             Type::Union(ref variants) => ast::lookup_field(variants, name),
             _ => None,
@@ -386,7 +385,7 @@ impl<N: Name> Type<N> {
 
     /// Replace occurrences of the free variables that exist as keys on
     /// `substs` with their corresponding types.
-    pub fn substitute(&mut self, substs: &Substitutions<N>) {
+    pub fn substitute(&mut self, substs: &Substitutions) {
         *self = match *self {
             Type::Var(Var::Free(ref name)) => match substs.get(name) {
                 None => return,
@@ -433,7 +432,7 @@ impl<N: Name> Type<N> {
         };
     }
 
-    pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         match *self {
             Type::Var(ref mut var) => var.abstract_names_at(names, scope),
             Type::Const(_) => {}
@@ -471,11 +470,11 @@ impl<N: Name> Type<N> {
     /// This results in a one 'dangling' index, and so care must be taken
     /// to wrap it in another type that marks the introduction of a new
     /// scope.
-    pub fn abstract_names(&mut self, names: &[N]) {
+    pub fn abstract_names(&mut self, names: &[&str]) {
         self.abstract_names_at(names, ScopeIndex(0))
     }
 
-    fn instantiate_at(&mut self, scope: ScopeIndex, tys: &[RcType<N>]) {
+    fn instantiate_at(&mut self, scope: ScopeIndex, tys: &[RcType]) {
         // FIXME: ensure that expressions are not bound at the same scope
         match *self {
             Type::Var(Var::Bound(Named(_, var))) => if var.scope == scope {
@@ -513,7 +512,7 @@ impl<N: Name> Type<N> {
 
     /// Remove one layer of abstraction in the type by replacing the
     /// appropriate bound variables with copies of `ty`.
-    pub fn instantiate(&mut self, tys: &[RcType<N>]) {
+    pub fn instantiate(&mut self, tys: &[RcType]) {
         self.instantiate_at(ScopeIndex(0), tys);
     }
 }

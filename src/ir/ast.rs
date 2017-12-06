@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::rc::Rc;
 
-use name::{Name, Named};
+use name::Named;
 pub use syntax::ast::Field;
 pub use syntax::ast::host::{Binop, Const, IntSuffix, TypeConst, Unop};
 pub use syntax::ast::host::{FloatType, SignedType, UnsignedType};
@@ -12,18 +12,18 @@ pub use syntax::ast::binary::{Endianness, TypeConst as BinaryTypeConst};
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Program<N> {
-    pub defs: BTreeMap<Path<N>, Definition<N>>,
+pub struct Program {
+    pub defs: BTreeMap<Path, Definition>,
 }
 
-impl<N: Name> Program<N> {
-    pub fn new() -> Program<N> {
+impl Program {
+    pub fn new() -> Program {
         Program {
             defs: BTreeMap::new(),
         }
     }
 
-    pub fn define<P: Into<Path<N>>>(&mut self, path: P, def: Definition<N>) {
+    pub fn define<P: Into<Path>>(&mut self, path: P, def: Definition) {
         let path = path.into();
         assert!(
             !self.defs.contains_key(&path),
@@ -34,9 +34,9 @@ impl<N: Name> Program<N> {
         self.defs.insert(path, def);
     }
 
-    pub fn define_alias<P, D>(&mut self, path: P, doc: D, ty: RcType<N>)
+    pub fn define_alias<P, D>(&mut self, path: P, doc: D, ty: RcType)
     where
-        P: Into<Path<N>>,
+        P: Into<Path>,
         D: Into<Rc<str>>,
     {
         self.define(path, Definition::Alias(doc.into(), ty));
@@ -46,10 +46,10 @@ impl<N: Name> Program<N> {
         &mut self,
         path: P,
         doc: D,
-        fields: Vec<Field<N, RcType<N>>>,
-        parser: Option<RcParseExpr<N>>,
+        fields: Vec<Field<RcType>>,
+        parser: Option<RcParseExpr>,
     ) where
-        P: Into<Path<N>>,
+        P: Into<Path>,
         D: Into<Rc<str>>,
     {
         self.define(path, Definition::Struct(doc.into(), fields, parser));
@@ -59,10 +59,10 @@ impl<N: Name> Program<N> {
         &mut self,
         path: P,
         doc: D,
-        variants: Vec<Field<N, RcType<N>>>,
-        parser: Option<RcParseExpr<N>>,
+        variants: Vec<Field<RcType>>,
+        parser: Option<RcParseExpr>,
     ) where
-        P: Into<Path<N>>,
+        P: Into<Path>,
         D: Into<Rc<str>>,
     {
         self.define(path, Definition::Union(doc.into(), variants, parser));
@@ -71,29 +71,29 @@ impl<N: Name> Program<N> {
 
 /// A fully qualified path to a type definition
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Path<N> {
+pub struct Path {
     /// The base definition name from the source AST
-    pub base: N,
+    pub base: String,
     /// The path through a structural type in the source AST
-    pub children: Vec<N>,
+    pub children: Vec<String>,
 }
 
-impl<N: Name> Path<N> {
-    pub fn new(base: N) -> Path<N> {
+impl Path {
+    pub fn new(base: String) -> Path {
         Path {
             base,
             children: vec![],
         }
     }
 
-    pub fn append_child<N1: Into<N>>(&self, name: N1) -> Path<N> {
+    pub fn append_child<N: Into<String>>(&self, name: N) -> Path {
         let mut path = self.clone();
         path.children.push(name.into());
         path
     }
 }
 
-impl Path<String> {
+impl Path {
     /// Join path elements to make a camel-case path
     ///
     /// ```rust
@@ -114,7 +114,7 @@ impl Path<String> {
     }
 }
 
-impl<N: fmt::Display> fmt::Display for Path<N> {
+impl fmt::Display for Path {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.base)?;
         for child in &self.children {
@@ -124,9 +124,9 @@ impl<N: fmt::Display> fmt::Display for Path<N> {
     }
 }
 
-impl<'a, N: From<&'a str>> From<&'a str> for Path<N> {
-    fn from(src: &'a str) -> Path<N> {
-        let mut parts = src.split("::").map(N::from);
+impl<'a> From<&'a str> for Path {
+    fn from(src: &'a str) -> Path {
+        let mut parts = src.split("::").map(String::from);
 
         let base = parts.next().unwrap();
         let children = parts.collect();
@@ -139,43 +139,43 @@ impl<'a, N: From<&'a str>> From<&'a str> for Path<N> {
 ///
 /// The names of these are declared when they are stored in the `Program` struct
 #[derive(Debug, Clone, PartialEq)]
-pub enum Definition<N> {
+pub enum Definition {
     /// Type alias
-    Alias(Rc<str>, RcType<N>),
+    Alias(Rc<str>, RcType),
     /// Struct definition
-    Struct(Rc<str>, Vec<Field<N, RcType<N>>>, Option<RcParseExpr<N>>),
+    Struct(Rc<str>, Vec<Field<RcType>>, Option<RcParseExpr>),
     /// Union type definition
-    Union(Rc<str>, Vec<Field<N, RcType<N>>>, Option<RcParseExpr<N>>),
+    Union(Rc<str>, Vec<Field<RcType>>, Option<RcParseExpr>),
 }
 
 /// Structural types
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type<N> {
+pub enum Type {
     /// Type constants
     Const(TypeConst),
     /// A fully qualified path to a type definition
-    Path(Path<N>),
+    Path(Path),
     /// Array types. These are usually available in languages as primitives,
     /// so there is no need to generate new types for these
-    Array(RcType<N>),
+    Array(RcType),
     /// Arrow types.
-    Arrow(Vec<RcType<N>>, RcType<N>),
+    Arrow(Vec<RcType>, RcType),
 }
 
-pub type RcType<N> = Rc<Type<N>>;
+pub type RcType = Rc<Type>;
 
 /// A bounded repitition
 #[derive(Debug, Clone, PartialEq)]
-pub enum RepeatBound<N> {
+pub enum RepeatBound {
     /// A constant expression that bounds the repition
-    Exact(RcExpr<N>),
+    Exact(RcExpr),
 }
 
 /// A small parser combinator language
 #[derive(Debug, Clone, PartialEq)]
-pub enum ParseExpr<N> {
+pub enum ParseExpr {
     /// A reference to another parser
-    Var(Var<N>),
+    Var(Var),
     /// Parse a binary constant
     Const(BinaryTypeConst),
     /// Parse that is repeated for the given bound
@@ -183,9 +183,9 @@ pub enum ParseExpr<N> {
     /// ```plain
     /// p1 ** expr
     /// ```
-    Repeat(RcParseExpr<N>, RepeatBound<N>),
+    Repeat(RcParseExpr, RepeatBound),
     /// Parse that only succeeds if the predicate holds
-    Assert(RcParseExpr<N>, RcExpr<N>),
+    Assert(RcParseExpr, RcExpr),
     /// Parse the subparsers in sequence, binding the results to the specified names
     /// then executing them in the environment of the given expression
     ///
@@ -196,7 +196,7 @@ pub enum ParseExpr<N> {
     /// ```plain
     /// (x : p1) (y : p2) (z : p3) => expr
     /// ```
-    Sequence(Vec<Named<N, RcParseExpr<N>>>, RcExpr<N>),
+    Sequence(Vec<Named<RcParseExpr>>, RcExpr),
     /// Try to match the parsers in order, returning the result of the first on that succeeds
     ///
     /// An empty list of parsers represents a parser that never succeeds
@@ -206,13 +206,13 @@ pub enum ParseExpr<N> {
     /// ```plain
     /// (cond1 => p1) | (cond2 => p2) | (cond3 => p3)
     /// ```
-    Cond(Vec<(RcExpr<N>, RcParseExpr<N>)>),
+    Cond(Vec<(RcExpr, RcParseExpr)>),
     /// Applies the result of one parser to an unary function
-    Apply(RcExpr<N>, RcParseExpr<N>),
+    Apply(RcExpr, RcParseExpr),
 }
 
-impl<N: Name> ParseExpr<N> {
-    pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
+impl ParseExpr {
+    pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         match *self {
             ParseExpr::Var(ref mut var) => var.abstract_names_at(names, scope),
             ParseExpr::Const(_) => {}
@@ -246,33 +246,33 @@ impl<N: Name> ParseExpr<N> {
         }
     }
 
-    pub fn abstract_names(&mut self, names: &[N]) {
+    pub fn abstract_names(&mut self, names: &[&str]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 }
 
-pub type RcParseExpr<N> = Rc<ParseExpr<N>>;
+pub type RcParseExpr = Rc<ParseExpr>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr<N> {
+pub enum Expr {
     Const(Const),
-    Prim(&'static str, RcType<N>),
-    Var(Var<N>),
-    Unop(Unop, RcExpr<N>),
-    Binop(Binop, RcExpr<N>, RcExpr<N>),
-    Struct(Path<N>, Vec<Field<N, RcExpr<N>>>),
-    Proj(RcExpr<N>, N),
-    Intro(Path<N>, N, RcExpr<N>),
-    Subscript(RcExpr<N>, RcExpr<N>),
-    Cast(RcExpr<N>, RcType<N>),
-    Abs(Vec<Named<N, RcType<N>>>, RcExpr<N>),
-    App(RcExpr<N>, Vec<RcExpr<N>>),
+    Prim(&'static str, RcType),
+    Var(Var),
+    Unop(Unop, RcExpr),
+    Binop(Binop, RcExpr, RcExpr),
+    Struct(Path, Vec<Field<RcExpr>>),
+    Proj(RcExpr, String),
+    Intro(Path, String, RcExpr),
+    Subscript(RcExpr, RcExpr),
+    Cast(RcExpr, RcType),
+    Abs(Vec<Named<RcType>>, RcExpr),
+    App(RcExpr, Vec<RcExpr>),
 }
 
-pub type RcExpr<N> = Rc<Expr<N>>;
+pub type RcExpr = Rc<Expr>;
 
-impl<N: Name> Expr<N> {
-    pub fn abstract_names_at(&mut self, names: &[N], scope: ScopeIndex) {
+impl Expr {
+    pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         match *self {
             Expr::Var(ref mut var) => var.abstract_names_at(names, scope),
             Expr::Const(_) | Expr::Prim(_, _) => {}
@@ -311,7 +311,7 @@ impl<N: Name> Expr<N> {
         }
     }
 
-    pub fn abstract_names(&mut self, names: &[N]) {
+    pub fn abstract_names(&mut self, names: &[&str]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 }

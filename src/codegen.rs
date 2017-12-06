@@ -10,7 +10,7 @@ use ir::ast::{BinaryTypeConst, IntSuffix, TypeConst};
 use ir::ast::{FloatType, SignedType, UnsignedType};
 use var::Var;
 
-pub struct LowerProgram<'a>(pub &'a Program<String>);
+pub struct LowerProgram<'a>(pub &'a Program);
 
 impl<'a> fmt::Display for LowerProgram<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -24,7 +24,7 @@ const MAX_WIDTH: usize = 100;
 
 fn lower_program<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
-    program: &'a Program<String>,
+    program: &'a Program,
 ) -> DocBuilder<'doc, A> {
     let version_comment = format!(
         "// auto-generated: \"{} {}\"",
@@ -52,8 +52,8 @@ fn lower_program<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 
 fn lower_definition<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
-    path: &'a Path<String>,
-    definition: &'a Definition<String>,
+    path: &'a Path,
+    definition: &'a Definition,
 ) -> DocBuilder<'doc, A> {
     match *definition {
         Definition::Alias(ref comment, ref ty) => {
@@ -94,8 +94,8 @@ fn lower_doc_comment<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 
 fn lower_alias<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
-    path: &'a Path<String>,
-    ty: &'a Type<String>,
+    path: &'a Path,
+    ty: &'a Type,
 ) -> DocBuilder<'doc, A> {
     doc.text("pub type")
         .append(doc.space())
@@ -112,8 +112,8 @@ fn lower_alias<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 
 fn lower_struct<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
-    path: &'a Path<String>,
-    fields: &'a [Field<String, RcType<String>>],
+    path: &'a Path,
+    fields: &'a [Field<RcType>],
 ) -> DocBuilder<'doc, A> {
     doc.text("#[derive(Debug, Clone)]")
         .append(doc.newline())
@@ -149,8 +149,8 @@ fn lower_struct<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 
 fn lower_union<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
-    path: &'a Path<String>,
-    variants: &'a [Field<String, RcType<String>>],
+    path: &'a Path,
+    variants: &'a [Field<RcType>],
 ) -> DocBuilder<'doc, A> {
     use heck::CamelCase;
 
@@ -187,8 +187,8 @@ fn lower_union<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 
 fn lower_read_impl<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
-    path: &'a Path<String>,
-    parse_expr: &'a ParseExpr<String>,
+    path: &'a Path,
+    parse_expr: &'a ParseExpr,
 ) -> DocBuilder<'doc, A> {
     doc.text("impl")
         .append(doc.space())
@@ -221,7 +221,7 @@ fn lower_read_impl<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 
 fn lower_ty<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
-    ty: &'a Type<String>,
+    ty: &'a Type,
 ) -> DocBuilder<'doc, A> {
     match *ty {
         Type::Path(ref path) => doc.text(path.to_camel_case()),
@@ -285,7 +285,7 @@ enum Prec {
 fn lower_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
     prec: Prec,
-    parse_expr: &'a ParseExpr<String>,
+    parse_expr: &'a ParseExpr,
 ) -> DocBuilder<'doc, A> {
     match *parse_expr {
         ParseExpr::Var(Var::Free(_)) => unimplemented!(),
@@ -363,8 +363,8 @@ fn lower_parse_ty_const<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 fn lower_repeat_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
     prec: Prec,
-    parse_expr: &'a ParseExpr<String>,
-    repeat_bound: &'a RepeatBound<String>,
+    parse_expr: &'a ParseExpr,
+    repeat_bound: &'a RepeatBound,
 ) -> DocBuilder<'doc, A> {
     match *repeat_bound {
         RepeatBound::Exact(ref size_expr) => {
@@ -390,8 +390,8 @@ fn lower_repeat_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 fn lower_assert_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
     prec: Prec,
-    parse_expr: &'a ParseExpr<String>,
-    pred_expr: &'a Expr<String>,
+    parse_expr: &'a ParseExpr,
+    pred_expr: &'a Expr,
 ) -> DocBuilder<'doc, A> {
     let pred = lower_expr(doc, Prec::Block, pred_expr).append(doc.text(")(__value)"));
     let if_true = doc.newline().append(doc.text("Ok(__value)"));
@@ -430,8 +430,8 @@ fn lower_assert_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 fn lower_sequence_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
     prec: Prec,
-    parse_exprs: &'a [Named<String, RcParseExpr<String>>],
-    expr: &'a Expr<String>,
+    parse_exprs: &'a [Named<RcParseExpr>],
+    expr: &'a Expr,
 ) -> DocBuilder<'doc, A> {
     let inner_parser = doc.concat(parse_exprs.iter().map(|&Named(ref name, ref parse_expr)| {
         doc.text("let")
@@ -462,7 +462,7 @@ fn lower_sequence_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 
 fn lower_cond_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
-    options: &'a [(RcExpr<String>, RcParseExpr<String>)],
+    options: &'a [(RcExpr, RcParseExpr)],
 ) -> DocBuilder<'doc, A> {
     if options.is_empty() {
         doc.text("ddl_util::error()")
@@ -504,7 +504,7 @@ fn lower_cond_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     doc: &'doc A,
     prec: Prec,
-    expr: &'a Expr<String>,
+    expr: &'a Expr,
 ) -> DocBuilder<'doc, A> {
     let inner = match *expr {
         // FIXME: Hygiene!
