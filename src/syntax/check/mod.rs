@@ -84,9 +84,6 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
             }),
         },
 
-        // Primitive expressions
-        Expr::Prim(_, ref repr_ty) => Ok(Rc::clone(repr_ty)),
-
         // Unary operators
         Expr::Unop(_, op, ref operand_expr) => {
             use syntax::ast::host::Type::Const;

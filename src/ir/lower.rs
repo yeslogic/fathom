@@ -180,7 +180,6 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
 fn lower_expr(path: &Path, expr: &host::RcExpr) -> RcExpr {
     Rc::new(match **expr {
         host::Expr::Const(_, c) => Expr::Const(c),
-        host::Expr::Prim(name, ref ty) => Expr::Prim(name, lower_repr_ty(path, ty)),
         host::Expr::Var(_, ref var) => Expr::Var(var.clone()),
         host::Expr::Unop(_, op, ref expr) => Expr::Unop(op, lower_expr(path, expr)),
         host::Expr::Binop(_, op, ref lhs, ref rhs) => {

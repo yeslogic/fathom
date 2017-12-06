@@ -107,8 +107,6 @@ pub enum Binop {
 pub enum Expr {
     /// A constant value
     Const(Span, Const),
-    /// Primitive expressions
-    Prim(&'static str, RcType),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     Var(Span, Var),
@@ -175,7 +173,6 @@ impl Expr {
                 Some(ty) => panic!("Expected to substitute an expression, but found {:?}", ty),
             },
             Expr::Var(_, Var::Bound(_)) | Expr::Const(_, _) => {}
-            Expr::Prim(_, ref mut repr_ty) => Rc::make_mut(repr_ty).substitute(substs),
             Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
                 Rc::make_mut(expr).substitute(substs);
             }
@@ -219,7 +216,6 @@ impl Expr {
         match *self {
             Expr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             Expr::Const(_, _) => {}
-            Expr::Prim(_, ref mut repr_ty) => Rc::make_mut(repr_ty).abstract_names_at(names, scope),
             Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
                 Rc::make_mut(expr).abstract_names_at(names, scope);
             }

@@ -516,9 +516,6 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
         Expr::Const(Const::Float(value, suffix)) => doc.as_string(value)
             .append(doc.text(lower_float_ty(suffix))),
 
-        // FXIME: Hygiene!
-        Expr::Prim(name, _) => doc.text("ddl_util::").append(doc.as_string(name)),
-
         Expr::Var(Var::Free(_)) => unimplemented!(),
         Expr::Var(Var::Bound(Named(ref name, _))) => doc.as_string(name),
 

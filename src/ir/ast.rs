@@ -256,7 +256,6 @@ pub type RcParseExpr = Rc<ParseExpr>;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Const(Const),
-    Prim(&'static str, RcType),
     Var(Var),
     Unop(Unop, RcExpr),
     Binop(Binop, RcExpr, RcExpr),
@@ -275,8 +274,7 @@ impl Expr {
     pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         match *self {
             Expr::Var(ref mut var) => var.abstract_names_at(names, scope),
-            Expr::Const(_) | Expr::Prim(_, _) => {}
-            // Expr::Prim(_, ref mut repr_ty) => Rc::make_mut(repr_ty).abstract_names_at(names, scope),
+            Expr::Const(_) => {}
             Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
                 Rc::make_mut(expr).abstract_names_at(names, scope);
             }
