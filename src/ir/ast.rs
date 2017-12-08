@@ -1,6 +1,5 @@
 //! Abstract syntax of the intermediate representation
 
-use std::collections::BTreeMap;
 use std::fmt;
 use std::rc::Rc;
 
@@ -13,25 +12,16 @@ use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
-    pub defs: BTreeMap<Path, Definition>,
+    pub defs: Vec<(Path, Definition)>,
 }
 
 impl Program {
     pub fn new() -> Program {
-        Program {
-            defs: BTreeMap::new(),
-        }
+        Program { defs: Vec::new() }
     }
 
     pub fn define<P: Into<Path>>(&mut self, path: P, def: Definition) {
-        let path = path.into();
-        assert!(
-            !self.defs.contains_key(&path),
-            "Found duplicate top level definition for {}",
-            path
-        );
-
-        self.defs.insert(path, def);
+        self.defs.push((path.into(), def));
     }
 
     pub fn define_alias<P, D>(&mut self, path: P, doc: D, ty: RcType)

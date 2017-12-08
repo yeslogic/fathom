@@ -37,26 +37,54 @@ impl BinData {
     }
 }
 
-/// BSON Document
-///
-/// <http://bsonspec.org/spec.html>
 #[derive(Debug, Clone)]
-pub struct Document {
-    /// Total number of bytes comprising the document.
-    pub len: i32,
-    /// The elements that make up this document
-    pub fields: Vec<Element>,
+pub struct ObjectId {
+    pub epoch_time: i32,
+    pub machine_id: u32,
+    pub process_id: u16,
+    pub counter: u32,
 }
 
-impl Document {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<Document> {
-        let len = ddl_util::from_i32be(reader)?;
-        let fields = (0..1u8).map(|_| Element::read(reader)).collect::<Result<_, _>>()?;
-        Ok::<_, io::Error>(Document {
-            len: len,
-            fields: fields,
+impl ObjectId {
+    pub fn read<R: Read>(reader: &mut R) -> io::Result<ObjectId> {
+        let epoch_time = ddl_util::from_i32be(reader)?;
+        let machine_id = ddl_util::from_u24be(reader)?;
+        let process_id = ddl_util::from_u16be(reader)?;
+        let counter = ddl_util::from_u24be(reader)?;
+        Ok::<_, io::Error>(ObjectId {
+            epoch_time: epoch_time,
+            machine_id: machine_id,
+            process_id: process_id,
+            counter: counter,
         })
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum ElementContent {
+    /// 64-bit floating point
+    Double(f64),
+    /// Binary data
+    BinData(BinData),
+    /// Undefined (value) - deprecated
+    Undefined(()),
+    /// ObjectId
+    ObjectId(ObjectId),
+    /// Boolean
+    ///
+    /// - `0x00`: false
+    /// - `0x01`: true
+    Boolean(u8),
+    /// UTC datetime
+    UtcDatetime(i64),
+    /// Null value
+    Null(()),
+    /// 32-bit integer
+    Int(i32),
+    /// Timestamp
+    Timestamp(u64),
+    /// 64-bit integer
+    Long(i64),
 }
 
 #[derive(Debug, Clone)]
@@ -126,52 +154,24 @@ impl Element {
     }
 }
 
+/// BSON Document
+///
+/// <http://bsonspec.org/spec.html>
 #[derive(Debug, Clone)]
-pub enum ElementContent {
-    /// 64-bit floating point
-    Double(f64),
-    /// Binary data
-    BinData(BinData),
-    /// Undefined (value) - deprecated
-    Undefined(()),
-    /// ObjectId
-    ObjectId(ObjectId),
-    /// Boolean
-    ///
-    /// - `0x00`: false
-    /// - `0x01`: true
-    Boolean(u8),
-    /// UTC datetime
-    UtcDatetime(i64),
-    /// Null value
-    Null(()),
-    /// 32-bit integer
-    Int(i32),
-    /// Timestamp
-    Timestamp(u64),
-    /// 64-bit integer
-    Long(i64),
+pub struct Document {
+    /// Total number of bytes comprising the document.
+    pub len: i32,
+    /// The elements that make up this document
+    pub fields: Vec<Element>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ObjectId {
-    pub epoch_time: i32,
-    pub machine_id: u32,
-    pub process_id: u16,
-    pub counter: u32,
-}
-
-impl ObjectId {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<ObjectId> {
-        let epoch_time = ddl_util::from_i32be(reader)?;
-        let machine_id = ddl_util::from_u24be(reader)?;
-        let process_id = ddl_util::from_u16be(reader)?;
-        let counter = ddl_util::from_u24be(reader)?;
-        Ok::<_, io::Error>(ObjectId {
-            epoch_time: epoch_time,
-            machine_id: machine_id,
-            process_id: process_id,
-            counter: counter,
+impl Document {
+    pub fn read<R: Read>(reader: &mut R) -> io::Result<Document> {
+        let len = ddl_util::from_i32be(reader)?;
+        let fields = (0..1u8).map(|_| Element::read(reader)).collect::<Result<_, _>>()?;
+        Ok::<_, io::Error>(Document {
+            len: len,
+            fields: fields,
         })
     }
 }

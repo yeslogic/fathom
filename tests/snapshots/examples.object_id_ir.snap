@@ -1,110 +1,113 @@
 Program {
-    defs: {
-        Path {
-            base: "ObjectId",
-            children: []
-        }: Struct(
-            "https://docs.mongodb.com/manual/reference/method/ObjectId/",
-            [
-                Field {
-                    doc: "",
-                    name: "epoch_time",
-                    value: Const(
-                        Signed(
-                            I32
-                        )
-                    )
-                },
-                Field {
-                    doc: "",
-                    name: "machine_id",
-                    value: Const(
-                        Unsigned(
-                            U24
-                        )
-                    )
-                },
-                Field {
-                    doc: "",
-                    name: "process_id",
-                    value: Const(
-                        Unsigned(
-                            U16
-                        )
-                    )
-                },
-                Field {
-                    doc: "",
-                    name: "counter",
-                    value: Const(
-                        Unsigned(
-                            U24
-                        )
-                    )
-                }
-            ],
-            Some(
-                Sequence(
-                    [
-                        Named("epoch_time", Const(
-                            I32(
-                                Big
+    defs: [
+        (
+            Path {
+                base: "ObjectId",
+                children: []
+            },
+            Struct(
+                "https://docs.mongodb.com/manual/reference/method/ObjectId/",
+                [
+                    Field {
+                        doc: "",
+                        name: "epoch_time",
+                        value: Const(
+                            Signed(
+                                I32
                             )
-                        )),
-                        Named("machine_id", Const(
-                            U24(
-                                Big
+                        )
+                    },
+                    Field {
+                        doc: "",
+                        name: "machine_id",
+                        value: Const(
+                            Unsigned(
+                                U24
                             )
-                        )),
-                        Named("process_id", Const(
-                            U16(
-                                Big
+                        )
+                    },
+                    Field {
+                        doc: "",
+                        name: "process_id",
+                        value: Const(
+                            Unsigned(
+                                U16
                             )
-                        )),
-                        Named("counter", Const(
-                            U24(
-                                Big
+                        )
+                    },
+                    Field {
+                        doc: "",
+                        name: "counter",
+                        value: Const(
+                            Unsigned(
+                                U24
                             )
-                        ))
-                    ],
-                    Struct(
-                        Path {
-                            base: "ObjectId",
-                            children: []
-                        },
+                        )
+                    }
+                ],
+                Some(
+                    Sequence(
                         [
-                            Field {
-                                doc: "",
-                                name: "epoch_time",
-                                value: Var(
-                                    Bound(Named("epoch_time", BoundVar(3, 0)))
+                            Named("epoch_time", Const(
+                                I32(
+                                    Big
                                 )
+                            )),
+                            Named("machine_id", Const(
+                                U24(
+                                    Big
+                                )
+                            )),
+                            Named("process_id", Const(
+                                U16(
+                                    Big
+                                )
+                            )),
+                            Named("counter", Const(
+                                U24(
+                                    Big
+                                )
+                            ))
+                        ],
+                        Struct(
+                            Path {
+                                base: "ObjectId",
+                                children: []
                             },
-                            Field {
-                                doc: "",
-                                name: "machine_id",
-                                value: Var(
-                                    Bound(Named("machine_id", BoundVar(2, 0)))
-                                )
-                            },
-                            Field {
-                                doc: "",
-                                name: "process_id",
-                                value: Var(
-                                    Bound(Named("process_id", BoundVar(1, 0)))
-                                )
-                            },
-                            Field {
-                                doc: "",
-                                name: "counter",
-                                value: Var(
-                                    Bound(Named("counter", BoundVar(0, 0)))
-                                )
-                            }
-                        ]
+                            [
+                                Field {
+                                    doc: "",
+                                    name: "epoch_time",
+                                    value: Var(
+                                        Bound(Named("epoch_time", BoundVar(3, 0)))
+                                    )
+                                },
+                                Field {
+                                    doc: "",
+                                    name: "machine_id",
+                                    value: Var(
+                                        Bound(Named("machine_id", BoundVar(2, 0)))
+                                    )
+                                },
+                                Field {
+                                    doc: "",
+                                    name: "process_id",
+                                    value: Var(
+                                        Bound(Named("process_id", BoundVar(1, 0)))
+                                    )
+                                },
+                                Field {
+                                    doc: "",
+                                    name: "counter",
+                                    value: Var(
+                                        Bound(Named("counter", BoundVar(0, 0)))
+                                    )
+                                }
+                            ]
+                        )
                     )
                 )
             )
         )
-    }
+    ]
 }

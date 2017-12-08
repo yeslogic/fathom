@@ -1,281 +1,290 @@
 Program {
-    defs: {
-        Path {
-            base: "Stl",
-            children: []
-        }: Struct(
-            "https://en.wikipedia.org/wiki/STL_(file_format)",
-            [
-                Field {
-                    doc: "Generally ignored",
-                    name: "header",
-                    value: Array(
-                        Const(
-                            Unsigned(
-                                U8
+    defs: [
+        (
+            Path {
+                base: "Vec3d",
+                children: []
+            },
+            Struct(
+                "",
+                [
+                    Field {
+                        doc: "",
+                        name: "x",
+                        value: Const(
+                            Float(
+                                F32
                             )
                         )
-                    )
-                },
-                Field {
-                    doc: "Number of triangles that follow",
-                    name: "num_triangles",
-                    value: Const(
-                        Unsigned(
-                            U32
+                    },
+                    Field {
+                        doc: "",
+                        name: "y",
+                        value: Const(
+                            Float(
+                                F32
+                            )
                         )
-                    )
-                },
-                Field {
-                    doc: "The triangle data",
-                    name: "triangles",
-                    value: Array(
-                        Path(
-                            Path {
-                                base: "Triangle",
-                                children: []
-                            }
+                    },
+                    Field {
+                        doc: "",
+                        name: "z",
+                        value: Const(
+                            Float(
+                                F32
+                            )
                         )
-                    )
-                }
-            ],
-            Some(
-                Sequence(
-                    [
-                        Named("header", Repeat(
-                            Const(
-                                U8
-                            ),
-                            Exact(
-                                Const(
-                                    Int(80, Unsigned(U8))
-                                )
-                            )
-                        )),
-                        Named("num_triangles", Const(
-                            U32(
-                                Little
-                            )
-                        )),
-                        Named("triangles", Repeat(
-                            Var(
-                                Bound(Named("Triangle", BoundVar(2, 0)))
-                            ),
-                            Exact(
-                                Var(
-                                    Bound(Named("num_triangles", BoundVar(0, 0)))
-                                )
-                            )
-                        ))
-                    ],
-                    Struct(
-                        Path {
-                            base: "Stl",
-                            children: []
-                        },
+                    }
+                ],
+                Some(
+                    Sequence(
                         [
-                            Field {
-                                doc: "Generally ignored",
-                                name: "header",
-                                value: Var(
-                                    Bound(Named("header", BoundVar(2, 0)))
+                            Named("x", Const(
+                                F32(
+                                    Little
                                 )
+                            )),
+                            Named("y", Const(
+                                F32(
+                                    Little
+                                )
+                            )),
+                            Named("z", Const(
+                                F32(
+                                    Little
+                                )
+                            ))
+                        ],
+                        Struct(
+                            Path {
+                                base: "Vec3d",
+                                children: []
                             },
-                            Field {
-                                doc: "Number of triangles that follow",
-                                name: "num_triangles",
-                                value: Var(
-                                    Bound(Named("num_triangles", BoundVar(1, 0)))
-                                )
-                            },
-                            Field {
-                                doc: "The triangle data",
-                                name: "triangles",
-                                value: Var(
-                                    Bound(Named("triangles", BoundVar(0, 0)))
-                                )
-                            }
-                        ]
+                            [
+                                Field {
+                                    doc: "",
+                                    name: "x",
+                                    value: Var(
+                                        Bound(Named("x", BoundVar(2, 0)))
+                                    )
+                                },
+                                Field {
+                                    doc: "",
+                                    name: "y",
+                                    value: Var(
+                                        Bound(Named("y", BoundVar(1, 0)))
+                                    )
+                                },
+                                Field {
+                                    doc: "",
+                                    name: "z",
+                                    value: Var(
+                                        Bound(Named("z", BoundVar(0, 0)))
+                                    )
+                                }
+                            ]
+                        )
                     )
                 )
             )
         ),
-        Path {
-            base: "Triangle",
-            children: []
-        }: Struct(
-            "",
-            [
-                Field {
-                    doc: "Normal vector",
-                    name: "normal",
-                    value: Path(
-                        Path {
-                            base: "Vec3d",
-                            children: []
-                        }
-                    )
-                },
-                Field {
-                    doc: "Coordinates of the vertices",
-                    name: "vertices",
-                    value: Array(
-                        Path(
+        (
+            Path {
+                base: "Triangle",
+                children: []
+            },
+            Struct(
+                "",
+                [
+                    Field {
+                        doc: "Normal vector",
+                        name: "normal",
+                        value: Path(
                             Path {
                                 base: "Vec3d",
                                 children: []
                             }
                         )
-                    )
-                },
-                Field {
-                    doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
-                    name: "attribute_bytes",
-                    value: Const(
-                        Unsigned(
-                            U16
+                    },
+                    Field {
+                        doc: "Coordinates of the vertices",
+                        name: "vertices",
+                        value: Array(
+                            Path(
+                                Path {
+                                    base: "Vec3d",
+                                    children: []
+                                }
+                            )
                         )
-                    )
-                }
-            ],
-            Some(
-                Sequence(
-                    [
-                        Named("normal", Var(
-                            Bound(Named("Vec3d", BoundVar(0, 0)))
-                        )),
-                        Named("vertices", Repeat(
-                            Var(
-                                Bound(Named("Vec3d", BoundVar(1, 0)))
-                            ),
-                            Exact(
-                                Const(
-                                    Int(3, Unsigned(U8))
-                                )
+                    },
+                    Field {
+                        doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
+                        name: "attribute_bytes",
+                        value: Const(
+                            Unsigned(
+                                U16
                             )
-                        )),
-                        Named("attribute_bytes", Const(
-                            U16(
-                                Little
-                            )
-                        ))
-                    ],
-                    Struct(
-                        Path {
-                            base: "Triangle",
-                            children: []
-                        },
+                        )
+                    }
+                ],
+                Some(
+                    Sequence(
                         [
-                            Field {
-                                doc: "Normal vector",
-                                name: "normal",
-                                value: Var(
-                                    Bound(Named("normal", BoundVar(2, 0)))
+                            Named("normal", Var(
+                                Bound(Named("Vec3d", BoundVar(0, 0)))
+                            )),
+                            Named("vertices", Repeat(
+                                Var(
+                                    Bound(Named("Vec3d", BoundVar(1, 0)))
+                                ),
+                                Exact(
+                                    Const(
+                                        Int(3, Unsigned(U8))
+                                    )
                                 )
+                            )),
+                            Named("attribute_bytes", Const(
+                                U16(
+                                    Little
+                                )
+                            ))
+                        ],
+                        Struct(
+                            Path {
+                                base: "Triangle",
+                                children: []
                             },
-                            Field {
-                                doc: "Coordinates of the vertices",
-                                name: "vertices",
-                                value: Var(
-                                    Bound(Named("vertices", BoundVar(1, 0)))
-                                )
-                            },
-                            Field {
-                                doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
-                                name: "attribute_bytes",
-                                value: Var(
-                                    Bound(Named("attribute_bytes", BoundVar(0, 0)))
-                                )
-                            }
-                        ]
+                            [
+                                Field {
+                                    doc: "Normal vector",
+                                    name: "normal",
+                                    value: Var(
+                                        Bound(Named("normal", BoundVar(2, 0)))
+                                    )
+                                },
+                                Field {
+                                    doc: "Coordinates of the vertices",
+                                    name: "vertices",
+                                    value: Var(
+                                        Bound(Named("vertices", BoundVar(1, 0)))
+                                    )
+                                },
+                                Field {
+                                    doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
+                                    name: "attribute_bytes",
+                                    value: Var(
+                                        Bound(Named("attribute_bytes", BoundVar(0, 0)))
+                                    )
+                                }
+                            ]
+                        )
                     )
                 )
             )
         ),
-        Path {
-            base: "Vec3d",
-            children: []
-        }: Struct(
-            "",
-            [
-                Field {
-                    doc: "",
-                    name: "x",
-                    value: Const(
-                        Float(
-                            F32
-                        )
-                    )
-                },
-                Field {
-                    doc: "",
-                    name: "y",
-                    value: Const(
-                        Float(
-                            F32
-                        )
-                    )
-                },
-                Field {
-                    doc: "",
-                    name: "z",
-                    value: Const(
-                        Float(
-                            F32
-                        )
-                    )
-                }
-            ],
-            Some(
-                Sequence(
-                    [
-                        Named("x", Const(
-                            F32(
-                                Little
+        (
+            Path {
+                base: "Stl",
+                children: []
+            },
+            Struct(
+                "https://en.wikipedia.org/wiki/STL_(file_format)",
+                [
+                    Field {
+                        doc: "Generally ignored",
+                        name: "header",
+                        value: Array(
+                            Const(
+                                Unsigned(
+                                    U8
+                                )
                             )
-                        )),
-                        Named("y", Const(
-                            F32(
-                                Little
+                        )
+                    },
+                    Field {
+                        doc: "Number of triangles that follow",
+                        name: "num_triangles",
+                        value: Const(
+                            Unsigned(
+                                U32
                             )
-                        )),
-                        Named("z", Const(
-                            F32(
-                                Little
+                        )
+                    },
+                    Field {
+                        doc: "The triangle data",
+                        name: "triangles",
+                        value: Array(
+                            Path(
+                                Path {
+                                    base: "Triangle",
+                                    children: []
+                                }
                             )
-                        ))
-                    ],
-                    Struct(
-                        Path {
-                            base: "Vec3d",
-                            children: []
-                        },
+                        )
+                    }
+                ],
+                Some(
+                    Sequence(
                         [
-                            Field {
-                                doc: "",
-                                name: "x",
-                                value: Var(
-                                    Bound(Named("x", BoundVar(2, 0)))
+                            Named("header", Repeat(
+                                Const(
+                                    U8
+                                ),
+                                Exact(
+                                    Const(
+                                        Int(80, Unsigned(U8))
+                                    )
                                 )
+                            )),
+                            Named("num_triangles", Const(
+                                U32(
+                                    Little
+                                )
+                            )),
+                            Named("triangles", Repeat(
+                                Var(
+                                    Bound(Named("Triangle", BoundVar(2, 0)))
+                                ),
+                                Exact(
+                                    Var(
+                                        Bound(Named("num_triangles", BoundVar(0, 0)))
+                                    )
+                                )
+                            ))
+                        ],
+                        Struct(
+                            Path {
+                                base: "Stl",
+                                children: []
                             },
-                            Field {
-                                doc: "",
-                                name: "y",
-                                value: Var(
-                                    Bound(Named("y", BoundVar(1, 0)))
-                                )
-                            },
-                            Field {
-                                doc: "",
-                                name: "z",
-                                value: Var(
-                                    Bound(Named("z", BoundVar(0, 0)))
-                                )
-                            }
-                        ]
+                            [
+                                Field {
+                                    doc: "Generally ignored",
+                                    name: "header",
+                                    value: Var(
+                                        Bound(Named("header", BoundVar(2, 0)))
+                                    )
+                                },
+                                Field {
+                                    doc: "Number of triangles that follow",
+                                    name: "num_triangles",
+                                    value: Var(
+                                        Bound(Named("num_triangles", BoundVar(1, 0)))
+                                    )
+                                },
+                                Field {
+                                    doc: "The triangle data",
+                                    name: "triangles",
+                                    value: Var(
+                                        Bound(Named("triangles", BoundVar(0, 0)))
+                                    )
+                                }
+                            ]
+                        )
                     )
                 )
             )
         )
-    }
+    ]
 }

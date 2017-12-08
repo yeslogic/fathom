@@ -43,7 +43,9 @@ fn lower_program<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
         .append({
             let defs = program.defs.iter();
             doc.intersperse(
-                defs.map(|(path, definition)| lower_definition(doc, path, definition)),
+                defs.map(|&(ref path, ref definition)| {
+                    lower_definition(doc, path, definition)
+                }),
                 doc.newline().append(doc.newline()),
             )
         })

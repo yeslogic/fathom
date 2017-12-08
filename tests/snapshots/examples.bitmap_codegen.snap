@@ -6,6 +6,35 @@ use std::io;
 use std::io::prelude::*;
 
 #[derive(Debug, Clone)]
+pub struct Pixel {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
+
+impl Pixel {
+    pub fn read<R: Read>(reader: &mut R) -> io::Result<Pixel> {
+        let r = ddl_util::from_u8(reader)?;
+        let g = ddl_util::from_u8(reader)?;
+        let b = ddl_util::from_u8(reader)?;
+        let a = ddl_util::from_u8(reader)?;
+        Ok::<_, io::Error>(Pixel {
+            r: r,
+            g: g,
+            b: b,
+            a: a,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BitmapExtents {
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Debug, Clone)]
 pub struct Bitmap {
     pub extents: BitmapExtents,
     pub data: Vec<Pixel>,
@@ -32,34 +61,5 @@ impl Bitmap {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct BitmapExtents {
-    pub width: u32,
-    pub height: u32,
-}
-
 pub type Bmp = Bitmap;
-
-#[derive(Debug, Clone)]
-pub struct Pixel {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-    pub a: u8,
-}
-
-impl Pixel {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<Pixel> {
-        let r = ddl_util::from_u8(reader)?;
-        let g = ddl_util::from_u8(reader)?;
-        let b = ddl_util::from_u8(reader)?;
-        let a = ddl_util::from_u8(reader)?;
-        Ok::<_, io::Error>(Pixel {
-            r: r,
-            g: g,
-            b: b,
-            a: a,
-        })
-    }
-}
 
