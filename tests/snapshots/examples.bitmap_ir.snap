@@ -6,6 +6,7 @@ Program {
                 base: "Pixel",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -109,6 +110,7 @@ Program {
                     "extents"
                 ]
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -139,6 +141,7 @@ Program {
                 base: "Bitmap",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -150,7 +153,8 @@ Program {
                                 children: [
                                     "extents"
                                 ]
-                            }
+                            },
+                            []
                         )
                     },
                     Field {
@@ -161,7 +165,8 @@ Program {
                                 Path {
                                     base: "Pixel",
                                     children: []
-                                }
+                                },
+                                []
                             )
                         )
                     }
@@ -262,12 +267,14 @@ Program {
                 base: "Bmp",
                 children: []
             },
+            params: [],
             item: Alias(
                 Path(
                     Path {
                         base: "Bitmap",
                         children: []
-                    }
+                    },
+                    []
                 )
             )
         }

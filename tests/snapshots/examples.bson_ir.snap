@@ -6,6 +6,7 @@ Program {
                 base: "BinData",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -106,6 +107,7 @@ Program {
                 base: "ObjectId",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -217,6 +219,7 @@ Program {
                     "content"
                 ]
             },
+            params: [],
             item: Union(
                 [
                     Field {
@@ -235,7 +238,8 @@ Program {
                             Path {
                                 base: "BinData",
                                 children: []
-                            }
+                            },
+                            []
                         )
                     },
                     Field {
@@ -252,7 +256,8 @@ Program {
                             Path {
                                 base: "ObjectId",
                                 children: []
-                            }
+                            },
+                            []
                         )
                     },
                     Field {
@@ -317,6 +322,7 @@ Program {
                 base: "Element",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -337,7 +343,8 @@ Program {
                                 children: [
                                     "content"
                                 ]
-                            }
+                            },
+                            []
                         )
                     }
                 ],
@@ -694,6 +701,7 @@ Program {
                 base: "Document",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -713,7 +721,8 @@ Program {
                                 Path {
                                     base: "Element",
                                     children: []
-                                }
+                                },
+                                []
                             )
                         )
                     }

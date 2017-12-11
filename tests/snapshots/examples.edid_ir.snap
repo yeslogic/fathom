@@ -6,6 +6,7 @@ Program {
                 base: "Header",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -255,6 +256,7 @@ Program {
                 base: "DisplayParams",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -425,6 +427,7 @@ Program {
                 base: "Edid",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -434,7 +437,8 @@ Program {
                             Path {
                                 base: "Header",
                                 children: []
-                            }
+                            },
+                            []
                         )
                     },
                     Field {
@@ -444,7 +448,8 @@ Program {
                             Path {
                                 base: "DisplayParams",
                                 children: []
-                            }
+                            },
+                            []
                         )
                     }
                 ],

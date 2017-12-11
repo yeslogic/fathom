@@ -59,32 +59,39 @@ fn lower_definition<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     definition: &'a Definition,
 ) -> DocBuilder<'alloc, A> {
-    match definition.item {
-        Item::Alias(ref ty) => lower_doc_comment(alloc, &definition.doc)
-            .append(lower_alias(alloc, &definition.path, ty)),
+    lower_doc_comment(alloc, &definition.doc).append(match definition.item {
+        Item::Alias(ref ty) => lower_alias(alloc, &definition.path, &definition.params, ty),
         Item::Struct(ref fields, ref parse_expr) => {
-            let item = lower_doc_comment(alloc, &definition.doc)
-                .append(lower_struct(alloc, &definition.path, fields));
+            let item = lower_struct(alloc, &definition.path, &definition.params, fields);
 
             match *parse_expr {
                 None => item,
                 Some(ref parse_expr) => item.append(alloc.newline())
                     .append(alloc.newline())
-                    .append(lower_read_impl(alloc, &definition.path, parse_expr)),
+                    .append(lower_read_impl(
+                        alloc,
+                        &definition.path,
+                        &definition.params,
+                        parse_expr,
+                    )),
             }
         }
         Item::Union(ref variants, ref parse_expr) => {
-            let item = lower_doc_comment(alloc, &definition.doc)
-                .append(lower_union(alloc, &definition.path, variants));
+            let item = lower_union(alloc, &definition.path, &definition.params, variants);
 
             match *parse_expr {
                 None => item,
                 Some(ref parse_expr) => item.append(alloc.newline())
                     .append(alloc.newline())
-                    .append(lower_read_impl(alloc, &definition.path, parse_expr)),
+                    .append(lower_read_impl(
+                        alloc,
+                        &definition.path,
+                        &definition.params,
+                        parse_expr,
+                    )),
             }
         }
-    }
+    })
 }
 
 fn lower_doc_comment<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
@@ -104,6 +111,7 @@ fn lower_doc_comment<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
+    _params: &[String],
     ty: &'a Type,
 ) -> DocBuilder<'alloc, A> {
     alloc.text("pub type")
@@ -122,6 +130,7 @@ fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
+    _params: &[String],
     fields: &'a [Field<RcType>],
 ) -> DocBuilder<'alloc, A> {
     alloc.text("#[derive(Debug, Clone)]")
@@ -159,6 +168,7 @@ fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
+    _params: &[String],
     variants: &'a [Field<RcType>],
 ) -> DocBuilder<'alloc, A> {
     use heck::CamelCase;
@@ -197,6 +207,7 @@ fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_read_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
+    _params: &[String],
     parse_expr: &'a ParseExpr,
 ) -> DocBuilder<'alloc, A> {
     alloc
@@ -237,7 +248,15 @@ fn lower_ty<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     ty: &'a Type,
 ) -> DocBuilder<'alloc, A> {
     match *ty {
-        Type::Path(ref path) => alloc.text(path.to_camel_case()),
+        Type::Path(ref path, ref args) if args.is_empty() => alloc.text(path.to_camel_case()),
+        Type::Path(ref path, ref args) => alloc
+            .text(path.to_camel_case())
+            .append(alloc.text("<"))
+            .append(alloc.intersperse(
+                args.iter().map(|arg| lower_ty(alloc, arg)),
+                alloc.text(",").append(alloc.space()),
+            ))
+            .append(alloc.text(">")),
         Type::Array(ref ty) => alloc
             .text("Vec<")
             .append(lower_ty(alloc, ty))

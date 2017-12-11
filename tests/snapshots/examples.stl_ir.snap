@@ -6,6 +6,7 @@ Program {
                 base: "Vec3d",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -94,6 +95,7 @@ Program {
                 base: "Triangle",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -103,7 +105,8 @@ Program {
                             Path {
                                 base: "Vec3d",
                                 children: []
-                            }
+                            },
+                            []
                         )
                     },
                     Field {
@@ -114,7 +117,8 @@ Program {
                                 Path {
                                     base: "Vec3d",
                                     children: []
-                                }
+                                },
+                                []
                             )
                         )
                     },
@@ -189,6 +193,7 @@ Program {
                 base: "Stl",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {
@@ -219,7 +224,8 @@ Program {
                                 Path {
                                     base: "Triangle",
                                     children: []
-                                }
+                                },
+                                []
                             )
                         )
                     }

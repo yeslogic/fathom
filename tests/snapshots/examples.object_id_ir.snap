@@ -6,6 +6,7 @@ Program {
                 base: "ObjectId",
                 children: []
             },
+            params: [],
             item: Struct(
                 [
                     Field {

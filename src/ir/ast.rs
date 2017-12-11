@@ -100,6 +100,8 @@ pub struct Definition {
     pub doc: Rc<str>,
     /// The path of this definition (should be unique)
     pub path: Path,
+    /// Type parameters for the definition
+    pub params: Vec<String>,
     /// The defined item
     pub item: Item,
 }
@@ -121,7 +123,7 @@ pub enum Type {
     /// Type constants
     Const(TypeConst),
     /// A fully qualified path to a type definition
-    Path(Path),
+    Path(Path, Vec<RcType>),
     /// Array types. These are usually available in languages as primitives,
     /// so there is no need to generate new types for these
     Array(RcType),

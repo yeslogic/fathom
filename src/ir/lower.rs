@@ -33,9 +33,10 @@ impl<'a> From<&'a syntax::ast::Program> for Program {
                     Item::Struct(lowered_fields, Some(parse_expr))
                 }
                 binary::Type::Cond(_, ref options) => {
-                    let lowered_variants = lower_row(&path, options, |option_path, &(_, ref ty)| {
-                        lower_ty(&mut program, &option_path, ty)
-                    });
+                    let lowered_variants =
+                        lower_row(&path, options, |option_path, &(_, ref ty)| {
+                            lower_ty(&mut program, &option_path, ty)
+                        });
                     let parse_expr = cond_parser(&path, options);
 
                     Item::Union(lowered_variants, Some(parse_expr))
@@ -47,6 +48,7 @@ impl<'a> From<&'a syntax::ast::Program> for Program {
             program.define(Definition {
                 doc: Rc::clone(&definition.doc),
                 path,
+                params: vec![],
                 item,
             });
         }
@@ -84,7 +86,7 @@ where
 /// Lower a type variable to an IR type
 fn lower_ty_var(var: &Var) -> RcType {
     Rc::new(match *var {
-        Var::Bound(Named(ref name, _)) => Type::Path(Path::new(name.to_string())),
+        Var::Bound(Named(ref name, _)) => Type::Path(Path::new(name.to_string()), vec![]),
         Var::Free(_) => unimplemented!(),
     })
 }
@@ -117,10 +119,11 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
             program.define(Definition {
                 doc: "".into(),
                 path: path.clone(),
+                params: vec![],
                 item: Item::Union(lowered_variants, None),
             });
 
-            Type::Path(path.clone())
+            Type::Path(path.clone(), vec![])
         }
         binary::Type::Struct(_, ref fields) => {
             let lowered_fields = lower_row(path, fields, |field_path, ty| {
@@ -129,10 +132,11 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
             program.define(Definition {
                 doc: "".into(),
                 path: path.clone(),
+                params: vec![],
                 item: Item::Struct(lowered_fields, None),
             });
 
-            Type::Path(path.clone())
+            Type::Path(path.clone(), vec![])
         }
         binary::Type::Abs(_, _, _) => unimplemented!(),
         binary::Type::App(_, _, _) => unimplemented!(),
@@ -167,7 +171,7 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
         host::Type::Union(_) | host::Type::Struct(_) => {
             // We expect that the repr type has already had a corresponding type
             // generated for it, so instead we just return the current path.
-            Type::Path(path.clone())
+            Type::Path(path.clone(), vec![])
         }
         host::Type::Abs(_, _) => unimplemented!(),
         host::Type::App(_, _) => unimplemented!(),
@@ -189,11 +193,9 @@ fn lower_expr(path: &Path, expr: &host::RcExpr) -> RcExpr {
             Expr::Binop(op, lower_expr(path, lhs), lower_expr(path, rhs))
         }
         host::Expr::Struct(ref fields) => {
-            let lowered_fields = lower_row(
-                path,
-                fields,
-                |field_path, expr| lower_expr(&field_path, expr),
-            );
+            let lowered_fields = lower_row(path, fields, |field_path, expr| {
+                lower_expr(&field_path, expr)
+            });
 
             Expr::Struct(path.clone(), lowered_fields)
         }
@@ -208,9 +210,7 @@ fn lower_expr(path: &Path, expr: &host::RcExpr) -> RcExpr {
         host::Expr::Abs(_, ref params, ref body_expr) => {
             let lowered_params = params
                 .iter()
-                .map(|&Named(ref name, ref ty)| {
-                    Named(name.clone(), lower_repr_ty(path, ty))
-                })
+                .map(|&Named(ref name, ref ty)| Named(name.clone(), lower_repr_ty(path, ty)))
                 .collect();
 
             Expr::Abs(lowered_params, lower_expr(path, body_expr))
