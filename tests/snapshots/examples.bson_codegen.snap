@@ -2,6 +2,7 @@
 
 extern crate ddl_util;
 
+use self::ddl_util::FromBinary;
 use std::io;
 use std::io::prelude::*;
 
@@ -24,11 +25,11 @@ pub struct BinData {
     pub data: Vec<u8>,
 }
 
-impl BinData {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<BinData> {
+impl FromBinary for BinData {
+    fn from_binary<R: Read>(reader: &mut R) -> io::Result<BinData> {
         let len = ddl_util::from_i32be(reader)?;
         let subtype = ddl_util::from_u8(reader)?;
-        let data = (0..len as u64).map(|_| ddl_util::from_u8(reader)).collect::<Result<_, _>>()?;
+        let data = ddl_util::from_array(0..len as u64, || ddl_util::from_u8(reader))?;
         Ok::<_, io::Error>(BinData {
             len: len,
             subtype: subtype,
@@ -45,8 +46,8 @@ pub struct ObjectId {
     pub counter: u32,
 }
 
-impl ObjectId {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<ObjectId> {
+impl FromBinary for ObjectId {
+    fn from_binary<R: Read>(reader: &mut R) -> io::Result<ObjectId> {
         let epoch_time = ddl_util::from_i32be(reader)?;
         let machine_id = ddl_util::from_u24be(reader)?;
         let process_id = ddl_util::from_u16be(reader)?;
@@ -93,8 +94,8 @@ pub struct Element {
     pub content: ElementContent,
 }
 
-impl Element {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<Element> {
+impl FromBinary for Element {
+    fn from_binary<R: Read>(reader: &mut R) -> io::Result<Element> {
         let elem_type = ddl_util::from_u8(reader)?;
         let content = if (elem_type) == (1u8) {
             let x = ddl_util::from_f64le(reader)?;
@@ -102,7 +103,7 @@ impl Element {
         }
         else
         if (elem_type) == (5u8) {
-            let x = BinData::read(reader)?;
+            let x = BinData::from_binary(reader)?;
             Ok::<_, io::Error>(ElementContent::BinData(x))
         }
         else
@@ -112,7 +113,7 @@ impl Element {
         }
         else
         if (elem_type) == (7u8) {
-            let x = ObjectId::read(reader)?;
+            let x = ObjectId::from_binary(reader)?;
             Ok::<_, io::Error>(ElementContent::ObjectId(x))
         }
         else
@@ -165,10 +166,10 @@ pub struct Document {
     pub fields: Vec<Element>,
 }
 
-impl Document {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<Document> {
+impl FromBinary for Document {
+    fn from_binary<R: Read>(reader: &mut R) -> io::Result<Document> {
         let len = ddl_util::from_i32be(reader)?;
-        let fields = (0..1u8).map(|_| Element::read(reader)).collect::<Result<_, _>>()?;
+        let fields = ddl_util::from_array(0..1u8, || Element::from_binary(reader))?;
         Ok::<_, io::Error>(Document {
             len: len,
             fields: fields,

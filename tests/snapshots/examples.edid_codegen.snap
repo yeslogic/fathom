@@ -2,6 +2,7 @@
 
 extern crate ddl_util;
 
+use self::ddl_util::FromBinary;
 use std::io;
 use std::io::prelude::*;
 
@@ -27,8 +28,8 @@ pub struct Header {
     pub edid_version_minor: u8,
 }
 
-impl Header {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<Header> {
+impl FromBinary for Header {
+    fn from_binary<R: Read>(reader: &mut R) -> io::Result<Header> {
         let magic = ddl_util::from_u64le(reader).and_then(|__value| {
         if (|magic: u64| (magic) == (72057594037927680u64))(__value) {
                 Ok(__value)
@@ -80,8 +81,8 @@ pub struct DisplayParams {
     pub features_flags: u8,
 }
 
-impl DisplayParams {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<DisplayParams> {
+impl FromBinary for DisplayParams {
+    fn from_binary<R: Read>(reader: &mut R) -> io::Result<DisplayParams> {
         let input_flags = ddl_util::from_u8(reader)?;
         let screen_size_h = ddl_util::from_u8(reader)?;
         let screen_size_v = ddl_util::from_u8(reader)?;
@@ -110,10 +111,10 @@ pub struct Edid {
     pub display_params: DisplayParams,
 }
 
-impl Edid {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<Edid> {
-        let header = Header::read(reader)?;
-        let display_params = DisplayParams::read(reader)?;
+impl FromBinary for Edid {
+    fn from_binary<R: Read>(reader: &mut R) -> io::Result<Edid> {
+        let header = Header::from_binary(reader)?;
+        let display_params = DisplayParams::from_binary(reader)?;
         Ok::<_, io::Error>(Edid {
             header: header,
             display_params: display_params,

@@ -1,14 +1,16 @@
 extern crate ddl_stl;
+extern crate ddl_util;
 
-use std::io::Cursor;
 use ddl_stl::Stl;
+use ddl_util::FromBinary;
+use std::io::Cursor;
 
 #[test]
-fn test_stl_read_beethoven() {
+fn test_stl_from_binary_beethoven() {
     let buf = include_bytes!("fixtures/beethoven.stl");
     let mut cursor = Cursor::new(&buf[..]);
 
-    let stl = Stl::read(&mut cursor).unwrap();
+    let stl = Stl::from_binary(&mut cursor).unwrap();
 
     let header = String::from_utf8(stl.header).unwrap();
     let expected_header = "Binary STL output from Blender: \
@@ -23,11 +25,11 @@ fn test_stl_read_beethoven() {
 }
 
 #[test]
-fn test_stl_read_cube() {
+fn test_stl_from_binary_cube() {
     let buf = include_bytes!("fixtures/cube.stl");
     let mut cursor = Cursor::new(&buf[..]);
 
-    let stl = Stl::read(&mut cursor).unwrap();
+    let stl = Stl::from_binary(&mut cursor).unwrap();
 
     let header = String::from_utf8(stl.header).unwrap();
     let expected_header = "Exported from Blender-2.79";

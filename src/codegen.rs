@@ -38,12 +38,9 @@ fn lower_program<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
         .append(alloc.newline())
         .append(alloc.text("extern crate ddl_util;").append(alloc.newline()))
         .append(alloc.newline())
-        .append(alloc.text("use std::io;").append(alloc.newline()))
-        .append(
-            alloc
-                .text("use std::io::prelude::*;")
-                .append(alloc.newline()),
-        )
+        .append(lower_import(alloc, "self::ddl_util::FromBinary"))
+        .append(lower_import(alloc, "std::io"))
+        .append(lower_import(alloc, "std::io::prelude::*"))
         .append(alloc.newline())
         .append({
             let defs = program.definitions.iter();
@@ -52,6 +49,19 @@ fn lower_program<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                 alloc.newline().append(alloc.newline()),
             )
         })
+        .append(alloc.newline())
+}
+
+fn lower_import<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
+    import: &'a str,
+) -> DocBuilder<'alloc, A> {
+    alloc
+        .text("use")
+        .append(alloc.space())
+        .append(alloc.text(import))
+        .append(alloc.text(";"))
+        .group()
         .append(alloc.newline())
 }
 
@@ -68,7 +78,7 @@ fn lower_definition<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                 None => item,
                 Some(ref parse_expr) => item.append(alloc.newline())
                     .append(alloc.newline())
-                    .append(lower_read_impl(
+                    .append(lower_from_binary_impl(
                         alloc,
                         &definition.path,
                         &definition.params,
@@ -83,7 +93,7 @@ fn lower_definition<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                 None => item,
                 Some(ref parse_expr) => item.append(alloc.newline())
                     .append(alloc.newline())
-                    .append(lower_read_impl(
+                    .append(lower_from_binary_impl(
                         alloc,
                         &definition.path,
                         &definition.params,
@@ -204,7 +214,7 @@ fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
         .append(alloc.text("}"))
 }
 
-fn lower_read_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
     _params: &[String],
@@ -212,6 +222,10 @@ fn lower_read_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 ) -> DocBuilder<'alloc, A> {
     alloc
         .text("impl")
+        .append(alloc.space())
+        .append(alloc.text("FromBinary"))
+        .append(alloc.space())
+        .append(alloc.text("for"))
         .append(alloc.space())
         .append(alloc.text(path.to_camel_case()))
         .append(alloc.space())
@@ -222,7 +236,7 @@ fn lower_read_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                 .newline()
                 .append(
                     alloc
-                        .text("pub fn read<R: Read>(reader: &mut R) -> io::Result<")
+                        .text("fn from_binary<R: Read>(reader: &mut R) -> io::Result<")
                         .append(alloc.text(path.to_camel_case()))
                         .append(alloc.text(">"))
                         .append(alloc.space())
@@ -359,7 +373,7 @@ fn lower_named_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 ) -> DocBuilder<'alloc, A> {
     alloc
         .text(name.to_camel_case())
-        .append(alloc.text("::read(reader)"))
+        .append(alloc.text("::from_binary(reader)"))
 }
 
 fn lower_parse_ty_const<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
@@ -405,18 +419,24 @@ fn lower_repeat_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     match *repeat_bound {
         RepeatBound::Exact(ref size_expr) => {
             let inner_parser = alloc
-                .text("(0..")
-                .append(lower_expr(alloc, Prec::Block, size_expr))
-                .append(alloc.text(")"))
-                .group()
+                .text("ddl_util::from_array(")
                 .append(
                     alloc
-                        .text(".map(|_| ")
-                        .append(lower_parse_expr(alloc, Prec::Expr, parse_expr))
-                        .append(alloc.text(")"))
+                        .text("0..")
+                        .append(lower_expr(alloc, Prec::Block, size_expr))
+                        .append(alloc.text(","))
                         .group(),
                 )
-                .append(alloc.text(".collect::<Result<_, _>>()"));
+                .append(alloc.space())
+                .append(
+                    alloc
+                        .text("||")
+                        .append(alloc.space())
+                        .append(lower_parse_expr(alloc, Prec::Expr, parse_expr))
+                        .group(),
+                )
+                .append(alloc.text(")"))
+                .group();
 
             match prec {
                 Prec::Block | Prec::Expr => inner_parser,

@@ -3,6 +3,10 @@ extern crate byteorder;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use std::io::{self, Read};
 
+pub trait FromBinary: Sized {
+    fn from_binary<R: Read>(reader: &mut R) -> io::Result<Self>;
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Never {}
 
@@ -127,4 +131,13 @@ pub fn from_f32be<R: Read>(r: &mut R) -> io::Result<f32> {
 #[inline]
 pub fn from_f64be<R: Read>(r: &mut R) -> io::Result<f64> {
     r.read_f64::<BigEndian>()
+}
+
+#[inline]
+pub fn from_array<T, R, F>(range: R, mut parse_elem: F) -> io::Result<Vec<T>>
+where
+    R: Iterator,
+    F: FnMut() -> io::Result<T>,
+{
+    range.map(|_| parse_elem()).collect()
 }
