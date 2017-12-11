@@ -429,17 +429,15 @@ pub fn kind_of(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindE
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
 
-            expect_ty_kind(&ctx, body_ty)?;
-            let kind = Kind::arrow(param_tys.len() as u32);
-
             ctx.extend(Scope::TypeAbs(
                 param_tys
                     .iter()
                     .map(|named| Named(named.0.clone(), Kind::Type))
                     .collect(),
             ));
+            expect_ty_kind(&ctx, body_ty)?;
 
-            Ok(kind)
+            Ok(Kind::arrow(param_tys.len() as u32))
         }
 
         // Conditional types

@@ -147,3 +147,26 @@ mod kind_of {
         );
     }
 }
+
+mod check_program {
+    use std::str::FromStr;
+    use syntax::ast;
+
+    use super::*;
+
+    #[test]
+    fn type_param() {
+        let src = "
+            Array(T) = struct {
+                len : u16le,
+                data : [T; len],
+            };
+        ";
+
+        let mut program = Program::from_str(src).unwrap();
+        let base_defs = ast::base_defs();
+        program.substitute(&base_defs);
+
+        check_program(&program).unwrap();
+    }
+}
