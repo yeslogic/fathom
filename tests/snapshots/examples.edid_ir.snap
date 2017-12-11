@@ -1,12 +1,12 @@
 Program {
-    defs: [
-        (
-            Path {
+    definitions: [
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Header",
                 children: []
             },
-            Struct(
-                "",
+            item: Struct(
                 [
                     Field {
                         doc: "Fixed header pattern",
@@ -248,14 +248,14 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "DisplayParams",
                 children: []
             },
-            Struct(
-                "",
+            item: Struct(
                 [
                     Field {
                         doc: "Video input parameters bitmap",
@@ -418,14 +418,14 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "https://en.wikipedia.org/wiki/Extended_Display_Identification_Data",
+            path: Path {
                 base: "Edid",
                 children: []
             },
-            Struct(
-                "https://en.wikipedia.org/wiki/Extended_Display_Identification_Data",
+            item: Struct(
                 [
                     Field {
                         doc: "Header information",
@@ -483,6 +483,6 @@ Program {
                     )
                 )
             )
-        )
+        }
     ]
 }

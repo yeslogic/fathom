@@ -5,7 +5,7 @@ use std::rc::Rc;
 use name::Named;
 use syntax;
 use syntax::ast::{binary, host, Field};
-use ir::ast::{Expr, ParseExpr, Path, Program, RepeatBound, Type};
+use ir::ast::{Definition, Expr, Item, ParseExpr, Path, Program, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use var::{BindingIndex as Bi, BoundVar, ScopeIndex as Si, Var};
 
@@ -20,7 +20,7 @@ impl<'a> From<&'a syntax::ast::Program> for Program {
             // `Foo::field::Entry::Variant2::...`
             let path = Path::new(definition.name.clone());
 
-            match *definition.ty {
+            let item = match *definition.ty {
                 // Structs and unions that are defined at the top level should
                 // get the best names, closest to what the author of the data
                 // definition intended!
@@ -29,31 +29,26 @@ impl<'a> From<&'a syntax::ast::Program> for Program {
                         lower_ty(&mut program, &field_path, ty)
                     });
                     let parse_expr = struct_parser(&path, fields);
-                    program.define_struct(
-                        path,
-                        Rc::clone(&definition.doc),
-                        lowered_fields,
-                        Some(parse_expr),
-                    );
+
+                    Item::Struct(lowered_fields, Some(parse_expr))
                 }
                 binary::Type::Cond(_, ref options) => {
                     let lowered_variants = lower_row(&path, options, |option_path, &(_, ref ty)| {
                         lower_ty(&mut program, &option_path, ty)
                     });
                     let parse_expr = cond_parser(&path, options);
-                    program.define_union(
-                        path,
-                        Rc::clone(&definition.doc),
-                        lowered_variants,
-                        Some(parse_expr),
-                    );
+
+                    Item::Union(lowered_variants, Some(parse_expr))
                 }
                 // Everything else should be an alias
-                _ => {
-                    let ty = lower_ty(&mut program, &path, &definition.ty);
-                    program.define_alias(path, Rc::clone(&definition.doc), ty);
-                }
-            }
+                _ => Item::Alias(lower_ty(&mut program, &path, &definition.ty)),
+            };
+
+            program.define(Definition {
+                doc: Rc::clone(&definition.doc),
+                path,
+                item,
+            });
         }
 
         program
@@ -119,7 +114,11 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
             let lowered_variants = lower_row(path, options, |option_path, &(_, ref ty)| {
                 lower_ty(program, &option_path, ty)
             });
-            program.define_union(path.clone(), String::new(), lowered_variants, None);
+            program.define(Definition {
+                doc: "".into(),
+                path: path.clone(),
+                item: Item::Union(lowered_variants, None),
+            });
 
             Type::Path(path.clone())
         }
@@ -127,7 +126,11 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
             let lowered_fields = lower_row(path, fields, |field_path, ty| {
                 lower_ty(program, &field_path, ty)
             });
-            program.define_struct(path.clone(), String::new(), lowered_fields, None);
+            program.define(Definition {
+                doc: "".into(),
+                path: path.clone(),
+                item: Item::Struct(lowered_fields, None),
+            });
 
             Type::Path(path.clone())
         }

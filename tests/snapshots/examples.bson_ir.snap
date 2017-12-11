@@ -1,12 +1,12 @@
 Program {
-    defs: [
-        (
-            Path {
+    definitions: [
+        Definition {
+            doc: "Binary data",
+            path: Path {
                 base: "BinData",
                 children: []
             },
-            Struct(
-                "Binary data",
+            item: Struct(
                 [
                     Field {
                         doc: "The number of bytes stored",
@@ -99,14 +99,14 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "ObjectId",
                 children: []
             },
-            Struct(
-                "",
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -208,16 +208,16 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Element",
                 children: [
                     "content"
                 ]
             },
-            Union(
-                "",
+            item: Union(
                 [
                     Field {
                         doc: "64-bit floating point",
@@ -310,14 +310,14 @@ Program {
                 ],
                 None
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Element",
                 children: []
             },
-            Struct(
-                "",
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -687,14 +687,14 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "BSON Document\n\n<http://bsonspec.org/spec.html>",
+            path: Path {
                 base: "Document",
                 children: []
             },
-            Struct(
-                "BSON Document\n\n<http://bsonspec.org/spec.html>",
+            item: Struct(
                 [
                     Field {
                         doc: "Total number of bytes comprising the document.",
@@ -762,6 +762,6 @@ Program {
                     )
                 )
             )
-        )
+        }
     ]
 }

@@ -3,7 +3,7 @@ use std::fmt;
 
 use heck::CamelCase;
 use name::Named;
-use ir::ast::{Definition, Expr, Field, ParseExpr, Path, Program, RepeatBound, Type};
+use ir::ast::{Definition, Expr, Field, Item, ParseExpr, Path, Program, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use ir::ast::{Binop, Const, Unop};
 use ir::ast::{BinaryTypeConst, IntSuffix, TypeConst};
@@ -46,11 +46,9 @@ fn lower_program<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
         )
         .append(alloc.newline())
         .append({
-            let defs = program.defs.iter();
+            let defs = program.definitions.iter();
             alloc.intersperse(
-                defs.map(|&(ref path, ref definition)| {
-                    lower_definition(alloc, path, definition)
-                }),
+                defs.map(|definition| lower_definition(alloc, definition)),
                 alloc.newline().append(alloc.newline()),
             )
         })
@@ -59,29 +57,33 @@ fn lower_program<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 
 fn lower_definition<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    path: &'a Path,
     definition: &'a Definition,
 ) -> DocBuilder<'alloc, A> {
-    match *definition {
-        Definition::Alias(ref doc, ref ty) => {
-            lower_doc_comment(alloc, doc).append(lower_alias(alloc, path, ty))
+    match definition.item {
+        Item::Alias(ref ty) => lower_doc_comment(alloc, &definition.doc)
+            .append(lower_alias(alloc, &definition.path, ty)),
+        Item::Struct(ref fields, ref parse_expr) => {
+            let item = lower_doc_comment(alloc, &definition.doc)
+                .append(lower_struct(alloc, &definition.path, fields));
+
+            match *parse_expr {
+                None => item,
+                Some(ref parse_expr) => item.append(alloc.newline())
+                    .append(alloc.newline())
+                    .append(lower_read_impl(alloc, &definition.path, parse_expr)),
+            }
         }
-        Definition::Struct(ref doc, ref fields, ref parse_expr) => match *parse_expr {
-            None => lower_doc_comment(alloc, doc).append(lower_struct(alloc, path, fields)),
-            Some(ref parse_expr) => lower_doc_comment(alloc, doc)
-                .append(lower_struct(alloc, path, fields))
-                .append(alloc.newline())
-                .append(alloc.newline())
-                .append(lower_read_impl(alloc, path, parse_expr)),
-        },
-        Definition::Union(ref doc, ref variants, ref parse_expr) => match *parse_expr {
-            None => lower_doc_comment(alloc, doc).append(lower_union(alloc, path, variants)),
-            Some(ref parse_expr) => lower_doc_comment(alloc, doc)
-                .append(lower_union(alloc, path, variants))
-                .append(alloc.newline())
-                .append(alloc.newline())
-                .append(lower_read_impl(alloc, path, parse_expr)),
-        },
+        Item::Union(ref variants, ref parse_expr) => {
+            let item = lower_doc_comment(alloc, &definition.doc)
+                .append(lower_union(alloc, &definition.path, variants));
+
+            match *parse_expr {
+                None => item,
+                Some(ref parse_expr) => item.append(alloc.newline())
+                    .append(alloc.newline())
+                    .append(lower_read_impl(alloc, &definition.path, parse_expr)),
+            }
+        }
     }
 }
 

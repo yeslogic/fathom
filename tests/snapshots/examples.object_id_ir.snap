@@ -1,12 +1,12 @@
 Program {
-    defs: [
-        (
-            Path {
+    definitions: [
+        Definition {
+            doc: "https://docs.mongodb.com/manual/reference/method/ObjectId/",
+            path: Path {
                 base: "ObjectId",
                 children: []
             },
-            Struct(
-                "https://docs.mongodb.com/manual/reference/method/ObjectId/",
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -108,6 +108,6 @@ Program {
                     )
                 )
             )
-        )
+        }
     ]
 }

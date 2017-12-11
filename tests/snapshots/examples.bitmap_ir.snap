@@ -1,12 +1,12 @@
 Program {
-    defs: [
-        (
-            Path {
+    definitions: [
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Pixel",
                 children: []
             },
-            Struct(
-                "",
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -100,16 +100,16 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Bitmap",
                 children: [
                     "extents"
                 ]
             },
-            Struct(
-                "",
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -132,14 +132,14 @@ Program {
                 ],
                 None
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Bitmap",
                 children: []
             },
-            Struct(
-                "",
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -255,14 +255,14 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Bmp",
                 children: []
             },
-            Alias(
-                "",
+            item: Alias(
                 Path(
                     Path {
                         base: "Bitmap",
@@ -270,6 +270,6 @@ Program {
                     }
                 )
             )
-        )
+        }
     ]
 }

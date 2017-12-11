@@ -1,12 +1,12 @@
 Program {
-    defs: [
-        (
-            Path {
+    definitions: [
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Vec3d",
                 children: []
             },
-            Struct(
-                "",
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -87,14 +87,14 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Triangle",
                 children: []
             },
-            Struct(
-                "",
+            item: Struct(
                 [
                     Field {
                         doc: "Normal vector",
@@ -182,14 +182,14 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "https://en.wikipedia.org/wiki/STL_(file_format)",
+            path: Path {
                 base: "Stl",
                 children: []
             },
-            Struct(
-                "https://en.wikipedia.org/wiki/STL_(file_format)",
+            item: Struct(
                 [
                     Field {
                         doc: "Generally ignored",
@@ -285,6 +285,6 @@ Program {
                     )
                 )
             )
-        )
+        }
     ]
 }
