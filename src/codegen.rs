@@ -121,10 +121,11 @@ fn lower_doc_comment<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    _params: &[String],
+    params: &'a [String],
     ty: &'a Type,
 ) -> DocBuilder<'alloc, A> {
     alloc.text("pub type")
+        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space())
         // FIXME: this will break if there is already a definition in scope
         // that uses the pascalised identifier
@@ -140,12 +141,13 @@ fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    _params: &[String],
+    params: &'a [String],
     fields: &'a [Field<RcType>],
 ) -> DocBuilder<'alloc, A> {
     alloc.text("#[derive(Debug, Clone)]")
         .append(alloc.newline())
         .append(alloc.text("pub struct"))
+        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space())
         // FIXME: this will break if there is already a definition in scope
         // that uses the pascalised identifier
@@ -178,7 +180,7 @@ fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    _params: &[String],
+    params: &'a [String],
     variants: &'a [Field<RcType>],
 ) -> DocBuilder<'alloc, A> {
     use heck::CamelCase;
@@ -186,6 +188,7 @@ fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc.text("#[derive(Debug, Clone)]")
         .append(alloc.newline())
         .append(alloc.text("pub enum"))
+        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space())
         // FIXME: this will break if there is already a definition in scope
         // that uses the pascalised identifier
@@ -217,20 +220,44 @@ fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    _params: &[String],
+    params: &'a [String],
     parse_expr: &'a ParseExpr,
 ) -> DocBuilder<'alloc, A> {
-    alloc
+    let base_header = alloc
         .text("impl")
+        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space())
         .append(alloc.text("FromBinary"))
         .append(alloc.space())
         .append(alloc.text("for"))
         .append(alloc.space())
         .append(alloc.text(path.to_camel_case()))
-        .append(alloc.space())
-        .append(alloc.text("{"))
-        .group()
+        .append(alloc.space());
+
+    let header = if params.is_empty() {
+        base_header.append(alloc.text("{")).group()
+    } else {
+        base_header
+            .append(alloc.text("where"))
+            .group()
+            .append(alloc.newline())
+            .append(
+                alloc
+                    .concat(params.iter().map(|param| {
+                        alloc
+                            .as_string(param)
+                            .append(alloc.text(":"))
+                            .append(alloc.space())
+                            .append(alloc.text("FromBinary,"))
+                            .group()
+                            .append(alloc.newline())
+                    }))
+                    .nest(INDENT_WIDTH),
+            )
+            .append(alloc.text("{"))
+    };
+
+    header
         .append(
             alloc
                 .newline()
@@ -255,6 +282,23 @@ fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                 .append(alloc.newline()),
         )
         .append(alloc.text("}"))
+}
+
+fn lower_intro_ty_params<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
+    params: &'a [String],
+) -> DocBuilder<'alloc, A> {
+    if params.is_empty() {
+        alloc.nil()
+    } else {
+        alloc
+            .text("<")
+            .append(alloc.intersperse(
+                params.iter().map(|param| alloc.as_string(param)),
+                alloc.text(",").append(alloc.space()),
+            ))
+            .append(alloc.text(">"))
+    }
 }
 
 fn lower_ty<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
