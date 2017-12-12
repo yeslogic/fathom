@@ -198,8 +198,18 @@ pub HostExpr: host::RcExpr = {
     <expr: PrimaryHostExpr> => expr,
 };
 
-// Use precedence climbing to define the operators
-// https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
+// Unary operators
+
+UnopNeg: Unop = "-" => Unop::Neg;
+UnopNot: Unop = "!" => Unop::Not;
+
+UnopExpr<Op, Operand>: host::RcExpr = {
+    <lo: @L> <op: Op> <expr: Operand> <hi: @R> => {
+        host::Expr::Unop(Span::new(lo, hi), op, expr).into()
+    },
+};
+
+// Binary operators
 
 BinopOr:   Binop = "||"  => Binop::Or;
 BinopAnd:  Binop = "&&"  => Binop::And;
@@ -219,6 +229,9 @@ BinopExpr<Lhs, Op, Rhs>: host::RcExpr = {
         host::Expr::Binop(Span::new(lo, hi), op, lhs, rhs).into()
     },
 };
+
+// Use precedence climbing to define the operators
+// https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 
 PrimaryHostExpr: host::RcExpr = {
     EqHostExpr,
@@ -261,12 +274,8 @@ CastHostExpr: host::RcExpr = {
 
 PrefixHostExpr: host::RcExpr = {
     AtomicHostExpr,
-    <lo: @L> "-" <expr: AtomicHostExpr> <hi: @R> => {
-        host::Expr::Unop(Span::new(lo, hi), Unop::Neg, expr).into()
-    },
-    <lo: @L> "!" <value: AtomicHostExpr> <hi: @R> => {
-        host::Expr::Unop(Span::new(lo, hi), Unop::Not, value).into()
-    },
+    UnopExpr<UnopNeg, AtomicHostExpr>,
+    UnopExpr<UnopNot, AtomicHostExpr>,
 };
 
 IntLiteral<Value>: host::RcExpr = {
