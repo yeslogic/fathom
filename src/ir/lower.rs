@@ -20,40 +20,47 @@ impl<'a> From<&'a syntax::ast::Program> for Program {
             // `Foo::field::Entry::Variant2::...`
             let path = Path::new(definition.name.clone());
 
-            let item = match *definition.ty {
-                // Structs and unions that are defined at the top level should
-                // get the best names, closest to what the author of the data
-                // definition intended!
-                binary::Type::Struct(_, ref fields) => {
-                    let lowered_fields = lower_row(&path, fields, |field_path, ty| {
-                        lower_ty(&mut program, &field_path, ty)
-                    });
-                    let parse_expr = struct_parser(&path, fields);
-
-                    Item::Struct(lowered_fields, Some(parse_expr))
-                }
-                binary::Type::Cond(_, ref options) => {
-                    let lowered_variants =
-                        lower_row(&path, options, |option_path, &(_, ref ty)| {
-                            lower_ty(&mut program, &option_path, ty)
-                        });
-                    let parse_expr = cond_parser(&path, options);
-
-                    Item::Union(lowered_variants, Some(parse_expr))
-                }
-                // Everything else should be an alias
-                _ => Item::Alias(lower_ty(&mut program, &path, &definition.ty)),
+            let definition = match *definition.ty {
+                binary::Type::Abs(_, ref params, ref ty) => Definition {
+                    doc: Rc::clone(&definition.doc),
+                    params: params.iter().map(|p| p.0.clone()).collect(),
+                    item: lower_item(&mut program, &path, ty),
+                    path,
+                },
+                _ => Definition {
+                    doc: Rc::clone(&definition.doc),
+                    params: vec![],
+                    item: lower_item(&mut program, &path, &definition.ty),
+                    path,
+                },
             };
 
-            program.define(Definition {
-                doc: Rc::clone(&definition.doc),
-                path,
-                params: vec![],
-                item,
-            });
+            program.define(definition);
         }
 
         program
+    }
+}
+
+fn lower_item(program: &mut Program, path: &Path, ty: &binary::RcType) -> Item {
+    match **ty {
+        // Structs and unions that are defined at the top level should
+        // get the best names, closest to what the author of the data
+        // definition intended!
+        binary::Type::Struct(_, ref fields) => Item::Struct(
+            lower_row(path, fields, |field_path, ty| {
+                lower_ty(program, &field_path, ty)
+            }),
+            Some(struct_parser(path, fields)),
+        ),
+        binary::Type::Cond(_, ref options) => Item::Union(
+            lower_row(path, options, |option_path, &(_, ref ty)| {
+                lower_ty(program, &option_path, ty)
+            }),
+            Some(cond_parser(path, options)),
+        ),
+        // Everything else should be an alias
+        _ => Item::Alias(lower_ty(program, path, ty)),
     }
 }
 
@@ -101,46 +108,52 @@ fn lower_ty_var(var: &Var) -> RcType {
 /// * `ty` - the type to be lowered
 fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
     // Mirroring `binary::Type::repr`
-    Rc::new(match **ty {
-        binary::Type::Var(_, ref var) => return lower_ty_var(var),
-        binary::Type::Const(ty_const) => Type::Const(ty_const.repr()),
+    match **ty {
+        binary::Type::Var(_, ref var) => lower_ty_var(var),
+        binary::Type::Const(ty_const) => Rc::new(Type::Const(ty_const.repr())),
         binary::Type::Array(_, ref elem_ty, _) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_ty(program, &elem_path, elem_ty);
 
-            Type::Array(elem_ty)
+            Rc::new(Type::Array(elem_ty))
         }
-        binary::Type::Assert(_, ref ty, _) => return lower_ty(program, path, ty),
-        binary::Type::Interp(_, _, _, ref repr_ty) => return lower_repr_ty(path, repr_ty),
+        binary::Type::Assert(_, ref ty, _) => lower_ty(program, path, ty),
+        binary::Type::Interp(_, _, _, ref repr_ty) => lower_repr_ty(path, repr_ty),
         binary::Type::Cond(_, ref options) => {
-            let lowered_variants = lower_row(path, options, |option_path, &(_, ref ty)| {
-                lower_ty(program, &option_path, ty)
-            });
-            program.define(Definition {
+            let definition = Definition {
                 doc: "".into(),
                 path: path.clone(),
                 params: vec![],
-                item: Item::Union(lowered_variants, None),
-            });
+                item: Item::Union(
+                    lower_row(path, options, |option_path, &(_, ref ty)| {
+                        lower_ty(program, &option_path, ty)
+                    }),
+                    None,
+                ),
+            };
 
-            Type::Path(path.clone(), vec![])
+            program.define(definition);
+            Rc::new(Type::Path(path.clone(), vec![]))
         }
         binary::Type::Struct(_, ref fields) => {
-            let lowered_fields = lower_row(path, fields, |field_path, ty| {
-                lower_ty(program, &field_path, ty)
-            });
-            program.define(Definition {
+            let definition = Definition {
                 doc: "".into(),
                 path: path.clone(),
                 params: vec![],
-                item: Item::Struct(lowered_fields, None),
-            });
+                item: Item::Struct(
+                    lower_row(path, fields, |field_path, ty| {
+                        lower_ty(program, &field_path, ty)
+                    }),
+                    None,
+                ),
+            };
 
-            Type::Path(path.clone(), vec![])
+            program.define(definition);
+            Rc::new(Type::Path(path.clone(), vec![]))
         }
         binary::Type::Abs(_, _, _) => unimplemented!(),
         binary::Type::App(_, _, _) => unimplemented!(),
-    })
+    }
 }
 
 /// Lower host types to the nominal format
