@@ -125,11 +125,11 @@ fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     ty: &'a Type,
 ) -> DocBuilder<'alloc, A> {
     alloc.text("pub type")
-        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space())
         // FIXME: this will break if there is already a definition in scope
         // that uses the pascalised identifier
         .append(alloc.text(path.to_camel_case()))
+        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space())
         .append(alloc.text("="))
         .append(alloc.space())
@@ -147,11 +147,11 @@ fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc.text("#[derive(Debug, Clone)]")
         .append(alloc.newline())
         .append(alloc.text("pub struct"))
-        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space())
         // FIXME: this will break if there is already a definition in scope
         // that uses the pascalised identifier
         .append(alloc.text(path.to_camel_case()))
+        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space())
         .append(alloc.text("{"))
         .group()
@@ -188,11 +188,11 @@ fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc.text("#[derive(Debug, Clone)]")
         .append(alloc.newline())
         .append(alloc.text("pub enum"))
-        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space())
         // FIXME: this will break if there is already a definition in scope
         // that uses the pascalised identifier
         .append(alloc.text(path.to_camel_case()))
+        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space())
         .append(alloc.text("{"))
         .group()
@@ -232,6 +232,7 @@ fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
         .append(alloc.text("for"))
         .append(alloc.space())
         .append(alloc.text(path.to_camel_case()))
+        .append(lower_intro_ty_params(alloc, params))
         .append(alloc.space());
 
     let header = if params.is_empty() {
@@ -241,19 +242,15 @@ fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
             .append(alloc.text("where"))
             .group()
             .append(alloc.newline())
-            .append(
+            .append(alloc.concat(params.iter().map(|param| {
                 alloc
-                    .concat(params.iter().map(|param| {
-                        alloc
-                            .as_string(param)
-                            .append(alloc.text(":"))
-                            .append(alloc.space())
-                            .append(alloc.text("FromBinary,"))
-                            .group()
-                            .append(alloc.newline())
-                    }))
-                    .nest(INDENT_WIDTH),
-            )
+                    .as_string(param)
+                    .append(alloc.text(":"))
+                    .append(alloc.space())
+                    .append(alloc.text("FromBinary,"))
+                    .group()
+                    .append(alloc.newline())
+            })))
             .append(alloc.text("{"))
     };
 
@@ -265,6 +262,7 @@ fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                     alloc
                         .text("fn from_binary<R: Read>(reader: &mut R) -> io::Result<")
                         .append(alloc.text(path.to_camel_case()))
+                        .append(lower_intro_ty_params(alloc, params))
                         .append(alloc.text(">"))
                         .append(alloc.space())
                         .append(alloc.text("{"))
