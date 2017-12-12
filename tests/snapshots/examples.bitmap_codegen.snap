@@ -52,7 +52,7 @@ impl FromBinary for Bitmap {
             })
         }?;
         let data =
-        ddl_util::from_array(0..(extents.width) * (extents.height), || Pixel::from_binary(reader))?;
+        ddl_util::from_array(0..extents.width * extents.height, || Pixel::from_binary(reader))?;
         Ok::<_, io::Error>(Bitmap {
             extents: extents,
             data: data,

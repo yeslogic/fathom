@@ -581,21 +581,32 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     prec: Prec,
     expr: &'a Expr,
 ) -> DocBuilder<'alloc, A> {
-    let inner = match *expr {
-        // FIXME: Hygiene!
-        Expr::Const(Const::Bool(value)) => alloc.as_string(value),
-        Expr::Const(Const::Int(value, IntSuffix::Signed(suffix))) => alloc
-            .as_string(value)
-            .append(alloc.text(lower_signed_ty(suffix))),
-        Expr::Const(Const::Int(value, IntSuffix::Unsigned(suffix))) => alloc
-            .as_string(value)
-            .append(alloc.text(lower_unsigned_ty(suffix))),
-        Expr::Const(Const::Float(value, suffix)) => alloc
-            .as_string(value)
-            .append(alloc.text(lower_float_ty(suffix))),
+    let mut is_atomic = false;
 
+    let inner = match *expr {
+        Expr::Const(c) => {
+            is_atomic = true;
+
+            match c {
+                Const::Bool(value) => alloc.as_string(value),
+                Const::Int(value, suffix) => {
+                    alloc.as_string(value).append(alloc.text(match suffix {
+                        IntSuffix::Signed(suffix) => lower_signed_ty(suffix),
+                        IntSuffix::Unsigned(suffix) => lower_unsigned_ty(suffix),
+                    }))
+                }
+                Const::Float(value, suffix) => alloc
+                    .as_string(value)
+                    .append(alloc.text(lower_float_ty(suffix))),
+            }
+        }
+
+        // FIXME: Hygiene!
         Expr::Var(Var::Free(_)) => unimplemented!(),
-        Expr::Var(Var::Bound(Named(ref name, _))) => alloc.as_string(name),
+        Expr::Var(Var::Bound(Named(ref name, _))) => {
+            is_atomic = true;
+            alloc.as_string(name)
+        }
 
         Expr::Unop(op, ref expr) => {
             let op_str = match op {
@@ -660,9 +671,13 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
             )
             .append(alloc.text("}")),
 
-        Expr::Proj(ref expr, ref field_name) => lower_expr(alloc, Prec::Block, expr)
-            .append(alloc.text("."))
-            .append(alloc.as_string(field_name)),
+        Expr::Proj(ref expr, ref field_name) => {
+            is_atomic = true;
+
+            lower_expr(alloc, Prec::Block, expr)
+                .append(alloc.text("."))
+                .append(alloc.as_string(field_name))
+        }
 
         Expr::Intro(ref path, ref variant_name, ref expr) => alloc
             .text(path.to_camel_case())
@@ -681,12 +696,16 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
             )
             .append(alloc.text("]")),
 
-        Expr::Cast(ref expr, ref ty) => lower_expr(alloc, Prec::Block, expr)
-            .append(alloc.space())
-            .append(alloc.text("as"))
-            .append(alloc.space())
-            .append(lower_ty(alloc, ty))
-            .group(),
+        Expr::Cast(ref expr, ref ty) => {
+            is_atomic = true;
+
+            lower_expr(alloc, Prec::Block, expr)
+                .append(alloc.space())
+                .append(alloc.text("as"))
+                .append(alloc.space())
+                .append(lower_ty(alloc, ty))
+                .group()
+        }
 
         Expr::Abs(ref params, ref body_expr) => alloc
             .text("|")
@@ -717,9 +736,9 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
         }
     };
 
-    match prec {
-        Prec::Block => inner,
-        Prec::Expr => alloc
+    match (is_atomic, prec) {
+        (true, _) | (_, Prec::Block) => inner,
+        (_, Prec::Expr) => alloc
             .text("(")
             .append(inner)
             .append(alloc.text(")"))
