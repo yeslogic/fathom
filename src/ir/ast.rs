@@ -12,50 +12,18 @@ use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
-    pub defs: Vec<(Path, Definition)>,
+    pub definitions: Vec<Definition>,
 }
 
 impl Program {
     pub fn new() -> Program {
-        Program { defs: Vec::new() }
+        Program {
+            definitions: Vec::new(),
+        }
     }
 
-    pub fn define<P: Into<Path>>(&mut self, path: P, def: Definition) {
-        self.defs.push((path.into(), def));
-    }
-
-    pub fn define_alias<P, D>(&mut self, path: P, doc: D, ty: RcType)
-    where
-        P: Into<Path>,
-        D: Into<Rc<str>>,
-    {
-        self.define(path, Definition::Alias(doc.into(), ty));
-    }
-
-    pub fn define_struct<P, D>(
-        &mut self,
-        path: P,
-        doc: D,
-        fields: Vec<Field<RcType>>,
-        parser: Option<RcParseExpr>,
-    ) where
-        P: Into<Path>,
-        D: Into<Rc<str>>,
-    {
-        self.define(path, Definition::Struct(doc.into(), fields, parser));
-    }
-
-    pub fn define_union<P, D>(
-        &mut self,
-        path: P,
-        doc: D,
-        variants: Vec<Field<RcType>>,
-        parser: Option<RcParseExpr>,
-    ) where
-        P: Into<Path>,
-        D: Into<Rc<str>>,
-    {
-        self.define(path, Definition::Union(doc.into(), variants, parser));
+    pub fn define(&mut self, definition: Definition) {
+        self.definitions.push(definition);
     }
 }
 
@@ -125,17 +93,28 @@ impl<'a> From<&'a str> for Path {
     }
 }
 
-/// Top level type definitions
-///
-/// The names of these are declared when they are stored in the `Program` struct
+/// A top level definition
 #[derive(Debug, Clone, PartialEq)]
-pub enum Definition {
+pub struct Definition {
+    /// Doc comment
+    pub doc: Rc<str>,
+    /// The path of this definition (should be unique)
+    pub path: Path,
+    /// Type parameters for the definition
+    pub params: Vec<String>,
+    /// The defined item
+    pub item: Item,
+}
+
+/// Top level type items
+#[derive(Debug, Clone, PartialEq)]
+pub enum Item {
     /// Type alias
-    Alias(Rc<str>, RcType),
+    Alias(RcType),
     /// Struct definition
-    Struct(Rc<str>, Vec<Field<RcType>>, Option<RcParseExpr>),
+    Struct(Vec<Field<RcType>>, Option<RcParseExpr>),
     /// Union type definition
-    Union(Rc<str>, Vec<Field<RcType>>, Option<RcParseExpr>),
+    Union(Vec<Field<RcType>>, Option<RcParseExpr>),
 }
 
 /// Structural types
@@ -144,7 +123,7 @@ pub enum Type {
     /// Type constants
     Const(TypeConst),
     /// A fully qualified path to a type definition
-    Path(Path),
+    Path(Path, Vec<RcType>),
     /// Array types. These are usually available in languages as primitives,
     /// so there is no need to generate new types for these
     Array(RcType),

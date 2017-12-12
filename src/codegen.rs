@@ -3,7 +3,7 @@ use std::fmt;
 
 use heck::CamelCase;
 use name::Named;
-use ir::ast::{Definition, Expr, Field, ParseExpr, Path, Program, RepeatBound, Type};
+use ir::ast::{Definition, Expr, Field, Item, ParseExpr, Path, Program, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use ir::ast::{Binop, Const, Unop};
 use ir::ast::{BinaryTypeConst, IntSuffix, TypeConst};
@@ -14,226 +14,313 @@ pub struct LowerProgram<'a>(pub &'a Program);
 
 impl<'a> fmt::Display for LowerProgram<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let DocBuilder(_, ref doc) = lower_program(&BoxAllocator, self.0);
-        doc.render_fmt(f.width().unwrap_or(MAX_WIDTH), f)
+        let DocBuilder(_, ref alloc) = lower_program(&BoxAllocator, self.0);
+        alloc.render_fmt(f.width().unwrap_or(MAX_WIDTH), f)
     }
 }
 
 const INDENT_WIDTH: usize = 4;
 const MAX_WIDTH: usize = 100;
 
-fn lower_program<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_program<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     program: &'a Program,
-) -> DocBuilder<'doc, A> {
+) -> DocBuilder<'alloc, A> {
     let version_comment = format!(
         "// auto-generated: \"{} {}\"",
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION")
     );
 
-    doc.nil()
-        .append(doc.text(version_comment).append(doc.newline()))
-        .append(doc.newline())
-        .append(doc.text("extern crate ddl_util;").append(doc.newline()))
-        .append(doc.newline())
-        .append(doc.text("use std::io;").append(doc.newline()))
-        .append(doc.text("use std::io::prelude::*;").append(doc.newline()))
-        .append(doc.newline())
+    alloc
+        .nil()
+        .append(alloc.text(version_comment).append(alloc.newline()))
+        .append(alloc.newline())
+        .append(alloc.text("extern crate ddl_util;").append(alloc.newline()))
+        .append(alloc.newline())
+        .append(lower_import(alloc, "self::ddl_util::FromBinary"))
+        .append(lower_import(alloc, "std::io"))
+        .append(lower_import(alloc, "std::io::prelude::*"))
+        .append(alloc.newline())
         .append({
-            let defs = program.defs.iter();
-            doc.intersperse(
-                defs.map(|&(ref path, ref definition)| {
-                    lower_definition(doc, path, definition)
-                }),
-                doc.newline().append(doc.newline()),
+            let defs = program.definitions.iter();
+            alloc.intersperse(
+                defs.map(|definition| lower_definition(alloc, definition)),
+                alloc.newline().append(alloc.newline()),
             )
         })
-        .append(doc.newline())
+        .append(alloc.newline())
 }
 
-fn lower_definition<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
-    path: &'a Path,
+fn lower_import<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
+    import: &'a str,
+) -> DocBuilder<'alloc, A> {
+    alloc
+        .text("use")
+        .append(alloc.space())
+        .append(alloc.text(import))
+        .append(alloc.text(";"))
+        .group()
+        .append(alloc.newline())
+}
+
+fn lower_definition<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     definition: &'a Definition,
-) -> DocBuilder<'doc, A> {
-    match *definition {
-        Definition::Alias(ref comment, ref ty) => {
-            lower_doc_comment(doc, comment).append(lower_alias(doc, path, ty))
+) -> DocBuilder<'alloc, A> {
+    lower_doc_comment(alloc, &definition.doc).append(match definition.item {
+        Item::Alias(ref ty) => lower_alias(alloc, &definition.path, &definition.params, ty),
+        Item::Struct(ref fields, ref parse_expr) => {
+            let item = lower_struct(alloc, &definition.path, &definition.params, fields);
+
+            match *parse_expr {
+                None => item,
+                Some(ref parse_expr) => item.append(alloc.newline())
+                    .append(alloc.newline())
+                    .append(lower_from_binary_impl(
+                        alloc,
+                        &definition.path,
+                        &definition.params,
+                        parse_expr,
+                    )),
+            }
         }
-        Definition::Struct(ref comment, ref fields, ref parse_expr) => match *parse_expr {
-            None => lower_doc_comment(doc, comment).append(lower_struct(doc, path, fields)),
-            Some(ref parse_expr) => lower_doc_comment(doc, comment)
-                .append(lower_struct(doc, path, fields))
-                .append(doc.newline())
-                .append(doc.newline())
-                .append(lower_read_impl(doc, path, parse_expr)),
-        },
-        Definition::Union(ref comment, ref variants, ref parse_expr) => match *parse_expr {
-            None => lower_doc_comment(doc, comment).append(lower_union(doc, path, variants)),
-            Some(ref parse_expr) => lower_doc_comment(doc, comment)
-                .append(lower_union(doc, path, variants))
-                .append(doc.newline())
-                .append(doc.newline())
-                .append(lower_read_impl(doc, path, parse_expr)),
-        },
-    }
+        Item::Union(ref variants, ref parse_expr) => {
+            let item = lower_union(alloc, &definition.path, &definition.params, variants);
+
+            match *parse_expr {
+                None => item,
+                Some(ref parse_expr) => item.append(alloc.newline())
+                    .append(alloc.newline())
+                    .append(lower_from_binary_impl(
+                        alloc,
+                        &definition.path,
+                        &definition.params,
+                        parse_expr,
+                    )),
+            }
+        }
+    })
 }
 
-fn lower_doc_comment<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
-    comment: &'a str,
-) -> DocBuilder<'doc, A> {
-    if comment.is_empty() {
-        doc.nil()
+fn lower_doc_comment<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
+    doc: &'a str,
+) -> DocBuilder<'alloc, A> {
+    if doc.is_empty() {
+        alloc.nil()
     } else {
-        doc.concat(comment.lines().map(|line| match line {
-            "" => doc.text("///").append(doc.newline()),
-            _ => doc.text(format!("/// {}", line)).append(doc.newline()),
+        alloc.concat(doc.lines().map(|line| match line {
+            "" => alloc.text("///").append(alloc.newline()),
+            _ => alloc.text(format!("/// {}", line)).append(alloc.newline()),
         }))
     }
 }
 
-fn lower_alias<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     path: &'a Path,
+    params: &'a [String],
     ty: &'a Type,
-) -> DocBuilder<'doc, A> {
-    doc.text("pub type")
-        .append(doc.space())
+) -> DocBuilder<'alloc, A> {
+    alloc.text("pub type")
+        .append(alloc.space())
         // FIXME: this will break if there is already a definition in scope
         // that uses the pascalised identifier
-        .append(doc.text(path.to_camel_case()))
-        .append(doc.space())
-        .append(doc.text("="))
-        .append(doc.space())
-        .append(lower_ty(doc, ty))
-        .append(doc.text(";"))
+        .append(alloc.text(path.to_camel_case()))
+        .append(lower_intro_ty_params(alloc, params))
+        .append(alloc.space())
+        .append(alloc.text("="))
+        .append(alloc.space())
+        .append(lower_ty(alloc, ty))
+        .append(alloc.text(";"))
         .group()
 }
 
-fn lower_struct<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     path: &'a Path,
+    params: &'a [String],
     fields: &'a [Field<RcType>],
-) -> DocBuilder<'doc, A> {
-    doc.text("#[derive(Debug, Clone)]")
-        .append(doc.newline())
-        .append(doc.text("pub struct"))
-        .append(doc.space())
+) -> DocBuilder<'alloc, A> {
+    alloc.text("#[derive(Debug, Clone)]")
+        .append(alloc.newline())
+        .append(alloc.text("pub struct"))
+        .append(alloc.space())
         // FIXME: this will break if there is already a definition in scope
         // that uses the pascalised identifier
-        .append(doc.text(path.to_camel_case()))
-        .append(doc.space())
-        .append(doc.text("{"))
+        .append(alloc.text(path.to_camel_case()))
+        .append(lower_intro_ty_params(alloc, params))
+        .append(alloc.space())
+        .append(alloc.text("{"))
         .group()
         .append(
-            doc.newline()
-                .append(doc.intersperse(
+            alloc.newline()
+                .append(alloc.intersperse(
                     fields.iter().map(|field| {
-                        lower_doc_comment(doc, &field.doc)
-                            .append(doc.text("pub"))
-                            .append(doc.space())
-                            .append(doc.as_string(&field.name))
-                            .append(doc.text(":"))
-                            .append(doc.space())
-                            .append(lower_ty(doc, &field.value))
-                            .append(doc.text(","))
+                        lower_doc_comment(alloc, &field.doc)
+                            .append(alloc.text("pub"))
+                            .append(alloc.space())
+                            .append(alloc.as_string(&field.name))
+                            .append(alloc.text(":"))
+                            .append(alloc.space())
+                            .append(lower_ty(alloc, &field.value))
+                            .append(alloc.text(","))
                             .group()
                     }),
-                    doc.newline(),
+                    alloc.newline(),
                 ))
                 .nest(INDENT_WIDTH)
-                .append(doc.newline()),
+                .append(alloc.newline()),
         )
-        .append(doc.text("}"))
+        .append(alloc.text("}"))
 }
 
-fn lower_union<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     path: &'a Path,
+    params: &'a [String],
     variants: &'a [Field<RcType>],
-) -> DocBuilder<'doc, A> {
+) -> DocBuilder<'alloc, A> {
     use heck::CamelCase;
 
-    doc.text("#[derive(Debug, Clone)]")
-        .append(doc.newline())
-        .append(doc.text("pub enum"))
-        .append(doc.space())
+    alloc.text("#[derive(Debug, Clone)]")
+        .append(alloc.newline())
+        .append(alloc.text("pub enum"))
+        .append(alloc.space())
         // FIXME: this will break if there is already a definition in scope
         // that uses the pascalised identifier
-        .append(doc.text(path.to_camel_case()))
-        .append(doc.space())
-        .append(doc.text("{"))
+        .append(alloc.text(path.to_camel_case()))
+        .append(lower_intro_ty_params(alloc, params))
+        .append(alloc.space())
+        .append(alloc.text("{"))
         .group()
         .append(
-            doc.newline()
-                .append(doc.intersperse(
+            alloc.newline()
+                .append(alloc.intersperse(
                     variants.iter().map(|variant| {
-                        lower_doc_comment(doc, &variant.doc)
+                        lower_doc_comment(alloc, &variant.doc)
                             // FIXME: this will break if there is already another
                             // variant in the enum that uses the pascalised identifier
-                            .append(doc.text(variant.name.to_camel_case()))
-                            .append(doc.text("("))
-                            .append(lower_ty(doc, &variant.value))
-                            .append(doc.text("),"))
+                            .append(alloc.text(variant.name.to_camel_case()))
+                            .append(alloc.text("("))
+                            .append(lower_ty(alloc, &variant.value))
+                            .append(alloc.text("),"))
                             .group()
                     }),
-                    doc.newline(),
+                    alloc.newline(),
                 ))
                 .nest(INDENT_WIDTH)
-                .append(doc.newline()),
+                .append(alloc.newline()),
         )
-        .append(doc.text("}"))
+        .append(alloc.text("}"))
 }
 
-fn lower_read_impl<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     path: &'a Path,
+    params: &'a [String],
     parse_expr: &'a ParseExpr,
-) -> DocBuilder<'doc, A> {
-    doc.text("impl")
-        .append(doc.space())
-        .append(doc.text(path.to_camel_case()))
-        .append(doc.space())
-        .append(doc.text("{"))
-        .group()
+) -> DocBuilder<'alloc, A> {
+    let base_header = alloc
+        .text("impl")
+        .append(lower_intro_ty_params(alloc, params))
+        .append(alloc.space())
+        .append(alloc.text("FromBinary"))
+        .append(alloc.space())
+        .append(alloc.text("for"))
+        .append(alloc.space())
+        .append(alloc.text(path.to_camel_case()))
+        .append(lower_intro_ty_params(alloc, params))
+        .append(alloc.space());
+
+    let header = if params.is_empty() {
+        base_header.append(alloc.text("{")).group()
+    } else {
+        base_header
+            .append(alloc.text("where"))
+            .group()
+            .append(alloc.newline())
+            .append(alloc.concat(params.iter().map(|param| {
+                alloc
+                    .as_string(param)
+                    .append(alloc.text(":"))
+                    .append(alloc.space())
+                    .append(alloc.text("FromBinary,"))
+                    .group()
+                    .append(alloc.newline())
+            })))
+            .append(alloc.text("{"))
+    };
+
+    header
         .append(
-            doc.newline()
+            alloc
+                .newline()
                 .append(
-                    doc.text("pub fn read<R: Read>(reader: &mut R) -> io::Result<")
-                        .append(doc.text(path.to_camel_case()))
-                        .append(doc.text(">"))
-                        .append(doc.space())
-                        .append(doc.text("{"))
+                    alloc
+                        .text("fn from_binary<R: Read>(reader: &mut R) -> io::Result<")
+                        .append(alloc.text(path.to_camel_case()))
+                        .append(lower_intro_ty_params(alloc, params))
+                        .append(alloc.text(">"))
+                        .append(alloc.space())
+                        .append(alloc.text("{"))
                         .group(),
                 )
                 .append(
-                    doc.newline()
-                        .append(lower_parse_expr(doc, Prec::Block, parse_expr))
+                    alloc
+                        .newline()
+                        .append(lower_parse_expr(alloc, Prec::Block, parse_expr))
                         .nest(INDENT_WIDTH),
                 )
-                .append(doc.newline())
-                .append(doc.text("}"))
+                .append(alloc.newline())
+                .append(alloc.text("}"))
                 .nest(INDENT_WIDTH)
-                .append(doc.newline()),
+                .append(alloc.newline()),
         )
-        .append(doc.text("}"))
+        .append(alloc.text("}"))
 }
 
-fn lower_ty<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_intro_ty_params<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
+    params: &'a [String],
+) -> DocBuilder<'alloc, A> {
+    if params.is_empty() {
+        alloc.nil()
+    } else {
+        alloc
+            .text("<")
+            .append(alloc.intersperse(
+                params.iter().map(|param| alloc.as_string(param)),
+                alloc.text(",").append(alloc.space()),
+            ))
+            .append(alloc.text(">"))
+    }
+}
+
+fn lower_ty<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     ty: &'a Type,
-) -> DocBuilder<'doc, A> {
+) -> DocBuilder<'alloc, A> {
     match *ty {
-        Type::Path(ref path) => doc.text(path.to_camel_case()),
-        Type::Array(ref ty) => doc.text("Vec<")
-            .append(lower_ty(doc, ty))
-            .append(doc.text(">"))
+        Type::Path(ref path, ref args) if args.is_empty() => alloc.text(path.to_camel_case()),
+        Type::Path(ref path, ref args) => alloc
+            .text(path.to_camel_case())
+            .append(alloc.text("<"))
+            .append(alloc.intersperse(
+                args.iter().map(|arg| lower_ty(alloc, arg)),
+                alloc.text(",").append(alloc.space()),
+            ))
+            .append(alloc.text(">")),
+        Type::Array(ref ty) => alloc
+            .text("Vec<")
+            .append(lower_ty(alloc, ty))
+            .append(alloc.text(">"))
             .group(),
         // FIXME: Implement this!
         Type::Arrow(_, _) => unimplemented!(),
-        Type::Const(ty_const) => lower_ty_const(doc, ty_const),
+        Type::Const(ty_const) => lower_ty_const(alloc, ty_const),
     }
 }
 
@@ -264,17 +351,17 @@ fn lower_unsigned_ty(ty: UnsignedType) -> &'static str {
     }
 }
 
-fn lower_ty_const<'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_ty_const<'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     ty_const: TypeConst,
-) -> DocBuilder<'doc, A> {
+) -> DocBuilder<'alloc, A> {
     match ty_const {
-        TypeConst::Unit => doc.text("()"),
-        TypeConst::Bottom => doc.text("ddl_util::Never"),
-        TypeConst::Bool => doc.text("bool"),
-        TypeConst::Float(ty) => doc.text(lower_float_ty(ty)),
-        TypeConst::Signed(ty) => doc.text(lower_signed_ty(ty)),
-        TypeConst::Unsigned(ty) => doc.text(lower_unsigned_ty(ty)),
+        TypeConst::Unit => alloc.text("()"),
+        TypeConst::Bottom => alloc.text("ddl_util::Never"),
+        TypeConst::Bool => alloc.text("bool"),
+        TypeConst::Float(ty) => alloc.text(lower_float_ty(ty)),
+        TypeConst::Signed(ty) => alloc.text(lower_signed_ty(ty)),
+        TypeConst::Unsigned(ty) => alloc.text(lower_unsigned_ty(ty)),
     }
 }
 
@@ -284,57 +371,60 @@ enum Prec {
     Expr,
 }
 
-fn lower_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     prec: Prec,
     parse_expr: &'a ParseExpr,
-) -> DocBuilder<'doc, A> {
+) -> DocBuilder<'alloc, A> {
     match *parse_expr {
         ParseExpr::Var(Var::Free(_)) => unimplemented!(),
-        ParseExpr::Var(Var::Bound(Named(ref name, _))) => lower_named_parse_expr(doc, name),
-        ParseExpr::Const(ty_const) => lower_parse_ty_const(doc, ty_const),
+        ParseExpr::Var(Var::Bound(Named(ref name, _))) => lower_named_parse_expr(alloc, name),
+        ParseExpr::Const(ty_const) => lower_parse_ty_const(alloc, ty_const),
         ParseExpr::Repeat(ref parse_expr, ref repeat_bound) => {
-            lower_repeat_parse_expr(doc, prec, parse_expr, repeat_bound)
+            lower_repeat_parse_expr(alloc, prec, parse_expr, repeat_bound)
         }
         ParseExpr::Assert(ref parse_expr, ref pred) => {
-            lower_assert_parse_expr(doc, prec, parse_expr, pred)
+            lower_assert_parse_expr(alloc, prec, parse_expr, pred)
         }
         ParseExpr::Sequence(ref parse_exprs, ref expr) => {
-            lower_sequence_parse_expr(doc, prec, parse_exprs, expr)
+            lower_sequence_parse_expr(alloc, prec, parse_exprs, expr)
         }
-        ParseExpr::Cond(ref options) => lower_cond_parse_expr(doc, options),
-        ParseExpr::Apply(ref fn_expr, ref parse_expr) => doc.text("Ok::<_, io::Error>(")
+        ParseExpr::Cond(ref options) => lower_cond_parse_expr(alloc, options),
+        ParseExpr::Apply(ref fn_expr, ref parse_expr) => alloc
+            .text("Ok::<_, io::Error>(")
             .append(
-                doc.newline()
-                    .append(doc.text("("))
-                    .append(lower_expr(doc, Prec::Block, fn_expr))
-                    .append(doc.text(")"))
-                    .append(doc.text("("))
-                    .append(lower_parse_expr(doc, Prec::Expr, parse_expr))
-                    .append(doc.text("?)"))
+                alloc
+                    .newline()
+                    .append(alloc.text("("))
+                    .append(lower_expr(alloc, Prec::Block, fn_expr))
+                    .append(alloc.text(")"))
+                    .append(alloc.text("("))
+                    .append(lower_parse_expr(alloc, Prec::Expr, parse_expr))
+                    .append(alloc.text("?)"))
                     .nest(INDENT_WIDTH)
-                    .append(doc.newline()),
+                    .append(alloc.newline()),
             )
             .append(")")
             .group(),
     }
 }
 
-fn lower_named_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_named_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     name: &'a str,
-) -> DocBuilder<'doc, A> {
-    doc.text(name.to_camel_case())
-        .append(doc.text("::read(reader)"))
+) -> DocBuilder<'alloc, A> {
+    alloc
+        .text(name.to_camel_case())
+        .append(alloc.text("::from_binary(reader)"))
 }
 
-fn lower_parse_ty_const<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_parse_ty_const<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     ty_const: BinaryTypeConst,
-) -> DocBuilder<'doc, A> {
+) -> DocBuilder<'alloc, A> {
     use ir::ast::Endianness as E;
 
-    doc.text(match ty_const {
+    alloc.text(match ty_const {
         BinaryTypeConst::Empty => "ddl_util::empty()",
         BinaryTypeConst::Error => "ddl_util::error()",
         BinaryTypeConst::U8 => "ddl_util::from_u8(reader)",
@@ -362,25 +452,33 @@ fn lower_parse_ty_const<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     })
 }
 
-fn lower_repeat_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_repeat_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     prec: Prec,
     parse_expr: &'a ParseExpr,
     repeat_bound: &'a RepeatBound,
-) -> DocBuilder<'doc, A> {
+) -> DocBuilder<'alloc, A> {
     match *repeat_bound {
         RepeatBound::Exact(ref size_expr) => {
-            let inner_parser = doc.text("(0..")
-                .append(lower_expr(doc, Prec::Block, size_expr))
-                .append(doc.text(")"))
-                .group()
+            let inner_parser = alloc
+                .text("ddl_util::from_array(")
                 .append(
-                    doc.text(".map(|_| ")
-                        .append(lower_parse_expr(doc, Prec::Expr, parse_expr))
-                        .append(doc.text(")"))
+                    alloc
+                        .text("0..")
+                        .append(lower_expr(alloc, Prec::Block, size_expr))
+                        .append(alloc.text(","))
                         .group(),
                 )
-                .append(doc.text(".collect::<Result<_, _>>()"));
+                .append(alloc.space())
+                .append(
+                    alloc
+                        .text("||")
+                        .append(alloc.space())
+                        .append(lower_parse_expr(alloc, Prec::Expr, parse_expr))
+                        .group(),
+                )
+                .append(alloc.text(")"))
+                .group();
 
             match prec {
                 Prec::Block | Prec::Expr => inner_parser,
@@ -389,137 +487,168 @@ fn lower_repeat_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
     }
 }
 
-fn lower_assert_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_assert_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     prec: Prec,
     parse_expr: &'a ParseExpr,
     pred_expr: &'a Expr,
-) -> DocBuilder<'doc, A> {
-    let pred = lower_expr(doc, Prec::Block, pred_expr).append(doc.text(")(__value)"));
-    let if_true = doc.newline().append(doc.text("Ok(__value)"));
-    let if_false = doc.newline().append(
-        doc.text("return")
-            .append(doc.space())
-            .append(doc.text("ddl_util::error()"))
+) -> DocBuilder<'alloc, A> {
+    let pred = lower_expr(alloc, Prec::Block, pred_expr).append(alloc.text(")(__value)"));
+    let if_true = alloc.newline().append(alloc.text("Ok(__value)"));
+    let if_false = alloc.newline().append(
+        alloc
+            .text("return")
+            .append(alloc.space())
+            .append(alloc.text("ddl_util::error()"))
             .group(),
     );
 
-    lower_parse_expr(doc, prec, parse_expr).append(
+    lower_parse_expr(alloc, prec, parse_expr).append(
         // FIXME: Hygiene!
-        doc.text(".and_then(|__value| {")
-            .append(doc.newline())
+        alloc
+            .text(".and_then(|__value| {")
+            .append(alloc.newline())
             .append(
-                doc.text("if")
-                    .append(doc.space())
-                    .append(doc.text("("))
+                alloc
+                    .text("if")
+                    .append(alloc.space())
+                    .append(alloc.text("("))
                     .append(pred)
-                    .append(doc.space())
-                    .append(doc.text("{"))
+                    .append(alloc.space())
+                    .append(alloc.text("{"))
                     .group()
                     .append(if_true.nest(INDENT_WIDTH))
-                    .append(doc.newline())
-                    .append(doc.text("} else {"))
+                    .append(alloc.newline())
+                    .append(alloc.text("} else {"))
                     .append(if_false.nest(INDENT_WIDTH))
-                    .append(doc.newline())
-                    .append(doc.text("}"))
+                    .append(alloc.newline())
+                    .append(alloc.text("}"))
                     .nest(INDENT_WIDTH)
-                    .append(doc.newline()),
+                    .append(alloc.newline()),
             )
-            .append(doc.text("})")),
+            .append(alloc.text("})")),
     )
 }
 
-fn lower_sequence_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_sequence_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     prec: Prec,
     parse_exprs: &'a [Named<RcParseExpr>],
     expr: &'a Expr,
-) -> DocBuilder<'doc, A> {
-    let inner_parser = doc.concat(parse_exprs.iter().map(|&Named(ref name, ref parse_expr)| {
-        doc.text("let")
-            .append(doc.space())
-            .append(doc.as_string(name))
-            .append(doc.space())
-            .append(doc.text("="))
-            .group()
-            .append(doc.space())
-            .append(lower_parse_expr(doc, Prec::Expr, parse_expr))
-            .append(doc.text("?;"))
-            .group()
-            .append(doc.newline())
-    })).append(
-            doc.text("Ok::<_, io::Error>(")
-                .append(lower_expr(doc, Prec::Block, expr))
+) -> DocBuilder<'alloc, A> {
+    let inner_parser = alloc
+        .concat(parse_exprs.iter().map(|&Named(ref name, ref parse_expr)| {
+            alloc
+                .text("let")
+                .append(alloc.space())
+                .append(alloc.as_string(name))
+                .append(alloc.space())
+                .append(alloc.text("="))
+                .group()
+                .append(alloc.space())
+                .append(lower_parse_expr(alloc, Prec::Expr, parse_expr))
+                .append(alloc.text("?;"))
+                .group()
+                .append(alloc.newline())
+        }))
+        .append(
+            alloc
+                .text("Ok::<_, io::Error>(")
+                .append(lower_expr(alloc, Prec::Block, expr))
                 .append(")"),
         );
 
     match prec {
         Prec::Block => inner_parser,
-        Prec::Expr => doc.text("{")
-            .append(doc.newline().append(inner_parser).nest(INDENT_WIDTH))
-            .append(doc.newline())
-            .append(doc.text("}")),
+        Prec::Expr => alloc
+            .text("{")
+            .append(alloc.newline().append(inner_parser).nest(INDENT_WIDTH))
+            .append(alloc.newline())
+            .append(alloc.text("}")),
     }
 }
 
-fn lower_cond_parse_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_cond_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     options: &'a [(RcExpr, RcParseExpr)],
-) -> DocBuilder<'doc, A> {
+) -> DocBuilder<'alloc, A> {
     if options.is_empty() {
-        doc.text("ddl_util::error()")
+        alloc.text("ddl_util::error()")
     } else {
-        doc.intersperse(
-            options.iter().map(|option| {
-                doc.text("if")
-                    .append(doc.space())
-                    .append(lower_expr(doc, Prec::Block, &option.0))
-                    .append(doc.space())
-                    .append(doc.text("{"))
+        alloc
+            .intersperse(
+                options.iter().map(|option| {
+                    alloc
+                        .text("if")
+                        .append(alloc.space())
+                        .append(lower_expr(alloc, Prec::Block, &option.0))
+                        .append(alloc.space())
+                        .append(alloc.text("{"))
+                        .group()
+                        .append(
+                            alloc
+                                .newline()
+                                .append(lower_parse_expr(alloc, Prec::Block, &option.1))
+                                .nest(INDENT_WIDTH),
+                        )
+                        .append(alloc.newline())
+                        .append(alloc.text("}"))
+                }),
+                alloc
+                    .space()
+                    .append(alloc.text("else"))
+                    .append(alloc.space()),
+            )
+            .append(
+                alloc
+                    .space()
+                    .append(alloc.text("else"))
+                    .append(alloc.space())
+                    .append(alloc.text("{"))
                     .group()
                     .append(
-                        doc.newline()
-                            .append(lower_parse_expr(doc, Prec::Block, &option.1))
+                        alloc
+                            .newline()
+                            .append(alloc.text("ddl_util::error()"))
                             .nest(INDENT_WIDTH),
                     )
-                    .append(doc.newline())
-                    .append(doc.text("}"))
-            }),
-            doc.space().append(doc.text("else")).append(doc.space()),
-        ).append(
-                doc.space()
-                    .append(doc.text("else"))
-                    .append(doc.space())
-                    .append(doc.text("{"))
-                    .group()
-                    .append(
-                        doc.newline()
-                            .append(doc.text("ddl_util::error()"))
-                            .nest(INDENT_WIDTH),
-                    )
-                    .append(doc.newline())
-                    .append(doc.text("}")),
+                    .append(alloc.newline())
+                    .append(alloc.text("}")),
             )
     }
 }
 
-fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
-    doc: &'doc A,
+fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+    alloc: &'alloc A,
     prec: Prec,
     expr: &'a Expr,
-) -> DocBuilder<'doc, A> {
-    let inner = match *expr {
-        // FIXME: Hygiene!
-        Expr::Const(Const::Bool(value)) => doc.as_string(value),
-        Expr::Const(Const::Int(value, IntSuffix::Signed(suffix))) => doc.as_string(value)
-            .append(doc.text(lower_signed_ty(suffix))),
-        Expr::Const(Const::Int(value, IntSuffix::Unsigned(suffix))) => doc.as_string(value)
-            .append(doc.text(lower_unsigned_ty(suffix))),
-        Expr::Const(Const::Float(value, suffix)) => doc.as_string(value)
-            .append(doc.text(lower_float_ty(suffix))),
+) -> DocBuilder<'alloc, A> {
+    let mut is_atomic = false;
 
+    let inner = match *expr {
+        Expr::Const(c) => {
+            is_atomic = true;
+
+            match c {
+                Const::Bool(value) => alloc.as_string(value),
+                Const::Int(value, suffix) => {
+                    alloc.as_string(value).append(alloc.text(match suffix {
+                        IntSuffix::Signed(suffix) => lower_signed_ty(suffix),
+                        IntSuffix::Unsigned(suffix) => lower_unsigned_ty(suffix),
+                    }))
+                }
+                Const::Float(value, suffix) => alloc
+                    .as_string(value)
+                    .append(alloc.text(lower_float_ty(suffix))),
+            }
+        }
+
+        // FIXME: Hygiene!
         Expr::Var(Var::Free(_)) => unimplemented!(),
-        Expr::Var(Var::Bound(Named(ref name, _))) => doc.as_string(name),
+        Expr::Var(Var::Bound(Named(ref name, _))) => {
+            is_atomic = true;
+            alloc.as_string(name)
+        }
 
         Expr::Unop(op, ref expr) => {
             let op_str = match op {
@@ -529,7 +658,9 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 
             // Let's not worry about being pretty with operator precedence here
             // Just chuck redundant parens around all the things... ¯\_(ツ)_/¯
-            doc.text(op_str).append(lower_expr(doc, Prec::Expr, expr))
+            alloc
+                .text(op_str)
+                .append(lower_expr(alloc, Prec::Expr, expr))
         }
 
         Expr::Binop(op, ref lhs, ref rhs) => {
@@ -550,91 +681,109 @@ fn lower_expr<'doc, 'a: 'doc, A: DocAllocator<'doc>>(
 
             // Let's not worry about being pretty with operator precedence here
             // Just chuck redundant parens around all the things... ¯\_(ツ)_/¯
-            lower_expr(doc, Prec::Expr, lhs)
-                .append(doc.space())
-                .append(doc.text(op_str))
-                .append(doc.space())
-                .append(lower_expr(doc, Prec::Expr, rhs))
+            lower_expr(alloc, Prec::Expr, lhs)
+                .append(alloc.space())
+                .append(alloc.text(op_str))
+                .append(alloc.space())
+                .append(lower_expr(alloc, Prec::Expr, rhs))
         }
 
-        Expr::Struct(ref path, ref fields) => doc.text(path.to_camel_case())
-            .append(doc.space())
-            .append(doc.text("{"))
+        Expr::Struct(ref path, ref fields) => alloc
+            .text(path.to_camel_case())
+            .append(alloc.space())
+            .append(alloc.text("{"))
             .group()
             .append(
-                doc.newline()
-                    .append(doc.intersperse(
+                alloc
+                    .newline()
+                    .append(alloc.intersperse(
                         fields.iter().map(|field| {
-                            doc.as_string(&field.name)
-                                .append(doc.text(":"))
-                                .append(doc.space())
-                                .append(lower_expr(doc, Prec::Block, &field.value))
-                                .append(doc.text(","))
+                            alloc
+                                .as_string(&field.name)
+                                .append(alloc.text(":"))
+                                .append(alloc.space())
+                                .append(lower_expr(alloc, Prec::Block, &field.value))
+                                .append(alloc.text(","))
                                 .group()
                         }),
-                        doc.newline(),
+                        alloc.newline(),
                     ))
                     .nest(INDENT_WIDTH)
-                    .append(doc.newline()),
+                    .append(alloc.newline()),
             )
-            .append(doc.text("}")),
+            .append(alloc.text("}")),
 
-        Expr::Proj(ref expr, ref field_name) => lower_expr(doc, Prec::Block, expr)
-            .append(doc.text("."))
-            .append(doc.as_string(field_name)),
+        Expr::Proj(ref expr, ref field_name) => {
+            is_atomic = true;
 
-        Expr::Intro(ref path, ref variant_name, ref expr) => doc.text(path.to_camel_case())
-            .append(doc.text("::"))
-            .append(doc.as_string(variant_name.to_camel_case()))
-            .append(doc.text("("))
-            .append(lower_expr(doc, Prec::Block, expr))
-            .append(doc.text(")")),
+            lower_expr(alloc, Prec::Block, expr)
+                .append(alloc.text("."))
+                .append(alloc.as_string(field_name))
+        }
 
-        Expr::Subscript(ref expr, ref index) => lower_expr(doc, Prec::Block, expr)
-            .append(doc.text("["))
+        Expr::Intro(ref path, ref variant_name, ref expr) => alloc
+            .text(path.to_camel_case())
+            .append(alloc.text("::"))
+            .append(alloc.as_string(variant_name.to_camel_case()))
+            .append(alloc.text("("))
+            .append(lower_expr(alloc, Prec::Block, expr))
+            .append(alloc.text(")")),
+
+        Expr::Subscript(ref expr, ref index) => lower_expr(alloc, Prec::Block, expr)
+            .append(alloc.text("["))
             .append(
-                lower_expr(doc, Prec::Block, index)
-                    .append(doc.space())
-                    .append(doc.text("as usize")),
+                lower_expr(alloc, Prec::Block, index)
+                    .append(alloc.space())
+                    .append(alloc.text("as usize")),
             )
-            .append(doc.text("]")),
+            .append(alloc.text("]")),
 
-        Expr::Cast(ref expr, ref ty) => lower_expr(doc, Prec::Block, expr)
-            .append(doc.space())
-            .append(doc.text("as"))
-            .append(doc.space())
-            .append(lower_ty(doc, ty))
-            .group(),
+        Expr::Cast(ref expr, ref ty) => {
+            is_atomic = true;
 
-        Expr::Abs(ref params, ref body_expr) => doc.text("|")
-            .append(doc.intersperse(
+            lower_expr(alloc, Prec::Block, expr)
+                .append(alloc.space())
+                .append(alloc.text("as"))
+                .append(alloc.space())
+                .append(lower_ty(alloc, ty))
+                .group()
+        }
+
+        Expr::Abs(ref params, ref body_expr) => alloc
+            .text("|")
+            .append(alloc.intersperse(
                 params.iter().map(|&Named(ref name, ref ty)| {
-                    doc.as_string(name)
-                        .append(doc.text(":"))
-                        .append(doc.space())
-                        .append(lower_ty(doc, ty))
+                    alloc
+                        .as_string(name)
+                        .append(alloc.text(":"))
+                        .append(alloc.space())
+                        .append(lower_ty(alloc, ty))
                 }),
-                doc.text(","),
+                alloc.text(","),
             ))
-            .append(doc.text("|"))
-            .append(doc.space())
-            .append(lower_expr(doc, Prec::Block, body_expr).nest(INDENT_WIDTH))
+            .append(alloc.text("|"))
+            .append(alloc.space())
+            .append(lower_expr(alloc, Prec::Block, body_expr).nest(INDENT_WIDTH))
             .group(),
 
         Expr::App(ref fn_expr, ref arg_exprs) => {
             let arg_exprs = arg_exprs
                 .iter()
-                .map(|arg_expr| lower_expr(doc, Prec::Block, arg_expr));
+                .map(|arg_expr| lower_expr(alloc, Prec::Block, arg_expr));
 
-            lower_expr(doc, Prec::Block, fn_expr)
-                .append(doc.text("("))
-                .append(doc.intersperse(arg_exprs, doc.text(",")))
-                .append(doc.text(")"))
+            lower_expr(alloc, Prec::Block, fn_expr)
+                .append(alloc.text("("))
+                .append(alloc.intersperse(arg_exprs, alloc.text(",")))
+                .append(alloc.text(")"))
         }
     };
 
-    match prec {
-        Prec::Block => inner,
-        Prec::Expr => doc.text("(").append(inner).append(doc.text(")")).group(),
+    match (is_atomic, prec) {
+        (true, _) | (_, Prec::Block) => inner,
+        (_, Prec::Expr) => alloc
+            .text("(")
+            .append(inner)
+            .append(alloc.text(")"))
+            .group(),
     }
 }

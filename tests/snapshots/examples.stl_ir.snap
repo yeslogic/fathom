@@ -1,12 +1,13 @@
 Program {
-    defs: [
-        (
-            Path {
+    definitions: [
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Vec3d",
                 children: []
             },
-            Struct(
-                "",
+            params: [],
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -87,14 +88,15 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Triangle",
                 children: []
             },
-            Struct(
-                "",
+            params: [],
+            item: Struct(
                 [
                     Field {
                         doc: "Normal vector",
@@ -103,7 +105,8 @@ Program {
                             Path {
                                 base: "Vec3d",
                                 children: []
-                            }
+                            },
+                            []
                         )
                     },
                     Field {
@@ -114,7 +117,8 @@ Program {
                                 Path {
                                     base: "Vec3d",
                                     children: []
-                                }
+                                },
+                                []
                             )
                         )
                     },
@@ -182,14 +186,15 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "https://en.wikipedia.org/wiki/STL_(file_format)",
+            path: Path {
                 base: "Stl",
                 children: []
             },
-            Struct(
-                "https://en.wikipedia.org/wiki/STL_(file_format)",
+            params: [],
+            item: Struct(
                 [
                     Field {
                         doc: "Generally ignored",
@@ -219,7 +224,8 @@ Program {
                                 Path {
                                     base: "Triangle",
                                     children: []
-                                }
+                                },
+                                []
                             )
                         )
                     }
@@ -285,6 +291,6 @@ Program {
                     )
                 )
             )
-        )
+        }
     ]
 }

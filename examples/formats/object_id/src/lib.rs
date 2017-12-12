@@ -27,7 +27,7 @@ impl FromHex for ObjectId {
 
     fn from_hex<T: AsRef<[u8]>>(src: T) -> Result<ObjectId, FromHexError> {
         let buf = <[u8; 12]>::from_hex(src)?;
-        let object_id = ObjectId::read(&mut io::Cursor::new(buf))?;
+        let object_id = ObjectId::from_binary(&mut io::Cursor::new(buf))?;
 
         Ok(object_id)
     }

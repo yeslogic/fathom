@@ -1,12 +1,13 @@
 Program {
-    defs: [
-        (
-            Path {
+    definitions: [
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Pixel",
                 children: []
             },
-            Struct(
-                "",
+            params: [],
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -100,16 +101,17 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Bitmap",
                 children: [
                     "extents"
                 ]
             },
-            Struct(
-                "",
+            params: [],
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -132,14 +134,15 @@ Program {
                 ],
                 None
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Bitmap",
                 children: []
             },
-            Struct(
-                "",
+            params: [],
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -150,7 +153,8 @@ Program {
                                 children: [
                                     "extents"
                                 ]
-                            }
+                            },
+                            []
                         )
                     },
                     Field {
@@ -161,7 +165,8 @@ Program {
                                 Path {
                                     base: "Pixel",
                                     children: []
-                                }
+                                },
+                                []
                             )
                         )
                     }
@@ -255,21 +260,23 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Bmp",
                 children: []
             },
-            Alias(
-                "",
+            params: [],
+            item: Alias(
                 Path(
                     Path {
                         base: "Bitmap",
                         children: []
-                    }
+                    },
+                    []
                 )
             )
-        )
+        }
     ]
 }

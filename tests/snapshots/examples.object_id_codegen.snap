@@ -2,6 +2,7 @@
 
 extern crate ddl_util;
 
+use self::ddl_util::FromBinary;
 use std::io;
 use std::io::prelude::*;
 
@@ -14,8 +15,8 @@ pub struct ObjectId {
     pub counter: u32,
 }
 
-impl ObjectId {
-    pub fn read<R: Read>(reader: &mut R) -> io::Result<ObjectId> {
+impl FromBinary for ObjectId {
+    fn from_binary<R: Read>(reader: &mut R) -> io::Result<ObjectId> {
         let epoch_time = ddl_util::from_i32be(reader)?;
         let machine_id = ddl_util::from_u24be(reader)?;
         let process_id = ddl_util::from_u16be(reader)?;

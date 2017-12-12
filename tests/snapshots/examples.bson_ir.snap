@@ -1,12 +1,13 @@
 Program {
-    defs: [
-        (
-            Path {
+    definitions: [
+        Definition {
+            doc: "Binary data",
+            path: Path {
                 base: "BinData",
                 children: []
             },
-            Struct(
-                "Binary data",
+            params: [],
+            item: Struct(
                 [
                     Field {
                         doc: "The number of bytes stored",
@@ -99,14 +100,15 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "ObjectId",
                 children: []
             },
-            Struct(
-                "",
+            params: [],
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -208,16 +210,17 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Element",
                 children: [
                     "content"
                 ]
             },
-            Union(
-                "",
+            params: [],
+            item: Union(
                 [
                     Field {
                         doc: "64-bit floating point",
@@ -235,7 +238,8 @@ Program {
                             Path {
                                 base: "BinData",
                                 children: []
-                            }
+                            },
+                            []
                         )
                     },
                     Field {
@@ -252,7 +256,8 @@ Program {
                             Path {
                                 base: "ObjectId",
                                 children: []
-                            }
+                            },
+                            []
                         )
                     },
                     Field {
@@ -310,14 +315,15 @@ Program {
                 ],
                 None
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "",
+            path: Path {
                 base: "Element",
                 children: []
             },
-            Struct(
-                "",
+            params: [],
+            item: Struct(
                 [
                     Field {
                         doc: "",
@@ -337,7 +343,8 @@ Program {
                                 children: [
                                     "content"
                                 ]
-                            }
+                            },
+                            []
                         )
                     }
                 ],
@@ -687,14 +694,15 @@ Program {
                     )
                 )
             )
-        ),
-        (
-            Path {
+        },
+        Definition {
+            doc: "BSON Document\n\n<http://bsonspec.org/spec.html>",
+            path: Path {
                 base: "Document",
                 children: []
             },
-            Struct(
-                "BSON Document\n\n<http://bsonspec.org/spec.html>",
+            params: [],
+            item: Struct(
                 [
                     Field {
                         doc: "Total number of bytes comprising the document.",
@@ -713,7 +721,8 @@ Program {
                                 Path {
                                     base: "Element",
                                     children: []
-                                }
+                                },
+                                []
                             )
                         )
                     }
@@ -762,6 +771,6 @@ Program {
                     )
                 )
             )
-        )
+        }
     ]
 }

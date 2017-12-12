@@ -1,14 +1,16 @@
 extern crate ddl_edid;
+extern crate ddl_util;
 
-use std::io::Cursor;
 use ddl_edid::Edid;
+use ddl_util::FromBinary;
+use std::io::Cursor;
 
 const MAGIC: u64 = 0x00ff_ffff_ffff_ff00;
 
 #[test]
-fn test_read_edid_mbp_2013_built_in_retina() {
+fn test_from_binary_edid_mbp_2013_built_in_retina() {
     let buf = include_bytes!("fixtures/mbp_2013_built_in_retina.bin");
-    let edid = Edid::read(&mut Cursor::new(&buf[..])).unwrap();
+    let edid = Edid::from_binary(&mut Cursor::new(&buf[..])).unwrap();
 
     assert_eq!(edid.header.magic, MAGIC);
     assert_eq!(edid.header.mfg_bytes, 4102);
@@ -26,9 +28,9 @@ fn test_read_edid_mbp_2013_built_in_retina() {
 }
 
 #[test]
-fn test_read_edid_mbp_2017_built_in_retina() {
+fn test_from_binary_edid_mbp_2017_built_in_retina() {
     let buf = include_bytes!("fixtures/mbp_2017_built_in_retina.bin");
-    let edid = Edid::read(&mut Cursor::new(&buf[..])).unwrap();
+    let edid = Edid::from_binary(&mut Cursor::new(&buf[..])).unwrap();
 
     assert_eq!(edid.header.magic, MAGIC);
 
@@ -38,9 +40,9 @@ fn test_read_edid_mbp_2017_built_in_retina() {
 }
 
 #[test]
-fn test_read_edid_yamakasi_0270led() {
+fn test_from_binary_edid_yamakasi_0270led() {
     let buf = include_bytes!("fixtures/yamakasi_0270led.bin");
-    let edid = Edid::read(&mut Cursor::new(&buf[..])).unwrap();
+    let edid = Edid::from_binary(&mut Cursor::new(&buf[..])).unwrap();
 
     assert_eq!(edid.header.magic, MAGIC);
 
