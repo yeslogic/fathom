@@ -33,7 +33,7 @@ namespace ddl.binary
           has_kind Γ (type.struct_cons l t₁ t₂) ★
       | array {Γ t e} :
           has_kind Γ t ★ →
-          host.has_type e host.type.nat →
+          host.has_type e (host.type.arith sorry) /- FIXME: n ≥ 0 -/ →
           has_kind Γ [ t; e ] ★
       | assert {Γ t e} :
           has_kind Γ t ★ →

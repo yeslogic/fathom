@@ -10,6 +10,7 @@ extern crate pretty;
 #[cfg(test)]
 #[macro_use]
 extern crate pretty_assertions;
+extern crate ramp;
 extern crate unicode_xid;
 
 #[cfg(test)]

@@ -92,7 +92,7 @@ fn parse_proj_expr() {
 
 #[test]
 fn parse_subscript_expr() {
-    let src = "-foo[23u32 + (2u32 + 3u32)][index]";
+    let src = "-foo[23 + (2u32 + 3u32)][index]";
 
     assert_debug_snapshot!(parse_subscript_expr, host::Expr::from_str(src).unwrap());
 }
@@ -119,7 +119,7 @@ fn parse_ty_assert() {
         struct {
             x: u32 where x => x == 3u32,
         }
-        where x => x == 2u32
+        where x => x == 2
         where x => x == 1u32
     ";
 

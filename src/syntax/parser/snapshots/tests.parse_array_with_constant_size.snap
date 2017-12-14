@@ -20,7 +20,15 @@ Program {
                         lo: BytePos(23),
                         hi: BytePos(27)
                     },
-                    Int(3, Unsigned(U32))
+                    Int(
+                        3,
+                        Some(
+                            IntType {
+                                min: 0,
+                                max: 4294967295
+                            }
+                        )
+                    )
                 )
             )
         }

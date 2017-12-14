@@ -13,7 +13,7 @@ namespace ddl
 
     def type.embed : type ℓ → Type
       | type.bool := bool
-      | type.nat := ℕ
+      | (type.arith _) := ℤ
       | type.union_nil := empty
       | (type.union_cons _ t₁ t₂) := t₁.embed ⊕ t₂.embed
       | type.struct_nil := unit
@@ -21,11 +21,11 @@ namespace ddl
       | (type.array t₁) := list t₁.embed
 
     def typed_expr.embed : Π (e : typed_expr ℓ), e.t.embed
-      | ⟨expr.bool b,                    type.bool, h⟩ := b
-      | ⟨expr.nat n,                     type.nat,  h⟩ := n
-      | ⟨expr.app_binop binop.add e₁ e₂, type.nat,  h⟩ := sorry
-      | ⟨expr.app_binop binop.mul e₁ e₂, type.nat,  h⟩ := sorry
-      | ⟨_,                              _,         _⟩ := sorry -- hmmm...
+      | ⟨expr.bool b,                      type.bool,       h⟩ := b
+      | ⟨expr.arith n,                     (type.arith _),  h⟩ := sorry
+      | ⟨expr.binop arith.binop.add e₁ e₂, (type.arith _),  h⟩ := sorry
+      | ⟨expr.binop arith.binop.mul e₁ e₂, (type.arith _),  h⟩ := sorry
+      | ⟨_,                                _,               _⟩ := sorry -- hmmm...
 
   end host
 

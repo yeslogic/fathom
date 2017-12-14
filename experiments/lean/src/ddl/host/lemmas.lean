@@ -50,11 +50,16 @@ namespace ddl.host
           apply or.inl,
           exact value.bool bv
         },
-        case has_type.nat nv {
-          apply or.inl,
-          exact value.nat nv
+        case has_type.arith nv {
+          admit
+        },
+        case has_type.neg e₁ ht₁ hp₁ {
+          admit
         },
         case has_type.add e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
+          admit
+        },
+        case has_type.sub e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
           admit
         },
         case has_type.mul e₁ e₂ ht₁ ht₂ hp₁ hp₂ {
@@ -80,10 +85,16 @@ namespace ddl.host
         case has_type.bool bv hsbv {
           admit,
         },
-        case has_type.nat hsnat {
+        case has_type.arith hsarith {
+          admit,
+        },
+        case has_type.neg e₁ ht₁ hs₁ {
           admit,
         },
         case has_type.add e₁ e₂ ht₁ ht₂ hs₁ hs₂ {
+          admit,
+        },
+        case has_type.sub e₁ e₂ ht₁ ht₂ hs₁ hs₂ {
           admit,
         },
         case has_type.mul e₁ e₂ ht₁ ht₂ hs₁ hs₂ {

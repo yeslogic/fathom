@@ -32,8 +32,9 @@ mod ty_of {
     }
 
     #[test]
+    #[ignore]
     fn neg_i8() {
-        assert_ty_of!("-(1i8 + 2i8)", Ok("i8"));
+        assert_ty_of!("-1i8", Ok("i8"));
     }
 
     #[test]
@@ -58,37 +59,42 @@ mod ty_of {
 
     #[test]
     fn arith_ops() {
-        assert_ty_of!("1i8 + (1i8 * -2i8)", Ok("i8"));
+        assert_ty_of!("1 + (1 * -2)", Ok("i8"));
     }
 
     #[test]
-    fn cmp_ops_eq_u8() {
-        assert_ty_of!("1u8 + (1u8 * 2u8) == 3u8", Ok("bool"));
+    fn cmp_ops_eq() {
+        assert_ty_of!("1 + (1 * 2) == 3", Ok("bool"));
     }
 
     #[test]
-    fn cmp_ops_ne_u8() {
-        assert_ty_of!("1u8 + (1u8 * 2u8) != 3u8", Ok("bool"));
+    fn cmp_ops_eq_disjoint() {
+        assert_ty_of!("1u8 == -1u8", Ok("bool"));
+    }
+
+    #[test]
+    fn cmp_ops_ne() {
+        assert_ty_of!("1 + (1 * 2) != 3", Ok("bool"));
     }
 
     #[test]
     fn cmp_ops_eq_bool() {
-        assert_ty_of!("(1u8 == 1u8) == (3u8 == 3u8)", Ok("bool"));
+        assert_ty_of!("(1 == 1) == (3 == 3)", Ok("bool"));
     }
 
     #[test]
     fn cmp_ops_ne_bool() {
-        assert_ty_of!("(1u8 == 1u8) != (3u8 == 3u8)", Ok("bool"));
+        assert_ty_of!("(1 == 1) != (3 == 3)", Ok("bool"));
     }
 
     #[test]
     fn rel_ops() {
-        assert_ty_of!("(1u8 == 3u8) && (2u8 == 2u8) || (1u8 == 2u8)", Ok("bool"));
+        assert_ty_of!("(1 == 3) && (2 == 2) || (1 == 2)", Ok("bool"));
     }
 
     #[test]
     fn cast_bool() {
-        assert_ty_of!("(1u8 == 3u8) as u8", Err(_));
+        assert_ty_of!("(1 == 3) as u8", Err(_));
     }
 
     #[test]

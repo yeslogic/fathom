@@ -65,11 +65,11 @@ pub enum TypeError {
 /// Returns the type of a host expression, checking that it is properly formed
 /// in the environment
 pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeError> {
-    use syntax::ast::host::{Binop, Expr, Type, TypeConst, Unop};
+    use syntax::ast::host::{Binop, Expr, IntType, Type, TypeConst, Unop};
 
     match **expr {
         // Constants are easy!
-        Expr::Const(_, c) => Ok(Rc::new(Type::Const(c.ty_const_of()))),
+        Expr::Const(_, ref c) => Ok(Rc::new(Type::Const(c.ty_const_of()))),
 
         // Variables
         Expr::Var(_, Var::Free(ref name)) => Err(TypeError::UnboundVariable {
@@ -91,18 +91,20 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
             let operand_ty = ty_of(ctx, operand_expr)?;
 
             match (op, &*operand_ty) {
-                (Unop::Neg, &Const(TypeConst::Signed(_)))
-                | (Unop::Neg, &Const(TypeConst::Float(_))) => Ok(operand_ty),
+                (Unop::Neg, &Const(TypeConst::Float(_))) => Ok(Rc::clone(&operand_ty)),
+                (Unop::Neg, &Const(TypeConst::Int(ref int))) => Ok(Rc::new(Const(
+                    TypeConst::Int(IntType::range(-int.max(), -int.min())),
+                ))),
                 (Unop::Neg, _) => Err(TypeError::Mismatch {
                     expr: Rc::clone(expr),
                     expected: ExpectedType::Signed,
-                    found: operand_ty,
+                    found: Rc::clone(&operand_ty),
                 }),
-                (Unop::Not, &Const(TypeConst::Bool)) => Ok(operand_ty),
+                (Unop::Not, &Const(TypeConst::Bool)) => Ok(Rc::clone(&operand_ty)),
                 (Unop::Not, _) => Err(TypeError::Mismatch {
                     expr: Rc::clone(expr),
                     expected: ExpectedType::Actual(Rc::new(Type::Const(TypeConst::Bool))),
-                    found: operand_ty,
+                    found: Rc::clone(&operand_ty),
                 }),
             }
         }
@@ -130,35 +132,44 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
 
             match (&*lhs_ty, &*rhs_ty) {
                 (&Const(TypeConst::Bool), &Const(TypeConst::Bool)) => match op {
-                    Binop::Or | Binop::And | Binop::Eq | Binop::Ne => Ok(lhs_ty),
-                    _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                    Binop::Or | Binop::And | Binop::Eq | Binop::Ne => Ok(lhs_ty.clone()),
+                    _ => Err(binop_err(op, expr, Rc::clone(&lhs_ty), Rc::clone(&rhs_ty))),
                 },
                 (&Const(TypeConst::Float(l)), &Const(TypeConst::Float(r))) if l == r => match op {
                     Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
                         Ok(Rc::new(Const(TypeConst::Bool)))
                     }
-                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
-                    _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(Rc::clone(&lhs_ty)),
+                    _ => Err(binop_err(op, expr, Rc::clone(&lhs_ty), Rc::clone(&rhs_ty))),
                 },
-                (&Const(TypeConst::Signed(l)), &Const(TypeConst::Signed(r))) if l == r => {
-                    match op {
-                        Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                            Ok(Rc::new(Const(TypeConst::Bool)))
-                        }
-                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
-                        _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                (&Const(TypeConst::Int(ref l)), &Const(TypeConst::Int(ref r))) => match op {
+                    Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                        Ok(Rc::new(Const(TypeConst::Bool)))
                     }
-                }
-                (&Const(TypeConst::Unsigned(l)), &Const(TypeConst::Unsigned(r))) if l == r => {
-                    match op {
-                        Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                            Ok(Rc::new(Const(TypeConst::Bool)))
-                        }
-                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
-                        _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                    Binop::Add => Ok(Rc::new(Const(TypeConst::Int(IntType::range(
+                        l.min() + r.min(),
+                        l.max() + r.max(),
+                    ))))),
+                    Binop::Sub => Ok(Rc::new(Const(TypeConst::Int(IntType::range(
+                        l.min() - r.min(),
+                        l.max() - r.max(),
+                    ))))),
+                    Binop::Mul => {
+                        let products = [
+                            l.min() * r.min(),
+                            l.min() * r.max(),
+                            l.max() * r.min(),
+                            l.max() * r.max(),
+                        ];
+
+                        Ok(Rc::new(Const(TypeConst::Int(IntType::range(
+                            products.iter().min().unwrap().clone(),
+                            products.iter().max().unwrap().clone(),
+                        )))))
                     }
-                }
-                (_, _) => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                    _ => Err(binop_err(op, expr, Rc::clone(&lhs_ty), Rc::clone(&rhs_ty))),
+                },
+                (_, _) => Err(binop_err(op, expr, Rc::clone(&lhs_ty), Rc::clone(&rhs_ty))),
             }
         }
 
@@ -211,26 +222,26 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
         // Array subscript
         Expr::Subscript(_, ref array_expr, ref index_expr) => {
             let index_ty = ty_of(ctx, index_expr)?;
-            match *index_ty {
-                Type::Const(TypeConst::Unsigned(_)) => {}
-                _ => {
-                    return Err(TypeError::Mismatch {
-                        expr: Rc::clone(index_expr),
-                        expected: ExpectedType::Unsigned,
-                        found: index_ty,
-                    })
+
+            if let host::Type::Const(host::TypeConst::Int(ref int)) = *index_ty {
+                if int.is_nonnegative() {
+                    let array_ty = ty_of(ctx, array_expr)?;
+                    return match *array_ty {
+                        Type::Array(ref elem_ty) => Ok(Rc::clone(elem_ty)),
+                        _ => Err(TypeError::Mismatch {
+                            expr: Rc::clone(array_expr),
+                            expected: ExpectedType::Array,
+                            found: Rc::clone(&array_ty),
+                        }),
+                    };
                 }
             }
 
-            let array_ty = ty_of(ctx, array_expr)?;
-            match *array_ty {
-                Type::Array(ref elem_ty) => Ok(Rc::clone(elem_ty)),
-                _ => Err(TypeError::Mismatch {
-                    expr: Rc::clone(array_expr),
-                    expected: ExpectedType::Array,
-                    found: Rc::clone(&array_ty),
-                }),
-            }
+            Err(TypeError::Mismatch {
+                expr: Rc::clone(index_expr),
+                expected: ExpectedType::Signed,
+                found: index_ty,
+            })
         }
 
         // Cast Expressions
@@ -239,11 +250,11 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
 
             match **dst_ty {
                 Type::Const(TypeConst::Float(_))
-                | Type::Const(TypeConst::Signed(_))
-                | Type::Const(TypeConst::Unsigned(_)) => match *src_ty {
+                // FIXME: Ranges?
+                | Type::Const(TypeConst::Int(_))  => match *src_ty {
                     Type::Const(TypeConst::Float(_))
-                    | Type::Const(TypeConst::Signed(_))
-                    | Type::Const(TypeConst::Unsigned(_)) => Ok(Rc::clone(dst_ty)),
+                    // FIXME: ranges?
+                    | Type::Const(TypeConst::Int(_)) => Ok(Rc::clone(dst_ty)),
                     _ => Err(TypeError::Mismatch {
                         expr: Rc::clone(src_expr),
                         expected: ExpectedType::Numeric,
@@ -391,16 +402,17 @@ pub fn kind_of(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindE
             expect_ty_kind(ctx, elem_ty)?;
 
             let size_ty = ty_of(ctx, size_expr)?;
-            match *size_ty {
-                host::Type::Const(host::TypeConst::Unsigned(_)) => Ok(Kind::Type),
-                _ => Err(
-                    TypeError::Mismatch {
-                        expr: Rc::clone(size_expr),
-                        expected: ExpectedType::Signed,
-                        found: size_ty,
-                    }.into(),
-                ),
+            if let host::Type::Const(host::TypeConst::Int(ref int)) = *size_ty {
+                if int.is_nonnegative() {
+                    return Ok(Kind::Type);
+                }
             }
+
+            Err(KindError::from(TypeError::Mismatch {
+                expr: Rc::clone(size_expr),
+                expected: ExpectedType::Signed,
+                found: size_ty,
+            }))
         }
 
         // Conditional types
@@ -461,9 +473,9 @@ pub fn kind_of(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindE
                 expect_ty_kind(&ctx, &field.value)?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
-                ctx.extend(Scope::ExprAbs(
-                    vec![Named(field.name.clone(), field_ty.repr())],
-                ));
+                ctx.extend(Scope::ExprAbs(vec![
+                    Named(field.name.clone(), field_ty.repr()),
+                ]));
             }
 
             Ok(Kind::Type)

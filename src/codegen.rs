@@ -6,8 +6,7 @@ use name::Named;
 use ir::ast::{Definition, Expr, Field, Item, ParseExpr, Path, Program, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use ir::ast::{Binop, Const, Unop};
-use ir::ast::{BinaryTypeConst, IntSuffix, TypeConst};
-use ir::ast::{FloatType, SignedType, UnsignedType};
+use ir::ast::{BinaryTypeConst, FloatType, IntType, TypeConst};
 use var::Var;
 
 pub struct LowerProgram<'a>(pub &'a Program);
@@ -320,7 +319,7 @@ fn lower_ty<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
             .group(),
         // FIXME: Implement this!
         Type::Arrow(_, _) => unimplemented!(),
-        Type::Const(ty_const) => lower_ty_const(alloc, ty_const),
+        Type::Const(ref ty_const) => lower_ty_const(alloc, ty_const),
     }
 }
 
@@ -331,37 +330,36 @@ fn lower_float_ty(ty: FloatType) -> &'static str {
     }
 }
 
-fn lower_signed_ty(ty: SignedType) -> &'static str {
+fn lower_int_ty(ty: &IntType) -> &'static str {
     match ty {
-        SignedType::I8 => "i8",
-        SignedType::I16 => "i16",
-        SignedType::I24 => "i32",
-        SignedType::I32 => "i32",
-        SignedType::I64 => "i64",
-    }
-}
+        ty if ty <= &IntType::u8() => "u8",
+        ty if ty <= &IntType::i8() => "i8",
 
-fn lower_unsigned_ty(ty: UnsignedType) -> &'static str {
-    match ty {
-        UnsignedType::U8 => "u8",
-        UnsignedType::U16 => "u16",
-        UnsignedType::U24 => "u32",
-        UnsignedType::U32 => "u32",
-        UnsignedType::U64 => "u64",
+        ty if ty <= &IntType::u16() => "u16",
+        ty if ty <= &IntType::i16() => "i16",
+
+        ty if ty <= &IntType::u32() => "u32",
+        ty if ty <= &IntType::i32() => "i32",
+
+        ty if ty <= &IntType::u64() => "u64",
+        ty if ty <= &IntType::i64() => "i64",
+
+        // ty if ty <= &IntType::i128() && gen.is_i128_enabled() => "u128",
+        // ty if ty <= &IntType::i128() && gen.is_i128_enabled() => "i128",
+        _ => unimplemented!("Integer type out of range: {:?}", ty),
     }
 }
 
 fn lower_ty_const<'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    ty_const: TypeConst,
+    ty_const: &TypeConst,
 ) -> DocBuilder<'alloc, A> {
-    match ty_const {
+    match *ty_const {
         TypeConst::Unit => alloc.text("()"),
         TypeConst::Bottom => alloc.text("ddl_util::Never"),
         TypeConst::Bool => alloc.text("bool"),
         TypeConst::Float(ty) => alloc.text(lower_float_ty(ty)),
-        TypeConst::Signed(ty) => alloc.text(lower_signed_ty(ty)),
-        TypeConst::Unsigned(ty) => alloc.text(lower_unsigned_ty(ty)),
+        TypeConst::Int(ref ty) => alloc.text(lower_int_ty(ty)),
     }
 }
 
@@ -626,17 +624,15 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     let mut is_atomic = false;
 
     let inner = match *expr {
-        Expr::Const(c) => {
+        Expr::Const(ref c) => {
             is_atomic = true;
 
-            match c {
+            match *c {
                 Const::Bool(value) => alloc.as_string(value),
-                Const::Int(value, suffix) => {
-                    alloc.as_string(value).append(alloc.text(match suffix {
-                        IntSuffix::Signed(suffix) => lower_signed_ty(suffix),
-                        IntSuffix::Unsigned(suffix) => lower_unsigned_ty(suffix),
-                    }))
-                }
+                Const::Int(value, None) => alloc.as_string(value),
+                Const::Int(value, Some(ref suffix)) => alloc
+                    .as_string(value)
+                    .append(alloc.text(lower_int_ty(suffix))),
                 Const::Float(value, suffix) => alloc
                     .as_string(value)
                     .append(alloc.text(lower_float_ty(suffix))),
