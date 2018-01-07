@@ -21,7 +21,7 @@ impl<'a> From<&'a syntax::ast::Program> for Program {
             let path = Path::new(definition.name.clone());
 
             let definition = match *definition.ty {
-                binary::Type::Abs(_, ref params, ref ty) => Definition {
+                binary::Type::Lam(_, ref params, ref ty) => Definition {
                     doc: Rc::clone(&definition.doc),
                     params: params.iter().map(|p| p.0.clone()).collect(),
                     item: lower_item(&mut program, &path, ty),
@@ -151,7 +151,7 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
             program.define(definition);
             Rc::new(Type::Path(path.clone(), vec![]))
         }
-        binary::Type::Abs(_, _, _) => {
+        binary::Type::Lam(_, _, _) => {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
             // top-level definitions. Thes should have already been handled in
@@ -211,7 +211,7 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
             // generated for it, so instead we just return the current path.
             Rc::new(Type::Path(path.clone(), vec![]))
         }
-        host::Type::Abs(_, _) => {
+        host::Type::Lam(_, _) => {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
             // top-level definitions. Thes should have already been handled in
@@ -270,13 +270,13 @@ fn lower_expr(path: &Path, expr: &host::RcExpr) -> RcExpr {
         host::Expr::Cast(_, ref src_expr, ref dst_ty) => {
             Expr::Cast(lower_expr(path, src_expr), lower_repr_ty(path, dst_ty))
         }
-        host::Expr::Abs(_, ref params, ref body_expr) => {
+        host::Expr::Lam(_, ref params, ref body_expr) => {
             let lowered_params = params
                 .iter()
                 .map(|&Named(ref name, ref ty)| Named(name.clone(), lower_repr_ty(path, ty)))
                 .collect();
 
-            Expr::Abs(lowered_params, lower_expr(path, body_expr))
+            Expr::Lam(lowered_params, lower_expr(path, body_expr))
         }
         host::Expr::App(_, ref fn_expr, ref arg_exprs) => {
             let lowered_arg_exprs = arg_exprs
@@ -392,7 +392,7 @@ fn ty_parser(path: &Path, ty: &binary::RcType) -> RcParseExpr {
 
             Rc::new(ParseExpr::Apply(fn_expr, parser_expr))
         }
-        binary::Type::Abs(_, _, _) => unimplemented!("Abs: {:?}", ty),
+        binary::Type::Lam(_, _, _) => unimplemented!("Abs: {:?}", ty),
         binary::Type::App(_, ref ty, _) => ty_parser(path, ty),
     }
 }

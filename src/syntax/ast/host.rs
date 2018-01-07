@@ -130,7 +130,7 @@ pub enum Expr {
     /// Cast expression, eg: `x as u32`
     Cast(Span, RcExpr, RcType),
     /// Abstraction, eg: `\(x : T, ..) -> x`
-    Abs(Span, Vec<Named<RcType>>, RcExpr),
+    Lam(Span, Vec<Named<RcType>>, RcExpr),
     /// Application, eg: `f(x, ..)`
     App(Span, RcExpr, Vec<RcExpr>),
 }
@@ -150,7 +150,7 @@ impl Expr {
             Rc::make_mut(&mut body_expr).abstract_names(&param_names[..]);
         }
 
-        Expr::Abs(span, params, body_expr)
+        Expr::Lam(span, params, body_expr)
     }
 
     /// Attempt to lookup the value of a field
@@ -195,7 +195,7 @@ impl Expr {
                 Rc::make_mut(src_expr).substitute(substs);
                 Rc::make_mut(dst_ty).substitute(substs);
             }
-            Expr::Abs(_, ref mut args, ref mut body_expr) => {
+            Expr::Lam(_, ref mut args, ref mut body_expr) => {
                 for &mut Named(_, ref mut arg_ty) in args {
                     Rc::make_mut(arg_ty).substitute(substs);
                 }
@@ -238,7 +238,7 @@ impl Expr {
                 Rc::make_mut(src_expr).abstract_names_at(names, scope);
                 // TODO: abstract dst_ty???
             }
-            Expr::Abs(_, ref mut args, ref mut body_expr) => {
+            Expr::Lam(_, ref mut args, ref mut body_expr) => {
                 for &mut Named(_, ref mut arg_ty) in args {
                     Rc::make_mut(arg_ty).abstract_names_at(names, scope);
                 }
@@ -331,7 +331,7 @@ pub enum Type {
     /// Type abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    Abs(Vec<Named<()>>, RcType),
+    Lam(Vec<Named<()>>, RcType),
     /// Type application: eg. `T(U, V)`
     App(RcType, Vec<RcType>),
 }
@@ -354,7 +354,7 @@ impl Type {
         let mut body_ty = body_ty.into();
         Rc::make_mut(&mut body_ty).abstract_names(param_names);
 
-        Type::Abs(params, body_ty)
+        Type::Lam(params, body_ty)
     }
 
     /// Attempt to lookup the type of a field
@@ -412,7 +412,7 @@ impl Type {
                 }
                 return;
             }
-            Type::Abs(_, ref mut body_ty) => {
+            Type::Lam(_, ref mut body_ty) => {
                 Rc::make_mut(body_ty).substitute(substs);
                 return;
             }
@@ -447,7 +447,7 @@ impl Type {
             Type::Struct(ref mut fields) => for field in fields {
                 Rc::make_mut(&mut field.value).abstract_names_at(names, scope);
             },
-            Type::Abs(_, ref mut body_ty) => {
+            Type::Lam(_, ref mut body_ty) => {
                 Rc::make_mut(body_ty).abstract_names_at(names, scope.succ());
             }
             Type::App(ref mut fn_ty, ref mut arg_tys) => {
@@ -493,7 +493,7 @@ impl Type {
             Type::Struct(ref mut fields) => for field in fields {
                 Rc::make_mut(&mut field.value).instantiate_at(scope, tys);
             },
-            Type::Abs(_, ref mut ty) => {
+            Type::Lam(_, ref mut ty) => {
                 Rc::make_mut(ty).instantiate_at(scope.succ(), tys);
             }
             Type::App(ref mut ty, ref mut arg_tys) => {

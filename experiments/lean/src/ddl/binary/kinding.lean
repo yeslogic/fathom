@@ -15,7 +15,7 @@ namespace ddl.binary
 
     inductive has_kind : ctx ℓ → type ℓ α → kind → Prop
       | bvar {Γ} (x : ℕ) {k} :
-          ctx.lookup x Γ = some (binder.abs k) →
+          ctx.lookup x Γ = some (binder.lam k) →
           has_kind Γ ↑x k
       | bit {Γ} :
           has_kind Γ type.bit ★
@@ -43,8 +43,8 @@ namespace ddl.binary
           has_kind Γ t ★ →
           host.has_type /- FIXME: add binding? -/ e th →
           has_kind Γ (type.interp t e th) ★
-      | abs {Γ t k₁ k₂} :
-          has_kind (binder.abs k₁ :: Γ) t k₁ →
+      | lam {Γ t k₁ k₂} :
+          has_kind (binder.lam k₁ :: Γ) t k₁ →
           has_kind Γ (Λ0: k₁, t) (k₁ ⇒ k₂)
       | app {Γ t₁ t₂ k₁ k₂} :
           has_kind Γ t₁ (k₁ ⇒ k₂) →

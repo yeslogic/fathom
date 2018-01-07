@@ -120,7 +120,7 @@ pub enum Type {
     /// Type abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    Abs(Span, Vec<Named<()>>, RcType),
+    Lam(Span, Vec<Named<()>>, RcType),
     /// Type application: eg. `T(U, V)`
     App(Span, RcType, Vec<RcType>),
 }
@@ -161,7 +161,7 @@ impl Type {
         let mut body_ty = body_ty.into();
         Rc::make_mut(&mut body_ty).abstract_names(param_names);
 
-        Type::Abs(span, params, body_ty)
+        Type::Lam(span, params, body_ty)
     }
 
     /// Attempt to lookup the type of a field
@@ -224,7 +224,7 @@ impl Type {
                 Rc::make_mut(repr_ty).substitute(substs);
                 return;
             }
-            Type::Abs(_, _, ref mut body_ty) => {
+            Type::Lam(_, _, ref mut body_ty) => {
                 Rc::make_mut(body_ty).substitute(substs);
                 return;
             }
@@ -266,7 +266,7 @@ impl Type {
                 Rc::make_mut(conv).abstract_names_at(names, scope.succ());
                 Rc::make_mut(repr_ty).abstract_names_at(names, scope);
             }
-            Type::Abs(_, _, ref mut body_ty) => {
+            Type::Lam(_, _, ref mut body_ty) => {
                 Rc::make_mut(body_ty).abstract_names_at(names, scope.succ());
             }
             Type::App(_, ref mut fn_ty, ref mut arg_tys) => {
@@ -312,7 +312,7 @@ impl Type {
             Type::Struct(_, ref mut fields) => for (i, field) in fields.iter_mut().enumerate() {
                 Rc::make_mut(&mut field.value).instantiate_at(scope.shift(i as u32), tys);
             },
-            Type::Abs(_, _, ref mut ty) => {
+            Type::Lam(_, _, ref mut ty) => {
                 Rc::make_mut(ty).instantiate_at(scope.succ(), tys);
             }
             Type::App(_, ref mut ty, ref mut arg_tys) => {
@@ -363,8 +363,8 @@ impl Type {
 
                 Rc::new(host::Type::Struct(repr_fields))
             }
-            Type::Abs(_, ref params, ref body_ty) => {
-                Rc::new(host::Type::Abs(params.clone(), body_ty.repr()))
+            Type::Lam(_, ref params, ref body_ty) => {
+                Rc::new(host::Type::Lam(params.clone(), body_ty.repr()))
             }
             Type::App(_, ref fn_ty, ref arg_tys) => {
                 let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();

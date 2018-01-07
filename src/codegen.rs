@@ -749,7 +749,7 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                 .group()
         }
 
-        Expr::Abs(ref params, ref body_expr) => alloc
+        Expr::Lam(ref params, ref body_expr) => alloc
             .text("|")
             .append(alloc.intersperse(
                 params.iter().map(|&Named(ref name, ref ty)| {

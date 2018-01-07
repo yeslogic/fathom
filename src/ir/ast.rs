@@ -233,7 +233,7 @@ pub enum Expr {
     Intro(Path, String, RcExpr),
     Subscript(RcExpr, RcExpr),
     Cast(RcExpr, RcType),
-    Abs(Vec<Named<RcType>>, RcExpr),
+    Lam(Vec<Named<RcType>>, RcExpr),
     App(RcExpr, Vec<RcExpr>),
 }
 
@@ -265,7 +265,7 @@ impl Expr {
                 Rc::make_mut(src_expr).abstract_names_at(names, scope);
                 // TODO: abstract dst_ty???
             }
-            Expr::Abs(_, ref mut body_expr) => {
+            Expr::Lam(_, ref mut body_expr) => {
                 Rc::make_mut(body_expr).abstract_names_at(names, scope.succ());
             }
             Expr::App(ref mut fn_expr, ref mut arg_exprs) => {

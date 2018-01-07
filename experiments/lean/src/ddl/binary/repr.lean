@@ -56,7 +56,7 @@ namespace ddl.binary
             simp [repr],
             admit,
           },
-          case well_formed.abs t₁ k hbtwf₁ { admit },
+          case well_formed.lam t₁ k hbtwf₁ { admit },
           case well_formed.app t₁ t₂ hbtwf₁ hbtwf₂ { admit },
       end
 

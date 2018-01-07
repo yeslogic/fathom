@@ -26,13 +26,13 @@ namespace ddl.binary
     | array : type → host.expr ℓ → type
     | assert : type → host.expr ℓ → type
     | interp : type → host.expr ℓ → host.type ℓ → type
-    | abs : kind → type → type
+    | lam : kind → type → type
     | app : type → type → type
 
 
   -- Abstraction and assertition type notation - note that we are using a
   -- nameless representation so we don't include the argument identifiers
-  notation `Λ0: ` k `, ` t := type.abs k t
+  notation `Λ0: ` k `, ` t := type.lam k t
   notation `{0: ` t ` | ` e ` }` := type.assert t e
   -- Array type syntax
   notation `[ ` t `; ` e ` ]` := type.array t e

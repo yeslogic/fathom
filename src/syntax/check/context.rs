@@ -6,8 +6,8 @@ use var::{BoundVar, ScopeIndex};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Scope {
-    ExprAbs(Vec<Named<host::RcType>>),
-    TypeAbs(Vec<Named<binary::Kind>>),
+    ExprLam(Vec<Named<host::RcType>>),
+    TypeLam(Vec<Named<binary::Kind>>),
     TypeDef(Vec<Named<(binary::RcType, binary::Kind)>>),
 }
 
@@ -36,7 +36,7 @@ impl Context {
 
     pub fn lookup_ty(&self, var: BoundVar) -> Result<(&str, &host::RcType), &Scope> {
         match *self.lookup(var.scope) {
-            Scope::ExprAbs(ref tys) => Ok(tys.get(var.binding.0 as usize)
+            Scope::ExprLam(ref tys) => Ok(tys.get(var.binding.0 as usize)
                 .map(|named| (&*named.0, &named.1))
                 .expect("ICE: Binder out of range")),
             ref scope => Err(scope),
@@ -54,7 +54,7 @@ impl Context {
 
     pub fn lookup_kind(&self, var: BoundVar) -> Result<(&str, &binary::Kind), &Scope> {
         match *self.lookup(var.scope) {
-            Scope::TypeAbs(ref kinds) => Ok(kinds
+            Scope::TypeLam(ref kinds) => Ok(kinds
                 .get(var.binding.0 as usize)
                 .map(|named| (&*named.0, &named.1))
                 .expect("ICE: Binder out of range")),

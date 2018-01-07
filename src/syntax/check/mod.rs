@@ -258,10 +258,10 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
         }
 
         // Abstraction
-        Expr::Abs(_, ref params, ref body_expr) => {
+        Expr::Lam(_, ref params, ref body_expr) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
-            ctx.extend(Scope::ExprAbs(params.clone()));
+            ctx.extend(Scope::ExprLam(params.clone()));
             let param_tys = params.iter().map(|param| Rc::clone(&param.1)).collect();
 
             Ok(Rc::new(Type::Arrow(param_tys, ty_of(&ctx, body_expr)?)))
@@ -304,7 +304,7 @@ fn simplify_ty(ctx: &Context, ty: &binary::RcType) -> binary::RcType {
                 Err(_) => None,
             },
             Type::App(_, ref fn_ty, ref arg_tys) => match **fn_ty {
-                Type::Abs(_, _, ref body_ty) => {
+                Type::Lam(_, _, ref body_ty) => {
                     // FIXME: Avoid clone
                     let mut body = Rc::clone(body_ty);
                     Rc::make_mut(&mut body).instantiate(arg_tys);
@@ -423,11 +423,11 @@ pub fn kind_of(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindE
         }
 
         // Type abstraction
-        Type::Abs(_, ref param_tys, ref body_ty) => {
+        Type::Lam(_, ref param_tys, ref body_ty) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
 
-            ctx.extend(Scope::TypeAbs(
+            ctx.extend(Scope::TypeLam(
                 param_tys
                     .iter()
                     .map(|named| Named(named.0.clone(), Kind::Type))
@@ -459,7 +459,7 @@ pub fn kind_of(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindE
                 expect_ty_kind(&ctx, &field.value)?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
-                ctx.extend(Scope::ExprAbs(vec![
+                ctx.extend(Scope::ExprLam(vec![
                     Named(field.name.clone(), field_ty.repr()),
                 ]));
             }

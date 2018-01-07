@@ -50,9 +50,9 @@ namespace ddl.binary
       | interp {t e th} :
           well_formed t →
           well_formed (interp t e th)
-      | abs {t k} :
+      | lam {t k} :
           well_formed t →
-          well_formed (abs k t)
+          well_formed (lam k t)
       | app {t₁ t₂} :
           well_formed t₁ →
           well_formed t₂ →

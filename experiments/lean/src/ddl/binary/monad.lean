@@ -19,7 +19,7 @@ namespace ddl.binary.type
     | (array t e)           f := array (bind t f) e
     | (assert t e)          f := assert (bind t f) e
     | (interp t e th)       f := interp (bind t f) e th
-    | (abs k t)             f := abs k (bind t f)
+    | (lam k t)             f := lam k (bind t f)
     | (app t₁ t₂)           f := app (bind t₁ f) (bind t₂ f)
 
 
@@ -55,7 +55,7 @@ namespace ddl.binary.type
             simp [bind, function.comp],
             rw [hht],
           },
-          case abs k t ht {
+          case lam k t ht {
             simp [bind, function.comp],
             rw [ht],
           },
@@ -98,7 +98,7 @@ namespace ddl.binary.type
             simp [bind] at hht,
             rw [hht]
           },
-          case abs k t ht {
+          case lam k t ht {
             simp [bind],
             simp [bind] at ht,
             rw [ht]

@@ -21,7 +21,7 @@ namespace ddl.binary
       | i x (array t e) := array (open_var i x t) e
       | i x (assert t e) := assert (open_var i x t) e
       | i x (interp t e th) := interp (open_var i x t) e th
-      | i x (abs k t) := abs k (open_var (i + 1) x t)
+      | i x (lam k t) := lam k (open_var (i + 1) x t)
       | i x (app t₁ t₂) := app (open_var i x t₁) (open_var i x t₂)
 
 
@@ -36,7 +36,7 @@ namespace ddl.binary
       | i x (array t e) := array (close_var i x t) e
       | i x (assert t e) := assert (close_var i x t) e
       | i x (interp t e th) := interp (close_var i x t) e th
-      | i x (abs k t) := abs k (close_var (i + 1) x t)
+      | i x (lam k t) := lam k (close_var (i + 1) x t)
       | i x (app t₁ t₂) := app (close_var i x t₁) (close_var i x t₂)
 
 
@@ -56,7 +56,7 @@ namespace ddl.binary
         case array t e ht { admit },
         case assert t e ht { admit },
         case interp t e ht hht { admit },
-        case abs k t ht { admit },
+        case lam k t ht { admit },
         case app t₁ t₂ ht₁ ht₂ { admit },
     end
 
@@ -77,7 +77,7 @@ namespace ddl.binary
         case array t e ht { admit },
         case assert t e ht { admit },
         case interp t e ht hht { admit },
-        case abs k t ht { admit },
+        case lam k t ht { admit },
         case app t₁ t₂ ht₁ ht₂ { admit },
     end
 

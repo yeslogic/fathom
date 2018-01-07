@@ -7,6 +7,6 @@ namespace ddl
 
   inductive binder (ℓ : Type) : Type
     | struct : host.type ℓ → binder
-    | abs {} : binary.kind → binder
+    | lam {} : binary.kind → binder
 
 end ddl
