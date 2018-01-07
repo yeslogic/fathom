@@ -342,12 +342,10 @@ impl Type {
             Type::Cond(_, ref options) => {
                 let repr_variants = options
                     .iter()
-                    .map(|variant| {
-                        Field {
-                            doc: Rc::clone(&variant.doc),
-                            name: variant.name.clone(),
-                            value: variant.value.1.repr(),
-                        }
+                    .map(|variant| Field {
+                        doc: Rc::clone(&variant.doc),
+                        name: variant.name.clone(),
+                        value: variant.value.1.repr(),
                     })
                     .collect();
 
@@ -356,12 +354,10 @@ impl Type {
             Type::Struct(_, ref fields) => {
                 let repr_fields = fields
                     .iter()
-                    .map(|field| {
-                        Field {
-                            doc: Rc::clone(&field.doc),
-                            name: field.name.clone(),
-                            value: field.value.repr(),
-                        }
+                    .map(|field| Field {
+                        doc: Rc::clone(&field.doc),
+                        name: field.name.clone(),
+                        value: field.value.repr(),
                     })
                     .collect();
 

@@ -304,12 +304,10 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
             ty_parser(&path.append_child(field.name.clone()), &field.value),
         )
     };
-    let lower_to_expr_field = |field: &Field<binary::RcType>| {
-        Field {
-            doc: Rc::clone(&field.doc),
-            name: field.name.clone(),
-            value: Rc::new(Expr::Var(Var::free(field.name.clone()))),
-        }
+    let lower_to_expr_field = |field: &Field<binary::RcType>| Field {
+        doc: Rc::clone(&field.doc),
+        name: field.name.clone(),
+        value: Rc::new(Expr::Var(Var::free(field.name.clone()))),
     };
 
     let parse_exprs = fields.iter().map(lower_to_field_parser);

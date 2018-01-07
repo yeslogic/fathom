@@ -393,13 +393,11 @@ pub fn kind_of(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindE
             let size_ty = ty_of(ctx, size_expr)?;
             match *size_ty {
                 host::Type::Const(host::TypeConst::Unsigned(_)) => Ok(Kind::Type),
-                _ => Err(
-                    TypeError::Mismatch {
-                        expr: Rc::clone(size_expr),
-                        expected: ExpectedType::Signed,
-                        found: size_ty,
-                    }.into(),
-                ),
+                _ => Err(TypeError::Mismatch {
+                    expr: Rc::clone(size_expr),
+                    expected: ExpectedType::Signed,
+                    found: size_ty,
+                }.into()),
             }
         }
 
@@ -461,9 +459,9 @@ pub fn kind_of(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindE
                 expect_ty_kind(&ctx, &field.value)?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
-                ctx.extend(Scope::ExprAbs(
-                    vec![Named(field.name.clone(), field_ty.repr())],
-                ));
+                ctx.extend(Scope::ExprAbs(vec![
+                    Named(field.name.clone(), field_ty.repr()),
+                ]));
             }
 
             Ok(Kind::Type)
