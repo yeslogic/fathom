@@ -10,7 +10,6 @@ namespace ddl.binary
     | type : kind
     | arrow : kind → kind → kind
 
-  notation `★` := kind.type
   notation k₁ ` ⇒ ` k₂ := kind.arrow k₁ k₂
 
 
@@ -30,12 +29,6 @@ namespace ddl.binary
     | app : type → type → type
 
 
-  -- Abstraction and assertition type notation - note that we are using a
-  -- nameless representation so we don't include the argument identifiers
-  notation `Λ0: ` k `, ` t := type.lam k t
-  notation `{0: ` t ` | ` e ` }` := type.assert t e
-  -- Array type syntax
-  notation `[ ` t `; ` e ` ]` := type.array t e
   -- Application operator
   infixl ` ∙ `:50 := type.app
 

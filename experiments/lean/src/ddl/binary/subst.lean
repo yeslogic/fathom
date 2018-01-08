@@ -88,7 +88,7 @@ namespace ddl.binary
     notation `[ ` x ` ↦ ` src ` ]` dst := subst x src dst
 
     example {x: α} {t : type ℓ α} :
-        ([x ↦ t] Λ0: ★, ↑0 ∙ ↑x) = (Λ0: ★, ↑0 ∙ t) := sorry
+        ([x ↦ t] type.lam kind.type (↑0 ∙ ↑x)) = (type.lam kind.type (↑0 ∙ t)) := sorry
 
   end type
 
