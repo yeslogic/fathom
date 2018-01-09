@@ -24,7 +24,7 @@ Program {
                                 },
                                 Free("u64le")
                             ),
-                            Abs(
+                            Lam(
                                 Span {
                                     lo: BytePos(70),
                                     hi: BytePos(109)
@@ -124,7 +124,7 @@ Program {
                             Const(
                                 Empty
                             ),
-                            Abs(
+                            Lam(
                                 Span {
                                     lo: BytePos(551),
                                     hi: BytePos(597)
@@ -263,7 +263,7 @@ Program {
                             Const(
                                 Empty
                             ),
-                            Abs(
+                            Lam(
                                 Span {
                                     lo: BytePos(1343),
                                     hi: BytePos(1400)
@@ -308,7 +308,7 @@ Program {
                                                 lo: BytePos(1380),
                                                 hi: BytePos(1388)
                                             },
-                                            Float(100, F32)
+                                            Float(100.0, F32)
                                         )
                                     ),
                                     Const(
@@ -316,7 +316,7 @@ Program {
                                             lo: BytePos(1392),
                                             hi: BytePos(1400)
                                         },
-                                        Float(100, F32)
+                                        Float(100.0, F32)
                                     )
                                 )
                             ),

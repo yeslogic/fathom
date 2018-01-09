@@ -3,7 +3,7 @@ Program {
         Definition {
             doc: "",
             name: "Pair",
-            ty: Abs(
+            ty: Lam(
                 Span {
                     lo: BytePos(13),
                     hi: BytePos(78)
@@ -47,7 +47,7 @@ Program {
         Definition {
             doc: "",
             name: "Array",
-            ty: Abs(
+            ty: Lam(
                 Span {
                     lo: BytePos(94),
                     hi: BytePos(172)
@@ -103,7 +103,7 @@ Program {
         Definition {
             doc: "",
             name: "Data",
-            ty: Abs(
+            ty: Lam(
                 Span {
                     lo: BytePos(187),
                     hi: BytePos(277)

@@ -29,7 +29,7 @@ Assert(
                             },
                             Free("u32")
                         ),
-                        Abs(
+                        Lam(
                             Span {
                                 lo: BytePos(43),
                                 hi: BytePos(57)
@@ -65,7 +65,7 @@ Assert(
                 }
             ]
         ),
-        Abs(
+        Lam(
             Span {
                 lo: BytePos(83),
                 hi: BytePos(97)
@@ -106,7 +106,7 @@ Assert(
             )
         )
     ),
-    Abs(
+    Lam(
         Span {
             lo: BytePos(112),
             hi: BytePos(126)

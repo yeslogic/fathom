@@ -100,7 +100,7 @@ Program {
                                         Little
                                     )
                                 ),
-                                Abs(
+                                Lam(
                                     [
                                         Named("magic", Const(
                                             Unsigned(
@@ -141,7 +141,7 @@ Program {
                                 U8
                             )),
                             Named("mfg_year", Apply(
-                                Abs(
+                                Lam(
                                     [
                                         Named("_", Const(
                                             Unit
@@ -330,7 +330,7 @@ Program {
                                 U8
                             )),
                             Named("gamma", Apply(
-                                Abs(
+                                Lam(
                                     [
                                         Named("_", Const(
                                             Unit
@@ -351,11 +351,11 @@ Program {
                                                 )
                                             ),
                                             Const(
-                                                Float(100, F32)
+                                                Float(100.0, F32)
                                             )
                                         ),
                                         Const(
-                                            Float(100, F32)
+                                            Float(100.0, F32)
                                         )
                                     )
                                 ),

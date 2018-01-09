@@ -1,4 +1,4 @@
-Abs(
+Lam(
     Span {
         lo: BytePos(0),
         hi: BytePos(0)
@@ -11,7 +11,7 @@ Abs(
             lo: BytePos(0),
             hi: BytePos(0)
         },
-        Abs(
+        Lam(
             Span {
                 lo: BytePos(0),
                 hi: BytePos(0)
@@ -32,7 +32,7 @@ Abs(
                     Bound(Named("y", BoundVar(0, 0)))
                 ),
                 [
-                    Abs(
+                    Lam(
                         Span {
                             lo: BytePos(0),
                             hi: BytePos(0)
@@ -52,7 +52,7 @@ Abs(
             )
         ),
         [
-            Abs(
+            Lam(
                 Span {
                     lo: BytePos(0),
                     hi: BytePos(0)

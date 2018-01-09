@@ -1,4 +1,4 @@
-Abs(
+Lam(
     Span {
         lo: BytePos(0),
         hi: BytePos(0)
@@ -6,7 +6,7 @@ Abs(
     [
         Named("x", ())
     ],
-    Abs(
+    Lam(
         Span {
             lo: BytePos(0),
             hi: BytePos(0)
