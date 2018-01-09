@@ -9,13 +9,13 @@ mod ty_of {
         ($given:expr, Ok($expected:expr)) => {{
             let ctx = Context::new();
             let expr = Rc::new($given.parse().unwrap());
-            let expected_ty = Rc::new($expected.parse().unwrap());
+            let expected_ty = $expected.parse().unwrap();
 
             assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
         }};
         ($given:expr, Err(_)) => {{
             let ctx = Context::new();
-            let expr = Rc::new($given.parse().unwrap());
+            let expr = $given.parse().unwrap();
 
             assert!(ty_of(&ctx, &expr).is_err());
         }};
@@ -121,14 +121,14 @@ mod kind_of {
     macro_rules! assert_kind_of {
         ($given:expr, Ok($expected:expr)) => {{
             let ctx = Context::new();
-            let mut ty = Rc::new(binary::Type::from_str($given).unwrap());
-            Rc::make_mut(&mut ty).substitute(&ast::base_defs());
+            let mut ty = binary::RcType::from_str($given).unwrap();
+            ty.substitute(&ast::base_defs());
 
             assert_eq!(kind_of(&ctx, &ty), Ok($expected));
         }};
         ($given:expr, Err(_)) => {{
             let ctx = Context::new();
-            let ty = Rc::new($given.parse().unwrap());
+            let ty = $given.parse().unwrap();
 
             assert!(kind_of(&ctx, &ty).is_err());
         }};

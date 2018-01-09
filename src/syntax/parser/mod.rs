@@ -1,7 +1,6 @@
 use lalrpop_util;
 
 use std::fmt;
-use std::rc::Rc;
 use std::str::FromStr;
 
 use syntax::ast::{binary, host, Program};
@@ -85,32 +84,29 @@ impl FromStr for Program {
     }
 }
 
-impl FromStr for host::Expr {
+impl FromStr for host::RcExpr {
     type Err = ParseError;
 
-    fn from_str(src: &str) -> Result<host::Expr, ParseError> {
+    fn from_str(src: &str) -> Result<host::RcExpr, ParseError> {
         grammar::parse_HostExpr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map(|expr| Rc::try_unwrap(expr).unwrap())
             .map_err(from_lalrpop_err)
     }
 }
 
-impl FromStr for host::Type {
+impl FromStr for host::RcType {
     type Err = ParseError;
 
-    fn from_str(src: &str) -> Result<host::Type, ParseError> {
+    fn from_str(src: &str) -> Result<host::RcType, ParseError> {
         grammar::parse_HostType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map(|ty| Rc::try_unwrap(ty).unwrap())
             .map_err(from_lalrpop_err)
     }
 }
 
-impl FromStr for binary::Type {
+impl FromStr for binary::RcType {
     type Err = ParseError;
 
-    fn from_str(src: &str) -> Result<binary::Type, ParseError> {
+    fn from_str(src: &str) -> Result<binary::RcType, ParseError> {
         grammar::parse_BinaryType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map(|ty| Rc::try_unwrap(ty).unwrap())
             .map_err(from_lalrpop_err)
     }
 }

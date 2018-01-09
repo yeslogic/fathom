@@ -122,7 +122,7 @@ fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
     params: &'a [String],
-    ty: &'a Type,
+    ty: &'a RcType,
 ) -> DocBuilder<'alloc, A> {
     alloc.text("pub type")
         .append(alloc.space())
@@ -221,7 +221,7 @@ fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
     params: &'a [String],
-    parse_expr: &'a ParseExpr,
+    parse_expr: &'a RcParseExpr,
 ) -> DocBuilder<'alloc, A> {
     let base_header = alloc
         .text("impl")
@@ -301,9 +301,9 @@ fn lower_intro_ty_params<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 
 fn lower_ty<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    ty: &'a Type,
+    ty: &'a RcType,
 ) -> DocBuilder<'alloc, A> {
-    match *ty {
+    match *ty.inner {
         Type::Path(ref path, ref args) if args.is_empty() => alloc.text(path.to_camel_case()),
         Type::Path(ref path, ref args) => alloc
             .text(path.to_camel_case())
@@ -374,9 +374,9 @@ enum Prec {
 fn lower_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     prec: Prec,
-    parse_expr: &'a ParseExpr,
+    parse_expr: &'a RcParseExpr,
 ) -> DocBuilder<'alloc, A> {
-    match *parse_expr {
+    match *parse_expr.inner {
         ParseExpr::Var(Var::Free(_)) => unimplemented!(),
         ParseExpr::Var(Var::Bound(Named(ref name, _))) => lower_named_parse_expr(alloc, name),
         ParseExpr::Const(ty_const) => lower_parse_ty_const(alloc, ty_const),
@@ -455,7 +455,7 @@ fn lower_parse_ty_const<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_repeat_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     prec: Prec,
-    parse_expr: &'a ParseExpr,
+    parse_expr: &'a RcParseExpr,
     repeat_bound: &'a RepeatBound,
 ) -> DocBuilder<'alloc, A> {
     match *repeat_bound {
@@ -490,8 +490,8 @@ fn lower_repeat_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_assert_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     prec: Prec,
-    parse_expr: &'a ParseExpr,
-    pred_expr: &'a Expr,
+    parse_expr: &'a RcParseExpr,
+    pred_expr: &'a RcExpr,
 ) -> DocBuilder<'alloc, A> {
     let pred = lower_expr(alloc, Prec::Block, pred_expr).append(alloc.text(")(__value)"));
     let if_true = alloc.newline().append(alloc.text("Ok(__value)"));
@@ -534,7 +534,7 @@ fn lower_sequence_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     prec: Prec,
     parse_exprs: &'a [Named<RcParseExpr>],
-    expr: &'a Expr,
+    expr: &'a RcExpr,
 ) -> DocBuilder<'alloc, A> {
     let inner_parser = alloc
         .concat(parse_exprs.iter().map(|&Named(ref name, ref parse_expr)| {
@@ -621,11 +621,11 @@ fn lower_cond_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     prec: Prec,
-    expr: &'a Expr,
+    expr: &'a RcExpr,
 ) -> DocBuilder<'alloc, A> {
     let mut is_atomic = false;
 
-    let inner = match *expr {
+    let inner = match *expr.inner {
         Expr::Const(c) => {
             is_atomic = true;
 

@@ -131,7 +131,24 @@ pub enum Type {
     Arrow(Vec<RcType>, RcType),
 }
 
-pub type RcType = Rc<Type>;
+#[derive(Clone, PartialEq)]
+pub struct RcType {
+    pub inner: Rc<Type>,
+}
+
+impl From<Type> for RcType {
+    fn from(src: Type) -> RcType {
+        RcType {
+            inner: Rc::new(src),
+        }
+    }
+}
+
+impl fmt::Debug for RcType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.inner, f)
+    }
+}
 
 /// A bounded repitition
 #[derive(Debug, Clone, PartialEq)]
@@ -180,37 +197,56 @@ pub enum ParseExpr {
     Apply(RcExpr, RcParseExpr),
 }
 
-impl ParseExpr {
+#[derive(Clone, PartialEq)]
+pub struct RcParseExpr {
+    pub inner: Rc<ParseExpr>,
+}
+
+impl From<ParseExpr> for RcParseExpr {
+    fn from(src: ParseExpr) -> RcParseExpr {
+        RcParseExpr {
+            inner: Rc::new(src),
+        }
+    }
+}
+
+impl fmt::Debug for RcParseExpr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.inner, f)
+    }
+}
+
+impl RcParseExpr {
     pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
-        match *self {
+        match *Rc::make_mut(&mut self.inner) {
             ParseExpr::Var(ref mut var) => var.abstract_names_at(names, scope),
             ParseExpr::Const(_) => {}
             ParseExpr::Repeat(ref mut parse_expr, ref mut size_bound) => {
-                Rc::make_mut(parse_expr).abstract_names_at(names, scope);
+                parse_expr.abstract_names_at(names, scope);
 
                 match *size_bound {
                     RepeatBound::Exact(ref mut size_expr) => {
-                        Rc::make_mut(size_expr).abstract_names_at(names, scope);
+                        size_expr.abstract_names_at(names, scope);
                     }
                 }
             }
             ParseExpr::Assert(ref mut parse_expr, ref mut pred_expr) => {
-                Rc::make_mut(parse_expr).abstract_names_at(names, scope);
-                Rc::make_mut(pred_expr).abstract_names_at(names, scope);
+                parse_expr.abstract_names_at(names, scope);
+                pred_expr.abstract_names_at(names, scope);
             }
             ParseExpr::Sequence(ref mut parse_exprs, ref mut expr) => {
                 for (i, &mut Named(_, ref mut parse_expr)) in parse_exprs.iter_mut().enumerate() {
-                    Rc::make_mut(parse_expr).abstract_names_at(names, scope.shift(i as u32));
+                    parse_expr.abstract_names_at(names, scope.shift(i as u32));
                 }
-                Rc::make_mut(expr).abstract_names_at(names, scope.shift(parse_exprs.len() as u32));
+                expr.abstract_names_at(names, scope.shift(parse_exprs.len() as u32));
             }
             ParseExpr::Cond(ref mut options) => for option in options {
-                Rc::make_mut(&mut option.0).abstract_names_at(names, scope);
-                Rc::make_mut(&mut option.1).abstract_names_at(names, scope);
+                option.0.abstract_names_at(names, scope);
+                option.1.abstract_names_at(names, scope);
             },
             ParseExpr::Apply(ref mut fn_expr, ref mut parse_expr) => {
-                Rc::make_mut(fn_expr).abstract_names_at(names, scope);
-                Rc::make_mut(parse_expr).abstract_names_at(names, scope);
+                fn_expr.abstract_names_at(names, scope);
+                parse_expr.abstract_names_at(names, scope);
             }
         }
     }
@@ -219,8 +255,6 @@ impl ParseExpr {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 }
-
-pub type RcParseExpr = Rc<ParseExpr>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -237,42 +271,59 @@ pub enum Expr {
     App(RcExpr, Vec<RcExpr>),
 }
 
-pub type RcExpr = Rc<Expr>;
+#[derive(Clone, PartialEq)]
+pub struct RcExpr {
+    pub inner: Rc<Expr>,
+}
 
-impl Expr {
+impl From<Expr> for RcExpr {
+    fn from(src: Expr) -> RcExpr {
+        RcExpr {
+            inner: Rc::new(src),
+        }
+    }
+}
+
+impl fmt::Debug for RcExpr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.inner, f)
+    }
+}
+
+impl RcExpr {
     pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
-        match *self {
+        match *Rc::make_mut(&mut self.inner) {
             Expr::Var(ref mut var) => var.abstract_names_at(names, scope),
             Expr::Const(_) => {}
             Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
-                Rc::make_mut(expr).abstract_names_at(names, scope);
+                expr.abstract_names_at(names, scope);
             }
             Expr::Intro(_, _, ref mut expr) => {
-                Rc::make_mut(expr).abstract_names_at(names, scope);
+                expr.abstract_names_at(names, scope);
             }
             Expr::Binop(_, ref mut lhs_expr, ref mut rhs_expr) => {
-                Rc::make_mut(lhs_expr).abstract_names_at(names, scope);
-                Rc::make_mut(rhs_expr).abstract_names_at(names, scope);
+                lhs_expr.abstract_names_at(names, scope);
+                rhs_expr.abstract_names_at(names, scope);
             }
             Expr::Struct(_, ref mut fields) => for field in fields {
-                Rc::make_mut(&mut field.value).abstract_names_at(names, scope);
+                field.value.abstract_names_at(names, scope);
             },
             Expr::Subscript(ref mut array_expr, ref mut index_expr) => {
-                Rc::make_mut(array_expr).abstract_names_at(names, scope);
-                Rc::make_mut(index_expr).abstract_names_at(names, scope);
+                array_expr.abstract_names_at(names, scope);
+                index_expr.abstract_names_at(names, scope);
             }
             Expr::Cast(ref mut src_expr, _) => {
-                Rc::make_mut(src_expr).abstract_names_at(names, scope);
+                src_expr.abstract_names_at(names, scope);
                 // TODO: abstract dst_ty???
             }
             Expr::Lam(_, ref mut body_expr) => {
-                Rc::make_mut(body_expr).abstract_names_at(names, scope.succ());
+                body_expr.abstract_names_at(names, scope.succ());
             }
             Expr::App(ref mut fn_expr, ref mut arg_exprs) => {
-                Rc::make_mut(fn_expr).abstract_names_at(names, scope);
+                fn_expr.abstract_names_at(names, scope);
 
                 for arg_expr in arg_exprs {
-                    Rc::make_mut(arg_expr).abstract_names_at(names, scope);
+                    arg_expr.abstract_names_at(names, scope);
                 }
             }
         }

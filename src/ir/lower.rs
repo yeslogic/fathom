@@ -20,7 +20,7 @@ impl<'a> From<&'a syntax::ast::Program> for Program {
             // `Foo::field::Entry::Variant2::...`
             let path = Path::new(definition.name.clone());
 
-            let definition = match *definition.ty {
+            let definition = match *definition.ty.inner {
                 binary::Type::Lam(_, ref params, ref ty) => Definition {
                     doc: Rc::clone(&definition.doc),
                     params: params.iter().map(|p| p.0.clone()).collect(),
@@ -43,7 +43,7 @@ impl<'a> From<&'a syntax::ast::Program> for Program {
 }
 
 fn lower_item(program: &mut Program, path: &Path, ty: &binary::RcType) -> Item {
-    match **ty {
+    match *ty.inner {
         // Structs and unions that are defined at the top level should
         // get the best names, closest to what the author of the data
         // definition intended!
@@ -92,10 +92,10 @@ where
 
 /// Lower a type variable to an IR type
 fn lower_ty_var(var: &Var) -> RcType {
-    Rc::new(match *var {
-        Var::Bound(Named(ref name, _)) => Type::Path(Path::new(name.to_string()), vec![]),
+    match *var {
+        Var::Bound(Named(ref name, _)) => Type::Path(Path::new(name.to_string()), vec![]).into(),
         Var::Free(_) => unimplemented!(),
-    })
+    }
 }
 
 /// Lower binary types to the nominal format
@@ -108,14 +108,14 @@ fn lower_ty_var(var: &Var) -> RcType {
 /// * `ty` - the type to be lowered
 fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
     // Mirroring `binary::Type::repr`
-    match **ty {
+    match *ty.inner {
         binary::Type::Var(_, ref var) => lower_ty_var(var),
-        binary::Type::Const(ty_const) => Rc::new(Type::Const(ty_const.repr())),
+        binary::Type::Const(ty_const) => Type::Const(ty_const.repr()).into(),
         binary::Type::Array(_, ref elem_ty, _) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_ty(program, &elem_path, elem_ty);
 
-            Rc::new(Type::Array(elem_ty))
+            Type::Array(elem_ty).into()
         }
         binary::Type::Assert(_, ref ty, _) => lower_ty(program, path, ty),
         binary::Type::Interp(_, _, _, ref repr_ty) => lower_repr_ty(path, repr_ty),
@@ -133,7 +133,7 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
             };
 
             program.define(definition);
-            Rc::new(Type::Path(path.clone(), vec![]))
+            Type::Path(path.clone(), vec![]).into()
         }
         binary::Type::Struct(_, ref fields) => {
             let definition = Definition {
@@ -149,7 +149,7 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
             };
 
             program.define(definition);
-            Rc::new(Type::Path(path.clone(), vec![]))
+            Type::Path(path.clone(), vec![]).into()
         }
         binary::Type::Lam(_, _, _) => {
             // Due to the way our surface syntax is defined, the only type
@@ -164,7 +164,7 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
             // Replace empty parameter lists on paths with the supplied parameters
             // TODO: This feels rather hacky! I'm sure it will break in non-trivial cases.
             // surely there is a better way to handle this?
-            if let Type::Path(ref path, ref params) = *lowered_ty {
+            if let Type::Path(ref path, ref params) = *lowered_ty.inner {
                 assert!(params.is_empty(), "ICE: Params not empty: {:?}", params);
 
                 let lowered_params = param_tys
@@ -173,7 +173,7 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
                     .map(|(i, ty)| lower_ty(program, &path.append_child(format!("Arg{}", i)), ty))
                     .collect::<Vec<_>>();
 
-                return Rc::new(Type::Path(path.clone(), lowered_params));
+                return Type::Path(path.clone(), lowered_params).into();
             }
 
             lowered_ty
@@ -188,9 +188,9 @@ fn lower_ty(program: &mut Program, path: &Path, ty: &binary::RcType) -> RcType {
 /// * `path` - path to the parent struct or union
 /// * `ty` - the type to be lowered
 fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
-    match **ty {
+    match *ty.inner {
         host::Type::Var(ref var) => lower_ty_var(var),
-        host::Type::Const(ty_const) => Rc::new(Type::Const(ty_const)),
+        host::Type::Const(ty_const) => Type::Const(ty_const).into(),
         host::Type::Arrow(ref arg_tys, ref ret_ty) => {
             let arg_repr_tys = arg_tys
                 .iter()
@@ -198,18 +198,18 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
                 .collect();
             let ret_repr_ty = lower_repr_ty(path, ret_ty);
 
-            Rc::new(Type::Arrow(arg_repr_tys, ret_repr_ty))
+            Type::Arrow(arg_repr_tys, ret_repr_ty).into()
         }
         host::Type::Array(ref elem_ty) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_repr_ty(&elem_path, elem_ty);
 
-            Rc::new(Type::Array(elem_ty))
+            Type::Array(elem_ty).into()
         }
         host::Type::Union(_) | host::Type::Struct(_) => {
             // We expect that the repr type has already had a corresponding type
             // generated for it, so instead we just return the current path.
-            Rc::new(Type::Path(path.clone(), vec![]))
+            Type::Path(path.clone(), vec![]).into()
         }
         host::Type::Lam(_, _) => {
             // Due to the way our surface syntax is defined, the only type
@@ -224,7 +224,7 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
             // Replace empty parameter lists on paths with the supplied parameters
             // TODO: This feels rather hacky! I'm sure it will break in non-trivial cases.
             // surely there is a better way to handle this?
-            if let Type::Path(ref path, ref params) = *lowered_ty {
+            if let Type::Path(ref path, ref params) = *lowered_ty.inner {
                 assert!(params.is_empty(), "ICE: Params not empty: {:?}", params);
 
                 let lowered_params = param_tys
@@ -233,7 +233,7 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
                     .map(|(i, ty)| lower_repr_ty(&path.append_child(format!("Arg{}", i)), ty))
                     .collect::<Vec<_>>();
 
-                return Rc::new(Type::Path(path.clone(), lowered_params));
+                return Type::Path(path.clone(), lowered_params).into();
             }
 
             lowered_ty
@@ -248,27 +248,27 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
 /// * `path` - path to the parent struct or union
 /// * `expr` - the expression to be lowered
 fn lower_expr(path: &Path, expr: &host::RcExpr) -> RcExpr {
-    Rc::new(match **expr {
-        host::Expr::Const(_, c) => Expr::Const(c),
-        host::Expr::Var(_, ref var) => Expr::Var(var.clone()),
-        host::Expr::Unop(_, op, ref expr) => Expr::Unop(op, lower_expr(path, expr)),
+    match *expr.inner {
+        host::Expr::Const(_, c) => Expr::Const(c).into(),
+        host::Expr::Var(_, ref var) => Expr::Var(var.clone()).into(),
+        host::Expr::Unop(_, op, ref expr) => Expr::Unop(op, lower_expr(path, expr)).into(),
         host::Expr::Binop(_, op, ref lhs, ref rhs) => {
-            Expr::Binop(op, lower_expr(path, lhs), lower_expr(path, rhs))
+            Expr::Binop(op, lower_expr(path, lhs), lower_expr(path, rhs)).into()
         }
         host::Expr::Struct(ref fields) => {
             let lowered_fields = lower_row(path, fields, |field_path, expr| {
                 lower_expr(&field_path, expr)
             });
 
-            Expr::Struct(path.clone(), lowered_fields)
+            Expr::Struct(path.clone(), lowered_fields).into()
         }
         host::Expr::Proj(_, ref expr, ref field_name) => {
-            Expr::Proj(lower_expr(path, expr), field_name.clone())
+            Expr::Proj(lower_expr(path, expr), field_name.clone()).into()
         }
         host::Expr::Intro(_, _, _, _) => unimplemented!(),
         host::Expr::Subscript(_, _, _) => unimplemented!(),
         host::Expr::Cast(_, ref src_expr, ref dst_ty) => {
-            Expr::Cast(lower_expr(path, src_expr), lower_repr_ty(path, dst_ty))
+            Expr::Cast(lower_expr(path, src_expr), lower_repr_ty(path, dst_ty)).into()
         }
         host::Expr::Lam(_, ref params, ref body_expr) => {
             let lowered_params = params
@@ -276,7 +276,7 @@ fn lower_expr(path: &Path, expr: &host::RcExpr) -> RcExpr {
                 .map(|&Named(ref name, ref ty)| Named(name.clone(), lower_repr_ty(path, ty)))
                 .collect();
 
-            Expr::Lam(lowered_params, lower_expr(path, body_expr))
+            Expr::Lam(lowered_params, lower_expr(path, body_expr)).into()
         }
         host::Expr::App(_, ref fn_expr, ref arg_exprs) => {
             let lowered_arg_exprs = arg_exprs
@@ -284,9 +284,9 @@ fn lower_expr(path: &Path, expr: &host::RcExpr) -> RcExpr {
                 .map(|expr| lower_expr(path, expr))
                 .collect();
 
-            Expr::App(lower_expr(path, fn_expr), lowered_arg_exprs)
+            Expr::App(lower_expr(path, fn_expr), lowered_arg_exprs).into()
         }
-    })
+    }
 }
 
 /// Create a struct parser for the given fields
@@ -307,7 +307,7 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
     let lower_to_expr_field = |field: &Field<binary::RcType>| Field {
         doc: Rc::clone(&field.doc),
         name: field.name.clone(),
-        value: Rc::new(Expr::Var(Var::free(field.name.clone()))),
+        value: Expr::Var(Var::free(field.name.clone())).into(),
     };
 
     let parse_exprs = fields.iter().map(lower_to_field_parser);
@@ -318,19 +318,19 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
 
     for (name, mut parse_expr) in parse_exprs {
         for (scope, name) in seen_names.iter().rev().enumerate() {
-            Rc::make_mut(&mut parse_expr).abstract_names_at(&[name], ScopeIndex(scope as u32));
+            parse_expr.abstract_names_at(&[name], ScopeIndex(scope as u32));
         }
 
         seen_names.push(name.clone());
         named_exprs.push(Named(name, parse_expr));
     }
 
-    let mut expr = Expr::Struct(path.clone(), expr_fields.collect());
+    let mut expr: RcExpr = Expr::Struct(path.clone(), expr_fields.collect()).into();
     for (scope, name) in seen_names.iter().rev().enumerate() {
         expr.abstract_names_at(&[name], ScopeIndex(scope as u32));
     }
 
-    Rc::new(ParseExpr::Sequence(named_exprs, Rc::new(expr)))
+    ParseExpr::Sequence(named_exprs, expr).into()
 }
 
 /// Create a union parser for the given fields
@@ -342,20 +342,20 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
 fn cond_parser(path: &Path, options: &[Field<(host::RcExpr, binary::RcType)>]) -> RcParseExpr {
     let lower_option = |option: &Field<(host::RcExpr, binary::RcType)>| {
         let pred_expr = lower_expr(path, &option.value.0);
-        let variant_parser = Rc::new(ParseExpr::Sequence(
+        let variant_parser = ParseExpr::Sequence(
             vec![Named("x".to_owned(), ty_parser(path, &option.value.1))],
-            Rc::new(Expr::Intro(
+            Expr::Intro(
                 path.clone(),
                 option.name.clone(),
                 // FIXME: generate fresh name?
-                Rc::new(Expr::Var(Var::bound("x", BoundVar::new(Si(0), Bi(0))))),
-            )),
-        ));
+                Expr::Var(Var::bound("x", BoundVar::new(Si(0), Bi(0)))).into(),
+            ).into(),
+        ).into();
 
         (pred_expr, variant_parser)
     };
 
-    Rc::new(ParseExpr::Cond(options.iter().map(lower_option).collect()))
+    ParseExpr::Cond(options.iter().map(lower_option).collect()).into()
 }
 
 /// Create a parser for the given type
@@ -365,18 +365,15 @@ fn cond_parser(path: &Path, options: &[Field<(host::RcExpr, binary::RcType)>]) -
 /// * `path` - path to the parent struct or union
 /// * `ty` - the binary type to use as a basis for the parser
 fn ty_parser(path: &Path, ty: &binary::RcType) -> RcParseExpr {
-    match **ty {
-        binary::Type::Var(_, ref var) => Rc::new(ParseExpr::Var(var.clone())),
-        binary::Type::Const(ty_const) => Rc::new(ParseExpr::Const(ty_const)),
+    match *ty.inner {
+        binary::Type::Var(_, ref var) => ParseExpr::Var(var.clone()).into(),
+        binary::Type::Const(ty_const) => ParseExpr::Const(ty_const).into(),
         binary::Type::Array(_, ref elem_ty, ref size_expr) => {
             let elem_path = path.append_child("Elem");
             let elem_parser = ty_parser(&elem_path, elem_ty);
             let size_expr = lower_expr(path, size_expr);
 
-            Rc::new(ParseExpr::Repeat(
-                elem_parser,
-                RepeatBound::Exact(size_expr),
-            ))
+            ParseExpr::Repeat(elem_parser, RepeatBound::Exact(size_expr)).into()
         }
         binary::Type::Cond(_, ref options) => cond_parser(path, options),
         binary::Type::Struct(_, ref fields) => struct_parser(path, fields),
@@ -384,13 +381,13 @@ fn ty_parser(path: &Path, ty: &binary::RcType) -> RcParseExpr {
             let ty_parser = ty_parser(path, ty);
             let pred_expr = lower_expr(path, pred_expr);
 
-            Rc::new(ParseExpr::Assert(ty_parser, pred_expr))
+            ParseExpr::Assert(ty_parser, pred_expr).into()
         }
         binary::Type::Interp(_, ref ty, ref conv_expr, _) => {
             let fn_expr = lower_expr(path, conv_expr);
             let parser_expr = ty_parser(path, ty);
 
-            Rc::new(ParseExpr::Apply(fn_expr, parser_expr))
+            ParseExpr::Apply(fn_expr, parser_expr).into()
         }
         binary::Type::Lam(_, _, _) => unimplemented!("Abs: {:?}", ty),
         binary::Type::App(_, ref ty, _) => ty_parser(path, ty),

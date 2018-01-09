@@ -98,7 +98,7 @@ Definition: Definition = {
         Definition {
             doc: doc.join("\n").into(),
             name: name.to_owned(),
-            ty: binary::Type::abs(Span::new(lo, hi), &params, body_ty).into(),
+            ty: binary::RcType::abs(Span::new(lo, hi), &params, body_ty),
         }
     },
 };
@@ -124,23 +124,23 @@ PrimaryBinaryType: binary::RcType = {
     AtomicBinaryType,
     <lo1: @L> <ty: PrimaryBinaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryHostExpr> <hi: @R> => {
         let repr_ty = ty.repr();
-        let pred_expr = host::Expr::abs(
+        let pred_expr = host::RcExpr::abs(
             Span::new(lo2, hi),
             vec![Named(param.to_owned(), repr_ty)],
             pred,
         );
 
-        binary::Type::Assert(Span::new(lo1, hi), ty, pred_expr.into()).into()
+        binary::Type::Assert(Span::new(lo1, hi), ty, pred_expr).into()
     },
     <lo: @L> "compute" <repr_ty: HostType> "from" <expr: PrimaryHostExpr> <hi: @R> => {
-        let empty = binary::Type::Const(binary::TypeConst::Empty);
-        let conv = host::Expr::abs(
+        let empty = binary::Type::Const(binary::TypeConst::Empty).into();
+        let conv = host::RcExpr::abs(
             Span::new(lo, hi),
-            vec![Named("_".to_owned(), empty.repr())],
+            vec![Named("_".to_owned(), binary::RcType::repr(&empty))],
             expr,
         );
 
-        binary::Type::Interp(Span::new(lo, hi), empty.into(), conv.into(), repr_ty).into()
+        binary::Type::Interp(Span::new(lo, hi), empty.into(), conv, repr_ty).into()
     },
 };
 
@@ -161,7 +161,7 @@ AtomicBinaryType: binary::RcType = {
     {
         let mut fields = fields;
         fields.extend(last);
-        binary::Type::struct_(Span::new(lo, hi), fields).into()
+        binary::RcType::struct_(Span::new(lo, hi), fields)
     },
     <lo: @L> "cond" "{"
         <options: (<Field<(<HostExpr> "=>" <BinaryType>)>> ",")*>
