@@ -3,8 +3,8 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use syntax::parser::ast::Definition as ParseDefinition;
-use syntax::parser::ast::Program as ParseProgram;
+use parser::ast::Definition as ParseDefinition;
+use parser::ast::Program as ParseProgram;
 use var::ScopeIndex;
 
 pub mod binary;

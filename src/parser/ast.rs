@@ -4,8 +4,8 @@
 //! anything interesting with this, one must first lower it to the core
 //! representation.
 
-use syntax::parser::{from_lalrpop_err, grammar, GrammarError, ParseError};
-use syntax::parser::lexer::Lexer;
+use parser::{from_lalrpop_err, grammar, GrammarError, ParseError};
+use parser::lexer::Lexer;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program<'src> {

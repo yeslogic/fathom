@@ -1,9 +1,9 @@
 use lalrpop_util::ParseError;
 use source::{BytePos, Span};
-use syntax::parser::ast::{binary, host, Definition, Field, Program};
-use syntax::parser::ast::host::{Binop, Const, Unop};
-use syntax::parser::GrammarError;
-use syntax::parser::lexer::Token;
+use parser::ast::{binary, host, Definition, Field, Program};
+use parser::ast::host::{Binop, Const, Unop};
+use parser::GrammarError;
+use parser::lexer::Token;
 
 
 grammar<'src>();

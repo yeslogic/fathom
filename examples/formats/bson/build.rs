@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use ddl::syntax::ast::Program;
-use ddl::syntax::parser::ast::Program as ParseProgram;
+use ddl::parser::ast::Program as ParseProgram;
 
 fn main() {
     let src = {

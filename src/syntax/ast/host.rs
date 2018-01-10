@@ -6,7 +6,7 @@ use std::rc::Rc;
 use name::Named;
 use source::Span;
 use syntax::ast::{self, Field, Substitutions};
-use syntax::parser::ast::host::Expr as ParseExpr;
+use parser::ast::host::Expr as ParseExpr;
 use var::{ScopeIndex, Var};
 
 /// Kinds of host type

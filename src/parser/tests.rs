@@ -1,9 +1,9 @@
 use syntax::ast::Program;
 use syntax::ast::binary::RcType;
 use syntax::ast::host::RcExpr;
-use syntax::parser::ast::Program as ParseProgram;
-use syntax::parser::ast::binary::Type as ParseType;
-use syntax::parser::ast::host::Expr as ParseExpr;
+use parser::ast::Program as ParseProgram;
+use parser::ast::binary::Type as ParseType;
+use parser::ast::host::Expr as ParseExpr;
 
 #[test]
 fn parse_expr_bool_atomic() {

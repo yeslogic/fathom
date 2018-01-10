@@ -6,7 +6,7 @@ use std::rc::Rc;
 use name::Named;
 use source::Span;
 use syntax::ast::{self, host, Field, Substitutions};
-use syntax::parser::ast::binary::Type as ParseType;
+use parser::ast::binary::Type as ParseType;
 use var::{ScopeIndex, Var};
 
 /// Kinds of binary types

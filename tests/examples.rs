@@ -7,7 +7,7 @@ mod test;
 
 use ddl::syntax::{ast, check};
 use ddl::syntax::ast::Program;
-use ddl::syntax::parser::ast::Program as ParseProgram;
+use ddl::parser::ast::Program as ParseProgram;
 
 #[test]
 fn bitmap() {

@@ -3,7 +3,7 @@ use super::*;
 mod ty_of {
     use syntax::ast::host::RcExpr;
     use syntax::ast::host::{FloatType, SignedType, Type, TypeConst, UnsignedType};
-    use syntax::parser::ast::host::Expr as ParseExpr;
+    use parser::ast::host::Expr as ParseExpr;
 
     use super::*;
 
@@ -125,7 +125,7 @@ mod ty_of {
 mod kind_of {
     use syntax::ast;
     use syntax::ast::binary::RcType;
-    use syntax::parser::ast::binary::Type as ParseType;
+    use parser::ast::binary::Type as ParseType;
 
     use super::*;
 
@@ -161,7 +161,7 @@ mod kind_of {
 
 mod check_program {
     use syntax::ast;
-    use syntax::parser::ast::Program as ParseProgram;
+    use parser::ast::Program as ParseProgram;
 
     use super::*;
 
