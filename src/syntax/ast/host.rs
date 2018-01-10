@@ -6,6 +6,7 @@ use std::rc::Rc;
 use name::Named;
 use source::Span;
 use syntax::ast::{self, Field, Substitutions};
+use syntax::parser::ast::host::Expr as ParseExpr;
 use var::{ScopeIndex, Var};
 
 /// Kinds of host type
@@ -555,5 +556,43 @@ impl RcExpr {
 
     pub fn abstract_names(&mut self, names: &[&str]) {
         self.abstract_names_at(names, ScopeIndex(0));
+    }
+}
+
+impl<'src> From<&'src ParseExpr<'src>> for RcExpr {
+    fn from(src: &'src ParseExpr<'src>) -> RcExpr {
+        match *src {
+            ParseExpr::Const(span, c) => Expr::Const(span, c).into(),
+            ParseExpr::Var(span, name) => Expr::Var(span, Var::free(name)).into(),
+            ParseExpr::Unop(span, op, ref expr) => {
+                let expr = RcExpr::from(&**expr);
+
+                Expr::Unop(span, op, expr).into()
+            }
+            ParseExpr::Binop(span, op, ref lhs_expr, ref rhs_expr) => {
+                let lhs_expr = RcExpr::from(&**lhs_expr);
+                let rhs_expr = RcExpr::from(&**rhs_expr);
+
+                Expr::Binop(span, op, lhs_expr, rhs_expr).into()
+            }
+            ParseExpr::Proj(span, ref struct_expr, field_name) => {
+                let struct_expr = RcExpr::from(&**struct_expr);
+                let field_name = String::from(field_name);
+
+                Expr::Proj(span, struct_expr, field_name).into()
+            }
+            ParseExpr::Subscript(span, ref array_expr, ref index_expr) => {
+                let array_expr = RcExpr::from(&**array_expr);
+                let index_expr = RcExpr::from(&**index_expr);
+
+                Expr::Subscript(span, array_expr, index_expr).into()
+            }
+            ParseExpr::Cast(span, ref expr, ty) => {
+                let expr = RcExpr::from(&**expr);
+                let ty = Type::Const(ty).into();
+
+                Expr::Cast(span, expr, ty).into()
+            }
+        }
     }
 }

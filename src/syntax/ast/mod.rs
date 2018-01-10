@@ -3,6 +3,8 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
+use syntax::parser::ast::Definition as ParseDefinition;
+use syntax::parser::ast::Program as ParseProgram;
 use var::ScopeIndex;
 
 pub mod binary;
@@ -73,6 +75,16 @@ impl PartialEq for Definition {
     }
 }
 
+impl<'src> From<&'src ParseDefinition<'src>> for Definition {
+    fn from(src: &'src ParseDefinition<'src>) -> Definition {
+        Definition {
+            doc: src.doc.join("\n").into(),
+            name: String::from(src.name),
+            ty: binary::RcType::from(&src.ty),
+        }
+    }
+}
+
 pub type Substitutions = BTreeMap<String, binary::RcType>;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -104,6 +116,12 @@ impl Program {
         for definition in &mut self.definitions {
             definition.ty.substitute(substs);
         }
+    }
+}
+
+impl<'src> From<&'src ParseProgram<'src>> for Program {
+    fn from(src: &'src ParseProgram<'src>) -> Program {
+        Program::new(src.definitions.iter().map(Definition::from).collect())
     }
 }
 

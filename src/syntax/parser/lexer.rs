@@ -56,14 +56,14 @@ pub enum ErrorCode {
 
 /// A token in the source file, to be emitted by the `Lexer`
 #[derive(Clone, Debug, PartialEq)]
-pub enum Token<'input> {
+pub enum Token<'src> {
     // Data
-    Ident(&'input str),
-    DocComment(&'input str),
-    BinLiteral(u64, &'input str),
-    DecLiteral(u64, &'input str),
-    HexLiteral(u64, &'input str),
-    FloatDecLiteral(f64, &'input str),
+    Ident(&'src str),
+    DocComment(&'src str),
+    BinLiteral(u64, &'src str),
+    DecLiteral(u64, &'src str),
+    HexLiteral(u64, &'src str),
+    FloatDecLiteral(f64, &'src str),
 
     // Keywords
     As,      // as
@@ -108,15 +108,15 @@ pub enum Token<'input> {
 
 /// An iterator over a source string that yeilds `Token`s for subsequent use by
 /// the parser
-pub struct Lexer<'input> {
-    src: &'input str,
-    chars: CharIndices<'input>,
+pub struct Lexer<'src> {
+    src: &'src str,
+    chars: CharIndices<'src>,
     lookahead: Option<(usize, char)>,
 }
 
-impl<'input> Lexer<'input> {
+impl<'src> Lexer<'src> {
     /// Create a new lexer from the source string
-    pub fn new(src: &'input str) -> Self {
+    pub fn new(src: &'src str) -> Self {
         let mut chars = src.char_indices();
 
         Lexer {
@@ -140,7 +140,7 @@ impl<'input> Lexer<'input> {
     }
 
     /// Return a slice of the source string
-    fn slice(&self, start: BytePos, end: BytePos) -> &'input str {
+    fn slice(&self, start: BytePos, end: BytePos) -> &'src str {
         &self.src[start.0..end.0]
     }
 
@@ -155,7 +155,7 @@ impl<'input> Lexer<'input> {
     /// Consume characters while the predicate matches for the current
     /// character, then return the consumed slice and the end byte
     /// position.
-    fn take_while<F>(&mut self, start: BytePos, mut keep_going: F) -> (BytePos, &'input str)
+    fn take_while<F>(&mut self, start: BytePos, mut keep_going: F) -> (BytePos, &'src str)
     where
         F: FnMut(char) -> bool,
     {
@@ -165,7 +165,7 @@ impl<'input> Lexer<'input> {
     /// Consume characters until the predicate matches for the next character
     /// in the lookahead, then return the consumed slice and the end byte
     /// position.
-    fn take_until<F>(&mut self, start: BytePos, mut terminate: F) -> (BytePos, &'input str)
+    fn take_until<F>(&mut self, start: BytePos, mut terminate: F) -> (BytePos, &'src str)
     where
         F: FnMut(char) -> bool,
     {
@@ -182,7 +182,7 @@ impl<'input> Lexer<'input> {
     }
 
     /// Consume a doc comment
-    fn doc_comment(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
+    fn doc_comment(&mut self, start: BytePos) -> (BytePos, Token<'src>, BytePos) {
         let (end, mut comment) = self.take_until(start.map(|x| x + 3), |ch| ch == '\n');
 
         // Skip preceding space
@@ -194,7 +194,7 @@ impl<'input> Lexer<'input> {
     }
 
     /// Consume an identifier token
-    fn ident(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
+    fn ident(&mut self, start: BytePos) -> (BytePos, Token<'src>, BytePos) {
         let (end, ident) = self.take_while(start, is_ident_continue);
 
         let token = match ident {
@@ -212,7 +212,7 @@ impl<'input> Lexer<'input> {
     }
 
     /// Consume a literal suffix
-    fn literal_suffix(&mut self, start: BytePos) -> (BytePos, &'input str) {
+    fn literal_suffix(&mut self, start: BytePos) -> (BytePos, &'src str) {
         if self.test_lookahead(is_ident_start) {
             self.bump(); // skip ident start
             self.take_while(start, is_ident_continue)
@@ -222,7 +222,7 @@ impl<'input> Lexer<'input> {
     }
 
     /// Consume a binary literal token
-    fn bin_literal(&mut self, start: BytePos) -> Result<(BytePos, Token<'input>, BytePos), Error> {
+    fn bin_literal(&mut self, start: BytePos) -> Result<(BytePos, Token<'src>, BytePos), Error> {
         self.bump(); // skip 'b'
         let (end, src) = self.take_while(start.map(|x| x + 2), is_bin_digit);
         if src.is_empty() {
@@ -236,7 +236,7 @@ impl<'input> Lexer<'input> {
     }
 
     /// Consume a hexidecimal literal token
-    fn hex_literal(&mut self, start: BytePos) -> Result<(BytePos, Token<'input>, BytePos), Error> {
+    fn hex_literal(&mut self, start: BytePos) -> Result<(BytePos, Token<'src>, BytePos), Error> {
         self.bump(); // skip 'x'
         let (end, src) = self.take_while(start.map(|x| x + 2), is_hex_digit);
         if src.is_empty() {
@@ -250,7 +250,7 @@ impl<'input> Lexer<'input> {
     }
 
     /// Consume a decimal literal token
-    fn dec_literal(&mut self, start: BytePos) -> (BytePos, Token<'input>, BytePos) {
+    fn dec_literal(&mut self, start: BytePos) -> (BytePos, Token<'src>, BytePos) {
         let (end, src) = self.take_while(start, is_dec_digit);
 
         if self.test_lookahead(|ch| ch == '.') {
@@ -269,10 +269,10 @@ impl<'input> Lexer<'input> {
     }
 }
 
-impl<'input> Iterator for Lexer<'input> {
-    type Item = Result<(BytePos, Token<'input>, BytePos), Error>;
+impl<'src> Iterator for Lexer<'src> {
+    type Item = Result<(BytePos, Token<'src>, BytePos), Error>;
 
-    fn next(&mut self) -> Option<Result<(BytePos, Token<'input>, BytePos), Error>> {
+    fn next(&mut self) -> Option<Result<(BytePos, Token<'src>, BytePos), Error>> {
         while let Some((start, ch)) = self.bump() {
             let end = start.map(|x| x + 1);
 

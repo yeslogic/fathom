@@ -6,6 +6,7 @@ use std::rc::Rc;
 use name::Named;
 use source::Span;
 use syntax::ast::{self, host, Field, Substitutions};
+use syntax::parser::ast::binary::Type as ParseType;
 use var::{ScopeIndex, Var};
 
 /// Kinds of binary types
@@ -401,6 +402,79 @@ impl RcType {
                 let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();
 
                 host::Type::App(fn_ty.repr(), arg_tys).into()
+            }
+        }
+    }
+}
+
+impl<'src> From<&'src ParseType<'src>> for RcType {
+    fn from(src: &'src ParseType<'src>) -> RcType {
+        match *src {
+            ParseType::Var(span, name) => Type::Var(span, Var::free(name)).into(),
+            ParseType::Array(span, ref elem_ty, ref size_expr) => {
+                let elem_ty = RcType::from(&**elem_ty);
+                let size_expr = host::RcExpr::from(&**size_expr);
+
+                Type::Array(span, elem_ty, size_expr).into()
+            }
+            ParseType::Cond(span, ref options) => {
+                let options = options
+                    .iter()
+                    .map(|variant| Field {
+                        doc: variant.doc.join("\n").into(),
+                        name: String::from(variant.name),
+                        value: (
+                            host::RcExpr::from(&variant.value.0),
+                            RcType::from(&variant.value.1),
+                        ),
+                    })
+                    .collect();
+
+                Type::Cond(span, options).into()
+            }
+            ParseType::Struct(span, ref fields) => {
+                let fields = fields
+                    .iter()
+                    .map(|field| Field {
+                        doc: field.doc.join("\n").into(),
+                        name: String::from(field.name),
+                        value: RcType::from(&field.value),
+                    })
+                    .collect();
+
+                RcType::struct_(span, fields)
+            }
+            ParseType::Where(span, ref ty, lo2, param_name, ref pred_expr) => {
+                let ty = RcType::from(&**ty);
+                let span2 = Span::new(lo2, span.hi());
+                let pred_params = vec![Named(String::from(param_name), ty.repr())];
+                let pred_expr = host::RcExpr::abs(span2, pred_params, &**pred_expr);
+
+                Type::Assert(span, ty, pred_expr).into()
+            }
+            ParseType::Compute(span, repr_ty, ref expr) => {
+                let empty = Type::Const(TypeConst::Empty).into();
+                let repr_ty = host::Type::Const(repr_ty).into();
+                let conv_params = vec![Named("_".to_owned(), RcType::repr(&empty))];
+                let conv = host::RcExpr::abs(span, conv_params, &**expr);
+
+                Type::Interp(span, empty.into(), conv, repr_ty).into()
+            }
+            ParseType::Lam(span, ref param_names, ref body_ty) => {
+                let mut body_ty = RcType::from(&**body_ty);
+                body_ty.abstract_names(param_names);
+                let params = param_names
+                    .iter()
+                    .map(|name| Named(String::from(*name), ()))
+                    .collect();
+
+                Type::Lam(span, params, body_ty).into()
+            }
+            ParseType::App(span, ref fn_ty, ref arg_tys) => {
+                let fn_ty = RcType::from(&**fn_ty);
+                let arg_tys = arg_tys.iter().map(|arg| RcType::from(&*arg)).collect();
+
+                Type::App(span, fn_ty, arg_tys).into()
             }
         }
     }

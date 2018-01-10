@@ -1,18 +1,15 @@
 use lalrpop_util;
 
 use std::fmt;
-use std::str::FromStr;
 
-use syntax::ast::{binary, host, Program};
 use source::BytePos;
 
+pub mod ast;
 mod lexer;
 mod grammar;
 
 #[cfg(test)]
 mod tests;
-
-use self::lexer::Lexer;
 
 pub type ParseError = lalrpop_util::ParseError<BytePos, String, GrammarError>;
 
@@ -27,31 +24,6 @@ pub enum GrammarError {
 impl From<lexer::Error> for GrammarError {
     fn from(src: lexer::Error) -> GrammarError {
         GrammarError::Lexer(src)
-    }
-}
-
-fn parse_ty_const(src: &str) -> Result<host::TypeConst, GrammarError> {
-    use syntax::ast::host::{FloatType, SignedType, TypeConst, UnsignedType};
-
-    match src {
-        "unit" => Ok(TypeConst::Unit),
-        "bottom" => Ok(TypeConst::Bottom),
-        "bool" => Ok(TypeConst::Bool),
-        "f32" => Ok(TypeConst::Float(FloatType::F32)),
-        "f64" => Ok(TypeConst::Float(FloatType::F64)),
-        "i8" => Ok(TypeConst::Signed(SignedType::I8)),
-        "i16" => Ok(TypeConst::Signed(SignedType::I16)),
-        "i24" => Ok(TypeConst::Signed(SignedType::I24)),
-        "i32" => Ok(TypeConst::Signed(SignedType::I32)),
-        "i64" => Ok(TypeConst::Signed(SignedType::I64)),
-        "u8" => Ok(TypeConst::Unsigned(UnsignedType::U8)),
-        "u16" => Ok(TypeConst::Unsigned(UnsignedType::U16)),
-        "u24" => Ok(TypeConst::Unsigned(UnsignedType::U24)),
-        "u32" => Ok(TypeConst::Unsigned(UnsignedType::U32)),
-        "u64" => Ok(TypeConst::Unsigned(UnsignedType::U64)),
-        _ => Err(GrammarError::InvalidHostTypeName {
-            name: src.to_owned(),
-        }),
     }
 }
 
@@ -72,41 +44,5 @@ fn from_lalrpop_err<L, T: fmt::Debug, E>(
             token: (lo, format!("{:?}", token), hi),
         },
         User { error } => User { error },
-    }
-}
-
-impl FromStr for Program {
-    type Err = ParseError;
-
-    fn from_str(src: &str) -> Result<Program, ParseError> {
-        grammar::parse_Program(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map_err(from_lalrpop_err)
-    }
-}
-
-impl FromStr for host::RcExpr {
-    type Err = ParseError;
-
-    fn from_str(src: &str) -> Result<host::RcExpr, ParseError> {
-        grammar::parse_HostExpr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map_err(from_lalrpop_err)
-    }
-}
-
-impl FromStr for host::RcType {
-    type Err = ParseError;
-
-    fn from_str(src: &str) -> Result<host::RcType, ParseError> {
-        grammar::parse_HostType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map_err(from_lalrpop_err)
-    }
-}
-
-impl FromStr for binary::RcType {
-    type Err = ParseError;
-
-    fn from_str(src: &str) -> Result<binary::RcType, ParseError> {
-        grammar::parse_BinaryType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map_err(from_lalrpop_err)
     }
 }

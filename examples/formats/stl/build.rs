@@ -3,9 +3,9 @@ extern crate ddl;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
-use std::str::FromStr;
 
 use ddl::syntax::ast::Program;
+use ddl::syntax::parser::ast::Program as ParseProgram;
 
 fn main() {
     let src = {
@@ -15,7 +15,7 @@ fn main() {
         src
     };
 
-    let mut program = Program::from_str(&src).unwrap();
+    let mut program = Program::from(&ParseProgram::from_str(&src).unwrap());
     program.substitute(&ddl::syntax::ast::base_defs());
     ddl::syntax::check::check_program(&program).unwrap();
     let ir = ddl::ir::ast::Program::from(&program);
