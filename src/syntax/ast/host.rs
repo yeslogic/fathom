@@ -96,7 +96,7 @@ pub enum Type {
     Union(Vec<Field<RcType>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Vec<Field<RcType>>),
-    /// Type abstraction: eg. `\(a, ..) -> T`
+    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
     Lam(Vec<Named<()>>, RcType),
@@ -124,10 +124,10 @@ impl fmt::Debug for RcType {
 }
 
 impl RcType {
-    /// Type abstraction: eg. `\(a, ..) -> T`
+    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    pub fn abs<T1>(param_names: &[&str], body_ty: T1) -> RcType
+    pub fn lam<T1>(param_names: &[&str], body_ty: T1) -> RcType
     where
         T1: Into<RcType>,
     {
@@ -411,7 +411,7 @@ pub enum Expr {
     Subscript(Span, RcExpr, RcExpr),
     /// Cast expression, eg: `x as u32`
     Cast(Span, RcExpr, RcType),
-    /// Abstraction, eg: `\(x : T, ..) -> x`
+    /// Lambda abstraction, eg: `\(x : T, ..) -> x`
     Lam(Span, Vec<Named<RcType>>, RcExpr),
     /// Application, eg: `f(x, ..)`
     App(Span, RcExpr, Vec<RcExpr>),
@@ -437,8 +437,8 @@ impl fmt::Debug for RcExpr {
 }
 
 impl RcExpr {
-    /// Abstraction, eg: `\(x : T, ..) -> x`
-    pub fn abs<E1>(span: Span, params: Vec<Named<RcType>>, body_expr: E1) -> RcExpr
+    /// Lambda abstraction, eg: `\(x : T, ..) -> x`
+    pub fn lam<E1>(span: Span, params: Vec<Named<RcType>>, body_expr: E1) -> RcExpr
     where
         E1: Into<RcExpr>,
     {

@@ -119,7 +119,7 @@ pub enum Type {
     Assert(Span, RcType, host::RcExpr),
     /// An interpreted type
     Interp(Span, RcType, host::RcExpr, host::RcType),
-    /// Type abstraction: eg. `\(a, ..) -> T`
+    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
     Lam(Span, Vec<Named<()>>, RcType),
@@ -167,10 +167,10 @@ impl RcType {
         Type::Struct(span, fields).into()
     }
 
-    /// Type abstraction: eg. `\(a, ..) -> T`
+    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    pub fn abs<T1>(span: Span, param_names: &[&str], body_ty: T1) -> RcType
+    pub fn lam<T1>(span: Span, param_names: &[&str], body_ty: T1) -> RcType
     where
         T1: Into<RcType>,
     {
@@ -448,7 +448,7 @@ impl<'src> From<&'src ParseType<'src>> for RcType {
                 let ty = RcType::from(&**ty);
                 let span2 = Span::new(lo2, span.hi());
                 let pred_params = vec![Named(String::from(param_name), ty.repr())];
-                let pred_expr = host::RcExpr::abs(span2, pred_params, &**pred_expr);
+                let pred_expr = host::RcExpr::lam(span2, pred_params, &**pred_expr);
 
                 Type::Assert(span, ty, pred_expr).into()
             }
@@ -456,7 +456,7 @@ impl<'src> From<&'src ParseType<'src>> for RcType {
                 let empty = Type::Const(TypeConst::Empty).into();
                 let repr_ty = host::Type::Const(repr_ty).into();
                 let conv_params = vec![Named("_".to_owned(), RcType::repr(&empty))];
-                let conv = host::RcExpr::abs(span, conv_params, &**expr);
+                let conv = host::RcExpr::lam(span, conv_params, &**expr);
 
                 Type::Interp(span, empty.into(), conv, repr_ty).into()
             }
@@ -496,7 +496,7 @@ mod tests {
             fn id() {
                 // λx. x
                 // λ   0
-                let ty = RcT::abs(Span::start(), &["x"], T::Var(Span::start(), Var::free("x")));
+                let ty = RcT::lam(Span::start(), &["x"], T::Var(Span::start(), Var::free("x")));
 
                 assert_debug_snapshot!(ty_abs_id, ty);
             }
@@ -507,10 +507,10 @@ mod tests {
             fn k_combinator() {
                 // λx.λy. x
                 // λ  λ   1
-                let ty = RcT::abs(
+                let ty = RcT::lam(
                     Span::start(),
                     &["x"],
-                    RcT::abs(Span::start(), &["y"], T::Var(Span::start(), Var::free("x"))),
+                    RcT::lam(Span::start(), &["y"], T::Var(Span::start(), Var::free("x"))),
                 );
 
                 assert_debug_snapshot!(ty_abs_k_combinator, ty);
@@ -520,13 +520,13 @@ mod tests {
             fn s_combinator() {
                 // λx.λy.λz. x z (y z)
                 // λ  λ  λ   2 0 (1 0)
-                let ty = RcT::abs(
+                let ty = RcT::lam(
                     Span::start(),
                     &["x"],
-                    RcT::abs(
+                    RcT::lam(
                         Span::start(),
                         &["y"],
-                        RcT::abs(
+                        RcT::lam(
                             Span::start(),
                             &["z"],
                             T::App(
@@ -555,19 +555,19 @@ mod tests {
             fn complex() {
                 // λz.(λy. y (λx. x)) (λx. z x)
                 // λ  (λ   0 (λ   0)) (λ   1 0)
-                let ty = RcT::abs(
+                let ty = RcT::lam(
                     Span::start(),
                     &["z"],
                     T::App(
                         Span::start(),
-                        RcT::abs(
+                        RcT::lam(
                             Span::start(),
                             &["y"],
                             T::App(
                                 Span::start(),
                                 T::Var(Span::start(), Var::free("y")).into(),
                                 vec![
-                                    RcT::abs(
+                                    RcT::lam(
                                         Span::start(),
                                         &["x"],
                                         T::Var(Span::start(), Var::free("x")),
@@ -576,7 +576,7 @@ mod tests {
                             ),
                         ),
                         vec![
-                            RcT::abs(
+                            RcT::lam(
                                 Span::start(),
                                 &["x"],
                                 T::App(
