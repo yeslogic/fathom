@@ -64,7 +64,7 @@ pub enum TypeError {
 
 /// Returns the type of a host expression, checking that it is properly formed
 /// in the environment
-pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeError> {
+pub fn infer_ty(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeError> {
     use syntax::ast::host::{Binop, Expr, Type, TypeConst, Unop};
 
     match *expr.inner {
@@ -88,7 +88,7 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
         Expr::Unop(_, op, ref operand_expr) => {
             use syntax::ast::host::Type::Const;
 
-            let operand_ty = ty_of(ctx, operand_expr)?;
+            let operand_ty = infer_ty(ctx, operand_expr)?;
 
             match (op, &*operand_ty.inner) {
                 (Unop::Neg, &Const(TypeConst::Signed(_)))
@@ -125,8 +125,8 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
                 }
             }
 
-            let lhs_ty = ty_of(ctx, lhs_expr)?;
-            let rhs_ty = ty_of(ctx, rhs_expr)?;
+            let lhs_ty = infer_ty(ctx, lhs_expr)?;
+            let rhs_ty = infer_ty(ctx, rhs_expr)?;
 
             match (&*lhs_ty.inner, &*rhs_ty.inner) {
                 (&Const(TypeConst::Bool), &Const(TypeConst::Bool)) => match op {
@@ -170,7 +170,7 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
                     Ok(Field {
                         doc: Rc::clone(&field.doc),
                         name: field.name.clone(),
-                        value: ty_of(ctx, &field.value)?,
+                        value: infer_ty(ctx, &field.value)?,
                     })
                 })
                 .collect::<Result<_, _>>()?;
@@ -180,7 +180,7 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
 
         // Field projection
         Expr::Proj(_, ref struct_expr, ref field_name) => {
-            let struct_ty = ty_of(ctx, struct_expr)?;
+            let struct_ty = infer_ty(ctx, struct_expr)?;
 
             match struct_ty.lookup_field(field_name).cloned() {
                 Some(field_ty) => Ok(field_ty),
@@ -210,7 +210,7 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
 
         // Array subscript
         Expr::Subscript(_, ref array_expr, ref index_expr) => {
-            let index_ty = ty_of(ctx, index_expr)?;
+            let index_ty = infer_ty(ctx, index_expr)?;
             match *index_ty.inner {
                 Type::Const(TypeConst::Unsigned(_)) => {}
                 _ => {
@@ -222,7 +222,7 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
                 }
             }
 
-            let array_ty = ty_of(ctx, array_expr)?;
+            let array_ty = infer_ty(ctx, array_expr)?;
             match *array_ty.inner {
                 Type::Array(ref elem_ty) => Ok(elem_ty.clone()),
                 _ => Err(TypeError::Mismatch {
@@ -235,7 +235,7 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
 
         // Cast Expressions
         Expr::Cast(_, ref src_expr, ref dst_ty) => {
-            let src_ty = ty_of(ctx, src_expr)?;
+            let src_ty = infer_ty(ctx, src_expr)?;
 
             match *dst_ty.inner {
                 Type::Const(TypeConst::Float(_))
@@ -264,12 +264,12 @@ pub fn ty_of(ctx: &Context, expr: &host::RcExpr) -> Result<host::RcType, TypeErr
             ctx.extend(Scope::ExprLam(params.clone()));
             let param_tys = params.iter().map(|param| param.1.clone()).collect();
 
-            Ok(Type::Arrow(param_tys, ty_of(&ctx, body_expr)?).into())
+            Ok(Type::Arrow(param_tys, infer_ty(&ctx, body_expr)?).into())
         }
 
         // Applications
         Expr::App(_, ref fn_expr, ref arg_exprs) => {
-            let fn_ty = ty_of(ctx, fn_expr)?;
+            let fn_ty = infer_ty(ctx, fn_expr)?;
 
             if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty.inner {
                 if arg_exprs.len() == param_tys.len() {
@@ -353,7 +353,7 @@ impl From<TypeError> for KindError {
 
 /// Returns the kind of a binary type, checking that it is properly formed in
 /// the environment
-pub fn kind_of(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindError> {
+pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindError> {
     use syntax::ast::binary::{Kind, Type, TypeConst};
 
     match *ty.inner {
@@ -390,7 +390,7 @@ pub fn kind_of(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindE
         Type::Array(_, ref elem_ty, ref size_expr) => {
             expect_ty_kind(ctx, elem_ty)?;
 
-            let size_ty = ty_of(ctx, size_expr)?;
+            let size_ty = infer_ty(ctx, size_expr)?;
             match *size_ty.inner {
                 host::Type::Const(host::TypeConst::Unsigned(_)) => Ok(Kind::Type),
                 _ => Err(TypeError::Mismatch {
@@ -484,7 +484,7 @@ pub fn check_program(program: &Program) -> Result<(), KindError> {
     let mut ctx = Context::new();
 
     for definition in &program.definitions {
-        let definition_kind = kind_of(&ctx, &definition.body_ty)?;
+        let definition_kind = infer_kind(&ctx, &definition.body_ty)?;
         ctx.extend(Scope::TypeDef(vec![
             Named(
                 definition.name.clone(),
@@ -503,7 +503,7 @@ fn expect_ty(
     expr: &host::RcExpr,
     expected: &host::RcType,
 ) -> Result<host::RcType, TypeError> {
-    let found = ty_of(ctx, expr)?;
+    let found = infer_ty(ctx, expr)?;
 
     if &found == expected {
         Ok(found)
@@ -521,7 +521,7 @@ fn expect_kind(
     ty: &binary::RcType,
     expected: binary::Kind,
 ) -> Result<binary::Kind, KindError> {
-    let found = kind_of(ctx, ty)?;
+    let found = infer_kind(ctx, ty)?;
 
     if found == expected {
         Ok(found)

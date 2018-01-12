@@ -1,93 +1,93 @@
 use super::*;
 
-mod ty_of {
+mod infer_ty {
     use syntax::ast::host::RcExpr;
     use syntax::ast::host::{FloatType, SignedType, Type, TypeConst, UnsignedType};
     use parser::ast::host::Expr as ParseExpr;
 
     use super::*;
 
-    macro_rules! assert_ty_of {
+    macro_rules! assert_infer_ty {
         ($given:expr, Ok($expected:expr)) => {{
 
             let ctx = Context::new();
             let expr = RcExpr::from(&ParseExpr::from_str($given).unwrap());
             let expected_ty = Type::Const($expected).into();
 
-            assert_eq!(ty_of(&ctx, &expr), Ok(expected_ty));
+            assert_eq!(infer_ty(&ctx, &expr), Ok(expected_ty));
         }};
         ($given:expr, Err(_)) => {{
 
             let ctx = Context::new();
             let expr = RcExpr::from(&ParseExpr::from_str($given).unwrap());
 
-            assert!(ty_of(&ctx, &expr).is_err());
+            assert!(infer_ty(&ctx, &expr).is_err());
         }};
     }
 
     #[test]
     fn var_unbound() {
-        assert_ty_of!("foo", Err(_));
+        assert_infer_ty!("foo", Err(_));
     }
 
     #[test]
     fn const_u8() {
-        assert_ty_of!("1u8", Ok(TypeConst::Unsigned(UnsignedType::U8)));
+        assert_infer_ty!("1u8", Ok(TypeConst::Unsigned(UnsignedType::U8)));
     }
 
     #[test]
     fn neg_i8() {
-        assert_ty_of!("-(1i8 + 2i8)", Ok(TypeConst::Signed(SignedType::I8)));
+        assert_infer_ty!("-(1i8 + 2i8)", Ok(TypeConst::Signed(SignedType::I8)));
     }
 
     #[test]
     fn neg_u8() {
-        assert_ty_of!("-1u8", Err(_));
+        assert_infer_ty!("-1u8", Err(_));
     }
 
     #[test]
     fn neg_bool() {
-        assert_ty_of!("-(1u8 == 2u8)", Err(_));
+        assert_infer_ty!("-(1u8 == 2u8)", Err(_));
     }
 
     #[test]
     fn not_u8() {
-        assert_ty_of!("!(1u8 + 2u8)", Err(_));
+        assert_infer_ty!("!(1u8 + 2u8)", Err(_));
     }
 
     #[test]
     fn not_bool() {
-        assert_ty_of!("!(1u8 == 2u8)", Ok(TypeConst::Bool));
+        assert_infer_ty!("!(1u8 == 2u8)", Ok(TypeConst::Bool));
     }
 
     #[test]
     fn arith_ops() {
-        assert_ty_of!("1i8 + (1i8 * -2i8)", Ok(TypeConst::Signed(SignedType::I8)));
+        assert_infer_ty!("1i8 + (1i8 * -2i8)", Ok(TypeConst::Signed(SignedType::I8)));
     }
 
     #[test]
     fn cmp_ops_eq_u8() {
-        assert_ty_of!("1u8 + (1u8 * 2u8) == 3u8", Ok(TypeConst::Bool));
+        assert_infer_ty!("1u8 + (1u8 * 2u8) == 3u8", Ok(TypeConst::Bool));
     }
 
     #[test]
     fn cmp_ops_ne_u8() {
-        assert_ty_of!("1u8 + (1u8 * 2u8) != 3u8", Ok(TypeConst::Bool));
+        assert_infer_ty!("1u8 + (1u8 * 2u8) != 3u8", Ok(TypeConst::Bool));
     }
 
     #[test]
     fn cmp_ops_eq_bool() {
-        assert_ty_of!("(1u8 == 1u8) == (3u8 == 3u8)", Ok(TypeConst::Bool));
+        assert_infer_ty!("(1u8 == 1u8) == (3u8 == 3u8)", Ok(TypeConst::Bool));
     }
 
     #[test]
     fn cmp_ops_ne_bool() {
-        assert_ty_of!("(1u8 == 1u8) != (3u8 == 3u8)", Ok(TypeConst::Bool));
+        assert_infer_ty!("(1u8 == 1u8) != (3u8 == 3u8)", Ok(TypeConst::Bool));
     }
 
     #[test]
     fn rel_ops() {
-        assert_ty_of!(
+        assert_infer_ty!(
             "(1u8 == 3u8) && (2u8 == 2u8) || (1u8 == 2u8)",
             Ok(TypeConst::Bool)
         );
@@ -95,22 +95,22 @@ mod ty_of {
 
     #[test]
     fn cast_bool() {
-        assert_ty_of!("(1u8 == 3u8) as u8", Err(_));
+        assert_infer_ty!("(1u8 == 3u8) as u8", Err(_));
     }
 
     #[test]
     fn cast_u8_to_u32() {
-        assert_ty_of!("1u8 as u32", Ok(TypeConst::Unsigned(UnsignedType::U32)));
+        assert_infer_ty!("1u8 as u32", Ok(TypeConst::Unsigned(UnsignedType::U32)));
     }
 
     #[test]
     fn cast_u8_to_f32() {
-        assert_ty_of!("1u8 as f32", Ok(TypeConst::Float(FloatType::F32)));
+        assert_infer_ty!("1u8 as f32", Ok(TypeConst::Float(FloatType::F32)));
     }
 
     #[test]
     fn cast_u8_to_f32_to_u16() {
-        assert_ty_of!(
+        assert_infer_ty!(
             "1u8 as f32 as u16",
             Ok(TypeConst::Unsigned(UnsignedType::U16))
         );
@@ -118,41 +118,41 @@ mod ty_of {
 
     #[test]
     fn cast_u8_to_bool() {
-        assert_ty_of!("1u8 as bool", Err(_));
+        assert_infer_ty!("1u8 as bool", Err(_));
     }
 }
 
-mod kind_of {
+mod infer_kind {
     use syntax::ast;
     use syntax::ast::binary::RcType;
     use parser::ast::binary::Type as ParseType;
 
     use super::*;
 
-    macro_rules! assert_kind_of {
+    macro_rules! assert_infer_kind {
         ($given:expr, Ok($expected:expr)) => {{
             let ctx = Context::new();
             let mut ty = RcType::from(&ParseType::from_str($given).unwrap());
             ty.substitute(&ast::base_defs());
 
-            assert_eq!(kind_of(&ctx, &ty), Ok($expected));
+            assert_eq!(infer_kind(&ctx, &ty), Ok($expected));
         }};
         ($given:expr, Err(_)) => {{
             let ctx = Context::new();
             let ty = RcType::from(&ParseType::from_str($given).unwrap());
 
-            assert!(kind_of(&ctx, &ty).is_err());
+            assert!(infer_kind(&ctx, &ty).is_err());
         }};
     }
 
     #[test]
     fn var_unbound() {
-        assert_kind_of!("foo", Err(_));
+        assert_infer_kind!("foo", Err(_));
     }
 
     #[test]
     fn assert_magic() {
-        assert_kind_of!(
+        assert_infer_kind!(
             "u64le where magic => magic == 0x00ffffffffffff00u64",
             Ok(binary::Kind::Type)
         );
