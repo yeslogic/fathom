@@ -20,7 +20,7 @@ impl<'a> From<&'a syntax::ast::Program> for Program {
             // `Foo::field::Entry::Variant2::...`
             let path = Path::new(definition.name.clone());
 
-            let definition = match *definition.ty.inner {
+            let definition = match *definition.body_ty.inner {
                 binary::Type::Lam(_, ref params, ref ty) => Definition {
                     doc: Rc::clone(&definition.doc),
                     params: params.iter().map(|p| p.0.clone()).collect(),
@@ -30,7 +30,7 @@ impl<'a> From<&'a syntax::ast::Program> for Program {
                 _ => Definition {
                     doc: Rc::clone(&definition.doc),
                     params: vec![],
-                    item: lower_item(&mut program, &path, &definition.ty),
+                    item: lower_item(&mut program, &path, &definition.body_ty),
                     path,
                 },
             };

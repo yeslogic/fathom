@@ -3,7 +3,7 @@ Program {
         Definition {
             doc: "",
             name: "Pixel",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(8),
                     hi: BytePos(66)
@@ -59,7 +59,7 @@ Program {
         Definition {
             doc: "",
             name: "Bitmap",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(78),
                     hi: BytePos(217)
@@ -157,7 +157,7 @@ Program {
         Definition {
             doc: "",
             name: "Bmp",
-            ty: Var(
+            body_ty: Var(
                 Span {
                     lo: BytePos(226),
                     hi: BytePos(232)

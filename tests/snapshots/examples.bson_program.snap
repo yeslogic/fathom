@@ -3,7 +3,7 @@ Program {
         Definition {
             doc: "Binary data",
             name: "BinData",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(26),
                     hi: BytePos(398)
@@ -72,7 +72,7 @@ Program {
         Definition {
             doc: "",
             name: "ObjectId",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(412),
                     hi: BytePos(511)
@@ -128,7 +128,7 @@ Program {
         Definition {
             doc: "",
             name: "Element",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(524),
                     hi: BytePos(2268)
@@ -503,7 +503,7 @@ Program {
         Definition {
             doc: "BSON Document\n\n<http://bsonspec.org/spec.html>",
             name: "Document",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(2340),
                     hi: BytePos(2599)

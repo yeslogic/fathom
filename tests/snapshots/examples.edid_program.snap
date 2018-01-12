@@ -3,7 +3,7 @@ Program {
         Definition {
             doc: "",
             name: "Header",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(9),
                     hi: BytePos(741)
@@ -202,7 +202,7 @@ Program {
         Definition {
             doc: "",
             name: "DisplayParams",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(760),
                     hi: BytePos(1461)
@@ -344,7 +344,7 @@ Program {
         Definition {
             doc: "https://en.wikipedia.org/wiki/Extended_Display_Identification_Data",
             name: "Edid",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(1542),
                     hi: BytePos(1788)

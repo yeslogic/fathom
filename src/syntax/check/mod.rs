@@ -484,11 +484,11 @@ pub fn check_program(program: &Program) -> Result<(), KindError> {
     let mut ctx = Context::new();
 
     for definition in &program.definitions {
-        let definition_kind = kind_of(&ctx, &definition.ty)?;
+        let definition_kind = kind_of(&ctx, &definition.body_ty)?;
         ctx.extend(Scope::TypeDef(vec![
             Named(
                 definition.name.clone(),
-                (definition.ty.clone(), definition_kind),
+                (definition.body_ty.clone(), definition_kind),
             ),
         ]));
     }

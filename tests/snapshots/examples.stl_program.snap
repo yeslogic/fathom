@@ -3,7 +3,7 @@ Program {
         Definition {
             doc: "",
             name: "Vec3d",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(8),
                     hi: BytePos(60)
@@ -48,7 +48,7 @@ Program {
         Definition {
             doc: "",
             name: "Triangle",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(74),
                     hi: BytePos(407)
@@ -106,7 +106,7 @@ Program {
         Definition {
             doc: "https://en.wikipedia.org/wiki/STL_(file_format)",
             name: "Stl",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(468),
                     hi: BytePos(662)

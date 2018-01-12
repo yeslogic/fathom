@@ -65,13 +65,13 @@ pub struct Definition {
     /// The name of the defined type
     pub name: String,
     /// The binary type
-    pub ty: binary::RcType,
+    pub body_ty: binary::RcType,
 }
 
 impl PartialEq for Definition {
     fn eq(&self, other: &Definition) -> bool {
         // Ignoring doc commment
-        self.name == other.name && self.ty == other.ty
+        self.name == other.name && self.body_ty == other.body_ty
     }
 }
 
@@ -80,7 +80,10 @@ impl<'src> From<&'src ParseDefinition<'src>> for Definition {
         Definition {
             doc: src.doc.join("\n").into(),
             name: String::from(src.name),
-            ty: binary::RcType::from(&src.ty),
+            body_ty: match &src.param_names[..] {
+                names if names.is_empty() => (&src.body_ty).into(),
+                names => binary::RcType::lam(src.span, names, &src.body_ty),
+            },
         }
     }
 }
@@ -101,7 +104,7 @@ impl Program {
         for definition in &mut definitions {
             for (level, name) in seen_names.iter().rev().enumerate() {
                 definition
-                    .ty
+                    .body_ty
                     .abstract_names_at(&[name], ScopeIndex(level as u32));
             }
 
@@ -114,7 +117,7 @@ impl Program {
 
     pub fn substitute(&mut self, substs: &Substitutions) {
         for definition in &mut self.definitions {
-            definition.ty.substitute(substs);
+            definition.body_ty.substitute(substs);
         }
     }
 }

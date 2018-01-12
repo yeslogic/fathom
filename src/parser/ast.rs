@@ -6,6 +6,7 @@
 
 use parser::{from_lalrpop_err, grammar, GrammarError, ParseError};
 use parser::lexer::Lexer;
+use source::Span;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program<'src> {
@@ -23,8 +24,10 @@ impl<'src> Program<'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Definition<'src> {
     pub doc: Vec<&'src str>,
+    pub span: Span,
     pub name: &'src str,
-    pub ty: binary::Type<'src>,
+    pub param_names: Vec<&'src str>,
+    pub body_ty: binary::Type<'src>,
 }
 
 impl<'src> Definition<'src> {
@@ -43,7 +46,7 @@ pub struct Field<'src, T> {
 }
 
 pub mod binary {
-    use source::{BytePos, Span};
+    use source::BytePos;
 
     use super::*;
 
@@ -61,7 +64,6 @@ pub mod binary {
             Box<host::Expr<'src>>,
         ),
         Compute(Span, host::TypeConst, Box<host::Expr<'src>>),
-        Lam(Span, Vec<&'src str>, Box<Type<'src>>),
         App(Span, Box<Type<'src>>, Vec<Type<'src>>),
     }
 
@@ -75,7 +77,6 @@ pub mod binary {
 }
 
 pub mod host {
-    use source::Span;
     pub use syntax::ast::host::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
 
     use super::*;

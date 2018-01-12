@@ -3,7 +3,7 @@ Program {
         Definition {
             doc: "https://docs.mongodb.com/manual/reference/method/ObjectId/",
             name: "ObjectId",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(74),
                     hi: BytePos(173)

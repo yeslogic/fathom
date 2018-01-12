@@ -3,9 +3,9 @@ Program {
         Definition {
             doc: "",
             name: "Pair",
-            ty: Lam(
+            body_ty: Lam(
                 Span {
-                    lo: BytePos(13),
+                    lo: BytePos(9),
                     hi: BytePos(78)
                 },
                 [
@@ -47,9 +47,9 @@ Program {
         Definition {
             doc: "",
             name: "Array",
-            ty: Lam(
+            body_ty: Lam(
                 Span {
-                    lo: BytePos(94),
+                    lo: BytePos(89),
                     hi: BytePos(172)
                 },
                 [
@@ -103,9 +103,9 @@ Program {
         Definition {
             doc: "",
             name: "Data",
-            ty: Lam(
+            body_ty: Lam(
                 Span {
-                    lo: BytePos(187),
+                    lo: BytePos(183),
                     hi: BytePos(277)
                 },
                 [

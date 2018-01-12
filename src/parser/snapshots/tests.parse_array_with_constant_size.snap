@@ -3,7 +3,7 @@ Program {
         Definition {
             doc: "",
             name: "Point",
-            ty: Array(
+            body_ty: Array(
                 Span {
                     lo: BytePos(17),
                     hi: BytePos(28)

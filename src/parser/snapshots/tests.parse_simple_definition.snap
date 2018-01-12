@@ -3,7 +3,7 @@ Program {
         Definition {
             doc: "",
             name: "Offset32",
-            ty: Var(
+            body_ty: Var(
                 Span {
                     lo: BytePos(20),
                     hi: BytePos(23)

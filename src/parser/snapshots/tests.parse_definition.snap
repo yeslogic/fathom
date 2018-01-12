@@ -3,7 +3,7 @@ Program {
         Definition {
             doc: "",
             name: "Point",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(17),
                     hi: BytePos(81)
@@ -37,7 +37,7 @@ Program {
         Definition {
             doc: "A doc comment\n\nWith some mor text",
             name: "Array",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(169),
                     hi: BytePos(245)
@@ -84,7 +84,7 @@ Program {
         Definition {
             doc: "",
             name: "Formats",
-            ty: Struct(
+            body_ty: Struct(
                 Span {
                     lo: BytePos(266),
                     hi: BytePos(596)

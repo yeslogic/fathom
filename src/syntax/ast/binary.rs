@@ -460,16 +460,6 @@ impl<'src> From<&'src ParseType<'src>> for RcType {
 
                 Type::Interp(span, empty.into(), conv, repr_ty).into()
             }
-            ParseType::Lam(span, ref param_names, ref body_ty) => {
-                let mut body_ty = RcType::from(&**body_ty);
-                body_ty.abstract_names(param_names);
-                let params = param_names
-                    .iter()
-                    .map(|name| Named(String::from(*name), ()))
-                    .collect();
-
-                Type::Lam(span, params, body_ty).into()
-            }
             ParseType::App(span, ref fn_ty, ref arg_tys) => {
                 let fn_ty = RcType::from(&**fn_ty);
                 let arg_tys = arg_tys.iter().map(|arg| RcType::from(&*arg)).collect();

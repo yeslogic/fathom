@@ -72,19 +72,22 @@ pub Program: Program<'src> = {
 };
 
 pub Definition: Definition<'src> = {
-    <doc: "DocComment"*> <name: "Ident"> "=" <ty: PrimaryBinaryType> ";" => {
-        Definition { doc, name, ty }
+    <doc: "DocComment"*>
+        <lo: @L> <name: "Ident"> "="
+        <body_ty: PrimaryBinaryType> ";" <hi: @R> =>
+    {
+        let span = Span::new(lo, hi);
+        Definition { doc, name, span, param_names: vec![], body_ty }
     },
-    <doc: "DocComment"*> <name: "Ident"> <lo: @L>
-        "(" <params: (<"Ident"> ",")*> <last: "Ident"> ")" "="
+    <doc: "DocComment"*>
+        <lo: @L> <name: "Ident"> "(" <param_names: (<"Ident"> ",")*> <last: "Ident"> ")" "="
         <body_ty: PrimaryBinaryType> <hi: @R> ";" =>
     {
-        let mut params = params;
-        params.push(last);
+        let span = Span::new(lo, hi);
+        let mut param_names = param_names;
+        param_names.push(last);
 
-        let ty = binary::Type::Lam(Span::new(lo, hi), params, Box::new(body_ty));
-
-        Definition { doc, name, ty }
+        Definition { doc, name, span, param_names, body_ty }
     },
 };
 
