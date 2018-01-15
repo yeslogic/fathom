@@ -68,6 +68,7 @@ pub enum TypeError {
     },
 }
 
+/// Check that an expression has the given type in the context
 pub fn check_ty(
     ctx: &Context,
     expr: &host::RcCExpr,
@@ -117,6 +118,7 @@ pub fn check_ty(
     }
 }
 
+/// Infer the type of an expression in the context
 pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, TypeError> {
     use syntax::ast::host::{Binop, IExpr, Type, TypeConst, Unop};
 
@@ -398,8 +400,26 @@ impl From<TypeError> for KindError {
     }
 }
 
-/// Returns the kind of a binary type, checking that it is properly formed in
-/// the environment
+/// Check that a binary type has the given kind in the context
+fn check_kind(
+    ctx: &Context,
+    ty: &binary::RcType,
+    expected_kind: binary::Kind,
+) -> Result<(), KindError> {
+    let found = infer_kind(ctx, ty)?;
+
+    if found == expected_kind {
+        Ok(())
+    } else {
+        Err(KindError::Mismatch {
+            ty: ty.clone(),
+            expected: expected_kind,
+            found,
+        })
+    }
+}
+
+/// Infer the kind of a binary type in the context
 pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindError> {
     use syntax::ast::binary::{Kind, Type, TypeConst};
 
@@ -435,7 +455,7 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
 
         // Array types
         Type::Array(_, ref elem_ty, ref size_expr) => {
-            expect_ty_kind(ctx, elem_ty)?;
+            check_kind(ctx, elem_ty, Kind::Type)?;
 
             let size_ty = infer_ty(ctx, size_expr)?;
             match *size_ty.inner {
@@ -450,7 +470,7 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
 
         // Conditional types
         Type::Assert(_, ref ty, ref pred_expr) => {
-            expect_ty_kind(ctx, ty)?;
+            check_kind(ctx, ty, Kind::Type)?;
             let pred_ty = host::Type::Arrow(
                 vec![ty.repr()],
                 host::Type::Const(host::TypeConst::Bool).into(),
@@ -462,7 +482,7 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
 
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref repr_ty) => {
-            expect_ty_kind(ctx, ty)?;
+            check_kind(ctx, ty, Kind::Type)?;
             let conv_ty = host::Type::Arrow(vec![ty.repr()], repr_ty.clone()).into();
             check_ty(ctx, conv_expr, &conv_ty)?;
 
@@ -480,7 +500,7 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
                     .map(|named| Named(named.0.clone(), Kind::Type))
                     .collect(),
             ));
-            expect_ty_kind(&ctx, body_ty)?;
+            check_kind(&ctx, body_ty, Kind::Type)?;
 
             Ok(Kind::arrow(param_tys.len() as u32))
         }
@@ -491,7 +511,7 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
 
             for option in options {
                 check_ty(ctx, &option.value.0, &bool_ty)?;
-                expect_ty_kind(ctx, &option.value.1)?;
+                check_kind(ctx, &option.value.1, Kind::Type)?;
             }
 
             Ok(Kind::Type)
@@ -503,7 +523,7 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
             let mut ctx = ctx.clone();
 
             for field in fields {
-                expect_ty_kind(&ctx, &field.value)?;
+                check_kind(&ctx, &field.value, Kind::Type)?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
                 ctx.extend(Scope::ExprLam(vec![
@@ -516,10 +536,10 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
 
         // Type application
         Type::App(_, ref fn_ty, ref arg_tys) => {
-            expect_kind(ctx, fn_ty, Kind::arrow(arg_tys.len() as u32))?;
+            check_kind(ctx, fn_ty, Kind::arrow(arg_tys.len() as u32))?;
 
             for arg_ty in arg_tys {
-                expect_ty_kind(ctx, arg_ty)?
+                check_kind(ctx, arg_ty, Kind::Type)?
             }
 
             Ok(Kind::Type)
@@ -541,30 +561,4 @@ pub fn check_program(program: &Program) -> Result<(), KindError> {
     }
 
     Ok(())
-}
-
-// Expectations
-
-fn expect_kind(
-    ctx: &Context,
-    ty: &binary::RcType,
-    expected: binary::Kind,
-) -> Result<binary::Kind, KindError> {
-    let found = infer_kind(ctx, ty)?;
-
-    if found == expected {
-        Ok(found)
-    } else {
-        Err(KindError::Mismatch {
-            ty: ty.clone(),
-            expected: expected,
-            found,
-        })
-    }
-}
-
-fn expect_ty_kind(ctx: &Context, ty: &binary::RcType) -> Result<(), KindError> {
-    use syntax::ast::binary::Kind;
-
-    expect_kind(ctx, ty, Kind::Type).map(|_| ())
 }
