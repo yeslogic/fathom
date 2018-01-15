@@ -588,9 +588,9 @@ impl RcIExpr {
 
     pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
-            IExpr::Ann(_, ref mut expr, _) => {
+            IExpr::Ann(_, ref mut expr, ref mut ty) => {
                 expr.abstract_names_at(names, scope);
-                // TODO: abstract ty???
+                ty.abstract_names_at(names, scope);
             }
             IExpr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             IExpr::Const(_, _) => {}
@@ -608,9 +608,9 @@ impl RcIExpr {
                 array_expr.abstract_names_at(names, scope);
                 index_expr.abstract_names_at(names, scope);
             }
-            IExpr::Cast(_, ref mut src_expr, _) => {
+            IExpr::Cast(_, ref mut src_expr, ref mut dst_ty) => {
                 src_expr.abstract_names_at(names, scope);
-                // TODO: abstract dst_ty???
+                dst_ty.abstract_names_at(names, scope);
             }
             IExpr::Lam(_, ref mut args, ref mut body_expr) => {
                 for &mut Named(_, ref mut arg_ty) in args {
