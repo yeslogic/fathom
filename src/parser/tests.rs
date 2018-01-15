@@ -1,6 +1,6 @@
 use syntax::ast::Program;
 use syntax::ast::binary::RcType;
-use syntax::ast::host::RcExpr;
+use syntax::ast::host::RcIExpr;
 use parser::ast::Program as ParseProgram;
 use parser::ast::binary::Type as ParseType;
 use parser::ast::host::Expr as ParseExpr;
@@ -13,7 +13,7 @@ fn parse_expr_bool_atomic() {
 
     assert_debug_snapshot!(
         parse_expr_bool_atomic,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -25,7 +25,7 @@ fn parse_expr_bool_operators() {
 
     assert_debug_snapshot!(
         parse_expr_bool_operators,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -35,7 +35,7 @@ fn parse_add_expr() {
 
     assert_debug_snapshot!(
         parse_add_expr,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -45,7 +45,7 @@ fn parse_sub_expr() {
 
     assert_debug_snapshot!(
         parse_sub_expr,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -55,7 +55,7 @@ fn parse_add_expr_mixed() {
 
     assert_debug_snapshot!(
         parse_add_expr_mixed,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -65,7 +65,7 @@ fn parse_mul_expr() {
 
     assert_debug_snapshot!(
         parse_mul_expr,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -75,7 +75,7 @@ fn parse_div_expr() {
 
     assert_debug_snapshot!(
         parse_div_expr,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -85,7 +85,7 @@ fn parse_mul_expr_mixed() {
 
     assert_debug_snapshot!(
         parse_mul_expr_mixed,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -95,7 +95,7 @@ fn parse_mixed_arithmetic_expr() {
 
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -105,7 +105,7 @@ fn parse_mixed_arithmetic_expr_parenthesized() {
 
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr_parenthesized,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -115,7 +115,7 @@ fn parse_proj_expr() {
 
     assert_debug_snapshot!(
         parse_proj_expr,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 
@@ -125,7 +125,7 @@ fn parse_subscript_expr() {
 
     assert_debug_snapshot!(
         parse_subscript_expr,
-        RcExpr::from(&ParseExpr::from_str(src).unwrap())
+        RcIExpr::from(&ParseExpr::from_str(src).unwrap())
     );
 }
 

@@ -384,63 +384,118 @@ pub enum Binop {
     Div,
 }
 
-/// A host expression
+/// Checkable host expressions
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr {
+pub enum CExpr {
+    /// Empty array literals. eg: `[]`
+    EmptyArray,
+    /// Variant introduction, eg: `.variant1 x`
+    Intro(Span, String, RcCExpr),
+    /// Inferred expressions
+    Inf(RcIExpr),
+}
+
+#[derive(Clone, PartialEq)]
+pub struct RcCExpr {
+    pub inner: Rc<CExpr>,
+}
+
+impl From<CExpr> for RcCExpr {
+    fn from(src: CExpr) -> RcCExpr {
+        RcCExpr {
+            inner: Rc::new(src),
+        }
+    }
+}
+
+impl fmt::Debug for RcCExpr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.inner, f)
+    }
+}
+
+impl RcCExpr {
+    /// Replace occurrences of the free variables that exist as keys on
+    /// `substs` with their corresponding types.
+    pub fn substitute(&mut self, substs: &Substitutions) {
+        match *Rc::make_mut(&mut self.inner) {
+            CExpr::Intro(_, _, ref mut expr) => {
+                expr.substitute(substs);
+            }
+            CExpr::EmptyArray => {}
+            CExpr::Inf(ref mut iexpr) => {
+                iexpr.substitute(substs);
+            }
+        }
+    }
+
+    pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
+        match *Rc::make_mut(&mut self.inner) {
+            CExpr::Intro(_, _, ref mut expr) => {
+                expr.abstract_names_at(names, scope);
+            }
+            CExpr::EmptyArray => {}
+            CExpr::Inf(ref mut iexpr) => {
+                iexpr.abstract_names_at(names, scope);
+            }
+        }
+    }
+
+    pub fn abstract_names(&mut self, names: &[&str]) {
+        self.abstract_names_at(names, ScopeIndex(0));
+    }
+}
+
+/// Inferrable host expressions
+#[derive(Debug, Clone, PartialEq)]
+pub enum IExpr {
     /// A constant value
     Const(Span, Const),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     Var(Span, Var),
     /// An unary operator expression
-    Unop(Span, Unop, RcExpr),
+    Unop(Span, Unop, RcIExpr),
     /// A binary operator expression
-    Binop(Span, Binop, RcExpr, RcExpr),
+    Binop(Span, Binop, RcIExpr, RcIExpr),
     /// A struct initialization expression
-    Struct(Vec<Field<RcExpr>>),
+    Struct(Vec<Field<RcIExpr>>),
     /// Field projection, eg: `x.field`
-    Proj(Span, RcExpr, String),
-    /// Variant introduction, eg: `.variant1 x : union { variant1 : T }`
-    ///
-    /// We require a type annotation because we don't have inference
-    /// implemented in the type checker yet.
-    //
-    // TODO: add type inference to remove the need for this annotation
-    Intro(Span, String, RcExpr, RcType),
+    Proj(Span, RcIExpr, String),
     /// Array index, eg: `x[i]`
-    Subscript(Span, RcExpr, RcExpr),
+    Subscript(Span, RcIExpr, RcIExpr),
     /// Cast expression, eg: `x as u32`
-    Cast(Span, RcExpr, RcType),
+    Cast(Span, RcIExpr, RcType),
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    Lam(Span, Vec<Named<RcType>>, RcExpr),
+    Lam(Span, Vec<Named<RcType>>, RcIExpr),
     /// Application, eg: `f(x, ..)`
-    App(Span, RcExpr, Vec<RcExpr>),
+    App(Span, RcIExpr, Vec<RcCExpr>),
 }
 
 #[derive(Clone, PartialEq)]
-pub struct RcExpr {
-    pub inner: Rc<Expr>,
+pub struct RcIExpr {
+    pub inner: Rc<IExpr>,
 }
 
-impl From<Expr> for RcExpr {
-    fn from(src: Expr) -> RcExpr {
-        RcExpr {
+impl From<IExpr> for RcIExpr {
+    fn from(src: IExpr) -> RcIExpr {
+        RcIExpr {
             inner: Rc::new(src),
         }
     }
 }
 
-impl fmt::Debug for RcExpr {
+impl fmt::Debug for RcIExpr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.inner, f)
     }
 }
 
-impl RcExpr {
+impl RcIExpr {
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    pub fn lam<E1>(span: Span, params: Vec<Named<RcType>>, body_expr: E1) -> RcExpr
+    pub fn lam<E1>(span: Span, params: Vec<Named<RcType>>, body_expr: E1) -> RcIExpr
     where
-        E1: Into<RcExpr>,
+        E1: Into<RcIExpr>,
     {
         let mut body_expr = body_expr.into();
 
@@ -449,16 +504,16 @@ impl RcExpr {
             body_expr.abstract_names(&param_names[..]);
         }
 
-        Expr::Lam(span, params, body_expr).into()
+        IExpr::Lam(span, params, body_expr).into()
     }
 
     /// Attempt to lookup the value of a field
     ///
     /// Returns `None` if the expression is not a struct or the field is not
     /// present in the struct.
-    pub fn lookup_field(&self, name: &str) -> Option<&RcExpr> {
+    pub fn lookup_field(&self, name: &str) -> Option<&RcIExpr> {
         match *self.inner {
-            Expr::Struct(ref fields) => ast::lookup_field(fields, name),
+            IExpr::Struct(ref fields) => ast::lookup_field(fields, name),
             _ => None,
         }
     }
@@ -467,41 +522,37 @@ impl RcExpr {
     /// `substs` with their corresponding types.
     pub fn substitute(&mut self, substs: &Substitutions) {
         match *Rc::make_mut(&mut self.inner) {
-            Expr::Var(_, Var::Free(ref name)) => match substs.get(name) {
+            IExpr::Var(_, Var::Free(ref name)) => match substs.get(name) {
                 None => {}
                 Some(ty) => panic!("Expected to substitute an expression, but found {:?}", ty),
             },
-            Expr::Var(_, Var::Bound(_)) | Expr::Const(_, _) => {}
-            Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
+            IExpr::Var(_, Var::Bound(_)) | IExpr::Const(_, _) => {}
+            IExpr::Unop(_, _, ref mut expr) | IExpr::Proj(_, ref mut expr, _) => {
                 expr.substitute(substs);
             }
-            Expr::Intro(_, _, ref mut expr, ref mut ty) => {
-                expr.substitute(substs);
-                ty.substitute(substs);
-            }
-            Expr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
+            IExpr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
                 lhs_expr.substitute(substs);
                 rhs_expr.substitute(substs);
             }
-            Expr::Struct(ref mut fields) => for field in fields {
+            IExpr::Struct(ref mut fields) => for field in fields {
                 field.value.substitute(substs);
             },
-            Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
+            IExpr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
                 array_expr.substitute(substs);
                 index_expr.substitute(substs);
             }
-            Expr::Cast(_, ref mut src_expr, ref mut dst_ty) => {
+            IExpr::Cast(_, ref mut src_expr, ref mut dst_ty) => {
                 src_expr.substitute(substs);
                 dst_ty.substitute(substs);
             }
-            Expr::Lam(_, ref mut args, ref mut body_expr) => {
+            IExpr::Lam(_, ref mut args, ref mut body_expr) => {
                 for &mut Named(_, ref mut arg_ty) in args {
                     arg_ty.substitute(substs);
                 }
 
                 body_expr.substitute(substs);
             }
-            Expr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
+            IExpr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
                 fn_expr.substitute(substs);
 
                 for arg_expr in arg_exprs {
@@ -513,38 +564,34 @@ impl RcExpr {
 
     pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
-            Expr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
-            Expr::Const(_, _) => {}
-            Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
+            IExpr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
+            IExpr::Const(_, _) => {}
+            IExpr::Unop(_, _, ref mut expr) | IExpr::Proj(_, ref mut expr, _) => {
                 expr.abstract_names_at(names, scope);
             }
-            Expr::Intro(_, _, ref mut expr, ref mut ty) => {
-                expr.abstract_names_at(names, scope);
-                ty.abstract_names_at(names, scope);
-            }
-            Expr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
+            IExpr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
                 lhs_expr.abstract_names_at(names, scope);
                 rhs_expr.abstract_names_at(names, scope);
             }
-            Expr::Struct(ref mut fields) => for field in fields {
+            IExpr::Struct(ref mut fields) => for field in fields {
                 field.value.abstract_names_at(names, scope);
             },
-            Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
+            IExpr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
                 array_expr.abstract_names_at(names, scope);
                 index_expr.abstract_names_at(names, scope);
             }
-            Expr::Cast(_, ref mut src_expr, _) => {
+            IExpr::Cast(_, ref mut src_expr, _) => {
                 src_expr.abstract_names_at(names, scope);
                 // TODO: abstract dst_ty???
             }
-            Expr::Lam(_, ref mut args, ref mut body_expr) => {
+            IExpr::Lam(_, ref mut args, ref mut body_expr) => {
                 for &mut Named(_, ref mut arg_ty) in args {
                     arg_ty.abstract_names_at(names, scope);
                 }
 
                 body_expr.abstract_names_at(names, scope.succ());
             }
-            Expr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
+            IExpr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
                 fn_expr.abstract_names_at(names, scope);
 
                 for arg_expr in arg_exprs {
@@ -559,39 +606,39 @@ impl RcExpr {
     }
 }
 
-impl<'src> From<&'src ParseExpr<'src>> for RcExpr {
-    fn from(src: &'src ParseExpr<'src>) -> RcExpr {
+impl<'src> From<&'src ParseExpr<'src>> for RcIExpr {
+    fn from(src: &'src ParseExpr<'src>) -> RcIExpr {
         match *src {
-            ParseExpr::Const(span, c) => Expr::Const(span, c).into(),
-            ParseExpr::Var(span, name) => Expr::Var(span, Var::free(name)).into(),
+            ParseExpr::Const(span, c) => IExpr::Const(span, c).into(),
+            ParseExpr::Var(span, name) => IExpr::Var(span, Var::free(name)).into(),
             ParseExpr::Unop(span, op, ref expr) => {
-                let expr = RcExpr::from(&**expr);
+                let expr = RcIExpr::from(&**expr);
 
-                Expr::Unop(span, op, expr).into()
+                IExpr::Unop(span, op, expr).into()
             }
             ParseExpr::Binop(span, op, ref lhs_expr, ref rhs_expr) => {
-                let lhs_expr = RcExpr::from(&**lhs_expr);
-                let rhs_expr = RcExpr::from(&**rhs_expr);
+                let lhs_expr = RcIExpr::from(&**lhs_expr);
+                let rhs_expr = RcIExpr::from(&**rhs_expr);
 
-                Expr::Binop(span, op, lhs_expr, rhs_expr).into()
+                IExpr::Binop(span, op, lhs_expr, rhs_expr).into()
             }
             ParseExpr::Proj(span, ref struct_expr, field_name) => {
-                let struct_expr = RcExpr::from(&**struct_expr);
+                let struct_expr = RcIExpr::from(&**struct_expr);
                 let field_name = String::from(field_name);
 
-                Expr::Proj(span, struct_expr, field_name).into()
+                IExpr::Proj(span, struct_expr, field_name).into()
             }
             ParseExpr::Subscript(span, ref array_expr, ref index_expr) => {
-                let array_expr = RcExpr::from(&**array_expr);
-                let index_expr = RcExpr::from(&**index_expr);
+                let array_expr = RcIExpr::from(&**array_expr);
+                let index_expr = RcIExpr::from(&**index_expr);
 
-                Expr::Subscript(span, array_expr, index_expr).into()
+                IExpr::Subscript(span, array_expr, index_expr).into()
             }
             ParseExpr::Cast(span, ref expr, ty) => {
-                let expr = RcExpr::from(&**expr);
+                let expr = RcIExpr::from(&**expr);
                 let ty = Type::Const(ty).into();
 
-                Expr::Cast(span, expr, ty).into()
+                IExpr::Cast(span, expr, ty).into()
             }
         }
     }

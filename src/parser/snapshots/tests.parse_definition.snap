@@ -114,25 +114,27 @@ Program {
                                     doc: "A doc comment on a union variant",
                                     name: "u16",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(401),
-                                                hi: BytePos(417)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(401),
-                                                    hi: BytePos(407)
-                                                },
-                                                Bound(Named("format", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(411),
                                                     hi: BytePos(417)
                                                 },
-                                                Int(0, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(401),
+                                                        hi: BytePos(407)
+                                                    },
+                                                    Bound(Named("format", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(411),
+                                                        hi: BytePos(417)
+                                                    },
+                                                    Int(0, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -148,25 +150,27 @@ Program {
                                     doc: "",
                                     name: "point",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(450),
-                                                hi: BytePos(466)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(450),
-                                                    hi: BytePos(456)
-                                                },
-                                                Bound(Named("format", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(460),
                                                     hi: BytePos(466)
                                                 },
-                                                Int(1, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(450),
+                                                        hi: BytePos(456)
+                                                    },
+                                                    Bound(Named("format", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(460),
+                                                        hi: BytePos(466)
+                                                    },
+                                                    Int(1, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -182,25 +186,27 @@ Program {
                                     doc: "And another doc comment",
                                     name: "array",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(545),
-                                                hi: BytePos(561)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(545),
-                                                    hi: BytePos(551)
-                                                },
-                                                Bound(Named("format", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(555),
                                                     hi: BytePos(561)
                                                 },
-                                                Int(2, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(545),
+                                                        hi: BytePos(551)
+                                                    },
+                                                    Bound(Named("format", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(555),
+                                                        hi: BytePos(561)
+                                                    },
+                                                    Int(2, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(

@@ -110,15 +110,15 @@ pub enum Type {
     /// Type constant
     Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(Span, RcType, host::RcExpr),
+    Array(Span, RcType, host::RcIExpr),
     /// Conditional types: eg. `cond { field : pred => T, ... }`
-    Cond(Span, Vec<Field<(host::RcExpr, RcType)>>),
+    Cond(Span, Vec<Field<(host::RcCExpr, RcType)>>),
     /// A struct type, with fields: eg. `struct { variant : T, ... }`
     Struct(Span, Vec<Field<RcType>>),
     /// A type that is constrained by a predicate: eg. `T where x => x == 3`
-    Assert(Span, RcType, host::RcExpr),
+    Assert(Span, RcType, host::RcCExpr),
     /// An interpreted type
-    Interp(Span, RcType, host::RcExpr, host::RcType),
+    Interp(Span, RcType, host::RcCExpr, host::RcType),
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
@@ -200,7 +200,7 @@ impl RcType {
     ///
     /// Returns `None` if the type is not a union or the field is not
     /// present in the union.
-    pub fn lookup_variant(&self, name: &str) -> Option<&(host::RcExpr, RcType)> {
+    pub fn lookup_variant(&self, name: &str) -> Option<&(host::RcCExpr, RcType)> {
         match *self.inner {
             Type::Cond(_, ref options) => ast::lookup_field(options, name),
             _ => None,
@@ -413,7 +413,7 @@ impl<'src> From<&'src ParseType<'src>> for RcType {
             ParseType::Var(span, name) => Type::Var(span, Var::free(name)).into(),
             ParseType::Array(span, ref elem_ty, ref size_expr) => {
                 let elem_ty = RcType::from(&**elem_ty);
-                let size_expr = host::RcExpr::from(&**size_expr);
+                let size_expr = host::RcIExpr::from(&**size_expr);
 
                 Type::Array(span, elem_ty, size_expr).into()
             }
@@ -424,7 +424,7 @@ impl<'src> From<&'src ParseType<'src>> for RcType {
                         doc: variant.doc.join("\n").into(),
                         name: String::from(variant.name),
                         value: (
-                            host::RcExpr::from(&variant.value.0),
+                            host::CExpr::Inf(host::RcIExpr::from(&variant.value.0)).into(),
                             RcType::from(&variant.value.1),
                         ),
                     })
@@ -448,17 +448,17 @@ impl<'src> From<&'src ParseType<'src>> for RcType {
                 let ty = RcType::from(&**ty);
                 let span2 = Span::new(lo2, span.hi());
                 let pred_params = vec![Named(String::from(param_name), ty.repr())];
-                let pred_expr = host::RcExpr::lam(span2, pred_params, &**pred_expr);
+                let pred_expr = host::RcIExpr::lam(span2, pred_params, &**pred_expr);
 
-                Type::Assert(span, ty, pred_expr).into()
+                Type::Assert(span, ty, host::CExpr::Inf(pred_expr).into()).into()
             }
             ParseType::Compute(span, repr_ty, ref expr) => {
                 let empty = Type::Const(TypeConst::Empty).into();
                 let repr_ty = host::Type::Const(repr_ty).into();
                 let conv_params = vec![Named("_".to_owned(), RcType::repr(&empty))];
-                let conv = host::RcExpr::lam(span, conv_params, &**expr);
+                let conv = host::RcIExpr::lam(span, conv_params, &**expr);
 
-                Type::Interp(span, empty.into(), conv, repr_ty).into()
+                Type::Interp(span, empty.into(), host::CExpr::Inf(conv).into(), repr_ty).into()
             }
             ParseType::App(span, ref fn_ty, ref arg_tys) => {
                 let fn_ty = RcType::from(&**fn_ty);

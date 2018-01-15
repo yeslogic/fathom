@@ -1,7 +1,7 @@
 use super::*;
 
 mod infer_ty {
-    use syntax::ast::host::RcExpr;
+    use syntax::ast::host::RcIExpr;
     use syntax::ast::host::{FloatType, SignedType, Type, TypeConst, UnsignedType};
     use parser::ast::host::Expr as ParseExpr;
 
@@ -11,7 +11,7 @@ mod infer_ty {
         ($given:expr, Ok($expected:expr)) => {{
 
             let ctx = Context::new();
-            let expr = RcExpr::from(&ParseExpr::from_str($given).unwrap());
+            let expr = RcIExpr::from(&ParseExpr::from_str($given).unwrap());
             let expected_ty = Type::Const($expected).into();
 
             assert_eq!(infer_ty(&ctx, &expr), Ok(expected_ty));
@@ -19,7 +19,7 @@ mod infer_ty {
         ($given:expr, Err(_)) => {{
 
             let ctx = Context::new();
-            let expr = RcExpr::from(&ParseExpr::from_str($given).unwrap());
+            let expr = RcIExpr::from(&ParseExpr::from_str($given).unwrap());
 
             assert!(infer_ty(&ctx, &expr).is_err());
         }};

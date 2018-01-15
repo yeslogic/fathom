@@ -24,35 +24,37 @@ Program {
                                 },
                                 Free("u64le")
                             ),
-                            Lam(
-                                Span {
-                                    lo: BytePos(70),
-                                    hi: BytePos(109)
-                                },
-                                [
-                                    Named("magic", Var(
-                                        Free("u64le")
-                                    ))
-                                ],
-                                Binop(
+                            Inf(
+                                Lam(
                                     Span {
-                                        lo: BytePos(79),
+                                        lo: BytePos(70),
                                         hi: BytePos(109)
                                     },
-                                    Eq,
-                                    Var(
+                                    [
+                                        Named("magic", Var(
+                                            Free("u64le")
+                                        ))
+                                    ],
+                                    Binop(
                                         Span {
                                             lo: BytePos(79),
-                                            hi: BytePos(84)
-                                        },
-                                        Bound(Named("magic", BoundVar(0, 0)))
-                                    ),
-                                    Const(
-                                        Span {
-                                            lo: BytePos(88),
                                             hi: BytePos(109)
                                         },
-                                        Int(72057594037927680, Unsigned(U64))
+                                        Eq,
+                                        Var(
+                                            Span {
+                                                lo: BytePos(79),
+                                                hi: BytePos(84)
+                                            },
+                                            Bound(Named("magic", BoundVar(0, 0)))
+                                        ),
+                                        Const(
+                                            Span {
+                                                lo: BytePos(88),
+                                                hi: BytePos(109)
+                                            },
+                                            Int(72057594037927680, Unsigned(U64))
+                                        )
                                     )
                                 )
                             )
@@ -124,46 +126,48 @@ Program {
                             Const(
                                 Empty
                             ),
-                            Lam(
-                                Span {
-                                    lo: BytePos(551),
-                                    hi: BytePos(597)
-                                },
-                                [
-                                    Named("_", Const(
-                                        Unit
-                                    ))
-                                ],
-                                Binop(
+                            Inf(
+                                Lam(
                                     Span {
-                                        lo: BytePos(568),
+                                        lo: BytePos(551),
                                         hi: BytePos(597)
                                     },
-                                    Add,
-                                    Cast(
+                                    [
+                                        Named("_", Const(
+                                            Unit
+                                        ))
+                                    ],
+                                    Binop(
                                         Span {
                                             lo: BytePos(568),
-                                            hi: BytePos(587)
-                                        },
-                                        Var(
-                                            Span {
-                                                lo: BytePos(568),
-                                                hi: BytePos(580)
-                                            },
-                                            Bound(Named("mfg_year_mod", BoundVar(2, 0)))
-                                        ),
-                                        Const(
-                                            Unsigned(
-                                                U16
-                                            )
-                                        )
-                                    ),
-                                    Const(
-                                        Span {
-                                            lo: BytePos(590),
                                             hi: BytePos(597)
                                         },
-                                        Int(1990, Unsigned(U16))
+                                        Add,
+                                        Cast(
+                                            Span {
+                                                lo: BytePos(568),
+                                                hi: BytePos(587)
+                                            },
+                                            Var(
+                                                Span {
+                                                    lo: BytePos(568),
+                                                    hi: BytePos(580)
+                                                },
+                                                Bound(Named("mfg_year_mod", BoundVar(2, 0)))
+                                            ),
+                                            Const(
+                                                Unsigned(
+                                                    U16
+                                                )
+                                            )
+                                        ),
+                                        Const(
+                                            Span {
+                                                lo: BytePos(590),
+                                                hi: BytePos(597)
+                                            },
+                                            Int(1990, Unsigned(U16))
+                                        )
                                     )
                                 )
                             ),
@@ -263,60 +267,62 @@ Program {
                             Const(
                                 Empty
                             ),
-                            Lam(
-                                Span {
-                                    lo: BytePos(1343),
-                                    hi: BytePos(1400)
-                                },
-                                [
-                                    Named("_", Const(
-                                        Unit
-                                    ))
-                                ],
-                                Binop(
+                            Inf(
+                                Lam(
                                     Span {
-                                        lo: BytePos(1360),
+                                        lo: BytePos(1343),
                                         hi: BytePos(1400)
                                     },
-                                    Div,
+                                    [
+                                        Named("_", Const(
+                                            Unit
+                                        ))
+                                    ],
                                     Binop(
                                         Span {
-                                            lo: BytePos(1361),
-                                            hi: BytePos(1388)
+                                            lo: BytePos(1360),
+                                            hi: BytePos(1400)
                                         },
-                                        Add,
-                                        Cast(
+                                        Div,
+                                        Binop(
                                             Span {
                                                 lo: BytePos(1361),
-                                                hi: BytePos(1377)
+                                                hi: BytePos(1388)
                                             },
-                                            Var(
+                                            Add,
+                                            Cast(
                                                 Span {
                                                     lo: BytePos(1361),
-                                                    hi: BytePos(1370)
+                                                    hi: BytePos(1377)
                                                 },
-                                                Bound(Named("gamma_mod", BoundVar(2, 0)))
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(1361),
+                                                        hi: BytePos(1370)
+                                                    },
+                                                    Bound(Named("gamma_mod", BoundVar(2, 0)))
+                                                ),
+                                                Const(
+                                                    Float(
+                                                        F32
+                                                    )
+                                                )
                                             ),
                                             Const(
-                                                Float(
-                                                    F32
-                                                )
+                                                Span {
+                                                    lo: BytePos(1380),
+                                                    hi: BytePos(1388)
+                                                },
+                                                Float(100.0, F32)
                                             )
                                         ),
                                         Const(
                                             Span {
-                                                lo: BytePos(1380),
-                                                hi: BytePos(1388)
+                                                lo: BytePos(1392),
+                                                hi: BytePos(1400)
                                             },
                                             Float(100.0, F32)
                                         )
-                                    ),
-                                    Const(
-                                        Span {
-                                            lo: BytePos(1392),
-                                            hi: BytePos(1400)
-                                        },
-                                        Float(100.0, F32)
                                     )
                                 )
                             ),
