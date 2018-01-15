@@ -93,8 +93,11 @@ pub fn check_ty(
         }
 
         // Empty arrays
-        CExpr::EmptyArray => match *expected_ty.inner {
-            Type::Array(_) => Ok(()),
+        CExpr::Array(_, ref elems) => match *expected_ty.inner {
+            Type::Array(ref elem_ty) => elems
+                .iter()
+                .map(|elem| check_ty(ctx, elem, elem_ty))
+                .collect(),
             _ => unimplemented!(), // FIXME
         },
 
@@ -118,6 +121,12 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
     use syntax::ast::host::{Binop, IExpr, Type, TypeConst, Unop};
 
     match *expr.inner {
+        // Annotated types
+        IExpr::Ann(_, ref expr, ref ty) => {
+            check_ty(ctx, expr, ty)?;
+            Ok(ty.clone())
+        }
+
         // Constants are easy!
         IExpr::Const(_, c) => Ok(Type::Const(c.ty_const_of()).into()),
 
@@ -159,7 +168,7 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
 
         // Binary operators
         IExpr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
-            use syntax::ast::host::Type::Const;
+            use syntax::ast::host::Type::{Array, Const};
 
             fn binop_err(
                 context: Binop,
@@ -180,23 +189,23 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
 
             match (&*lhs_ty.inner, &*rhs_ty.inner) {
                 (&Const(TypeConst::Bool), &Const(TypeConst::Bool)) => match op {
-                    Binop::Or | Binop::And | Binop::Eq | Binop::Ne => Ok(lhs_ty),
-                    _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                    Binop::Or | Binop::And | Binop::Eq | Binop::Ne => Ok(lhs_ty.clone()),
+                    _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
                 },
                 (&Const(TypeConst::Float(l)), &Const(TypeConst::Float(r))) if l == r => match op {
                     Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
                         Ok(Const(TypeConst::Bool).into())
                     }
-                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
-                    _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty.clone()),
+                    _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
                 },
                 (&Const(TypeConst::Signed(l)), &Const(TypeConst::Signed(r))) if l == r => {
                     match op {
                         Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
                             Ok(Const(TypeConst::Bool).into())
                         }
-                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
-                        _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty.clone()),
+                        _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
                     }
                 }
                 (&Const(TypeConst::Unsigned(l)), &Const(TypeConst::Unsigned(r))) if l == r => {
@@ -204,11 +213,15 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
                         Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
                             Ok(Const(TypeConst::Bool).into())
                         }
-                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty),
-                        _ => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty.clone()),
+                        _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
                     }
                 }
-                (_, _) => Err(binop_err(op, expr, lhs_ty, rhs_ty)),
+                (&Array(ref l), &Array(ref r)) if l == r => match op {
+                    Binop::Eq | Binop::Ne => Ok(Const(TypeConst::Bool).into()),
+                    _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
+                },
+                (_, _) => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
             }
         }
 

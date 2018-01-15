@@ -11,7 +11,7 @@ mod infer_ty {
         ($given:expr, Ok($expected:expr)) => {{
 
             let ctx = Context::new();
-            let expr = RcIExpr::from(&ParseExpr::from_str($given).unwrap());
+            let expr = RcIExpr::from_parse(&ParseExpr::from_str($given).unwrap()).unwrap();
             let expected_ty = Type::Const($expected).into();
 
             assert_eq!(infer_ty(&ctx, &expr), Ok(expected_ty));
@@ -19,7 +19,7 @@ mod infer_ty {
         ($given:expr, Err(_)) => {{
 
             let ctx = Context::new();
-            let expr = RcIExpr::from(&ParseExpr::from_str($given).unwrap());
+            let expr = RcIExpr::from_parse(&ParseExpr::from_str($given).unwrap()).unwrap();
 
             assert!(infer_ty(&ctx, &expr).is_err());
         }};
@@ -132,14 +132,14 @@ mod infer_kind {
     macro_rules! assert_infer_kind {
         ($given:expr, Ok($expected:expr)) => {{
             let ctx = Context::new();
-            let mut ty = RcType::from(&ParseType::from_str($given).unwrap());
+            let mut ty = RcType::from_parse(&ParseType::from_str($given).unwrap()).unwrap();
             ty.substitute(&ast::base_defs());
 
             assert_eq!(infer_kind(&ctx, &ty), Ok($expected));
         }};
         ($given:expr, Err(_)) => {{
             let ctx = Context::new();
-            let ty = RcType::from(&ParseType::from_str($given).unwrap());
+            let ty = RcType::from_parse(&ParseType::from_str($given).unwrap()).unwrap();
 
             assert!(infer_kind(&ctx, &ty).is_err());
         }};
@@ -174,7 +174,7 @@ mod check_program {
             };
         ";
 
-        let mut program = Program::from(&ParseProgram::from_str(src).unwrap());
+        let mut program = Program::from_parse(&ParseProgram::from_str(src).unwrap()).unwrap();
         let base_defs = ast::base_defs();
         program.substitute(&base_defs);
 

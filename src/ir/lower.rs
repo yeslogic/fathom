@@ -250,13 +250,21 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
 fn lower_cexpr(path: &Path, expr: &host::RcCExpr) -> RcExpr {
     match *expr.inner {
         host::CExpr::Intro(_, _, _) => unimplemented!(),
-        host::CExpr::EmptyArray => unimplemented!(),
+        host::CExpr::Array(_, ref elems) => {
+            Expr::Array(elems.iter().map(|elem| lower_cexpr(path, elem)).collect()).into()
+        }
         host::CExpr::Inf(ref iexpr) => lower_iexpr(path, iexpr),
     }
 }
 
 fn lower_iexpr(path: &Path, expr: &host::RcIExpr) -> RcExpr {
     match *expr.inner {
+        host::IExpr::Ann(_, ref expr, ref ty) => {
+            let lowered_expr = lower_cexpr(path, expr);
+            let lowered_ty = lower_repr_ty(path, ty);
+
+            Expr::Ann(lowered_expr, lowered_ty).into()
+        }
         host::IExpr::Const(_, c) => Expr::Const(c).into(),
         host::IExpr::Var(_, ref var) => Expr::Var(var.clone()).into(),
         host::IExpr::Unop(_, op, ref expr) => Expr::Unop(op, lower_iexpr(path, expr)).into(),

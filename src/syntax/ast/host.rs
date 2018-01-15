@@ -387,10 +387,10 @@ pub enum Binop {
 /// Checkable host expressions
 #[derive(Debug, Clone, PartialEq)]
 pub enum CExpr {
-    /// Empty array literals. eg: `[]`
-    EmptyArray,
     /// Variant introduction, eg: `.variant1 x`
     Intro(Span, String, RcCExpr),
+    /// Array literals. eg: `[1, 2, 3]`
+    Array(Span, Vec<RcCExpr>),
     /// Inferred expressions
     Inf(RcIExpr),
 }
@@ -422,7 +422,9 @@ impl RcCExpr {
             CExpr::Intro(_, _, ref mut expr) => {
                 expr.substitute(substs);
             }
-            CExpr::EmptyArray => {}
+            CExpr::Array(_, ref mut elems) => for elem in elems {
+                elem.substitute(substs);
+            },
             CExpr::Inf(ref mut iexpr) => {
                 iexpr.substitute(substs);
             }
@@ -434,7 +436,9 @@ impl RcCExpr {
             CExpr::Intro(_, _, ref mut expr) => {
                 expr.abstract_names_at(names, scope);
             }
-            CExpr::EmptyArray => {}
+            CExpr::Array(_, ref mut elems) => for elem in elems {
+                elem.abstract_names_at(names, scope);
+            },
             CExpr::Inf(ref mut iexpr) => {
                 iexpr.abstract_names_at(names, scope);
             }
@@ -444,11 +448,27 @@ impl RcCExpr {
     pub fn abstract_names(&mut self, names: &[&str]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
+
+    pub fn from_parse(src: &ParseExpr) -> Result<RcCExpr, ()> {
+        match *src {
+            ParseExpr::Array(span, ref elems) => {
+                let elems = elems
+                    .iter()
+                    .map(RcCExpr::from_parse)
+                    .collect::<Result<_, _>>()?;
+
+                Ok(CExpr::Array(span, elems).into())
+            }
+            _ => Ok(CExpr::Inf(RcIExpr::from_parse(src)?).into()),
+        }
+    }
 }
 
 /// Inferrable host expressions
 #[derive(Debug, Clone, PartialEq)]
 pub enum IExpr {
+    /// An expression annotated by a type, ie. `x : u32`
+    Ann(Span, RcCExpr, RcType),
     /// A constant value
     Const(Span, Const),
     /// A variable, referring to an integer that exists in the current
@@ -522,6 +542,10 @@ impl RcIExpr {
     /// `substs` with their corresponding types.
     pub fn substitute(&mut self, substs: &Substitutions) {
         match *Rc::make_mut(&mut self.inner) {
+            IExpr::Ann(_, ref mut expr, ref mut ty) => {
+                expr.substitute(substs);
+                ty.substitute(substs);
+            }
             IExpr::Var(_, Var::Free(ref name)) => match substs.get(name) {
                 None => {}
                 Some(ty) => panic!("Expected to substitute an expression, but found {:?}", ty),
@@ -564,6 +588,10 @@ impl RcIExpr {
 
     pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
+            IExpr::Ann(_, ref mut expr, _) => {
+                expr.abstract_names_at(names, scope);
+                // TODO: abstract ty???
+            }
             IExpr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             IExpr::Const(_, _) => {}
             IExpr::Unop(_, _, ref mut expr) | IExpr::Proj(_, ref mut expr, _) => {
@@ -604,41 +632,46 @@ impl RcIExpr {
     pub fn abstract_names(&mut self, names: &[&str]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
-}
 
-impl<'src> From<&'src ParseExpr<'src>> for RcIExpr {
-    fn from(src: &'src ParseExpr<'src>) -> RcIExpr {
+    pub fn from_parse(src: &ParseExpr) -> Result<RcIExpr, ()> {
         match *src {
-            ParseExpr::Const(span, c) => IExpr::Const(span, c).into(),
-            ParseExpr::Var(span, name) => IExpr::Var(span, Var::free(name)).into(),
-            ParseExpr::Unop(span, op, ref expr) => {
-                let expr = RcIExpr::from(&**expr);
-
-                IExpr::Unop(span, op, expr).into()
-            }
-            ParseExpr::Binop(span, op, ref lhs_expr, ref rhs_expr) => {
-                let lhs_expr = RcIExpr::from(&**lhs_expr);
-                let rhs_expr = RcIExpr::from(&**rhs_expr);
-
-                IExpr::Binop(span, op, lhs_expr, rhs_expr).into()
-            }
-            ParseExpr::Proj(span, ref struct_expr, field_name) => {
-                let struct_expr = RcIExpr::from(&**struct_expr);
-                let field_name = String::from(field_name);
-
-                IExpr::Proj(span, struct_expr, field_name).into()
-            }
-            ParseExpr::Subscript(span, ref array_expr, ref index_expr) => {
-                let array_expr = RcIExpr::from(&**array_expr);
-                let index_expr = RcIExpr::from(&**index_expr);
-
-                IExpr::Subscript(span, array_expr, index_expr).into()
-            }
-            ParseExpr::Cast(span, ref expr, ty) => {
-                let expr = RcIExpr::from(&**expr);
+            ParseExpr::Const(span, c) => Ok(IExpr::Const(span, c).into()),
+            ParseExpr::Ann(span, ref expr, ty) => {
+                let expr = RcCExpr::from_parse(&**expr)?;
                 let ty = Type::Const(ty).into();
 
-                IExpr::Cast(span, expr, ty).into()
+                Ok(IExpr::Ann(span, expr, ty).into())
+            }
+            ParseExpr::Var(span, name) => Ok(IExpr::Var(span, Var::free(name)).into()),
+            ParseExpr::Unop(span, op, ref expr) => {
+                let expr = RcIExpr::from_parse(&**expr)?;
+
+                Ok(IExpr::Unop(span, op, expr).into())
+            }
+            ParseExpr::Binop(span, op, ref lhs_expr, ref rhs_expr) => {
+                let lhs_expr = RcIExpr::from_parse(&**lhs_expr)?;
+                let rhs_expr = RcIExpr::from_parse(&**rhs_expr)?;
+
+                Ok(IExpr::Binop(span, op, lhs_expr, rhs_expr).into())
+            }
+            ParseExpr::Array(_, _) => Err(()),
+            ParseExpr::Proj(span, ref struct_expr, field_name) => {
+                let struct_expr = RcIExpr::from_parse(&**struct_expr)?;
+                let field_name = String::from(field_name);
+
+                Ok(IExpr::Proj(span, struct_expr, field_name).into())
+            }
+            ParseExpr::Subscript(span, ref array_expr, ref index_expr) => {
+                let array_expr = RcIExpr::from_parse(&**array_expr)?;
+                let index_expr = RcIExpr::from_parse(&**index_expr)?;
+
+                Ok(IExpr::Subscript(span, array_expr, index_expr).into())
+            }
+            ParseExpr::Cast(span, ref expr, ty) => {
+                let expr = RcIExpr::from_parse(&**expr)?;
+                let ty = Type::Const(ty).into();
+
+                Ok(IExpr::Cast(span, expr, ty).into())
             }
         }
     }
