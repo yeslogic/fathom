@@ -258,10 +258,12 @@ impl RcParseExpr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    Ann(RcExpr, RcType),
     Const(Const),
     Var(Var),
     Unop(Unop, RcExpr),
     Binop(Binop, RcExpr, RcExpr),
+    Array(Vec<RcExpr>),
     Struct(Path, Vec<Field<RcExpr>>),
     Proj(RcExpr, String),
     Intro(Path, String, RcExpr),
@@ -293,6 +295,10 @@ impl fmt::Debug for RcExpr {
 impl RcExpr {
     pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
+            Expr::Ann(ref mut expr, _) => {
+                expr.abstract_names_at(names, scope);
+                // TODO: abstract ty???
+            }
             Expr::Var(ref mut var) => var.abstract_names_at(names, scope),
             Expr::Const(_) => {}
             Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
@@ -305,6 +311,9 @@ impl RcExpr {
                 lhs_expr.abstract_names_at(names, scope);
                 rhs_expr.abstract_names_at(names, scope);
             }
+            Expr::Array(ref mut elems) => for elem in elems {
+                elem.abstract_names_at(names, scope);
+            },
             Expr::Struct(_, ref mut fields) => for field in fields {
                 field.value.abstract_names_at(names, scope);
             },

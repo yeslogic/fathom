@@ -83,10 +83,12 @@ pub mod host {
 
     #[derive(Debug, Clone, PartialEq)]
     pub enum Expr<'src> {
+        Ann(Span, Box<Expr<'src>>, TypeConst),
         Const(Span, Const),
         Var(Span, &'src str),
         Unop(Span, Unop, Box<Expr<'src>>),
         Binop(Span, Binop, Box<Expr<'src>>, Box<Expr<'src>>),
+        Array(Span, Vec<Expr<'src>>),
         Proj(Span, Box<Expr<'src>>, &'src str),
         Subscript(Span, Box<Expr<'src>>, Box<Expr<'src>>),
         Cast(Span, Box<Expr<'src>>, TypeConst),

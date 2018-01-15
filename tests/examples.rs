@@ -13,7 +13,7 @@ use ddl::parser::ast::Program as ParseProgram;
 fn bitmap() {
     const SRC: &str = include_str!("../examples/formats/bitmap/src/bitmap.ddl");
 
-    let mut program = Program::from(&ParseProgram::from_str(SRC).unwrap());
+    let mut program = Program::from_parse(&ParseProgram::from_str(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(bitmap_program, program);
 
     let base_defs = ast::base_defs();
@@ -32,7 +32,7 @@ fn bitmap() {
 fn bson() {
     const SRC: &str = include_str!("../examples/formats/bson/src/bson.ddl");
 
-    let mut program = Program::from(&ParseProgram::from_str(SRC).unwrap());
+    let mut program = Program::from_parse(&ParseProgram::from_str(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(bson_program, program);
 
     let base_defs = ast::base_defs();
@@ -51,7 +51,7 @@ fn bson() {
 fn edid() {
     const SRC: &str = include_str!("../examples/formats/edid/src/edid.ddl");
 
-    let mut program = Program::from(&ParseProgram::from_str(SRC).unwrap());
+    let mut program = Program::from_parse(&ParseProgram::from_str(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(edid_program, program);
 
     let base_defs = ast::base_defs();
@@ -70,7 +70,7 @@ fn edid() {
 fn object_id() {
     const SRC: &str = include_str!("../examples/formats/object_id/src/object_id.ddl");
 
-    let mut program = Program::from(&ParseProgram::from_str(SRC).unwrap());
+    let mut program = Program::from_parse(&ParseProgram::from_str(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(object_id_program, program);
 
     let base_defs = ast::base_defs();
@@ -89,7 +89,7 @@ fn object_id() {
 fn stl() {
     const SRC: &str = include_str!("../examples/formats/stl/src/stl.ddl");
 
-    let mut program = Program::from(&ParseProgram::from_str(SRC).unwrap());
+    let mut program = Program::from_parse(&ParseProgram::from_str(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(stl_program, program);
 
     let base_defs = ast::base_defs();

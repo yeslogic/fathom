@@ -158,25 +158,27 @@ Program {
                                     doc: "64-bit floating point",
                                     name: "double",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(624),
-                                                hi: BytePos(643)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(624),
-                                                    hi: BytePos(633)
-                                                },
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(637),
                                                     hi: BytePos(643)
                                                 },
-                                                Int(1, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(624),
+                                                        hi: BytePos(633)
+                                                    },
+                                                    Bound(Named("elem_type", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(637),
+                                                        hi: BytePos(643)
+                                                    },
+                                                    Int(1, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -192,25 +194,27 @@ Program {
                                     doc: "Binary data",
                                     name: "bin_data",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(993),
-                                                hi: BytePos(1012)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(993),
-                                                    hi: BytePos(1002)
-                                                },
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(1006),
                                                     hi: BytePos(1012)
                                                 },
-                                                Int(5, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(993),
+                                                        hi: BytePos(1002)
+                                                    },
+                                                    Bound(Named("elem_type", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(1006),
+                                                        hi: BytePos(1012)
+                                                    },
+                                                    Int(5, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -226,25 +230,27 @@ Program {
                                     doc: "Undefined (value) - deprecated",
                                     name: "undefined",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(1088),
-                                                hi: BytePos(1107)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(1088),
-                                                    hi: BytePos(1097)
-                                                },
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(1101),
                                                     hi: BytePos(1107)
                                                 },
-                                                Int(6, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(1088),
+                                                        hi: BytePos(1097)
+                                                    },
+                                                    Bound(Named("elem_type", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(1101),
+                                                        hi: BytePos(1107)
+                                                    },
+                                                    Int(6, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -260,25 +266,27 @@ Program {
                                     doc: "ObjectId",
                                     name: "object_id",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(1159),
-                                                hi: BytePos(1178)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(1159),
-                                                    hi: BytePos(1168)
-                                                },
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(1172),
                                                     hi: BytePos(1178)
                                                 },
-                                                Int(7, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(1159),
+                                                        hi: BytePos(1168)
+                                                    },
+                                                    Bound(Named("elem_type", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(1172),
+                                                        hi: BytePos(1178)
+                                                    },
+                                                    Int(7, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -294,25 +302,27 @@ Program {
                                     doc: "Boolean\n\n- `0x00`: false\n- `0x01`: true",
                                     name: "boolean",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(1297),
-                                                hi: BytePos(1316)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(1297),
-                                                    hi: BytePos(1306)
-                                                },
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(1310),
                                                     hi: BytePos(1316)
                                                 },
-                                                Int(8, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(1297),
+                                                        hi: BytePos(1306)
+                                                    },
+                                                    Bound(Named("elem_type", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(1310),
+                                                        hi: BytePos(1316)
+                                                    },
+                                                    Int(8, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -328,25 +338,27 @@ Program {
                                     doc: "UTC datetime",
                                     name: "utc_datetime",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(1372),
-                                                hi: BytePos(1391)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(1372),
-                                                    hi: BytePos(1381)
-                                                },
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(1385),
                                                     hi: BytePos(1391)
                                                 },
-                                                Int(9, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(1372),
+                                                        hi: BytePos(1381)
+                                                    },
+                                                    Bound(Named("elem_type", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(1385),
+                                                        hi: BytePos(1391)
+                                                    },
+                                                    Int(9, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -362,25 +374,27 @@ Program {
                                     doc: "Null value",
                                     name: "null",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(1440),
-                                                hi: BytePos(1459)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(1440),
-                                                    hi: BytePos(1449)
-                                                },
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(1453),
                                                     hi: BytePos(1459)
                                                 },
-                                                Int(10, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(1440),
+                                                        hi: BytePos(1449)
+                                                    },
+                                                    Bound(Named("elem_type", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(1453),
+                                                        hi: BytePos(1459)
+                                                    },
+                                                    Int(10, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -396,25 +410,27 @@ Program {
                                     doc: "32-bit integer",
                                     name: "int",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(1972),
-                                                hi: BytePos(1991)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(1972),
-                                                    hi: BytePos(1981)
-                                                },
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(1985),
                                                     hi: BytePos(1991)
                                                 },
-                                                Int(16, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(1972),
+                                                        hi: BytePos(1981)
+                                                    },
+                                                    Bound(Named("elem_type", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(1985),
+                                                        hi: BytePos(1991)
+                                                    },
+                                                    Int(16, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -430,25 +446,27 @@ Program {
                                     doc: "Timestamp",
                                     name: "timestamp",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(2044),
-                                                hi: BytePos(2063)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(2044),
-                                                    hi: BytePos(2053)
-                                                },
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(2057),
                                                     hi: BytePos(2063)
                                                 },
-                                                Int(17, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(2044),
+                                                        hi: BytePos(2053)
+                                                    },
+                                                    Bound(Named("elem_type", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(2057),
+                                                        hi: BytePos(2063)
+                                                    },
+                                                    Int(17, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(
@@ -464,25 +482,27 @@ Program {
                                     doc: "64-bit integer",
                                     name: "long",
                                     value: (
-                                        Binop(
-                                            Span {
-                                                lo: BytePos(2116),
-                                                hi: BytePos(2135)
-                                            },
-                                            Eq,
-                                            Var(
+                                        Inf(
+                                            Binop(
                                                 Span {
                                                     lo: BytePos(2116),
-                                                    hi: BytePos(2125)
-                                                },
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Span {
-                                                    lo: BytePos(2129),
                                                     hi: BytePos(2135)
                                                 },
-                                                Int(18, Unsigned(U8))
+                                                Eq,
+                                                Var(
+                                                    Span {
+                                                        lo: BytePos(2116),
+                                                        hi: BytePos(2125)
+                                                    },
+                                                    Bound(Named("elem_type", BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Span {
+                                                        lo: BytePos(2129),
+                                                        hi: BytePos(2135)
+                                                    },
+                                                    Int(18, Unsigned(U8))
+                                                )
                                             )
                                         ),
                                         Var(

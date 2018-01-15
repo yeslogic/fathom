@@ -68,23 +68,25 @@ pub struct Definition {
     pub body_ty: binary::RcType,
 }
 
+impl Definition {
+    pub fn from_parse(src: &ParseDefinition) -> Result<Definition, ()> {
+        let body_ty = binary::RcType::from_parse(&src.body_ty)?;
+
+        Ok(Definition {
+            doc: src.doc.join("\n").into(),
+            name: String::from(src.name),
+            body_ty: match &src.param_names[..] {
+                names if names.is_empty() => body_ty,
+                names => binary::RcType::lam(src.span, names, body_ty),
+            },
+        })
+    }
+}
+
 impl PartialEq for Definition {
     fn eq(&self, other: &Definition) -> bool {
         // Ignoring doc commment
         self.name == other.name && self.body_ty == other.body_ty
-    }
-}
-
-impl<'src> From<&'src ParseDefinition<'src>> for Definition {
-    fn from(src: &'src ParseDefinition<'src>) -> Definition {
-        Definition {
-            doc: src.doc.join("\n").into(),
-            name: String::from(src.name),
-            body_ty: match &src.param_names[..] {
-                names if names.is_empty() => (&src.body_ty).into(),
-                names => binary::RcType::lam(src.span, names, &src.body_ty),
-            },
-        }
     }
 }
 
@@ -120,11 +122,12 @@ impl Program {
             definition.body_ty.substitute(substs);
         }
     }
-}
 
-impl<'src> From<&'src ParseProgram<'src>> for Program {
-    fn from(src: &'src ParseProgram<'src>) -> Program {
-        Program::new(src.definitions.iter().map(Definition::from).collect())
+    pub fn from_parse(src: &ParseProgram) -> Result<Program, ()> {
+        Ok(Program::new(src.definitions
+            .iter()
+            .map(Definition::from_parse)
+            .collect::<Result<_, _>>()?))
     }
 }
 

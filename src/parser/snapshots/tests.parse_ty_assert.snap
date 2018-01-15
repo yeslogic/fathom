@@ -29,35 +29,37 @@ Assert(
                             },
                             Free("u32")
                         ),
-                        Lam(
-                            Span {
-                                lo: BytePos(43),
-                                hi: BytePos(57)
-                            },
-                            [
-                                Named("x", Var(
-                                    Free("u32")
-                                ))
-                            ],
-                            Binop(
+                        Inf(
+                            Lam(
                                 Span {
-                                    lo: BytePos(48),
+                                    lo: BytePos(43),
                                     hi: BytePos(57)
                                 },
-                                Eq,
-                                Var(
+                                [
+                                    Named("x", Var(
+                                        Free("u32")
+                                    ))
+                                ],
+                                Binop(
                                     Span {
                                         lo: BytePos(48),
-                                        hi: BytePos(49)
-                                    },
-                                    Bound(Named("x", BoundVar(0, 0)))
-                                ),
-                                Const(
-                                    Span {
-                                        lo: BytePos(53),
                                         hi: BytePos(57)
                                     },
-                                    Int(3, Unsigned(U32))
+                                    Eq,
+                                    Var(
+                                        Span {
+                                            lo: BytePos(48),
+                                            hi: BytePos(49)
+                                        },
+                                        Bound(Named("x", BoundVar(0, 0)))
+                                    ),
+                                    Const(
+                                        Span {
+                                            lo: BytePos(53),
+                                            hi: BytePos(57)
+                                        },
+                                        Int(3, Unsigned(U32))
+                                    )
                                 )
                             )
                         )
@@ -65,10 +67,54 @@ Assert(
                 }
             ]
         ),
+        Inf(
+            Lam(
+                Span {
+                    lo: BytePos(83),
+                    hi: BytePos(97)
+                },
+                [
+                    Named("x", Struct(
+                        [
+                            Field {
+                                doc: "",
+                                name: "x",
+                                value: Var(
+                                    Free("u32")
+                                )
+                            }
+                        ]
+                    ))
+                ],
+                Binop(
+                    Span {
+                        lo: BytePos(88),
+                        hi: BytePos(97)
+                    },
+                    Eq,
+                    Var(
+                        Span {
+                            lo: BytePos(88),
+                            hi: BytePos(89)
+                        },
+                        Bound(Named("x", BoundVar(0, 0)))
+                    ),
+                    Const(
+                        Span {
+                            lo: BytePos(93),
+                            hi: BytePos(97)
+                        },
+                        Int(2, Unsigned(U32))
+                    )
+                )
+            )
+        )
+    ),
+    Inf(
         Lam(
             Span {
-                lo: BytePos(83),
-                hi: BytePos(97)
+                lo: BytePos(112),
+                hi: BytePos(126)
             },
             [
                 Named("x", Struct(
@@ -85,64 +131,24 @@ Assert(
             ],
             Binop(
                 Span {
-                    lo: BytePos(88),
-                    hi: BytePos(97)
+                    lo: BytePos(117),
+                    hi: BytePos(126)
                 },
                 Eq,
                 Var(
                     Span {
-                        lo: BytePos(88),
-                        hi: BytePos(89)
+                        lo: BytePos(117),
+                        hi: BytePos(118)
                     },
                     Bound(Named("x", BoundVar(0, 0)))
                 ),
                 Const(
                     Span {
-                        lo: BytePos(93),
-                        hi: BytePos(97)
+                        lo: BytePos(122),
+                        hi: BytePos(126)
                     },
-                    Int(2, Unsigned(U32))
+                    Int(1, Unsigned(U32))
                 )
-            )
-        )
-    ),
-    Lam(
-        Span {
-            lo: BytePos(112),
-            hi: BytePos(126)
-        },
-        [
-            Named("x", Struct(
-                [
-                    Field {
-                        doc: "",
-                        name: "x",
-                        value: Var(
-                            Free("u32")
-                        )
-                    }
-                ]
-            ))
-        ],
-        Binop(
-            Span {
-                lo: BytePos(117),
-                hi: BytePos(126)
-            },
-            Eq,
-            Var(
-                Span {
-                    lo: BytePos(117),
-                    hi: BytePos(118)
-                },
-                Bound(Named("x", BoundVar(0, 0)))
-            ),
-            Const(
-                Span {
-                    lo: BytePos(122),
-                    hi: BytePos(126)
-                },
-                Int(1, Unsigned(U32))
             )
         )
     )

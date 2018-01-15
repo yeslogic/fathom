@@ -76,18 +76,19 @@ pub Definition: Definition<'src> = {
         <lo: @L> <name: "Ident"> "="
         <body_ty: PrimaryBinaryType> ";" <hi: @R> =>
     {
-        let span = Span::new(lo, hi);
-        Definition { doc, name, span, param_names: vec![], body_ty }
+        Definition { doc, name, span: Span::new(lo, hi), param_names: vec![], body_ty }
     },
     <doc: "DocComment"*>
         <lo: @L> <name: "Ident"> "(" <param_names: (<"Ident"> ",")*> <last: "Ident"> ")" "="
         <body_ty: PrimaryBinaryType> <hi: @R> ";" =>
     {
-        let span = Span::new(lo, hi);
-        let mut param_names = param_names;
-        param_names.push(last);
-
-        Definition { doc, name, span, param_names, body_ty }
+        Definition {
+            doc,
+            name,
+            span: Span::new(lo, hi),
+            param_names: super::extend_vec(param_names, Some(last)),
+            body_ty,
+        }
     },
 };
 
@@ -119,9 +120,7 @@ AtomicBinaryType: binary::Type<'src> = {
         binary::Type::Var(Span::new(lo, hi), name)
     },
     <lo: @L> <ty: AtomicBinaryType> "(" <arg_tys: (<BinaryType> ",")*> <last: BinaryType> ")" <hi: @R> => {
-        let mut arg_tys = arg_tys;
-        arg_tys.push(last);
-        binary::Type::App(Span::new(lo, hi), Box::new(ty), arg_tys)
+        binary::Type::App(Span::new(lo, hi), Box::new(ty), super::extend_vec(arg_tys, Some(last)))
     },
     "(" <ty: PrimaryBinaryType> ")" => ty,
     <lo: @L> "struct" "{"
@@ -129,18 +128,14 @@ AtomicBinaryType: binary::Type<'src> = {
         <last: Field<BinaryType>?>
     "}" <hi: @R> =>
     {
-        let mut fields = fields;
-        fields.extend(last);
-        binary::Type::Struct(Span::new(lo, hi), fields)
+        binary::Type::Struct(Span::new(lo, hi), super::extend_vec(fields, last))
     },
     <lo: @L> "cond" "{"
         <options: (<Field<(<HostExpr> "=>" <BinaryType>)>> ",")*>
         <last: Field<(<HostExpr> "=>" <BinaryType>)>?>
     "}" <hi: @R> =>
     {
-        let mut options = options;
-        options.extend(last);
-        binary::Type::Cond(Span::new(lo, hi), options)
+        binary::Type::Cond(Span::new(lo, hi), super::extend_vec(options, last))
     },
     <lo: @L> "[" <elem: PrimaryBinaryType> ";" <size: PrimaryHostExpr> "]" <hi: @R> => {
         binary::Type::Array(Span::new(lo, hi), Box::new(elem), Box::new(size))
@@ -255,9 +250,16 @@ MulHostExpr: host::Expr<'src> = {
 };
 
 CastHostExpr: host::Expr<'src> = {
-    PrefixHostExpr,
+    AnnHostExpr,
     <lo: @L> <expr: CastHostExpr> "as" <ty: HostType> <hi: @R> => {
         host::Expr::Cast(Span::new(lo, hi), Box::new(expr), ty)
+    },
+};
+
+AnnHostExpr: host::Expr<'src> = {
+    PrefixHostExpr,
+    <lo: @L> <expr: AnnHostExpr> ":" <ty: HostType> <hi: @R> => {
+        host::Expr::Ann(Span::new(lo, hi), Box::new(expr), ty)
     },
 };
 
@@ -313,11 +315,14 @@ FloatLiteral<Value>: host::Expr<'src> = {
 AtomicHostExpr: host::Expr<'src> = {
     "(" <expr: PrimaryHostExpr> ")" => expr,
 
+    <lo: @L> "[" <elems: (<PrimaryHostExpr> ",")*> <last: PrimaryHostExpr?> "]" <hi: @R> => {
+        host::Expr::Array(Span::new(lo, hi), super::extend_vec(elems, last))
+    },
+
     IntLiteral<"BinLiteral">,
     IntLiteral<"HexLiteral">,
     IntLiteral<"DecLiteral">,
     FloatLiteral<"FloatDecLiteral">,
-
     <lo: @L> <name: "Ident"> <hi: @R> => {
         host::Expr::Var(Span::new(lo, hi), name)
     },

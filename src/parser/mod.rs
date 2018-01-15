@@ -27,6 +27,11 @@ impl From<lexer::Error> for GrammarError {
     }
 }
 
+fn extend_vec<I: IntoIterator>(mut vec: Vec<I::Item>, last: I) -> Vec<I::Item> {
+    vec.extend(last);
+    vec
+}
+
 fn from_lalrpop_err<L, T: fmt::Debug, E>(
     src: lalrpop_util::ParseError<L, T, E>,
 ) -> lalrpop_util::ParseError<L, String, E> {

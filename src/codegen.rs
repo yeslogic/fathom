@@ -643,6 +643,11 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
             }
         }
 
+        Expr::Ann(ref expr, _) => {
+            // TODO: use type annotation
+            lower_expr(alloc, prec, expr)
+        }
+
         // FIXME: Hygiene!
         Expr::Var(Var::Free(_)) => unimplemented!(),
         Expr::Var(Var::Bound(Named(ref name, _))) => {
@@ -687,6 +692,18 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                 .append(alloc.space())
                 .append(lower_expr(alloc, Prec::Expr, rhs))
         }
+
+        Expr::Array(ref elems) => alloc
+            .text("[")
+            .append(
+                alloc.intersperse(
+                    elems
+                        .iter()
+                        .map(|elem| lower_expr(alloc, Prec::Block, elem)),
+                    alloc.text(","),
+                ),
+            )
+            .append(alloc.text("]")),
 
         Expr::Struct(ref path, ref fields) => alloc
             .text(path.to_camel_case())

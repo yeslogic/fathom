@@ -110,15 +110,15 @@ pub enum Type {
     /// Type constant
     Const(TypeConst),
     /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(Span, RcType, host::RcExpr),
+    Array(Span, RcType, host::RcIExpr),
     /// Conditional types: eg. `cond { field : pred => T, ... }`
-    Cond(Span, Vec<Field<(host::RcExpr, RcType)>>),
+    Cond(Span, Vec<Field<(host::RcCExpr, RcType)>>),
     /// A struct type, with fields: eg. `struct { variant : T, ... }`
     Struct(Span, Vec<Field<RcType>>),
     /// A type that is constrained by a predicate: eg. `T where x => x == 3`
-    Assert(Span, RcType, host::RcExpr),
+    Assert(Span, RcType, host::RcCExpr),
     /// An interpreted type
-    Interp(Span, RcType, host::RcExpr, host::RcType),
+    Interp(Span, RcType, host::RcCExpr, host::RcType),
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
@@ -200,7 +200,7 @@ impl RcType {
     ///
     /// Returns `None` if the type is not a union or the field is not
     /// present in the union.
-    pub fn lookup_variant(&self, name: &str) -> Option<&(host::RcExpr, RcType)> {
+    pub fn lookup_variant(&self, name: &str) -> Option<&(host::RcCExpr, RcType)> {
         match *self.inner {
             Type::Cond(_, ref options) => ast::lookup_field(options, name),
             _ => None,
@@ -405,66 +405,78 @@ impl RcType {
             }
         }
     }
-}
 
-impl<'src> From<&'src ParseType<'src>> for RcType {
-    fn from(src: &'src ParseType<'src>) -> RcType {
+    pub fn from_parse(src: &ParseType) -> Result<RcType, ()> {
         match *src {
-            ParseType::Var(span, name) => Type::Var(span, Var::free(name)).into(),
+            ParseType::Var(span, name) => Ok(Type::Var(span, Var::free(name)).into()),
             ParseType::Array(span, ref elem_ty, ref size_expr) => {
-                let elem_ty = RcType::from(&**elem_ty);
-                let size_expr = host::RcExpr::from(&**size_expr);
+                let elem_ty = RcType::from_parse(&**elem_ty)?;
+                let size_expr = host::RcIExpr::from_parse(&**size_expr)?;
 
-                Type::Array(span, elem_ty, size_expr).into()
+                Ok(Type::Array(span, elem_ty, size_expr).into())
             }
             ParseType::Cond(span, ref options) => {
                 let options = options
                     .iter()
-                    .map(|variant| Field {
-                        doc: variant.doc.join("\n").into(),
-                        name: String::from(variant.name),
-                        value: (
-                            host::RcExpr::from(&variant.value.0),
-                            RcType::from(&variant.value.1),
-                        ),
-                    })
-                    .collect();
+                    .map(|variant| {
+                        let ty = host::RcIExpr::from_parse(&variant.value.0)?;
 
-                Type::Cond(span, options).into()
+                        Ok(Field {
+                            doc: variant.doc.join("\n").into(),
+                            name: String::from(variant.name),
+                            value: (
+                                host::CExpr::Inf(ty).into(),
+                                RcType::from_parse(&variant.value.1)?,
+                            ),
+                        })
+                    })
+                    .collect::<Result<_, _>>()?;
+
+                Ok(Type::Cond(span, options).into())
             }
             ParseType::Struct(span, ref fields) => {
                 let fields = fields
                     .iter()
-                    .map(|field| Field {
-                        doc: field.doc.join("\n").into(),
-                        name: String::from(field.name),
-                        value: RcType::from(&field.value),
+                    .map(|field| {
+                        Ok(Field {
+                            doc: field.doc.join("\n").into(),
+                            name: String::from(field.name),
+                            value: RcType::from_parse(&field.value)?,
+                        })
                     })
-                    .collect();
+                    .collect::<Result<_, _>>()?;
 
-                RcType::struct_(span, fields)
+                Ok(RcType::struct_(span, fields))
             }
             ParseType::Where(span, ref ty, lo2, param_name, ref pred_expr) => {
-                let ty = RcType::from(&**ty);
-                let span2 = Span::new(lo2, span.hi());
-                let pred_params = vec![Named(String::from(param_name), ty.repr())];
-                let pred_expr = host::RcExpr::lam(span2, pred_params, &**pred_expr);
+                let ty = RcType::from_parse(&**ty)?;
+                let pred_fn = host::RcIExpr::lam(
+                    Span::new(lo2, span.hi()),
+                    vec![Named(String::from(param_name), ty.repr())],
+                    host::RcIExpr::from_parse(&**pred_expr)?,
+                );
 
-                Type::Assert(span, ty, pred_expr).into()
+                Ok(Type::Assert(span, ty, host::CExpr::Inf(pred_fn).into()).into())
             }
             ParseType::Compute(span, repr_ty, ref expr) => {
                 let empty = Type::Const(TypeConst::Empty).into();
                 let repr_ty = host::Type::Const(repr_ty).into();
-                let conv_params = vec![Named("_".to_owned(), RcType::repr(&empty))];
-                let conv = host::RcExpr::lam(span, conv_params, &**expr);
+                let conv_fn = host::CExpr::Inf(host::RcIExpr::lam(
+                    span,
+                    vec![Named("_".to_owned(), RcType::repr(&empty))],
+                    host::RcIExpr::from_parse(&**expr)?,
+                )).into();
 
-                Type::Interp(span, empty.into(), conv, repr_ty).into()
+                Ok(Type::Interp(span, empty.into(), conv_fn, repr_ty).into())
             }
             ParseType::App(span, ref fn_ty, ref arg_tys) => {
-                let fn_ty = RcType::from(&**fn_ty);
-                let arg_tys = arg_tys.iter().map(|arg| RcType::from(&*arg)).collect();
+                let fn_ty = RcType::from_parse(&**fn_ty)?;
+                let arg_tys = arg_tys
+                    .iter()
+                    .map(|arg| RcType::from_parse(&*arg))
+                    .collect::<Result<_, _>>()?;
 
-                Type::App(span, fn_ty, arg_tys).into()
+                Ok(Type::App(span, fn_ty, arg_tys).into())
             }
         }
     }
