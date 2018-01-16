@@ -3,14 +3,13 @@
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-use syntax;
-use syntax::ast::{host, Field, RcType as CoreRcType, Type as CoreType};
+use syntax::ast::{self, host, Field};
 use ir::ast::{Definition, Expr, Item, Module, ParseExpr, Path, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use var::{BindingIndex as Bi, BoundVar, ScopeIndex as Si, Var};
 
-impl<'a> From<&'a syntax::ast::Module> for Module {
-    fn from(src: &'a syntax::ast::Module) -> Module {
+impl<'a> From<&'a ast::Module> for Module {
+    fn from(src: &'a ast::Module) -> Module {
         let mut module = Module::new();
 
         for definition in &src.definitions {
@@ -21,7 +20,7 @@ impl<'a> From<&'a syntax::ast::Module> for Module {
             let path = Path::new(definition.name.0.clone());
 
             let definition = match *definition.body_ty.inner {
-                CoreType::Lam(_, ref params, ref ty) => Definition {
+                ast::Type::Lam(_, ref params, ref ty) => Definition {
                     doc: Rc::clone(&definition.doc),
                     params: params.iter().map(|p| p.0.clone()).collect(),
                     item: lower_item(&mut module, &path, ty),
@@ -42,12 +41,12 @@ impl<'a> From<&'a syntax::ast::Module> for Module {
     }
 }
 
-fn lower_item(module: &mut Module, path: &Path, ty: &CoreRcType) -> Item {
+fn lower_item(module: &mut Module, path: &Path, ty: &ast::RcType) -> Item {
     match *ty.inner {
         // Structs and unions that are defined at the top level should
         // get the best names, closest to what the author of the data
         // definition intended!
-        CoreType::Struct(_, ref fields) => Item::Struct(
+        ast::Type::Struct(_, ref fields) => Item::Struct(
             lower_row(
                 path,
                 fields,
@@ -55,7 +54,7 @@ fn lower_item(module: &mut Module, path: &Path, ty: &CoreRcType) -> Item {
             ),
             Some(struct_parser(path, fields)),
         ),
-        CoreType::Cond(_, ref options) => Item::Union(
+        ast::Type::Cond(_, ref options) => Item::Union(
             lower_row(path, options, |option_path, &(_, ref ty)| {
                 lower_ty(module, &option_path, ty)
             }),
@@ -108,20 +107,20 @@ fn lower_ty_var(var: &Var) -> RcType {
 ///   module, creating corresponding top-level definitions
 /// * `path` - path to the parent struct or union
 /// * `ty` - the type to be lowered
-fn lower_ty(module: &mut Module, path: &Path, ty: &CoreRcType) -> RcType {
-    // Mirroring `CoreType::repr`
+fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
+    // Mirroring `ast::Type::repr`
     match *ty.inner {
-        CoreType::Var(_, ref var) => lower_ty_var(var),
-        CoreType::Const(ty_const) => Type::Const(ty_const.repr()).into(),
-        CoreType::Array(_, ref elem_ty, _) => {
+        ast::Type::Var(_, ref var) => lower_ty_var(var),
+        ast::Type::Const(ty_const) => Type::Const(ty_const.repr()).into(),
+        ast::Type::Array(_, ref elem_ty, _) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_ty(module, &elem_path, elem_ty);
 
             Type::Array(elem_ty).into()
         }
-        CoreType::Assert(_, ref ty, _) => lower_ty(module, path, ty),
-        CoreType::Interp(_, _, _, ref repr_ty) => lower_repr_ty(path, repr_ty),
-        CoreType::Cond(_, ref options) => {
+        ast::Type::Assert(_, ref ty, _) => lower_ty(module, path, ty),
+        ast::Type::Interp(_, _, _, ref repr_ty) => lower_repr_ty(path, repr_ty),
+        ast::Type::Cond(_, ref options) => {
             let definition = Definition {
                 doc: "".into(),
                 path: path.clone(),
@@ -137,7 +136,7 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &CoreRcType) -> RcType {
             module.define(definition);
             Type::Path(path.clone(), vec![]).into()
         }
-        CoreType::Struct(_, ref fields) => {
+        ast::Type::Struct(_, ref fields) => {
             let definition = Definition {
                 doc: "".into(),
                 path: path.clone(),
@@ -155,14 +154,14 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &CoreRcType) -> RcType {
             module.define(definition);
             Type::Path(path.clone(), vec![]).into()
         }
-        CoreType::Lam(_, _, _) => {
+        ast::Type::Lam(_, _, _) => {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
             // top-level definitions. Thes should have already been handled in
-            // the `From<&'a syntax::ast::Module>` impl for `Module`.
+            // the `From<&'a ast::Module>` impl for `Module`.
             panic!("ICE: encountered unexpected type abstraction: {:?}", ty)
         }
-        CoreType::App(_, ref ty, ref param_tys) => {
+        ast::Type::App(_, ref ty, ref param_tys) => {
             let lowered_ty = lower_ty(module, path, ty);
 
             // Replace empty parameter lists on paths with the supplied parameters
@@ -221,7 +220,7 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
             // top-level definitions. Thes should have already been handled in
-            // the `From<&'a syntax::ast::Module>` impl for `Module`.
+            // the `From<&'a ast::Module>` impl for `Module`.
             panic!("ICE: encountered unexpected type abstraction: {:?}", ty)
         }
         host::Type::App(ref ty, ref param_tys) => {
@@ -322,16 +321,16 @@ fn lower_iexpr(path: &Path, expr: &host::RcIExpr) -> RcExpr {
 ///
 /// * `path` - path to the parent struct or union
 /// * `fields` - the fields to be used in the parser
-fn struct_parser(path: &Path, fields: &[Field<CoreRcType>]) -> RcParseExpr {
+fn struct_parser(path: &Path, fields: &[Field<ast::RcType>]) -> RcParseExpr {
     use var::ScopeIndex;
 
-    let lower_to_field_parser = |field: &Field<CoreRcType>| {
+    let lower_to_field_parser = |field: &Field<ast::RcType>| {
         (
             field.name.clone(),
             ty_parser(&path.append_child(field.name.0.clone()), &field.value),
         )
     };
-    let lower_to_expr_field = |field: &Field<CoreRcType>| {
+    let lower_to_expr_field = |field: &Field<ast::RcType>| {
         Field {
             doc: Rc::clone(&field.doc),
             name: field.name.clone(),
@@ -368,8 +367,8 @@ fn struct_parser(path: &Path, fields: &[Field<CoreRcType>]) -> RcParseExpr {
 ///
 /// * `path` - path to the parent struct or union
 /// * `fields` - the fields to be used in the parser
-fn cond_parser(path: &Path, options: &[Field<(host::RcCExpr, CoreRcType)>]) -> RcParseExpr {
-    let lower_option = |option: &Field<(host::RcCExpr, CoreRcType)>| {
+fn cond_parser(path: &Path, options: &[Field<(host::RcCExpr, ast::RcType)>]) -> RcParseExpr {
+    let lower_option = |option: &Field<(host::RcCExpr, ast::RcType)>| {
         let pred_expr = lower_cexpr(path, &option.value.0);
         let variant_parser = ParseExpr::Sequence(
             vec![Named(Ident::from("x"), ty_parser(path, &option.value.1))],
@@ -393,32 +392,32 @@ fn cond_parser(path: &Path, options: &[Field<(host::RcCExpr, CoreRcType)>]) -> R
 ///
 /// * `path` - path to the parent struct or union
 /// * `ty` - the binary type to use as a basis for the parser
-fn ty_parser(path: &Path, ty: &CoreRcType) -> RcParseExpr {
+fn ty_parser(path: &Path, ty: &ast::RcType) -> RcParseExpr {
     match *ty.inner {
-        CoreType::Var(_, ref var) => ParseExpr::Var(var.clone()).into(),
-        CoreType::Const(ty_const) => ParseExpr::Const(ty_const).into(),
-        CoreType::Array(_, ref elem_ty, ref size_expr) => {
+        ast::Type::Var(_, ref var) => ParseExpr::Var(var.clone()).into(),
+        ast::Type::Const(ty_const) => ParseExpr::Const(ty_const).into(),
+        ast::Type::Array(_, ref elem_ty, ref size_expr) => {
             let elem_path = path.append_child("Elem");
             let elem_parser = ty_parser(&elem_path, elem_ty);
             let size_expr = lower_iexpr(path, size_expr);
 
             ParseExpr::Repeat(elem_parser, RepeatBound::Exact(size_expr)).into()
         }
-        CoreType::Cond(_, ref options) => cond_parser(path, options),
-        CoreType::Struct(_, ref fields) => struct_parser(path, fields),
-        CoreType::Assert(_, ref ty, ref pred_expr) => {
+        ast::Type::Cond(_, ref options) => cond_parser(path, options),
+        ast::Type::Struct(_, ref fields) => struct_parser(path, fields),
+        ast::Type::Assert(_, ref ty, ref pred_expr) => {
             let ty_parser = ty_parser(path, ty);
             let pred_expr = lower_cexpr(path, pred_expr);
 
             ParseExpr::Assert(ty_parser, pred_expr).into()
         }
-        CoreType::Interp(_, ref ty, ref conv_expr, _) => {
+        ast::Type::Interp(_, ref ty, ref conv_expr, _) => {
             let fn_expr = lower_cexpr(path, conv_expr);
             let parser_expr = ty_parser(path, ty);
 
             ParseExpr::Apply(fn_expr, parser_expr).into()
         }
-        CoreType::Lam(_, _, _) => unimplemented!("Abs: {:?}", ty),
-        CoreType::App(_, ref ty, _) => ty_parser(path, ty),
+        ast::Type::Lam(_, _, _) => unimplemented!("Abs: {:?}", ty),
+        ast::Type::App(_, ref ty, _) => ty_parser(path, ty),
     }
 }
