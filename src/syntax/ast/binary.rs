@@ -9,33 +9,6 @@ use syntax::ast::{self, host, Field, Substitutions};
 use parser::ast::binary::Type as ParseType;
 use var::{ScopeIndex, Var};
 
-/// Kinds of binary types
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Kind {
-    /// Kind of types
-    Type,
-    /// Kind of type functions
-    ///
-    /// For now we only allow type arguments of kind `Type`. We represent this
-    /// as an arity count
-    Arrow { arity: u32 },
-}
-
-impl Kind {
-    /// Kind of type functions
-    pub fn arrow(arity: u32) -> Kind {
-        Kind::Arrow { arity }
-    }
-
-    /// The host representation of the binary kind
-    pub fn repr(self) -> host::Kind {
-        match self {
-            Kind::Type => host::Kind::Type,
-            Kind::Arrow { arity } => host::Kind::arrow(arity),
-        }
-    }
-}
-
 /// The endianness (byte order) of a type
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Endianness {

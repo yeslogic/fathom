@@ -1,5 +1,6 @@
 //! The syntax of our data description language
 
+use std::fmt;
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
@@ -185,4 +186,47 @@ fn lookup_field<'a, T>(fields: &'a [Field<T>], name: &Ident) -> Option<&'a T> {
         .iter()
         .find(|field| &field.name == name)
         .map(|field| &field.value)
+}
+
+/// Kinds of type
+#[derive(Debug, Clone, PartialEq)]
+pub enum Kind {
+    /// Kind of binary types
+    Binary,
+    /// Kind of host types
+    Host,
+    /// Kind of type functions
+    Arrow(Vec<RcKind>, RcKind),
+}
+
+impl RcKind {
+    /// Kind of type functions
+    pub fn repr(&self) -> RcKind {
+        match *self.inner {
+            Kind::Binary => Kind::Host.into(),
+            Kind::Host => panic!("ICE: tried to find the repr of Kind::Host"),
+            Kind::Arrow(ref params, ref ret) => {
+                Kind::Arrow(params.iter().map(RcKind::repr).collect(), ret.repr()).into()
+            }
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct RcKind {
+    pub inner: Rc<Kind>,
+}
+
+impl From<Kind> for RcKind {
+    fn from(src: Kind) -> RcKind {
+        RcKind {
+            inner: Rc::new(src),
+        }
+    }
+}
+
+impl fmt::Debug for RcKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.inner, f)
+    }
 }

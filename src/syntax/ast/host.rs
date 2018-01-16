@@ -9,25 +9,6 @@ use syntax::ast::{self, Field, Substitutions};
 use parser::ast::host::Expr as ParseExpr;
 use var::{ScopeIndex, Var};
 
-/// Kinds of host type
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Kind {
-    /// Kind of types
-    Type,
-    /// Kind of type functions
-    ///
-    /// For now we only allow type arguments of kind `Type`. We represent this
-    /// as an arity count
-    Arrow { arity: u32 },
-}
-
-impl Kind {
-    /// Kind of type functions
-    pub fn arrow(arity: u32) -> Kind {
-        Kind::Arrow { arity }
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FloatType {
     /// IEE-754 32-bit float

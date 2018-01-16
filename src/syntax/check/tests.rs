@@ -123,7 +123,7 @@ mod infer_ty {
 }
 
 mod infer_kind {
-    use syntax::ast;
+    use syntax::ast::{self, Kind};
     use syntax::ast::binary::RcType;
     use parser::ast::binary::Type as ParseType;
 
@@ -154,7 +154,7 @@ mod infer_kind {
     fn assert_magic() {
         assert_infer_kind!(
             "u64le where magic => magic == 0x00ffffffffffff00u64",
-            Ok(binary::Kind::Type)
+            Ok(Kind::Binary.into())
         );
     }
 }
