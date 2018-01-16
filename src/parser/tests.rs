@@ -1,8 +1,7 @@
-use syntax::ast::Module;
-use syntax::ast::binary::RcType;
+use syntax::ast::{Module, RcType};
 use syntax::ast::host::RcIExpr;
 use parser::ast::Module as ParseModule;
-use parser::ast::binary::Type as ParseType;
+use parser::ast::Type as ParseType;
 use parser::ast::host::Expr as ParseExpr;
 
 #[test]

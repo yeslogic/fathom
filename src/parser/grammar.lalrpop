@@ -1,6 +1,6 @@
 use lalrpop_util::ParseError;
 use source::{BytePos, Span};
-use parser::ast::{binary, host, Definition, Field, Module};
+use parser::ast::{host, Definition, Field, Module, Type};
 use parser::ast::host::{Binop, Const, Unop};
 use parser::GrammarError;
 use parser::lexer::Token;
@@ -101,26 +101,26 @@ Field<Value>: Field<'src, Value> = {
 
 // Binary Types
 
-pub BinaryType: binary::Type<'src> = {
+pub BinaryType: Type<'src> = {
     <ty: PrimaryBinaryType> => ty,
 };
 
-PrimaryBinaryType: binary::Type<'src> = {
+PrimaryBinaryType: Type<'src> = {
     AtomicBinaryType,
     <lo1: @L> <ty: PrimaryBinaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryHostExpr> <hi: @R> => {
-        binary::Type::Where(Span::new(lo1, hi), Box::new(ty), lo2, param, Box::new(pred))
+        Type::Where(Span::new(lo1, hi), Box::new(ty), lo2, param, Box::new(pred))
     },
     <lo: @L> "compute" <repr_ty: HostType> "from" <expr: PrimaryHostExpr> <hi: @R> => {
-        binary::Type::Compute(Span::new(lo, hi), repr_ty, Box::new(expr))
+        Type::Compute(Span::new(lo, hi), repr_ty, Box::new(expr))
     },
 };
 
-AtomicBinaryType: binary::Type<'src> = {
+AtomicBinaryType: Type<'src> = {
     <lo: @L> <name: "Ident"> <hi: @R> => {
-        binary::Type::Var(Span::new(lo, hi), name)
+        Type::Var(Span::new(lo, hi), name)
     },
     <lo: @L> <ty: AtomicBinaryType> "(" <arg_tys: (<BinaryType> ",")*> <last: BinaryType> ")" <hi: @R> => {
-        binary::Type::App(Span::new(lo, hi), Box::new(ty), super::extend_vec(arg_tys, Some(last)))
+        Type::App(Span::new(lo, hi), Box::new(ty), super::extend_vec(arg_tys, Some(last)))
     },
     "(" <ty: PrimaryBinaryType> ")" => ty,
     <lo: @L> "struct" "{"
@@ -128,17 +128,17 @@ AtomicBinaryType: binary::Type<'src> = {
         <last: Field<BinaryType>?>
     "}" <hi: @R> =>
     {
-        binary::Type::Struct(Span::new(lo, hi), super::extend_vec(fields, last))
+        Type::Struct(Span::new(lo, hi), super::extend_vec(fields, last))
     },
     <lo: @L> "cond" "{"
         <options: (<Field<(<HostExpr> "=>" <BinaryType>)>> ",")*>
         <last: Field<(<HostExpr> "=>" <BinaryType>)>?>
     "}" <hi: @R> =>
     {
-        binary::Type::Cond(Span::new(lo, hi), super::extend_vec(options, last))
+        Type::Cond(Span::new(lo, hi), super::extend_vec(options, last))
     },
     <lo: @L> "[" <elem: PrimaryBinaryType> ";" <size: PrimaryHostExpr> "]" <hi: @R> => {
-        binary::Type::Array(Span::new(lo, hi), Box::new(elem), Box::new(size))
+        Type::Array(Span::new(lo, hi), Box::new(elem), Box::new(size))
     },
 };
 

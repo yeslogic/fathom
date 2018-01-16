@@ -124,8 +124,8 @@ mod infer_ty {
 
 mod infer_kind {
     use syntax::ast::{self, Kind};
-    use syntax::ast::binary::RcType;
-    use parser::ast::binary::Type as ParseType;
+    use syntax::ast::RcType;
+    use parser::ast::Type as ParseType;
 
     use super::*;
 

@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-use syntax::ast::{binary, host, Field, Kind, Module, RcKind};
+use syntax::ast::{host, Field, Kind, Module, RcKind, RcType};
 use self::context::{Context, Scope};
 use var::Var;
 
@@ -343,10 +343,10 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
 
 // Kinding
 
-fn simplify_ty(ctx: &Context, ty: &binary::RcType) -> binary::RcType {
-    use syntax::ast::binary::Type;
+fn simplify_ty(ctx: &Context, ty: &RcType) -> RcType {
+    use syntax::ast::Type;
 
-    fn compute_ty(ctx: &Context, ty: &binary::RcType) -> Option<binary::RcType> {
+    fn compute_ty(ctx: &Context, ty: &RcType) -> Option<RcType> {
         match *ty.inner {
             Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
                 Ok((_, def_ty)) => Some(def_ty.clone()),
@@ -381,12 +381,12 @@ fn simplify_ty(ctx: &Context, ty: &binary::RcType) -> binary::RcType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum KindError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { ty: binary::RcType, name: Name },
+    UnboundVariable { ty: RcType, name: Name },
     /// Variable bound in the context was not at the type level
-    TypeBindingExpected { ty: binary::RcType, found: Scope },
+    TypeBindingExpected { ty: RcType, found: Scope },
     /// One kind was expected, but another was found
     Mismatch {
-        ty: binary::RcType,
+        ty: RcType,
         expected: RcKind,
         found: RcKind,
     },
@@ -401,7 +401,7 @@ impl From<TypeError> for KindError {
 }
 
 /// Check that a binary type has the given kind in the context
-fn check_kind(ctx: &Context, ty: &binary::RcType, expected_kind: &RcKind) -> Result<(), KindError> {
+fn check_kind(ctx: &Context, ty: &RcType, expected_kind: &RcKind) -> Result<(), KindError> {
     let found = infer_kind(ctx, ty)?;
 
     if &found == expected_kind {
@@ -416,8 +416,8 @@ fn check_kind(ctx: &Context, ty: &binary::RcType, expected_kind: &RcKind) -> Res
 }
 
 /// Infer the kind of a binary type in the context
-pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<RcKind, KindError> {
-    use syntax::ast::binary::{Type, TypeConst};
+pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
+    use syntax::ast::{Type, TypeConst};
 
     match *ty.inner {
         // Variables

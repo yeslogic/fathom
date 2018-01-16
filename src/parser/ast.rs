@@ -6,7 +6,7 @@
 
 use parser::{from_lalrpop_err, grammar, GrammarError, ParseError};
 use parser::lexer::Lexer;
-use source::Span;
+use source::{BytePos, Span};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module<'src> {
@@ -27,7 +27,7 @@ pub struct Definition<'src> {
     pub span: Span,
     pub name: &'src str,
     pub param_names: Vec<&'src str>,
-    pub body_ty: binary::Type<'src>,
+    pub body_ty: Type<'src>,
 }
 
 impl<'src> Definition<'src> {
@@ -45,34 +45,28 @@ pub struct Field<'src, T> {
     pub value: T,
 }
 
-pub mod binary {
-    use source::BytePos;
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type<'src> {
+    Var(Span, &'src str),
+    Array(Span, Box<Type<'src>>, Box<host::Expr<'src>>),
+    Cond(Span, Vec<Field<'src, (host::Expr<'src>, Type<'src>)>>),
+    Struct(Span, Vec<Field<'src, Type<'src>>>),
+    Where(
+        Span,
+        Box<Type<'src>>,
+        BytePos,
+        &'src str,
+        Box<host::Expr<'src>>,
+    ),
+    Compute(Span, host::TypeConst, Box<host::Expr<'src>>),
+    App(Span, Box<Type<'src>>, Vec<Type<'src>>),
+}
 
-    use super::*;
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub enum Type<'src> {
-        Var(Span, &'src str),
-        Array(Span, Box<Type<'src>>, Box<host::Expr<'src>>),
-        Cond(Span, Vec<Field<'src, (host::Expr<'src>, Type<'src>)>>),
-        Struct(Span, Vec<Field<'src, Type<'src>>>),
-        Where(
-            Span,
-            Box<Type<'src>>,
-            BytePos,
-            &'src str,
-            Box<host::Expr<'src>>,
-        ),
-        Compute(Span, host::TypeConst, Box<host::Expr<'src>>),
-        App(Span, Box<Type<'src>>, Vec<Type<'src>>),
-    }
-
-    impl<'src> Type<'src> {
-        /// Attempt to parse a type from a source string
-        pub fn from_str(src: &'src str) -> Result<Type<'src>, ParseError> {
-            grammar::parse_BinaryType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-                .map_err(from_lalrpop_err)
-        }
+impl<'src> Type<'src> {
+    /// Attempt to parse a type from a source string
+    pub fn from_str(src: &'src str) -> Result<Type<'src>, ParseError> {
+        grammar::parse_BinaryType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+            .map_err(from_lalrpop_err)
     }
 }
 

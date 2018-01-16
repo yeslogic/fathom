@@ -1,14 +1,14 @@
 //! The type checking context and binders
 
 use name::{Name, Named};
-use syntax::ast::{binary, host, RcKind};
+use syntax::ast::{host, RcKind, RcType};
 use var::{BoundVar, ScopeIndex};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Scope {
     ExprLam(Vec<Named<Name, host::RcType>>),
     TypeLam(Vec<Named<Name, RcKind>>),
-    TypeDef(Vec<Named<Name, (binary::RcType, RcKind)>>),
+    TypeDef(Vec<Named<Name, (RcType, RcKind)>>),
 }
 
 #[derive(Debug, Clone)]
@@ -45,7 +45,7 @@ impl Context {
         }
     }
 
-    pub fn lookup_ty_def(&self, var: BoundVar) -> Result<(&Name, &binary::RcType), &Scope> {
+    pub fn lookup_ty_def(&self, var: BoundVar) -> Result<(&Name, &RcType), &Scope> {
         match *self.lookup(var.scope) {
             Scope::TypeDef(ref defs) => Ok(
                 defs.get(var.binding.0 as usize)
