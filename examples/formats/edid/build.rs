@@ -15,7 +15,7 @@ fn main() {
         src
     };
 
-    let mut program = Program::from(&ParseProgram::from_str(&src).unwrap());
+    let mut program = Program::from_parse(&ParseProgram::from_str(&src).unwrap()).unwrap();
     program.substitute(&ddl::syntax::ast::base_defs());
     ddl::syntax::check::check_program(&program).unwrap();
     let ir = ddl::ir::ast::Program::from(&program);
