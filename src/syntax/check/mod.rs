@@ -145,6 +145,39 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
             }),
         },
 
+        // Abstraction
+        IExpr::Lam(_, ref params, ref body_expr) => {
+            // FIXME: avoid cloning the environment
+            let mut ctx = ctx.clone();
+            ctx.extend(Scope::ExprLam(params.clone()));
+            let param_tys = params.iter().map(|param| param.1.clone()).collect();
+
+            Ok(Type::Arrow(param_tys, infer_ty(&ctx, body_expr)?).into())
+        }
+
+        // Applications
+        IExpr::App(_, ref fn_expr, ref arg_exprs) => {
+            let fn_ty = infer_ty(ctx, fn_expr)?;
+
+            if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty.inner {
+                if arg_exprs.len() == param_tys.len() {
+                    for (arg_expr, param_ty) in arg_exprs.iter().zip(param_tys) {
+                        check_ty(ctx, arg_expr, param_ty)?;
+                    }
+
+                    return Ok(ret_ty.clone());
+                } else {
+                    unimplemented!(); // FIXME
+                }
+            }
+
+            Err(TypeError::Mismatch {
+                expr: fn_expr.clone(),
+                expected: ExpectedType::Arrow,
+                found: fn_ty,
+            })
+        }
+
         // Unary operators
         IExpr::Unop(_, op, ref operand_expr) => {
             use syntax::ast::host::Type::Const;
@@ -305,39 +338,6 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
                 }),
             }
         }
-
-        // Abstraction
-        IExpr::Lam(_, ref params, ref body_expr) => {
-            // FIXME: avoid cloning the environment
-            let mut ctx = ctx.clone();
-            ctx.extend(Scope::ExprLam(params.clone()));
-            let param_tys = params.iter().map(|param| param.1.clone()).collect();
-
-            Ok(Type::Arrow(param_tys, infer_ty(&ctx, body_expr)?).into())
-        }
-
-        // Applications
-        IExpr::App(_, ref fn_expr, ref arg_exprs) => {
-            let fn_ty = infer_ty(ctx, fn_expr)?;
-
-            if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty.inner {
-                if arg_exprs.len() == param_tys.len() {
-                    for (arg_expr, param_ty) in arg_exprs.iter().zip(param_tys) {
-                        check_ty(ctx, arg_expr, param_ty)?;
-                    }
-
-                    return Ok(ret_ty.clone());
-                } else {
-                    unimplemented!(); // FIXME
-                }
-            }
-
-            Err(TypeError::Mismatch {
-                expr: fn_expr.clone(),
-                expected: ExpectedType::Arrow,
-                found: fn_ty,
-            })
-        }
     }
 }
 
@@ -449,6 +449,43 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
         | Type::Const(TypeConst::F32(_))
         | Type::Const(TypeConst::F64(_)) => Ok(Kind::Binary.into()),
 
+        // Type abstraction
+        Type::Lam(_, ref param_tys, ref body_ty) => {
+            // FIXME: avoid cloning the environment
+            let mut ctx = ctx.clone();
+
+            ctx.extend(Scope::TypeLam(
+                param_tys
+                    .iter()
+                    .map(|named| Named(named.0.clone(), Kind::Binary.into()))
+                    .collect(),
+            ));
+            check_kind(&ctx, body_ty, &Kind::Binary.into())?;
+
+            Ok(
+                Kind::Arrow(
+                    (0..param_tys.len()).map(|_| Kind::Binary.into()).collect(),
+                    Kind::Binary.into(),
+                ).into(),
+            )
+        }
+
+        // Type application
+        Type::App(_, ref fn_ty, ref arg_tys) => {
+            let expected = Kind::Arrow(
+                (0..arg_tys.len()).map(|_| Kind::Binary.into()).collect(),
+                Kind::Binary.into(),
+            ).into();
+
+            check_kind(ctx, fn_ty, &expected)?;
+
+            for arg_ty in arg_tys {
+                check_kind(ctx, arg_ty, &Kind::Binary.into())?
+            }
+
+            Ok(Kind::Binary.into())
+        }
+
         // Array types
         Type::Array(_, ref elem_ty, ref size_expr) => {
             check_kind(ctx, elem_ty, &Kind::Binary.into())?;
@@ -487,27 +524,6 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
             Ok(Kind::Binary.into())
         }
 
-        // Type abstraction
-        Type::Lam(_, ref param_tys, ref body_ty) => {
-            // FIXME: avoid cloning the environment
-            let mut ctx = ctx.clone();
-
-            ctx.extend(Scope::TypeLam(
-                param_tys
-                    .iter()
-                    .map(|named| Named(named.0.clone(), Kind::Binary.into()))
-                    .collect(),
-            ));
-            check_kind(&ctx, body_ty, &Kind::Binary.into())?;
-
-            Ok(
-                Kind::Arrow(
-                    (0..param_tys.len()).map(|_| Kind::Binary.into()).collect(),
-                    Kind::Binary.into(),
-                ).into(),
-            )
-        }
-
         // Conditional types
         Type::Cond(_, ref options) => {
             let bool_ty = host::Type::Const(host::TypeConst::Bool).into();
@@ -532,22 +548,6 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
                 ctx.extend(Scope::ExprLam(
                     vec![Named(Name::user(field.name.clone()), field_ty.repr())],
                 ));
-            }
-
-            Ok(Kind::Binary.into())
-        }
-
-        // Type application
-        Type::App(_, ref fn_ty, ref arg_tys) => {
-            let expected = Kind::Arrow(
-                (0..arg_tys.len()).map(|_| Kind::Binary.into()).collect(),
-                Kind::Binary.into(),
-            ).into();
-
-            check_kind(ctx, fn_ty, &expected)?;
-
-            for arg_ty in arg_tys {
-                check_kind(ctx, arg_ty, &Kind::Binary.into())?
             }
 
             Ok(Kind::Binary.into())

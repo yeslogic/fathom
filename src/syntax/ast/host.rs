@@ -69,6 +69,13 @@ pub enum Type {
     Var(Var),
     /// A type constant
     Const(TypeConst),
+    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
+    ///
+    /// For now we only allow type arguments of kind `Type`
+    Lam(Vec<Named<Name, ()>>, RcType),
+    /// Type application: eg. `T(U, V)`
+    App(RcType, Vec<RcType>),
+
     /// Arrow type: eg. `(T, ..) -> U`
     Arrow(Vec<RcType>, RcType),
     /// An array, eg. `[T]`
@@ -77,12 +84,6 @@ pub enum Type {
     Union(Vec<Field<RcType>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
     Struct(Vec<Field<RcType>>),
-    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
-    ///
-    /// For now we only allow type arguments of kind `Type`
-    Lam(Vec<Named<Name, ()>>, RcType),
-    /// Type application: eg. `T(U, V)`
-    App(RcType, Vec<RcType>),
 }
 
 #[derive(Clone, PartialEq)]
@@ -157,6 +158,20 @@ impl RcType {
                 Some(ty) => ty.repr().clone(),
             },
             Type::Var(Var::Bound(_)) | Type::Const(_) => return,
+            Type::Lam(_, ref mut body_ty) => {
+                body_ty.substitute(substs);
+                return;
+            }
+            Type::App(ref mut fn_ty, ref mut arg_tys) => {
+                fn_ty.substitute(substs);
+
+                for arg_ty in arg_tys {
+                    arg_ty.substitute(substs);
+                }
+
+                return;
+            }
+
             Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
                 for param_ty in param_tys {
                     param_ty.substitute(substs);
@@ -181,19 +196,6 @@ impl RcType {
                 }
                 return;
             }
-            Type::Lam(_, ref mut body_ty) => {
-                body_ty.substitute(substs);
-                return;
-            }
-            Type::App(ref mut fn_ty, ref mut arg_tys) => {
-                fn_ty.substitute(substs);
-
-                for arg_ty in arg_tys {
-                    arg_ty.substitute(substs);
-                }
-
-                return;
-            }
         };
     }
 
@@ -201,6 +203,17 @@ impl RcType {
         match *Rc::make_mut(&mut self.inner) {
             Type::Var(ref mut var) => var.abstract_names_at(names, scope),
             Type::Const(_) => {}
+            Type::Lam(_, ref mut body_ty) => {
+                body_ty.abstract_names_at(names, scope.succ());
+            }
+            Type::App(ref mut fn_ty, ref mut arg_tys) => {
+                fn_ty.abstract_names_at(names, scope);
+
+                for arg_ty in arg_tys {
+                    arg_ty.abstract_names_at(names, scope);
+                }
+            }
+
             Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
                 for param_ty in param_tys {
                     param_ty.abstract_names_at(names, scope);
@@ -216,16 +229,6 @@ impl RcType {
             Type::Struct(ref mut fields) => for field in fields {
                 field.value.abstract_names_at(names, scope);
             },
-            Type::Lam(_, ref mut body_ty) => {
-                body_ty.abstract_names_at(names, scope.succ());
-            }
-            Type::App(ref mut fn_ty, ref mut arg_tys) => {
-                fn_ty.abstract_names_at(names, scope);
-
-                for arg_ty in arg_tys {
-                    arg_ty.abstract_names_at(names, scope);
-                }
-            }
         }
     }
 
@@ -246,6 +249,20 @@ impl RcType {
                 tys[var.binding.0 as usize].clone()
             }
             Type::Var(Var::Bound(_)) | Type::Var(Var::Free(_)) | Type::Const(_) => return,
+            Type::Lam(_, ref mut ty) => {
+                ty.instantiate_at(scope.succ(), tys);
+                return;
+            }
+            Type::App(ref mut ty, ref mut arg_tys) => {
+                ty.instantiate_at(scope, tys);
+
+                for arg_ty in arg_tys {
+                    arg_ty.instantiate_at(scope, tys);
+                }
+
+                return;
+            }
+
             Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
                 for param_ty in param_tys {
                     param_ty.instantiate_at(scope, tys);
@@ -268,19 +285,6 @@ impl RcType {
                 for field in fields {
                     field.value.instantiate_at(scope, tys);
                 }
-                return;
-            }
-            Type::Lam(_, ref mut ty) => {
-                ty.instantiate_at(scope.succ(), tys);
-                return;
-            }
-            Type::App(ref mut ty, ref mut arg_tys) => {
-                ty.instantiate_at(scope, tys);
-
-                for arg_ty in arg_tys {
-                    arg_ty.instantiate_at(scope, tys);
-                }
-
                 return;
             }
         };
@@ -458,6 +462,11 @@ pub enum IExpr {
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     Var(Span, Var),
+    /// Lambda abstraction, eg: `\(x : T, ..) -> x`
+    Lam(Span, Vec<Named<Name, RcType>>, RcIExpr),
+    /// Application, eg: `f(x, ..)`
+    App(Span, RcIExpr, Vec<RcCExpr>),
+
     /// An unary operator expression
     Unop(Span, Unop, RcIExpr),
     /// A binary operator expression
@@ -470,10 +479,6 @@ pub enum IExpr {
     Subscript(Span, RcIExpr, RcIExpr),
     /// Cast expression, eg: `x as u32`
     Cast(Span, RcIExpr, RcType),
-    /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    Lam(Span, Vec<Named<Name, RcType>>, RcIExpr),
-    /// Application, eg: `f(x, ..)`
-    App(Span, RcIExpr, Vec<RcCExpr>),
 }
 
 #[derive(Clone, PartialEq)]
@@ -538,6 +543,21 @@ impl RcIExpr {
                 Some(ty) => panic!("Expected to substitute an expression, but found {:?}", ty),
             },
             IExpr::Var(_, Var::Bound(_)) | IExpr::Const(_, _) => {}
+            IExpr::Lam(_, ref mut args, ref mut body_expr) => {
+                for &mut Named(_, ref mut arg_ty) in args {
+                    arg_ty.substitute(substs);
+                }
+
+                body_expr.substitute(substs);
+            }
+            IExpr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
+                fn_expr.substitute(substs);
+
+                for arg_expr in arg_exprs {
+                    arg_expr.substitute(substs);
+                }
+            }
+
             IExpr::Unop(_, _, ref mut expr) | IExpr::Proj(_, ref mut expr, _) => {
                 expr.substitute(substs);
             }
@@ -556,20 +576,6 @@ impl RcIExpr {
                 src_expr.substitute(substs);
                 dst_ty.substitute(substs);
             }
-            IExpr::Lam(_, ref mut args, ref mut body_expr) => {
-                for &mut Named(_, ref mut arg_ty) in args {
-                    arg_ty.substitute(substs);
-                }
-
-                body_expr.substitute(substs);
-            }
-            IExpr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
-                fn_expr.substitute(substs);
-
-                for arg_expr in arg_exprs {
-                    arg_expr.substitute(substs);
-                }
-            }
         }
     }
 
@@ -581,6 +587,21 @@ impl RcIExpr {
             }
             IExpr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             IExpr::Const(_, _) => {}
+            IExpr::Lam(_, ref mut args, ref mut body_expr) => {
+                for &mut Named(_, ref mut arg_ty) in args {
+                    arg_ty.abstract_names_at(names, scope);
+                }
+
+                body_expr.abstract_names_at(names, scope.succ());
+            }
+            IExpr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
+                fn_expr.abstract_names_at(names, scope);
+
+                for arg_expr in arg_exprs {
+                    arg_expr.abstract_names_at(names, scope);
+                }
+            }
+
             IExpr::Unop(_, _, ref mut expr) | IExpr::Proj(_, ref mut expr, _) => {
                 expr.abstract_names_at(names, scope);
             }
@@ -599,20 +620,6 @@ impl RcIExpr {
                 src_expr.abstract_names_at(names, scope);
                 dst_ty.abstract_names_at(names, scope);
             }
-            IExpr::Lam(_, ref mut args, ref mut body_expr) => {
-                for &mut Named(_, ref mut arg_ty) in args {
-                    arg_ty.abstract_names_at(names, scope);
-                }
-
-                body_expr.abstract_names_at(names, scope.succ());
-            }
-            IExpr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
-                fn_expr.abstract_names_at(names, scope);
-
-                for arg_expr in arg_exprs {
-                    arg_expr.abstract_names_at(names, scope);
-                }
-            }
         }
     }
 
@@ -630,6 +637,7 @@ impl RcIExpr {
                 Ok(IExpr::Ann(span, expr, ty).into())
             }
             ParseExpr::Var(span, name) => Ok(IExpr::Var(span, Var::free(Name::user(name))).into()),
+
             ParseExpr::Unop(span, op, ref expr) => {
                 let expr = RcIExpr::from_parse(&**expr)?;
 

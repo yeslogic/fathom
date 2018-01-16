@@ -310,6 +310,13 @@ pub enum Type {
     Var(Span, Var),
     /// Type constant
     Const(TypeConst),
+    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
+    ///
+    /// For now we only allow type arguments of kind `Type`
+    Lam(Span, Vec<Named<Name, ()>>, RcType),
+    /// Type application: eg. `T(U, V)`
+    App(Span, RcType, Vec<RcType>),
+
     /// An array of the specified type, with a size: eg. `[T; n]`
     Array(Span, RcType, host::RcIExpr),
     /// Conditional types: eg. `cond { field : pred => T, ... }`
@@ -320,12 +327,6 @@ pub enum Type {
     Assert(Span, RcType, host::RcCExpr),
     /// An interpreted type
     Interp(Span, RcType, host::RcCExpr, host::RcType),
-    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
-    ///
-    /// For now we only allow type arguments of kind `Type`
-    Lam(Span, Vec<Named<Name, ()>>, RcType),
-    /// Type application: eg. `T(U, V)`
-    App(Span, RcType, Vec<RcType>),
 }
 
 #[derive(Clone, PartialEq)]
@@ -348,26 +349,6 @@ impl fmt::Debug for RcType {
 }
 
 impl RcType {
-    /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_(span: Span, mut fields: Vec<Field<RcType>>) -> RcType {
-        // We maintain a list of the seen field names. This will allow us to
-        // recover the index of these variables as we abstract later fields...
-        let mut seen_names = Vec::<Name>::with_capacity(fields.len());
-
-        for field in &mut fields {
-            for (scope, name) in seen_names.iter().rev().enumerate() {
-                field
-                    .value
-                    .abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
-            }
-
-            // Record that the field has been 'seen'
-            seen_names.push(Name::user(field.name.clone()));
-        }
-
-        Type::Struct(span, fields).into()
-    }
-
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
@@ -386,6 +367,26 @@ impl RcType {
         }
 
         Type::Lam(span, params, body_ty).into()
+    }
+
+    /// A struct type, with fields: eg. `struct { field : T, ... }`
+    pub fn struct_(span: Span, mut fields: Vec<Field<RcType>>) -> RcType {
+        // We maintain a list of the seen field names. This will allow us to
+        // recover the index of these variables as we abstract later fields...
+        let mut seen_names = Vec::<Name>::with_capacity(fields.len());
+
+        for field in &mut fields {
+            for (scope, name) in seen_names.iter().rev().enumerate() {
+                field
+                    .value
+                    .abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
+            }
+
+            // Record that the field has been 'seen'
+            seen_names.push(Name::user(field.name.clone()));
+        }
+
+        Type::Struct(span, fields).into()
     }
 
     /// Attempt to lookup the type of a field
@@ -419,6 +420,20 @@ impl RcType {
                 Some(ty) => ty.clone(),
             },
             Type::Var(_, Var::Bound(_)) | Type::Const(_) => return,
+            Type::Lam(_, _, ref mut body_ty) => {
+                body_ty.substitute(substs);
+                return;
+            }
+            Type::App(_, ref mut fn_ty, ref mut arg_tys) => {
+                fn_ty.substitute(substs);
+
+                for arg_ty in arg_tys {
+                    arg_ty.substitute(substs);
+                }
+
+                return;
+            }
+
             Type::Array(_, ref mut elem_ty, ref mut size_expr) => {
                 elem_ty.substitute(substs);
                 size_expr.substitute(substs);
@@ -448,19 +463,6 @@ impl RcType {
                 repr_ty.substitute(substs);
                 return;
             }
-            Type::Lam(_, _, ref mut body_ty) => {
-                body_ty.substitute(substs);
-                return;
-            }
-            Type::App(_, ref mut fn_ty, ref mut arg_tys) => {
-                fn_ty.substitute(substs);
-
-                for arg_ty in arg_tys {
-                    arg_ty.substitute(substs);
-                }
-
-                return;
-            }
         };
 
         *self = subst_ty.clone();
@@ -470,6 +472,17 @@ impl RcType {
         match *Rc::make_mut(&mut self.inner) {
             Type::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             Type::Const(_) => {}
+            Type::Lam(_, _, ref mut body_ty) => {
+                body_ty.abstract_names_at(names, scope.succ());
+            }
+            Type::App(_, ref mut fn_ty, ref mut arg_tys) => {
+                fn_ty.abstract_names_at(names, scope);
+
+                for arg_ty in arg_tys {
+                    arg_ty.abstract_names_at(names, scope);
+                }
+            }
+
             Type::Array(_, ref mut elem_ty, ref mut size_expr) => {
                 elem_ty.abstract_names_at(names, scope);
                 size_expr.abstract_names_at(names, scope);
@@ -489,16 +502,6 @@ impl RcType {
                 ty.abstract_names_at(names, scope);
                 conv.abstract_names_at(names, scope.succ());
                 repr_ty.abstract_names_at(names, scope);
-            }
-            Type::Lam(_, _, ref mut body_ty) => {
-                body_ty.abstract_names_at(names, scope.succ());
-            }
-            Type::App(_, ref mut fn_ty, ref mut arg_tys) => {
-                fn_ty.abstract_names_at(names, scope);
-
-                for arg_ty in arg_tys {
-                    arg_ty.abstract_names_at(names, scope);
-                }
             }
         }
     }
@@ -520,6 +523,19 @@ impl RcType {
                 tys[var.binding.0 as usize].clone()
             }
             Type::Var(_, Var::Bound(_)) | Type::Var(_, Var::Free(_)) | Type::Const(_) => return,
+            Type::Lam(_, _, ref mut ty) => {
+                ty.instantiate_at(scope.succ(), tys);
+                return;
+            }
+            Type::App(_, ref mut ty, ref mut arg_tys) => {
+                ty.instantiate_at(scope, tys);
+
+                for arg_ty in arg_tys {
+                    arg_ty.instantiate_at(scope, tys);
+                }
+                return;
+            }
+
             Type::Array(_, ref mut elem_ty, _) => {
                 elem_ty.instantiate_at(scope, tys);
                 return;
@@ -545,18 +561,6 @@ impl RcType {
                 }
                 return;
             }
-            Type::Lam(_, _, ref mut ty) => {
-                ty.instantiate_at(scope.succ(), tys);
-                return;
-            }
-            Type::App(_, ref mut ty, ref mut arg_tys) => {
-                ty.instantiate_at(scope, tys);
-
-                for arg_ty in arg_tys {
-                    arg_ty.instantiate_at(scope, tys);
-                }
-                return;
-            }
         };
     }
 
@@ -571,6 +575,15 @@ impl RcType {
         match *self.inner {
             Type::Var(_, ref v) => host::Type::Var(v.clone()).into(),
             Type::Const(ty_const) => host::Type::Const(ty_const.repr()).into(),
+            Type::Lam(_, ref params, ref body_ty) => {
+                host::Type::Lam(params.clone(), body_ty.repr()).into()
+            }
+            Type::App(_, ref fn_ty, ref arg_tys) => {
+                let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();
+
+                host::Type::App(fn_ty.repr(), arg_tys).into()
+            }
+
             Type::Array(_, ref elem_ty, _) => host::Type::Array(elem_ty.repr()).into(),
             Type::Assert(_, ref ty, _) => ty.repr(),
             Type::Interp(_, _, _, ref repr_ty) => repr_ty.clone(),
@@ -602,20 +615,22 @@ impl RcType {
 
                 host::Type::Struct(repr_fields).into()
             }
-            Type::Lam(_, ref params, ref body_ty) => {
-                host::Type::Lam(params.clone(), body_ty.repr()).into()
-            }
-            Type::App(_, ref fn_ty, ref arg_tys) => {
-                let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();
-
-                host::Type::App(fn_ty.repr(), arg_tys).into()
-            }
         }
     }
 
     pub fn from_parse(src: &ParseType) -> Result<RcType, ()> {
         match *src {
             ParseType::Var(span, name) => Ok(Type::Var(span, Var::free(Name::user(name))).into()),
+            ParseType::App(span, ref fn_ty, ref arg_tys) => {
+                let fn_ty = RcType::from_parse(&**fn_ty)?;
+                let arg_tys = arg_tys
+                    .iter()
+                    .map(|arg| RcType::from_parse(&*arg))
+                    .collect::<Result<_, _>>()?;
+
+                Ok(Type::App(span, fn_ty, arg_tys).into())
+            }
+
             ParseType::Array(span, ref elem_ty, ref size_expr) => {
                 let elem_ty = RcType::from_parse(&**elem_ty)?;
                 let size_expr = host::RcIExpr::from_parse(&**size_expr)?;
@@ -675,15 +690,6 @@ impl RcType {
                 )).into();
 
                 Ok(Type::Interp(span, empty.into(), conv_fn, repr_ty).into())
-            }
-            ParseType::App(span, ref fn_ty, ref arg_tys) => {
-                let fn_ty = RcType::from_parse(&**fn_ty)?;
-                let arg_tys = arg_tys
-                    .iter()
-                    .map(|arg| RcType::from_parse(&*arg))
-                    .collect::<Result<_, _>>()?;
-
-                Ok(Type::App(span, fn_ty, arg_tys).into())
             }
         }
     }

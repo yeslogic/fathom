@@ -112,6 +112,36 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
     match *ty.inner {
         ast::Type::Var(_, ref var) => lower_ty_var(var),
         ast::Type::Const(ty_const) => Type::Const(ty_const.repr()).into(),
+        ast::Type::Lam(_, _, _) => {
+            // Due to the way our surface syntax is defined, the only type
+            // abstractions we should encounter are those that are defined on
+            // top-level definitions. Thes should have already been handled in
+            // the `From<&'a ast::Program>` impl for `Program`.
+            panic!("ICE: encountered unexpected type abstraction: {:?}", ty)
+        }
+        ast::Type::App(_, ref ty, ref param_tys) => {
+            let lowered_ty = lower_ty(module, path, ty);
+
+            // Replace empty parameter lists on paths with the supplied parameters
+            // TODO: This feels rather hacky! I'm sure it will break in non-trivial cases.
+            // surely there is a better way to handle this?
+            if let Type::Path(ref path, ref params) = *lowered_ty.inner {
+                assert!(params.is_empty(), "ICE: Params not empty: {:?}", params);
+
+                let lowered_params = param_tys
+                    .iter()
+                    .enumerate()
+                    .map(|(i, ty)| {
+                        lower_ty(module, &path.append_child(format!("Arg{}", i)), ty)
+                    })
+                    .collect::<Vec<_>>();
+
+                return Type::Path(path.clone(), lowered_params).into();
+            }
+
+            lowered_ty
+        }
+
         ast::Type::Array(_, ref elem_ty, _) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_ty(module, &elem_path, elem_ty);
@@ -154,35 +184,6 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
             module.define(definition);
             Type::Path(path.clone(), vec![]).into()
         }
-        ast::Type::Lam(_, _, _) => {
-            // Due to the way our surface syntax is defined, the only type
-            // abstractions we should encounter are those that are defined on
-            // top-level definitions. Thes should have already been handled in
-            // the `From<&'a ast::Module>` impl for `Module`.
-            panic!("ICE: encountered unexpected type abstraction: {:?}", ty)
-        }
-        ast::Type::App(_, ref ty, ref param_tys) => {
-            let lowered_ty = lower_ty(module, path, ty);
-
-            // Replace empty parameter lists on paths with the supplied parameters
-            // TODO: This feels rather hacky! I'm sure it will break in non-trivial cases.
-            // surely there is a better way to handle this?
-            if let Type::Path(ref path, ref params) = *lowered_ty.inner {
-                assert!(params.is_empty(), "ICE: Params not empty: {:?}", params);
-
-                let lowered_params = param_tys
-                    .iter()
-                    .enumerate()
-                    .map(|(i, ty)| {
-                        lower_ty(module, &path.append_child(format!("Arg{}", i)), ty)
-                    })
-                    .collect::<Vec<_>>();
-
-                return Type::Path(path.clone(), lowered_params).into();
-            }
-
-            lowered_ty
-        }
     }
 }
 
@@ -196,26 +197,6 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
     match *ty.inner {
         host::Type::Var(ref var) => lower_ty_var(var),
         host::Type::Const(ty_const) => Type::Const(ty_const).into(),
-        host::Type::Arrow(ref arg_tys, ref ret_ty) => {
-            let arg_repr_tys = arg_tys
-                .iter()
-                .map(|arg_ty| lower_repr_ty(path, arg_ty))
-                .collect();
-            let ret_repr_ty = lower_repr_ty(path, ret_ty);
-
-            Type::Arrow(arg_repr_tys, ret_repr_ty).into()
-        }
-        host::Type::Array(ref elem_ty) => {
-            let elem_path = path.append_child("Elem");
-            let elem_ty = lower_repr_ty(&elem_path, elem_ty);
-
-            Type::Array(elem_ty).into()
-        }
-        host::Type::Union(_) | host::Type::Struct(_) => {
-            // We expect that the repr type has already had a corresponding type
-            // generated for it, so instead we just return the current path.
-            Type::Path(path.clone(), vec![]).into()
-        }
         host::Type::Lam(_, _) => {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
@@ -244,6 +225,27 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
             }
 
             lowered_ty
+        }
+
+        host::Type::Arrow(ref arg_tys, ref ret_ty) => {
+            let arg_repr_tys = arg_tys
+                .iter()
+                .map(|arg_ty| lower_repr_ty(path, arg_ty))
+                .collect();
+            let ret_repr_ty = lower_repr_ty(path, ret_ty);
+
+            Type::Arrow(arg_repr_tys, ret_repr_ty).into()
+        }
+        host::Type::Array(ref elem_ty) => {
+            let elem_path = path.append_child("Elem");
+            let elem_ty = lower_repr_ty(&elem_path, elem_ty);
+
+            Type::Array(elem_ty).into()
+        }
+        host::Type::Union(_) | host::Type::Struct(_) => {
+            // We expect that the repr type has already had a corresponding type
+            // generated for it, so instead we just return the current path.
+            Type::Path(path.clone(), vec![]).into()
         }
     }
 }
@@ -274,6 +276,25 @@ fn lower_iexpr(path: &Path, expr: &host::RcIExpr) -> RcExpr {
         }
         host::IExpr::Const(_, c) => Expr::Const(c).into(),
         host::IExpr::Var(_, ref var) => Expr::Var(var.clone()).into(),
+        host::IExpr::Lam(_, ref params, ref body_expr) => {
+            let lowered_params = params
+                .iter()
+                .map(|&Named(ref name, ref ty)| {
+                    Named(name.clone(), lower_repr_ty(path, ty))
+                })
+                .collect();
+
+            Expr::Lam(lowered_params, lower_iexpr(path, body_expr)).into()
+        }
+        host::IExpr::App(_, ref fn_expr, ref arg_exprs) => {
+            let lowered_arg_exprs = arg_exprs
+                .iter()
+                .map(|expr| lower_cexpr(path, expr))
+                .collect();
+
+            Expr::App(lower_iexpr(path, fn_expr), lowered_arg_exprs).into()
+        }
+
         host::IExpr::Unop(_, op, ref expr) => Expr::Unop(op, lower_iexpr(path, expr)).into(),
         host::IExpr::Binop(_, op, ref lhs, ref rhs) => {
             Expr::Binop(op, lower_iexpr(path, lhs), lower_iexpr(path, rhs)).into()
@@ -293,24 +314,6 @@ fn lower_iexpr(path: &Path, expr: &host::RcIExpr) -> RcExpr {
         host::IExpr::Subscript(_, _, _) => unimplemented!(),
         host::IExpr::Cast(_, ref src_expr, ref dst_ty) => {
             Expr::Cast(lower_iexpr(path, src_expr), lower_repr_ty(path, dst_ty)).into()
-        }
-        host::IExpr::Lam(_, ref params, ref body_expr) => {
-            let lowered_params = params
-                .iter()
-                .map(|&Named(ref name, ref ty)| {
-                    Named(name.clone(), lower_repr_ty(path, ty))
-                })
-                .collect();
-
-            Expr::Lam(lowered_params, lower_iexpr(path, body_expr)).into()
-        }
-        host::IExpr::App(_, ref fn_expr, ref arg_exprs) => {
-            let lowered_arg_exprs = arg_exprs
-                .iter()
-                .map(|expr| lower_cexpr(path, expr))
-                .collect();
-
-            Expr::App(lower_iexpr(path, fn_expr), lowered_arg_exprs).into()
         }
     }
 }
@@ -396,6 +399,9 @@ fn ty_parser(path: &Path, ty: &ast::RcType) -> RcParseExpr {
     match *ty.inner {
         ast::Type::Var(_, ref var) => ParseExpr::Var(var.clone()).into(),
         ast::Type::Const(ty_const) => ParseExpr::Const(ty_const).into(),
+        ast::Type::Lam(_, _, _) => unimplemented!("Abs: {:?}", ty),
+        ast::Type::App(_, ref ty, _) => ty_parser(path, ty),
+
         ast::Type::Array(_, ref elem_ty, ref size_expr) => {
             let elem_path = path.append_child("Elem");
             let elem_parser = ty_parser(&elem_path, elem_ty);
@@ -417,7 +423,5 @@ fn ty_parser(path: &Path, ty: &ast::RcType) -> RcParseExpr {
 
             ParseExpr::Apply(fn_expr, parser_expr).into()
         }
-        ast::Type::Lam(_, _, _) => unimplemented!("Abs: {:?}", ty),
-        ast::Type::App(_, ref ty, _) => ty_parser(path, ty),
     }
 }

@@ -260,6 +260,9 @@ pub enum Expr {
     Ann(RcExpr, RcType),
     Const(Const),
     Var(Var),
+    Lam(Vec<Named<Name, RcType>>, RcExpr),
+    App(RcExpr, Vec<RcExpr>),
+
     Unop(Unop, RcExpr),
     Binop(Binop, RcExpr, RcExpr),
     Array(Vec<RcExpr>),
@@ -268,8 +271,6 @@ pub enum Expr {
     Intro(Path, Ident, RcExpr),
     Subscript(RcExpr, RcExpr),
     Cast(RcExpr, RcType),
-    Lam(Vec<Named<Name, RcType>>, RcExpr),
-    App(RcExpr, Vec<RcExpr>),
 }
 
 #[derive(Clone, PartialEq)]
@@ -300,6 +301,17 @@ impl RcExpr {
             }
             Expr::Var(ref mut var) => var.abstract_names_at(names, scope),
             Expr::Const(_) => {}
+            Expr::Lam(_, ref mut body_expr) => {
+                body_expr.abstract_names_at(names, scope.succ());
+            }
+            Expr::App(ref mut fn_expr, ref mut arg_exprs) => {
+                fn_expr.abstract_names_at(names, scope);
+
+                for arg_expr in arg_exprs {
+                    arg_expr.abstract_names_at(names, scope);
+                }
+            }
+
             Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
                 expr.abstract_names_at(names, scope);
             }
@@ -323,16 +335,6 @@ impl RcExpr {
             Expr::Cast(ref mut src_expr, _) => {
                 src_expr.abstract_names_at(names, scope);
                 // TODO: abstract dst_ty???
-            }
-            Expr::Lam(_, ref mut body_expr) => {
-                body_expr.abstract_names_at(names, scope.succ());
-            }
-            Expr::App(ref mut fn_expr, ref mut arg_exprs) => {
-                fn_expr.abstract_names_at(names, scope);
-
-                for arg_expr in arg_exprs {
-                    arg_expr.abstract_names_at(names, scope);
-                }
             }
         }
     }

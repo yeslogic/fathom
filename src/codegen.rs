@@ -629,6 +629,11 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     let mut is_atomic = false;
 
     let inner = match *expr.inner {
+        Expr::Ann(ref expr, _) => {
+            // TODO: use type annotation
+            lower_expr(alloc, prec, expr)
+        }
+
         Expr::Const(c) => {
             is_atomic = true;
 
@@ -646,16 +651,39 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
             }
         }
 
-        Expr::Ann(ref expr, _) => {
-            // TODO: use type annotation
-            lower_expr(alloc, prec, expr)
-        }
-
         // FIXME: Hygiene!
         Expr::Var(Var::Free(_)) => unimplemented!(),
         Expr::Var(Var::Bound(Named(ref name, _))) => {
             is_atomic = true;
             alloc.as_string(name)
+        }
+
+        Expr::Lam(ref params, ref body_expr) => alloc
+            .text("|")
+            .append(alloc.intersperse(
+                params.iter().map(|&Named(ref name, ref ty)| {
+                    alloc
+                        .as_string(name)
+                        .append(alloc.text(":"))
+                        .append(alloc.space())
+                        .append(lower_ty(alloc, ty))
+                }),
+                alloc.text(","),
+            ))
+            .append(alloc.text("|"))
+            .append(alloc.space())
+            .append(lower_expr(alloc, Prec::Block, body_expr).nest(INDENT_WIDTH))
+            .group(),
+
+        Expr::App(ref fn_expr, ref arg_exprs) => {
+            let arg_exprs = arg_exprs
+                .iter()
+                .map(|arg_expr| lower_expr(alloc, Prec::Block, arg_expr));
+
+            lower_expr(alloc, Prec::Block, fn_expr)
+                .append(alloc.text("("))
+                .append(alloc.intersperse(arg_exprs, alloc.text(",")))
+                .append(alloc.text(")"))
         }
 
         Expr::Unop(op, ref expr) => {
@@ -767,34 +795,6 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                 .append(alloc.space())
                 .append(lower_ty(alloc, ty))
                 .group()
-        }
-
-        Expr::Lam(ref params, ref body_expr) => alloc
-            .text("|")
-            .append(alloc.intersperse(
-                params.iter().map(|&Named(ref name, ref ty)| {
-                    alloc
-                        .as_string(name)
-                        .append(alloc.text(":"))
-                        .append(alloc.space())
-                        .append(lower_ty(alloc, ty))
-                }),
-                alloc.text(","),
-            ))
-            .append(alloc.text("|"))
-            .append(alloc.space())
-            .append(lower_expr(alloc, Prec::Block, body_expr).nest(INDENT_WIDTH))
-            .group(),
-
-        Expr::App(ref fn_expr, ref arg_exprs) => {
-            let arg_exprs = arg_exprs
-                .iter()
-                .map(|arg_expr| lower_expr(alloc, Prec::Block, arg_expr));
-
-            lower_expr(alloc, Prec::Block, fn_expr)
-                .append(alloc.text("("))
-                .append(alloc.intersperse(arg_exprs, alloc.text(",")))
-                .append(alloc.text(")"))
         }
     };
 
