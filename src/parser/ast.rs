@@ -8,7 +8,7 @@ use parser::{from_lalrpop_err, grammar, GrammarError, ParseError};
 use parser::lexer::Lexer;
 use source::{BytePos, Span};
 
-pub use syntax::ast::{Binop, Const, FloatType, HostTypeConst, IntSuffix, Unop};
+pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module<'src> {
@@ -54,7 +54,7 @@ pub enum Type<'src> {
     Cond(Span, Vec<Field<'src, (Expr<'src>, Type<'src>)>>),
     Struct(Span, Vec<Field<'src, Type<'src>>>),
     Where(Span, Box<Type<'src>>, BytePos, &'src str, Box<Expr<'src>>),
-    Compute(Span, HostTypeConst, Box<Expr<'src>>),
+    Compute(Span, TypeConst, Box<Expr<'src>>),
     App(Span, Box<Type<'src>>, Vec<Type<'src>>),
 }
 
@@ -68,7 +68,7 @@ impl<'src> Type<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr<'src> {
-    Ann(Span, Box<Expr<'src>>, HostTypeConst),
+    Ann(Span, Box<Expr<'src>>, TypeConst),
     Const(Span, Const),
     Var(Span, &'src str),
     Unop(Span, Unop, Box<Expr<'src>>),
@@ -76,7 +76,7 @@ pub enum Expr<'src> {
     Array(Span, Vec<Expr<'src>>),
     Proj(Span, Box<Expr<'src>>, &'src str),
     Subscript(Span, Box<Expr<'src>>, Box<Expr<'src>>),
-    Cast(Span, Box<Expr<'src>>, HostTypeConst),
+    Cast(Span, Box<Expr<'src>>, TypeConst),
 }
 
 impl<'src> Expr<'src> {

@@ -77,7 +77,7 @@ Module {
                                         )
                                     )
                                 ),
-                                HostConst(
+                                Const(
                                     Unsigned(
                                         U64
                                     )

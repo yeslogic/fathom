@@ -1,7 +1,7 @@
 use super::*;
 
 mod infer_ty {
-    use syntax::ast::{FloatType, HostTypeConst, RcIExpr, SignedType, Type, UnsignedType};
+    use syntax::ast::{FloatType, RcIExpr, SignedType, Type, TypeConst, UnsignedType};
     use parser::ast::Expr as ParseExpr;
 
     use super::*;
@@ -11,7 +11,7 @@ mod infer_ty {
 
             let ctx = Context::new();
             let expr = RcIExpr::from_parse(&ParseExpr::from_str($given).unwrap()).unwrap();
-            let expected_ty = Type::HostConst($expected).into();
+            let expected_ty = Type::Const($expected).into();
 
             assert_eq!(infer_ty(&ctx, &expr), Ok(expected_ty));
         }};
@@ -31,12 +31,12 @@ mod infer_ty {
 
     #[test]
     fn const_u8() {
-        assert_infer_ty!("1u8", Ok(HostTypeConst::Unsigned(UnsignedType::U8)));
+        assert_infer_ty!("1u8", Ok(TypeConst::Unsigned(UnsignedType::U8)));
     }
 
     #[test]
     fn neg_i8() {
-        assert_infer_ty!("-(1i8 + 2i8)", Ok(HostTypeConst::Signed(SignedType::I8)));
+        assert_infer_ty!("-(1i8 + 2i8)", Ok(TypeConst::Signed(SignedType::I8)));
     }
 
     #[test]
@@ -56,42 +56,39 @@ mod infer_ty {
 
     #[test]
     fn not_bool() {
-        assert_infer_ty!("!(1u8 == 2u8)", Ok(HostTypeConst::Bool));
+        assert_infer_ty!("!(1u8 == 2u8)", Ok(TypeConst::Bool));
     }
 
     #[test]
     fn arith_ops() {
-        assert_infer_ty!(
-            "1i8 + (1i8 * -2i8)",
-            Ok(HostTypeConst::Signed(SignedType::I8))
-        );
+        assert_infer_ty!("1i8 + (1i8 * -2i8)", Ok(TypeConst::Signed(SignedType::I8)));
     }
 
     #[test]
     fn cmp_ops_eq_u8() {
-        assert_infer_ty!("1u8 + (1u8 * 2u8) == 3u8", Ok(HostTypeConst::Bool));
+        assert_infer_ty!("1u8 + (1u8 * 2u8) == 3u8", Ok(TypeConst::Bool));
     }
 
     #[test]
     fn cmp_ops_ne_u8() {
-        assert_infer_ty!("1u8 + (1u8 * 2u8) != 3u8", Ok(HostTypeConst::Bool));
+        assert_infer_ty!("1u8 + (1u8 * 2u8) != 3u8", Ok(TypeConst::Bool));
     }
 
     #[test]
     fn cmp_ops_eq_bool() {
-        assert_infer_ty!("(1u8 == 1u8) == (3u8 == 3u8)", Ok(HostTypeConst::Bool));
+        assert_infer_ty!("(1u8 == 1u8) == (3u8 == 3u8)", Ok(TypeConst::Bool));
     }
 
     #[test]
     fn cmp_ops_ne_bool() {
-        assert_infer_ty!("(1u8 == 1u8) != (3u8 == 3u8)", Ok(HostTypeConst::Bool));
+        assert_infer_ty!("(1u8 == 1u8) != (3u8 == 3u8)", Ok(TypeConst::Bool));
     }
 
     #[test]
     fn rel_ops() {
         assert_infer_ty!(
             "(1u8 == 3u8) && (2u8 == 2u8) || (1u8 == 2u8)",
-            Ok(HostTypeConst::Bool)
+            Ok(TypeConst::Bool)
         );
     }
 
@@ -102,19 +99,19 @@ mod infer_ty {
 
     #[test]
     fn cast_u8_to_u32() {
-        assert_infer_ty!("1u8 as u32", Ok(HostTypeConst::Unsigned(UnsignedType::U32)));
+        assert_infer_ty!("1u8 as u32", Ok(TypeConst::Unsigned(UnsignedType::U32)));
     }
 
     #[test]
     fn cast_u8_to_f32() {
-        assert_infer_ty!("1u8 as f32", Ok(HostTypeConst::Float(FloatType::F32)));
+        assert_infer_ty!("1u8 as f32", Ok(TypeConst::Float(FloatType::F32)));
     }
 
     #[test]
     fn cast_u8_to_f32_to_u16() {
         assert_infer_ty!(
             "1u8 as f32 as u16",
-            Ok(HostTypeConst::Unsigned(UnsignedType::U16))
+            Ok(TypeConst::Unsigned(UnsignedType::U16))
         );
     }
 

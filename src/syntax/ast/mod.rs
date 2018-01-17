@@ -133,8 +133,8 @@ impl Definition {
                 names => {
                     let names = names
                         .iter()
-                        .map(|&name| Named(Name::user(name), ()))
-                        .collect();
+                        .map(|&name| Named(Name::user(name), Kind::Binary.into()))
+                        .collect::<Vec<_>>();
 
                     RcType::lam(src.span, names, body_ty)
                 }
@@ -245,7 +245,7 @@ pub enum Endianness {
     Little,
 }
 
-/// A type constant in the binary language
+/// A type constant
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TypeConst {
     /// Empty binary type
@@ -276,6 +276,19 @@ pub enum TypeConst {
     F32(Endianness),
     /// IEEE-754 64-bit float
     F64(Endianness),
+
+    /// Unit
+    Unit,
+    /// Bottom
+    Bottom,
+    /// Boolean
+    Bool,
+    /// Float
+    Float(FloatType),
+    /// Signed Integers
+    Signed(SignedType),
+    /// Unsigned Integers
+    Unsigned(UnsignedType),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -316,41 +329,26 @@ pub enum UnsignedType {
 
 impl TypeConst {
     /// Convert a bianary type constant to its corresponding host representation
-    pub fn repr(self) -> HostTypeConst {
+    pub fn repr(self) -> TypeConst {
         match self {
-            TypeConst::Empty => HostTypeConst::Unit,
-            TypeConst::Error => HostTypeConst::Bottom,
-            TypeConst::U8 => HostTypeConst::Unsigned(UnsignedType::U8),
-            TypeConst::I8 => HostTypeConst::Signed(SignedType::I8),
-            TypeConst::U16(_) => HostTypeConst::Unsigned(UnsignedType::U16),
-            TypeConst::U24(_) => HostTypeConst::Unsigned(UnsignedType::U24),
-            TypeConst::U32(_) => HostTypeConst::Unsigned(UnsignedType::U32),
-            TypeConst::U64(_) => HostTypeConst::Unsigned(UnsignedType::U64),
-            TypeConst::I16(_) => HostTypeConst::Signed(SignedType::I16),
-            TypeConst::I24(_) => HostTypeConst::Signed(SignedType::I24),
-            TypeConst::I32(_) => HostTypeConst::Signed(SignedType::I32),
-            TypeConst::I64(_) => HostTypeConst::Signed(SignedType::I64),
-            TypeConst::F32(_) => HostTypeConst::Float(FloatType::F32),
-            TypeConst::F64(_) => HostTypeConst::Float(FloatType::F64),
+            TypeConst::Empty => TypeConst::Unit,
+            TypeConst::Error => TypeConst::Bottom,
+            TypeConst::U8 => TypeConst::Unsigned(UnsignedType::U8),
+            TypeConst::I8 => TypeConst::Signed(SignedType::I8),
+            TypeConst::U16(_) => TypeConst::Unsigned(UnsignedType::U16),
+            TypeConst::U24(_) => TypeConst::Unsigned(UnsignedType::U24),
+            TypeConst::U32(_) => TypeConst::Unsigned(UnsignedType::U32),
+            TypeConst::U64(_) => TypeConst::Unsigned(UnsignedType::U64),
+            TypeConst::I16(_) => TypeConst::Signed(SignedType::I16),
+            TypeConst::I24(_) => TypeConst::Signed(SignedType::I24),
+            TypeConst::I32(_) => TypeConst::Signed(SignedType::I32),
+            TypeConst::I64(_) => TypeConst::Signed(SignedType::I64),
+            TypeConst::F32(_) => TypeConst::Float(FloatType::F32),
+            TypeConst::F64(_) => TypeConst::Float(FloatType::F64),
+
+            _ => panic!("Called TypeConst::repr on {:?}", self),
         }
     }
-}
-
-/// A type constant in the host language
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum HostTypeConst {
-    /// Unit
-    Unit,
-    /// Bottom
-    Bottom,
-    /// Boolean
-    Bool,
-    /// Float
-    Float(FloatType),
-    /// Signed Integers
-    Signed(SignedType),
-    /// Unsigned Integers
-    Unsigned(UnsignedType),
 }
 
 /// A binary type
@@ -358,12 +356,14 @@ pub enum HostTypeConst {
 pub enum Type {
     /// A type variable: eg. `T`
     Var(Span, Var),
+    /// A type variable: eg. `T`
+    HostVar(Var),
     /// Type constant
     Const(TypeConst),
+    /// Arrow type: eg. `(T, ..) -> U`
+    Arrow(Vec<RcType>, RcType),
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
-    ///
-    /// For now we only allow type arguments of kind `Type`
-    Lam(Span, Vec<Named<Name, ()>>, RcType),
+    Lam(Span, Vec<Named<Name, RcKind>>, RcType),
     /// Type application: eg. `T(U, V)`
     App(Span, RcType, Vec<RcType>),
 
@@ -378,19 +378,6 @@ pub enum Type {
     /// An interpreted type
     Interp(Span, RcType, RcCExpr, RcType),
 
-    /// A type variable: eg. `T`
-    HostVar(Var),
-    /// A type constant
-    HostConst(HostTypeConst),
-    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
-    ///
-    /// For now we only allow type arguments of kind `Type`
-    HostLam(Vec<Named<Name, ()>>, RcType),
-    /// Type application: eg. `T(U, V)`
-    HostApp(RcType, Vec<RcType>),
-
-    /// Arrow type: eg. `(T, ..) -> U`
-    HostArrow(Vec<RcType>, RcType),
     /// An array, eg. `[T]`
     HostArray(RcType),
     /// A union of types: eg. `union { variant : T, ... }`
@@ -420,9 +407,7 @@ impl fmt::Debug for RcType {
 
 impl RcType {
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
-    ///
-    /// For now we only allow type arguments of kind `Type`
-    pub fn lam<T1>(span: Span, params: Vec<Named<Name, ()>>, body_ty: T1) -> RcType
+    pub fn lam<T1>(span: Span, params: Vec<Named<Name, RcKind>>, body_ty: T1) -> RcType
     where
         T1: Into<RcType>,
     {
@@ -481,28 +466,6 @@ impl RcType {
         }
     }
 
-
-    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
-    ///
-    /// For now we only allow type arguments of kind `Type`
-    pub fn host_lam<T1>(params: Vec<Named<Name, ()>>, body_ty: T1) -> RcType
-    where
-        T1: Into<RcType>,
-    {
-        let mut body_ty = body_ty.into();
-
-        {
-            let param_names = params
-                .iter()
-                .map(|param| param.0.clone())
-                .collect::<Vec<_>>();
-
-            body_ty.abstract_names(&param_names[..]);
-        }
-
-        Type::HostLam(params, body_ty).into()
-    }
-
     /// Attempt to lookup the type of a field
     ///
     /// Returns `None` if the type is not a struct or the field is not
@@ -533,7 +496,19 @@ impl RcType {
                 None => return,
                 Some(ty) => ty.clone(),
             },
-            Type::Var(_, Var::Bound(_)) | Type::Const(_) => return,
+            Type::HostVar(Var::Free(ref name)) => match substs.get(name) {
+                None => return,
+                Some(ty) => ty.repr().clone(),
+            },
+            Type::Var(_, Var::Bound(_)) | Type::HostVar(Var::Bound(_)) | Type::Const(_) => return,
+            Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
+                for param_ty in param_tys {
+                    param_ty.substitute(substs);
+                }
+                ret_ty.substitute(substs);
+
+                return;
+            }
             Type::Lam(_, _, ref mut body_ty) => {
                 body_ty.substitute(substs);
                 return;
@@ -578,33 +553,6 @@ impl RcType {
                 return;
             }
 
-            Type::HostVar(Var::Free(ref name)) => match substs.get(name) {
-                None => return,
-                Some(ty) => ty.repr().clone(),
-            },
-            Type::HostVar(Var::Bound(_)) | Type::HostConst(_) => return,
-            Type::HostLam(_, ref mut body_ty) => {
-                body_ty.substitute(substs);
-                return;
-            }
-            Type::HostApp(ref mut fn_ty, ref mut arg_tys) => {
-                fn_ty.substitute(substs);
-
-                for arg_ty in arg_tys {
-                    arg_ty.substitute(substs);
-                }
-
-                return;
-            }
-
-            Type::HostArrow(ref mut param_tys, ref mut ret_ty) => {
-                for param_ty in param_tys {
-                    param_ty.substitute(substs);
-                }
-                ret_ty.substitute(substs);
-
-                return;
-            }
             Type::HostArray(ref mut elem_ty) => {
                 elem_ty.substitute(substs);
                 return;
@@ -628,8 +576,16 @@ impl RcType {
 
     pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
-            Type::Var(_, ref mut var) => var.abstract_names_at(names, scope),
+            Type::Var(_, ref mut var) | Type::HostVar(ref mut var) => {
+                var.abstract_names_at(names, scope)
+            }
             Type::Const(_) => {}
+            Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
+                for param_ty in param_tys {
+                    param_ty.abstract_names_at(names, scope);
+                }
+                ret_ty.abstract_names_at(names, scope);
+            }
             Type::Lam(_, _, ref mut body_ty) => {
                 body_ty.abstract_names_at(names, scope.succ());
             }
@@ -662,25 +618,6 @@ impl RcType {
                 repr_ty.abstract_names_at(names, scope);
             }
 
-            Type::HostVar(ref mut var) => var.abstract_names_at(names, scope),
-            Type::HostConst(_) => {}
-            Type::HostLam(_, ref mut body_ty) => {
-                body_ty.abstract_names_at(names, scope.succ());
-            }
-            Type::HostApp(ref mut fn_ty, ref mut arg_tys) => {
-                fn_ty.abstract_names_at(names, scope);
-
-                for arg_ty in arg_tys {
-                    arg_ty.abstract_names_at(names, scope);
-                }
-            }
-
-            Type::HostArrow(ref mut param_tys, ref mut ret_ty) => {
-                for param_ty in param_tys {
-                    param_ty.abstract_names_at(names, scope);
-                }
-                ret_ty.abstract_names_at(names, scope);
-            }
             Type::HostArray(ref mut elem_ty) => {
                 elem_ty.abstract_names_at(names, scope);
             }
@@ -709,7 +646,18 @@ impl RcType {
             Type::Var(_, Var::Bound(Named(_, var))) if var.scope == scope => {
                 tys[var.binding.0 as usize].clone()
             }
-            Type::Var(_, Var::Bound(_)) | Type::Var(_, Var::Free(_)) | Type::Const(_) => return,
+            Type::HostVar(Var::Bound(Named(_, var))) if var.scope == scope => {
+                tys[var.binding.0 as usize].clone()
+            }
+            Type::Var(_, _) | Type::HostVar(_) | Type::Const(_) => return,
+            Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
+                for param_ty in param_tys {
+                    param_ty.instantiate_at(scope, tys);
+                }
+
+                ret_ty.instantiate_at(scope, tys);
+                return;
+            }
             Type::Lam(_, _, ref mut ty) => {
                 ty.instantiate_at(scope.succ(), tys);
                 return;
@@ -749,34 +697,6 @@ impl RcType {
                 return;
             }
 
-            Type::HostVar(Var::Bound(Named(_, var))) if var.scope == scope => {
-                tys[var.binding.0 as usize].clone()
-            }
-            Type::HostVar(Var::Bound(_)) | Type::HostVar(Var::Free(_)) | Type::HostConst(_) => {
-                return
-            }
-            Type::HostLam(_, ref mut ty) => {
-                ty.instantiate_at(scope.succ(), tys);
-                return;
-            }
-            Type::HostApp(ref mut ty, ref mut arg_tys) => {
-                ty.instantiate_at(scope, tys);
-
-                for arg_ty in arg_tys {
-                    arg_ty.instantiate_at(scope, tys);
-                }
-
-                return;
-            }
-
-            Type::HostArrow(ref mut param_tys, ref mut ret_ty) => {
-                for param_ty in param_tys {
-                    param_ty.instantiate_at(scope, tys);
-                }
-
-                ret_ty.instantiate_at(scope, tys);
-                return;
-            }
             Type::HostArray(ref mut elem_ty) => {
                 elem_ty.instantiate_at(scope, tys);
                 return;
@@ -806,14 +726,21 @@ impl RcType {
     pub fn repr(&self) -> RcType {
         match *self.inner {
             Type::Var(_, ref v) => Type::HostVar(v.clone()).into(),
-            Type::Const(ty_const) => Type::HostConst(ty_const.repr()).into(),
-            Type::Lam(_, ref params, ref body_ty) => {
-                Type::HostLam(params.clone(), body_ty.repr()).into()
+            Type::Const(ty_const) => Type::Const(ty_const.repr()).into(),
+            Type::Lam(span, ref params, ref body_ty) => {
+                let repr_params = params
+                    .iter()
+                    .map(|&Named(ref name, ref param_ty)| {
+                        Named(name.clone(), param_ty.repr())
+                    })
+                    .collect();
+
+                Type::Lam(span, repr_params, body_ty.repr()).into()
             }
-            Type::App(_, ref fn_ty, ref arg_tys) => {
+            Type::App(span, ref fn_ty, ref arg_tys) => {
                 let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();
 
-                Type::HostApp(fn_ty.repr(), arg_tys).into()
+                Type::App(span, fn_ty.repr(), arg_tys).into()
             }
 
             Type::Array(_, ref elem_ty, _) => Type::HostArray(elem_ty.repr()).into(),
@@ -913,7 +840,7 @@ impl RcType {
             }
             ParseType::Compute(span, repr_ty, ref expr) => {
                 let empty = Type::Const(TypeConst::Empty).into();
-                let repr_ty = Type::HostConst(repr_ty).into();
+                let repr_ty = Type::Const(repr_ty).into();
                 let conv_fn = CExpr::Inf(RcIExpr::lam(
                     span,
                     vec![Named(Name::Abstract, RcType::repr(&empty))],
@@ -943,12 +870,12 @@ pub enum Const {
 }
 
 impl Const {
-    pub fn ty_const_of(self) -> HostTypeConst {
+    pub fn ty_const_of(self) -> TypeConst {
         match self {
-            Const::Bool(_) => HostTypeConst::Bool,
-            Const::Int(_, IntSuffix::Unsigned(suffix)) => HostTypeConst::Unsigned(suffix),
-            Const::Int(_, IntSuffix::Signed(suffix)) => HostTypeConst::Signed(suffix),
-            Const::Float(_, suffix) => HostTypeConst::Float(suffix),
+            Const::Bool(_) => TypeConst::Bool,
+            Const::Int(_, IntSuffix::Unsigned(suffix)) => TypeConst::Unsigned(suffix),
+            Const::Int(_, IntSuffix::Signed(suffix)) => TypeConst::Signed(suffix),
+            Const::Float(_, suffix) => TypeConst::Float(suffix),
         }
     }
 }
@@ -1261,7 +1188,7 @@ impl RcIExpr {
             ParseExpr::Const(span, c) => Ok(IExpr::Const(span, c).into()),
             ParseExpr::Ann(span, ref expr, ty) => {
                 let expr = RcCExpr::from_parse(&**expr)?;
-                let ty = Type::HostConst(ty).into();
+                let ty = Type::Const(ty).into();
 
                 Ok(IExpr::Ann(span, expr, ty).into())
             }
@@ -1293,7 +1220,7 @@ impl RcIExpr {
             }
             ParseExpr::Cast(span, ref expr, ty) => {
                 let expr = RcIExpr::from_parse(&**expr)?;
-                let ty = Type::HostConst(ty).into();
+                let ty = Type::Const(ty).into();
 
                 Ok(IExpr::Cast(span, expr, ty).into())
             }
@@ -1319,7 +1246,7 @@ mod tests {
                 // λ   0
                 let ty = RcT::lam(
                     Span::start(),
-                    vec![Named(Name::user("x"), ())],
+                    vec![Named(Name::user("x"), Kind::Binary.into())],
                     T::Var(Span::start(), Var::free(Name::user("x"))),
                 );
 
@@ -1334,10 +1261,10 @@ mod tests {
                 // λ  λ   1
                 let ty = RcT::lam(
                     Span::start(),
-                    vec![Named(Name::user("x"), ())],
+                    vec![Named(Name::user("x"), Kind::Binary.into())],
                     RcT::lam(
                         Span::start(),
-                        vec![Named(Name::user("y"), ())],
+                        vec![Named(Name::user("y"), Kind::Binary.into())],
                         T::Var(Span::start(), Var::free(Name::user("x"))),
                     ),
                 );
@@ -1351,13 +1278,13 @@ mod tests {
                 // λ  λ  λ   2 0 (1 0)
                 let ty = RcT::lam(
                     Span::start(),
-                    vec![Named(Name::user("x"), ())],
+                    vec![Named(Name::user("x"), Kind::Binary.into())],
                     RcT::lam(
                         Span::start(),
-                        vec![Named(Name::user("y"), ())],
+                        vec![Named(Name::user("y"), Kind::Binary.into())],
                         RcT::lam(
                             Span::start(),
-                            vec![Named(Name::user("z"), ())],
+                            vec![Named(Name::user("z"), Kind::Binary.into())],
                             T::App(
                                 Span::start(),
                                 T::App(
@@ -1389,19 +1316,19 @@ mod tests {
                 // λ  (λ   0 (λ   0)) (λ   1 0)
                 let ty = RcT::lam(
                     Span::start(),
-                    vec![Named(Name::user("z"), ())],
+                    vec![Named(Name::user("z"), Kind::Binary.into())],
                     T::App(
                         Span::start(),
                         RcT::lam(
                             Span::start(),
-                            vec![Named(Name::user("y"), ())],
+                            vec![Named(Name::user("y"), Kind::Binary.into())],
                             T::App(
                                 Span::start(),
                                 T::Var(Span::start(), Var::free(Name::user("y"))).into(),
                                 vec![
                                     RcT::lam(
                                         Span::start(),
-                                        vec![Named(Name::user("x"), ())],
+                                        vec![Named(Name::user("x"), Kind::Binary.into())],
                                         T::Var(Span::start(), Var::free(Name::user("x"))),
                                     ),
                                 ],
@@ -1410,7 +1337,7 @@ mod tests {
                         vec![
                             RcT::lam(
                                 Span::start(),
-                                vec![Named(Name::user("x"), ())],
+                                vec![Named(Name::user("x"), Kind::Binary.into())],
                                 T::App(
                                     Span::start(),
                                     T::Var(Span::start(), Var::free(Name::user("z"))).into(),

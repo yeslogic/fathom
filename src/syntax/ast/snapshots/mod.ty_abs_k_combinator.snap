@@ -8,7 +8,7 @@ Lam(
             User(
                 Ident("x")
             ),
-            ()
+            Binary
         )
     ],
     Lam(
@@ -21,7 +21,7 @@ Lam(
                 User(
                     Ident("y")
                 ),
-                ()
+                Binary
             )
         ],
         Var(

@@ -1,6 +1,6 @@
 use lalrpop_util::ParseError;
 use source::{BytePos, Span};
-use parser::ast::{Binop, Const, Definition, Expr, Field, Module, Type, HostTypeConst, Unop};
+use parser::ast::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
 use parser::GrammarError;
 use parser::lexer::Token;
 
@@ -144,7 +144,7 @@ AtomicBinaryType: Type<'src> = {
 
 // Host Types
 
-HostType: HostTypeConst = {
+HostType: TypeConst = {
     // FIXME: implement full host type parsing, with proper name binding
     //
     // We'll just hard-code identifiers for now
@@ -152,21 +152,21 @@ HostType: HostTypeConst = {
         use syntax::ast::{FloatType, SignedType, UnsignedType};
 
         match name {
-            "unit" => Ok(HostTypeConst::Unit),
-            "bottom" => Ok(HostTypeConst::Bottom),
-            "bool" => Ok(HostTypeConst::Bool),
-            "f32" => Ok(HostTypeConst::Float(FloatType::F32)),
-            "f64" => Ok(HostTypeConst::Float(FloatType::F64)),
-            "i8" => Ok(HostTypeConst::Signed(SignedType::I8)),
-            "i16" => Ok(HostTypeConst::Signed(SignedType::I16)),
-            "i24" => Ok(HostTypeConst::Signed(SignedType::I24)),
-            "i32" => Ok(HostTypeConst::Signed(SignedType::I32)),
-            "i64" => Ok(HostTypeConst::Signed(SignedType::I64)),
-            "u8" => Ok(HostTypeConst::Unsigned(UnsignedType::U8)),
-            "u16" => Ok(HostTypeConst::Unsigned(UnsignedType::U16)),
-            "u24" => Ok(HostTypeConst::Unsigned(UnsignedType::U24)),
-            "u32" => Ok(HostTypeConst::Unsigned(UnsignedType::U32)),
-            "u64" => Ok(HostTypeConst::Unsigned(UnsignedType::U64)),
+            "unit" => Ok(TypeConst::Unit),
+            "bottom" => Ok(TypeConst::Bottom),
+            "bool" => Ok(TypeConst::Bool),
+            "f32" => Ok(TypeConst::Float(FloatType::F32)),
+            "f64" => Ok(TypeConst::Float(FloatType::F64)),
+            "i8" => Ok(TypeConst::Signed(SignedType::I8)),
+            "i16" => Ok(TypeConst::Signed(SignedType::I16)),
+            "i24" => Ok(TypeConst::Signed(SignedType::I24)),
+            "i32" => Ok(TypeConst::Signed(SignedType::I32)),
+            "i64" => Ok(TypeConst::Signed(SignedType::I64)),
+            "u8" => Ok(TypeConst::Unsigned(UnsignedType::U8)),
+            "u16" => Ok(TypeConst::Unsigned(UnsignedType::U16)),
+            "u24" => Ok(TypeConst::Unsigned(UnsignedType::U24)),
+            "u32" => Ok(TypeConst::Unsigned(UnsignedType::U32)),
+            "u64" => Ok(TypeConst::Unsigned(UnsignedType::U64)),
             name => Err(ParseError::User {
                 error: GrammarError::InvalidHostTypeName { name: name.to_owned() },
             }),

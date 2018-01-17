@@ -198,15 +198,24 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
 fn lower_repr_ty(path: &Path, ty: &ast::RcType) -> RcType {
     match *ty.inner {
         ast::Type::HostVar(ref var) => lower_ty_var(var),
-        ast::Type::HostConst(ty_const) => Type::Const(ty_const).into(),
-        ast::Type::HostLam(_, _) => {
+        ast::Type::Const(ty_const) => Type::Const(ty_const).into(),
+        ast::Type::Arrow(ref arg_tys, ref ret_ty) => {
+            let arg_repr_tys = arg_tys
+                .iter()
+                .map(|arg_ty| lower_repr_ty(path, arg_ty))
+                .collect();
+            let ret_repr_ty = lower_repr_ty(path, ret_ty);
+
+            Type::Arrow(arg_repr_tys, ret_repr_ty).into()
+        }
+        ast::Type::Lam(_, _, _) => {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
             // top-level definitions. Thes should have already been handled in
             // the `From<&'a ast::Module>` impl for `Module`.
             panic!("ICE: encountered unexpected type abstraction: {:?}", ty)
         }
-        ast::Type::HostApp(ref ty, ref param_tys) => {
+        ast::Type::App(_, ref ty, ref param_tys) => {
             let lowered_ty = lower_repr_ty(path, ty);
 
             // Replace empty parameter lists on paths with the supplied parameters
@@ -229,15 +238,6 @@ fn lower_repr_ty(path: &Path, ty: &ast::RcType) -> RcType {
             lowered_ty
         }
 
-        ast::Type::HostArrow(ref arg_tys, ref ret_ty) => {
-            let arg_repr_tys = arg_tys
-                .iter()
-                .map(|arg_ty| lower_repr_ty(path, arg_ty))
-                .collect();
-            let ret_repr_ty = lower_repr_ty(path, ret_ty);
-
-            Type::Arrow(arg_repr_tys, ret_repr_ty).into()
-        }
         ast::Type::HostArray(ref elem_ty) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_repr_ty(&elem_path, elem_ty);

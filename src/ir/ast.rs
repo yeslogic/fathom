@@ -4,7 +4,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-pub use syntax::ast::{Endianness, Field, HostTypeConst, TypeConst as BinaryTypeConst};
+pub use syntax::ast::{Endianness, Field, TypeConst};
 pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, SignedType, Unop, UnsignedType};
 use var::{ScopeIndex, Var};
 
@@ -119,7 +119,7 @@ pub enum Item {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     /// Type constants
-    Const(HostTypeConst),
+    Const(TypeConst),
     /// A fully qualified path to a type definition
     Path(Path, Vec<RcType>),
     /// Array types. These are usually available in languages as primitives,
@@ -161,7 +161,7 @@ pub enum ParseExpr {
     /// A reference to another parser
     Var(Var),
     /// Parse a binary constant
-    Const(BinaryTypeConst),
+    Const(TypeConst),
     /// Parse that is repeated for the given bound
     ///
     /// ```plain
