@@ -351,11 +351,11 @@ Program {
                                                 )
                                             ),
                                             Const(
-                                                Float(100.0, F32)
+                                                Float(100, F32)
                                             )
                                         ),
                                         Const(
-                                            Float(100.0, F32)
+                                            Float(100, F32)
                                         )
                                     )
                                 ),
