@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-use syntax::ast::{host, Binop, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType};
+use syntax::ast::{Binop, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType};
 use self::context::{Context, Scope};
 use var::Var;
 
@@ -20,7 +20,7 @@ pub enum ExpectedType {
     Unsigned,
     Signed,
     Numeric,
-    Actual(host::RcType),
+    Actual(RcType),
 }
 
 /// An error that was encountered during type checking
@@ -33,52 +33,48 @@ pub enum TypeError {
     /// One type was expected, but another was found
     Mismatch {
         expr: RcIExpr,
-        found: host::RcType,
+        found: RcType,
         expected: ExpectedType,
     },
     /// One type was expected, but another was found
     InferenceMismatch {
         expr: RcIExpr,
-        found: host::RcType,
-        expected: host::RcType,
+        found: RcType,
+        expected: RcType,
     },
     /// Unexpected operand types in a binary operator expression
     BinaryOperands {
         context: Binop,
         expr: RcIExpr,
-        lhs_ty: host::RcType,
-        rhs_ty: host::RcType,
+        lhs_ty: RcType,
+        rhs_ty: RcType,
     },
     /// A field was missing when projecting on a record
     MissingField {
         expr: RcIExpr,
-        struct_ty: host::RcType,
+        struct_ty: RcType,
         field_name: Ident,
     },
     /// A variant was missing when introducing on a union
     MissingVariant {
         expr: RcCExpr,
-        union_ty: host::RcType,
+        union_ty: RcType,
         variant_name: Ident,
     },
     /// An invalid type was supplied to the cast expression
-    InvalidCastType { expr: RcIExpr, found: host::RcType },
+    InvalidCastType { expr: RcIExpr, found: RcType },
 }
 
 /// Check that an expression has the given type in the context
-pub fn check_ty(
-    ctx: &Context,
-    expr: &RcCExpr,
-    expected_ty: &host::RcType,
-) -> Result<(), TypeError> {
+pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(), TypeError> {
     use syntax::ast::CExpr;
-    use syntax::ast::host::Type;
+    use syntax::ast::Type;
 
     match *expr.inner {
         // Variant introduction
         CExpr::Intro(_, ref variant_name, ref expr) => {
             // FIXME: Kindcheck union_ty
-            match expected_ty.lookup_variant(variant_name).cloned() {
+            match expected_ty.lookup_host_variant(variant_name).cloned() {
                 Some(variant_ty) => {
                     check_ty(ctx, expr, &variant_ty)?;
                     Ok(())
@@ -117,9 +113,8 @@ pub fn check_ty(
 }
 
 /// Infer the type of an expression in the context
-pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError> {
-    use syntax::ast::{IExpr, Unop};
-    use syntax::ast::host::{HostTypeConst, Type};
+pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
+    use syntax::ast::{HostTypeConst, IExpr, Type, Unop};
 
     match *expr.inner {
         // Annotated types
@@ -179,7 +174,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
 
         // Unary operators
         IExpr::Unop(_, op, ref operand_expr) => {
-            use syntax::ast::host::Type::HostConst;
+            use syntax::ast::Type::HostConst;
 
             let operand_ty = infer_ty(ctx, operand_expr)?;
 
@@ -202,13 +197,13 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
 
         // Binary operators
         IExpr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
-            use syntax::ast::host::Type::{HostArray, HostConst};
+            use syntax::ast::Type::{HostArray, HostConst};
 
             fn binop_err(
                 context: Binop,
                 expr: &RcIExpr,
-                lhs_ty: host::RcType,
-                rhs_ty: host::RcType,
+                lhs_ty: RcType,
+                rhs_ty: RcType,
             ) -> TypeError {
                 TypeError::BinaryOperands {
                     context,
@@ -289,7 +284,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
         IExpr::Proj(_, ref struct_expr, ref field_name) => {
             let struct_ty = infer_ty(ctx, struct_expr)?;
 
-            match struct_ty.lookup_field(field_name).cloned() {
+            match struct_ty.lookup_host_field(field_name).cloned() {
                 Some(field_ty) => Ok(field_ty),
                 None => Err(TypeError::MissingField {
                     expr: struct_expr.clone(),
@@ -426,7 +421,7 @@ fn check_kind(ctx: &Context, ty: &RcType, expected_kind: &RcKind) -> Result<(), 
 
 /// Infer the kind of a binary type in the context
 pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
-    use syntax::ast::{Type, TypeConst};
+    use syntax::ast::{HostTypeConst, Type, TypeConst};
 
     match *ty.inner {
         // Variables
@@ -501,7 +496,7 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
 
             let size_ty = infer_ty(ctx, size_expr)?;
             match *size_ty.inner {
-                host::Type::HostConst(host::HostTypeConst::Unsigned(_)) => Ok(Kind::Binary.into()),
+                Type::HostConst(HostTypeConst::Unsigned(_)) => Ok(Kind::Binary.into()),
                 _ => Err(
                     TypeError::Mismatch {
                         expr: size_expr.clone(),
@@ -515,10 +510,9 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
         // Conditional types
         Type::Assert(_, ref ty, ref pred_expr) => {
             check_kind(ctx, ty, &Kind::Binary.into())?;
-            let pred_ty = host::Type::HostArrow(
-                vec![ty.repr()],
-                host::Type::HostConst(host::HostTypeConst::Bool).into(),
-            ).into();
+            let pred_ty =
+                Type::HostArrow(vec![ty.repr()], Type::HostConst(HostTypeConst::Bool).into())
+                    .into();
             check_ty(ctx, pred_expr, &pred_ty)?;
 
             Ok(Kind::Binary.into())
@@ -527,7 +521,7 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref repr_ty) => {
             check_kind(ctx, ty, &Kind::Binary.into())?;
-            let conv_ty = host::Type::HostArrow(vec![ty.repr()], repr_ty.clone()).into();
+            let conv_ty = Type::HostArrow(vec![ty.repr()], repr_ty.clone()).into();
             check_ty(ctx, conv_expr, &conv_ty)?;
 
             Ok(Kind::Binary.into())
@@ -535,7 +529,7 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
 
         // Conditional types
         Type::Cond(_, ref options) => {
-            let bool_ty = host::Type::HostConst(host::HostTypeConst::Bool).into();
+            let bool_ty = Type::HostConst(HostTypeConst::Bool).into();
 
             for option in options {
                 check_ty(ctx, &option.value.0, &bool_ty)?;
@@ -561,6 +555,8 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
 
             Ok(Kind::Binary.into())
         }
+
+        _ => unimplemented!(),
     }
 }
 

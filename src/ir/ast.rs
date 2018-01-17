@@ -4,9 +4,8 @@ use std::fmt;
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-pub use syntax::ast::{Endianness, Field, TypeConst as BinaryTypeConst};
+pub use syntax::ast::{Endianness, Field, HostTypeConst, TypeConst as BinaryTypeConst};
 pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, SignedType, Unop, UnsignedType};
-pub use syntax::ast::host::HostTypeConst;
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]

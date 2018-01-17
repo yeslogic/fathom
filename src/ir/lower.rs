@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-use syntax::ast::{self, host, Field};
+use syntax::ast::{self, Field};
 use ir::ast::{Definition, Expr, Item, Module, ParseExpr, Path, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use var::{BindingIndex as Bi, BoundVar, ScopeIndex as Si, Var};
@@ -116,7 +116,7 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
             // top-level definitions. Thes should have already been handled in
-            // the `From<&'a ast::Program>` impl for `Program`.
+            // the `From<&'a ast::Module>` impl for `Module`.
             panic!("ICE: encountered unexpected type abstraction: {:?}", ty)
         }
         ast::Type::App(_, ref ty, ref param_tys) => {
@@ -184,6 +184,8 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
             module.define(definition);
             Type::Path(path.clone(), vec![]).into()
         }
+
+        _ => unimplemented!(),
     }
 }
 
@@ -193,18 +195,18 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
 ///
 /// * `path` - path to the parent struct or union
 /// * `ty` - the type to be lowered
-fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
+fn lower_repr_ty(path: &Path, ty: &ast::RcType) -> RcType {
     match *ty.inner {
-        host::Type::HostVar(ref var) => lower_ty_var(var),
-        host::Type::HostConst(ty_const) => Type::Const(ty_const).into(),
-        host::Type::HostLam(_, _) => {
+        ast::Type::HostVar(ref var) => lower_ty_var(var),
+        ast::Type::HostConst(ty_const) => Type::Const(ty_const).into(),
+        ast::Type::HostLam(_, _) => {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
             // top-level definitions. Thes should have already been handled in
             // the `From<&'a ast::Module>` impl for `Module`.
             panic!("ICE: encountered unexpected type abstraction: {:?}", ty)
         }
-        host::Type::HostApp(ref ty, ref param_tys) => {
+        ast::Type::HostApp(ref ty, ref param_tys) => {
             let lowered_ty = lower_repr_ty(path, ty);
 
             // Replace empty parameter lists on paths with the supplied parameters
@@ -227,7 +229,7 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
             lowered_ty
         }
 
-        host::Type::HostArrow(ref arg_tys, ref ret_ty) => {
+        ast::Type::HostArrow(ref arg_tys, ref ret_ty) => {
             let arg_repr_tys = arg_tys
                 .iter()
                 .map(|arg_ty| lower_repr_ty(path, arg_ty))
@@ -236,17 +238,19 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
 
             Type::Arrow(arg_repr_tys, ret_repr_ty).into()
         }
-        host::Type::HostArray(ref elem_ty) => {
+        ast::Type::HostArray(ref elem_ty) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_repr_ty(&elem_path, elem_ty);
 
             Type::Array(elem_ty).into()
         }
-        host::Type::HostUnion(_) | host::Type::HostStruct(_) => {
+        ast::Type::HostUnion(_) | ast::Type::HostStruct(_) => {
             // We expect that the repr type has already had a corresponding type
             // generated for it, so instead we just return the current path.
             Type::Path(path.clone(), vec![]).into()
         }
+
+        _ => unimplemented!(),
     }
 }
 
@@ -423,5 +427,7 @@ fn ty_parser(path: &Path, ty: &ast::RcType) -> RcParseExpr {
 
             ParseExpr::Apply(fn_expr, parser_expr).into()
         }
+
+        _ => unimplemented!(),
     }
 }

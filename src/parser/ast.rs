@@ -8,8 +8,7 @@ use parser::{from_lalrpop_err, grammar, GrammarError, ParseError};
 use parser::lexer::Lexer;
 use source::{BytePos, Span};
 
-pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, Unop};
-pub use syntax::ast::host::HostTypeConst;
+pub use syntax::ast::{Binop, Const, FloatType, HostTypeConst, IntSuffix, Unop};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module<'src> {

@@ -11,8 +11,6 @@ use parser::ast::Type as ParseType;
 use source::Span;
 use var::{ScopeIndex, Var};
 
-pub mod host;
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
     pub definitions: Vec<Definition>,
@@ -318,24 +316,41 @@ pub enum UnsignedType {
 
 impl TypeConst {
     /// Convert a bianary type constant to its corresponding host representation
-    pub fn repr(self) -> host::HostTypeConst {
+    pub fn repr(self) -> HostTypeConst {
         match self {
-            TypeConst::Empty => host::HostTypeConst::Unit,
-            TypeConst::Error => host::HostTypeConst::Bottom,
-            TypeConst::U8 => host::HostTypeConst::Unsigned(UnsignedType::U8),
-            TypeConst::I8 => host::HostTypeConst::Signed(SignedType::I8),
-            TypeConst::U16(_) => host::HostTypeConst::Unsigned(UnsignedType::U16),
-            TypeConst::U24(_) => host::HostTypeConst::Unsigned(UnsignedType::U24),
-            TypeConst::U32(_) => host::HostTypeConst::Unsigned(UnsignedType::U32),
-            TypeConst::U64(_) => host::HostTypeConst::Unsigned(UnsignedType::U64),
-            TypeConst::I16(_) => host::HostTypeConst::Signed(SignedType::I16),
-            TypeConst::I24(_) => host::HostTypeConst::Signed(SignedType::I24),
-            TypeConst::I32(_) => host::HostTypeConst::Signed(SignedType::I32),
-            TypeConst::I64(_) => host::HostTypeConst::Signed(SignedType::I64),
-            TypeConst::F32(_) => host::HostTypeConst::Float(FloatType::F32),
-            TypeConst::F64(_) => host::HostTypeConst::Float(FloatType::F64),
+            TypeConst::Empty => HostTypeConst::Unit,
+            TypeConst::Error => HostTypeConst::Bottom,
+            TypeConst::U8 => HostTypeConst::Unsigned(UnsignedType::U8),
+            TypeConst::I8 => HostTypeConst::Signed(SignedType::I8),
+            TypeConst::U16(_) => HostTypeConst::Unsigned(UnsignedType::U16),
+            TypeConst::U24(_) => HostTypeConst::Unsigned(UnsignedType::U24),
+            TypeConst::U32(_) => HostTypeConst::Unsigned(UnsignedType::U32),
+            TypeConst::U64(_) => HostTypeConst::Unsigned(UnsignedType::U64),
+            TypeConst::I16(_) => HostTypeConst::Signed(SignedType::I16),
+            TypeConst::I24(_) => HostTypeConst::Signed(SignedType::I24),
+            TypeConst::I32(_) => HostTypeConst::Signed(SignedType::I32),
+            TypeConst::I64(_) => HostTypeConst::Signed(SignedType::I64),
+            TypeConst::F32(_) => HostTypeConst::Float(FloatType::F32),
+            TypeConst::F64(_) => HostTypeConst::Float(FloatType::F64),
         }
     }
+}
+
+/// A type constant in the host language
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum HostTypeConst {
+    /// Unit
+    Unit,
+    /// Bottom
+    Bottom,
+    /// Boolean
+    Bool,
+    /// Float
+    Float(FloatType),
+    /// Signed Integers
+    Signed(SignedType),
+    /// Unsigned Integers
+    Unsigned(UnsignedType),
 }
 
 /// A binary type
@@ -361,7 +376,27 @@ pub enum Type {
     /// A type that is constrained by a predicate: eg. `T where x => x == 3`
     Assert(Span, RcType, RcCExpr),
     /// An interpreted type
-    Interp(Span, RcType, RcCExpr, host::RcType),
+    Interp(Span, RcType, RcCExpr, RcType),
+
+    /// A type variable: eg. `T`
+    HostVar(Var),
+    /// A type constant
+    HostConst(HostTypeConst),
+    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
+    ///
+    /// For now we only allow type arguments of kind `Type`
+    HostLam(Vec<Named<Name, ()>>, RcType),
+    /// Type application: eg. `T(U, V)`
+    HostApp(RcType, Vec<RcType>),
+
+    /// Arrow type: eg. `(T, ..) -> U`
+    HostArrow(Vec<RcType>, RcType),
+    /// An array, eg. `[T]`
+    HostArray(RcType),
+    /// A union of types: eg. `union { variant : T, ... }`
+    HostUnion(Vec<Field<RcType>>),
+    /// A struct type, with fields: eg. `struct { field : T, ... }`
+    HostStruct(Vec<Field<RcType>>),
 }
 
 #[derive(Clone, PartialEq)]
@@ -446,6 +481,50 @@ impl RcType {
         }
     }
 
+
+    /// Type level lambda abstraction: eg. `\(a, ..) -> T`
+    ///
+    /// For now we only allow type arguments of kind `Type`
+    pub fn host_lam<T1>(params: Vec<Named<Name, ()>>, body_ty: T1) -> RcType
+    where
+        T1: Into<RcType>,
+    {
+        let mut body_ty = body_ty.into();
+
+        {
+            let param_names = params
+                .iter()
+                .map(|param| param.0.clone())
+                .collect::<Vec<_>>();
+
+            body_ty.abstract_names(&param_names[..]);
+        }
+
+        Type::HostLam(params, body_ty).into()
+    }
+
+    /// Attempt to lookup the type of a field
+    ///
+    /// Returns `None` if the type is not a struct or the field is not
+    /// present in the struct.
+    pub fn lookup_host_field(&self, name: &Ident) -> Option<&RcType> {
+        match *self.inner {
+            Type::HostStruct(ref fields) => lookup_field(fields, name),
+            _ => None,
+        }
+    }
+
+    /// Attempt to lookup the type of a variant
+    ///
+    /// Returns `None` if the type is not a union or the field is not
+    /// present in the union.
+    pub fn lookup_host_variant(&self, name: &Ident) -> Option<&RcType> {
+        match *self.inner {
+            Type::HostUnion(ref variants) => lookup_field(variants, name),
+            _ => None,
+        }
+    }
+
     /// Replace occurrences of the free variables that exist as keys on
     /// `substs` with their corresponding types.
     pub fn substitute(&mut self, substs: &Substitutions) {
@@ -498,6 +577,50 @@ impl RcType {
                 repr_ty.substitute(substs);
                 return;
             }
+
+            Type::HostVar(Var::Free(ref name)) => match substs.get(name) {
+                None => return,
+                Some(ty) => ty.repr().clone(),
+            },
+            Type::HostVar(Var::Bound(_)) | Type::HostConst(_) => return,
+            Type::HostLam(_, ref mut body_ty) => {
+                body_ty.substitute(substs);
+                return;
+            }
+            Type::HostApp(ref mut fn_ty, ref mut arg_tys) => {
+                fn_ty.substitute(substs);
+
+                for arg_ty in arg_tys {
+                    arg_ty.substitute(substs);
+                }
+
+                return;
+            }
+
+            Type::HostArrow(ref mut param_tys, ref mut ret_ty) => {
+                for param_ty in param_tys {
+                    param_ty.substitute(substs);
+                }
+                ret_ty.substitute(substs);
+
+                return;
+            }
+            Type::HostArray(ref mut elem_ty) => {
+                elem_ty.substitute(substs);
+                return;
+            }
+            Type::HostUnion(ref mut variants) => {
+                for variant in variants {
+                    variant.value.substitute(substs);
+                }
+                return;
+            }
+            Type::HostStruct(ref mut fields) => {
+                for field in fields {
+                    field.value.substitute(substs);
+                }
+                return;
+            }
         };
 
         *self = subst_ty.clone();
@@ -538,6 +661,35 @@ impl RcType {
                 conv.abstract_names_at(names, scope.succ());
                 repr_ty.abstract_names_at(names, scope);
             }
+
+            Type::HostVar(ref mut var) => var.abstract_names_at(names, scope),
+            Type::HostConst(_) => {}
+            Type::HostLam(_, ref mut body_ty) => {
+                body_ty.abstract_names_at(names, scope.succ());
+            }
+            Type::HostApp(ref mut fn_ty, ref mut arg_tys) => {
+                fn_ty.abstract_names_at(names, scope);
+
+                for arg_ty in arg_tys {
+                    arg_ty.abstract_names_at(names, scope);
+                }
+            }
+
+            Type::HostArrow(ref mut param_tys, ref mut ret_ty) => {
+                for param_ty in param_tys {
+                    param_ty.abstract_names_at(names, scope);
+                }
+                ret_ty.abstract_names_at(names, scope);
+            }
+            Type::HostArray(ref mut elem_ty) => {
+                elem_ty.abstract_names_at(names, scope);
+            }
+            Type::HostUnion(ref mut variants) => for variant in variants {
+                variant.value.abstract_names_at(names, scope);
+            },
+            Type::HostStruct(ref mut fields) => for field in fields {
+                field.value.abstract_names_at(names, scope);
+            },
         }
     }
 
@@ -596,6 +748,51 @@ impl RcType {
                 }
                 return;
             }
+
+            Type::HostVar(Var::Bound(Named(_, var))) if var.scope == scope => {
+                tys[var.binding.0 as usize].clone()
+            }
+            Type::HostVar(Var::Bound(_)) | Type::HostVar(Var::Free(_)) | Type::HostConst(_) => {
+                return
+            }
+            Type::HostLam(_, ref mut ty) => {
+                ty.instantiate_at(scope.succ(), tys);
+                return;
+            }
+            Type::HostApp(ref mut ty, ref mut arg_tys) => {
+                ty.instantiate_at(scope, tys);
+
+                for arg_ty in arg_tys {
+                    arg_ty.instantiate_at(scope, tys);
+                }
+
+                return;
+            }
+
+            Type::HostArrow(ref mut param_tys, ref mut ret_ty) => {
+                for param_ty in param_tys {
+                    param_ty.instantiate_at(scope, tys);
+                }
+
+                ret_ty.instantiate_at(scope, tys);
+                return;
+            }
+            Type::HostArray(ref mut elem_ty) => {
+                elem_ty.instantiate_at(scope, tys);
+                return;
+            }
+            Type::HostUnion(ref mut variants) => {
+                for variant in variants {
+                    variant.value.instantiate_at(scope, tys);
+                }
+                return;
+            }
+            Type::HostStruct(ref mut fields) => {
+                for field in fields {
+                    field.value.instantiate_at(scope, tys);
+                }
+                return;
+            }
         };
     }
 
@@ -606,20 +803,20 @@ impl RcType {
     }
 
     /// Returns the host representation of the binary type
-    pub fn repr(&self) -> host::RcType {
+    pub fn repr(&self) -> RcType {
         match *self.inner {
-            Type::Var(_, ref v) => host::Type::HostVar(v.clone()).into(),
-            Type::Const(ty_const) => host::Type::HostConst(ty_const.repr()).into(),
+            Type::Var(_, ref v) => Type::HostVar(v.clone()).into(),
+            Type::Const(ty_const) => Type::HostConst(ty_const.repr()).into(),
             Type::Lam(_, ref params, ref body_ty) => {
-                host::Type::HostLam(params.clone(), body_ty.repr()).into()
+                Type::HostLam(params.clone(), body_ty.repr()).into()
             }
             Type::App(_, ref fn_ty, ref arg_tys) => {
                 let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();
 
-                host::Type::HostApp(fn_ty.repr(), arg_tys).into()
+                Type::HostApp(fn_ty.repr(), arg_tys).into()
             }
 
-            Type::Array(_, ref elem_ty, _) => host::Type::HostArray(elem_ty.repr()).into(),
+            Type::Array(_, ref elem_ty, _) => Type::HostArray(elem_ty.repr()).into(),
             Type::Assert(_, ref ty, _) => ty.repr(),
             Type::Interp(_, _, _, ref repr_ty) => repr_ty.clone(),
             Type::Cond(_, ref options) => {
@@ -634,7 +831,7 @@ impl RcType {
                     })
                     .collect();
 
-                host::Type::HostUnion(repr_variants).into()
+                Type::HostUnion(repr_variants).into()
             }
             Type::Struct(_, ref fields) => {
                 let repr_fields = fields
@@ -648,8 +845,10 @@ impl RcType {
                     })
                     .collect();
 
-                host::Type::HostStruct(repr_fields).into()
+                Type::HostStruct(repr_fields).into()
             }
+
+            _ => unimplemented!(),
         }
     }
 
@@ -714,7 +913,7 @@ impl RcType {
             }
             ParseType::Compute(span, repr_ty, ref expr) => {
                 let empty = Type::Const(TypeConst::Empty).into();
-                let repr_ty = host::Type::HostConst(repr_ty).into();
+                let repr_ty = Type::HostConst(repr_ty).into();
                 let conv_fn = CExpr::Inf(RcIExpr::lam(
                     span,
                     vec![Named(Name::Abstract, RcType::repr(&empty))],
@@ -744,12 +943,12 @@ pub enum Const {
 }
 
 impl Const {
-    pub fn ty_const_of(self) -> host::HostTypeConst {
+    pub fn ty_const_of(self) -> HostTypeConst {
         match self {
-            Const::Bool(_) => host::HostTypeConst::Bool,
-            Const::Int(_, IntSuffix::Unsigned(suffix)) => host::HostTypeConst::Unsigned(suffix),
-            Const::Int(_, IntSuffix::Signed(suffix)) => host::HostTypeConst::Signed(suffix),
-            Const::Float(_, suffix) => host::HostTypeConst::Float(suffix),
+            Const::Bool(_) => HostTypeConst::Bool,
+            Const::Int(_, IntSuffix::Unsigned(suffix)) => HostTypeConst::Unsigned(suffix),
+            Const::Int(_, IntSuffix::Signed(suffix)) => HostTypeConst::Signed(suffix),
+            Const::Float(_, suffix) => HostTypeConst::Float(suffix),
         }
     }
 }
@@ -886,14 +1085,14 @@ impl RcCExpr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum IExpr {
     /// An expression annotated by a type, ie. `x : u32`
-    Ann(Span, RcCExpr, host::RcType),
+    Ann(Span, RcCExpr, RcType),
     /// A constant value
     Const(Span, Const),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     Var(Span, Var),
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    Lam(Span, Vec<Named<Name, host::RcType>>, RcIExpr),
+    Lam(Span, Vec<Named<Name, RcType>>, RcIExpr),
     /// Application, eg: `f(x, ..)`
     App(Span, RcIExpr, Vec<RcCExpr>),
 
@@ -908,7 +1107,7 @@ pub enum IExpr {
     /// Array index, eg: `x[i]`
     Subscript(Span, RcIExpr, RcIExpr),
     /// Cast expression, eg: `x as u32`
-    Cast(Span, RcIExpr, host::RcType),
+    Cast(Span, RcIExpr, RcType),
 }
 
 #[derive(Clone, PartialEq)]
@@ -932,7 +1131,7 @@ impl fmt::Debug for RcIExpr {
 
 impl RcIExpr {
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    pub fn lam<E1>(span: Span, params: Vec<Named<Name, host::RcType>>, body_expr: E1) -> RcIExpr
+    pub fn lam<E1>(span: Span, params: Vec<Named<Name, RcType>>, body_expr: E1) -> RcIExpr
     where
         E1: Into<RcIExpr>,
     {
@@ -1062,7 +1261,7 @@ impl RcIExpr {
             ParseExpr::Const(span, c) => Ok(IExpr::Const(span, c).into()),
             ParseExpr::Ann(span, ref expr, ty) => {
                 let expr = RcCExpr::from_parse(&**expr)?;
-                let ty = host::Type::HostConst(ty).into();
+                let ty = Type::HostConst(ty).into();
 
                 Ok(IExpr::Ann(span, expr, ty).into())
             }
@@ -1094,7 +1293,7 @@ impl RcIExpr {
             }
             ParseExpr::Cast(span, ref expr, ty) => {
                 let expr = RcIExpr::from_parse(&**expr)?;
-                let ty = host::Type::HostConst(ty).into();
+                let ty = Type::HostConst(ty).into();
 
                 Ok(IExpr::Cast(span, expr, ty).into())
             }
