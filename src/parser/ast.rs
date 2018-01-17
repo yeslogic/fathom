@@ -8,6 +8,9 @@ use parser::{from_lalrpop_err, grammar, GrammarError, ParseError};
 use parser::lexer::Lexer;
 use source::{BytePos, Span};
 
+pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, Unop};
+pub use syntax::ast::host::TypeConst;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module<'src> {
     pub definitions: Vec<Definition<'src>>,
@@ -48,17 +51,11 @@ pub struct Field<'src, T> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type<'src> {
     Var(Span, &'src str),
-    Array(Span, Box<Type<'src>>, Box<host::Expr<'src>>),
-    Cond(Span, Vec<Field<'src, (host::Expr<'src>, Type<'src>)>>),
+    Array(Span, Box<Type<'src>>, Box<Expr<'src>>),
+    Cond(Span, Vec<Field<'src, (Expr<'src>, Type<'src>)>>),
     Struct(Span, Vec<Field<'src, Type<'src>>>),
-    Where(
-        Span,
-        Box<Type<'src>>,
-        BytePos,
-        &'src str,
-        Box<host::Expr<'src>>,
-    ),
-    Compute(Span, host::TypeConst, Box<host::Expr<'src>>),
+    Where(Span, Box<Type<'src>>, BytePos, &'src str, Box<Expr<'src>>),
+    Compute(Span, TypeConst, Box<Expr<'src>>),
     App(Span, Box<Type<'src>>, Vec<Type<'src>>),
 }
 
@@ -70,29 +67,23 @@ impl<'src> Type<'src> {
     }
 }
 
-pub mod host {
-    pub use syntax::ast::host::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
+#[derive(Debug, Clone, PartialEq)]
+pub enum Expr<'src> {
+    Ann(Span, Box<Expr<'src>>, TypeConst),
+    Const(Span, Const),
+    Var(Span, &'src str),
+    Unop(Span, Unop, Box<Expr<'src>>),
+    Binop(Span, Binop, Box<Expr<'src>>, Box<Expr<'src>>),
+    Array(Span, Vec<Expr<'src>>),
+    Proj(Span, Box<Expr<'src>>, &'src str),
+    Subscript(Span, Box<Expr<'src>>, Box<Expr<'src>>),
+    Cast(Span, Box<Expr<'src>>, TypeConst),
+}
 
-    use super::*;
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub enum Expr<'src> {
-        Ann(Span, Box<Expr<'src>>, TypeConst),
-        Const(Span, Const),
-        Var(Span, &'src str),
-        Unop(Span, Unop, Box<Expr<'src>>),
-        Binop(Span, Binop, Box<Expr<'src>>, Box<Expr<'src>>),
-        Array(Span, Vec<Expr<'src>>),
-        Proj(Span, Box<Expr<'src>>, &'src str),
-        Subscript(Span, Box<Expr<'src>>, Box<Expr<'src>>),
-        Cast(Span, Box<Expr<'src>>, TypeConst),
-    }
-
-    impl<'src> Expr<'src> {
-        /// Attempt to parse an expression from a source string
-        pub fn from_str(src: &'src str) -> Result<Expr<'src>, ParseError> {
-            grammar::parse_HostExpr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-                .map_err(from_lalrpop_err)
-        }
+impl<'src> Expr<'src> {
+    /// Attempt to parse an expression from a source string
+    pub fn from_str(src: &'src str) -> Result<Expr<'src>, ParseError> {
+        grammar::parse_HostExpr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+            .map_err(from_lalrpop_err)
     }
 }

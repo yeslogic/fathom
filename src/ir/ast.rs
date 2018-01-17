@@ -5,8 +5,8 @@ use std::rc::Rc;
 
 use name::{Ident, Name, Named};
 pub use syntax::ast::{Endianness, Field, TypeConst as BinaryTypeConst};
-pub use syntax::ast::host::{Binop, Const, IntSuffix, TypeConst, Unop};
-pub use syntax::ast::host::{FloatType, SignedType, UnsignedType};
+pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, SignedType, Unop, UnsignedType};
+pub use syntax::ast::host::TypeConst;
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]

@@ -256,27 +256,27 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
 ///
 /// * `path` - path to the parent struct or union
 /// * `expr` - the expression to be lowered
-fn lower_cexpr(path: &Path, expr: &host::RcCExpr) -> RcExpr {
+fn lower_cexpr(path: &Path, expr: &ast::RcCExpr) -> RcExpr {
     match *expr.inner {
-        host::CExpr::Intro(_, _, _) => unimplemented!(),
-        host::CExpr::Array(_, ref elems) => {
+        ast::CExpr::Intro(_, _, _) => unimplemented!(),
+        ast::CExpr::Array(_, ref elems) => {
             Expr::Array(elems.iter().map(|elem| lower_cexpr(path, elem)).collect()).into()
         }
-        host::CExpr::Inf(ref iexpr) => lower_iexpr(path, iexpr),
+        ast::CExpr::Inf(ref iexpr) => lower_iexpr(path, iexpr),
     }
 }
 
-fn lower_iexpr(path: &Path, expr: &host::RcIExpr) -> RcExpr {
+fn lower_iexpr(path: &Path, expr: &ast::RcIExpr) -> RcExpr {
     match *expr.inner {
-        host::IExpr::Ann(_, ref expr, ref ty) => {
+        ast::IExpr::Ann(_, ref expr, ref ty) => {
             let lowered_expr = lower_cexpr(path, expr);
             let lowered_ty = lower_repr_ty(path, ty);
 
             Expr::Ann(lowered_expr, lowered_ty).into()
         }
-        host::IExpr::Const(_, c) => Expr::Const(c).into(),
-        host::IExpr::Var(_, ref var) => Expr::Var(var.clone()).into(),
-        host::IExpr::Lam(_, ref params, ref body_expr) => {
+        ast::IExpr::Const(_, c) => Expr::Const(c).into(),
+        ast::IExpr::Var(_, ref var) => Expr::Var(var.clone()).into(),
+        ast::IExpr::Lam(_, ref params, ref body_expr) => {
             let lowered_params = params
                 .iter()
                 .map(|&Named(ref name, ref ty)| {
@@ -286,7 +286,7 @@ fn lower_iexpr(path: &Path, expr: &host::RcIExpr) -> RcExpr {
 
             Expr::Lam(lowered_params, lower_iexpr(path, body_expr)).into()
         }
-        host::IExpr::App(_, ref fn_expr, ref arg_exprs) => {
+        ast::IExpr::App(_, ref fn_expr, ref arg_exprs) => {
             let lowered_arg_exprs = arg_exprs
                 .iter()
                 .map(|expr| lower_cexpr(path, expr))
@@ -295,11 +295,11 @@ fn lower_iexpr(path: &Path, expr: &host::RcIExpr) -> RcExpr {
             Expr::App(lower_iexpr(path, fn_expr), lowered_arg_exprs).into()
         }
 
-        host::IExpr::Unop(_, op, ref expr) => Expr::Unop(op, lower_iexpr(path, expr)).into(),
-        host::IExpr::Binop(_, op, ref lhs, ref rhs) => {
+        ast::IExpr::Unop(_, op, ref expr) => Expr::Unop(op, lower_iexpr(path, expr)).into(),
+        ast::IExpr::Binop(_, op, ref lhs, ref rhs) => {
             Expr::Binop(op, lower_iexpr(path, lhs), lower_iexpr(path, rhs)).into()
         }
-        host::IExpr::Struct(ref fields) => {
+        ast::IExpr::Struct(ref fields) => {
             let lowered_fields = lower_row(
                 path,
                 fields,
@@ -308,11 +308,11 @@ fn lower_iexpr(path: &Path, expr: &host::RcIExpr) -> RcExpr {
 
             Expr::Struct(path.clone(), lowered_fields).into()
         }
-        host::IExpr::Proj(_, ref expr, ref field_name) => {
+        ast::IExpr::Proj(_, ref expr, ref field_name) => {
             Expr::Proj(lower_iexpr(path, expr), field_name.clone()).into()
         }
-        host::IExpr::Subscript(_, _, _) => unimplemented!(),
-        host::IExpr::Cast(_, ref src_expr, ref dst_ty) => {
+        ast::IExpr::Subscript(_, _, _) => unimplemented!(),
+        ast::IExpr::Cast(_, ref src_expr, ref dst_ty) => {
             Expr::Cast(lower_iexpr(path, src_expr), lower_repr_ty(path, dst_ty)).into()
         }
     }
@@ -370,8 +370,8 @@ fn struct_parser(path: &Path, fields: &[Field<ast::RcType>]) -> RcParseExpr {
 ///
 /// * `path` - path to the parent struct or union
 /// * `fields` - the fields to be used in the parser
-fn cond_parser(path: &Path, options: &[Field<(host::RcCExpr, ast::RcType)>]) -> RcParseExpr {
-    let lower_option = |option: &Field<(host::RcCExpr, ast::RcType)>| {
+fn cond_parser(path: &Path, options: &[Field<(ast::RcCExpr, ast::RcType)>]) -> RcParseExpr {
+    let lower_option = |option: &Field<(ast::RcCExpr, ast::RcType)>| {
         let pred_expr = lower_cexpr(path, &option.value.0);
         let variant_parser = ParseExpr::Sequence(
             vec![Named(Ident::from("x"), ty_parser(path, &option.value.1))],

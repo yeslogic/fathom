@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-use syntax::ast::{host, Field, Kind, Module, RcKind, RcType};
+use syntax::ast::{host, Binop, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType};
 use self::context::{Context, Scope};
 use var::Var;
 
@@ -27,54 +27,52 @@ pub enum ExpectedType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { expr: host::RcIExpr, name: Name },
+    UnboundVariable { expr: RcIExpr, name: Name },
     /// Variable bound in the context was not at the value level
-    ExprBindingExpected { expr: host::RcIExpr, found: Scope },
+    ExprBindingExpected { expr: RcIExpr, found: Scope },
     /// One type was expected, but another was found
     Mismatch {
-        expr: host::RcIExpr,
+        expr: RcIExpr,
         found: host::RcType,
         expected: ExpectedType,
     },
     /// One type was expected, but another was found
     InferenceMismatch {
-        expr: host::RcIExpr,
+        expr: RcIExpr,
         found: host::RcType,
         expected: host::RcType,
     },
     /// Unexpected operand types in a binary operator expression
     BinaryOperands {
-        context: host::Binop,
-        expr: host::RcIExpr,
+        context: Binop,
+        expr: RcIExpr,
         lhs_ty: host::RcType,
         rhs_ty: host::RcType,
     },
     /// A field was missing when projecting on a record
     MissingField {
-        expr: host::RcIExpr,
+        expr: RcIExpr,
         struct_ty: host::RcType,
         field_name: Ident,
     },
     /// A variant was missing when introducing on a union
     MissingVariant {
-        expr: host::RcCExpr,
+        expr: RcCExpr,
         union_ty: host::RcType,
         variant_name: Ident,
     },
     /// An invalid type was supplied to the cast expression
-    InvalidCastType {
-        expr: host::RcIExpr,
-        found: host::RcType,
-    },
+    InvalidCastType { expr: RcIExpr, found: host::RcType },
 }
 
 /// Check that an expression has the given type in the context
 pub fn check_ty(
     ctx: &Context,
-    expr: &host::RcCExpr,
+    expr: &RcCExpr,
     expected_ty: &host::RcType,
 ) -> Result<(), TypeError> {
-    use syntax::ast::host::{CExpr, Type};
+    use syntax::ast::CExpr;
+    use syntax::ast::host::Type;
 
     match *expr.inner {
         // Variant introduction
@@ -119,8 +117,9 @@ pub fn check_ty(
 }
 
 /// Infer the type of an expression in the context
-pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, TypeError> {
-    use syntax::ast::host::{Binop, IExpr, Type, TypeConst, Unop};
+pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError> {
+    use syntax::ast::{IExpr, Unop};
+    use syntax::ast::host::{Type, TypeConst};
 
     match *expr.inner {
         // Annotated types
@@ -207,7 +206,7 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
 
             fn binop_err(
                 context: Binop,
-                expr: &host::RcIExpr,
+                expr: &RcIExpr,
                 lhs_ty: host::RcType,
                 rhs_ty: host::RcType,
             ) -> TypeError {

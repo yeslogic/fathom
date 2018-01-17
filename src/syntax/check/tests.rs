@@ -1,9 +1,9 @@
 use super::*;
 
 mod infer_ty {
-    use syntax::ast::host::RcIExpr;
-    use syntax::ast::host::{FloatType, SignedType, Type, TypeConst, UnsignedType};
-    use parser::ast::host::Expr as ParseExpr;
+    use syntax::ast::{FloatType, RcIExpr, SignedType, UnsignedType};
+    use syntax::ast::host::{Type, TypeConst};
+    use parser::ast::Expr as ParseExpr;
 
     use super::*;
 

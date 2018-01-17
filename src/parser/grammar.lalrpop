@@ -1,7 +1,6 @@
 use lalrpop_util::ParseError;
 use source::{BytePos, Span};
-use parser::ast::{host, Definition, Field, Module, Type};
-use parser::ast::host::{Binop, Const, Unop};
+use parser::ast::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
 use parser::GrammarError;
 use parser::lexer::Token;
 
@@ -145,12 +144,12 @@ AtomicBinaryType: Type<'src> = {
 
 // Host Types
 
-HostType: host::TypeConst = {
+HostType: TypeConst = {
     // FIXME: implement full host type parsing, with proper name binding
     //
     // We'll just hard-code identifiers for now
     <name: "Ident"> =>? {
-        use syntax::ast::host::{FloatType, SignedType, TypeConst, UnsignedType};
+        use syntax::ast::{FloatType, SignedType, UnsignedType};
 
         match name {
             "unit" => Ok(TypeConst::Unit),
@@ -178,7 +177,7 @@ HostType: host::TypeConst = {
 
 // Host Expressions
 
-pub HostExpr: host::Expr<'src> = {
+pub HostExpr: Expr<'src> = {
     <expr: PrimaryHostExpr> => expr,
 };
 
@@ -187,9 +186,9 @@ pub HostExpr: host::Expr<'src> = {
 UnopNeg: Unop = "-" => Unop::Neg;
 UnopNot: Unop = "!" => Unop::Not;
 
-UnopExpr<Op, Operand>: host::Expr<'src> = {
+UnopExpr<Op, Operand>: Expr<'src> = {
     <lo: @L> <op: Op> <expr: Operand> <hi: @R> => {
-        host::Expr::Unop(Span::new(lo, hi), op, Box::new(expr))
+        Expr::Unop(Span::new(lo, hi), op, Box::new(expr))
     },
 };
 
@@ -208,28 +207,28 @@ BinopSub:  Binop = "-"   => Binop::Sub;
 BinopMul:  Binop = "*"   => Binop::Mul;
 BinopDiv:  Binop = "/"   => Binop::Div;
 
-BinopExpr<Lhs, Op, Rhs>: host::Expr<'src> = {
+BinopExpr<Lhs, Op, Rhs>: Expr<'src> = {
     <lo: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <hi: @R> => {
-        host::Expr::Binop(Span::new(lo, hi), op, Box::new(lhs), Box::new(rhs))
+        Expr::Binop(Span::new(lo, hi), op, Box::new(lhs), Box::new(rhs))
     },
 };
 
 // Use precedence climbing to define the operators
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 
-PrimaryHostExpr: host::Expr<'src> = {
+PrimaryHostExpr: Expr<'src> = {
     EqHostExpr,
     BinopExpr<EqHostExpr, BinopOr, PrimaryHostExpr>,
     BinopExpr<EqHostExpr, BinopAnd, PrimaryHostExpr>,
 };
 
-EqHostExpr: host::Expr<'src> = {
+EqHostExpr: Expr<'src> = {
     CmpHostExpr,
     BinopExpr<CmpHostExpr, BinopEq, EqHostExpr>,
     BinopExpr<CmpHostExpr, BinopNe, EqHostExpr>,
 };
 
-CmpHostExpr: host::Expr<'src> = {
+CmpHostExpr: Expr<'src> = {
     AddHostExpr,
     BinopExpr<AddHostExpr, BinopLe, CmpHostExpr>,
     BinopExpr<AddHostExpr, BinopLt, CmpHostExpr>,
@@ -237,67 +236,66 @@ CmpHostExpr: host::Expr<'src> = {
     BinopExpr<AddHostExpr, BinopGe, CmpHostExpr>,
 };
 
-AddHostExpr: host::Expr<'src> = {
+AddHostExpr: Expr<'src> = {
     MulHostExpr,
     BinopExpr<MulHostExpr, BinopAdd, AddHostExpr>,
     BinopExpr<MulHostExpr, BinopSub, AddHostExpr>,
 };
 
-MulHostExpr: host::Expr<'src> = {
+MulHostExpr: Expr<'src> = {
     CastHostExpr,
     BinopExpr<CastHostExpr, BinopMul, MulHostExpr>,
     BinopExpr<CastHostExpr, BinopDiv, MulHostExpr>,
 };
 
-CastHostExpr: host::Expr<'src> = {
+CastHostExpr: Expr<'src> = {
     AnnHostExpr,
     <lo: @L> <expr: CastHostExpr> "as" <ty: HostType> <hi: @R> => {
-        host::Expr::Cast(Span::new(lo, hi), Box::new(expr), ty)
+        Expr::Cast(Span::new(lo, hi), Box::new(expr), ty)
     },
 };
 
-AnnHostExpr: host::Expr<'src> = {
+AnnHostExpr: Expr<'src> = {
     PrefixHostExpr,
     <lo: @L> <expr: AnnHostExpr> ":" <ty: HostType> <hi: @R> => {
-        host::Expr::Ann(Span::new(lo, hi), Box::new(expr), ty)
+        Expr::Ann(Span::new(lo, hi), Box::new(expr), ty)
     },
 };
 
-PrefixHostExpr: host::Expr<'src> = {
+PrefixHostExpr: Expr<'src> = {
     AtomicHostExpr,
     UnopExpr<UnopNeg, AtomicHostExpr>,
     UnopExpr<UnopNot, AtomicHostExpr>,
 };
 
-IntLiteral<Value>: host::Expr<'src> = {
+IntLiteral<Value>: Expr<'src> = {
     <lo: @L> <value: Value> <hi: @R> =>? {
-        use syntax::ast::host::{SignedType, UnsignedType};
-        use syntax::ast::host::IntSuffix::{Signed, Unsigned};
+        use syntax::ast::{IntSuffix, SignedType, UnsignedType};
 
         let float = Const::Int(value.0, match value.1 {
-            "i8" => Signed(SignedType::I8),
-            "i16" => Signed(SignedType::I16),
-            "i24" => Signed(SignedType::I24),
-            "i32" => Signed(SignedType::I32),
-            "i64" => Signed(SignedType::I64),
-            "u8" => Unsigned(UnsignedType::U8),
-            "u16" => Unsigned(UnsignedType::U16),
-            "u24" => Unsigned(UnsignedType::U24),
-            "u32" => Unsigned(UnsignedType::U32),
-            "u64" => Unsigned(UnsignedType::U64),
+            "i8" => IntSuffix::Signed(SignedType::I8),
+            "i16" => IntSuffix::Signed(SignedType::I16),
+            "i24" => IntSuffix::Signed(SignedType::I24),
+            "i32" => IntSuffix::Signed(SignedType::I32),
+            "i64" => IntSuffix::Signed(SignedType::I64),
+            "u8" => IntSuffix::Unsigned(UnsignedType::U8),
+            "u16" => IntSuffix::Unsigned(UnsignedType::U16),
+            "u24" => IntSuffix::Unsigned(UnsignedType::U24),
+            "u32" => IntSuffix::Unsigned(UnsignedType::U32),
+            "u64" => IntSuffix::Unsigned(UnsignedType::U64),
             "" => return Err(ParseError::User { error: GrammarError::ConstSuffixMissing }),
             suffix => return Err(ParseError::User {
                 error: GrammarError::ConstSuffixInvalid { suffix: suffix.to_owned() },
             }),
         });
 
-        Ok(host::Expr::Const(Span::new(lo, hi), float))
+        Ok(Expr::Const(Span::new(lo, hi), float))
     },
 };
 
-FloatLiteral<Value>: host::Expr<'src> = {
+FloatLiteral<Value>: Expr<'src> = {
     <lo: @L> <value: Value> <hi: @R> =>? {
-        use syntax::ast::host::FloatType;
+        use syntax::ast::FloatType;
 
         let float = Const::Float(value.0, match value.1 {
             "f32" => FloatType::F32,
@@ -308,15 +306,15 @@ FloatLiteral<Value>: host::Expr<'src> = {
             }),
         });
 
-        Ok(host::Expr::Const(Span::new(lo, hi), float))
+        Ok(Expr::Const(Span::new(lo, hi), float))
     },
 };
 
-AtomicHostExpr: host::Expr<'src> = {
+AtomicHostExpr: Expr<'src> = {
     "(" <expr: PrimaryHostExpr> ")" => expr,
 
     <lo: @L> "[" <elems: (<PrimaryHostExpr> ",")*> <last: PrimaryHostExpr?> "]" <hi: @R> => {
-        host::Expr::Array(Span::new(lo, hi), super::extend_vec(elems, last))
+        Expr::Array(Span::new(lo, hi), super::extend_vec(elems, last))
     },
 
     IntLiteral<"BinLiteral">,
@@ -324,12 +322,12 @@ AtomicHostExpr: host::Expr<'src> = {
     IntLiteral<"DecLiteral">,
     FloatLiteral<"FloatDecLiteral">,
     <lo: @L> <name: "Ident"> <hi: @R> => {
-        host::Expr::Var(Span::new(lo, hi), name)
+        Expr::Var(Span::new(lo, hi), name)
     },
     <lo: @L> <struct_expr: AtomicHostExpr> "." <field_name: "Ident"> <hi: @R> => {
-        host::Expr::Proj(Span::new(lo, hi), Box::new(struct_expr), field_name)
+        Expr::Proj(Span::new(lo, hi), Box::new(struct_expr), field_name)
     },
     <lo: @L> <array_expr: AtomicHostExpr> "[" <index_expr: PrimaryHostExpr> "]" <hi: @R> => {
-        host::Expr::Subscript(Span::new(lo, hi), Box::new(array_expr), Box::new(index_expr))
+        Expr::Subscript(Span::new(lo, hi), Box::new(array_expr), Box::new(index_expr))
     },
 };
