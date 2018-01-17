@@ -9,7 +9,7 @@ use var::{ScopeIndex, Var};
 
 /// A type constant in the host language
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum TypeConst {
+pub enum HostTypeConst {
     /// Unit
     Unit,
     /// Bottom
@@ -28,24 +28,24 @@ pub enum TypeConst {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     /// A type variable: eg. `T`
-    Var(Var),
+    HostVar(Var),
     /// A type constant
-    Const(TypeConst),
+    HostConst(HostTypeConst),
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    Lam(Vec<Named<Name, ()>>, RcType),
+    HostLam(Vec<Named<Name, ()>>, RcType),
     /// Type application: eg. `T(U, V)`
-    App(RcType, Vec<RcType>),
+    HostApp(RcType, Vec<RcType>),
 
     /// Arrow type: eg. `(T, ..) -> U`
-    Arrow(Vec<RcType>, RcType),
+    HostArrow(Vec<RcType>, RcType),
     /// An array, eg. `[T]`
-    Array(RcType),
+    HostArray(RcType),
     /// A union of types: eg. `union { variant : T, ... }`
-    Union(Vec<Field<RcType>>),
+    HostUnion(Vec<Field<RcType>>),
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    Struct(Vec<Field<RcType>>),
+    HostStruct(Vec<Field<RcType>>),
 }
 
 #[derive(Clone, PartialEq)]
@@ -86,7 +86,7 @@ impl RcType {
             body_ty.abstract_names(&param_names[..]);
         }
 
-        Type::Lam(params, body_ty).into()
+        Type::HostLam(params, body_ty).into()
     }
 
     /// Attempt to lookup the type of a field
@@ -95,7 +95,7 @@ impl RcType {
     /// present in the struct.
     pub fn lookup_field(&self, name: &Ident) -> Option<&RcType> {
         match *self.inner {
-            Type::Struct(ref fields) => ast::lookup_field(fields, name),
+            Type::HostStruct(ref fields) => ast::lookup_field(fields, name),
             _ => None,
         }
     }
@@ -106,7 +106,7 @@ impl RcType {
     /// present in the union.
     pub fn lookup_variant(&self, name: &Ident) -> Option<&RcType> {
         match *self.inner {
-            Type::Union(ref variants) => ast::lookup_field(variants, name),
+            Type::HostUnion(ref variants) => ast::lookup_field(variants, name),
             _ => None,
         }
     }
@@ -115,16 +115,16 @@ impl RcType {
     /// `substs` with their corresponding types.
     pub fn substitute(&mut self, substs: &Substitutions) {
         *self = match *Rc::make_mut(&mut self.inner) {
-            Type::Var(Var::Free(ref name)) => match substs.get(name) {
+            Type::HostVar(Var::Free(ref name)) => match substs.get(name) {
                 None => return,
                 Some(ty) => ty.repr().clone(),
             },
-            Type::Var(Var::Bound(_)) | Type::Const(_) => return,
-            Type::Lam(_, ref mut body_ty) => {
+            Type::HostVar(Var::Bound(_)) | Type::HostConst(_) => return,
+            Type::HostLam(_, ref mut body_ty) => {
                 body_ty.substitute(substs);
                 return;
             }
-            Type::App(ref mut fn_ty, ref mut arg_tys) => {
+            Type::HostApp(ref mut fn_ty, ref mut arg_tys) => {
                 fn_ty.substitute(substs);
 
                 for arg_ty in arg_tys {
@@ -134,7 +134,7 @@ impl RcType {
                 return;
             }
 
-            Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
+            Type::HostArrow(ref mut param_tys, ref mut ret_ty) => {
                 for param_ty in param_tys {
                     param_ty.substitute(substs);
                 }
@@ -142,17 +142,17 @@ impl RcType {
 
                 return;
             }
-            Type::Array(ref mut elem_ty) => {
+            Type::HostArray(ref mut elem_ty) => {
                 elem_ty.substitute(substs);
                 return;
             }
-            Type::Union(ref mut variants) => {
+            Type::HostUnion(ref mut variants) => {
                 for variant in variants {
                     variant.value.substitute(substs);
                 }
                 return;
             }
-            Type::Struct(ref mut fields) => {
+            Type::HostStruct(ref mut fields) => {
                 for field in fields {
                     field.value.substitute(substs);
                 }
@@ -163,12 +163,12 @@ impl RcType {
 
     pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
-            Type::Var(ref mut var) => var.abstract_names_at(names, scope),
-            Type::Const(_) => {}
-            Type::Lam(_, ref mut body_ty) => {
+            Type::HostVar(ref mut var) => var.abstract_names_at(names, scope),
+            Type::HostConst(_) => {}
+            Type::HostLam(_, ref mut body_ty) => {
                 body_ty.abstract_names_at(names, scope.succ());
             }
-            Type::App(ref mut fn_ty, ref mut arg_tys) => {
+            Type::HostApp(ref mut fn_ty, ref mut arg_tys) => {
                 fn_ty.abstract_names_at(names, scope);
 
                 for arg_ty in arg_tys {
@@ -176,19 +176,19 @@ impl RcType {
                 }
             }
 
-            Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
+            Type::HostArrow(ref mut param_tys, ref mut ret_ty) => {
                 for param_ty in param_tys {
                     param_ty.abstract_names_at(names, scope);
                 }
                 ret_ty.abstract_names_at(names, scope);
             }
-            Type::Array(ref mut elem_ty) => {
+            Type::HostArray(ref mut elem_ty) => {
                 elem_ty.abstract_names_at(names, scope);
             }
-            Type::Union(ref mut variants) => for variant in variants {
+            Type::HostUnion(ref mut variants) => for variant in variants {
                 variant.value.abstract_names_at(names, scope);
             },
-            Type::Struct(ref mut fields) => for field in fields {
+            Type::HostStruct(ref mut fields) => for field in fields {
                 field.value.abstract_names_at(names, scope);
             },
         }
@@ -207,15 +207,17 @@ impl RcType {
     fn instantiate_at(&mut self, scope: ScopeIndex, tys: &[RcType]) {
         // FIXME: ensure that expressions are not bound at the same scope
         *self = match *Rc::make_mut(&mut self.inner) {
-            Type::Var(Var::Bound(Named(_, var))) if var.scope == scope => {
+            Type::HostVar(Var::Bound(Named(_, var))) if var.scope == scope => {
                 tys[var.binding.0 as usize].clone()
             }
-            Type::Var(Var::Bound(_)) | Type::Var(Var::Free(_)) | Type::Const(_) => return,
-            Type::Lam(_, ref mut ty) => {
+            Type::HostVar(Var::Bound(_)) | Type::HostVar(Var::Free(_)) | Type::HostConst(_) => {
+                return
+            }
+            Type::HostLam(_, ref mut ty) => {
                 ty.instantiate_at(scope.succ(), tys);
                 return;
             }
-            Type::App(ref mut ty, ref mut arg_tys) => {
+            Type::HostApp(ref mut ty, ref mut arg_tys) => {
                 ty.instantiate_at(scope, tys);
 
                 for arg_ty in arg_tys {
@@ -225,7 +227,7 @@ impl RcType {
                 return;
             }
 
-            Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
+            Type::HostArrow(ref mut param_tys, ref mut ret_ty) => {
                 for param_ty in param_tys {
                     param_ty.instantiate_at(scope, tys);
                 }
@@ -233,17 +235,17 @@ impl RcType {
                 ret_ty.instantiate_at(scope, tys);
                 return;
             }
-            Type::Array(ref mut elem_ty) => {
+            Type::HostArray(ref mut elem_ty) => {
                 elem_ty.instantiate_at(scope, tys);
                 return;
             }
-            Type::Union(ref mut variants) => {
+            Type::HostUnion(ref mut variants) => {
                 for variant in variants {
                     variant.value.instantiate_at(scope, tys);
                 }
                 return;
             }
-            Type::Struct(ref mut fields) => {
+            Type::HostStruct(ref mut fields) => {
                 for field in fields {
                     field.value.instantiate_at(scope, tys);
                 }

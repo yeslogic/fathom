@@ -318,22 +318,22 @@ pub enum UnsignedType {
 
 impl TypeConst {
     /// Convert a bianary type constant to its corresponding host representation
-    pub fn repr(self) -> host::TypeConst {
+    pub fn repr(self) -> host::HostTypeConst {
         match self {
-            TypeConst::Empty => host::TypeConst::Unit,
-            TypeConst::Error => host::TypeConst::Bottom,
-            TypeConst::U8 => host::TypeConst::Unsigned(UnsignedType::U8),
-            TypeConst::I8 => host::TypeConst::Signed(SignedType::I8),
-            TypeConst::U16(_) => host::TypeConst::Unsigned(UnsignedType::U16),
-            TypeConst::U24(_) => host::TypeConst::Unsigned(UnsignedType::U24),
-            TypeConst::U32(_) => host::TypeConst::Unsigned(UnsignedType::U32),
-            TypeConst::U64(_) => host::TypeConst::Unsigned(UnsignedType::U64),
-            TypeConst::I16(_) => host::TypeConst::Signed(SignedType::I16),
-            TypeConst::I24(_) => host::TypeConst::Signed(SignedType::I24),
-            TypeConst::I32(_) => host::TypeConst::Signed(SignedType::I32),
-            TypeConst::I64(_) => host::TypeConst::Signed(SignedType::I64),
-            TypeConst::F32(_) => host::TypeConst::Float(FloatType::F32),
-            TypeConst::F64(_) => host::TypeConst::Float(FloatType::F64),
+            TypeConst::Empty => host::HostTypeConst::Unit,
+            TypeConst::Error => host::HostTypeConst::Bottom,
+            TypeConst::U8 => host::HostTypeConst::Unsigned(UnsignedType::U8),
+            TypeConst::I8 => host::HostTypeConst::Signed(SignedType::I8),
+            TypeConst::U16(_) => host::HostTypeConst::Unsigned(UnsignedType::U16),
+            TypeConst::U24(_) => host::HostTypeConst::Unsigned(UnsignedType::U24),
+            TypeConst::U32(_) => host::HostTypeConst::Unsigned(UnsignedType::U32),
+            TypeConst::U64(_) => host::HostTypeConst::Unsigned(UnsignedType::U64),
+            TypeConst::I16(_) => host::HostTypeConst::Signed(SignedType::I16),
+            TypeConst::I24(_) => host::HostTypeConst::Signed(SignedType::I24),
+            TypeConst::I32(_) => host::HostTypeConst::Signed(SignedType::I32),
+            TypeConst::I64(_) => host::HostTypeConst::Signed(SignedType::I64),
+            TypeConst::F32(_) => host::HostTypeConst::Float(FloatType::F32),
+            TypeConst::F64(_) => host::HostTypeConst::Float(FloatType::F64),
         }
     }
 }
@@ -608,18 +608,18 @@ impl RcType {
     /// Returns the host representation of the binary type
     pub fn repr(&self) -> host::RcType {
         match *self.inner {
-            Type::Var(_, ref v) => host::Type::Var(v.clone()).into(),
-            Type::Const(ty_const) => host::Type::Const(ty_const.repr()).into(),
+            Type::Var(_, ref v) => host::Type::HostVar(v.clone()).into(),
+            Type::Const(ty_const) => host::Type::HostConst(ty_const.repr()).into(),
             Type::Lam(_, ref params, ref body_ty) => {
-                host::Type::Lam(params.clone(), body_ty.repr()).into()
+                host::Type::HostLam(params.clone(), body_ty.repr()).into()
             }
             Type::App(_, ref fn_ty, ref arg_tys) => {
                 let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();
 
-                host::Type::App(fn_ty.repr(), arg_tys).into()
+                host::Type::HostApp(fn_ty.repr(), arg_tys).into()
             }
 
-            Type::Array(_, ref elem_ty, _) => host::Type::Array(elem_ty.repr()).into(),
+            Type::Array(_, ref elem_ty, _) => host::Type::HostArray(elem_ty.repr()).into(),
             Type::Assert(_, ref ty, _) => ty.repr(),
             Type::Interp(_, _, _, ref repr_ty) => repr_ty.clone(),
             Type::Cond(_, ref options) => {
@@ -634,7 +634,7 @@ impl RcType {
                     })
                     .collect();
 
-                host::Type::Union(repr_variants).into()
+                host::Type::HostUnion(repr_variants).into()
             }
             Type::Struct(_, ref fields) => {
                 let repr_fields = fields
@@ -648,7 +648,7 @@ impl RcType {
                     })
                     .collect();
 
-                host::Type::Struct(repr_fields).into()
+                host::Type::HostStruct(repr_fields).into()
             }
         }
     }
@@ -714,7 +714,7 @@ impl RcType {
             }
             ParseType::Compute(span, repr_ty, ref expr) => {
                 let empty = Type::Const(TypeConst::Empty).into();
-                let repr_ty = host::Type::Const(repr_ty).into();
+                let repr_ty = host::Type::HostConst(repr_ty).into();
                 let conv_fn = CExpr::Inf(RcIExpr::lam(
                     span,
                     vec![Named(Name::Abstract, RcType::repr(&empty))],
@@ -744,12 +744,12 @@ pub enum Const {
 }
 
 impl Const {
-    pub fn ty_const_of(self) -> host::TypeConst {
+    pub fn ty_const_of(self) -> host::HostTypeConst {
         match self {
-            Const::Bool(_) => host::TypeConst::Bool,
-            Const::Int(_, IntSuffix::Unsigned(suffix)) => host::TypeConst::Unsigned(suffix),
-            Const::Int(_, IntSuffix::Signed(suffix)) => host::TypeConst::Signed(suffix),
-            Const::Float(_, suffix) => host::TypeConst::Float(suffix),
+            Const::Bool(_) => host::HostTypeConst::Bool,
+            Const::Int(_, IntSuffix::Unsigned(suffix)) => host::HostTypeConst::Unsigned(suffix),
+            Const::Int(_, IntSuffix::Signed(suffix)) => host::HostTypeConst::Signed(suffix),
+            Const::Float(_, suffix) => host::HostTypeConst::Float(suffix),
         }
     }
 }
@@ -1062,7 +1062,7 @@ impl RcIExpr {
             ParseExpr::Const(span, c) => Ok(IExpr::Const(span, c).into()),
             ParseExpr::Ann(span, ref expr, ty) => {
                 let expr = RcCExpr::from_parse(&**expr)?;
-                let ty = host::Type::Const(ty).into();
+                let ty = host::Type::HostConst(ty).into();
 
                 Ok(IExpr::Ann(span, expr, ty).into())
             }
@@ -1094,7 +1094,7 @@ impl RcIExpr {
             }
             ParseExpr::Cast(span, ref expr, ty) => {
                 let expr = RcIExpr::from_parse(&**expr)?;
-                let ty = host::Type::Const(ty).into();
+                let ty = host::Type::HostConst(ty).into();
 
                 Ok(IExpr::Cast(span, expr, ty).into())
             }

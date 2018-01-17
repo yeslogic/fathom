@@ -6,7 +6,7 @@ use std::rc::Rc;
 use name::{Ident, Name, Named};
 pub use syntax::ast::{Endianness, Field, TypeConst as BinaryTypeConst};
 pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, SignedType, Unop, UnsignedType};
-pub use syntax::ast::host::TypeConst;
+pub use syntax::ast::host::HostTypeConst;
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -120,7 +120,7 @@ pub enum Item {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     /// Type constants
-    Const(TypeConst),
+    Const(HostTypeConst),
     /// A fully qualified path to a type definition
     Path(Path, Vec<RcType>),
     /// Array types. These are usually available in languages as primitives,

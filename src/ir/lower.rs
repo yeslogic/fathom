@@ -195,16 +195,16 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
 /// * `ty` - the type to be lowered
 fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
     match *ty.inner {
-        host::Type::Var(ref var) => lower_ty_var(var),
-        host::Type::Const(ty_const) => Type::Const(ty_const).into(),
-        host::Type::Lam(_, _) => {
+        host::Type::HostVar(ref var) => lower_ty_var(var),
+        host::Type::HostConst(ty_const) => Type::Const(ty_const).into(),
+        host::Type::HostLam(_, _) => {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
             // top-level definitions. Thes should have already been handled in
             // the `From<&'a ast::Module>` impl for `Module`.
             panic!("ICE: encountered unexpected type abstraction: {:?}", ty)
         }
-        host::Type::App(ref ty, ref param_tys) => {
+        host::Type::HostApp(ref ty, ref param_tys) => {
             let lowered_ty = lower_repr_ty(path, ty);
 
             // Replace empty parameter lists on paths with the supplied parameters
@@ -227,7 +227,7 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
             lowered_ty
         }
 
-        host::Type::Arrow(ref arg_tys, ref ret_ty) => {
+        host::Type::HostArrow(ref arg_tys, ref ret_ty) => {
             let arg_repr_tys = arg_tys
                 .iter()
                 .map(|arg_ty| lower_repr_ty(path, arg_ty))
@@ -236,13 +236,13 @@ fn lower_repr_ty(path: &Path, ty: &host::RcType) -> RcType {
 
             Type::Arrow(arg_repr_tys, ret_repr_ty).into()
         }
-        host::Type::Array(ref elem_ty) => {
+        host::Type::HostArray(ref elem_ty) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_repr_ty(&elem_path, elem_ty);
 
             Type::Array(elem_ty).into()
         }
-        host::Type::Union(_) | host::Type::Struct(_) => {
+        host::Type::HostUnion(_) | host::Type::HostStruct(_) => {
             // We expect that the repr type has already had a corresponding type
             // generated for it, so instead we just return the current path.
             Type::Path(path.clone(), vec![]).into()

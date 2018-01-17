@@ -6,7 +6,7 @@ use name::{Ident, Name, Named};
 use ir::ast::{Definition, Expr, Field, Item, Module, ParseExpr, Path, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use ir::ast::{Binop, Const, Unop};
-use ir::ast::{BinaryTypeConst, IntSuffix, TypeConst};
+use ir::ast::{BinaryTypeConst, HostTypeConst, IntSuffix};
 use ir::ast::{FloatType, SignedType, UnsignedType};
 use var::Var;
 
@@ -353,15 +353,15 @@ fn lower_unsigned_ty(ty: UnsignedType) -> &'static str {
 
 fn lower_ty_const<'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    ty_const: TypeConst,
+    ty_const: HostTypeConst,
 ) -> DocBuilder<'alloc, A> {
     match ty_const {
-        TypeConst::Unit => alloc.text("()"),
-        TypeConst::Bottom => alloc.text("ddl_util::Never"),
-        TypeConst::Bool => alloc.text("bool"),
-        TypeConst::Float(ty) => alloc.text(lower_float_ty(ty)),
-        TypeConst::Signed(ty) => alloc.text(lower_signed_ty(ty)),
-        TypeConst::Unsigned(ty) => alloc.text(lower_unsigned_ty(ty)),
+        HostTypeConst::Unit => alloc.text("()"),
+        HostTypeConst::Bottom => alloc.text("ddl_util::Never"),
+        HostTypeConst::Bool => alloc.text("bool"),
+        HostTypeConst::Float(ty) => alloc.text(lower_float_ty(ty)),
+        HostTypeConst::Signed(ty) => alloc.text(lower_signed_ty(ty)),
+        HostTypeConst::Unsigned(ty) => alloc.text(lower_unsigned_ty(ty)),
     }
 }
 

@@ -44,7 +44,7 @@ Assert(
                                         User(
                                             Ident("x")
                                         ),
-                                        Var(
+                                        HostVar(
                                             Free(
                                                 User(
                                                     Ident("u32")
@@ -98,12 +98,12 @@ Assert(
                         User(
                             Ident("x")
                         ),
-                        Struct(
+                        HostStruct(
                             [
                                 Field {
                                     doc: "",
                                     name: Ident("x"),
-                                    value: Var(
+                                    value: HostVar(
                                         Free(
                                             User(
                                                 Ident("u32")
@@ -157,12 +157,12 @@ Assert(
                     User(
                         Ident("x")
                     ),
-                    Struct(
+                    HostStruct(
                         [
                             Field {
                                 doc: "",
                                 name: Ident("x"),
-                                value: Var(
+                                value: HostVar(
                                     Free(
                                         User(
                                             Ident("u32")

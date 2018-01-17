@@ -39,7 +39,7 @@ Module {
                                             User(
                                                 Ident("magic")
                                             ),
-                                            Var(
+                                            HostVar(
                                                 Free(
                                                     User(
                                                         Ident("u64le")
@@ -175,7 +175,7 @@ Module {
                                     [
                                         Named(
                                             Abstract,
-                                            Const(
+                                            HostConst(
                                                 Unit
                                             )
                                         )
@@ -205,7 +205,7 @@ Module {
                                                     )
                                                 )
                                             ),
-                                            Const(
+                                            HostConst(
                                                 Unsigned(
                                                     U16
                                                 )
@@ -221,7 +221,7 @@ Module {
                                     )
                                 )
                             ),
-                            Const(
+                            HostConst(
                                 Unsigned(
                                     U16
                                 )
@@ -350,7 +350,7 @@ Module {
                                     [
                                         Named(
                                             Abstract,
-                                            Const(
+                                            HostConst(
                                                 Unit
                                             )
                                         )
@@ -386,7 +386,7 @@ Module {
                                                         )
                                                     )
                                                 ),
-                                                Const(
+                                                HostConst(
                                                     Float(
                                                         F32
                                                     )
@@ -410,7 +410,7 @@ Module {
                                     )
                                 )
                             ),
-                            Const(
+                            HostConst(
                                 Float(
                                     F32
                                 )

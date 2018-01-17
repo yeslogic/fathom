@@ -93,7 +93,7 @@ pub fn check_ty(
 
         // Empty arrays
         CExpr::Array(_, ref elems) => match *expected_ty.inner {
-            Type::Array(ref elem_ty) => elems
+            Type::HostArray(ref elem_ty) => elems
                 .iter()
                 .map(|elem| check_ty(ctx, elem, elem_ty))
                 .collect(),
@@ -119,7 +119,7 @@ pub fn check_ty(
 /// Infer the type of an expression in the context
 pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError> {
     use syntax::ast::{IExpr, Unop};
-    use syntax::ast::host::{Type, TypeConst};
+    use syntax::ast::host::{HostTypeConst, Type};
 
     match *expr.inner {
         // Annotated types
@@ -129,7 +129,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
         }
 
         // Constants are easy!
-        IExpr::Const(_, c) => Ok(Type::Const(c.ty_const_of()).into()),
+        IExpr::Const(_, c) => Ok(Type::HostConst(c.ty_const_of()).into()),
 
         // Variables
         IExpr::Var(_, Var::Free(ref name)) => Err(TypeError::UnboundVariable {
@@ -151,14 +151,14 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
             ctx.extend(Scope::ExprLam(params.clone()));
             let param_tys = params.iter().map(|param| param.1.clone()).collect();
 
-            Ok(Type::Arrow(param_tys, infer_ty(&ctx, body_expr)?).into())
+            Ok(Type::HostArrow(param_tys, infer_ty(&ctx, body_expr)?).into())
         }
 
         // Applications
         IExpr::App(_, ref fn_expr, ref arg_exprs) => {
             let fn_ty = infer_ty(ctx, fn_expr)?;
 
-            if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty.inner {
+            if let Type::HostArrow(ref param_tys, ref ret_ty) = *fn_ty.inner {
                 if arg_exprs.len() == param_tys.len() {
                     for (arg_expr, param_ty) in arg_exprs.iter().zip(param_tys) {
                         check_ty(ctx, arg_expr, param_ty)?;
@@ -179,22 +179,22 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
 
         // Unary operators
         IExpr::Unop(_, op, ref operand_expr) => {
-            use syntax::ast::host::Type::Const;
+            use syntax::ast::host::Type::HostConst;
 
             let operand_ty = infer_ty(ctx, operand_expr)?;
 
             match (op, &*operand_ty.inner) {
-                (Unop::Neg, &Const(TypeConst::Signed(_)))
-                | (Unop::Neg, &Const(TypeConst::Float(_))) => Ok(operand_ty),
+                (Unop::Neg, &HostConst(HostTypeConst::Signed(_)))
+                | (Unop::Neg, &HostConst(HostTypeConst::Float(_))) => Ok(operand_ty),
                 (Unop::Neg, _) => Err(TypeError::Mismatch {
                     expr: expr.clone(),
                     expected: ExpectedType::Signed,
                     found: operand_ty,
                 }),
-                (Unop::Not, &Const(TypeConst::Bool)) => Ok(operand_ty),
+                (Unop::Not, &HostConst(HostTypeConst::Bool)) => Ok(operand_ty),
                 (Unop::Not, _) => Err(TypeError::Mismatch {
                     expr: expr.clone(),
-                    expected: ExpectedType::Actual(Type::Const(TypeConst::Bool).into()),
+                    expected: ExpectedType::Actual(HostConst(HostTypeConst::Bool).into()),
                     found: operand_ty,
                 }),
             }
@@ -202,7 +202,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
 
         // Binary operators
         IExpr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
-            use syntax::ast::host::Type::{Array, Const};
+            use syntax::ast::host::Type::{HostArray, HostConst};
 
             fn binop_err(
                 context: Binop,
@@ -222,37 +222,47 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
             let rhs_ty = infer_ty(ctx, rhs_expr)?;
 
             match (&*lhs_ty.inner, &*rhs_ty.inner) {
-                (&Const(TypeConst::Bool), &Const(TypeConst::Bool)) => match op {
+                (&HostConst(HostTypeConst::Bool), &HostConst(HostTypeConst::Bool)) => match op {
                     Binop::Or | Binop::And | Binop::Eq | Binop::Ne => Ok(lhs_ty.clone()),
                     _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
                 },
-                (&Const(TypeConst::Float(l)), &Const(TypeConst::Float(r))) if l == r => match op {
-                    Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                        Ok(Const(TypeConst::Bool).into())
-                    }
-                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty.clone()),
-                    _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
-                },
-                (&Const(TypeConst::Signed(l)), &Const(TypeConst::Signed(r))) if l == r => {
+                (&HostConst(HostTypeConst::Float(l)), &HostConst(HostTypeConst::Float(r)))
+                    if l == r =>
+                {
                     match op {
                         Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                            Ok(Const(TypeConst::Bool).into())
+                            Ok(HostConst(HostTypeConst::Bool).into())
                         }
                         Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty.clone()),
                         _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
                     }
                 }
-                (&Const(TypeConst::Unsigned(l)), &Const(TypeConst::Unsigned(r))) if l == r => {
+                (&HostConst(HostTypeConst::Signed(l)), &HostConst(HostTypeConst::Signed(r)))
+                    if l == r =>
+                {
                     match op {
                         Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
-                            Ok(Const(TypeConst::Bool).into())
+                            Ok(HostConst(HostTypeConst::Bool).into())
                         }
                         Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty.clone()),
                         _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
                     }
                 }
-                (&Array(ref l), &Array(ref r)) if l == r => match op {
-                    Binop::Eq | Binop::Ne => Ok(Const(TypeConst::Bool).into()),
+                (
+                    &HostConst(HostTypeConst::Unsigned(l)),
+                    &HostConst(HostTypeConst::Unsigned(r)),
+                ) if l == r =>
+                {
+                    match op {
+                        Binop::Eq | Binop::Ne | Binop::Le | Binop::Lt | Binop::Gt | Binop::Ge => {
+                            Ok(HostConst(HostTypeConst::Bool).into())
+                        }
+                        Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => Ok(lhs_ty.clone()),
+                        _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
+                    }
+                }
+                (&HostArray(ref l), &HostArray(ref r)) if l == r => match op {
+                    Binop::Eq | Binop::Ne => Ok(HostConst(HostTypeConst::Bool).into()),
                     _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
                 },
                 (_, _) => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
@@ -272,7 +282,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
                 })
                 .collect::<Result<_, _>>()?;
 
-            Ok(Type::Struct(field_tys).into())
+            Ok(Type::HostStruct(field_tys).into())
         }
 
         // Field projection
@@ -293,7 +303,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
         IExpr::Subscript(_, ref array_expr, ref index_expr) => {
             let index_ty = infer_ty(ctx, index_expr)?;
             match *index_ty.inner {
-                Type::Const(TypeConst::Unsigned(_)) => {}
+                Type::HostConst(HostTypeConst::Unsigned(_)) => {}
                 _ => {
                     return Err(TypeError::Mismatch {
                         expr: index_expr.clone(),
@@ -305,7 +315,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
 
             let array_ty = infer_ty(ctx, array_expr)?;
             match *array_ty.inner {
-                Type::Array(ref elem_ty) => Ok(elem_ty.clone()),
+                Type::HostArray(ref elem_ty) => Ok(elem_ty.clone()),
                 _ => Err(TypeError::Mismatch {
                     expr: array_expr.clone(),
                     expected: ExpectedType::Array,
@@ -319,12 +329,12 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<host::RcType, TypeError
             let src_ty = infer_ty(ctx, src_expr)?;
 
             match *dst_ty.inner {
-                Type::Const(TypeConst::Float(_))
-                | Type::Const(TypeConst::Signed(_))
-                | Type::Const(TypeConst::Unsigned(_)) => match *src_ty.inner {
-                    Type::Const(TypeConst::Float(_))
-                    | Type::Const(TypeConst::Signed(_))
-                    | Type::Const(TypeConst::Unsigned(_)) => Ok(dst_ty.clone()),
+                Type::HostConst(HostTypeConst::Float(_))
+                | Type::HostConst(HostTypeConst::Signed(_))
+                | Type::HostConst(HostTypeConst::Unsigned(_)) => match *src_ty.inner {
+                    Type::HostConst(HostTypeConst::Float(_))
+                    | Type::HostConst(HostTypeConst::Signed(_))
+                    | Type::HostConst(HostTypeConst::Unsigned(_)) => Ok(dst_ty.clone()),
                     _ => Err(TypeError::Mismatch {
                         expr: src_expr.clone(),
                         expected: ExpectedType::Numeric,
@@ -491,7 +501,7 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
 
             let size_ty = infer_ty(ctx, size_expr)?;
             match *size_ty.inner {
-                host::Type::Const(host::TypeConst::Unsigned(_)) => Ok(Kind::Binary.into()),
+                host::Type::HostConst(host::HostTypeConst::Unsigned(_)) => Ok(Kind::Binary.into()),
                 _ => Err(
                     TypeError::Mismatch {
                         expr: size_expr.clone(),
@@ -505,9 +515,9 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
         // Conditional types
         Type::Assert(_, ref ty, ref pred_expr) => {
             check_kind(ctx, ty, &Kind::Binary.into())?;
-            let pred_ty = host::Type::Arrow(
+            let pred_ty = host::Type::HostArrow(
                 vec![ty.repr()],
-                host::Type::Const(host::TypeConst::Bool).into(),
+                host::Type::HostConst(host::HostTypeConst::Bool).into(),
             ).into();
             check_ty(ctx, pred_expr, &pred_ty)?;
 
@@ -517,7 +527,7 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref repr_ty) => {
             check_kind(ctx, ty, &Kind::Binary.into())?;
-            let conv_ty = host::Type::Arrow(vec![ty.repr()], repr_ty.clone()).into();
+            let conv_ty = host::Type::HostArrow(vec![ty.repr()], repr_ty.clone()).into();
             check_ty(ctx, conv_expr, &conv_ty)?;
 
             Ok(Kind::Binary.into())
@@ -525,7 +535,7 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
 
         // Conditional types
         Type::Cond(_, ref options) => {
-            let bool_ty = host::Type::Const(host::TypeConst::Bool).into();
+            let bool_ty = host::Type::HostConst(host::HostTypeConst::Bool).into();
 
             for option in options {
                 check_ty(ctx, &option.value.0, &bool_ty)?;
