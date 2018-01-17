@@ -32,7 +32,7 @@ fn extend_vec<I: IntoIterator>(mut vec: Vec<I::Item>, last: I) -> Vec<I::Item> {
     vec
 }
 
-fn from_lalrpop_err<L, T: fmt::Debug, E>(
+fn from_lalrpop_err<L, T: fmt::Display, E>(
     src: lalrpop_util::ParseError<L, T, E>,
 ) -> lalrpop_util::ParseError<L, String, E> {
     use lalrpop_util::ParseError::*;
@@ -40,13 +40,13 @@ fn from_lalrpop_err<L, T: fmt::Debug, E>(
     match src {
         InvalidToken { location } => InvalidToken { location },
         UnrecognizedToken { token, expected } => UnrecognizedToken {
-            token: token.map(|(lo, token, hi)| (lo, format!("{:?}", token), hi)),
+            token: token.map(|(lo, token, hi)| (lo, format!("{}", token), hi)),
             expected,
         },
         ExtraToken {
             token: (lo, token, hi),
         } => ExtraToken {
-            token: (lo, format!("{:?}", token), hi),
+            token: (lo, format!("{}", token), hi),
         },
         User { error } => User { error },
     }

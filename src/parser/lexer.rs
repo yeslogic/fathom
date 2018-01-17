@@ -1,3 +1,4 @@
+use std::fmt;
 use std::str::CharIndices;
 
 use source::BytePos;
@@ -104,6 +105,53 @@ pub enum Token<'src> {
     RBrace,   // }
     LBracket, // [
     RBracket, // ]
+}
+
+impl<'src> fmt::Display for Token<'src> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Token::Ident(name) => write!(f, "{}", name),
+            Token::DocComment(comment) => write!(f, "{}", comment),
+            Token::BinLiteral(num, suffix) => write!(f, "{}{}", num, suffix),
+            Token::DecLiteral(num, suffix) => write!(f, "{}{}", num, suffix),
+            Token::HexLiteral(num, suffix) => write!(f, "{}{}", num, suffix),
+            Token::FloatDecLiteral(num, suffix) => write!(f, "{}{}", num, suffix),
+            Token::As => write!(f, "as"),
+            Token::Cond => write!(f, "cond"),
+            Token::Compute => write!(f, "compute"),
+            Token::From => write!(f, "from"),
+            Token::Struct => write!(f, "struct"),
+            Token::Union => write!(f, "union"),
+            Token::Where => write!(f, "where"),
+            Token::Amp => write!(f, "&"),
+            Token::AmpAmp => write!(f, "&&"),
+            Token::Bang => write!(f, "!"),
+            Token::BangEqual => write!(f, "!="),
+            Token::Colon => write!(f, ":"),
+            Token::Comma => write!(f, ","),
+            Token::Dot => write!(f, "."),
+            Token::Equal => write!(f, "="),
+            Token::EqualEqual => write!(f, "=="),
+            Token::EqualGreater => write!(f, "=>"),
+            Token::ForwardSlash => write!(f, "/"),
+            Token::Greater => write!(f, ">"),
+            Token::GreaterEqual => write!(f, ">="),
+            Token::Less => write!(f, "<"),
+            Token::LessEqual => write!(f, "<="),
+            Token::Minus => write!(f, "-"),
+            Token::Pipe => write!(f, "|"),
+            Token::PipePipe => write!(f, "||"),
+            Token::Plus => write!(f, "+"),
+            Token::Semi => write!(f, ";"),
+            Token::Star => write!(f, "*"),
+            Token::LParen => write!(f, "("),
+            Token::RParen => write!(f, ")"),
+            Token::LBrace => write!(f, "{{"),
+            Token::RBrace => write!(f, "}}"),
+            Token::LBracket => write!(f, "["),
+            Token::RBracket => write!(f, "]"),
+        }
+    }
 }
 
 /// An iterator over a source string that yeilds `Token`s for subsequent use by
