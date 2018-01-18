@@ -9,14 +9,14 @@ use parser::lexer::Lexer;
 use source::Span;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Program<'src> {
+pub struct Module<'src> {
     pub definitions: Vec<Definition<'src>>,
 }
 
-impl<'src> Program<'src> {
-    /// Attempt to parse a program from a source string
-    pub fn from_str(src: &'src str) -> Result<Program<'src>, ParseError> {
-        grammar::parse_Program(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+impl<'src> Module<'src> {
+    /// Attempt to parse a module from a source string
+    pub fn from_str(src: &'src str) -> Result<Module<'src>, ParseError> {
+        grammar::parse_Module(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
             .map_err(from_lalrpop_err)
     }
 }

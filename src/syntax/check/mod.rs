@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use name::Named;
-use syntax::ast::{binary, host, Field, Program};
+use syntax::ast::{binary, host, Field, Module};
 use self::context::{Context, Scope};
 use var::Var;
 
@@ -460,11 +460,13 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
             let size_ty = infer_ty(ctx, size_expr)?;
             match *size_ty.inner {
                 host::Type::Const(host::TypeConst::Unsigned(_)) => Ok(Kind::Type),
-                _ => Err(TypeError::Mismatch {
-                    expr: size_expr.clone(),
-                    expected: ExpectedType::Signed,
-                    found: size_ty,
-                }.into()),
+                _ => Err(
+                    TypeError::Mismatch {
+                        expr: size_expr.clone(),
+                        expected: ExpectedType::Signed,
+                        found: size_ty,
+                    }.into(),
+                ),
             }
         }
 
@@ -526,9 +528,9 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
                 check_kind(&ctx, &field.value, Kind::Type)?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
-                ctx.extend(Scope::ExprLam(vec![
-                    Named(field.name.clone(), field_ty.repr()),
-                ]));
+                ctx.extend(Scope::ExprLam(
+                    vec![Named(field.name.clone(), field_ty.repr())],
+                ));
             }
 
             Ok(Kind::Type)
@@ -547,10 +549,10 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
     }
 }
 
-pub fn check_program(program: &Program) -> Result<(), KindError> {
+pub fn check_module(module: &Module) -> Result<(), KindError> {
     let mut ctx = Context::new();
 
-    for definition in &program.definitions {
+    for definition in &module.definitions {
         let definition_kind = infer_kind(&ctx, &definition.body_ty)?;
         ctx.extend(Scope::TypeDef(vec![
             Named(

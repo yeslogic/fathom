@@ -1,7 +1,7 @@
-use syntax::ast::Program;
+use syntax::ast::Module;
 use syntax::ast::binary::RcType;
 use syntax::ast::host::RcIExpr;
-use parser::ast::Program as ParseProgram;
+use parser::ast::Module as ParseModule;
 use parser::ast::binary::Type as ParseType;
 use parser::ast::host::Expr as ParseExpr;
 
@@ -198,7 +198,7 @@ fn parse_simple_definition() {
 
     assert_debug_snapshot!(
         parse_simple_definition,
-        Program::from_parse(&ParseProgram::from_str(src).unwrap()).unwrap()
+        Module::from_parse(&ParseModule::from_str(src).unwrap()).unwrap()
     );
 }
 
@@ -210,7 +210,7 @@ fn parse_array_with_constant_size() {
 
     assert_debug_snapshot!(
         parse_array_with_constant_size,
-        Program::from_parse(&ParseProgram::from_str(src).unwrap()).unwrap()
+        Module::from_parse(&ParseModule::from_str(src).unwrap()).unwrap()
     );
 }
 
@@ -244,7 +244,7 @@ fn parse_definition() {
 
     assert_debug_snapshot!(
         parse_definition,
-        Program::from_parse(&ParseProgram::from_str(src).unwrap()).unwrap()
+        Module::from_parse(&ParseModule::from_str(src).unwrap()).unwrap()
     );
 }
 
@@ -269,6 +269,6 @@ fn parse_type_params() {
 
     assert_debug_snapshot!(
         parse_type_params,
-        Program::from_parse(&ParseProgram::from_str(src).unwrap()).unwrap()
+        Module::from_parse(&ParseModule::from_str(src).unwrap()).unwrap()
     );
 }

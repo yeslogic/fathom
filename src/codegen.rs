@@ -3,18 +3,18 @@ use std::fmt;
 
 use heck::CamelCase;
 use name::Named;
-use ir::ast::{Definition, Expr, Field, Item, ParseExpr, Path, Program, RepeatBound, Type};
+use ir::ast::{Definition, Expr, Field, Item, Module, ParseExpr, Path, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use ir::ast::{Binop, Const, Unop};
 use ir::ast::{BinaryTypeConst, IntSuffix, TypeConst};
 use ir::ast::{FloatType, SignedType, UnsignedType};
 use var::Var;
 
-pub struct LowerProgram<'a>(pub &'a Program);
+pub struct LowerModule<'a>(pub &'a Module);
 
-impl<'a> fmt::Display for LowerProgram<'a> {
+impl<'a> fmt::Display for LowerModule<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let DocBuilder(_, ref alloc) = lower_program(&BoxAllocator, self.0);
+        let DocBuilder(_, ref alloc) = lower_module(&BoxAllocator, self.0);
         alloc.render_fmt(f.width().unwrap_or(MAX_WIDTH), f)
     }
 }
@@ -22,9 +22,9 @@ impl<'a> fmt::Display for LowerProgram<'a> {
 const INDENT_WIDTH: usize = 4;
 const MAX_WIDTH: usize = 100;
 
-fn lower_program<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
+fn lower_module<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    program: &'a Program,
+    module: &'a Module,
 ) -> DocBuilder<'alloc, A> {
     let version_comment = format!(
         "// auto-generated: \"{} {}\"",
@@ -43,7 +43,7 @@ fn lower_program<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
         .append(lower_import(alloc, "std::io::prelude::*"))
         .append(alloc.newline())
         .append({
-            let defs = program.definitions.iter();
+            let defs = module.definitions.iter();
             alloc.intersperse(
                 defs.map(|definition| lower_definition(alloc, definition)),
                 alloc.newline().append(alloc.newline()),

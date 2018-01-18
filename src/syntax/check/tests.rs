@@ -159,9 +159,9 @@ mod infer_kind {
     }
 }
 
-mod check_program {
+mod check_module {
     use syntax::ast;
-    use parser::ast::Program as ParseProgram;
+    use parser::ast::Module as ParseModule;
 
     use super::*;
 
@@ -174,10 +174,10 @@ mod check_program {
             };
         ";
 
-        let mut program = Program::from_parse(&ParseProgram::from_str(src).unwrap()).unwrap();
+        let mut module = Module::from_parse(&ParseModule::from_str(src).unwrap()).unwrap();
         let base_defs = ast::base_defs();
-        program.substitute(&base_defs);
+        module.substitute(&base_defs);
 
-        check_program(&program).unwrap();
+        check_module(&module).unwrap();
     }
 }

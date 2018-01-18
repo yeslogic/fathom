@@ -11,13 +11,13 @@ pub use syntax::ast::binary::{Endianness, TypeConst as BinaryTypeConst};
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Program {
+pub struct Module {
     pub definitions: Vec<Definition>,
 }
 
-impl Program {
-    pub fn new() -> Program {
-        Program {
+impl Module {
+    pub fn new() -> Module {
+        Module {
             definitions: Vec::new(),
         }
     }

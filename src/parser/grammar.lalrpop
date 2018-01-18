@@ -1,6 +1,6 @@
 use lalrpop_util::ParseError;
 use source::{BytePos, Span};
-use parser::ast::{binary, host, Definition, Field, Program};
+use parser::ast::{binary, host, Definition, Field, Module};
 use parser::ast::host::{Binop, Const, Unop};
 use parser::GrammarError;
 use parser::lexer::Token;
@@ -67,8 +67,8 @@ extern {
 }
 
 
-pub Program: Program<'src> = {
-    Definition* => Program { definitions: <> }
+pub Module: Module<'src> = {
+    Definition* => Module { definitions: <> }
 };
 
 pub Definition: Definition<'src> = {

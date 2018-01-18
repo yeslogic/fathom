@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use parser::ast::Definition as ParseDefinition;
-use parser::ast::Program as ParseProgram;
+use parser::ast::Module as ParseModule;
 use var::ScopeIndex;
 
 pub mod binary;
@@ -93,12 +93,12 @@ impl PartialEq for Definition {
 pub type Substitutions = BTreeMap<String, binary::RcType>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Program {
+pub struct Module {
     pub definitions: Vec<Definition>,
 }
 
-impl Program {
-    pub fn new(mut definitions: Vec<Definition>) -> Program {
+impl Module {
+    pub fn new(mut definitions: Vec<Definition>) -> Module {
         // We maintain a list of the seen definition names. This will allow us to
         // recover the index of these variables as we abstract later definitions...
         let mut seen_names = Vec::<String>::new();
@@ -114,7 +114,7 @@ impl Program {
             seen_names.push(definition.name.clone());
         }
 
-        Program { definitions }
+        Module { definitions }
     }
 
     pub fn substitute(&mut self, substs: &Substitutions) {
@@ -123,8 +123,8 @@ impl Program {
         }
     }
 
-    pub fn from_parse(src: &ParseProgram) -> Result<Program, ()> {
-        Ok(Program::new(src.definitions
+    pub fn from_parse(src: &ParseModule) -> Result<Module, ()> {
+        Ok(Module::new(src.definitions
             .iter()
             .map(Definition::from_parse)
             .collect::<Result<_, _>>()?))

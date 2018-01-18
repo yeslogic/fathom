@@ -4,8 +4,8 @@ use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 
-use ddl::syntax::ast::Program;
-use ddl::parser::ast::Program as ParseProgram;
+use ddl::syntax::ast::Module;
+use ddl::parser::ast::Module as ParseModule;
 
 fn main() {
     let src = {
@@ -15,12 +15,12 @@ fn main() {
         src
     };
 
-    let mut program = Program::from_parse(&ParseProgram::from_str(&src).unwrap()).unwrap();
-    program.substitute(&ddl::syntax::ast::base_defs());
-    ddl::syntax::check::check_program(&program).unwrap();
-    let ir = ddl::ir::ast::Program::from(&program);
+    let mut module = Module::from_parse(&ParseModule::from_str(&src).unwrap()).unwrap();
+    module.substitute(&ddl::syntax::ast::base_defs());
+    ddl::syntax::check::check_module(&module).unwrap();
+    let ir = ddl::ir::ast::Module::from(&module);
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let mut file = File::create(out_dir + "/bson.rs").unwrap();
-    write!(file, "{}", ddl::codegen::LowerProgram(&ir)).unwrap();
+    write!(file, "{}", ddl::codegen::LowerModule(&ir)).unwrap();
 }
