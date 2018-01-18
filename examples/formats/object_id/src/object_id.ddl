@@ -1,3 +1,5 @@
+import prelude (..);
+
 /// https://docs.mongodb.com/manual/reference/method/ObjectId/
 ObjectId = struct {
     epoch_time: i32be,

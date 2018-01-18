@@ -1,3 +1,5 @@
+import prelude (..);
+
 Pixel = struct {
     r : u8,
     g : u8,

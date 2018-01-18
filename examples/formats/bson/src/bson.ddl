@@ -1,3 +1,5 @@
+import prelude (..);
+
 /// Binary data
 BinData = struct {
     /// The number of bytes stored

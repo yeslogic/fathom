@@ -5,8 +5,8 @@ Module {
             name: Ident("Pixel"),
             body_ty: Struct(
                 Span {
-                    lo: BytePos(8),
-                    hi: BytePos(66)
+                    lo: BytePos(30),
+                    hi: BytePos(88)
                 },
                 [
                     Field {
@@ -14,8 +14,8 @@ Module {
                         name: Ident("r"),
                         value: Var(
                             Span {
-                                lo: BytePos(25),
-                                hi: BytePos(27)
+                                lo: BytePos(47),
+                                hi: BytePos(49)
                             },
                             Free(
                                 User(
@@ -29,8 +29,8 @@ Module {
                         name: Ident("g"),
                         value: Var(
                             Span {
-                                lo: BytePos(37),
-                                hi: BytePos(39)
+                                lo: BytePos(59),
+                                hi: BytePos(61)
                             },
                             Free(
                                 User(
@@ -44,8 +44,8 @@ Module {
                         name: Ident("b"),
                         value: Var(
                             Span {
-                                lo: BytePos(49),
-                                hi: BytePos(51)
+                                lo: BytePos(71),
+                                hi: BytePos(73)
                             },
                             Free(
                                 User(
@@ -59,8 +59,8 @@ Module {
                         name: Ident("a"),
                         value: Var(
                             Span {
-                                lo: BytePos(61),
-                                hi: BytePos(63)
+                                lo: BytePos(83),
+                                hi: BytePos(85)
                             },
                             Free(
                                 User(
@@ -77,8 +77,8 @@ Module {
             name: Ident("Bitmap"),
             body_ty: Struct(
                 Span {
-                    lo: BytePos(78),
-                    hi: BytePos(217)
+                    lo: BytePos(100),
+                    hi: BytePos(239)
                 },
                 [
                     Field {
@@ -86,8 +86,8 @@ Module {
                         name: Ident("extents"),
                         value: Struct(
                             Span {
-                                lo: BytePos(101),
-                                hi: BytePos(162)
+                                lo: BytePos(123),
+                                hi: BytePos(184)
                             },
                             [
                                 Field {
@@ -95,8 +95,8 @@ Module {
                                     name: Ident("width"),
                                     value: Var(
                                         Span {
-                                            lo: BytePos(126),
-                                            hi: BytePos(131)
+                                            lo: BytePos(148),
+                                            hi: BytePos(153)
                                         },
                                         Free(
                                             User(
@@ -110,8 +110,8 @@ Module {
                                     name: Ident("height"),
                                     value: Var(
                                         Span {
-                                            lo: BytePos(150),
-                                            hi: BytePos(155)
+                                            lo: BytePos(172),
+                                            hi: BytePos(177)
                                         },
                                         Free(
                                             User(
@@ -128,13 +128,13 @@ Module {
                         name: Ident("data"),
                         value: Array(
                             Span {
-                                lo: BytePos(175),
-                                hi: BytePos(214)
+                                lo: BytePos(197),
+                                hi: BytePos(236)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(176),
-                                    hi: BytePos(181)
+                                    lo: BytePos(198),
+                                    hi: BytePos(203)
                                 },
                                 Bound(
                                     Named(
@@ -147,19 +147,19 @@ Module {
                             ),
                             Binop(
                                 Span {
-                                    lo: BytePos(183),
-                                    hi: BytePos(213)
+                                    lo: BytePos(205),
+                                    hi: BytePos(235)
                                 },
                                 Mul,
                                 Proj(
                                     Span {
-                                        lo: BytePos(183),
-                                        hi: BytePos(196)
+                                        lo: BytePos(205),
+                                        hi: BytePos(218)
                                     },
                                     Var(
                                         Span {
-                                            lo: BytePos(183),
-                                            hi: BytePos(190)
+                                            lo: BytePos(205),
+                                            hi: BytePos(212)
                                         },
                                         Bound(
                                             Named(
@@ -174,13 +174,13 @@ Module {
                                 ),
                                 Proj(
                                     Span {
-                                        lo: BytePos(199),
-                                        hi: BytePos(213)
+                                        lo: BytePos(221),
+                                        hi: BytePos(235)
                                     },
                                     Var(
                                         Span {
-                                            lo: BytePos(199),
-                                            hi: BytePos(206)
+                                            lo: BytePos(221),
+                                            hi: BytePos(228)
                                         },
                                         Bound(
                                             Named(
@@ -204,8 +204,8 @@ Module {
             name: Ident("Bmp"),
             body_ty: Var(
                 Span {
-                    lo: BytePos(226),
-                    hi: BytePos(232)
+                    lo: BytePos(248),
+                    hi: BytePos(254)
                 },
                 Bound(
                     Named(
