@@ -5,8 +5,8 @@ Module {
             name: Ident("BinData"),
             body_ty: Struct(
                 Span {
-                    lo: BytePos(26),
-                    hi: BytePos(398)
+                    lo: BytePos(48),
+                    hi: BytePos(420)
                 },
                 [
                     Field {
@@ -14,8 +14,8 @@ Module {
                         name: Ident("len"),
                         value: Var(
                             Span {
-                                lo: BytePos(80),
-                                hi: BytePos(85)
+                                lo: BytePos(102),
+                                hi: BytePos(107)
                             },
                             Free(
                                 User(
@@ -29,8 +29,8 @@ Module {
                         name: Ident("subtype"),
                         value: Var(
                             Span {
-                                lo: BytePos(341),
-                                hi: BytePos(343)
+                                lo: BytePos(363),
+                                hi: BytePos(365)
                             },
                             Free(
                                 User(
@@ -44,13 +44,13 @@ Module {
                         name: Ident("data"),
                         value: Array(
                             Span {
-                                lo: BytePos(379),
-                                hi: BytePos(395)
+                                lo: BytePos(401),
+                                hi: BytePos(417)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(380),
-                                    hi: BytePos(382)
+                                    lo: BytePos(402),
+                                    hi: BytePos(404)
                                 },
                                 Free(
                                     User(
@@ -60,13 +60,13 @@ Module {
                             ),
                             Cast(
                                 Span {
-                                    lo: BytePos(384),
-                                    hi: BytePos(394)
+                                    lo: BytePos(406),
+                                    hi: BytePos(416)
                                 },
                                 Var(
                                     Span {
-                                        lo: BytePos(384),
-                                        hi: BytePos(387)
+                                        lo: BytePos(406),
+                                        hi: BytePos(409)
                                     },
                                     Bound(
                                         Named(
@@ -93,8 +93,8 @@ Module {
             name: Ident("ObjectId"),
             body_ty: Struct(
                 Span {
-                    lo: BytePos(412),
-                    hi: BytePos(511)
+                    lo: BytePos(434),
+                    hi: BytePos(533)
                 },
                 [
                     Field {
@@ -102,8 +102,8 @@ Module {
                         name: Ident("epoch_time"),
                         value: Var(
                             Span {
-                                lo: BytePos(437),
-                                hi: BytePos(442)
+                                lo: BytePos(459),
+                                hi: BytePos(464)
                             },
                             Free(
                                 User(
@@ -117,8 +117,8 @@ Module {
                         name: Ident("machine_id"),
                         value: Var(
                             Span {
-                                lo: BytePos(460),
-                                hi: BytePos(465)
+                                lo: BytePos(482),
+                                hi: BytePos(487)
                             },
                             Free(
                                 User(
@@ -132,8 +132,8 @@ Module {
                         name: Ident("process_id"),
                         value: Var(
                             Span {
-                                lo: BytePos(483),
-                                hi: BytePos(488)
+                                lo: BytePos(505),
+                                hi: BytePos(510)
                             },
                             Free(
                                 User(
@@ -147,8 +147,8 @@ Module {
                         name: Ident("counter"),
                         value: Var(
                             Span {
-                                lo: BytePos(503),
-                                hi: BytePos(508)
+                                lo: BytePos(525),
+                                hi: BytePos(530)
                             },
                             Free(
                                 User(
@@ -165,8 +165,8 @@ Module {
             name: Ident("Element"),
             body_ty: Struct(
                 Span {
-                    lo: BytePos(524),
-                    hi: BytePos(2268)
+                    lo: BytePos(546),
+                    hi: BytePos(2290)
                 },
                 [
                     Field {
@@ -174,8 +174,8 @@ Module {
                         name: Ident("elem_type"),
                         value: Var(
                             Span {
-                                lo: BytePos(549),
-                                hi: BytePos(551)
+                                lo: BytePos(571),
+                                hi: BytePos(573)
                             },
                             Free(
                                 User(
@@ -189,8 +189,8 @@ Module {
                         name: Ident("content"),
                         value: Cond(
                             Span {
-                                lo: BytePos(566),
-                                hi: BytePos(2265)
+                                lo: BytePos(588),
+                                hi: BytePos(2287)
                             },
                             [
                                 Field {
@@ -200,14 +200,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 Span {
-                                                    lo: BytePos(624),
-                                                    hi: BytePos(643)
+                                                    lo: BytePos(646),
+                                                    hi: BytePos(665)
                                                 },
                                                 Eq,
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(624),
-                                                        hi: BytePos(633)
+                                                        lo: BytePos(646),
+                                                        hi: BytePos(655)
                                                     },
                                                     Bound(
                                                         Named(
@@ -220,8 +220,8 @@ Module {
                                                 ),
                                                 Const(
                                                     Span {
-                                                        lo: BytePos(637),
-                                                        hi: BytePos(643)
+                                                        lo: BytePos(659),
+                                                        hi: BytePos(665)
                                                     },
                                                     Int(1, Unsigned(U8))
                                                 )
@@ -229,8 +229,8 @@ Module {
                                         ),
                                         Var(
                                             Span {
-                                                lo: BytePos(647),
-                                                hi: BytePos(652)
+                                                lo: BytePos(669),
+                                                hi: BytePos(674)
                                             },
                                             Free(
                                                 User(
@@ -247,14 +247,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 Span {
-                                                    lo: BytePos(993),
-                                                    hi: BytePos(1012)
+                                                    lo: BytePos(1015),
+                                                    hi: BytePos(1034)
                                                 },
                                                 Eq,
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(993),
-                                                        hi: BytePos(1002)
+                                                        lo: BytePos(1015),
+                                                        hi: BytePos(1024)
                                                     },
                                                     Bound(
                                                         Named(
@@ -267,8 +267,8 @@ Module {
                                                 ),
                                                 Const(
                                                     Span {
-                                                        lo: BytePos(1006),
-                                                        hi: BytePos(1012)
+                                                        lo: BytePos(1028),
+                                                        hi: BytePos(1034)
                                                     },
                                                     Int(5, Unsigned(U8))
                                                 )
@@ -276,8 +276,8 @@ Module {
                                         ),
                                         Var(
                                             Span {
-                                                lo: BytePos(1016),
-                                                hi: BytePos(1023)
+                                                lo: BytePos(1038),
+                                                hi: BytePos(1045)
                                             },
                                             Bound(
                                                 Named(
@@ -297,14 +297,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 Span {
-                                                    lo: BytePos(1088),
-                                                    hi: BytePos(1107)
+                                                    lo: BytePos(1110),
+                                                    hi: BytePos(1129)
                                                 },
                                                 Eq,
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(1088),
-                                                        hi: BytePos(1097)
+                                                        lo: BytePos(1110),
+                                                        hi: BytePos(1119)
                                                     },
                                                     Bound(
                                                         Named(
@@ -317,8 +317,8 @@ Module {
                                                 ),
                                                 Const(
                                                     Span {
-                                                        lo: BytePos(1101),
-                                                        hi: BytePos(1107)
+                                                        lo: BytePos(1123),
+                                                        hi: BytePos(1129)
                                                     },
                                                     Int(6, Unsigned(U8))
                                                 )
@@ -326,8 +326,8 @@ Module {
                                         ),
                                         Var(
                                             Span {
-                                                lo: BytePos(1111),
-                                                hi: BytePos(1116)
+                                                lo: BytePos(1133),
+                                                hi: BytePos(1138)
                                             },
                                             Free(
                                                 User(
@@ -344,14 +344,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 Span {
-                                                    lo: BytePos(1159),
-                                                    hi: BytePos(1178)
+                                                    lo: BytePos(1181),
+                                                    hi: BytePos(1200)
                                                 },
                                                 Eq,
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(1159),
-                                                        hi: BytePos(1168)
+                                                        lo: BytePos(1181),
+                                                        hi: BytePos(1190)
                                                     },
                                                     Bound(
                                                         Named(
@@ -364,8 +364,8 @@ Module {
                                                 ),
                                                 Const(
                                                     Span {
-                                                        lo: BytePos(1172),
-                                                        hi: BytePos(1178)
+                                                        lo: BytePos(1194),
+                                                        hi: BytePos(1200)
                                                     },
                                                     Int(7, Unsigned(U8))
                                                 )
@@ -373,8 +373,8 @@ Module {
                                         ),
                                         Var(
                                             Span {
-                                                lo: BytePos(1182),
-                                                hi: BytePos(1190)
+                                                lo: BytePos(1204),
+                                                hi: BytePos(1212)
                                             },
                                             Bound(
                                                 Named(
@@ -394,14 +394,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 Span {
-                                                    lo: BytePos(1297),
-                                                    hi: BytePos(1316)
+                                                    lo: BytePos(1319),
+                                                    hi: BytePos(1338)
                                                 },
                                                 Eq,
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(1297),
-                                                        hi: BytePos(1306)
+                                                        lo: BytePos(1319),
+                                                        hi: BytePos(1328)
                                                     },
                                                     Bound(
                                                         Named(
@@ -414,8 +414,8 @@ Module {
                                                 ),
                                                 Const(
                                                     Span {
-                                                        lo: BytePos(1310),
-                                                        hi: BytePos(1316)
+                                                        lo: BytePos(1332),
+                                                        hi: BytePos(1338)
                                                     },
                                                     Int(8, Unsigned(U8))
                                                 )
@@ -423,8 +423,8 @@ Module {
                                         ),
                                         Var(
                                             Span {
-                                                lo: BytePos(1320),
-                                                hi: BytePos(1322)
+                                                lo: BytePos(1342),
+                                                hi: BytePos(1344)
                                             },
                                             Free(
                                                 User(
@@ -441,14 +441,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 Span {
-                                                    lo: BytePos(1372),
-                                                    hi: BytePos(1391)
+                                                    lo: BytePos(1394),
+                                                    hi: BytePos(1413)
                                                 },
                                                 Eq,
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(1372),
-                                                        hi: BytePos(1381)
+                                                        lo: BytePos(1394),
+                                                        hi: BytePos(1403)
                                                     },
                                                     Bound(
                                                         Named(
@@ -461,8 +461,8 @@ Module {
                                                 ),
                                                 Const(
                                                     Span {
-                                                        lo: BytePos(1385),
-                                                        hi: BytePos(1391)
+                                                        lo: BytePos(1407),
+                                                        hi: BytePos(1413)
                                                     },
                                                     Int(9, Unsigned(U8))
                                                 )
@@ -470,8 +470,8 @@ Module {
                                         ),
                                         Var(
                                             Span {
-                                                lo: BytePos(1395),
-                                                hi: BytePos(1400)
+                                                lo: BytePos(1417),
+                                                hi: BytePos(1422)
                                             },
                                             Free(
                                                 User(
@@ -488,14 +488,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 Span {
-                                                    lo: BytePos(1440),
-                                                    hi: BytePos(1459)
+                                                    lo: BytePos(1462),
+                                                    hi: BytePos(1481)
                                                 },
                                                 Eq,
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(1440),
-                                                        hi: BytePos(1449)
+                                                        lo: BytePos(1462),
+                                                        hi: BytePos(1471)
                                                     },
                                                     Bound(
                                                         Named(
@@ -508,8 +508,8 @@ Module {
                                                 ),
                                                 Const(
                                                     Span {
-                                                        lo: BytePos(1453),
-                                                        hi: BytePos(1459)
+                                                        lo: BytePos(1475),
+                                                        hi: BytePos(1481)
                                                     },
                                                     Int(10, Unsigned(U8))
                                                 )
@@ -517,8 +517,8 @@ Module {
                                         ),
                                         Var(
                                             Span {
-                                                lo: BytePos(1463),
-                                                hi: BytePos(1468)
+                                                lo: BytePos(1485),
+                                                hi: BytePos(1490)
                                             },
                                             Free(
                                                 User(
@@ -535,14 +535,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 Span {
-                                                    lo: BytePos(1972),
-                                                    hi: BytePos(1991)
+                                                    lo: BytePos(1994),
+                                                    hi: BytePos(2013)
                                                 },
                                                 Eq,
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(1972),
-                                                        hi: BytePos(1981)
+                                                        lo: BytePos(1994),
+                                                        hi: BytePos(2003)
                                                     },
                                                     Bound(
                                                         Named(
@@ -555,8 +555,8 @@ Module {
                                                 ),
                                                 Const(
                                                     Span {
-                                                        lo: BytePos(1985),
-                                                        hi: BytePos(1991)
+                                                        lo: BytePos(2007),
+                                                        hi: BytePos(2013)
                                                     },
                                                     Int(16, Unsigned(U8))
                                                 )
@@ -564,8 +564,8 @@ Module {
                                         ),
                                         Var(
                                             Span {
-                                                lo: BytePos(1995),
-                                                hi: BytePos(2000)
+                                                lo: BytePos(2017),
+                                                hi: BytePos(2022)
                                             },
                                             Free(
                                                 User(
@@ -582,14 +582,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 Span {
-                                                    lo: BytePos(2044),
-                                                    hi: BytePos(2063)
+                                                    lo: BytePos(2066),
+                                                    hi: BytePos(2085)
                                                 },
                                                 Eq,
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(2044),
-                                                        hi: BytePos(2053)
+                                                        lo: BytePos(2066),
+                                                        hi: BytePos(2075)
                                                     },
                                                     Bound(
                                                         Named(
@@ -602,8 +602,8 @@ Module {
                                                 ),
                                                 Const(
                                                     Span {
-                                                        lo: BytePos(2057),
-                                                        hi: BytePos(2063)
+                                                        lo: BytePos(2079),
+                                                        hi: BytePos(2085)
                                                     },
                                                     Int(17, Unsigned(U8))
                                                 )
@@ -611,8 +611,8 @@ Module {
                                         ),
                                         Var(
                                             Span {
-                                                lo: BytePos(2067),
-                                                hi: BytePos(2072)
+                                                lo: BytePos(2089),
+                                                hi: BytePos(2094)
                                             },
                                             Free(
                                                 User(
@@ -629,14 +629,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 Span {
-                                                    lo: BytePos(2116),
-                                                    hi: BytePos(2135)
+                                                    lo: BytePos(2138),
+                                                    hi: BytePos(2157)
                                                 },
                                                 Eq,
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(2116),
-                                                        hi: BytePos(2125)
+                                                        lo: BytePos(2138),
+                                                        hi: BytePos(2147)
                                                     },
                                                     Bound(
                                                         Named(
@@ -649,8 +649,8 @@ Module {
                                                 ),
                                                 Const(
                                                     Span {
-                                                        lo: BytePos(2129),
-                                                        hi: BytePos(2135)
+                                                        lo: BytePos(2151),
+                                                        hi: BytePos(2157)
                                                     },
                                                     Int(18, Unsigned(U8))
                                                 )
@@ -658,8 +658,8 @@ Module {
                                         ),
                                         Var(
                                             Span {
-                                                lo: BytePos(2139),
-                                                hi: BytePos(2144)
+                                                lo: BytePos(2161),
+                                                hi: BytePos(2166)
                                             },
                                             Free(
                                                 User(
@@ -680,8 +680,8 @@ Module {
             name: Ident("Document"),
             body_ty: Struct(
                 Span {
-                    lo: BytePos(2340),
-                    hi: BytePos(2599)
+                    lo: BytePos(2362),
+                    hi: BytePos(2621)
                 },
                 [
                     Field {
@@ -689,8 +689,8 @@ Module {
                         name: Ident("len"),
                         value: Var(
                             Span {
-                                lo: BytePos(2414),
-                                hi: BytePos(2419)
+                                lo: BytePos(2436),
+                                hi: BytePos(2441)
                             },
                             Free(
                                 User(
@@ -704,13 +704,13 @@ Module {
                         name: Ident("fields"),
                         value: Array(
                             Span {
-                                lo: BytePos(2482),
-                                hi: BytePos(2496)
+                                lo: BytePos(2504),
+                                hi: BytePos(2518)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(2483),
-                                    hi: BytePos(2490)
+                                    lo: BytePos(2505),
+                                    hi: BytePos(2512)
                                 },
                                 Bound(
                                     Named(
@@ -723,8 +723,8 @@ Module {
                             ),
                             Const(
                                 Span {
-                                    lo: BytePos(2492),
-                                    hi: BytePos(2495)
+                                    lo: BytePos(2514),
+                                    hi: BytePos(2517)
                                 },
                                 Int(1, Unsigned(U8))
                             )

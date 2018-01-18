@@ -1,3 +1,5 @@
+import prelude (..);
+
 Header = struct {
     /// Fixed header pattern
     magic: u64le where magic => magic == 0x00ffffffffffff00u64,

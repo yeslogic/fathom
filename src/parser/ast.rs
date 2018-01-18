@@ -12,6 +12,7 @@ pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module<'src> {
+    pub imports: Vec<(&'src str, Exposing<'src>)>,
     pub definitions: Vec<Definition<'src>>,
 }
 
@@ -21,6 +22,12 @@ impl<'src> Module<'src> {
         grammar::parse_Module(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
             .map_err(from_lalrpop_err)
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Exposing<'src> {
+    All,
+    Names(Vec<&'src str>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

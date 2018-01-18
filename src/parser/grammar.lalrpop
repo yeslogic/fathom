@@ -1,6 +1,6 @@
 use lalrpop_util::ParseError;
 use source::{BytePos, Span};
-use parser::ast::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
+use parser::ast::{Binop, Const, Exposing, Definition, Expr, Field, Module, Type, TypeConst, Unop};
 use parser::GrammarError;
 use parser::lexer::Token;
 
@@ -28,6 +28,7 @@ extern {
         "cond" => Token::Cond,
         "compute" => Token::Compute,
         "from" => Token::From,
+        "import" => Token::Import,
         "struct" => Token::Struct,
         "union" => Token::Union,
         "where" => Token::Where,
@@ -40,6 +41,7 @@ extern {
         ":" => Token::Colon,
         "," => Token::Comma,
         "." => Token::Dot,
+        ".." => Token::DotDot,
         "=" => Token::Equal,
         "==" => Token::EqualEqual,
         "=>" => Token::EqualGreater,
@@ -65,9 +67,22 @@ extern {
     }
 }
 
-
 pub Module: Module<'src> = {
-    Definition* => Module { definitions: <> }
+    <imports: Import*> <definitions: Definition*> => {
+        Module { imports, definitions, }
+    },
+};
+
+Import: (&'src str, Exposing<'src>) = {
+    "import" <name: "Ident"> ";" => (name, Exposing::Names(vec![])),
+    "import" <name: "Ident"> "(" <exposing: Exposing> ")" ";" => (name, exposing),
+};
+
+Exposing: Exposing<'src> = {
+    ".." => Exposing::All,
+    <names: (<"Ident"> ",")*> <last: "Ident"> => {
+        Exposing::Names(super::extend_vec(names, Some(last)))
+    },
 };
 
 pub Definition: Definition<'src> = {
