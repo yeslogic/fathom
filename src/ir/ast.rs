@@ -4,10 +4,8 @@ use std::fmt;
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-pub use syntax::ast::Field;
-pub use syntax::ast::host::{Binop, Const, IntSuffix, TypeConst, Unop};
-pub use syntax::ast::host::{FloatType, SignedType, UnsignedType};
-pub use syntax::ast::binary::{Endianness, TypeConst as BinaryTypeConst};
+pub use syntax::ast::{Endianness, Field, TypeConst};
+pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, SignedType, Unop, UnsignedType};
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -163,7 +161,7 @@ pub enum ParseExpr {
     /// A reference to another parser
     Var(Var),
     /// Parse a binary constant
-    Const(BinaryTypeConst),
+    Const(TypeConst),
     /// Parse that is repeated for the given bound
     ///
     /// ```plain
@@ -261,6 +259,9 @@ pub enum Expr {
     Ann(RcExpr, RcType),
     Const(Const),
     Var(Var),
+    Lam(Vec<Named<Name, RcType>>, RcExpr),
+    App(RcExpr, Vec<RcExpr>),
+
     Unop(Unop, RcExpr),
     Binop(Binop, RcExpr, RcExpr),
     Array(Vec<RcExpr>),
@@ -269,8 +270,6 @@ pub enum Expr {
     Intro(Path, Ident, RcExpr),
     Subscript(RcExpr, RcExpr),
     Cast(RcExpr, RcType),
-    Lam(Vec<Named<Name, RcType>>, RcExpr),
-    App(RcExpr, Vec<RcExpr>),
 }
 
 #[derive(Clone, PartialEq)]
@@ -301,6 +300,17 @@ impl RcExpr {
             }
             Expr::Var(ref mut var) => var.abstract_names_at(names, scope),
             Expr::Const(_) => {}
+            Expr::Lam(_, ref mut body_expr) => {
+                body_expr.abstract_names_at(names, scope.succ());
+            }
+            Expr::App(ref mut fn_expr, ref mut arg_exprs) => {
+                fn_expr.abstract_names_at(names, scope);
+
+                for arg_expr in arg_exprs {
+                    arg_expr.abstract_names_at(names, scope);
+                }
+            }
+
             Expr::Unop(_, ref mut expr) | Expr::Proj(ref mut expr, _) => {
                 expr.abstract_names_at(names, scope);
             }
@@ -324,16 +334,6 @@ impl RcExpr {
             Expr::Cast(ref mut src_expr, _) => {
                 src_expr.abstract_names_at(names, scope);
                 // TODO: abstract dst_ty???
-            }
-            Expr::Lam(_, ref mut body_expr) => {
-                body_expr.abstract_names_at(names, scope.succ());
-            }
-            Expr::App(ref mut fn_expr, ref mut arg_exprs) => {
-                fn_expr.abstract_names_at(names, scope);
-
-                for arg_expr in arg_exprs {
-                    arg_expr.abstract_names_at(names, scope);
-                }
             }
         }
     }

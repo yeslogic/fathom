@@ -6,16 +6,24 @@ Lam(
     [
         Named(
             User(
-                Ident("z")
+                Ident("x")
             ),
-            ()
+            Binary
         )
     ],
-    App(
+    Lam(
         Span {
             lo: BytePos(0),
             hi: BytePos(0)
         },
+        [
+            Named(
+                User(
+                    Ident("y")
+                ),
+                Binary
+            )
+        ],
         Lam(
             Span {
                 lo: BytePos(0),
@@ -24,9 +32,9 @@ Lam(
             [
                 Named(
                     User(
-                        Ident("y")
+                        Ident("z")
                     ),
-                    ()
+                    Binary
                 )
             ],
             App(
@@ -34,66 +42,6 @@ Lam(
                     lo: BytePos(0),
                     hi: BytePos(0)
                 },
-                Var(
-                    Span {
-                        lo: BytePos(0),
-                        hi: BytePos(0)
-                    },
-                    Bound(
-                        Named(
-                            User(
-                                Ident("y")
-                            ),
-                            BoundVar(0, 0)
-                        )
-                    )
-                ),
-                [
-                    Lam(
-                        Span {
-                            lo: BytePos(0),
-                            hi: BytePos(0)
-                        },
-                        [
-                            Named(
-                                User(
-                                    Ident("x")
-                                ),
-                                ()
-                            )
-                        ],
-                        Var(
-                            Span {
-                                lo: BytePos(0),
-                                hi: BytePos(0)
-                            },
-                            Bound(
-                                Named(
-                                    User(
-                                        Ident("x")
-                                    ),
-                                    BoundVar(0, 0)
-                                )
-                            )
-                        )
-                    )
-                ]
-            )
-        ),
-        [
-            Lam(
-                Span {
-                    lo: BytePos(0),
-                    hi: BytePos(0)
-                },
-                [
-                    Named(
-                        User(
-                            Ident("x")
-                        ),
-                        ()
-                    )
-                ],
                 App(
                     Span {
                         lo: BytePos(0),
@@ -107,9 +55,9 @@ Lam(
                         Bound(
                             Named(
                                 User(
-                                    Ident("z")
+                                    Ident("x")
                                 ),
-                                BoundVar(1, 0)
+                                BoundVar(2, 0)
                             )
                         )
                     ),
@@ -122,15 +70,53 @@ Lam(
                             Bound(
                                 Named(
                                     User(
-                                        Ident("x")
+                                        Ident("z")
                                     ),
                                     BoundVar(0, 0)
                                 )
                             )
                         )
                     ]
-                )
+                ),
+                [
+                    App(
+                        Span {
+                            lo: BytePos(0),
+                            hi: BytePos(0)
+                        },
+                        Var(
+                            Span {
+                                lo: BytePos(0),
+                                hi: BytePos(0)
+                            },
+                            Bound(
+                                Named(
+                                    User(
+                                        Ident("y")
+                                    ),
+                                    BoundVar(1, 0)
+                                )
+                            )
+                        ),
+                        [
+                            Var(
+                                Span {
+                                    lo: BytePos(0),
+                                    hi: BytePos(0)
+                                },
+                                Bound(
+                                    Named(
+                                        User(
+                                            Ident("z")
+                                        ),
+                                        BoundVar(0, 0)
+                                    )
+                                )
+                            )
+                        ]
+                    )
+                ]
             )
-        ]
+        )
     )
 )

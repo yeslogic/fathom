@@ -13,13 +13,13 @@ Module {
                         User(
                             Ident("T")
                         ),
-                        ()
+                        Binary
                     ),
                     Named(
                         User(
                             Ident("U")
                         ),
-                        ()
+                        Binary
                     )
                 ],
                 Struct(
@@ -81,7 +81,7 @@ Module {
                         User(
                             Ident("T")
                         ),
-                        ()
+                        Binary
                     )
                 ],
                 Struct(
@@ -160,19 +160,19 @@ Module {
                         User(
                             Ident("T")
                         ),
-                        ()
+                        Binary
                     ),
                     Named(
                         User(
                             Ident("U")
                         ),
-                        ()
+                        Binary
                     ),
                     Named(
                         User(
                             Ident("V")
                         ),
-                        ()
+                        Binary
                     )
                 ],
                 Struct(

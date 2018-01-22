@@ -1,9 +1,8 @@
 use super::*;
 
 mod infer_ty {
-    use syntax::ast::host::RcIExpr;
-    use syntax::ast::host::{FloatType, SignedType, Type, TypeConst, UnsignedType};
-    use parser::ast::host::Expr as ParseExpr;
+    use syntax::ast::{FloatType, RcIExpr, SignedType, Type, TypeConst, UnsignedType};
+    use parser::ast::Expr as ParseExpr;
 
     use super::*;
 
@@ -123,9 +122,9 @@ mod infer_ty {
 }
 
 mod infer_kind {
-    use syntax::ast;
-    use syntax::ast::binary::RcType;
-    use parser::ast::binary::Type as ParseType;
+    use syntax::ast::{self, Kind};
+    use syntax::ast::RcType;
+    use parser::ast::Type as ParseType;
 
     use super::*;
 
@@ -154,7 +153,7 @@ mod infer_kind {
     fn assert_magic() {
         assert_infer_kind!(
             "u64le where magic => magic == 0x00ffffffffffff00u64",
-            Ok(binary::Kind::Type)
+            Ok(Kind::Binary.into())
         );
     }
 }

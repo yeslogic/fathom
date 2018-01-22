@@ -6,7 +6,7 @@ use name::{Ident, Name, Named};
 use ir::ast::{Definition, Expr, Field, Item, Module, ParseExpr, Path, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use ir::ast::{Binop, Const, Unop};
-use ir::ast::{BinaryTypeConst, IntSuffix, TypeConst};
+use ir::ast::{IntSuffix, TypeConst};
 use ir::ast::{FloatType, SignedType, UnsignedType};
 use var::Var;
 
@@ -362,6 +362,7 @@ fn lower_ty_const<'alloc, A: DocAllocator<'alloc>>(
         TypeConst::Float(ty) => alloc.text(lower_float_ty(ty)),
         TypeConst::Signed(ty) => alloc.text(lower_signed_ty(ty)),
         TypeConst::Unsigned(ty) => alloc.text(lower_unsigned_ty(ty)),
+        _ => panic!("called lower_ty_const on {:?}", ty_const),
     }
 }
 
@@ -423,35 +424,36 @@ fn lower_named_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 
 fn lower_parse_ty_const<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    ty_const: BinaryTypeConst,
+    ty_const: TypeConst,
 ) -> DocBuilder<'alloc, A> {
     use ir::ast::Endianness as E;
 
     alloc.text(match ty_const {
-        BinaryTypeConst::Empty => "ddl_util::empty()",
-        BinaryTypeConst::Error => "ddl_util::error()",
-        BinaryTypeConst::U8 => "ddl_util::from_u8(reader)",
-        BinaryTypeConst::I8 => "ddl_util::from_i8(reader)",
-        BinaryTypeConst::U16(E::Little) => "ddl_util::from_u16le(reader)",
-        BinaryTypeConst::U24(E::Little) => "ddl_util::from_u24le(reader)",
-        BinaryTypeConst::U32(E::Little) => "ddl_util::from_u32le(reader)",
-        BinaryTypeConst::U64(E::Little) => "ddl_util::from_u64le(reader)",
-        BinaryTypeConst::I16(E::Little) => "ddl_util::from_i16le(reader)",
-        BinaryTypeConst::I24(E::Little) => "ddl_util::from_i24le(reader)",
-        BinaryTypeConst::I32(E::Little) => "ddl_util::from_i32le(reader)",
-        BinaryTypeConst::I64(E::Little) => "ddl_util::from_i64le(reader)",
-        BinaryTypeConst::F32(E::Little) => "ddl_util::from_f32le(reader)",
-        BinaryTypeConst::F64(E::Little) => "ddl_util::from_f64le(reader)",
-        BinaryTypeConst::U16(E::Big) => "ddl_util::from_u16be(reader)",
-        BinaryTypeConst::U24(E::Big) => "ddl_util::from_u24be(reader)",
-        BinaryTypeConst::U32(E::Big) => "ddl_util::from_u32be(reader)",
-        BinaryTypeConst::U64(E::Big) => "ddl_util::from_u64be(reader)",
-        BinaryTypeConst::I16(E::Big) => "ddl_util::from_i16be(reader)",
-        BinaryTypeConst::I24(E::Big) => "ddl_util::from_i24be(reader)",
-        BinaryTypeConst::I32(E::Big) => "ddl_util::from_i32be(reader)",
-        BinaryTypeConst::I64(E::Big) => "ddl_util::from_i64be(reader)",
-        BinaryTypeConst::F32(E::Big) => "ddl_util::from_f32be(reader)",
-        BinaryTypeConst::F64(E::Big) => "ddl_util::from_f64be(reader)",
+        TypeConst::Empty => "ddl_util::empty()",
+        TypeConst::Error => "ddl_util::error()",
+        TypeConst::U8 => "ddl_util::from_u8(reader)",
+        TypeConst::I8 => "ddl_util::from_i8(reader)",
+        TypeConst::U16(E::Little) => "ddl_util::from_u16le(reader)",
+        TypeConst::U24(E::Little) => "ddl_util::from_u24le(reader)",
+        TypeConst::U32(E::Little) => "ddl_util::from_u32le(reader)",
+        TypeConst::U64(E::Little) => "ddl_util::from_u64le(reader)",
+        TypeConst::I16(E::Little) => "ddl_util::from_i16le(reader)",
+        TypeConst::I24(E::Little) => "ddl_util::from_i24le(reader)",
+        TypeConst::I32(E::Little) => "ddl_util::from_i32le(reader)",
+        TypeConst::I64(E::Little) => "ddl_util::from_i64le(reader)",
+        TypeConst::F32(E::Little) => "ddl_util::from_f32le(reader)",
+        TypeConst::F64(E::Little) => "ddl_util::from_f64le(reader)",
+        TypeConst::U16(E::Big) => "ddl_util::from_u16be(reader)",
+        TypeConst::U24(E::Big) => "ddl_util::from_u24be(reader)",
+        TypeConst::U32(E::Big) => "ddl_util::from_u32be(reader)",
+        TypeConst::U64(E::Big) => "ddl_util::from_u64be(reader)",
+        TypeConst::I16(E::Big) => "ddl_util::from_i16be(reader)",
+        TypeConst::I24(E::Big) => "ddl_util::from_i24be(reader)",
+        TypeConst::I32(E::Big) => "ddl_util::from_i32be(reader)",
+        TypeConst::I64(E::Big) => "ddl_util::from_i64be(reader)",
+        TypeConst::F32(E::Big) => "ddl_util::from_f32be(reader)",
+        TypeConst::F64(E::Big) => "ddl_util::from_f64be(reader)",
+        _ => panic!("called lower_parse_ty_const on {:?}", ty_const),
     })
 }
 
@@ -629,6 +631,11 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     let mut is_atomic = false;
 
     let inner = match *expr.inner {
+        Expr::Ann(ref expr, _) => {
+            // TODO: use type annotation
+            lower_expr(alloc, prec, expr)
+        }
+
         Expr::Const(c) => {
             is_atomic = true;
 
@@ -646,16 +653,39 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
             }
         }
 
-        Expr::Ann(ref expr, _) => {
-            // TODO: use type annotation
-            lower_expr(alloc, prec, expr)
-        }
-
         // FIXME: Hygiene!
         Expr::Var(Var::Free(_)) => unimplemented!(),
         Expr::Var(Var::Bound(Named(ref name, _))) => {
             is_atomic = true;
             alloc.as_string(name)
+        }
+
+        Expr::Lam(ref params, ref body_expr) => alloc
+            .text("|")
+            .append(alloc.intersperse(
+                params.iter().map(|&Named(ref name, ref ty)| {
+                    alloc
+                        .as_string(name)
+                        .append(alloc.text(":"))
+                        .append(alloc.space())
+                        .append(lower_ty(alloc, ty))
+                }),
+                alloc.text(","),
+            ))
+            .append(alloc.text("|"))
+            .append(alloc.space())
+            .append(lower_expr(alloc, Prec::Block, body_expr).nest(INDENT_WIDTH))
+            .group(),
+
+        Expr::App(ref fn_expr, ref arg_exprs) => {
+            let arg_exprs = arg_exprs
+                .iter()
+                .map(|arg_expr| lower_expr(alloc, Prec::Block, arg_expr));
+
+            lower_expr(alloc, Prec::Block, fn_expr)
+                .append(alloc.text("("))
+                .append(alloc.intersperse(arg_exprs, alloc.text(",")))
+                .append(alloc.text(")"))
         }
 
         Expr::Unop(op, ref expr) => {
@@ -767,34 +797,6 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                 .append(alloc.space())
                 .append(lower_ty(alloc, ty))
                 .group()
-        }
-
-        Expr::Lam(ref params, ref body_expr) => alloc
-            .text("|")
-            .append(alloc.intersperse(
-                params.iter().map(|&Named(ref name, ref ty)| {
-                    alloc
-                        .as_string(name)
-                        .append(alloc.text(":"))
-                        .append(alloc.space())
-                        .append(lower_ty(alloc, ty))
-                }),
-                alloc.text(","),
-            ))
-            .append(alloc.text("|"))
-            .append(alloc.space())
-            .append(lower_expr(alloc, Prec::Block, body_expr).nest(INDENT_WIDTH))
-            .group(),
-
-        Expr::App(ref fn_expr, ref arg_exprs) => {
-            let arg_exprs = arg_exprs
-                .iter()
-                .map(|arg_expr| lower_expr(alloc, Prec::Block, arg_expr));
-
-            lower_expr(alloc, Prec::Block, fn_expr)
-                .append(alloc.text("("))
-                .append(alloc.intersperse(arg_exprs, alloc.text(",")))
-                .append(alloc.text(")"))
         }
     };
 

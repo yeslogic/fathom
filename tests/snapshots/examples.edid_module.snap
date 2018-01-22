@@ -39,7 +39,7 @@ Module {
                                             User(
                                                 Ident("magic")
                                             ),
-                                            Var(
+                                            HostVar(
                                                 Free(
                                                     User(
                                                         Ident("u64le")

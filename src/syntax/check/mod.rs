@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-use syntax::ast::{binary, host, Field, Module};
+use syntax::ast::{Binop, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType};
 use self::context::{Context, Scope};
 use var::Var;
 
@@ -20,67 +20,61 @@ pub enum ExpectedType {
     Unsigned,
     Signed,
     Numeric,
-    Actual(host::RcType),
+    Actual(RcType),
 }
 
 /// An error that was encountered during type checking
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { expr: host::RcIExpr, name: Name },
+    UnboundVariable { expr: RcIExpr, name: Name },
     /// Variable bound in the context was not at the value level
-    ExprBindingExpected { expr: host::RcIExpr, found: Scope },
+    ExprBindingExpected { expr: RcIExpr, found: Scope },
     /// One type was expected, but another was found
     Mismatch {
-        expr: host::RcIExpr,
-        found: host::RcType,
+        expr: RcIExpr,
+        found: RcType,
         expected: ExpectedType,
     },
     /// One type was expected, but another was found
     InferenceMismatch {
-        expr: host::RcIExpr,
-        found: host::RcType,
-        expected: host::RcType,
+        expr: RcIExpr,
+        found: RcType,
+        expected: RcType,
     },
     /// Unexpected operand types in a binary operator expression
     BinaryOperands {
-        context: host::Binop,
-        expr: host::RcIExpr,
-        lhs_ty: host::RcType,
-        rhs_ty: host::RcType,
+        context: Binop,
+        expr: RcIExpr,
+        lhs_ty: RcType,
+        rhs_ty: RcType,
     },
     /// A field was missing when projecting on a record
     MissingField {
-        expr: host::RcIExpr,
-        struct_ty: host::RcType,
+        expr: RcIExpr,
+        struct_ty: RcType,
         field_name: Ident,
     },
     /// A variant was missing when introducing on a union
     MissingVariant {
-        expr: host::RcCExpr,
-        union_ty: host::RcType,
+        expr: RcCExpr,
+        union_ty: RcType,
         variant_name: Ident,
     },
     /// An invalid type was supplied to the cast expression
-    InvalidCastType {
-        expr: host::RcIExpr,
-        found: host::RcType,
-    },
+    InvalidCastType { expr: RcIExpr, found: RcType },
 }
 
 /// Check that an expression has the given type in the context
-pub fn check_ty(
-    ctx: &Context,
-    expr: &host::RcCExpr,
-    expected_ty: &host::RcType,
-) -> Result<(), TypeError> {
-    use syntax::ast::host::{CExpr, Type};
+pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(), TypeError> {
+    use syntax::ast::CExpr;
+    use syntax::ast::Type;
 
     match *expr.inner {
         // Variant introduction
         CExpr::Intro(_, ref variant_name, ref expr) => {
             // FIXME: Kindcheck union_ty
-            match expected_ty.lookup_variant(variant_name).cloned() {
+            match expected_ty.lookup_host_variant(variant_name).cloned() {
                 Some(variant_ty) => {
                     check_ty(ctx, expr, &variant_ty)?;
                     Ok(())
@@ -95,7 +89,7 @@ pub fn check_ty(
 
         // Empty arrays
         CExpr::Array(_, ref elems) => match *expected_ty.inner {
-            Type::Array(ref elem_ty) => elems
+            Type::HostArray(ref elem_ty) => elems
                 .iter()
                 .map(|elem| check_ty(ctx, elem, elem_ty))
                 .collect(),
@@ -119,8 +113,8 @@ pub fn check_ty(
 }
 
 /// Infer the type of an expression in the context
-pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, TypeError> {
-    use syntax::ast::host::{Binop, IExpr, Type, TypeConst, Unop};
+pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
+    use syntax::ast::{IExpr, Type, TypeConst, Unop};
 
     match *expr.inner {
         // Annotated types
@@ -145,9 +139,42 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
             }),
         },
 
+        // Abstraction
+        IExpr::Lam(_, ref params, ref body_expr) => {
+            // FIXME: avoid cloning the environment
+            let mut ctx = ctx.clone();
+            ctx.extend(Scope::ExprLam(params.clone()));
+            let param_tys = params.iter().map(|param| param.1.clone()).collect();
+
+            Ok(Type::Arrow(param_tys, infer_ty(&ctx, body_expr)?).into())
+        }
+
+        // Applications
+        IExpr::App(_, ref fn_expr, ref arg_exprs) => {
+            let fn_ty = infer_ty(ctx, fn_expr)?;
+
+            if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty.inner {
+                if arg_exprs.len() == param_tys.len() {
+                    for (arg_expr, param_ty) in arg_exprs.iter().zip(param_tys) {
+                        check_ty(ctx, arg_expr, param_ty)?;
+                    }
+
+                    return Ok(ret_ty.clone());
+                } else {
+                    unimplemented!(); // FIXME
+                }
+            }
+
+            Err(TypeError::Mismatch {
+                expr: fn_expr.clone(),
+                expected: ExpectedType::Arrow,
+                found: fn_ty,
+            })
+        }
+
         // Unary operators
         IExpr::Unop(_, op, ref operand_expr) => {
-            use syntax::ast::host::Type::Const;
+            use syntax::ast::Type::Const;
 
             let operand_ty = infer_ty(ctx, operand_expr)?;
 
@@ -162,7 +189,7 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
                 (Unop::Not, &Const(TypeConst::Bool)) => Ok(operand_ty),
                 (Unop::Not, _) => Err(TypeError::Mismatch {
                     expr: expr.clone(),
-                    expected: ExpectedType::Actual(Type::Const(TypeConst::Bool).into()),
+                    expected: ExpectedType::Actual(Const(TypeConst::Bool).into()),
                     found: operand_ty,
                 }),
             }
@@ -170,13 +197,13 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
 
         // Binary operators
         IExpr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
-            use syntax::ast::host::Type::{Array, Const};
+            use syntax::ast::Type::{Const, HostArray};
 
             fn binop_err(
                 context: Binop,
-                expr: &host::RcIExpr,
-                lhs_ty: host::RcType,
-                rhs_ty: host::RcType,
+                expr: &RcIExpr,
+                lhs_ty: RcType,
+                rhs_ty: RcType,
             ) -> TypeError {
                 TypeError::BinaryOperands {
                     context,
@@ -219,7 +246,7 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
                         _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
                     }
                 }
-                (&Array(ref l), &Array(ref r)) if l == r => match op {
+                (&HostArray(ref l), &HostArray(ref r)) if l == r => match op {
                     Binop::Eq | Binop::Ne => Ok(Const(TypeConst::Bool).into()),
                     _ => Err(binop_err(op, expr, lhs_ty.clone(), rhs_ty.clone())),
                 },
@@ -240,14 +267,14 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
                 })
                 .collect::<Result<_, _>>()?;
 
-            Ok(Type::Struct(field_tys).into())
+            Ok(Type::HostStruct(field_tys).into())
         }
 
         // Field projection
         IExpr::Proj(_, ref struct_expr, ref field_name) => {
             let struct_ty = infer_ty(ctx, struct_expr)?;
 
-            match struct_ty.lookup_field(field_name).cloned() {
+            match struct_ty.lookup_host_field(field_name).cloned() {
                 Some(field_ty) => Ok(field_ty),
                 None => Err(TypeError::MissingField {
                     expr: struct_expr.clone(),
@@ -273,7 +300,7 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
 
             let array_ty = infer_ty(ctx, array_expr)?;
             match *array_ty.inner {
-                Type::Array(ref elem_ty) => Ok(elem_ty.clone()),
+                Type::HostArray(ref elem_ty) => Ok(elem_ty.clone()),
                 _ => Err(TypeError::Mismatch {
                     expr: array_expr.clone(),
                     expected: ExpectedType::Array,
@@ -305,48 +332,15 @@ pub fn infer_ty(ctx: &Context, expr: &host::RcIExpr) -> Result<host::RcType, Typ
                 }),
             }
         }
-
-        // Abstraction
-        IExpr::Lam(_, ref params, ref body_expr) => {
-            // FIXME: avoid cloning the environment
-            let mut ctx = ctx.clone();
-            ctx.extend(Scope::ExprLam(params.clone()));
-            let param_tys = params.iter().map(|param| param.1.clone()).collect();
-
-            Ok(Type::Arrow(param_tys, infer_ty(&ctx, body_expr)?).into())
-        }
-
-        // Applications
-        IExpr::App(_, ref fn_expr, ref arg_exprs) => {
-            let fn_ty = infer_ty(ctx, fn_expr)?;
-
-            if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty.inner {
-                if arg_exprs.len() == param_tys.len() {
-                    for (arg_expr, param_ty) in arg_exprs.iter().zip(param_tys) {
-                        check_ty(ctx, arg_expr, param_ty)?;
-                    }
-
-                    return Ok(ret_ty.clone());
-                } else {
-                    unimplemented!(); // FIXME
-                }
-            }
-
-            Err(TypeError::Mismatch {
-                expr: fn_expr.clone(),
-                expected: ExpectedType::Arrow,
-                found: fn_ty,
-            })
-        }
     }
 }
 
 // Kinding
 
-fn simplify_ty(ctx: &Context, ty: &binary::RcType) -> binary::RcType {
-    use syntax::ast::binary::Type;
+fn simplify_ty(ctx: &Context, ty: &RcType) -> RcType {
+    use syntax::ast::Type;
 
-    fn compute_ty(ctx: &Context, ty: &binary::RcType) -> Option<binary::RcType> {
+    fn compute_ty(ctx: &Context, ty: &RcType) -> Option<RcType> {
         match *ty.inner {
             Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
                 Ok((_, def_ty)) => Some(def_ty.clone()),
@@ -377,18 +371,24 @@ fn simplify_ty(ctx: &Context, ty: &binary::RcType) -> binary::RcType {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExpectedKind {
+    Arrow,
+    Actual(RcKind),
+}
+
 /// An error that was encountered during kind checking
 #[derive(Debug, Clone, PartialEq)]
 pub enum KindError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { ty: binary::RcType, name: Name },
+    UnboundVariable { ty: RcType, name: Name },
     /// Variable bound in the context was not at the type level
-    TypeBindingExpected { ty: binary::RcType, found: Scope },
+    TypeBindingExpected { ty: RcType, found: Scope },
     /// One kind was expected, but another was found
     Mismatch {
-        ty: binary::RcType,
-        expected: binary::Kind,
-        found: binary::Kind,
+        ty: RcType,
+        expected: ExpectedKind,
+        found: RcKind,
     },
     /// A type error
     Type(TypeError),
@@ -401,27 +401,23 @@ impl From<TypeError> for KindError {
 }
 
 /// Check that a binary type has the given kind in the context
-fn check_kind(
-    ctx: &Context,
-    ty: &binary::RcType,
-    expected_kind: binary::Kind,
-) -> Result<(), KindError> {
+fn check_kind(ctx: &Context, ty: &RcType, expected_kind: &RcKind) -> Result<(), KindError> {
     let found = infer_kind(ctx, ty)?;
 
-    if found == expected_kind {
+    if &found == expected_kind {
         Ok(())
     } else {
         Err(KindError::Mismatch {
             ty: ty.clone(),
-            expected: expected_kind,
+            expected: ExpectedKind::Actual(expected_kind.clone()),
             found,
         })
     }
 }
 
 /// Infer the kind of a binary type in the context
-pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, KindError> {
-    use syntax::ast::binary::{Kind, Type, TypeConst};
+pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
+    use syntax::ast::{Type, TypeConst};
 
     match *ty.inner {
         // Variables
@@ -430,7 +426,7 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
             name: name.clone(),
         }),
         Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
-            Ok((_, kind)) => Ok(*kind),
+            Ok((_, kind)) => Ok(kind.clone()),
             Err(scope) => Err(KindError::TypeBindingExpected {
                 ty: ty.clone(),
                 found: scope.clone(),
@@ -438,28 +434,79 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
         },
 
         // Type constants
-        Type::Const(TypeConst::Empty)
-        | Type::Const(TypeConst::Error)
-        | Type::Const(TypeConst::U8)
-        | Type::Const(TypeConst::I8)
-        | Type::Const(TypeConst::U16(_))
-        | Type::Const(TypeConst::U24(_))
-        | Type::Const(TypeConst::U32(_))
-        | Type::Const(TypeConst::U64(_))
-        | Type::Const(TypeConst::I16(_))
-        | Type::Const(TypeConst::I24(_))
-        | Type::Const(TypeConst::I32(_))
-        | Type::Const(TypeConst::I64(_))
-        | Type::Const(TypeConst::F32(_))
-        | Type::Const(TypeConst::F64(_)) => Ok(Kind::Type),
+        Type::Const(c) => match c {
+            TypeConst::Empty
+            | TypeConst::Error
+            | TypeConst::U8
+            | TypeConst::I8
+            | TypeConst::U16(_)
+            | TypeConst::U24(_)
+            | TypeConst::U32(_)
+            | TypeConst::U64(_)
+            | TypeConst::I16(_)
+            | TypeConst::I24(_)
+            | TypeConst::I32(_)
+            | TypeConst::I64(_)
+            | TypeConst::F32(_)
+            | TypeConst::F64(_) => Ok(Kind::Binary.into()),
+            TypeConst::Unit
+            | TypeConst::Bottom
+            | TypeConst::Bool
+            | TypeConst::Float(_)
+            | TypeConst::Signed(_)
+            | TypeConst::Unsigned(_) => Ok(Kind::Host.into()),
+        },
+
+        // Arrow types
+        Type::Arrow(ref param_tys, ref body_ty) => {
+            for param_ty in param_tys {
+                infer_kind(&ctx, param_ty)?;
+            }
+
+            infer_kind(&ctx, body_ty)
+        }
+
+        // Type abstraction
+        Type::Lam(_, ref params, ref body_ty) => {
+            // FIXME: avoid cloning the environment
+            // FIXME: Do we want to invalidate hetrogeneous kind arguments and higher kinds?
+            let mut ctx = ctx.clone();
+            ctx.extend(Scope::TypeLam(params.clone()));
+            let param_kinds = params.iter().map(|param| param.1.clone()).collect();
+
+            Ok(Kind::Arrow(param_kinds, infer_kind(&ctx, body_ty)?).into())
+        }
+
+        // Type application
+        Type::App(_, ref fn_ty, ref arg_tys) => {
+            let fn_kind = infer_kind(ctx, fn_ty)?;
+
+            if let Kind::Arrow(ref param_kinds, ref ret_kind) = *fn_kind.inner {
+                if arg_tys.len() == param_kinds.len() {
+                    for (arg_ty, param_kind) in arg_tys.iter().zip(param_kinds) {
+                        check_kind(ctx, arg_ty, param_kind)?;
+                    }
+
+                    return Ok(ret_kind.clone());
+                } else {
+                    unimplemented!(); // FIXME
+                }
+            }
+
+            Err(KindError::Mismatch {
+                ty: fn_ty.clone(),
+                expected: ExpectedKind::Arrow,
+                found: fn_kind,
+            })
+        }
 
         // Array types
         Type::Array(_, ref elem_ty, ref size_expr) => {
-            check_kind(ctx, elem_ty, Kind::Type)?;
+            check_kind(ctx, elem_ty, &Kind::Binary.into())?;
 
             let size_ty = infer_ty(ctx, size_expr)?;
             match *size_ty.inner {
-                host::Type::Const(host::TypeConst::Unsigned(_)) => Ok(Kind::Type),
+                Type::Const(TypeConst::Unsigned(_)) => Ok(Kind::Binary.into()),
                 _ => Err(
                     TypeError::Mismatch {
                         expr: size_expr.clone(),
@@ -472,51 +519,32 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
 
         // Conditional types
         Type::Assert(_, ref ty, ref pred_expr) => {
-            check_kind(ctx, ty, Kind::Type)?;
-            let pred_ty = host::Type::Arrow(
-                vec![ty.repr()],
-                host::Type::Const(host::TypeConst::Bool).into(),
-            ).into();
+            check_kind(ctx, ty, &Kind::Binary.into())?;
+            let pred_ty = Type::Arrow(vec![ty.repr()], Type::Const(TypeConst::Bool).into()).into();
             check_ty(ctx, pred_expr, &pred_ty)?;
 
-            Ok(Kind::Type)
+            Ok(Kind::Binary.into())
         }
 
         // Interpreted types
         Type::Interp(_, ref ty, ref conv_expr, ref repr_ty) => {
-            check_kind(ctx, ty, Kind::Type)?;
-            let conv_ty = host::Type::Arrow(vec![ty.repr()], repr_ty.clone()).into();
+            check_kind(ctx, ty, &Kind::Binary.into())?;
+            let conv_ty = Type::Arrow(vec![ty.repr()], repr_ty.clone()).into();
             check_ty(ctx, conv_expr, &conv_ty)?;
 
-            Ok(Kind::Type)
-        }
-
-        // Type abstraction
-        Type::Lam(_, ref param_tys, ref body_ty) => {
-            // FIXME: avoid cloning the environment
-            let mut ctx = ctx.clone();
-
-            ctx.extend(Scope::TypeLam(
-                param_tys
-                    .iter()
-                    .map(|named| Named(named.0.clone(), Kind::Type))
-                    .collect(),
-            ));
-            check_kind(&ctx, body_ty, Kind::Type)?;
-
-            Ok(Kind::arrow(param_tys.len() as u32))
+            Ok(Kind::Binary.into())
         }
 
         // Conditional types
         Type::Cond(_, ref options) => {
-            let bool_ty = host::Type::Const(host::TypeConst::Bool).into();
+            let bool_ty = Type::Const(TypeConst::Bool).into();
 
             for option in options {
                 check_ty(ctx, &option.value.0, &bool_ty)?;
-                check_kind(ctx, &option.value.1, Kind::Type)?;
+                check_kind(ctx, &option.value.1, &Kind::Binary.into())?;
             }
 
-            Ok(Kind::Type)
+            Ok(Kind::Binary.into())
         }
 
         // Struct type
@@ -525,7 +553,7 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
             let mut ctx = ctx.clone();
 
             for field in fields {
-                check_kind(&ctx, &field.value, Kind::Type)?;
+                check_kind(&ctx, &field.value, &Kind::Binary.into())?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
                 ctx.extend(Scope::ExprLam(
@@ -533,19 +561,10 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
                 ));
             }
 
-            Ok(Kind::Type)
+            Ok(Kind::Binary.into())
         }
 
-        // Type application
-        Type::App(_, ref fn_ty, ref arg_tys) => {
-            check_kind(ctx, fn_ty, Kind::arrow(arg_tys.len() as u32))?;
-
-            for arg_ty in arg_tys {
-                check_kind(ctx, arg_ty, Kind::Type)?
-            }
-
-            Ok(Kind::Type)
-        }
+        _ => unimplemented!(),
     }
 }
 
@@ -553,13 +572,11 @@ pub fn check_module(module: &Module) -> Result<(), KindError> {
     let mut ctx = Context::new();
 
     for definition in &module.definitions {
-        let definition_kind = infer_kind(&ctx, &definition.body_ty)?;
-        ctx.extend(Scope::TypeDef(vec![
-            Named(
-                Name::user(definition.name.clone()),
-                (definition.body_ty.clone(), definition_kind),
-            ),
-        ]));
+        let name = Name::user(definition.name.clone());
+        let ty = definition.body_ty.clone();
+        let kind = infer_kind(&ctx, &ty)?;
+
+        ctx.extend(Scope::TypeDef(vec![Named(name, (ty, kind))]));
     }
 
     Ok(())

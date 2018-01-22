@@ -1,9 +1,7 @@
-use syntax::ast::Module;
-use syntax::ast::binary::RcType;
-use syntax::ast::host::RcIExpr;
+use syntax::ast::{Module, RcIExpr, RcType};
+use parser::ast::Expr as ParseExpr;
 use parser::ast::Module as ParseModule;
-use parser::ast::binary::Type as ParseType;
-use parser::ast::host::Expr as ParseExpr;
+use parser::ast::Type as ParseType;
 
 #[test]
 fn parse_expr_bool_atomic() {
