@@ -13,7 +13,9 @@ Struct(
                     hi: BytePos(38)
                 },
                 Free(
-                    Ident("u32")
+                    User(
+                        Ident("u32")
+                    )
                 )
             )
         },
@@ -31,7 +33,9 @@ Struct(
                         hi: BytePos(63)
                     },
                     Free(
-                        Ident("f32")
+                        User(
+                            Ident("f32")
+                        )
                     )
                 ),
                 Var(
@@ -41,7 +45,9 @@ Struct(
                     },
                     Bound(
                         Named(
-                            Ident("len"),
+                            User(
+                                Ident("len")
+                            ),
                             BoundVar(0, 0)
                         )
                     )
@@ -71,7 +77,9 @@ Struct(
                                     hi: BytePos(126)
                                 },
                                 Free(
-                                    Ident("f32")
+                                    User(
+                                        Ident("f32")
+                                    )
                                 )
                             ),
                             Var(
@@ -81,7 +89,9 @@ Struct(
                                 },
                                 Bound(
                                     Named(
-                                        Ident("len"),
+                                        User(
+                                            Ident("len")
+                                        ),
                                         BoundVar(1, 0)
                                     )
                                 )
@@ -97,7 +107,9 @@ Struct(
                                 hi: BytePos(158)
                             },
                             Free(
-                                Ident("u32")
+                                User(
+                                    Ident("u32")
+                                )
                             )
                         )
                     },
@@ -110,7 +122,9 @@ Struct(
                                 hi: BytePos(220)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -123,7 +137,9 @@ Struct(
                                 hi: BytePos(250)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -141,7 +157,9 @@ Struct(
                                     hi: BytePos(279)
                                 },
                                 Free(
-                                    Ident("f32")
+                                    User(
+                                        Ident("f32")
+                                    )
                                 )
                             ),
                             Var(
@@ -151,7 +169,9 @@ Struct(
                                 },
                                 Bound(
                                     Named(
-                                        Ident("len"),
+                                        User(
+                                            Ident("len")
+                                        ),
                                         BoundVar(2, 0)
                                     )
                                 )

@@ -3,7 +3,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use name::{Ident, Named};
+use name::{Ident, Name, Named};
 use source::Span;
 use syntax::ast::{self, Field, Substitutions};
 use parser::ast::host::Expr as ParseExpr;
@@ -99,7 +99,7 @@ pub enum Type {
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    Lam(Vec<Named<Ident, ()>>, RcType),
+    Lam(Vec<Named<Name, ()>>, RcType),
     /// Type application: eg. `T(U, V)`
     App(RcType, Vec<RcType>),
 }
@@ -127,7 +127,7 @@ impl RcType {
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    pub fn lam<T1>(params: Vec<Named<Ident, ()>>, body_ty: T1) -> RcType
+    pub fn lam<T1>(params: Vec<Named<Name, ()>>, body_ty: T1) -> RcType
     where
         T1: Into<RcType>,
     {
@@ -216,7 +216,7 @@ impl RcType {
         };
     }
 
-    pub fn abstract_names_at(&mut self, names: &[Ident], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
             Type::Var(ref mut var) => var.abstract_names_at(names, scope),
             Type::Const(_) => {}
@@ -254,7 +254,7 @@ impl RcType {
     /// This results in a one 'dangling' index, and so care must be taken
     /// to wrap it in another type that marks the introduction of a new
     /// scope.
-    pub fn abstract_names(&mut self, names: &[Ident]) {
+    pub fn abstract_names(&mut self, names: &[Name]) {
         self.abstract_names_at(names, ScopeIndex(0))
     }
 
@@ -434,7 +434,7 @@ impl RcCExpr {
         }
     }
 
-    pub fn abstract_names_at(&mut self, names: &[Ident], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
             CExpr::Intro(_, _, ref mut expr) => {
                 expr.abstract_names_at(names, scope);
@@ -448,7 +448,7 @@ impl RcCExpr {
         }
     }
 
-    pub fn abstract_names(&mut self, names: &[Ident]) {
+    pub fn abstract_names(&mut self, names: &[Name]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 
@@ -490,7 +490,7 @@ pub enum IExpr {
     /// Cast expression, eg: `x as u32`
     Cast(Span, RcIExpr, RcType),
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    Lam(Span, Vec<Named<Ident, RcType>>, RcIExpr),
+    Lam(Span, Vec<Named<Name, RcType>>, RcIExpr),
     /// Application, eg: `f(x, ..)`
     App(Span, RcIExpr, Vec<RcCExpr>),
 }
@@ -516,7 +516,7 @@ impl fmt::Debug for RcIExpr {
 
 impl RcIExpr {
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    pub fn lam<E1>(span: Span, params: Vec<Named<Ident, RcType>>, body_expr: E1) -> RcIExpr
+    pub fn lam<E1>(span: Span, params: Vec<Named<Name, RcType>>, body_expr: E1) -> RcIExpr
     where
         E1: Into<RcIExpr>,
     {
@@ -592,7 +592,7 @@ impl RcIExpr {
         }
     }
 
-    pub fn abstract_names_at(&mut self, names: &[Ident], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
             IExpr::Ann(_, ref mut expr, ref mut ty) => {
                 expr.abstract_names_at(names, scope);
@@ -635,7 +635,7 @@ impl RcIExpr {
         }
     }
 
-    pub fn abstract_names(&mut self, names: &[Ident]) {
+    pub fn abstract_names(&mut self, names: &[Name]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 
@@ -648,7 +648,7 @@ impl RcIExpr {
 
                 Ok(IExpr::Ann(span, expr, ty).into())
             }
-            ParseExpr::Var(span, name) => Ok(IExpr::Var(span, Var::free(name)).into()),
+            ParseExpr::Var(span, name) => Ok(IExpr::Var(span, Var::free(Name::user(name))).into()),
             ParseExpr::Unop(span, op, ref expr) => {
                 let expr = RcIExpr::from_parse(&**expr)?;
 

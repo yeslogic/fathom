@@ -20,7 +20,9 @@ Unop(
                     hi: BytePos(4)
                 },
                 Free(
-                    Ident("foo")
+                    User(
+                        Ident("foo")
+                    )
                 )
             ),
             Binop(
@@ -65,7 +67,9 @@ Unop(
                 hi: BytePos(33)
             },
             Free(
-                Ident("index")
+                User(
+                    Ident("index")
+                )
             )
         )
     )

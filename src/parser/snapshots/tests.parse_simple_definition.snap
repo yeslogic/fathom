@@ -9,7 +9,9 @@ Module {
                     hi: BytePos(23)
                 },
                 Free(
-                    Ident("u32")
+                    User(
+                        Ident("u32")
+                    )
                 )
             )
         }

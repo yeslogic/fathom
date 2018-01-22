@@ -3,7 +3,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use name::{Ident, Named};
+use name::{Ident, Name, Named};
 use source::Span;
 use syntax::ast::{self, host, Field, Substitutions};
 use parser::ast::binary::Type as ParseType;
@@ -122,7 +122,7 @@ pub enum Type {
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    Lam(Span, Vec<Named<Ident, ()>>, RcType),
+    Lam(Span, Vec<Named<Name, ()>>, RcType),
     /// Type application: eg. `T(U, V)`
     App(Span, RcType, Vec<RcType>),
 }
@@ -157,7 +157,7 @@ impl RcType {
             for (scope, name) in seen_names.iter().rev().enumerate() {
                 field
                     .value
-                    .abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
+                    .abstract_names_at(&[Name::user(name.clone())], ScopeIndex(scope as u32));
             }
 
             // Record that the field has been 'seen'
@@ -170,7 +170,7 @@ impl RcType {
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    pub fn lam<T1>(span: Span, params: Vec<Named<Ident, ()>>, body_ty: T1) -> RcType
+    pub fn lam<T1>(span: Span, params: Vec<Named<Name, ()>>, body_ty: T1) -> RcType
     where
         T1: Into<RcType>,
     {
@@ -265,7 +265,7 @@ impl RcType {
         *self = subst_ty.clone();
     }
 
-    pub fn abstract_names_at(&mut self, names: &[Ident], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
             Type::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             Type::Const(_) => {}
@@ -308,7 +308,7 @@ impl RcType {
     /// This results in a one 'dangling' index, and so care must be taken
     /// to wrap it in another type that marks the introduction of a new
     /// scope.
-    pub fn abstract_names(&mut self, names: &[Ident]) {
+    pub fn abstract_names(&mut self, names: &[Name]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 
@@ -414,7 +414,7 @@ impl RcType {
 
     pub fn from_parse(src: &ParseType) -> Result<RcType, ()> {
         match *src {
-            ParseType::Var(span, name) => Ok(Type::Var(span, Var::free(name)).into()),
+            ParseType::Var(span, name) => Ok(Type::Var(span, Var::free(Name::user(name))).into()),
             ParseType::Array(span, ref elem_ty, ref size_expr) => {
                 let elem_ty = RcType::from_parse(&**elem_ty)?;
                 let size_expr = host::RcIExpr::from_parse(&**size_expr)?;
@@ -458,7 +458,7 @@ impl RcType {
                 let ty = RcType::from_parse(&**ty)?;
                 let pred_fn = host::RcIExpr::lam(
                     Span::new(lo2, span.hi()),
-                    vec![Named(Ident::from(param_name), ty.repr())],
+                    vec![Named(Name::user(param_name), ty.repr())],
                     host::RcIExpr::from_parse(&**pred_expr)?,
                 );
 
@@ -469,7 +469,7 @@ impl RcType {
                 let repr_ty = host::Type::Const(repr_ty).into();
                 let conv_fn = host::CExpr::Inf(host::RcIExpr::lam(
                     span,
-                    vec![Named(Ident::from("_"), RcType::repr(&empty))],
+                    vec![Named(Name::Abstract, RcType::repr(&empty))],
                     host::RcIExpr::from_parse(&**expr)?,
                 )).into();
 
@@ -506,8 +506,8 @@ mod tests {
                 // λ   0
                 let ty = RcT::lam(
                     Span::start(),
-                    vec![Named(Ident::from("x"), ())],
-                    T::Var(Span::start(), Var::free("x")),
+                    vec![Named(Name::user("x"), ())],
+                    T::Var(Span::start(), Var::free(Name::user("x"))),
                 );
 
                 assert_debug_snapshot!(ty_abs_id, ty);
@@ -521,11 +521,11 @@ mod tests {
                 // λ  λ   1
                 let ty = RcT::lam(
                     Span::start(),
-                    vec![Named(Ident::from("x"), ())],
+                    vec![Named(Name::user("x"), ())],
                     RcT::lam(
                         Span::start(),
-                        vec![Named(Ident::from("y"), ())],
-                        T::Var(Span::start(), Var::free("x")),
+                        vec![Named(Name::user("y"), ())],
+                        T::Var(Span::start(), Var::free(Name::user("x"))),
                     ),
                 );
 
@@ -538,25 +538,28 @@ mod tests {
                 // λ  λ  λ   2 0 (1 0)
                 let ty = RcT::lam(
                     Span::start(),
-                    vec![Named(Ident::from("x"), ())],
+                    vec![Named(Name::user("x"), ())],
                     RcT::lam(
                         Span::start(),
-                        vec![Named(Ident::from("y"), ())],
+                        vec![Named(Name::user("y"), ())],
                         RcT::lam(
                             Span::start(),
-                            vec![Named(Ident::from("z"), ())],
+                            vec![Named(Name::user("z"), ())],
                             T::App(
                                 Span::start(),
                                 T::App(
                                     Span::start(),
-                                    T::Var(Span::start(), Var::free("x")).into(),
-                                    vec![T::Var(Span::start(), Var::free("z")).into()],
+                                    T::Var(Span::start(), Var::free(Name::user("x"))).into(),
+                                    vec![T::Var(Span::start(), Var::free(Name::user("z"))).into()],
                                 ).into(),
                                 vec![
                                     T::App(
                                         Span::start(),
-                                        T::Var(Span::start(), Var::free("y")).into(),
-                                        vec![T::Var(Span::start(), Var::free("z")).into()],
+                                        T::Var(Span::start(), Var::free(Name::user("y"))).into(),
+                                        vec![
+                                            T::Var(Span::start(), Var::free(Name::user("z")))
+                                                .into(),
+                                        ],
                                     ).into(),
                                 ],
                             ),
@@ -573,20 +576,20 @@ mod tests {
                 // λ  (λ   0 (λ   0)) (λ   1 0)
                 let ty = RcT::lam(
                     Span::start(),
-                    vec![Named(Ident::from("z"), ())],
+                    vec![Named(Name::user("z"), ())],
                     T::App(
                         Span::start(),
                         RcT::lam(
                             Span::start(),
-                            vec![Named(Ident::from("y"), ())],
+                            vec![Named(Name::user("y"), ())],
                             T::App(
                                 Span::start(),
-                                T::Var(Span::start(), Var::free("y")).into(),
+                                T::Var(Span::start(), Var::free(Name::user("y"))).into(),
                                 vec![
                                     RcT::lam(
                                         Span::start(),
-                                        vec![Named(Ident::from("x"), ())],
-                                        T::Var(Span::start(), Var::free("x")),
+                                        vec![Named(Name::user("x"), ())],
+                                        T::Var(Span::start(), Var::free(Name::user("x"))),
                                     ),
                                 ],
                             ),
@@ -594,11 +597,11 @@ mod tests {
                         vec![
                             RcT::lam(
                                 Span::start(),
-                                vec![Named(Ident::from("x"), ())],
+                                vec![Named(Name::user("x"), ())],
                                 T::App(
                                     Span::start(),
-                                    T::Var(Span::start(), Var::free("z")).into(),
-                                    vec![T::Var(Span::start(), Var::free("x")).into()],
+                                    T::Var(Span::start(), Var::free(Name::user("z"))).into(),
+                                    vec![T::Var(Span::start(), Var::free(Name::user("x"))).into()],
                                 ),
                             ),
                         ],

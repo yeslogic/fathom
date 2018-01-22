@@ -16,7 +16,9 @@ Binop(
                 hi: BytePos(14)
             },
             Free(
-                Ident("true")
+                User(
+                    Ident("true")
+                )
             )
         ),
         Var(
@@ -25,7 +27,9 @@ Binop(
                 hi: BytePos(23)
             },
             Free(
-                Ident("false")
+                User(
+                    Ident("false")
+                )
             )
         )
     ),
@@ -41,7 +45,9 @@ Binop(
                 hi: BytePos(33)
             },
             Free(
-                Ident("true")
+                User(
+                    Ident("true")
+                )
             )
         ),
         Var(
@@ -50,7 +56,9 @@ Binop(
                 hi: BytePos(42)
             },
             Free(
-                Ident("false")
+                User(
+                    Ident("false")
+                )
             )
         )
     )

@@ -16,7 +16,9 @@ Unop(
                 hi: BytePos(16)
             },
             Free(
-                Ident("true")
+                User(
+                    Ident("true")
+                )
             )
         ),
         Var(
@@ -25,7 +27,9 @@ Unop(
                 hi: BytePos(26)
             },
             Free(
-                Ident("false")
+                User(
+                    Ident("false")
+                )
             )
         )
     )

@@ -2,7 +2,7 @@ use pretty::{BoxAllocator, DocAllocator, DocBuilder};
 use std::fmt;
 
 use heck::CamelCase;
-use name::{Ident, Named};
+use name::{Ident, Name, Named};
 use ir::ast::{Definition, Expr, Field, Item, Module, ParseExpr, Path, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use ir::ast::{Binop, Const, Unop};
@@ -121,7 +121,7 @@ fn lower_doc_comment<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [Ident],
+    params: &'a [Name],
     ty: &'a RcType,
 ) -> DocBuilder<'alloc, A> {
     alloc.text("pub type")
@@ -141,7 +141,7 @@ fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [Ident],
+    params: &'a [Name],
     fields: &'a [Field<RcType>],
 ) -> DocBuilder<'alloc, A> {
     alloc.text("#[derive(Debug, Clone)]")
@@ -180,7 +180,7 @@ fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [Ident],
+    params: &'a [Name],
     variants: &'a [Field<RcType>],
 ) -> DocBuilder<'alloc, A> {
     use heck::CamelCase;
@@ -220,7 +220,7 @@ fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [Ident],
+    params: &'a [Name],
     parse_expr: &'a RcParseExpr,
 ) -> DocBuilder<'alloc, A> {
     let base_header = alloc
@@ -284,7 +284,7 @@ fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 
 fn lower_intro_ty_params<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    params: &'a [Ident],
+    params: &'a [Name],
 ) -> DocBuilder<'alloc, A> {
     if params.is_empty() {
         alloc.nil()
@@ -411,11 +411,14 @@ fn lower_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 
 fn lower_named_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    name: &'a Ident,
+    name: &'a Name,
 ) -> DocBuilder<'alloc, A> {
-    alloc
-        .text(name.0.to_camel_case())
-        .append(alloc.text("::from_binary(reader)"))
+    let name = match *name {
+        Name::Abstract => unimplemented!(),
+        Name::User(Ident(ref ident)) => ident.to_camel_case(),
+    };
+
+    alloc.text(name).append(alloc.text("::from_binary(reader)"))
 }
 
 fn lower_parse_ty_const<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(

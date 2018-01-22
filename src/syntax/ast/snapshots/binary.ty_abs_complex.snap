@@ -5,7 +5,9 @@ Lam(
     },
     [
         Named(
-            Ident("z"),
+            User(
+                Ident("z")
+            ),
             ()
         )
     ],
@@ -21,7 +23,9 @@ Lam(
             },
             [
                 Named(
-                    Ident("y"),
+                    User(
+                        Ident("y")
+                    ),
                     ()
                 )
             ],
@@ -37,7 +41,9 @@ Lam(
                     },
                     Bound(
                         Named(
-                            Ident("y"),
+                            User(
+                                Ident("y")
+                            ),
                             BoundVar(0, 0)
                         )
                     )
@@ -50,7 +56,9 @@ Lam(
                         },
                         [
                             Named(
-                                Ident("x"),
+                                User(
+                                    Ident("x")
+                                ),
                                 ()
                             )
                         ],
@@ -61,7 +69,9 @@ Lam(
                             },
                             Bound(
                                 Named(
-                                    Ident("x"),
+                                    User(
+                                        Ident("x")
+                                    ),
                                     BoundVar(0, 0)
                                 )
                             )
@@ -78,7 +88,9 @@ Lam(
                 },
                 [
                     Named(
-                        Ident("x"),
+                        User(
+                            Ident("x")
+                        ),
                         ()
                     )
                 ],
@@ -94,7 +106,9 @@ Lam(
                         },
                         Bound(
                             Named(
-                                Ident("z"),
+                                User(
+                                    Ident("z")
+                                ),
                                 BoundVar(1, 0)
                             )
                         )
@@ -107,7 +121,9 @@ Lam(
                             },
                             Bound(
                                 Named(
-                                    Ident("x"),
+                                    User(
+                                        Ident("x")
+                                    ),
                                     BoundVar(0, 0)
                                 )
                             )

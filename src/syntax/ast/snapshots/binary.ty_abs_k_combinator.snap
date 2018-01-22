@@ -5,7 +5,9 @@ Lam(
     },
     [
         Named(
-            Ident("x"),
+            User(
+                Ident("x")
+            ),
             ()
         )
     ],
@@ -16,7 +18,9 @@ Lam(
         },
         [
             Named(
-                Ident("y"),
+                User(
+                    Ident("y")
+                ),
                 ()
             )
         ],
@@ -27,7 +31,9 @@ Lam(
             },
             Bound(
                 Named(
-                    Ident("x"),
+                    User(
+                        Ident("x")
+                    ),
                     BoundVar(1, 0)
                 )
             )

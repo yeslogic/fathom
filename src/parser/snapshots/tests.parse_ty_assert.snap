@@ -28,7 +28,9 @@ Assert(
                                 hi: BytePos(36)
                             },
                             Free(
-                                Ident("u32")
+                                User(
+                                    Ident("u32")
+                                )
                             )
                         ),
                         Inf(
@@ -39,10 +41,14 @@ Assert(
                                 },
                                 [
                                     Named(
-                                        Ident("x"),
+                                        User(
+                                            Ident("x")
+                                        ),
                                         Var(
                                             Free(
-                                                Ident("u32")
+                                                User(
+                                                    Ident("u32")
+                                                )
                                             )
                                         )
                                     )
@@ -60,7 +66,9 @@ Assert(
                                         },
                                         Bound(
                                             Named(
-                                                Ident("x"),
+                                                User(
+                                                    Ident("x")
+                                                ),
                                                 BoundVar(0, 0)
                                             )
                                         )
@@ -87,7 +95,9 @@ Assert(
                 },
                 [
                     Named(
-                        Ident("x"),
+                        User(
+                            Ident("x")
+                        ),
                         Struct(
                             [
                                 Field {
@@ -95,7 +105,9 @@ Assert(
                                     name: Ident("x"),
                                     value: Var(
                                         Free(
-                                            Ident("u32")
+                                            User(
+                                                Ident("u32")
+                                            )
                                         )
                                     )
                                 }
@@ -116,7 +128,9 @@ Assert(
                         },
                         Bound(
                             Named(
-                                Ident("x"),
+                                User(
+                                    Ident("x")
+                                ),
                                 BoundVar(0, 0)
                             )
                         )
@@ -140,7 +154,9 @@ Assert(
             },
             [
                 Named(
-                    Ident("x"),
+                    User(
+                        Ident("x")
+                    ),
                     Struct(
                         [
                             Field {
@@ -148,7 +164,9 @@ Assert(
                                 name: Ident("x"),
                                 value: Var(
                                     Free(
-                                        Ident("u32")
+                                        User(
+                                            Ident("u32")
+                                        )
                                     )
                                 )
                             }
@@ -169,7 +187,9 @@ Assert(
                     },
                     Bound(
                         Named(
-                            Ident("x"),
+                            User(
+                                Ident("x")
+                            ),
                             BoundVar(0, 0)
                         )
                     )

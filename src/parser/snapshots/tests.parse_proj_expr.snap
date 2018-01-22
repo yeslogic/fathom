@@ -20,7 +20,9 @@ Unop(
                     hi: BytePos(4)
                 },
                 Free(
-                    Ident("foo")
+                    User(
+                        Ident("foo")
+                    )
                 )
             ),
             Ident("bar")

@@ -18,7 +18,9 @@ Module {
                                 hi: BytePos(104)
                             },
                             Free(
-                                Ident("i32be")
+                                User(
+                                    Ident("i32be")
+                                )
                             )
                         )
                     },
@@ -31,7 +33,9 @@ Module {
                                 hi: BytePos(127)
                             },
                             Free(
-                                Ident("u24be")
+                                User(
+                                    Ident("u24be")
+                                )
                             )
                         )
                     },
@@ -44,7 +48,9 @@ Module {
                                 hi: BytePos(150)
                             },
                             Free(
-                                Ident("u16be")
+                                User(
+                                    Ident("u16be")
+                                )
                             )
                         )
                     },
@@ -57,7 +63,9 @@ Module {
                                 hi: BytePos(170)
                             },
                             Free(
-                                Ident("u24be")
+                                User(
+                                    Ident("u24be")
+                                )
                             )
                         )
                     }

@@ -10,11 +10,15 @@ Module {
                 },
                 [
                     Named(
-                        Ident("T"),
+                        User(
+                            Ident("T")
+                        ),
                         ()
                     ),
                     Named(
-                        Ident("U"),
+                        User(
+                            Ident("U")
+                        ),
                         ()
                     )
                 ],
@@ -34,7 +38,9 @@ Module {
                                 },
                                 Bound(
                                     Named(
-                                        Ident("T"),
+                                        User(
+                                            Ident("T")
+                                        ),
                                         BoundVar(0, 0)
                                     )
                                 )
@@ -50,7 +56,9 @@ Module {
                                 },
                                 Bound(
                                     Named(
-                                        Ident("U"),
+                                        User(
+                                            Ident("U")
+                                        ),
                                         BoundVar(1, 1)
                                     )
                                 )
@@ -70,7 +78,9 @@ Module {
                 },
                 [
                     Named(
-                        Ident("T"),
+                        User(
+                            Ident("T")
+                        ),
                         ()
                     )
                 ],
@@ -89,7 +99,9 @@ Module {
                                     hi: BytePos(132)
                                 },
                                 Free(
-                                    Ident("u16le")
+                                    User(
+                                        Ident("u16le")
+                                    )
                                 )
                             )
                         },
@@ -108,7 +120,9 @@ Module {
                                     },
                                     Bound(
                                         Named(
-                                            Ident("T"),
+                                            User(
+                                                Ident("T")
+                                            ),
                                             BoundVar(1, 0)
                                         )
                                     )
@@ -120,7 +134,9 @@ Module {
                                     },
                                     Bound(
                                         Named(
-                                            Ident("len"),
+                                            User(
+                                                Ident("len")
+                                            ),
                                             BoundVar(0, 0)
                                         )
                                     )
@@ -141,15 +157,21 @@ Module {
                 },
                 [
                     Named(
-                        Ident("T"),
+                        User(
+                            Ident("T")
+                        ),
                         ()
                     ),
                     Named(
-                        Ident("U"),
+                        User(
+                            Ident("U")
+                        ),
                         ()
                     ),
                     Named(
-                        Ident("V"),
+                        User(
+                            Ident("V")
+                        ),
                         ()
                     )
                 ],
@@ -169,7 +191,9 @@ Module {
                                 },
                                 Bound(
                                     Named(
-                                        Ident("U"),
+                                        User(
+                                            Ident("U")
+                                        ),
                                         BoundVar(0, 1)
                                     )
                                 )
@@ -190,7 +214,9 @@ Module {
                                     },
                                     Bound(
                                         Named(
-                                            Ident("Array"),
+                                            User(
+                                                Ident("Array")
+                                            ),
                                             BoundVar(2, 0)
                                         )
                                     )
@@ -208,7 +234,9 @@ Module {
                                             },
                                             Bound(
                                                 Named(
-                                                    Ident("Pair"),
+                                                    User(
+                                                        Ident("Pair")
+                                                    ),
                                                     BoundVar(3, 0)
                                                 )
                                             )
@@ -221,7 +249,9 @@ Module {
                                                 },
                                                 Bound(
                                                     Named(
-                                                        Ident("T"),
+                                                        User(
+                                                            Ident("T")
+                                                        ),
                                                         BoundVar(1, 0)
                                                     )
                                                 )
@@ -233,7 +263,9 @@ Module {
                                                 },
                                                 Bound(
                                                     Named(
-                                                        Ident("V"),
+                                                        User(
+                                                            Ident("V")
+                                                        ),
                                                         BoundVar(1, 2)
                                                     )
                                                 )

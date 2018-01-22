@@ -18,7 +18,9 @@ Module {
                                 hi: BytePos(27)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -31,7 +33,9 @@ Module {
                                 hi: BytePos(39)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -44,7 +48,9 @@ Module {
                                 hi: BytePos(51)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -57,7 +63,9 @@ Module {
                                 hi: BytePos(63)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     }
@@ -91,7 +99,9 @@ Module {
                                             hi: BytePos(131)
                                         },
                                         Free(
-                                            Ident("u32be")
+                                            User(
+                                                Ident("u32be")
+                                            )
                                         )
                                     )
                                 },
@@ -104,7 +114,9 @@ Module {
                                             hi: BytePos(155)
                                         },
                                         Free(
-                                            Ident("u32be")
+                                            User(
+                                                Ident("u32be")
+                                            )
                                         )
                                     )
                                 }
@@ -126,7 +138,9 @@ Module {
                                 },
                                 Bound(
                                     Named(
-                                        Ident("Pixel"),
+                                        User(
+                                            Ident("Pixel")
+                                        ),
                                         BoundVar(1, 0)
                                     )
                                 )
@@ -149,7 +163,9 @@ Module {
                                         },
                                         Bound(
                                             Named(
-                                                Ident("extents"),
+                                                User(
+                                                    Ident("extents")
+                                                ),
                                                 BoundVar(0, 0)
                                             )
                                         )
@@ -168,7 +184,9 @@ Module {
                                         },
                                         Bound(
                                             Named(
-                                                Ident("extents"),
+                                                User(
+                                                    Ident("extents")
+                                                ),
                                                 BoundVar(0, 0)
                                             )
                                         )
@@ -191,7 +209,9 @@ Module {
                 },
                 Bound(
                     Named(
-                        Ident("Bitmap"),
+                        User(
+                            Ident("Bitmap")
+                        ),
                         BoundVar(0, 0)
                     )
                 )

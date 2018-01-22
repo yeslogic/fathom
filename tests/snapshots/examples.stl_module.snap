@@ -18,7 +18,9 @@ Module {
                                 hi: BytePos(29)
                             },
                             Free(
-                                Ident("f32le")
+                                User(
+                                    Ident("f32le")
+                                )
                             )
                         )
                     },
@@ -31,7 +33,9 @@ Module {
                                 hi: BytePos(43)
                             },
                             Free(
-                                Ident("f32le")
+                                User(
+                                    Ident("f32le")
+                                )
                             )
                         )
                     },
@@ -44,7 +48,9 @@ Module {
                                 hi: BytePos(57)
                             },
                             Free(
-                                Ident("f32le")
+                                User(
+                                    Ident("f32le")
+                                )
                             )
                         )
                     }
@@ -70,7 +76,9 @@ Module {
                             },
                             Bound(
                                 Named(
-                                    Ident("Vec3d"),
+                                    User(
+                                        Ident("Vec3d")
+                                    ),
                                     BoundVar(0, 0)
                                 )
                             )
@@ -91,7 +99,9 @@ Module {
                                 },
                                 Bound(
                                     Named(
-                                        Ident("Vec3d"),
+                                        User(
+                                            Ident("Vec3d")
+                                        ),
                                         BoundVar(1, 0)
                                     )
                                 )
@@ -114,7 +124,9 @@ Module {
                                 hi: BytePos(404)
                             },
                             Free(
-                                Ident("u16le")
+                                User(
+                                    Ident("u16le")
+                                )
                             )
                         )
                     }
@@ -144,7 +156,9 @@ Module {
                                     hi: BytePos(518)
                                 },
                                 Free(
-                                    Ident("u8")
+                                    User(
+                                        Ident("u8")
+                                    )
                                 )
                             ),
                             Const(
@@ -165,7 +179,9 @@ Module {
                                 hi: BytePos(591)
                             },
                             Free(
-                                Ident("u32le")
+                                User(
+                                    Ident("u32le")
+                                )
                             )
                         )
                     },
@@ -184,7 +200,9 @@ Module {
                                 },
                                 Bound(
                                     Named(
-                                        Ident("Triangle"),
+                                        User(
+                                            Ident("Triangle")
+                                        ),
                                         BoundVar(2, 0)
                                     )
                                 )
@@ -196,7 +214,9 @@ Module {
                                 },
                                 Bound(
                                     Named(
-                                        Ident("num_triangles"),
+                                        User(
+                                            Ident("num_triangles")
+                                        ),
                                         BoundVar(0, 0)
                                     )
                                 )

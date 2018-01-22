@@ -14,7 +14,9 @@ Module {
                         hi: BytePos(21)
                     },
                     Free(
-                        Ident("f32")
+                        User(
+                            Ident("f32")
+                        )
                     )
                 ),
                 Const(

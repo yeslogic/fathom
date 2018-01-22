@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use name::{Ident, Named};
+use name::{Ident, Name, Named};
 use syntax;
 use syntax::ast::{binary, host, Field};
 use ir::ast::{Definition, Expr, Item, Module, ParseExpr, Path, RepeatBound, Type};
@@ -335,7 +335,7 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
         Field {
             doc: Rc::clone(&field.doc),
             name: field.name.clone(),
-            value: Expr::Var(Var::free(field.name.clone())).into(),
+            value: Expr::Var(Var::free(Name::user(field.name.clone()))).into(),
         }
     };
 
@@ -347,7 +347,7 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
 
     for (name, mut parse_expr) in parse_exprs {
         for (scope, name) in seen_names.iter().rev().enumerate() {
-            parse_expr.abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
+            parse_expr.abstract_names_at(&[Name::user(name.clone())], ScopeIndex(scope as u32));
         }
 
         seen_names.push(name.clone());
@@ -356,7 +356,7 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
 
     let mut expr: RcExpr = Expr::Struct(path.clone(), expr_fields.collect()).into();
     for (scope, name) in seen_names.iter().rev().enumerate() {
-        expr.abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
+        expr.abstract_names_at(&[Name::user(name.clone())], ScopeIndex(scope as u32));
     }
 
     ParseExpr::Sequence(named_exprs, expr).into()
@@ -377,7 +377,7 @@ fn cond_parser(path: &Path, options: &[Field<(host::RcCExpr, binary::RcType)>]) 
                 path.clone(),
                 option.name.clone(),
                 // FIXME: generate fresh name?
-                Expr::Var(Var::bound("x", BoundVar::new(Si(0), Bi(0)))).into(),
+                Expr::Var(Var::bound(Name::user("x"), BoundVar::new(Si(0), Bi(0)))).into(),
             ).into(),
         ).into();
 

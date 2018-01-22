@@ -23,7 +23,9 @@ Module {
                                     hi: BytePos(63)
                                 },
                                 Free(
-                                    Ident("u64le")
+                                    User(
+                                        Ident("u64le")
+                                    )
                                 )
                             ),
                             Inf(
@@ -34,10 +36,14 @@ Module {
                                     },
                                     [
                                         Named(
-                                            Ident("magic"),
+                                            User(
+                                                Ident("magic")
+                                            ),
                                             Var(
                                                 Free(
-                                                    Ident("u64le")
+                                                    User(
+                                                        Ident("u64le")
+                                                    )
                                                 )
                                             )
                                         )
@@ -55,7 +61,9 @@ Module {
                                             },
                                             Bound(
                                                 Named(
-                                                    Ident("magic"),
+                                                    User(
+                                                        Ident("magic")
+                                                    ),
                                                     BoundVar(0, 0)
                                                 )
                                             )
@@ -81,7 +89,9 @@ Module {
                                 hi: BytePos(155)
                             },
                             Free(
-                                Ident("u16le")
+                                User(
+                                    Ident("u16le")
+                                )
                             )
                         )
                     },
@@ -94,7 +104,9 @@ Module {
                                 hi: BytePos(214)
                             },
                             Free(
-                                Ident("u16le")
+                                User(
+                                    Ident("u16le")
+                                )
                             )
                         )
                     },
@@ -107,7 +119,9 @@ Module {
                                 hi: BytePos(255)
                             },
                             Free(
-                                Ident("u32le")
+                                User(
+                                    Ident("u32le")
+                                )
                             )
                         )
                     },
@@ -120,7 +134,9 @@ Module {
                                 hi: BytePos(358)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -133,7 +149,9 @@ Module {
                                 hi: BytePos(478)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -156,7 +174,7 @@ Module {
                                     },
                                     [
                                         Named(
-                                            Ident("_"),
+                                            Abstract,
                                             Const(
                                                 Unit
                                             )
@@ -180,7 +198,9 @@ Module {
                                                 },
                                                 Bound(
                                                     Named(
-                                                        Ident("mfg_year_mod"),
+                                                        User(
+                                                            Ident("mfg_year_mod")
+                                                        ),
                                                         BoundVar(2, 0)
                                                     )
                                                 )
@@ -217,7 +237,9 @@ Module {
                                 hi: BytePos(667)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -230,7 +252,9 @@ Module {
                                 hi: BytePos(738)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     }
@@ -255,7 +279,9 @@ Module {
                                 hi: BytePos(826)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -268,7 +294,9 @@ Module {
                                 hi: BytePos(952)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -281,7 +309,9 @@ Module {
                                 hi: BytePos(1084)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -294,7 +324,9 @@ Module {
                                 hi: BytePos(1282)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -317,7 +349,7 @@ Module {
                                     },
                                     [
                                         Named(
-                                            Ident("_"),
+                                            Abstract,
                                             Const(
                                                 Unit
                                             )
@@ -347,7 +379,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("gamma_mod"),
+                                                            User(
+                                                                Ident("gamma_mod")
+                                                            ),
                                                             BoundVar(2, 0)
                                                         )
                                                     )
@@ -392,7 +426,9 @@ Module {
                                 hi: BytePos(1458)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     }
@@ -418,7 +454,9 @@ Module {
                             },
                             Bound(
                                 Named(
-                                    Ident("Header"),
+                                    User(
+                                        Ident("Header")
+                                    ),
                                     BoundVar(1, 0)
                                 )
                             )
@@ -434,7 +472,9 @@ Module {
                             },
                             Bound(
                                 Named(
-                                    Ident("DisplayParams"),
+                                    User(
+                                        Ident("DisplayParams")
+                                    ),
                                     BoundVar(1, 0)
                                 )
                             )

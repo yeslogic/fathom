@@ -105,7 +105,9 @@ Module {
                                     Lam(
                                         [
                                             Named(
-                                                Ident("magic"),
+                                                User(
+                                                    Ident("magic")
+                                                ),
                                                 Const(
                                                     Unsigned(
                                                         U64
@@ -118,7 +120,9 @@ Module {
                                             Var(
                                                 Bound(
                                                     Named(
-                                                        Ident("magic"),
+                                                        User(
+                                                            Ident("magic")
+                                                        ),
                                                         BoundVar(0, 0)
                                                     )
                                                 )
@@ -172,7 +176,7 @@ Module {
                                     Lam(
                                         [
                                             Named(
-                                                Ident("_"),
+                                                Abstract,
                                                 Const(
                                                     Unit
                                                 )
@@ -184,7 +188,9 @@ Module {
                                                 Var(
                                                     Bound(
                                                         Named(
-                                                            Ident("mfg_year_mod"),
+                                                            User(
+                                                                Ident("mfg_year_mod")
+                                                            ),
                                                             BoundVar(2, 0)
                                                         )
                                                     )
@@ -230,7 +236,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("magic"),
+                                                User(
+                                                    Ident("magic")
+                                                ),
                                                 BoundVar(8, 0)
                                             )
                                         )
@@ -242,7 +250,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("mfg_bytes"),
+                                                User(
+                                                    Ident("mfg_bytes")
+                                                ),
                                                 BoundVar(7, 0)
                                             )
                                         )
@@ -254,7 +264,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("product_code"),
+                                                User(
+                                                    Ident("product_code")
+                                                ),
                                                 BoundVar(6, 0)
                                             )
                                         )
@@ -266,7 +278,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("serial"),
+                                                User(
+                                                    Ident("serial")
+                                                ),
                                                 BoundVar(5, 0)
                                             )
                                         )
@@ -278,7 +292,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("mfg_week"),
+                                                User(
+                                                    Ident("mfg_week")
+                                                ),
                                                 BoundVar(4, 0)
                                             )
                                         )
@@ -290,7 +306,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("mfg_year_mod"),
+                                                User(
+                                                    Ident("mfg_year_mod")
+                                                ),
                                                 BoundVar(3, 0)
                                             )
                                         )
@@ -302,7 +320,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("mfg_year"),
+                                                User(
+                                                    Ident("mfg_year")
+                                                ),
                                                 BoundVar(2, 0)
                                             )
                                         )
@@ -314,7 +334,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("edid_version_major"),
+                                                User(
+                                                    Ident("edid_version_major")
+                                                ),
                                                 BoundVar(1, 0)
                                             )
                                         )
@@ -326,7 +348,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("edid_version_minor"),
+                                                User(
+                                                    Ident("edid_version_minor")
+                                                ),
                                                 BoundVar(0, 0)
                                             )
                                         )
@@ -435,7 +459,7 @@ Module {
                                     Lam(
                                         [
                                             Named(
-                                                Ident("_"),
+                                                Abstract,
                                                 Const(
                                                     Unit
                                                 )
@@ -449,7 +473,9 @@ Module {
                                                     Var(
                                                         Bound(
                                                             Named(
-                                                                Ident("gamma_mod"),
+                                                                User(
+                                                                    Ident("gamma_mod")
+                                                                ),
                                                                 BoundVar(2, 0)
                                                             )
                                                         )
@@ -493,7 +519,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("input_flags"),
+                                                User(
+                                                    Ident("input_flags")
+                                                ),
                                                 BoundVar(5, 0)
                                             )
                                         )
@@ -505,7 +533,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("screen_size_h"),
+                                                User(
+                                                    Ident("screen_size_h")
+                                                ),
                                                 BoundVar(4, 0)
                                             )
                                         )
@@ -517,7 +547,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("screen_size_v"),
+                                                User(
+                                                    Ident("screen_size_v")
+                                                ),
                                                 BoundVar(3, 0)
                                             )
                                         )
@@ -529,7 +561,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("gamma_mod"),
+                                                User(
+                                                    Ident("gamma_mod")
+                                                ),
                                                 BoundVar(2, 0)
                                             )
                                         )
@@ -541,7 +575,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("gamma"),
+                                                User(
+                                                    Ident("gamma")
+                                                ),
                                                 BoundVar(1, 0)
                                             )
                                         )
@@ -553,7 +589,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("features_flags"),
+                                                User(
+                                                    Ident("features_flags")
+                                                ),
                                                 BoundVar(0, 0)
                                             )
                                         )
@@ -605,7 +643,9 @@ Module {
                                 Var(
                                     Bound(
                                         Named(
-                                            Ident("Header"),
+                                            User(
+                                                Ident("Header")
+                                            ),
                                             BoundVar(1, 0)
                                         )
                                     )
@@ -616,7 +656,9 @@ Module {
                                 Var(
                                     Bound(
                                         Named(
-                                            Ident("DisplayParams"),
+                                            User(
+                                                Ident("DisplayParams")
+                                            ),
                                             BoundVar(1, 0)
                                         )
                                     )
@@ -635,7 +677,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("header"),
+                                                User(
+                                                    Ident("header")
+                                                ),
                                                 BoundVar(1, 0)
                                             )
                                         )
@@ -647,7 +691,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("display_params"),
+                                                User(
+                                                    Ident("display_params")
+                                                ),
                                                 BoundVar(0, 0)
                                             )
                                         )

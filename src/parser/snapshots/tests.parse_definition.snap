@@ -18,7 +18,9 @@ Module {
                                 hi: BytePos(47)
                             },
                             Free(
-                                Ident("u32be")
+                                User(
+                                    Ident("u32be")
+                                )
                             )
                         )
                     },
@@ -31,7 +33,9 @@ Module {
                                 hi: BytePos(70)
                             },
                             Free(
-                                Ident("u32be")
+                                User(
+                                    Ident("u32be")
+                                )
                             )
                         )
                     }
@@ -56,7 +60,9 @@ Module {
                                 hi: BytePos(201)
                             },
                             Free(
-                                Ident("u16le")
+                                User(
+                                    Ident("u16le")
+                                )
                             )
                         )
                     },
@@ -75,7 +81,9 @@ Module {
                                 },
                                 Bound(
                                     Named(
-                                        Ident("Point"),
+                                        User(
+                                            Ident("Point")
+                                        ),
                                         BoundVar(1, 0)
                                     )
                                 )
@@ -87,7 +95,9 @@ Module {
                                 },
                                 Bound(
                                     Named(
-                                        Ident("len"),
+                                        User(
+                                            Ident("len")
+                                        ),
                                         BoundVar(0, 0)
                                     )
                                 )
@@ -115,7 +125,9 @@ Module {
                                 hi: BytePos(298)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -146,7 +158,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("format"),
+                                                            User(
+                                                                Ident("format")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -166,7 +180,9 @@ Module {
                                                 hi: BytePos(424)
                                             },
                                             Free(
-                                                Ident("u16")
+                                                User(
+                                                    Ident("u16")
+                                                )
                                             )
                                         )
                                     )
@@ -189,7 +205,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("format"),
+                                                            User(
+                                                                Ident("format")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -210,7 +228,9 @@ Module {
                                             },
                                             Bound(
                                                 Named(
-                                                    Ident("Point"),
+                                                    User(
+                                                        Ident("Point")
+                                                    ),
                                                     BoundVar(2, 0)
                                                 )
                                             )
@@ -235,7 +255,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("format"),
+                                                            User(
+                                                                Ident("format")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -256,7 +278,9 @@ Module {
                                             },
                                             Bound(
                                                 Named(
-                                                    Ident("Array"),
+                                                    User(
+                                                        Ident("Array")
+                                                    ),
                                                     BoundVar(1, 0)
                                                 )
                                             )

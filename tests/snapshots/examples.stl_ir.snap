@@ -77,7 +77,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("x"),
+                                                User(
+                                                    Ident("x")
+                                                ),
                                                 BoundVar(2, 0)
                                             )
                                         )
@@ -89,7 +91,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("y"),
+                                                User(
+                                                    Ident("y")
+                                                ),
                                                 BoundVar(1, 0)
                                             )
                                         )
@@ -101,7 +105,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("z"),
+                                                User(
+                                                    Ident("z")
+                                                ),
                                                 BoundVar(0, 0)
                                             )
                                         )
@@ -164,7 +170,9 @@ Module {
                                 Var(
                                     Bound(
                                         Named(
-                                            Ident("Vec3d"),
+                                            User(
+                                                Ident("Vec3d")
+                                            ),
                                             BoundVar(0, 0)
                                         )
                                     )
@@ -176,7 +184,9 @@ Module {
                                     Var(
                                         Bound(
                                             Named(
-                                                Ident("Vec3d"),
+                                                User(
+                                                    Ident("Vec3d")
+                                                ),
                                                 BoundVar(1, 0)
                                             )
                                         )
@@ -209,7 +219,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("normal"),
+                                                User(
+                                                    Ident("normal")
+                                                ),
                                                 BoundVar(2, 0)
                                             )
                                         )
@@ -221,7 +233,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("vertices"),
+                                                User(
+                                                    Ident("vertices")
+                                                ),
                                                 BoundVar(1, 0)
                                             )
                                         )
@@ -233,7 +247,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("attribute_bytes"),
+                                                User(
+                                                    Ident("attribute_bytes")
+                                                ),
                                                 BoundVar(0, 0)
                                             )
                                         )
@@ -318,7 +334,9 @@ Module {
                                     Var(
                                         Bound(
                                             Named(
-                                                Ident("Triangle"),
+                                                User(
+                                                    Ident("Triangle")
+                                                ),
                                                 BoundVar(2, 0)
                                             )
                                         )
@@ -327,7 +345,9 @@ Module {
                                         Var(
                                             Bound(
                                                 Named(
-                                                    Ident("num_triangles"),
+                                                    User(
+                                                        Ident("num_triangles")
+                                                    ),
                                                     BoundVar(0, 0)
                                                 )
                                             )
@@ -348,7 +368,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("header"),
+                                                User(
+                                                    Ident("header")
+                                                ),
                                                 BoundVar(2, 0)
                                             )
                                         )
@@ -360,7 +382,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("num_triangles"),
+                                                User(
+                                                    Ident("num_triangles")
+                                                ),
                                                 BoundVar(1, 0)
                                             )
                                         )
@@ -372,7 +396,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("triangles"),
+                                                User(
+                                                    Ident("triangles")
+                                                ),
                                                 BoundVar(0, 0)
                                             )
                                         )

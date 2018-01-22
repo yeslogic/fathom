@@ -18,7 +18,9 @@ Module {
                                 hi: BytePos(85)
                             },
                             Free(
-                                Ident("i32be")
+                                User(
+                                    Ident("i32be")
+                                )
                             )
                         )
                     },
@@ -31,7 +33,9 @@ Module {
                                 hi: BytePos(343)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -49,7 +53,9 @@ Module {
                                     hi: BytePos(382)
                                 },
                                 Free(
-                                    Ident("u8")
+                                    User(
+                                        Ident("u8")
+                                    )
                                 )
                             ),
                             Cast(
@@ -64,7 +70,9 @@ Module {
                                     },
                                     Bound(
                                         Named(
-                                            Ident("len"),
+                                            User(
+                                                Ident("len")
+                                            ),
                                             BoundVar(1, 0)
                                         )
                                     )
@@ -98,7 +106,9 @@ Module {
                                 hi: BytePos(442)
                             },
                             Free(
-                                Ident("i32be")
+                                User(
+                                    Ident("i32be")
+                                )
                             )
                         )
                     },
@@ -111,7 +121,9 @@ Module {
                                 hi: BytePos(465)
                             },
                             Free(
-                                Ident("u24be")
+                                User(
+                                    Ident("u24be")
+                                )
                             )
                         )
                     },
@@ -124,7 +136,9 @@ Module {
                                 hi: BytePos(488)
                             },
                             Free(
-                                Ident("u16be")
+                                User(
+                                    Ident("u16be")
+                                )
                             )
                         )
                     },
@@ -137,7 +151,9 @@ Module {
                                 hi: BytePos(508)
                             },
                             Free(
-                                Ident("u24be")
+                                User(
+                                    Ident("u24be")
+                                )
                             )
                         )
                     }
@@ -162,7 +178,9 @@ Module {
                                 hi: BytePos(551)
                             },
                             Free(
-                                Ident("u8")
+                                User(
+                                    Ident("u8")
+                                )
                             )
                         )
                     },
@@ -193,7 +211,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("elem_type"),
+                                                            User(
+                                                                Ident("elem_type")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -213,7 +233,9 @@ Module {
                                                 hi: BytePos(652)
                                             },
                                             Free(
-                                                Ident("f64le")
+                                                User(
+                                                    Ident("f64le")
+                                                )
                                             )
                                         )
                                     )
@@ -236,7 +258,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("elem_type"),
+                                                            User(
+                                                                Ident("elem_type")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -257,7 +281,9 @@ Module {
                                             },
                                             Bound(
                                                 Named(
-                                                    Ident("BinData"),
+                                                    User(
+                                                        Ident("BinData")
+                                                    ),
                                                     BoundVar(2, 0)
                                                 )
                                             )
@@ -282,7 +308,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("elem_type"),
+                                                            User(
+                                                                Ident("elem_type")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -302,7 +330,9 @@ Module {
                                                 hi: BytePos(1116)
                                             },
                                             Free(
-                                                Ident("empty")
+                                                User(
+                                                    Ident("empty")
+                                                )
                                             )
                                         )
                                     )
@@ -325,7 +355,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("elem_type"),
+                                                            User(
+                                                                Ident("elem_type")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -346,7 +378,9 @@ Module {
                                             },
                                             Bound(
                                                 Named(
-                                                    Ident("ObjectId"),
+                                                    User(
+                                                        Ident("ObjectId")
+                                                    ),
                                                     BoundVar(1, 0)
                                                 )
                                             )
@@ -371,7 +405,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("elem_type"),
+                                                            User(
+                                                                Ident("elem_type")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -391,7 +427,9 @@ Module {
                                                 hi: BytePos(1322)
                                             },
                                             Free(
-                                                Ident("u8")
+                                                User(
+                                                    Ident("u8")
+                                                )
                                             )
                                         )
                                     )
@@ -414,7 +452,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("elem_type"),
+                                                            User(
+                                                                Ident("elem_type")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -434,7 +474,9 @@ Module {
                                                 hi: BytePos(1400)
                                             },
                                             Free(
-                                                Ident("i64le")
+                                                User(
+                                                    Ident("i64le")
+                                                )
                                             )
                                         )
                                     )
@@ -457,7 +499,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("elem_type"),
+                                                            User(
+                                                                Ident("elem_type")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -477,7 +521,9 @@ Module {
                                                 hi: BytePos(1468)
                                             },
                                             Free(
-                                                Ident("empty")
+                                                User(
+                                                    Ident("empty")
+                                                )
                                             )
                                         )
                                     )
@@ -500,7 +546,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("elem_type"),
+                                                            User(
+                                                                Ident("elem_type")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -520,7 +568,9 @@ Module {
                                                 hi: BytePos(2000)
                                             },
                                             Free(
-                                                Ident("i32le")
+                                                User(
+                                                    Ident("i32le")
+                                                )
                                             )
                                         )
                                     )
@@ -543,7 +593,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("elem_type"),
+                                                            User(
+                                                                Ident("elem_type")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -563,7 +615,9 @@ Module {
                                                 hi: BytePos(2072)
                                             },
                                             Free(
-                                                Ident("u64le")
+                                                User(
+                                                    Ident("u64le")
+                                                )
                                             )
                                         )
                                     )
@@ -586,7 +640,9 @@ Module {
                                                     },
                                                     Bound(
                                                         Named(
-                                                            Ident("elem_type"),
+                                                            User(
+                                                                Ident("elem_type")
+                                                            ),
                                                             BoundVar(0, 0)
                                                         )
                                                     )
@@ -606,7 +662,9 @@ Module {
                                                 hi: BytePos(2144)
                                             },
                                             Free(
-                                                Ident("i64le")
+                                                User(
+                                                    Ident("i64le")
+                                                )
                                             )
                                         )
                                     )
@@ -635,7 +693,9 @@ Module {
                                 hi: BytePos(2419)
                             },
                             Free(
-                                Ident("i32be")
+                                User(
+                                    Ident("i32be")
+                                )
                             )
                         )
                     },
@@ -654,7 +714,9 @@ Module {
                                 },
                                 Bound(
                                     Named(
-                                        Ident("Element"),
+                                        User(
+                                            Ident("Element")
+                                        ),
                                         BoundVar(1, 0)
                                     )
                                 )

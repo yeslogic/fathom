@@ -10,7 +10,9 @@ Binop(
             hi: BytePos(1)
         },
         Free(
-            Ident("x")
+            User(
+                Ident("x")
+            )
         )
     ),
     Binop(
@@ -31,7 +33,9 @@ Binop(
                     hi: BytePos(5)
                 },
                 Free(
-                    Ident("y")
+                    User(
+                        Ident("y")
+                    )
                 )
             ),
             Binop(
@@ -46,7 +50,9 @@ Binop(
                         hi: BytePos(9)
                     },
                     Free(
-                        Ident("z")
+                        User(
+                            Ident("z")
+                        )
                     )
                 ),
                 Var(
@@ -55,7 +61,9 @@ Binop(
                         hi: BytePos(13)
                     },
                     Free(
-                        Ident("z")
+                        User(
+                            Ident("z")
+                        )
                     )
                 )
             )
@@ -72,7 +80,9 @@ Binop(
                     hi: BytePos(17)
                 },
                 Free(
-                    Ident("x")
+                    User(
+                        Ident("x")
+                    )
                 )
             ),
             Var(
@@ -81,7 +91,9 @@ Binop(
                     hi: BytePos(21)
                 },
                 Free(
-                    Ident("a")
+                    User(
+                        Ident("a")
+                    )
                 )
             )
         )

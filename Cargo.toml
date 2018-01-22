@@ -26,7 +26,6 @@ members = [
 failure = "0.1.1"
 heck = "0.3.0"
 lalrpop-util = "0.13.1"
-maplit = "1.0.0"
 pretty = "0.3.2"
 regex = "0.2.0"
 unicode-xid = "0.1.0"

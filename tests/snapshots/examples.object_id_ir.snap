@@ -94,7 +94,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("epoch_time"),
+                                                User(
+                                                    Ident("epoch_time")
+                                                ),
                                                 BoundVar(3, 0)
                                             )
                                         )
@@ -106,7 +108,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("machine_id"),
+                                                User(
+                                                    Ident("machine_id")
+                                                ),
                                                 BoundVar(2, 0)
                                             )
                                         )
@@ -118,7 +122,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("process_id"),
+                                                User(
+                                                    Ident("process_id")
+                                                ),
                                                 BoundVar(1, 0)
                                             )
                                         )
@@ -130,7 +136,9 @@ Module {
                                     value: Var(
                                         Bound(
                                             Named(
-                                                Ident("counter"),
+                                                User(
+                                                    Ident("counter")
+                                                ),
                                                 BoundVar(0, 0)
                                             )
                                         )
