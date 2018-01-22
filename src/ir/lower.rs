@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use name::{Named, OwnedIdent};
+use name::{Ident, Named};
 use syntax;
 use syntax::ast::{binary, host, Field};
 use ir::ast::{Definition, Expr, Item, Module, ParseExpr, Path, RepeatBound, Type};
@@ -343,11 +343,11 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
     let expr_fields = fields.iter().map(lower_to_expr_field);
 
     let mut named_exprs = Vec::with_capacity(fields.len());
-    let mut seen_names = Vec::<OwnedIdent>::with_capacity(fields.len());
+    let mut seen_names = Vec::<Ident>::with_capacity(fields.len());
 
     for (name, mut parse_expr) in parse_exprs {
         for (scope, name) in seen_names.iter().rev().enumerate() {
-            parse_expr.abstract_names_at(&[name], ScopeIndex(scope as u32));
+            parse_expr.abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
         }
 
         seen_names.push(name.clone());
@@ -356,7 +356,7 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
 
     let mut expr: RcExpr = Expr::Struct(path.clone(), expr_fields.collect()).into();
     for (scope, name) in seen_names.iter().rev().enumerate() {
-        expr.abstract_names_at(&[name], ScopeIndex(scope as u32));
+        expr.abstract_names_at(&[name.clone()], ScopeIndex(scope as u32));
     }
 
     ParseExpr::Sequence(named_exprs, expr).into()
@@ -372,9 +372,7 @@ fn cond_parser(path: &Path, options: &[Field<(host::RcCExpr, binary::RcType)>]) 
     let lower_option = |option: &Field<(host::RcCExpr, binary::RcType)>| {
         let pred_expr = lower_cexpr(path, &option.value.0);
         let variant_parser = ParseExpr::Sequence(
-            vec![
-                Named(OwnedIdent::from("x"), ty_parser(path, &option.value.1)),
-            ],
+            vec![Named(Ident::from("x"), ty_parser(path, &option.value.1))],
             Expr::Intro(
                 path.clone(),
                 option.name.clone(),

@@ -19,10 +19,10 @@ Unop(
                     lo: BytePos(1),
                     hi: BytePos(4)
                 },
-                Free(OwnedIdent("foo"))
+                Free(Ident("foo"))
             ),
-            OwnedIdent("bar")
+            Ident("bar")
         ),
-        OwnedIdent("x")
+        Ident("x")
     )
 )

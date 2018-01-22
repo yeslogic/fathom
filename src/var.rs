@@ -1,7 +1,7 @@
 //! Variable binding
 
 use std::fmt;
-use name::{Ident, Named, OwnedIdent};
+use name::{Ident, Named};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct ScopeIndex(pub u32);
@@ -95,23 +95,23 @@ impl fmt::Debug for BoundVar {
 #[derive(Clone, PartialEq, Eq)]
 pub enum Var {
     /// A free, unbound variable
-    Free(OwnedIdent),
+    Free(Ident),
     /// A bound variable
-    Bound(Named<OwnedIdent, BoundVar>),
+    Bound(Named<Ident, BoundVar>),
 }
 
 impl Var {
-    pub fn free<N: Into<OwnedIdent>>(name: N) -> Var {
+    pub fn free<N: Into<Ident>>(name: N) -> Var {
         Var::Free(name.into())
     }
 
-    pub fn bound<N: Into<OwnedIdent>>(name: N, var: BoundVar) -> Var {
+    pub fn bound<N: Into<Ident>>(name: N, var: BoundVar) -> Var {
         Var::Bound(Named(name.into(), var))
     }
 
-    pub fn abstract_names_at(&mut self, names: &[&Ident], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[Ident], scope: ScopeIndex) {
         *self = match *self {
-            Var::Free(ref n) => match names.iter().position(|&name| name == n) {
+            Var::Free(ref n) => match names.iter().position(|name| name == n) {
                 Some(position) => {
                     let bv = BoundVar {
                         scope,

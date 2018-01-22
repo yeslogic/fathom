@@ -1,14 +1,14 @@
 //! The type checking context and binders
 
-use name::{Named, OwnedIdent};
+use name::{Ident, Named};
 use syntax::ast::{binary, host};
 use var::{BoundVar, ScopeIndex};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Scope {
-    ExprLam(Vec<Named<OwnedIdent, host::RcType>>),
-    TypeLam(Vec<Named<OwnedIdent, binary::Kind>>),
-    TypeDef(Vec<Named<OwnedIdent, (binary::RcType, binary::Kind)>>),
+    ExprLam(Vec<Named<Ident, host::RcType>>),
+    TypeLam(Vec<Named<Ident, binary::Kind>>),
+    TypeDef(Vec<Named<Ident, (binary::RcType, binary::Kind)>>),
 }
 
 #[derive(Debug, Clone)]
@@ -34,7 +34,7 @@ impl Context {
         &self.scopes[(self.scopes.len() - scope.0 as usize) - 1]
     }
 
-    pub fn lookup_ty(&self, var: BoundVar) -> Result<(&OwnedIdent, &host::RcType), &Scope> {
+    pub fn lookup_ty(&self, var: BoundVar) -> Result<(&Ident, &host::RcType), &Scope> {
         match *self.lookup(var.scope) {
             Scope::ExprLam(ref tys) => Ok(
                 tys.get(var.binding.0 as usize)
@@ -45,7 +45,7 @@ impl Context {
         }
     }
 
-    pub fn lookup_ty_def(&self, var: BoundVar) -> Result<(&OwnedIdent, &binary::RcType), &Scope> {
+    pub fn lookup_ty_def(&self, var: BoundVar) -> Result<(&Ident, &binary::RcType), &Scope> {
         match *self.lookup(var.scope) {
             Scope::TypeDef(ref defs) => Ok(
                 defs.get(var.binding.0 as usize)
@@ -56,7 +56,7 @@ impl Context {
         }
     }
 
-    pub fn lookup_kind(&self, var: BoundVar) -> Result<(&OwnedIdent, &binary::Kind), &Scope> {
+    pub fn lookup_kind(&self, var: BoundVar) -> Result<(&Ident, &binary::Kind), &Scope> {
         match *self.lookup(var.scope) {
             Scope::TypeLam(ref kinds) => Ok(
                 kinds

@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use name::{Named, OwnedIdent};
+use name::{Ident, Named};
 use syntax::ast::{binary, host, Field, Module};
 use self::context::{Context, Scope};
 use var::Var;
@@ -27,10 +27,7 @@ pub enum ExpectedType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable {
-        expr: host::RcIExpr,
-        name: OwnedIdent,
-    },
+    UnboundVariable { expr: host::RcIExpr, name: Ident },
     /// Variable bound in the context was not at the value level
     ExprBindingExpected { expr: host::RcIExpr, found: Scope },
     /// One type was expected, but another was found
@@ -56,13 +53,13 @@ pub enum TypeError {
     MissingField {
         expr: host::RcIExpr,
         struct_ty: host::RcType,
-        field_name: OwnedIdent,
+        field_name: Ident,
     },
     /// A variant was missing when introducing on a union
     MissingVariant {
         expr: host::RcCExpr,
         union_ty: host::RcType,
-        variant_name: OwnedIdent,
+        variant_name: Ident,
     },
     /// An invalid type was supplied to the cast expression
     InvalidCastType {
@@ -384,10 +381,7 @@ fn simplify_ty(ctx: &Context, ty: &binary::RcType) -> binary::RcType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum KindError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable {
-        ty: binary::RcType,
-        name: OwnedIdent,
-    },
+    UnboundVariable { ty: binary::RcType, name: Ident },
     /// Variable bound in the context was not at the type level
     TypeBindingExpected { ty: binary::RcType, found: Scope },
     /// One kind was expected, but another was found

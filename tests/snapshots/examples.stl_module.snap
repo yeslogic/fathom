@@ -2,7 +2,7 @@ Module {
     definitions: [
         Definition {
             doc: "",
-            name: OwnedIdent("Vec3d"),
+            name: Ident("Vec3d"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(8),
@@ -11,35 +11,35 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: OwnedIdent("x"),
+                        name: Ident("x"),
                         value: Var(
                             Span {
                                 lo: BytePos(24),
                                 hi: BytePos(29)
                             },
-                            Free(OwnedIdent("f32le"))
+                            Free(Ident("f32le"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("y"),
+                        name: Ident("y"),
                         value: Var(
                             Span {
                                 lo: BytePos(38),
                                 hi: BytePos(43)
                             },
-                            Free(OwnedIdent("f32le"))
+                            Free(Ident("f32le"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("z"),
+                        name: Ident("z"),
                         value: Var(
                             Span {
                                 lo: BytePos(52),
                                 hi: BytePos(57)
                             },
-                            Free(OwnedIdent("f32le"))
+                            Free(Ident("f32le"))
                         )
                     }
                 ]
@@ -47,7 +47,7 @@ Module {
         },
         Definition {
             doc: "",
-            name: OwnedIdent("Triangle"),
+            name: Ident("Triangle"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(74),
@@ -56,18 +56,18 @@ Module {
                 [
                     Field {
                         doc: "Normal vector",
-                        name: OwnedIdent("normal"),
+                        name: Ident("normal"),
                         value: Var(
                             Span {
                                 lo: BytePos(117),
                                 hi: BytePos(122)
                             },
-                            Bound(Named(OwnedIdent("Vec3d"), BoundVar(0, 0)))
+                            Bound(Named(Ident("Vec3d"), BoundVar(0, 0)))
                         )
                     },
                     Field {
                         doc: "Coordinates of the vertices",
-                        name: OwnedIdent("vertices"),
+                        name: Ident("vertices"),
                         value: Array(
                             Span {
                                 lo: BytePos(174),
@@ -78,7 +78,7 @@ Module {
                                     lo: BytePos(175),
                                     hi: BytePos(180)
                                 },
-                                Bound(Named(OwnedIdent("Vec3d"), BoundVar(1, 0)))
+                                Bound(Named(Ident("Vec3d"), BoundVar(1, 0)))
                             ),
                             Const(
                                 Span {
@@ -91,13 +91,13 @@ Module {
                     },
                     Field {
                         doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
-                        name: OwnedIdent("attribute_bytes"),
+                        name: Ident("attribute_bytes"),
                         value: Var(
                             Span {
                                 lo: BytePos(399),
                                 hi: BytePos(404)
                             },
-                            Free(OwnedIdent("u16le"))
+                            Free(Ident("u16le"))
                         )
                     }
                 ]
@@ -105,7 +105,7 @@ Module {
         },
         Definition {
             doc: "https://en.wikipedia.org/wiki/STL_(file_format)",
-            name: OwnedIdent("Stl"),
+            name: Ident("Stl"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(468),
@@ -114,7 +114,7 @@ Module {
                 [
                     Field {
                         doc: "Generally ignored",
-                        name: OwnedIdent("header"),
+                        name: Ident("header"),
                         value: Array(
                             Span {
                                 lo: BytePos(515),
@@ -125,7 +125,7 @@ Module {
                                     lo: BytePos(516),
                                     hi: BytePos(518)
                                 },
-                                Free(OwnedIdent("u8"))
+                                Free(Ident("u8"))
                             ),
                             Const(
                                 Span {
@@ -138,18 +138,18 @@ Module {
                     },
                     Field {
                         doc: "Number of triangles that follow",
-                        name: OwnedIdent("num_triangles"),
+                        name: Ident("num_triangles"),
                         value: Var(
                             Span {
                                 lo: BytePos(586),
                                 hi: BytePos(591)
                             },
-                            Free(OwnedIdent("u32le"))
+                            Free(Ident("u32le"))
                         )
                     },
                     Field {
                         doc: "The triangle data",
-                        name: OwnedIdent("triangles"),
+                        name: Ident("triangles"),
                         value: Array(
                             Span {
                                 lo: BytePos(634),
@@ -160,14 +160,14 @@ Module {
                                     lo: BytePos(635),
                                     hi: BytePos(643)
                                 },
-                                Bound(Named(OwnedIdent("Triangle"), BoundVar(2, 0)))
+                                Bound(Named(Ident("Triangle"), BoundVar(2, 0)))
                             ),
                             Var(
                                 Span {
                                     lo: BytePos(645),
                                     hi: BytePos(658)
                                 },
-                                Bound(Named(OwnedIdent("num_triangles"), BoundVar(0, 0)))
+                                Bound(Named(Ident("num_triangles"), BoundVar(0, 0)))
                             )
                         )
                     }

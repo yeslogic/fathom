@@ -2,7 +2,7 @@ Module {
     definitions: [
         Definition {
             doc: "Binary data",
-            name: OwnedIdent("BinData"),
+            name: Ident("BinData"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(26),
@@ -11,29 +11,29 @@ Module {
                 [
                     Field {
                         doc: "The number of bytes stored",
-                        name: OwnedIdent("len"),
+                        name: Ident("len"),
                         value: Var(
                             Span {
                                 lo: BytePos(80),
                                 hi: BytePos(85)
                             },
-                            Free(OwnedIdent("i32be"))
+                            Free(Ident("i32be"))
                         )
                     },
                     Field {
                         doc: "Binary data subtype\n\n- `0x00`: Generic binary subtype\n- `0x01`: Function\n- `0x02`: Binary (Old)\n- `0x03`: UUID (Old)\n- `0x04`: UUID\n- `0x05`: MD5\n- `0x80`: User defined",
-                        name: OwnedIdent("subtype"),
+                        name: Ident("subtype"),
                         value: Var(
                             Span {
                                 lo: BytePos(341),
                                 hi: BytePos(343)
                             },
-                            Free(OwnedIdent("u8"))
+                            Free(Ident("u8"))
                         )
                     },
                     Field {
                         doc: "The binary data",
-                        name: OwnedIdent("data"),
+                        name: Ident("data"),
                         value: Array(
                             Span {
                                 lo: BytePos(379),
@@ -44,7 +44,7 @@ Module {
                                     lo: BytePos(380),
                                     hi: BytePos(382)
                                 },
-                                Free(OwnedIdent("u8"))
+                                Free(Ident("u8"))
                             ),
                             Cast(
                                 Span {
@@ -56,7 +56,7 @@ Module {
                                         lo: BytePos(384),
                                         hi: BytePos(387)
                                     },
-                                    Bound(Named(OwnedIdent("len"), BoundVar(1, 0)))
+                                    Bound(Named(Ident("len"), BoundVar(1, 0)))
                                 ),
                                 Const(
                                     Unsigned(
@@ -71,7 +71,7 @@ Module {
         },
         Definition {
             doc: "",
-            name: OwnedIdent("ObjectId"),
+            name: Ident("ObjectId"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(412),
@@ -80,46 +80,46 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: OwnedIdent("epoch_time"),
+                        name: Ident("epoch_time"),
                         value: Var(
                             Span {
                                 lo: BytePos(437),
                                 hi: BytePos(442)
                             },
-                            Free(OwnedIdent("i32be"))
+                            Free(Ident("i32be"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("machine_id"),
+                        name: Ident("machine_id"),
                         value: Var(
                             Span {
                                 lo: BytePos(460),
                                 hi: BytePos(465)
                             },
-                            Free(OwnedIdent("u24be"))
+                            Free(Ident("u24be"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("process_id"),
+                        name: Ident("process_id"),
                         value: Var(
                             Span {
                                 lo: BytePos(483),
                                 hi: BytePos(488)
                             },
-                            Free(OwnedIdent("u16be"))
+                            Free(Ident("u16be"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("counter"),
+                        name: Ident("counter"),
                         value: Var(
                             Span {
                                 lo: BytePos(503),
                                 hi: BytePos(508)
                             },
-                            Free(OwnedIdent("u24be"))
+                            Free(Ident("u24be"))
                         )
                     }
                 ]
@@ -127,7 +127,7 @@ Module {
         },
         Definition {
             doc: "",
-            name: OwnedIdent("Element"),
+            name: Ident("Element"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(524),
@@ -136,18 +136,18 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: OwnedIdent("elem_type"),
+                        name: Ident("elem_type"),
                         value: Var(
                             Span {
                                 lo: BytePos(549),
                                 hi: BytePos(551)
                             },
-                            Free(OwnedIdent("u8"))
+                            Free(Ident("u8"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("content"),
+                        name: Ident("content"),
                         value: Cond(
                             Span {
                                 lo: BytePos(566),
@@ -156,7 +156,7 @@ Module {
                             [
                                 Field {
                                     doc: "64-bit floating point",
-                                    name: OwnedIdent("double"),
+                                    name: Ident("double"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -170,7 +170,7 @@ Module {
                                                         lo: BytePos(624),
                                                         hi: BytePos(633)
                                                     },
-                                                    Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
+                                                    Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -186,13 +186,13 @@ Module {
                                                 lo: BytePos(647),
                                                 hi: BytePos(652)
                                             },
-                                            Free(OwnedIdent("f64le"))
+                                            Free(Ident("f64le"))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "Binary data",
-                                    name: OwnedIdent("bin_data"),
+                                    name: Ident("bin_data"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -206,7 +206,7 @@ Module {
                                                         lo: BytePos(993),
                                                         hi: BytePos(1002)
                                                     },
-                                                    Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
+                                                    Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -222,13 +222,13 @@ Module {
                                                 lo: BytePos(1016),
                                                 hi: BytePos(1023)
                                             },
-                                            Bound(Named(OwnedIdent("BinData"), BoundVar(2, 0)))
+                                            Bound(Named(Ident("BinData"), BoundVar(2, 0)))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "Undefined (value) - deprecated",
-                                    name: OwnedIdent("undefined"),
+                                    name: Ident("undefined"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -242,7 +242,7 @@ Module {
                                                         lo: BytePos(1088),
                                                         hi: BytePos(1097)
                                                     },
-                                                    Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
+                                                    Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -258,13 +258,13 @@ Module {
                                                 lo: BytePos(1111),
                                                 hi: BytePos(1116)
                                             },
-                                            Free(OwnedIdent("empty"))
+                                            Free(Ident("empty"))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "ObjectId",
-                                    name: OwnedIdent("object_id"),
+                                    name: Ident("object_id"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -278,7 +278,7 @@ Module {
                                                         lo: BytePos(1159),
                                                         hi: BytePos(1168)
                                                     },
-                                                    Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
+                                                    Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -294,13 +294,13 @@ Module {
                                                 lo: BytePos(1182),
                                                 hi: BytePos(1190)
                                             },
-                                            Bound(Named(OwnedIdent("ObjectId"), BoundVar(1, 0)))
+                                            Bound(Named(Ident("ObjectId"), BoundVar(1, 0)))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "Boolean\n\n- `0x00`: false\n- `0x01`: true",
-                                    name: OwnedIdent("boolean"),
+                                    name: Ident("boolean"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -314,7 +314,7 @@ Module {
                                                         lo: BytePos(1297),
                                                         hi: BytePos(1306)
                                                     },
-                                                    Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
+                                                    Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -330,13 +330,13 @@ Module {
                                                 lo: BytePos(1320),
                                                 hi: BytePos(1322)
                                             },
-                                            Free(OwnedIdent("u8"))
+                                            Free(Ident("u8"))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "UTC datetime",
-                                    name: OwnedIdent("utc_datetime"),
+                                    name: Ident("utc_datetime"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -350,7 +350,7 @@ Module {
                                                         lo: BytePos(1372),
                                                         hi: BytePos(1381)
                                                     },
-                                                    Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
+                                                    Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -366,13 +366,13 @@ Module {
                                                 lo: BytePos(1395),
                                                 hi: BytePos(1400)
                                             },
-                                            Free(OwnedIdent("i64le"))
+                                            Free(Ident("i64le"))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "Null value",
-                                    name: OwnedIdent("null"),
+                                    name: Ident("null"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -386,7 +386,7 @@ Module {
                                                         lo: BytePos(1440),
                                                         hi: BytePos(1449)
                                                     },
-                                                    Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
+                                                    Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -402,13 +402,13 @@ Module {
                                                 lo: BytePos(1463),
                                                 hi: BytePos(1468)
                                             },
-                                            Free(OwnedIdent("empty"))
+                                            Free(Ident("empty"))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "32-bit integer",
-                                    name: OwnedIdent("int"),
+                                    name: Ident("int"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -422,7 +422,7 @@ Module {
                                                         lo: BytePos(1972),
                                                         hi: BytePos(1981)
                                                     },
-                                                    Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
+                                                    Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -438,13 +438,13 @@ Module {
                                                 lo: BytePos(1995),
                                                 hi: BytePos(2000)
                                             },
-                                            Free(OwnedIdent("i32le"))
+                                            Free(Ident("i32le"))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "Timestamp",
-                                    name: OwnedIdent("timestamp"),
+                                    name: Ident("timestamp"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -458,7 +458,7 @@ Module {
                                                         lo: BytePos(2044),
                                                         hi: BytePos(2053)
                                                     },
-                                                    Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
+                                                    Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -474,13 +474,13 @@ Module {
                                                 lo: BytePos(2067),
                                                 hi: BytePos(2072)
                                             },
-                                            Free(OwnedIdent("u64le"))
+                                            Free(Ident("u64le"))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "64-bit integer",
-                                    name: OwnedIdent("long"),
+                                    name: Ident("long"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -494,7 +494,7 @@ Module {
                                                         lo: BytePos(2116),
                                                         hi: BytePos(2125)
                                                     },
-                                                    Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
+                                                    Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -510,7 +510,7 @@ Module {
                                                 lo: BytePos(2139),
                                                 hi: BytePos(2144)
                                             },
-                                            Free(OwnedIdent("i64le"))
+                                            Free(Ident("i64le"))
                                         )
                                     )
                                 }
@@ -522,7 +522,7 @@ Module {
         },
         Definition {
             doc: "BSON Document\n\n<http://bsonspec.org/spec.html>",
-            name: OwnedIdent("Document"),
+            name: Ident("Document"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(2340),
@@ -531,18 +531,18 @@ Module {
                 [
                     Field {
                         doc: "Total number of bytes comprising the document.",
-                        name: OwnedIdent("len"),
+                        name: Ident("len"),
                         value: Var(
                             Span {
                                 lo: BytePos(2414),
                                 hi: BytePos(2419)
                             },
-                            Free(OwnedIdent("i32be"))
+                            Free(Ident("i32be"))
                         )
                     },
                     Field {
                         doc: "The elements that make up this document",
-                        name: OwnedIdent("fields"),
+                        name: Ident("fields"),
                         value: Array(
                             Span {
                                 lo: BytePos(2482),
@@ -553,7 +553,7 @@ Module {
                                     lo: BytePos(2483),
                                     hi: BytePos(2490)
                                 },
-                                Bound(Named(OwnedIdent("Element"), BoundVar(1, 0)))
+                                Bound(Named(Ident("Element"), BoundVar(1, 0)))
                             ),
                             Const(
                                 Span {

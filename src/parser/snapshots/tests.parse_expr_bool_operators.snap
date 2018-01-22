@@ -15,14 +15,14 @@ Binop(
                 lo: BytePos(10),
                 hi: BytePos(14)
             },
-            Free(OwnedIdent("true"))
+            Free(Ident("true"))
         ),
         Var(
             Span {
                 lo: BytePos(18),
                 hi: BytePos(23)
             },
-            Free(OwnedIdent("false"))
+            Free(Ident("false"))
         )
     ),
     Binop(
@@ -36,14 +36,14 @@ Binop(
                 lo: BytePos(29),
                 hi: BytePos(33)
             },
-            Free(OwnedIdent("true"))
+            Free(Ident("true"))
         ),
         Var(
             Span {
                 lo: BytePos(37),
                 hi: BytePos(42)
             },
-            Free(OwnedIdent("false"))
+            Free(Ident("false"))
         )
     )
 )

@@ -11,7 +11,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: OwnedIdent("r"),
+                        name: Ident("r"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -20,7 +20,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("g"),
+                        name: Ident("g"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -29,7 +29,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("b"),
+                        name: Ident("b"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -38,7 +38,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("a"),
+                        name: Ident("a"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -49,16 +49,16 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(OwnedIdent("r"), Const(
+                            Named(Ident("r"), Const(
                                 U8
                             )),
-                            Named(OwnedIdent("g"), Const(
+                            Named(Ident("g"), Const(
                                 U8
                             )),
-                            Named(OwnedIdent("b"), Const(
+                            Named(Ident("b"), Const(
                                 U8
                             )),
-                            Named(OwnedIdent("a"), Const(
+                            Named(Ident("a"), Const(
                                 U8
                             ))
                         ],
@@ -70,30 +70,30 @@ Module {
                             [
                                 Field {
                                     doc: "",
-                                    name: OwnedIdent("r"),
+                                    name: Ident("r"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("r"), BoundVar(3, 0)))
+                                        Bound(Named(Ident("r"), BoundVar(3, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: OwnedIdent("g"),
+                                    name: Ident("g"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("g"), BoundVar(2, 0)))
+                                        Bound(Named(Ident("g"), BoundVar(2, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: OwnedIdent("b"),
+                                    name: Ident("b"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("b"), BoundVar(1, 0)))
+                                        Bound(Named(Ident("b"), BoundVar(1, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: OwnedIdent("a"),
+                                    name: Ident("a"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("a"), BoundVar(0, 0)))
+                                        Bound(Named(Ident("a"), BoundVar(0, 0)))
                                     )
                                 }
                             ]
@@ -115,7 +115,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: OwnedIdent("width"),
+                        name: Ident("width"),
                         value: Const(
                             Unsigned(
                                 U32
@@ -124,7 +124,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("height"),
+                        name: Ident("height"),
                         value: Const(
                             Unsigned(
                                 U32
@@ -146,7 +146,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: OwnedIdent("extents"),
+                        name: Ident("extents"),
                         value: Path(
                             Path {
                                 base: "Bitmap",
@@ -159,7 +159,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("data"),
+                        name: Ident("data"),
                         value: Array(
                             Path(
                                 Path {
@@ -174,14 +174,14 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(OwnedIdent("extents"), Sequence(
+                            Named(Ident("extents"), Sequence(
                                 [
-                                    Named(OwnedIdent("width"), Const(
+                                    Named(Ident("width"), Const(
                                         U32(
                                             Big
                                         )
                                     )),
-                                    Named(OwnedIdent("height"), Const(
+                                    Named(Ident("height"), Const(
                                         U32(
                                             Big
                                         )
@@ -197,39 +197,39 @@ Module {
                                     [
                                         Field {
                                             doc: "",
-                                            name: OwnedIdent("width"),
+                                            name: Ident("width"),
                                             value: Var(
-                                                Bound(Named(OwnedIdent("width"), BoundVar(1, 0)))
+                                                Bound(Named(Ident("width"), BoundVar(1, 0)))
                                             )
                                         },
                                         Field {
                                             doc: "",
-                                            name: OwnedIdent("height"),
+                                            name: Ident("height"),
                                             value: Var(
-                                                Bound(Named(OwnedIdent("height"), BoundVar(0, 0)))
+                                                Bound(Named(Ident("height"), BoundVar(0, 0)))
                                             )
                                         }
                                     ]
                                 )
                             )),
-                            Named(OwnedIdent("data"), Repeat(
+                            Named(Ident("data"), Repeat(
                                 Var(
-                                    Bound(Named(OwnedIdent("Pixel"), BoundVar(1, 0)))
+                                    Bound(Named(Ident("Pixel"), BoundVar(1, 0)))
                                 ),
                                 Exact(
                                     Binop(
                                         Mul,
                                         Proj(
                                             Var(
-                                                Bound(Named(OwnedIdent("extents"), BoundVar(0, 0)))
+                                                Bound(Named(Ident("extents"), BoundVar(0, 0)))
                                             ),
-                                            OwnedIdent("width")
+                                            Ident("width")
                                         ),
                                         Proj(
                                             Var(
-                                                Bound(Named(OwnedIdent("extents"), BoundVar(0, 0)))
+                                                Bound(Named(Ident("extents"), BoundVar(0, 0)))
                                             ),
-                                            OwnedIdent("height")
+                                            Ident("height")
                                         )
                                     )
                                 )
@@ -243,16 +243,16 @@ Module {
                             [
                                 Field {
                                     doc: "",
-                                    name: OwnedIdent("extents"),
+                                    name: Ident("extents"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("extents"), BoundVar(1, 0)))
+                                        Bound(Named(Ident("extents"), BoundVar(1, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: OwnedIdent("data"),
+                                    name: Ident("data"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("data"), BoundVar(0, 0)))
+                                        Bound(Named(Ident("data"), BoundVar(0, 0)))
                                     )
                                 }
                             ]

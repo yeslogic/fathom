@@ -3,5 +3,5 @@ Var(
         lo: BytePos(9),
         hi: BytePos(14)
     },
-    Free(OwnedIdent("Point"))
+    Free(Ident("Point"))
 )

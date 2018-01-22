@@ -1,11 +1,21 @@
-use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::fmt;
-use std::ops::Deref;
 
 /// An identifier that originates from user input
-#[derive(PartialEq, PartialOrd, Eq, Ord)]
-pub struct Ident(pub str);
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
+pub struct Ident(pub String);
+
+impl<'a> From<&'a str> for Ident {
+    fn from(src: &'a str) -> Ident {
+        Ident(String::from(src))
+    }
+}
+
+impl From<String> for Ident {
+    fn from(src: String) -> Ident {
+        Ident(src)
+    }
+}
 
 impl fmt::Debug for Ident {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -16,78 +26,6 @@ impl fmt::Debug for Ident {
 }
 
 impl fmt::Display for Ident {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &self.0)
-    }
-}
-
-/// An identifier that originates from user input
-#[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
-pub struct OwnedIdent(pub String);
-
-impl Deref for OwnedIdent {
-    type Target = Ident;
-
-    fn deref(&self) -> &Ident {
-        unsafe {
-            use std::mem;
-            mem::transmute::<&str, &Ident>(&self.0[..])
-        }
-    }
-}
-
-impl Borrow<Ident> for OwnedIdent {
-    #[inline]
-    fn borrow(&self) -> &Ident {
-        self.deref()
-    }
-}
-
-impl<'a> From<&'a str> for OwnedIdent {
-    fn from(src: &'a str) -> OwnedIdent {
-        OwnedIdent(String::from(src))
-    }
-}
-
-impl From<String> for OwnedIdent {
-    fn from(src: String) -> OwnedIdent {
-        OwnedIdent(src)
-    }
-}
-
-impl<'a> From<&'a Ident> for OwnedIdent {
-    fn from(src: &'a Ident) -> OwnedIdent {
-        OwnedIdent(String::from(&src.0))
-    }
-}
-
-impl PartialEq<Ident> for OwnedIdent {
-    fn eq(&self, other: &Ident) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl<'a> PartialEq<&'a Ident> for OwnedIdent {
-    fn eq(&self, other: &&Ident) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl PartialEq<OwnedIdent> for Ident {
-    fn eq(&self, other: &OwnedIdent) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl fmt::Debug for OwnedIdent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "OwnedIdent(")?;
-        self.0.fmt(f)?;
-        write!(f, ")")
-    }
-}
-
-impl fmt::Display for OwnedIdent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }

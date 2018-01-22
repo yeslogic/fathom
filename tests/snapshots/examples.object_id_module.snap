@@ -2,7 +2,7 @@ Module {
     definitions: [
         Definition {
             doc: "https://docs.mongodb.com/manual/reference/method/ObjectId/",
-            name: OwnedIdent("ObjectId"),
+            name: Ident("ObjectId"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(74),
@@ -11,46 +11,46 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: OwnedIdent("epoch_time"),
+                        name: Ident("epoch_time"),
                         value: Var(
                             Span {
                                 lo: BytePos(99),
                                 hi: BytePos(104)
                             },
-                            Free(OwnedIdent("i32be"))
+                            Free(Ident("i32be"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("machine_id"),
+                        name: Ident("machine_id"),
                         value: Var(
                             Span {
                                 lo: BytePos(122),
                                 hi: BytePos(127)
                             },
-                            Free(OwnedIdent("u24be"))
+                            Free(Ident("u24be"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("process_id"),
+                        name: Ident("process_id"),
                         value: Var(
                             Span {
                                 lo: BytePos(145),
                                 hi: BytePos(150)
                             },
-                            Free(OwnedIdent("u16be"))
+                            Free(Ident("u16be"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("counter"),
+                        name: Ident("counter"),
                         value: Var(
                             Span {
                                 lo: BytePos(165),
                                 hi: BytePos(170)
                             },
-                            Free(OwnedIdent("u24be"))
+                            Free(Ident("u24be"))
                         )
                     }
                 ]

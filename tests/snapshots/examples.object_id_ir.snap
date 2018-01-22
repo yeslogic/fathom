@@ -11,7 +11,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: OwnedIdent("epoch_time"),
+                        name: Ident("epoch_time"),
                         value: Const(
                             Signed(
                                 I32
@@ -20,7 +20,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("machine_id"),
+                        name: Ident("machine_id"),
                         value: Const(
                             Unsigned(
                                 U24
@@ -29,7 +29,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("process_id"),
+                        name: Ident("process_id"),
                         value: Const(
                             Unsigned(
                                 U16
@@ -38,7 +38,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: OwnedIdent("counter"),
+                        name: Ident("counter"),
                         value: Const(
                             Unsigned(
                                 U24
@@ -49,22 +49,22 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(OwnedIdent("epoch_time"), Const(
+                            Named(Ident("epoch_time"), Const(
                                 I32(
                                     Big
                                 )
                             )),
-                            Named(OwnedIdent("machine_id"), Const(
+                            Named(Ident("machine_id"), Const(
                                 U24(
                                     Big
                                 )
                             )),
-                            Named(OwnedIdent("process_id"), Const(
+                            Named(Ident("process_id"), Const(
                                 U16(
                                     Big
                                 )
                             )),
-                            Named(OwnedIdent("counter"), Const(
+                            Named(Ident("counter"), Const(
                                 U24(
                                     Big
                                 )
@@ -78,30 +78,30 @@ Module {
                             [
                                 Field {
                                     doc: "",
-                                    name: OwnedIdent("epoch_time"),
+                                    name: Ident("epoch_time"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("epoch_time"), BoundVar(3, 0)))
+                                        Bound(Named(Ident("epoch_time"), BoundVar(3, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: OwnedIdent("machine_id"),
+                                    name: Ident("machine_id"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("machine_id"), BoundVar(2, 0)))
+                                        Bound(Named(Ident("machine_id"), BoundVar(2, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: OwnedIdent("process_id"),
+                                    name: Ident("process_id"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("process_id"), BoundVar(1, 0)))
+                                        Bound(Named(Ident("process_id"), BoundVar(1, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: OwnedIdent("counter"),
+                                    name: Ident("counter"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("counter"), BoundVar(0, 0)))
+                                        Bound(Named(Ident("counter"), BoundVar(0, 0)))
                                     )
                                 }
                             ]

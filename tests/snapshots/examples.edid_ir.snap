@@ -11,7 +11,7 @@ Module {
                 [
                     Field {
                         doc: "Fixed header pattern",
-                        name: OwnedIdent("magic"),
+                        name: Ident("magic"),
                         value: Const(
                             Unsigned(
                                 U64
@@ -20,7 +20,7 @@ Module {
                     },
                     Field {
                         doc: "Manufacturer ID",
-                        name: OwnedIdent("mfg_bytes"),
+                        name: Ident("mfg_bytes"),
                         value: Const(
                             Unsigned(
                                 U16
@@ -29,7 +29,7 @@ Module {
                     },
                     Field {
                         doc: "Manufacturer product code",
-                        name: OwnedIdent("product_code"),
+                        name: Ident("product_code"),
                         value: Const(
                             Unsigned(
                                 U16
@@ -38,7 +38,7 @@ Module {
                     },
                     Field {
                         doc: "Serial number",
-                        name: OwnedIdent("serial"),
+                        name: Ident("serial"),
                         value: Const(
                             Unsigned(
                                 U32
@@ -47,7 +47,7 @@ Module {
                     },
                     Field {
                         doc: "Week of manufacture. Week numbering is not consistent between manufacturers.",
-                        name: OwnedIdent("mfg_week"),
+                        name: Ident("mfg_week"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -56,7 +56,7 @@ Module {
                     },
                     Field {
                         doc: "Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.",
-                        name: OwnedIdent("mfg_year_mod"),
+                        name: Ident("mfg_year_mod"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -65,7 +65,7 @@ Module {
                     },
                     Field {
                         doc: "Year of manufacture, derived from `mfg_year_mod`",
-                        name: OwnedIdent("mfg_year"),
+                        name: Ident("mfg_year"),
                         value: Const(
                             Unsigned(
                                 U16
@@ -74,7 +74,7 @@ Module {
                     },
                     Field {
                         doc: "EDID version, usually 1 (for 1.3)",
-                        name: OwnedIdent("edid_version_major"),
+                        name: Ident("edid_version_major"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -83,7 +83,7 @@ Module {
                     },
                     Field {
                         doc: "EDID revision, usually 3 (for 1.3)",
-                        name: OwnedIdent("edid_version_minor"),
+                        name: Ident("edid_version_minor"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -94,7 +94,7 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(OwnedIdent("magic"), Assert(
+                            Named(Ident("magic"), Assert(
                                 Const(
                                     U64(
                                         Little
@@ -102,7 +102,7 @@ Module {
                                 ),
                                 Lam(
                                     [
-                                        Named(OwnedIdent("magic"), Const(
+                                        Named(Ident("magic"), Const(
                                             Unsigned(
                                                 U64
                                             )
@@ -111,7 +111,7 @@ Module {
                                     Binop(
                                         Eq,
                                         Var(
-                                            Bound(Named(OwnedIdent("magic"), BoundVar(0, 0)))
+                                            Bound(Named(Ident("magic"), BoundVar(0, 0)))
                                         ),
                                         Const(
                                             Int(72057594037927680, Unsigned(U64))
@@ -119,31 +119,31 @@ Module {
                                     )
                                 )
                             )),
-                            Named(OwnedIdent("mfg_bytes"), Const(
+                            Named(Ident("mfg_bytes"), Const(
                                 U16(
                                     Little
                                 )
                             )),
-                            Named(OwnedIdent("product_code"), Const(
+                            Named(Ident("product_code"), Const(
                                 U16(
                                     Little
                                 )
                             )),
-                            Named(OwnedIdent("serial"), Const(
+                            Named(Ident("serial"), Const(
                                 U32(
                                     Little
                                 )
                             )),
-                            Named(OwnedIdent("mfg_week"), Const(
+                            Named(Ident("mfg_week"), Const(
                                 U8
                             )),
-                            Named(OwnedIdent("mfg_year_mod"), Const(
+                            Named(Ident("mfg_year_mod"), Const(
                                 U8
                             )),
-                            Named(OwnedIdent("mfg_year"), Apply(
+                            Named(Ident("mfg_year"), Apply(
                                 Lam(
                                     [
-                                        Named(OwnedIdent("_"), Const(
+                                        Named(Ident("_"), Const(
                                             Unit
                                         ))
                                     ],
@@ -151,7 +151,7 @@ Module {
                                         Add,
                                         Cast(
                                             Var(
-                                                Bound(Named(OwnedIdent("mfg_year_mod"), BoundVar(2, 0)))
+                                                Bound(Named(Ident("mfg_year_mod"), BoundVar(2, 0)))
                                             ),
                                             Const(
                                                 Unsigned(
@@ -168,10 +168,10 @@ Module {
                                     Empty
                                 )
                             )),
-                            Named(OwnedIdent("edid_version_major"), Const(
+                            Named(Ident("edid_version_major"), Const(
                                 U8
                             )),
-                            Named(OwnedIdent("edid_version_minor"), Const(
+                            Named(Ident("edid_version_minor"), Const(
                                 U8
                             ))
                         ],
@@ -183,65 +183,65 @@ Module {
                             [
                                 Field {
                                     doc: "Fixed header pattern",
-                                    name: OwnedIdent("magic"),
+                                    name: Ident("magic"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("magic"), BoundVar(8, 0)))
+                                        Bound(Named(Ident("magic"), BoundVar(8, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Manufacturer ID",
-                                    name: OwnedIdent("mfg_bytes"),
+                                    name: Ident("mfg_bytes"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("mfg_bytes"), BoundVar(7, 0)))
+                                        Bound(Named(Ident("mfg_bytes"), BoundVar(7, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Manufacturer product code",
-                                    name: OwnedIdent("product_code"),
+                                    name: Ident("product_code"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("product_code"), BoundVar(6, 0)))
+                                        Bound(Named(Ident("product_code"), BoundVar(6, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Serial number",
-                                    name: OwnedIdent("serial"),
+                                    name: Ident("serial"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("serial"), BoundVar(5, 0)))
+                                        Bound(Named(Ident("serial"), BoundVar(5, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Week of manufacture. Week numbering is not consistent between manufacturers.",
-                                    name: OwnedIdent("mfg_week"),
+                                    name: Ident("mfg_week"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("mfg_week"), BoundVar(4, 0)))
+                                        Bound(Named(Ident("mfg_week"), BoundVar(4, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.",
-                                    name: OwnedIdent("mfg_year_mod"),
+                                    name: Ident("mfg_year_mod"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("mfg_year_mod"), BoundVar(3, 0)))
+                                        Bound(Named(Ident("mfg_year_mod"), BoundVar(3, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Year of manufacture, derived from `mfg_year_mod`",
-                                    name: OwnedIdent("mfg_year"),
+                                    name: Ident("mfg_year"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("mfg_year"), BoundVar(2, 0)))
+                                        Bound(Named(Ident("mfg_year"), BoundVar(2, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "EDID version, usually 1 (for 1.3)",
-                                    name: OwnedIdent("edid_version_major"),
+                                    name: Ident("edid_version_major"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("edid_version_major"), BoundVar(1, 0)))
+                                        Bound(Named(Ident("edid_version_major"), BoundVar(1, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "EDID revision, usually 3 (for 1.3)",
-                                    name: OwnedIdent("edid_version_minor"),
+                                    name: Ident("edid_version_minor"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("edid_version_minor"), BoundVar(0, 0)))
+                                        Bound(Named(Ident("edid_version_minor"), BoundVar(0, 0)))
                                     )
                                 }
                             ]
@@ -261,7 +261,7 @@ Module {
                 [
                     Field {
                         doc: "Video input parameters bitmap",
-                        name: OwnedIdent("input_flags"),
+                        name: Ident("input_flags"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -270,7 +270,7 @@ Module {
                     },
                     Field {
                         doc: "Maximum horizontal image size, in centimetres (max 292 cm/115 in at\n16:9 aspect ratio)",
-                        name: OwnedIdent("screen_size_h"),
+                        name: Ident("screen_size_h"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -279,7 +279,7 @@ Module {
                     },
                     Field {
                         doc: "Maximum vertical image size, in centimetres. If either byte is 0,\nundefined (e.g. projector)",
-                        name: OwnedIdent("screen_size_v"),
+                        name: Ident("screen_size_v"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -288,7 +288,7 @@ Module {
                     },
                     Field {
                         doc: "Display gamma data, factory default (range 1.00–3.54), where\n`gamma_mod = (gamma×100)-100 = (gamma−1)×100` If 225, gamma is defined\nby DI-EXT block.",
-                        name: OwnedIdent("gamma_mod"),
+                        name: Ident("gamma_mod"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -297,7 +297,7 @@ Module {
                     },
                     Field {
                         doc: "Display gamma, derived from `gamma_mod`",
-                        name: OwnedIdent("gamma"),
+                        name: Ident("gamma"),
                         value: Const(
                             Float(
                                 F32
@@ -306,7 +306,7 @@ Module {
                     },
                     Field {
                         doc: "Supported features bitmap",
-                        name: OwnedIdent("features_flags"),
+                        name: Ident("features_flags"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -317,22 +317,22 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(OwnedIdent("input_flags"), Const(
+                            Named(Ident("input_flags"), Const(
                                 U8
                             )),
-                            Named(OwnedIdent("screen_size_h"), Const(
+                            Named(Ident("screen_size_h"), Const(
                                 U8
                             )),
-                            Named(OwnedIdent("screen_size_v"), Const(
+                            Named(Ident("screen_size_v"), Const(
                                 U8
                             )),
-                            Named(OwnedIdent("gamma_mod"), Const(
+                            Named(Ident("gamma_mod"), Const(
                                 U8
                             )),
-                            Named(OwnedIdent("gamma"), Apply(
+                            Named(Ident("gamma"), Apply(
                                 Lam(
                                     [
-                                        Named(OwnedIdent("_"), Const(
+                                        Named(Ident("_"), Const(
                                             Unit
                                         ))
                                     ],
@@ -342,7 +342,7 @@ Module {
                                             Add,
                                             Cast(
                                                 Var(
-                                                    Bound(Named(OwnedIdent("gamma_mod"), BoundVar(2, 0)))
+                                                    Bound(Named(Ident("gamma_mod"), BoundVar(2, 0)))
                                                 ),
                                                 Const(
                                                     Float(
@@ -363,7 +363,7 @@ Module {
                                     Empty
                                 )
                             )),
-                            Named(OwnedIdent("features_flags"), Const(
+                            Named(Ident("features_flags"), Const(
                                 U8
                             ))
                         ],
@@ -375,44 +375,44 @@ Module {
                             [
                                 Field {
                                     doc: "Video input parameters bitmap",
-                                    name: OwnedIdent("input_flags"),
+                                    name: Ident("input_flags"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("input_flags"), BoundVar(5, 0)))
+                                        Bound(Named(Ident("input_flags"), BoundVar(5, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Maximum horizontal image size, in centimetres (max 292 cm/115 in at\n16:9 aspect ratio)",
-                                    name: OwnedIdent("screen_size_h"),
+                                    name: Ident("screen_size_h"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("screen_size_h"), BoundVar(4, 0)))
+                                        Bound(Named(Ident("screen_size_h"), BoundVar(4, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Maximum vertical image size, in centimetres. If either byte is 0,\nundefined (e.g. projector)",
-                                    name: OwnedIdent("screen_size_v"),
+                                    name: Ident("screen_size_v"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("screen_size_v"), BoundVar(3, 0)))
+                                        Bound(Named(Ident("screen_size_v"), BoundVar(3, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Display gamma data, factory default (range 1.00–3.54), where\n`gamma_mod = (gamma×100)-100 = (gamma−1)×100` If 225, gamma is defined\nby DI-EXT block.",
-                                    name: OwnedIdent("gamma_mod"),
+                                    name: Ident("gamma_mod"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("gamma_mod"), BoundVar(2, 0)))
+                                        Bound(Named(Ident("gamma_mod"), BoundVar(2, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Display gamma, derived from `gamma_mod`",
-                                    name: OwnedIdent("gamma"),
+                                    name: Ident("gamma"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("gamma"), BoundVar(1, 0)))
+                                        Bound(Named(Ident("gamma"), BoundVar(1, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Supported features bitmap",
-                                    name: OwnedIdent("features_flags"),
+                                    name: Ident("features_flags"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("features_flags"), BoundVar(0, 0)))
+                                        Bound(Named(Ident("features_flags"), BoundVar(0, 0)))
                                     )
                                 }
                             ]
@@ -432,7 +432,7 @@ Module {
                 [
                     Field {
                         doc: "Header information",
-                        name: OwnedIdent("header"),
+                        name: Ident("header"),
                         value: Path(
                             Path {
                                 base: "Header",
@@ -443,7 +443,7 @@ Module {
                     },
                     Field {
                         doc: "Basic display parameters",
-                        name: OwnedIdent("display_params"),
+                        name: Ident("display_params"),
                         value: Path(
                             Path {
                                 base: "DisplayParams",
@@ -456,11 +456,11 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(OwnedIdent("header"), Var(
-                                Bound(Named(OwnedIdent("Header"), BoundVar(1, 0)))
+                            Named(Ident("header"), Var(
+                                Bound(Named(Ident("Header"), BoundVar(1, 0)))
                             )),
-                            Named(OwnedIdent("display_params"), Var(
-                                Bound(Named(OwnedIdent("DisplayParams"), BoundVar(1, 0)))
+                            Named(Ident("display_params"), Var(
+                                Bound(Named(Ident("DisplayParams"), BoundVar(1, 0)))
                             ))
                         ],
                         Struct(
@@ -471,16 +471,16 @@ Module {
                             [
                                 Field {
                                     doc: "Header information",
-                                    name: OwnedIdent("header"),
+                                    name: Ident("header"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("header"), BoundVar(1, 0)))
+                                        Bound(Named(Ident("header"), BoundVar(1, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Basic display parameters",
-                                    name: OwnedIdent("display_params"),
+                                    name: Ident("display_params"),
                                     value: Var(
-                                        Bound(Named(OwnedIdent("display_params"), BoundVar(0, 0)))
+                                        Bound(Named(Ident("display_params"), BoundVar(0, 0)))
                                     )
                                 }
                             ]

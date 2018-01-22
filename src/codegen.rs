@@ -2,7 +2,7 @@ use pretty::{BoxAllocator, DocAllocator, DocBuilder};
 use std::fmt;
 
 use heck::CamelCase;
-use name::{Ident, Named, OwnedIdent};
+use name::{Ident, Named};
 use ir::ast::{Definition, Expr, Field, Item, Module, ParseExpr, Path, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use ir::ast::{Binop, Const, Unop};
@@ -121,7 +121,7 @@ fn lower_doc_comment<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [OwnedIdent],
+    params: &'a [Ident],
     ty: &'a RcType,
 ) -> DocBuilder<'alloc, A> {
     alloc.text("pub type")
@@ -141,7 +141,7 @@ fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [OwnedIdent],
+    params: &'a [Ident],
     fields: &'a [Field<RcType>],
 ) -> DocBuilder<'alloc, A> {
     alloc.text("#[derive(Debug, Clone)]")
@@ -180,7 +180,7 @@ fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [OwnedIdent],
+    params: &'a [Ident],
     variants: &'a [Field<RcType>],
 ) -> DocBuilder<'alloc, A> {
     use heck::CamelCase;
@@ -220,7 +220,7 @@ fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [OwnedIdent],
+    params: &'a [Ident],
     parse_expr: &'a RcParseExpr,
 ) -> DocBuilder<'alloc, A> {
     let base_header = alloc
@@ -284,7 +284,7 @@ fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 
 fn lower_intro_ty_params<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    params: &'a [OwnedIdent],
+    params: &'a [Ident],
 ) -> DocBuilder<'alloc, A> {
     if params.is_empty() {
         alloc.nil()
@@ -533,7 +533,7 @@ fn lower_assert_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_sequence_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     prec: Prec,
-    parse_exprs: &'a [Named<OwnedIdent, RcParseExpr>],
+    parse_exprs: &'a [Named<Ident, RcParseExpr>],
     expr: &'a RcExpr,
 ) -> DocBuilder<'alloc, A> {
     let inner_parser = alloc

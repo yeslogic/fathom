@@ -9,7 +9,7 @@ Binop(
             lo: BytePos(0),
             hi: BytePos(1)
         },
-        Free(OwnedIdent("x"))
+        Free(Ident("x"))
     ),
     Binop(
         Span {
@@ -22,14 +22,14 @@ Binop(
                 lo: BytePos(4),
                 hi: BytePos(5)
             },
-            Free(OwnedIdent("y"))
+            Free(Ident("y"))
         ),
         Var(
             Span {
                 lo: BytePos(8),
                 hi: BytePos(9)
             },
-            Free(OwnedIdent("z"))
+            Free(Ident("z"))
         )
     )
 )

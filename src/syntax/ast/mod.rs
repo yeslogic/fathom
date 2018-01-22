@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use name::{Ident, Named, OwnedIdent};
+use name::{Ident, Named};
 use parser::ast::Definition as ParseDefinition;
 use parser::ast::Module as ParseModule;
 use var::ScopeIndex;
@@ -20,13 +20,13 @@ impl Module {
     pub fn new(mut definitions: Vec<Definition>) -> Module {
         // We maintain a list of the seen definition names. This will allow us to
         // recover the index of these variables as we abstract later definitions...
-        let mut seen_names = Vec::<OwnedIdent>::new();
+        let mut seen_names = Vec::<Ident>::new();
 
         for definition in &mut definitions {
             for (level, name) in seen_names.iter().rev().enumerate() {
                 definition
                     .body_ty
-                    .abstract_names_at(&[name], ScopeIndex(level as u32));
+                    .abstract_names_at(&[name.clone()], ScopeIndex(level as u32));
             }
 
             // Record that the definition has been 'seen'
@@ -85,7 +85,7 @@ pub fn base_defs() -> Substitutions {
     }
 }
 
-pub type Substitutions = BTreeMap<OwnedIdent, binary::RcType>;
+pub type Substitutions = BTreeMap<Ident, binary::RcType>;
 
 /// A type definition
 ///
@@ -102,7 +102,7 @@ pub struct Definition {
     /// Note: This is ignored for comparison purposes
     pub doc: Rc<str>,
     /// The name of the defined type
-    pub name: OwnedIdent,
+    pub name: Ident,
     /// The binary type
     pub body_ty: binary::RcType,
 }
@@ -113,13 +113,13 @@ impl Definition {
 
         Ok(Definition {
             doc: src.doc.join("\n").into(),
-            name: OwnedIdent::from(src.name),
+            name: Ident::from(src.name),
             body_ty: match &src.param_names[..] {
                 names if names.is_empty() => body_ty,
                 names => {
                     let names = names
                         .iter()
-                        .map(|&name| Named(OwnedIdent::from(name), ()))
+                        .map(|&name| Named(Ident::from(name), ()))
                         .collect();
 
                     binary::RcType::lam(src.span, names, body_ty)
@@ -144,7 +144,7 @@ pub struct Field<T> {
     /// Note: This is ignored for comparison purposes
     pub doc: Rc<str>,
     /// The name of the field
-    pub name: OwnedIdent,
+    pub name: Ident,
     /// The value that this field is associated with
     pub value: T,
 }
