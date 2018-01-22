@@ -2,13 +2,17 @@ Module {
     definitions: [
         Definition {
             doc: "",
-            name: "Offset32",
+            name: Ident("Offset32"),
             body_ty: Var(
                 Span {
                     lo: BytePos(20),
                     hi: BytePos(23)
                 },
-                Free("u32")
+                Free(
+                    User(
+                        Ident("u32")
+                    )
+                )
             )
         }
     ]

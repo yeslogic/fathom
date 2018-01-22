@@ -2,7 +2,7 @@ Module {
     definitions: [
         Definition {
             doc: "https://docs.mongodb.com/manual/reference/method/ObjectId/",
-            name: "ObjectId",
+            name: Ident("ObjectId"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(74),
@@ -11,46 +11,62 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "epoch_time",
+                        name: Ident("epoch_time"),
                         value: Var(
                             Span {
                                 lo: BytePos(99),
                                 hi: BytePos(104)
                             },
-                            Free("i32be")
+                            Free(
+                                User(
+                                    Ident("i32be")
+                                )
+                            )
                         )
                     },
                     Field {
                         doc: "",
-                        name: "machine_id",
+                        name: Ident("machine_id"),
                         value: Var(
                             Span {
                                 lo: BytePos(122),
                                 hi: BytePos(127)
                             },
-                            Free("u24be")
+                            Free(
+                                User(
+                                    Ident("u24be")
+                                )
+                            )
                         )
                     },
                     Field {
                         doc: "",
-                        name: "process_id",
+                        name: Ident("process_id"),
                         value: Var(
                             Span {
                                 lo: BytePos(145),
                                 hi: BytePos(150)
                             },
-                            Free("u16be")
+                            Free(
+                                User(
+                                    Ident("u16be")
+                                )
+                            )
                         )
                     },
                     Field {
                         doc: "",
-                        name: "counter",
+                        name: Ident("counter"),
                         value: Var(
                             Span {
                                 lo: BytePos(165),
                                 hi: BytePos(170)
                             },
-                            Free("u24be")
+                            Free(
+                                User(
+                                    Ident("u24be")
+                                )
+                            )
                         )
                     }
                 ]

@@ -4,7 +4,12 @@ Lam(
         hi: BytePos(0)
     },
     [
-        Named("z", ())
+        Named(
+            User(
+                Ident("z")
+            ),
+            ()
+        )
     ],
     App(
         Span {
@@ -17,7 +22,12 @@ Lam(
                 hi: BytePos(0)
             },
             [
-                Named("y", ())
+                Named(
+                    User(
+                        Ident("y")
+                    ),
+                    ()
+                )
             ],
             App(
                 Span {
@@ -29,7 +39,14 @@ Lam(
                         lo: BytePos(0),
                         hi: BytePos(0)
                     },
-                    Bound(Named("y", BoundVar(0, 0)))
+                    Bound(
+                        Named(
+                            User(
+                                Ident("y")
+                            ),
+                            BoundVar(0, 0)
+                        )
+                    )
                 ),
                 [
                     Lam(
@@ -38,14 +55,26 @@ Lam(
                             hi: BytePos(0)
                         },
                         [
-                            Named("x", ())
+                            Named(
+                                User(
+                                    Ident("x")
+                                ),
+                                ()
+                            )
                         ],
                         Var(
                             Span {
                                 lo: BytePos(0),
                                 hi: BytePos(0)
                             },
-                            Bound(Named("x", BoundVar(0, 0)))
+                            Bound(
+                                Named(
+                                    User(
+                                        Ident("x")
+                                    ),
+                                    BoundVar(0, 0)
+                                )
+                            )
                         )
                     )
                 ]
@@ -58,7 +87,12 @@ Lam(
                     hi: BytePos(0)
                 },
                 [
-                    Named("x", ())
+                    Named(
+                        User(
+                            Ident("x")
+                        ),
+                        ()
+                    )
                 ],
                 App(
                     Span {
@@ -70,7 +104,14 @@ Lam(
                             lo: BytePos(0),
                             hi: BytePos(0)
                         },
-                        Bound(Named("z", BoundVar(1, 0)))
+                        Bound(
+                            Named(
+                                User(
+                                    Ident("z")
+                                ),
+                                BoundVar(1, 0)
+                            )
+                        )
                     ),
                     [
                         Var(
@@ -78,7 +119,14 @@ Lam(
                                 lo: BytePos(0),
                                 hi: BytePos(0)
                             },
-                            Bound(Named("x", BoundVar(0, 0)))
+                            Bound(
+                                Named(
+                                    User(
+                                        Ident("x")
+                                    ),
+                                    BoundVar(0, 0)
+                                )
+                            )
                         )
                     ]
                 )

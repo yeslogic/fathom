@@ -19,7 +19,11 @@ Unop(
                     lo: BytePos(1),
                     hi: BytePos(4)
                 },
-                Free("foo")
+                Free(
+                    User(
+                        Ident("foo")
+                    )
+                )
             ),
             Binop(
                 Span {
@@ -62,7 +66,11 @@ Unop(
                 lo: BytePos(28),
                 hi: BytePos(33)
             },
-            Free("index")
+            Free(
+                User(
+                    Ident("index")
+                )
+            )
         )
     )
 )

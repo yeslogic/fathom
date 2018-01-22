@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use name::Named;
+use name::{Ident, Name, Named};
 use syntax;
 use syntax::ast::{binary, host, Field};
 use ir::ast::{Definition, Expr, Item, Module, ParseExpr, Path, RepeatBound, Type};
@@ -18,7 +18,7 @@ impl<'a> From<&'a syntax::ast::Module> for Module {
             // source definition. This will be appended to in order to provide a
             // fully qualified path through the type definitions, eg:
             // `Foo::field::Entry::Variant2::...`
-            let path = Path::new(definition.name.clone());
+            let path = Path::new(definition.name.0.clone());
 
             let definition = match *definition.body_ty.inner {
                 binary::Type::Lam(_, ref params, ref ty) => Definition {
@@ -80,7 +80,7 @@ where
 {
     row.iter()
         .map(|item| {
-            let item_path = path.append_child(item.name.clone());
+            let item_path = path.append_child(item.name.0.clone());
             let ty = lower_value(item_path, &item.value);
 
             Field {
@@ -328,14 +328,14 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
     let lower_to_field_parser = |field: &Field<binary::RcType>| {
         (
             field.name.clone(),
-            ty_parser(&path.append_child(field.name.clone()), &field.value),
+            ty_parser(&path.append_child(field.name.0.clone()), &field.value),
         )
     };
     let lower_to_expr_field = |field: &Field<binary::RcType>| {
         Field {
             doc: Rc::clone(&field.doc),
             name: field.name.clone(),
-            value: Expr::Var(Var::free(field.name.clone())).into(),
+            value: Expr::Var(Var::free(Name::user(field.name.clone()))).into(),
         }
     };
 
@@ -343,11 +343,11 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
     let expr_fields = fields.iter().map(lower_to_expr_field);
 
     let mut named_exprs = Vec::with_capacity(fields.len());
-    let mut seen_names = Vec::<String>::with_capacity(fields.len());
+    let mut seen_names = Vec::<Ident>::with_capacity(fields.len());
 
     for (name, mut parse_expr) in parse_exprs {
         for (scope, name) in seen_names.iter().rev().enumerate() {
-            parse_expr.abstract_names_at(&[name], ScopeIndex(scope as u32));
+            parse_expr.abstract_names_at(&[Name::user(name.clone())], ScopeIndex(scope as u32));
         }
 
         seen_names.push(name.clone());
@@ -356,7 +356,7 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
 
     let mut expr: RcExpr = Expr::Struct(path.clone(), expr_fields.collect()).into();
     for (scope, name) in seen_names.iter().rev().enumerate() {
-        expr.abstract_names_at(&[name], ScopeIndex(scope as u32));
+        expr.abstract_names_at(&[Name::user(name.clone())], ScopeIndex(scope as u32));
     }
 
     ParseExpr::Sequence(named_exprs, expr).into()
@@ -372,12 +372,12 @@ fn cond_parser(path: &Path, options: &[Field<(host::RcCExpr, binary::RcType)>]) 
     let lower_option = |option: &Field<(host::RcCExpr, binary::RcType)>| {
         let pred_expr = lower_cexpr(path, &option.value.0);
         let variant_parser = ParseExpr::Sequence(
-            vec![Named("x".to_owned(), ty_parser(path, &option.value.1))],
+            vec![Named(Ident::from("x"), ty_parser(path, &option.value.1))],
             Expr::Intro(
                 path.clone(),
                 option.name.clone(),
                 // FIXME: generate fresh name?
-                Expr::Var(Var::bound("x", BoundVar::new(Si(0), Bi(0)))).into(),
+                Expr::Var(Var::bound(Name::user("x"), BoundVar::new(Si(0), Bi(0)))).into(),
             ).into(),
         ).into();
 

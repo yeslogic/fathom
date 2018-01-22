@@ -19,10 +19,14 @@ Unop(
                     lo: BytePos(1),
                     hi: BytePos(4)
                 },
-                Free("foo")
+                Free(
+                    User(
+                        Ident("foo")
+                    )
+                )
             ),
-            "bar"
+            Ident("bar")
         ),
-        "x"
+        Ident("x")
     )
 )

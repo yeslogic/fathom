@@ -3,5 +3,9 @@ Var(
         lo: BytePos(9),
         hi: BytePos(14)
     },
-    Free("Point")
+    Free(
+        User(
+            Ident("Point")
+        )
+    )
 )

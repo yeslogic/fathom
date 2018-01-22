@@ -3,7 +3,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use name::Named;
+use name::{Ident, Name, Named};
 pub use syntax::ast::Field;
 pub use syntax::ast::host::{Binop, Const, IntSuffix, TypeConst, Unop};
 pub use syntax::ast::host::{FloatType, SignedType, UnsignedType};
@@ -101,7 +101,7 @@ pub struct Definition {
     /// The path of this definition (should be unique)
     pub path: Path,
     /// Type parameters for the definition
-    pub params: Vec<String>,
+    pub params: Vec<Name>,
     /// The defined item
     pub item: Item,
 }
@@ -182,7 +182,7 @@ pub enum ParseExpr {
     /// ```plain
     /// (x : p1) (y : p2) (z : p3) => expr
     /// ```
-    Sequence(Vec<Named<RcParseExpr>>, RcExpr),
+    Sequence(Vec<Named<Ident, RcParseExpr>>, RcExpr),
     /// Try to match the parsers in order, returning the result of the first on that succeeds
     ///
     /// An empty list of parsers represents a parser that never succeeds
@@ -217,7 +217,7 @@ impl fmt::Debug for RcParseExpr {
 }
 
 impl RcParseExpr {
-    pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
             ParseExpr::Var(ref mut var) => var.abstract_names_at(names, scope),
             ParseExpr::Const(_) => {}
@@ -251,7 +251,7 @@ impl RcParseExpr {
         }
     }
 
-    pub fn abstract_names(&mut self, names: &[&str]) {
+    pub fn abstract_names(&mut self, names: &[Name]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 }
@@ -265,11 +265,11 @@ pub enum Expr {
     Binop(Binop, RcExpr, RcExpr),
     Array(Vec<RcExpr>),
     Struct(Path, Vec<Field<RcExpr>>),
-    Proj(RcExpr, String),
-    Intro(Path, String, RcExpr),
+    Proj(RcExpr, Ident),
+    Intro(Path, Ident, RcExpr),
     Subscript(RcExpr, RcExpr),
     Cast(RcExpr, RcType),
-    Lam(Vec<Named<RcType>>, RcExpr),
+    Lam(Vec<Named<Name, RcType>>, RcExpr),
     App(RcExpr, Vec<RcExpr>),
 }
 
@@ -293,7 +293,7 @@ impl fmt::Debug for RcExpr {
 }
 
 impl RcExpr {
-    pub fn abstract_names_at(&mut self, names: &[&str], scope: ScopeIndex) {
+    pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
             Expr::Ann(ref mut expr, _) => {
                 expr.abstract_names_at(names, scope);
@@ -338,7 +338,7 @@ impl RcExpr {
         }
     }
 
-    pub fn abstract_names(&mut self, names: &[&str]) {
+    pub fn abstract_names(&mut self, names: &[Name]) {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 }

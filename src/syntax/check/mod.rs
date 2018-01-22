@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use name::Named;
+use name::{Ident, Name, Named};
 use syntax::ast::{binary, host, Field, Module};
 use self::context::{Context, Scope};
 use var::Var;
@@ -27,7 +27,7 @@ pub enum ExpectedType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { expr: host::RcIExpr, name: String },
+    UnboundVariable { expr: host::RcIExpr, name: Name },
     /// Variable bound in the context was not at the value level
     ExprBindingExpected { expr: host::RcIExpr, found: Scope },
     /// One type was expected, but another was found
@@ -53,13 +53,13 @@ pub enum TypeError {
     MissingField {
         expr: host::RcIExpr,
         struct_ty: host::RcType,
-        field_name: String,
+        field_name: Ident,
     },
     /// A variant was missing when introducing on a union
     MissingVariant {
         expr: host::RcCExpr,
         union_ty: host::RcType,
-        variant_name: String,
+        variant_name: Ident,
     },
     /// An invalid type was supplied to the cast expression
     InvalidCastType {
@@ -381,7 +381,7 @@ fn simplify_ty(ctx: &Context, ty: &binary::RcType) -> binary::RcType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum KindError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { ty: binary::RcType, name: String },
+    UnboundVariable { ty: binary::RcType, name: Name },
     /// Variable bound in the context was not at the type level
     TypeBindingExpected { ty: binary::RcType, found: Scope },
     /// One kind was expected, but another was found
@@ -529,7 +529,7 @@ pub fn infer_kind(ctx: &Context, ty: &binary::RcType) -> Result<binary::Kind, Ki
 
                 let field_ty = simplify_ty(&ctx, &field.value);
                 ctx.extend(Scope::ExprLam(
-                    vec![Named(field.name.clone(), field_ty.repr())],
+                    vec![Named(Name::user(field.name.clone()), field_ty.repr())],
                 ));
             }
 
@@ -556,7 +556,7 @@ pub fn check_module(module: &Module) -> Result<(), KindError> {
         let definition_kind = infer_kind(&ctx, &definition.body_ty)?;
         ctx.extend(Scope::TypeDef(vec![
             Named(
-                definition.name.clone(),
+                Name::user(definition.name.clone()),
                 (definition.body_ty.clone(), definition_kind),
             ),
         ]));

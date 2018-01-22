@@ -11,7 +11,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "r",
+                        name: Ident("r"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -20,7 +20,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "g",
+                        name: Ident("g"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -29,7 +29,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "b",
+                        name: Ident("b"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -38,7 +38,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "a",
+                        name: Ident("a"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -49,18 +49,30 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named("r", Const(
-                                U8
-                            )),
-                            Named("g", Const(
-                                U8
-                            )),
-                            Named("b", Const(
-                                U8
-                            )),
-                            Named("a", Const(
-                                U8
-                            ))
+                            Named(
+                                Ident("r"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("g"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("b"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("a"),
+                                Const(
+                                    U8
+                                )
+                            )
                         ],
                         Struct(
                             Path {
@@ -70,30 +82,58 @@ Module {
                             [
                                 Field {
                                     doc: "",
-                                    name: "r",
+                                    name: Ident("r"),
                                     value: Var(
-                                        Bound(Named("r", BoundVar(3, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("r")
+                                                ),
+                                                BoundVar(3, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "g",
+                                    name: Ident("g"),
                                     value: Var(
-                                        Bound(Named("g", BoundVar(2, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("g")
+                                                ),
+                                                BoundVar(2, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "b",
+                                    name: Ident("b"),
                                     value: Var(
-                                        Bound(Named("b", BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("b")
+                                                ),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "a",
+                                    name: Ident("a"),
                                     value: Var(
-                                        Bound(Named("a", BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("a")
+                                                ),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]
@@ -115,7 +155,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "width",
+                        name: Ident("width"),
                         value: Const(
                             Unsigned(
                                 U32
@@ -124,7 +164,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "height",
+                        name: Ident("height"),
                         value: Const(
                             Unsigned(
                                 U32
@@ -146,7 +186,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "extents",
+                        name: Ident("extents"),
                         value: Path(
                             Path {
                                 base: "Bitmap",
@@ -159,7 +199,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "data",
+                        name: Ident("data"),
                         value: Array(
                             Path(
                                 Path {
@@ -174,66 +214,113 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named("extents", Sequence(
-                                [
-                                    Named("width", Const(
-                                        U32(
-                                            Big
-                                        )
-                                    )),
-                                    Named("height", Const(
-                                        U32(
-                                            Big
-                                        )
-                                    ))
-                                ],
-                                Struct(
-                                    Path {
-                                        base: "Bitmap",
-                                        children: [
-                                            "extents"
-                                        ]
-                                    },
+                            Named(
+                                Ident("extents"),
+                                Sequence(
                                     [
-                                        Field {
-                                            doc: "",
-                                            name: "width",
-                                            value: Var(
-                                                Bound(Named("width", BoundVar(1, 0)))
+                                        Named(
+                                            Ident("width"),
+                                            Const(
+                                                U32(
+                                                    Big
+                                                )
                                             )
-                                        },
-                                        Field {
-                                            doc: "",
-                                            name: "height",
-                                            value: Var(
-                                                Bound(Named("height", BoundVar(0, 0)))
-                                            )
-                                        }
-                                    ]
-                                )
-                            )),
-                            Named("data", Repeat(
-                                Var(
-                                    Bound(Named("Pixel", BoundVar(1, 0)))
-                                ),
-                                Exact(
-                                    Binop(
-                                        Mul,
-                                        Proj(
-                                            Var(
-                                                Bound(Named("extents", BoundVar(0, 0)))
-                                            ),
-                                            "width"
                                         ),
-                                        Proj(
-                                            Var(
-                                                Bound(Named("extents", BoundVar(0, 0)))
+                                        Named(
+                                            Ident("height"),
+                                            Const(
+                                                U32(
+                                                    Big
+                                                )
+                                            )
+                                        )
+                                    ],
+                                    Struct(
+                                        Path {
+                                            base: "Bitmap",
+                                            children: [
+                                                "extents"
+                                            ]
+                                        },
+                                        [
+                                            Field {
+                                                doc: "",
+                                                name: Ident("width"),
+                                                value: Var(
+                                                    Bound(
+                                                        Named(
+                                                            User(
+                                                                Ident("width")
+                                                            ),
+                                                            BoundVar(1, 0)
+                                                        )
+                                                    )
+                                                )
+                                            },
+                                            Field {
+                                                doc: "",
+                                                name: Ident("height"),
+                                                value: Var(
+                                                    Bound(
+                                                        Named(
+                                                            User(
+                                                                Ident("height")
+                                                            ),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                )
+                                            }
+                                        ]
+                                    )
+                                )
+                            ),
+                            Named(
+                                Ident("data"),
+                                Repeat(
+                                    Var(
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("Pixel")
+                                                ),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
+                                    ),
+                                    Exact(
+                                        Binop(
+                                            Mul,
+                                            Proj(
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            User(
+                                                                Ident("extents")
+                                                            ),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Ident("width")
                                             ),
-                                            "height"
+                                            Proj(
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            User(
+                                                                Ident("extents")
+                                                            ),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Ident("height")
+                                            )
                                         )
                                     )
                                 )
-                            ))
+                            )
                         ],
                         Struct(
                             Path {
@@ -243,16 +330,30 @@ Module {
                             [
                                 Field {
                                     doc: "",
-                                    name: "extents",
+                                    name: Ident("extents"),
                                     value: Var(
-                                        Bound(Named("extents", BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("extents")
+                                                ),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "data",
+                                    name: Ident("data"),
                                     value: Var(
-                                        Bound(Named("data", BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("data")
+                                                ),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]

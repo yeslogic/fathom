@@ -11,7 +11,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "x",
+                        name: Ident("x"),
                         value: Const(
                             Float(
                                 F32
@@ -20,7 +20,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "y",
+                        name: Ident("y"),
                         value: Const(
                             Float(
                                 F32
@@ -29,7 +29,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "z",
+                        name: Ident("z"),
                         value: Const(
                             Float(
                                 F32
@@ -40,21 +40,30 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named("x", Const(
-                                F32(
-                                    Little
+                            Named(
+                                Ident("x"),
+                                Const(
+                                    F32(
+                                        Little
+                                    )
                                 )
-                            )),
-                            Named("y", Const(
-                                F32(
-                                    Little
+                            ),
+                            Named(
+                                Ident("y"),
+                                Const(
+                                    F32(
+                                        Little
+                                    )
                                 )
-                            )),
-                            Named("z", Const(
-                                F32(
-                                    Little
+                            ),
+                            Named(
+                                Ident("z"),
+                                Const(
+                                    F32(
+                                        Little
+                                    )
                                 )
-                            ))
+                            )
                         ],
                         Struct(
                             Path {
@@ -64,23 +73,44 @@ Module {
                             [
                                 Field {
                                     doc: "",
-                                    name: "x",
+                                    name: Ident("x"),
                                     value: Var(
-                                        Bound(Named("x", BoundVar(2, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("x")
+                                                ),
+                                                BoundVar(2, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "y",
+                                    name: Ident("y"),
                                     value: Var(
-                                        Bound(Named("y", BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("y")
+                                                ),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "z",
+                                    name: Ident("z"),
                                     value: Var(
-                                        Bound(Named("z", BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("z")
+                                                ),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]
@@ -100,7 +130,7 @@ Module {
                 [
                     Field {
                         doc: "Normal vector",
-                        name: "normal",
+                        name: Ident("normal"),
                         value: Path(
                             Path {
                                 base: "Vec3d",
@@ -111,7 +141,7 @@ Module {
                     },
                     Field {
                         doc: "Coordinates of the vertices",
-                        name: "vertices",
+                        name: Ident("vertices"),
                         value: Array(
                             Path(
                                 Path {
@@ -124,7 +154,7 @@ Module {
                     },
                     Field {
                         doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
-                        name: "attribute_bytes",
+                        name: Ident("attribute_bytes"),
                         value: Const(
                             Unsigned(
                                 U16
@@ -135,24 +165,47 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named("normal", Var(
-                                Bound(Named("Vec3d", BoundVar(0, 0)))
-                            )),
-                            Named("vertices", Repeat(
+                            Named(
+                                Ident("normal"),
                                 Var(
-                                    Bound(Named("Vec3d", BoundVar(1, 0)))
-                                ),
-                                Exact(
-                                    Const(
-                                        Int(3, Unsigned(U8))
+                                    Bound(
+                                        Named(
+                                            User(
+                                                Ident("Vec3d")
+                                            ),
+                                            BoundVar(0, 0)
+                                        )
                                     )
                                 )
-                            )),
-                            Named("attribute_bytes", Const(
-                                U16(
-                                    Little
+                            ),
+                            Named(
+                                Ident("vertices"),
+                                Repeat(
+                                    Var(
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("Vec3d")
+                                                ),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
+                                    ),
+                                    Exact(
+                                        Const(
+                                            Int(3, Unsigned(U8))
+                                        )
+                                    )
                                 )
-                            ))
+                            ),
+                            Named(
+                                Ident("attribute_bytes"),
+                                Const(
+                                    U16(
+                                        Little
+                                    )
+                                )
+                            )
                         ],
                         Struct(
                             Path {
@@ -162,23 +215,44 @@ Module {
                             [
                                 Field {
                                     doc: "Normal vector",
-                                    name: "normal",
+                                    name: Ident("normal"),
                                     value: Var(
-                                        Bound(Named("normal", BoundVar(2, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("normal")
+                                                ),
+                                                BoundVar(2, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Coordinates of the vertices",
-                                    name: "vertices",
+                                    name: Ident("vertices"),
                                     value: Var(
-                                        Bound(Named("vertices", BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("vertices")
+                                                ),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
-                                    name: "attribute_bytes",
+                                    name: Ident("attribute_bytes"),
                                     value: Var(
-                                        Bound(Named("attribute_bytes", BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("attribute_bytes")
+                                                ),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]
@@ -198,7 +272,7 @@ Module {
                 [
                     Field {
                         doc: "Generally ignored",
-                        name: "header",
+                        name: Ident("header"),
                         value: Array(
                             Const(
                                 Unsigned(
@@ -209,7 +283,7 @@ Module {
                     },
                     Field {
                         doc: "Number of triangles that follow",
-                        name: "num_triangles",
+                        name: Ident("num_triangles"),
                         value: Const(
                             Unsigned(
                                 U32
@@ -218,7 +292,7 @@ Module {
                     },
                     Field {
                         doc: "The triangle data",
-                        name: "triangles",
+                        name: Ident("triangles"),
                         value: Array(
                             Path(
                                 Path {
@@ -233,31 +307,54 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named("header", Repeat(
-                                Const(
-                                    U8
-                                ),
-                                Exact(
+                            Named(
+                                Ident("header"),
+                                Repeat(
                                     Const(
-                                        Int(80, Unsigned(U8))
+                                        U8
+                                    ),
+                                    Exact(
+                                        Const(
+                                            Int(80, Unsigned(U8))
+                                        )
                                     )
                                 )
-                            )),
-                            Named("num_triangles", Const(
-                                U32(
-                                    Little
+                            ),
+                            Named(
+                                Ident("num_triangles"),
+                                Const(
+                                    U32(
+                                        Little
+                                    )
                                 )
-                            )),
-                            Named("triangles", Repeat(
-                                Var(
-                                    Bound(Named("Triangle", BoundVar(2, 0)))
-                                ),
-                                Exact(
+                            ),
+                            Named(
+                                Ident("triangles"),
+                                Repeat(
                                     Var(
-                                        Bound(Named("num_triangles", BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("Triangle")
+                                                ),
+                                                BoundVar(2, 0)
+                                            )
+                                        )
+                                    ),
+                                    Exact(
+                                        Var(
+                                            Bound(
+                                                Named(
+                                                    User(
+                                                        Ident("num_triangles")
+                                                    ),
+                                                    BoundVar(0, 0)
+                                                )
+                                            )
+                                        )
                                     )
                                 )
-                            ))
+                            )
                         ],
                         Struct(
                             Path {
@@ -267,23 +364,44 @@ Module {
                             [
                                 Field {
                                     doc: "Generally ignored",
-                                    name: "header",
+                                    name: Ident("header"),
                                     value: Var(
-                                        Bound(Named("header", BoundVar(2, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("header")
+                                                ),
+                                                BoundVar(2, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Number of triangles that follow",
-                                    name: "num_triangles",
+                                    name: Ident("num_triangles"),
                                     value: Var(
-                                        Bound(Named("num_triangles", BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("num_triangles")
+                                                ),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "The triangle data",
-                                    name: "triangles",
+                                    name: Ident("triangles"),
                                     value: Var(
-                                        Bound(Named("triangles", BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                User(
+                                                    Ident("triangles")
+                                                ),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]

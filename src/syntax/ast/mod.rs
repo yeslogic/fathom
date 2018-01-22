@@ -1,8 +1,8 @@
 //! The syntax of our data description language
 
-use std::collections::BTreeMap;
 use std::rc::Rc;
 
+use name::{Ident, Name, Named};
 use parser::ast::Definition as ParseDefinition;
 use parser::ast::Module as ParseModule;
 use var::ScopeIndex;
@@ -19,13 +19,13 @@ impl Module {
     pub fn new(mut definitions: Vec<Definition>) -> Module {
         // We maintain a list of the seen definition names. This will allow us to
         // recover the index of these variables as we abstract later definitions...
-        let mut seen_names = Vec::<String>::new();
+        let mut seen_names = Vec::<Ident>::new();
 
         for definition in &mut definitions {
             for (level, name) in seen_names.iter().rev().enumerate() {
                 definition
                     .body_ty
-                    .abstract_names_at(&[name], ScopeIndex(level as u32));
+                    .abstract_names_at(&[Name::user(name.clone())], ScopeIndex(level as u32));
             }
 
             // Record that the definition has been 'seen'
@@ -50,41 +50,55 @@ impl Module {
 }
 
 pub fn base_defs() -> Substitutions {
-    use syntax::ast::binary::{Endianness, Type, TypeConst};
+    use syntax::ast::binary::{Type, TypeConst as Tc};
+    use syntax::ast::binary::Endianness::{Big, Little};
 
-    btreemap! {
-        // TODO: "true" => Expr::bool(true)
-        // TODO: "false" => Expr::bool(false)
-        "empty".into() => Type::Const(TypeConst::Empty).into(),
-        "error".into() => Type::Const(TypeConst::Error).into(),
-        "u8".into() => Type::Const(TypeConst::U8).into(),
-        "i8".into() => Type::Const(TypeConst::I8).into(),
-        // Little endian primitives
-        "u16le".into() => Type::Const(TypeConst::U16(Endianness::Little)).into(),
-        "u24le".into() => Type::Const(TypeConst::U24(Endianness::Little)).into(),
-        "u32le".into() => Type::Const(TypeConst::U32(Endianness::Little)).into(),
-        "u64le".into() => Type::Const(TypeConst::U64(Endianness::Little)).into(),
-        "i16le".into() => Type::Const(TypeConst::I16(Endianness::Little)).into(),
-        "i24le".into() => Type::Const(TypeConst::I24(Endianness::Little)).into(),
-        "i32le".into() => Type::Const(TypeConst::I32(Endianness::Little)).into(),
-        "i64le".into() => Type::Const(TypeConst::I64(Endianness::Little)).into(),
-        "f32le".into() => Type::Const(TypeConst::F32(Endianness::Little)).into(),
-        "f64le".into() => Type::Const(TypeConst::F64(Endianness::Little)).into(),
-        // Big endian primitives
-        "u16be".into() => Type::Const(TypeConst::U16(Endianness::Big)).into(),
-        "u24be".into() => Type::Const(TypeConst::U24(Endianness::Big)).into(),
-        "u32be".into() => Type::Const(TypeConst::U32(Endianness::Big)).into(),
-        "u64be".into() => Type::Const(TypeConst::U64(Endianness::Big)).into(),
-        "i16be".into() => Type::Const(TypeConst::I16(Endianness::Big)).into(),
-        "i24be".into() => Type::Const(TypeConst::I24(Endianness::Big)).into(),
-        "i32be".into() => Type::Const(TypeConst::I32(Endianness::Big)).into(),
-        "i64be".into() => Type::Const(TypeConst::I64(Endianness::Big)).into(),
-        "f32be".into() => Type::Const(TypeConst::F32(Endianness::Big)).into(),
-        "f64be".into() => Type::Const(TypeConst::F64(Endianness::Big)).into(),
+    Substitutions {
+        substs: vec![
+            // TODO: (Name::user("true"), Expr::bool(true)),
+            // TODO: (Name::user("false"), Expr::bool(false)),
+            (Name::user("empty"), Type::Const(Tc::Empty).into()),
+            (Name::user("error"), Type::Const(Tc::Error).into()),
+            (Name::user("u8"), Type::Const(Tc::U8).into()),
+            (Name::user("i8"), Type::Const(Tc::I8).into()),
+            // Little endian primitives
+            (Name::user("u16le"), Type::Const(Tc::U16(Little)).into()),
+            (Name::user("u24le"), Type::Const(Tc::U24(Little)).into()),
+            (Name::user("u32le"), Type::Const(Tc::U32(Little)).into()),
+            (Name::user("u64le"), Type::Const(Tc::U64(Little)).into()),
+            (Name::user("i16le"), Type::Const(Tc::I16(Little)).into()),
+            (Name::user("i24le"), Type::Const(Tc::I24(Little)).into()),
+            (Name::user("i32le"), Type::Const(Tc::I32(Little)).into()),
+            (Name::user("i64le"), Type::Const(Tc::I64(Little)).into()),
+            (Name::user("f32le"), Type::Const(Tc::F32(Little)).into()),
+            (Name::user("f64le"), Type::Const(Tc::F64(Little)).into()),
+            // Big endian primitives
+            (Name::user("u16be"), Type::Const(Tc::U16(Big)).into()),
+            (Name::user("u24be"), Type::Const(Tc::U24(Big)).into()),
+            (Name::user("u32be"), Type::Const(Tc::U32(Big)).into()),
+            (Name::user("u64be"), Type::Const(Tc::U64(Big)).into()),
+            (Name::user("i16be"), Type::Const(Tc::I16(Big)).into()),
+            (Name::user("i24be"), Type::Const(Tc::I24(Big)).into()),
+            (Name::user("i32be"), Type::Const(Tc::I32(Big)).into()),
+            (Name::user("i64be"), Type::Const(Tc::I64(Big)).into()),
+            (Name::user("f32be"), Type::Const(Tc::F32(Big)).into()),
+            (Name::user("f64be"), Type::Const(Tc::F64(Big)).into()),
+        ],
     }
 }
 
-pub type Substitutions = BTreeMap<String, binary::RcType>;
+pub struct Substitutions {
+    substs: Vec<(Name, binary::RcType)>,
+}
+
+impl Substitutions {
+    fn get(&self, name: &Name) -> Option<&binary::RcType> {
+        self.substs
+            .iter()
+            .find(|subst| &subst.0 == name)
+            .map(|subst| &subst.1)
+    }
+}
 
 /// A type definition
 ///
@@ -101,7 +115,7 @@ pub struct Definition {
     /// Note: This is ignored for comparison purposes
     pub doc: Rc<str>,
     /// The name of the defined type
-    pub name: String,
+    pub name: Ident,
     /// The binary type
     pub body_ty: binary::RcType,
 }
@@ -112,10 +126,17 @@ impl Definition {
 
         Ok(Definition {
             doc: src.doc.join("\n").into(),
-            name: String::from(src.name),
+            name: Ident::from(src.name),
             body_ty: match &src.param_names[..] {
                 names if names.is_empty() => body_ty,
-                names => binary::RcType::lam(src.span, names, body_ty),
+                names => {
+                    let names = names
+                        .iter()
+                        .map(|&name| Named(Name::user(name), ()))
+                        .collect();
+
+                    binary::RcType::lam(src.span, names, body_ty)
+                }
             },
         })
     }
@@ -136,7 +157,7 @@ pub struct Field<T> {
     /// Note: This is ignored for comparison purposes
     pub doc: Rc<str>,
     /// The name of the field
-    pub name: String,
+    pub name: Ident,
     /// The value that this field is associated with
     pub value: T,
 }
@@ -159,7 +180,7 @@ impl<T: PartialEq> PartialEq for Field<T> {
     }
 }
 
-fn lookup_field<'a, T>(fields: &'a [Field<T>], name: &str) -> Option<&'a T> {
+fn lookup_field<'a, T>(fields: &'a [Field<T>], name: &Ident) -> Option<&'a T> {
     fields
         .iter()
         .find(|field| &field.name == name)
