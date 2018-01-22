@@ -1,12 +1,18 @@
 Module {
+    imports: [
+        Import {
+            name: Ident("prelude"),
+            exposing: All
+        }
+    ],
     definitions: [
         Definition {
             doc: "",
             name: Ident("Header"),
             body_ty: Struct(
                 Span {
-                    lo: BytePos(9),
-                    hi: BytePos(741)
+                    lo: BytePos(31),
+                    hi: BytePos(763)
                 },
                 [
                     Field {
@@ -14,13 +20,13 @@ Module {
                         name: Ident("magic"),
                         value: Assert(
                             Span {
-                                lo: BytePos(58),
-                                hi: BytePos(109)
+                                lo: BytePos(80),
+                                hi: BytePos(131)
                             },
                             Var(
                                 Span {
-                                    lo: BytePos(58),
-                                    hi: BytePos(63)
+                                    lo: BytePos(80),
+                                    hi: BytePos(85)
                                 },
                                 Free(
                                     User(
@@ -31,8 +37,8 @@ Module {
                             Inf(
                                 Lam(
                                     Span {
-                                        lo: BytePos(70),
-                                        hi: BytePos(109)
+                                        lo: BytePos(92),
+                                        hi: BytePos(131)
                                     },
                                     [
                                         Named(
@@ -50,14 +56,14 @@ Module {
                                     ],
                                     Binop(
                                         Span {
-                                            lo: BytePos(79),
-                                            hi: BytePos(109)
+                                            lo: BytePos(101),
+                                            hi: BytePos(131)
                                         },
                                         Eq,
                                         Var(
                                             Span {
-                                                lo: BytePos(79),
-                                                hi: BytePos(84)
+                                                lo: BytePos(101),
+                                                hi: BytePos(106)
                                             },
                                             Bound(
                                                 Named(
@@ -70,8 +76,8 @@ Module {
                                         ),
                                         Const(
                                             Span {
-                                                lo: BytePos(88),
-                                                hi: BytePos(109)
+                                                lo: BytePos(110),
+                                                hi: BytePos(131)
                                             },
                                             Int(72057594037927680, Unsigned(U64))
                                         )
@@ -85,8 +91,8 @@ Module {
                         name: Ident("mfg_bytes"),
                         value: Var(
                             Span {
-                                lo: BytePos(150),
-                                hi: BytePos(155)
+                                lo: BytePos(172),
+                                hi: BytePos(177)
                             },
                             Free(
                                 User(
@@ -100,8 +106,8 @@ Module {
                         name: Ident("product_code"),
                         value: Var(
                             Span {
-                                lo: BytePos(209),
-                                hi: BytePos(214)
+                                lo: BytePos(231),
+                                hi: BytePos(236)
                             },
                             Free(
                                 User(
@@ -115,8 +121,8 @@ Module {
                         name: Ident("serial"),
                         value: Var(
                             Span {
-                                lo: BytePos(250),
-                                hi: BytePos(255)
+                                lo: BytePos(272),
+                                hi: BytePos(277)
                             },
                             Free(
                                 User(
@@ -130,8 +136,8 @@ Module {
                         name: Ident("mfg_week"),
                         value: Var(
                             Span {
-                                lo: BytePos(356),
-                                hi: BytePos(358)
+                                lo: BytePos(378),
+                                hi: BytePos(380)
                             },
                             Free(
                                 User(
@@ -145,8 +151,8 @@ Module {
                         name: Ident("mfg_year_mod"),
                         value: Var(
                             Span {
-                                lo: BytePos(476),
-                                hi: BytePos(478)
+                                lo: BytePos(498),
+                                hi: BytePos(500)
                             },
                             Free(
                                 User(
@@ -160,8 +166,8 @@ Module {
                         name: Ident("mfg_year"),
                         value: Interp(
                             Span {
-                                lo: BytePos(551),
-                                hi: BytePos(597)
+                                lo: BytePos(573),
+                                hi: BytePos(619)
                             },
                             Const(
                                 Empty
@@ -169,8 +175,8 @@ Module {
                             Inf(
                                 Lam(
                                     Span {
-                                        lo: BytePos(551),
-                                        hi: BytePos(597)
+                                        lo: BytePos(573),
+                                        hi: BytePos(619)
                                     },
                                     [
                                         Named(
@@ -182,19 +188,19 @@ Module {
                                     ],
                                     Binop(
                                         Span {
-                                            lo: BytePos(568),
-                                            hi: BytePos(597)
+                                            lo: BytePos(590),
+                                            hi: BytePos(619)
                                         },
                                         Add,
                                         Cast(
                                             Span {
-                                                lo: BytePos(568),
-                                                hi: BytePos(587)
+                                                lo: BytePos(590),
+                                                hi: BytePos(609)
                                             },
                                             Var(
                                                 Span {
-                                                    lo: BytePos(568),
-                                                    hi: BytePos(580)
+                                                    lo: BytePos(590),
+                                                    hi: BytePos(602)
                                                 },
                                                 Bound(
                                                     Named(
@@ -213,8 +219,8 @@ Module {
                                         ),
                                         Const(
                                             Span {
-                                                lo: BytePos(590),
-                                                hi: BytePos(597)
+                                                lo: BytePos(612),
+                                                hi: BytePos(619)
                                             },
                                             Int(1990, Unsigned(U16))
                                         )
@@ -233,8 +239,8 @@ Module {
                         name: Ident("edid_version_major"),
                         value: Var(
                             Span {
-                                lo: BytePos(665),
-                                hi: BytePos(667)
+                                lo: BytePos(687),
+                                hi: BytePos(689)
                             },
                             Free(
                                 User(
@@ -248,8 +254,8 @@ Module {
                         name: Ident("edid_version_minor"),
                         value: Var(
                             Span {
-                                lo: BytePos(736),
-                                hi: BytePos(738)
+                                lo: BytePos(758),
+                                hi: BytePos(760)
                             },
                             Free(
                                 User(
@@ -266,8 +272,8 @@ Module {
             name: Ident("DisplayParams"),
             body_ty: Struct(
                 Span {
-                    lo: BytePos(760),
-                    hi: BytePos(1461)
+                    lo: BytePos(782),
+                    hi: BytePos(1483)
                 },
                 [
                     Field {
@@ -275,8 +281,8 @@ Module {
                         name: Ident("input_flags"),
                         value: Var(
                             Span {
-                                lo: BytePos(824),
-                                hi: BytePos(826)
+                                lo: BytePos(846),
+                                hi: BytePos(848)
                             },
                             Free(
                                 User(
@@ -290,8 +296,8 @@ Module {
                         name: Ident("screen_size_h"),
                         value: Var(
                             Span {
-                                lo: BytePos(950),
-                                hi: BytePos(952)
+                                lo: BytePos(972),
+                                hi: BytePos(974)
                             },
                             Free(
                                 User(
@@ -305,8 +311,8 @@ Module {
                         name: Ident("screen_size_v"),
                         value: Var(
                             Span {
-                                lo: BytePos(1082),
-                                hi: BytePos(1084)
+                                lo: BytePos(1104),
+                                hi: BytePos(1106)
                             },
                             Free(
                                 User(
@@ -320,8 +326,8 @@ Module {
                         name: Ident("gamma_mod"),
                         value: Var(
                             Span {
-                                lo: BytePos(1280),
-                                hi: BytePos(1282)
+                                lo: BytePos(1302),
+                                hi: BytePos(1304)
                             },
                             Free(
                                 User(
@@ -335,8 +341,8 @@ Module {
                         name: Ident("gamma"),
                         value: Interp(
                             Span {
-                                lo: BytePos(1343),
-                                hi: BytePos(1400)
+                                lo: BytePos(1365),
+                                hi: BytePos(1422)
                             },
                             Const(
                                 Empty
@@ -344,8 +350,8 @@ Module {
                             Inf(
                                 Lam(
                                     Span {
-                                        lo: BytePos(1343),
-                                        hi: BytePos(1400)
+                                        lo: BytePos(1365),
+                                        hi: BytePos(1422)
                                     },
                                     [
                                         Named(
@@ -357,25 +363,25 @@ Module {
                                     ],
                                     Binop(
                                         Span {
-                                            lo: BytePos(1360),
-                                            hi: BytePos(1400)
+                                            lo: BytePos(1382),
+                                            hi: BytePos(1422)
                                         },
                                         Div,
                                         Binop(
                                             Span {
-                                                lo: BytePos(1361),
-                                                hi: BytePos(1388)
+                                                lo: BytePos(1383),
+                                                hi: BytePos(1410)
                                             },
                                             Add,
                                             Cast(
                                                 Span {
-                                                    lo: BytePos(1361),
-                                                    hi: BytePos(1377)
+                                                    lo: BytePos(1383),
+                                                    hi: BytePos(1399)
                                                 },
                                                 Var(
                                                     Span {
-                                                        lo: BytePos(1361),
-                                                        hi: BytePos(1370)
+                                                        lo: BytePos(1383),
+                                                        hi: BytePos(1392)
                                                     },
                                                     Bound(
                                                         Named(
@@ -394,16 +400,16 @@ Module {
                                             ),
                                             Const(
                                                 Span {
-                                                    lo: BytePos(1380),
-                                                    hi: BytePos(1388)
+                                                    lo: BytePos(1402),
+                                                    hi: BytePos(1410)
                                                 },
                                                 Float(100, F32)
                                             )
                                         ),
                                         Const(
                                             Span {
-                                                lo: BytePos(1392),
-                                                hi: BytePos(1400)
+                                                lo: BytePos(1414),
+                                                hi: BytePos(1422)
                                             },
                                             Float(100, F32)
                                         )
@@ -422,8 +428,8 @@ Module {
                         name: Ident("features_flags"),
                         value: Var(
                             Span {
-                                lo: BytePos(1456),
-                                hi: BytePos(1458)
+                                lo: BytePos(1478),
+                                hi: BytePos(1480)
                             },
                             Free(
                                 User(
@@ -440,8 +446,8 @@ Module {
             name: Ident("Edid"),
             body_ty: Struct(
                 Span {
-                    lo: BytePos(1542),
-                    hi: BytePos(1788)
+                    lo: BytePos(1564),
+                    hi: BytePos(1810)
                 },
                 [
                     Field {
@@ -449,8 +455,8 @@ Module {
                         name: Ident("header"),
                         value: Var(
                             Span {
-                                lo: BytePos(1590),
-                                hi: BytePos(1596)
+                                lo: BytePos(1612),
+                                hi: BytePos(1618)
                             },
                             Bound(
                                 Named(
@@ -467,8 +473,8 @@ Module {
                         name: Ident("display_params"),
                         value: Var(
                             Span {
-                                lo: BytePos(1651),
-                                hi: BytePos(1664)
+                                lo: BytePos(1673),
+                                hi: BytePos(1686)
                             },
                             Bound(
                                 Named(

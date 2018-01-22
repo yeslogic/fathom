@@ -1,12 +1,18 @@
 Module {
+    imports: [
+        Import {
+            name: Ident("prelude"),
+            exposing: All
+        }
+    ],
     definitions: [
         Definition {
             doc: "https://docs.mongodb.com/manual/reference/method/ObjectId/",
             name: Ident("ObjectId"),
             body_ty: Struct(
                 Span {
-                    lo: BytePos(74),
-                    hi: BytePos(173)
+                    lo: BytePos(96),
+                    hi: BytePos(195)
                 },
                 [
                     Field {
@@ -14,8 +20,8 @@ Module {
                         name: Ident("epoch_time"),
                         value: Var(
                             Span {
-                                lo: BytePos(99),
-                                hi: BytePos(104)
+                                lo: BytePos(121),
+                                hi: BytePos(126)
                             },
                             Free(
                                 User(
@@ -29,8 +35,8 @@ Module {
                         name: Ident("machine_id"),
                         value: Var(
                             Span {
-                                lo: BytePos(122),
-                                hi: BytePos(127)
+                                lo: BytePos(144),
+                                hi: BytePos(149)
                             },
                             Free(
                                 User(
@@ -44,8 +50,8 @@ Module {
                         name: Ident("process_id"),
                         value: Var(
                             Span {
-                                lo: BytePos(145),
-                                hi: BytePos(150)
+                                lo: BytePos(167),
+                                hi: BytePos(172)
                             },
                             Free(
                                 User(
@@ -59,8 +65,8 @@ Module {
                         name: Ident("counter"),
                         value: Var(
                             Span {
-                                lo: BytePos(165),
-                                hi: BytePos(170)
+                                lo: BytePos(187),
+                                hi: BytePos(192)
                             },
                             Free(
                                 User(

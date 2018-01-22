@@ -71,6 +71,7 @@ pub enum Token<'src> {
     Cond,    // cond
     Compute, // compute
     From,    // from
+    Import,  // import
     Struct,  // struct
     Union,   // union
     Where,   // where
@@ -83,6 +84,7 @@ pub enum Token<'src> {
     Colon,        // :
     Comma,        // ,
     Dot,          // .
+    DotDot,       // ..
     Equal,        // =
     EqualEqual,   // ==
     EqualGreater, // =>
@@ -120,6 +122,7 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Cond => write!(f, "cond"),
             Token::Compute => write!(f, "compute"),
             Token::From => write!(f, "from"),
+            Token::Import => write!(f, "import"),
             Token::Struct => write!(f, "struct"),
             Token::Union => write!(f, "union"),
             Token::Where => write!(f, "where"),
@@ -130,6 +133,7 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
             Token::Dot => write!(f, "."),
+            Token::DotDot => write!(f, ".."),
             Token::Equal => write!(f, "="),
             Token::EqualEqual => write!(f, "=="),
             Token::EqualGreater => write!(f, "=>"),
@@ -250,6 +254,7 @@ impl<'src> Lexer<'src> {
             "cond" => Token::Cond,
             "compute" => Token::Compute,
             "from" => Token::From,
+            "import" => Token::Import,
             "struct" => Token::Struct,
             "union" => Token::Union,
             "where" => Token::Where,
@@ -336,6 +341,7 @@ impl<'src> Iterator for Lexer<'src> {
                         ":" => Ok((start, Token::Colon, end)),
                         "," => Ok((start, Token::Comma, end)),
                         "." => Ok((start, Token::Dot, end)),
+                        ".." => Ok((start, Token::DotDot, end)),
                         "=" => Ok((start, Token::Equal, end)),
                         "==" => Ok((start, Token::EqualEqual, end)),
                         "=>" => Ok((start, Token::EqualGreater, end)),
@@ -419,42 +425,44 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  as  cond compute  from  struct  union  where ",
-            "  ~~                                           " => Token::As,
-            "      ~~~~                                     " => Token::Cond,
-            "           ~~~~~~~                             " => Token::Compute,
-            "                    ~~~~                       " => Token::From,
-            "                          ~~~~~~               " => Token::Struct,
-            "                                  ~~~~~        " => Token::Union,
-            "                                         ~~~~~ " => Token::Where,
+            "  as  cond compute  from  import  struct  union  where ",
+            "  ~~                                                   " => Token::As,
+            "      ~~~~                                             " => Token::Cond,
+            "           ~~~~~~~                                     " => Token::Compute,
+            "                    ~~~~                               " => Token::From,
+            "                          ~~~~~~                       " => Token::Import,
+            "                                  ~~~~~~               " => Token::Struct,
+            "                                          ~~~~~        " => Token::Union,
+            "                                                 ~~~~~ " => Token::Where,
         };
     }
 
     #[test]
     fn symbols() {
         test! {
-            " & && ! != : , . = == => / > >= < <= - | || + ; * ",
-            " ~                                                " => Token::Amp,
-            "   ~~                                             " => Token::AmpAmp,
-            "      ~                                           " => Token::Bang,
-            "        ~~                                        " => Token::BangEqual,
-            "           ~                                      " => Token::Colon,
-            "             ~                                    " => Token::Comma,
-            "               ~                                  " => Token::Dot,
-            "                 ~                                " => Token::Equal,
-            "                   ~~                             " => Token::EqualEqual,
-            "                      ~~                          " => Token::EqualGreater,
-            "                         ~                        " => Token::ForwardSlash,
-            "                           ~                      " => Token::Greater,
-            "                             ~~                   " => Token::GreaterEqual,
-            "                                ~                 " => Token::Less,
-            "                                  ~~              " => Token::LessEqual,
-            "                                     ~            " => Token::Minus,
-            "                                       ~          " => Token::Pipe,
-            "                                         ~~       " => Token::PipePipe,
-            "                                            ~     " => Token::Plus,
-            "                                              ~   " => Token::Semi,
-            "                                                ~ " => Token::Star,
+            " & && ! != : , . .. = == => / > >= < <= - | || + ; * ",
+            " ~                                                   " => Token::Amp,
+            "   ~~                                                " => Token::AmpAmp,
+            "      ~                                              " => Token::Bang,
+            "        ~~                                           " => Token::BangEqual,
+            "           ~                                         " => Token::Colon,
+            "             ~                                       " => Token::Comma,
+            "               ~                                     " => Token::Dot,
+            "                 ~~                                  " => Token::DotDot,
+            "                    ~                                " => Token::Equal,
+            "                      ~~                             " => Token::EqualEqual,
+            "                         ~~                          " => Token::EqualGreater,
+            "                            ~                        " => Token::ForwardSlash,
+            "                              ~                      " => Token::Greater,
+            "                                ~~                   " => Token::GreaterEqual,
+            "                                   ~                 " => Token::Less,
+            "                                     ~~              " => Token::LessEqual,
+            "                                        ~            " => Token::Minus,
+            "                                          ~          " => Token::Pipe,
+            "                                            ~~       " => Token::PipePipe,
+            "                                               ~     " => Token::Plus,
+            "                                                 ~   " => Token::Semi,
+            "                                                   ~ " => Token::Star,
         }
     }
 
