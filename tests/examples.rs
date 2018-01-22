@@ -7,7 +7,7 @@ mod test;
 
 use ddl::check;
 use ddl::parser::ast::Module as ParseModule;
-use ddl::syntax::ast::{self, Module};
+use ddl::syntax::ast::Module;
 
 #[test]
 fn bitmap() {
@@ -16,7 +16,7 @@ fn bitmap() {
     let mut module = Module::from_parse(&ParseModule::from_str(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(bitmap_module, module);
 
-    let base_defs = ast::base_defs();
+    let base_defs = Module::prelude();
     module.substitute(&base_defs);
 
     check::check_module(&module).unwrap();
@@ -35,7 +35,7 @@ fn bson() {
     let mut module = Module::from_parse(&ParseModule::from_str(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(bson_module, module);
 
-    let base_defs = ast::base_defs();
+    let base_defs = Module::prelude();
     module.substitute(&base_defs);
 
     check::check_module(&module).unwrap();
@@ -54,7 +54,7 @@ fn edid() {
     let mut module = Module::from_parse(&ParseModule::from_str(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(edid_module, module);
 
-    let base_defs = ast::base_defs();
+    let base_defs = Module::prelude();
     module.substitute(&base_defs);
 
     check::check_module(&module).unwrap();
@@ -73,7 +73,7 @@ fn object_id() {
     let mut module = Module::from_parse(&ParseModule::from_str(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(object_id_module, module);
 
-    let base_defs = ast::base_defs();
+    let base_defs = Module::prelude();
     module.substitute(&base_defs);
 
     check::check_module(&module).unwrap();
@@ -92,7 +92,7 @@ fn stl() {
     let mut module = Module::from_parse(&ParseModule::from_str(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(stl_module, module);
 
-    let base_defs = ast::base_defs();
+    let base_defs = Module::prelude();
     module.substitute(&base_defs);
 
     check::check_module(&module).unwrap();

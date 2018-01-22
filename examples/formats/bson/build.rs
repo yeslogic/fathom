@@ -16,7 +16,7 @@ fn main() {
     };
 
     let mut module = Module::from_parse(&ParseModule::from_str(&src).unwrap()).unwrap();
-    module.substitute(&ddl::syntax::ast::base_defs());
+    module.substitute(&Module::prelude());
     ddl::check::check_module(&module).unwrap();
     let ir = ddl::ir::ast::Module::from(&module);
 

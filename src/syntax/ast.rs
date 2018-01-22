@@ -36,9 +36,9 @@ impl Module {
         Module { definitions }
     }
 
-    pub fn substitute(&mut self, substs: &Substitutions) {
+    pub fn substitute(&mut self, module: &Module) {
         for definition in &mut self.definitions {
-            definition.body_ty.substitute(substs);
+            definition.body_ty.substitute(module);
         }
     }
 
@@ -48,56 +48,45 @@ impl Module {
             .map(Definition::from_parse)
             .collect::<Result<_, _>>()?))
     }
-}
 
-pub fn base_defs() -> Substitutions {
-    use syntax::ast::TypeConst as Tc;
-    use syntax::ast::Endianness::{Big, Little};
-
-    Substitutions {
-        substs: vec![
-            // TODO: (Name::user("true"), Expr::bool(true)),
-            // TODO: (Name::user("false"), Expr::bool(false)),
-            (Name::user("empty"), Type::Const(Tc::Empty).into()),
-            (Name::user("error"), Type::Const(Tc::Error).into()),
-            (Name::user("u8"), Type::Const(Tc::U8).into()),
-            (Name::user("i8"), Type::Const(Tc::I8).into()),
-            // Little endian primitives
-            (Name::user("u16le"), Type::Const(Tc::U16(Little)).into()),
-            (Name::user("u24le"), Type::Const(Tc::U24(Little)).into()),
-            (Name::user("u32le"), Type::Const(Tc::U32(Little)).into()),
-            (Name::user("u64le"), Type::Const(Tc::U64(Little)).into()),
-            (Name::user("i16le"), Type::Const(Tc::I16(Little)).into()),
-            (Name::user("i24le"), Type::Const(Tc::I24(Little)).into()),
-            (Name::user("i32le"), Type::Const(Tc::I32(Little)).into()),
-            (Name::user("i64le"), Type::Const(Tc::I64(Little)).into()),
-            (Name::user("f32le"), Type::Const(Tc::F32(Little)).into()),
-            (Name::user("f64le"), Type::Const(Tc::F64(Little)).into()),
-            // Big endian primitives
-            (Name::user("u16be"), Type::Const(Tc::U16(Big)).into()),
-            (Name::user("u24be"), Type::Const(Tc::U24(Big)).into()),
-            (Name::user("u32be"), Type::Const(Tc::U32(Big)).into()),
-            (Name::user("u64be"), Type::Const(Tc::U64(Big)).into()),
-            (Name::user("i16be"), Type::Const(Tc::I16(Big)).into()),
-            (Name::user("i24be"), Type::Const(Tc::I24(Big)).into()),
-            (Name::user("i32be"), Type::Const(Tc::I32(Big)).into()),
-            (Name::user("i64be"), Type::Const(Tc::I64(Big)).into()),
-            (Name::user("f32be"), Type::Const(Tc::F32(Big)).into()),
-            (Name::user("f64be"), Type::Const(Tc::F64(Big)).into()),
-        ],
-    }
-}
-
-pub struct Substitutions {
-    substs: Vec<(Name, RcType)>,
-}
-
-impl Substitutions {
-    fn get(&self, name: &Name) -> Option<&RcType> {
-        self.substs
+    fn lookup(&self, name: &Name) -> Option<&RcType> {
+        self.definitions
             .iter()
-            .find(|subst| &subst.0 == name)
-            .map(|subst| &subst.1)
+            .find(|definition| &definition.name == name)
+            .map(|definition| &definition.body_ty)
+    }
+
+    pub fn prelude() -> Module {
+        Module::new(vec![
+            // TODO: Definition::new("", "true", Expr::bool(true)),
+            // TODO: Definition::new("", "false", Expr::bool(false)),
+            Definition::new("", "empty", Type::Const(TypeConst::Empty)),
+            Definition::new("", "error", Type::Const(TypeConst::Error)),
+            Definition::new("", "u8", Type::Const(TypeConst::U8)),
+            Definition::new("", "i8", Type::Const(TypeConst::I8)),
+            // Little endian primitives
+            Definition::new("", "u16le", Type::Const(TypeConst::U16(Endianness::Little))),
+            Definition::new("", "u24le", Type::Const(TypeConst::U24(Endianness::Little))),
+            Definition::new("", "u32le", Type::Const(TypeConst::U32(Endianness::Little))),
+            Definition::new("", "u64le", Type::Const(TypeConst::U64(Endianness::Little))),
+            Definition::new("", "i16le", Type::Const(TypeConst::I16(Endianness::Little))),
+            Definition::new("", "i24le", Type::Const(TypeConst::I24(Endianness::Little))),
+            Definition::new("", "i32le", Type::Const(TypeConst::I32(Endianness::Little))),
+            Definition::new("", "i64le", Type::Const(TypeConst::I64(Endianness::Little))),
+            Definition::new("", "f32le", Type::Const(TypeConst::F32(Endianness::Little))),
+            Definition::new("", "f64le", Type::Const(TypeConst::F64(Endianness::Little))),
+            // Big endian primitives
+            Definition::new("", "u16be", Type::Const(TypeConst::U16(Endianness::Big))),
+            Definition::new("", "u24be", Type::Const(TypeConst::U24(Endianness::Big))),
+            Definition::new("", "u32be", Type::Const(TypeConst::U32(Endianness::Big))),
+            Definition::new("", "u64be", Type::Const(TypeConst::U64(Endianness::Big))),
+            Definition::new("", "i16be", Type::Const(TypeConst::I16(Endianness::Big))),
+            Definition::new("", "i24be", Type::Const(TypeConst::I24(Endianness::Big))),
+            Definition::new("", "i32be", Type::Const(TypeConst::I32(Endianness::Big))),
+            Definition::new("", "i64be", Type::Const(TypeConst::I64(Endianness::Big))),
+            Definition::new("", "f32be", Type::Const(TypeConst::F32(Endianness::Big))),
+            Definition::new("", "f64be", Type::Const(TypeConst::F64(Endianness::Big))),
+        ])
     }
 }
 
@@ -122,6 +111,18 @@ pub struct Definition {
 }
 
 impl Definition {
+    pub fn new<D, N, T>(doc: D, name: N, body_ty: T) -> Definition where
+        D: Into<Rc<str>>,
+        N: Into<Ident>,
+        T: Into<RcType>,
+    {
+        Definition {
+            doc: doc.into(),
+            name: name.into(),
+            body_ty: body_ty.into(),
+        }
+    }
+
     pub fn from_parse(src: &ParseDefinition) -> Result<Definition, ()> {
         let body_ty = RcType::from_parse(&src.body_ty)?;
 
@@ -490,82 +491,82 @@ impl RcType {
 
     /// Replace occurrences of the free variables that exist as keys on
     /// `substs` with their corresponding types.
-    pub fn substitute(&mut self, substs: &Substitutions) {
+    pub fn substitute(&mut self, module: &Module) {
         let subst_ty = match *Rc::make_mut(&mut self.inner) {
-            Type::Var(_, Var::Free(ref name)) => match substs.get(name) {
+            Type::Var(_, Var::Free(ref name)) => match module.lookup(name) {
                 None => return,
                 Some(ty) => ty.clone(),
             },
-            Type::HostVar(Var::Free(ref name)) => match substs.get(name) {
+            Type::HostVar(Var::Free(ref name)) => match module.lookup(name) {
                 None => return,
                 Some(ty) => ty.repr().clone(),
             },
             Type::Var(_, Var::Bound(_)) | Type::HostVar(Var::Bound(_)) | Type::Const(_) => return,
             Type::Arrow(ref mut param_tys, ref mut ret_ty) => {
                 for param_ty in param_tys {
-                    param_ty.substitute(substs);
+                    param_ty.substitute(module);
                 }
-                ret_ty.substitute(substs);
+                ret_ty.substitute(module);
 
                 return;
             }
             Type::Lam(_, _, ref mut body_ty) => {
-                body_ty.substitute(substs);
+                body_ty.substitute(module);
                 return;
             }
             Type::App(_, ref mut fn_ty, ref mut arg_tys) => {
-                fn_ty.substitute(substs);
+                fn_ty.substitute(module);
 
                 for arg_ty in arg_tys {
-                    arg_ty.substitute(substs);
+                    arg_ty.substitute(module);
                 }
 
                 return;
             }
 
             Type::Array(_, ref mut elem_ty, ref mut size_expr) => {
-                elem_ty.substitute(substs);
-                size_expr.substitute(substs);
+                elem_ty.substitute(module);
+                size_expr.substitute(module);
                 return;
             }
             Type::Cond(_, ref mut options) => {
                 for option in options {
-                    option.value.0.substitute(substs);
-                    option.value.1.substitute(substs);
+                    option.value.0.substitute(module);
+                    option.value.1.substitute(module);
                 }
                 return;
             }
             Type::Struct(_, ref mut fields) => {
                 for field in fields.iter_mut() {
-                    field.value.substitute(substs);
+                    field.value.substitute(module);
                 }
                 return;
             }
             Type::Assert(_, ref mut ty, ref mut pred) => {
-                ty.substitute(substs);
-                pred.substitute(substs);
+                ty.substitute(module);
+                pred.substitute(module);
                 return;
             }
             Type::Interp(_, ref mut ty, ref mut conv, ref mut repr_ty) => {
-                ty.substitute(substs);
-                conv.substitute(substs);
-                repr_ty.substitute(substs);
+                ty.substitute(module);
+                conv.substitute(module);
+                repr_ty.substitute(module);
                 return;
             }
 
             Type::HostArray(ref mut elem_ty) => {
-                elem_ty.substitute(substs);
+                elem_ty.substitute(module);
                 return;
             }
             Type::HostUnion(ref mut variants) => {
                 for variant in variants {
-                    variant.value.substitute(substs);
+                    variant.value.substitute(module);
                 }
                 return;
             }
             Type::HostStruct(ref mut fields) => {
                 for field in fields {
-                    field.value.substitute(substs);
+                    field.value.substitute(module);
                 }
                 return;
             }
@@ -961,16 +962,16 @@ impl fmt::Debug for RcCExpr {
 impl RcCExpr {
     /// Replace occurrences of the free variables that exist as keys on
     /// `substs` with their corresponding types.
-    pub fn substitute(&mut self, substs: &Substitutions) {
+    pub fn substitute(&mut self, module: &Module) {
         match *Rc::make_mut(&mut self.inner) {
             CExpr::Intro(_, _, ref mut expr) => {
-                expr.substitute(substs);
+                expr.substitute(module);
             }
             CExpr::Array(_, ref mut elems) => for elem in elems {
-                elem.substitute(substs);
+                elem.substitute(module);
             },
             CExpr::Inf(ref mut iexpr) => {
-                iexpr.substitute(substs);
+                iexpr.substitute(module);
             }
         }
     }
@@ -1088,49 +1089,49 @@ impl RcIExpr {
 
     /// Replace occurrences of the free variables that exist as keys on
     /// `substs` with their corresponding types.
-    pub fn substitute(&mut self, substs: &Substitutions) {
+    pub fn substitute(&mut self, module: &Module) {
         match *Rc::make_mut(&mut self.inner) {
             IExpr::Ann(_, ref mut expr, ref mut ty) => {
-                expr.substitute(substs);
-                ty.substitute(substs);
+                expr.substitute(module);
+                ty.substitute(module);
             }
-            IExpr::Var(_, Var::Free(ref name)) => match substs.get(name) {
+            IExpr::Var(_, Var::Free(ref name)) => match module.lookup(name) {
                 None => {}
                 Some(ty) => panic!("Expected to substitute an expression, but found {:?}", ty),
             },
             IExpr::Var(_, Var::Bound(_)) | IExpr::Const(_, _) => {}
             IExpr::Lam(_, ref mut args, ref mut body_expr) => {
                 for &mut Named(_, ref mut arg_ty) in args {
-                    arg_ty.substitute(substs);
+                    arg_ty.substitute(module);
                 }
 
-                body_expr.substitute(substs);
+                body_expr.substitute(module);
             }
             IExpr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
-                fn_expr.substitute(substs);
+                fn_expr.substitute(module);
 
                 for arg_expr in arg_exprs {
-                    arg_expr.substitute(substs);
+                    arg_expr.substitute(module);
                 }
             }
 
             IExpr::Unop(_, _, ref mut expr) | IExpr::Proj(_, ref mut expr, _) => {
-                expr.substitute(substs);
+                expr.substitute(module);
             }
             IExpr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
-                lhs_expr.substitute(substs);
-                rhs_expr.substitute(substs);
+                lhs_expr.substitute(module);
+                rhs_expr.substitute(module);
             }
             IExpr::Struct(ref mut fields) => for field in fields {
-                field.value.substitute(substs);
+                field.value.substitute(module);
             },
             IExpr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
-                array_expr.substitute(substs);
-                index_expr.substitute(substs);
+                array_expr.substitute(module);
+                index_expr.substitute(module);
             }
             IExpr::Cast(_, ref mut src_expr, ref mut dst_ty) => {
-                src_expr.substitute(substs);
-                dst_ty.substitute(substs);
+                src_expr.substitute(module);
+                dst_ty.substitute(module);
             }
         }
     }
