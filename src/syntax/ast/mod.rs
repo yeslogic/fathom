@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 use name::{Ident, Name, Named};
 use parser::ast::Definition as ParseDefinition;
+use parser::ast::Exposing as ParseExposing;
 use parser::ast::Expr as ParseExpr;
 use parser::ast::Module as ParseModule;
 use parser::ast::Type as ParseType;
@@ -13,11 +14,12 @@ use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
+    pub imports: Vec<Import>,
     pub definitions: Vec<Definition>,
 }
 
 impl Module {
-    pub fn new(mut definitions: Vec<Definition>) -> Module {
+    pub fn new(imports: Vec<Import>, mut definitions: Vec<Definition>) -> Module {
         // We maintain a list of the seen definition names. This will allow us to
         // recover the index of these variables as we abstract later definitions...
         let mut seen_names = Vec::<Ident>::new();
@@ -33,7 +35,10 @@ impl Module {
             seen_names.push(definition.name.clone());
         }
 
-        Module { definitions }
+        Module {
+            imports,
+            definitions,
+        }
     }
 
     pub fn substitute(&mut self, module: &Module) {
@@ -43,10 +48,13 @@ impl Module {
     }
 
     pub fn from_parse(src: &ParseModule) -> Result<Module, ()> {
-        Ok(Module::new(src.definitions
-            .iter()
-            .map(Definition::from_parse)
-            .collect::<Result<_, _>>()?))
+        Ok(Module::new(
+            src.imports.iter().map(Import::from_parse).collect(),
+            src.definitions
+                .iter()
+                .map(Definition::from_parse)
+                .collect::<Result<_, _>>()?,
+        ))
     }
 
     fn lookup(&self, name: &Name) -> Option<&RcType> {
@@ -57,7 +65,8 @@ impl Module {
     }
 
     pub fn prelude() -> Module {
-        Module::new(vec![
+        let imports = vec![];
+        let definitions = vec![
             // TODO: Definition::new("", "true", Expr::bool(true)),
             // TODO: Definition::new("", "false", Expr::bool(false)),
             Definition::new("", "empty", Type::Const(TypeConst::Empty)),
@@ -86,7 +95,41 @@ impl Module {
             Definition::new("", "i64be", Type::Const(TypeConst::I64(Endianness::Big))),
             Definition::new("", "f32be", Type::Const(TypeConst::F32(Endianness::Big))),
             Definition::new("", "f64be", Type::Const(TypeConst::F64(Endianness::Big))),
-        ])
+        ];
+
+        Module::new(imports, definitions)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Import {
+    name: Ident,
+    exposing: Exposing,
+}
+
+impl Import {
+    pub fn from_parse(&(src_name, ref src_exposing): &(&str, ParseExposing)) -> Import {
+        Import {
+            name: Ident::from(src_name),
+            exposing: Exposing::from_parse(src_exposing),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Exposing {
+    All,
+    Names(Vec<Ident>),
+}
+
+impl Exposing {
+    pub fn from_parse(src: &ParseExposing) -> Exposing {
+        match *src {
+            ParseExposing::All => Exposing::All,
+            ParseExposing::Names(ref names) => {
+                Exposing::Names(names.iter().map(|&name| Ident::from(name)).collect())
+            }
+        }
     }
 }
 
@@ -111,7 +154,8 @@ pub struct Definition {
 }
 
 impl Definition {
-    pub fn new<D, N, T>(doc: D, name: N, body_ty: T) -> Definition where
+    pub fn new<D, N, T>(doc: D, name: N, body_ty: T) -> Definition
+    where
         D: Into<Rc<str>>,
         N: Into<Ident>,
         T: Into<RcType>,

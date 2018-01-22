@@ -122,7 +122,7 @@ mod infer_ty {
 }
 
 mod infer_kind {
-    use syntax::ast::{Module, Kind};
+    use syntax::ast::{Kind, Module};
     use syntax::ast::RcType;
     use parser::ast::Type as ParseType;
 

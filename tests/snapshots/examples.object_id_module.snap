@@ -1,4 +1,10 @@
 Module {
+    imports: [
+        Import {
+            name: Ident("prelude"),
+            exposing: All
+        }
+    ],
     definitions: [
         Definition {
             doc: "https://docs.mongodb.com/manual/reference/method/ObjectId/",
