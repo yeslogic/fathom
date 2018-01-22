@@ -17,7 +17,9 @@ Module {
                                 lo: BytePos(42),
                                 hi: BytePos(47)
                             },
-                            Free(Ident("u32be"))
+                            Free(
+                                Ident("u32be")
+                            )
                         )
                     },
                     Field {
@@ -28,7 +30,9 @@ Module {
                                 lo: BytePos(65),
                                 hi: BytePos(70)
                             },
-                            Free(Ident("u32be"))
+                            Free(
+                                Ident("u32be")
+                            )
                         )
                     }
                 ]
@@ -51,7 +55,9 @@ Module {
                                 lo: BytePos(196),
                                 hi: BytePos(201)
                             },
-                            Free(Ident("u16le"))
+                            Free(
+                                Ident("u16le")
+                            )
                         )
                     },
                     Field {
@@ -67,14 +73,24 @@ Module {
                                     lo: BytePos(223),
                                     hi: BytePos(228)
                                 },
-                                Bound(Named(Ident("Point"), BoundVar(1, 0)))
+                                Bound(
+                                    Named(
+                                        Ident("Point"),
+                                        BoundVar(1, 0)
+                                    )
+                                )
                             ),
                             Var(
                                 Span {
                                     lo: BytePos(230),
                                     hi: BytePos(233)
                                 },
-                                Bound(Named(Ident("len"), BoundVar(0, 0)))
+                                Bound(
+                                    Named(
+                                        Ident("len"),
+                                        BoundVar(0, 0)
+                                    )
+                                )
                             )
                         )
                     }
@@ -98,7 +114,9 @@ Module {
                                 lo: BytePos(296),
                                 hi: BytePos(298)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -126,7 +144,12 @@ Module {
                                                         lo: BytePos(401),
                                                         hi: BytePos(407)
                                                     },
-                                                    Bound(Named(Ident("format"), BoundVar(0, 0)))
+                                                    Bound(
+                                                        Named(
+                                                            Ident("format"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
                                                 ),
                                                 Const(
                                                     Span {
@@ -142,7 +165,9 @@ Module {
                                                 lo: BytePos(421),
                                                 hi: BytePos(424)
                                             },
-                                            Free(Ident("u16"))
+                                            Free(
+                                                Ident("u16")
+                                            )
                                         )
                                     )
                                 },
@@ -162,7 +187,12 @@ Module {
                                                         lo: BytePos(450),
                                                         hi: BytePos(456)
                                                     },
-                                                    Bound(Named(Ident("format"), BoundVar(0, 0)))
+                                                    Bound(
+                                                        Named(
+                                                            Ident("format"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
                                                 ),
                                                 Const(
                                                     Span {
@@ -178,7 +208,12 @@ Module {
                                                 lo: BytePos(470),
                                                 hi: BytePos(475)
                                             },
-                                            Bound(Named(Ident("Point"), BoundVar(2, 0)))
+                                            Bound(
+                                                Named(
+                                                    Ident("Point"),
+                                                    BoundVar(2, 0)
+                                                )
+                                            )
                                         )
                                     )
                                 },
@@ -198,7 +233,12 @@ Module {
                                                         lo: BytePos(545),
                                                         hi: BytePos(551)
                                                     },
-                                                    Bound(Named(Ident("format"), BoundVar(0, 0)))
+                                                    Bound(
+                                                        Named(
+                                                            Ident("format"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
                                                 ),
                                                 Const(
                                                     Span {
@@ -214,7 +254,12 @@ Module {
                                                 lo: BytePos(565),
                                                 hi: BytePos(570)
                                             },
-                                            Bound(Named(Ident("Array"), BoundVar(1, 0)))
+                                            Bound(
+                                                Named(
+                                                    Ident("Array"),
+                                                    BoundVar(1, 0)
+                                                )
+                                            )
                                         )
                                     )
                                 }

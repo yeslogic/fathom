@@ -12,7 +12,9 @@ Struct(
                     lo: BytePos(35),
                     hi: BytePos(38)
                 },
-                Free(Ident("u32"))
+                Free(
+                    Ident("u32")
+                )
             )
         },
         Field {
@@ -28,14 +30,21 @@ Struct(
                         lo: BytePos(60),
                         hi: BytePos(63)
                     },
-                    Free(Ident("f32"))
+                    Free(
+                        Ident("f32")
+                    )
                 ),
                 Var(
                     Span {
                         lo: BytePos(65),
                         hi: BytePos(68)
                     },
-                    Bound(Named(Ident("len"), BoundVar(0, 0)))
+                    Bound(
+                        Named(
+                            Ident("len"),
+                            BoundVar(0, 0)
+                        )
+                    )
                 )
             )
         },
@@ -61,14 +70,21 @@ Struct(
                                     lo: BytePos(123),
                                     hi: BytePos(126)
                                 },
-                                Free(Ident("f32"))
+                                Free(
+                                    Ident("f32")
+                                )
                             ),
                             Var(
                                 Span {
                                     lo: BytePos(128),
                                     hi: BytePos(131)
                                 },
-                                Bound(Named(Ident("len"), BoundVar(1, 0)))
+                                Bound(
+                                    Named(
+                                        Ident("len"),
+                                        BoundVar(1, 0)
+                                    )
+                                )
                             )
                         )
                     },
@@ -80,7 +96,9 @@ Struct(
                                 lo: BytePos(155),
                                 hi: BytePos(158)
                             },
-                            Free(Ident("u32"))
+                            Free(
+                                Ident("u32")
+                            )
                         )
                     },
                     Field {
@@ -91,7 +109,9 @@ Struct(
                                 lo: BytePos(218),
                                 hi: BytePos(220)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -102,7 +122,9 @@ Struct(
                                 lo: BytePos(248),
                                 hi: BytePos(250)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -118,14 +140,21 @@ Struct(
                                     lo: BytePos(276),
                                     hi: BytePos(279)
                                 },
-                                Free(Ident("f32"))
+                                Free(
+                                    Ident("f32")
+                                )
                             ),
                             Var(
                                 Span {
                                     lo: BytePos(281),
                                     hi: BytePos(284)
                                 },
-                                Bound(Named(Ident("len"), BoundVar(2, 0)))
+                                Bound(
+                                    Named(
+                                        Ident("len"),
+                                        BoundVar(2, 0)
+                                    )
+                                )
                             )
                         )
                     }

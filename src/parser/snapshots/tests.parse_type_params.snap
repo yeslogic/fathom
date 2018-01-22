@@ -9,8 +9,14 @@ Module {
                     hi: BytePos(78)
                 },
                 [
-                    Named(Ident("T"), ()),
-                    Named(Ident("U"), ())
+                    Named(
+                        Ident("T"),
+                        ()
+                    ),
+                    Named(
+                        Ident("U"),
+                        ()
+                    )
                 ],
                 Struct(
                     Span {
@@ -26,7 +32,12 @@ Module {
                                     lo: BytePos(47),
                                     hi: BytePos(48)
                                 },
-                                Bound(Named(Ident("T"), BoundVar(0, 0)))
+                                Bound(
+                                    Named(
+                                        Ident("T"),
+                                        BoundVar(0, 0)
+                                    )
+                                )
                             )
                         },
                         Field {
@@ -37,7 +48,12 @@ Module {
                                     lo: BytePos(66),
                                     hi: BytePos(67)
                                 },
-                                Bound(Named(Ident("U"), BoundVar(1, 1)))
+                                Bound(
+                                    Named(
+                                        Ident("U"),
+                                        BoundVar(1, 1)
+                                    )
+                                )
                             )
                         }
                     ]
@@ -53,7 +69,10 @@ Module {
                     hi: BytePos(172)
                 },
                 [
-                    Named(Ident("T"), ())
+                    Named(
+                        Ident("T"),
+                        ()
+                    )
                 ],
                 Struct(
                     Span {
@@ -69,7 +88,9 @@ Module {
                                     lo: BytePos(127),
                                     hi: BytePos(132)
                                 },
-                                Free(Ident("u16le"))
+                                Free(
+                                    Ident("u16le")
+                                )
                             )
                         },
                         Field {
@@ -85,14 +106,24 @@ Module {
                                         lo: BytePos(154),
                                         hi: BytePos(155)
                                     },
-                                    Bound(Named(Ident("T"), BoundVar(1, 0)))
+                                    Bound(
+                                        Named(
+                                            Ident("T"),
+                                            BoundVar(1, 0)
+                                        )
+                                    )
                                 ),
                                 Var(
                                     Span {
                                         lo: BytePos(157),
                                         hi: BytePos(160)
                                     },
-                                    Bound(Named(Ident("len"), BoundVar(0, 0)))
+                                    Bound(
+                                        Named(
+                                            Ident("len"),
+                                            BoundVar(0, 0)
+                                        )
+                                    )
                                 )
                             )
                         }
@@ -109,9 +140,18 @@ Module {
                     hi: BytePos(277)
                 },
                 [
-                    Named(Ident("T"), ()),
-                    Named(Ident("U"), ()),
-                    Named(Ident("V"), ())
+                    Named(
+                        Ident("T"),
+                        ()
+                    ),
+                    Named(
+                        Ident("U"),
+                        ()
+                    ),
+                    Named(
+                        Ident("V"),
+                        ()
+                    )
                 ],
                 Struct(
                     Span {
@@ -127,7 +167,12 @@ Module {
                                     lo: BytePos(227),
                                     hi: BytePos(228)
                                 },
-                                Bound(Named(Ident("U"), BoundVar(0, 1)))
+                                Bound(
+                                    Named(
+                                        Ident("U"),
+                                        BoundVar(0, 1)
+                                    )
+                                )
                             )
                         },
                         Field {
@@ -143,7 +188,12 @@ Module {
                                         lo: BytePos(249),
                                         hi: BytePos(254)
                                     },
-                                    Bound(Named(Ident("Array"), BoundVar(2, 0)))
+                                    Bound(
+                                        Named(
+                                            Ident("Array"),
+                                            BoundVar(2, 0)
+                                        )
+                                    )
                                 ),
                                 [
                                     App(
@@ -156,7 +206,12 @@ Module {
                                                 lo: BytePos(255),
                                                 hi: BytePos(259)
                                             },
-                                            Bound(Named(Ident("Pair"), BoundVar(3, 0)))
+                                            Bound(
+                                                Named(
+                                                    Ident("Pair"),
+                                                    BoundVar(3, 0)
+                                                )
+                                            )
                                         ),
                                         [
                                             Var(
@@ -164,14 +219,24 @@ Module {
                                                     lo: BytePos(260),
                                                     hi: BytePos(261)
                                                 },
-                                                Bound(Named(Ident("T"), BoundVar(1, 0)))
+                                                Bound(
+                                                    Named(
+                                                        Ident("T"),
+                                                        BoundVar(1, 0)
+                                                    )
+                                                )
                                             ),
                                             Var(
                                                 Span {
                                                     lo: BytePos(263),
                                                     hi: BytePos(264)
                                                 },
-                                                Bound(Named(Ident("V"), BoundVar(1, 2)))
+                                                Bound(
+                                                    Named(
+                                                        Ident("V"),
+                                                        BoundVar(1, 2)
+                                                    )
+                                                )
                                             )
                                         ]
                                     )

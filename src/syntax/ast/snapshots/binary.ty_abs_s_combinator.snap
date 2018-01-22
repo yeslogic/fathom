@@ -4,7 +4,10 @@ Lam(
         hi: BytePos(0)
     },
     [
-        Named(Ident("x"), ())
+        Named(
+            Ident("x"),
+            ()
+        )
     ],
     Lam(
         Span {
@@ -12,7 +15,10 @@ Lam(
             hi: BytePos(0)
         },
         [
-            Named(Ident("y"), ())
+            Named(
+                Ident("y"),
+                ()
+            )
         ],
         Lam(
             Span {
@@ -20,7 +26,10 @@ Lam(
                 hi: BytePos(0)
             },
             [
-                Named(Ident("z"), ())
+                Named(
+                    Ident("z"),
+                    ()
+                )
             ],
             App(
                 Span {
@@ -37,7 +46,12 @@ Lam(
                             lo: BytePos(0),
                             hi: BytePos(0)
                         },
-                        Bound(Named(Ident("x"), BoundVar(2, 0)))
+                        Bound(
+                            Named(
+                                Ident("x"),
+                                BoundVar(2, 0)
+                            )
+                        )
                     ),
                     [
                         Var(
@@ -45,7 +59,12 @@ Lam(
                                 lo: BytePos(0),
                                 hi: BytePos(0)
                             },
-                            Bound(Named(Ident("z"), BoundVar(0, 0)))
+                            Bound(
+                                Named(
+                                    Ident("z"),
+                                    BoundVar(0, 0)
+                                )
+                            )
                         )
                     ]
                 ),
@@ -60,7 +79,12 @@ Lam(
                                 lo: BytePos(0),
                                 hi: BytePos(0)
                             },
-                            Bound(Named(Ident("y"), BoundVar(1, 0)))
+                            Bound(
+                                Named(
+                                    Ident("y"),
+                                    BoundVar(1, 0)
+                                )
+                            )
                         ),
                         [
                             Var(
@@ -68,7 +92,12 @@ Lam(
                                     lo: BytePos(0),
                                     hi: BytePos(0)
                                 },
-                                Bound(Named(Ident("z"), BoundVar(0, 0)))
+                                Bound(
+                                    Named(
+                                        Ident("z"),
+                                        BoundVar(0, 0)
+                                    )
+                                )
                             )
                         ]
                     )

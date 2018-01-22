@@ -27,7 +27,9 @@ Assert(
                                 lo: BytePos(33),
                                 hi: BytePos(36)
                             },
-                            Free(Ident("u32"))
+                            Free(
+                                Ident("u32")
+                            )
                         ),
                         Inf(
                             Lam(
@@ -36,9 +38,14 @@ Assert(
                                     hi: BytePos(57)
                                 },
                                 [
-                                    Named(Ident("x"), Var(
-                                        Free(Ident("u32"))
-                                    ))
+                                    Named(
+                                        Ident("x"),
+                                        Var(
+                                            Free(
+                                                Ident("u32")
+                                            )
+                                        )
+                                    )
                                 ],
                                 Binop(
                                     Span {
@@ -51,7 +58,12 @@ Assert(
                                             lo: BytePos(48),
                                             hi: BytePos(49)
                                         },
-                                        Bound(Named(Ident("x"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("x"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     ),
                                     Const(
                                         Span {
@@ -74,17 +86,22 @@ Assert(
                     hi: BytePos(97)
                 },
                 [
-                    Named(Ident("x"), Struct(
-                        [
-                            Field {
-                                doc: "",
-                                name: Ident("x"),
-                                value: Var(
-                                    Free(Ident("u32"))
-                                )
-                            }
-                        ]
-                    ))
+                    Named(
+                        Ident("x"),
+                        Struct(
+                            [
+                                Field {
+                                    doc: "",
+                                    name: Ident("x"),
+                                    value: Var(
+                                        Free(
+                                            Ident("u32")
+                                        )
+                                    )
+                                }
+                            ]
+                        )
+                    )
                 ],
                 Binop(
                     Span {
@@ -97,7 +114,12 @@ Assert(
                             lo: BytePos(88),
                             hi: BytePos(89)
                         },
-                        Bound(Named(Ident("x"), BoundVar(0, 0)))
+                        Bound(
+                            Named(
+                                Ident("x"),
+                                BoundVar(0, 0)
+                            )
+                        )
                     ),
                     Const(
                         Span {
@@ -117,17 +139,22 @@ Assert(
                 hi: BytePos(126)
             },
             [
-                Named(Ident("x"), Struct(
-                    [
-                        Field {
-                            doc: "",
-                            name: Ident("x"),
-                            value: Var(
-                                Free(Ident("u32"))
-                            )
-                        }
-                    ]
-                ))
+                Named(
+                    Ident("x"),
+                    Struct(
+                        [
+                            Field {
+                                doc: "",
+                                name: Ident("x"),
+                                value: Var(
+                                    Free(
+                                        Ident("u32")
+                                    )
+                                )
+                            }
+                        ]
+                    )
+                )
             ],
             Binop(
                 Span {
@@ -140,7 +167,12 @@ Assert(
                         lo: BytePos(117),
                         hi: BytePos(118)
                     },
-                    Bound(Named(Ident("x"), BoundVar(0, 0)))
+                    Bound(
+                        Named(
+                            Ident("x"),
+                            BoundVar(0, 0)
+                        )
+                    )
                 ),
                 Const(
                     Span {

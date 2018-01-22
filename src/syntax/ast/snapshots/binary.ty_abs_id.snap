@@ -4,13 +4,21 @@ Lam(
         hi: BytePos(0)
     },
     [
-        Named(Ident("x"), ())
+        Named(
+            Ident("x"),
+            ()
+        )
     ],
     Var(
         Span {
             lo: BytePos(0),
             hi: BytePos(0)
         },
-        Bound(Named(Ident("x"), BoundVar(0, 0)))
+        Bound(
+            Named(
+                Ident("x"),
+                BoundVar(0, 0)
+            )
+        )
     )
 )

@@ -17,7 +17,9 @@ Module {
                                 lo: BytePos(24),
                                 hi: BytePos(29)
                             },
-                            Free(Ident("f32le"))
+                            Free(
+                                Ident("f32le")
+                            )
                         )
                     },
                     Field {
@@ -28,7 +30,9 @@ Module {
                                 lo: BytePos(38),
                                 hi: BytePos(43)
                             },
-                            Free(Ident("f32le"))
+                            Free(
+                                Ident("f32le")
+                            )
                         )
                     },
                     Field {
@@ -39,7 +43,9 @@ Module {
                                 lo: BytePos(52),
                                 hi: BytePos(57)
                             },
-                            Free(Ident("f32le"))
+                            Free(
+                                Ident("f32le")
+                            )
                         )
                     }
                 ]
@@ -62,7 +68,12 @@ Module {
                                 lo: BytePos(117),
                                 hi: BytePos(122)
                             },
-                            Bound(Named(Ident("Vec3d"), BoundVar(0, 0)))
+                            Bound(
+                                Named(
+                                    Ident("Vec3d"),
+                                    BoundVar(0, 0)
+                                )
+                            )
                         )
                     },
                     Field {
@@ -78,7 +89,12 @@ Module {
                                     lo: BytePos(175),
                                     hi: BytePos(180)
                                 },
-                                Bound(Named(Ident("Vec3d"), BoundVar(1, 0)))
+                                Bound(
+                                    Named(
+                                        Ident("Vec3d"),
+                                        BoundVar(1, 0)
+                                    )
+                                )
                             ),
                             Const(
                                 Span {
@@ -97,7 +113,9 @@ Module {
                                 lo: BytePos(399),
                                 hi: BytePos(404)
                             },
-                            Free(Ident("u16le"))
+                            Free(
+                                Ident("u16le")
+                            )
                         )
                     }
                 ]
@@ -125,7 +143,9 @@ Module {
                                     lo: BytePos(516),
                                     hi: BytePos(518)
                                 },
-                                Free(Ident("u8"))
+                                Free(
+                                    Ident("u8")
+                                )
                             ),
                             Const(
                                 Span {
@@ -144,7 +164,9 @@ Module {
                                 lo: BytePos(586),
                                 hi: BytePos(591)
                             },
-                            Free(Ident("u32le"))
+                            Free(
+                                Ident("u32le")
+                            )
                         )
                     },
                     Field {
@@ -160,14 +182,24 @@ Module {
                                     lo: BytePos(635),
                                     hi: BytePos(643)
                                 },
-                                Bound(Named(Ident("Triangle"), BoundVar(2, 0)))
+                                Bound(
+                                    Named(
+                                        Ident("Triangle"),
+                                        BoundVar(2, 0)
+                                    )
+                                )
                             ),
                             Var(
                                 Span {
                                     lo: BytePos(645),
                                     hi: BytePos(658)
                                 },
-                                Bound(Named(Ident("num_triangles"), BoundVar(0, 0)))
+                                Bound(
+                                    Named(
+                                        Ident("num_triangles"),
+                                        BoundVar(0, 0)
+                                    )
+                                )
                             )
                         )
                     }

@@ -42,31 +42,45 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(Ident("len"), Const(
-                                I32(
-                                    Big
+                            Named(
+                                Ident("len"),
+                                Const(
+                                    I32(
+                                        Big
+                                    )
                                 )
-                            )),
-                            Named(Ident("subtype"), Const(
-                                U8
-                            )),
-                            Named(Ident("data"), Repeat(
+                            ),
+                            Named(
+                                Ident("subtype"),
                                 Const(
                                     U8
-                                ),
-                                Exact(
-                                    Cast(
-                                        Var(
-                                            Bound(Named(Ident("len"), BoundVar(1, 0)))
-                                        ),
-                                        Const(
-                                            Unsigned(
-                                                U64
+                                )
+                            ),
+                            Named(
+                                Ident("data"),
+                                Repeat(
+                                    Const(
+                                        U8
+                                    ),
+                                    Exact(
+                                        Cast(
+                                            Var(
+                                                Bound(
+                                                    Named(
+                                                        Ident("len"),
+                                                        BoundVar(1, 0)
+                                                    )
+                                                )
+                                            ),
+                                            Const(
+                                                Unsigned(
+                                                    U64
+                                                )
                                             )
                                         )
                                     )
                                 )
-                            ))
+                            )
                         ],
                         Struct(
                             Path {
@@ -78,21 +92,36 @@ Module {
                                     doc: "The number of bytes stored",
                                     name: Ident("len"),
                                     value: Var(
-                                        Bound(Named(Ident("len"), BoundVar(2, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("len"),
+                                                BoundVar(2, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Binary data subtype\n\n- `0x00`: Generic binary subtype\n- `0x01`: Function\n- `0x02`: Binary (Old)\n- `0x03`: UUID (Old)\n- `0x04`: UUID\n- `0x05`: MD5\n- `0x80`: User defined",
                                     name: Ident("subtype"),
                                     value: Var(
-                                        Bound(Named(Ident("subtype"), BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("subtype"),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "The binary data",
                                     name: Ident("data"),
                                     value: Var(
-                                        Bound(Named(Ident("data"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("data"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]
@@ -150,26 +179,38 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(Ident("epoch_time"), Const(
-                                I32(
-                                    Big
+                            Named(
+                                Ident("epoch_time"),
+                                Const(
+                                    I32(
+                                        Big
+                                    )
                                 )
-                            )),
-                            Named(Ident("machine_id"), Const(
-                                U24(
-                                    Big
+                            ),
+                            Named(
+                                Ident("machine_id"),
+                                Const(
+                                    U24(
+                                        Big
+                                    )
                                 )
-                            )),
-                            Named(Ident("process_id"), Const(
-                                U16(
-                                    Big
+                            ),
+                            Named(
+                                Ident("process_id"),
+                                Const(
+                                    U16(
+                                        Big
+                                    )
                                 )
-                            )),
-                            Named(Ident("counter"), Const(
-                                U24(
-                                    Big
+                            ),
+                            Named(
+                                Ident("counter"),
+                                Const(
+                                    U24(
+                                        Big
+                                    )
                                 )
-                            ))
+                            )
                         ],
                         Struct(
                             Path {
@@ -181,28 +222,48 @@ Module {
                                     doc: "",
                                     name: Ident("epoch_time"),
                                     value: Var(
-                                        Bound(Named(Ident("epoch_time"), BoundVar(3, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("epoch_time"),
+                                                BoundVar(3, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
                                     name: Ident("machine_id"),
                                     value: Var(
-                                        Bound(Named(Ident("machine_id"), BoundVar(2, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("machine_id"),
+                                                BoundVar(2, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
                                     name: Ident("process_id"),
                                     value: Var(
-                                        Bound(Named(Ident("process_id"), BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("process_id"),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
                                     name: Ident("counter"),
                                     value: Var(
-                                        Bound(Named(Ident("counter"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("counter"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]
@@ -351,323 +412,469 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(Ident("elem_type"), Const(
-                                U8
-                            )),
-                            Named(Ident("content"), Cond(
-                                [
-                                    (
-                                        Binop(
-                                            Eq,
-                                            Var(
-                                                Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Int(1, Unsigned(U8))
-                                            )
-                                        ),
-                                        Sequence(
-                                            [
-                                                Named(Ident("x"), Const(
-                                                    F64(
-                                                        Little
+                            Named(
+                                Ident("elem_type"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("content"),
+                                Cond(
+                                    [
+                                        (
+                                            Binop(
+                                                Eq,
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            Ident("elem_type"),
+                                                            BoundVar(0, 0)
+                                                        )
                                                     )
-                                                ))
-                                            ],
-                                            Intro(
-                                                Path {
-                                                    base: "Element",
-                                                    children: [
-                                                        "content"
-                                                    ]
-                                                },
-                                                Ident("double"),
-                                                Var(
-                                                    Bound(Named(Ident("x"), BoundVar(0, 0)))
+                                                ),
+                                                Const(
+                                                    Int(1, Unsigned(U8))
                                                 )
-                                            )
-                                        )
-                                    ),
-                                    (
-                                        Binop(
-                                            Eq,
-                                            Var(
-                                                Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                             ),
-                                            Const(
-                                                Int(5, Unsigned(U8))
-                                            )
-                                        ),
-                                        Sequence(
-                                            [
-                                                Named(Ident("x"), Var(
-                                                    Bound(Named(Ident("BinData"), BoundVar(2, 0)))
-                                                ))
-                                            ],
-                                            Intro(
-                                                Path {
-                                                    base: "Element",
-                                                    children: [
-                                                        "content"
-                                                    ]
-                                                },
-                                                Ident("bin_data"),
-                                                Var(
-                                                    Bound(Named(Ident("x"), BoundVar(0, 0)))
-                                                )
-                                            )
-                                        )
-                                    ),
-                                    (
-                                        Binop(
-                                            Eq,
-                                            Var(
-                                                Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Int(6, Unsigned(U8))
-                                            )
-                                        ),
-                                        Sequence(
-                                            [
-                                                Named(Ident("x"), Const(
-                                                    Empty
-                                                ))
-                                            ],
-                                            Intro(
-                                                Path {
-                                                    base: "Element",
-                                                    children: [
-                                                        "content"
-                                                    ]
-                                                },
-                                                Ident("undefined"),
-                                                Var(
-                                                    Bound(Named(Ident("x"), BoundVar(0, 0)))
-                                                )
-                                            )
-                                        )
-                                    ),
-                                    (
-                                        Binop(
-                                            Eq,
-                                            Var(
-                                                Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Int(7, Unsigned(U8))
-                                            )
-                                        ),
-                                        Sequence(
-                                            [
-                                                Named(Ident("x"), Var(
-                                                    Bound(Named(Ident("ObjectId"), BoundVar(1, 0)))
-                                                ))
-                                            ],
-                                            Intro(
-                                                Path {
-                                                    base: "Element",
-                                                    children: [
-                                                        "content"
-                                                    ]
-                                                },
-                                                Ident("object_id"),
-                                                Var(
-                                                    Bound(Named(Ident("x"), BoundVar(0, 0)))
-                                                )
-                                            )
-                                        )
-                                    ),
-                                    (
-                                        Binop(
-                                            Eq,
-                                            Var(
-                                                Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Int(8, Unsigned(U8))
-                                            )
-                                        ),
-                                        Sequence(
-                                            [
-                                                Named(Ident("x"), Const(
-                                                    U8
-                                                ))
-                                            ],
-                                            Intro(
-                                                Path {
-                                                    base: "Element",
-                                                    children: [
-                                                        "content"
-                                                    ]
-                                                },
-                                                Ident("boolean"),
-                                                Var(
-                                                    Bound(Named(Ident("x"), BoundVar(0, 0)))
-                                                )
-                                            )
-                                        )
-                                    ),
-                                    (
-                                        Binop(
-                                            Eq,
-                                            Var(
-                                                Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Int(9, Unsigned(U8))
-                                            )
-                                        ),
-                                        Sequence(
-                                            [
-                                                Named(Ident("x"), Const(
-                                                    I64(
-                                                        Little
+                                            Sequence(
+                                                [
+                                                    Named(
+                                                        Ident("x"),
+                                                        Const(
+                                                            F64(
+                                                                Little
+                                                            )
+                                                        )
                                                     )
-                                                ))
-                                            ],
-                                            Intro(
-                                                Path {
-                                                    base: "Element",
-                                                    children: [
-                                                        "content"
-                                                    ]
-                                                },
-                                                Ident("utc_datetime"),
-                                                Var(
-                                                    Bound(Named(Ident("x"), BoundVar(0, 0)))
-                                                )
-                                            )
-                                        )
-                                    ),
-                                    (
-                                        Binop(
-                                            Eq,
-                                            Var(
-                                                Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Int(10, Unsigned(U8))
-                                            )
-                                        ),
-                                        Sequence(
-                                            [
-                                                Named(Ident("x"), Const(
-                                                    Empty
-                                                ))
-                                            ],
-                                            Intro(
-                                                Path {
-                                                    base: "Element",
-                                                    children: [
-                                                        "content"
-                                                    ]
-                                                },
-                                                Ident("null"),
-                                                Var(
-                                                    Bound(Named(Ident("x"), BoundVar(0, 0)))
-                                                )
-                                            )
-                                        )
-                                    ),
-                                    (
-                                        Binop(
-                                            Eq,
-                                            Var(
-                                                Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Int(16, Unsigned(U8))
-                                            )
-                                        ),
-                                        Sequence(
-                                            [
-                                                Named(Ident("x"), Const(
-                                                    I32(
-                                                        Little
+                                                ],
+                                                Intro(
+                                                    Path {
+                                                        base: "Element",
+                                                        children: [
+                                                            "content"
+                                                        ]
+                                                    },
+                                                    Ident("double"),
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("x"),
+                                                                BoundVar(0, 0)
+                                                            )
+                                                        )
                                                     )
-                                                ))
-                                            ],
-                                            Intro(
-                                                Path {
-                                                    base: "Element",
-                                                    children: [
-                                                        "content"
-                                                    ]
-                                                },
-                                                Ident("int"),
-                                                Var(
-                                                    Bound(Named(Ident("x"), BoundVar(0, 0)))
                                                 )
-                                            )
-                                        )
-                                    ),
-                                    (
-                                        Binop(
-                                            Eq,
-                                            Var(
-                                                Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
-                                            ),
-                                            Const(
-                                                Int(17, Unsigned(U8))
                                             )
                                         ),
-                                        Sequence(
-                                            [
-                                                Named(Ident("x"), Const(
-                                                    U64(
-                                                        Little
-                                                    )
-                                                ))
-                                            ],
-                                            Intro(
-                                                Path {
-                                                    base: "Element",
-                                                    children: [
-                                                        "content"
-                                                    ]
-                                                },
-                                                Ident("timestamp"),
+                                        (
+                                            Binop(
+                                                Eq,
                                                 Var(
-                                                    Bound(Named(Ident("x"), BoundVar(0, 0)))
+                                                    Bound(
+                                                        Named(
+                                                            Ident("elem_type"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Const(
+                                                    Int(5, Unsigned(U8))
                                                 )
-                                            )
-                                        )
-                                    ),
-                                    (
-                                        Binop(
-                                            Eq,
-                                            Var(
-                                                Bound(Named(Ident("elem_type"), BoundVar(0, 0)))
                                             ),
-                                            Const(
-                                                Int(18, Unsigned(U8))
+                                            Sequence(
+                                                [
+                                                    Named(
+                                                        Ident("x"),
+                                                        Var(
+                                                            Bound(
+                                                                Named(
+                                                                    Ident("BinData"),
+                                                                    BoundVar(2, 0)
+                                                                )
+                                                            )
+                                                        )
+                                                    )
+                                                ],
+                                                Intro(
+                                                    Path {
+                                                        base: "Element",
+                                                        children: [
+                                                            "content"
+                                                        ]
+                                                    },
+                                                    Ident("bin_data"),
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("x"),
+                                                                BoundVar(0, 0)
+                                                            )
+                                                        )
+                                                    )
+                                                )
                                             )
                                         ),
-                                        Sequence(
-                                            [
-                                                Named(Ident("x"), Const(
-                                                    I64(
-                                                        Little
-                                                    )
-                                                ))
-                                            ],
-                                            Intro(
-                                                Path {
-                                                    base: "Element",
-                                                    children: [
-                                                        "content"
-                                                    ]
-                                                },
-                                                Ident("long"),
+                                        (
+                                            Binop(
+                                                Eq,
                                                 Var(
-                                                    Bound(Named(Ident("x"), BoundVar(0, 0)))
+                                                    Bound(
+                                                        Named(
+                                                            Ident("elem_type"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Const(
+                                                    Int(6, Unsigned(U8))
+                                                )
+                                            ),
+                                            Sequence(
+                                                [
+                                                    Named(
+                                                        Ident("x"),
+                                                        Const(
+                                                            Empty
+                                                        )
+                                                    )
+                                                ],
+                                                Intro(
+                                                    Path {
+                                                        base: "Element",
+                                                        children: [
+                                                            "content"
+                                                        ]
+                                                    },
+                                                    Ident("undefined"),
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("x"),
+                                                                BoundVar(0, 0)
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        (
+                                            Binop(
+                                                Eq,
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            Ident("elem_type"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Const(
+                                                    Int(7, Unsigned(U8))
+                                                )
+                                            ),
+                                            Sequence(
+                                                [
+                                                    Named(
+                                                        Ident("x"),
+                                                        Var(
+                                                            Bound(
+                                                                Named(
+                                                                    Ident("ObjectId"),
+                                                                    BoundVar(1, 0)
+                                                                )
+                                                            )
+                                                        )
+                                                    )
+                                                ],
+                                                Intro(
+                                                    Path {
+                                                        base: "Element",
+                                                        children: [
+                                                            "content"
+                                                        ]
+                                                    },
+                                                    Ident("object_id"),
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("x"),
+                                                                BoundVar(0, 0)
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        (
+                                            Binop(
+                                                Eq,
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            Ident("elem_type"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Const(
+                                                    Int(8, Unsigned(U8))
+                                                )
+                                            ),
+                                            Sequence(
+                                                [
+                                                    Named(
+                                                        Ident("x"),
+                                                        Const(
+                                                            U8
+                                                        )
+                                                    )
+                                                ],
+                                                Intro(
+                                                    Path {
+                                                        base: "Element",
+                                                        children: [
+                                                            "content"
+                                                        ]
+                                                    },
+                                                    Ident("boolean"),
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("x"),
+                                                                BoundVar(0, 0)
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        (
+                                            Binop(
+                                                Eq,
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            Ident("elem_type"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Const(
+                                                    Int(9, Unsigned(U8))
+                                                )
+                                            ),
+                                            Sequence(
+                                                [
+                                                    Named(
+                                                        Ident("x"),
+                                                        Const(
+                                                            I64(
+                                                                Little
+                                                            )
+                                                        )
+                                                    )
+                                                ],
+                                                Intro(
+                                                    Path {
+                                                        base: "Element",
+                                                        children: [
+                                                            "content"
+                                                        ]
+                                                    },
+                                                    Ident("utc_datetime"),
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("x"),
+                                                                BoundVar(0, 0)
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        (
+                                            Binop(
+                                                Eq,
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            Ident("elem_type"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Const(
+                                                    Int(10, Unsigned(U8))
+                                                )
+                                            ),
+                                            Sequence(
+                                                [
+                                                    Named(
+                                                        Ident("x"),
+                                                        Const(
+                                                            Empty
+                                                        )
+                                                    )
+                                                ],
+                                                Intro(
+                                                    Path {
+                                                        base: "Element",
+                                                        children: [
+                                                            "content"
+                                                        ]
+                                                    },
+                                                    Ident("null"),
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("x"),
+                                                                BoundVar(0, 0)
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        (
+                                            Binop(
+                                                Eq,
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            Ident("elem_type"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Const(
+                                                    Int(16, Unsigned(U8))
+                                                )
+                                            ),
+                                            Sequence(
+                                                [
+                                                    Named(
+                                                        Ident("x"),
+                                                        Const(
+                                                            I32(
+                                                                Little
+                                                            )
+                                                        )
+                                                    )
+                                                ],
+                                                Intro(
+                                                    Path {
+                                                        base: "Element",
+                                                        children: [
+                                                            "content"
+                                                        ]
+                                                    },
+                                                    Ident("int"),
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("x"),
+                                                                BoundVar(0, 0)
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        (
+                                            Binop(
+                                                Eq,
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            Ident("elem_type"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Const(
+                                                    Int(17, Unsigned(U8))
+                                                )
+                                            ),
+                                            Sequence(
+                                                [
+                                                    Named(
+                                                        Ident("x"),
+                                                        Const(
+                                                            U64(
+                                                                Little
+                                                            )
+                                                        )
+                                                    )
+                                                ],
+                                                Intro(
+                                                    Path {
+                                                        base: "Element",
+                                                        children: [
+                                                            "content"
+                                                        ]
+                                                    },
+                                                    Ident("timestamp"),
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("x"),
+                                                                BoundVar(0, 0)
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        (
+                                            Binop(
+                                                Eq,
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            Ident("elem_type"),
+                                                            BoundVar(0, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Const(
+                                                    Int(18, Unsigned(U8))
+                                                )
+                                            ),
+                                            Sequence(
+                                                [
+                                                    Named(
+                                                        Ident("x"),
+                                                        Const(
+                                                            I64(
+                                                                Little
+                                                            )
+                                                        )
+                                                    )
+                                                ],
+                                                Intro(
+                                                    Path {
+                                                        base: "Element",
+                                                        children: [
+                                                            "content"
+                                                        ]
+                                                    },
+                                                    Ident("long"),
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("x"),
+                                                                BoundVar(0, 0)
+                                                            )
+                                                        )
+                                                    )
                                                 )
                                             )
                                         )
-                                    )
-                                ]
-                            ))
+                                    ]
+                                )
+                            )
                         ],
                         Struct(
                             Path {
@@ -679,14 +886,24 @@ Module {
                                     doc: "",
                                     name: Ident("elem_type"),
                                     value: Var(
-                                        Bound(Named(Ident("elem_type"), BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("elem_type"),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
                                     name: Ident("content"),
                                     value: Var(
-                                        Bound(Named(Ident("content"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("content"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]
@@ -730,21 +947,32 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(Ident("len"), Const(
-                                I32(
-                                    Big
-                                )
-                            )),
-                            Named(Ident("fields"), Repeat(
-                                Var(
-                                    Bound(Named(Ident("Element"), BoundVar(1, 0)))
-                                ),
-                                Exact(
-                                    Const(
-                                        Int(1, Unsigned(U8))
+                            Named(
+                                Ident("len"),
+                                Const(
+                                    I32(
+                                        Big
                                     )
                                 )
-                            ))
+                            ),
+                            Named(
+                                Ident("fields"),
+                                Repeat(
+                                    Var(
+                                        Bound(
+                                            Named(
+                                                Ident("Element"),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
+                                    ),
+                                    Exact(
+                                        Const(
+                                            Int(1, Unsigned(U8))
+                                        )
+                                    )
+                                )
+                            )
                         ],
                         Struct(
                             Path {
@@ -756,14 +984,24 @@ Module {
                                     doc: "Total number of bytes comprising the document.",
                                     name: Ident("len"),
                                     value: Var(
-                                        Bound(Named(Ident("len"), BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("len"),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "The elements that make up this document",
                                     name: Ident("fields"),
                                     value: Var(
-                                        Bound(Named(Ident("fields"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("fields"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]

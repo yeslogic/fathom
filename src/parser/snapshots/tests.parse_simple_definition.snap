@@ -8,7 +8,9 @@ Module {
                     lo: BytePos(20),
                     hi: BytePos(23)
                 },
-                Free(Ident("u32"))
+                Free(
+                    Ident("u32")
+                )
             )
         }
     ]

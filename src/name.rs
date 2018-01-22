@@ -33,7 +33,7 @@ impl fmt::Display for Ident {
 
 /// A variable with a name that is ignored for comparisons. This is useful for
 /// improving error reporting when converting free varables to a named form.
-#[derive(Clone, Eq, Ord)]
+#[derive(Debug, Clone, Eq, Ord)]
 pub struct Named<N, T>(pub N, pub T);
 
 impl<N, T: PartialEq> PartialEq for Named<N, T> {
@@ -63,15 +63,5 @@ impl<N, T: PartialOrd> PartialOrd<T> for Named<N, T> {
 impl<N, T> From<(N, T)> for Named<N, T> {
     fn from(src: (N, T)) -> Named<N, T> {
         Named(src.0, src.1)
-    }
-}
-
-impl<N: fmt::Debug, T: fmt::Debug> fmt::Debug for Named<N, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Named(")?;
-        self.0.fmt(f)?;
-        write!(f, ", ")?;
-        self.1.fmt(f)?;
-        write!(f, ")")
     }
 }

@@ -19,7 +19,9 @@ Unop(
                     lo: BytePos(1),
                     hi: BytePos(4)
                 },
-                Free(Ident("foo"))
+                Free(
+                    Ident("foo")
+                )
             ),
             Ident("bar")
         ),

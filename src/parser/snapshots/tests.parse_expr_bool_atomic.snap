@@ -15,14 +15,18 @@ Unop(
                 lo: BytePos(12),
                 hi: BytePos(16)
             },
-            Free(Ident("true"))
+            Free(
+                Ident("true")
+            )
         ),
         Var(
             Span {
                 lo: BytePos(21),
                 hi: BytePos(26)
             },
-            Free(Ident("false"))
+            Free(
+                Ident("false")
+            )
         )
     )
 )

@@ -49,26 +49,38 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(Ident("epoch_time"), Const(
-                                I32(
-                                    Big
+                            Named(
+                                Ident("epoch_time"),
+                                Const(
+                                    I32(
+                                        Big
+                                    )
                                 )
-                            )),
-                            Named(Ident("machine_id"), Const(
-                                U24(
-                                    Big
+                            ),
+                            Named(
+                                Ident("machine_id"),
+                                Const(
+                                    U24(
+                                        Big
+                                    )
                                 )
-                            )),
-                            Named(Ident("process_id"), Const(
-                                U16(
-                                    Big
+                            ),
+                            Named(
+                                Ident("process_id"),
+                                Const(
+                                    U16(
+                                        Big
+                                    )
                                 )
-                            )),
-                            Named(Ident("counter"), Const(
-                                U24(
-                                    Big
+                            ),
+                            Named(
+                                Ident("counter"),
+                                Const(
+                                    U24(
+                                        Big
+                                    )
                                 )
-                            ))
+                            )
                         ],
                         Struct(
                             Path {
@@ -80,28 +92,48 @@ Module {
                                     doc: "",
                                     name: Ident("epoch_time"),
                                     value: Var(
-                                        Bound(Named(Ident("epoch_time"), BoundVar(3, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("epoch_time"),
+                                                BoundVar(3, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
                                     name: Ident("machine_id"),
                                     value: Var(
-                                        Bound(Named(Ident("machine_id"), BoundVar(2, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("machine_id"),
+                                                BoundVar(2, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
                                     name: Ident("process_id"),
                                     value: Var(
-                                        Bound(Named(Ident("process_id"), BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("process_id"),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "",
                                     name: Ident("counter"),
                                     value: Var(
-                                        Bound(Named(Ident("counter"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("counter"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]

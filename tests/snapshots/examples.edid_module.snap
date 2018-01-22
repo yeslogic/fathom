@@ -22,7 +22,9 @@ Module {
                                     lo: BytePos(58),
                                     hi: BytePos(63)
                                 },
-                                Free(Ident("u64le"))
+                                Free(
+                                    Ident("u64le")
+                                )
                             ),
                             Inf(
                                 Lam(
@@ -31,9 +33,14 @@ Module {
                                         hi: BytePos(109)
                                     },
                                     [
-                                        Named(Ident("magic"), Var(
-                                            Free(Ident("u64le"))
-                                        ))
+                                        Named(
+                                            Ident("magic"),
+                                            Var(
+                                                Free(
+                                                    Ident("u64le")
+                                                )
+                                            )
+                                        )
                                     ],
                                     Binop(
                                         Span {
@@ -46,7 +53,12 @@ Module {
                                                 lo: BytePos(79),
                                                 hi: BytePos(84)
                                             },
-                                            Bound(Named(Ident("magic"), BoundVar(0, 0)))
+                                            Bound(
+                                                Named(
+                                                    Ident("magic"),
+                                                    BoundVar(0, 0)
+                                                )
+                                            )
                                         ),
                                         Const(
                                             Span {
@@ -68,7 +80,9 @@ Module {
                                 lo: BytePos(150),
                                 hi: BytePos(155)
                             },
-                            Free(Ident("u16le"))
+                            Free(
+                                Ident("u16le")
+                            )
                         )
                     },
                     Field {
@@ -79,7 +93,9 @@ Module {
                                 lo: BytePos(209),
                                 hi: BytePos(214)
                             },
-                            Free(Ident("u16le"))
+                            Free(
+                                Ident("u16le")
+                            )
                         )
                     },
                     Field {
@@ -90,7 +106,9 @@ Module {
                                 lo: BytePos(250),
                                 hi: BytePos(255)
                             },
-                            Free(Ident("u32le"))
+                            Free(
+                                Ident("u32le")
+                            )
                         )
                     },
                     Field {
@@ -101,7 +119,9 @@ Module {
                                 lo: BytePos(356),
                                 hi: BytePos(358)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -112,7 +132,9 @@ Module {
                                 lo: BytePos(476),
                                 hi: BytePos(478)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -133,9 +155,12 @@ Module {
                                         hi: BytePos(597)
                                     },
                                     [
-                                        Named(Ident("_"), Const(
-                                            Unit
-                                        ))
+                                        Named(
+                                            Ident("_"),
+                                            Const(
+                                                Unit
+                                            )
+                                        )
                                     ],
                                     Binop(
                                         Span {
@@ -153,7 +178,12 @@ Module {
                                                     lo: BytePos(568),
                                                     hi: BytePos(580)
                                                 },
-                                                Bound(Named(Ident("mfg_year_mod"), BoundVar(2, 0)))
+                                                Bound(
+                                                    Named(
+                                                        Ident("mfg_year_mod"),
+                                                        BoundVar(2, 0)
+                                                    )
+                                                )
                                             ),
                                             Const(
                                                 Unsigned(
@@ -186,7 +216,9 @@ Module {
                                 lo: BytePos(665),
                                 hi: BytePos(667)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -197,7 +229,9 @@ Module {
                                 lo: BytePos(736),
                                 hi: BytePos(738)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     }
                 ]
@@ -220,7 +254,9 @@ Module {
                                 lo: BytePos(824),
                                 hi: BytePos(826)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -231,7 +267,9 @@ Module {
                                 lo: BytePos(950),
                                 hi: BytePos(952)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -242,7 +280,9 @@ Module {
                                 lo: BytePos(1082),
                                 hi: BytePos(1084)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -253,7 +293,9 @@ Module {
                                 lo: BytePos(1280),
                                 hi: BytePos(1282)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -274,9 +316,12 @@ Module {
                                         hi: BytePos(1400)
                                     },
                                     [
-                                        Named(Ident("_"), Const(
-                                            Unit
-                                        ))
+                                        Named(
+                                            Ident("_"),
+                                            Const(
+                                                Unit
+                                            )
+                                        )
                                     ],
                                     Binop(
                                         Span {
@@ -300,7 +345,12 @@ Module {
                                                         lo: BytePos(1361),
                                                         hi: BytePos(1370)
                                                     },
-                                                    Bound(Named(Ident("gamma_mod"), BoundVar(2, 0)))
+                                                    Bound(
+                                                        Named(
+                                                            Ident("gamma_mod"),
+                                                            BoundVar(2, 0)
+                                                        )
+                                                    )
                                                 ),
                                                 Const(
                                                     Float(
@@ -341,7 +391,9 @@ Module {
                                 lo: BytePos(1456),
                                 hi: BytePos(1458)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     }
                 ]
@@ -364,7 +416,12 @@ Module {
                                 lo: BytePos(1590),
                                 hi: BytePos(1596)
                             },
-                            Bound(Named(Ident("Header"), BoundVar(1, 0)))
+                            Bound(
+                                Named(
+                                    Ident("Header"),
+                                    BoundVar(1, 0)
+                                )
+                            )
                         )
                     },
                     Field {
@@ -375,7 +432,12 @@ Module {
                                 lo: BytePos(1651),
                                 hi: BytePos(1664)
                             },
-                            Bound(Named(Ident("DisplayParams"), BoundVar(1, 0)))
+                            Bound(
+                                Named(
+                                    Ident("DisplayParams"),
+                                    BoundVar(1, 0)
+                                )
+                            )
                         )
                     }
                 ]

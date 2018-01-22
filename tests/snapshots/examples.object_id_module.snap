@@ -17,7 +17,9 @@ Module {
                                 lo: BytePos(99),
                                 hi: BytePos(104)
                             },
-                            Free(Ident("i32be"))
+                            Free(
+                                Ident("i32be")
+                            )
                         )
                     },
                     Field {
@@ -28,7 +30,9 @@ Module {
                                 lo: BytePos(122),
                                 hi: BytePos(127)
                             },
-                            Free(Ident("u24be"))
+                            Free(
+                                Ident("u24be")
+                            )
                         )
                     },
                     Field {
@@ -39,7 +43,9 @@ Module {
                                 lo: BytePos(145),
                                 hi: BytePos(150)
                             },
-                            Free(Ident("u16be"))
+                            Free(
+                                Ident("u16be")
+                            )
                         )
                     },
                     Field {
@@ -50,7 +56,9 @@ Module {
                                 lo: BytePos(165),
                                 hi: BytePos(170)
                             },
-                            Free(Ident("u24be"))
+                            Free(
+                                Ident("u24be")
+                            )
                         )
                     }
                 ]

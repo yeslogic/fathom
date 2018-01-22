@@ -13,7 +13,9 @@ Module {
                         lo: BytePos(18),
                         hi: BytePos(21)
                     },
-                    Free(Ident("f32"))
+                    Free(
+                        Ident("f32")
+                    )
                 ),
                 Const(
                     Span {

@@ -94,86 +94,129 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(Ident("magic"), Assert(
-                                Const(
-                                    U64(
-                                        Little
-                                    )
-                                ),
-                                Lam(
-                                    [
-                                        Named(Ident("magic"), Const(
-                                            Unsigned(
-                                                U64
-                                            )
-                                        ))
-                                    ],
-                                    Binop(
-                                        Eq,
-                                        Var(
-                                            Bound(Named(Ident("magic"), BoundVar(0, 0)))
-                                        ),
-                                        Const(
-                                            Int(72057594037927680, Unsigned(U64))
+                            Named(
+                                Ident("magic"),
+                                Assert(
+                                    Const(
+                                        U64(
+                                            Little
                                         )
-                                    )
-                                )
-                            )),
-                            Named(Ident("mfg_bytes"), Const(
-                                U16(
-                                    Little
-                                )
-                            )),
-                            Named(Ident("product_code"), Const(
-                                U16(
-                                    Little
-                                )
-                            )),
-                            Named(Ident("serial"), Const(
-                                U32(
-                                    Little
-                                )
-                            )),
-                            Named(Ident("mfg_week"), Const(
-                                U8
-                            )),
-                            Named(Ident("mfg_year_mod"), Const(
-                                U8
-                            )),
-                            Named(Ident("mfg_year"), Apply(
-                                Lam(
-                                    [
-                                        Named(Ident("_"), Const(
-                                            Unit
-                                        ))
-                                    ],
-                                    Binop(
-                                        Add,
-                                        Cast(
-                                            Var(
-                                                Bound(Named(Ident("mfg_year_mod"), BoundVar(2, 0)))
-                                            ),
-                                            Const(
-                                                Unsigned(
-                                                    U16
+                                    ),
+                                    Lam(
+                                        [
+                                            Named(
+                                                Ident("magic"),
+                                                Const(
+                                                    Unsigned(
+                                                        U64
+                                                    )
                                                 )
                                             )
-                                        ),
-                                        Const(
-                                            Int(1990, Unsigned(U16))
+                                        ],
+                                        Binop(
+                                            Eq,
+                                            Var(
+                                                Bound(
+                                                    Named(
+                                                        Ident("magic"),
+                                                        BoundVar(0, 0)
+                                                    )
+                                                )
+                                            ),
+                                            Const(
+                                                Int(72057594037927680, Unsigned(U64))
+                                            )
                                         )
                                     )
-                                ),
-                                Const(
-                                    Empty
                                 )
-                            )),
-                            Named(Ident("edid_version_major"), Const(
-                                U8
-                            )),
-                            Named(Ident("edid_version_minor"), Const(
-                                U8
-                            ))
+                            ),
+                            Named(
+                                Ident("mfg_bytes"),
+                                Const(
+                                    U16(
+                                        Little
+                                    )
+                                )
+                            ),
+                            Named(
+                                Ident("product_code"),
+                                Const(
+                                    U16(
+                                        Little
+                                    )
+                                )
+                            ),
+                            Named(
+                                Ident("serial"),
+                                Const(
+                                    U32(
+                                        Little
+                                    )
+                                )
+                            ),
+                            Named(
+                                Ident("mfg_week"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("mfg_year_mod"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("mfg_year"),
+                                Apply(
+                                    Lam(
+                                        [
+                                            Named(
+                                                Ident("_"),
+                                                Const(
+                                                    Unit
+                                                )
+                                            )
+                                        ],
+                                        Binop(
+                                            Add,
+                                            Cast(
+                                                Var(
+                                                    Bound(
+                                                        Named(
+                                                            Ident("mfg_year_mod"),
+                                                            BoundVar(2, 0)
+                                                        )
+                                                    )
+                                                ),
+                                                Const(
+                                                    Unsigned(
+                                                        U16
+                                                    )
+                                                )
+                                            ),
+                                            Const(
+                                                Int(1990, Unsigned(U16))
+                                            )
+                                        )
+                                    ),
+                                    Const(
+                                        Empty
+                                    )
+                                )
+                            ),
+                            Named(
+                                Ident("edid_version_major"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("edid_version_minor"),
+                                Const(
+                                    U8
+                                )
+                            )
                         ],
                         Struct(
                             Path {
@@ -185,63 +228,108 @@ Module {
                                     doc: "Fixed header pattern",
                                     name: Ident("magic"),
                                     value: Var(
-                                        Bound(Named(Ident("magic"), BoundVar(8, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("magic"),
+                                                BoundVar(8, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Manufacturer ID",
                                     name: Ident("mfg_bytes"),
                                     value: Var(
-                                        Bound(Named(Ident("mfg_bytes"), BoundVar(7, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("mfg_bytes"),
+                                                BoundVar(7, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Manufacturer product code",
                                     name: Ident("product_code"),
                                     value: Var(
-                                        Bound(Named(Ident("product_code"), BoundVar(6, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("product_code"),
+                                                BoundVar(6, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Serial number",
                                     name: Ident("serial"),
                                     value: Var(
-                                        Bound(Named(Ident("serial"), BoundVar(5, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("serial"),
+                                                BoundVar(5, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Week of manufacture. Week numbering is not consistent between manufacturers.",
                                     name: Ident("mfg_week"),
                                     value: Var(
-                                        Bound(Named(Ident("mfg_week"), BoundVar(4, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("mfg_week"),
+                                                BoundVar(4, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.",
                                     name: Ident("mfg_year_mod"),
                                     value: Var(
-                                        Bound(Named(Ident("mfg_year_mod"), BoundVar(3, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("mfg_year_mod"),
+                                                BoundVar(3, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Year of manufacture, derived from `mfg_year_mod`",
                                     name: Ident("mfg_year"),
                                     value: Var(
-                                        Bound(Named(Ident("mfg_year"), BoundVar(2, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("mfg_year"),
+                                                BoundVar(2, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "EDID version, usually 1 (for 1.3)",
                                     name: Ident("edid_version_major"),
                                     value: Var(
-                                        Bound(Named(Ident("edid_version_major"), BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("edid_version_major"),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "EDID revision, usually 3 (for 1.3)",
                                     name: Ident("edid_version_minor"),
                                     value: Var(
-                                        Bound(Named(Ident("edid_version_minor"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("edid_version_minor"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]
@@ -317,55 +405,81 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(Ident("input_flags"), Const(
-                                U8
-                            )),
-                            Named(Ident("screen_size_h"), Const(
-                                U8
-                            )),
-                            Named(Ident("screen_size_v"), Const(
-                                U8
-                            )),
-                            Named(Ident("gamma_mod"), Const(
-                                U8
-                            )),
-                            Named(Ident("gamma"), Apply(
-                                Lam(
-                                    [
-                                        Named(Ident("_"), Const(
-                                            Unit
-                                        ))
-                                    ],
-                                    Binop(
-                                        Div,
+                            Named(
+                                Ident("input_flags"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("screen_size_h"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("screen_size_v"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("gamma_mod"),
+                                Const(
+                                    U8
+                                )
+                            ),
+                            Named(
+                                Ident("gamma"),
+                                Apply(
+                                    Lam(
+                                        [
+                                            Named(
+                                                Ident("_"),
+                                                Const(
+                                                    Unit
+                                                )
+                                            )
+                                        ],
                                         Binop(
-                                            Add,
-                                            Cast(
-                                                Var(
-                                                    Bound(Named(Ident("gamma_mod"), BoundVar(2, 0)))
+                                            Div,
+                                            Binop(
+                                                Add,
+                                                Cast(
+                                                    Var(
+                                                        Bound(
+                                                            Named(
+                                                                Ident("gamma_mod"),
+                                                                BoundVar(2, 0)
+                                                            )
+                                                        )
+                                                    ),
+                                                    Const(
+                                                        Float(
+                                                            F32
+                                                        )
+                                                    )
                                                 ),
                                                 Const(
-                                                    Float(
-                                                        F32
-                                                    )
+                                                    Float(100, F32)
                                                 )
                                             ),
                                             Const(
                                                 Float(100, F32)
                                             )
-                                        ),
-                                        Const(
-                                            Float(100, F32)
                                         )
+                                    ),
+                                    Const(
+                                        Empty
                                     )
-                                ),
-                                Const(
-                                    Empty
                                 )
-                            )),
-                            Named(Ident("features_flags"), Const(
-                                U8
-                            ))
+                            ),
+                            Named(
+                                Ident("features_flags"),
+                                Const(
+                                    U8
+                                )
+                            )
                         ],
                         Struct(
                             Path {
@@ -377,42 +491,72 @@ Module {
                                     doc: "Video input parameters bitmap",
                                     name: Ident("input_flags"),
                                     value: Var(
-                                        Bound(Named(Ident("input_flags"), BoundVar(5, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("input_flags"),
+                                                BoundVar(5, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Maximum horizontal image size, in centimetres (max 292 cm/115 in at\n16:9 aspect ratio)",
                                     name: Ident("screen_size_h"),
                                     value: Var(
-                                        Bound(Named(Ident("screen_size_h"), BoundVar(4, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("screen_size_h"),
+                                                BoundVar(4, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Maximum vertical image size, in centimetres. If either byte is 0,\nundefined (e.g. projector)",
                                     name: Ident("screen_size_v"),
                                     value: Var(
-                                        Bound(Named(Ident("screen_size_v"), BoundVar(3, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("screen_size_v"),
+                                                BoundVar(3, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Display gamma data, factory default (range 1.00–3.54), where\n`gamma_mod = (gamma×100)-100 = (gamma−1)×100` If 225, gamma is defined\nby DI-EXT block.",
                                     name: Ident("gamma_mod"),
                                     value: Var(
-                                        Bound(Named(Ident("gamma_mod"), BoundVar(2, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("gamma_mod"),
+                                                BoundVar(2, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Display gamma, derived from `gamma_mod`",
                                     name: Ident("gamma"),
                                     value: Var(
-                                        Bound(Named(Ident("gamma"), BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("gamma"),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Supported features bitmap",
                                     name: Ident("features_flags"),
                                     value: Var(
-                                        Bound(Named(Ident("features_flags"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("features_flags"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]
@@ -456,12 +600,28 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(Ident("header"), Var(
-                                Bound(Named(Ident("Header"), BoundVar(1, 0)))
-                            )),
-                            Named(Ident("display_params"), Var(
-                                Bound(Named(Ident("DisplayParams"), BoundVar(1, 0)))
-                            ))
+                            Named(
+                                Ident("header"),
+                                Var(
+                                    Bound(
+                                        Named(
+                                            Ident("Header"),
+                                            BoundVar(1, 0)
+                                        )
+                                    )
+                                )
+                            ),
+                            Named(
+                                Ident("display_params"),
+                                Var(
+                                    Bound(
+                                        Named(
+                                            Ident("DisplayParams"),
+                                            BoundVar(1, 0)
+                                        )
+                                    )
+                                )
+                            )
                         ],
                         Struct(
                             Path {
@@ -473,14 +633,24 @@ Module {
                                     doc: "Header information",
                                     name: Ident("header"),
                                     value: Var(
-                                        Bound(Named(Ident("header"), BoundVar(1, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("header"),
+                                                BoundVar(1, 0)
+                                            )
+                                        )
                                     )
                                 },
                                 Field {
                                     doc: "Basic display parameters",
                                     name: Ident("display_params"),
                                     value: Var(
-                                        Bound(Named(Ident("display_params"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("display_params"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     )
                                 }
                             ]

@@ -17,7 +17,9 @@ Module {
                                 lo: BytePos(25),
                                 hi: BytePos(27)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -28,7 +30,9 @@ Module {
                                 lo: BytePos(37),
                                 hi: BytePos(39)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -39,7 +43,9 @@ Module {
                                 lo: BytePos(49),
                                 hi: BytePos(51)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     },
                     Field {
@@ -50,7 +56,9 @@ Module {
                                 lo: BytePos(61),
                                 hi: BytePos(63)
                             },
-                            Free(Ident("u8"))
+                            Free(
+                                Ident("u8")
+                            )
                         )
                     }
                 ]
@@ -82,7 +90,9 @@ Module {
                                             lo: BytePos(126),
                                             hi: BytePos(131)
                                         },
-                                        Free(Ident("u32be"))
+                                        Free(
+                                            Ident("u32be")
+                                        )
                                     )
                                 },
                                 Field {
@@ -93,7 +103,9 @@ Module {
                                             lo: BytePos(150),
                                             hi: BytePos(155)
                                         },
-                                        Free(Ident("u32be"))
+                                        Free(
+                                            Ident("u32be")
+                                        )
                                     )
                                 }
                             ]
@@ -112,7 +124,12 @@ Module {
                                     lo: BytePos(176),
                                     hi: BytePos(181)
                                 },
-                                Bound(Named(Ident("Pixel"), BoundVar(1, 0)))
+                                Bound(
+                                    Named(
+                                        Ident("Pixel"),
+                                        BoundVar(1, 0)
+                                    )
+                                )
                             ),
                             Binop(
                                 Span {
@@ -130,7 +147,12 @@ Module {
                                             lo: BytePos(183),
                                             hi: BytePos(190)
                                         },
-                                        Bound(Named(Ident("extents"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("extents"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     ),
                                     Ident("width")
                                 ),
@@ -144,7 +166,12 @@ Module {
                                             lo: BytePos(199),
                                             hi: BytePos(206)
                                         },
-                                        Bound(Named(Ident("extents"), BoundVar(0, 0)))
+                                        Bound(
+                                            Named(
+                                                Ident("extents"),
+                                                BoundVar(0, 0)
+                                            )
+                                        )
                                     ),
                                     Ident("height")
                                 )
@@ -162,7 +189,12 @@ Module {
                     lo: BytePos(226),
                     hi: BytePos(232)
                 },
-                Bound(Named(Ident("Bitmap"), BoundVar(0, 0)))
+                Bound(
+                    Named(
+                        Ident("Bitmap"),
+                        BoundVar(0, 0)
+                    )
+                )
             )
         }
     ]

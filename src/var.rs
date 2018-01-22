@@ -92,7 +92,7 @@ impl fmt::Debug for BoundVar {
 ///     - [Hackage](https://hackage.haskell.org/package/bound)
 /// - The Penn Locally Nameless Metatheory Library
 ///     - [Github](https://github.com/plclub/metalib)
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Var {
     /// A free, unbound variable
     Free(Ident),
@@ -123,21 +123,5 @@ impl Var {
             },
             Var::Bound(_) => return,
         };
-    }
-}
-
-impl fmt::Debug for Var {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Var::Free(ref x) => {
-                write!(f, "Free(")?;
-                x.fmt(f)?;
-            }
-            Var::Bound(ref i) => {
-                write!(f, "Bound(")?;
-                i.fmt(f)?;
-            }
-        }
-        write!(f, ")")
     }
 }
