@@ -19,7 +19,7 @@ Unop(
                     lo: BytePos(1),
                     hi: BytePos(4)
                 },
-                Free("foo")
+                Free(OwnedIdent("foo"))
             ),
             Binop(
                 Span {
@@ -62,7 +62,7 @@ Unop(
                 lo: BytePos(28),
                 hi: BytePos(33)
             },
-            Free("index")
+            Free(OwnedIdent("index"))
         )
     )
 )

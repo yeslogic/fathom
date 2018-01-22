@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use name::Named;
+use name::{Named, OwnedIdent};
 use syntax;
 use syntax::ast::{binary, host, Field};
 use ir::ast::{Definition, Expr, Item, Module, ParseExpr, Path, RepeatBound, Type};
@@ -18,7 +18,7 @@ impl<'a> From<&'a syntax::ast::Module> for Module {
             // source definition. This will be appended to in order to provide a
             // fully qualified path through the type definitions, eg:
             // `Foo::field::Entry::Variant2::...`
-            let path = Path::new(definition.name.clone());
+            let path = Path::new(definition.name.0.clone());
 
             let definition = match *definition.body_ty.inner {
                 binary::Type::Lam(_, ref params, ref ty) => Definition {
@@ -80,7 +80,7 @@ where
 {
     row.iter()
         .map(|item| {
-            let item_path = path.append_child(item.name.clone());
+            let item_path = path.append_child(item.name.0.clone());
             let ty = lower_value(item_path, &item.value);
 
             Field {
@@ -328,7 +328,7 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
     let lower_to_field_parser = |field: &Field<binary::RcType>| {
         (
             field.name.clone(),
-            ty_parser(&path.append_child(field.name.clone()), &field.value),
+            ty_parser(&path.append_child(field.name.0.clone()), &field.value),
         )
     };
     let lower_to_expr_field = |field: &Field<binary::RcType>| {
@@ -343,7 +343,7 @@ fn struct_parser(path: &Path, fields: &[Field<binary::RcType>]) -> RcParseExpr {
     let expr_fields = fields.iter().map(lower_to_expr_field);
 
     let mut named_exprs = Vec::with_capacity(fields.len());
-    let mut seen_names = Vec::<String>::with_capacity(fields.len());
+    let mut seen_names = Vec::<OwnedIdent>::with_capacity(fields.len());
 
     for (name, mut parse_expr) in parse_exprs {
         for (scope, name) in seen_names.iter().rev().enumerate() {
@@ -372,7 +372,9 @@ fn cond_parser(path: &Path, options: &[Field<(host::RcCExpr, binary::RcType)>]) 
     let lower_option = |option: &Field<(host::RcCExpr, binary::RcType)>| {
         let pred_expr = lower_cexpr(path, &option.value.0);
         let variant_parser = ParseExpr::Sequence(
-            vec![Named("x".to_owned(), ty_parser(path, &option.value.1))],
+            vec![
+                Named(OwnedIdent::from("x"), ty_parser(path, &option.value.1)),
+            ],
             Expr::Intro(
                 path.clone(),
                 option.name.clone(),

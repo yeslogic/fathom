@@ -2,7 +2,7 @@ Module {
     definitions: [
         Definition {
             doc: "",
-            name: "Point",
+            name: OwnedIdent("Point"),
             body_ty: Array(
                 Span {
                     lo: BytePos(17),
@@ -13,7 +13,7 @@ Module {
                         lo: BytePos(18),
                         hi: BytePos(21)
                     },
-                    Free("f32")
+                    Free(OwnedIdent("f32"))
                 ),
                 Const(
                     Span {

@@ -2,7 +2,7 @@ use pretty::{BoxAllocator, DocAllocator, DocBuilder};
 use std::fmt;
 
 use heck::CamelCase;
-use name::Named;
+use name::{Ident, Named, OwnedIdent};
 use ir::ast::{Definition, Expr, Field, Item, Module, ParseExpr, Path, RepeatBound, Type};
 use ir::ast::{RcExpr, RcParseExpr, RcType};
 use ir::ast::{Binop, Const, Unop};
@@ -121,7 +121,7 @@ fn lower_doc_comment<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [String],
+    params: &'a [OwnedIdent],
     ty: &'a RcType,
 ) -> DocBuilder<'alloc, A> {
     alloc.text("pub type")
@@ -141,7 +141,7 @@ fn lower_alias<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [String],
+    params: &'a [OwnedIdent],
     fields: &'a [Field<RcType>],
 ) -> DocBuilder<'alloc, A> {
     alloc.text("#[derive(Debug, Clone)]")
@@ -180,7 +180,7 @@ fn lower_struct<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [String],
+    params: &'a [OwnedIdent],
     variants: &'a [Field<RcType>],
 ) -> DocBuilder<'alloc, A> {
     use heck::CamelCase;
@@ -203,7 +203,7 @@ fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
                         lower_doc_comment(alloc, &variant.doc)
                             // FIXME: this will break if there is already another
                             // variant in the enum that uses the pascalised identifier
-                            .append(alloc.text(variant.name.to_camel_case()))
+                            .append(alloc.text(variant.name.0.to_camel_case()))
                             .append(alloc.text("("))
                             .append(lower_ty(alloc, &variant.value))
                             .append(alloc.text("),"))
@@ -220,7 +220,7 @@ fn lower_union<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     path: &'a Path,
-    params: &'a [String],
+    params: &'a [OwnedIdent],
     parse_expr: &'a RcParseExpr,
 ) -> DocBuilder<'alloc, A> {
     let base_header = alloc
@@ -284,7 +284,7 @@ fn lower_from_binary_impl<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 
 fn lower_intro_ty_params<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    params: &'a [String],
+    params: &'a [OwnedIdent],
 ) -> DocBuilder<'alloc, A> {
     if params.is_empty() {
         alloc.nil()
@@ -411,10 +411,10 @@ fn lower_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 
 fn lower_named_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
-    name: &'a str,
+    name: &'a Ident,
 ) -> DocBuilder<'alloc, A> {
     alloc
-        .text(name.to_camel_case())
+        .text(name.0.to_camel_case())
         .append(alloc.text("::from_binary(reader)"))
 }
 
@@ -533,7 +533,7 @@ fn lower_assert_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_sequence_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     prec: Prec,
-    parse_exprs: &'a [Named<String, RcParseExpr>],
+    parse_exprs: &'a [Named<OwnedIdent, RcParseExpr>],
     expr: &'a RcExpr,
 ) -> DocBuilder<'alloc, A> {
     let inner_parser = alloc
@@ -741,7 +741,7 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
         Expr::Intro(ref path, ref variant_name, ref expr) => alloc
             .text(path.to_camel_case())
             .append(alloc.text("::"))
-            .append(alloc.as_string(variant_name.to_camel_case()))
+            .append(alloc.as_string(variant_name.0.to_camel_case()))
             .append(alloc.text("("))
             .append(lower_expr(alloc, Prec::Block, expr))
             .append(alloc.text(")")),

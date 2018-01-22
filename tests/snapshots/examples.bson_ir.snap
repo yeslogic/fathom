@@ -11,7 +11,7 @@ Module {
                 [
                     Field {
                         doc: "The number of bytes stored",
-                        name: "len",
+                        name: OwnedIdent("len"),
                         value: Const(
                             Signed(
                                 I32
@@ -20,7 +20,7 @@ Module {
                     },
                     Field {
                         doc: "Binary data subtype\n\n- `0x00`: Generic binary subtype\n- `0x01`: Function\n- `0x02`: Binary (Old)\n- `0x03`: UUID (Old)\n- `0x04`: UUID\n- `0x05`: MD5\n- `0x80`: User defined",
-                        name: "subtype",
+                        name: OwnedIdent("subtype"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -29,7 +29,7 @@ Module {
                     },
                     Field {
                         doc: "The binary data",
-                        name: "data",
+                        name: OwnedIdent("data"),
                         value: Array(
                             Const(
                                 Unsigned(
@@ -42,22 +42,22 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named("len", Const(
+                            Named(OwnedIdent("len"), Const(
                                 I32(
                                     Big
                                 )
                             )),
-                            Named("subtype", Const(
+                            Named(OwnedIdent("subtype"), Const(
                                 U8
                             )),
-                            Named("data", Repeat(
+                            Named(OwnedIdent("data"), Repeat(
                                 Const(
                                     U8
                                 ),
                                 Exact(
                                     Cast(
                                         Var(
-                                            Bound(Named("len", BoundVar(1, 0)))
+                                            Bound(Named(OwnedIdent("len"), BoundVar(1, 0)))
                                         ),
                                         Const(
                                             Unsigned(
@@ -76,23 +76,23 @@ Module {
                             [
                                 Field {
                                     doc: "The number of bytes stored",
-                                    name: "len",
+                                    name: OwnedIdent("len"),
                                     value: Var(
-                                        Bound(Named("len", BoundVar(2, 0)))
+                                        Bound(Named(OwnedIdent("len"), BoundVar(2, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "Binary data subtype\n\n- `0x00`: Generic binary subtype\n- `0x01`: Function\n- `0x02`: Binary (Old)\n- `0x03`: UUID (Old)\n- `0x04`: UUID\n- `0x05`: MD5\n- `0x80`: User defined",
-                                    name: "subtype",
+                                    name: OwnedIdent("subtype"),
                                     value: Var(
-                                        Bound(Named("subtype", BoundVar(1, 0)))
+                                        Bound(Named(OwnedIdent("subtype"), BoundVar(1, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "The binary data",
-                                    name: "data",
+                                    name: OwnedIdent("data"),
                                     value: Var(
-                                        Bound(Named("data", BoundVar(0, 0)))
+                                        Bound(Named(OwnedIdent("data"), BoundVar(0, 0)))
                                     )
                                 }
                             ]
@@ -112,7 +112,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "epoch_time",
+                        name: OwnedIdent("epoch_time"),
                         value: Const(
                             Signed(
                                 I32
@@ -121,7 +121,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "machine_id",
+                        name: OwnedIdent("machine_id"),
                         value: Const(
                             Unsigned(
                                 U24
@@ -130,7 +130,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "process_id",
+                        name: OwnedIdent("process_id"),
                         value: Const(
                             Unsigned(
                                 U16
@@ -139,7 +139,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "counter",
+                        name: OwnedIdent("counter"),
                         value: Const(
                             Unsigned(
                                 U24
@@ -150,22 +150,22 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named("epoch_time", Const(
+                            Named(OwnedIdent("epoch_time"), Const(
                                 I32(
                                     Big
                                 )
                             )),
-                            Named("machine_id", Const(
+                            Named(OwnedIdent("machine_id"), Const(
                                 U24(
                                     Big
                                 )
                             )),
-                            Named("process_id", Const(
+                            Named(OwnedIdent("process_id"), Const(
                                 U16(
                                     Big
                                 )
                             )),
-                            Named("counter", Const(
+                            Named(OwnedIdent("counter"), Const(
                                 U24(
                                     Big
                                 )
@@ -179,30 +179,30 @@ Module {
                             [
                                 Field {
                                     doc: "",
-                                    name: "epoch_time",
+                                    name: OwnedIdent("epoch_time"),
                                     value: Var(
-                                        Bound(Named("epoch_time", BoundVar(3, 0)))
+                                        Bound(Named(OwnedIdent("epoch_time"), BoundVar(3, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "machine_id",
+                                    name: OwnedIdent("machine_id"),
                                     value: Var(
-                                        Bound(Named("machine_id", BoundVar(2, 0)))
+                                        Bound(Named(OwnedIdent("machine_id"), BoundVar(2, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "process_id",
+                                    name: OwnedIdent("process_id"),
                                     value: Var(
-                                        Bound(Named("process_id", BoundVar(1, 0)))
+                                        Bound(Named(OwnedIdent("process_id"), BoundVar(1, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "counter",
+                                    name: OwnedIdent("counter"),
                                     value: Var(
-                                        Bound(Named("counter", BoundVar(0, 0)))
+                                        Bound(Named(OwnedIdent("counter"), BoundVar(0, 0)))
                                     )
                                 }
                             ]
@@ -224,7 +224,7 @@ Module {
                 [
                     Field {
                         doc: "64-bit floating point",
-                        name: "double",
+                        name: OwnedIdent("double"),
                         value: Const(
                             Float(
                                 F64
@@ -233,7 +233,7 @@ Module {
                     },
                     Field {
                         doc: "Binary data",
-                        name: "bin_data",
+                        name: OwnedIdent("bin_data"),
                         value: Path(
                             Path {
                                 base: "BinData",
@@ -244,14 +244,14 @@ Module {
                     },
                     Field {
                         doc: "Undefined (value) - deprecated",
-                        name: "undefined",
+                        name: OwnedIdent("undefined"),
                         value: Const(
                             Unit
                         )
                     },
                     Field {
                         doc: "ObjectId",
-                        name: "object_id",
+                        name: OwnedIdent("object_id"),
                         value: Path(
                             Path {
                                 base: "ObjectId",
@@ -262,7 +262,7 @@ Module {
                     },
                     Field {
                         doc: "Boolean\n\n- `0x00`: false\n- `0x01`: true",
-                        name: "boolean",
+                        name: OwnedIdent("boolean"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -271,7 +271,7 @@ Module {
                     },
                     Field {
                         doc: "UTC datetime",
-                        name: "utc_datetime",
+                        name: OwnedIdent("utc_datetime"),
                         value: Const(
                             Signed(
                                 I64
@@ -280,14 +280,14 @@ Module {
                     },
                     Field {
                         doc: "Null value",
-                        name: "null",
+                        name: OwnedIdent("null"),
                         value: Const(
                             Unit
                         )
                     },
                     Field {
                         doc: "32-bit integer",
-                        name: "int",
+                        name: OwnedIdent("int"),
                         value: Const(
                             Signed(
                                 I32
@@ -296,7 +296,7 @@ Module {
                     },
                     Field {
                         doc: "Timestamp",
-                        name: "timestamp",
+                        name: OwnedIdent("timestamp"),
                         value: Const(
                             Unsigned(
                                 U64
@@ -305,7 +305,7 @@ Module {
                     },
                     Field {
                         doc: "64-bit integer",
-                        name: "long",
+                        name: OwnedIdent("long"),
                         value: Const(
                             Signed(
                                 I64
@@ -327,7 +327,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "elem_type",
+                        name: OwnedIdent("elem_type"),
                         value: Const(
                             Unsigned(
                                 U8
@@ -336,7 +336,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "content",
+                        name: OwnedIdent("content"),
                         value: Path(
                             Path {
                                 base: "Element",
@@ -351,16 +351,16 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named("elem_type", Const(
+                            Named(OwnedIdent("elem_type"), Const(
                                 U8
                             )),
-                            Named("content", Cond(
+                            Named(OwnedIdent("content"), Cond(
                                 [
                                     (
                                         Binop(
                                             Eq,
                                             Var(
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                                Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
                                             ),
                                             Const(
                                                 Int(1, Unsigned(U8))
@@ -368,7 +368,7 @@ Module {
                                         ),
                                         Sequence(
                                             [
-                                                Named("x", Const(
+                                                Named(OwnedIdent("x"), Const(
                                                     F64(
                                                         Little
                                                     )
@@ -381,9 +381,9 @@ Module {
                                                         "content"
                                                     ]
                                                 },
-                                                "double",
+                                                OwnedIdent("double"),
                                                 Var(
-                                                    Bound(Named("x", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("x"), BoundVar(0, 0)))
                                                 )
                                             )
                                         )
@@ -392,7 +392,7 @@ Module {
                                         Binop(
                                             Eq,
                                             Var(
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                                Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
                                             ),
                                             Const(
                                                 Int(5, Unsigned(U8))
@@ -400,8 +400,8 @@ Module {
                                         ),
                                         Sequence(
                                             [
-                                                Named("x", Var(
-                                                    Bound(Named("BinData", BoundVar(2, 0)))
+                                                Named(OwnedIdent("x"), Var(
+                                                    Bound(Named(OwnedIdent("BinData"), BoundVar(2, 0)))
                                                 ))
                                             ],
                                             Intro(
@@ -411,9 +411,9 @@ Module {
                                                         "content"
                                                     ]
                                                 },
-                                                "bin_data",
+                                                OwnedIdent("bin_data"),
                                                 Var(
-                                                    Bound(Named("x", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("x"), BoundVar(0, 0)))
                                                 )
                                             )
                                         )
@@ -422,7 +422,7 @@ Module {
                                         Binop(
                                             Eq,
                                             Var(
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                                Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
                                             ),
                                             Const(
                                                 Int(6, Unsigned(U8))
@@ -430,7 +430,7 @@ Module {
                                         ),
                                         Sequence(
                                             [
-                                                Named("x", Const(
+                                                Named(OwnedIdent("x"), Const(
                                                     Empty
                                                 ))
                                             ],
@@ -441,9 +441,9 @@ Module {
                                                         "content"
                                                     ]
                                                 },
-                                                "undefined",
+                                                OwnedIdent("undefined"),
                                                 Var(
-                                                    Bound(Named("x", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("x"), BoundVar(0, 0)))
                                                 )
                                             )
                                         )
@@ -452,7 +452,7 @@ Module {
                                         Binop(
                                             Eq,
                                             Var(
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                                Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
                                             ),
                                             Const(
                                                 Int(7, Unsigned(U8))
@@ -460,8 +460,8 @@ Module {
                                         ),
                                         Sequence(
                                             [
-                                                Named("x", Var(
-                                                    Bound(Named("ObjectId", BoundVar(1, 0)))
+                                                Named(OwnedIdent("x"), Var(
+                                                    Bound(Named(OwnedIdent("ObjectId"), BoundVar(1, 0)))
                                                 ))
                                             ],
                                             Intro(
@@ -471,9 +471,9 @@ Module {
                                                         "content"
                                                     ]
                                                 },
-                                                "object_id",
+                                                OwnedIdent("object_id"),
                                                 Var(
-                                                    Bound(Named("x", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("x"), BoundVar(0, 0)))
                                                 )
                                             )
                                         )
@@ -482,7 +482,7 @@ Module {
                                         Binop(
                                             Eq,
                                             Var(
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                                Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
                                             ),
                                             Const(
                                                 Int(8, Unsigned(U8))
@@ -490,7 +490,7 @@ Module {
                                         ),
                                         Sequence(
                                             [
-                                                Named("x", Const(
+                                                Named(OwnedIdent("x"), Const(
                                                     U8
                                                 ))
                                             ],
@@ -501,9 +501,9 @@ Module {
                                                         "content"
                                                     ]
                                                 },
-                                                "boolean",
+                                                OwnedIdent("boolean"),
                                                 Var(
-                                                    Bound(Named("x", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("x"), BoundVar(0, 0)))
                                                 )
                                             )
                                         )
@@ -512,7 +512,7 @@ Module {
                                         Binop(
                                             Eq,
                                             Var(
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                                Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
                                             ),
                                             Const(
                                                 Int(9, Unsigned(U8))
@@ -520,7 +520,7 @@ Module {
                                         ),
                                         Sequence(
                                             [
-                                                Named("x", Const(
+                                                Named(OwnedIdent("x"), Const(
                                                     I64(
                                                         Little
                                                     )
@@ -533,9 +533,9 @@ Module {
                                                         "content"
                                                     ]
                                                 },
-                                                "utc_datetime",
+                                                OwnedIdent("utc_datetime"),
                                                 Var(
-                                                    Bound(Named("x", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("x"), BoundVar(0, 0)))
                                                 )
                                             )
                                         )
@@ -544,7 +544,7 @@ Module {
                                         Binop(
                                             Eq,
                                             Var(
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                                Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
                                             ),
                                             Const(
                                                 Int(10, Unsigned(U8))
@@ -552,7 +552,7 @@ Module {
                                         ),
                                         Sequence(
                                             [
-                                                Named("x", Const(
+                                                Named(OwnedIdent("x"), Const(
                                                     Empty
                                                 ))
                                             ],
@@ -563,9 +563,9 @@ Module {
                                                         "content"
                                                     ]
                                                 },
-                                                "null",
+                                                OwnedIdent("null"),
                                                 Var(
-                                                    Bound(Named("x", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("x"), BoundVar(0, 0)))
                                                 )
                                             )
                                         )
@@ -574,7 +574,7 @@ Module {
                                         Binop(
                                             Eq,
                                             Var(
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                                Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
                                             ),
                                             Const(
                                                 Int(16, Unsigned(U8))
@@ -582,7 +582,7 @@ Module {
                                         ),
                                         Sequence(
                                             [
-                                                Named("x", Const(
+                                                Named(OwnedIdent("x"), Const(
                                                     I32(
                                                         Little
                                                     )
@@ -595,9 +595,9 @@ Module {
                                                         "content"
                                                     ]
                                                 },
-                                                "int",
+                                                OwnedIdent("int"),
                                                 Var(
-                                                    Bound(Named("x", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("x"), BoundVar(0, 0)))
                                                 )
                                             )
                                         )
@@ -606,7 +606,7 @@ Module {
                                         Binop(
                                             Eq,
                                             Var(
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                                Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
                                             ),
                                             Const(
                                                 Int(17, Unsigned(U8))
@@ -614,7 +614,7 @@ Module {
                                         ),
                                         Sequence(
                                             [
-                                                Named("x", Const(
+                                                Named(OwnedIdent("x"), Const(
                                                     U64(
                                                         Little
                                                     )
@@ -627,9 +627,9 @@ Module {
                                                         "content"
                                                     ]
                                                 },
-                                                "timestamp",
+                                                OwnedIdent("timestamp"),
                                                 Var(
-                                                    Bound(Named("x", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("x"), BoundVar(0, 0)))
                                                 )
                                             )
                                         )
@@ -638,7 +638,7 @@ Module {
                                         Binop(
                                             Eq,
                                             Var(
-                                                Bound(Named("elem_type", BoundVar(0, 0)))
+                                                Bound(Named(OwnedIdent("elem_type"), BoundVar(0, 0)))
                                             ),
                                             Const(
                                                 Int(18, Unsigned(U8))
@@ -646,7 +646,7 @@ Module {
                                         ),
                                         Sequence(
                                             [
-                                                Named("x", Const(
+                                                Named(OwnedIdent("x"), Const(
                                                     I64(
                                                         Little
                                                     )
@@ -659,9 +659,9 @@ Module {
                                                         "content"
                                                     ]
                                                 },
-                                                "long",
+                                                OwnedIdent("long"),
                                                 Var(
-                                                    Bound(Named("x", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("x"), BoundVar(0, 0)))
                                                 )
                                             )
                                         )
@@ -677,16 +677,16 @@ Module {
                             [
                                 Field {
                                     doc: "",
-                                    name: "elem_type",
+                                    name: OwnedIdent("elem_type"),
                                     value: Var(
-                                        Bound(Named("elem_type", BoundVar(1, 0)))
+                                        Bound(Named(OwnedIdent("elem_type"), BoundVar(1, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "content",
+                                    name: OwnedIdent("content"),
                                     value: Var(
-                                        Bound(Named("content", BoundVar(0, 0)))
+                                        Bound(Named(OwnedIdent("content"), BoundVar(0, 0)))
                                     )
                                 }
                             ]
@@ -706,7 +706,7 @@ Module {
                 [
                     Field {
                         doc: "Total number of bytes comprising the document.",
-                        name: "len",
+                        name: OwnedIdent("len"),
                         value: Const(
                             Signed(
                                 I32
@@ -715,7 +715,7 @@ Module {
                     },
                     Field {
                         doc: "The elements that make up this document",
-                        name: "fields",
+                        name: OwnedIdent("fields"),
                         value: Array(
                             Path(
                                 Path {
@@ -730,14 +730,14 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named("len", Const(
+                            Named(OwnedIdent("len"), Const(
                                 I32(
                                     Big
                                 )
                             )),
-                            Named("fields", Repeat(
+                            Named(OwnedIdent("fields"), Repeat(
                                 Var(
-                                    Bound(Named("Element", BoundVar(1, 0)))
+                                    Bound(Named(OwnedIdent("Element"), BoundVar(1, 0)))
                                 ),
                                 Exact(
                                     Const(
@@ -754,16 +754,16 @@ Module {
                             [
                                 Field {
                                     doc: "Total number of bytes comprising the document.",
-                                    name: "len",
+                                    name: OwnedIdent("len"),
                                     value: Var(
-                                        Bound(Named("len", BoundVar(1, 0)))
+                                        Bound(Named(OwnedIdent("len"), BoundVar(1, 0)))
                                     )
                                 },
                                 Field {
                                     doc: "The elements that make up this document",
-                                    name: "fields",
+                                    name: OwnedIdent("fields"),
                                     value: Var(
-                                        Bound(Named("fields", BoundVar(0, 0)))
+                                        Bound(Named(OwnedIdent("fields"), BoundVar(0, 0)))
                                     )
                                 }
                             ]

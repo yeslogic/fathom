@@ -6,18 +6,18 @@ Struct(
     [
         Field {
             doc: "",
-            name: "len",
+            name: OwnedIdent("len"),
             value: Var(
                 Span {
                     lo: BytePos(35),
                     hi: BytePos(38)
                 },
-                Free("u32")
+                Free(OwnedIdent("u32"))
             )
         },
         Field {
             doc: "",
-            name: "data1",
+            name: OwnedIdent("data1"),
             value: Array(
                 Span {
                     lo: BytePos(59),
@@ -28,20 +28,20 @@ Struct(
                         lo: BytePos(60),
                         hi: BytePos(63)
                     },
-                    Free("f32")
+                    Free(OwnedIdent("f32"))
                 ),
                 Var(
                     Span {
                         lo: BytePos(65),
                         hi: BytePos(68)
                     },
-                    Bound(Named("len", BoundVar(0, 0)))
+                    Bound(Named(OwnedIdent("len"), BoundVar(0, 0)))
                 )
             )
         },
         Field {
             doc: "",
-            name: "data2",
+            name: OwnedIdent("data2"),
             value: Struct(
                 Span {
                     lo: BytePos(90),
@@ -50,7 +50,7 @@ Struct(
                 [
                     Field {
                         doc: "",
-                        name: "data1",
+                        name: OwnedIdent("data1"),
                         value: Array(
                             Span {
                                 lo: BytePos(122),
@@ -61,53 +61,53 @@ Struct(
                                     lo: BytePos(123),
                                     hi: BytePos(126)
                                 },
-                                Free("f32")
+                                Free(OwnedIdent("f32"))
                             ),
                             Var(
                                 Span {
                                     lo: BytePos(128),
                                     hi: BytePos(131)
                                 },
-                                Bound(Named("len", BoundVar(1, 0)))
+                                Bound(Named(OwnedIdent("len"), BoundVar(1, 0)))
                             )
                         )
                     },
                     Field {
                         doc: "",
-                        name: "len",
+                        name: OwnedIdent("len"),
                         value: Var(
                             Span {
                                 lo: BytePos(155),
                                 hi: BytePos(158)
                             },
-                            Free("u32")
+                            Free(OwnedIdent("u32"))
                         )
                     },
                     Field {
                         doc: "Doc comment",
-                        name: "padding1",
+                        name: OwnedIdent("padding1"),
                         value: Var(
                             Span {
                                 lo: BytePos(218),
                                 hi: BytePos(220)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: "padding2",
+                        name: OwnedIdent("padding2"),
                         value: Var(
                             Span {
                                 lo: BytePos(248),
                                 hi: BytePos(250)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: "data2",
+                        name: OwnedIdent("data2"),
                         value: Array(
                             Span {
                                 lo: BytePos(275),
@@ -118,14 +118,14 @@ Struct(
                                     lo: BytePos(276),
                                     hi: BytePos(279)
                                 },
-                                Free("f32")
+                                Free(OwnedIdent("f32"))
                             ),
                             Var(
                                 Span {
                                     lo: BytePos(281),
                                     hi: BytePos(284)
                                 },
-                                Bound(Named("len", BoundVar(2, 0)))
+                                Bound(Named(OwnedIdent("len"), BoundVar(2, 0)))
                             )
                         )
                     }

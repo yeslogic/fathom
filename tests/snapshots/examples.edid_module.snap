@@ -2,7 +2,7 @@ Module {
     definitions: [
         Definition {
             doc: "",
-            name: "Header",
+            name: OwnedIdent("Header"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(9),
@@ -11,7 +11,7 @@ Module {
                 [
                     Field {
                         doc: "Fixed header pattern",
-                        name: "magic",
+                        name: OwnedIdent("magic"),
                         value: Assert(
                             Span {
                                 lo: BytePos(58),
@@ -22,7 +22,7 @@ Module {
                                     lo: BytePos(58),
                                     hi: BytePos(63)
                                 },
-                                Free("u64le")
+                                Free(OwnedIdent("u64le"))
                             ),
                             Inf(
                                 Lam(
@@ -31,8 +31,8 @@ Module {
                                         hi: BytePos(109)
                                     },
                                     [
-                                        Named("magic", Var(
-                                            Free("u64le")
+                                        Named(OwnedIdent("magic"), Var(
+                                            Free(OwnedIdent("u64le"))
                                         ))
                                     ],
                                     Binop(
@@ -46,7 +46,7 @@ Module {
                                                 lo: BytePos(79),
                                                 hi: BytePos(84)
                                             },
-                                            Bound(Named("magic", BoundVar(0, 0)))
+                                            Bound(Named(OwnedIdent("magic"), BoundVar(0, 0)))
                                         ),
                                         Const(
                                             Span {
@@ -62,62 +62,62 @@ Module {
                     },
                     Field {
                         doc: "Manufacturer ID",
-                        name: "mfg_bytes",
+                        name: OwnedIdent("mfg_bytes"),
                         value: Var(
                             Span {
                                 lo: BytePos(150),
                                 hi: BytePos(155)
                             },
-                            Free("u16le")
+                            Free(OwnedIdent("u16le"))
                         )
                     },
                     Field {
                         doc: "Manufacturer product code",
-                        name: "product_code",
+                        name: OwnedIdent("product_code"),
                         value: Var(
                             Span {
                                 lo: BytePos(209),
                                 hi: BytePos(214)
                             },
-                            Free("u16le")
+                            Free(OwnedIdent("u16le"))
                         )
                     },
                     Field {
                         doc: "Serial number",
-                        name: "serial",
+                        name: OwnedIdent("serial"),
                         value: Var(
                             Span {
                                 lo: BytePos(250),
                                 hi: BytePos(255)
                             },
-                            Free("u32le")
+                            Free(OwnedIdent("u32le"))
                         )
                     },
                     Field {
                         doc: "Week of manufacture. Week numbering is not consistent between manufacturers.",
-                        name: "mfg_week",
+                        name: OwnedIdent("mfg_week"),
                         value: Var(
                             Span {
                                 lo: BytePos(356),
                                 hi: BytePos(358)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.",
-                        name: "mfg_year_mod",
+                        name: OwnedIdent("mfg_year_mod"),
                         value: Var(
                             Span {
                                 lo: BytePos(476),
                                 hi: BytePos(478)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "Year of manufacture, derived from `mfg_year_mod`",
-                        name: "mfg_year",
+                        name: OwnedIdent("mfg_year"),
                         value: Interp(
                             Span {
                                 lo: BytePos(551),
@@ -133,7 +133,7 @@ Module {
                                         hi: BytePos(597)
                                     },
                                     [
-                                        Named("_", Const(
+                                        Named(OwnedIdent("_"), Const(
                                             Unit
                                         ))
                                     ],
@@ -153,7 +153,7 @@ Module {
                                                     lo: BytePos(568),
                                                     hi: BytePos(580)
                                                 },
-                                                Bound(Named("mfg_year_mod", BoundVar(2, 0)))
+                                                Bound(Named(OwnedIdent("mfg_year_mod"), BoundVar(2, 0)))
                                             ),
                                             Const(
                                                 Unsigned(
@@ -180,24 +180,24 @@ Module {
                     },
                     Field {
                         doc: "EDID version, usually 1 (for 1.3)",
-                        name: "edid_version_major",
+                        name: OwnedIdent("edid_version_major"),
                         value: Var(
                             Span {
                                 lo: BytePos(665),
                                 hi: BytePos(667)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "EDID revision, usually 3 (for 1.3)",
-                        name: "edid_version_minor",
+                        name: OwnedIdent("edid_version_minor"),
                         value: Var(
                             Span {
                                 lo: BytePos(736),
                                 hi: BytePos(738)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     }
                 ]
@@ -205,7 +205,7 @@ Module {
         },
         Definition {
             doc: "",
-            name: "DisplayParams",
+            name: OwnedIdent("DisplayParams"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(760),
@@ -214,51 +214,51 @@ Module {
                 [
                     Field {
                         doc: "Video input parameters bitmap",
-                        name: "input_flags",
+                        name: OwnedIdent("input_flags"),
                         value: Var(
                             Span {
                                 lo: BytePos(824),
                                 hi: BytePos(826)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "Maximum horizontal image size, in centimetres (max 292 cm/115 in at\n16:9 aspect ratio)",
-                        name: "screen_size_h",
+                        name: OwnedIdent("screen_size_h"),
                         value: Var(
                             Span {
                                 lo: BytePos(950),
                                 hi: BytePos(952)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "Maximum vertical image size, in centimetres. If either byte is 0,\nundefined (e.g. projector)",
-                        name: "screen_size_v",
+                        name: OwnedIdent("screen_size_v"),
                         value: Var(
                             Span {
                                 lo: BytePos(1082),
                                 hi: BytePos(1084)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "Display gamma data, factory default (range 1.00–3.54), where\n`gamma_mod = (gamma×100)-100 = (gamma−1)×100` If 225, gamma is defined\nby DI-EXT block.",
-                        name: "gamma_mod",
+                        name: OwnedIdent("gamma_mod"),
                         value: Var(
                             Span {
                                 lo: BytePos(1280),
                                 hi: BytePos(1282)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "Display gamma, derived from `gamma_mod`",
-                        name: "gamma",
+                        name: OwnedIdent("gamma"),
                         value: Interp(
                             Span {
                                 lo: BytePos(1343),
@@ -274,7 +274,7 @@ Module {
                                         hi: BytePos(1400)
                                     },
                                     [
-                                        Named("_", Const(
+                                        Named(OwnedIdent("_"), Const(
                                             Unit
                                         ))
                                     ],
@@ -300,7 +300,7 @@ Module {
                                                         lo: BytePos(1361),
                                                         hi: BytePos(1370)
                                                     },
-                                                    Bound(Named("gamma_mod", BoundVar(2, 0)))
+                                                    Bound(Named(OwnedIdent("gamma_mod"), BoundVar(2, 0)))
                                                 ),
                                                 Const(
                                                     Float(
@@ -335,13 +335,13 @@ Module {
                     },
                     Field {
                         doc: "Supported features bitmap",
-                        name: "features_flags",
+                        name: OwnedIdent("features_flags"),
                         value: Var(
                             Span {
                                 lo: BytePos(1456),
                                 hi: BytePos(1458)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     }
                 ]
@@ -349,7 +349,7 @@ Module {
         },
         Definition {
             doc: "https://en.wikipedia.org/wiki/Extended_Display_Identification_Data",
-            name: "Edid",
+            name: OwnedIdent("Edid"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(1542),
@@ -358,24 +358,24 @@ Module {
                 [
                     Field {
                         doc: "Header information",
-                        name: "header",
+                        name: OwnedIdent("header"),
                         value: Var(
                             Span {
                                 lo: BytePos(1590),
                                 hi: BytePos(1596)
                             },
-                            Bound(Named("Header", BoundVar(1, 0)))
+                            Bound(Named(OwnedIdent("Header"), BoundVar(1, 0)))
                         )
                     },
                     Field {
                         doc: "Basic display parameters",
-                        name: "display_params",
+                        name: OwnedIdent("display_params"),
                         value: Var(
                             Span {
                                 lo: BytePos(1651),
                                 hi: BytePos(1664)
                             },
-                            Bound(Named("DisplayParams", BoundVar(1, 0)))
+                            Bound(Named(OwnedIdent("DisplayParams"), BoundVar(1, 0)))
                         )
                     }
                 ]

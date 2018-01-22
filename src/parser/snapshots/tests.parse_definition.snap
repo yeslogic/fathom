@@ -2,7 +2,7 @@ Module {
     definitions: [
         Definition {
             doc: "",
-            name: "Point",
+            name: OwnedIdent("Point"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(17),
@@ -11,24 +11,24 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "x",
+                        name: OwnedIdent("x"),
                         value: Var(
                             Span {
                                 lo: BytePos(42),
                                 hi: BytePos(47)
                             },
-                            Free("u32be")
+                            Free(OwnedIdent("u32be"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: "y",
+                        name: OwnedIdent("y"),
                         value: Var(
                             Span {
                                 lo: BytePos(65),
                                 hi: BytePos(70)
                             },
-                            Free("u32be")
+                            Free(OwnedIdent("u32be"))
                         )
                     }
                 ]
@@ -36,7 +36,7 @@ Module {
         },
         Definition {
             doc: "A doc comment\n\nWith some mor text",
-            name: "Array",
+            name: OwnedIdent("Array"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(169),
@@ -45,18 +45,18 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "len",
+                        name: OwnedIdent("len"),
                         value: Var(
                             Span {
                                 lo: BytePos(196),
                                 hi: BytePos(201)
                             },
-                            Free("u16le")
+                            Free(OwnedIdent("u16le"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: "data",
+                        name: OwnedIdent("data"),
                         value: Array(
                             Span {
                                 lo: BytePos(222),
@@ -67,14 +67,14 @@ Module {
                                     lo: BytePos(223),
                                     hi: BytePos(228)
                                 },
-                                Bound(Named("Point", BoundVar(1, 0)))
+                                Bound(Named(OwnedIdent("Point"), BoundVar(1, 0)))
                             ),
                             Var(
                                 Span {
                                     lo: BytePos(230),
                                     hi: BytePos(233)
                                 },
-                                Bound(Named("len", BoundVar(0, 0)))
+                                Bound(Named(OwnedIdent("len"), BoundVar(0, 0)))
                             )
                         )
                     }
@@ -83,7 +83,7 @@ Module {
         },
         Definition {
             doc: "",
-            name: "Formats",
+            name: OwnedIdent("Formats"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(266),
@@ -92,18 +92,18 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "format",
+                        name: OwnedIdent("format"),
                         value: Var(
                             Span {
                                 lo: BytePos(296),
                                 hi: BytePos(298)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: "data",
+                        name: OwnedIdent("data"),
                         value: Cond(
                             Span {
                                 lo: BytePos(319),
@@ -112,7 +112,7 @@ Module {
                             [
                                 Field {
                                     doc: "A doc comment on a union variant",
-                                    name: "u16",
+                                    name: OwnedIdent("u16"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -126,7 +126,7 @@ Module {
                                                         lo: BytePos(401),
                                                         hi: BytePos(407)
                                                     },
-                                                    Bound(Named("format", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("format"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -142,13 +142,13 @@ Module {
                                                 lo: BytePos(421),
                                                 hi: BytePos(424)
                                             },
-                                            Free("u16")
+                                            Free(OwnedIdent("u16"))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "point",
+                                    name: OwnedIdent("point"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -162,7 +162,7 @@ Module {
                                                         lo: BytePos(450),
                                                         hi: BytePos(456)
                                                     },
-                                                    Bound(Named("format", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("format"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -178,13 +178,13 @@ Module {
                                                 lo: BytePos(470),
                                                 hi: BytePos(475)
                                             },
-                                            Bound(Named("Point", BoundVar(2, 0)))
+                                            Bound(Named(OwnedIdent("Point"), BoundVar(2, 0)))
                                         )
                                     )
                                 },
                                 Field {
                                     doc: "And another doc comment",
-                                    name: "array",
+                                    name: OwnedIdent("array"),
                                     value: (
                                         Inf(
                                             Binop(
@@ -198,7 +198,7 @@ Module {
                                                         lo: BytePos(545),
                                                         hi: BytePos(551)
                                                     },
-                                                    Bound(Named("format", BoundVar(0, 0)))
+                                                    Bound(Named(OwnedIdent("format"), BoundVar(0, 0)))
                                                 ),
                                                 Const(
                                                     Span {
@@ -214,7 +214,7 @@ Module {
                                                 lo: BytePos(565),
                                                 hi: BytePos(570)
                                             },
-                                            Bound(Named("Array", BoundVar(1, 0)))
+                                            Bound(Named(OwnedIdent("Array"), BoundVar(1, 0)))
                                         )
                                     )
                                 }

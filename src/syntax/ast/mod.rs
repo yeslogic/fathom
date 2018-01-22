@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
+use name::{Ident, Named, OwnedIdent};
 use parser::ast::Definition as ParseDefinition;
 use parser::ast::Module as ParseModule;
 use var::ScopeIndex;
@@ -19,7 +20,7 @@ impl Module {
     pub fn new(mut definitions: Vec<Definition>) -> Module {
         // We maintain a list of the seen definition names. This will allow us to
         // recover the index of these variables as we abstract later definitions...
-        let mut seen_names = Vec::<String>::new();
+        let mut seen_names = Vec::<OwnedIdent>::new();
 
         for definition in &mut definitions {
             for (level, name) in seen_names.iter().rev().enumerate() {
@@ -84,7 +85,7 @@ pub fn base_defs() -> Substitutions {
     }
 }
 
-pub type Substitutions = BTreeMap<String, binary::RcType>;
+pub type Substitutions = BTreeMap<OwnedIdent, binary::RcType>;
 
 /// A type definition
 ///
@@ -101,7 +102,7 @@ pub struct Definition {
     /// Note: This is ignored for comparison purposes
     pub doc: Rc<str>,
     /// The name of the defined type
-    pub name: String,
+    pub name: OwnedIdent,
     /// The binary type
     pub body_ty: binary::RcType,
 }
@@ -112,10 +113,17 @@ impl Definition {
 
         Ok(Definition {
             doc: src.doc.join("\n").into(),
-            name: String::from(src.name),
+            name: OwnedIdent::from(src.name),
             body_ty: match &src.param_names[..] {
                 names if names.is_empty() => body_ty,
-                names => binary::RcType::lam(src.span, names, body_ty),
+                names => {
+                    let names = names
+                        .iter()
+                        .map(|&name| Named(OwnedIdent::from(name), ()))
+                        .collect();
+
+                    binary::RcType::lam(src.span, names, body_ty)
+                }
             },
         })
     }
@@ -136,7 +144,7 @@ pub struct Field<T> {
     /// Note: This is ignored for comparison purposes
     pub doc: Rc<str>,
     /// The name of the field
-    pub name: String,
+    pub name: OwnedIdent,
     /// The value that this field is associated with
     pub value: T,
 }
@@ -159,7 +167,7 @@ impl<T: PartialEq> PartialEq for Field<T> {
     }
 }
 
-fn lookup_field<'a, T>(fields: &'a [Field<T>], name: &str) -> Option<&'a T> {
+fn lookup_field<'a, T>(fields: &'a [Field<T>], name: &Ident) -> Option<&'a T> {
     fields
         .iter()
         .find(|field| &field.name == name)

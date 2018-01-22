@@ -2,7 +2,7 @@ Module {
     definitions: [
         Definition {
             doc: "",
-            name: "Pixel",
+            name: OwnedIdent("Pixel"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(8),
@@ -11,46 +11,46 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "r",
+                        name: OwnedIdent("r"),
                         value: Var(
                             Span {
                                 lo: BytePos(25),
                                 hi: BytePos(27)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: "g",
+                        name: OwnedIdent("g"),
                         value: Var(
                             Span {
                                 lo: BytePos(37),
                                 hi: BytePos(39)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: "b",
+                        name: OwnedIdent("b"),
                         value: Var(
                             Span {
                                 lo: BytePos(49),
                                 hi: BytePos(51)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     },
                     Field {
                         doc: "",
-                        name: "a",
+                        name: OwnedIdent("a"),
                         value: Var(
                             Span {
                                 lo: BytePos(61),
                                 hi: BytePos(63)
                             },
-                            Free("u8")
+                            Free(OwnedIdent("u8"))
                         )
                     }
                 ]
@@ -58,7 +58,7 @@ Module {
         },
         Definition {
             doc: "",
-            name: "Bitmap",
+            name: OwnedIdent("Bitmap"),
             body_ty: Struct(
                 Span {
                     lo: BytePos(78),
@@ -67,7 +67,7 @@ Module {
                 [
                     Field {
                         doc: "",
-                        name: "extents",
+                        name: OwnedIdent("extents"),
                         value: Struct(
                             Span {
                                 lo: BytePos(101),
@@ -76,24 +76,24 @@ Module {
                             [
                                 Field {
                                     doc: "",
-                                    name: "width",
+                                    name: OwnedIdent("width"),
                                     value: Var(
                                         Span {
                                             lo: BytePos(126),
                                             hi: BytePos(131)
                                         },
-                                        Free("u32be")
+                                        Free(OwnedIdent("u32be"))
                                     )
                                 },
                                 Field {
                                     doc: "",
-                                    name: "height",
+                                    name: OwnedIdent("height"),
                                     value: Var(
                                         Span {
                                             lo: BytePos(150),
                                             hi: BytePos(155)
                                         },
-                                        Free("u32be")
+                                        Free(OwnedIdent("u32be"))
                                     )
                                 }
                             ]
@@ -101,7 +101,7 @@ Module {
                     },
                     Field {
                         doc: "",
-                        name: "data",
+                        name: OwnedIdent("data"),
                         value: Array(
                             Span {
                                 lo: BytePos(175),
@@ -112,7 +112,7 @@ Module {
                                     lo: BytePos(176),
                                     hi: BytePos(181)
                                 },
-                                Bound(Named("Pixel", BoundVar(1, 0)))
+                                Bound(Named(OwnedIdent("Pixel"), BoundVar(1, 0)))
                             ),
                             Binop(
                                 Span {
@@ -130,9 +130,9 @@ Module {
                                             lo: BytePos(183),
                                             hi: BytePos(190)
                                         },
-                                        Bound(Named("extents", BoundVar(0, 0)))
+                                        Bound(Named(OwnedIdent("extents"), BoundVar(0, 0)))
                                     ),
-                                    "width"
+                                    OwnedIdent("width")
                                 ),
                                 Proj(
                                     Span {
@@ -144,9 +144,9 @@ Module {
                                             lo: BytePos(199),
                                             hi: BytePos(206)
                                         },
-                                        Bound(Named("extents", BoundVar(0, 0)))
+                                        Bound(Named(OwnedIdent("extents"), BoundVar(0, 0)))
                                     ),
-                                    "height"
+                                    OwnedIdent("height")
                                 )
                             )
                         )
@@ -156,13 +156,13 @@ Module {
         },
         Definition {
             doc: "",
-            name: "Bmp",
+            name: OwnedIdent("Bmp"),
             body_ty: Var(
                 Span {
                     lo: BytePos(226),
                     hi: BytePos(232)
                 },
-                Bound(Named("Bitmap", BoundVar(0, 0)))
+                Bound(Named(OwnedIdent("Bitmap"), BoundVar(0, 0)))
             )
         }
     ]
