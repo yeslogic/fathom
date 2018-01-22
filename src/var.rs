@@ -97,7 +97,7 @@ pub enum Var {
     /// A free, unbound variable
     Free(String),
     /// A bound variable
-    Bound(Named<BoundVar>),
+    Bound(Named<String, BoundVar>),
 }
 
 impl Var {

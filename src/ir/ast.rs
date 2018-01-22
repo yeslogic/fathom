@@ -182,7 +182,7 @@ pub enum ParseExpr {
     /// ```plain
     /// (x : p1) (y : p2) (z : p3) => expr
     /// ```
-    Sequence(Vec<Named<RcParseExpr>>, RcExpr),
+    Sequence(Vec<Named<String, RcParseExpr>>, RcExpr),
     /// Try to match the parsers in order, returning the result of the first on that succeeds
     ///
     /// An empty list of parsers represents a parser that never succeeds
@@ -269,7 +269,7 @@ pub enum Expr {
     Intro(Path, String, RcExpr),
     Subscript(RcExpr, RcExpr),
     Cast(RcExpr, RcType),
-    Lam(Vec<Named<RcType>>, RcExpr),
+    Lam(Vec<Named<String, RcType>>, RcExpr),
     App(RcExpr, Vec<RcExpr>),
 }
 

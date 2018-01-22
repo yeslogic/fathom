@@ -6,9 +6,9 @@ use var::{BoundVar, ScopeIndex};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Scope {
-    ExprLam(Vec<Named<host::RcType>>),
-    TypeLam(Vec<Named<binary::Kind>>),
-    TypeDef(Vec<Named<(binary::RcType, binary::Kind)>>),
+    ExprLam(Vec<Named<String, host::RcType>>),
+    TypeLam(Vec<Named<String, binary::Kind>>),
+    TypeDef(Vec<Named<String, (binary::RcType, binary::Kind)>>),
 }
 
 #[derive(Debug, Clone)]
@@ -36,31 +36,39 @@ impl Context {
 
     pub fn lookup_ty(&self, var: BoundVar) -> Result<(&str, &host::RcType), &Scope> {
         match *self.lookup(var.scope) {
-            Scope::ExprLam(ref tys) => Ok(tys.get(var.binding.0 as usize)
-                .map(|named| (&*named.0, &named.1))
-                .expect("ICE: Binder out of range")),
+            Scope::ExprLam(ref tys) => Ok(
+                tys.get(var.binding.0 as usize)
+                    .map(|named| (&*named.0, &named.1))
+                    .expect("ICE: Binder out of range"),
+            ),
             ref scope => Err(scope),
         }
     }
 
     pub fn lookup_ty_def(&self, var: BoundVar) -> Result<(&str, &binary::RcType), &Scope> {
         match *self.lookup(var.scope) {
-            Scope::TypeDef(ref defs) => Ok(defs.get(var.binding.0 as usize)
-                .map(|named| (&*named.0, &(named.1).0))
-                .expect("ICE: Binder out of range")),
+            Scope::TypeDef(ref defs) => Ok(
+                defs.get(var.binding.0 as usize)
+                    .map(|named| (&*named.0, &(named.1).0))
+                    .expect("ICE: Binder out of range"),
+            ),
             ref scope => Err(scope),
         }
     }
 
     pub fn lookup_kind(&self, var: BoundVar) -> Result<(&str, &binary::Kind), &Scope> {
         match *self.lookup(var.scope) {
-            Scope::TypeLam(ref kinds) => Ok(kinds
-                .get(var.binding.0 as usize)
-                .map(|named| (&*named.0, &named.1))
-                .expect("ICE: Binder out of range")),
-            Scope::TypeDef(ref defs) => Ok(defs.get(var.binding.0 as usize)
-                .map(|named| (&*named.0, &(named.1).1))
-                .expect("ICE: Binder out of range")),
+            Scope::TypeLam(ref kinds) => Ok(
+                kinds
+                    .get(var.binding.0 as usize)
+                    .map(|named| (&*named.0, &named.1))
+                    .expect("ICE: Binder out of range"),
+            ),
+            Scope::TypeDef(ref defs) => Ok(
+                defs.get(var.binding.0 as usize)
+                    .map(|named| (&*named.0, &(named.1).1))
+                    .expect("ICE: Binder out of range"),
+            ),
             ref scope => Err(scope),
         }
     }

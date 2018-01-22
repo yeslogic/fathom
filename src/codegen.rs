@@ -533,7 +533,7 @@ fn lower_assert_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 fn lower_sequence_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     prec: Prec,
-    parse_exprs: &'a [Named<RcParseExpr>],
+    parse_exprs: &'a [Named<String, RcParseExpr>],
     expr: &'a RcExpr,
 ) -> DocBuilder<'alloc, A> {
     let inner_parser = alloc

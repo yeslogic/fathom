@@ -122,7 +122,7 @@ pub enum Type {
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    Lam(Span, Vec<Named<()>>, RcType),
+    Lam(Span, Vec<Named<String, ()>>, RcType),
     /// Type application: eg. `T(U, V)`
     App(Span, RcType, Vec<RcType>),
 }
@@ -374,10 +374,12 @@ impl RcType {
             Type::Cond(_, ref options) => {
                 let repr_variants = options
                     .iter()
-                    .map(|variant| Field {
-                        doc: Rc::clone(&variant.doc),
-                        name: variant.name.clone(),
-                        value: variant.value.1.repr(),
+                    .map(|variant| {
+                        Field {
+                            doc: Rc::clone(&variant.doc),
+                            name: variant.name.clone(),
+                            value: variant.value.1.repr(),
+                        }
                     })
                     .collect();
 
@@ -386,10 +388,12 @@ impl RcType {
             Type::Struct(_, ref fields) => {
                 let repr_fields = fields
                     .iter()
-                    .map(|field| Field {
-                        doc: Rc::clone(&field.doc),
-                        name: field.name.clone(),
-                        value: field.value.repr(),
+                    .map(|field| {
+                        Field {
+                            doc: Rc::clone(&field.doc),
+                            name: field.name.clone(),
+                            value: field.value.repr(),
+                        }
                     })
                     .collect();
 

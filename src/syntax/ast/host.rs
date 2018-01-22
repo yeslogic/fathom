@@ -99,7 +99,7 @@ pub enum Type {
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
     ///
     /// For now we only allow type arguments of kind `Type`
-    Lam(Vec<Named<()>>, RcType),
+    Lam(Vec<Named<String, ()>>, RcType),
     /// Type application: eg. `T(U, V)`
     App(RcType, Vec<RcType>),
 }
@@ -487,7 +487,7 @@ pub enum IExpr {
     /// Cast expression, eg: `x as u32`
     Cast(Span, RcIExpr, RcType),
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    Lam(Span, Vec<Named<RcType>>, RcIExpr),
+    Lam(Span, Vec<Named<String, RcType>>, RcIExpr),
     /// Application, eg: `f(x, ..)`
     App(Span, RcIExpr, Vec<RcCExpr>),
 }
@@ -513,7 +513,7 @@ impl fmt::Debug for RcIExpr {
 
 impl RcIExpr {
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    pub fn lam<E1>(span: Span, params: Vec<Named<RcType>>, body_expr: E1) -> RcIExpr
+    pub fn lam<E1>(span: Span, params: Vec<Named<String, RcType>>, body_expr: E1) -> RcIExpr
     where
         E1: Into<RcIExpr>,
     {

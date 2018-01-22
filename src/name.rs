@@ -4,39 +4,39 @@ use std::cmp::Ordering;
 /// A variable with a name that is ignored for comparisons. This is useful for
 /// improving error reporting when converting free varables to a named form.
 #[derive(Clone, Eq, Ord)]
-pub struct Named<T>(pub String, pub T);
+pub struct Named<N, T>(pub N, pub T);
 
-impl<T: PartialEq> PartialEq for Named<T> {
-    fn eq(&self, other: &Named<T>) -> bool {
+impl<N, T: PartialEq> PartialEq for Named<N, T> {
+    fn eq(&self, other: &Named<N, T>) -> bool {
         self.1 == other.1
     }
 }
 
-impl<T: PartialEq> PartialEq<T> for Named<T> {
+impl<N, T: PartialEq> PartialEq<T> for Named<N, T> {
     fn eq(&self, other: &T) -> bool {
         &self.1 == other
     }
 }
 
-impl<T: PartialOrd> PartialOrd for Named<T> {
-    fn partial_cmp(&self, other: &Named<T>) -> Option<Ordering> {
+impl<N, T: PartialOrd> PartialOrd for Named<N, T> {
+    fn partial_cmp(&self, other: &Named<N, T>) -> Option<Ordering> {
         self.1.partial_cmp(&other.1)
     }
 }
 
-impl<T: PartialOrd> PartialOrd<T> for Named<T> {
+impl<N, T: PartialOrd> PartialOrd<T> for Named<N, T> {
     fn partial_cmp(&self, other: &T) -> Option<Ordering> {
         self.1.partial_cmp(other)
     }
 }
 
-impl<T> From<(String, T)> for Named<T> {
-    fn from(src: (String, T)) -> Named<T> {
+impl<N, T> From<(N, T)> for Named<N, T> {
+    fn from(src: (N, T)) -> Named<N, T> {
         Named(src.0, src.1)
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for Named<T> {
+impl<N: fmt::Debug, T: fmt::Debug> fmt::Debug for Named<N, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Named(")?;
         self.0.fmt(f)?;
