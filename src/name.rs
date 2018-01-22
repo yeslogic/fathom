@@ -17,6 +17,12 @@ impl From<String> for Ident {
     }
 }
 
+impl PartialEq<Name> for Ident {
+    fn eq(&self, other: &Name) -> bool {
+        other == self
+    }
+}
+
 impl fmt::Debug for Ident {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Ident(")?;
@@ -54,6 +60,15 @@ impl PartialEq for Name {
         match (self, other) {
             (&Name::User(ref lhs), &Name::User(ref rhs)) => lhs == rhs,
             (&Name::Abstract, &Name::Abstract) | (_, _) => false,
+        }
+    }
+}
+
+impl PartialEq<Ident> for Name {
+    fn eq(&self, other: &Ident) -> bool {
+        match *self {
+            Name::User(ref lhs) => lhs == other,
+            _ => false,
         }
     }
 }
