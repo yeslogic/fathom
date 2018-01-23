@@ -73,13 +73,13 @@ pub Module: Module<'src> = {
 pub Definition: Definition<'src> = {
     <doc: "DocComment"*>
         <lo: @L> <name: "Ident"> "="
-        <body_ty: PrimaryBinaryType> ";" <hi: @R> =>
+        <body_ty: PrimaryType> ";" <hi: @R> =>
     {
         Definition { doc, name, span: Span::new(lo, hi), param_names: vec![], body_ty }
     },
     <doc: "DocComment"*>
         <lo: @L> <name: "Ident"> "(" <param_names: (<"Ident"> ",")*> <last: "Ident"> ")" "="
-        <body_ty: PrimaryBinaryType> <hi: @R> ";" =>
+        <body_ty: PrimaryType> <hi: @R> ";" =>
     {
         Definition {
             doc,
@@ -98,45 +98,45 @@ Field<Value>: Field<'src, Value> = {
 };
 
 
-// Binary Types
+// Types
 
-pub BinaryType: Type<'src> = {
-    <ty: PrimaryBinaryType> => ty,
+pub Type: Type<'src> = {
+    <ty: PrimaryType> => ty,
 };
 
-PrimaryBinaryType: Type<'src> = {
-    AtomicBinaryType,
-    <lo1: @L> <ty: PrimaryBinaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryHostExpr> <hi: @R> => {
+PrimaryType: Type<'src> = {
+    AtomicType,
+    <lo1: @L> <ty: PrimaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryExpr> <hi: @R> => {
         Type::Where(Span::new(lo1, hi), Box::new(ty), lo2, param, Box::new(pred))
     },
-    <lo: @L> "compute" <repr_ty: HostType> "from" <expr: PrimaryHostExpr> <hi: @R> => {
+    <lo: @L> "compute" <repr_ty: HostType> "from" <expr: PrimaryExpr> <hi: @R> => {
         Type::Compute(Span::new(lo, hi), repr_ty, Box::new(expr))
     },
 };
 
-AtomicBinaryType: Type<'src> = {
+AtomicType: Type<'src> = {
     <lo: @L> <name: "Ident"> <hi: @R> => {
         Type::Var(Span::new(lo, hi), name)
     },
-    <lo: @L> <ty: AtomicBinaryType> "(" <arg_tys: (<BinaryType> ",")*> <last: BinaryType> ")" <hi: @R> => {
+    <lo: @L> <ty: AtomicType> "(" <arg_tys: (<Type> ",")*> <last: Type> ")" <hi: @R> => {
         Type::App(Span::new(lo, hi), Box::new(ty), super::extend_vec(arg_tys, Some(last)))
     },
-    "(" <ty: PrimaryBinaryType> ")" => ty,
+    "(" <ty: PrimaryType> ")" => ty,
     <lo: @L> "struct" "{"
-        <fields: (<Field<BinaryType>> ",")*>
-        <last: Field<BinaryType>?>
+        <fields: (<Field<Type>> ",")*>
+        <last: Field<Type>?>
     "}" <hi: @R> =>
     {
         Type::Struct(Span::new(lo, hi), super::extend_vec(fields, last))
     },
     <lo: @L> "cond" "{"
-        <options: (<Field<(<HostExpr> "=>" <BinaryType>)>> ",")*>
-        <last: Field<(<HostExpr> "=>" <BinaryType>)>?>
+        <options: (<Field<(<Expr> "=>" <Type>)>> ",")*>
+        <last: Field<(<Expr> "=>" <Type>)>?>
     "}" <hi: @R> =>
     {
         Type::Cond(Span::new(lo, hi), super::extend_vec(options, last))
     },
-    <lo: @L> "[" <elem: PrimaryBinaryType> ";" <size: PrimaryHostExpr> "]" <hi: @R> => {
+    <lo: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <hi: @R> => {
         Type::Array(Span::new(lo, hi), Box::new(elem), Box::new(size))
     },
 };
@@ -175,10 +175,10 @@ HostType: TypeConst = {
 };
 
 
-// Host Expressions
+// Expressions
 
-pub HostExpr: Expr<'src> = {
-    <expr: PrimaryHostExpr> => expr,
+pub Expr: Expr<'src> = {
+    <expr: PrimaryExpr> => expr,
 };
 
 // Unary operators
@@ -216,56 +216,56 @@ BinopExpr<Lhs, Op, Rhs>: Expr<'src> = {
 // Use precedence climbing to define the operators
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 
-PrimaryHostExpr: Expr<'src> = {
-    EqHostExpr,
-    BinopExpr<EqHostExpr, BinopOr, PrimaryHostExpr>,
-    BinopExpr<EqHostExpr, BinopAnd, PrimaryHostExpr>,
+PrimaryExpr: Expr<'src> = {
+    EqExpr,
+    BinopExpr<EqExpr, BinopOr, PrimaryExpr>,
+    BinopExpr<EqExpr, BinopAnd, PrimaryExpr>,
 };
 
-EqHostExpr: Expr<'src> = {
-    CmpHostExpr,
-    BinopExpr<CmpHostExpr, BinopEq, EqHostExpr>,
-    BinopExpr<CmpHostExpr, BinopNe, EqHostExpr>,
+EqExpr: Expr<'src> = {
+    CmpExpr,
+    BinopExpr<CmpExpr, BinopEq, EqExpr>,
+    BinopExpr<CmpExpr, BinopNe, EqExpr>,
 };
 
-CmpHostExpr: Expr<'src> = {
-    AddHostExpr,
-    BinopExpr<AddHostExpr, BinopLe, CmpHostExpr>,
-    BinopExpr<AddHostExpr, BinopLt, CmpHostExpr>,
-    BinopExpr<AddHostExpr, BinopGt, CmpHostExpr>,
-    BinopExpr<AddHostExpr, BinopGe, CmpHostExpr>,
+CmpExpr: Expr<'src> = {
+    AddExpr,
+    BinopExpr<AddExpr, BinopLe, CmpExpr>,
+    BinopExpr<AddExpr, BinopLt, CmpExpr>,
+    BinopExpr<AddExpr, BinopGt, CmpExpr>,
+    BinopExpr<AddExpr, BinopGe, CmpExpr>,
 };
 
-AddHostExpr: Expr<'src> = {
-    MulHostExpr,
-    BinopExpr<MulHostExpr, BinopAdd, AddHostExpr>,
-    BinopExpr<MulHostExpr, BinopSub, AddHostExpr>,
+AddExpr: Expr<'src> = {
+    MulExpr,
+    BinopExpr<MulExpr, BinopAdd, AddExpr>,
+    BinopExpr<MulExpr, BinopSub, AddExpr>,
 };
 
-MulHostExpr: Expr<'src> = {
-    CastHostExpr,
-    BinopExpr<CastHostExpr, BinopMul, MulHostExpr>,
-    BinopExpr<CastHostExpr, BinopDiv, MulHostExpr>,
+MulExpr: Expr<'src> = {
+    CastExpr,
+    BinopExpr<CastExpr, BinopMul, MulExpr>,
+    BinopExpr<CastExpr, BinopDiv, MulExpr>,
 };
 
-CastHostExpr: Expr<'src> = {
-    AnnHostExpr,
-    <lo: @L> <expr: CastHostExpr> "as" <ty: HostType> <hi: @R> => {
+CastExpr: Expr<'src> = {
+    AnnExpr,
+    <lo: @L> <expr: CastExpr> "as" <ty: HostType> <hi: @R> => {
         Expr::Cast(Span::new(lo, hi), Box::new(expr), ty)
     },
 };
 
-AnnHostExpr: Expr<'src> = {
-    PrefixHostExpr,
-    <lo: @L> <expr: AnnHostExpr> ":" <ty: HostType> <hi: @R> => {
+AnnExpr: Expr<'src> = {
+    PrefixExpr,
+    <lo: @L> <expr: AnnExpr> ":" <ty: HostType> <hi: @R> => {
         Expr::Ann(Span::new(lo, hi), Box::new(expr), ty)
     },
 };
 
-PrefixHostExpr: Expr<'src> = {
-    AtomicHostExpr,
-    UnopExpr<UnopNeg, AtomicHostExpr>,
-    UnopExpr<UnopNot, AtomicHostExpr>,
+PrefixExpr: Expr<'src> = {
+    AtomicExpr,
+    UnopExpr<UnopNeg, AtomicExpr>,
+    UnopExpr<UnopNot, AtomicExpr>,
 };
 
 IntLiteral<Value>: Expr<'src> = {
@@ -310,10 +310,10 @@ FloatLiteral<Value>: Expr<'src> = {
     },
 };
 
-AtomicHostExpr: Expr<'src> = {
-    "(" <expr: PrimaryHostExpr> ")" => expr,
+AtomicExpr: Expr<'src> = {
+    "(" <expr: PrimaryExpr> ")" => expr,
 
-    <lo: @L> "[" <elems: (<PrimaryHostExpr> ",")*> <last: PrimaryHostExpr?> "]" <hi: @R> => {
+    <lo: @L> "[" <elems: (<PrimaryExpr> ",")*> <last: PrimaryExpr?> "]" <hi: @R> => {
         Expr::Array(Span::new(lo, hi), super::extend_vec(elems, last))
     },
 
@@ -324,10 +324,10 @@ AtomicHostExpr: Expr<'src> = {
     <lo: @L> <name: "Ident"> <hi: @R> => {
         Expr::Var(Span::new(lo, hi), name)
     },
-    <lo: @L> <struct_expr: AtomicHostExpr> "." <field_name: "Ident"> <hi: @R> => {
+    <lo: @L> <struct_expr: AtomicExpr> "." <field_name: "Ident"> <hi: @R> => {
         Expr::Proj(Span::new(lo, hi), Box::new(struct_expr), field_name)
     },
-    <lo: @L> <array_expr: AtomicHostExpr> "[" <index_expr: PrimaryHostExpr> "]" <hi: @R> => {
+    <lo: @L> <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" <hi: @R> => {
         Expr::Subscript(Span::new(lo, hi), Box::new(array_expr), Box::new(index_expr))
     },
 };

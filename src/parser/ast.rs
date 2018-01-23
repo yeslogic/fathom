@@ -61,7 +61,7 @@ pub enum Type<'src> {
 impl<'src> Type<'src> {
     /// Attempt to parse a type from a source string
     pub fn from_str(src: &'src str) -> Result<Type<'src>, ParseError> {
-        grammar::parse_BinaryType(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+        grammar::parse_Type(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
             .map_err(from_lalrpop_err)
     }
 }
@@ -82,7 +82,7 @@ pub enum Expr<'src> {
 impl<'src> Expr<'src> {
     /// Attempt to parse an expression from a source string
     pub fn from_str(src: &'src str) -> Result<Expr<'src>, ParseError> {
-        grammar::parse_HostExpr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
+        grammar::parse_Expr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
             .map_err(from_lalrpop_err)
     }
 }
