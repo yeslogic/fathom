@@ -5,9 +5,9 @@ extern crate difference;
 #[macro_use]
 mod test;
 
-use ddl::syntax::{ast, check};
-use ddl::syntax::ast::Module;
+use ddl::check;
 use ddl::parser::ast::Module as ParseModule;
+use ddl::syntax::ast::{self, Module};
 
 #[test]
 fn bitmap() {

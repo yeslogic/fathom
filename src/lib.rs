@@ -18,6 +18,7 @@ pub mod name;
 pub mod source;
 pub mod var;
 
+pub mod check;
 pub mod codegen;
 pub mod ir;
 pub mod parser;
