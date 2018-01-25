@@ -25,13 +25,13 @@ members = [
 [dependencies]
 failure = "0.1.1"
 heck = "0.3.0"
-lalrpop-util = "0.13.1"
+lalrpop-util = "0.14.0"
 pretty = "0.3.2"
 regex = "0.2.0"
 unicode-xid = "0.1.0"
 
 [build-dependencies]
-lalrpop = "0.13.1"
+lalrpop = "0.14.0"
 
 [dev-dependencies]
 difference = "1.0.0"
