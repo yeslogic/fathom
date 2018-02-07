@@ -41,8 +41,8 @@ h2 {
 This language, our starting point, has the basic features of the later
 languages, but does not use dependent types.
 The purpose of presenting this is to illustrate the
-basic mechanisms we will be using,
-and to show by comparison what additional mechanisms are required
+mechanisms we will be using,
+and to show by comparison what changes are required
 to implement dependent types.
 
 <p>
@@ -96,7 +96,7 @@ $$
 \Sigma x : \text{int}_8(-128, 127) .
 \Sigma y : \text{int}_8(-128, 127) . \text{unit}
 $$
-by a early phase of compilation.
+by an early phase of compilation.
 
 <div class="subsection">
 <h3>Grammar</h3>
@@ -268,6 +268,34 @@ thus making it dependently-typed.
 We will use this as the basis for several later languages,
 each adding one or more features.
 
+<p>
+We've changed the format slightly from the previous section:
+we write the kind rules in combined form,
+and we only give type rules for the host types
+since the "type" rules for descriptions
+are entirely contained within the parsing rules.
+We'll follow this new format in later sections, too.
+
+<p>
+Aside from the format change, there are two important changes to the rules.
+First, an environment $\Gamma$ is required in the Kind and Type rules,
+which maps $\Sigma$-quantified variables to their host types.
+This is needed in the type rules
+so we can give a type to expressions involving variables,
+and it is needed in the kind rules because
+the descriptions can now contain expressions,
+hence the kind rules for descriptions must invoke the type rules
+for the expressions they contain.
+This environment is constructed in the kind rule for $\Sigma$-types,
+and is used in the type rule for variables.
+
+<p>
+Second, an environment $\theta$ is required in the parsing and
+evaluation rules,
+which stores the host values for $\Sigma$-quantified variables in scope.
+This environment is constructed in the parsing rule for $\Sigma$-types,
+and is used in the evaluation rule for variables.
+
 <div class="subsection">
 <h3>Grammar</h3>
 <div class="math">
@@ -316,7 +344,7 @@ $$
 </div>
 </div>
 
-<div class=:subsection">
+<div class="subsection">
 <h3>Types</h3>
 <div class="math">
 $$
