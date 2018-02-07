@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Data Description Languages</title>
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
+</script>
+<script type="text/javascript" async
+src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_CHTML">
+</script>
+<style>
+.content {
+    max-width: 1200px;
+    margin: auto;
+}
+
+h2 {
+    background-color: tan;
+}
+
+.section {
+    columns: 2;
+    column-gap: 4em;
+}
+
+.subsection {
+    break-inside: avoid;
+}
+</style>
+</head>
+<body>
+
+<div class="content">
+
+<h1>Data description languages</h1>
+
+<h2>DL-0</h2>
+
+<div class="section">
+<p>
+This language, our starting point, has the basic features of the later
+languages, but does not use dependent types.
+The purpose of presenting this is to illustrate the
+basic mechanisms we will be using,
+and to show by comparison what additional mechanisms are required
+to implement dependent types.
+
+<p>
+The grammar section gives an outline of the language.
+It is technically redundant,
+since the possible forms of the various sorts can be determined by
+looking at the conclusions of the relevant rules.
+
+<p>
+The kinding rules come in pairs,
+each pair containing one rule for descriptions
+and a corresponding rule for host types.
+When joined together,
+these rules also define a representation function
+mapping well-kinded descriptions to well-kinded host types.
+
+<p>
+Similarly, the type rules come in two sorts, with a mapping between them.
+On the left are rules that essentially state how a description
+can be the type of a sequence of binary digits.
+The notation $s..s'$ refers to a range of the input,
+where $s$ is the position of the first bit in the data
+and $s'$ is the position of the first bit following the data.
+The "read" function takes a starting position and a number of bits,
+and returns the 2's-complement value represented by the bits at that position.
+
+<p>
+On the right we give typing rules for the host expressions.
+There is an addition rule for field access expressions
+which is not the target of any mapping from a rule on the left.
+The reason for this asymmetry is that
+we only need introduction rules on the left
+since the binary data cannot be accessed directly,
+only through host expressions.
+On the right, we have both introduction and elimination rules.
+
+<p>
+As with the kinding rules,
+we can join the two sides of the typing rules together.
+In this case, the resulting rules define a parser for the descriptions.
+
+<p>
+Finally we have the rules for evaluating host expressions,
+plus some support functions for accessing structures.
+It is expected that a structure type such as
+<pre style="text-align: center;">
+struct { x : i8; y : i8 }
+</pre>
+would be converted to
+$$
+\Sigma x : \text{int}_8(-128, 127) .
+\Sigma y : \text{int}_8(-128, 127) . \text{unit}
+$$
+by a early phase of compilation.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<p>
+The grammars for kinds, descriptions, host types, and host expressions.
+<div class="math">
+$$
+\begin{array}{lll}
+\kappa 	& ::= & \text{Desc}~~|~~\text{Host} \\
+\tau 	& ::= & \text{int}_b(l, u)~~|~~\text{unit}~~|~~
+                \Sigma x : \tau_1 . \tau_2 \\
+T       & ::= & \text{int}~~|~~\text{unit}~~|~~(x:T_1) \times T_2 \\
+e       & ::= & k~~|~~\text{nil}~~|~~(x:e_1, e_2)~~|~~e.x
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Kinds</h3>
+
+<div class="math">
+$$
+\begin{array}{ccc}
+\dfrac{b \gt 0}{\vdash \text{int}_b(l,u) : \text{Desc}}
+& \Rrightarrow &
+\dfrac{}{\vdash \text{int} : \text{Host}}
+\\[2em]
+\dfrac{}{\vdash \text{unit} : \text{Desc}}
+& \Rrightarrow &
+\dfrac{}{\vdash \text{unit} : \text{Host}}
+\\[2em]
+\dfrac{
+    \vdash \tau_1 : \text{Desc} \quad
+    \vdash \tau_2 : \text{Desc}
+}{
+    \vdash \Sigma x : \tau_1 . \tau_2 : \text{Desc}
+}
+& \Rrightarrow &
+\dfrac{
+    \vdash T_1 : \text{Host} \quad
+    \vdash T_2 : \text{Host}
+}{
+    \vdash (x:T_1) \times T_2 : \text{Host}
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Types</h3>
+
+<div class="math">
+$$
+\begin{array}{ccc}
+\dfrac{
+    k = \text{read}(s, b) \\
+    \text{max}(-2^{b-1}, l) \leq k \leq \text{min}(2^{b-1}-1, u)
+}{
+    \vdash s..(s+b) : \text{int}_b(l, u)
+}
+& \Rrightarrow &
+\dfrac{}{\vdash k : \text{int}}
+\\[2em]
+\dfrac{}{\vdash s..s : \text{unit}}
+& \Rrightarrow &
+\dfrac{}{\vdash \text{nil} : \text{unit}}
+\\[2em]
+\dfrac{
+    \vdash s..s' : \tau_1 \qquad
+    \vdash s'..s'' : \tau_2
+}{
+    \vdash s..s'' : \Sigma x : \tau_1 . \tau_2
+}
+& \Rrightarrow &
+\dfrac{
+    \vdash e_1 : T_1 \qquad
+    \vdash e_2 : T_2
+}{
+    \vdash (x:e_1, e_2) : (x:T_1) \times T_2
+}
+\\[2em]
+& &
+\dfrac{
+    \vdash e : T \qquad
+    T_x = \text{field}(T, x)
+}{
+    \vdash e.x : T_x
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Parser</h3>
+
+<div class="math;">
+$$
+\begin{array}{c}
+\dfrac{
+    k = \text{read}(s, b) \qquad
+    \text{max}(-2^{b-1}, l) \leq k \leq \text{min}(2^{b-1}-1, u)
+}{
+    \vdash s..(s+b) : \text{int}_b(l, u) ~~\Longrightarrow~~ k
+}
+\\[2em]
+\dfrac{}{\vdash s..s : \text{unit} ~~\Longrightarrow~~ \text{nil}}
+\\[2em]
+\dfrac{
+    \vdash s..s' : \tau_1 ~~\Longrightarrow~~ e_1 \qquad
+    \vdash s'..s'' : \tau_2 ~~\Longrightarrow~~ e_2
+}{
+    \vdash s..s'' : \Sigma x : \tau_1 . \tau_2 ~~\Longrightarrow~~ (x:e_1, e_2)
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Evaluation</h3>
+
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{}{\vdash k \leadsto k}
+\qquad
+\dfrac{}{\vdash \text{nil} \leadsto \text{nil}}
+\\[2em]
+\dfrac{
+    \vdash e_1 \leadsto v_1 \quad
+    \vdash e_2 \leadsto v_2
+}{
+    \vdash (x:e_1, e_2) \leadsto (x:v_1, v_2)
+}
+\\[2em]
+\dfrac{
+    \vdash e \leadsto v \qquad
+    v_x = \text{field}(v, x)
+}{
+    \vdash e.x \leadsto v_x
+}
+\end{array}
+$$
+$$
+\begin{array}{lll}
+\\
+\text{field}((x:e_1, e_2), x) & = & e_1 \\
+\text{field}((y:e_1, e_2), x) & = &
+    \text{field}(e_2, x), \text{if}~ y \ne x \\
+\\
+\text{field}((x:T_1) \times T_2, x) & = & T_1 \\
+\text{field}((y:T_1) \times T_2, x) & = &
+    \text{field}(T_2, x), \text{if}~ y \ne x
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-1</h2>
+<div class="section">
+<p>
+This language allows variables to be used as bounds on integer types,
+thus making it dependently-typed.
+We will use this as the basis for several later languages,
+each adding one or more features.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+\kappa  & ::= & \text{Desc}~~|~~\text{Host} \\
+\tau    & ::= & \text{int}_b(e_l, e_u)~~|~~\text{unit}~~|~~
+                \Sigma x : \tau_1 . \tau_2 \\
+T       & ::= & \text{int}~~|~~\text{unit}~~|~~(x:T_1) \times T_2 \\
+e       & ::= & x~~|~~k~~|~~\text{nil}~~|~~(x:e_1, e_2)~~|~~e.x
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Kinds</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \Gamma \vdash e_l : \text{int} \qquad
+    \Gamma \vdash e_u : \text{int} \qquad
+    b \gt 0
+}{
+    \Gamma \vdash \text{int}_b(e_l, e_u) : \text{Desc}
+    ~~\Longrightarrow~~ \text{int} : \text{Host}
+}
+\\[2em]
+\dfrac{}{
+    \Gamma \vdash \text{unit} : \text{Desc} ~~\Longrightarrow~~
+    \text{unit} : \text{Host}
+}
+\\[2em]
+\dfrac{
+    \Gamma \vdash \tau_1 : \text{Desc} ~~\Longrightarrow~~
+    T_1 : \text{Host} \qquad
+    \Gamma,x:T_1 \vdash \tau_2 : \text{Desc} ~~\Longrightarrow~~
+    T_2 : \text{Host}
+}{
+    \Gamma \vdash \Sigma x : \tau_1 . \tau_2 : \text{Desc}
+    ~~\Longrightarrow~~ (x:T_1) \times T_2 : \text{Host}
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class=:subsection">
+<h3>Types</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{T = \Gamma(x)}{\Gamma \vdash x : T}
+\qquad\quad
+\dfrac{}{\Gamma \vdash k : \text{int}}
+\qquad\quad
+\dfrac{}{\Gamma \vdash \text{nil} : \text{unit}}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e_1 : T_1 \qquad
+    \Gamma \vdash e_2 : T_2
+}{
+    \Gamma \vdash (x:e_1, e_2) : (x:T_1) \times T_2
+}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e : T \qquad
+    T_x = \text{field}(T, x)
+}{
+    \Gamma \vdash e.x : T_x
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Parser</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash e_l \leadsto l \qquad
+    \theta \vdash e_u \leadsto u \qquad
+    k = \text{read}(s, b) \\
+    \text{max}(-2^{b-1}, l) \leq k \leq \text{min}(2^{b-1}-1, u)
+}{
+    \theta \vdash s..(s+b) : \text{int}_b(e_l, e_u) ~~\Longrightarrow~~ k
+}
+\\[2em]
+\dfrac{}{
+    \theta \vdash s..s : \text{unit} ~~\Longrightarrow~~ \text{nil}
+}
+\\[2em]
+\dfrac{
+    \theta \vdash s..s' : \tau_1 ~~\Longrightarrow~~ e_1 \qquad
+    \theta,x \mapsto e_1 \vdash s'..s'' : \tau_2 ~~\Longrightarrow~~ e_2
+}{
+    \theta \vdash s..s'' : \Sigma x : \tau_1 . \tau_2
+    ~~\Longrightarrow~~ (x:e_1, e_2)
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Evaluation</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{v = \theta(x)}{\theta \vdash x \leadsto v}
+\qquad
+\dfrac{}{\theta \vdash k \leadsto k}
+\qquad
+\dfrac{}{\theta \vdash \text{nil} \leadsto \text{nil}}
+\\[2em]
+\dfrac{
+    \theta \vdash e_1 \leadsto v_1 \qquad
+    \theta \vdash e_2 \leadsto v_2
+}{
+    \theta \vdash (x:e_1, e_2) \leadsto (x:v_1, v_2)
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e \leadsto v \qquad v_x = \text{field}(v, x)
+}{
+    \theta \vdash e.x \leadsto v_x
+}
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-ARRAY</h2>
+<div class="section">
+<p>
+In this section we add arrays to our basic language.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+\tau    & ::= & \ldots~~|~~\tau[e] \\
+T       & ::= & \ldots~~|~~T[] \\
+e       & ::= & \ldots~~|~~e_1::e_2~~|~~e_1[e_2]
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Kinds</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \Gamma \vdash e : \text{int} \qquad
+    \Gamma \vdash \tau : \text{Desc} ~~\Longrightarrow~~ T : \text{Host}
+}{
+    \Gamma \vdash \tau[e] : \text{Desc} ~~\Longrightarrow~~ T[] : \text{Host}
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Types</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{}{\Gamma \vdash \text{nil} : T[]}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e_1 : T \qquad
+    \Gamma \vdash e_2 : T[]
+}{
+    \Gamma \vdash e_1::e_2 : T[]
+}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e_1 : T[] \qquad
+    \Gamma \vdash e_2 : \text{int}
+}{
+    \Gamma \vdash e_1[e_2] : T
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Parser</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash e_n \leadsto n \qquad
+    \theta \vdash s..s' : \tau[n] ~~\Longrightarrow~~ e
+}{
+    \theta \vdash s..s' : \tau[e_n] ~~\Longrightarrow~~ e
+}
+\\[2em]
+\dfrac{}{\theta \vdash s..s : \tau[0] ~~\Longrightarrow~~ \text{nil}}
+\\[2em]
+\dfrac{
+    \theta \vdash s..s' : \tau ~~\Longrightarrow~~ e_1 \qquad
+    \theta \vdash s'..s'' : \tau[n] ~~\Longrightarrow~~ e_2
+}{
+    \theta \vdash s..s'' : \tau[n+1] ~~\Longrightarrow~~ e_1::e_2
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Evaluation</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash e_1 \leadsto v_1 \qquad
+    \theta \vdash e_2 \leadsto v_2
+}{
+    \theta \vdash e_1::e_2 \leadsto v_1::v_2
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e_1 \leadsto v_1 \qquad
+    \theta \vdash e_2 \leadsto v_2 \qquad
+    v = \text{index}(v_1, v_2)
+}{
+    \theta \vdash e_1[e_2] \leadsto v
+}
+\end{array}
+$$
+$$
+\begin{array}{lll}
+\\
+\text{index}(e_1::e_2, ~0) & = & e_1 \\
+\text{index}(e_1::e_2, ~n) & = &
+    \text{index}(e_2, ~n-1), \text{if}~ n > 0 \\
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-UNION</h2>
+
+<div class="section">
+<p>
+In this section we add unions to our basic language.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+\tau    & ::= & \ldots~~|~~\tau_1 \cup \tau_2 \\
+T       & ::= & \ldots~~|~~T_1 \oplus T_2 \\
+e       & ::= & \ldots~~|~~\text{inl}~e~~|~~\text{inr}~e~~|~~
+                \text{case}~e~x~e_1~e_2
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Kinds</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \Gamma \vdash \tau_1 : \text{Desc} ~~\Longrightarrow~~
+    T_1 : \text{Host} \qquad
+    \Gamma \vdash \tau_2 : \text{Desc} ~~\Longrightarrow~~
+    T_2 : \text{Host}
+}{
+    \Gamma \vdash \tau_1 \cup \tau_2 : \text{Desc}
+    ~~\Longrightarrow~~ T_1 \oplus T_2 : \text{Host}
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Types</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \Gamma \vdash e : T_1
+}{
+    \Gamma \vdash \text{inl}~e : T_1 \oplus T_2
+}
+\qquad\qquad
+\dfrac{
+    \Gamma \vdash e : T_2
+}{
+    \Gamma \vdash \text{inr}~e : T_1 \oplus T_2
+}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e : T_1 \oplus T_2 \qquad
+    \Gamma,x:T_1 \vdash e_1 : T \qquad
+    \Gamma,x:T_2 \vdash e_2 : T
+}{
+    \Gamma \vdash \text{case}~e~x~e_1~e_2 : T
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Parser</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash s..s' : \tau_1 ~~\Longrightarrow~~ e_1
+}{
+    \theta \vdash s..s' : \tau_1 \cup \tau_2 ~~\Longrightarrow~~ \text{inl}~e_1
+}
+\\[2em]
+\dfrac{
+    \theta \vdash s..s' : \tau_2 ~~\Longrightarrow~~ e_2
+}{
+    \theta \vdash s..s' : \tau_1 \cup \tau_2 ~~\Longrightarrow~~ \text{inr}~e_2
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Evaluation</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash e \leadsto v
+}{
+    \theta \vdash \text{inl}~e \leadsto \text{inl}~v
+}
+\qquad\qquad
+\dfrac{
+    \theta \vdash e \leadsto v
+}{
+    \theta \vdash \text{inr}~e \leadsto \text{inr}~v
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e \leadsto \text{inl}~v \qquad
+    \theta, x \mapsto v \vdash e_1 \leadsto v_1
+}{
+    \theta \vdash \text{case}~e~x~e_1~e_2 \leadsto v_1
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e \leadsto \text{inr}~v \qquad
+    \theta, x \mapsto v \vdash e_2 \leadsto v_2
+}{
+    \theta \vdash \text{case}~e~x~e_1~e_2 \leadsto v_2
+}
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-ARITH</h2>
+
+<div class="section">
+<p>
+In this section we add integer arithmetic operations to our basic language.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+e       & ::= & \ldots~~|~~e_1 + e_2~~|~~e_1 e_2~~|~~-e
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Types</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \Gamma \vdash e_1 : \text{int} \qquad
+    \Gamma \vdash e_2 : \text{int}
+}{
+    \Gamma \vdash e_1 + e_2 : \text{int}
+}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e_1 : \text{int} \qquad
+    \Gamma \vdash e_2 : \text{int}
+}{
+    \Gamma \vdash e_1 e_2 : \text{int}
+}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e : \text{int}
+}{
+    \Gamma \vdash -e : \text{int}
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Evaluation</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash e_1 \leadsto k_1 \qquad
+    \theta \vdash e_2 \leadsto k_2
+}{
+    \theta \vdash e_1 + e_2 \leadsto k_1 + k_2
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e_1 \leadsto k_1 \qquad
+    \theta \vdash e_2 \leadsto k_2
+}{
+    \theta \vdash e_1 e_2 \leadsto k_1 k_2
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e \leadsto k
+}{
+    \theta \vdash -e \leadsto -k
+}
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-UNSIGNED</h2>
+
+<div class="section">
+<p>
+In this section we add unsigned integers to our basic language.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+\tau    & ::= & \ldots~~|~~\text{uint}_b(e_l, e_u)
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Kinds</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \Gamma \vdash e_l : \text{int} \qquad
+    \Gamma \vdash e_u : \text{int} \qquad
+    b \gt 0
+}{
+    \Gamma \vdash \text{uint}_b(e_l, e_u) : \text{Desc}
+    ~~\Longrightarrow~~ \text{int} : \text{Host}
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Parser</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash e_l \leadsto l \qquad
+    \theta \vdash e_u \leadsto u \qquad
+    k = \text{uread}(s, b) \\
+    \text{max}(0, l) \leq k \leq \text{min}(2^b-1, u)
+}{
+    \theta \vdash s..(s+b) : \text{uint}_b(e_l, e_u) ~~\Longrightarrow~~ k
+}
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-ADAPT</h2>
+
+<div class="section">
+<p>
+In this section we add some features to allow an application to
+adapt to changes in the format.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+\tau    & ::= & \ldots~~|~~\text{absorb}(\tau)~~|~~\text{compute}(e : \tau)
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Kinds</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \Gamma \vdash \tau : \text{Desc} ~~\Longrightarrow~~ T : \text{Host}
+}{
+    \Gamma \vdash \text{absorb}(\tau) : \text{Desc}
+    ~~\Longrightarrow~~ \text{unit} : \text{Host}
+}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e : T \qquad
+    \Gamma \vdash \tau : \text{Desc} ~~\Longrightarrow~~
+    T : \text{Host}
+}{
+    \Gamma \vdash \text{compute}(e : \tau) : \text{Desc}
+    ~~\Longrightarrow~~ T : \text{Host}
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Parser</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash s..s' : \tau ~~\Longrightarrow~~ e
+}{
+    \theta \vdash s..s' : \text{absorb}(\tau) ~~\Longrightarrow~~ \text{nil}
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e \leadsto v
+}{
+    \theta \vdash s..s : \text{compute}(e : \tau) ~~\Longrightarrow~~ v
+}
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-BOOL</h2>
+
+<div class="section">
+<p>
+In this section we add Booleans, integer comparisons,
+and conditional expressions to our basic language.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+T   & ::= & \ldots~~|~~\text{bool} \\
+e   & ::= & \ldots~~|~~\text{tt}~~|~~\text{ff}~~|~~
+            e_1 \lt e_2~~|~~e_1 \leq e_2~~|~~
+            \text{if}~e~\text{then}~e_1~\text{else}~e_2
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Kinds</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{}{\Gamma \vdash \text{bool} : \text{Host}}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Types</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{}{\Gamma \vdash \text{tt} : \text{bool}} \qquad
+\dfrac{}{\Gamma \vdash \text{ff} : \text{bool}}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e_1 : \text{int} \qquad
+    \Gamma \vdash e_2 : \text{int}
+}{
+    \Gamma \vdash e_1 \lt e_2 : \text{bool}
+}
+\qquad
+\dfrac{
+    \Gamma \vdash e_1 : \text{int} \qquad
+    \Gamma \vdash e_2 : \text{int}
+}{
+    \Gamma \vdash e_1 \leq e_2 : \text{bool}
+}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e : \text{bool} \qquad
+    \Gamma \vdash e_1 : T \qquad
+    \Gamma \vdash e_2 : T
+}{
+    \Gamma \vdash \text{if}~e~\text{then}~e_1~\text{else}~e_2 : T
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Evaluation</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{}{\theta \vdash \text{tt} \leadsto \text{tt}} \qquad
+\dfrac{}{\theta \vdash \text{ff} \leadsto \text{ff}}
+\\[2em]
+\dfrac{
+    \theta \vdash e_1 \leadsto k_1 \qquad
+    \theta \vdash e_2 \leadsto k_2 \qquad
+    k_1 \lt k_2
+}{
+    \theta \vdash e_1 \lt e_2 \leadsto \text{tt}
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e_1 \leadsto k_1 \qquad
+    \theta \vdash e_2 \leadsto k_2 \qquad
+    k_1 \not\lt k_2
+}{
+    \theta \vdash e_1 \lt e_2 \leadsto \text{ff}
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e_1 \leadsto k_1 \qquad
+    \theta \vdash e_2 \leadsto k_2 \qquad
+    k_1 \leq k_2
+}{
+    \theta \vdash e_1 \leq e_2 \leadsto \text{tt}
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e_1 \leadsto k_1 \qquad
+    \theta \vdash e_2 \leadsto k_2 \qquad
+    k_1 \not\leq k_2
+}{
+    \theta \vdash e_1 \leq e_2 \leadsto \text{ff}
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e \leadsto \text{tt} \qquad
+    \theta \vdash e_1 \leadsto v_1
+}{
+    \theta \vdash \text{if}~e~\text{then}~e_1~\text{else}~e_2 \leadsto v_1
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e \leadsto \text{ff} \qquad
+    \theta \vdash e_2 \leadsto v_2
+}{
+    \theta \vdash \text{if}~e~\text{then}~e_1~\text{else}~e_2 \leadsto v_2
+}
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-PROP</h2>
+
+<div class="section">
+<p>
+In this section we extend DL-BOOL with propositional functions.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+e       & ::= & \ldots~~|~~e_1 \vee e_2~~|~~e_1 \wedge e_2~~|~~\neg e
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Types</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \Gamma \vdash e : \text{bool}
+}{
+    \Gamma \vdash \neg e : \text{bool}
+}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e_1 : \text{bool} \qquad
+    \Gamma \vdash e_2 : \text{bool}
+}{
+    \Gamma \vdash e_1 \vee e_2 : \text{bool}
+}
+\\[2em]
+\dfrac{
+    \Gamma \vdash e_1 : \text{bool} \qquad
+    \Gamma \vdash e_2 : \text{bool}
+}{
+    \Gamma \vdash e_1 \wedge e_2 : \text{bool}
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Evaluation</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash e \leadsto b
+}{
+    \theta \vdash \neg e \leadsto \neg b
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e_1 \leadsto b_1 \qquad
+    \theta \vdash e_2 \leadsto b_2
+}{
+    \theta \vdash e_1 \vee e_2 \leadsto b_1 \vee b_2
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e_1 \leadsto b_1 \qquad
+    \theta \vdash e_2 \leadsto b_2
+}{
+    \theta \vdash e_1 \wedge e_2 \leadsto b_1 \wedge b_2
+}
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-COND</h2>
+
+<div class="section">
+<p>
+In this section we extend DL-BOOL with conditional descriptions.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+\tau    & ::= & \ldots~~|~~\text{if}~e~\text{then}~\tau_1~\text{else}~\tau_2
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Kinds</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \Gamma \vdash \tau_1 : \text{Desc} ~~\Longrightarrow~~
+    T_1 : \text{Host} \\
+    \Gamma \vdash \tau_2 : \text{Desc} ~~\Longrightarrow~~
+    T_2 : \text{Host} \qquad
+    \Gamma \vdash e : \text{bool}
+}{
+    \Gamma \vdash \text{if}~e~\text{then}~\tau_1~\text{else}~\tau_2 :
+    \text{Desc} ~~\Longrightarrow~~ T_1 \oplus T_2 : \text{Host}
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Parser</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash e \leadsto \text{tt} \qquad
+    \theta \vdash s..s' : \tau_1 ~~\Longrightarrow~~ e_1
+}{
+    \theta \vdash s..s' : \text{if}~e~\text{then}~\tau_1~\text{else}~\tau_2
+    ~~\Longrightarrow~~ \text{inl}~e_1
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e \leadsto \text{ff} \qquad
+    \theta \vdash s..s' : \tau_2 ~~\Longrightarrow~~ e_2
+}{
+    \theta \vdash s..s' : \text{if}~e~\text{then}~\tau_1~\text{else}~\tau_2
+    ~~\Longrightarrow~~ \text{inr}~e_2
+}
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-REC</h2>
+
+<div class="section">
+<p>
+In this section we add recursive types to our basic language.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+\tau    & ::= & \ldots~~|~~\alpha~~|~~\mu \alpha . \tau \\
+T       & ::= & \ldots~~|~~\alpha~~|~~\mu \alpha . T
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Kinds</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \alpha \in \text{dom}(M)
+}{
+    M;\Gamma \vdash \alpha : \text{Desc} ~~\Longrightarrow~~
+    \alpha : \text{Host}
+}
+\\[2em]
+\dfrac{
+    M,\alpha \mapsto \mu \alpha . T;\Gamma \vdash \tau : \text{Desc}
+    ~~\Longrightarrow~~ T : \text{Host}
+}{
+    M;\Gamma \vdash \mu \alpha . \tau : \text{Desc}
+    ~~\Longrightarrow~~ \mu \alpha . T : \text{Host}
+}
+\\[2em]
+\dfrac{
+    M;\Gamma \vdash \tau_1 : \text{Desc} ~~\Longrightarrow~~
+    T_1 : \text{Host} \qquad
+    M;\Gamma, x : M(T_1) \vdash \tau_2 : \text{Desc} ~~\Longrightarrow~~
+    T_2 : \text{Host}
+}{
+    M;\Gamma \vdash \Sigma x : \tau_1 . \tau_2 : \text{Desc}
+    ~~\Longrightarrow~~ (x : T_1) \times T_2 : \text{Host}
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Types</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \Gamma \vdash e : \mu \alpha . T
+}{
+    \Gamma \vdash e : [\mu \alpha . T / \alpha] T
+}
+\qquad\qquad
+\dfrac{
+    \Gamma \vdash e : [\mu \alpha . T / \alpha] T
+}{
+    \Gamma \vdash e : \mu \alpha . T
+}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Parser</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\dfrac{
+    \theta \vdash s..s' : [\mu \alpha . \tau / \alpha]\tau
+    ~~\Longrightarrow~~ e
+}{
+    \theta \vdash s..s' : \mu \alpha . \tau ~~\Longrightarrow~~ e
+}
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+<h2>DL-FULL</h2>
+
+<div class="section">
+<p>
+Finally, we collect all of the above rules here in one place.
+
+<div class="subsection">
+<h3>Grammar</h3>
+<div class="math">
+$$
+\begin{array}{lll}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Kinds</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Types</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Parser</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\end{array}
+$$
+</div>
+</div>
+
+<div class="subsection">
+<h3>Evaluation</h3>
+<div class="math">
+$$
+\begin{array}{c}
+\end{array}
+$$
+</div>
+</div>
+
+</div>
+
+</div>
+
+</body>
+</html>
+
