@@ -735,7 +735,20 @@ $$
 
 <div class="section">
 <p>
-In this section we add integer arithmetic operations to our basic language.
+In this section we add integer arithmetic operations to DL-1.
+As there are no additional descriptions or host types,
+we don't need any kind rules or parsing rules,
+only rules for typechecking and evaluation.
+
+<p>
+The latter are somewhat misleading, in that
+we have overloaded the symbols we use in the rules,
+so that $+$, for example,
+refers to both the syntactic construct in expressions,
+as well as the semantic function used to evaluate them.
+In each rule, occurrences of the operators to the left of
+the $\leadsto$ symbol are syntactic constructs,
+whereas those to the right are semantic operations to be performed.
 
 <div class="subsection">
 <h3>Grammar</h3>
@@ -759,7 +772,7 @@ $$
 }{
     \Gamma \vdash e_1 + e_2 : \text{int}
 }
-\\[2em]
+\qquad
 \dfrac{
     \Gamma \vdash e_1 : \text{int} \qquad
     \Gamma \vdash e_2 : \text{int}
@@ -788,7 +801,7 @@ $$
 }{
     \theta \vdash e_1 + e_2 \leadsto k_1 + k_2
 }
-\\[2em]
+\qquad
 \dfrac{
     \theta \vdash e_1 \leadsto k_1 \qquad
     \theta \vdash e_2 \leadsto k_2
@@ -812,7 +825,22 @@ $$
 
 <div class="section">
 <p>
-In this section we add unsigned integers to our basic language.
+In this section we add unsigned integers to DL-1.
+Like signed integers, these map to the $\text{int}$ host type.
+(The host type is assumed to be infinite precision
+for the purposes of these rules,
+although in practice an implementation would probably want to infer
+appropriate sizes for intermediate calculations.)
+
+<p>
+The new rules are similar to those for signed integers,
+with two differences.
+First, the value is read from input using the $\text{uread}$ function,
+which takes the starting position and number of bits,
+and returns the unsigned integer value represented by
+the bits at that position.
+Second, we impose bounds limited to the range of unsigned integers,
+rather than 2's-complement integers.
 
 <div class="subsection">
 <h3>Grammar</h3>
