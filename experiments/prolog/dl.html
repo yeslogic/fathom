@@ -437,6 +437,33 @@ $$
 <div class="section">
 <p>
 In this section we add arrays to our basic language.
+Description arrays consist of an element type as well as
+an expression giving the number of elements,
+which may refer to the values of earlier fields.
+As such, they are dependently typed,
+and the kind rules again need to invoke the type rules for expressions.
+
+<p>
+The corresponding host type does not specify a size,
+but rather represents the length as part of the value.
+We need to erase the length from the type since we assume that
+the host language is not itself dependently typed.
+
+<p>
+For convenience in expressing the rules
+we write array values similarly to Haskell lists,
+overloading $\text{nil}$ for both structs and arrays.
+We expect that an actual host language would use something more efficient.
+Given that the parsing rules evaluate the length expression
+<em>before</em> parsing any elements,
+an implementation will be able to allocate memory for the array in advance,
+provided the elements have a known fixed size.
+
+<p>
+We don't actually require elements of an array to all have the same size
+according to our rules.
+However, it is expected that an implementation may impose this restriction
+in order to implement arrays more efficiently.
 
 <div class="subsection">
 <h3>Grammar</h3>
@@ -445,7 +472,7 @@ $$
 \begin{array}{lll}
 \tau    & ::= & \ldots~~|~~\tau[e] \\
 T       & ::= & \ldots~~|~~T[] \\
-e       & ::= & \ldots~~|~~e_1::e_2~~|~~e_1[e_2]
+e       & ::= & \ldots~~|~~e_1::e_2~~|~~e.\text{length}~~|~~e_1[e_2]
 \end{array}
 $$
 </div>
@@ -473,7 +500,7 @@ $$
 $$
 \begin{array}{c}
 \dfrac{}{\Gamma \vdash \text{nil} : T[]}
-\\[2em]
+\qquad
 \dfrac{
     \Gamma \vdash e_1 : T \qquad
     \Gamma \vdash e_2 : T[]
@@ -481,6 +508,12 @@ $$
     \Gamma \vdash e_1::e_2 : T[]
 }
 \\[2em]
+\dfrac{
+    \Gamma \vdash e : T[]
+}{
+    \Gamma \vdash e.\text{length} : \text{int}
+}
+\qquad
 \dfrac{
     \Gamma \vdash e_1 : T[] \qquad
     \Gamma \vdash e_2 : \text{int}
@@ -497,13 +530,6 @@ $$
 <div class="math">
 $$
 \begin{array}{c}
-\dfrac{
-    \theta \vdash e_n \leadsto n \qquad
-    \theta \vdash s..s' : \tau[n] ~~\Longrightarrow~~ e
-}{
-    \theta \vdash s..s' : \tau[e_n] ~~\Longrightarrow~~ e
-}
-\\[2em]
 \dfrac{}{\theta \vdash s..s : \tau[0] ~~\Longrightarrow~~ \text{nil}}
 \\[2em]
 \dfrac{
@@ -511,6 +537,13 @@ $$
     \theta \vdash s'..s'' : \tau[n] ~~\Longrightarrow~~ e_2
 }{
     \theta \vdash s..s'' : \tau[n+1] ~~\Longrightarrow~~ e_1::e_2
+}
+\\[2em]
+\dfrac{
+    \theta \vdash e_n \leadsto n \qquad
+    \theta \vdash s..s' : \tau[n] ~~\Longrightarrow~~ e
+}{
+    \theta \vdash s..s' : \tau[e_n] ~~\Longrightarrow~~ e
 }
 \end{array}
 $$
@@ -530,6 +563,13 @@ $$
 }
 \\[2em]
 \dfrac{
+    \theta \vdash e \leadsto v \qquad
+    n = \text{length}(v)
+}{
+    \theta \vdash e.\text{length} \leadsto n
+}
+\\[2em]
+\dfrac{
     \theta \vdash e_1 \leadsto v_1 \qquad
     \theta \vdash e_2 \leadsto v_2 \qquad
     v = \text{index}(v_1, v_2)
@@ -541,9 +581,12 @@ $$
 $$
 \begin{array}{lll}
 \\
-\text{index}(e_1::e_2, ~0) & = & e_1 \\
-\text{index}(e_1::e_2, ~n) & = &
-    \text{index}(e_2, ~n-1), \text{if}~ n > 0 \\
+\text{index}(e_1::e_2, ~0)  & = & e_1 \\
+\text{index}(e_1::e_2, ~n)  & = &
+    \text{index}(e_2, ~n-1), \text{if}~ n \gt 0 \\
+\\
+\text{length}(\text{nil})   & = & 0 \\
+\text{length}(e_1::e_2)     & = & 1 + \text{length}(e_2)
 \end{array}
 $$
 </div>
