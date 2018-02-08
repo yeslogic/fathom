@@ -436,7 +436,7 @@ $$
 <h2>DL-ARRAY</h2>
 <div class="section">
 <p>
-In this section we add arrays to our basic language.
+In this section we add arrays to our basic language, DL-1.
 Description arrays consist of an element type as well as
 an expression giving the number of elements,
 which may refer to the values of earlier fields.
@@ -598,7 +598,18 @@ $$
 
 <div class="section">
 <p>
-In this section we add unions to our basic language.
+In this section we add unions to DL-1.
+The parsing rules treat such unions non-deterministically;
+implementations may produce all possible results,
+or stop after one result has been successfully obtained.
+
+<p>
+The corresponding host type is a <em>discriminated</em> union,
+which means that expressions are tagged with $\text{inl}$ or $\text{inr}$
+to indicate which branch was used in the result.
+Such values can be used in a $\text{case}$ expression,
+which evaluates one of two expressions depending on
+the tag of the expression being tested, after it has been evaluated.
 
 <div class="subsection">
 <h3>Grammar</h3>
