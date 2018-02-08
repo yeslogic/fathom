@@ -897,6 +897,13 @@ $$
 <p>
 In this section we add some features to allow an application to
 adapt to changes in the format.
+The $\text{absorb}$ function returns a description that
+parses something with description $\tau$,
+but discards the result and simply returns $\text{nil}$.
+The $\text{compute}$ function returns a description that
+consumes no input, but produces the value given by the expression $e$.
+The latter must be a value that could result from
+parsing the description $\tau$.
 
 <div class="subsection">
 <h3>Grammar</h3>
@@ -944,7 +951,7 @@ $$
 }{
     \theta \vdash s..s' : \text{absorb}(\tau) ~~\Longrightarrow~~ \text{nil}
 }
-\\[2em]
+\qquad
 \dfrac{
     \theta \vdash e \leadsto v
 }{
