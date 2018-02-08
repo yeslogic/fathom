@@ -969,7 +969,19 @@ $$
 <div class="section">
 <p>
 In this section we add Booleans, integer comparisons,
-and conditional expressions to our basic language.
+and conditional expressions to DL-1.
+We will use this language, DL-BOOL, a few more times
+as the basis of languages with features that rely on Booleans.
+For the moment, however, we just introduce the minimum functionality.
+
+<p>
+The main thing to note is that we don't have a combined kind rule
+for the new host type.
+The reason for this is that there is no description
+for which this type corresponds;
+it is only used in expressions to give meaning to integer comparisons.
+(The description $\text{int}_1(-1, 0)$ would suffice if such was needed.)
+Consequently, we don't need a new parsing rule either.
 
 <div class="subsection">
 <h3>Grammar</h3>
@@ -1095,6 +1107,10 @@ $$
 <div class="section">
 <p>
 In this section we extend DL-BOOL with propositional functions.
+As with the evalutaion rules of DL-ARITH,
+the occurrences of operators on the left of the $\leadsto$ symbol
+are syntactic,
+while those on the right are semantic.
 
 <div class="subsection">
 <h3>Grammar</h3>
@@ -1124,7 +1140,7 @@ $$
 }{
     \Gamma \vdash e_1 \vee e_2 : \text{bool}
 }
-\\[2em]
+\qquad
 \dfrac{
     \Gamma \vdash e_1 : \text{bool} \qquad
     \Gamma \vdash e_2 : \text{bool}
@@ -1171,7 +1187,19 @@ $$
 
 <div class="section">
 <p>
-In this section we extend DL-BOOL with conditional descriptions.
+In this section we extend DL-BOOL and DL-UNION with conditional descriptions.
+These are similar to conditional expressions,
+in that a choice is made based on the value of a Boolean expression.
+In this case the choice is between two alternative descriptions,
+rather than two alternative expressions of the same type.
+The result of parsing is a discrimiated union,
+with the tag indicating which branch of the construct was taken.
+
+<p>
+Since we are operating at the description level
+rather than the expression level,
+we need kind and parsing rules instead of
+the type and evaluation rules from before.
 
 <div class="subsection">
 <h3>Grammar</h3>
