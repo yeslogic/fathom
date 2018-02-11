@@ -69,6 +69,34 @@ write_expr(eindex(E1, E2)) :-
     write('['),
     write_expr(E2),
     write(']').
+write_expr(eleft(E)) :-
+    write('inl '),
+    write_expr(E).
+write_expr(eright(E)) :-
+    write('inr '),
+    write_expr(E).
+write_expr(ecase(E, X, E1, E2)) :-
+    write('case '),
+    write_expr(E),
+    format(' ~w ', [X]),
+    write_expr(E1),
+    write(' '),
+    write_expr(E2).
+write_expr(eplus(E1, E2)) :-
+    write('('),
+    write_expr(E1),
+    write(' + '),
+    write_expr(E2),
+    write(')').
+write_expr(etimes(E1, E2)) :-
+    write('('),
+    write_expr(E1),
+    write(' * '),
+    write_expr(E2),
+    write(')').
+write_expr(eminus(E)) :-
+    write('-'),
+    write_expr(E).
 
 write_struct(enil) :-
     write(' }').
