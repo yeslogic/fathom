@@ -18,6 +18,9 @@ repr(M, G, sigma(X, D1, D2), pair(X, T1, T2)) :-
 repr(M, G, array(D, E), array(T)) :-
     has_type(G, E, int),
     repr(M, G, D, T).
+repr(M, G, union(D1, D2), sum(T1, T2)) :-
+    repr(M, G, D1, T1),
+    repr(M, G, D2, T2).
 
 
 %%%%%%%%%%%
@@ -45,6 +48,14 @@ has_type(G, elength(E), int) :-
 has_type(G, eindex(E1, E2), T) :-
     has_type(G, E1, array(T)),
     has_type(G, E2, int).
+has_type(G, eleft(E), sum(T, _)) :-
+    has_type(G, E, T).
+has_type(G, eright(E), sum(_, T)) :-
+    has_type(G, E, T).
+has_type(G, ecase(E, X, E1, E2), T) :-
+    has_type(G, E, sum(T1, T2)),
+    has_type([X - T1 | G], E1, T),
+    has_type([X - T2 | G], E2, T).
 
 
 %%%%%%%%%%%%
@@ -67,6 +78,10 @@ parse(Sub, In, sigma(X, D1, D2), epair(X, E1, E2)) :-
 parse(Sub, In, array(D, EN), E) :-
     eval(Sub, EN, eint(N)),
     parse_array(Sub, In, D, N, E).
+parse(Sub, In, union(D, _), eleft(E)) :-
+    parse(Sub, In, D, E).
+parse(Sub, In, union(_, D), eright(E)) :-
+    parse(Sub, In, D, E).
 
 parse_array(Sub, In, D, N, E) :-
     ( N > 0 ->
@@ -103,4 +118,16 @@ eval(Sub, eindex(E1, E2), V) :-
     eval(Sub, E1, V1),
     eval(Sub, E2, eint(N)),
     array_index(V1, N, V).
+eval(Sub, eleft(E), eleft(V)) :-
+    eval(Sub, E, V).
+eval(Sub, eright(E), eright(V)) :-
+    eval(Sub, E, V).
+eval(Sub, ecase(E, X, E1, E2), V) :-
+    eval(Sub, E, V0),
+    eval_case(Sub, V0, X, E1, E2, V).
+
+eval_case(Sub, eleft(VX), X, E, _, V) :-
+    eval([X - VX | Sub], E, V).
+eval_case(Sub, eright(VX), X, _, E, V) :-
+    eval([X - VX | Sub], E, V).
 
