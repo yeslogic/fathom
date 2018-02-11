@@ -77,3 +77,12 @@ ex(xyz, D, 'bin') :-
         sigma(z, Int16,
         unit))).
 
+ex(xy_z, D, 'bin') :-
+    inttype(16, Int16),
+    D = sigma(xy,
+            sigma(x, Int16,
+            sigma(y, Int16,
+            unit)),
+        sigma(z, Int16,
+        unit)).
+
