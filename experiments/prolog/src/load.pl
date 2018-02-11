@@ -1,2 +1,4 @@
+:- consult(util).
 :- consult('dl-full').
-:- consult('examples').
+:- consult(harness).
+:- consult(examples).
