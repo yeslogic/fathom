@@ -56,6 +56,14 @@ has_type(G, ecase(E, X, E1, E2), T) :-
     has_type(G, E, sum(T1, T2)),
     has_type([X - T1 | G], E1, T),
     has_type([X - T2 | G], E2, T).
+has_type(G, eplus(E1, E2), int) :-
+    has_type(G, E1, int),
+    has_type(G, E2, int).
+has_type(G, etimes(E1, E2), int) :-
+    has_type(G, E1, int),
+    has_type(G, E2, int).
+has_type(G, eminus(E), int) :-
+    has_type(G, E, int).
 
 
 %%%%%%%%%%%%
@@ -125,6 +133,17 @@ eval(Sub, eright(E), eright(V)) :-
 eval(Sub, ecase(E, X, E1, E2), V) :-
     eval(Sub, E, V0),
     eval_case(Sub, V0, X, E1, E2, V).
+eval(Sub, eplus(E1, E2), eint(V)) :-
+    eval(Sub, E1, eint(V1)),
+    eval(Sub, E2, eint(V2)),
+    V is V1 + V2.
+eval(Sub, etimes(E1, E2), eint(V)) :-
+    eval(Sub, E1, eint(V1)),
+    eval(Sub, E2, eint(V2)),
+    V is V1 * V2.
+eval(Sub, eminus(E1), eint(V)) :-
+    eval(Sub, E1, eint(V1)),
+    V is -V1.
 
 eval_case(Sub, eleft(VX), X, E, _, V) :-
     eval([X - VX | Sub], E, V).
