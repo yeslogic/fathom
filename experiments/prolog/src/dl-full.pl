@@ -10,6 +10,11 @@ repr(_, G, int(B, EL, EU), int) :-
     B > 0,
     has_type(G, EL, int),
     has_type(G, EU, int).
+repr(_, G, uint(B, EL, EU), int) :-
+    integer(B),
+    B > 0,
+    has_type(G, EL, int),
+    has_type(G, EU, int).
 repr(_, _, unit, unit).
 repr(M, G, sigma(X, D1, D2), pair(X, T1, T2)) :-
     name(X),
@@ -74,6 +79,15 @@ parse(Sub, In, int(B, EL, EU), eint(K)) :-
     eval(Sub, EL, eint(L)),
     eval(Sub, EU, eint(U)),
     read_bytes(In, B, K),
+    ( L =< K, K =< U ->
+        true
+    ;
+        parse_error('integer out of range')
+    ).
+parse(Sub, In, uint(B, EL, EU), eint(K)) :-
+    eval(Sub, EL, eint(L)),
+    eval(Sub, EU, eint(U)),
+    uread_bytes(In, B, K),
     ( L =< K, K =< U ->
         true
     ;

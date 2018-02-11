@@ -53,3 +53,15 @@ ex(sudoku2, D, 'bin') :-
             ),
         unit)).
 
+ex(sudoku3, D, 'bin') :-
+    D = sigma(initcount, uint(32, eint(1), eint(80)),
+        sigma(initvalues,
+            array(
+                sigma(x, uint(8, eint(0), eint(8)),
+                sigma(y, uint(8, eint(0), eint(8)),
+                sigma(n, uint(16, eint(1), eint(9)),
+                unit))),
+                evar(initcount)
+            ),
+        unit)).
+
