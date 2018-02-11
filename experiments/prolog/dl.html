@@ -1264,6 +1264,35 @@ $$
 <div class="section">
 <p>
 In this section we add recursive types to our basic language.
+For this we will need type variables,
+and a construct $\mu \alpha . \tau$ which is equal to $\tau$
+with every occurrence of $\alpha$
+replaced with the original term $\mu \alpha . \tau$,
+and so on ad infinitum.
+
+<p>
+To support this, in the kind rules we need a new environment $M$
+that maps type variables to the $\mu$-types by which they were bound.
+The first kind rule checks that the type variable is bound;
+we assume that there is some 1-1 mapping between description variables
+and host type variables used to represent them.
+The second updates $M$ when the scope of a $\mu$-type is entered.
+
+<p>
+The third kind rule replaces the Sigma rule from DL-1.
+Previously, $x:T$ was added directly to $\Gamma$,
+but now $T$ might contain type variables.
+We need to ensure that the type is <em>closed</em>,
+meaning that it does not contain any free variables.
+This is important, because by the time we need to use $\Gamma$
+to typecheck an expression,
+the type variables may have become shadowed by other bindings.
+We can close a type by applying $M$ as a subtitution,
+since by construction all of the types in $M$ are closed.
+
+<p>
+For types and parsing we just need to add rules to unroll the
+recursive types as we encounter them.
 
 <div class="subsection">
 <h3>Grammar</h3>
@@ -1290,7 +1319,7 @@ $$
 }
 \\[2em]
 \dfrac{
-    M,\alpha \mapsto \mu \alpha . T;\Gamma \vdash \tau : \text{Desc}
+    M,\alpha \mapsto \mu \alpha . M(T);\Gamma \vdash \tau : \text{Desc}
     ~~\Longrightarrow~~ T : \text{Host}
 }{
     M;\Gamma \vdash \mu \alpha . \tau : \text{Desc}
