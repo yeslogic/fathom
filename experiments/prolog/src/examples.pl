@@ -24,7 +24,9 @@ parse_file(D, File) :-
     ( open(File, read, In, [type(binary)]) ->
         format('File: ~w~n', [File]),
         ( parse([], In, D, V) ->
-            format('Result: ~w~n', [V]),
+            write('Result: '),
+            write_expr(V),
+            nl,
             ( \+ get_byte(In, -1) ->
                 writeln('remaining input')
             ;
@@ -38,13 +40,35 @@ parse_file(D, File) :-
         static_error('unable to open file')
     ).
 
-inttype(B, int(B, eint(L), eint(U))) :-
-    L is -(2**(B-1)),
-    U is (2**(B-1))-1.
+write_expr(evar(X)) :-
+    write(X).
+write_expr(eint(K)) :-
+    write(K).
+write_expr(enil) :-
+    write(nil).
+write_expr(epair(X, E1, E2)) :-
+    format('{ ~w: ', [X]),
+    write_expr(E1),
+    write_struct(E2).
+write_expr(efield(E, X)) :-
+    write_expr(E),
+    format('.~w', [X]).
+
+write_struct(enil) :-
+    write(' }').
+write_struct(epair(X, E1, E2)) :-
+    format(', ~w: ', [X]),
+    write_expr(E1),
+    write_struct(E2).
+
 
 %%%%%%%%%%%%%%
 %  Examples  %
 %%%%%%%%%%%%%%
+
+inttype(B, int(B, eint(L), eint(U))) :-
+    L is -(2**(B-1)),
+    U is (2**(B-1))-1.
 
 ex(xyz, D, 'bin') :-
     inttype(16, Int16),
