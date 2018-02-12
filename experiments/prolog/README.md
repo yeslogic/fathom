@@ -22,11 +22,11 @@ $ swipl load.pl
 ```
 The full suite of examples can be run with:
 
-```
+```prolog
 ?- run.
 ```
 or individual examples can be run with:
-```
+```prolog
 ?- runtest(Name).           % e.g. runtest(sudoku).
 ```
 
