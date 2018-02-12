@@ -74,6 +74,18 @@ has_type(G, etimes(E1, E2), int) :-
     has_type(G, E2, int).
 has_type(G, eminus(E), int) :-
     has_type(G, E, int).
+has_type(_, etrue, bool).
+has_type(_, efalse, bool).
+has_type(G, elt(E1, E2), bool) :-
+    has_type(G, E1, int),
+    has_type(G, E2, int).
+has_type(G, eleq(E1, E2), bool) :-
+    has_type(G, E1, int),
+    has_type(G, E2, int).
+has_type(G, econd(E, E1, E2), T) :-
+    has_type(G, E, bool),
+    has_type(G, E1, T),
+    has_type(G, E2, T).
 
 
 %%%%%%%%%%%%
@@ -167,9 +179,27 @@ eval(Sub, etimes(E1, E2), eint(V)) :-
 eval(Sub, eminus(E1), eint(V)) :-
     eval(Sub, E1, eint(V1)),
     V is -V1.
+eval(_, etrue, etrue).
+eval(_, efalse, efalse).
+eval(Sub, elt(E1, E2), R) :-
+    eval(Sub, E1, eint(K1)),
+    eval(Sub, E2, eint(K2)),
+    ( K1 < K2 -> R = etrue ; R = efalse ).
+eval(Sub, eleq(E1, E2), R) :-
+    eval(Sub, E1, eint(K1)),
+    eval(Sub, E2, eint(K2)),
+    ( K1 =< K2 -> R = etrue ; R = efalse ).
+eval(Sub, econd(E, E1, E2), V) :-
+    eval(Sub, E, V0),
+    eval_cond(Sub, V0, E1, E2, V).
 
 eval_case(Sub, eleft(VX), X, E, _, V) :-
     eval([X - VX | Sub], E, V).
 eval_case(Sub, eright(VX), X, _, E, V) :-
     eval([X - VX | Sub], E, V).
+
+eval_cond(Sub, etrue, E, _, V) :-
+    eval(Sub, E, V).
+eval_cond(Sub, efalse, _, E, V) :-
+    eval(Sub, E, V).
 
