@@ -1,5 +1,3 @@
-% vim: ts=4 sw=4 et ft=prolog
-
 :- consult(util).
 
 %%%%%%%%%%%
@@ -72,5 +70,3 @@ eval(Sub, epair(E1, E2), epair(V1, V2)) :-
 eval(Sub, efield(E, X), VX) :-
     eval(Sub, E, V),
     field_expr(V, X, VX).
-
-

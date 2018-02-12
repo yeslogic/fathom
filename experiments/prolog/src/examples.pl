@@ -1,5 +1,3 @@
-% vim: ts=4 sw=4 et ft=prolog
-
 runtest(Name) :-
     ex(Name, D, Ext),
     format('Test: ~w~n', [Name]),
@@ -85,4 +83,3 @@ ex(xy_z, D, 'bin') :-
             unit)),
         sigma(z, Int16,
         unit)).
-

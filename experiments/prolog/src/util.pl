@@ -1,5 +1,3 @@
-% vim: ts=4 sw=4 et ft=prolog
-
 %%%%%%%%%%%
 %  Names  %
 %%%%%%%%%%%
@@ -96,4 +94,3 @@ nyi(Msg) :-
 error(Label, Msg) :-
     format('~w: ~w~n', [Label, Msg]),
     fail.
-
