@@ -82,9 +82,6 @@ uread_bits(In, B, K) :-
 static_error(Msg) :-
     error('Static error', Msg).
 
-parse_error(Msg) :-
-    error('Parse error', Msg).
-
 eval_error(Msg) :-
     error('Evaluation error', Msg).
 

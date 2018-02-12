@@ -118,3 +118,34 @@ ex(sudoku4, D, 'bin') :-
             ),
         unit)).
 
+% DL-REC+ARITH+UNSIGNED
+
+% struct {
+%   size: int32 in 1..256;
+%   initvalues: rec t =
+%       union {
+%           int32 in -1..-1;
+%           struct {
+%               x: uint8 in 0..(size - 1);
+%               y: uint8 in 0..(size - 1);
+%               n: uint16 in 1..size;
+%               next: t;
+%           }
+%       }
+% }
+ex(sudoku5, D, 'bin') :-
+    PosT = uint(8, eint(0), eplus(evar(size), eint(-1))),
+    D = sigma(size, int(32, eint(1), eint(256)),
+        sigma(initvalues,
+            mu(t,
+                union(
+                    int(32, eint(-1), eint(-1)),    % sentinel
+                    sigma(x, PosT,
+                    sigma(y, PosT,
+                    sigma(n, uint(16, eint(1), evar(size)),
+                    sigma(next, mvar(t),
+                    unit))))
+                )
+            ),
+        unit)).
+

@@ -45,11 +45,7 @@ parse(Sub, In, int(B, EL, EU), eint(K)) :-
     eval(Sub, EL, eint(L)),
     eval(Sub, EU, eint(U)),
     read_bytes(In, B, K),
-    ( L =< K, K =< U ->
-        true
-    ;
-        parse_error('integer out of range')
-    ).
+    L =< K, K =< U.
 parse(_, _, unit, enil).
 parse(Sub, In, sigma(X, D1, D2), epair(X, E1, E2)) :-
     parse(Sub, In, D1, E1),

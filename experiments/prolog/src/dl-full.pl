@@ -19,7 +19,8 @@ repr(_, _, unit, unit).
 repr(M, G, sigma(X, D1, D2), pair(X, T1, T2)) :-
     name(X),
     repr(M, G, D1, T1),
-    repr(M, [X - T1 | G], D2, T2).
+    rsub(M, [], T1, TX),
+    repr(M, [X - TX | G], D2, T2).
 repr(M, G, array(D, E), array(T)) :-
     has_type(G, E, int),
     repr(M, G, D, T).
@@ -35,14 +36,19 @@ repr(M, G, cond(E, D1, D2), sum(T1, T2)) :-
     has_type(G, E, bool),
     repr(M, G, D1, T1),
     repr(M, G, D2, T2).
+repr(M, _, mvar(A), tvar(A)) :-
+    member(A - _, M).
+repr(M, G, mu(A, D), mu(A, T)) :-
+    repr([A - mu(A, T) | M], G, D, T).
 
 
 %%%%%%%%%%%
 %  Types  %
 %%%%%%%%%%%
 
-has_type(G, evar(X), T) :-
-    member(X - T, G).
+has_type(G, evar(X), U) :-
+    member(X - T, G),
+    unroll(T, U).
 has_type(_, eint(K), int) :-
     integer(K).
 has_type(_, enil, unit).
@@ -50,18 +56,20 @@ has_type(G, epair(X, E1, E2), pair(X, T1, T2)) :-
     name(X),
     has_type(G, E1, T1),
     has_type(G, E2, T2).
-has_type(G, efield(E, X), TX) :-
+has_type(G, efield(E, X), UX) :-
     has_type(G, E, T),
-    field_type(T, X, TX).
+    field_type(T, X, TX),
+    unroll(TX, UX).
 has_type(_, enil, array(_)).
 has_type(G, econs(E1, E2), array(T)) :-
     has_type(G, E1, T),
     has_type(G, E2, array(T)).
 has_type(G, elength(E), int) :-
     has_type(G, E, array(_)).
-has_type(G, eindex(E1, E2), T) :-
+has_type(G, eindex(E1, E2), U) :-
     has_type(G, E1, array(T)),
-    has_type(G, E2, int).
+    has_type(G, E2, int),
+    unroll(T, U).
 has_type(G, eleft(E), sum(T, _)) :-
     has_type(G, E, T).
 has_type(G, eright(E), sum(_, T)) :-
@@ -98,6 +106,16 @@ has_type(G, eor(E1, E2), bool) :-
 has_type(G, eand(E1, E2), bool) :-
     has_type(G, E1, bool),
     has_type(G, E2, bool).
+has_type(G, E, mu(A, T)) :-
+    tsub(mu(A, T), A, T, U),
+    has_type(G, E, U).
+
+unroll(T, U) :-
+    ( T = mu(A, T1) ->
+        tsub(T, A, T1, U)
+    ;
+        U = T
+    ).
 
 
 %%%%%%%%%%%%
@@ -108,20 +126,12 @@ parse(Sub, In, int(B, EL, EU), eint(K)) :-
     eval(Sub, EL, eint(L)),
     eval(Sub, EU, eint(U)),
     read_bytes(In, B, K),
-    ( L =< K, K =< U ->
-        true
-    ;
-        parse_error('integer out of range')
-    ).
+    L =< K, K =< U.
 parse(Sub, In, uint(B, EL, EU), eint(K)) :-
     eval(Sub, EL, eint(L)),
     eval(Sub, EU, eint(U)),
     uread_bytes(In, B, K),
-    ( L =< K, K =< U ->
-        true
-    ;
-        parse_error('integer out of range')
-    ).
+    L =< K, K =< U.
 parse(_, _, unit, enil).
 parse(Sub, In, sigma(X, D1, D2), epair(X, E1, E2)) :-
     parse(Sub, In, D1, E1),
@@ -140,6 +150,9 @@ parse(Sub, _, compute(E, _), V) :-
 parse(Sub, In, cond(E, D1, D2), V) :-
     eval(Sub, E, VB),
     parse_cond(Sub, In, VB, D1, D2, V).
+parse(Sub, In, mu(A, D), V) :-
+    dsub(mu(A, D), A, D, U),
+    parse(Sub, In, U, V).
 
 parse_array(Sub, In, D, N, E) :-
     ( N > 0 ->
@@ -244,4 +257,86 @@ expr_or(efalse, efalse, efalse).
 expr_and(etrue, etrue, etrue).
 expr_and(etrue, efalse, efalse).
 expr_and(efalse, _, efalse).
+
+
+%%%%%%%%%%%%%%%%%%%
+%  Substitutions  %
+%%%%%%%%%%%%%%%%%%%
+
+% Recursively substitute free variables.
+rsub(_, _, int, int).
+rsub(_, _, unit, unit).
+rsub(M, BVars, pair(X, T1, T2), pair(X, U1, U2)) :-
+    rsub(M, BVars, T1, U1),
+    rsub(M, BVars, T2, U2).
+rsub(M, BVars, array(T), array(U)) :-
+    rsub(M, BVars, T, U).
+rsub(M, BVars, sum(T1, T2), sum(U1, U2)) :-
+    rsub(M, BVars, T1, U1),
+    rsub(M, BVars, T2, U2).
+rsub(M, BVars, tvar(A), U) :-
+    ( member(A, BVars) ->
+        U = tvar(A)
+    ;
+        append(_, [A - T | M1], M),
+        rsub(M1, [], T, U)
+    ).
+rsub(M, BVars, mu(A, T), mu(A, U)) :-
+    rsub(M, [A | BVars], T, U).
+
+% Substitute a free type variable.
+tsub(_, _, int, int).
+tsub(_, _, unit, unit).
+tsub(S, A, pair(X, T1, T2), pair(X, U1, U2)) :-
+    tsub(S, A, T1, U1),
+    tsub(S, A, T2, U2).
+tsub(S, A, array(T), array(U)) :-
+    tsub(S, A, T, U).
+tsub(S, A, sum(T1, T2), sum(U1, U2)) :-
+    tsub(S, A, T1, U1),
+    tsub(S, A, T2, U2).
+tsub(S, A, tvar(B), U) :-
+    ( A = B ->
+        U = S
+    ;
+        U = tvar(B)
+    ).
+tsub(S, A, mu(B, T), mu(B, U)) :-
+    ( A = B ->
+        U = T
+    ;
+        tsub(S, A, T, U)
+    ).
+
+% Substitute a free description variable.
+dsub(_, _, int(B, EL, EU), int(B, EL, EU)).
+dsub(_, _, uint(B, EL, EU), uint(B, EL, EU)).
+dsub(_, _, unit, unit).
+dsub(S, A, sigma(X, D1, D2), sigma(X, U1, U2)) :-
+    dsub(S, A, D1, U1),
+    dsub(S, A, D2, U2).
+dsub(S, A, array(D, E), array(U, E)) :-
+    dsub(S, A, D, U).
+dsub(S, A, union(D1, D2), union(U1, U2)) :-
+    dsub(S, A, D1, U1),
+    dsub(S, A, D2, U2).
+dsub(S, A, absorb(D), absorb(U)) :-
+    dsub(S, A, D, U).
+dsub(S, A, compute(E, D), compute(E, U)) :-
+    dsub(S, A, D, U).
+dsub(S, A, cond(E, D1, D2), cond(E, U1, U2)) :-
+    dsub(S, A, D1, U1),
+    dsub(S, A, D2, U2).
+dsub(S, A, mvar(B), U) :-
+    ( A = B ->
+        U = S
+    ;
+        U = mvar(B)
+    ).
+dsub(S, A, mu(B, D), mu(B, U)) :-
+    ( A = B ->
+        U = D
+    ;
+        dsub(S, A, D, U)
+    ).
 

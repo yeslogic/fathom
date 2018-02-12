@@ -1319,7 +1319,7 @@ $$
 }
 \\[2em]
 \dfrac{
-    M,\alpha \mapsto \mu \alpha . M(T);\Gamma \vdash \tau : \text{Desc}
+    M,\alpha \mapsto \mu \alpha . T;\Gamma \vdash \tau : \text{Desc}
     ~~\Longrightarrow~~ T : \text{Host}
 }{
     M;\Gamma \vdash \mu \alpha . \tau : \text{Desc}
@@ -1328,7 +1328,8 @@ $$
 \\[2em]
 \dfrac{
     M;\Gamma \vdash \tau_1 : \text{Desc} ~~\Longrightarrow~~
-    T_1 : \text{Host} \qquad
+    T_1 : \text{Host}
+    \\
     M;\Gamma, x : M(T_1) \vdash \tau_2 : \text{Desc} ~~\Longrightarrow~~
     T_2 : \text{Host}
 }{
