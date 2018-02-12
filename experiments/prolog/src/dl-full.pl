@@ -86,6 +86,14 @@ has_type(G, econd(E, E1, E2), T) :-
     has_type(G, E, bool),
     has_type(G, E1, T),
     has_type(G, E2, T).
+has_type(G, enot(E), bool) :-
+    has_type(G, E, bool).
+has_type(G, eor(E1, E2), bool) :-
+    has_type(G, E1, bool),
+    has_type(G, E2, bool).
+has_type(G, eand(E1, E2), bool) :-
+    has_type(G, E1, bool),
+    has_type(G, E2, bool).
 
 
 %%%%%%%%%%%%
@@ -192,6 +200,17 @@ eval(Sub, eleq(E1, E2), R) :-
 eval(Sub, econd(E, E1, E2), V) :-
     eval(Sub, E, V0),
     eval_cond(Sub, V0, E1, E2, V).
+eval(Sub, enot(E1), V) :-
+    eval(Sub, E1, V1),
+    expr_not(V1, V).
+eval(Sub, eor(E1, E2), V) :-
+    eval(Sub, E1, V1),
+    eval(Sub, E2, V2),
+    expr_or(V1, V2, V).
+eval(Sub, eand(E1, E2), V) :-
+    eval(Sub, E1, V1),
+    eval(Sub, E2, V2),
+    expr_and(V1, V2, V).
 
 eval_case(Sub, eleft(VX), X, E, _, V) :-
     eval([X - VX | Sub], E, V).
@@ -202,4 +221,15 @@ eval_cond(Sub, etrue, E, _, V) :-
     eval(Sub, E, V).
 eval_cond(Sub, efalse, _, E, V) :-
     eval(Sub, E, V).
+
+expr_not(etrue, efalse).
+expr_not(efalse, etrue).
+
+expr_or(etrue, _, etrue).
+expr_or(efalse, etrue, etrue).
+expr_or(efalse, efalse, efalse).
+
+expr_and(etrue, etrue, etrue).
+expr_and(etrue, efalse, efalse).
+expr_and(efalse, _, efalse).
 
