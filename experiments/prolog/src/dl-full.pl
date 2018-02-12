@@ -26,6 +26,11 @@ repr(M, G, array(D, E), array(T)) :-
 repr(M, G, union(D1, D2), sum(T1, T2)) :-
     repr(M, G, D1, T1),
     repr(M, G, D2, T2).
+repr(M, G, absorb(D), unit) :-
+    repr(M, G, D, _).
+repr(M, G, compute(E, D), T) :-
+    has_type(G, E, T),
+    repr(M, G, D, T).
 
 
 %%%%%%%%%%%
@@ -104,6 +109,10 @@ parse(Sub, In, union(D, _), eleft(E)) :-
     parse(Sub, In, D, E).
 parse(Sub, In, union(_, D), eright(E)) :-
     parse(Sub, In, D, E).
+parse(Sub, In, absorb(D), nil) :-
+    parse(Sub, In, D, _).
+parse(Sub, _, compute(E, _), V) :-
+    eval(Sub, E, V).
 
 parse_array(Sub, In, D, N, E) :-
     ( N > 0 ->
