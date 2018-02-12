@@ -31,6 +31,10 @@ repr(M, G, absorb(D), unit) :-
 repr(M, G, compute(E, D), T) :-
     has_type(G, E, T),
     repr(M, G, D, T).
+repr(M, G, cond(E, D1, D2), sum(T1, T2)) :-
+    has_type(G, E, bool),
+    repr(M, G, D1, T1),
+    repr(M, G, D2, T2).
 
 
 %%%%%%%%%%%
@@ -133,6 +137,9 @@ parse(Sub, In, absorb(D), nil) :-
     parse(Sub, In, D, _).
 parse(Sub, _, compute(E, _), V) :-
     eval(Sub, E, V).
+parse(Sub, In, cond(E, D1, D2), V) :-
+    eval(Sub, E, VB),
+    parse_cond(Sub, In, VB, D1, D2, V).
 
 parse_array(Sub, In, D, N, E) :-
     ( N > 0 ->
@@ -143,6 +150,11 @@ parse_array(Sub, In, D, N, E) :-
     ;
         E = enil
     ).
+
+parse_cond(Sub, In, etrue, D, _, V) :-
+    parse(Sub, In, D, V).
+parse_cond(Sub, In, efalse, _, D, V) :-
+    parse(Sub, In, D, V).
 
 
 %%%%%%%%%%%%%%%%
