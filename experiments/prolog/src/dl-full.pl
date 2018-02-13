@@ -46,8 +46,8 @@ check_desc(_, _, unit, _).
 check_desc(M, G, sigma(X, D1, D2), pair(_, T1, T2)) :-
     name(X),
     check_desc(M, G, D1, T1),
-    rsub(M, [], T1, TX),
-    check_desc(M, [X - TX | G], D2, T2).
+    sub(M, T1, U),
+    check_desc(M, [X - U | G], D2, T2).
 check_desc(M, G, array(D, E), array(T)) :-
     has_type(G, E, int),
     check_desc(M, G, D, T).
@@ -66,8 +66,9 @@ check_desc(M, G, cond(E, D1, D2), sum(T1, T2)) :-
     check_desc(M, G, D2, T2).
 check_desc(M, _, mvar(A), _) :-
     contains(M, A).
-check_desc(M, G, mu(A, D), mu(_, T)) :-
-    check_desc([A - mu(A, T) | M], G, D, T).
+check_desc(M, G, mu(A, D), mu(A, T)) :-
+    sub(M, mu(A, T), U),
+    check_desc([A - U | M], G, D, T).
 
 
 %%%%%%%%%%%
@@ -291,26 +292,28 @@ expr_and(efalse, _, efalse).
 %  Substitutions  %
 %%%%%%%%%%%%%%%%%%%
 
-% Recursively substitute free variables.
-rsub(_, _, int, int).
-rsub(_, _, unit, unit).
-rsub(M, BVars, pair(X, T1, T2), pair(X, U1, U2)) :-
-    rsub(M, BVars, T1, U1),
-    rsub(M, BVars, T2, U2).
-rsub(M, BVars, array(T), array(U)) :-
-    rsub(M, BVars, T, U).
-rsub(M, BVars, sum(T1, T2), sum(U1, U2)) :-
-    rsub(M, BVars, T1, U1),
-    rsub(M, BVars, T2, U2).
-rsub(M, BVars, tvar(A), U) :-
+% Substitute free type variables.
+sub(M, T, U) :-
+    sub(M, [], T, U).
+
+sub(_, _, int, int).
+sub(_, _, unit, unit).
+sub(M, BVars, pair(X, T1, T2), pair(X, U1, U2)) :-
+    sub(M, BVars, T1, U1),
+    sub(M, BVars, T2, U2).
+sub(M, BVars, array(T), array(U)) :-
+    sub(M, BVars, T, U).
+sub(M, BVars, sum(T1, T2), sum(U1, U2)) :-
+    sub(M, BVars, T1, U1),
+    sub(M, BVars, T2, U2).
+sub(M, BVars, tvar(A), U) :-
     ( member(A, BVars) ->
         U = tvar(A)
     ;
-        search(M, A, T, M1),
-        rsub(M1, [], T, U)
+        search(M, A, U)
     ).
-rsub(M, BVars, mu(A, T), mu(A, U)) :-
-    rsub(M, [A | BVars], T, U).
+sub(M, BVars, mu(A, T), mu(A, U)) :-
+    sub(M, [A | BVars], T, U).
 
 % Substitute a free type variable.
 tsub(_, _, int, int).
