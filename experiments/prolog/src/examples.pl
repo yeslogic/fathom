@@ -118,6 +118,25 @@ ex(sudoku4, D, 'bin') :-
             ),
         unit)).
 
+% DL-REC
+
+% rec ascii = union {
+%               struct {
+%                   ch: int8 in 0..127;
+%                   next: ascii;
+%               };
+%               unit;
+%           }
+ex(ascii, D, 'txt') :-
+    D = mu(ascii,
+            union(
+                sigma(ch, int(8, eint(0), eint(127)),
+                sigma(next, mvar(ascii),
+                unit)),
+                unit
+            )
+        ).
+
 % DL-REC+ARITH+UNSIGNED
 
 % struct {

@@ -1,45 +1,72 @@
+%%%%%%%%%%%%%%%%%%%%
+%  Representation  %
+%%%%%%%%%%%%%%%%%%%%
+
+repr(int(_, _, _), int).
+repr(uint(_, _, _), int).
+repr(unit, unit).
+repr(sigma(X, D1, D2), pair(X, T1, T2)) :-
+    repr(D1, T1),
+    repr(D2, T2).
+repr(array(D, _), array(T)) :-
+    repr(D, T).
+repr(union(D1, D2), sum(T1, T2)) :-
+    repr(D1, T1),
+    repr(D2, T2).
+repr(absorb(_), unit).
+repr(compute(_, D), T) :-
+    repr(D, T).
+repr(cond(_, D1, D2), sum(T1, T2)) :-
+    repr(D1, T1),
+    repr(D2, T2).
+repr(mvar(A), tvar(A)).
+repr(mu(A, D), mu(A, T)) :-
+    repr(D, T).
+
+
 %%%%%%%%%%%
 %  Kinds  %
 %%%%%%%%%%%
 
-check_desc(D) :-
-    repr([], [], D, _).
+check_desc(D, T) :-
+    check_desc([], [], D, T).
 
-repr(_, G, int(B, EL, EU), int) :-
+check_desc(_, G, int(B, EL, EU), _) :-
     integer(B),
     B > 0,
     has_type(G, EL, int),
     has_type(G, EU, int).
-repr(_, G, uint(B, EL, EU), int) :-
+check_desc(_, G, uint(B, EL, EU), _) :-
     integer(B),
     B > 0,
     has_type(G, EL, int),
     has_type(G, EU, int).
-repr(_, _, unit, unit).
-repr(M, G, sigma(X, D1, D2), pair(X, T1, T2)) :-
+check_desc(_, _, unit, _).
+check_desc(M, G, sigma(X, D1, D2), pair(_, T1, T2)) :-
     name(X),
-    repr(M, G, D1, T1),
+    check_desc(M, G, D1, T1),
     rsub(M, [], T1, TX),
-    repr(M, [X - TX | G], D2, T2).
-repr(M, G, array(D, E), array(T)) :-
+    check_desc(M, [X - TX | G], D2, T2).
+check_desc(M, G, array(D, E), array(T)) :-
     has_type(G, E, int),
-    repr(M, G, D, T).
-repr(M, G, union(D1, D2), sum(T1, T2)) :-
-    repr(M, G, D1, T1),
-    repr(M, G, D2, T2).
-repr(M, G, absorb(D), unit) :-
-    repr(M, G, D, _).
-repr(M, G, compute(E, D), T) :-
+    check_desc(M, G, D, T).
+check_desc(M, G, union(D1, D2), sum(T1, T2)) :-
+    check_desc(M, G, D1, T1),
+    check_desc(M, G, D2, T2).
+check_desc(M, G, absorb(D), _) :-
+    repr(D, T),
+    check_desc(M, G, D, T).
+check_desc(M, G, compute(E, D), T) :-
     has_type(G, E, T),
-    repr(M, G, D, T).
-repr(M, G, cond(E, D1, D2), sum(T1, T2)) :-
+    check_desc(M, G, D, T).
+check_desc(M, G, cond(E, D1, D2), sum(T1, T2)) :-
     has_type(G, E, bool),
-    repr(M, G, D1, T1),
-    repr(M, G, D2, T2).
-repr(M, _, mvar(A), tvar(A)) :-
+    check_desc(M, G, D1, T1),
+    check_desc(M, G, D2, T2).
+check_desc(M, _, mvar(A), _) :-
     member(A - _, M).
-repr(M, G, mu(A, D), mu(A, T)) :-
-    repr([A - mu(A, T) | M], G, D, T).
+check_desc(M, G, mu(A, D), mu(_, T)) :-
+    check_desc([A - mu(A, T) | M], G, D, T).
 
 
 %%%%%%%%%%%

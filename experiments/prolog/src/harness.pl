@@ -11,7 +11,7 @@ runtest(Name) :-
     expand_file_name(Pat, Files),
     ( \+ ground(D) ->
         static_error('description not ground')
-    ; \+ check_desc(D) ->
+    ; \+ (repr(D, T), check_desc(D, T)) ->
         static_error('ill-kinded description')
     ; Files = [] ->
         writeln('no data files')
