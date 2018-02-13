@@ -28,7 +28,8 @@ repr(mu(A, D), mu(A, T)) :-
 %  Kinds  %
 %%%%%%%%%%%
 
-check_desc(D, T) :-
+check_desc(D) :-
+    repr(D, T),
     check_desc([], [], D, T).
 
 check_desc(_, G, int(B, EL, EU), _) :-
@@ -64,7 +65,7 @@ check_desc(M, G, cond(E, D1, D2), sum(T1, T2)) :-
     check_desc(M, G, D1, T1),
     check_desc(M, G, D2, T2).
 check_desc(M, _, mvar(A), _) :-
-    member(A - _, M).
+    contains(M, A).
 check_desc(M, G, mu(A, D), mu(_, T)) :-
     check_desc([A - mu(A, T) | M], G, D, T).
 
@@ -74,7 +75,7 @@ check_desc(M, G, mu(A, D), mu(_, T)) :-
 %%%%%%%%%%%
 
 has_type(G, evar(X), U) :-
-    member(X - T, G),
+    search(G, X, T),
     unroll(T, U).
 has_type(_, eint(K), int) :-
     integer(K).
@@ -202,7 +203,7 @@ parse_cond(Sub, In, efalse, _, D, V) :-
 %%%%%%%%%%%%%%%%
 
 eval(Sub, evar(X), V) :-
-    member(X - V, Sub).
+    search(Sub, X, V).
 eval(_, eint(K), eint(K)).
 eval(_, enil, enil).
 eval(Sub, epair(E1, E2), epair(V1, V2)) :-
@@ -305,7 +306,7 @@ rsub(M, BVars, tvar(A), U) :-
     ( member(A, BVars) ->
         U = tvar(A)
     ;
-        append(_, [A - T | M1], M),
+        search(M, A, T, M1),
         rsub(M1, [], T, U)
     ).
 rsub(M, BVars, mu(A, T), mu(A, U)) :-

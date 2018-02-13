@@ -5,6 +5,26 @@
 name(X) :-
     atom(X).
 
+
+%%%%%%%%%%%%%%%%%%
+%  Environments  %
+%%%%%%%%%%%%%%%%%%
+
+contains(Env, A) :-
+    search(Env, A, _, _).
+
+search(Env, A, X) :-
+    search(Env, A, X, _).
+
+search([A0 - X0 | Rest0], A, X, Rest) :-
+    ( A = A0 ->
+        X = X0,
+        Rest = Rest0
+    ;
+        search(Rest0, A, X, Rest)
+    ).
+
+
 %%%%%%%%%%%%%%%%%%%%%%
 %  Structure access  %
 %%%%%%%%%%%%%%%%%%%%%%
