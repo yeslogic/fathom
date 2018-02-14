@@ -137,6 +137,34 @@ ex(ascii, D, 'txt') :-
             )
         ).
 
+% DL-REC+COND
+
+% rec tree =
+%   struct {
+%       data: int8;
+%       children: rec list =
+%           struct {
+%               tag: int8 in 0..1;
+%               val: if tag <= 0 then unit else
+%                       struct {
+%                           child: tree;
+%                           next: list;
+%                       };
+%           }
+%   }
+ex(tree, D, 'bin') :-
+    inttype(8, Int8),
+    D = mu(tree,
+            sigma(data, Int8,
+            sigma(children, mu(list,
+                sigma(tag, int(8, eint(0), eint(1)),
+                sigma(val, cond(eleq(evar(tag), eint(0)), unit,
+                    sigma(child, mvar(tree),
+                    sigma(next, mvar(list),
+                    unit))),
+                unit))),
+            unit))).
+
 % DL-REC+ARITH+UNSIGNED
 
 % struct {
