@@ -4,8 +4,8 @@ use std::fmt;
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-pub use syntax::ast::{Endianness, Field, TypeConst};
-pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, SignedType, Unop, UnsignedType};
+pub use syntax::core::{Endianness, Field, TypeConst};
+pub use syntax::core::{Binop, Const, FloatType, IntSuffix, SignedType, Unop, UnsignedType};
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -53,7 +53,7 @@ impl Path {
     /// Join path elements to make a camel-case path
     ///
     /// ```rust
-    /// use ddl::ir::ast::Path;
+    /// use ddl::compile::ir::Path;
     ///
     /// assert_eq!(
     ///     Path::from("Data3D::some_field::BLARGH::Vec3d").to_camel_case(),

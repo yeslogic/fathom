@@ -6,7 +6,7 @@
 
 use codespan::{BytePos, Span};
 
-pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
+pub use syntax::core::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module<'input> {

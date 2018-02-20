@@ -5,26 +5,24 @@ extern crate difference;
 #[macro_use]
 mod test;
 
-use ddl::check;
-use ddl::parser;
-use ddl::syntax::ast::{self, Module};
+use ddl::syntax::core::Module;
 
 #[test]
 fn bitmap() {
     const SRC: &str = include_str!("../examples/formats/bitmap/src/bitmap.ddl");
 
-    let mut module = Module::from_parse(&parser::module(SRC).unwrap()).unwrap();
+    let mut module = Module::from_concrete(&ddl::syntax::parse::module(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(bitmap_module, module);
 
-    let base_defs = ast::base_defs();
+    let base_defs = ddl::syntax::core::base_defs();
     module.substitute(&base_defs);
 
-    check::check_module(&module).unwrap();
+    ddl::semantics::check_module(&module).unwrap();
 
-    let ir = ddl::ir::ast::Module::from(&module);
+    let ir = ddl::compile::ir::Module::from(&module);
     assert_debug_snapshot!(bitmap_ir, ir);
 
-    let rust_output = ddl::codegen::LowerModule(&ir).to_string();
+    let rust_output = ddl::compile::codegen::LowerModule(&ir).to_string();
     assert_display_snapshot!(bitmap_codegen, rust_output);
 }
 
@@ -32,18 +30,18 @@ fn bitmap() {
 fn bson() {
     const SRC: &str = include_str!("../examples/formats/bson/src/bson.ddl");
 
-    let mut module = Module::from_parse(&parser::module(SRC).unwrap()).unwrap();
+    let mut module = Module::from_concrete(&ddl::syntax::parse::module(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(bson_module, module);
 
-    let base_defs = ast::base_defs();
+    let base_defs = ddl::syntax::core::base_defs();
     module.substitute(&base_defs);
 
-    check::check_module(&module).unwrap();
+    ddl::semantics::check_module(&module).unwrap();
 
-    let ir = ddl::ir::ast::Module::from(&module);
+    let ir = ddl::compile::ir::Module::from(&module);
     assert_debug_snapshot!(bson_ir, ir);
 
-    let rust_output = ddl::codegen::LowerModule(&ir).to_string();
+    let rust_output = ddl::compile::codegen::LowerModule(&ir).to_string();
     assert_display_snapshot!(bson_codegen, rust_output);
 }
 
@@ -51,18 +49,18 @@ fn bson() {
 fn edid() {
     const SRC: &str = include_str!("../examples/formats/edid/src/edid.ddl");
 
-    let mut module = Module::from_parse(&parser::module(SRC).unwrap()).unwrap();
+    let mut module = Module::from_concrete(&ddl::syntax::parse::module(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(edid_module, module);
 
-    let base_defs = ast::base_defs();
+    let base_defs = ddl::syntax::core::base_defs();
     module.substitute(&base_defs);
 
-    check::check_module(&module).unwrap();
+    ddl::semantics::check_module(&module).unwrap();
 
-    let ir = ddl::ir::ast::Module::from(&module);
+    let ir = ddl::compile::ir::Module::from(&module);
     assert_debug_snapshot!(edid_ir, ir);
 
-    let rust_output = ddl::codegen::LowerModule(&ir).to_string();
+    let rust_output = ddl::compile::codegen::LowerModule(&ir).to_string();
     assert_display_snapshot!(edid_codegen, rust_output);
 }
 
@@ -70,18 +68,18 @@ fn edid() {
 fn object_id() {
     const SRC: &str = include_str!("../examples/formats/object_id/src/object_id.ddl");
 
-    let mut module = Module::from_parse(&parser::module(SRC).unwrap()).unwrap();
+    let mut module = Module::from_concrete(&ddl::syntax::parse::module(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(object_id_module, module);
 
-    let base_defs = ast::base_defs();
+    let base_defs = ddl::syntax::core::base_defs();
     module.substitute(&base_defs);
 
-    check::check_module(&module).unwrap();
+    ddl::semantics::check_module(&module).unwrap();
 
-    let ir = ddl::ir::ast::Module::from(&module);
+    let ir = ddl::compile::ir::Module::from(&module);
     assert_debug_snapshot!(object_id_ir, ir);
 
-    let rust_output = ddl::codegen::LowerModule(&ir).to_string();
+    let rust_output = ddl::compile::codegen::LowerModule(&ir).to_string();
     assert_display_snapshot!(object_id_codegen, rust_output);
 }
 
@@ -89,17 +87,17 @@ fn object_id() {
 fn stl() {
     const SRC: &str = include_str!("../examples/formats/stl/src/stl.ddl");
 
-    let mut module = Module::from_parse(&parser::module(SRC).unwrap()).unwrap();
+    let mut module = Module::from_concrete(&ddl::syntax::parse::module(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(stl_module, module);
 
-    let base_defs = ast::base_defs();
+    let base_defs = ddl::syntax::core::base_defs();
     module.substitute(&base_defs);
 
-    check::check_module(&module).unwrap();
+    ddl::semantics::check_module(&module).unwrap();
 
-    let ir = ddl::ir::ast::Module::from(&module);
+    let ir = ddl::compile::ir::Module::from(&module);
     assert_debug_snapshot!(stl_ir, ir);
 
-    let rust_output = ddl::codegen::LowerModule(&ir).to_string();
+    let rust_output = ddl::compile::codegen::LowerModule(&ir).to_string();
     assert_display_snapshot!(stl_codegen, rust_output);
 }

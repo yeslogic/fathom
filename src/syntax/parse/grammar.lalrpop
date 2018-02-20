@@ -1,8 +1,8 @@
 use lalrpop_util::ParseError as LalrpopError;
 use codespan::{BytePos, Span};
-use parser::ast::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
-use parser::ParseError;
-use parser::lexer::Token;
+
+use syntax::concrete::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
+use syntax::parse::{ParseError, Token};
 
 
 grammar<'input>();
@@ -149,7 +149,7 @@ HostType: TypeConst = {
     //
     // We'll just hard-code identifiers for now
     <lo: @L> <name: "Ident"> <hi: @R> =>? {
-        use syntax::ast::{FloatType, SignedType, UnsignedType};
+        use syntax::core::{FloatType, SignedType, UnsignedType};
 
         match name {
             "unit" => Ok(TypeConst::Unit),
@@ -273,7 +273,7 @@ PrefixExpr: Expr<'input> = {
 
 IntLiteral<Value>: Expr<'input> = {
     <lo: @L> <value: Value> <hi: @R> =>? {
-        use syntax::ast::{IntSuffix, SignedType, UnsignedType};
+        use syntax::core::{IntSuffix, SignedType, UnsignedType};
 
         let float = Const::Int(value.0, match value.1 {
             "i8" => IntSuffix::Signed(SignedType::I8),
@@ -303,7 +303,7 @@ IntLiteral<Value>: Expr<'input> = {
 
 FloatLiteral<Value>: Expr<'input> = {
     <lo: @L> <value: Value> <hi: @R> =>? {
-        use syntax::ast::FloatType;
+        use syntax::core::FloatType;
 
         let float = Const::Float(value.0, match value.1 {
             "f32" => FloatType::F32,

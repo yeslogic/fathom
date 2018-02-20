@@ -1,4 +1,4 @@
-//! Intermediate representation for our DDL
+//! Compiler for our DDL
 //!
 //! For example, take the following data definition:
 //!
@@ -153,7 +153,8 @@
 //!
 //! - How should we avoid naming conflicts during the lowering of the IR to Rust?
 
-pub mod ast;
+pub mod ir;
+pub mod codegen;
 mod lower;
 // TODO: parser
 // TODO: type checking

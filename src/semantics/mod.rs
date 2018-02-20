@@ -3,9 +3,10 @@
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-use syntax::ast::{Binop, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType};
-use self::context::{Context, Scope};
+use syntax::core::{Binop, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType};
 use var::Var;
+
+use self::context::{Context, Scope};
 
 mod context;
 #[cfg(test)]
@@ -67,8 +68,8 @@ pub enum TypeError {
 
 /// Check that an expression has the given type in the context
 pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(), TypeError> {
-    use syntax::ast::CExpr;
-    use syntax::ast::Type;
+    use syntax::core::CExpr;
+    use syntax::core::Type;
 
     match *expr.inner {
         // Variant introduction
@@ -114,7 +115,7 @@ pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(
 
 /// Infer the type of an expression in the context
 pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
-    use syntax::ast::{IExpr, Type, TypeConst, Unop};
+    use syntax::core::{IExpr, Type, TypeConst, Unop};
 
     match *expr.inner {
         // Annotated types
@@ -174,7 +175,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
 
         // Unary operators
         IExpr::Unop(_, op, ref operand_expr) => {
-            use syntax::ast::Type::Const;
+            use syntax::core::Type::Const;
 
             let operand_ty = infer_ty(ctx, operand_expr)?;
 
@@ -197,7 +198,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
 
         // Binary operators
         IExpr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
-            use syntax::ast::Type::{Const, HostArray};
+            use syntax::core::Type::{Const, HostArray};
 
             fn binop_err(
                 context: Binop,
@@ -338,7 +339,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
 // Kinding
 
 fn simplify_ty(ctx: &Context, ty: &RcType) -> RcType {
-    use syntax::ast::Type;
+    use syntax::core::Type;
 
     fn compute_ty(ctx: &Context, ty: &RcType) -> Option<RcType> {
         match *ty.inner {
@@ -417,7 +418,7 @@ fn check_kind(ctx: &Context, ty: &RcType, expected_kind: &RcKind) -> Result<(), 
 
 /// Infer the kind of a binary type in the context
 pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
-    use syntax::ast::{Type, TypeConst};
+    use syntax::core::{Type, TypeConst};
 
     match *ty.inner {
         // Variables
@@ -507,13 +508,11 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
             let size_ty = infer_ty(ctx, size_expr)?;
             match *size_ty.inner {
                 Type::Const(TypeConst::Unsigned(_)) => Ok(Kind::Binary.into()),
-                _ => Err(
-                    TypeError::Mismatch {
-                        expr: size_expr.clone(),
-                        expected: ExpectedType::Signed,
-                        found: size_ty,
-                    }.into(),
-                ),
+                _ => Err(TypeError::Mismatch {
+                    expr: size_expr.clone(),
+                    expected: ExpectedType::Signed,
+                    found: size_ty,
+                }.into()),
             }
         }
 
@@ -556,9 +555,9 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
                 check_kind(&ctx, &field.value, &Kind::Binary.into())?;
 
                 let field_ty = simplify_ty(&ctx, &field.value);
-                ctx.extend(Scope::ExprLam(
-                    vec![Named(Name::user(field.name.clone()), field_ty.repr())],
-                ));
+                ctx.extend(Scope::ExprLam(vec![
+                    Named(Name::user(field.name.clone()), field_ty.repr()),
+                ]));
             }
 
             Ok(Kind::Binary.into())

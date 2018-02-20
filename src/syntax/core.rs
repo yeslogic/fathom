@@ -5,10 +5,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use name::{Ident, Name, Named};
-use parser::ast::Definition as ParseDefinition;
-use parser::ast::Expr as ParseExpr;
-use parser::ast::Module as ParseModule;
-use parser::ast::Type as ParseType;
+use syntax::concrete;
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,17 +39,17 @@ impl Module {
         }
     }
 
-    pub fn from_parse(src: &ParseModule) -> Result<Module, ()> {
+    pub fn from_concrete(src: &concrete::Module) -> Result<Module, ()> {
         Ok(Module::new(src.definitions
             .iter()
-            .map(Definition::from_parse)
+            .map(Definition::from_concrete)
             .collect::<Result<_, _>>()?))
     }
 }
 
 pub fn base_defs() -> Substitutions {
-    use syntax::ast::TypeConst as Tc;
-    use syntax::ast::Endianness::{Big, Little};
+    use self::TypeConst as Tc;
+    use self::Endianness::{Big, Little};
 
     Substitutions {
         substs: vec![
@@ -122,8 +119,8 @@ pub struct Definition {
 }
 
 impl Definition {
-    pub fn from_parse(src: &ParseDefinition) -> Result<Definition, ()> {
-        let body_ty = RcType::from_parse(&src.body_ty)?;
+    pub fn from_concrete(src: &concrete::Definition) -> Result<Definition, ()> {
+        let body_ty = RcType::from_concrete(&src.body_ty)?;
 
         Ok(Definition {
             doc: src.doc.join("\n").into(),
@@ -772,72 +769,77 @@ impl RcType {
         }
     }
 
-    pub fn from_parse(src: &ParseType) -> Result<RcType, ()> {
+    pub fn from_concrete(src: &concrete::Type) -> Result<RcType, ()> {
         match *src {
-            ParseType::Var(span, name) => Ok(Type::Var(span, Var::free(Name::user(name))).into()),
-            ParseType::App(span, ref fn_ty, ref arg_tys) => {
-                let fn_ty = RcType::from_parse(&**fn_ty)?;
+            concrete::Type::Var(span, name) => {
+                Ok(Type::Var(span, Var::free(Name::user(name))).into())
+            }
+            concrete::Type::App(span, ref fn_ty, ref arg_tys) => {
+                let fn_ty = RcType::from_concrete(&**fn_ty)?;
                 let arg_tys = arg_tys
                     .iter()
-                    .map(|arg| RcType::from_parse(&*arg))
+                    .map(|arg| RcType::from_concrete(&*arg))
                     .collect::<Result<_, _>>()?;
 
                 Ok(Type::App(span, fn_ty, arg_tys).into())
             }
 
-            ParseType::Array(span, ref elem_ty, ref size_expr) => {
-                let elem_ty = RcType::from_parse(&**elem_ty)?;
-                let size_expr = RcIExpr::from_parse(&**size_expr)?;
+            concrete::Type::Array(span, ref elem_ty, ref size_expr) => {
+                let elem_ty = RcType::from_concrete(&**elem_ty)?;
+                let size_expr = RcIExpr::from_concrete(&**size_expr)?;
 
                 Ok(Type::Array(span, elem_ty, size_expr).into())
             }
-            ParseType::Cond(span, ref options) => {
+            concrete::Type::Cond(span, ref options) => {
                 let options = options
                     .iter()
                     .map(|variant| {
-                        let ty = RcIExpr::from_parse(&variant.value.0)?;
+                        let ty = RcIExpr::from_concrete(&variant.value.0)?;
 
                         Ok(Field {
                             doc: variant.doc.join("\n").into(),
                             name: Ident::from(variant.name),
-                            value: (CExpr::Inf(ty).into(), RcType::from_parse(&variant.value.1)?),
+                            value: (
+                                CExpr::Inf(ty).into(),
+                                RcType::from_concrete(&variant.value.1)?,
+                            ),
                         })
                     })
                     .collect::<Result<_, _>>()?;
 
                 Ok(Type::Cond(span, options).into())
             }
-            ParseType::Struct(span, ref fields) => {
+            concrete::Type::Struct(span, ref fields) => {
                 let fields = fields
                     .iter()
                     .map(|field| {
                         Ok(Field {
                             doc: field.doc.join("\n").into(),
                             name: Ident::from(field.name),
-                            value: RcType::from_parse(&field.value)?,
+                            value: RcType::from_concrete(&field.value)?,
                         })
                     })
                     .collect::<Result<_, _>>()?;
 
                 Ok(RcType::struct_(span, fields))
             }
-            ParseType::Where(span, ref ty, lo2, param_name, ref pred_expr) => {
-                let ty = RcType::from_parse(&**ty)?;
+            concrete::Type::Where(span, ref ty, lo2, param_name, ref pred_expr) => {
+                let ty = RcType::from_concrete(&**ty)?;
                 let pred_fn = RcIExpr::lam(
                     Span::new(lo2, span.hi()),
                     vec![Named(Name::user(param_name), ty.repr())],
-                    RcIExpr::from_parse(&**pred_expr)?,
+                    RcIExpr::from_concrete(&**pred_expr)?,
                 );
 
                 Ok(Type::Assert(span, ty, CExpr::Inf(pred_fn).into()).into())
             }
-            ParseType::Compute(span, repr_ty, ref expr) => {
+            concrete::Type::Compute(span, repr_ty, ref expr) => {
                 let empty = Type::Const(TypeConst::Empty).into();
                 let repr_ty = Type::Const(repr_ty).into();
                 let conv_fn = CExpr::Inf(RcIExpr::lam(
                     span,
                     vec![Named(Name::Abstract, RcType::repr(&empty))],
-                    RcIExpr::from_parse(&**expr)?,
+                    RcIExpr::from_concrete(&**expr)?,
                 )).into();
 
                 Ok(Type::Interp(span, empty.into(), conv_fn, repr_ty).into())
@@ -986,17 +988,17 @@ impl RcCExpr {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 
-    pub fn from_parse(src: &ParseExpr) -> Result<RcCExpr, ()> {
+    pub fn from_concrete(src: &concrete::Expr) -> Result<RcCExpr, ()> {
         match *src {
-            ParseExpr::Array(span, ref elems) => {
+            concrete::Expr::Array(span, ref elems) => {
                 let elems = elems
                     .iter()
-                    .map(RcCExpr::from_parse)
+                    .map(RcCExpr::from_concrete)
                     .collect::<Result<_, _>>()?;
 
                 Ok(CExpr::Array(span, elems).into())
             }
-            _ => Ok(CExpr::Inf(RcIExpr::from_parse(src)?).into()),
+            _ => Ok(CExpr::Inf(RcIExpr::from_concrete(src)?).into()),
         }
     }
 }
@@ -1176,43 +1178,45 @@ impl RcIExpr {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 
-    pub fn from_parse(src: &ParseExpr) -> Result<RcIExpr, ()> {
+    pub fn from_concrete(src: &concrete::Expr) -> Result<RcIExpr, ()> {
         match *src {
-            ParseExpr::Const(span, c) => Ok(IExpr::Const(span, c).into()),
-            ParseExpr::Ann(span, ref expr, ty) => {
-                let expr = RcCExpr::from_parse(&**expr)?;
+            concrete::Expr::Const(span, c) => Ok(IExpr::Const(span, c).into()),
+            concrete::Expr::Ann(span, ref expr, ty) => {
+                let expr = RcCExpr::from_concrete(&**expr)?;
                 let ty = Type::Const(ty).into();
 
                 Ok(IExpr::Ann(span, expr, ty).into())
             }
-            ParseExpr::Var(span, name) => Ok(IExpr::Var(span, Var::free(Name::user(name))).into()),
+            concrete::Expr::Var(span, name) => {
+                Ok(IExpr::Var(span, Var::free(Name::user(name))).into())
+            }
 
-            ParseExpr::Unop(span, op, ref expr) => {
-                let expr = RcIExpr::from_parse(&**expr)?;
+            concrete::Expr::Unop(span, op, ref expr) => {
+                let expr = RcIExpr::from_concrete(&**expr)?;
 
                 Ok(IExpr::Unop(span, op, expr).into())
             }
-            ParseExpr::Binop(span, op, ref lhs_expr, ref rhs_expr) => {
-                let lhs_expr = RcIExpr::from_parse(&**lhs_expr)?;
-                let rhs_expr = RcIExpr::from_parse(&**rhs_expr)?;
+            concrete::Expr::Binop(span, op, ref lhs_expr, ref rhs_expr) => {
+                let lhs_expr = RcIExpr::from_concrete(&**lhs_expr)?;
+                let rhs_expr = RcIExpr::from_concrete(&**rhs_expr)?;
 
                 Ok(IExpr::Binop(span, op, lhs_expr, rhs_expr).into())
             }
-            ParseExpr::Array(_, _) => Err(()),
-            ParseExpr::Proj(span, ref struct_expr, field_name) => {
-                let struct_expr = RcIExpr::from_parse(&**struct_expr)?;
+            concrete::Expr::Array(_, _) => Err(()),
+            concrete::Expr::Proj(span, ref struct_expr, field_name) => {
+                let struct_expr = RcIExpr::from_concrete(&**struct_expr)?;
                 let field_name = String::from(field_name);
 
                 Ok(IExpr::Proj(span, struct_expr, Ident::from(field_name)).into())
             }
-            ParseExpr::Subscript(span, ref array_expr, ref index_expr) => {
-                let array_expr = RcIExpr::from_parse(&**array_expr)?;
-                let index_expr = RcIExpr::from_parse(&**index_expr)?;
+            concrete::Expr::Subscript(span, ref array_expr, ref index_expr) => {
+                let array_expr = RcIExpr::from_concrete(&**array_expr)?;
+                let index_expr = RcIExpr::from_concrete(&**index_expr)?;
 
                 Ok(IExpr::Subscript(span, array_expr, index_expr).into())
             }
-            ParseExpr::Cast(span, ref expr, ty) => {
-                let expr = RcIExpr::from_parse(&**expr)?;
+            concrete::Expr::Cast(span, ref expr, ty) => {
+                let expr = RcIExpr::from_concrete(&**expr)?;
                 let ty = Type::Const(ty).into();
 
                 Ok(IExpr::Cast(span, expr, ty).into())

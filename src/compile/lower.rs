@@ -2,14 +2,14 @@
 
 use std::rc::Rc;
 
+use compile::ir::{Definition, Expr, Item, Module, ParseExpr, Path, RepeatBound, Type};
+use compile::ir::{RcExpr, RcParseExpr, RcType};
 use name::{Ident, Name, Named};
-use syntax::ast::{self, Field};
-use ir::ast::{Definition, Expr, Item, Module, ParseExpr, Path, RepeatBound, Type};
-use ir::ast::{RcExpr, RcParseExpr, RcType};
+use syntax::core::{self, Field};
 use var::{BindingIndex as Bi, BoundVar, ScopeIndex as Si, Var};
 
-impl<'a> From<&'a ast::Module> for Module {
-    fn from(src: &'a ast::Module) -> Module {
+impl<'a> From<&'a core::Module> for Module {
+    fn from(src: &'a core::Module) -> Module {
         let mut module = Module::new();
 
         for definition in &src.definitions {
@@ -20,7 +20,7 @@ impl<'a> From<&'a ast::Module> for Module {
             let path = Path::new(definition.name.0.clone());
 
             let definition = match *definition.body_ty.inner {
-                ast::Type::Lam(_, ref params, ref ty) => Definition {
+                core::Type::Lam(_, ref params, ref ty) => Definition {
                     doc: Rc::clone(&definition.doc),
                     params: params.iter().map(|p| p.0.clone()).collect(),
                     item: lower_item(&mut module, &path, ty),
@@ -41,20 +41,18 @@ impl<'a> From<&'a ast::Module> for Module {
     }
 }
 
-fn lower_item(module: &mut Module, path: &Path, ty: &ast::RcType) -> Item {
+fn lower_item(module: &mut Module, path: &Path, ty: &core::RcType) -> Item {
     match *ty.inner {
         // Structs and unions that are defined at the top level should
         // get the best names, closest to what the author of the data
         // definition intended!
-        ast::Type::Struct(_, ref fields) => Item::Struct(
-            lower_row(
-                path,
-                fields,
-                |field_path, ty| lower_ty(module, &field_path, ty),
-            ),
+        core::Type::Struct(_, ref fields) => Item::Struct(
+            lower_row(path, fields, |field_path, ty| {
+                lower_ty(module, &field_path, ty)
+            }),
             Some(struct_parser(path, fields)),
         ),
-        ast::Type::Cond(_, ref options) => Item::Union(
+        core::Type::Cond(_, ref options) => Item::Union(
             lower_row(path, options, |option_path, &(_, ref ty)| {
                 lower_ty(module, &option_path, ty)
             }),
@@ -107,19 +105,19 @@ fn lower_ty_var(var: &Var) -> RcType {
 ///   module, creating corresponding top-level definitions
 /// * `path` - path to the parent struct or union
 /// * `ty` - the type to be lowered
-fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
-    // Mirroring `ast::Type::repr`
+fn lower_ty(module: &mut Module, path: &Path, ty: &core::RcType) -> RcType {
+    // Mirroring `core::Type::repr`
     match *ty.inner {
-        ast::Type::Var(_, ref var) => lower_ty_var(var),
-        ast::Type::Const(ty_const) => Type::Const(ty_const.repr()).into(),
-        ast::Type::Lam(_, _, _) => {
+        core::Type::Var(_, ref var) => lower_ty_var(var),
+        core::Type::Const(ty_const) => Type::Const(ty_const.repr()).into(),
+        core::Type::Lam(_, _, _) => {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
             // top-level definitions. Thes should have already been handled in
-            // the `From<&'a ast::Module>` impl for `Module`.
+            // the `From<&'a core::Module>` impl for `Module`.
             panic!("ICE: encountered unexpected type abstraction: {:?}", ty)
         }
-        ast::Type::App(_, ref ty, ref param_tys) => {
+        core::Type::App(_, ref ty, ref param_tys) => {
             let lowered_ty = lower_ty(module, path, ty);
 
             // Replace empty parameter lists on paths with the supplied parameters
@@ -131,9 +129,7 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
                 let lowered_params = param_tys
                     .iter()
                     .enumerate()
-                    .map(|(i, ty)| {
-                        lower_ty(module, &path.append_child(format!("Arg{}", i)), ty)
-                    })
+                    .map(|(i, ty)| lower_ty(module, &path.append_child(format!("Arg{}", i)), ty))
                     .collect::<Vec<_>>();
 
                 return Type::Path(path.clone(), lowered_params).into();
@@ -142,15 +138,15 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
             lowered_ty
         }
 
-        ast::Type::Array(_, ref elem_ty, _) => {
+        core::Type::Array(_, ref elem_ty, _) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_ty(module, &elem_path, elem_ty);
 
             Type::Array(elem_ty).into()
         }
-        ast::Type::Assert(_, ref ty, _) => lower_ty(module, path, ty),
-        ast::Type::Interp(_, _, _, ref repr_ty) => lower_repr_ty(path, repr_ty),
-        ast::Type::Cond(_, ref options) => {
+        core::Type::Assert(_, ref ty, _) => lower_ty(module, path, ty),
+        core::Type::Interp(_, _, _, ref repr_ty) => lower_repr_ty(path, repr_ty),
+        core::Type::Cond(_, ref options) => {
             let definition = Definition {
                 doc: "".into(),
                 path: path.clone(),
@@ -166,17 +162,15 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
             module.define(definition);
             Type::Path(path.clone(), vec![]).into()
         }
-        ast::Type::Struct(_, ref fields) => {
+        core::Type::Struct(_, ref fields) => {
             let definition = Definition {
                 doc: "".into(),
                 path: path.clone(),
                 params: vec![],
                 item: Item::Struct(
-                    lower_row(
-                        path,
-                        fields,
-                        |field_path, ty| lower_ty(module, &field_path, ty),
-                    ),
+                    lower_row(path, fields, |field_path, ty| {
+                        lower_ty(module, &field_path, ty)
+                    }),
                     None,
                 ),
             };
@@ -195,11 +189,11 @@ fn lower_ty(module: &mut Module, path: &Path, ty: &ast::RcType) -> RcType {
 ///
 /// * `path` - path to the parent struct or union
 /// * `ty` - the type to be lowered
-fn lower_repr_ty(path: &Path, ty: &ast::RcType) -> RcType {
+fn lower_repr_ty(path: &Path, ty: &core::RcType) -> RcType {
     match *ty.inner {
-        ast::Type::HostVar(ref var) => lower_ty_var(var),
-        ast::Type::Const(ty_const) => Type::Const(ty_const).into(),
-        ast::Type::Arrow(ref arg_tys, ref ret_ty) => {
+        core::Type::HostVar(ref var) => lower_ty_var(var),
+        core::Type::Const(ty_const) => Type::Const(ty_const).into(),
+        core::Type::Arrow(ref arg_tys, ref ret_ty) => {
             let arg_repr_tys = arg_tys
                 .iter()
                 .map(|arg_ty| lower_repr_ty(path, arg_ty))
@@ -208,14 +202,14 @@ fn lower_repr_ty(path: &Path, ty: &ast::RcType) -> RcType {
 
             Type::Arrow(arg_repr_tys, ret_repr_ty).into()
         }
-        ast::Type::Lam(_, _, _) => {
+        core::Type::Lam(_, _, _) => {
             // Due to the way our surface syntax is defined, the only type
             // abstractions we should encounter are those that are defined on
             // top-level definitions. Thes should have already been handled in
-            // the `From<&'a ast::Module>` impl for `Module`.
+            // the `From<&'a core::Module>` impl for `Module`.
             panic!("ICE: encountered unexpected type abstraction: {:?}", ty)
         }
-        ast::Type::App(_, ref ty, ref param_tys) => {
+        core::Type::App(_, ref ty, ref param_tys) => {
             let lowered_ty = lower_repr_ty(path, ty);
 
             // Replace empty parameter lists on paths with the supplied parameters
@@ -227,9 +221,7 @@ fn lower_repr_ty(path: &Path, ty: &ast::RcType) -> RcType {
                 let lowered_params = param_tys
                     .iter()
                     .enumerate()
-                    .map(|(i, ty)| {
-                        lower_repr_ty(&path.append_child(format!("Arg{}", i)), ty)
-                    })
+                    .map(|(i, ty)| lower_repr_ty(&path.append_child(format!("Arg{}", i)), ty))
                     .collect::<Vec<_>>();
 
                 return Type::Path(path.clone(), lowered_params).into();
@@ -238,13 +230,13 @@ fn lower_repr_ty(path: &Path, ty: &ast::RcType) -> RcType {
             lowered_ty
         }
 
-        ast::Type::HostArray(ref elem_ty) => {
+        core::Type::HostArray(ref elem_ty) => {
             let elem_path = path.append_child("Elem");
             let elem_ty = lower_repr_ty(&elem_path, elem_ty);
 
             Type::Array(elem_ty).into()
         }
-        ast::Type::HostUnion(_) | ast::Type::HostStruct(_) => {
+        core::Type::HostUnion(_) | core::Type::HostStruct(_) => {
             // We expect that the repr type has already had a corresponding type
             // generated for it, so instead we just return the current path.
             Type::Path(path.clone(), vec![]).into()
@@ -260,37 +252,35 @@ fn lower_repr_ty(path: &Path, ty: &ast::RcType) -> RcType {
 ///
 /// * `path` - path to the parent struct or union
 /// * `expr` - the expression to be lowered
-fn lower_cexpr(path: &Path, expr: &ast::RcCExpr) -> RcExpr {
+fn lower_cexpr(path: &Path, expr: &core::RcCExpr) -> RcExpr {
     match *expr.inner {
-        ast::CExpr::Intro(_, _, _) => unimplemented!(),
-        ast::CExpr::Array(_, ref elems) => {
+        core::CExpr::Intro(_, _, _) => unimplemented!(),
+        core::CExpr::Array(_, ref elems) => {
             Expr::Array(elems.iter().map(|elem| lower_cexpr(path, elem)).collect()).into()
         }
-        ast::CExpr::Inf(ref iexpr) => lower_iexpr(path, iexpr),
+        core::CExpr::Inf(ref iexpr) => lower_iexpr(path, iexpr),
     }
 }
 
-fn lower_iexpr(path: &Path, expr: &ast::RcIExpr) -> RcExpr {
+fn lower_iexpr(path: &Path, expr: &core::RcIExpr) -> RcExpr {
     match *expr.inner {
-        ast::IExpr::Ann(_, ref expr, ref ty) => {
+        core::IExpr::Ann(_, ref expr, ref ty) => {
             let lowered_expr = lower_cexpr(path, expr);
             let lowered_ty = lower_repr_ty(path, ty);
 
             Expr::Ann(lowered_expr, lowered_ty).into()
         }
-        ast::IExpr::Const(_, c) => Expr::Const(c).into(),
-        ast::IExpr::Var(_, ref var) => Expr::Var(var.clone()).into(),
-        ast::IExpr::Lam(_, ref params, ref body_expr) => {
+        core::IExpr::Const(_, c) => Expr::Const(c).into(),
+        core::IExpr::Var(_, ref var) => Expr::Var(var.clone()).into(),
+        core::IExpr::Lam(_, ref params, ref body_expr) => {
             let lowered_params = params
                 .iter()
-                .map(|&Named(ref name, ref ty)| {
-                    Named(name.clone(), lower_repr_ty(path, ty))
-                })
+                .map(|&Named(ref name, ref ty)| Named(name.clone(), lower_repr_ty(path, ty)))
                 .collect();
 
             Expr::Lam(lowered_params, lower_iexpr(path, body_expr)).into()
         }
-        ast::IExpr::App(_, ref fn_expr, ref arg_exprs) => {
+        core::IExpr::App(_, ref fn_expr, ref arg_exprs) => {
             let lowered_arg_exprs = arg_exprs
                 .iter()
                 .map(|expr| lower_cexpr(path, expr))
@@ -299,24 +289,22 @@ fn lower_iexpr(path: &Path, expr: &ast::RcIExpr) -> RcExpr {
             Expr::App(lower_iexpr(path, fn_expr), lowered_arg_exprs).into()
         }
 
-        ast::IExpr::Unop(_, op, ref expr) => Expr::Unop(op, lower_iexpr(path, expr)).into(),
-        ast::IExpr::Binop(_, op, ref lhs, ref rhs) => {
+        core::IExpr::Unop(_, op, ref expr) => Expr::Unop(op, lower_iexpr(path, expr)).into(),
+        core::IExpr::Binop(_, op, ref lhs, ref rhs) => {
             Expr::Binop(op, lower_iexpr(path, lhs), lower_iexpr(path, rhs)).into()
         }
-        ast::IExpr::Struct(ref fields) => {
-            let lowered_fields = lower_row(
-                path,
-                fields,
-                |field_path, expr| lower_iexpr(&field_path, expr),
-            );
+        core::IExpr::Struct(ref fields) => {
+            let lowered_fields = lower_row(path, fields, |field_path, expr| {
+                lower_iexpr(&field_path, expr)
+            });
 
             Expr::Struct(path.clone(), lowered_fields).into()
         }
-        ast::IExpr::Proj(_, ref expr, ref field_name) => {
+        core::IExpr::Proj(_, ref expr, ref field_name) => {
             Expr::Proj(lower_iexpr(path, expr), field_name.clone()).into()
         }
-        ast::IExpr::Subscript(_, _, _) => unimplemented!(),
-        ast::IExpr::Cast(_, ref src_expr, ref dst_ty) => {
+        core::IExpr::Subscript(_, _, _) => unimplemented!(),
+        core::IExpr::Cast(_, ref src_expr, ref dst_ty) => {
             Expr::Cast(lower_iexpr(path, src_expr), lower_repr_ty(path, dst_ty)).into()
         }
     }
@@ -328,21 +316,19 @@ fn lower_iexpr(path: &Path, expr: &ast::RcIExpr) -> RcExpr {
 ///
 /// * `path` - path to the parent struct or union
 /// * `fields` - the fields to be used in the parser
-fn struct_parser(path: &Path, fields: &[Field<ast::RcType>]) -> RcParseExpr {
+fn struct_parser(path: &Path, fields: &[Field<core::RcType>]) -> RcParseExpr {
     use var::ScopeIndex;
 
-    let lower_to_field_parser = |field: &Field<ast::RcType>| {
+    let lower_to_field_parser = |field: &Field<core::RcType>| {
         (
             field.name.clone(),
             ty_parser(&path.append_child(field.name.0.clone()), &field.value),
         )
     };
-    let lower_to_expr_field = |field: &Field<ast::RcType>| {
-        Field {
-            doc: Rc::clone(&field.doc),
-            name: field.name.clone(),
-            value: Expr::Var(Var::free(Name::user(field.name.clone()))).into(),
-        }
+    let lower_to_expr_field = |field: &Field<core::RcType>| Field {
+        doc: Rc::clone(&field.doc),
+        name: field.name.clone(),
+        value: Expr::Var(Var::free(Name::user(field.name.clone()))).into(),
     };
 
     let parse_exprs = fields.iter().map(lower_to_field_parser);
@@ -374,8 +360,8 @@ fn struct_parser(path: &Path, fields: &[Field<ast::RcType>]) -> RcParseExpr {
 ///
 /// * `path` - path to the parent struct or union
 /// * `fields` - the fields to be used in the parser
-fn cond_parser(path: &Path, options: &[Field<(ast::RcCExpr, ast::RcType)>]) -> RcParseExpr {
-    let lower_option = |option: &Field<(ast::RcCExpr, ast::RcType)>| {
+fn cond_parser(path: &Path, options: &[Field<(core::RcCExpr, core::RcType)>]) -> RcParseExpr {
+    let lower_option = |option: &Field<(core::RcCExpr, core::RcType)>| {
         let pred_expr = lower_cexpr(path, &option.value.0);
         let variant_parser = ParseExpr::Sequence(
             vec![Named(Ident::from("x"), ty_parser(path, &option.value.1))],
@@ -399,29 +385,29 @@ fn cond_parser(path: &Path, options: &[Field<(ast::RcCExpr, ast::RcType)>]) -> R
 ///
 /// * `path` - path to the parent struct or union
 /// * `ty` - the binary type to use as a basis for the parser
-fn ty_parser(path: &Path, ty: &ast::RcType) -> RcParseExpr {
+fn ty_parser(path: &Path, ty: &core::RcType) -> RcParseExpr {
     match *ty.inner {
-        ast::Type::Var(_, ref var) => ParseExpr::Var(var.clone()).into(),
-        ast::Type::Const(ty_const) => ParseExpr::Const(ty_const).into(),
-        ast::Type::Lam(_, _, _) => unimplemented!("Abs: {:?}", ty),
-        ast::Type::App(_, ref ty, _) => ty_parser(path, ty),
+        core::Type::Var(_, ref var) => ParseExpr::Var(var.clone()).into(),
+        core::Type::Const(ty_const) => ParseExpr::Const(ty_const).into(),
+        core::Type::Lam(_, _, _) => unimplemented!("Abs: {:?}", ty),
+        core::Type::App(_, ref ty, _) => ty_parser(path, ty),
 
-        ast::Type::Array(_, ref elem_ty, ref size_expr) => {
+        core::Type::Array(_, ref elem_ty, ref size_expr) => {
             let elem_path = path.append_child("Elem");
             let elem_parser = ty_parser(&elem_path, elem_ty);
             let size_expr = lower_iexpr(path, size_expr);
 
             ParseExpr::Repeat(elem_parser, RepeatBound::Exact(size_expr)).into()
         }
-        ast::Type::Cond(_, ref options) => cond_parser(path, options),
-        ast::Type::Struct(_, ref fields) => struct_parser(path, fields),
-        ast::Type::Assert(_, ref ty, ref pred_expr) => {
+        core::Type::Cond(_, ref options) => cond_parser(path, options),
+        core::Type::Struct(_, ref fields) => struct_parser(path, fields),
+        core::Type::Assert(_, ref ty, ref pred_expr) => {
             let ty_parser = ty_parser(path, ty);
             let pred_expr = lower_cexpr(path, pred_expr);
 
             ParseExpr::Assert(ty_parser, pred_expr).into()
         }
-        ast::Type::Interp(_, ref ty, ref conv_expr, _) => {
+        core::Type::Interp(_, ref ty, ref conv_expr, _) => {
             let fn_expr = lower_cexpr(path, conv_expr);
             let parser_expr = ty_parser(path, ty);
 

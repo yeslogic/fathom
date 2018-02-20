@@ -1,9 +1,9 @@
-use parser;
+use syntax::parse;
 
 use super::*;
 
 mod infer_ty {
-    use syntax::ast::{FloatType, RcIExpr, SignedType, Type, TypeConst, UnsignedType};
+    use syntax::core::{FloatType, RcIExpr, SignedType, Type, TypeConst, UnsignedType};
 
     use super::*;
 
@@ -11,7 +11,7 @@ mod infer_ty {
         ($given:expr, Ok($expected:expr)) => {{
 
             let ctx = Context::new();
-            let expr = RcIExpr::from_parse(&parser::expr($given).unwrap()).unwrap();
+            let expr = RcIExpr::from_concrete(&parse::expr($given).unwrap()).unwrap();
             let expected_ty = Type::Const($expected).into();
 
             assert_eq!(infer_ty(&ctx, &expr), Ok(expected_ty));
@@ -19,7 +19,7 @@ mod infer_ty {
         ($given:expr, Err(_)) => {{
 
             let ctx = Context::new();
-            let expr = RcIExpr::from_parse(&parser::expr($given).unwrap()).unwrap();
+            let expr = RcIExpr::from_concrete(&parse::expr($given).unwrap()).unwrap();
 
             assert!(infer_ty(&ctx, &expr).is_err());
         }};
@@ -123,23 +123,23 @@ mod infer_ty {
 }
 
 mod infer_kind {
-    use syntax::ast::{self, Kind};
-    use syntax::ast::RcType;
-    use parser;
+    use syntax::core::{self, Kind};
+    use syntax::core::RcType;
+    use syntax::parse;
 
     use super::*;
 
     macro_rules! assert_infer_kind {
         ($given:expr, Ok($expected:expr)) => {{
             let ctx = Context::new();
-            let mut ty = RcType::from_parse(&parser::ty($given).unwrap()).unwrap();
-            ty.substitute(&ast::base_defs());
+            let mut ty = RcType::from_concrete(&parse::ty($given).unwrap()).unwrap();
+            ty.substitute(&core::base_defs());
 
             assert_eq!(infer_kind(&ctx, &ty), Ok($expected));
         }};
         ($given:expr, Err(_)) => {{
             let ctx = Context::new();
-            let ty = RcType::from_parse(&parser::ty($given).unwrap()).unwrap();
+            let ty = RcType::from_concrete(&parse::ty($given).unwrap()).unwrap();
 
             assert!(infer_kind(&ctx, &ty).is_err());
         }};
@@ -160,7 +160,7 @@ mod infer_kind {
 }
 
 mod check_module {
-    use syntax::ast;
+    use syntax::core;
 
     use super::*;
 
@@ -173,8 +173,8 @@ mod check_module {
             };
         ";
 
-        let mut module = Module::from_parse(&parser::module(src).unwrap()).unwrap();
-        let base_defs = ast::base_defs();
+        let mut module = Module::from_concrete(&parse::module(src).unwrap()).unwrap();
+        let base_defs = core::base_defs();
         module.substitute(&base_defs);
 
         check_module(&module).unwrap();

@@ -19,8 +19,6 @@ mod test;
 pub mod name;
 pub mod var;
 
-pub mod check;
-pub mod codegen;
-pub mod ir;
-pub mod parser;
+pub mod compile;
+pub mod semantics;
 pub mod syntax;

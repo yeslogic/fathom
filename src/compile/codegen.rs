@@ -1,13 +1,13 @@
+use heck::CamelCase;
 use pretty::{BoxAllocator, DocAllocator, DocBuilder};
 use std::fmt;
 
-use heck::CamelCase;
+use compile::ir::{Definition, Expr, Field, Item, Module, ParseExpr, Path, RepeatBound, Type};
+use compile::ir::{RcExpr, RcParseExpr, RcType};
+use compile::ir::{Binop, Const, Unop};
+use compile::ir::{IntSuffix, TypeConst};
+use compile::ir::{FloatType, SignedType, UnsignedType};
 use name::{Ident, Name, Named};
-use ir::ast::{Definition, Expr, Field, Item, Module, ParseExpr, Path, RepeatBound, Type};
-use ir::ast::{RcExpr, RcParseExpr, RcType};
-use ir::ast::{Binop, Const, Unop};
-use ir::ast::{IntSuffix, TypeConst};
-use ir::ast::{FloatType, SignedType, UnsignedType};
 use var::Var;
 
 pub struct LowerModule<'a>(pub &'a Module);
@@ -426,7 +426,7 @@ fn lower_parse_ty_const<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     alloc: &'alloc A,
     ty_const: TypeConst,
 ) -> DocBuilder<'alloc, A> {
-    use ir::ast::Endianness as E;
+    use compile::ir::Endianness as E;
 
     alloc.text(match ty_const {
         TypeConst::Empty => "ddl_util::empty()",
