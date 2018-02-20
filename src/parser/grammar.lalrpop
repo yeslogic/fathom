@@ -1,5 +1,5 @@
 use lalrpop_util::ParseError;
-use source::{BytePos, Span};
+use codespan::{BytePos, Span};
 use parser::ast::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
 use parser::GrammarError;
 use parser::lexer::Token;

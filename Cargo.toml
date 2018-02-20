@@ -23,6 +23,8 @@ members = [
 ]
 
 [dependencies]
+codespan = { git = "https://github.com/brendanzab/codespan", rev = "2e3ac61", version = "0.1.0" }
+codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "2e3ac61", version = "0.1.0" }
 failure = "0.1.1"
 heck = "0.3.0"
 lalrpop-util = "0.14.0"

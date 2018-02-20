@@ -397,7 +397,7 @@ Module {
                                                     lo: BytePos(1380),
                                                     hi: BytePos(1388)
                                                 },
-                                                Float(100, F32)
+                                                Float(100.0, F32)
                                             )
                                         ),
                                         Const(
@@ -405,7 +405,7 @@ Module {
                                                 lo: BytePos(1392),
                                                 hi: BytePos(1400)
                                             },
-                                            Float(100, F32)
+                                            Float(100.0, F32)
                                         )
                                     )
                                 )

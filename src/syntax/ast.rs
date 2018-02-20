@@ -1,5 +1,6 @@
 //! The syntax of our data description language
 
+use codespan::Span;
 use std::fmt;
 use std::rc::Rc;
 
@@ -8,7 +9,6 @@ use parser::ast::Definition as ParseDefinition;
 use parser::ast::Expr as ParseExpr;
 use parser::ast::Module as ParseModule;
 use parser::ast::Type as ParseType;
-use source::Span;
 use var::{ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -232,7 +232,6 @@ impl fmt::Debug for RcKind {
         fmt::Debug::fmt(&self.inner, f)
     }
 }
-
 
 // Types
 
@@ -730,9 +729,7 @@ impl RcType {
             Type::Lam(span, ref params, ref body_ty) => {
                 let repr_params = params
                     .iter()
-                    .map(|&Named(ref name, ref param_ty)| {
-                        Named(name.clone(), param_ty.repr())
-                    })
+                    .map(|&Named(ref name, ref param_ty)| Named(name.clone(), param_ty.repr()))
                     .collect();
 
                 Type::Lam(span, repr_params, body_ty.repr()).into()
@@ -749,12 +746,10 @@ impl RcType {
             Type::Cond(_, ref options) => {
                 let repr_variants = options
                     .iter()
-                    .map(|variant| {
-                        Field {
-                            doc: Rc::clone(&variant.doc),
-                            name: variant.name.clone(),
-                            value: variant.value.1.repr(),
-                        }
+                    .map(|variant| Field {
+                        doc: Rc::clone(&variant.doc),
+                        name: variant.name.clone(),
+                        value: variant.value.1.repr(),
                     })
                     .collect();
 
@@ -763,12 +758,10 @@ impl RcType {
             Type::Struct(_, ref fields) => {
                 let repr_fields = fields
                     .iter()
-                    .map(|field| {
-                        Field {
-                            doc: Rc::clone(&field.doc),
-                            name: field.name.clone(),
-                            value: field.value.repr(),
-                        }
+                    .map(|field| Field {
+                        doc: Rc::clone(&field.doc),
+                        name: field.name.clone(),
+                        value: field.value.repr(),
                     })
                     .collect();
 
@@ -1245,9 +1238,9 @@ mod tests {
                 // λx. x
                 // λ   0
                 let ty = RcT::lam(
-                    Span::start(),
+                    Span::none(),
                     vec![Named(Name::user("x"), Kind::Binary.into())],
-                    T::Var(Span::start(), Var::free(Name::user("x"))),
+                    T::Var(Span::none(), Var::free(Name::user("x"))),
                 );
 
                 assert_debug_snapshot!(ty_abs_id, ty);
@@ -1260,12 +1253,12 @@ mod tests {
                 // λx.λy. x
                 // λ  λ   1
                 let ty = RcT::lam(
-                    Span::start(),
+                    Span::none(),
                     vec![Named(Name::user("x"), Kind::Binary.into())],
                     RcT::lam(
-                        Span::start(),
+                        Span::none(),
                         vec![Named(Name::user("y"), Kind::Binary.into())],
-                        T::Var(Span::start(), Var::free(Name::user("x"))),
+                        T::Var(Span::none(), Var::free(Name::user("x"))),
                     ),
                 );
 
@@ -1277,28 +1270,27 @@ mod tests {
                 // λx.λy.λz. x z (y z)
                 // λ  λ  λ   2 0 (1 0)
                 let ty = RcT::lam(
-                    Span::start(),
+                    Span::none(),
                     vec![Named(Name::user("x"), Kind::Binary.into())],
                     RcT::lam(
-                        Span::start(),
+                        Span::none(),
                         vec![Named(Name::user("y"), Kind::Binary.into())],
                         RcT::lam(
-                            Span::start(),
+                            Span::none(),
                             vec![Named(Name::user("z"), Kind::Binary.into())],
                             T::App(
-                                Span::start(),
+                                Span::none(),
                                 T::App(
-                                    Span::start(),
-                                    T::Var(Span::start(), Var::free(Name::user("x"))).into(),
-                                    vec![T::Var(Span::start(), Var::free(Name::user("z"))).into()],
+                                    Span::none(),
+                                    T::Var(Span::none(), Var::free(Name::user("x"))).into(),
+                                    vec![T::Var(Span::none(), Var::free(Name::user("z"))).into()],
                                 ).into(),
                                 vec![
                                     T::App(
-                                        Span::start(),
-                                        T::Var(Span::start(), Var::free(Name::user("y"))).into(),
+                                        Span::none(),
+                                        T::Var(Span::none(), Var::free(Name::user("y"))).into(),
                                         vec![
-                                            T::Var(Span::start(), Var::free(Name::user("z")))
-                                                .into(),
+                                            T::Var(Span::none(), Var::free(Name::user("z"))).into(),
                                         ],
                                     ).into(),
                                 ],
@@ -1315,33 +1307,33 @@ mod tests {
                 // λz.(λy. y (λx. x)) (λx. z x)
                 // λ  (λ   0 (λ   0)) (λ   1 0)
                 let ty = RcT::lam(
-                    Span::start(),
+                    Span::none(),
                     vec![Named(Name::user("z"), Kind::Binary.into())],
                     T::App(
-                        Span::start(),
+                        Span::none(),
                         RcT::lam(
-                            Span::start(),
+                            Span::none(),
                             vec![Named(Name::user("y"), Kind::Binary.into())],
                             T::App(
-                                Span::start(),
-                                T::Var(Span::start(), Var::free(Name::user("y"))).into(),
+                                Span::none(),
+                                T::Var(Span::none(), Var::free(Name::user("y"))).into(),
                                 vec![
                                     RcT::lam(
-                                        Span::start(),
+                                        Span::none(),
                                         vec![Named(Name::user("x"), Kind::Binary.into())],
-                                        T::Var(Span::start(), Var::free(Name::user("x"))),
+                                        T::Var(Span::none(), Var::free(Name::user("x"))),
                                     ),
                                 ],
                             ),
                         ),
                         vec![
                             RcT::lam(
-                                Span::start(),
+                                Span::none(),
                                 vec![Named(Name::user("x"), Kind::Binary.into())],
                                 T::App(
-                                    Span::start(),
-                                    T::Var(Span::start(), Var::free(Name::user("z"))).into(),
-                                    vec![T::Var(Span::start(), Var::free(Name::user("x"))).into()],
+                                    Span::none(),
+                                    T::Var(Span::none(), Var::free(Name::user("z"))).into(),
+                                    vec![T::Var(Span::none(), Var::free(Name::user("x"))).into()],
                                 ),
                             ),
                         ],

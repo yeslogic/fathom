@@ -1,8 +1,6 @@
+use codespan::BytePos;
 use lalrpop_util;
-
 use std::fmt;
-
-use source::BytePos;
 
 pub mod ast;
 mod lexer;
@@ -15,10 +13,14 @@ pub type ParseError = lalrpop_util::ParseError<BytePos, String, GrammarError>;
 
 #[derive(Debug, Fail, Clone, Eq, PartialEq)]
 pub enum GrammarError {
-    #[fail(display = "{}", _0)] Lexer(lexer::Error),
-    #[fail(display = "invalid constant suffix: {}", suffix)] ConstSuffixInvalid { suffix: String },
-    #[fail(display = "missing constant suffix")] ConstSuffixMissing,
-    #[fail(display = "invalid host type name: {}", name)] InvalidHostTypeName { name: String },
+    #[fail(display = "{}", _0)]
+    Lexer(lexer::Error),
+    #[fail(display = "invalid constant suffix: {}", suffix)]
+    ConstSuffixInvalid { suffix: String },
+    #[fail(display = "missing constant suffix")]
+    ConstSuffixMissing,
+    #[fail(display = "invalid host type name: {}", name)]
+    InvalidHostTypeName { name: String },
 }
 
 impl From<lexer::Error> for GrammarError {

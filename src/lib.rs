@@ -1,3 +1,5 @@
+extern crate codespan;
+extern crate codespan_reporting;
 #[cfg(test)]
 extern crate difference;
 #[macro_use]
@@ -15,7 +17,6 @@ extern crate unicode_xid;
 mod test;
 
 pub mod name;
-pub mod source;
 pub mod var;
 
 pub mod check;

@@ -4,9 +4,10 @@
 //! anything interesting with this, one must first lower it to the core
 //! representation.
 
+use codespan::{BytePos, Span};
+
 use parser::{from_lalrpop_err, grammar, GrammarError, ParseError};
 use parser::lexer::Lexer;
-use source::{BytePos, Span};
 
 pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
 
