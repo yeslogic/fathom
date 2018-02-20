@@ -5,7 +5,6 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use ddl::syntax::ast::Module;
-use ddl::parser::ast::Module as ParseModule;
 
 fn main() {
     let src = {
@@ -15,7 +14,7 @@ fn main() {
         src
     };
 
-    let mut module = Module::from_parse(&ParseModule::from_str(&src).unwrap()).unwrap();
+    let mut module = Module::from_parse(&ddl::parser::module(&src).unwrap()).unwrap();
     module.substitute(&ddl::syntax::ast::base_defs());
     ddl::check::check_module(&module).unwrap();
     let ir = ddl::ir::ast::Module::from(&module);

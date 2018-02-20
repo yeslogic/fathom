@@ -6,22 +6,11 @@
 
 use codespan::{BytePos, Span};
 
-use parser::{self, grammar, ParseError};
-use parser::lexer::Lexer;
-
 pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module<'input> {
     pub definitions: Vec<Definition<'input>>,
-}
-
-impl<'input> Module<'input> {
-    /// Attempt to parse a module from a source string
-    pub fn from_str(src: &'input str) -> Result<Module<'input>, ParseError> {
-        grammar::parse_Module(Lexer::new(src).map(|x| x.map_err(ParseError::from)))
-            .map_err(|err| parser::from_lalrpop(src, err))
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,14 +20,6 @@ pub struct Definition<'input> {
     pub name: &'input str,
     pub param_names: Vec<&'input str>,
     pub body_ty: Type<'input>,
-}
-
-impl<'input> Definition<'input> {
-    /// Attempt to parse a definition from a source string
-    pub fn from_str(src: &'input str) -> Result<Definition<'input>, ParseError> {
-        grammar::parse_Definition(Lexer::new(src).map(|x| x.map_err(ParseError::from)))
-            .map_err(|err| parser::from_lalrpop(src, err))
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -65,14 +46,6 @@ pub enum Type<'input> {
     App(Span, Box<Type<'input>>, Vec<Type<'input>>),
 }
 
-impl<'input> Type<'input> {
-    /// Attempt to parse a type from a source string
-    pub fn from_str(src: &'input str) -> Result<Type<'input>, ParseError> {
-        grammar::parse_Type(Lexer::new(src).map(|x| x.map_err(ParseError::from)))
-            .map_err(|err| parser::from_lalrpop(src, err))
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr<'input> {
     Ann(Span, Box<Expr<'input>>, TypeConst),
@@ -84,12 +57,4 @@ pub enum Expr<'input> {
     Proj(Span, Box<Expr<'input>>, &'input str),
     Subscript(Span, Box<Expr<'input>>, Box<Expr<'input>>),
     Cast(Span, Box<Expr<'input>>, TypeConst),
-}
-
-impl<'input> Expr<'input> {
-    /// Attempt to parse an expression from a source string
-    pub fn from_str(src: &'input str) -> Result<Expr<'input>, ParseError> {
-        grammar::parse_Expr(Lexer::new(src).map(|x| x.map_err(ParseError::from)))
-            .map_err(|err| parser::from_lalrpop(src, err))
-    }
 }

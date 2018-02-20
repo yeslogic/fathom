@@ -1,7 +1,5 @@
 use syntax::ast::{Module, RcIExpr, RcType};
-use parser::ast::Expr as ParseExpr;
-use parser::ast::Module as ParseModule;
-use parser::ast::Type as ParseType;
+use parser;
 
 #[test]
 fn parse_expr_bool_atomic() {
@@ -11,7 +9,7 @@ fn parse_expr_bool_atomic() {
 
     assert_debug_snapshot!(
         parse_expr_bool_atomic,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -23,7 +21,7 @@ fn parse_expr_bool_operators() {
 
     assert_debug_snapshot!(
         parse_expr_bool_operators,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -33,7 +31,7 @@ fn parse_add_expr() {
 
     assert_debug_snapshot!(
         parse_add_expr,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -43,7 +41,7 @@ fn parse_sub_expr() {
 
     assert_debug_snapshot!(
         parse_sub_expr,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -53,7 +51,7 @@ fn parse_add_expr_mixed() {
 
     assert_debug_snapshot!(
         parse_add_expr_mixed,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -63,7 +61,7 @@ fn parse_mul_expr() {
 
     assert_debug_snapshot!(
         parse_mul_expr,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -73,7 +71,7 @@ fn parse_div_expr() {
 
     assert_debug_snapshot!(
         parse_div_expr,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -83,7 +81,7 @@ fn parse_mul_expr_mixed() {
 
     assert_debug_snapshot!(
         parse_mul_expr_mixed,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -93,7 +91,7 @@ fn parse_mixed_arithmetic_expr() {
 
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -103,7 +101,7 @@ fn parse_mixed_arithmetic_expr_parenthesized() {
 
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr_parenthesized,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -113,7 +111,7 @@ fn parse_proj_expr() {
 
     assert_debug_snapshot!(
         parse_proj_expr,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -123,7 +121,7 @@ fn parse_subscript_expr() {
 
     assert_debug_snapshot!(
         parse_subscript_expr,
-        RcIExpr::from_parse(&ParseExpr::from_str(src).unwrap()).unwrap()
+        RcIExpr::from_parse(&parser::expr(src).unwrap()).unwrap()
     );
 }
 
@@ -135,7 +133,7 @@ fn parse_ty_var() {
 
     assert_debug_snapshot!(
         parse_ty_var,
-        RcType::from_parse(&ParseType::from_str(src).unwrap()).unwrap()
+        RcType::from_parse(&parser::ty(src).unwrap()).unwrap()
     );
 }
 
@@ -145,7 +143,7 @@ fn parse_ty_empty_struct() {
 
     assert_debug_snapshot!(
         parse_ty_empty_struct,
-        RcType::from_parse(&ParseType::from_str(src).unwrap()).unwrap()
+        RcType::from_parse(&parser::ty(src).unwrap()).unwrap()
     );
 }
 
@@ -161,7 +159,7 @@ fn parse_ty_assert() {
 
     assert_debug_snapshot!(
         parse_ty_assert,
-        RcType::from_parse(&ParseType::from_str(src).unwrap()).unwrap()
+        RcType::from_parse(&parser::ty(src).unwrap()).unwrap()
     );
 }
 
@@ -184,7 +182,7 @@ fn parse_ty_array_dependent() {
 
     assert_debug_snapshot!(
         parse_ty_array_dependent,
-        RcType::from_parse(&ParseType::from_str(src).unwrap()).unwrap()
+        RcType::from_parse(&parser::ty(src).unwrap()).unwrap()
     );
 }
 
@@ -196,7 +194,7 @@ fn parse_simple_definition() {
 
     assert_debug_snapshot!(
         parse_simple_definition,
-        Module::from_parse(&ParseModule::from_str(src).unwrap()).unwrap()
+        Module::from_parse(&parser::module(src).unwrap()).unwrap()
     );
 }
 
@@ -208,7 +206,7 @@ fn parse_array_with_constant_size() {
 
     assert_debug_snapshot!(
         parse_array_with_constant_size,
-        Module::from_parse(&ParseModule::from_str(src).unwrap()).unwrap()
+        Module::from_parse(&parser::module(src).unwrap()).unwrap()
     );
 }
 
@@ -242,7 +240,7 @@ fn parse_definition() {
 
     assert_debug_snapshot!(
         parse_definition,
-        Module::from_parse(&ParseModule::from_str(src).unwrap()).unwrap()
+        Module::from_parse(&parser::module(src).unwrap()).unwrap()
     );
 }
 
@@ -267,6 +265,6 @@ fn parse_type_params() {
 
     assert_debug_snapshot!(
         parse_type_params,
-        Module::from_parse(&ParseModule::from_str(src).unwrap()).unwrap()
+        Module::from_parse(&parser::module(src).unwrap()).unwrap()
     );
 }

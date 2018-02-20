@@ -1,8 +1,9 @@
+use parser;
+
 use super::*;
 
 mod infer_ty {
     use syntax::ast::{FloatType, RcIExpr, SignedType, Type, TypeConst, UnsignedType};
-    use parser::ast::Expr as ParseExpr;
 
     use super::*;
 
@@ -10,7 +11,7 @@ mod infer_ty {
         ($given:expr, Ok($expected:expr)) => {{
 
             let ctx = Context::new();
-            let expr = RcIExpr::from_parse(&ParseExpr::from_str($given).unwrap()).unwrap();
+            let expr = RcIExpr::from_parse(&parser::expr($given).unwrap()).unwrap();
             let expected_ty = Type::Const($expected).into();
 
             assert_eq!(infer_ty(&ctx, &expr), Ok(expected_ty));
@@ -18,7 +19,7 @@ mod infer_ty {
         ($given:expr, Err(_)) => {{
 
             let ctx = Context::new();
-            let expr = RcIExpr::from_parse(&ParseExpr::from_str($given).unwrap()).unwrap();
+            let expr = RcIExpr::from_parse(&parser::expr($given).unwrap()).unwrap();
 
             assert!(infer_ty(&ctx, &expr).is_err());
         }};
@@ -124,21 +125,21 @@ mod infer_ty {
 mod infer_kind {
     use syntax::ast::{self, Kind};
     use syntax::ast::RcType;
-    use parser::ast::Type as ParseType;
+    use parser;
 
     use super::*;
 
     macro_rules! assert_infer_kind {
         ($given:expr, Ok($expected:expr)) => {{
             let ctx = Context::new();
-            let mut ty = RcType::from_parse(&ParseType::from_str($given).unwrap()).unwrap();
+            let mut ty = RcType::from_parse(&parser::ty($given).unwrap()).unwrap();
             ty.substitute(&ast::base_defs());
 
             assert_eq!(infer_kind(&ctx, &ty), Ok($expected));
         }};
         ($given:expr, Err(_)) => {{
             let ctx = Context::new();
-            let ty = RcType::from_parse(&ParseType::from_str($given).unwrap()).unwrap();
+            let ty = RcType::from_parse(&parser::ty($given).unwrap()).unwrap();
 
             assert!(infer_kind(&ctx, &ty).is_err());
         }};
@@ -160,7 +161,6 @@ mod infer_kind {
 
 mod check_module {
     use syntax::ast;
-    use parser::ast::Module as ParseModule;
 
     use super::*;
 
@@ -173,7 +173,7 @@ mod check_module {
             };
         ";
 
-        let mut module = Module::from_parse(&ParseModule::from_str(src).unwrap()).unwrap();
+        let mut module = Module::from_parse(&parser::module(src).unwrap()).unwrap();
         let base_defs = ast::base_defs();
         module.substitute(&base_defs);
 

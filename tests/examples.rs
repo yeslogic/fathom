@@ -6,14 +6,14 @@ extern crate difference;
 mod test;
 
 use ddl::check;
-use ddl::parser::ast::Module as ParseModule;
+use ddl::parser;
 use ddl::syntax::ast::{self, Module};
 
 #[test]
 fn bitmap() {
     const SRC: &str = include_str!("../examples/formats/bitmap/src/bitmap.ddl");
 
-    let mut module = Module::from_parse(&ParseModule::from_str(SRC).unwrap()).unwrap();
+    let mut module = Module::from_parse(&parser::module(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(bitmap_module, module);
 
     let base_defs = ast::base_defs();
@@ -32,7 +32,7 @@ fn bitmap() {
 fn bson() {
     const SRC: &str = include_str!("../examples/formats/bson/src/bson.ddl");
 
-    let mut module = Module::from_parse(&ParseModule::from_str(SRC).unwrap()).unwrap();
+    let mut module = Module::from_parse(&parser::module(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(bson_module, module);
 
     let base_defs = ast::base_defs();
@@ -51,7 +51,7 @@ fn bson() {
 fn edid() {
     const SRC: &str = include_str!("../examples/formats/edid/src/edid.ddl");
 
-    let mut module = Module::from_parse(&ParseModule::from_str(SRC).unwrap()).unwrap();
+    let mut module = Module::from_parse(&parser::module(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(edid_module, module);
 
     let base_defs = ast::base_defs();
@@ -70,7 +70,7 @@ fn edid() {
 fn object_id() {
     const SRC: &str = include_str!("../examples/formats/object_id/src/object_id.ddl");
 
-    let mut module = Module::from_parse(&ParseModule::from_str(SRC).unwrap()).unwrap();
+    let mut module = Module::from_parse(&parser::module(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(object_id_module, module);
 
     let base_defs = ast::base_defs();
@@ -89,7 +89,7 @@ fn object_id() {
 fn stl() {
     const SRC: &str = include_str!("../examples/formats/stl/src/stl.ddl");
 
-    let mut module = Module::from_parse(&ParseModule::from_str(SRC).unwrap()).unwrap();
+    let mut module = Module::from_parse(&parser::module(SRC).unwrap()).unwrap();
     assert_debug_snapshot!(stl_module, module);
 
     let base_defs = ast::base_defs();
