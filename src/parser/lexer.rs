@@ -1,4 +1,5 @@
-use codespan::{ByteOffset, BytePos, RawPos};
+use codespan::{ByteOffset, BytePos, RawPos, Span};
+use codespan_reporting::{Diagnostic, Label, LabelStyle, Severity};
 use std::fmt;
 use std::str::CharIndices;
 use unicode_xid::UnicodeXID;
@@ -32,38 +33,68 @@ fn is_dec_digit(ch: char) -> bool {
 
 /// An error that occurred while lexing the source file
 #[derive(Debug, Fail, Clone, PartialEq, Eq)]
-#[fail(display = "{:?} at: {:?}", code, location)] // FIXME: use better formatting
-pub struct Error {
-    /// The location where the lexer error occured
-    pub location: BytePos,
-    /// The error code
-    pub code: ErrorCode,
-}
-
-fn error<T>(location: BytePos, code: ErrorCode) -> Result<T, Error> {
-    Err(Error { location, code })
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ErrorCode {
+pub enum LexerError {
     /// An unexpected character was encountered
-    UnexpectedCharacter,
+    #[fail(display = "An unexpected character {:?} was found.", found)]
+    UnexpectedCharacter { start: BytePos, found: char },
     /// Expected a binary literal
-    ExpectedBinLiteral,
+    #[fail(display = "Expected a binary literal.")]
+    ExpectedBinLiteral { start: BytePos },
     /// Expected a hexidecimal literal
-    ExpectedHexLiteral,
+    #[fail(display = "Expected a hexidecimal literal.")]
+    ExpectedHexLiteral { start: BytePos },
+}
+
+impl LexerError {
+    pub fn to_diagnostic(&self) -> Diagnostic {
+        match *self {
+            LexerError::UnexpectedCharacter { start, found } => Diagnostic {
+                severity: Severity::Error,
+                message: format!("unexpected character {:?}", found),
+                labels: vec![
+                    Label {
+                        message: Some("unexpected character".into()),
+                        style: LabelStyle::Primary,
+                        span: Span::from_offset(start, ByteOffset::from_char_utf8(found)),
+                    },
+                ],
+            },
+            LexerError::ExpectedBinLiteral { start } => Diagnostic {
+                severity: Severity::Error,
+                message: format!("expected a binary literal"),
+                labels: vec![
+                    Label {
+                        message: None, // TODO
+                        style: LabelStyle::Primary,
+                        span: Span::new(start, start),
+                    },
+                ],
+            },
+            LexerError::ExpectedHexLiteral { start } => Diagnostic {
+                severity: Severity::Error,
+                message: format!("expected a hexidecimal literal"),
+                labels: vec![
+                    Label {
+                        message: None, // TODO
+                        style: LabelStyle::Primary,
+                        span: Span::new(start, start),
+                    },
+                ],
+            },
+        }
+    }
 }
 
 /// A token in the source file, to be emitted by the `Lexer`
 #[derive(Clone, Debug, PartialEq)]
-pub enum Token<'src> {
+pub enum Token<S> {
     // Data
-    Ident(&'src str),
-    DocComment(&'src str),
-    BinLiteral(u64, &'src str),
-    DecLiteral(u64, &'src str),
-    HexLiteral(u64, &'src str),
-    FloatDecLiteral(f64, &'src str),
+    Ident(S),
+    DocComment(S),
+    BinLiteral(u64, S),
+    DecLiteral(u64, S),
+    HexLiteral(u64, S),
+    FloatDecLiteral(f64, S),
 
     // Keywords
     As,      // as
@@ -106,15 +137,15 @@ pub enum Token<'src> {
     RBracket, // ]
 }
 
-impl<'src> fmt::Display for Token<'src> {
+impl<S: fmt::Display> fmt::Display for Token<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Token::Ident(name) => write!(f, "{}", name),
-            Token::DocComment(comment) => write!(f, "{}", comment),
-            Token::BinLiteral(num, suffix) => write!(f, "{}{}", num, suffix),
-            Token::DecLiteral(num, suffix) => write!(f, "{}{}", num, suffix),
-            Token::HexLiteral(num, suffix) => write!(f, "{}{}", num, suffix),
-            Token::FloatDecLiteral(num, suffix) => write!(f, "{}{}", num, suffix),
+            Token::Ident(ref name) => write!(f, "{}", name),
+            Token::DocComment(ref comment) => write!(f, "{}", comment),
+            Token::BinLiteral(num, ref suffix) => write!(f, "{}{}", num, suffix),
+            Token::DecLiteral(num, ref suffix) => write!(f, "{}{}", num, suffix),
+            Token::HexLiteral(num, ref suffix) => write!(f, "{}{}", num, suffix),
+            Token::FloatDecLiteral(num, ref suffix) => write!(f, "{}{}", num, suffix),
             Token::As => write!(f, "as"),
             Token::Cond => write!(f, "cond"),
             Token::Compute => write!(f, "compute"),
@@ -153,17 +184,66 @@ impl<'src> fmt::Display for Token<'src> {
     }
 }
 
+impl<'input> From<Token<&'input str>> for Token<String> {
+    fn from(src: Token<&'input str>) -> Token<String> {
+        match src {
+            Token::Ident(name) => Token::Ident(String::from(name)),
+            Token::DocComment(comment) => Token::DocComment(String::from(comment)),
+            Token::BinLiteral(num, suffix) => Token::BinLiteral(num, String::from(suffix)),
+            Token::DecLiteral(num, suffix) => Token::DecLiteral(num, String::from(suffix)),
+            Token::HexLiteral(num, suffix) => Token::HexLiteral(num, String::from(suffix)),
+            Token::FloatDecLiteral(num, suffix) => {
+                Token::FloatDecLiteral(num, String::from(suffix))
+            }
+            Token::As => Token::As,
+            Token::Cond => Token::Cond,
+            Token::Compute => Token::Compute,
+            Token::From => Token::From,
+            Token::Struct => Token::Struct,
+            Token::Union => Token::Union,
+            Token::Where => Token::Where,
+            Token::Amp => Token::Amp,
+            Token::AmpAmp => Token::AmpAmp,
+            Token::Bang => Token::Bang,
+            Token::BangEqual => Token::BangEqual,
+            Token::Colon => Token::Colon,
+            Token::Comma => Token::Comma,
+            Token::Dot => Token::Dot,
+            Token::Equal => Token::Equal,
+            Token::EqualEqual => Token::EqualEqual,
+            Token::EqualGreater => Token::EqualGreater,
+            Token::ForwardSlash => Token::ForwardSlash,
+            Token::Greater => Token::Greater,
+            Token::GreaterEqual => Token::GreaterEqual,
+            Token::Less => Token::Less,
+            Token::LessEqual => Token::LessEqual,
+            Token::Minus => Token::Minus,
+            Token::Pipe => Token::Pipe,
+            Token::PipePipe => Token::PipePipe,
+            Token::Plus => Token::Plus,
+            Token::Semi => Token::Semi,
+            Token::Star => Token::Star,
+            Token::LParen => Token::LParen,
+            Token::RParen => Token::RParen,
+            Token::LBrace => Token::LBrace,
+            Token::RBrace => Token::RBrace,
+            Token::LBracket => Token::LBracket,
+            Token::RBracket => Token::RBracket,
+        }
+    }
+}
+
 /// An iterator over a source string that yeilds `Token`s for subsequent use by
 /// the parser
-pub struct Lexer<'src> {
-    src: &'src str,
-    chars: CharIndices<'src>,
+pub struct Lexer<'input> {
+    src: &'input str,
+    chars: CharIndices<'input>,
     lookahead: Option<(usize, char)>,
 }
 
-impl<'src> Lexer<'src> {
+impl<'input> Lexer<'input> {
     /// Create a new lexer from the source string
-    pub fn new(src: &'src str) -> Self {
+    pub fn new(src: &'input str) -> Self {
         let mut chars = src.char_indices();
 
         Lexer {
@@ -188,7 +268,7 @@ impl<'src> Lexer<'src> {
     }
 
     /// Return a slice of the source string
-    fn slice(&self, start: BytePos, end: BytePos) -> &'src str {
+    fn slice(&self, start: BytePos, end: BytePos) -> &'input str {
         &self.src[start.to_usize()..end.to_usize()]
     }
 
@@ -203,7 +283,7 @@ impl<'src> Lexer<'src> {
     /// Consume characters while the predicate matches for the current
     /// character, then return the consumed slice and the end byte
     /// position.
-    fn take_while<F>(&mut self, start: BytePos, mut keep_going: F) -> (BytePos, &'src str)
+    fn take_while<F>(&mut self, start: BytePos, mut keep_going: F) -> (BytePos, &'input str)
     where
         F: FnMut(char) -> bool,
     {
@@ -213,7 +293,7 @@ impl<'src> Lexer<'src> {
     /// Consume characters until the predicate matches for the next character
     /// in the lookahead, then return the consumed slice and the end byte
     /// position.
-    fn take_until<F>(&mut self, start: BytePos, mut terminate: F) -> (BytePos, &'src str)
+    fn take_until<F>(&mut self, start: BytePos, mut terminate: F) -> (BytePos, &'input str)
     where
         F: FnMut(char) -> bool,
     {
@@ -230,7 +310,7 @@ impl<'src> Lexer<'src> {
     }
 
     /// Consume a doc comment
-    fn doc_comment(&mut self, start: BytePos) -> (BytePos, Token<'src>, BytePos) {
+    fn doc_comment(&mut self, start: BytePos) -> (BytePos, Token<&'input str>, BytePos) {
         let (end, mut comment) = self.take_until(start + ByteOffset(3), |ch| ch == '\n');
 
         // Skip preceding space
@@ -242,7 +322,7 @@ impl<'src> Lexer<'src> {
     }
 
     /// Consume an identifier token
-    fn ident(&mut self, start: BytePos) -> (BytePos, Token<'src>, BytePos) {
+    fn ident(&mut self, start: BytePos) -> (BytePos, Token<&'input str>, BytePos) {
         let (end, ident) = self.take_while(start, is_ident_continue);
 
         let token = match ident {
@@ -260,7 +340,7 @@ impl<'src> Lexer<'src> {
     }
 
     /// Consume a literal suffix
-    fn literal_suffix(&mut self, start: BytePos) -> (BytePos, &'src str) {
+    fn literal_suffix(&mut self, start: BytePos) -> (BytePos, &'input str) {
         if self.test_lookahead(is_ident_start) {
             self.bump(); // skip ident start
             self.take_while(start, is_ident_continue)
@@ -270,11 +350,14 @@ impl<'src> Lexer<'src> {
     }
 
     /// Consume a binary literal token
-    fn bin_literal(&mut self, start: BytePos) -> Result<(BytePos, Token<'src>, BytePos), Error> {
+    fn bin_literal(
+        &mut self,
+        start: BytePos,
+    ) -> Result<(BytePos, Token<&'input str>, BytePos), LexerError> {
         self.bump(); // skip 'b'
         let (end, src) = self.take_while(start + ByteOffset(2), is_bin_digit);
         if src.is_empty() {
-            error(start, ErrorCode::ExpectedBinLiteral)
+            Err(LexerError::ExpectedBinLiteral { start })
         } else {
             let int = u64::from_str_radix(src, 2).unwrap();
             let (end, suffix) = self.literal_suffix(end);
@@ -284,11 +367,14 @@ impl<'src> Lexer<'src> {
     }
 
     /// Consume a hexidecimal literal token
-    fn hex_literal(&mut self, start: BytePos) -> Result<(BytePos, Token<'src>, BytePos), Error> {
+    fn hex_literal(
+        &mut self,
+        start: BytePos,
+    ) -> Result<(BytePos, Token<&'input str>, BytePos), LexerError> {
         self.bump(); // skip 'x'
         let (end, src) = self.take_while(start + ByteOffset(2), is_hex_digit);
         if src.is_empty() {
-            error(start, ErrorCode::ExpectedHexLiteral)
+            Err(LexerError::ExpectedHexLiteral { start })
         } else {
             let int = u64::from_str_radix(src, 16).unwrap();
             let (end, suffix) = self.literal_suffix(end);
@@ -298,7 +384,7 @@ impl<'src> Lexer<'src> {
     }
 
     /// Consume a decimal literal token
-    fn dec_literal(&mut self, start: BytePos) -> (BytePos, Token<'src>, BytePos) {
+    fn dec_literal(&mut self, start: BytePos) -> (BytePos, Token<&'input str>, BytePos) {
         let (end, src) = self.take_while(start, is_dec_digit);
 
         if self.test_lookahead(|ch| ch == '.') {
@@ -317,10 +403,10 @@ impl<'src> Lexer<'src> {
     }
 }
 
-impl<'src> Iterator for Lexer<'src> {
-    type Item = Result<(BytePos, Token<'src>, BytePos), Error>;
+impl<'input> Iterator for Lexer<'input> {
+    type Item = Result<(BytePos, Token<&'input str>, BytePos), LexerError>;
 
-    fn next(&mut self) -> Option<Result<(BytePos, Token<'src>, BytePos), Error>> {
+    fn next(&mut self) -> Option<Result<(BytePos, Token<&'input str>, BytePos), LexerError>> {
         while let Some((start, ch)) = self.bump() {
             let end = start + ByteOffset(1);
 
@@ -355,7 +441,7 @@ impl<'src> Iterator for Lexer<'src> {
                             self.take_until(start, |ch| ch == '\n');
                             continue;
                         }
-                        _ => error(start, ErrorCode::UnexpectedCharacter),
+                        _ => Err(LexerError::UnexpectedCharacter { start, found: ch }),
                     }
                 }
                 '(' => Ok((start, Token::LParen, end)),
@@ -369,7 +455,7 @@ impl<'src> Iterator for Lexer<'src> {
                 ch if is_dec_digit(ch) => Ok(self.dec_literal(start)),
                 ch if is_ident_start(ch) => Ok(self.ident(start)),
                 ch if ch.is_whitespace() => continue,
-                _ => error(start, ErrorCode::UnexpectedCharacter),
+                _ => Err(LexerError::UnexpectedCharacter { start, found: ch }),
             });
         }
 

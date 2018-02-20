@@ -1,27 +1,27 @@
-use lalrpop_util::ParseError;
+use lalrpop_util::ParseError as LalrpopError;
 use codespan::{BytePos, Span};
 use parser::ast::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
-use parser::GrammarError;
+use parser::ParseError;
 use parser::lexer::Token;
 
 
-grammar<'src>();
+grammar<'input>();
 
 
 // Tokens
 
 extern {
     type Location = BytePos;
-    type Error = GrammarError;
+    type Error = ParseError;
 
-    enum Token<'src> {
+    enum Token<&'input str> {
         // Data
-        "Ident" => Token::Ident(<&'src str>),
-        "DocComment" => Token::DocComment(<&'src str>),
-        "BinLiteral" => Token::BinLiteral(<u64>, <&'src str>),
-        "HexLiteral" => Token::HexLiteral(<u64>, <&'src str>),
-        "DecLiteral" => Token::DecLiteral(<u64>, <&'src str>),
-        "FloatDecLiteral" => Token::FloatDecLiteral(<f64>, <&'src str>),
+        "Ident" => Token::Ident(<&'input str>),
+        "DocComment" => Token::DocComment(<&'input str>),
+        "BinLiteral" => Token::BinLiteral(<u64>, <&'input str>),
+        "HexLiteral" => Token::HexLiteral(<u64>, <&'input str>),
+        "DecLiteral" => Token::DecLiteral(<u64>, <&'input str>),
+        "FloatDecLiteral" => Token::FloatDecLiteral(<f64>, <&'input str>),
 
         // Keywords
         "as" => Token::As,
@@ -66,11 +66,11 @@ extern {
 }
 
 
-pub Module: Module<'src> = {
+pub Module: Module<'input> = {
     Definition* => Module { definitions: <> }
 };
 
-pub Definition: Definition<'src> = {
+pub Definition: Definition<'input> = {
     <doc: "DocComment"*>
         <lo: @L> <name: "Ident"> "="
         <body_ty: PrimaryType> ";" <hi: @R> =>
@@ -91,7 +91,7 @@ pub Definition: Definition<'src> = {
     },
 };
 
-Field<Value>: Field<'src, Value> = {
+Field<Value>: Field<'input, Value> = {
     <doc: "DocComment"*> <name: "Ident"> ":" <value: Value> => {
         Field { doc, name, value }
     },
@@ -100,11 +100,11 @@ Field<Value>: Field<'src, Value> = {
 
 // Types
 
-pub Type: Type<'src> = {
+pub Type: Type<'input> = {
     <ty: PrimaryType> => ty,
 };
 
-PrimaryType: Type<'src> = {
+PrimaryType: Type<'input> = {
     AtomicType,
     <lo1: @L> <ty: PrimaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryExpr> <hi: @R> => {
         Type::Where(Span::new(lo1, hi), Box::new(ty), lo2, param, Box::new(pred))
@@ -114,7 +114,7 @@ PrimaryType: Type<'src> = {
     },
 };
 
-AtomicType: Type<'src> = {
+AtomicType: Type<'input> = {
     <lo: @L> <name: "Ident"> <hi: @R> => {
         Type::Var(Span::new(lo, hi), name)
     },
@@ -148,7 +148,7 @@ HostType: TypeConst = {
     // FIXME: implement full host type parsing, with proper name binding
     //
     // We'll just hard-code identifiers for now
-    <name: "Ident"> =>? {
+    <lo: @L> <name: "Ident"> <hi: @R> =>? {
         use syntax::ast::{FloatType, SignedType, UnsignedType};
 
         match name {
@@ -167,8 +167,11 @@ HostType: TypeConst = {
             "u24" => Ok(TypeConst::Unsigned(UnsignedType::U24)),
             "u32" => Ok(TypeConst::Unsigned(UnsignedType::U32)),
             "u64" => Ok(TypeConst::Unsigned(UnsignedType::U64)),
-            name => Err(ParseError::User {
-                error: GrammarError::InvalidHostTypeName { name: name.to_owned() },
+            name => Err(LalrpopError::User {
+                error: ParseError::InvalidHostTypeName {
+                    span: Span::new(lo, hi),
+                    name: name.to_owned(),
+                },
             }),
         }
     },
@@ -177,7 +180,7 @@ HostType: TypeConst = {
 
 // Expressions
 
-pub Expr: Expr<'src> = {
+pub Expr: Expr<'input> = {
     <expr: PrimaryExpr> => expr,
 };
 
@@ -186,7 +189,7 @@ pub Expr: Expr<'src> = {
 UnopNeg: Unop = "-" => Unop::Neg;
 UnopNot: Unop = "!" => Unop::Not;
 
-UnopExpr<Op, Operand>: Expr<'src> = {
+UnopExpr<Op, Operand>: Expr<'input> = {
     <lo: @L> <op: Op> <expr: Operand> <hi: @R> => {
         Expr::Unop(Span::new(lo, hi), op, Box::new(expr))
     },
@@ -207,7 +210,7 @@ BinopSub:  Binop = "-"   => Binop::Sub;
 BinopMul:  Binop = "*"   => Binop::Mul;
 BinopDiv:  Binop = "/"   => Binop::Div;
 
-BinopExpr<Lhs, Op, Rhs>: Expr<'src> = {
+BinopExpr<Lhs, Op, Rhs>: Expr<'input> = {
     <lo: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <hi: @R> => {
         Expr::Binop(Span::new(lo, hi), op, Box::new(lhs), Box::new(rhs))
     },
@@ -216,19 +219,19 @@ BinopExpr<Lhs, Op, Rhs>: Expr<'src> = {
 // Use precedence climbing to define the operators
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 
-PrimaryExpr: Expr<'src> = {
+PrimaryExpr: Expr<'input> = {
     EqExpr,
     BinopExpr<EqExpr, BinopOr, PrimaryExpr>,
     BinopExpr<EqExpr, BinopAnd, PrimaryExpr>,
 };
 
-EqExpr: Expr<'src> = {
+EqExpr: Expr<'input> = {
     CmpExpr,
     BinopExpr<CmpExpr, BinopEq, EqExpr>,
     BinopExpr<CmpExpr, BinopNe, EqExpr>,
 };
 
-CmpExpr: Expr<'src> = {
+CmpExpr: Expr<'input> = {
     AddExpr,
     BinopExpr<AddExpr, BinopLe, CmpExpr>,
     BinopExpr<AddExpr, BinopLt, CmpExpr>,
@@ -236,39 +239,39 @@ CmpExpr: Expr<'src> = {
     BinopExpr<AddExpr, BinopGe, CmpExpr>,
 };
 
-AddExpr: Expr<'src> = {
+AddExpr: Expr<'input> = {
     MulExpr,
     BinopExpr<MulExpr, BinopAdd, AddExpr>,
     BinopExpr<MulExpr, BinopSub, AddExpr>,
 };
 
-MulExpr: Expr<'src> = {
+MulExpr: Expr<'input> = {
     CastExpr,
     BinopExpr<CastExpr, BinopMul, MulExpr>,
     BinopExpr<CastExpr, BinopDiv, MulExpr>,
 };
 
-CastExpr: Expr<'src> = {
+CastExpr: Expr<'input> = {
     AnnExpr,
     <lo: @L> <expr: CastExpr> "as" <ty: HostType> <hi: @R> => {
         Expr::Cast(Span::new(lo, hi), Box::new(expr), ty)
     },
 };
 
-AnnExpr: Expr<'src> = {
+AnnExpr: Expr<'input> = {
     PrefixExpr,
     <lo: @L> <expr: AnnExpr> ":" <ty: HostType> <hi: @R> => {
         Expr::Ann(Span::new(lo, hi), Box::new(expr), ty)
     },
 };
 
-PrefixExpr: Expr<'src> = {
+PrefixExpr: Expr<'input> = {
     AtomicExpr,
     UnopExpr<UnopNeg, AtomicExpr>,
     UnopExpr<UnopNot, AtomicExpr>,
 };
 
-IntLiteral<Value>: Expr<'src> = {
+IntLiteral<Value>: Expr<'input> = {
     <lo: @L> <value: Value> <hi: @R> =>? {
         use syntax::ast::{IntSuffix, SignedType, UnsignedType};
 
@@ -283,9 +286,14 @@ IntLiteral<Value>: Expr<'src> = {
             "u24" => IntSuffix::Unsigned(UnsignedType::U24),
             "u32" => IntSuffix::Unsigned(UnsignedType::U32),
             "u64" => IntSuffix::Unsigned(UnsignedType::U64),
-            "" => return Err(ParseError::User { error: GrammarError::ConstSuffixMissing }),
-            suffix => return Err(ParseError::User {
-                error: GrammarError::ConstSuffixInvalid { suffix: suffix.to_owned() },
+            "" => return Err(LalrpopError::User {
+                error: ParseError::ConstSuffixMissing { span: Span::new(lo, hi) },
+            }),
+            suffix => return Err(LalrpopError::User {
+                error: ParseError::ConstSuffixInvalid {
+                    span: Span::new(lo, hi),
+                    suffix: suffix.to_owned(),
+                },
             }),
         });
 
@@ -293,16 +301,23 @@ IntLiteral<Value>: Expr<'src> = {
     },
 };
 
-FloatLiteral<Value>: Expr<'src> = {
+FloatLiteral<Value>: Expr<'input> = {
     <lo: @L> <value: Value> <hi: @R> =>? {
         use syntax::ast::FloatType;
 
         let float = Const::Float(value.0, match value.1 {
             "f32" => FloatType::F32,
             "f64" => FloatType::F64,
-            "" => return Err(ParseError::User { error: GrammarError::ConstSuffixMissing }),
-            suffix => return Err(ParseError::User {
-                error: GrammarError::ConstSuffixInvalid { suffix: suffix.to_owned() },
+            "" => return Err(LalrpopError::User {
+                error: ParseError::ConstSuffixMissing {
+                    span: Span::new(lo, hi),
+                },
+            }),
+            suffix => return Err(LalrpopError::User {
+                error: ParseError::ConstSuffixInvalid {
+                    span: Span::new(lo, hi),
+                    suffix: suffix.to_owned(),
+                },
             }),
         });
 
@@ -310,7 +325,7 @@ FloatLiteral<Value>: Expr<'src> = {
     },
 };
 
-AtomicExpr: Expr<'src> = {
+AtomicExpr: Expr<'input> = {
     "(" <expr: PrimaryExpr> ")" => expr,
 
     <lo: @L> "[" <elems: (<PrimaryExpr> ",")*> <last: PrimaryExpr?> "]" <hi: @R> => {

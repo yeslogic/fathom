@@ -6,84 +6,90 @@
 
 use codespan::{BytePos, Span};
 
-use parser::{from_lalrpop_err, grammar, GrammarError, ParseError};
+use parser::{self, grammar, ParseError};
 use parser::lexer::Lexer;
 
 pub use syntax::ast::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Module<'src> {
-    pub definitions: Vec<Definition<'src>>,
+pub struct Module<'input> {
+    pub definitions: Vec<Definition<'input>>,
 }
 
-impl<'src> Module<'src> {
+impl<'input> Module<'input> {
     /// Attempt to parse a module from a source string
-    pub fn from_str(src: &'src str) -> Result<Module<'src>, ParseError> {
-        grammar::parse_Module(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map_err(from_lalrpop_err)
+    pub fn from_str(src: &'input str) -> Result<Module<'input>, ParseError> {
+        grammar::parse_Module(Lexer::new(src).map(|x| x.map_err(ParseError::from)))
+            .map_err(|err| parser::from_lalrpop(src, err))
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Definition<'src> {
-    pub doc: Vec<&'src str>,
+pub struct Definition<'input> {
+    pub doc: Vec<&'input str>,
     pub span: Span,
-    pub name: &'src str,
-    pub param_names: Vec<&'src str>,
-    pub body_ty: Type<'src>,
+    pub name: &'input str,
+    pub param_names: Vec<&'input str>,
+    pub body_ty: Type<'input>,
 }
 
-impl<'src> Definition<'src> {
+impl<'input> Definition<'input> {
     /// Attempt to parse a definition from a source string
-    pub fn from_str(src: &'src str) -> Result<Definition<'src>, ParseError> {
-        grammar::parse_Definition(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map_err(from_lalrpop_err)
+    pub fn from_str(src: &'input str) -> Result<Definition<'input>, ParseError> {
+        grammar::parse_Definition(Lexer::new(src).map(|x| x.map_err(ParseError::from)))
+            .map_err(|err| parser::from_lalrpop(src, err))
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Field<'src, T> {
-    pub doc: Vec<&'src str>,
-    pub name: &'src str,
+pub struct Field<'input, T> {
+    pub doc: Vec<&'input str>,
+    pub name: &'input str,
     pub value: T,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type<'src> {
-    Var(Span, &'src str),
-    Array(Span, Box<Type<'src>>, Box<Expr<'src>>),
-    Cond(Span, Vec<Field<'src, (Expr<'src>, Type<'src>)>>),
-    Struct(Span, Vec<Field<'src, Type<'src>>>),
-    Where(Span, Box<Type<'src>>, BytePos, &'src str, Box<Expr<'src>>),
-    Compute(Span, TypeConst, Box<Expr<'src>>),
-    App(Span, Box<Type<'src>>, Vec<Type<'src>>),
+pub enum Type<'input> {
+    Var(Span, &'input str),
+    Array(Span, Box<Type<'input>>, Box<Expr<'input>>),
+    Cond(Span, Vec<Field<'input, (Expr<'input>, Type<'input>)>>),
+    Struct(Span, Vec<Field<'input, Type<'input>>>),
+    Where(
+        Span,
+        Box<Type<'input>>,
+        BytePos,
+        &'input str,
+        Box<Expr<'input>>,
+    ),
+    Compute(Span, TypeConst, Box<Expr<'input>>),
+    App(Span, Box<Type<'input>>, Vec<Type<'input>>),
 }
 
-impl<'src> Type<'src> {
+impl<'input> Type<'input> {
     /// Attempt to parse a type from a source string
-    pub fn from_str(src: &'src str) -> Result<Type<'src>, ParseError> {
-        grammar::parse_Type(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map_err(from_lalrpop_err)
+    pub fn from_str(src: &'input str) -> Result<Type<'input>, ParseError> {
+        grammar::parse_Type(Lexer::new(src).map(|x| x.map_err(ParseError::from)))
+            .map_err(|err| parser::from_lalrpop(src, err))
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr<'src> {
-    Ann(Span, Box<Expr<'src>>, TypeConst),
+pub enum Expr<'input> {
+    Ann(Span, Box<Expr<'input>>, TypeConst),
     Const(Span, Const),
-    Var(Span, &'src str),
-    Unop(Span, Unop, Box<Expr<'src>>),
-    Binop(Span, Binop, Box<Expr<'src>>, Box<Expr<'src>>),
-    Array(Span, Vec<Expr<'src>>),
-    Proj(Span, Box<Expr<'src>>, &'src str),
-    Subscript(Span, Box<Expr<'src>>, Box<Expr<'src>>),
-    Cast(Span, Box<Expr<'src>>, TypeConst),
+    Var(Span, &'input str),
+    Unop(Span, Unop, Box<Expr<'input>>),
+    Binop(Span, Binop, Box<Expr<'input>>, Box<Expr<'input>>),
+    Array(Span, Vec<Expr<'input>>),
+    Proj(Span, Box<Expr<'input>>, &'input str),
+    Subscript(Span, Box<Expr<'input>>, Box<Expr<'input>>),
+    Cast(Span, Box<Expr<'input>>, TypeConst),
 }
 
-impl<'src> Expr<'src> {
+impl<'input> Expr<'input> {
     /// Attempt to parse an expression from a source string
-    pub fn from_str(src: &'src str) -> Result<Expr<'src>, ParseError> {
-        grammar::parse_Expr(Lexer::new(src).map(|x| x.map_err(GrammarError::from)))
-            .map_err(from_lalrpop_err)
+    pub fn from_str(src: &'input str) -> Result<Expr<'input>, ParseError> {
+        grammar::parse_Expr(Lexer::new(src).map(|x| x.map_err(ParseError::from)))
+            .map_err(|err| parser::from_lalrpop(src, err))
     }
 }
