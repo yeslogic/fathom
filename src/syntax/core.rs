@@ -1,6 +1,6 @@
 //! The syntax of our data description language
 
-use codespan::Span;
+use codespan::ByteSpan;
 use std::fmt;
 use std::rc::Rc;
 
@@ -351,7 +351,7 @@ impl TypeConst {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     /// A type variable: eg. `T`
-    Var(Span, Var),
+    Var(ByteSpan, Var),
     /// A type variable: eg. `T`
     HostVar(Var),
     /// Type constant
@@ -359,20 +359,20 @@ pub enum Type {
     /// Arrow type: eg. `(T, ..) -> U`
     Arrow(Vec<RcType>, RcType),
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
-    Lam(Span, Vec<Named<Name, RcKind>>, RcType),
+    Lam(ByteSpan, Vec<Named<Name, RcKind>>, RcType),
     /// Type application: eg. `T(U, V)`
-    App(Span, RcType, Vec<RcType>),
+    App(ByteSpan, RcType, Vec<RcType>),
 
     /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(Span, RcType, RcIExpr),
+    Array(ByteSpan, RcType, RcIExpr),
     /// Conditional types: eg. `cond { field : pred => T, ... }`
-    Cond(Span, Vec<Field<(RcCExpr, RcType)>>),
+    Cond(ByteSpan, Vec<Field<(RcCExpr, RcType)>>),
     /// A struct type, with fields: eg. `struct { variant : T, ... }`
-    Struct(Span, Vec<Field<RcType>>),
+    Struct(ByteSpan, Vec<Field<RcType>>),
     /// A type that is constrained by a predicate: eg. `T where x => x == 3`
-    Assert(Span, RcType, RcCExpr),
+    Assert(ByteSpan, RcType, RcCExpr),
     /// An interpreted type
-    Interp(Span, RcType, RcCExpr, RcType),
+    Interp(ByteSpan, RcType, RcCExpr, RcType),
 
     /// An array, eg. `[T]`
     HostArray(RcType),
@@ -403,7 +403,7 @@ impl fmt::Debug for RcType {
 
 impl RcType {
     /// Type level lambda abstraction: eg. `\(a, ..) -> T`
-    pub fn lam<T1>(span: Span, params: Vec<Named<Name, RcKind>>, body_ty: T1) -> RcType
+    pub fn lam<T1>(span: ByteSpan, params: Vec<Named<Name, RcKind>>, body_ty: T1) -> RcType
     where
         T1: Into<RcType>,
     {
@@ -421,7 +421,7 @@ impl RcType {
     }
 
     /// A struct type, with fields: eg. `struct { field : T, ... }`
-    pub fn struct_(span: Span, mut fields: Vec<Field<RcType>>) -> RcType {
+    pub fn struct_(span: ByteSpan, mut fields: Vec<Field<RcType>>) -> RcType {
         // We maintain a list of the seen field names. This will allow us to
         // recover the index of these variables as we abstract later fields...
         let mut seen_names = Vec::<Name>::with_capacity(fields.len());
@@ -826,7 +826,7 @@ impl RcType {
             concrete::Type::Where(span, ref ty, lo2, param_name, ref pred_expr) => {
                 let ty = RcType::from_concrete(&**ty)?;
                 let pred_fn = RcIExpr::lam(
-                    Span::new(lo2, span.hi()),
+                    ByteSpan::new(lo2, span.end()),
                     vec![Named(Name::user(param_name), ty.repr())],
                     RcIExpr::from_concrete(&**pred_expr)?,
                 );
@@ -927,9 +927,9 @@ pub enum Binop {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CExpr {
     /// Variant introduction, eg: `.variant1 x`
-    Intro(Span, Ident, RcCExpr),
+    Intro(ByteSpan, Ident, RcCExpr),
     /// Array literals. eg: `[1, 2, 3]`
-    Array(Span, Vec<RcCExpr>),
+    Array(ByteSpan, Vec<RcCExpr>),
     /// Inferred expressions
     Inf(RcIExpr),
 }
@@ -1007,29 +1007,29 @@ impl RcCExpr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum IExpr {
     /// An expression annotated by a type, ie. `x : u32`
-    Ann(Span, RcCExpr, RcType),
+    Ann(ByteSpan, RcCExpr, RcType),
     /// A constant value
-    Const(Span, Const),
+    Const(ByteSpan, Const),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
-    Var(Span, Var),
+    Var(ByteSpan, Var),
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    Lam(Span, Vec<Named<Name, RcType>>, RcIExpr),
+    Lam(ByteSpan, Vec<Named<Name, RcType>>, RcIExpr),
     /// Application, eg: `f(x, ..)`
-    App(Span, RcIExpr, Vec<RcCExpr>),
+    App(ByteSpan, RcIExpr, Vec<RcCExpr>),
 
     /// An unary operator expression
-    Unop(Span, Unop, RcIExpr),
+    Unop(ByteSpan, Unop, RcIExpr),
     /// A binary operator expression
-    Binop(Span, Binop, RcIExpr, RcIExpr),
+    Binop(ByteSpan, Binop, RcIExpr, RcIExpr),
     /// A struct initialization expression
     Struct(Vec<Field<RcIExpr>>),
     /// Field projection, eg: `x.field`
-    Proj(Span, RcIExpr, Ident),
+    Proj(ByteSpan, RcIExpr, Ident),
     /// Array index, eg: `x[i]`
-    Subscript(Span, RcIExpr, RcIExpr),
+    Subscript(ByteSpan, RcIExpr, RcIExpr),
     /// Cast expression, eg: `x as u32`
-    Cast(Span, RcIExpr, RcType),
+    Cast(ByteSpan, RcIExpr, RcType),
 }
 
 #[derive(Clone, PartialEq)]
@@ -1053,7 +1053,7 @@ impl fmt::Debug for RcIExpr {
 
 impl RcIExpr {
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    pub fn lam<E1>(span: Span, params: Vec<Named<Name, RcType>>, body_expr: E1) -> RcIExpr
+    pub fn lam<E1>(span: ByteSpan, params: Vec<Named<Name, RcType>>, body_expr: E1) -> RcIExpr
     where
         E1: Into<RcIExpr>,
     {
@@ -1242,9 +1242,9 @@ mod tests {
                 // λx. x
                 // λ   0
                 let ty = RcT::lam(
-                    Span::none(),
+                    ByteSpan::none(),
                     vec![Named(Name::user("x"), Kind::Binary.into())],
-                    T::Var(Span::none(), Var::free(Name::user("x"))),
+                    T::Var(ByteSpan::none(), Var::free(Name::user("x"))),
                 );
 
                 assert_debug_snapshot!(ty_abs_id, ty);
@@ -1257,12 +1257,12 @@ mod tests {
                 // λx.λy. x
                 // λ  λ   1
                 let ty = RcT::lam(
-                    Span::none(),
+                    ByteSpan::none(),
                     vec![Named(Name::user("x"), Kind::Binary.into())],
                     RcT::lam(
-                        Span::none(),
+                        ByteSpan::none(),
                         vec![Named(Name::user("y"), Kind::Binary.into())],
-                        T::Var(Span::none(), Var::free(Name::user("x"))),
+                        T::Var(ByteSpan::none(), Var::free(Name::user("x"))),
                     ),
                 );
 
@@ -1274,27 +1274,30 @@ mod tests {
                 // λx.λy.λz. x z (y z)
                 // λ  λ  λ   2 0 (1 0)
                 let ty = RcT::lam(
-                    Span::none(),
+                    ByteSpan::none(),
                     vec![Named(Name::user("x"), Kind::Binary.into())],
                     RcT::lam(
-                        Span::none(),
+                        ByteSpan::none(),
                         vec![Named(Name::user("y"), Kind::Binary.into())],
                         RcT::lam(
-                            Span::none(),
+                            ByteSpan::none(),
                             vec![Named(Name::user("z"), Kind::Binary.into())],
                             T::App(
-                                Span::none(),
+                                ByteSpan::none(),
                                 T::App(
-                                    Span::none(),
-                                    T::Var(Span::none(), Var::free(Name::user("x"))).into(),
-                                    vec![T::Var(Span::none(), Var::free(Name::user("z"))).into()],
+                                    ByteSpan::none(),
+                                    T::Var(ByteSpan::none(), Var::free(Name::user("x"))).into(),
+                                    vec![
+                                        T::Var(ByteSpan::none(), Var::free(Name::user("z"))).into(),
+                                    ],
                                 ).into(),
                                 vec![
                                     T::App(
-                                        Span::none(),
-                                        T::Var(Span::none(), Var::free(Name::user("y"))).into(),
+                                        ByteSpan::none(),
+                                        T::Var(ByteSpan::none(), Var::free(Name::user("y"))).into(),
                                         vec![
-                                            T::Var(Span::none(), Var::free(Name::user("z"))).into(),
+                                            T::Var(ByteSpan::none(), Var::free(Name::user("z")))
+                                                .into(),
                                         ],
                                     ).into(),
                                 ],
@@ -1311,33 +1314,35 @@ mod tests {
                 // λz.(λy. y (λx. x)) (λx. z x)
                 // λ  (λ   0 (λ   0)) (λ   1 0)
                 let ty = RcT::lam(
-                    Span::none(),
+                    ByteSpan::none(),
                     vec![Named(Name::user("z"), Kind::Binary.into())],
                     T::App(
-                        Span::none(),
+                        ByteSpan::none(),
                         RcT::lam(
-                            Span::none(),
+                            ByteSpan::none(),
                             vec![Named(Name::user("y"), Kind::Binary.into())],
                             T::App(
-                                Span::none(),
-                                T::Var(Span::none(), Var::free(Name::user("y"))).into(),
+                                ByteSpan::none(),
+                                T::Var(ByteSpan::none(), Var::free(Name::user("y"))).into(),
                                 vec![
                                     RcT::lam(
-                                        Span::none(),
+                                        ByteSpan::none(),
                                         vec![Named(Name::user("x"), Kind::Binary.into())],
-                                        T::Var(Span::none(), Var::free(Name::user("x"))),
+                                        T::Var(ByteSpan::none(), Var::free(Name::user("x"))),
                                     ),
                                 ],
                             ),
                         ),
                         vec![
                             RcT::lam(
-                                Span::none(),
+                                ByteSpan::none(),
                                 vec![Named(Name::user("x"), Kind::Binary.into())],
                                 T::App(
-                                    Span::none(),
-                                    T::Var(Span::none(), Var::free(Name::user("z"))).into(),
-                                    vec![T::Var(Span::none(), Var::free(Name::user("x"))).into()],
+                                    ByteSpan::none(),
+                                    T::Var(ByteSpan::none(), Var::free(Name::user("z"))).into(),
+                                    vec![
+                                        T::Var(ByteSpan::none(), Var::free(Name::user("x"))).into(),
+                                    ],
                                 ),
                             ),
                         ],

@@ -4,18 +4,18 @@ Module {
             doc: "",
             name: Ident("Vec3d"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(8),
-                    hi: BytePos(60)
+                ByteSpan {
+                    start: ByteIndex(8),
+                    end: ByteIndex(60)
                 },
                 [
                     Field {
                         doc: "",
                         name: Ident("x"),
                         value: Var(
-                            Span {
-                                lo: BytePos(24),
-                                hi: BytePos(29)
+                            ByteSpan {
+                                start: ByteIndex(24),
+                                end: ByteIndex(29)
                             },
                             Free(
                                 User(
@@ -28,9 +28,9 @@ Module {
                         doc: "",
                         name: Ident("y"),
                         value: Var(
-                            Span {
-                                lo: BytePos(38),
-                                hi: BytePos(43)
+                            ByteSpan {
+                                start: ByteIndex(38),
+                                end: ByteIndex(43)
                             },
                             Free(
                                 User(
@@ -43,9 +43,9 @@ Module {
                         doc: "",
                         name: Ident("z"),
                         value: Var(
-                            Span {
-                                lo: BytePos(52),
-                                hi: BytePos(57)
+                            ByteSpan {
+                                start: ByteIndex(52),
+                                end: ByteIndex(57)
                             },
                             Free(
                                 User(
@@ -61,18 +61,18 @@ Module {
             doc: "",
             name: Ident("Triangle"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(74),
-                    hi: BytePos(407)
+                ByteSpan {
+                    start: ByteIndex(74),
+                    end: ByteIndex(407)
                 },
                 [
                     Field {
                         doc: "Normal vector",
                         name: Ident("normal"),
                         value: Var(
-                            Span {
-                                lo: BytePos(117),
-                                hi: BytePos(122)
+                            ByteSpan {
+                                start: ByteIndex(117),
+                                end: ByteIndex(122)
                             },
                             Bound(
                                 Named(
@@ -88,14 +88,14 @@ Module {
                         doc: "Coordinates of the vertices",
                         name: Ident("vertices"),
                         value: Array(
-                            Span {
-                                lo: BytePos(174),
-                                hi: BytePos(186)
+                            ByteSpan {
+                                start: ByteIndex(174),
+                                end: ByteIndex(186)
                             },
                             Var(
-                                Span {
-                                    lo: BytePos(175),
-                                    hi: BytePos(180)
+                                ByteSpan {
+                                    start: ByteIndex(175),
+                                    end: ByteIndex(180)
                                 },
                                 Bound(
                                     Named(
@@ -107,9 +107,9 @@ Module {
                                 )
                             ),
                             Const(
-                                Span {
-                                    lo: BytePos(182),
-                                    hi: BytePos(185)
+                                ByteSpan {
+                                    start: ByteIndex(182),
+                                    end: ByteIndex(185)
                                 },
                                 Int(3, Unsigned(U8))
                             )
@@ -119,9 +119,9 @@ Module {
                         doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
                         name: Ident("attribute_bytes"),
                         value: Var(
-                            Span {
-                                lo: BytePos(399),
-                                hi: BytePos(404)
+                            ByteSpan {
+                                start: ByteIndex(399),
+                                end: ByteIndex(404)
                             },
                             Free(
                                 User(
@@ -137,23 +137,23 @@ Module {
             doc: "https://en.wikipedia.org/wiki/STL_(file_format)",
             name: Ident("Stl"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(468),
-                    hi: BytePos(662)
+                ByteSpan {
+                    start: ByteIndex(468),
+                    end: ByteIndex(662)
                 },
                 [
                     Field {
                         doc: "Generally ignored",
                         name: Ident("header"),
                         value: Array(
-                            Span {
-                                lo: BytePos(515),
-                                hi: BytePos(525)
+                            ByteSpan {
+                                start: ByteIndex(515),
+                                end: ByteIndex(525)
                             },
                             Var(
-                                Span {
-                                    lo: BytePos(516),
-                                    hi: BytePos(518)
+                                ByteSpan {
+                                    start: ByteIndex(516),
+                                    end: ByteIndex(518)
                                 },
                                 Free(
                                     User(
@@ -162,9 +162,9 @@ Module {
                                 )
                             ),
                             Const(
-                                Span {
-                                    lo: BytePos(520),
-                                    hi: BytePos(524)
+                                ByteSpan {
+                                    start: ByteIndex(520),
+                                    end: ByteIndex(524)
                                 },
                                 Int(80, Unsigned(U8))
                             )
@@ -174,9 +174,9 @@ Module {
                         doc: "Number of triangles that follow",
                         name: Ident("num_triangles"),
                         value: Var(
-                            Span {
-                                lo: BytePos(586),
-                                hi: BytePos(591)
+                            ByteSpan {
+                                start: ByteIndex(586),
+                                end: ByteIndex(591)
                             },
                             Free(
                                 User(
@@ -189,14 +189,14 @@ Module {
                         doc: "The triangle data",
                         name: Ident("triangles"),
                         value: Array(
-                            Span {
-                                lo: BytePos(634),
-                                hi: BytePos(659)
+                            ByteSpan {
+                                start: ByteIndex(634),
+                                end: ByteIndex(659)
                             },
                             Var(
-                                Span {
-                                    lo: BytePos(635),
-                                    hi: BytePos(643)
+                                ByteSpan {
+                                    start: ByteIndex(635),
+                                    end: ByteIndex(643)
                                 },
                                 Bound(
                                     Named(
@@ -208,9 +208,9 @@ Module {
                                 )
                             ),
                             Var(
-                                Span {
-                                    lo: BytePos(645),
-                                    hi: BytePos(658)
+                                ByteSpan {
+                                    start: ByteIndex(645),
+                                    end: ByteIndex(658)
                                 },
                                 Bound(
                                     Named(

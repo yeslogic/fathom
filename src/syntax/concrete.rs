@@ -4,7 +4,7 @@
 //! anything interesting with this, one must first lower it to the core
 //! representation.
 
-use codespan::{BytePos, Span};
+use codespan::{ByteIndex, ByteSpan};
 
 pub use syntax::core::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
 
@@ -16,7 +16,7 @@ pub struct Module<'input> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Definition<'input> {
     pub doc: Vec<&'input str>,
-    pub span: Span,
+    pub span: ByteSpan,
     pub name: &'input str,
     pub param_names: Vec<&'input str>,
     pub body_ty: Type<'input>,
@@ -31,30 +31,30 @@ pub struct Field<'input, T> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type<'input> {
-    Var(Span, &'input str),
-    Array(Span, Box<Type<'input>>, Box<Expr<'input>>),
-    Cond(Span, Vec<Field<'input, (Expr<'input>, Type<'input>)>>),
-    Struct(Span, Vec<Field<'input, Type<'input>>>),
+    Var(ByteSpan, &'input str),
+    Array(ByteSpan, Box<Type<'input>>, Box<Expr<'input>>),
+    Cond(ByteSpan, Vec<Field<'input, (Expr<'input>, Type<'input>)>>),
+    Struct(ByteSpan, Vec<Field<'input, Type<'input>>>),
     Where(
-        Span,
+        ByteSpan,
         Box<Type<'input>>,
-        BytePos,
+        ByteIndex,
         &'input str,
         Box<Expr<'input>>,
     ),
-    Compute(Span, TypeConst, Box<Expr<'input>>),
-    App(Span, Box<Type<'input>>, Vec<Type<'input>>),
+    Compute(ByteSpan, TypeConst, Box<Expr<'input>>),
+    App(ByteSpan, Box<Type<'input>>, Vec<Type<'input>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr<'input> {
-    Ann(Span, Box<Expr<'input>>, TypeConst),
-    Const(Span, Const),
-    Var(Span, &'input str),
-    Unop(Span, Unop, Box<Expr<'input>>),
-    Binop(Span, Binop, Box<Expr<'input>>, Box<Expr<'input>>),
-    Array(Span, Vec<Expr<'input>>),
-    Proj(Span, Box<Expr<'input>>, &'input str),
-    Subscript(Span, Box<Expr<'input>>, Box<Expr<'input>>),
-    Cast(Span, Box<Expr<'input>>, TypeConst),
+    Ann(ByteSpan, Box<Expr<'input>>, TypeConst),
+    Const(ByteSpan, Const),
+    Var(ByteSpan, &'input str),
+    Unop(ByteSpan, Unop, Box<Expr<'input>>),
+    Binop(ByteSpan, Binop, Box<Expr<'input>>, Box<Expr<'input>>),
+    Array(ByteSpan, Vec<Expr<'input>>),
+    Proj(ByteSpan, Box<Expr<'input>>, &'input str),
+    Subscript(ByteSpan, Box<Expr<'input>>, Box<Expr<'input>>),
+    Cast(ByteSpan, Box<Expr<'input>>, TypeConst),
 }

@@ -4,23 +4,23 @@ Module {
             doc: "",
             name: Ident("Header"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(9),
-                    hi: BytePos(741)
+                ByteSpan {
+                    start: ByteIndex(9),
+                    end: ByteIndex(741)
                 },
                 [
                     Field {
                         doc: "Fixed header pattern",
                         name: Ident("magic"),
                         value: Assert(
-                            Span {
-                                lo: BytePos(58),
-                                hi: BytePos(109)
+                            ByteSpan {
+                                start: ByteIndex(58),
+                                end: ByteIndex(109)
                             },
                             Var(
-                                Span {
-                                    lo: BytePos(58),
-                                    hi: BytePos(63)
+                                ByteSpan {
+                                    start: ByteIndex(58),
+                                    end: ByteIndex(63)
                                 },
                                 Free(
                                     User(
@@ -30,9 +30,9 @@ Module {
                             ),
                             Inf(
                                 Lam(
-                                    Span {
-                                        lo: BytePos(70),
-                                        hi: BytePos(109)
+                                    ByteSpan {
+                                        start: ByteIndex(70),
+                                        end: ByteIndex(109)
                                     },
                                     [
                                         Named(
@@ -49,15 +49,15 @@ Module {
                                         )
                                     ],
                                     Binop(
-                                        Span {
-                                            lo: BytePos(79),
-                                            hi: BytePos(109)
+                                        ByteSpan {
+                                            start: ByteIndex(79),
+                                            end: ByteIndex(109)
                                         },
                                         Eq,
                                         Var(
-                                            Span {
-                                                lo: BytePos(79),
-                                                hi: BytePos(84)
+                                            ByteSpan {
+                                                start: ByteIndex(79),
+                                                end: ByteIndex(84)
                                             },
                                             Bound(
                                                 Named(
@@ -69,9 +69,9 @@ Module {
                                             )
                                         ),
                                         Const(
-                                            Span {
-                                                lo: BytePos(88),
-                                                hi: BytePos(109)
+                                            ByteSpan {
+                                                start: ByteIndex(88),
+                                                end: ByteIndex(109)
                                             },
                                             Int(72057594037927680, Unsigned(U64))
                                         )
@@ -84,9 +84,9 @@ Module {
                         doc: "Manufacturer ID",
                         name: Ident("mfg_bytes"),
                         value: Var(
-                            Span {
-                                lo: BytePos(150),
-                                hi: BytePos(155)
+                            ByteSpan {
+                                start: ByteIndex(150),
+                                end: ByteIndex(155)
                             },
                             Free(
                                 User(
@@ -99,9 +99,9 @@ Module {
                         doc: "Manufacturer product code",
                         name: Ident("product_code"),
                         value: Var(
-                            Span {
-                                lo: BytePos(209),
-                                hi: BytePos(214)
+                            ByteSpan {
+                                start: ByteIndex(209),
+                                end: ByteIndex(214)
                             },
                             Free(
                                 User(
@@ -114,9 +114,9 @@ Module {
                         doc: "Serial number",
                         name: Ident("serial"),
                         value: Var(
-                            Span {
-                                lo: BytePos(250),
-                                hi: BytePos(255)
+                            ByteSpan {
+                                start: ByteIndex(250),
+                                end: ByteIndex(255)
                             },
                             Free(
                                 User(
@@ -129,9 +129,9 @@ Module {
                         doc: "Week of manufacture. Week numbering is not consistent between manufacturers.",
                         name: Ident("mfg_week"),
                         value: Var(
-                            Span {
-                                lo: BytePos(356),
-                                hi: BytePos(358)
+                            ByteSpan {
+                                start: ByteIndex(356),
+                                end: ByteIndex(358)
                             },
                             Free(
                                 User(
@@ -144,9 +144,9 @@ Module {
                         doc: "Year of manufacture, less 1990. (1990–2245). If week=255, it is the model year instead.",
                         name: Ident("mfg_year_mod"),
                         value: Var(
-                            Span {
-                                lo: BytePos(476),
-                                hi: BytePos(478)
+                            ByteSpan {
+                                start: ByteIndex(476),
+                                end: ByteIndex(478)
                             },
                             Free(
                                 User(
@@ -159,18 +159,18 @@ Module {
                         doc: "Year of manufacture, derived from `mfg_year_mod`",
                         name: Ident("mfg_year"),
                         value: Interp(
-                            Span {
-                                lo: BytePos(551),
-                                hi: BytePos(597)
+                            ByteSpan {
+                                start: ByteIndex(551),
+                                end: ByteIndex(597)
                             },
                             Const(
                                 Empty
                             ),
                             Inf(
                                 Lam(
-                                    Span {
-                                        lo: BytePos(551),
-                                        hi: BytePos(597)
+                                    ByteSpan {
+                                        start: ByteIndex(551),
+                                        end: ByteIndex(597)
                                     },
                                     [
                                         Named(
@@ -181,20 +181,20 @@ Module {
                                         )
                                     ],
                                     Binop(
-                                        Span {
-                                            lo: BytePos(568),
-                                            hi: BytePos(597)
+                                        ByteSpan {
+                                            start: ByteIndex(568),
+                                            end: ByteIndex(597)
                                         },
                                         Add,
                                         Cast(
-                                            Span {
-                                                lo: BytePos(568),
-                                                hi: BytePos(587)
+                                            ByteSpan {
+                                                start: ByteIndex(568),
+                                                end: ByteIndex(587)
                                             },
                                             Var(
-                                                Span {
-                                                    lo: BytePos(568),
-                                                    hi: BytePos(580)
+                                                ByteSpan {
+                                                    start: ByteIndex(568),
+                                                    end: ByteIndex(580)
                                                 },
                                                 Bound(
                                                     Named(
@@ -212,9 +212,9 @@ Module {
                                             )
                                         ),
                                         Const(
-                                            Span {
-                                                lo: BytePos(590),
-                                                hi: BytePos(597)
+                                            ByteSpan {
+                                                start: ByteIndex(590),
+                                                end: ByteIndex(597)
                                             },
                                             Int(1990, Unsigned(U16))
                                         )
@@ -232,9 +232,9 @@ Module {
                         doc: "EDID version, usually 1 (for 1.3)",
                         name: Ident("edid_version_major"),
                         value: Var(
-                            Span {
-                                lo: BytePos(665),
-                                hi: BytePos(667)
+                            ByteSpan {
+                                start: ByteIndex(665),
+                                end: ByteIndex(667)
                             },
                             Free(
                                 User(
@@ -247,9 +247,9 @@ Module {
                         doc: "EDID revision, usually 3 (for 1.3)",
                         name: Ident("edid_version_minor"),
                         value: Var(
-                            Span {
-                                lo: BytePos(736),
-                                hi: BytePos(738)
+                            ByteSpan {
+                                start: ByteIndex(736),
+                                end: ByteIndex(738)
                             },
                             Free(
                                 User(
@@ -265,18 +265,18 @@ Module {
             doc: "",
             name: Ident("DisplayParams"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(760),
-                    hi: BytePos(1461)
+                ByteSpan {
+                    start: ByteIndex(760),
+                    end: ByteIndex(1461)
                 },
                 [
                     Field {
                         doc: "Video input parameters bitmap",
                         name: Ident("input_flags"),
                         value: Var(
-                            Span {
-                                lo: BytePos(824),
-                                hi: BytePos(826)
+                            ByteSpan {
+                                start: ByteIndex(824),
+                                end: ByteIndex(826)
                             },
                             Free(
                                 User(
@@ -289,9 +289,9 @@ Module {
                         doc: "Maximum horizontal image size, in centimetres (max 292 cm/115 in at\n16:9 aspect ratio)",
                         name: Ident("screen_size_h"),
                         value: Var(
-                            Span {
-                                lo: BytePos(950),
-                                hi: BytePos(952)
+                            ByteSpan {
+                                start: ByteIndex(950),
+                                end: ByteIndex(952)
                             },
                             Free(
                                 User(
@@ -304,9 +304,9 @@ Module {
                         doc: "Maximum vertical image size, in centimetres. If either byte is 0,\nundefined (e.g. projector)",
                         name: Ident("screen_size_v"),
                         value: Var(
-                            Span {
-                                lo: BytePos(1082),
-                                hi: BytePos(1084)
+                            ByteSpan {
+                                start: ByteIndex(1082),
+                                end: ByteIndex(1084)
                             },
                             Free(
                                 User(
@@ -319,9 +319,9 @@ Module {
                         doc: "Display gamma data, factory default (range 1.00–3.54), where\n`gamma_mod = (gamma×100)-100 = (gamma−1)×100` If 225, gamma is defined\nby DI-EXT block.",
                         name: Ident("gamma_mod"),
                         value: Var(
-                            Span {
-                                lo: BytePos(1280),
-                                hi: BytePos(1282)
+                            ByteSpan {
+                                start: ByteIndex(1280),
+                                end: ByteIndex(1282)
                             },
                             Free(
                                 User(
@@ -334,18 +334,18 @@ Module {
                         doc: "Display gamma, derived from `gamma_mod`",
                         name: Ident("gamma"),
                         value: Interp(
-                            Span {
-                                lo: BytePos(1343),
-                                hi: BytePos(1400)
+                            ByteSpan {
+                                start: ByteIndex(1343),
+                                end: ByteIndex(1400)
                             },
                             Const(
                                 Empty
                             ),
                             Inf(
                                 Lam(
-                                    Span {
-                                        lo: BytePos(1343),
-                                        hi: BytePos(1400)
+                                    ByteSpan {
+                                        start: ByteIndex(1343),
+                                        end: ByteIndex(1400)
                                     },
                                     [
                                         Named(
@@ -356,26 +356,26 @@ Module {
                                         )
                                     ],
                                     Binop(
-                                        Span {
-                                            lo: BytePos(1360),
-                                            hi: BytePos(1400)
+                                        ByteSpan {
+                                            start: ByteIndex(1360),
+                                            end: ByteIndex(1400)
                                         },
                                         Div,
                                         Binop(
-                                            Span {
-                                                lo: BytePos(1361),
-                                                hi: BytePos(1388)
+                                            ByteSpan {
+                                                start: ByteIndex(1361),
+                                                end: ByteIndex(1388)
                                             },
                                             Add,
                                             Cast(
-                                                Span {
-                                                    lo: BytePos(1361),
-                                                    hi: BytePos(1377)
+                                                ByteSpan {
+                                                    start: ByteIndex(1361),
+                                                    end: ByteIndex(1377)
                                                 },
                                                 Var(
-                                                    Span {
-                                                        lo: BytePos(1361),
-                                                        hi: BytePos(1370)
+                                                    ByteSpan {
+                                                        start: ByteIndex(1361),
+                                                        end: ByteIndex(1370)
                                                     },
                                                     Bound(
                                                         Named(
@@ -393,17 +393,17 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                Span {
-                                                    lo: BytePos(1380),
-                                                    hi: BytePos(1388)
+                                                ByteSpan {
+                                                    start: ByteIndex(1380),
+                                                    end: ByteIndex(1388)
                                                 },
                                                 Float(100.0, F32)
                                             )
                                         ),
                                         Const(
-                                            Span {
-                                                lo: BytePos(1392),
-                                                hi: BytePos(1400)
+                                            ByteSpan {
+                                                start: ByteIndex(1392),
+                                                end: ByteIndex(1400)
                                             },
                                             Float(100.0, F32)
                                         )
@@ -421,9 +421,9 @@ Module {
                         doc: "Supported features bitmap",
                         name: Ident("features_flags"),
                         value: Var(
-                            Span {
-                                lo: BytePos(1456),
-                                hi: BytePos(1458)
+                            ByteSpan {
+                                start: ByteIndex(1456),
+                                end: ByteIndex(1458)
                             },
                             Free(
                                 User(
@@ -439,18 +439,18 @@ Module {
             doc: "https://en.wikipedia.org/wiki/Extended_Display_Identification_Data",
             name: Ident("Edid"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(1542),
-                    hi: BytePos(1788)
+                ByteSpan {
+                    start: ByteIndex(1542),
+                    end: ByteIndex(1788)
                 },
                 [
                     Field {
                         doc: "Header information",
                         name: Ident("header"),
                         value: Var(
-                            Span {
-                                lo: BytePos(1590),
-                                hi: BytePos(1596)
+                            ByteSpan {
+                                start: ByteIndex(1590),
+                                end: ByteIndex(1596)
                             },
                             Bound(
                                 Named(
@@ -466,9 +466,9 @@ Module {
                         doc: "Basic display parameters",
                         name: Ident("display_params"),
                         value: Var(
-                            Span {
-                                lo: BytePos(1651),
-                                hi: BytePos(1664)
+                            ByteSpan {
+                                start: ByteIndex(1651),
+                                end: ByteIndex(1664)
                             },
                             Bound(
                                 Named(

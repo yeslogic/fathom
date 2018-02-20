@@ -4,14 +4,14 @@ Module {
             doc: "",
             name: Ident("Point"),
             body_ty: Array(
-                Span {
-                    lo: BytePos(17),
-                    hi: BytePos(28)
+                ByteSpan {
+                    start: ByteIndex(17),
+                    end: ByteIndex(28)
                 },
                 Var(
-                    Span {
-                        lo: BytePos(18),
-                        hi: BytePos(21)
+                    ByteSpan {
+                        start: ByteIndex(18),
+                        end: ByteIndex(21)
                     },
                     Free(
                         User(
@@ -20,9 +20,9 @@ Module {
                     )
                 ),
                 Const(
-                    Span {
-                        lo: BytePos(23),
-                        hi: BytePos(27)
+                    ByteSpan {
+                        start: ByteIndex(23),
+                        end: ByteIndex(27)
                     },
                     Int(3, Unsigned(U32))
                 )

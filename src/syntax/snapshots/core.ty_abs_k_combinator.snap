@@ -1,7 +1,7 @@
 Lam(
-    Span {
-        lo: BytePos(0),
-        hi: BytePos(0)
+    ByteSpan {
+        start: ByteIndex(0),
+        end: ByteIndex(0)
     },
     [
         Named(
@@ -12,9 +12,9 @@ Lam(
         )
     ],
     Lam(
-        Span {
-            lo: BytePos(0),
-            hi: BytePos(0)
+        ByteSpan {
+            start: ByteIndex(0),
+            end: ByteIndex(0)
         },
         [
             Named(
@@ -25,9 +25,9 @@ Lam(
             )
         ],
         Var(
-            Span {
-                lo: BytePos(0),
-                hi: BytePos(0)
+            ByteSpan {
+                start: ByteIndex(0),
+                end: ByteIndex(0)
             },
             Bound(
                 Named(

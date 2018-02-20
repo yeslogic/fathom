@@ -1,5 +1,5 @@
 use lalrpop_util::ParseError as LalrpopError;
-use codespan::{BytePos, RawPos, Span};
+use codespan::{ByteIndex, ByteSpan, RawIndex};
 use codespan_reporting::{Diagnostic, Label, LabelStyle, Severity};
 use std::fmt;
 
@@ -11,29 +11,32 @@ pub enum ParseError {
     Lexer(#[cause] LexerError),
 
     #[fail(display = "invalid constant suffix: {}", suffix)]
-    ConstSuffixInvalid { span: Span, suffix: String },
+    ConstSuffixInvalid { span: ByteSpan, suffix: String },
     #[fail(display = "missing constant suffix")]
-    ConstSuffixMissing { span: Span },
+    ConstSuffixMissing { span: ByteSpan },
     #[fail(display = "invalid host type name: {}", name)]
-    InvalidHostTypeName { span: Span, name: String },
+    InvalidHostTypeName { span: ByteSpan, name: String },
 
     #[fail(display = "Unexpected EOF, expected one of: {}.", expected)]
     UnexpectedEof {
-        end: BytePos,
+        end: ByteIndex,
         expected: ExpectedTokens,
     },
     #[fail(display = "Unexpected token {}, expected one of: {}.", token, expected)]
     UnexpectedToken {
-        span: Span,
+        span: ByteSpan,
         token: Token<String>,
         expected: ExpectedTokens,
     },
     #[fail(display = "Extra token {}.", token)]
-    ExtraToken { span: Span, token: Token<String> },
+    ExtraToken {
+        span: ByteSpan,
+        token: Token<String>,
+    },
 }
 
 /// Flatten away an LALRPOP error, leaving the inner `ParseError` behind
-pub fn from_lalrpop<T>(src: &str, err: LalrpopError<BytePos, T, ParseError>) -> ParseError
+pub fn from_lalrpop<T>(src: &str, err: LalrpopError<ByteIndex, T, ParseError>) -> ParseError
 where
     T: Into<Token<String>>,
 {
@@ -44,21 +47,21 @@ where
             token: None,
             expected,
         } => ParseError::UnexpectedEof {
-            end: BytePos(src.len() as RawPos),
+            end: ByteIndex(src.len() as RawIndex),
             expected: ExpectedTokens(expected),
         },
         LalrpopError::UnrecognizedToken {
-            token: Some((lo, token, hi)),
+            token: Some((start, token, end)),
             expected,
         } => ParseError::UnexpectedToken {
-            span: Span::new(lo, hi),
+            span: ByteSpan::new(start, end),
             token: token.into(),
             expected: ExpectedTokens(expected),
         },
         LalrpopError::ExtraToken {
-            token: (lo, token, hi),
+            token: (start, token, end),
         } => ParseError::ExtraToken {
-            span: Span::new(lo, hi),
+            span: ByteSpan::new(start, end),
             token: token.into(),
         },
     }
@@ -126,7 +129,7 @@ impl ParseError {
                     Label {
                         message: Some("unexpected EOF".into()),
                         style: LabelStyle::Primary,
-                        span: Span::new(end, end),
+                        span: ByteSpan::new(end, end),
                     },
                 ],
             },

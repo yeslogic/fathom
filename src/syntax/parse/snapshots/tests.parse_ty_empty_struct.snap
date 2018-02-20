@@ -1,7 +1,7 @@
 Struct(
-    Span {
-        lo: BytePos(0),
-        hi: BytePos(9)
+    ByteSpan {
+        start: ByteIndex(0),
+        end: ByteIndex(9)
     },
     []
 )

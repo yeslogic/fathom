@@ -1,7 +1,7 @@
 Var(
-    Span {
-        lo: BytePos(9),
-        hi: BytePos(14)
+    ByteSpan {
+        start: ByteIndex(9),
+        end: ByteIndex(14)
     },
     Free(
         User(

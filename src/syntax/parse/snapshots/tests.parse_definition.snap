@@ -4,18 +4,18 @@ Module {
             doc: "",
             name: Ident("Point"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(17),
-                    hi: BytePos(81)
+                ByteSpan {
+                    start: ByteIndex(17),
+                    end: ByteIndex(81)
                 },
                 [
                     Field {
                         doc: "",
                         name: Ident("x"),
                         value: Var(
-                            Span {
-                                lo: BytePos(42),
-                                hi: BytePos(47)
+                            ByteSpan {
+                                start: ByteIndex(42),
+                                end: ByteIndex(47)
                             },
                             Free(
                                 User(
@@ -28,9 +28,9 @@ Module {
                         doc: "",
                         name: Ident("y"),
                         value: Var(
-                            Span {
-                                lo: BytePos(65),
-                                hi: BytePos(70)
+                            ByteSpan {
+                                start: ByteIndex(65),
+                                end: ByteIndex(70)
                             },
                             Free(
                                 User(
@@ -46,18 +46,18 @@ Module {
             doc: "A doc comment\n\nWith some mor text",
             name: Ident("Array"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(169),
-                    hi: BytePos(245)
+                ByteSpan {
+                    start: ByteIndex(169),
+                    end: ByteIndex(245)
                 },
                 [
                     Field {
                         doc: "",
                         name: Ident("len"),
                         value: Var(
-                            Span {
-                                lo: BytePos(196),
-                                hi: BytePos(201)
+                            ByteSpan {
+                                start: ByteIndex(196),
+                                end: ByteIndex(201)
                             },
                             Free(
                                 User(
@@ -70,14 +70,14 @@ Module {
                         doc: "",
                         name: Ident("data"),
                         value: Array(
-                            Span {
-                                lo: BytePos(222),
-                                hi: BytePos(234)
+                            ByteSpan {
+                                start: ByteIndex(222),
+                                end: ByteIndex(234)
                             },
                             Var(
-                                Span {
-                                    lo: BytePos(223),
-                                    hi: BytePos(228)
+                                ByteSpan {
+                                    start: ByteIndex(223),
+                                    end: ByteIndex(228)
                                 },
                                 Bound(
                                     Named(
@@ -89,9 +89,9 @@ Module {
                                 )
                             ),
                             Var(
-                                Span {
-                                    lo: BytePos(230),
-                                    hi: BytePos(233)
+                                ByteSpan {
+                                    start: ByteIndex(230),
+                                    end: ByteIndex(233)
                                 },
                                 Bound(
                                     Named(
@@ -111,18 +111,18 @@ Module {
             doc: "",
             name: Ident("Formats"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(266),
-                    hi: BytePos(596)
+                ByteSpan {
+                    start: ByteIndex(266),
+                    end: ByteIndex(596)
                 },
                 [
                     Field {
                         doc: "",
                         name: Ident("format"),
                         value: Var(
-                            Span {
-                                lo: BytePos(296),
-                                hi: BytePos(298)
+                            ByteSpan {
+                                start: ByteIndex(296),
+                                end: ByteIndex(298)
                             },
                             Free(
                                 User(
@@ -135,9 +135,9 @@ Module {
                         doc: "",
                         name: Ident("data"),
                         value: Cond(
-                            Span {
-                                lo: BytePos(319),
-                                hi: BytePos(585)
+                            ByteSpan {
+                                start: ByteIndex(319),
+                                end: ByteIndex(585)
                             },
                             [
                                 Field {
@@ -146,15 +146,15 @@ Module {
                                     value: (
                                         Inf(
                                             Binop(
-                                                Span {
-                                                    lo: BytePos(401),
-                                                    hi: BytePos(417)
+                                                ByteSpan {
+                                                    start: ByteIndex(401),
+                                                    end: ByteIndex(417)
                                                 },
                                                 Eq,
                                                 Var(
-                                                    Span {
-                                                        lo: BytePos(401),
-                                                        hi: BytePos(407)
+                                                    ByteSpan {
+                                                        start: ByteIndex(401),
+                                                        end: ByteIndex(407)
                                                     },
                                                     Bound(
                                                         Named(
@@ -166,18 +166,18 @@ Module {
                                                     )
                                                 ),
                                                 Const(
-                                                    Span {
-                                                        lo: BytePos(411),
-                                                        hi: BytePos(417)
+                                                    ByteSpan {
+                                                        start: ByteIndex(411),
+                                                        end: ByteIndex(417)
                                                     },
                                                     Int(0, Unsigned(U8))
                                                 )
                                             )
                                         ),
                                         Var(
-                                            Span {
-                                                lo: BytePos(421),
-                                                hi: BytePos(424)
+                                            ByteSpan {
+                                                start: ByteIndex(421),
+                                                end: ByteIndex(424)
                                             },
                                             Free(
                                                 User(
@@ -193,15 +193,15 @@ Module {
                                     value: (
                                         Inf(
                                             Binop(
-                                                Span {
-                                                    lo: BytePos(450),
-                                                    hi: BytePos(466)
+                                                ByteSpan {
+                                                    start: ByteIndex(450),
+                                                    end: ByteIndex(466)
                                                 },
                                                 Eq,
                                                 Var(
-                                                    Span {
-                                                        lo: BytePos(450),
-                                                        hi: BytePos(456)
+                                                    ByteSpan {
+                                                        start: ByteIndex(450),
+                                                        end: ByteIndex(456)
                                                     },
                                                     Bound(
                                                         Named(
@@ -213,18 +213,18 @@ Module {
                                                     )
                                                 ),
                                                 Const(
-                                                    Span {
-                                                        lo: BytePos(460),
-                                                        hi: BytePos(466)
+                                                    ByteSpan {
+                                                        start: ByteIndex(460),
+                                                        end: ByteIndex(466)
                                                     },
                                                     Int(1, Unsigned(U8))
                                                 )
                                             )
                                         ),
                                         Var(
-                                            Span {
-                                                lo: BytePos(470),
-                                                hi: BytePos(475)
+                                            ByteSpan {
+                                                start: ByteIndex(470),
+                                                end: ByteIndex(475)
                                             },
                                             Bound(
                                                 Named(
@@ -243,15 +243,15 @@ Module {
                                     value: (
                                         Inf(
                                             Binop(
-                                                Span {
-                                                    lo: BytePos(545),
-                                                    hi: BytePos(561)
+                                                ByteSpan {
+                                                    start: ByteIndex(545),
+                                                    end: ByteIndex(561)
                                                 },
                                                 Eq,
                                                 Var(
-                                                    Span {
-                                                        lo: BytePos(545),
-                                                        hi: BytePos(551)
+                                                    ByteSpan {
+                                                        start: ByteIndex(545),
+                                                        end: ByteIndex(551)
                                                     },
                                                     Bound(
                                                         Named(
@@ -263,18 +263,18 @@ Module {
                                                     )
                                                 ),
                                                 Const(
-                                                    Span {
-                                                        lo: BytePos(555),
-                                                        hi: BytePos(561)
+                                                    ByteSpan {
+                                                        start: ByteIndex(555),
+                                                        end: ByteIndex(561)
                                                     },
                                                     Int(2, Unsigned(U8))
                                                 )
                                             )
                                         ),
                                         Var(
-                                            Span {
-                                                lo: BytePos(565),
-                                                hi: BytePos(570)
+                                            ByteSpan {
+                                                start: ByteIndex(565),
+                                                end: ByteIndex(570)
                                             },
                                             Bound(
                                                 Named(

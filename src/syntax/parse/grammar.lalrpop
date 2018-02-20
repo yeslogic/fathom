@@ -1,5 +1,5 @@
 use lalrpop_util::ParseError as LalrpopError;
-use codespan::{BytePos, Span};
+use codespan::{ByteIndex, ByteSpan};
 
 use syntax::concrete::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
 use syntax::parse::{ParseError, Token};
@@ -11,7 +11,7 @@ grammar<'input>();
 // Tokens
 
 extern {
-    type Location = BytePos;
+    type Location = ByteIndex;
     type Error = ParseError;
 
     enum Token<&'input str> {
@@ -72,19 +72,19 @@ pub Module: Module<'input> = {
 
 pub Definition: Definition<'input> = {
     <doc: "DocComment"*>
-        <lo: @L> <name: "Ident"> "="
-        <body_ty: PrimaryType> ";" <hi: @R> =>
+        <start: @L> <name: "Ident"> "="
+        <body_ty: PrimaryType> ";" <end: @R> =>
     {
-        Definition { doc, name, span: Span::new(lo, hi), param_names: vec![], body_ty }
+        Definition { doc, name, span: ByteSpan::new(start, end), param_names: vec![], body_ty }
     },
     <doc: "DocComment"*>
-        <lo: @L> <name: "Ident"> "(" <param_names: (<"Ident"> ",")*> <last: "Ident"> ")" "="
-        <body_ty: PrimaryType> <hi: @R> ";" =>
+        <start: @L> <name: "Ident"> "(" <param_names: (<"Ident"> ",")*> <last: "Ident"> ")" "="
+        <body_ty: PrimaryType> <end: @R> ";" =>
     {
         Definition {
             doc,
             name,
-            span: Span::new(lo, hi),
+            span: ByteSpan::new(start, end),
             param_names: super::extend_vec(param_names, Some(last)),
             body_ty,
         }
@@ -106,38 +106,38 @@ pub Type: Type<'input> = {
 
 PrimaryType: Type<'input> = {
     AtomicType,
-    <lo1: @L> <ty: PrimaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryExpr> <hi: @R> => {
-        Type::Where(Span::new(lo1, hi), Box::new(ty), lo2, param, Box::new(pred))
+    <lo1: @L> <ty: PrimaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryExpr> <end: @R> => {
+        Type::Where(ByteSpan::new(lo1, end), Box::new(ty), lo2, param, Box::new(pred))
     },
-    <lo: @L> "compute" <repr_ty: HostType> "from" <expr: PrimaryExpr> <hi: @R> => {
-        Type::Compute(Span::new(lo, hi), repr_ty, Box::new(expr))
+    <start: @L> "compute" <repr_ty: HostType> "from" <expr: PrimaryExpr> <end: @R> => {
+        Type::Compute(ByteSpan::new(start, end), repr_ty, Box::new(expr))
     },
 };
 
 AtomicType: Type<'input> = {
-    <lo: @L> <name: "Ident"> <hi: @R> => {
-        Type::Var(Span::new(lo, hi), name)
+    <start: @L> <name: "Ident"> <end: @R> => {
+        Type::Var(ByteSpan::new(start, end), name)
     },
-    <lo: @L> <ty: AtomicType> "(" <arg_tys: (<Type> ",")*> <last: Type> ")" <hi: @R> => {
-        Type::App(Span::new(lo, hi), Box::new(ty), super::extend_vec(arg_tys, Some(last)))
+    <start: @L> <ty: AtomicType> "(" <arg_tys: (<Type> ",")*> <last: Type> ")" <end: @R> => {
+        Type::App(ByteSpan::new(start, end), Box::new(ty), super::extend_vec(arg_tys, Some(last)))
     },
     "(" <ty: PrimaryType> ")" => ty,
-    <lo: @L> "struct" "{"
+    <start: @L> "struct" "{"
         <fields: (<Field<Type>> ",")*>
         <last: Field<Type>?>
-    "}" <hi: @R> =>
+    "}" <end: @R> =>
     {
-        Type::Struct(Span::new(lo, hi), super::extend_vec(fields, last))
+        Type::Struct(ByteSpan::new(start, end), super::extend_vec(fields, last))
     },
-    <lo: @L> "cond" "{"
+    <start: @L> "cond" "{"
         <options: (<Field<(<Expr> "=>" <Type>)>> ",")*>
         <last: Field<(<Expr> "=>" <Type>)>?>
-    "}" <hi: @R> =>
+    "}" <end: @R> =>
     {
-        Type::Cond(Span::new(lo, hi), super::extend_vec(options, last))
+        Type::Cond(ByteSpan::new(start, end), super::extend_vec(options, last))
     },
-    <lo: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <hi: @R> => {
-        Type::Array(Span::new(lo, hi), Box::new(elem), Box::new(size))
+    <start: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <end: @R> => {
+        Type::Array(ByteSpan::new(start, end), Box::new(elem), Box::new(size))
     },
 };
 
@@ -148,7 +148,7 @@ HostType: TypeConst = {
     // FIXME: implement full host type parsing, with proper name binding
     //
     // We'll just hard-code identifiers for now
-    <lo: @L> <name: "Ident"> <hi: @R> =>? {
+    <start: @L> <name: "Ident"> <end: @R> =>? {
         use syntax::core::{FloatType, SignedType, UnsignedType};
 
         match name {
@@ -169,7 +169,7 @@ HostType: TypeConst = {
             "u64" => Ok(TypeConst::Unsigned(UnsignedType::U64)),
             name => Err(LalrpopError::User {
                 error: ParseError::InvalidHostTypeName {
-                    span: Span::new(lo, hi),
+                    span: ByteSpan::new(start, end),
                     name: name.to_owned(),
                 },
             }),
@@ -190,8 +190,8 @@ UnopNeg: Unop = "-" => Unop::Neg;
 UnopNot: Unop = "!" => Unop::Not;
 
 UnopExpr<Op, Operand>: Expr<'input> = {
-    <lo: @L> <op: Op> <expr: Operand> <hi: @R> => {
-        Expr::Unop(Span::new(lo, hi), op, Box::new(expr))
+    <start: @L> <op: Op> <expr: Operand> <end: @R> => {
+        Expr::Unop(ByteSpan::new(start, end), op, Box::new(expr))
     },
 };
 
@@ -211,8 +211,8 @@ BinopMul:  Binop = "*"   => Binop::Mul;
 BinopDiv:  Binop = "/"   => Binop::Div;
 
 BinopExpr<Lhs, Op, Rhs>: Expr<'input> = {
-    <lo: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <hi: @R> => {
-        Expr::Binop(Span::new(lo, hi), op, Box::new(lhs), Box::new(rhs))
+    <start: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <end: @R> => {
+        Expr::Binop(ByteSpan::new(start, end), op, Box::new(lhs), Box::new(rhs))
     },
 };
 
@@ -253,15 +253,15 @@ MulExpr: Expr<'input> = {
 
 CastExpr: Expr<'input> = {
     AnnExpr,
-    <lo: @L> <expr: CastExpr> "as" <ty: HostType> <hi: @R> => {
-        Expr::Cast(Span::new(lo, hi), Box::new(expr), ty)
+    <start: @L> <expr: CastExpr> "as" <ty: HostType> <end: @R> => {
+        Expr::Cast(ByteSpan::new(start, end), Box::new(expr), ty)
     },
 };
 
 AnnExpr: Expr<'input> = {
     PrefixExpr,
-    <lo: @L> <expr: AnnExpr> ":" <ty: HostType> <hi: @R> => {
-        Expr::Ann(Span::new(lo, hi), Box::new(expr), ty)
+    <start: @L> <expr: AnnExpr> ":" <ty: HostType> <end: @R> => {
+        Expr::Ann(ByteSpan::new(start, end), Box::new(expr), ty)
     },
 };
 
@@ -272,7 +272,7 @@ PrefixExpr: Expr<'input> = {
 };
 
 IntLiteral<Value>: Expr<'input> = {
-    <lo: @L> <value: Value> <hi: @R> =>? {
+    <start: @L> <value: Value> <end: @R> =>? {
         use syntax::core::{IntSuffix, SignedType, UnsignedType};
 
         let float = Const::Int(value.0, match value.1 {
@@ -287,22 +287,22 @@ IntLiteral<Value>: Expr<'input> = {
             "u32" => IntSuffix::Unsigned(UnsignedType::U32),
             "u64" => IntSuffix::Unsigned(UnsignedType::U64),
             "" => return Err(LalrpopError::User {
-                error: ParseError::ConstSuffixMissing { span: Span::new(lo, hi) },
+                error: ParseError::ConstSuffixMissing { span: ByteSpan::new(start, end) },
             }),
             suffix => return Err(LalrpopError::User {
                 error: ParseError::ConstSuffixInvalid {
-                    span: Span::new(lo, hi),
+                    span: ByteSpan::new(start, end),
                     suffix: suffix.to_owned(),
                 },
             }),
         });
 
-        Ok(Expr::Const(Span::new(lo, hi), float))
+        Ok(Expr::Const(ByteSpan::new(start, end), float))
     },
 };
 
 FloatLiteral<Value>: Expr<'input> = {
-    <lo: @L> <value: Value> <hi: @R> =>? {
+    <start: @L> <value: Value> <end: @R> =>? {
         use syntax::core::FloatType;
 
         let float = Const::Float(value.0, match value.1 {
@@ -310,39 +310,39 @@ FloatLiteral<Value>: Expr<'input> = {
             "f64" => FloatType::F64,
             "" => return Err(LalrpopError::User {
                 error: ParseError::ConstSuffixMissing {
-                    span: Span::new(lo, hi),
+                    span: ByteSpan::new(start, end),
                 },
             }),
             suffix => return Err(LalrpopError::User {
                 error: ParseError::ConstSuffixInvalid {
-                    span: Span::new(lo, hi),
+                    span: ByteSpan::new(start, end),
                     suffix: suffix.to_owned(),
                 },
             }),
         });
 
-        Ok(Expr::Const(Span::new(lo, hi), float))
+        Ok(Expr::Const(ByteSpan::new(start, end), float))
     },
 };
 
 AtomicExpr: Expr<'input> = {
     "(" <expr: PrimaryExpr> ")" => expr,
 
-    <lo: @L> "[" <elems: (<PrimaryExpr> ",")*> <last: PrimaryExpr?> "]" <hi: @R> => {
-        Expr::Array(Span::new(lo, hi), super::extend_vec(elems, last))
+    <start: @L> "[" <elems: (<PrimaryExpr> ",")*> <last: PrimaryExpr?> "]" <end: @R> => {
+        Expr::Array(ByteSpan::new(start, end), super::extend_vec(elems, last))
     },
 
     IntLiteral<"BinLiteral">,
     IntLiteral<"HexLiteral">,
     IntLiteral<"DecLiteral">,
     FloatLiteral<"FloatDecLiteral">,
-    <lo: @L> <name: "Ident"> <hi: @R> => {
-        Expr::Var(Span::new(lo, hi), name)
+    <start: @L> <name: "Ident"> <end: @R> => {
+        Expr::Var(ByteSpan::new(start, end), name)
     },
-    <lo: @L> <struct_expr: AtomicExpr> "." <field_name: "Ident"> <hi: @R> => {
-        Expr::Proj(Span::new(lo, hi), Box::new(struct_expr), field_name)
+    <start: @L> <struct_expr: AtomicExpr> "." <field_name: "Ident"> <end: @R> => {
+        Expr::Proj(ByteSpan::new(start, end), Box::new(struct_expr), field_name)
     },
-    <lo: @L> <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" <hi: @R> => {
-        Expr::Subscript(Span::new(lo, hi), Box::new(array_expr), Box::new(index_expr))
+    <start: @L> <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" <end: @R> => {
+        Expr::Subscript(ByteSpan::new(start, end), Box::new(array_expr), Box::new(index_expr))
     },
 };

@@ -1,31 +1,31 @@
 Assert(
-    Span {
-        lo: BytePos(9),
-        hi: BytePos(126)
+    ByteSpan {
+        start: ByteIndex(9),
+        end: ByteIndex(126)
     },
     Assert(
-        Span {
-            lo: BytePos(9),
-            hi: BytePos(97)
+        ByteSpan {
+            start: ByteIndex(9),
+            end: ByteIndex(97)
         },
         Struct(
-            Span {
-                lo: BytePos(9),
-                hi: BytePos(68)
+            ByteSpan {
+                start: ByteIndex(9),
+                end: ByteIndex(68)
             },
             [
                 Field {
                     doc: "",
                     name: Ident("x"),
                     value: Assert(
-                        Span {
-                            lo: BytePos(33),
-                            hi: BytePos(57)
+                        ByteSpan {
+                            start: ByteIndex(33),
+                            end: ByteIndex(57)
                         },
                         Var(
-                            Span {
-                                lo: BytePos(33),
-                                hi: BytePos(36)
+                            ByteSpan {
+                                start: ByteIndex(33),
+                                end: ByteIndex(36)
                             },
                             Free(
                                 User(
@@ -35,9 +35,9 @@ Assert(
                         ),
                         Inf(
                             Lam(
-                                Span {
-                                    lo: BytePos(43),
-                                    hi: BytePos(57)
+                                ByteSpan {
+                                    start: ByteIndex(43),
+                                    end: ByteIndex(57)
                                 },
                                 [
                                     Named(
@@ -54,15 +54,15 @@ Assert(
                                     )
                                 ],
                                 Binop(
-                                    Span {
-                                        lo: BytePos(48),
-                                        hi: BytePos(57)
+                                    ByteSpan {
+                                        start: ByteIndex(48),
+                                        end: ByteIndex(57)
                                     },
                                     Eq,
                                     Var(
-                                        Span {
-                                            lo: BytePos(48),
-                                            hi: BytePos(49)
+                                        ByteSpan {
+                                            start: ByteIndex(48),
+                                            end: ByteIndex(49)
                                         },
                                         Bound(
                                             Named(
@@ -74,9 +74,9 @@ Assert(
                                         )
                                     ),
                                     Const(
-                                        Span {
-                                            lo: BytePos(53),
-                                            hi: BytePos(57)
+                                        ByteSpan {
+                                            start: ByteIndex(53),
+                                            end: ByteIndex(57)
                                         },
                                         Int(3, Unsigned(U32))
                                     )
@@ -89,9 +89,9 @@ Assert(
         ),
         Inf(
             Lam(
-                Span {
-                    lo: BytePos(83),
-                    hi: BytePos(97)
+                ByteSpan {
+                    start: ByteIndex(83),
+                    end: ByteIndex(97)
                 },
                 [
                     Named(
@@ -116,15 +116,15 @@ Assert(
                     )
                 ],
                 Binop(
-                    Span {
-                        lo: BytePos(88),
-                        hi: BytePos(97)
+                    ByteSpan {
+                        start: ByteIndex(88),
+                        end: ByteIndex(97)
                     },
                     Eq,
                     Var(
-                        Span {
-                            lo: BytePos(88),
-                            hi: BytePos(89)
+                        ByteSpan {
+                            start: ByteIndex(88),
+                            end: ByteIndex(89)
                         },
                         Bound(
                             Named(
@@ -136,9 +136,9 @@ Assert(
                         )
                     ),
                     Const(
-                        Span {
-                            lo: BytePos(93),
-                            hi: BytePos(97)
+                        ByteSpan {
+                            start: ByteIndex(93),
+                            end: ByteIndex(97)
                         },
                         Int(2, Unsigned(U32))
                     )
@@ -148,9 +148,9 @@ Assert(
     ),
     Inf(
         Lam(
-            Span {
-                lo: BytePos(112),
-                hi: BytePos(126)
+            ByteSpan {
+                start: ByteIndex(112),
+                end: ByteIndex(126)
             },
             [
                 Named(
@@ -175,15 +175,15 @@ Assert(
                 )
             ],
             Binop(
-                Span {
-                    lo: BytePos(117),
-                    hi: BytePos(126)
+                ByteSpan {
+                    start: ByteIndex(117),
+                    end: ByteIndex(126)
                 },
                 Eq,
                 Var(
-                    Span {
-                        lo: BytePos(117),
-                        hi: BytePos(118)
+                    ByteSpan {
+                        start: ByteIndex(117),
+                        end: ByteIndex(118)
                     },
                     Bound(
                         Named(
@@ -195,9 +195,9 @@ Assert(
                     )
                 ),
                 Const(
-                    Span {
-                        lo: BytePos(122),
-                        hi: BytePos(126)
+                    ByteSpan {
+                        start: ByteIndex(122),
+                        end: ByteIndex(126)
                     },
                     Int(1, Unsigned(U32))
                 )

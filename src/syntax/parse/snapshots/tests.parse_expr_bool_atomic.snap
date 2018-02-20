@@ -1,19 +1,19 @@
 Unop(
-    Span {
-        lo: BytePos(9),
-        hi: BytePos(29)
+    ByteSpan {
+        start: ByteIndex(9),
+        end: ByteIndex(29)
     },
     Not,
     Binop(
-        Span {
-            lo: BytePos(12),
-            hi: BytePos(27)
+        ByteSpan {
+            start: ByteIndex(12),
+            end: ByteIndex(27)
         },
         Or,
         Var(
-            Span {
-                lo: BytePos(12),
-                hi: BytePos(16)
+            ByteSpan {
+                start: ByteIndex(12),
+                end: ByteIndex(16)
             },
             Free(
                 User(
@@ -22,9 +22,9 @@ Unop(
             )
         ),
         Var(
-            Span {
-                lo: BytePos(21),
-                hi: BytePos(26)
+            ByteSpan {
+                start: ByteIndex(21),
+                end: ByteIndex(26)
             },
             Free(
                 User(
