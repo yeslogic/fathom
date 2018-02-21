@@ -24,3 +24,17 @@ pub mod var;
 pub mod compile;
 pub mod semantics;
 pub mod syntax;
+
+// use codespan::FileMap;
+// use codespan_reporting::Diagnostic;
+
+// pub fn load_file(file: &FileMap) -> Result<syntax::core::Module, Diagnostic> {
+//     use syntax::core::Module;
+
+//     let mut diagnostics = Vec::new();
+
+//     let module = syntax::parse::module(&file).map_err(|err| err.to_diagnostic())?;
+//     let mut module = Module::from_concrete(&module).unwrap();
+//     semantics::check_module(&module).map_err(|err| err.to_diagnostic())?;
+//     Ok(module)
+// }

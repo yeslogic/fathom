@@ -11,10 +11,12 @@ fn parse_expr_bool_atomic() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
     assert_debug_snapshot!(
         parse_expr_bool_atomic,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
+        RcIExpr::from_concrete(&expr).unwrap()
     );
 }
 
@@ -26,10 +28,12 @@ fn parse_expr_bool_operators() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
     assert_debug_snapshot!(
         parse_expr_bool_operators,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
+        RcIExpr::from_concrete(&expr).unwrap()
     );
 }
 
@@ -39,11 +43,10 @@ fn parse_add_expr() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_add_expr,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_add_expr, RcIExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -52,11 +55,10 @@ fn parse_sub_expr() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_sub_expr,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_sub_expr, RcIExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -65,11 +67,10 @@ fn parse_add_expr_mixed() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_add_expr_mixed,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_add_expr_mixed, RcIExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -78,11 +79,10 @@ fn parse_mul_expr() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_mul_expr,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_mul_expr, RcIExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -91,11 +91,10 @@ fn parse_div_expr() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_div_expr,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_div_expr, RcIExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -104,11 +103,10 @@ fn parse_mul_expr_mixed() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_mul_expr_mixed,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_mul_expr_mixed, RcIExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -117,10 +115,12 @@ fn parse_mixed_arithmetic_expr() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
+        RcIExpr::from_concrete(&expr).unwrap()
     );
 }
 
@@ -130,10 +130,12 @@ fn parse_mixed_arithmetic_expr_parenthesized() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr_parenthesized,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
+        RcIExpr::from_concrete(&expr).unwrap()
     );
 }
 
@@ -143,11 +145,10 @@ fn parse_proj_expr() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_proj_expr,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_proj_expr, RcIExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -156,11 +157,10 @@ fn parse_subscript_expr() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (expr, errors) = parse::expr(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_subscript_expr,
-        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_subscript_expr, RcIExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -171,11 +171,10 @@ fn parse_ty_var() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (ty, errors) = parse::ty(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_ty_var,
-        RcType::from_concrete(&parse::ty(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_ty_var, RcType::from_concrete(&ty).unwrap());
 }
 
 #[test]
@@ -184,11 +183,10 @@ fn parse_ty_empty_struct() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (ty, errors) = parse::ty(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_ty_empty_struct,
-        RcType::from_concrete(&parse::ty(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_ty_empty_struct, RcType::from_concrete(&ty).unwrap());
 }
 
 #[test]
@@ -203,11 +201,10 @@ fn parse_ty_assert() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (ty, errors) = parse::ty(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_ty_assert,
-        RcType::from_concrete(&parse::ty(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_ty_assert, RcType::from_concrete(&ty).unwrap());
 }
 
 #[test]
@@ -229,10 +226,12 @@ fn parse_ty_array_dependent() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (ty, errors) = parse::ty(&filemap);
+    assert!(errors.is_empty());
 
     assert_debug_snapshot!(
         parse_ty_array_dependent,
-        RcType::from_concrete(&parse::ty(&filemap).unwrap()).unwrap()
+        RcType::from_concrete(&ty).unwrap()
     );
 }
 
@@ -244,10 +243,12 @@ fn parse_simple_definition() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (module, errors) = parse::module(&filemap);
+    assert!(errors.is_empty());
 
     assert_debug_snapshot!(
         parse_simple_definition,
-        Module::from_concrete(&parse::module(&filemap).unwrap()).unwrap()
+        Module::from_concrete(&module).unwrap()
     );
 }
 
@@ -259,10 +260,12 @@ fn parse_array_with_constant_size() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (module, errors) = parse::module(&filemap);
+    assert!(errors.is_empty());
 
     assert_debug_snapshot!(
         parse_array_with_constant_size,
-        Module::from_concrete(&parse::module(&filemap).unwrap()).unwrap()
+        Module::from_concrete(&module).unwrap()
     );
 }
 
@@ -296,11 +299,10 @@ fn parse_definition() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (module, errors) = parse::module(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_definition,
-        Module::from_concrete(&parse::module(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_definition, Module::from_concrete(&module).unwrap());
 }
 
 #[test]
@@ -324,9 +326,8 @@ fn parse_type_params() {
 
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+    let (module, errors) = parse::module(&filemap);
+    assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_type_params,
-        Module::from_concrete(&parse::module(&filemap).unwrap()).unwrap()
-    );
+    assert_debug_snapshot!(parse_type_params, Module::from_concrete(&module).unwrap());
 }

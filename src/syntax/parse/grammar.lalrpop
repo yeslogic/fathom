@@ -1,11 +1,11 @@
 use lalrpop_util::ParseError as LalrpopError;
-use codespan::{ByteIndex, ByteSpan};
+use codespan::{ByteIndex, ByteSpan, FileMap};
 
 use syntax::concrete::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
 use syntax::parse::{ParseError, Token};
 
 
-grammar<'input>();
+grammar<'err, 'input>(errors: &'err mut Vec<ParseError>, filemap: &'input FileMap);
 
 
 // Tokens
@@ -67,7 +67,7 @@ extern {
 
 
 pub Module: Module<'input> = {
-    Definition* => Module { definitions: <> }
+    Definition* => Module::Valid(<>),
 };
 
 pub Definition: Definition<'input> = {
@@ -75,13 +75,19 @@ pub Definition: Definition<'input> = {
         <start: @L> <name: "Ident"> "="
         <body_ty: PrimaryType> ";" <end: @R> =>
     {
-        Definition { doc, name, span: ByteSpan::new(start, end), param_names: vec![], body_ty }
+        Definition::Valid {
+            doc,
+            name,
+            span: ByteSpan::new(start, end),
+            param_names: vec![],
+            body_ty,
+        }
     },
     <doc: "DocComment"*>
         <start: @L> <name: "Ident"> "(" <param_names: (<"Ident"> ",")*> <last: "Ident"> ")" "="
         <body_ty: PrimaryType> <end: @R> ";" =>
     {
-        Definition {
+        Definition::Valid {
             doc,
             name,
             span: ByteSpan::new(start, end),
