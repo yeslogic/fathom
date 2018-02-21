@@ -6,6 +6,8 @@ extern crate difference;
 extern crate failure;
 extern crate heck;
 extern crate lalrpop_util;
+#[macro_use]
+extern crate lazy_static;
 extern crate pretty;
 #[cfg(test)]
 #[macro_use]
