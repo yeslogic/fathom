@@ -4,8 +4,7 @@ use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 
-use ddl::syntax::ast::Module;
-use ddl::parser::ast::Module as ParseModule;
+use ddl::syntax::core::Module;
 
 fn main() {
     let src = {
@@ -15,12 +14,12 @@ fn main() {
         src
     };
 
-    let mut module = Module::from_parse(&ParseModule::from_str(&src).unwrap()).unwrap();
-    module.substitute(&ddl::syntax::ast::base_defs());
-    ddl::check::check_module(&module).unwrap();
-    let ir = ddl::ir::ast::Module::from(&module);
+    let mut module = Module::from_concrete(&ddl::syntax::parse::module(&src).unwrap()).unwrap();
+    module.substitute(&ddl::syntax::core::base_defs());
+    ddl::semantics::check_module(&module).unwrap();
+    let ir = ddl::compile::ir::Module::from(&module);
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let mut file = File::create(out_dir + "/pair.rs").unwrap();
-    write!(file, "{}", ddl::codegen::LowerModule(&ir)).unwrap();
+    write!(file, "{}", ddl::compile::codegen::LowerModule(&ir)).unwrap();
 }

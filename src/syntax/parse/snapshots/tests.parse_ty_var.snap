@@ -1,0 +1,11 @@
+Var(
+    ByteSpan {
+        start: ByteIndex(9),
+        end: ByteIndex(14)
+    },
+    Free(
+        User(
+            Ident("Point")
+        )
+    )
+)

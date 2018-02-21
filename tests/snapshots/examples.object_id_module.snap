@@ -4,18 +4,18 @@ Module {
             doc: "https://docs.mongodb.com/manual/reference/method/ObjectId/",
             name: Ident("ObjectId"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(74),
-                    hi: BytePos(173)
+                ByteSpan {
+                    start: ByteIndex(74),
+                    end: ByteIndex(173)
                 },
                 [
                     Field {
                         doc: "",
                         name: Ident("epoch_time"),
                         value: Var(
-                            Span {
-                                lo: BytePos(99),
-                                hi: BytePos(104)
+                            ByteSpan {
+                                start: ByteIndex(99),
+                                end: ByteIndex(104)
                             },
                             Free(
                                 User(
@@ -28,9 +28,9 @@ Module {
                         doc: "",
                         name: Ident("machine_id"),
                         value: Var(
-                            Span {
-                                lo: BytePos(122),
-                                hi: BytePos(127)
+                            ByteSpan {
+                                start: ByteIndex(122),
+                                end: ByteIndex(127)
                             },
                             Free(
                                 User(
@@ -43,9 +43,9 @@ Module {
                         doc: "",
                         name: Ident("process_id"),
                         value: Var(
-                            Span {
-                                lo: BytePos(145),
-                                hi: BytePos(150)
+                            ByteSpan {
+                                start: ByteIndex(145),
+                                end: ByteIndex(150)
                             },
                             Free(
                                 User(
@@ -58,9 +58,9 @@ Module {
                         doc: "",
                         name: Ident("counter"),
                         value: Var(
-                            Span {
-                                lo: BytePos(165),
-                                hi: BytePos(170)
+                            ByteSpan {
+                                start: ByteIndex(165),
+                                end: ByteIndex(170)
                             },
                             Free(
                                 User(

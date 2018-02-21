@@ -1,9 +1,13 @@
+extern crate codespan;
+extern crate codespan_reporting;
 #[cfg(test)]
 extern crate difference;
 #[macro_use]
 extern crate failure;
 extern crate heck;
 extern crate lalrpop_util;
+#[macro_use]
+extern crate lazy_static;
 extern crate pretty;
 #[cfg(test)]
 #[macro_use]
@@ -15,11 +19,8 @@ extern crate unicode_xid;
 mod test;
 
 pub mod name;
-pub mod source;
 pub mod var;
 
-pub mod check;
-pub mod codegen;
-pub mod ir;
-pub mod parser;
+pub mod compile;
+pub mod semantics;
 pub mod syntax;

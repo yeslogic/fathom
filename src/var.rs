@@ -1,7 +1,33 @@
 //! Variable binding
 
 use std::fmt;
-use name::{Name, Named};
+use std::hash::{Hash, Hasher};
+
+use name::Name;
+
+/// A generated id
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct GenId(u32);
+
+impl GenId {
+    /// Generate a new, globally unique id
+    pub fn fresh() -> GenId {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        lazy_static! {
+            static ref NEXT_ID : AtomicUsize = AtomicUsize::new(0);
+        }
+
+        // FIXME: check for integer overflow
+        GenId(NEXT_ID.fetch_add(1, Ordering::SeqCst) as u32)
+    }
+}
+
+impl fmt::Display for GenId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "${}", self.0)
+    }
+}
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct ScopeIndex(pub u32);
@@ -106,7 +132,7 @@ impl Var {
     }
 
     pub fn bound<N: Into<Name>>(name: N, var: BoundVar) -> Var {
-        Var::Bound(Named(name.into(), var))
+        Var::Bound(Named::new(name.into(), var))
     }
 
     pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
@@ -117,11 +143,38 @@ impl Var {
                         scope,
                         binding: BindingIndex(position as u32),
                     };
-                    Var::Bound(Named(n.clone(), bv))
+                    Var::Bound(Named::new(n.clone(), bv))
                 }
                 None => return,
             },
             Var::Bound(_) => return,
         };
+    }
+}
+
+/// A type annotated with a name for debugging purposes
+///
+/// The name is ignored for equality comparisons
+#[derive(Debug, Clone, Eq)]
+pub struct Named<N, T> {
+    pub name: N,
+    pub inner: T,
+}
+
+impl<N, T> Named<N, T> {
+    pub fn new(name: N, inner: T) -> Named<N, T> {
+        Named { name, inner }
+    }
+}
+
+impl<N, T: PartialEq> PartialEq for Named<N, T> {
+    fn eq(&self, other: &Named<N, T>) -> bool {
+        &self.inner == &other.inner
+    }
+}
+
+impl<N, T: Hash> Hash for Named<N, T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.inner.hash(state);
     }
 }

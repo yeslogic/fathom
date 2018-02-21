@@ -1,0 +1,32 @@
+Unop(
+    ByteSpan {
+        start: ByteIndex(0),
+        end: ByteIndex(10)
+    },
+    Neg,
+    Proj(
+        ByteSpan {
+            start: ByteIndex(1),
+            end: ByteIndex(10)
+        },
+        Proj(
+            ByteSpan {
+                start: ByteIndex(1),
+                end: ByteIndex(8)
+            },
+            Var(
+                ByteSpan {
+                    start: ByteIndex(1),
+                    end: ByteIndex(4)
+                },
+                Free(
+                    User(
+                        Ident("foo")
+                    )
+                )
+            ),
+            Ident("bar")
+        ),
+        Ident("x")
+    )
+)

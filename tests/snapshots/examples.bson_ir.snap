@@ -42,23 +42,23 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(
-                                Ident("len"),
-                                Const(
+                            Named {
+                                name: Ident("len"),
+                                inner: Const(
                                     I32(
                                         Big
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("subtype"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("subtype"),
+                                inner: Const(
                                     U8
                                 )
-                            ),
-                            Named(
-                                Ident("data"),
-                                Repeat(
+                            },
+                            Named {
+                                name: Ident("data"),
+                                inner: Repeat(
                                     Const(
                                         U8
                                     ),
@@ -66,12 +66,12 @@ Module {
                                         Cast(
                                             Var(
                                                 Bound(
-                                                    Named(
-                                                        User(
+                                                    Named {
+                                                        name: User(
                                                             Ident("len")
                                                         ),
-                                                        BoundVar(1, 0)
-                                                    )
+                                                        inner: BoundVar(1, 0)
+                                                    }
                                                 )
                                             ),
                                             Const(
@@ -82,7 +82,7 @@ Module {
                                         )
                                     )
                                 )
-                            )
+                            }
                         ],
                         Struct(
                             Path {
@@ -95,12 +95,12 @@ Module {
                                     name: Ident("len"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("len")
                                                 ),
-                                                BoundVar(2, 0)
-                                            )
+                                                inner: BoundVar(2, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -109,12 +109,12 @@ Module {
                                     name: Ident("subtype"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("subtype")
                                                 ),
-                                                BoundVar(1, 0)
-                                            )
+                                                inner: BoundVar(1, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -123,12 +123,12 @@ Module {
                                     name: Ident("data"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("data")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     )
                                 }
@@ -187,38 +187,38 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(
-                                Ident("epoch_time"),
-                                Const(
+                            Named {
+                                name: Ident("epoch_time"),
+                                inner: Const(
                                     I32(
                                         Big
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("machine_id"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("machine_id"),
+                                inner: Const(
                                     U24(
                                         Big
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("process_id"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("process_id"),
+                                inner: Const(
                                     U16(
                                         Big
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("counter"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("counter"),
+                                inner: Const(
                                     U24(
                                         Big
                                     )
                                 )
-                            )
+                            }
                         ],
                         Struct(
                             Path {
@@ -231,12 +231,12 @@ Module {
                                     name: Ident("epoch_time"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("epoch_time")
                                                 ),
-                                                BoundVar(3, 0)
-                                            )
+                                                inner: BoundVar(3, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -245,12 +245,12 @@ Module {
                                     name: Ident("machine_id"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("machine_id")
                                                 ),
-                                                BoundVar(2, 0)
-                                            )
+                                                inner: BoundVar(2, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -259,12 +259,12 @@ Module {
                                     name: Ident("process_id"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("process_id")
                                                 ),
-                                                BoundVar(1, 0)
-                                            )
+                                                inner: BoundVar(1, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -273,12 +273,12 @@ Module {
                                     name: Ident("counter"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("counter")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     )
                                 }
@@ -428,27 +428,27 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(
-                                Ident("elem_type"),
-                                Const(
+                            Named {
+                                name: Ident("elem_type"),
+                                inner: Const(
                                     U8
                                 )
-                            ),
-                            Named(
-                                Ident("content"),
-                                Cond(
+                            },
+                            Named {
+                                name: Ident("content"),
+                                inner: Cond(
                                     [
                                         (
                                             Binop(
                                                 Eq,
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("elem_type")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -457,14 +457,14 @@ Module {
                                             ),
                                             Sequence(
                                                 [
-                                                    Named(
-                                                        Ident("x"),
-                                                        Const(
+                                                    Named {
+                                                        name: Ident("x"),
+                                                        inner: Const(
                                                             F64(
                                                                 Little
                                                             )
                                                         )
-                                                    )
+                                                    }
                                                 ],
                                                 Intro(
                                                     Path {
@@ -476,12 +476,12 @@ Module {
                                                     Ident("double"),
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("x")
                                                                 ),
-                                                                BoundVar(0, 0)
-                                                            )
+                                                                inner: BoundVar(0, 0)
+                                                            }
                                                         )
                                                     )
                                                 )
@@ -492,12 +492,12 @@ Module {
                                                 Eq,
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("elem_type")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -506,19 +506,19 @@ Module {
                                             ),
                                             Sequence(
                                                 [
-                                                    Named(
-                                                        Ident("x"),
-                                                        Var(
+                                                    Named {
+                                                        name: Ident("x"),
+                                                        inner: Var(
                                                             Bound(
-                                                                Named(
-                                                                    User(
+                                                                Named {
+                                                                    name: User(
                                                                         Ident("BinData")
                                                                     ),
-                                                                    BoundVar(2, 0)
-                                                                )
+                                                                    inner: BoundVar(2, 0)
+                                                                }
                                                             )
                                                         )
-                                                    )
+                                                    }
                                                 ],
                                                 Intro(
                                                     Path {
@@ -530,12 +530,12 @@ Module {
                                                     Ident("bin_data"),
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("x")
                                                                 ),
-                                                                BoundVar(0, 0)
-                                                            )
+                                                                inner: BoundVar(0, 0)
+                                                            }
                                                         )
                                                     )
                                                 )
@@ -546,12 +546,12 @@ Module {
                                                 Eq,
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("elem_type")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -560,12 +560,12 @@ Module {
                                             ),
                                             Sequence(
                                                 [
-                                                    Named(
-                                                        Ident("x"),
-                                                        Const(
+                                                    Named {
+                                                        name: Ident("x"),
+                                                        inner: Const(
                                                             Empty
                                                         )
-                                                    )
+                                                    }
                                                 ],
                                                 Intro(
                                                     Path {
@@ -577,12 +577,12 @@ Module {
                                                     Ident("undefined"),
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("x")
                                                                 ),
-                                                                BoundVar(0, 0)
-                                                            )
+                                                                inner: BoundVar(0, 0)
+                                                            }
                                                         )
                                                     )
                                                 )
@@ -593,12 +593,12 @@ Module {
                                                 Eq,
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("elem_type")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -607,19 +607,19 @@ Module {
                                             ),
                                             Sequence(
                                                 [
-                                                    Named(
-                                                        Ident("x"),
-                                                        Var(
+                                                    Named {
+                                                        name: Ident("x"),
+                                                        inner: Var(
                                                             Bound(
-                                                                Named(
-                                                                    User(
+                                                                Named {
+                                                                    name: User(
                                                                         Ident("ObjectId")
                                                                     ),
-                                                                    BoundVar(1, 0)
-                                                                )
+                                                                    inner: BoundVar(1, 0)
+                                                                }
                                                             )
                                                         )
-                                                    )
+                                                    }
                                                 ],
                                                 Intro(
                                                     Path {
@@ -631,12 +631,12 @@ Module {
                                                     Ident("object_id"),
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("x")
                                                                 ),
-                                                                BoundVar(0, 0)
-                                                            )
+                                                                inner: BoundVar(0, 0)
+                                                            }
                                                         )
                                                     )
                                                 )
@@ -647,12 +647,12 @@ Module {
                                                 Eq,
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("elem_type")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -661,12 +661,12 @@ Module {
                                             ),
                                             Sequence(
                                                 [
-                                                    Named(
-                                                        Ident("x"),
-                                                        Const(
+                                                    Named {
+                                                        name: Ident("x"),
+                                                        inner: Const(
                                                             U8
                                                         )
-                                                    )
+                                                    }
                                                 ],
                                                 Intro(
                                                     Path {
@@ -678,12 +678,12 @@ Module {
                                                     Ident("boolean"),
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("x")
                                                                 ),
-                                                                BoundVar(0, 0)
-                                                            )
+                                                                inner: BoundVar(0, 0)
+                                                            }
                                                         )
                                                     )
                                                 )
@@ -694,12 +694,12 @@ Module {
                                                 Eq,
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("elem_type")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -708,14 +708,14 @@ Module {
                                             ),
                                             Sequence(
                                                 [
-                                                    Named(
-                                                        Ident("x"),
-                                                        Const(
+                                                    Named {
+                                                        name: Ident("x"),
+                                                        inner: Const(
                                                             I64(
                                                                 Little
                                                             )
                                                         )
-                                                    )
+                                                    }
                                                 ],
                                                 Intro(
                                                     Path {
@@ -727,12 +727,12 @@ Module {
                                                     Ident("utc_datetime"),
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("x")
                                                                 ),
-                                                                BoundVar(0, 0)
-                                                            )
+                                                                inner: BoundVar(0, 0)
+                                                            }
                                                         )
                                                     )
                                                 )
@@ -743,12 +743,12 @@ Module {
                                                 Eq,
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("elem_type")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -757,12 +757,12 @@ Module {
                                             ),
                                             Sequence(
                                                 [
-                                                    Named(
-                                                        Ident("x"),
-                                                        Const(
+                                                    Named {
+                                                        name: Ident("x"),
+                                                        inner: Const(
                                                             Empty
                                                         )
-                                                    )
+                                                    }
                                                 ],
                                                 Intro(
                                                     Path {
@@ -774,12 +774,12 @@ Module {
                                                     Ident("null"),
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("x")
                                                                 ),
-                                                                BoundVar(0, 0)
-                                                            )
+                                                                inner: BoundVar(0, 0)
+                                                            }
                                                         )
                                                     )
                                                 )
@@ -790,12 +790,12 @@ Module {
                                                 Eq,
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("elem_type")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -804,14 +804,14 @@ Module {
                                             ),
                                             Sequence(
                                                 [
-                                                    Named(
-                                                        Ident("x"),
-                                                        Const(
+                                                    Named {
+                                                        name: Ident("x"),
+                                                        inner: Const(
                                                             I32(
                                                                 Little
                                                             )
                                                         )
-                                                    )
+                                                    }
                                                 ],
                                                 Intro(
                                                     Path {
@@ -823,12 +823,12 @@ Module {
                                                     Ident("int"),
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("x")
                                                                 ),
-                                                                BoundVar(0, 0)
-                                                            )
+                                                                inner: BoundVar(0, 0)
+                                                            }
                                                         )
                                                     )
                                                 )
@@ -839,12 +839,12 @@ Module {
                                                 Eq,
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("elem_type")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -853,14 +853,14 @@ Module {
                                             ),
                                             Sequence(
                                                 [
-                                                    Named(
-                                                        Ident("x"),
-                                                        Const(
+                                                    Named {
+                                                        name: Ident("x"),
+                                                        inner: Const(
                                                             U64(
                                                                 Little
                                                             )
                                                         )
-                                                    )
+                                                    }
                                                 ],
                                                 Intro(
                                                     Path {
@@ -872,12 +872,12 @@ Module {
                                                     Ident("timestamp"),
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("x")
                                                                 ),
-                                                                BoundVar(0, 0)
-                                                            )
+                                                                inner: BoundVar(0, 0)
+                                                            }
                                                         )
                                                     )
                                                 )
@@ -888,12 +888,12 @@ Module {
                                                 Eq,
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("elem_type")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -902,14 +902,14 @@ Module {
                                             ),
                                             Sequence(
                                                 [
-                                                    Named(
-                                                        Ident("x"),
-                                                        Const(
+                                                    Named {
+                                                        name: Ident("x"),
+                                                        inner: Const(
                                                             I64(
                                                                 Little
                                                             )
                                                         )
-                                                    )
+                                                    }
                                                 ],
                                                 Intro(
                                                     Path {
@@ -921,12 +921,12 @@ Module {
                                                     Ident("long"),
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("x")
                                                                 ),
-                                                                BoundVar(0, 0)
-                                                            )
+                                                                inner: BoundVar(0, 0)
+                                                            }
                                                         )
                                                     )
                                                 )
@@ -934,7 +934,7 @@ Module {
                                         )
                                     ]
                                 )
-                            )
+                            }
                         ],
                         Struct(
                             Path {
@@ -947,12 +947,12 @@ Module {
                                     name: Ident("elem_type"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("elem_type")
                                                 ),
-                                                BoundVar(1, 0)
-                                            )
+                                                inner: BoundVar(1, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -961,12 +961,12 @@ Module {
                                     name: Ident("content"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("content")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     )
                                 }
@@ -1011,25 +1011,25 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(
-                                Ident("len"),
-                                Const(
+                            Named {
+                                name: Ident("len"),
+                                inner: Const(
                                     I32(
                                         Big
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("fields"),
-                                Repeat(
+                            },
+                            Named {
+                                name: Ident("fields"),
+                                inner: Repeat(
                                     Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("Element")
                                                 ),
-                                                BoundVar(1, 0)
-                                            )
+                                                inner: BoundVar(1, 0)
+                                            }
                                         )
                                     ),
                                     Exact(
@@ -1038,7 +1038,7 @@ Module {
                                         )
                                     )
                                 )
-                            )
+                            }
                         ],
                         Struct(
                             Path {
@@ -1051,12 +1051,12 @@ Module {
                                     name: Ident("len"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("len")
                                                 ),
-                                                BoundVar(1, 0)
-                                            )
+                                                inner: BoundVar(1, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -1065,12 +1065,12 @@ Module {
                                     name: Ident("fields"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("fields")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     )
                                 }

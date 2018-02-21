@@ -1,0 +1,36 @@
+Unop(
+    ByteSpan {
+        start: ByteIndex(9),
+        end: ByteIndex(29)
+    },
+    Not,
+    Binop(
+        ByteSpan {
+            start: ByteIndex(12),
+            end: ByteIndex(27)
+        },
+        Or,
+        Var(
+            ByteSpan {
+                start: ByteIndex(12),
+                end: ByteIndex(16)
+            },
+            Free(
+                User(
+                    Ident("true")
+                )
+            )
+        ),
+        Var(
+            ByteSpan {
+                start: ByteIndex(21),
+                end: ByteIndex(26)
+            },
+            Free(
+                User(
+                    Ident("false")
+                )
+            )
+        )
+    )
+)

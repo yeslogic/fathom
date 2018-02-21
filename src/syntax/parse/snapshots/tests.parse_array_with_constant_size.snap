@@ -1,0 +1,32 @@
+Module {
+    definitions: [
+        Definition {
+            doc: "",
+            name: Ident("Point"),
+            body_ty: Array(
+                ByteSpan {
+                    start: ByteIndex(17),
+                    end: ByteIndex(28)
+                },
+                Var(
+                    ByteSpan {
+                        start: ByteIndex(18),
+                        end: ByteIndex(21)
+                    },
+                    Free(
+                        User(
+                            Ident("f32")
+                        )
+                    )
+                ),
+                Const(
+                    ByteSpan {
+                        start: ByteIndex(23),
+                        end: ByteIndex(27)
+                    },
+                    Int(3, Unsigned(U32))
+                )
+            )
+        }
+    ]
+}

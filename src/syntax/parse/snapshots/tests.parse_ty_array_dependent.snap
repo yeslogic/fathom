@@ -1,0 +1,185 @@
+Struct(
+    ByteSpan {
+        start: ByteIndex(9),
+        end: ByteIndex(311)
+    },
+    [
+        Field {
+            doc: "",
+            name: Ident("len"),
+            value: Var(
+                ByteSpan {
+                    start: ByteIndex(35),
+                    end: ByteIndex(38)
+                },
+                Free(
+                    User(
+                        Ident("u32")
+                    )
+                )
+            )
+        },
+        Field {
+            doc: "",
+            name: Ident("data1"),
+            value: Array(
+                ByteSpan {
+                    start: ByteIndex(59),
+                    end: ByteIndex(69)
+                },
+                Var(
+                    ByteSpan {
+                        start: ByteIndex(60),
+                        end: ByteIndex(63)
+                    },
+                    Free(
+                        User(
+                            Ident("f32")
+                        )
+                    )
+                ),
+                Var(
+                    ByteSpan {
+                        start: ByteIndex(65),
+                        end: ByteIndex(68)
+                    },
+                    Bound(
+                        Named {
+                            name: User(
+                                Ident("len")
+                            ),
+                            inner: BoundVar(0, 0)
+                        }
+                    )
+                )
+            )
+        },
+        Field {
+            doc: "",
+            name: Ident("data2"),
+            value: Struct(
+                ByteSpan {
+                    start: ByteIndex(90),
+                    end: ByteIndex(300)
+                },
+                [
+                    Field {
+                        doc: "",
+                        name: Ident("data1"),
+                        value: Array(
+                            ByteSpan {
+                                start: ByteIndex(122),
+                                end: ByteIndex(132)
+                            },
+                            Var(
+                                ByteSpan {
+                                    start: ByteIndex(123),
+                                    end: ByteIndex(126)
+                                },
+                                Free(
+                                    User(
+                                        Ident("f32")
+                                    )
+                                )
+                            ),
+                            Var(
+                                ByteSpan {
+                                    start: ByteIndex(128),
+                                    end: ByteIndex(131)
+                                },
+                                Bound(
+                                    Named {
+                                        name: User(
+                                            Ident("len")
+                                        ),
+                                        inner: BoundVar(1, 0)
+                                    }
+                                )
+                            )
+                        )
+                    },
+                    Field {
+                        doc: "",
+                        name: Ident("len"),
+                        value: Var(
+                            ByteSpan {
+                                start: ByteIndex(155),
+                                end: ByteIndex(158)
+                            },
+                            Free(
+                                User(
+                                    Ident("u32")
+                                )
+                            )
+                        )
+                    },
+                    Field {
+                        doc: "Doc comment",
+                        name: Ident("padding1"),
+                        value: Var(
+                            ByteSpan {
+                                start: ByteIndex(218),
+                                end: ByteIndex(220)
+                            },
+                            Free(
+                                User(
+                                    Ident("u8")
+                                )
+                            )
+                        )
+                    },
+                    Field {
+                        doc: "",
+                        name: Ident("padding2"),
+                        value: Var(
+                            ByteSpan {
+                                start: ByteIndex(248),
+                                end: ByteIndex(250)
+                            },
+                            Free(
+                                User(
+                                    Ident("u8")
+                                )
+                            )
+                        )
+                    },
+                    Field {
+                        doc: "",
+                        name: Ident("data2"),
+                        value: Array(
+                            ByteSpan {
+                                start: ByteIndex(275),
+                                end: ByteIndex(285)
+                            },
+                            Var(
+                                ByteSpan {
+                                    start: ByteIndex(276),
+                                    end: ByteIndex(279)
+                                },
+                                Free(
+                                    User(
+                                        Ident("f32")
+                                    )
+                                )
+                            ),
+                            Var(
+                                ByteSpan {
+                                    start: ByteIndex(281),
+                                    end: ByteIndex(284)
+                                },
+                                Bound(
+                                    Named {
+                                        name: User(
+                                            Ident("len")
+                                        ),
+                                        inner: BoundVar(2, 0)
+                                    }
+                                )
+                            )
+                        )
+                    }
+                ]
+            )
+        }
+    ]
+)

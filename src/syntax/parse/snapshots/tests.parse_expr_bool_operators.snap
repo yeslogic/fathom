@@ -1,0 +1,65 @@
+Binop(
+    ByteSpan {
+        start: ByteIndex(9),
+        end: ByteIndex(43)
+    },
+    Or,
+    Binop(
+        ByteSpan {
+            start: ByteIndex(10),
+            end: ByteIndex(23)
+        },
+        And,
+        Var(
+            ByteSpan {
+                start: ByteIndex(10),
+                end: ByteIndex(14)
+            },
+            Free(
+                User(
+                    Ident("true")
+                )
+            )
+        ),
+        Var(
+            ByteSpan {
+                start: ByteIndex(18),
+                end: ByteIndex(23)
+            },
+            Free(
+                User(
+                    Ident("false")
+                )
+            )
+        )
+    ),
+    Binop(
+        ByteSpan {
+            start: ByteIndex(29),
+            end: ByteIndex(42)
+        },
+        Or,
+        Var(
+            ByteSpan {
+                start: ByteIndex(29),
+                end: ByteIndex(33)
+            },
+            Free(
+                User(
+                    Ident("true")
+                )
+            )
+        ),
+        Var(
+            ByteSpan {
+                start: ByteIndex(37),
+                end: ByteIndex(42)
+            },
+            Free(
+                User(
+                    Ident("false")
+                )
+            )
+        )
+    )
+)

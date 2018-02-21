@@ -1,0 +1,283 @@
+Module {
+    definitions: [
+        Definition {
+            doc: "",
+            name: Ident("Pair"),
+            body_ty: Lam(
+                ByteSpan {
+                    start: ByteIndex(9),
+                    end: ByteIndex(78)
+                },
+                [
+                    Named {
+                        name: User(
+                            Ident("T")
+                        ),
+                        inner: Binary
+                    },
+                    Named {
+                        name: User(
+                            Ident("U")
+                        ),
+                        inner: Binary
+                    }
+                ],
+                Struct(
+                    ByteSpan {
+                        start: ByteIndex(22),
+                        end: ByteIndex(78)
+                    },
+                    [
+                        Field {
+                            doc: "",
+                            name: Ident("l"),
+                            value: Var(
+                                ByteSpan {
+                                    start: ByteIndex(47),
+                                    end: ByteIndex(48)
+                                },
+                                Bound(
+                                    Named {
+                                        name: User(
+                                            Ident("T")
+                                        ),
+                                        inner: BoundVar(0, 0)
+                                    }
+                                )
+                            )
+                        },
+                        Field {
+                            doc: "",
+                            name: Ident("r"),
+                            value: Var(
+                                ByteSpan {
+                                    start: ByteIndex(66),
+                                    end: ByteIndex(67)
+                                },
+                                Bound(
+                                    Named {
+                                        name: User(
+                                            Ident("U")
+                                        ),
+                                        inner: BoundVar(1, 1)
+                                    }
+                                )
+                            )
+                        }
+                    ]
+                )
+            )
+        },
+        Definition {
+            doc: "",
+            name: Ident("Array"),
+            body_ty: Lam(
+                ByteSpan {
+                    start: ByteIndex(89),
+                    end: ByteIndex(172)
+                },
+                [
+                    Named {
+                        name: User(
+                            Ident("T")
+                        ),
+                        inner: Binary
+                    }
+                ],
+                Struct(
+                    ByteSpan {
+                        start: ByteIndex(100),
+                        end: ByteIndex(172)
+                    },
+                    [
+                        Field {
+                            doc: "",
+                            name: Ident("len"),
+                            value: Var(
+                                ByteSpan {
+                                    start: ByteIndex(127),
+                                    end: ByteIndex(132)
+                                },
+                                Free(
+                                    User(
+                                        Ident("u16le")
+                                    )
+                                )
+                            )
+                        },
+                        Field {
+                            doc: "",
+                            name: Ident("data"),
+                            value: Array(
+                                ByteSpan {
+                                    start: ByteIndex(153),
+                                    end: ByteIndex(161)
+                                },
+                                Var(
+                                    ByteSpan {
+                                        start: ByteIndex(154),
+                                        end: ByteIndex(155)
+                                    },
+                                    Bound(
+                                        Named {
+                                            name: User(
+                                                Ident("T")
+                                            ),
+                                            inner: BoundVar(1, 0)
+                                        }
+                                    )
+                                ),
+                                Var(
+                                    ByteSpan {
+                                        start: ByteIndex(157),
+                                        end: ByteIndex(160)
+                                    },
+                                    Bound(
+                                        Named {
+                                            name: User(
+                                                Ident("len")
+                                            ),
+                                            inner: BoundVar(0, 0)
+                                        }
+                                    )
+                                )
+                            )
+                        }
+                    ]
+                )
+            )
+        },
+        Definition {
+            doc: "",
+            name: Ident("Data"),
+            body_ty: Lam(
+                ByteSpan {
+                    start: ByteIndex(183),
+                    end: ByteIndex(277)
+                },
+                [
+                    Named {
+                        name: User(
+                            Ident("T")
+                        ),
+                        inner: Binary
+                    },
+                    Named {
+                        name: User(
+                            Ident("U")
+                        ),
+                        inner: Binary
+                    },
+                    Named {
+                        name: User(
+                            Ident("V")
+                        ),
+                        inner: Binary
+                    }
+                ],
+                Struct(
+                    ByteSpan {
+                        start: ByteIndex(199),
+                        end: ByteIndex(277)
+                    },
+                    [
+                        Field {
+                            doc: "",
+                            name: Ident("blah"),
+                            value: Var(
+                                ByteSpan {
+                                    start: ByteIndex(227),
+                                    end: ByteIndex(228)
+                                },
+                                Bound(
+                                    Named {
+                                        name: User(
+                                            Ident("U")
+                                        ),
+                                        inner: BoundVar(0, 1)
+                                    }
+                                )
+                            )
+                        },
+                        Field {
+                            doc: "",
+                            name: Ident("data"),
+                            value: App(
+                                ByteSpan {
+                                    start: ByteIndex(249),
+                                    end: ByteIndex(266)
+                                },
+                                Var(
+                                    ByteSpan {
+                                        start: ByteIndex(249),
+                                        end: ByteIndex(254)
+                                    },
+                                    Bound(
+                                        Named {
+                                            name: User(
+                                                Ident("Array")
+                                            ),
+                                            inner: BoundVar(2, 0)
+                                        }
+                                    )
+                                ),
+                                [
+                                    App(
+                                        ByteSpan {
+                                            start: ByteIndex(255),
+                                            end: ByteIndex(265)
+                                        },
+                                        Var(
+                                            ByteSpan {
+                                                start: ByteIndex(255),
+                                                end: ByteIndex(259)
+                                            },
+                                            Bound(
+                                                Named {
+                                                    name: User(
+                                                        Ident("Pair")
+                                                    ),
+                                                    inner: BoundVar(3, 0)
+                                                }
+                                            )
+                                        ),
+                                        [
+                                            Var(
+                                                ByteSpan {
+                                                    start: ByteIndex(260),
+                                                    end: ByteIndex(261)
+                                                },
+                                                Bound(
+                                                    Named {
+                                                        name: User(
+                                                            Ident("T")
+                                                        ),
+                                                        inner: BoundVar(1, 0)
+                                                    }
+                                                )
+                                            ),
+                                            Var(
+                                                ByteSpan {
+                                                    start: ByteIndex(263),
+                                                    end: ByteIndex(264)
+                                                },
+                                                Bound(
+                                                    Named {
+                                                        name: User(
+                                                            Ident("V")
+                                                        ),
+                                                        inner: BoundVar(1, 2)
+                                                    }
+                                                )
+                                            )
+                                        ]
+                                    )
+                                ]
+                            )
+                        }
+                    ]
+                )
+            )
+        }
+    ]
+}

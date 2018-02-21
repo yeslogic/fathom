@@ -1,0 +1,348 @@
+use lalrpop_util::ParseError as LalrpopError;
+use codespan::{ByteIndex, ByteSpan};
+
+use syntax::concrete::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
+use syntax::parse::{ParseError, Token};
+
+
+grammar<'input>();
+
+
+// Tokens
+
+extern {
+    type Location = ByteIndex;
+    type Error = ParseError;
+
+    enum Token<&'input str> {
+        // Data
+        "Ident" => Token::Ident(<&'input str>),
+        "DocComment" => Token::DocComment(<&'input str>),
+        "BinLiteral" => Token::BinLiteral(<u64>, <&'input str>),
+        "HexLiteral" => Token::HexLiteral(<u64>, <&'input str>),
+        "DecLiteral" => Token::DecLiteral(<u64>, <&'input str>),
+        "FloatDecLiteral" => Token::FloatDecLiteral(<f64>, <&'input str>),
+
+        // Keywords
+        "as" => Token::As,
+        "cond" => Token::Cond,
+        "compute" => Token::Compute,
+        "from" => Token::From,
+        "struct" => Token::Struct,
+        "union" => Token::Union,
+        "where" => Token::Where,
+
+        // Symbols
+        "&" => Token::Amp,
+        "&&" => Token::AmpAmp,
+        "!" => Token::Bang,
+        "!=" => Token::BangEqual,
+        ":" => Token::Colon,
+        "," => Token::Comma,
+        "." => Token::Dot,
+        "=" => Token::Equal,
+        "==" => Token::EqualEqual,
+        "=>" => Token::EqualGreater,
+        "/" => Token::ForwardSlash,
+        ">" => Token::Greater,
+        ">=" => Token::GreaterEqual,
+        "<" => Token::Less,
+        "<=" => Token::LessEqual,
+        "-" => Token::Minus,
+        "|" => Token::Pipe,
+        "||" => Token::PipePipe,
+        "+" => Token::Plus,
+        ";" => Token::Semi,
+        "*" => Token::Star,
+
+        // Delimeters
+        "(" => Token::LParen,
+        ")" => Token::RParen,
+        "{" => Token::LBrace,
+        "}" => Token::RBrace,
+        "[" => Token::LBracket,
+        "]" => Token::RBracket,
+    }
+}
+
+
+pub Module: Module<'input> = {
+    Definition* => Module { definitions: <> }
+};
+
+pub Definition: Definition<'input> = {
+    <doc: "DocComment"*>
+        <start: @L> <name: "Ident"> "="
+        <body_ty: PrimaryType> ";" <end: @R> =>
+    {
+        Definition { doc, name, span: ByteSpan::new(start, end), param_names: vec![], body_ty }
+    },
+    <doc: "DocComment"*>
+        <start: @L> <name: "Ident"> "(" <param_names: (<"Ident"> ",")*> <last: "Ident"> ")" "="
+        <body_ty: PrimaryType> <end: @R> ";" =>
+    {
+        Definition {
+            doc,
+            name,
+            span: ByteSpan::new(start, end),
+            param_names: super::extend_vec(param_names, Some(last)),
+            body_ty,
+        }
+    },
+};
+
+Field<Value>: Field<'input, Value> = {
+    <doc: "DocComment"*> <name: "Ident"> ":" <value: Value> => {
+        Field { doc, name, value }
+    },
+};
+
+
+// Types
+
+pub Type: Type<'input> = {
+    <ty: PrimaryType> => ty,
+};
+
+PrimaryType: Type<'input> = {
+    AtomicType,
+    <lo1: @L> <ty: PrimaryType> "where" <lo2: @L> <param: "Ident"> "=>" <pred: PrimaryExpr> <end: @R> => {
+        Type::Where(ByteSpan::new(lo1, end), Box::new(ty), lo2, param, Box::new(pred))
+    },
+    <start: @L> "compute" <repr_ty: HostType> "from" <expr: PrimaryExpr> <end: @R> => {
+        Type::Compute(ByteSpan::new(start, end), repr_ty, Box::new(expr))
+    },
+};
+
+AtomicType: Type<'input> = {
+    <start: @L> <name: "Ident"> <end: @R> => {
+        Type::Var(ByteSpan::new(start, end), name)
+    },
+    <start: @L> <ty: AtomicType> "(" <arg_tys: (<Type> ",")*> <last: Type> ")" <end: @R> => {
+        Type::App(ByteSpan::new(start, end), Box::new(ty), super::extend_vec(arg_tys, Some(last)))
+    },
+    "(" <ty: PrimaryType> ")" => ty,
+    <start: @L> "struct" "{"
+        <fields: (<Field<Type>> ",")*>
+        <last: Field<Type>?>
+    "}" <end: @R> =>
+    {
+        Type::Struct(ByteSpan::new(start, end), super::extend_vec(fields, last))
+    },
+    <start: @L> "cond" "{"
+        <options: (<Field<(<Expr> "=>" <Type>)>> ",")*>
+        <last: Field<(<Expr> "=>" <Type>)>?>
+    "}" <end: @R> =>
+    {
+        Type::Cond(ByteSpan::new(start, end), super::extend_vec(options, last))
+    },
+    <start: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <end: @R> => {
+        Type::Array(ByteSpan::new(start, end), Box::new(elem), Box::new(size))
+    },
+};
+
+
+// Host Types
+
+HostType: TypeConst = {
+    // FIXME: implement full host type parsing, with proper name binding
+    //
+    // We'll just hard-code identifiers for now
+    <start: @L> <name: "Ident"> <end: @R> =>? {
+        use syntax::core::{FloatType, SignedType, UnsignedType};
+
+        match name {
+            "unit" => Ok(TypeConst::Unit),
+            "bottom" => Ok(TypeConst::Bottom),
+            "bool" => Ok(TypeConst::Bool),
+            "f32" => Ok(TypeConst::Float(FloatType::F32)),
+            "f64" => Ok(TypeConst::Float(FloatType::F64)),
+            "i8" => Ok(TypeConst::Signed(SignedType::I8)),
+            "i16" => Ok(TypeConst::Signed(SignedType::I16)),
+            "i24" => Ok(TypeConst::Signed(SignedType::I24)),
+            "i32" => Ok(TypeConst::Signed(SignedType::I32)),
+            "i64" => Ok(TypeConst::Signed(SignedType::I64)),
+            "u8" => Ok(TypeConst::Unsigned(UnsignedType::U8)),
+            "u16" => Ok(TypeConst::Unsigned(UnsignedType::U16)),
+            "u24" => Ok(TypeConst::Unsigned(UnsignedType::U24)),
+            "u32" => Ok(TypeConst::Unsigned(UnsignedType::U32)),
+            "u64" => Ok(TypeConst::Unsigned(UnsignedType::U64)),
+            name => Err(LalrpopError::User {
+                error: ParseError::InvalidHostTypeName {
+                    span: ByteSpan::new(start, end),
+                    name: name.to_owned(),
+                },
+            }),
+        }
+    },
+};
+
+
+// Expressions
+
+pub Expr: Expr<'input> = {
+    <expr: PrimaryExpr> => expr,
+};
+
+// Unary operators
+
+UnopNeg: Unop = "-" => Unop::Neg;
+UnopNot: Unop = "!" => Unop::Not;
+
+UnopExpr<Op, Operand>: Expr<'input> = {
+    <start: @L> <op: Op> <expr: Operand> <end: @R> => {
+        Expr::Unop(ByteSpan::new(start, end), op, Box::new(expr))
+    },
+};
+
+// Binary operators
+
+BinopOr:   Binop = "||"  => Binop::Or;
+BinopAnd:  Binop = "&&"  => Binop::And;
+BinopEq:   Binop = "=="  => Binop::Eq;
+BinopNe:   Binop = "!="  => Binop::Ne;
+BinopLe:   Binop = "<="  => Binop::Le;
+BinopLt:   Binop = "<"   => Binop::Lt;
+BinopGt:   Binop = ">"   => Binop::Gt;
+BinopGe:   Binop = ">="  => Binop::Ge;
+BinopAdd:  Binop = "+"   => Binop::Add;
+BinopSub:  Binop = "-"   => Binop::Sub;
+BinopMul:  Binop = "*"   => Binop::Mul;
+BinopDiv:  Binop = "/"   => Binop::Div;
+
+BinopExpr<Lhs, Op, Rhs>: Expr<'input> = {
+    <start: @L> <lhs: Lhs> <op: Op> <rhs: Rhs> <end: @R> => {
+        Expr::Binop(ByteSpan::new(start, end), op, Box::new(lhs), Box::new(rhs))
+    },
+};
+
+// Use precedence climbing to define the operators
+// https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
+
+PrimaryExpr: Expr<'input> = {
+    EqExpr,
+    BinopExpr<EqExpr, BinopOr, PrimaryExpr>,
+    BinopExpr<EqExpr, BinopAnd, PrimaryExpr>,
+};
+
+EqExpr: Expr<'input> = {
+    CmpExpr,
+    BinopExpr<CmpExpr, BinopEq, EqExpr>,
+    BinopExpr<CmpExpr, BinopNe, EqExpr>,
+};
+
+CmpExpr: Expr<'input> = {
+    AddExpr,
+    BinopExpr<AddExpr, BinopLe, CmpExpr>,
+    BinopExpr<AddExpr, BinopLt, CmpExpr>,
+    BinopExpr<AddExpr, BinopGt, CmpExpr>,
+    BinopExpr<AddExpr, BinopGe, CmpExpr>,
+};
+
+AddExpr: Expr<'input> = {
+    MulExpr,
+    BinopExpr<MulExpr, BinopAdd, AddExpr>,
+    BinopExpr<MulExpr, BinopSub, AddExpr>,
+};
+
+MulExpr: Expr<'input> = {
+    CastExpr,
+    BinopExpr<CastExpr, BinopMul, MulExpr>,
+    BinopExpr<CastExpr, BinopDiv, MulExpr>,
+};
+
+CastExpr: Expr<'input> = {
+    AnnExpr,
+    <start: @L> <expr: CastExpr> "as" <ty: HostType> <end: @R> => {
+        Expr::Cast(ByteSpan::new(start, end), Box::new(expr), ty)
+    },
+};
+
+AnnExpr: Expr<'input> = {
+    PrefixExpr,
+    <start: @L> <expr: AnnExpr> ":" <ty: HostType> <end: @R> => {
+        Expr::Ann(ByteSpan::new(start, end), Box::new(expr), ty)
+    },
+};
+
+PrefixExpr: Expr<'input> = {
+    AtomicExpr,
+    UnopExpr<UnopNeg, AtomicExpr>,
+    UnopExpr<UnopNot, AtomicExpr>,
+};
+
+IntLiteral<Value>: Expr<'input> = {
+    <start: @L> <value: Value> <end: @R> =>? {
+        use syntax::core::{IntSuffix, SignedType, UnsignedType};
+
+        let float = Const::Int(value.0, match value.1 {
+            "i8" => IntSuffix::Signed(SignedType::I8),
+            "i16" => IntSuffix::Signed(SignedType::I16),
+            "i24" => IntSuffix::Signed(SignedType::I24),
+            "i32" => IntSuffix::Signed(SignedType::I32),
+            "i64" => IntSuffix::Signed(SignedType::I64),
+            "u8" => IntSuffix::Unsigned(UnsignedType::U8),
+            "u16" => IntSuffix::Unsigned(UnsignedType::U16),
+            "u24" => IntSuffix::Unsigned(UnsignedType::U24),
+            "u32" => IntSuffix::Unsigned(UnsignedType::U32),
+            "u64" => IntSuffix::Unsigned(UnsignedType::U64),
+            "" => return Err(LalrpopError::User {
+                error: ParseError::ConstSuffixMissing { span: ByteSpan::new(start, end) },
+            }),
+            suffix => return Err(LalrpopError::User {
+                error: ParseError::ConstSuffixInvalid {
+                    span: ByteSpan::new(start, end),
+                    suffix: suffix.to_owned(),
+                },
+            }),
+        });
+
+        Ok(Expr::Const(ByteSpan::new(start, end), float))
+    },
+};
+
+FloatLiteral<Value>: Expr<'input> = {
+    <start: @L> <value: Value> <end: @R> =>? {
+        use syntax::core::FloatType;
+
+        let float = Const::Float(value.0, match value.1 {
+            "f32" => FloatType::F32,
+            "f64" => FloatType::F64,
+            "" => return Err(LalrpopError::User {
+                error: ParseError::ConstSuffixMissing {
+                    span: ByteSpan::new(start, end),
+                },
+            }),
+            suffix => return Err(LalrpopError::User {
+                error: ParseError::ConstSuffixInvalid {
+                    span: ByteSpan::new(start, end),
+                    suffix: suffix.to_owned(),
+                },
+            }),
+        });
+
+        Ok(Expr::Const(ByteSpan::new(start, end), float))
+    },
+};
+
+AtomicExpr: Expr<'input> = {
+    "(" <expr: PrimaryExpr> ")" => expr,
+
+    <start: @L> "[" <elems: (<PrimaryExpr> ",")*> <last: PrimaryExpr?> "]" <end: @R> => {
+        Expr::Array(ByteSpan::new(start, end), super::extend_vec(elems, last))
+    },
+
+    IntLiteral<"BinLiteral">,
+    IntLiteral<"HexLiteral">,
+    IntLiteral<"DecLiteral">,
+    FloatLiteral<"FloatDecLiteral">,
+    <start: @L> <name: "Ident"> <end: @R> => {
+        Expr::Var(ByteSpan::new(start, end), name)
+    },
+    <start: @L> <struct_expr: AtomicExpr> "." <field_name: "Ident"> <end: @R> => {
+        Expr::Proj(ByteSpan::new(start, end), Box::new(struct_expr), field_name)
+    },
+    <start: @L> <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" <end: @R> => {
+        Expr::Subscript(ByteSpan::new(start, end), Box::new(array_expr), Box::new(index_expr))
+    },
+};

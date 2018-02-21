@@ -4,18 +4,18 @@ Module {
             doc: "",
             name: Ident("Pixel"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(8),
-                    hi: BytePos(66)
+                ByteSpan {
+                    start: ByteIndex(8),
+                    end: ByteIndex(66)
                 },
                 [
                     Field {
                         doc: "",
                         name: Ident("r"),
                         value: Var(
-                            Span {
-                                lo: BytePos(25),
-                                hi: BytePos(27)
+                            ByteSpan {
+                                start: ByteIndex(25),
+                                end: ByteIndex(27)
                             },
                             Free(
                                 User(
@@ -28,9 +28,9 @@ Module {
                         doc: "",
                         name: Ident("g"),
                         value: Var(
-                            Span {
-                                lo: BytePos(37),
-                                hi: BytePos(39)
+                            ByteSpan {
+                                start: ByteIndex(37),
+                                end: ByteIndex(39)
                             },
                             Free(
                                 User(
@@ -43,9 +43,9 @@ Module {
                         doc: "",
                         name: Ident("b"),
                         value: Var(
-                            Span {
-                                lo: BytePos(49),
-                                hi: BytePos(51)
+                            ByteSpan {
+                                start: ByteIndex(49),
+                                end: ByteIndex(51)
                             },
                             Free(
                                 User(
@@ -58,9 +58,9 @@ Module {
                         doc: "",
                         name: Ident("a"),
                         value: Var(
-                            Span {
-                                lo: BytePos(61),
-                                hi: BytePos(63)
+                            ByteSpan {
+                                start: ByteIndex(61),
+                                end: ByteIndex(63)
                             },
                             Free(
                                 User(
@@ -76,27 +76,27 @@ Module {
             doc: "",
             name: Ident("Bitmap"),
             body_ty: Struct(
-                Span {
-                    lo: BytePos(78),
-                    hi: BytePos(217)
+                ByteSpan {
+                    start: ByteIndex(78),
+                    end: ByteIndex(217)
                 },
                 [
                     Field {
                         doc: "",
                         name: Ident("extents"),
                         value: Struct(
-                            Span {
-                                lo: BytePos(101),
-                                hi: BytePos(162)
+                            ByteSpan {
+                                start: ByteIndex(101),
+                                end: ByteIndex(162)
                             },
                             [
                                 Field {
                                     doc: "",
                                     name: Ident("width"),
                                     value: Var(
-                                        Span {
-                                            lo: BytePos(126),
-                                            hi: BytePos(131)
+                                        ByteSpan {
+                                            start: ByteIndex(126),
+                                            end: ByteIndex(131)
                                         },
                                         Free(
                                             User(
@@ -109,9 +109,9 @@ Module {
                                     doc: "",
                                     name: Ident("height"),
                                     value: Var(
-                                        Span {
-                                            lo: BytePos(150),
-                                            hi: BytePos(155)
+                                        ByteSpan {
+                                            start: ByteIndex(150),
+                                            end: ByteIndex(155)
                                         },
                                         Free(
                                             User(
@@ -127,68 +127,68 @@ Module {
                         doc: "",
                         name: Ident("data"),
                         value: Array(
-                            Span {
-                                lo: BytePos(175),
-                                hi: BytePos(214)
+                            ByteSpan {
+                                start: ByteIndex(175),
+                                end: ByteIndex(214)
                             },
                             Var(
-                                Span {
-                                    lo: BytePos(176),
-                                    hi: BytePos(181)
+                                ByteSpan {
+                                    start: ByteIndex(176),
+                                    end: ByteIndex(181)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("Pixel")
                                         ),
-                                        BoundVar(1, 0)
-                                    )
+                                        inner: BoundVar(1, 0)
+                                    }
                                 )
                             ),
                             Binop(
-                                Span {
-                                    lo: BytePos(183),
-                                    hi: BytePos(213)
+                                ByteSpan {
+                                    start: ByteIndex(183),
+                                    end: ByteIndex(213)
                                 },
                                 Mul,
                                 Proj(
-                                    Span {
-                                        lo: BytePos(183),
-                                        hi: BytePos(196)
+                                    ByteSpan {
+                                        start: ByteIndex(183),
+                                        end: ByteIndex(196)
                                     },
                                     Var(
-                                        Span {
-                                            lo: BytePos(183),
-                                            hi: BytePos(190)
+                                        ByteSpan {
+                                            start: ByteIndex(183),
+                                            end: ByteIndex(190)
                                         },
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("extents")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     ),
                                     Ident("width")
                                 ),
                                 Proj(
-                                    Span {
-                                        lo: BytePos(199),
-                                        hi: BytePos(213)
+                                    ByteSpan {
+                                        start: ByteIndex(199),
+                                        end: ByteIndex(213)
                                     },
                                     Var(
-                                        Span {
-                                            lo: BytePos(199),
-                                            hi: BytePos(206)
+                                        ByteSpan {
+                                            start: ByteIndex(199),
+                                            end: ByteIndex(206)
                                         },
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("extents")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     ),
                                     Ident("height")
@@ -203,17 +203,17 @@ Module {
             doc: "",
             name: Ident("Bmp"),
             body_ty: Var(
-                Span {
-                    lo: BytePos(226),
-                    hi: BytePos(232)
+                ByteSpan {
+                    start: ByteIndex(226),
+                    end: ByteIndex(232)
                 },
                 Bound(
-                    Named(
-                        User(
+                    Named {
+                        name: User(
                             Ident("Bitmap")
                         ),
-                        BoundVar(0, 0)
-                    )
+                        inner: BoundVar(0, 0)
+                    }
                 )
             )
         }

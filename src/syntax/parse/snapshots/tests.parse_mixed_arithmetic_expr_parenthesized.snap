@@ -1,0 +1,101 @@
+Binop(
+    ByteSpan {
+        start: ByteIndex(0),
+        end: ByteIndex(25)
+    },
+    Mul,
+    Binop(
+        ByteSpan {
+            start: ByteIndex(1),
+            end: ByteIndex(6)
+        },
+        Add,
+        Var(
+            ByteSpan {
+                start: ByteIndex(1),
+                end: ByteIndex(2)
+            },
+            Free(
+                User(
+                    Ident("x")
+                )
+            )
+        ),
+        Var(
+            ByteSpan {
+                start: ByteIndex(5),
+                end: ByteIndex(6)
+            },
+            Free(
+                User(
+                    Ident("y")
+                )
+            )
+        )
+    ),
+    Binop(
+        ByteSpan {
+            start: ByteIndex(10),
+            end: ByteIndex(25)
+        },
+        Div,
+        Var(
+            ByteSpan {
+                start: ByteIndex(10),
+                end: ByteIndex(11)
+            },
+            Free(
+                User(
+                    Ident("z")
+                )
+            )
+        ),
+        Binop(
+            ByteSpan {
+                start: ByteIndex(14),
+                end: ByteIndex(25)
+            },
+            Mul,
+            Binop(
+                ByteSpan {
+                    start: ByteIndex(15),
+                    end: ByteIndex(20)
+                },
+                Sub,
+                Var(
+                    ByteSpan {
+                        start: ByteIndex(15),
+                        end: ByteIndex(16)
+                    },
+                    Free(
+                        User(
+                            Ident("z")
+                        )
+                    )
+                ),
+                Var(
+                    ByteSpan {
+                        start: ByteIndex(19),
+                        end: ByteIndex(20)
+                    },
+                    Free(
+                        User(
+                            Ident("x")
+                        )
+                    )
+                )
+            ),
+            Var(
+                ByteSpan {
+                    start: ByteIndex(24),
+                    end: ByteIndex(25)
+                },
+                Free(
+                    User(
+                        Ident("a")
+                    )
+                )
+            )
+        )
+    )
+)

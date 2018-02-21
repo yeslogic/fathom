@@ -1,0 +1,28 @@
+Lam(
+    ByteSpan {
+        start: ByteIndex(0),
+        end: ByteIndex(0)
+    },
+    [
+        Named {
+            name: User(
+                Ident("x")
+            ),
+            inner: Binary
+        }
+    ],
+    Var(
+        ByteSpan {
+            start: ByteIndex(0),
+            end: ByteIndex(0)
+        },
+        Bound(
+            Named {
+                name: User(
+                    Ident("x")
+                ),
+                inner: BoundVar(0, 0)
+            }
+        )
+    )
+)

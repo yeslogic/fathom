@@ -1,0 +1,136 @@
+Lam(
+    ByteSpan {
+        start: ByteIndex(0),
+        end: ByteIndex(0)
+    },
+    [
+        Named {
+            name: User(
+                Ident("z")
+            ),
+            inner: Binary
+        }
+    ],
+    App(
+        ByteSpan {
+            start: ByteIndex(0),
+            end: ByteIndex(0)
+        },
+        Lam(
+            ByteSpan {
+                start: ByteIndex(0),
+                end: ByteIndex(0)
+            },
+            [
+                Named {
+                    name: User(
+                        Ident("y")
+                    ),
+                    inner: Binary
+                }
+            ],
+            App(
+                ByteSpan {
+                    start: ByteIndex(0),
+                    end: ByteIndex(0)
+                },
+                Var(
+                    ByteSpan {
+                        start: ByteIndex(0),
+                        end: ByteIndex(0)
+                    },
+                    Bound(
+                        Named {
+                            name: User(
+                                Ident("y")
+                            ),
+                            inner: BoundVar(0, 0)
+                        }
+                    )
+                ),
+                [
+                    Lam(
+                        ByteSpan {
+                            start: ByteIndex(0),
+                            end: ByteIndex(0)
+                        },
+                        [
+                            Named {
+                                name: User(
+                                    Ident("x")
+                                ),
+                                inner: Binary
+                            }
+                        ],
+                        Var(
+                            ByteSpan {
+                                start: ByteIndex(0),
+                                end: ByteIndex(0)
+                            },
+                            Bound(
+                                Named {
+                                    name: User(
+                                        Ident("x")
+                                    ),
+                                    inner: BoundVar(0, 0)
+                                }
+                            )
+                        )
+                    )
+                ]
+            )
+        ),
+        [
+            Lam(
+                ByteSpan {
+                    start: ByteIndex(0),
+                    end: ByteIndex(0)
+                },
+                [
+                    Named {
+                        name: User(
+                            Ident("x")
+                        ),
+                        inner: Binary
+                    }
+                ],
+                App(
+                    ByteSpan {
+                        start: ByteIndex(0),
+                        end: ByteIndex(0)
+                    },
+                    Var(
+                        ByteSpan {
+                            start: ByteIndex(0),
+                            end: ByteIndex(0)
+                        },
+                        Bound(
+                            Named {
+                                name: User(
+                                    Ident("z")
+                                ),
+                                inner: BoundVar(1, 0)
+                            }
+                        )
+                    ),
+                    [
+                        Var(
+                            ByteSpan {
+                                start: ByteIndex(0),
+                                end: ByteIndex(0)
+                            },
+                            Bound(
+                                Named {
+                                    name: User(
+                                        Ident("x")
+                                    ),
+                                    inner: BoundVar(0, 0)
+                                }
+                            )
+                        )
+                    ]
+                )
+            )
+        ]
+    )
+)

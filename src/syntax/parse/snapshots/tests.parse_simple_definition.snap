@@ -1,0 +1,19 @@
+Module {
+    definitions: [
+        Definition {
+            doc: "",
+            name: Ident("Offset32"),
+            body_ty: Var(
+                ByteSpan {
+                    start: ByteIndex(20),
+                    end: ByteIndex(23)
+                },
+                Free(
+                    User(
+                        Ident("u32")
+                    )
+                )
+            )
+        }
+    ]
+}
