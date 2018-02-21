@@ -1,7 +1,7 @@
 Struct(
     ByteSpan {
-        start: ByteIndex(9),
-        end: ByteIndex(311)
+        start: ByteIndex(10),
+        end: ByteIndex(312)
     },
     [
         Field {
@@ -9,8 +9,8 @@ Struct(
             name: Ident("len"),
             value: Var(
                 ByteSpan {
-                    start: ByteIndex(35),
-                    end: ByteIndex(38)
+                    start: ByteIndex(36),
+                    end: ByteIndex(39)
                 },
                 Free(
                     User(
@@ -24,13 +24,13 @@ Struct(
             name: Ident("data1"),
             value: Array(
                 ByteSpan {
-                    start: ByteIndex(59),
-                    end: ByteIndex(69)
+                    start: ByteIndex(60),
+                    end: ByteIndex(70)
                 },
                 Var(
                     ByteSpan {
-                        start: ByteIndex(60),
-                        end: ByteIndex(63)
+                        start: ByteIndex(61),
+                        end: ByteIndex(64)
                     },
                     Free(
                         User(
@@ -40,8 +40,8 @@ Struct(
                 ),
                 Var(
                     ByteSpan {
-                        start: ByteIndex(65),
-                        end: ByteIndex(68)
+                        start: ByteIndex(66),
+                        end: ByteIndex(69)
                     },
                     Bound(
                         Named {
@@ -59,8 +59,8 @@ Struct(
             name: Ident("data2"),
             value: Struct(
                 ByteSpan {
-                    start: ByteIndex(90),
-                    end: ByteIndex(300)
+                    start: ByteIndex(91),
+                    end: ByteIndex(301)
                 },
                 [
                     Field {
@@ -68,13 +68,13 @@ Struct(
                         name: Ident("data1"),
                         value: Array(
                             ByteSpan {
-                                start: ByteIndex(122),
-                                end: ByteIndex(132)
+                                start: ByteIndex(123),
+                                end: ByteIndex(133)
                             },
                             Var(
                                 ByteSpan {
-                                    start: ByteIndex(123),
-                                    end: ByteIndex(126)
+                                    start: ByteIndex(124),
+                                    end: ByteIndex(127)
                                 },
                                 Free(
                                     User(
@@ -84,8 +84,8 @@ Struct(
                             ),
                             Var(
                                 ByteSpan {
-                                    start: ByteIndex(128),
-                                    end: ByteIndex(131)
+                                    start: ByteIndex(129),
+                                    end: ByteIndex(132)
                                 },
                                 Bound(
                                     Named {
@@ -103,8 +103,8 @@ Struct(
                         name: Ident("len"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(155),
-                                end: ByteIndex(158)
+                                start: ByteIndex(156),
+                                end: ByteIndex(159)
                             },
                             Free(
                                 User(
@@ -118,8 +118,8 @@ Struct(
                         name: Ident("padding1"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(218),
-                                end: ByteIndex(220)
+                                start: ByteIndex(219),
+                                end: ByteIndex(221)
                             },
                             Free(
                                 User(
@@ -133,8 +133,8 @@ Struct(
                         name: Ident("padding2"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(248),
-                                end: ByteIndex(250)
+                                start: ByteIndex(249),
+                                end: ByteIndex(251)
                             },
                             Free(
                                 User(
@@ -148,13 +148,13 @@ Struct(
                         name: Ident("data2"),
                         value: Array(
                             ByteSpan {
-                                start: ByteIndex(275),
-                                end: ByteIndex(285)
+                                start: ByteIndex(276),
+                                end: ByteIndex(286)
                             },
                             Var(
                                 ByteSpan {
-                                    start: ByteIndex(276),
-                                    end: ByteIndex(279)
+                                    start: ByteIndex(277),
+                                    end: ByteIndex(280)
                                 },
                                 Free(
                                     User(
@@ -164,8 +164,8 @@ Struct(
                             ),
                             Var(
                                 ByteSpan {
-                                    start: ByteIndex(281),
-                                    end: ByteIndex(284)
+                                    start: ByteIndex(282),
+                                    end: ByteIndex(285)
                                 },
                                 Bound(
                                     Named {

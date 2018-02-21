@@ -1,5 +1,5 @@
 use lalrpop_util::ParseError as LalrpopError;
-use codespan::{ByteIndex, ByteSpan, RawIndex};
+use codespan::{ByteIndex, ByteSpan, FileMap};
 use codespan_reporting::{Diagnostic, Label, LabelStyle, Severity};
 use std::fmt;
 
@@ -36,7 +36,7 @@ pub enum ParseError {
 }
 
 /// Flatten away an LALRPOP error, leaving the inner `ParseError` behind
-pub fn from_lalrpop<T>(src: &str, err: LalrpopError<ByteIndex, T, ParseError>) -> ParseError
+pub fn from_lalrpop<T>(filemap: &FileMap, err: LalrpopError<ByteIndex, T, ParseError>) -> ParseError
 where
     T: Into<Token<String>>,
 {
@@ -47,7 +47,7 @@ where
             token: None,
             expected,
         } => ParseError::UnexpectedEof {
-            end: ByteIndex(src.len() as RawIndex),
+            end: filemap.span().end(),
             expected: ExpectedTokens(expected),
         },
         LalrpopError::UnrecognizedToken {

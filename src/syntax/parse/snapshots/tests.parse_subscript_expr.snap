@@ -1,23 +1,23 @@
 Unop(
     ByteSpan {
-        start: ByteIndex(0),
-        end: ByteIndex(34)
+        start: ByteIndex(1),
+        end: ByteIndex(35)
     },
     Neg,
     Subscript(
         ByteSpan {
-            start: ByteIndex(1),
-            end: ByteIndex(34)
+            start: ByteIndex(2),
+            end: ByteIndex(35)
         },
         Subscript(
             ByteSpan {
-                start: ByteIndex(1),
-                end: ByteIndex(27)
+                start: ByteIndex(2),
+                end: ByteIndex(28)
             },
             Var(
                 ByteSpan {
-                    start: ByteIndex(1),
-                    end: ByteIndex(4)
+                    start: ByteIndex(2),
+                    end: ByteIndex(5)
                 },
                 Free(
                     User(
@@ -27,34 +27,34 @@ Unop(
             ),
             Binop(
                 ByteSpan {
-                    start: ByteIndex(5),
-                    end: ByteIndex(26)
+                    start: ByteIndex(6),
+                    end: ByteIndex(27)
                 },
                 Add,
                 Const(
                     ByteSpan {
-                        start: ByteIndex(5),
-                        end: ByteIndex(10)
+                        start: ByteIndex(6),
+                        end: ByteIndex(11)
                     },
                     Int(23, Unsigned(U32))
                 ),
                 Binop(
                     ByteSpan {
-                        start: ByteIndex(14),
-                        end: ByteIndex(25)
+                        start: ByteIndex(15),
+                        end: ByteIndex(26)
                     },
                     Add,
                     Const(
                         ByteSpan {
-                            start: ByteIndex(14),
-                            end: ByteIndex(18)
+                            start: ByteIndex(15),
+                            end: ByteIndex(19)
                         },
                         Int(2, Unsigned(U32))
                     ),
                     Const(
                         ByteSpan {
-                            start: ByteIndex(21),
-                            end: ByteIndex(25)
+                            start: ByteIndex(22),
+                            end: ByteIndex(26)
                         },
                         Int(3, Unsigned(U32))
                     )
@@ -63,8 +63,8 @@ Unop(
         ),
         Var(
             ByteSpan {
-                start: ByteIndex(28),
-                end: ByteIndex(33)
+                start: ByteIndex(29),
+                end: ByteIndex(34)
             },
             Free(
                 User(

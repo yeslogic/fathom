@@ -1,19 +1,19 @@
 Binop(
     ByteSpan {
-        start: ByteIndex(9),
-        end: ByteIndex(43)
+        start: ByteIndex(10),
+        end: ByteIndex(44)
     },
     Or,
     Binop(
         ByteSpan {
-            start: ByteIndex(10),
-            end: ByteIndex(23)
+            start: ByteIndex(11),
+            end: ByteIndex(24)
         },
         And,
         Var(
             ByteSpan {
-                start: ByteIndex(10),
-                end: ByteIndex(14)
+                start: ByteIndex(11),
+                end: ByteIndex(15)
             },
             Free(
                 User(
@@ -23,8 +23,8 @@ Binop(
         ),
         Var(
             ByteSpan {
-                start: ByteIndex(18),
-                end: ByteIndex(23)
+                start: ByteIndex(19),
+                end: ByteIndex(24)
             },
             Free(
                 User(
@@ -35,14 +35,14 @@ Binop(
     ),
     Binop(
         ByteSpan {
-            start: ByteIndex(29),
-            end: ByteIndex(42)
+            start: ByteIndex(30),
+            end: ByteIndex(43)
         },
         Or,
         Var(
             ByteSpan {
-                start: ByteIndex(29),
-                end: ByteIndex(33)
+                start: ByteIndex(30),
+                end: ByteIndex(34)
             },
             Free(
                 User(
@@ -52,8 +52,8 @@ Binop(
         ),
         Var(
             ByteSpan {
-                start: ByteIndex(37),
-                end: ByteIndex(42)
+                start: ByteIndex(38),
+                end: ByteIndex(43)
             },
             Free(
                 User(

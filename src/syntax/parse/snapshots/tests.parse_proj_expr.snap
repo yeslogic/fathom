@@ -1,23 +1,23 @@
 Unop(
     ByteSpan {
-        start: ByteIndex(0),
-        end: ByteIndex(10)
+        start: ByteIndex(1),
+        end: ByteIndex(11)
     },
     Neg,
     Proj(
         ByteSpan {
-            start: ByteIndex(1),
-            end: ByteIndex(10)
+            start: ByteIndex(2),
+            end: ByteIndex(11)
         },
         Proj(
             ByteSpan {
-                start: ByteIndex(1),
-                end: ByteIndex(8)
+                start: ByteIndex(2),
+                end: ByteIndex(9)
             },
             Var(
                 ByteSpan {
-                    start: ByteIndex(1),
-                    end: ByteIndex(4)
+                    start: ByteIndex(2),
+                    end: ByteIndex(5)
                 },
                 Free(
                     User(

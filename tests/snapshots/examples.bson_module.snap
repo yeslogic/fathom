@@ -5,8 +5,8 @@ Module {
             name: Ident("BinData"),
             body_ty: Struct(
                 ByteSpan {
-                    start: ByteIndex(26),
-                    end: ByteIndex(398)
+                    start: ByteIndex(27),
+                    end: ByteIndex(399)
                 },
                 [
                     Field {
@@ -14,8 +14,8 @@ Module {
                         name: Ident("len"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(80),
-                                end: ByteIndex(85)
+                                start: ByteIndex(81),
+                                end: ByteIndex(86)
                             },
                             Free(
                                 User(
@@ -29,8 +29,8 @@ Module {
                         name: Ident("subtype"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(341),
-                                end: ByteIndex(343)
+                                start: ByteIndex(342),
+                                end: ByteIndex(344)
                             },
                             Free(
                                 User(
@@ -44,13 +44,13 @@ Module {
                         name: Ident("data"),
                         value: Array(
                             ByteSpan {
-                                start: ByteIndex(379),
-                                end: ByteIndex(395)
+                                start: ByteIndex(380),
+                                end: ByteIndex(396)
                             },
                             Var(
                                 ByteSpan {
-                                    start: ByteIndex(380),
-                                    end: ByteIndex(382)
+                                    start: ByteIndex(381),
+                                    end: ByteIndex(383)
                                 },
                                 Free(
                                     User(
@@ -60,13 +60,13 @@ Module {
                             ),
                             Cast(
                                 ByteSpan {
-                                    start: ByteIndex(384),
-                                    end: ByteIndex(394)
+                                    start: ByteIndex(385),
+                                    end: ByteIndex(395)
                                 },
                                 Var(
                                     ByteSpan {
-                                        start: ByteIndex(384),
-                                        end: ByteIndex(387)
+                                        start: ByteIndex(385),
+                                        end: ByteIndex(388)
                                     },
                                     Bound(
                                         Named {
@@ -93,8 +93,8 @@ Module {
             name: Ident("ObjectId"),
             body_ty: Struct(
                 ByteSpan {
-                    start: ByteIndex(412),
-                    end: ByteIndex(511)
+                    start: ByteIndex(413),
+                    end: ByteIndex(512)
                 },
                 [
                     Field {
@@ -102,8 +102,8 @@ Module {
                         name: Ident("epoch_time"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(437),
-                                end: ByteIndex(442)
+                                start: ByteIndex(438),
+                                end: ByteIndex(443)
                             },
                             Free(
                                 User(
@@ -117,8 +117,8 @@ Module {
                         name: Ident("machine_id"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(460),
-                                end: ByteIndex(465)
+                                start: ByteIndex(461),
+                                end: ByteIndex(466)
                             },
                             Free(
                                 User(
@@ -132,8 +132,8 @@ Module {
                         name: Ident("process_id"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(483),
-                                end: ByteIndex(488)
+                                start: ByteIndex(484),
+                                end: ByteIndex(489)
                             },
                             Free(
                                 User(
@@ -147,8 +147,8 @@ Module {
                         name: Ident("counter"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(503),
-                                end: ByteIndex(508)
+                                start: ByteIndex(504),
+                                end: ByteIndex(509)
                             },
                             Free(
                                 User(
@@ -165,8 +165,8 @@ Module {
             name: Ident("Element"),
             body_ty: Struct(
                 ByteSpan {
-                    start: ByteIndex(524),
-                    end: ByteIndex(2268)
+                    start: ByteIndex(525),
+                    end: ByteIndex(2269)
                 },
                 [
                     Field {
@@ -174,8 +174,8 @@ Module {
                         name: Ident("elem_type"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(549),
-                                end: ByteIndex(551)
+                                start: ByteIndex(550),
+                                end: ByteIndex(552)
                             },
                             Free(
                                 User(
@@ -189,8 +189,8 @@ Module {
                         name: Ident("content"),
                         value: Cond(
                             ByteSpan {
-                                start: ByteIndex(566),
-                                end: ByteIndex(2265)
+                                start: ByteIndex(567),
+                                end: ByteIndex(2266)
                             },
                             [
                                 Field {
@@ -200,14 +200,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 ByteSpan {
-                                                    start: ByteIndex(624),
-                                                    end: ByteIndex(643)
+                                                    start: ByteIndex(625),
+                                                    end: ByteIndex(644)
                                                 },
                                                 Eq,
                                                 Var(
                                                     ByteSpan {
-                                                        start: ByteIndex(624),
-                                                        end: ByteIndex(633)
+                                                        start: ByteIndex(625),
+                                                        end: ByteIndex(634)
                                                     },
                                                     Bound(
                                                         Named {
@@ -220,8 +220,8 @@ Module {
                                                 ),
                                                 Const(
                                                     ByteSpan {
-                                                        start: ByteIndex(637),
-                                                        end: ByteIndex(643)
+                                                        start: ByteIndex(638),
+                                                        end: ByteIndex(644)
                                                     },
                                                     Int(1, Unsigned(U8))
                                                 )
@@ -229,8 +229,8 @@ Module {
                                         ),
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(647),
-                                                end: ByteIndex(652)
+                                                start: ByteIndex(648),
+                                                end: ByteIndex(653)
                                             },
                                             Free(
                                                 User(
@@ -247,14 +247,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 ByteSpan {
-                                                    start: ByteIndex(993),
-                                                    end: ByteIndex(1012)
+                                                    start: ByteIndex(994),
+                                                    end: ByteIndex(1013)
                                                 },
                                                 Eq,
                                                 Var(
                                                     ByteSpan {
-                                                        start: ByteIndex(993),
-                                                        end: ByteIndex(1002)
+                                                        start: ByteIndex(994),
+                                                        end: ByteIndex(1003)
                                                     },
                                                     Bound(
                                                         Named {
@@ -267,8 +267,8 @@ Module {
                                                 ),
                                                 Const(
                                                     ByteSpan {
-                                                        start: ByteIndex(1006),
-                                                        end: ByteIndex(1012)
+                                                        start: ByteIndex(1007),
+                                                        end: ByteIndex(1013)
                                                     },
                                                     Int(5, Unsigned(U8))
                                                 )
@@ -276,8 +276,8 @@ Module {
                                         ),
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(1016),
-                                                end: ByteIndex(1023)
+                                                start: ByteIndex(1017),
+                                                end: ByteIndex(1024)
                                             },
                                             Bound(
                                                 Named {
@@ -297,14 +297,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 ByteSpan {
-                                                    start: ByteIndex(1088),
-                                                    end: ByteIndex(1107)
+                                                    start: ByteIndex(1089),
+                                                    end: ByteIndex(1108)
                                                 },
                                                 Eq,
                                                 Var(
                                                     ByteSpan {
-                                                        start: ByteIndex(1088),
-                                                        end: ByteIndex(1097)
+                                                        start: ByteIndex(1089),
+                                                        end: ByteIndex(1098)
                                                     },
                                                     Bound(
                                                         Named {
@@ -317,8 +317,8 @@ Module {
                                                 ),
                                                 Const(
                                                     ByteSpan {
-                                                        start: ByteIndex(1101),
-                                                        end: ByteIndex(1107)
+                                                        start: ByteIndex(1102),
+                                                        end: ByteIndex(1108)
                                                     },
                                                     Int(6, Unsigned(U8))
                                                 )
@@ -326,8 +326,8 @@ Module {
                                         ),
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(1111),
-                                                end: ByteIndex(1116)
+                                                start: ByteIndex(1112),
+                                                end: ByteIndex(1117)
                                             },
                                             Free(
                                                 User(
@@ -344,14 +344,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 ByteSpan {
-                                                    start: ByteIndex(1159),
-                                                    end: ByteIndex(1178)
+                                                    start: ByteIndex(1160),
+                                                    end: ByteIndex(1179)
                                                 },
                                                 Eq,
                                                 Var(
                                                     ByteSpan {
-                                                        start: ByteIndex(1159),
-                                                        end: ByteIndex(1168)
+                                                        start: ByteIndex(1160),
+                                                        end: ByteIndex(1169)
                                                     },
                                                     Bound(
                                                         Named {
@@ -364,8 +364,8 @@ Module {
                                                 ),
                                                 Const(
                                                     ByteSpan {
-                                                        start: ByteIndex(1172),
-                                                        end: ByteIndex(1178)
+                                                        start: ByteIndex(1173),
+                                                        end: ByteIndex(1179)
                                                     },
                                                     Int(7, Unsigned(U8))
                                                 )
@@ -373,8 +373,8 @@ Module {
                                         ),
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(1182),
-                                                end: ByteIndex(1190)
+                                                start: ByteIndex(1183),
+                                                end: ByteIndex(1191)
                                             },
                                             Bound(
                                                 Named {
@@ -394,14 +394,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 ByteSpan {
-                                                    start: ByteIndex(1297),
-                                                    end: ByteIndex(1316)
+                                                    start: ByteIndex(1298),
+                                                    end: ByteIndex(1317)
                                                 },
                                                 Eq,
                                                 Var(
                                                     ByteSpan {
-                                                        start: ByteIndex(1297),
-                                                        end: ByteIndex(1306)
+                                                        start: ByteIndex(1298),
+                                                        end: ByteIndex(1307)
                                                     },
                                                     Bound(
                                                         Named {
@@ -414,8 +414,8 @@ Module {
                                                 ),
                                                 Const(
                                                     ByteSpan {
-                                                        start: ByteIndex(1310),
-                                                        end: ByteIndex(1316)
+                                                        start: ByteIndex(1311),
+                                                        end: ByteIndex(1317)
                                                     },
                                                     Int(8, Unsigned(U8))
                                                 )
@@ -423,8 +423,8 @@ Module {
                                         ),
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(1320),
-                                                end: ByteIndex(1322)
+                                                start: ByteIndex(1321),
+                                                end: ByteIndex(1323)
                                             },
                                             Free(
                                                 User(
@@ -441,14 +441,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 ByteSpan {
-                                                    start: ByteIndex(1372),
-                                                    end: ByteIndex(1391)
+                                                    start: ByteIndex(1373),
+                                                    end: ByteIndex(1392)
                                                 },
                                                 Eq,
                                                 Var(
                                                     ByteSpan {
-                                                        start: ByteIndex(1372),
-                                                        end: ByteIndex(1381)
+                                                        start: ByteIndex(1373),
+                                                        end: ByteIndex(1382)
                                                     },
                                                     Bound(
                                                         Named {
@@ -461,8 +461,8 @@ Module {
                                                 ),
                                                 Const(
                                                     ByteSpan {
-                                                        start: ByteIndex(1385),
-                                                        end: ByteIndex(1391)
+                                                        start: ByteIndex(1386),
+                                                        end: ByteIndex(1392)
                                                     },
                                                     Int(9, Unsigned(U8))
                                                 )
@@ -470,8 +470,8 @@ Module {
                                         ),
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(1395),
-                                                end: ByteIndex(1400)
+                                                start: ByteIndex(1396),
+                                                end: ByteIndex(1401)
                                             },
                                             Free(
                                                 User(
@@ -488,14 +488,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 ByteSpan {
-                                                    start: ByteIndex(1440),
-                                                    end: ByteIndex(1459)
+                                                    start: ByteIndex(1441),
+                                                    end: ByteIndex(1460)
                                                 },
                                                 Eq,
                                                 Var(
                                                     ByteSpan {
-                                                        start: ByteIndex(1440),
-                                                        end: ByteIndex(1449)
+                                                        start: ByteIndex(1441),
+                                                        end: ByteIndex(1450)
                                                     },
                                                     Bound(
                                                         Named {
@@ -508,8 +508,8 @@ Module {
                                                 ),
                                                 Const(
                                                     ByteSpan {
-                                                        start: ByteIndex(1453),
-                                                        end: ByteIndex(1459)
+                                                        start: ByteIndex(1454),
+                                                        end: ByteIndex(1460)
                                                     },
                                                     Int(10, Unsigned(U8))
                                                 )
@@ -517,8 +517,8 @@ Module {
                                         ),
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(1463),
-                                                end: ByteIndex(1468)
+                                                start: ByteIndex(1464),
+                                                end: ByteIndex(1469)
                                             },
                                             Free(
                                                 User(
@@ -535,14 +535,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 ByteSpan {
-                                                    start: ByteIndex(1972),
-                                                    end: ByteIndex(1991)
+                                                    start: ByteIndex(1973),
+                                                    end: ByteIndex(1992)
                                                 },
                                                 Eq,
                                                 Var(
                                                     ByteSpan {
-                                                        start: ByteIndex(1972),
-                                                        end: ByteIndex(1981)
+                                                        start: ByteIndex(1973),
+                                                        end: ByteIndex(1982)
                                                     },
                                                     Bound(
                                                         Named {
@@ -555,8 +555,8 @@ Module {
                                                 ),
                                                 Const(
                                                     ByteSpan {
-                                                        start: ByteIndex(1985),
-                                                        end: ByteIndex(1991)
+                                                        start: ByteIndex(1986),
+                                                        end: ByteIndex(1992)
                                                     },
                                                     Int(16, Unsigned(U8))
                                                 )
@@ -564,8 +564,8 @@ Module {
                                         ),
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(1995),
-                                                end: ByteIndex(2000)
+                                                start: ByteIndex(1996),
+                                                end: ByteIndex(2001)
                                             },
                                             Free(
                                                 User(
@@ -582,14 +582,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 ByteSpan {
-                                                    start: ByteIndex(2044),
-                                                    end: ByteIndex(2063)
+                                                    start: ByteIndex(2045),
+                                                    end: ByteIndex(2064)
                                                 },
                                                 Eq,
                                                 Var(
                                                     ByteSpan {
-                                                        start: ByteIndex(2044),
-                                                        end: ByteIndex(2053)
+                                                        start: ByteIndex(2045),
+                                                        end: ByteIndex(2054)
                                                     },
                                                     Bound(
                                                         Named {
@@ -602,8 +602,8 @@ Module {
                                                 ),
                                                 Const(
                                                     ByteSpan {
-                                                        start: ByteIndex(2057),
-                                                        end: ByteIndex(2063)
+                                                        start: ByteIndex(2058),
+                                                        end: ByteIndex(2064)
                                                     },
                                                     Int(17, Unsigned(U8))
                                                 )
@@ -611,8 +611,8 @@ Module {
                                         ),
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(2067),
-                                                end: ByteIndex(2072)
+                                                start: ByteIndex(2068),
+                                                end: ByteIndex(2073)
                                             },
                                             Free(
                                                 User(
@@ -629,14 +629,14 @@ Module {
                                         Inf(
                                             Binop(
                                                 ByteSpan {
-                                                    start: ByteIndex(2116),
-                                                    end: ByteIndex(2135)
+                                                    start: ByteIndex(2117),
+                                                    end: ByteIndex(2136)
                                                 },
                                                 Eq,
                                                 Var(
                                                     ByteSpan {
-                                                        start: ByteIndex(2116),
-                                                        end: ByteIndex(2125)
+                                                        start: ByteIndex(2117),
+                                                        end: ByteIndex(2126)
                                                     },
                                                     Bound(
                                                         Named {
@@ -649,8 +649,8 @@ Module {
                                                 ),
                                                 Const(
                                                     ByteSpan {
-                                                        start: ByteIndex(2129),
-                                                        end: ByteIndex(2135)
+                                                        start: ByteIndex(2130),
+                                                        end: ByteIndex(2136)
                                                     },
                                                     Int(18, Unsigned(U8))
                                                 )
@@ -658,8 +658,8 @@ Module {
                                         ),
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(2139),
-                                                end: ByteIndex(2144)
+                                                start: ByteIndex(2140),
+                                                end: ByteIndex(2145)
                                             },
                                             Free(
                                                 User(
@@ -680,8 +680,8 @@ Module {
             name: Ident("Document"),
             body_ty: Struct(
                 ByteSpan {
-                    start: ByteIndex(2340),
-                    end: ByteIndex(2599)
+                    start: ByteIndex(2341),
+                    end: ByteIndex(2600)
                 },
                 [
                     Field {
@@ -689,8 +689,8 @@ Module {
                         name: Ident("len"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(2414),
-                                end: ByteIndex(2419)
+                                start: ByteIndex(2415),
+                                end: ByteIndex(2420)
                             },
                             Free(
                                 User(
@@ -704,13 +704,13 @@ Module {
                         name: Ident("fields"),
                         value: Array(
                             ByteSpan {
-                                start: ByteIndex(2482),
-                                end: ByteIndex(2496)
+                                start: ByteIndex(2483),
+                                end: ByteIndex(2497)
                             },
                             Var(
                                 ByteSpan {
-                                    start: ByteIndex(2483),
-                                    end: ByteIndex(2490)
+                                    start: ByteIndex(2484),
+                                    end: ByteIndex(2491)
                                 },
                                 Bound(
                                     Named {
@@ -723,8 +723,8 @@ Module {
                             ),
                             Const(
                                 ByteSpan {
-                                    start: ByteIndex(2492),
-                                    end: ByteIndex(2495)
+                                    start: ByteIndex(2493),
+                                    end: ByteIndex(2496)
                                 },
                                 Int(1, Unsigned(U8))
                             )

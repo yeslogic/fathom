@@ -1,3 +1,4 @@
+extern crate codespan;
 extern crate ddl;
 extern crate difference;
 
@@ -5,13 +6,18 @@ extern crate difference;
 #[macro_use]
 mod test;
 
+use codespan::CodeMap;
 use ddl::syntax::core::Module;
 
 #[test]
 fn bitmap() {
-    const SRC: &str = include_str!("../examples/formats/bitmap/src/bitmap.ddl");
+    let mut codemap = CodeMap::new();
+    let filemap = codemap
+        .add_filemap_from_disk("examples/formats/bitmap/src/bitmap.ddl")
+        .unwrap();
 
-    let mut module = Module::from_concrete(&ddl::syntax::parse::module(SRC).unwrap()).unwrap();
+    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let mut module = Module::from_concrete(&module).unwrap();
     assert_debug_snapshot!(bitmap_module, module);
 
     let base_defs = ddl::syntax::core::base_defs();
@@ -28,9 +34,13 @@ fn bitmap() {
 
 #[test]
 fn bson() {
-    const SRC: &str = include_str!("../examples/formats/bson/src/bson.ddl");
+    let mut codemap = CodeMap::new();
+    let filemap = codemap
+        .add_filemap_from_disk("examples/formats/bson/src/bson.ddl")
+        .unwrap();
 
-    let mut module = Module::from_concrete(&ddl::syntax::parse::module(SRC).unwrap()).unwrap();
+    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let mut module = Module::from_concrete(&module).unwrap();
     assert_debug_snapshot!(bson_module, module);
 
     let base_defs = ddl::syntax::core::base_defs();
@@ -47,9 +57,13 @@ fn bson() {
 
 #[test]
 fn edid() {
-    const SRC: &str = include_str!("../examples/formats/edid/src/edid.ddl");
+    let mut codemap = CodeMap::new();
+    let filemap = codemap
+        .add_filemap_from_disk("examples/formats/edid/src/edid.ddl")
+        .unwrap();
 
-    let mut module = Module::from_concrete(&ddl::syntax::parse::module(SRC).unwrap()).unwrap();
+    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let mut module = Module::from_concrete(&module).unwrap();
     assert_debug_snapshot!(edid_module, module);
 
     let base_defs = ddl::syntax::core::base_defs();
@@ -66,9 +80,13 @@ fn edid() {
 
 #[test]
 fn object_id() {
-    const SRC: &str = include_str!("../examples/formats/object_id/src/object_id.ddl");
+    let mut codemap = CodeMap::new();
+    let filemap = codemap
+        .add_filemap_from_disk("examples/formats/object_id/src/object_id.ddl")
+        .unwrap();
 
-    let mut module = Module::from_concrete(&ddl::syntax::parse::module(SRC).unwrap()).unwrap();
+    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let mut module = Module::from_concrete(&module).unwrap();
     assert_debug_snapshot!(object_id_module, module);
 
     let base_defs = ddl::syntax::core::base_defs();
@@ -85,9 +103,13 @@ fn object_id() {
 
 #[test]
 fn stl() {
-    const SRC: &str = include_str!("../examples/formats/stl/src/stl.ddl");
+    let mut codemap = CodeMap::new();
+    let filemap = codemap
+        .add_filemap_from_disk("examples/formats/stl/src/stl.ddl")
+        .unwrap();
 
-    let mut module = Module::from_concrete(&ddl::syntax::parse::module(SRC).unwrap()).unwrap();
+    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let mut module = Module::from_concrete(&module).unwrap();
     assert_debug_snapshot!(stl_module, module);
 
     let base_defs = ddl::syntax::core::base_defs();

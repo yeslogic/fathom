@@ -5,13 +5,13 @@ Module {
             name: Ident("Point"),
             body_ty: Array(
                 ByteSpan {
-                    start: ByteIndex(17),
-                    end: ByteIndex(28)
+                    start: ByteIndex(18),
+                    end: ByteIndex(29)
                 },
                 Var(
                     ByteSpan {
-                        start: ByteIndex(18),
-                        end: ByteIndex(21)
+                        start: ByteIndex(19),
+                        end: ByteIndex(22)
                     },
                     Free(
                         User(
@@ -21,8 +21,8 @@ Module {
                 ),
                 Const(
                     ByteSpan {
-                        start: ByteIndex(23),
-                        end: ByteIndex(27)
+                        start: ByteIndex(24),
+                        end: ByteIndex(28)
                     },
                     Int(3, Unsigned(U32))
                 )
