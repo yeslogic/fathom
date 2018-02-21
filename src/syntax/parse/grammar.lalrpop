@@ -1,11 +1,11 @@
 use lalrpop_util::ParseError as LalrpopError;
-use codespan::{ByteIndex, ByteSpan};
+use codespan::{ByteIndex, ByteSpan, FileMap};
 
 use syntax::concrete::{Binop, Const, Definition, Expr, Field, Module, Type, TypeConst, Unop};
 use syntax::parse::{ParseError, Token};
 
 
-grammar<'input>();
+grammar<'err, 'input>(errors: &'err mut Vec<ParseError>, filemap: &'input FileMap);
 
 
 // Tokens
@@ -67,7 +67,7 @@ extern {
 
 
 pub Module: Module<'input> = {
-    Definition* => Module { definitions: <> }
+    Definition* => Module::Valid(<>),
 };
 
 pub Definition: Definition<'input> = {
@@ -75,19 +75,29 @@ pub Definition: Definition<'input> = {
         <start: @L> <name: "Ident"> "="
         <body_ty: PrimaryType> ";" <end: @R> =>
     {
-        Definition { doc, name, span: ByteSpan::new(start, end), param_names: vec![], body_ty }
+        Definition::Valid {
+            doc,
+            name,
+            span: ByteSpan::new(start, end),
+            param_names: vec![],
+            body_ty,
+        }
     },
     <doc: "DocComment"*>
         <start: @L> <name: "Ident"> "(" <param_names: (<"Ident"> ",")*> <last: "Ident"> ")" "="
         <body_ty: PrimaryType> <end: @R> ";" =>
     {
-        Definition {
+        Definition::Valid {
             doc,
             name,
             span: ByteSpan::new(start, end),
             param_names: super::extend_vec(param_names, Some(last)),
             body_ty,
         }
+    },
+    <start: @L> <recovered: !> <end: @R> ";" => {
+        errors.push(super::errors::from_lalrpop(filemap, recovered.error));
+        Definition::Error(ByteSpan::new(start, end))
     },
 };
 
@@ -138,6 +148,10 @@ AtomicType: Type<'input> = {
     },
     <start: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <end: @R> => {
         Type::Array(ByteSpan::new(start, end), Box::new(elem), Box::new(size))
+    },
+    <start: @L> <recovered: !> <end: @R> => {
+        errors.push(super::errors::from_lalrpop(filemap, recovered.error));
+        Type::Error(ByteSpan::new(start, end))
     },
 };
 
@@ -344,5 +358,9 @@ AtomicExpr: Expr<'input> = {
     },
     <start: @L> <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" <end: @R> => {
         Expr::Subscript(ByteSpan::new(start, end), Box::new(array_expr), Box::new(index_expr))
+    },
+    <start: @L> <recovered: !> <end: @R> => {
+        errors.push(super::errors::from_lalrpop(filemap, recovered.error));
+        Expr::Error(ByteSpan::new(start, end))
     },
 };

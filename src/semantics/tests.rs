@@ -13,9 +13,11 @@ mod infer_ty {
         ($given:expr, Ok($expected:expr)) => {{
             let mut codemap = CodeMap::new();
             let filemap = codemap.add_filemap(FileName::virtual_("test"), $given.into());
+            let (expr, errors) = parse::expr(&filemap);
+            assert!(errors.is_empty());
 
             let ctx = Context::new();
-            let expr = RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap();
+            let expr = RcIExpr::from_concrete(&expr).unwrap();
             let expected_ty = Type::Const($expected).into();
 
             assert_eq!(infer_ty(&ctx, &expr), Ok(expected_ty));
@@ -23,9 +25,11 @@ mod infer_ty {
         ($given:expr, Err(_)) => {{
             let mut codemap = CodeMap::new();
             let filemap = codemap.add_filemap(FileName::virtual_("test"), $given.into());
+            let (expr, errors) = parse::expr(&filemap);
+            assert!(errors.is_empty());
 
             let ctx = Context::new();
-            let expr = RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap();
+            let expr = RcIExpr::from_concrete(&expr).unwrap();
 
             assert!(infer_ty(&ctx, &expr).is_err());
         }};
@@ -139,9 +143,11 @@ mod infer_kind {
         ($given:expr, Ok($expected:expr)) => {{
             let mut codemap = CodeMap::new();
             let filemap = codemap.add_filemap(FileName::virtual_("test"), $given.into());
+            let (ty, errors) = parse::ty(&filemap);
+            assert!(errors.is_empty());
 
             let ctx = Context::new();
-            let mut ty = RcType::from_concrete(&parse::ty(&filemap).unwrap()).unwrap();
+            let mut ty = RcType::from_concrete(&ty).unwrap();
             ty.substitute(&core::base_defs());
 
             assert_eq!(infer_kind(&ctx, &ty), Ok($expected));
@@ -149,9 +155,11 @@ mod infer_kind {
         ($given:expr, Err(_)) => {{
             let mut codemap = CodeMap::new();
             let filemap = codemap.add_filemap(FileName::virtual_("test"), $given.into());
+            let (ty, errors) = parse::ty(&filemap);
+            assert!(errors.is_empty());
 
             let ctx = Context::new();
-            let ty = RcType::from_concrete(&parse::ty(&filemap).unwrap()).unwrap();
+            let ty = RcType::from_concrete(&ty).unwrap();
 
             assert!(infer_kind(&ctx, &ty).is_err());
         }};
@@ -187,8 +195,10 @@ mod check_module {
 
         let mut codemap = CodeMap::new();
         let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+        let (module, errors) = parse::module(&filemap);
+        assert!(errors.is_empty());
 
-        let mut module = Module::from_concrete(&parse::module(&filemap).unwrap()).unwrap();
+        let mut module = Module::from_concrete(&module).unwrap();
         let base_defs = core::base_defs();
         module.substitute(&base_defs);
 

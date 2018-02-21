@@ -16,7 +16,8 @@ fn bitmap() {
         .add_filemap_from_disk("examples/formats/bitmap/src/bitmap.ddl")
         .unwrap();
 
-    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let (module, errors) = ddl::syntax::parse::module(&filemap);
+    assert!(errors.is_empty()); // TODO: Error diagnostics
     let mut module = Module::from_concrete(&module).unwrap();
     assert_debug_snapshot!(bitmap_module, module);
 
@@ -39,7 +40,8 @@ fn bson() {
         .add_filemap_from_disk("examples/formats/bson/src/bson.ddl")
         .unwrap();
 
-    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let (module, errors) = ddl::syntax::parse::module(&filemap);
+    assert!(errors.is_empty()); // TODO: Error diagnostics
     let mut module = Module::from_concrete(&module).unwrap();
     assert_debug_snapshot!(bson_module, module);
 
@@ -62,7 +64,8 @@ fn edid() {
         .add_filemap_from_disk("examples/formats/edid/src/edid.ddl")
         .unwrap();
 
-    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let (module, errors) = ddl::syntax::parse::module(&filemap);
+    assert!(errors.is_empty()); // TODO: Error diagnostics
     let mut module = Module::from_concrete(&module).unwrap();
     assert_debug_snapshot!(edid_module, module);
 
@@ -85,7 +88,8 @@ fn object_id() {
         .add_filemap_from_disk("examples/formats/object_id/src/object_id.ddl")
         .unwrap();
 
-    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let (module, errors) = ddl::syntax::parse::module(&filemap);
+    assert!(errors.is_empty()); // TODO: Error diagnostics
     let mut module = Module::from_concrete(&module).unwrap();
     assert_debug_snapshot!(object_id_module, module);
 
@@ -108,7 +112,8 @@ fn stl() {
         .add_filemap_from_disk("examples/formats/stl/src/stl.ddl")
         .unwrap();
 
-    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let (module, errors) = ddl::syntax::parse::module(&filemap);
+    assert!(errors.is_empty()); // TODO: Error diagnostics
     let mut module = Module::from_concrete(&module).unwrap();
     assert_debug_snapshot!(stl_module, module);
 

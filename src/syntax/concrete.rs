@@ -9,17 +9,21 @@ use codespan::{ByteIndex, ByteSpan};
 pub use syntax::core::{Binop, Const, FloatType, IntSuffix, TypeConst, Unop};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Module<'input> {
-    pub definitions: Vec<Definition<'input>>,
+pub enum Module<'input> {
+    Valid(Vec<Definition<'input>>),
+    Error(ByteSpan),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Definition<'input> {
-    pub doc: Vec<&'input str>,
-    pub span: ByteSpan,
-    pub name: &'input str,
-    pub param_names: Vec<&'input str>,
-    pub body_ty: Type<'input>,
+pub enum Definition<'input> {
+    Valid {
+        doc: Vec<&'input str>,
+        span: ByteSpan,
+        name: &'input str,
+        param_names: Vec<&'input str>,
+        body_ty: Type<'input>,
+    },
+    Error(ByteSpan),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,6 +48,7 @@ pub enum Type<'input> {
     ),
     Compute(ByteSpan, TypeConst, Box<Expr<'input>>),
     App(ByteSpan, Box<Type<'input>>, Vec<Type<'input>>),
+    Error(ByteSpan),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -57,4 +62,5 @@ pub enum Expr<'input> {
     Proj(ByteSpan, Box<Expr<'input>>, &'input str),
     Subscript(ByteSpan, Box<Expr<'input>>, Box<Expr<'input>>),
     Cast(ByteSpan, Box<Expr<'input>>, TypeConst),
+    Error(ByteSpan),
 }

@@ -12,7 +12,8 @@ fn main() {
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap_from_disk("src/object_id.ddl").unwrap();
 
-    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let (module, errors) = ddl::syntax::parse::module(&filemap);
+    assert!(errors.is_empty()); // TODO: Error diagnostics
     let mut module = Module::from_concrete(&module).unwrap();
     module.substitute(&ddl::syntax::core::base_defs());
     ddl::semantics::check_module(&module).unwrap();

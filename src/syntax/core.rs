@@ -40,10 +40,17 @@ impl Module {
     }
 
     pub fn from_concrete(src: &concrete::Module) -> Result<Module, ()> {
-        Ok(Module::new(src.definitions
-            .iter()
-            .map(Definition::from_concrete)
-            .collect::<Result<_, _>>()?))
+        match *src {
+            concrete::Module::Valid(ref definitions) => {
+                let definitions = definitions
+                    .iter()
+                    .map(Definition::from_concrete)
+                    .collect::<Result<_, _>>()?;
+
+                Ok(Module::new(definitions))
+            }
+            concrete::Module::Error(_) => Err(()),
+        }
     }
 }
 
@@ -120,23 +127,34 @@ pub struct Definition {
 
 impl Definition {
     pub fn from_concrete(src: &concrete::Definition) -> Result<Definition, ()> {
-        let body_ty = RcType::from_concrete(&src.body_ty)?;
+        match *src {
+            concrete::Definition::Valid {
+                ref doc,
+                name,
+                span,
+                ref param_names,
+                ref body_ty,
+            } => {
+                let body_ty = RcType::from_concrete(body_ty)?;
 
-        Ok(Definition {
-            doc: src.doc.join("\n").into(),
-            name: Ident::from(src.name),
-            body_ty: match &src.param_names[..] {
-                names if names.is_empty() => body_ty,
-                names => {
-                    let names = names
-                        .iter()
-                        .map(|&name| Named::new(Name::user(name), Kind::Binary.into()))
-                        .collect::<Vec<_>>();
+                Ok(Definition {
+                    doc: doc.join("\n").into(),
+                    name: Ident::from(name),
+                    body_ty: match &param_names[..] {
+                        names if names.is_empty() => body_ty,
+                        names => {
+                            let names = names
+                                .iter()
+                                .map(|&name| Named::new(Name::user(name), Kind::Binary.into()))
+                                .collect::<Vec<_>>();
 
-                    RcType::lam(src.span, names, body_ty)
-                }
-            },
-        })
+                            RcType::lam(span, names, body_ty)
+                        }
+                    },
+                })
+            }
+            concrete::Definition::Error(_) => Err(()),
+        }
     }
 }
 
@@ -844,6 +862,7 @@ impl RcType {
 
                 Ok(Type::Interp(span, empty.into(), conv_fn, repr_ty).into())
             }
+            concrete::Type::Error(_) => Err(()),
         }
     }
 }
@@ -1221,6 +1240,7 @@ impl RcIExpr {
 
                 Ok(IExpr::Cast(span, expr, ty).into())
             }
+            concrete::Expr::Error(_) => Err(()),
         }
     }
 }
