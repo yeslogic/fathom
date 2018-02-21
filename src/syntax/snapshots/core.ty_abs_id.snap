@@ -4,12 +4,12 @@ Lam(
         end: ByteIndex(0)
     },
     [
-        Named(
-            User(
+        Named {
+            name: User(
                 Ident("x")
             ),
-            Binary
-        )
+            inner: Binary
+        }
     ],
     Var(
         ByteSpan {
@@ -17,12 +17,12 @@ Lam(
             end: ByteIndex(0)
         },
         Bound(
-            Named(
-                User(
+            Named {
+                name: User(
                     Ident("x")
                 ),
-                BoundVar(0, 0)
-            )
+                inner: BoundVar(0, 0)
+            }
         )
     )
 )

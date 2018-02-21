@@ -137,12 +137,12 @@ Module {
                                     end: ByteIndex(181)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("Pixel")
                                         ),
-                                        BoundVar(1, 0)
-                                    )
+                                        inner: BoundVar(1, 0)
+                                    }
                                 )
                             ),
                             Binop(
@@ -162,12 +162,12 @@ Module {
                                             end: ByteIndex(190)
                                         },
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("extents")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     ),
                                     Ident("width")
@@ -183,12 +183,12 @@ Module {
                                             end: ByteIndex(206)
                                         },
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("extents")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     ),
                                     Ident("height")
@@ -208,12 +208,12 @@ Module {
                     end: ByteIndex(232)
                 },
                 Bound(
-                    Named(
-                        User(
+                    Named {
+                        name: User(
                             Ident("Bitmap")
                         ),
-                        BoundVar(0, 0)
-                    )
+                        inner: BoundVar(0, 0)
+                    }
                 )
             )
         }

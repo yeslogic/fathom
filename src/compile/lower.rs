@@ -4,9 +4,9 @@ use std::rc::Rc;
 
 use compile::ir::{Definition, Expr, Item, Module, ParseExpr, Path, RepeatBound, Type};
 use compile::ir::{RcExpr, RcParseExpr, RcType};
-use name::{Ident, Name, Named};
+use name::{Ident, Name};
 use syntax::core::{self, Field};
-use var::{BindingIndex as Bi, BoundVar, ScopeIndex as Si, Var};
+use var::{BindingIndex as Bi, BoundVar, Named, ScopeIndex as Si, Var};
 
 impl<'a> From<&'a core::Module> for Module {
     fn from(src: &'a core::Module) -> Module {
@@ -22,7 +22,7 @@ impl<'a> From<&'a core::Module> for Module {
             let definition = match *definition.body_ty.inner {
                 core::Type::Lam(_, ref params, ref ty) => Definition {
                     doc: Rc::clone(&definition.doc),
-                    params: params.iter().map(|p| p.0.clone()).collect(),
+                    params: params.iter().map(|p| p.name.clone()).collect(),
                     item: lower_item(&mut module, &path, ty),
                     path,
                 },
@@ -92,7 +92,9 @@ where
 /// Lower a type variable to an IR type
 fn lower_ty_var(var: &Var) -> RcType {
     match *var {
-        Var::Bound(Named(ref name, _)) => Type::Path(Path::new(name.to_string()), vec![]).into(),
+        Var::Bound(Named { ref name, .. }) => {
+            Type::Path(Path::new(name.to_string()), vec![]).into()
+        }
         Var::Free(_) => unimplemented!(),
     }
 }
@@ -275,7 +277,7 @@ fn lower_iexpr(path: &Path, expr: &core::RcIExpr) -> RcExpr {
         core::IExpr::Lam(_, ref params, ref body_expr) => {
             let lowered_params = params
                 .iter()
-                .map(|&Named(ref name, ref ty)| Named(name.clone(), lower_repr_ty(path, ty)))
+                .map(|param| Named::new(param.name.clone(), lower_repr_ty(path, &param.inner)))
                 .collect();
 
             Expr::Lam(lowered_params, lower_iexpr(path, body_expr)).into()
@@ -343,7 +345,7 @@ fn struct_parser(path: &Path, fields: &[Field<core::RcType>]) -> RcParseExpr {
         }
 
         seen_names.push(name.clone());
-        named_exprs.push(Named(name, parse_expr));
+        named_exprs.push(Named::new(name, parse_expr));
     }
 
     let mut expr: RcExpr = Expr::Struct(path.clone(), expr_fields.collect()).into();
@@ -364,7 +366,9 @@ fn cond_parser(path: &Path, options: &[Field<(core::RcCExpr, core::RcType)>]) ->
     let lower_option = |option: &Field<(core::RcCExpr, core::RcType)>| {
         let pred_expr = lower_cexpr(path, &option.value.0);
         let variant_parser = ParseExpr::Sequence(
-            vec![Named(Ident::from("x"), ty_parser(path, &option.value.1))],
+            vec![
+                Named::new(Ident::from("x"), ty_parser(path, &option.value.1)),
+            ],
             Expr::Intro(
                 path.clone(),
                 option.name.clone(),

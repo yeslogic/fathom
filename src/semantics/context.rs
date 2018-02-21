@@ -1,8 +1,8 @@
 //! The type checking context and binders
 
-use name::{Name, Named};
+use name::Name;
 use syntax::core::{RcKind, RcType};
-use var::{BoundVar, ScopeIndex};
+use var::{BoundVar, Named, ScopeIndex};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Scope {
@@ -37,7 +37,7 @@ impl Context {
     pub fn lookup_ty(&self, var: BoundVar) -> Result<(&Name, &RcType), &Scope> {
         match *self.lookup(var.scope) {
             Scope::ExprLam(ref tys) => Ok(tys.get(var.binding.0 as usize)
-                .map(|named| (&named.0, &named.1))
+                .map(|named| (&named.name, &named.inner))
                 .expect("ICE: Binder out of range")),
             ref scope => Err(scope),
         }
@@ -46,7 +46,7 @@ impl Context {
     pub fn lookup_ty_def(&self, var: BoundVar) -> Result<(&Name, &RcType), &Scope> {
         match *self.lookup(var.scope) {
             Scope::TypeDef(ref defs) => Ok(defs.get(var.binding.0 as usize)
-                .map(|named| (&named.0, &(named.1).0))
+                .map(|named| (&named.name, &named.inner.0))
                 .expect("ICE: Binder out of range")),
             ref scope => Err(scope),
         }
@@ -56,10 +56,10 @@ impl Context {
         match *self.lookup(var.scope) {
             Scope::TypeLam(ref kinds) => Ok(kinds
                 .get(var.binding.0 as usize)
-                .map(|named| (&named.0, &named.1))
+                .map(|named| (&named.name, &named.inner))
                 .expect("ICE: Binder out of range")),
             Scope::TypeDef(ref defs) => Ok(defs.get(var.binding.0 as usize)
-                .map(|named| (&named.0, &(named.1).1))
+                .map(|named| (&named.name, &named.inner.1))
                 .expect("ICE: Binder out of range")),
             ref scope => Err(scope),
         }

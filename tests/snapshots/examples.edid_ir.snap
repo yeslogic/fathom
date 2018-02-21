@@ -94,9 +94,9 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(
-                                Ident("magic"),
-                                Assert(
+                            Named {
+                                name: Ident("magic"),
+                                inner: Assert(
                                     Const(
                                         U64(
                                             Little
@@ -104,27 +104,27 @@ Module {
                                     ),
                                     Lam(
                                         [
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("magic")
                                                 ),
-                                                Const(
+                                                inner: Const(
                                                     Unsigned(
                                                         U64
                                                     )
                                                 )
-                                            )
+                                            }
                                         ],
                                         Binop(
                                             Eq,
                                             Var(
                                                 Bound(
-                                                    Named(
-                                                        User(
+                                                    Named {
+                                                        name: User(
                                                             Ident("magic")
                                                         ),
-                                                        BoundVar(0, 0)
-                                                    )
+                                                        inner: BoundVar(0, 0)
+                                                    }
                                                 )
                                             ),
                                             Const(
@@ -133,66 +133,66 @@ Module {
                                         )
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("mfg_bytes"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("mfg_bytes"),
+                                inner: Const(
                                     U16(
                                         Little
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("product_code"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("product_code"),
+                                inner: Const(
                                     U16(
                                         Little
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("serial"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("serial"),
+                                inner: Const(
                                     U32(
                                         Little
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("mfg_week"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("mfg_week"),
+                                inner: Const(
                                     U8
                                 )
-                            ),
-                            Named(
-                                Ident("mfg_year_mod"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("mfg_year_mod"),
+                                inner: Const(
                                     U8
                                 )
-                            ),
-                            Named(
-                                Ident("mfg_year"),
-                                Apply(
+                            },
+                            Named {
+                                name: Ident("mfg_year"),
+                                inner: Apply(
                                     Lam(
                                         [
-                                            Named(
-                                                Abstract,
-                                                Const(
+                                            Named {
+                                                name: Abstract,
+                                                inner: Const(
                                                     Unit
                                                 )
-                                            )
+                                            }
                                         ],
                                         Binop(
                                             Add,
                                             Cast(
                                                 Var(
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("mfg_year_mod")
                                                             ),
-                                                            BoundVar(2, 0)
-                                                        )
+                                                            inner: BoundVar(2, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -210,19 +210,19 @@ Module {
                                         Empty
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("edid_version_major"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("edid_version_major"),
+                                inner: Const(
                                     U8
                                 )
-                            ),
-                            Named(
-                                Ident("edid_version_minor"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("edid_version_minor"),
+                                inner: Const(
                                     U8
                                 )
-                            )
+                            }
                         ],
                         Struct(
                             Path {
@@ -235,12 +235,12 @@ Module {
                                     name: Ident("magic"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("magic")
                                                 ),
-                                                BoundVar(8, 0)
-                                            )
+                                                inner: BoundVar(8, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -249,12 +249,12 @@ Module {
                                     name: Ident("mfg_bytes"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("mfg_bytes")
                                                 ),
-                                                BoundVar(7, 0)
-                                            )
+                                                inner: BoundVar(7, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -263,12 +263,12 @@ Module {
                                     name: Ident("product_code"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("product_code")
                                                 ),
-                                                BoundVar(6, 0)
-                                            )
+                                                inner: BoundVar(6, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -277,12 +277,12 @@ Module {
                                     name: Ident("serial"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("serial")
                                                 ),
-                                                BoundVar(5, 0)
-                                            )
+                                                inner: BoundVar(5, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -291,12 +291,12 @@ Module {
                                     name: Ident("mfg_week"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("mfg_week")
                                                 ),
-                                                BoundVar(4, 0)
-                                            )
+                                                inner: BoundVar(4, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -305,12 +305,12 @@ Module {
                                     name: Ident("mfg_year_mod"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("mfg_year_mod")
                                                 ),
-                                                BoundVar(3, 0)
-                                            )
+                                                inner: BoundVar(3, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -319,12 +319,12 @@ Module {
                                     name: Ident("mfg_year"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("mfg_year")
                                                 ),
-                                                BoundVar(2, 0)
-                                            )
+                                                inner: BoundVar(2, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -333,12 +333,12 @@ Module {
                                     name: Ident("edid_version_major"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("edid_version_major")
                                                 ),
-                                                BoundVar(1, 0)
-                                            )
+                                                inner: BoundVar(1, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -347,12 +347,12 @@ Module {
                                     name: Ident("edid_version_minor"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("edid_version_minor")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     )
                                 }
@@ -429,41 +429,41 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(
-                                Ident("input_flags"),
-                                Const(
+                            Named {
+                                name: Ident("input_flags"),
+                                inner: Const(
                                     U8
                                 )
-                            ),
-                            Named(
-                                Ident("screen_size_h"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("screen_size_h"),
+                                inner: Const(
                                     U8
                                 )
-                            ),
-                            Named(
-                                Ident("screen_size_v"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("screen_size_v"),
+                                inner: Const(
                                     U8
                                 )
-                            ),
-                            Named(
-                                Ident("gamma_mod"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("gamma_mod"),
+                                inner: Const(
                                     U8
                                 )
-                            ),
-                            Named(
-                                Ident("gamma"),
-                                Apply(
+                            },
+                            Named {
+                                name: Ident("gamma"),
+                                inner: Apply(
                                     Lam(
                                         [
-                                            Named(
-                                                Abstract,
-                                                Const(
+                                            Named {
+                                                name: Abstract,
+                                                inner: Const(
                                                     Unit
                                                 )
-                                            )
+                                            }
                                         ],
                                         Binop(
                                             Div,
@@ -472,12 +472,12 @@ Module {
                                                 Cast(
                                                     Var(
                                                         Bound(
-                                                            Named(
-                                                                User(
+                                                            Named {
+                                                                name: User(
                                                                     Ident("gamma_mod")
                                                                 ),
-                                                                BoundVar(2, 0)
-                                                            )
+                                                                inner: BoundVar(2, 0)
+                                                            }
                                                         )
                                                     ),
                                                     Const(
@@ -499,13 +499,13 @@ Module {
                                         Empty
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("features_flags"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("features_flags"),
+                                inner: Const(
                                     U8
                                 )
-                            )
+                            }
                         ],
                         Struct(
                             Path {
@@ -518,12 +518,12 @@ Module {
                                     name: Ident("input_flags"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("input_flags")
                                                 ),
-                                                BoundVar(5, 0)
-                                            )
+                                                inner: BoundVar(5, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -532,12 +532,12 @@ Module {
                                     name: Ident("screen_size_h"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("screen_size_h")
                                                 ),
-                                                BoundVar(4, 0)
-                                            )
+                                                inner: BoundVar(4, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -546,12 +546,12 @@ Module {
                                     name: Ident("screen_size_v"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("screen_size_v")
                                                 ),
-                                                BoundVar(3, 0)
-                                            )
+                                                inner: BoundVar(3, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -560,12 +560,12 @@ Module {
                                     name: Ident("gamma_mod"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("gamma_mod")
                                                 ),
-                                                BoundVar(2, 0)
-                                            )
+                                                inner: BoundVar(2, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -574,12 +574,12 @@ Module {
                                     name: Ident("gamma"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("gamma")
                                                 ),
-                                                BoundVar(1, 0)
-                                            )
+                                                inner: BoundVar(1, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -588,12 +588,12 @@ Module {
                                     name: Ident("features_flags"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("features_flags")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     )
                                 }
@@ -638,32 +638,32 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(
-                                Ident("header"),
-                                Var(
+                            Named {
+                                name: Ident("header"),
+                                inner: Var(
                                     Bound(
-                                        Named(
-                                            User(
+                                        Named {
+                                            name: User(
                                                 Ident("Header")
                                             ),
-                                            BoundVar(1, 0)
-                                        )
+                                            inner: BoundVar(1, 0)
+                                        }
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("display_params"),
-                                Var(
+                            },
+                            Named {
+                                name: Ident("display_params"),
+                                inner: Var(
                                     Bound(
-                                        Named(
-                                            User(
+                                        Named {
+                                            name: User(
                                                 Ident("DisplayParams")
                                             ),
-                                            BoundVar(1, 0)
-                                        )
+                                            inner: BoundVar(1, 0)
+                                        }
                                     )
                                 )
-                            )
+                            }
                         ],
                         Struct(
                             Path {
@@ -676,12 +676,12 @@ Module {
                                     name: Ident("header"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("header")
                                                 ),
-                                                BoundVar(1, 0)
-                                            )
+                                                inner: BoundVar(1, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -690,12 +690,12 @@ Module {
                                     name: Ident("display_params"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("display_params")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     )
                                 }

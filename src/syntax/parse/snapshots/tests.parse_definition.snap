@@ -80,12 +80,12 @@ Module {
                                     end: ByteIndex(228)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("Point")
                                         ),
-                                        BoundVar(1, 0)
-                                    )
+                                        inner: BoundVar(1, 0)
+                                    }
                                 )
                             ),
                             Var(
@@ -94,12 +94,12 @@ Module {
                                     end: ByteIndex(233)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("len")
                                         ),
-                                        BoundVar(0, 0)
-                                    )
+                                        inner: BoundVar(0, 0)
+                                    }
                                 )
                             )
                         )
@@ -157,12 +157,12 @@ Module {
                                                         end: ByteIndex(407)
                                                     },
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("format")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -204,12 +204,12 @@ Module {
                                                         end: ByteIndex(456)
                                                     },
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("format")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -227,12 +227,12 @@ Module {
                                                 end: ByteIndex(475)
                                             },
                                             Bound(
-                                                Named(
-                                                    User(
+                                                Named {
+                                                    name: User(
                                                         Ident("Point")
                                                     ),
-                                                    BoundVar(2, 0)
-                                                )
+                                                    inner: BoundVar(2, 0)
+                                                }
                                             )
                                         )
                                     )
@@ -254,12 +254,12 @@ Module {
                                                         end: ByteIndex(551)
                                                     },
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("format")
                                                             ),
-                                                            BoundVar(0, 0)
-                                                        )
+                                                            inner: BoundVar(0, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -277,12 +277,12 @@ Module {
                                                 end: ByteIndex(570)
                                             },
                                             Bound(
-                                                Named(
-                                                    User(
+                                                Named {
+                                                    name: User(
                                                         Ident("Array")
                                                     ),
-                                                    BoundVar(1, 0)
-                                                )
+                                                    inner: BoundVar(1, 0)
+                                                }
                                             )
                                         )
                                     )

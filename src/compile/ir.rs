@@ -3,10 +3,10 @@
 use std::fmt;
 use std::rc::Rc;
 
-use name::{Ident, Name, Named};
+use name::{Ident, Name};
 pub use syntax::core::{Endianness, Field, TypeConst};
 pub use syntax::core::{Binop, Const, FloatType, IntSuffix, SignedType, Unop, UnsignedType};
-use var::{ScopeIndex, Var};
+use var::{Named, ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
@@ -233,8 +233,8 @@ impl RcParseExpr {
                 pred_expr.abstract_names_at(names, scope);
             }
             ParseExpr::Sequence(ref mut parse_exprs, ref mut expr) => {
-                for (i, &mut Named(_, ref mut parse_expr)) in parse_exprs.iter_mut().enumerate() {
-                    parse_expr.abstract_names_at(names, scope.shift(i as u32));
+                for (i, expr) in parse_exprs.iter_mut().enumerate() {
+                    expr.inner.abstract_names_at(names, scope.shift(i as u32));
                 }
                 expr.abstract_names_at(names, scope.shift(parse_exprs.len() as u32));
             }

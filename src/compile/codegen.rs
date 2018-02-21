@@ -7,8 +7,8 @@ use compile::ir::{RcExpr, RcParseExpr, RcType};
 use compile::ir::{Binop, Const, Unop};
 use compile::ir::{IntSuffix, TypeConst};
 use compile::ir::{FloatType, SignedType, UnsignedType};
-use name::{Ident, Name, Named};
-use var::Var;
+use name::{Ident, Name};
+use var::{Named, Var};
 
 pub struct LowerModule<'a>(pub &'a Module);
 
@@ -379,7 +379,7 @@ fn lower_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 ) -> DocBuilder<'alloc, A> {
     match *parse_expr.inner {
         ParseExpr::Var(Var::Free(_)) => unimplemented!(),
-        ParseExpr::Var(Var::Bound(Named(ref name, _))) => lower_named_parse_expr(alloc, name),
+        ParseExpr::Var(Var::Bound(ref var)) => lower_named_parse_expr(alloc, &var.name),
         ParseExpr::Const(ty_const) => lower_parse_ty_const(alloc, ty_const),
         ParseExpr::Repeat(ref parse_expr, ref repeat_bound) => {
             lower_repeat_parse_expr(alloc, prec, parse_expr, repeat_bound)
@@ -542,16 +542,16 @@ fn lower_sequence_parse_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
     expr: &'a RcExpr,
 ) -> DocBuilder<'alloc, A> {
     let inner_parser = alloc
-        .concat(parse_exprs.iter().map(|&Named(ref name, ref parse_expr)| {
+        .concat(parse_exprs.iter().map(|parse_expr| {
             alloc
                 .text("let")
                 .append(alloc.space())
-                .append(alloc.as_string(name))
+                .append(alloc.as_string(&parse_expr.name))
                 .append(alloc.space())
                 .append(alloc.text("="))
                 .group()
                 .append(alloc.space())
-                .append(lower_parse_expr(alloc, Prec::Expr, parse_expr))
+                .append(lower_parse_expr(alloc, Prec::Expr, &parse_expr.inner))
                 .append(alloc.text("?;"))
                 .group()
                 .append(alloc.newline())
@@ -655,20 +655,20 @@ fn lower_expr<'alloc, 'a: 'alloc, A: DocAllocator<'alloc>>(
 
         // FIXME: Hygiene!
         Expr::Var(Var::Free(_)) => unimplemented!(),
-        Expr::Var(Var::Bound(Named(ref name, _))) => {
+        Expr::Var(Var::Bound(ref bv)) => {
             is_atomic = true;
-            alloc.as_string(name)
+            alloc.as_string(&bv.name)
         }
 
         Expr::Lam(ref params, ref body_expr) => alloc
             .text("|")
             .append(alloc.intersperse(
-                params.iter().map(|&Named(ref name, ref ty)| {
+                params.iter().map(|param| {
                     alloc
-                        .as_string(name)
+                        .as_string(&param.name)
                         .append(alloc.text(":"))
                         .append(alloc.space())
-                        .append(lower_ty(alloc, ty))
+                        .append(lower_ty(alloc, &param.inner))
                 }),
                 alloc.text(","),
             ))

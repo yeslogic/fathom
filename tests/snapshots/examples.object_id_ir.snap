@@ -49,38 +49,38 @@ Module {
                 Some(
                     Sequence(
                         [
-                            Named(
-                                Ident("epoch_time"),
-                                Const(
+                            Named {
+                                name: Ident("epoch_time"),
+                                inner: Const(
                                     I32(
                                         Big
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("machine_id"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("machine_id"),
+                                inner: Const(
                                     U24(
                                         Big
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("process_id"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("process_id"),
+                                inner: Const(
                                     U16(
                                         Big
                                     )
                                 )
-                            ),
-                            Named(
-                                Ident("counter"),
-                                Const(
+                            },
+                            Named {
+                                name: Ident("counter"),
+                                inner: Const(
                                     U24(
                                         Big
                                     )
                                 )
-                            )
+                            }
                         ],
                         Struct(
                             Path {
@@ -93,12 +93,12 @@ Module {
                                     name: Ident("epoch_time"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("epoch_time")
                                                 ),
-                                                BoundVar(3, 0)
-                                            )
+                                                inner: BoundVar(3, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -107,12 +107,12 @@ Module {
                                     name: Ident("machine_id"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("machine_id")
                                                 ),
-                                                BoundVar(2, 0)
-                                            )
+                                                inner: BoundVar(2, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -121,12 +121,12 @@ Module {
                                     name: Ident("process_id"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("process_id")
                                                 ),
-                                                BoundVar(1, 0)
-                                            )
+                                                inner: BoundVar(1, 0)
+                                            }
                                         )
                                     )
                                 },
@@ -135,12 +135,12 @@ Module {
                                     name: Ident("counter"),
                                     value: Var(
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("counter")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     )
                                 }

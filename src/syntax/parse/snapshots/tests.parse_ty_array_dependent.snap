@@ -44,12 +44,12 @@ Struct(
                         end: ByteIndex(68)
                     },
                     Bound(
-                        Named(
-                            User(
+                        Named {
+                            name: User(
                                 Ident("len")
                             ),
-                            BoundVar(0, 0)
-                        )
+                            inner: BoundVar(0, 0)
+                        }
                     )
                 )
             )
@@ -88,12 +88,12 @@ Struct(
                                     end: ByteIndex(131)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("len")
                                         ),
-                                        BoundVar(1, 0)
-                                    )
+                                        inner: BoundVar(1, 0)
+                                    }
                                 )
                             )
                         )
@@ -168,12 +168,12 @@ Struct(
                                     end: ByteIndex(284)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("len")
                                         ),
-                                        BoundVar(2, 0)
-                                    )
+                                        inner: BoundVar(2, 0)
+                                    }
                                 )
                             )
                         )

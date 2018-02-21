@@ -4,9 +4,9 @@ use codespan::ByteSpan;
 use std::fmt;
 use std::rc::Rc;
 
-use name::{Ident, Name, Named};
+use name::{Ident, Name};
 use syntax::concrete;
-use var::{ScopeIndex, Var};
+use var::{Named, ScopeIndex, Var};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
@@ -130,7 +130,7 @@ impl Definition {
                 names => {
                     let names = names
                         .iter()
-                        .map(|&name| Named(Name::user(name), Kind::Binary.into()))
+                        .map(|&name| Named::new(Name::user(name), Kind::Binary.into()))
                         .collect::<Vec<_>>();
 
                     RcType::lam(src.span, names, body_ty)
@@ -412,7 +412,7 @@ impl RcType {
         {
             let param_names = params
                 .iter()
-                .map(|param| param.0.clone())
+                .map(|param| param.name.clone())
                 .collect::<Vec<_>>();
             body_ty.abstract_names(&param_names[..]);
         }
@@ -639,10 +639,10 @@ impl RcType {
     fn instantiate_at(&mut self, scope: ScopeIndex, tys: &[RcType]) {
         // FIXME: ensure that expressions are not bound at the same scope
         *self = match *Rc::make_mut(&mut self.inner) {
-            Type::Var(_, Var::Bound(Named(_, var))) if var.scope == scope => {
+            Type::Var(_, Var::Bound(Named { inner: var, .. })) if var.scope == scope => {
                 tys[var.binding.0 as usize].clone()
             }
-            Type::HostVar(Var::Bound(Named(_, var))) if var.scope == scope => {
+            Type::HostVar(Var::Bound(Named { inner: var, .. })) if var.scope == scope => {
                 tys[var.binding.0 as usize].clone()
             }
             Type::Var(_, _) | Type::HostVar(_) | Type::Const(_) => return,
@@ -726,7 +726,7 @@ impl RcType {
             Type::Lam(span, ref params, ref body_ty) => {
                 let repr_params = params
                     .iter()
-                    .map(|&Named(ref name, ref param_ty)| Named(name.clone(), param_ty.repr()))
+                    .map(|param| Named::new(param.name.clone(), param.inner.repr()))
                     .collect();
 
                 Type::Lam(span, repr_params, body_ty.repr()).into()
@@ -827,7 +827,7 @@ impl RcType {
                 let ty = RcType::from_concrete(&**ty)?;
                 let pred_fn = RcIExpr::lam(
                     ByteSpan::new(lo2, span.end()),
-                    vec![Named(Name::user(param_name), ty.repr())],
+                    vec![Named::new(Name::user(param_name), ty.repr())],
                     RcIExpr::from_concrete(&**pred_expr)?,
                 );
 
@@ -838,7 +838,7 @@ impl RcType {
                 let repr_ty = Type::Const(repr_ty).into();
                 let conv_fn = CExpr::Inf(RcIExpr::lam(
                     span,
-                    vec![Named(Name::Abstract, RcType::repr(&empty))],
+                    vec![Named::new(Name::Abstract, RcType::repr(&empty))],
                     RcIExpr::from_concrete(&**expr)?,
                 )).into();
 
@@ -1062,7 +1062,7 @@ impl RcIExpr {
         {
             let param_names = params
                 .iter()
-                .map(|param| param.0.clone())
+                .map(|param| param.name.clone())
                 .collect::<Vec<_>>();
             body_expr.abstract_names(&param_names[..]);
         }
@@ -1095,8 +1095,8 @@ impl RcIExpr {
             },
             IExpr::Var(_, Var::Bound(_)) | IExpr::Const(_, _) => {}
             IExpr::Lam(_, ref mut args, ref mut body_expr) => {
-                for &mut Named(_, ref mut arg_ty) in args {
-                    arg_ty.substitute(substs);
+                for arg in args {
+                    arg.inner.substitute(substs);
                 }
 
                 body_expr.substitute(substs);
@@ -1139,8 +1139,8 @@ impl RcIExpr {
             IExpr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
             IExpr::Const(_, _) => {}
             IExpr::Lam(_, ref mut args, ref mut body_expr) => {
-                for &mut Named(_, ref mut arg_ty) in args {
-                    arg_ty.abstract_names_at(names, scope);
+                for arg in args {
+                    arg.inner.abstract_names_at(names, scope);
                 }
 
                 body_expr.abstract_names_at(names, scope.succ());
@@ -1243,7 +1243,7 @@ mod tests {
                 // λ   0
                 let ty = RcT::lam(
                     ByteSpan::none(),
-                    vec![Named(Name::user("x"), Kind::Binary.into())],
+                    vec![Named::new(Name::user("x"), Kind::Binary.into())],
                     T::Var(ByteSpan::none(), Var::free(Name::user("x"))),
                 );
 
@@ -1258,10 +1258,10 @@ mod tests {
                 // λ  λ   1
                 let ty = RcT::lam(
                     ByteSpan::none(),
-                    vec![Named(Name::user("x"), Kind::Binary.into())],
+                    vec![Named::new(Name::user("x"), Kind::Binary.into())],
                     RcT::lam(
                         ByteSpan::none(),
-                        vec![Named(Name::user("y"), Kind::Binary.into())],
+                        vec![Named::new(Name::user("y"), Kind::Binary.into())],
                         T::Var(ByteSpan::none(), Var::free(Name::user("x"))),
                     ),
                 );
@@ -1275,13 +1275,13 @@ mod tests {
                 // λ  λ  λ   2 0 (1 0)
                 let ty = RcT::lam(
                     ByteSpan::none(),
-                    vec![Named(Name::user("x"), Kind::Binary.into())],
+                    vec![Named::new(Name::user("x"), Kind::Binary.into())],
                     RcT::lam(
                         ByteSpan::none(),
-                        vec![Named(Name::user("y"), Kind::Binary.into())],
+                        vec![Named::new(Name::user("y"), Kind::Binary.into())],
                         RcT::lam(
                             ByteSpan::none(),
-                            vec![Named(Name::user("z"), Kind::Binary.into())],
+                            vec![Named::new(Name::user("z"), Kind::Binary.into())],
                             T::App(
                                 ByteSpan::none(),
                                 T::App(
@@ -1315,19 +1315,19 @@ mod tests {
                 // λ  (λ   0 (λ   0)) (λ   1 0)
                 let ty = RcT::lam(
                     ByteSpan::none(),
-                    vec![Named(Name::user("z"), Kind::Binary.into())],
+                    vec![Named::new(Name::user("z"), Kind::Binary.into())],
                     T::App(
                         ByteSpan::none(),
                         RcT::lam(
                             ByteSpan::none(),
-                            vec![Named(Name::user("y"), Kind::Binary.into())],
+                            vec![Named::new(Name::user("y"), Kind::Binary.into())],
                             T::App(
                                 ByteSpan::none(),
                                 T::Var(ByteSpan::none(), Var::free(Name::user("y"))).into(),
                                 vec![
                                     RcT::lam(
                                         ByteSpan::none(),
-                                        vec![Named(Name::user("x"), Kind::Binary.into())],
+                                        vec![Named::new(Name::user("x"), Kind::Binary.into())],
                                         T::Var(ByteSpan::none(), Var::free(Name::user("x"))),
                                     ),
                                 ],
@@ -1336,7 +1336,7 @@ mod tests {
                         vec![
                             RcT::lam(
                                 ByteSpan::none(),
-                                vec![Named(Name::user("x"), Kind::Binary.into())],
+                                vec![Named::new(Name::user("x"), Kind::Binary.into())],
                                 T::App(
                                     ByteSpan::none(),
                                     T::Var(ByteSpan::none(), Var::free(Name::user("z"))).into(),

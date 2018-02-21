@@ -40,18 +40,18 @@ Assert(
                                     end: ByteIndex(57)
                                 },
                                 [
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("x")
                                         ),
-                                        HostVar(
+                                        inner: HostVar(
                                             Free(
                                                 User(
                                                     Ident("u32")
                                                 )
                                             )
                                         )
-                                    )
+                                    }
                                 ],
                                 Binop(
                                     ByteSpan {
@@ -65,12 +65,12 @@ Assert(
                                             end: ByteIndex(49)
                                         },
                                         Bound(
-                                            Named(
-                                                User(
+                                            Named {
+                                                name: User(
                                                     Ident("x")
                                                 ),
-                                                BoundVar(0, 0)
-                                            )
+                                                inner: BoundVar(0, 0)
+                                            }
                                         )
                                     ),
                                     Const(
@@ -94,11 +94,11 @@ Assert(
                     end: ByteIndex(97)
                 },
                 [
-                    Named(
-                        User(
+                    Named {
+                        name: User(
                             Ident("x")
                         ),
-                        HostStruct(
+                        inner: HostStruct(
                             [
                                 Field {
                                     doc: "",
@@ -113,7 +113,7 @@ Assert(
                                 }
                             ]
                         )
-                    )
+                    }
                 ],
                 Binop(
                     ByteSpan {
@@ -127,12 +127,12 @@ Assert(
                             end: ByteIndex(89)
                         },
                         Bound(
-                            Named(
-                                User(
+                            Named {
+                                name: User(
                                     Ident("x")
                                 ),
-                                BoundVar(0, 0)
-                            )
+                                inner: BoundVar(0, 0)
+                            }
                         )
                     ),
                     Const(
@@ -153,11 +153,11 @@ Assert(
                 end: ByteIndex(126)
             },
             [
-                Named(
-                    User(
+                Named {
+                    name: User(
                         Ident("x")
                     ),
-                    HostStruct(
+                    inner: HostStruct(
                         [
                             Field {
                                 doc: "",
@@ -172,7 +172,7 @@ Assert(
                             }
                         ]
                     )
-                )
+                }
             ],
             Binop(
                 ByteSpan {
@@ -186,12 +186,12 @@ Assert(
                         end: ByteIndex(118)
                     },
                     Bound(
-                        Named(
-                            User(
+                        Named {
+                            name: User(
                                 Ident("x")
                             ),
-                            BoundVar(0, 0)
-                        )
+                            inner: BoundVar(0, 0)
+                        }
                     )
                 ),
                 Const(

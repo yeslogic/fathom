@@ -9,18 +9,18 @@ Module {
                     end: ByteIndex(78)
                 },
                 [
-                    Named(
-                        User(
+                    Named {
+                        name: User(
                             Ident("T")
                         ),
-                        Binary
-                    ),
-                    Named(
-                        User(
+                        inner: Binary
+                    },
+                    Named {
+                        name: User(
                             Ident("U")
                         ),
-                        Binary
-                    )
+                        inner: Binary
+                    }
                 ],
                 Struct(
                     ByteSpan {
@@ -37,12 +37,12 @@ Module {
                                     end: ByteIndex(48)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("T")
                                         ),
-                                        BoundVar(0, 0)
-                                    )
+                                        inner: BoundVar(0, 0)
+                                    }
                                 )
                             )
                         },
@@ -55,12 +55,12 @@ Module {
                                     end: ByteIndex(67)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("U")
                                         ),
-                                        BoundVar(1, 1)
-                                    )
+                                        inner: BoundVar(1, 1)
+                                    }
                                 )
                             )
                         }
@@ -77,12 +77,12 @@ Module {
                     end: ByteIndex(172)
                 },
                 [
-                    Named(
-                        User(
+                    Named {
+                        name: User(
                             Ident("T")
                         ),
-                        Binary
-                    )
+                        inner: Binary
+                    }
                 ],
                 Struct(
                     ByteSpan {
@@ -119,12 +119,12 @@ Module {
                                         end: ByteIndex(155)
                                     },
                                     Bound(
-                                        Named(
-                                            User(
+                                        Named {
+                                            name: User(
                                                 Ident("T")
                                             ),
-                                            BoundVar(1, 0)
-                                        )
+                                            inner: BoundVar(1, 0)
+                                        }
                                     )
                                 ),
                                 Var(
@@ -133,12 +133,12 @@ Module {
                                         end: ByteIndex(160)
                                     },
                                     Bound(
-                                        Named(
-                                            User(
+                                        Named {
+                                            name: User(
                                                 Ident("len")
                                             ),
-                                            BoundVar(0, 0)
-                                        )
+                                            inner: BoundVar(0, 0)
+                                        }
                                     )
                                 )
                             )
@@ -156,24 +156,24 @@ Module {
                     end: ByteIndex(277)
                 },
                 [
-                    Named(
-                        User(
+                    Named {
+                        name: User(
                             Ident("T")
                         ),
-                        Binary
-                    ),
-                    Named(
-                        User(
+                        inner: Binary
+                    },
+                    Named {
+                        name: User(
                             Ident("U")
                         ),
-                        Binary
-                    ),
-                    Named(
-                        User(
+                        inner: Binary
+                    },
+                    Named {
+                        name: User(
                             Ident("V")
                         ),
-                        Binary
-                    )
+                        inner: Binary
+                    }
                 ],
                 Struct(
                     ByteSpan {
@@ -190,12 +190,12 @@ Module {
                                     end: ByteIndex(228)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("U")
                                         ),
-                                        BoundVar(0, 1)
-                                    )
+                                        inner: BoundVar(0, 1)
+                                    }
                                 )
                             )
                         },
@@ -213,12 +213,12 @@ Module {
                                         end: ByteIndex(254)
                                     },
                                     Bound(
-                                        Named(
-                                            User(
+                                        Named {
+                                            name: User(
                                                 Ident("Array")
                                             ),
-                                            BoundVar(2, 0)
-                                        )
+                                            inner: BoundVar(2, 0)
+                                        }
                                     )
                                 ),
                                 [
@@ -233,12 +233,12 @@ Module {
                                                 end: ByteIndex(259)
                                             },
                                             Bound(
-                                                Named(
-                                                    User(
+                                                Named {
+                                                    name: User(
                                                         Ident("Pair")
                                                     ),
-                                                    BoundVar(3, 0)
-                                                )
+                                                    inner: BoundVar(3, 0)
+                                                }
                                             )
                                         ),
                                         [
@@ -248,12 +248,12 @@ Module {
                                                     end: ByteIndex(261)
                                                 },
                                                 Bound(
-                                                    Named(
-                                                        User(
+                                                    Named {
+                                                        name: User(
                                                             Ident("T")
                                                         ),
-                                                        BoundVar(1, 0)
-                                                    )
+                                                        inner: BoundVar(1, 0)
+                                                    }
                                                 )
                                             ),
                                             Var(
@@ -262,12 +262,12 @@ Module {
                                                     end: ByteIndex(264)
                                                 },
                                                 Bound(
-                                                    Named(
-                                                        User(
+                                                    Named {
+                                                        name: User(
                                                             Ident("V")
                                                         ),
-                                                        BoundVar(1, 2)
-                                                    )
+                                                        inner: BoundVar(1, 2)
+                                                    }
                                                 )
                                             )
                                         ]

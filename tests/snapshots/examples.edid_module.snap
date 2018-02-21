@@ -35,18 +35,18 @@ Module {
                                         end: ByteIndex(109)
                                     },
                                     [
-                                        Named(
-                                            User(
+                                        Named {
+                                            name: User(
                                                 Ident("magic")
                                             ),
-                                            HostVar(
+                                            inner: HostVar(
                                                 Free(
                                                     User(
                                                         Ident("u64le")
                                                     )
                                                 )
                                             )
-                                        )
+                                        }
                                     ],
                                     Binop(
                                         ByteSpan {
@@ -60,12 +60,12 @@ Module {
                                                 end: ByteIndex(84)
                                             },
                                             Bound(
-                                                Named(
-                                                    User(
+                                                Named {
+                                                    name: User(
                                                         Ident("magic")
                                                     ),
-                                                    BoundVar(0, 0)
-                                                )
+                                                    inner: BoundVar(0, 0)
+                                                }
                                             )
                                         ),
                                         Const(
@@ -173,12 +173,12 @@ Module {
                                         end: ByteIndex(597)
                                     },
                                     [
-                                        Named(
-                                            Abstract,
-                                            Const(
+                                        Named {
+                                            name: Abstract,
+                                            inner: Const(
                                                 Unit
                                             )
-                                        )
+                                        }
                                     ],
                                     Binop(
                                         ByteSpan {
@@ -197,12 +197,12 @@ Module {
                                                     end: ByteIndex(580)
                                                 },
                                                 Bound(
-                                                    Named(
-                                                        User(
+                                                    Named {
+                                                        name: User(
                                                             Ident("mfg_year_mod")
                                                         ),
-                                                        BoundVar(2, 0)
-                                                    )
+                                                        inner: BoundVar(2, 0)
+                                                    }
                                                 )
                                             ),
                                             Const(
@@ -348,12 +348,12 @@ Module {
                                         end: ByteIndex(1400)
                                     },
                                     [
-                                        Named(
-                                            Abstract,
-                                            Const(
+                                        Named {
+                                            name: Abstract,
+                                            inner: Const(
                                                 Unit
                                             )
-                                        )
+                                        }
                                     ],
                                     Binop(
                                         ByteSpan {
@@ -378,12 +378,12 @@ Module {
                                                         end: ByteIndex(1370)
                                                     },
                                                     Bound(
-                                                        Named(
-                                                            User(
+                                                        Named {
+                                                            name: User(
                                                                 Ident("gamma_mod")
                                                             ),
-                                                            BoundVar(2, 0)
-                                                        )
+                                                            inner: BoundVar(2, 0)
+                                                        }
                                                     )
                                                 ),
                                                 Const(
@@ -453,12 +453,12 @@ Module {
                                 end: ByteIndex(1596)
                             },
                             Bound(
-                                Named(
-                                    User(
+                                Named {
+                                    name: User(
                                         Ident("Header")
                                     ),
-                                    BoundVar(1, 0)
-                                )
+                                    inner: BoundVar(1, 0)
+                                }
                             )
                         )
                     },
@@ -471,12 +471,12 @@ Module {
                                 end: ByteIndex(1664)
                             },
                             Bound(
-                                Named(
-                                    User(
+                                Named {
+                                    name: User(
                                         Ident("DisplayParams")
                                     ),
-                                    BoundVar(1, 0)
-                                )
+                                    inner: BoundVar(1, 0)
+                                }
                             )
                         )
                     }

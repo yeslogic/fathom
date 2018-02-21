@@ -75,12 +75,12 @@ Module {
                                 end: ByteIndex(122)
                             },
                             Bound(
-                                Named(
-                                    User(
+                                Named {
+                                    name: User(
                                         Ident("Vec3d")
                                     ),
-                                    BoundVar(0, 0)
-                                )
+                                    inner: BoundVar(0, 0)
+                                }
                             )
                         )
                     },
@@ -98,12 +98,12 @@ Module {
                                     end: ByteIndex(180)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("Vec3d")
                                         ),
-                                        BoundVar(1, 0)
-                                    )
+                                        inner: BoundVar(1, 0)
+                                    }
                                 )
                             ),
                             Const(
@@ -199,12 +199,12 @@ Module {
                                     end: ByteIndex(643)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("Triangle")
                                         ),
-                                        BoundVar(2, 0)
-                                    )
+                                        inner: BoundVar(2, 0)
+                                    }
                                 )
                             ),
                             Var(
@@ -213,12 +213,12 @@ Module {
                                     end: ByteIndex(658)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("num_triangles")
                                         ),
-                                        BoundVar(0, 0)
-                                    )
+                                        inner: BoundVar(0, 0)
+                                    }
                                 )
                             )
                         )

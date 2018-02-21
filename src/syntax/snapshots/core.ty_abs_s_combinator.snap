@@ -4,12 +4,12 @@ Lam(
         end: ByteIndex(0)
     },
     [
-        Named(
-            User(
+        Named {
+            name: User(
                 Ident("x")
             ),
-            Binary
-        )
+            inner: Binary
+        }
     ],
     Lam(
         ByteSpan {
@@ -17,12 +17,12 @@ Lam(
             end: ByteIndex(0)
         },
         [
-            Named(
-                User(
+            Named {
+                name: User(
                     Ident("y")
                 ),
-                Binary
-            )
+                inner: Binary
+            }
         ],
         Lam(
             ByteSpan {
@@ -30,12 +30,12 @@ Lam(
                 end: ByteIndex(0)
             },
             [
-                Named(
-                    User(
+                Named {
+                    name: User(
                         Ident("z")
                     ),
-                    Binary
-                )
+                    inner: Binary
+                }
             ],
             App(
                 ByteSpan {
@@ -53,12 +53,12 @@ Lam(
                             end: ByteIndex(0)
                         },
                         Bound(
-                            Named(
-                                User(
+                            Named {
+                                name: User(
                                     Ident("x")
                                 ),
-                                BoundVar(2, 0)
-                            )
+                                inner: BoundVar(2, 0)
+                            }
                         )
                     ),
                     [
@@ -68,12 +68,12 @@ Lam(
                                 end: ByteIndex(0)
                             },
                             Bound(
-                                Named(
-                                    User(
+                                Named {
+                                    name: User(
                                         Ident("z")
                                     ),
-                                    BoundVar(0, 0)
-                                )
+                                    inner: BoundVar(0, 0)
+                                }
                             )
                         )
                     ]
@@ -90,12 +90,12 @@ Lam(
                                 end: ByteIndex(0)
                             },
                             Bound(
-                                Named(
-                                    User(
+                                Named {
+                                    name: User(
                                         Ident("y")
                                     ),
-                                    BoundVar(1, 0)
-                                )
+                                    inner: BoundVar(1, 0)
+                                }
                             )
                         ),
                         [
@@ -105,12 +105,12 @@ Lam(
                                     end: ByteIndex(0)
                                 },
                                 Bound(
-                                    Named(
-                                        User(
+                                    Named {
+                                        name: User(
                                             Ident("z")
                                         ),
-                                        BoundVar(0, 0)
-                                    )
+                                        inner: BoundVar(0, 0)
+                                    }
                                 )
                             )
                         ]

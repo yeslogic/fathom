@@ -2,9 +2,9 @@
 
 use std::rc::Rc;
 
-use name::{Ident, Name, Named};
+use name::{Ident, Name};
 use syntax::core::{Binop, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType};
-use var::Var;
+use var::{Named, Var};
 
 use self::context::{Context, Scope};
 
@@ -132,7 +132,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
             expr: expr.clone(),
             name: name.clone(),
         }),
-        IExpr::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty(i) {
+        IExpr::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_ty(i) {
             Ok((_, ty)) => Ok(ty.clone()),
             Err(scope) => Err(TypeError::ExprBindingExpected {
                 expr: expr.clone(),
@@ -145,7 +145,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
             ctx.extend(Scope::ExprLam(params.clone()));
-            let param_tys = params.iter().map(|param| param.1.clone()).collect();
+            let param_tys = params.iter().map(|param| param.inner.clone()).collect();
 
             Ok(Type::Arrow(param_tys, infer_ty(&ctx, body_expr)?).into())
         }
@@ -343,7 +343,7 @@ fn simplify_ty(ctx: &Context, ty: &RcType) -> RcType {
 
     fn compute_ty(ctx: &Context, ty: &RcType) -> Option<RcType> {
         match *ty.inner {
-            Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_ty_def(i) {
+            Type::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_ty_def(i) {
                 Ok((_, def_ty)) => Some(def_ty.clone()),
                 Err(_) => None,
             },
@@ -426,7 +426,7 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
             ty: ty.clone(),
             name: name.clone(),
         }),
-        Type::Var(_, Var::Bound(Named(_, i))) => match ctx.lookup_kind(i) {
+        Type::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_kind(i) {
             Ok((_, kind)) => Ok(kind.clone()),
             Err(scope) => Err(KindError::TypeBindingExpected {
                 ty: ty.clone(),
@@ -473,7 +473,7 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
             // FIXME: Do we want to invalidate hetrogeneous kind arguments and higher kinds?
             let mut ctx = ctx.clone();
             ctx.extend(Scope::TypeLam(params.clone()));
-            let param_kinds = params.iter().map(|param| param.1.clone()).collect();
+            let param_kinds = params.iter().map(|param| param.inner.clone()).collect();
 
             Ok(Kind::Arrow(param_kinds, infer_kind(&ctx, body_ty)?).into())
         }
@@ -556,7 +556,7 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
 
                 let field_ty = simplify_ty(&ctx, &field.value);
                 ctx.extend(Scope::ExprLam(vec![
-                    Named(Name::user(field.name.clone()), field_ty.repr()),
+                    Named::new(Name::user(field.name.clone()), field_ty.repr()),
                 ]));
             }
 
@@ -575,7 +575,7 @@ pub fn check_module(module: &Module) -> Result<(), KindError> {
         let ty = definition.body_ty.clone();
         let kind = infer_kind(&ctx, &ty)?;
 
-        ctx.extend(Scope::TypeDef(vec![Named(name, (ty, kind))]));
+        ctx.extend(Scope::TypeDef(vec![Named::new(name, (ty, kind))]));
     }
 
     Ok(())

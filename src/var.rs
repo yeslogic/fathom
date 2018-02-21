@@ -1,7 +1,9 @@
 //! Variable binding
 
 use std::fmt;
-use name::{Name, Named};
+use std::hash::{Hash, Hasher};
+
+use name::Name;
 
 /// A generated id
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -130,7 +132,7 @@ impl Var {
     }
 
     pub fn bound<N: Into<Name>>(name: N, var: BoundVar) -> Var {
-        Var::Bound(Named(name.into(), var))
+        Var::Bound(Named::new(name.into(), var))
     }
 
     pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
@@ -141,11 +143,38 @@ impl Var {
                         scope,
                         binding: BindingIndex(position as u32),
                     };
-                    Var::Bound(Named(n.clone(), bv))
+                    Var::Bound(Named::new(n.clone(), bv))
                 }
                 None => return,
             },
             Var::Bound(_) => return,
         };
+    }
+}
+
+/// A type annotated with a name for debugging purposes
+///
+/// The name is ignored for equality comparisons
+#[derive(Debug, Clone, Eq)]
+pub struct Named<N, T> {
+    pub name: N,
+    pub inner: T,
+}
+
+impl<N, T> Named<N, T> {
+    pub fn new(name: N, inner: T) -> Named<N, T> {
+        Named { name, inner }
+    }
+}
+
+impl<N, T: PartialEq> PartialEq for Named<N, T> {
+    fn eq(&self, other: &Named<N, T>) -> bool {
+        &self.inner == &other.inner
+    }
+}
+
+impl<N, T: Hash> Hash for Named<N, T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.inner.hash(state);
     }
 }
