@@ -95,6 +95,10 @@ pub Definition: Definition<'input> = {
             body_ty,
         }
     },
+    <start: @L> <recovered: !> <end: @R> ";" => {
+        errors.push(super::errors::from_lalrpop(filemap, recovered.error));
+        Definition::Error(ByteSpan::new(start, end))
+    },
 };
 
 Field<Value>: Field<'input, Value> = {
@@ -144,6 +148,10 @@ AtomicType: Type<'input> = {
     },
     <start: @L> "[" <elem: PrimaryType> ";" <size: PrimaryExpr> "]" <end: @R> => {
         Type::Array(ByteSpan::new(start, end), Box::new(elem), Box::new(size))
+    },
+    <start: @L> <recovered: !> <end: @R> => {
+        errors.push(super::errors::from_lalrpop(filemap, recovered.error));
+        Type::Error(ByteSpan::new(start, end))
     },
 };
 
@@ -350,5 +358,9 @@ AtomicExpr: Expr<'input> = {
     },
     <start: @L> <array_expr: AtomicExpr> "[" <index_expr: PrimaryExpr> "]" <end: @R> => {
         Expr::Subscript(ByteSpan::new(start, end), Box::new(array_expr), Box::new(index_expr))
+    },
+    <start: @L> <recovered: !> <end: @R> => {
+        errors.push(super::errors::from_lalrpop(filemap, recovered.error));
+        Expr::Error(ByteSpan::new(start, end))
     },
 };
