@@ -1,4 +1,4 @@
-use codespan::{ByteIndex, ByteOffset, ByteSpan, RawIndex};
+use codespan::{ByteIndex, ByteOffset, ByteSpan, FileMap, RawOffset};
 use codespan_reporting::{Diagnostic, Label, LabelStyle, Severity};
 use std::fmt;
 use std::str::CharIndices;
@@ -236,18 +236,18 @@ impl<'input> From<Token<&'input str>> for Token<String> {
 /// An iterator over a source string that yeilds `Token`s for subsequent use by
 /// the parser
 pub struct Lexer<'input> {
-    src: &'input str,
+    filemap: &'input FileMap,
     chars: CharIndices<'input>,
     lookahead: Option<(usize, char)>,
 }
 
 impl<'input> Lexer<'input> {
     /// Create a new lexer from the source string
-    pub fn new(src: &'input str) -> Self {
-        let mut chars = src.char_indices();
+    pub fn new(filemap: &'input FileMap) -> Self {
+        let mut chars = filemap.src().char_indices();
 
         Lexer {
-            src,
+            filemap,
             lookahead: chars.next(),
             chars,
         }
@@ -255,8 +255,11 @@ impl<'input> Lexer<'input> {
 
     /// Return the next character in the source string
     fn lookahead(&self) -> Option<(ByteIndex, char)> {
-        self.lookahead
-            .map(|(index, ch)| (ByteIndex(index as RawIndex), ch))
+        self.lookahead.map(|(index, ch)| {
+            let off = ByteOffset(index as RawOffset);
+            let index = self.filemap.span().start() + off;
+            (index, ch)
+        })
     }
 
     /// Bump the current position in the source string by one character,
@@ -269,7 +272,7 @@ impl<'input> Lexer<'input> {
 
     /// Return a slice of the source string
     fn slice(&self, start: ByteIndex, end: ByteIndex) -> &'input str {
-        &self.src[start.to_usize()..end.to_usize()]
+        self.filemap.src_slice(ByteSpan::new(start, end)).unwrap()
     }
 
     /// Test a predicate againt the next character in the source
@@ -305,7 +308,7 @@ impl<'input> Lexer<'input> {
             }
         }
 
-        let eof = ByteIndex(self.src.len() as RawIndex);
+        let eof = self.filemap.span().end();
         (eof, self.slice(start, eof))
     }
 
@@ -465,6 +468,9 @@ impl<'input> Iterator for Lexer<'input> {
 
 #[cfg(test)]
 mod tests {
+    use codespan::{CodeMap, FileName};
+    use codespan::RawIndex;
+
     use super::*;
 
     /// A handy macro to give us a nice syntax for declaring test cases
@@ -472,10 +478,13 @@ mod tests {
     /// This was inspired by the tests in the LALRPOP lexer
     macro_rules! test {
         ($src:expr, $($span:expr => $token:expr,)*) => {{
-            let lexed_tokens: Vec<_> = Lexer::new($src).collect();
+            let mut codemap = CodeMap::new();
+            let filemap = codemap.add_filemap(FileName::virtual_("test"), $src.into());
+
+            let lexed_tokens: Vec<_> = Lexer::new(&filemap).collect();
             let expected_tokens = vec![$({
-                let start = ByteIndex($span.find("~").unwrap() as RawIndex);
-                let end = ByteIndex($span.rfind("~").unwrap() as RawIndex + 1);
+                let start = ByteIndex($span.find("~").unwrap() as RawIndex + 1);
+                let end = ByteIndex($span.rfind("~").unwrap() as RawIndex + 2);
                 Ok((start, $token, end))
             }),*];
 

@@ -1,5 +1,7 @@
+extern crate codespan;
 extern crate ddl;
 
+use codespan::CodeMap;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -7,14 +9,11 @@ use std::io::prelude::*;
 use ddl::syntax::core::Module;
 
 fn main() {
-    let src = {
-        let mut src_file = File::open("src/bson.ddl").unwrap();
-        let mut src = String::new();
-        src_file.read_to_string(&mut src).unwrap();
-        src
-    };
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap_from_disk("src/bson.ddl").unwrap();
 
-    let mut module = Module::from_concrete(&ddl::syntax::parse::module(&src).unwrap()).unwrap();
+    let module = ddl::syntax::parse::module(&filemap).unwrap();
+    let mut module = Module::from_concrete(&module).unwrap();
     module.substitute(&ddl::syntax::core::base_defs());
     ddl::semantics::check_module(&module).unwrap();
     let ir = ddl::compile::ir::Module::from(&module);

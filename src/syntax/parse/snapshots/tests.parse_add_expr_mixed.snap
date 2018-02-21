@@ -1,13 +1,13 @@
 Binop(
     ByteSpan {
-        start: ByteIndex(0),
-        end: ByteIndex(17)
+        start: ByteIndex(1),
+        end: ByteIndex(18)
     },
     Add,
     Var(
         ByteSpan {
-            start: ByteIndex(0),
-            end: ByteIndex(1)
+            start: ByteIndex(1),
+            end: ByteIndex(2)
         },
         Free(
             User(
@@ -17,14 +17,14 @@ Binop(
     ),
     Binop(
         ByteSpan {
-            start: ByteIndex(4),
-            end: ByteIndex(17)
+            start: ByteIndex(5),
+            end: ByteIndex(18)
         },
         Add,
         Var(
             ByteSpan {
-                start: ByteIndex(4),
-                end: ByteIndex(5)
+                start: ByteIndex(5),
+                end: ByteIndex(6)
             },
             Free(
                 User(
@@ -34,14 +34,14 @@ Binop(
         ),
         Binop(
             ByteSpan {
-                start: ByteIndex(8),
-                end: ByteIndex(17)
+                start: ByteIndex(9),
+                end: ByteIndex(18)
             },
             Sub,
             Var(
                 ByteSpan {
-                    start: ByteIndex(8),
-                    end: ByteIndex(9)
+                    start: ByteIndex(9),
+                    end: ByteIndex(10)
                 },
                 Free(
                     User(
@@ -51,14 +51,14 @@ Binop(
             ),
             Binop(
                 ByteSpan {
-                    start: ByteIndex(12),
-                    end: ByteIndex(17)
+                    start: ByteIndex(13),
+                    end: ByteIndex(18)
                 },
                 Add,
                 Var(
                     ByteSpan {
-                        start: ByteIndex(12),
-                        end: ByteIndex(13)
+                        start: ByteIndex(13),
+                        end: ByteIndex(14)
                     },
                     Free(
                         User(
@@ -68,8 +68,8 @@ Binop(
                 ),
                 Var(
                     ByteSpan {
-                        start: ByteIndex(16),
-                        end: ByteIndex(17)
+                        start: ByteIndex(17),
+                        end: ByteIndex(18)
                     },
                     Free(
                         User(

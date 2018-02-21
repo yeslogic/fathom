@@ -1,7 +1,7 @@
 Struct(
     ByteSpan {
-        start: ByteIndex(0),
-        end: ByteIndex(9)
+        start: ByteIndex(1),
+        end: ByteIndex(10)
     },
     []
 )

@@ -5,8 +5,8 @@ Module {
             name: Ident("ObjectId"),
             body_ty: Struct(
                 ByteSpan {
-                    start: ByteIndex(74),
-                    end: ByteIndex(173)
+                    start: ByteIndex(75),
+                    end: ByteIndex(174)
                 },
                 [
                     Field {
@@ -14,8 +14,8 @@ Module {
                         name: Ident("epoch_time"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(99),
-                                end: ByteIndex(104)
+                                start: ByteIndex(100),
+                                end: ByteIndex(105)
                             },
                             Free(
                                 User(
@@ -29,8 +29,8 @@ Module {
                         name: Ident("machine_id"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(122),
-                                end: ByteIndex(127)
+                                start: ByteIndex(123),
+                                end: ByteIndex(128)
                             },
                             Free(
                                 User(
@@ -44,8 +44,8 @@ Module {
                         name: Ident("process_id"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(145),
-                                end: ByteIndex(150)
+                                start: ByteIndex(146),
+                                end: ByteIndex(151)
                             },
                             Free(
                                 User(
@@ -59,8 +59,8 @@ Module {
                         name: Ident("counter"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(165),
-                                end: ByteIndex(170)
+                                start: ByteIndex(166),
+                                end: ByteIndex(171)
                             },
                             Free(
                                 User(

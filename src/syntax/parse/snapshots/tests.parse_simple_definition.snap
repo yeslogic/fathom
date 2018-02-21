@@ -5,8 +5,8 @@ Module {
             name: Ident("Offset32"),
             body_ty: Var(
                 ByteSpan {
-                    start: ByteIndex(20),
-                    end: ByteIndex(23)
+                    start: ByteIndex(21),
+                    end: ByteIndex(24)
                 },
                 Free(
                     User(

@@ -5,8 +5,8 @@ Module {
             name: Ident("Vec3d"),
             body_ty: Struct(
                 ByteSpan {
-                    start: ByteIndex(8),
-                    end: ByteIndex(60)
+                    start: ByteIndex(9),
+                    end: ByteIndex(61)
                 },
                 [
                     Field {
@@ -14,8 +14,8 @@ Module {
                         name: Ident("x"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(24),
-                                end: ByteIndex(29)
+                                start: ByteIndex(25),
+                                end: ByteIndex(30)
                             },
                             Free(
                                 User(
@@ -29,8 +29,8 @@ Module {
                         name: Ident("y"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(38),
-                                end: ByteIndex(43)
+                                start: ByteIndex(39),
+                                end: ByteIndex(44)
                             },
                             Free(
                                 User(
@@ -44,8 +44,8 @@ Module {
                         name: Ident("z"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(52),
-                                end: ByteIndex(57)
+                                start: ByteIndex(53),
+                                end: ByteIndex(58)
                             },
                             Free(
                                 User(
@@ -62,8 +62,8 @@ Module {
             name: Ident("Triangle"),
             body_ty: Struct(
                 ByteSpan {
-                    start: ByteIndex(74),
-                    end: ByteIndex(407)
+                    start: ByteIndex(75),
+                    end: ByteIndex(408)
                 },
                 [
                     Field {
@@ -71,8 +71,8 @@ Module {
                         name: Ident("normal"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(117),
-                                end: ByteIndex(122)
+                                start: ByteIndex(118),
+                                end: ByteIndex(123)
                             },
                             Bound(
                                 Named {
@@ -89,13 +89,13 @@ Module {
                         name: Ident("vertices"),
                         value: Array(
                             ByteSpan {
-                                start: ByteIndex(174),
-                                end: ByteIndex(186)
+                                start: ByteIndex(175),
+                                end: ByteIndex(187)
                             },
                             Var(
                                 ByteSpan {
-                                    start: ByteIndex(175),
-                                    end: ByteIndex(180)
+                                    start: ByteIndex(176),
+                                    end: ByteIndex(181)
                                 },
                                 Bound(
                                     Named {
@@ -108,8 +108,8 @@ Module {
                             ),
                             Const(
                                 ByteSpan {
-                                    start: ByteIndex(182),
-                                    end: ByteIndex(185)
+                                    start: ByteIndex(183),
+                                    end: ByteIndex(186)
                                 },
                                 Int(3, Unsigned(U8))
                             )
@@ -120,8 +120,8 @@ Module {
                         name: Ident("attribute_bytes"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(399),
-                                end: ByteIndex(404)
+                                start: ByteIndex(400),
+                                end: ByteIndex(405)
                             },
                             Free(
                                 User(
@@ -138,8 +138,8 @@ Module {
             name: Ident("Stl"),
             body_ty: Struct(
                 ByteSpan {
-                    start: ByteIndex(468),
-                    end: ByteIndex(662)
+                    start: ByteIndex(469),
+                    end: ByteIndex(663)
                 },
                 [
                     Field {
@@ -147,13 +147,13 @@ Module {
                         name: Ident("header"),
                         value: Array(
                             ByteSpan {
-                                start: ByteIndex(515),
-                                end: ByteIndex(525)
+                                start: ByteIndex(516),
+                                end: ByteIndex(526)
                             },
                             Var(
                                 ByteSpan {
-                                    start: ByteIndex(516),
-                                    end: ByteIndex(518)
+                                    start: ByteIndex(517),
+                                    end: ByteIndex(519)
                                 },
                                 Free(
                                     User(
@@ -163,8 +163,8 @@ Module {
                             ),
                             Const(
                                 ByteSpan {
-                                    start: ByteIndex(520),
-                                    end: ByteIndex(524)
+                                    start: ByteIndex(521),
+                                    end: ByteIndex(525)
                                 },
                                 Int(80, Unsigned(U8))
                             )
@@ -175,8 +175,8 @@ Module {
                         name: Ident("num_triangles"),
                         value: Var(
                             ByteSpan {
-                                start: ByteIndex(586),
-                                end: ByteIndex(591)
+                                start: ByteIndex(587),
+                                end: ByteIndex(592)
                             },
                             Free(
                                 User(
@@ -190,13 +190,13 @@ Module {
                         name: Ident("triangles"),
                         value: Array(
                             ByteSpan {
-                                start: ByteIndex(634),
-                                end: ByteIndex(659)
+                                start: ByteIndex(635),
+                                end: ByteIndex(660)
                             },
                             Var(
                                 ByteSpan {
-                                    start: ByteIndex(635),
-                                    end: ByteIndex(643)
+                                    start: ByteIndex(636),
+                                    end: ByteIndex(644)
                                 },
                                 Bound(
                                     Named {
@@ -209,8 +209,8 @@ Module {
                             ),
                             Var(
                                 ByteSpan {
-                                    start: ByteIndex(645),
-                                    end: ByteIndex(658)
+                                    start: ByteIndex(646),
+                                    end: ByteIndex(659)
                                 },
                                 Bound(
                                     Named {

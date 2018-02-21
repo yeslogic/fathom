@@ -1,3 +1,5 @@
+use codespan::{CodeMap, FileName};
+
 use syntax::core::{Module, RcIExpr, RcType};
 use syntax::parse;
 
@@ -7,9 +9,12 @@ fn parse_expr_bool_atomic() {
         !((true || (false)))
     ";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_expr_bool_atomic,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -19,9 +24,12 @@ fn parse_expr_bool_operators() {
         (true && false) || (true || false)
     ";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_expr_bool_operators,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -29,9 +37,12 @@ fn parse_expr_bool_operators() {
 fn parse_add_expr() {
     let src = "x + y + z";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_add_expr,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -39,9 +50,12 @@ fn parse_add_expr() {
 fn parse_sub_expr() {
     let src = "x - y - z";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_sub_expr,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -49,9 +63,12 @@ fn parse_sub_expr() {
 fn parse_add_expr_mixed() {
     let src = "x + y + z - z + x";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_add_expr_mixed,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -59,9 +76,12 @@ fn parse_add_expr_mixed() {
 fn parse_mul_expr() {
     let src = "x * y * z";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_mul_expr,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -69,9 +89,12 @@ fn parse_mul_expr() {
 fn parse_div_expr() {
     let src = "x / y / z";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_div_expr,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -79,9 +102,12 @@ fn parse_div_expr() {
 fn parse_mul_expr_mixed() {
     let src = "x * y * z / z * x";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_mul_expr_mixed,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -89,9 +115,12 @@ fn parse_mul_expr_mixed() {
 fn parse_mixed_arithmetic_expr() {
     let src = "x + y * z / z - x * a";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -99,9 +128,12 @@ fn parse_mixed_arithmetic_expr() {
 fn parse_mixed_arithmetic_expr_parenthesized() {
     let src = "(x + y) * z / (z - x) * a";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr_parenthesized,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -109,9 +141,12 @@ fn parse_mixed_arithmetic_expr_parenthesized() {
 fn parse_proj_expr() {
     let src = "-foo.bar.x";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_proj_expr,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -119,9 +154,12 @@ fn parse_proj_expr() {
 fn parse_subscript_expr() {
     let src = "-foo[23u32 + (2u32 + 3u32)][index]";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_subscript_expr,
-        RcIExpr::from_concrete(&parse::expr(src).unwrap()).unwrap()
+        RcIExpr::from_concrete(&parse::expr(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -131,9 +169,12 @@ fn parse_ty_var() {
         Point
     ";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_ty_var,
-        RcType::from_concrete(&parse::ty(src).unwrap()).unwrap()
+        RcType::from_concrete(&parse::ty(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -141,9 +182,12 @@ fn parse_ty_var() {
 fn parse_ty_empty_struct() {
     let src = "struct {}";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_ty_empty_struct,
-        RcType::from_concrete(&parse::ty(src).unwrap()).unwrap()
+        RcType::from_concrete(&parse::ty(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -157,9 +201,12 @@ fn parse_ty_assert() {
         where x => x == 1u32
     ";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_ty_assert,
-        RcType::from_concrete(&parse::ty(src).unwrap()).unwrap()
+        RcType::from_concrete(&parse::ty(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -180,9 +227,12 @@ fn parse_ty_array_dependent() {
         }
     ";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_ty_array_dependent,
-        RcType::from_concrete(&parse::ty(src).unwrap()).unwrap()
+        RcType::from_concrete(&parse::ty(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -192,9 +242,12 @@ fn parse_simple_definition() {
         Offset32 = u32;
     ";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_simple_definition,
-        Module::from_concrete(&parse::module(src).unwrap()).unwrap()
+        Module::from_concrete(&parse::module(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -204,9 +257,12 @@ fn parse_array_with_constant_size() {
         Point = [f32; 3u32];
     ";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_array_with_constant_size,
-        Module::from_concrete(&parse::module(src).unwrap()).unwrap()
+        Module::from_concrete(&parse::module(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -238,9 +294,12 @@ fn parse_definition() {
         };
     ";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_definition,
-        Module::from_concrete(&parse::module(src).unwrap()).unwrap()
+        Module::from_concrete(&parse::module(&filemap).unwrap()).unwrap()
     );
 }
 
@@ -263,8 +322,11 @@ fn parse_type_params() {
         };
     ";
 
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
+
     assert_debug_snapshot!(
         parse_type_params,
-        Module::from_concrete(&parse::module(src).unwrap()).unwrap()
+        Module::from_concrete(&parse::module(&filemap).unwrap()).unwrap()
     );
 }

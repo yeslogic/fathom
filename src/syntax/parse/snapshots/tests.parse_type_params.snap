@@ -5,8 +5,8 @@ Module {
             name: Ident("Pair"),
             body_ty: Lam(
                 ByteSpan {
-                    start: ByteIndex(9),
-                    end: ByteIndex(78)
+                    start: ByteIndex(10),
+                    end: ByteIndex(79)
                 },
                 [
                     Named {
@@ -24,8 +24,8 @@ Module {
                 ],
                 Struct(
                     ByteSpan {
-                        start: ByteIndex(22),
-                        end: ByteIndex(78)
+                        start: ByteIndex(23),
+                        end: ByteIndex(79)
                     },
                     [
                         Field {
@@ -33,8 +33,8 @@ Module {
                             name: Ident("l"),
                             value: Var(
                                 ByteSpan {
-                                    start: ByteIndex(47),
-                                    end: ByteIndex(48)
+                                    start: ByteIndex(48),
+                                    end: ByteIndex(49)
                                 },
                                 Bound(
                                     Named {
@@ -51,8 +51,8 @@ Module {
                             name: Ident("r"),
                             value: Var(
                                 ByteSpan {
-                                    start: ByteIndex(66),
-                                    end: ByteIndex(67)
+                                    start: ByteIndex(67),
+                                    end: ByteIndex(68)
                                 },
                                 Bound(
                                     Named {
@@ -73,8 +73,8 @@ Module {
             name: Ident("Array"),
             body_ty: Lam(
                 ByteSpan {
-                    start: ByteIndex(89),
-                    end: ByteIndex(172)
+                    start: ByteIndex(90),
+                    end: ByteIndex(173)
                 },
                 [
                     Named {
@@ -86,8 +86,8 @@ Module {
                 ],
                 Struct(
                     ByteSpan {
-                        start: ByteIndex(100),
-                        end: ByteIndex(172)
+                        start: ByteIndex(101),
+                        end: ByteIndex(173)
                     },
                     [
                         Field {
@@ -95,8 +95,8 @@ Module {
                             name: Ident("len"),
                             value: Var(
                                 ByteSpan {
-                                    start: ByteIndex(127),
-                                    end: ByteIndex(132)
+                                    start: ByteIndex(128),
+                                    end: ByteIndex(133)
                                 },
                                 Free(
                                     User(
@@ -110,13 +110,13 @@ Module {
                             name: Ident("data"),
                             value: Array(
                                 ByteSpan {
-                                    start: ByteIndex(153),
-                                    end: ByteIndex(161)
+                                    start: ByteIndex(154),
+                                    end: ByteIndex(162)
                                 },
                                 Var(
                                     ByteSpan {
-                                        start: ByteIndex(154),
-                                        end: ByteIndex(155)
+                                        start: ByteIndex(155),
+                                        end: ByteIndex(156)
                                     },
                                     Bound(
                                         Named {
@@ -129,8 +129,8 @@ Module {
                                 ),
                                 Var(
                                     ByteSpan {
-                                        start: ByteIndex(157),
-                                        end: ByteIndex(160)
+                                        start: ByteIndex(158),
+                                        end: ByteIndex(161)
                                     },
                                     Bound(
                                         Named {
@@ -152,8 +152,8 @@ Module {
             name: Ident("Data"),
             body_ty: Lam(
                 ByteSpan {
-                    start: ByteIndex(183),
-                    end: ByteIndex(277)
+                    start: ByteIndex(184),
+                    end: ByteIndex(278)
                 },
                 [
                     Named {
@@ -177,8 +177,8 @@ Module {
                 ],
                 Struct(
                     ByteSpan {
-                        start: ByteIndex(199),
-                        end: ByteIndex(277)
+                        start: ByteIndex(200),
+                        end: ByteIndex(278)
                     },
                     [
                         Field {
@@ -186,8 +186,8 @@ Module {
                             name: Ident("blah"),
                             value: Var(
                                 ByteSpan {
-                                    start: ByteIndex(227),
-                                    end: ByteIndex(228)
+                                    start: ByteIndex(228),
+                                    end: ByteIndex(229)
                                 },
                                 Bound(
                                     Named {
@@ -204,13 +204,13 @@ Module {
                             name: Ident("data"),
                             value: App(
                                 ByteSpan {
-                                    start: ByteIndex(249),
-                                    end: ByteIndex(266)
+                                    start: ByteIndex(250),
+                                    end: ByteIndex(267)
                                 },
                                 Var(
                                     ByteSpan {
-                                        start: ByteIndex(249),
-                                        end: ByteIndex(254)
+                                        start: ByteIndex(250),
+                                        end: ByteIndex(255)
                                     },
                                     Bound(
                                         Named {
@@ -224,13 +224,13 @@ Module {
                                 [
                                     App(
                                         ByteSpan {
-                                            start: ByteIndex(255),
-                                            end: ByteIndex(265)
+                                            start: ByteIndex(256),
+                                            end: ByteIndex(266)
                                         },
                                         Var(
                                             ByteSpan {
-                                                start: ByteIndex(255),
-                                                end: ByteIndex(259)
+                                                start: ByteIndex(256),
+                                                end: ByteIndex(260)
                                             },
                                             Bound(
                                                 Named {
@@ -244,8 +244,8 @@ Module {
                                         [
                                             Var(
                                                 ByteSpan {
-                                                    start: ByteIndex(260),
-                                                    end: ByteIndex(261)
+                                                    start: ByteIndex(261),
+                                                    end: ByteIndex(262)
                                                 },
                                                 Bound(
                                                     Named {
@@ -258,8 +258,8 @@ Module {
                                             ),
                                             Var(
                                                 ByteSpan {
-                                                    start: ByteIndex(263),
-                                                    end: ByteIndex(264)
+                                                    start: ByteIndex(264),
+                                                    end: ByteIndex(265)
                                                 },
                                                 Bound(
                                                     Named {
