@@ -1,12 +1,12 @@
 use codespan::{CodeMap, FileName};
 
 use syntax::parse;
-use syntax::translation::ToCore;
 
 use super::*;
 
 mod infer_ty {
     use syntax::core::{FloatType, SignedType, Type, TypeConst, UnsignedType};
+    use syntax::translation::ToCore;
 
     use super::*;
 
@@ -135,6 +135,7 @@ mod infer_ty {
 
 mod infer_kind {
     use syntax::core::{self, Kind};
+    use syntax::translation::ToCore;
 
     use super::*;
 
@@ -180,6 +181,7 @@ mod infer_kind {
 
 mod check_module {
     use syntax::core;
+    use syntax::translation::ToCore;
 
     use super::*;
 

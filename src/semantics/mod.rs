@@ -1,5 +1,6 @@
 //! Type and kind-checking for our DDL
 
+use codespan::ByteSpan;
 use std::rc::Rc;
 
 use name::Name;
@@ -11,7 +12,7 @@ use var::{Named, Var};
 mod tests;
 mod errors;
 
-pub use self::errors::{ExpectedKind, ExpectedType, KindError, TypeError};
+pub use self::errors::{ExpectedType, KindError, TypeError};
 
 // Representations
 
@@ -134,7 +135,7 @@ pub fn check_ty(ctx: &Context, expr: &RcExpr, expected_ty: &RcType) -> Result<()
                 Ok(())
             } else {
                 Err(TypeError::InferenceMismatch {
-                    expr: expr.clone(),
+                    span: ByteSpan::none(), // TODO: expr.span(),
                     expected: expected_ty.clone(),
                     found: inferred_ty,
                 })
@@ -156,14 +157,14 @@ pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
         Expr::Const(_, c) => Ok(Type::Const(c.ty_const_of()).into()),
 
         // Variables
-        Expr::Var(_, Var::Free(ref name)) => Err(TypeError::UnboundVariable {
-            expr: expr.clone(),
+        Expr::Var(_, Var::Free(ref name)) => Err(TypeError::UndefinedName {
+            var_span: ByteSpan::none(), // TODO: expr.span(),
             name: name.clone(),
         }),
         Expr::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_ty(i) {
             Ok((_, ty)) => Ok(ty.clone()),
-            Err(scope) => Err(TypeError::ExprBindingExpected {
-                expr: expr.clone(),
+            Err(scope) => Err(TypeError::ExpectedExpr {
+                var_span: ByteSpan::none(), // TODO: expr.span(),
                 found: scope.clone(),
             }),
         },
@@ -414,8 +415,8 @@ fn check_kind(ctx: &Context, ty: &RcType, expected_kind: &RcKind) -> Result<(), 
         Ok(())
     } else {
         Err(KindError::Mismatch {
-            ty: ty.clone(),
-            expected: ExpectedKind::Actual(expected_kind.clone()),
+            span: ByteSpan::none(), // TODO: ty.span(),
+            expected: expected_kind.clone(),
             found,
         })
     }
@@ -427,14 +428,14 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
 
     match *ty.inner {
         // Variables
-        Type::Var(_, Var::Free(ref name)) => Err(KindError::UnboundVariable {
-            ty: ty.clone(),
+        Type::Var(_, Var::Free(ref name)) => Err(KindError::UndefinedName {
+            var_span: ByteSpan::none(), // TODO: ty.span(),
             name: name.clone(),
         }),
         Type::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_kind(i) {
             Ok((_, kind)) => Ok(kind.clone()),
-            Err(scope) => Err(KindError::TypeBindingExpected {
-                ty: ty.clone(),
+            Err(scope) => Err(KindError::ExpectedType {
+                span: ByteSpan::none(), // TODO: ty.span(),
                 found: scope.clone(),
             }),
         },
@@ -499,9 +500,9 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
                 }
             }
 
-            Err(KindError::Mismatch {
-                ty: fn_ty.clone(),
-                expected: ExpectedKind::Arrow,
+            Err(KindError::NotATypeConstructor {
+                fn_span: ByteSpan::none(), // TODO: fn_ty.span(),
+                arg_spans: vec![],         // TODO: arg_tys.iter().map(|a| a.span()).collect(),
                 found: fn_kind,
             })
         }
