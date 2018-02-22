@@ -232,19 +232,6 @@ pub enum Kind {
     Arrow(Vec<RcKind>, RcKind),
 }
 
-impl RcKind {
-    /// Kind of type functions
-    pub fn repr(&self) -> RcKind {
-        match *self.inner {
-            Kind::Binary => Kind::Host.into(),
-            Kind::Host => panic!("ICE: tried to find the repr of Kind::Host"),
-            Kind::Arrow(ref params, ref ret) => {
-                Kind::Arrow(params.iter().map(RcKind::repr).collect(), ret.repr()).into()
-            }
-        }
-    }
-}
-
 #[derive(Clone, PartialEq)]
 pub struct RcKind {
     pub inner: Rc<Kind>,

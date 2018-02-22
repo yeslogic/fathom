@@ -21,6 +21,18 @@ pub trait Repr<T> {
     fn repr(&self) -> T;
 }
 
+impl Repr<RcKind> for RcKind {
+    fn repr(&self) -> RcKind {
+        match *self.inner {
+            Kind::Binary => Kind::Host.into(),
+            Kind::Host => panic!("ICE: tried to find the repr of Kind::Host"),
+            Kind::Arrow(ref params, ref ret) => {
+                Kind::Arrow(params.iter().map(RcKind::repr).collect(), ret.repr()).into()
+            }
+        }
+    }
+}
+
 impl Repr<TypeConst> for TypeConst {
     /// Convert a binary type constant to its corresponding host representation
     fn repr(&self) -> TypeConst {
