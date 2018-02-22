@@ -5,7 +5,6 @@ use std::fmt;
 use std::rc::Rc;
 
 use name::{Ident, Name};
-use syntax::concrete;
 use var::{BoundVar, Named, ScopeIndex, Var};
 
 /// A binder that is introduced during type checking
@@ -102,20 +101,6 @@ impl Module {
             definition.body_ty.substitute(substs);
         }
     }
-
-    pub fn from_concrete(src: &concrete::Module) -> Result<Module, ()> {
-        match *src {
-            concrete::Module::Valid(ref definitions) => {
-                let definitions = definitions
-                    .iter()
-                    .map(Definition::from_concrete)
-                    .collect::<Result<_, _>>()?;
-
-                Ok(Module::new(definitions))
-            }
-            concrete::Module::Error(_) => Err(()),
-        }
-    }
 }
 
 pub fn base_defs() -> Substitutions {
@@ -187,39 +172,6 @@ pub struct Definition {
     pub name: Ident,
     /// The binary type
     pub body_ty: RcType,
-}
-
-impl Definition {
-    pub fn from_concrete(src: &concrete::Definition) -> Result<Definition, ()> {
-        match *src {
-            concrete::Definition::Valid {
-                ref doc,
-                name,
-                span,
-                ref param_names,
-                ref body_ty,
-            } => {
-                let body_ty = RcType::from_concrete(body_ty)?;
-
-                Ok(Definition {
-                    doc: doc.join("\n").into(),
-                    name: Ident::from(name),
-                    body_ty: match &param_names[..] {
-                        names if names.is_empty() => body_ty,
-                        names => {
-                            let names = names
-                                .iter()
-                                .map(|&name| Named::new(Name::user(name), Kind::Binary.into()))
-                                .collect::<Vec<_>>();
-
-                            RcType::lam(span, names, body_ty)
-                        }
-                    },
-                })
-            }
-            concrete::Definition::Error(_) => Err(()),
-        }
-    }
 }
 
 impl PartialEq for Definition {
@@ -777,85 +729,6 @@ impl RcType {
     pub fn instantiate(&mut self, tys: &[RcType]) {
         self.instantiate_at(ScopeIndex(0), tys);
     }
-
-    pub fn from_concrete(src: &concrete::Type) -> Result<RcType, ()> {
-        use semantics::Repr; // FIXME: Blegh - kind of cross-cutting concerns here...
-
-        match *src {
-            concrete::Type::Var(span, name) => {
-                Ok(Type::Var(span, Var::free(Name::user(name))).into())
-            }
-            concrete::Type::App(span, ref fn_ty, ref arg_tys) => {
-                let fn_ty = RcType::from_concrete(&**fn_ty)?;
-                let arg_tys = arg_tys
-                    .iter()
-                    .map(|arg| RcType::from_concrete(&*arg))
-                    .collect::<Result<_, _>>()?;
-
-                Ok(Type::App(span, fn_ty, arg_tys).into())
-            }
-
-            concrete::Type::Array(span, ref elem_ty, ref size_expr) => {
-                let elem_ty = RcType::from_concrete(&**elem_ty)?;
-                let size_expr = RcExpr::from_concrete(&**size_expr)?;
-
-                Ok(Type::Array(span, elem_ty, size_expr).into())
-            }
-            concrete::Type::Cond(span, ref options) => {
-                let options = options
-                    .iter()
-                    .map(|variant| {
-                        Ok(Field {
-                            doc: variant.doc.join("\n").into(),
-                            name: Ident::from(variant.name),
-                            value: (
-                                RcExpr::from_concrete(&variant.value.0)?,
-                                RcType::from_concrete(&variant.value.1)?,
-                            ),
-                        })
-                    })
-                    .collect::<Result<_, _>>()?;
-
-                Ok(Type::Cond(span, options).into())
-            }
-            concrete::Type::Struct(span, ref fields) => {
-                let fields = fields
-                    .iter()
-                    .map(|field| {
-                        Ok(Field {
-                            doc: field.doc.join("\n").into(),
-                            name: Ident::from(field.name),
-                            value: RcType::from_concrete(&field.value)?,
-                        })
-                    })
-                    .collect::<Result<_, _>>()?;
-
-                Ok(RcType::struct_(span, fields))
-            }
-            concrete::Type::Where(span, ref ty, lo2, param_name, ref pred_expr) => {
-                let ty = RcType::from_concrete(&**ty)?;
-                let pred_fn = RcExpr::lam(
-                    ByteSpan::new(lo2, span.end()),
-                    vec![Named::new(Name::user(param_name), ty.repr())],
-                    RcExpr::from_concrete(&**pred_expr)?,
-                );
-
-                Ok(Type::Assert(span, ty, pred_fn).into())
-            }
-            concrete::Type::Compute(span, repr_ty, ref expr) => {
-                let empty: RcType = Type::Const(TypeConst::Empty).into();
-                let repr_ty = Type::Const(repr_ty).into();
-                let conv_fn = RcExpr::lam(
-                    span,
-                    vec![Named::new(Name::Abstract, empty.repr())],
-                    RcExpr::from_concrete(&**expr)?,
-                );
-
-                Ok(Type::Interp(span, empty.into(), conv_fn, repr_ty).into())
-            }
-            concrete::Type::Error(_) => Err(()),
-        }
-    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -1125,61 +998,6 @@ impl RcExpr {
 
     pub fn abstract_names(&mut self, names: &[Name]) {
         self.abstract_names_at(names, ScopeIndex(0));
-    }
-
-    pub fn from_concrete(src: &concrete::Expr) -> Result<RcExpr, ()> {
-        match *src {
-            concrete::Expr::Const(span, c) => Ok(Expr::Const(span, c).into()),
-            concrete::Expr::Ann(span, ref expr, ty) => {
-                let expr = RcExpr::from_concrete(&**expr)?;
-                let ty = Type::Const(ty).into();
-
-                Ok(Expr::Ann(span, expr, ty).into())
-            }
-            concrete::Expr::Var(span, name) => {
-                Ok(Expr::Var(span, Var::free(Name::user(name))).into())
-            }
-
-            concrete::Expr::Array(span, ref elems) => {
-                let elems = elems
-                    .iter()
-                    .map(RcExpr::from_concrete)
-                    .collect::<Result<_, _>>()?;
-
-                Ok(Expr::Array(span, elems).into())
-            }
-
-            concrete::Expr::Unop(span, op, ref expr) => {
-                let expr = RcExpr::from_concrete(&**expr)?;
-
-                Ok(Expr::Unop(span, op, expr).into())
-            }
-            concrete::Expr::Binop(span, op, ref lhs_expr, ref rhs_expr) => {
-                let lhs_expr = RcExpr::from_concrete(&**lhs_expr)?;
-                let rhs_expr = RcExpr::from_concrete(&**rhs_expr)?;
-
-                Ok(Expr::Binop(span, op, lhs_expr, rhs_expr).into())
-            }
-            concrete::Expr::Proj(span, ref struct_expr, field_name) => {
-                let struct_expr = RcExpr::from_concrete(&**struct_expr)?;
-                let field_name = String::from(field_name);
-
-                Ok(Expr::Proj(span, struct_expr, Ident::from(field_name)).into())
-            }
-            concrete::Expr::Subscript(span, ref array_expr, ref index_expr) => {
-                let array_expr = RcExpr::from_concrete(&**array_expr)?;
-                let index_expr = RcExpr::from_concrete(&**index_expr)?;
-
-                Ok(Expr::Subscript(span, array_expr, index_expr).into())
-            }
-            concrete::Expr::Cast(span, ref expr, ty) => {
-                let expr = RcExpr::from_concrete(&**expr)?;
-                let ty = Type::Const(ty).into();
-
-                Ok(Expr::Cast(span, expr, ty).into())
-            }
-            concrete::Expr::Error(_) => Err(()),
-        }
     }
 }
 

@@ -1,11 +1,12 @@
 use codespan::{CodeMap, FileName};
 
 use syntax::parse;
+use syntax::translation::ToCore;
 
 use super::*;
 
 mod infer_ty {
-    use syntax::core::{FloatType, RcExpr, SignedType, Type, TypeConst, UnsignedType};
+    use syntax::core::{FloatType, SignedType, Type, TypeConst, UnsignedType};
 
     use super::*;
 
@@ -17,7 +18,7 @@ mod infer_ty {
             assert!(errors.is_empty());
 
             let ctx = Context::new();
-            let expr = RcExpr::from_concrete(&expr).unwrap();
+            let expr = expr.to_core().unwrap();
             let expected_ty = Type::Const($expected).into();
 
             assert_eq!(infer_ty(&ctx, &expr), Ok(expected_ty));
@@ -29,7 +30,7 @@ mod infer_ty {
             assert!(errors.is_empty());
 
             let ctx = Context::new();
-            let expr = RcExpr::from_concrete(&expr).unwrap();
+            let expr = expr.to_core().unwrap();
 
             assert!(infer_ty(&ctx, &expr).is_err());
         }};
@@ -134,8 +135,6 @@ mod infer_ty {
 
 mod infer_kind {
     use syntax::core::{self, Kind};
-    use syntax::core::RcType;
-    use syntax::parse;
 
     use super::*;
 
@@ -147,7 +146,7 @@ mod infer_kind {
             assert!(errors.is_empty());
 
             let ctx = Context::new();
-            let mut ty = RcType::from_concrete(&ty).unwrap();
+            let mut ty = ty.to_core().unwrap();
             ty.substitute(&core::base_defs());
 
             assert_eq!(infer_kind(&ctx, &ty), Ok($expected));
@@ -159,7 +158,7 @@ mod infer_kind {
             assert!(errors.is_empty());
 
             let ctx = Context::new();
-            let ty = RcType::from_concrete(&ty).unwrap();
+            let ty = ty.to_core().unwrap();
 
             assert!(infer_kind(&ctx, &ty).is_err());
         }};
@@ -198,7 +197,7 @@ mod check_module {
         let (module, errors) = parse::module(&filemap);
         assert!(errors.is_empty());
 
-        let mut module = Module::from_concrete(&module).unwrap();
+        let mut module = module.to_core().unwrap();
         let base_defs = core::base_defs();
         module.substitute(&base_defs);
 
