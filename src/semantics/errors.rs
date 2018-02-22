@@ -1,7 +1,5 @@
 use name::{Ident, Name};
-use syntax::core::{Binop, RcCExpr, RcIExpr, RcKind, RcType};
-
-use semantics::context::Scope;
+use syntax::core::{Binop, RcCExpr, RcIExpr, RcKind, RcType, Scope};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExpectedType {

@@ -3,12 +3,9 @@
 use std::rc::Rc;
 
 use name::Name;
-use syntax::core::{Binop, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType};
+use syntax::core::{Binop, Context, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType, Scope};
 use var::{Named, Var};
 
-use self::context::{Context, Scope};
-
-mod context;
 #[cfg(test)]
 mod tests;
 mod errors;
