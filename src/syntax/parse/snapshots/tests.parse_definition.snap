@@ -144,34 +144,32 @@ Module {
                                     doc: "A doc comment on a union variant",
                                     name: Ident("u16"),
                                     value: (
-                                        Inf(
-                                            Binop(
+                                        Binop(
+                                            ByteSpan {
+                                                start: ByteIndex(402),
+                                                end: ByteIndex(418)
+                                            },
+                                            Eq,
+                                            Var(
                                                 ByteSpan {
                                                     start: ByteIndex(402),
+                                                    end: ByteIndex(408)
+                                                },
+                                                Bound(
+                                                    Named {
+                                                        name: User(
+                                                            Ident("format")
+                                                        ),
+                                                        inner: BoundVar(0, 0)
+                                                    }
+                                                )
+                                            ),
+                                            Const(
+                                                ByteSpan {
+                                                    start: ByteIndex(412),
                                                     end: ByteIndex(418)
                                                 },
-                                                Eq,
-                                                Var(
-                                                    ByteSpan {
-                                                        start: ByteIndex(402),
-                                                        end: ByteIndex(408)
-                                                    },
-                                                    Bound(
-                                                        Named {
-                                                            name: User(
-                                                                Ident("format")
-                                                            ),
-                                                            inner: BoundVar(0, 0)
-                                                        }
-                                                    )
-                                                ),
-                                                Const(
-                                                    ByteSpan {
-                                                        start: ByteIndex(412),
-                                                        end: ByteIndex(418)
-                                                    },
-                                                    Int(0, Unsigned(U8))
-                                                )
+                                                Int(0, Unsigned(U8))
                                             )
                                         ),
                                         Var(
@@ -191,34 +189,32 @@ Module {
                                     doc: "",
                                     name: Ident("point"),
                                     value: (
-                                        Inf(
-                                            Binop(
+                                        Binop(
+                                            ByteSpan {
+                                                start: ByteIndex(451),
+                                                end: ByteIndex(467)
+                                            },
+                                            Eq,
+                                            Var(
                                                 ByteSpan {
                                                     start: ByteIndex(451),
+                                                    end: ByteIndex(457)
+                                                },
+                                                Bound(
+                                                    Named {
+                                                        name: User(
+                                                            Ident("format")
+                                                        ),
+                                                        inner: BoundVar(0, 0)
+                                                    }
+                                                )
+                                            ),
+                                            Const(
+                                                ByteSpan {
+                                                    start: ByteIndex(461),
                                                     end: ByteIndex(467)
                                                 },
-                                                Eq,
-                                                Var(
-                                                    ByteSpan {
-                                                        start: ByteIndex(451),
-                                                        end: ByteIndex(457)
-                                                    },
-                                                    Bound(
-                                                        Named {
-                                                            name: User(
-                                                                Ident("format")
-                                                            ),
-                                                            inner: BoundVar(0, 0)
-                                                        }
-                                                    )
-                                                ),
-                                                Const(
-                                                    ByteSpan {
-                                                        start: ByteIndex(461),
-                                                        end: ByteIndex(467)
-                                                    },
-                                                    Int(1, Unsigned(U8))
-                                                )
+                                                Int(1, Unsigned(U8))
                                             )
                                         ),
                                         Var(
@@ -241,34 +237,32 @@ Module {
                                     doc: "And another doc comment",
                                     name: Ident("array"),
                                     value: (
-                                        Inf(
-                                            Binop(
+                                        Binop(
+                                            ByteSpan {
+                                                start: ByteIndex(546),
+                                                end: ByteIndex(562)
+                                            },
+                                            Eq,
+                                            Var(
                                                 ByteSpan {
                                                     start: ByteIndex(546),
+                                                    end: ByteIndex(552)
+                                                },
+                                                Bound(
+                                                    Named {
+                                                        name: User(
+                                                            Ident("format")
+                                                        ),
+                                                        inner: BoundVar(0, 0)
+                                                    }
+                                                )
+                                            ),
+                                            Const(
+                                                ByteSpan {
+                                                    start: ByteIndex(556),
                                                     end: ByteIndex(562)
                                                 },
-                                                Eq,
-                                                Var(
-                                                    ByteSpan {
-                                                        start: ByteIndex(546),
-                                                        end: ByteIndex(552)
-                                                    },
-                                                    Bound(
-                                                        Named {
-                                                            name: User(
-                                                                Ident("format")
-                                                            ),
-                                                            inner: BoundVar(0, 0)
-                                                        }
-                                                    )
-                                                ),
-                                                Const(
-                                                    ByteSpan {
-                                                        start: ByteIndex(556),
-                                                        end: ByteIndex(562)
-                                                    },
-                                                    Int(2, Unsigned(U8))
-                                                )
+                                                Int(2, Unsigned(U8))
                                             )
                                         ),
                                         Var(

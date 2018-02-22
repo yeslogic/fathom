@@ -422,15 +422,15 @@ pub enum Type {
     App(ByteSpan, RcType, Vec<RcType>),
 
     /// An array of the specified type, with a size: eg. `[T; n]`
-    Array(ByteSpan, RcType, RcIExpr),
+    Array(ByteSpan, RcType, RcExpr),
     /// Conditional types: eg. `cond { field : pred => T, ... }`
-    Cond(ByteSpan, Vec<Field<(RcCExpr, RcType)>>),
+    Cond(ByteSpan, Vec<Field<(RcExpr, RcType)>>),
     /// A struct type, with fields: eg. `struct { variant : T, ... }`
     Struct(ByteSpan, Vec<Field<RcType>>),
     /// A type that is constrained by a predicate: eg. `T where x => x == 3`
-    Assert(ByteSpan, RcType, RcCExpr),
+    Assert(ByteSpan, RcType, RcExpr),
     /// An interpreted type
-    Interp(ByteSpan, RcType, RcCExpr, RcType),
+    Interp(ByteSpan, RcType, RcExpr, RcType),
 
     /// An array, eg. `[T]`
     HostArray(RcType),
@@ -513,7 +513,7 @@ impl RcType {
     ///
     /// Returns `None` if the type is not a union or the field is not
     /// present in the union.
-    pub fn lookup_variant(&self, name: &Ident) -> Option<&(RcCExpr, RcType)> {
+    pub fn lookup_variant(&self, name: &Ident) -> Option<&(RcExpr, RcType)> {
         match *self.inner {
             Type::Cond(_, ref options) => lookup_field(options, name),
             _ => None,
@@ -797,7 +797,7 @@ impl RcType {
 
             concrete::Type::Array(span, ref elem_ty, ref size_expr) => {
                 let elem_ty = RcType::from_concrete(&**elem_ty)?;
-                let size_expr = RcIExpr::from_concrete(&**size_expr)?;
+                let size_expr = RcExpr::from_concrete(&**size_expr)?;
 
                 Ok(Type::Array(span, elem_ty, size_expr).into())
             }
@@ -805,13 +805,11 @@ impl RcType {
                 let options = options
                     .iter()
                     .map(|variant| {
-                        let ty = RcIExpr::from_concrete(&variant.value.0)?;
-
                         Ok(Field {
                             doc: variant.doc.join("\n").into(),
                             name: Ident::from(variant.name),
                             value: (
-                                CExpr::Inf(ty).into(),
+                                RcExpr::from_concrete(&variant.value.0)?,
                                 RcType::from_concrete(&variant.value.1)?,
                             ),
                         })
@@ -836,22 +834,22 @@ impl RcType {
             }
             concrete::Type::Where(span, ref ty, lo2, param_name, ref pred_expr) => {
                 let ty = RcType::from_concrete(&**ty)?;
-                let pred_fn = RcIExpr::lam(
+                let pred_fn = RcExpr::lam(
                     ByteSpan::new(lo2, span.end()),
                     vec![Named::new(Name::user(param_name), ty.repr())],
-                    RcIExpr::from_concrete(&**pred_expr)?,
+                    RcExpr::from_concrete(&**pred_expr)?,
                 );
 
-                Ok(Type::Assert(span, ty, CExpr::Inf(pred_fn).into()).into())
+                Ok(Type::Assert(span, ty, pred_fn).into())
             }
             concrete::Type::Compute(span, repr_ty, ref expr) => {
                 let empty: RcType = Type::Const(TypeConst::Empty).into();
                 let repr_ty = Type::Const(repr_ty).into();
-                let conv_fn = CExpr::Inf(RcIExpr::lam(
+                let conv_fn = RcExpr::lam(
                     span,
                     vec![Named::new(Name::Abstract, empty.repr())],
-                    RcIExpr::from_concrete(&**expr)?,
-                )).into();
+                    RcExpr::from_concrete(&**expr)?,
+                );
 
                 Ok(Type::Interp(span, empty.into(), conv_fn, repr_ty).into())
             }
@@ -935,139 +933,64 @@ pub enum Binop {
     Div,
 }
 
-/// Checkable host expressions
+/// Expressions
 #[derive(Debug, Clone, PartialEq)]
-pub enum CExpr {
-    /// Variant introduction, eg: `.variant1 x`
-    Intro(ByteSpan, Ident, RcCExpr),
-    /// Array literals. eg: `[1, 2, 3]`
-    Array(ByteSpan, Vec<RcCExpr>),
-    /// Inferred expressions
-    Inf(RcIExpr),
-}
-
-#[derive(Clone, PartialEq)]
-pub struct RcCExpr {
-    pub inner: Rc<CExpr>,
-}
-
-impl From<CExpr> for RcCExpr {
-    fn from(src: CExpr) -> RcCExpr {
-        RcCExpr {
-            inner: Rc::new(src),
-        }
-    }
-}
-
-impl fmt::Debug for RcCExpr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&self.inner, f)
-    }
-}
-
-impl RcCExpr {
-    /// Replace occurrences of the free variables that exist as keys on
-    /// `substs` with their corresponding types.
-    pub fn substitute(&mut self, substs: &Substitutions) {
-        match *Rc::make_mut(&mut self.inner) {
-            CExpr::Intro(_, _, ref mut expr) => {
-                expr.substitute(substs);
-            }
-            CExpr::Array(_, ref mut elems) => for elem in elems {
-                elem.substitute(substs);
-            },
-            CExpr::Inf(ref mut iexpr) => {
-                iexpr.substitute(substs);
-            }
-        }
-    }
-
-    pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
-        match *Rc::make_mut(&mut self.inner) {
-            CExpr::Intro(_, _, ref mut expr) => {
-                expr.abstract_names_at(names, scope);
-            }
-            CExpr::Array(_, ref mut elems) => for elem in elems {
-                elem.abstract_names_at(names, scope);
-            },
-            CExpr::Inf(ref mut iexpr) => {
-                iexpr.abstract_names_at(names, scope);
-            }
-        }
-    }
-
-    pub fn abstract_names(&mut self, names: &[Name]) {
-        self.abstract_names_at(names, ScopeIndex(0));
-    }
-
-    pub fn from_concrete(src: &concrete::Expr) -> Result<RcCExpr, ()> {
-        match *src {
-            concrete::Expr::Array(span, ref elems) => {
-                let elems = elems
-                    .iter()
-                    .map(RcCExpr::from_concrete)
-                    .collect::<Result<_, _>>()?;
-
-                Ok(CExpr::Array(span, elems).into())
-            }
-            _ => Ok(CExpr::Inf(RcIExpr::from_concrete(src)?).into()),
-        }
-    }
-}
-
-/// Inferrable host expressions
-#[derive(Debug, Clone, PartialEq)]
-pub enum IExpr {
+pub enum Expr {
     /// An expression annotated by a type, ie. `x : u32`
-    Ann(ByteSpan, RcCExpr, RcType),
+    Ann(ByteSpan, RcExpr, RcType),
     /// A constant value
     Const(ByteSpan, Const),
     /// A variable, referring to an integer that exists in the current
     /// context: eg. `len`, `num_tables`
     Var(ByteSpan, Var),
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    Lam(ByteSpan, Vec<Named<Name, RcType>>, RcIExpr),
+    Lam(ByteSpan, Vec<Named<Name, RcType>>, RcExpr),
     /// Application, eg: `f(x, ..)`
-    App(ByteSpan, RcIExpr, Vec<RcCExpr>),
+    App(ByteSpan, RcExpr, Vec<RcExpr>),
+
+    /// Variant introduction, eg: `.variant1 x`
+    Intro(ByteSpan, Ident, RcExpr),
+    /// Array literals. eg: `[1, 2, 3]`
+    Array(ByteSpan, Vec<RcExpr>),
 
     /// An unary operator expression
-    Unop(ByteSpan, Unop, RcIExpr),
+    Unop(ByteSpan, Unop, RcExpr),
     /// A binary operator expression
-    Binop(ByteSpan, Binop, RcIExpr, RcIExpr),
+    Binop(ByteSpan, Binop, RcExpr, RcExpr),
     /// A struct initialization expression
-    Struct(Vec<Field<RcIExpr>>),
+    Struct(Vec<Field<RcExpr>>),
     /// Field projection, eg: `x.field`
-    Proj(ByteSpan, RcIExpr, Ident),
+    Proj(ByteSpan, RcExpr, Ident),
     /// Array index, eg: `x[i]`
-    Subscript(ByteSpan, RcIExpr, RcIExpr),
+    Subscript(ByteSpan, RcExpr, RcExpr),
     /// Cast expression, eg: `x as u32`
-    Cast(ByteSpan, RcIExpr, RcType),
+    Cast(ByteSpan, RcExpr, RcType),
 }
 
 #[derive(Clone, PartialEq)]
-pub struct RcIExpr {
-    pub inner: Rc<IExpr>,
+pub struct RcExpr {
+    pub inner: Rc<Expr>,
 }
 
-impl From<IExpr> for RcIExpr {
-    fn from(src: IExpr) -> RcIExpr {
-        RcIExpr {
+impl From<Expr> for RcExpr {
+    fn from(src: Expr) -> RcExpr {
+        RcExpr {
             inner: Rc::new(src),
         }
     }
 }
 
-impl fmt::Debug for RcIExpr {
+impl fmt::Debug for RcExpr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.inner, f)
     }
 }
 
-impl RcIExpr {
+impl RcExpr {
     /// Lambda abstraction, eg: `\(x : T, ..) -> x`
-    pub fn lam<E1>(span: ByteSpan, params: Vec<Named<Name, RcType>>, body_expr: E1) -> RcIExpr
+    pub fn lam<E1>(span: ByteSpan, params: Vec<Named<Name, RcType>>, body_expr: E1) -> RcExpr
     where
-        E1: Into<RcIExpr>,
+        E1: Into<RcExpr>,
     {
         let mut body_expr = body_expr.into();
 
@@ -1079,16 +1002,16 @@ impl RcIExpr {
             body_expr.abstract_names(&param_names[..]);
         }
 
-        IExpr::Lam(span, params, body_expr).into()
+        Expr::Lam(span, params, body_expr).into()
     }
 
     /// Attempt to lookup the value of a field
     ///
     /// Returns `None` if the expression is not a struct or the field is not
     /// present in the struct.
-    pub fn lookup_field(&self, name: &Ident) -> Option<&RcIExpr> {
+    pub fn lookup_field(&self, name: &Ident) -> Option<&RcExpr> {
         match *self.inner {
-            IExpr::Struct(ref fields) => lookup_field(fields, name),
+            Expr::Struct(ref fields) => lookup_field(fields, name),
             _ => None,
         }
     }
@@ -1097,23 +1020,23 @@ impl RcIExpr {
     /// `substs` with their corresponding types.
     pub fn substitute(&mut self, substs: &Substitutions) {
         match *Rc::make_mut(&mut self.inner) {
-            IExpr::Ann(_, ref mut expr, ref mut ty) => {
+            Expr::Ann(_, ref mut expr, ref mut ty) => {
                 expr.substitute(substs);
                 ty.substitute(substs);
             }
-            IExpr::Var(_, Var::Free(ref name)) => match substs.get(name) {
+            Expr::Var(_, Var::Free(ref name)) => match substs.get(name) {
                 None => {}
                 Some(ty) => panic!("Expected to substitute an expression, but found {:?}", ty),
             },
-            IExpr::Var(_, Var::Bound(_)) | IExpr::Const(_, _) => {}
-            IExpr::Lam(_, ref mut args, ref mut body_expr) => {
+            Expr::Var(_, Var::Bound(_)) | Expr::Const(_, _) => {}
+            Expr::Lam(_, ref mut args, ref mut body_expr) => {
                 for arg in args {
                     arg.inner.substitute(substs);
                 }
 
                 body_expr.substitute(substs);
             }
-            IExpr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
+            Expr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
                 fn_expr.substitute(substs);
 
                 for arg_expr in arg_exprs {
@@ -1121,21 +1044,28 @@ impl RcIExpr {
                 }
             }
 
-            IExpr::Unop(_, _, ref mut expr) | IExpr::Proj(_, ref mut expr, _) => {
+            Expr::Intro(_, _, ref mut expr) => {
                 expr.substitute(substs);
             }
-            IExpr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
+            Expr::Array(_, ref mut elems) => for elem in elems {
+                elem.substitute(substs);
+            },
+
+            Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
+                expr.substitute(substs);
+            }
+            Expr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
                 lhs_expr.substitute(substs);
                 rhs_expr.substitute(substs);
             }
-            IExpr::Struct(ref mut fields) => for field in fields {
+            Expr::Struct(ref mut fields) => for field in fields {
                 field.value.substitute(substs);
             },
-            IExpr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
+            Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
                 array_expr.substitute(substs);
                 index_expr.substitute(substs);
             }
-            IExpr::Cast(_, ref mut src_expr, ref mut dst_ty) => {
+            Expr::Cast(_, ref mut src_expr, ref mut dst_ty) => {
                 src_expr.substitute(substs);
                 dst_ty.substitute(substs);
             }
@@ -1144,20 +1074,20 @@ impl RcIExpr {
 
     pub fn abstract_names_at(&mut self, names: &[Name], scope: ScopeIndex) {
         match *Rc::make_mut(&mut self.inner) {
-            IExpr::Ann(_, ref mut expr, ref mut ty) => {
+            Expr::Ann(_, ref mut expr, ref mut ty) => {
                 expr.abstract_names_at(names, scope);
                 ty.abstract_names_at(names, scope);
             }
-            IExpr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
-            IExpr::Const(_, _) => {}
-            IExpr::Lam(_, ref mut args, ref mut body_expr) => {
+            Expr::Var(_, ref mut var) => var.abstract_names_at(names, scope),
+            Expr::Const(_, _) => {}
+            Expr::Lam(_, ref mut args, ref mut body_expr) => {
                 for arg in args {
                     arg.inner.abstract_names_at(names, scope);
                 }
 
                 body_expr.abstract_names_at(names, scope.succ());
             }
-            IExpr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
+            Expr::App(_, ref mut fn_expr, ref mut arg_exprs) => {
                 fn_expr.abstract_names_at(names, scope);
 
                 for arg_expr in arg_exprs {
@@ -1165,21 +1095,28 @@ impl RcIExpr {
                 }
             }
 
-            IExpr::Unop(_, _, ref mut expr) | IExpr::Proj(_, ref mut expr, _) => {
+            Expr::Intro(_, _, ref mut expr) => {
                 expr.abstract_names_at(names, scope);
             }
-            IExpr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
+            Expr::Array(_, ref mut elems) => for elem in elems {
+                elem.abstract_names_at(names, scope);
+            },
+
+            Expr::Unop(_, _, ref mut expr) | Expr::Proj(_, ref mut expr, _) => {
+                expr.abstract_names_at(names, scope);
+            }
+            Expr::Binop(_, _, ref mut lhs_expr, ref mut rhs_expr) => {
                 lhs_expr.abstract_names_at(names, scope);
                 rhs_expr.abstract_names_at(names, scope);
             }
-            IExpr::Struct(ref mut fields) => for field in fields {
+            Expr::Struct(ref mut fields) => for field in fields {
                 field.value.abstract_names_at(names, scope);
             },
-            IExpr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
+            Expr::Subscript(_, ref mut array_expr, ref mut index_expr) => {
                 array_expr.abstract_names_at(names, scope);
                 index_expr.abstract_names_at(names, scope);
             }
-            IExpr::Cast(_, ref mut src_expr, ref mut dst_ty) => {
+            Expr::Cast(_, ref mut src_expr, ref mut dst_ty) => {
                 src_expr.abstract_names_at(names, scope);
                 dst_ty.abstract_names_at(names, scope);
             }
@@ -1190,48 +1127,56 @@ impl RcIExpr {
         self.abstract_names_at(names, ScopeIndex(0));
     }
 
-    pub fn from_concrete(src: &concrete::Expr) -> Result<RcIExpr, ()> {
+    pub fn from_concrete(src: &concrete::Expr) -> Result<RcExpr, ()> {
         match *src {
-            concrete::Expr::Const(span, c) => Ok(IExpr::Const(span, c).into()),
+            concrete::Expr::Const(span, c) => Ok(Expr::Const(span, c).into()),
             concrete::Expr::Ann(span, ref expr, ty) => {
-                let expr = RcCExpr::from_concrete(&**expr)?;
+                let expr = RcExpr::from_concrete(&**expr)?;
                 let ty = Type::Const(ty).into();
 
-                Ok(IExpr::Ann(span, expr, ty).into())
+                Ok(Expr::Ann(span, expr, ty).into())
             }
             concrete::Expr::Var(span, name) => {
-                Ok(IExpr::Var(span, Var::free(Name::user(name))).into())
+                Ok(Expr::Var(span, Var::free(Name::user(name))).into())
+            }
+
+            concrete::Expr::Array(span, ref elems) => {
+                let elems = elems
+                    .iter()
+                    .map(RcExpr::from_concrete)
+                    .collect::<Result<_, _>>()?;
+
+                Ok(Expr::Array(span, elems).into())
             }
 
             concrete::Expr::Unop(span, op, ref expr) => {
-                let expr = RcIExpr::from_concrete(&**expr)?;
+                let expr = RcExpr::from_concrete(&**expr)?;
 
-                Ok(IExpr::Unop(span, op, expr).into())
+                Ok(Expr::Unop(span, op, expr).into())
             }
             concrete::Expr::Binop(span, op, ref lhs_expr, ref rhs_expr) => {
-                let lhs_expr = RcIExpr::from_concrete(&**lhs_expr)?;
-                let rhs_expr = RcIExpr::from_concrete(&**rhs_expr)?;
+                let lhs_expr = RcExpr::from_concrete(&**lhs_expr)?;
+                let rhs_expr = RcExpr::from_concrete(&**rhs_expr)?;
 
-                Ok(IExpr::Binop(span, op, lhs_expr, rhs_expr).into())
+                Ok(Expr::Binop(span, op, lhs_expr, rhs_expr).into())
             }
-            concrete::Expr::Array(_, _) => Err(()),
             concrete::Expr::Proj(span, ref struct_expr, field_name) => {
-                let struct_expr = RcIExpr::from_concrete(&**struct_expr)?;
+                let struct_expr = RcExpr::from_concrete(&**struct_expr)?;
                 let field_name = String::from(field_name);
 
-                Ok(IExpr::Proj(span, struct_expr, Ident::from(field_name)).into())
+                Ok(Expr::Proj(span, struct_expr, Ident::from(field_name)).into())
             }
             concrete::Expr::Subscript(span, ref array_expr, ref index_expr) => {
-                let array_expr = RcIExpr::from_concrete(&**array_expr)?;
-                let index_expr = RcIExpr::from_concrete(&**index_expr)?;
+                let array_expr = RcExpr::from_concrete(&**array_expr)?;
+                let index_expr = RcExpr::from_concrete(&**index_expr)?;
 
-                Ok(IExpr::Subscript(span, array_expr, index_expr).into())
+                Ok(Expr::Subscript(span, array_expr, index_expr).into())
             }
             concrete::Expr::Cast(span, ref expr, ty) => {
-                let expr = RcIExpr::from_concrete(&**expr)?;
+                let expr = RcExpr::from_concrete(&**expr)?;
                 let ty = Type::Const(ty).into();
 
-                Ok(IExpr::Cast(span, expr, ty).into())
+                Ok(Expr::Cast(span, expr, ty).into())
             }
             concrete::Expr::Error(_) => Err(()),
         }

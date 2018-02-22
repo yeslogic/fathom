@@ -1,6 +1,6 @@
 use codespan::{CodeMap, FileName};
 
-use syntax::core::{Module, RcIExpr, RcType};
+use syntax::core::{Module, RcExpr, RcType};
 use syntax::parse;
 
 #[test]
@@ -16,7 +16,7 @@ fn parse_expr_bool_atomic() {
 
     assert_debug_snapshot!(
         parse_expr_bool_atomic,
-        RcIExpr::from_concrete(&expr).unwrap()
+        RcExpr::from_concrete(&expr).unwrap()
     );
 }
 
@@ -33,7 +33,7 @@ fn parse_expr_bool_operators() {
 
     assert_debug_snapshot!(
         parse_expr_bool_operators,
-        RcIExpr::from_concrete(&expr).unwrap()
+        RcExpr::from_concrete(&expr).unwrap()
     );
 }
 
@@ -46,7 +46,7 @@ fn parse_add_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_add_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_add_expr, RcExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn parse_sub_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_sub_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_sub_expr, RcExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn parse_add_expr_mixed() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_add_expr_mixed, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_add_expr_mixed, RcExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn parse_mul_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_mul_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_mul_expr, RcExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn parse_div_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_div_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_div_expr, RcExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn parse_mul_expr_mixed() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_mul_expr_mixed, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_mul_expr_mixed, RcExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -120,7 +120,7 @@ fn parse_mixed_arithmetic_expr() {
 
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr,
-        RcIExpr::from_concrete(&expr).unwrap()
+        RcExpr::from_concrete(&expr).unwrap()
     );
 }
 
@@ -135,7 +135,7 @@ fn parse_mixed_arithmetic_expr_parenthesized() {
 
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr_parenthesized,
-        RcIExpr::from_concrete(&expr).unwrap()
+        RcExpr::from_concrete(&expr).unwrap()
     );
 }
 
@@ -148,7 +148,7 @@ fn parse_proj_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_proj_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_proj_expr, RcExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]
@@ -160,7 +160,7 @@ fn parse_subscript_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_subscript_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_subscript_expr, RcExpr::from_concrete(&expr).unwrap());
 }
 
 #[test]

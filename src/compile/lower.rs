@@ -256,60 +256,55 @@ fn lower_repr_ty(path: &Path, ty: &core::RcType) -> RcType {
 ///
 /// * `path` - path to the parent struct or union
 /// * `expr` - the expression to be lowered
-fn lower_cexpr(path: &Path, expr: &core::RcCExpr) -> RcExpr {
+fn lower_expr(path: &Path, expr: &core::RcExpr) -> RcExpr {
     match *expr.inner {
-        core::CExpr::Intro(_, _, _) => unimplemented!(),
-        core::CExpr::Array(_, ref elems) => {
-            Expr::Array(elems.iter().map(|elem| lower_cexpr(path, elem)).collect()).into()
-        }
-        core::CExpr::Inf(ref iexpr) => lower_iexpr(path, iexpr),
-    }
-}
-
-fn lower_iexpr(path: &Path, expr: &core::RcIExpr) -> RcExpr {
-    match *expr.inner {
-        core::IExpr::Ann(_, ref expr, ref ty) => {
-            let lowered_expr = lower_cexpr(path, expr);
+        core::Expr::Ann(_, ref expr, ref ty) => {
+            let lowered_expr = lower_expr(path, expr);
             let lowered_ty = lower_repr_ty(path, ty);
 
             Expr::Ann(lowered_expr, lowered_ty).into()
         }
-        core::IExpr::Const(_, c) => Expr::Const(c).into(),
-        core::IExpr::Var(_, ref var) => Expr::Var(var.clone()).into(),
-        core::IExpr::Lam(_, ref params, ref body_expr) => {
+        core::Expr::Const(_, c) => Expr::Const(c).into(),
+        core::Expr::Var(_, ref var) => Expr::Var(var.clone()).into(),
+        core::Expr::Lam(_, ref params, ref body_expr) => {
             let lowered_params = params
                 .iter()
                 .map(|param| Named::new(param.name.clone(), lower_repr_ty(path, &param.inner)))
                 .collect();
 
-            Expr::Lam(lowered_params, lower_iexpr(path, body_expr)).into()
+            Expr::Lam(lowered_params, lower_expr(path, body_expr)).into()
         }
-        core::IExpr::App(_, ref fn_expr, ref arg_exprs) => {
+        core::Expr::App(_, ref fn_expr, ref arg_exprs) => {
             let lowered_arg_exprs = arg_exprs
                 .iter()
-                .map(|expr| lower_cexpr(path, expr))
+                .map(|expr| lower_expr(path, expr))
                 .collect();
 
-            Expr::App(lower_iexpr(path, fn_expr), lowered_arg_exprs).into()
+            Expr::App(lower_expr(path, fn_expr), lowered_arg_exprs).into()
         }
 
-        core::IExpr::Unop(_, op, ref expr) => Expr::Unop(op, lower_iexpr(path, expr)).into(),
-        core::IExpr::Binop(_, op, ref lhs, ref rhs) => {
-            Expr::Binop(op, lower_iexpr(path, lhs), lower_iexpr(path, rhs)).into()
+        core::Expr::Intro(_, _, _) => unimplemented!(),
+        core::Expr::Array(_, ref elems) => {
+            Expr::Array(elems.iter().map(|elem| lower_expr(path, elem)).collect()).into()
         }
-        core::IExpr::Struct(ref fields) => {
+
+        core::Expr::Unop(_, op, ref expr) => Expr::Unop(op, lower_expr(path, expr)).into(),
+        core::Expr::Binop(_, op, ref lhs, ref rhs) => {
+            Expr::Binop(op, lower_expr(path, lhs), lower_expr(path, rhs)).into()
+        }
+        core::Expr::Struct(ref fields) => {
             let lowered_fields = lower_row(path, fields, |field_path, expr| {
-                lower_iexpr(&field_path, expr)
+                lower_expr(&field_path, expr)
             });
 
             Expr::Struct(path.clone(), lowered_fields).into()
         }
-        core::IExpr::Proj(_, ref expr, ref field_name) => {
-            Expr::Proj(lower_iexpr(path, expr), field_name.clone()).into()
+        core::Expr::Proj(_, ref expr, ref field_name) => {
+            Expr::Proj(lower_expr(path, expr), field_name.clone()).into()
         }
-        core::IExpr::Subscript(_, _, _) => unimplemented!(),
-        core::IExpr::Cast(_, ref src_expr, ref dst_ty) => {
-            Expr::Cast(lower_iexpr(path, src_expr), lower_repr_ty(path, dst_ty)).into()
+        core::Expr::Subscript(_, _, _) => unimplemented!(),
+        core::Expr::Cast(_, ref src_expr, ref dst_ty) => {
+            Expr::Cast(lower_expr(path, src_expr), lower_repr_ty(path, dst_ty)).into()
         }
     }
 }
@@ -364,9 +359,9 @@ fn struct_parser(path: &Path, fields: &[Field<core::RcType>]) -> RcParseExpr {
 ///
 /// * `path` - path to the parent struct or union
 /// * `fields` - the fields to be used in the parser
-fn cond_parser(path: &Path, options: &[Field<(core::RcCExpr, core::RcType)>]) -> RcParseExpr {
-    let lower_option = |option: &Field<(core::RcCExpr, core::RcType)>| {
-        let pred_expr = lower_cexpr(path, &option.value.0);
+fn cond_parser(path: &Path, options: &[Field<(core::RcExpr, core::RcType)>]) -> RcParseExpr {
+    let lower_option = |option: &Field<(core::RcExpr, core::RcType)>| {
+        let pred_expr = lower_expr(path, &option.value.0);
         let variant_parser = ParseExpr::Sequence(
             vec![
                 Named::new(Ident::from("x"), ty_parser(path, &option.value.1)),
@@ -401,7 +396,7 @@ fn ty_parser(path: &Path, ty: &core::RcType) -> RcParseExpr {
         core::Type::Array(_, ref elem_ty, ref size_expr) => {
             let elem_path = path.append_child("Elem");
             let elem_parser = ty_parser(&elem_path, elem_ty);
-            let size_expr = lower_iexpr(path, size_expr);
+            let size_expr = lower_expr(path, size_expr);
 
             ParseExpr::Repeat(elem_parser, RepeatBound::Exact(size_expr)).into()
         }
@@ -409,12 +404,12 @@ fn ty_parser(path: &Path, ty: &core::RcType) -> RcParseExpr {
         core::Type::Struct(_, ref fields) => struct_parser(path, fields),
         core::Type::Assert(_, ref ty, ref pred_expr) => {
             let ty_parser = ty_parser(path, ty);
-            let pred_expr = lower_cexpr(path, pred_expr);
+            let pred_expr = lower_expr(path, pred_expr);
 
             ParseExpr::Assert(ty_parser, pred_expr).into()
         }
         core::Type::Interp(_, ref ty, ref conv_expr, _) => {
-            let fn_expr = lower_cexpr(path, conv_expr);
+            let fn_expr = lower_expr(path, conv_expr);
             let parser_expr = ty_parser(path, ty);
 
             ParseExpr::Apply(fn_expr, parser_expr).into()

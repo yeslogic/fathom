@@ -5,7 +5,7 @@ use syntax::parse;
 use super::*;
 
 mod infer_ty {
-    use syntax::core::{FloatType, RcIExpr, SignedType, Type, TypeConst, UnsignedType};
+    use syntax::core::{FloatType, RcExpr, SignedType, Type, TypeConst, UnsignedType};
 
     use super::*;
 
@@ -17,7 +17,7 @@ mod infer_ty {
             assert!(errors.is_empty());
 
             let ctx = Context::new();
-            let expr = RcIExpr::from_concrete(&expr).unwrap();
+            let expr = RcExpr::from_concrete(&expr).unwrap();
             let expected_ty = Type::Const($expected).into();
 
             assert_eq!(infer_ty(&ctx, &expr), Ok(expected_ty));
@@ -29,7 +29,7 @@ mod infer_ty {
             assert!(errors.is_empty());
 
             let ctx = Context::new();
-            let expr = RcIExpr::from_concrete(&expr).unwrap();
+            let expr = RcExpr::from_concrete(&expr).unwrap();
 
             assert!(infer_ty(&ctx, &expr).is_err());
         }};

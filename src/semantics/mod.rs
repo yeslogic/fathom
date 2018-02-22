@@ -3,8 +3,8 @@
 use std::rc::Rc;
 
 use name::Name;
-use syntax::core::{Binop, Context, Field, FloatType, Kind, Module, RcCExpr, RcIExpr, RcKind,
-                   RcType, Scope, SignedType, Type, TypeConst, UnsignedType};
+use syntax::core::{Binop, Context, Expr, Field, FloatType, Kind, Module, RcExpr, RcKind, RcType,
+                   Scope, SignedType, Type, TypeConst, UnsignedType};
 use var::{Named, Var};
 
 #[cfg(test)]
@@ -100,13 +100,10 @@ impl Repr<RcType> for RcType {
 // Typing
 
 /// Check that an expression has the given type in the context
-pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(), TypeError> {
-    use syntax::core::CExpr;
-    use syntax::core::Type;
-
+pub fn check_ty(ctx: &Context, expr: &RcExpr, expected_ty: &RcType) -> Result<(), TypeError> {
     match *expr.inner {
         // Variant introduction
-        CExpr::Intro(_, ref variant_name, ref expr) => {
+        Expr::Intro(_, ref variant_name, ref expr) => {
             // FIXME: Kindcheck union_ty
             match expected_ty.lookup_host_variant(variant_name).cloned() {
                 Some(variant_ty) => {
@@ -122,7 +119,7 @@ pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(
         }
 
         // Empty arrays
-        CExpr::Array(_, ref elems) => match *expected_ty.inner {
+        Expr::Array(_, ref elems) => match *expected_ty.inner {
             Type::HostArray(ref elem_ty) => elems
                 .iter()
                 .map(|elem| check_ty(ctx, elem, elem_ty))
@@ -131,13 +128,13 @@ pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(
         },
 
         // Inferrable expressions
-        CExpr::Inf(ref iexpr) => {
-            let inferred_ty = infer_ty(ctx, iexpr)?;
+        _ => {
+            let inferred_ty = infer_ty(ctx, expr)?;
             if &inferred_ty == expected_ty {
                 Ok(())
             } else {
                 Err(TypeError::InferenceMismatch {
-                    expr: iexpr.clone(),
+                    expr: expr.clone(),
                     expected: expected_ty.clone(),
                     found: inferred_ty,
                 })
@@ -147,25 +144,23 @@ pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(
 }
 
 /// Infer the type of an expression in the context
-pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
-    use syntax::core::{IExpr, Type, TypeConst, Unop};
-
+pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
     match *expr.inner {
         // Annotated types
-        IExpr::Ann(_, ref expr, ref ty) => {
+        Expr::Ann(_, ref expr, ref ty) => {
             check_ty(ctx, expr, ty)?;
             Ok(ty.clone())
         }
 
         // Constants are easy!
-        IExpr::Const(_, c) => Ok(Type::Const(c.ty_const_of()).into()),
+        Expr::Const(_, c) => Ok(Type::Const(c.ty_const_of()).into()),
 
         // Variables
-        IExpr::Var(_, Var::Free(ref name)) => Err(TypeError::UnboundVariable {
+        Expr::Var(_, Var::Free(ref name)) => Err(TypeError::UnboundVariable {
             expr: expr.clone(),
             name: name.clone(),
         }),
-        IExpr::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_ty(i) {
+        Expr::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_ty(i) {
             Ok((_, ty)) => Ok(ty.clone()),
             Err(scope) => Err(TypeError::ExprBindingExpected {
                 expr: expr.clone(),
@@ -174,7 +169,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
         },
 
         // Abstraction
-        IExpr::Lam(_, ref params, ref body_expr) => {
+        Expr::Lam(_, ref params, ref body_expr) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
             ctx.extend(Scope::ExprLam(params.clone()));
@@ -183,8 +178,13 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
             Ok(Type::Arrow(param_tys, infer_ty(&ctx, body_expr)?).into())
         }
 
+        // TODO: Better error
+        Expr::Intro(_, _, _) => unimplemented!(),
+        // TODO: Infer types
+        Expr::Array(_, _) => unimplemented!(),
+
         // Applications
-        IExpr::App(_, ref fn_expr, ref arg_exprs) => {
+        Expr::App(_, ref fn_expr, ref arg_exprs) => {
             let fn_ty = infer_ty(ctx, fn_expr)?;
 
             if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty.inner {
@@ -207,8 +207,9 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
         }
 
         // Unary operators
-        IExpr::Unop(_, op, ref operand_expr) => {
+        Expr::Unop(_, op, ref operand_expr) => {
             use syntax::core::Type::Const;
+            use syntax::core::Unop;
 
             let operand_ty = infer_ty(ctx, operand_expr)?;
 
@@ -230,12 +231,12 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
         }
 
         // Binary operators
-        IExpr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
+        Expr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
             use syntax::core::Type::{Const, HostArray};
 
             fn binop_err(
                 context: Binop,
-                expr: &RcIExpr,
+                expr: &RcExpr,
                 lhs_ty: RcType,
                 rhs_ty: RcType,
             ) -> TypeError {
@@ -289,7 +290,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
         }
 
         // Struct expressions
-        IExpr::Struct(ref fields) => {
+        Expr::Struct(ref fields) => {
             let field_tys = fields
                 .iter()
                 .map(|field| {
@@ -305,7 +306,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
         }
 
         // Field projection
-        IExpr::Proj(_, ref struct_expr, ref field_name) => {
+        Expr::Proj(_, ref struct_expr, ref field_name) => {
             let struct_ty = infer_ty(ctx, struct_expr)?;
 
             match struct_ty.lookup_host_field(field_name).cloned() {
@@ -319,7 +320,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
         }
 
         // Array subscript
-        IExpr::Subscript(_, ref array_expr, ref index_expr) => {
+        Expr::Subscript(_, ref array_expr, ref index_expr) => {
             let index_ty = infer_ty(ctx, index_expr)?;
             match *index_ty.inner {
                 Type::Const(TypeConst::Unsigned(_)) => {}
@@ -344,7 +345,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
         }
 
         // Cast Expressions
-        IExpr::Cast(_, ref src_expr, ref dst_ty) => {
+        Expr::Cast(_, ref src_expr, ref dst_ty) => {
             let src_ty = infer_ty(ctx, src_expr)?;
 
             match *dst_ty.inner {

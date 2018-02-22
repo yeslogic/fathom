@@ -1,5 +1,5 @@
 use name::{Ident, Name};
-use syntax::core::{Binop, RcCExpr, RcIExpr, RcKind, RcType, Scope};
+use syntax::core::{Binop, RcExpr, RcKind, RcType, Scope};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExpectedType {
@@ -15,42 +15,42 @@ pub enum ExpectedType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeError {
     /// A variable of the requested name was not bound in this scope
-    UnboundVariable { expr: RcIExpr, name: Name },
+    UnboundVariable { expr: RcExpr, name: Name },
     /// Variable bound in the context was not at the value level
-    ExprBindingExpected { expr: RcIExpr, found: Scope },
+    ExprBindingExpected { expr: RcExpr, found: Scope },
     /// One type was expected, but another was found
     Mismatch {
-        expr: RcIExpr,
+        expr: RcExpr,
         found: RcType,
         expected: ExpectedType,
     },
     /// One type was expected, but another was found
     InferenceMismatch {
-        expr: RcIExpr,
+        expr: RcExpr,
         found: RcType,
         expected: RcType,
     },
     /// Unexpected operand types in a binary operator expression
     BinaryOperands {
         context: Binop,
-        expr: RcIExpr,
+        expr: RcExpr,
         lhs_ty: RcType,
         rhs_ty: RcType,
     },
     /// A field was missing when projecting on a record
     MissingField {
-        expr: RcIExpr,
+        expr: RcExpr,
         struct_ty: RcType,
         field_name: Ident,
     },
     /// A variant was missing when introducing on a union
     MissingVariant {
-        expr: RcCExpr,
+        expr: RcExpr,
         union_ty: RcType,
         variant_name: Ident,
     },
     /// An invalid type was supplied to the cast expression
-    InvalidCastType { expr: RcIExpr, found: RcType },
+    InvalidCastType { expr: RcExpr, found: RcType },
 }
 
 #[derive(Debug, Clone, PartialEq)]

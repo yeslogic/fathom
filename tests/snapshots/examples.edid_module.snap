@@ -28,53 +28,51 @@ Module {
                                     )
                                 )
                             ),
-                            Inf(
-                                Lam(
-                                    ByteSpan {
-                                        start: ByteIndex(71),
-                                        end: ByteIndex(110)
-                                    },
-                                    [
-                                        Named {
-                                            name: User(
-                                                Ident("magic")
-                                            ),
-                                            inner: HostVar(
-                                                Free(
-                                                    User(
-                                                        Ident("u64le")
-                                                    )
+                            Lam(
+                                ByteSpan {
+                                    start: ByteIndex(71),
+                                    end: ByteIndex(110)
+                                },
+                                [
+                                    Named {
+                                        name: User(
+                                            Ident("magic")
+                                        ),
+                                        inner: HostVar(
+                                            Free(
+                                                User(
+                                                    Ident("u64le")
                                                 )
                                             )
-                                        }
-                                    ],
-                                    Binop(
+                                        )
+                                    }
+                                ],
+                                Binop(
+                                    ByteSpan {
+                                        start: ByteIndex(80),
+                                        end: ByteIndex(110)
+                                    },
+                                    Eq,
+                                    Var(
                                         ByteSpan {
                                             start: ByteIndex(80),
+                                            end: ByteIndex(85)
+                                        },
+                                        Bound(
+                                            Named {
+                                                name: User(
+                                                    Ident("magic")
+                                                ),
+                                                inner: BoundVar(0, 0)
+                                            }
+                                        )
+                                    ),
+                                    Const(
+                                        ByteSpan {
+                                            start: ByteIndex(89),
                                             end: ByteIndex(110)
                                         },
-                                        Eq,
-                                        Var(
-                                            ByteSpan {
-                                                start: ByteIndex(80),
-                                                end: ByteIndex(85)
-                                            },
-                                            Bound(
-                                                Named {
-                                                    name: User(
-                                                        Ident("magic")
-                                                    ),
-                                                    inner: BoundVar(0, 0)
-                                                }
-                                            )
-                                        ),
-                                        Const(
-                                            ByteSpan {
-                                                start: ByteIndex(89),
-                                                end: ByteIndex(110)
-                                            },
-                                            Int(72057594037927680, Unsigned(U64))
-                                        )
+                                        Int(72057594037927680, Unsigned(U64))
                                     )
                                 )
                             )
@@ -166,58 +164,56 @@ Module {
                             Const(
                                 Empty
                             ),
-                            Inf(
-                                Lam(
+                            Lam(
+                                ByteSpan {
+                                    start: ByteIndex(552),
+                                    end: ByteIndex(598)
+                                },
+                                [
+                                    Named {
+                                        name: Abstract,
+                                        inner: Const(
+                                            Unit
+                                        )
+                                    }
+                                ],
+                                Binop(
                                     ByteSpan {
-                                        start: ByteIndex(552),
+                                        start: ByteIndex(569),
                                         end: ByteIndex(598)
                                     },
-                                    [
-                                        Named {
-                                            name: Abstract,
-                                            inner: Const(
-                                                Unit
-                                            )
-                                        }
-                                    ],
-                                    Binop(
+                                    Add,
+                                    Cast(
                                         ByteSpan {
                                             start: ByteIndex(569),
-                                            end: ByteIndex(598)
+                                            end: ByteIndex(588)
                                         },
-                                        Add,
-                                        Cast(
+                                        Var(
                                             ByteSpan {
                                                 start: ByteIndex(569),
-                                                end: ByteIndex(588)
+                                                end: ByteIndex(581)
                                             },
-                                            Var(
-                                                ByteSpan {
-                                                    start: ByteIndex(569),
-                                                    end: ByteIndex(581)
-                                                },
-                                                Bound(
-                                                    Named {
-                                                        name: User(
-                                                            Ident("mfg_year_mod")
-                                                        ),
-                                                        inner: BoundVar(2, 0)
-                                                    }
-                                                )
-                                            ),
-                                            Const(
-                                                Unsigned(
-                                                    U16
-                                                )
+                                            Bound(
+                                                Named {
+                                                    name: User(
+                                                        Ident("mfg_year_mod")
+                                                    ),
+                                                    inner: BoundVar(2, 0)
+                                                }
                                             )
                                         ),
                                         Const(
-                                            ByteSpan {
-                                                start: ByteIndex(591),
-                                                end: ByteIndex(598)
-                                            },
-                                            Int(1990, Unsigned(U16))
+                                            Unsigned(
+                                                U16
+                                            )
                                         )
+                                    ),
+                                    Const(
+                                        ByteSpan {
+                                            start: ByteIndex(591),
+                                            end: ByteIndex(598)
+                                        },
+                                        Int(1990, Unsigned(U16))
                                     )
                                 )
                             ),
@@ -341,72 +337,70 @@ Module {
                             Const(
                                 Empty
                             ),
-                            Inf(
-                                Lam(
+                            Lam(
+                                ByteSpan {
+                                    start: ByteIndex(1344),
+                                    end: ByteIndex(1401)
+                                },
+                                [
+                                    Named {
+                                        name: Abstract,
+                                        inner: Const(
+                                            Unit
+                                        )
+                                    }
+                                ],
+                                Binop(
                                     ByteSpan {
-                                        start: ByteIndex(1344),
+                                        start: ByteIndex(1361),
                                         end: ByteIndex(1401)
                                     },
-                                    [
-                                        Named {
-                                            name: Abstract,
-                                            inner: Const(
-                                                Unit
-                                            )
-                                        }
-                                    ],
+                                    Div,
                                     Binop(
                                         ByteSpan {
-                                            start: ByteIndex(1361),
-                                            end: ByteIndex(1401)
+                                            start: ByteIndex(1362),
+                                            end: ByteIndex(1389)
                                         },
-                                        Div,
-                                        Binop(
+                                        Add,
+                                        Cast(
                                             ByteSpan {
                                                 start: ByteIndex(1362),
-                                                end: ByteIndex(1389)
+                                                end: ByteIndex(1378)
                                             },
-                                            Add,
-                                            Cast(
+                                            Var(
                                                 ByteSpan {
                                                     start: ByteIndex(1362),
-                                                    end: ByteIndex(1378)
+                                                    end: ByteIndex(1371)
                                                 },
-                                                Var(
-                                                    ByteSpan {
-                                                        start: ByteIndex(1362),
-                                                        end: ByteIndex(1371)
-                                                    },
-                                                    Bound(
-                                                        Named {
-                                                            name: User(
-                                                                Ident("gamma_mod")
-                                                            ),
-                                                            inner: BoundVar(2, 0)
-                                                        }
-                                                    )
-                                                ),
-                                                Const(
-                                                    Float(
-                                                        F32
-                                                    )
+                                                Bound(
+                                                    Named {
+                                                        name: User(
+                                                            Ident("gamma_mod")
+                                                        ),
+                                                        inner: BoundVar(2, 0)
+                                                    }
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
-                                                    start: ByteIndex(1381),
-                                                    end: ByteIndex(1389)
-                                                },
-                                                Float(100.0, F32)
+                                                Float(
+                                                    F32
+                                                )
                                             )
                                         ),
                                         Const(
                                             ByteSpan {
-                                                start: ByteIndex(1393),
-                                                end: ByteIndex(1401)
+                                                start: ByteIndex(1381),
+                                                end: ByteIndex(1389)
                                             },
                                             Float(100.0, F32)
                                         )
+                                    ),
+                                    Const(
+                                        ByteSpan {
+                                            start: ByteIndex(1393),
+                                            end: ByteIndex(1401)
+                                        },
+                                        Float(100.0, F32)
                                     )
                                 )
                             ),
