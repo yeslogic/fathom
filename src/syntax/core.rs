@@ -405,30 +405,6 @@ pub enum UnsignedType {
     U64,
 }
 
-impl TypeConst {
-    /// Convert a bianary type constant to its corresponding host representation
-    pub fn repr(self) -> TypeConst {
-        match self {
-            TypeConst::Empty => TypeConst::Unit,
-            TypeConst::Error => TypeConst::Bottom,
-            TypeConst::U8 => TypeConst::Unsigned(UnsignedType::U8),
-            TypeConst::I8 => TypeConst::Signed(SignedType::I8),
-            TypeConst::U16(_) => TypeConst::Unsigned(UnsignedType::U16),
-            TypeConst::U24(_) => TypeConst::Unsigned(UnsignedType::U24),
-            TypeConst::U32(_) => TypeConst::Unsigned(UnsignedType::U32),
-            TypeConst::U64(_) => TypeConst::Unsigned(UnsignedType::U64),
-            TypeConst::I16(_) => TypeConst::Signed(SignedType::I16),
-            TypeConst::I24(_) => TypeConst::Signed(SignedType::I24),
-            TypeConst::I32(_) => TypeConst::Signed(SignedType::I32),
-            TypeConst::I64(_) => TypeConst::Signed(SignedType::I64),
-            TypeConst::F32(_) => TypeConst::Float(FloatType::F32),
-            TypeConst::F64(_) => TypeConst::Float(FloatType::F64),
-
-            _ => panic!("Called TypeConst::repr on {:?}", self),
-        }
-    }
-}
-
 /// A binary type
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -569,6 +545,8 @@ impl RcType {
     /// Replace occurrences of the free variables that exist as keys on
     /// `substs` with their corresponding types.
     pub fn substitute(&mut self, substs: &Substitutions) {
+        use semantics::Repr; // FIXME: Blegh - kind of cross-cutting concerns here...
+
         let subst_ty = match *Rc::make_mut(&mut self.inner) {
             Type::Var(_, Var::Free(ref name)) => match substs.get(name) {
                 None => return,
@@ -800,58 +778,9 @@ impl RcType {
         self.instantiate_at(ScopeIndex(0), tys);
     }
 
-    /// Returns the host representation of the binary type
-    pub fn repr(&self) -> RcType {
-        match *self.inner {
-            Type::Var(_, ref v) => Type::HostVar(v.clone()).into(),
-            Type::Const(ty_const) => Type::Const(ty_const.repr()).into(),
-            Type::Lam(span, ref params, ref body_ty) => {
-                let repr_params = params
-                    .iter()
-                    .map(|param| Named::new(param.name.clone(), param.inner.repr()))
-                    .collect();
-
-                Type::Lam(span, repr_params, body_ty.repr()).into()
-            }
-            Type::App(span, ref fn_ty, ref arg_tys) => {
-                let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();
-
-                Type::App(span, fn_ty.repr(), arg_tys).into()
-            }
-
-            Type::Array(_, ref elem_ty, _) => Type::HostArray(elem_ty.repr()).into(),
-            Type::Assert(_, ref ty, _) => ty.repr(),
-            Type::Interp(_, _, _, ref repr_ty) => repr_ty.clone(),
-            Type::Cond(_, ref options) => {
-                let repr_variants = options
-                    .iter()
-                    .map(|variant| Field {
-                        doc: Rc::clone(&variant.doc),
-                        name: variant.name.clone(),
-                        value: variant.value.1.repr(),
-                    })
-                    .collect();
-
-                Type::HostUnion(repr_variants).into()
-            }
-            Type::Struct(_, ref fields) => {
-                let repr_fields = fields
-                    .iter()
-                    .map(|field| Field {
-                        doc: Rc::clone(&field.doc),
-                        name: field.name.clone(),
-                        value: field.value.repr(),
-                    })
-                    .collect();
-
-                Type::HostStruct(repr_fields).into()
-            }
-
-            _ => unimplemented!(),
-        }
-    }
-
     pub fn from_concrete(src: &concrete::Type) -> Result<RcType, ()> {
+        use semantics::Repr; // FIXME: Blegh - kind of cross-cutting concerns here...
+
         match *src {
             concrete::Type::Var(span, name) => {
                 Ok(Type::Var(span, Var::free(Name::user(name))).into())
@@ -916,11 +845,11 @@ impl RcType {
                 Ok(Type::Assert(span, ty, CExpr::Inf(pred_fn).into()).into())
             }
             concrete::Type::Compute(span, repr_ty, ref expr) => {
-                let empty = Type::Const(TypeConst::Empty).into();
+                let empty: RcType = Type::Const(TypeConst::Empty).into();
                 let repr_ty = Type::Const(repr_ty).into();
                 let conv_fn = CExpr::Inf(RcIExpr::lam(
                     span,
-                    vec![Named::new(Name::Abstract, RcType::repr(&empty))],
+                    vec![Named::new(Name::Abstract, empty.repr())],
                     RcIExpr::from_concrete(&**expr)?,
                 )).into();
 

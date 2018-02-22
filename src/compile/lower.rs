@@ -108,6 +108,8 @@ fn lower_ty_var(var: &Var) -> RcType {
 /// * `path` - path to the parent struct or union
 /// * `ty` - the type to be lowered
 fn lower_ty(module: &mut Module, path: &Path, ty: &core::RcType) -> RcType {
+    use semantics::Repr;
+
     // Mirroring `core::Type::repr`
     match *ty.inner {
         core::Type::Var(_, ref var) => lower_ty_var(var),

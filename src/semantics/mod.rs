@@ -3,7 +3,8 @@
 use std::rc::Rc;
 
 use name::Name;
-use syntax::core::{Binop, Context, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType, Scope};
+use syntax::core::{Binop, Context, Field, FloatType, Kind, Module, RcCExpr, RcIExpr, RcKind,
+                   RcType, Scope, SignedType, Type, TypeConst, UnsignedType};
 use var::{Named, Var};
 
 #[cfg(test)]
@@ -11,6 +12,90 @@ mod tests;
 mod errors;
 
 pub use self::errors::{ExpectedKind, ExpectedType, KindError, TypeError};
+
+// Representations
+
+/// Convert a type or expression to its corresponding host representation
+pub trait Repr<T> {
+    fn repr(&self) -> T;
+}
+
+impl Repr<TypeConst> for TypeConst {
+    /// Convert a binary type constant to its corresponding host representation
+    fn repr(&self) -> TypeConst {
+        match *self {
+            TypeConst::Empty => TypeConst::Unit,
+            TypeConst::Error => TypeConst::Bottom,
+            TypeConst::U8 => TypeConst::Unsigned(UnsignedType::U8),
+            TypeConst::I8 => TypeConst::Signed(SignedType::I8),
+            TypeConst::U16(_) => TypeConst::Unsigned(UnsignedType::U16),
+            TypeConst::U24(_) => TypeConst::Unsigned(UnsignedType::U24),
+            TypeConst::U32(_) => TypeConst::Unsigned(UnsignedType::U32),
+            TypeConst::U64(_) => TypeConst::Unsigned(UnsignedType::U64),
+            TypeConst::I16(_) => TypeConst::Signed(SignedType::I16),
+            TypeConst::I24(_) => TypeConst::Signed(SignedType::I24),
+            TypeConst::I32(_) => TypeConst::Signed(SignedType::I32),
+            TypeConst::I64(_) => TypeConst::Signed(SignedType::I64),
+            TypeConst::F32(_) => TypeConst::Float(FloatType::F32),
+            TypeConst::F64(_) => TypeConst::Float(FloatType::F64),
+
+            _ => panic!("Called TypeConst::repr on {:?}", self),
+        }
+    }
+}
+
+impl Repr<RcType> for RcType {
+    /// Returns the host representation of the binary type
+    fn repr(&self) -> RcType {
+        match *self.inner {
+            Type::Var(_, ref v) => Type::HostVar(v.clone()).into(),
+            Type::Const(ty_const) => Type::Const(ty_const.repr()).into(),
+            Type::Lam(span, ref params, ref body_ty) => {
+                let repr_params = params
+                    .iter()
+                    .map(|param| Named::new(param.name.clone(), param.inner.repr()))
+                    .collect();
+
+                Type::Lam(span, repr_params, body_ty.repr()).into()
+            }
+            Type::App(span, ref fn_ty, ref arg_tys) => {
+                let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();
+
+                Type::App(span, fn_ty.repr(), arg_tys).into()
+            }
+
+            Type::Array(_, ref elem_ty, _) => Type::HostArray(elem_ty.repr()).into(),
+            Type::Assert(_, ref ty, _) => ty.repr(),
+            Type::Interp(_, _, _, ref repr_ty) => repr_ty.clone(),
+            Type::Cond(_, ref options) => {
+                let repr_variants = options
+                    .iter()
+                    .map(|variant| Field {
+                        doc: Rc::clone(&variant.doc),
+                        name: variant.name.clone(),
+                        value: variant.value.1.repr(),
+                    })
+                    .collect();
+
+                Type::HostUnion(repr_variants).into()
+            }
+            Type::Struct(_, ref fields) => {
+                let repr_fields = fields
+                    .iter()
+                    .map(|field| Field {
+                        doc: Rc::clone(&field.doc),
+                        name: field.name.clone(),
+                        value: field.value.repr(),
+                    })
+                    .collect();
+
+                Type::HostStruct(repr_fields).into()
+            }
+
+            _ => unimplemented!(),
+        }
+    }
+}
 
 // Typing
 
