@@ -37,8 +37,8 @@ pub enum TypeError {
     },
     /// Unexpected operand types in a binary operator expression
     BinaryOperands {
-        context: Binop,
-        expr: RcExpr,
+        expr_span: ByteSpan,
+        binop: Binop,
         lhs_ty: RcType,
         rhs_ty: RcType,
     },
@@ -119,6 +119,25 @@ impl TypeError {
                         message: Some("the expression".into()),
                         style: LabelStyle::Primary,
                         span,
+                    },
+                ],
+            },
+            TypeError::BinaryOperands {
+                expr_span,
+                binop,
+                lhs_ty: _, // TODO
+                rhs_ty: _, // TODO
+            } => Diagnostic {
+                severity: Severity::Error,
+                message: format!(
+                    "mismatched arguments passed to operator `{:?}`", // TODO: pretty print
+                    binop,
+                ),
+                labels: vec![
+                    Label {
+                        message: Some("the expression".into()),
+                        style: LabelStyle::Primary,
+                        span: expr_span,
                     },
                 ],
             },

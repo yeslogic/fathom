@@ -248,14 +248,14 @@ pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
             use syntax::core::Type::{Const, HostArray};
 
             fn binop_err(
-                context: Binop,
-                expr: &RcExpr,
+                binop: Binop,
+                _expr: &RcExpr,
                 lhs_ty: RcType,
                 rhs_ty: RcType,
             ) -> TypeError {
                 TypeError::BinaryOperands {
-                    context,
-                    expr: expr.clone(),
+                    expr_span: ByteSpan::none(), // TODO: expr.span(),
+                    binop,
                     lhs_ty,
                     rhs_ty,
                 }
