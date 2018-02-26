@@ -6,7 +6,7 @@ use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 
-use ddl::syntax::core::Module;
+use ddl::syntax::translation::ToCore;
 
 fn main() {
     let mut codemap = CodeMap::new();
@@ -14,7 +14,7 @@ fn main() {
 
     let (module, errors) = ddl::syntax::parse::module(&filemap);
     assert!(errors.is_empty()); // TODO: Error diagnostics
-    let mut module = Module::from_concrete(&module).unwrap();
+    let mut module = module.to_core().unwrap();
     module.substitute(&ddl::syntax::core::base_defs());
     ddl::semantics::check_module(&module).unwrap();
     let ir = ddl::compile::ir::Module::from(&module);

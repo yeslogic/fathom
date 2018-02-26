@@ -7,7 +7,7 @@ extern crate difference;
 mod test;
 
 use codespan::CodeMap;
-use ddl::syntax::core::Module;
+use ddl::syntax::translation::ToCore;
 
 #[test]
 fn bitmap() {
@@ -18,7 +18,7 @@ fn bitmap() {
 
     let (module, errors) = ddl::syntax::parse::module(&filemap);
     assert!(errors.is_empty()); // TODO: Error diagnostics
-    let mut module = Module::from_concrete(&module).unwrap();
+    let mut module = module.to_core().unwrap();
     assert_debug_snapshot!(bitmap_module, module);
 
     let base_defs = ddl::syntax::core::base_defs();
@@ -42,7 +42,7 @@ fn bson() {
 
     let (module, errors) = ddl::syntax::parse::module(&filemap);
     assert!(errors.is_empty()); // TODO: Error diagnostics
-    let mut module = Module::from_concrete(&module).unwrap();
+    let mut module = module.to_core().unwrap();
     assert_debug_snapshot!(bson_module, module);
 
     let base_defs = ddl::syntax::core::base_defs();
@@ -66,7 +66,7 @@ fn edid() {
 
     let (module, errors) = ddl::syntax::parse::module(&filemap);
     assert!(errors.is_empty()); // TODO: Error diagnostics
-    let mut module = Module::from_concrete(&module).unwrap();
+    let mut module = module.to_core().unwrap();
     assert_debug_snapshot!(edid_module, module);
 
     let base_defs = ddl::syntax::core::base_defs();
@@ -90,7 +90,7 @@ fn object_id() {
 
     let (module, errors) = ddl::syntax::parse::module(&filemap);
     assert!(errors.is_empty()); // TODO: Error diagnostics
-    let mut module = Module::from_concrete(&module).unwrap();
+    let mut module = module.to_core().unwrap();
     assert_debug_snapshot!(object_id_module, module);
 
     let base_defs = ddl::syntax::core::base_defs();
@@ -114,7 +114,7 @@ fn stl() {
 
     let (module, errors) = ddl::syntax::parse::module(&filemap);
     assert!(errors.is_empty()); // TODO: Error diagnostics
-    let mut module = Module::from_concrete(&module).unwrap();
+    let mut module = module.to_core().unwrap();
     assert_debug_snapshot!(stl_module, module);
 
     let base_defs = ddl::syntax::core::base_defs();

@@ -1,6 +1,6 @@
 use lalrpop_util::ParseError as LalrpopError;
 use codespan::{ByteIndex, ByteSpan, FileMap};
-use codespan_reporting::{Diagnostic, Label, LabelStyle, Severity};
+use codespan_reporting::Diagnostic;
 use std::fmt;
 
 use super::{LexerError, Token};
@@ -73,77 +73,33 @@ impl ParseError {
         match *self {
             ParseError::Lexer(ref err) => err.to_diagnostic(),
 
-            ParseError::ConstSuffixInvalid { span, ref suffix } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("invalid constant suffix: {}", suffix),
-                labels: vec![
-                    Label {
-                        message: Some("invalid constant suffix".into()),
-                        style: LabelStyle::Primary,
-                        span,
-                    },
-                ],
-            },
-            ParseError::ConstSuffixMissing { span } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("missing constant suffix"),
-                labels: vec![
-                    Label {
-                        message: Some("suffix expected here".into()),
-                        style: LabelStyle::Primary,
-                        span,
-                    },
-                ],
-            },
-            ParseError::InvalidHostTypeName { span, ref name } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("invalid host type name: {}", name),
-                labels: vec![
-                    Label {
-                        message: Some("invalid host type name".into()),
-                        style: LabelStyle::Primary,
-                        span,
-                    },
-                ],
-            },
+            ParseError::ConstSuffixInvalid { span, ref suffix } => {
+                Diagnostic::new_error(format!("invalid constant suffix: {}", suffix))
+                    .with_primary_label(span, "invalid constant suffix")
+            }
+            ParseError::ConstSuffixMissing { span } => {
+                Diagnostic::new_error(format!("missing constant suffix"))
+                    .with_primary_label(span, "suffix expected here")
+            }
+            ParseError::InvalidHostTypeName { span, ref name } => {
+                Diagnostic::new_error(format!("invalid host type name: {}", name))
+                    .with_primary_label(span, "invalid host type name")
+            }
 
             ParseError::UnexpectedToken {
                 span,
                 ref token,
                 ref expected,
-            } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("expected one of {}, found `{}`", expected, token),
-                labels: vec![
-                    Label {
-                        message: Some("unexpected token".into()),
-                        style: LabelStyle::Primary,
-                        span,
-                    },
-                ],
-            },
-            ParseError::UnexpectedEof { end, ref expected } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("expected one of {}, found `EOF`", expected),
-                labels: vec![
-                    Label {
-                        message: Some("unexpected EOF".into()),
-                        style: LabelStyle::Primary,
-                        span: ByteSpan::new(end, end),
-                    },
-                ],
-            },
-            ParseError::ExtraToken { span, ref token } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("extra token `{}`", token),
-                labels: vec![
-                    Label {
-                        message: Some("extra token".into()),
-                        style: LabelStyle::Primary,
-                        span,
-                    },
-                ],
-            },
+            } => Diagnostic::new_error(format!("expected one of {}, found `{}`", expected, token))
+                .with_primary_label(span, "unexpected token"),
+            ParseError::UnexpectedEof { end, ref expected } => {
+                Diagnostic::new_error(format!("expected one of {}, found `EOF`", expected))
+                    .with_primary_label(ByteSpan::new(end, end), "unexpected EOF")
+            }
+            ParseError::ExtraToken { span, ref token } => {
+                Diagnostic::new_error(format!("extra token `{}`", token))
+                    .with_primary_label(span, "extra token")
+            }
         }
     }
 }

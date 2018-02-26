@@ -1,7 +1,7 @@
 use codespan::{CodeMap, FileName};
 
-use syntax::core::{Module, RcIExpr, RcType};
 use syntax::parse;
+use syntax::translation::ToCore;
 
 #[test]
 fn parse_expr_bool_atomic() {
@@ -14,10 +14,7 @@ fn parse_expr_bool_atomic() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_expr_bool_atomic,
-        RcIExpr::from_concrete(&expr).unwrap()
-    );
+    assert_debug_snapshot!(parse_expr_bool_atomic, expr.to_core().unwrap());
 }
 
 #[test]
@@ -31,10 +28,7 @@ fn parse_expr_bool_operators() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_expr_bool_operators,
-        RcIExpr::from_concrete(&expr).unwrap()
-    );
+    assert_debug_snapshot!(parse_expr_bool_operators, expr.to_core().unwrap());
 }
 
 #[test]
@@ -46,7 +40,7 @@ fn parse_add_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_add_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_add_expr, expr.to_core().unwrap());
 }
 
 #[test]
@@ -58,7 +52,7 @@ fn parse_sub_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_sub_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_sub_expr, expr.to_core().unwrap());
 }
 
 #[test]
@@ -70,7 +64,7 @@ fn parse_add_expr_mixed() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_add_expr_mixed, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_add_expr_mixed, expr.to_core().unwrap());
 }
 
 #[test]
@@ -82,7 +76,7 @@ fn parse_mul_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_mul_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_mul_expr, expr.to_core().unwrap());
 }
 
 #[test]
@@ -94,7 +88,7 @@ fn parse_div_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_div_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_div_expr, expr.to_core().unwrap());
 }
 
 #[test]
@@ -106,7 +100,7 @@ fn parse_mul_expr_mixed() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_mul_expr_mixed, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_mul_expr_mixed, expr.to_core().unwrap());
 }
 
 #[test]
@@ -118,10 +112,7 @@ fn parse_mixed_arithmetic_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_mixed_arithmetic_expr,
-        RcIExpr::from_concrete(&expr).unwrap()
-    );
+    assert_debug_snapshot!(parse_mixed_arithmetic_expr, expr.to_core().unwrap());
 }
 
 #[test]
@@ -135,7 +126,7 @@ fn parse_mixed_arithmetic_expr_parenthesized() {
 
     assert_debug_snapshot!(
         parse_mixed_arithmetic_expr_parenthesized,
-        RcIExpr::from_concrete(&expr).unwrap()
+        expr.to_core().unwrap()
     );
 }
 
@@ -148,7 +139,7 @@ fn parse_proj_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_proj_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_proj_expr, expr.to_core().unwrap());
 }
 
 #[test]
@@ -160,7 +151,7 @@ fn parse_subscript_expr() {
     let (expr, errors) = parse::expr(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_subscript_expr, RcIExpr::from_concrete(&expr).unwrap());
+    assert_debug_snapshot!(parse_subscript_expr, expr.to_core().unwrap());
 }
 
 #[test]
@@ -174,7 +165,7 @@ fn parse_ty_var() {
     let (ty, errors) = parse::ty(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_ty_var, RcType::from_concrete(&ty).unwrap());
+    assert_debug_snapshot!(parse_ty_var, ty.to_core().unwrap());
 }
 
 #[test]
@@ -186,7 +177,7 @@ fn parse_ty_empty_struct() {
     let (ty, errors) = parse::ty(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_ty_empty_struct, RcType::from_concrete(&ty).unwrap());
+    assert_debug_snapshot!(parse_ty_empty_struct, ty.to_core().unwrap());
 }
 
 #[test]
@@ -204,7 +195,7 @@ fn parse_ty_assert() {
     let (ty, errors) = parse::ty(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_ty_assert, RcType::from_concrete(&ty).unwrap());
+    assert_debug_snapshot!(parse_ty_assert, ty.to_core().unwrap());
 }
 
 #[test]
@@ -229,10 +220,7 @@ fn parse_ty_array_dependent() {
     let (ty, errors) = parse::ty(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_ty_array_dependent,
-        RcType::from_concrete(&ty).unwrap()
-    );
+    assert_debug_snapshot!(parse_ty_array_dependent, ty.to_core().unwrap());
 }
 
 #[test]
@@ -246,10 +234,7 @@ fn parse_simple_definition() {
     let (module, errors) = parse::module(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_simple_definition,
-        Module::from_concrete(&module).unwrap()
-    );
+    assert_debug_snapshot!(parse_simple_definition, module.to_core().unwrap());
 }
 
 #[test]
@@ -263,10 +248,7 @@ fn parse_array_with_constant_size() {
     let (module, errors) = parse::module(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(
-        parse_array_with_constant_size,
-        Module::from_concrete(&module).unwrap()
-    );
+    assert_debug_snapshot!(parse_array_with_constant_size, module.to_core().unwrap());
 }
 
 #[test]
@@ -302,7 +284,7 @@ fn parse_definition() {
     let (module, errors) = parse::module(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_definition, Module::from_concrete(&module).unwrap());
+    assert_debug_snapshot!(parse_definition, module.to_core().unwrap());
 }
 
 #[test]
@@ -329,5 +311,5 @@ fn parse_type_params() {
     let (module, errors) = parse::module(&filemap);
     assert!(errors.is_empty());
 
-    assert_debug_snapshot!(parse_type_params, Module::from_concrete(&module).unwrap());
+    assert_debug_snapshot!(parse_type_params, module.to_core().unwrap());
 }

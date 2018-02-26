@@ -1,79 +1,122 @@
 //! Type and kind-checking for our DDL
 
+use codespan::ByteSpan;
 use std::rc::Rc;
 
-use name::{Ident, Name};
-use syntax::core::{Binop, Field, Kind, Module, RcCExpr, RcIExpr, RcKind, RcType};
+use name::Name;
+use syntax::core::{Binop, Context, Expr, Field, FloatType, Kind, Module, RcExpr, RcKind, RcType,
+                   Scope, SignedType, Type, TypeConst, UnsignedType};
 use var::{Named, Var};
 
-use self::context::{Context, Scope};
-
-mod context;
 #[cfg(test)]
 mod tests;
+mod errors;
+
+pub use self::errors::{KindError, TypeError};
+
+// Representations
+
+/// Convert a type or expression to its corresponding host representation
+pub trait Repr<T> {
+    fn repr(&self) -> T;
+}
+
+impl Repr<RcKind> for RcKind {
+    fn repr(&self) -> RcKind {
+        match *self.inner {
+            Kind::Binary => Kind::Host.into(),
+            Kind::Host => panic!("ICE: tried to find the repr of Kind::Host"),
+            Kind::Arrow(ref params, ref ret) => {
+                Kind::Arrow(params.iter().map(RcKind::repr).collect(), ret.repr()).into()
+            }
+        }
+    }
+}
+
+impl Repr<TypeConst> for TypeConst {
+    /// Convert a binary type constant to its corresponding host representation
+    fn repr(&self) -> TypeConst {
+        match *self {
+            TypeConst::Empty => TypeConst::Unit,
+            TypeConst::Error => TypeConst::Bottom,
+            TypeConst::U8 => TypeConst::Unsigned(UnsignedType::U8),
+            TypeConst::I8 => TypeConst::Signed(SignedType::I8),
+            TypeConst::U16(_) => TypeConst::Unsigned(UnsignedType::U16),
+            TypeConst::U24(_) => TypeConst::Unsigned(UnsignedType::U24),
+            TypeConst::U32(_) => TypeConst::Unsigned(UnsignedType::U32),
+            TypeConst::U64(_) => TypeConst::Unsigned(UnsignedType::U64),
+            TypeConst::I16(_) => TypeConst::Signed(SignedType::I16),
+            TypeConst::I24(_) => TypeConst::Signed(SignedType::I24),
+            TypeConst::I32(_) => TypeConst::Signed(SignedType::I32),
+            TypeConst::I64(_) => TypeConst::Signed(SignedType::I64),
+            TypeConst::F32(_) => TypeConst::Float(FloatType::F32),
+            TypeConst::F64(_) => TypeConst::Float(FloatType::F64),
+
+            _ => panic!("Called TypeConst::repr on {:?}", self),
+        }
+    }
+}
+
+impl Repr<RcType> for RcType {
+    /// Returns the host representation of the binary type
+    fn repr(&self) -> RcType {
+        match *self.inner {
+            Type::Var(_, ref v) => Type::HostVar(v.clone()).into(),
+            Type::Const(ty_const) => Type::Const(ty_const.repr()).into(),
+            Type::Lam(span, ref params, ref body_ty) => {
+                let repr_params = params
+                    .iter()
+                    .map(|param| Named::new(param.name.clone(), param.inner.repr()))
+                    .collect();
+
+                Type::Lam(span, repr_params, body_ty.repr()).into()
+            }
+            Type::App(span, ref fn_ty, ref arg_tys) => {
+                let arg_tys = arg_tys.iter().map(|arg| arg.repr()).collect();
+
+                Type::App(span, fn_ty.repr(), arg_tys).into()
+            }
+
+            Type::Array(_, ref elem_ty, _) => Type::HostArray(elem_ty.repr()).into(),
+            Type::Assert(_, ref ty, _) => ty.repr(),
+            Type::Interp(_, _, _, ref repr_ty) => repr_ty.clone(),
+            Type::Cond(_, ref options) => {
+                let repr_variants = options
+                    .iter()
+                    .map(|variant| Field {
+                        doc: Rc::clone(&variant.doc),
+                        name: variant.name.clone(),
+                        value: variant.value.1.repr(),
+                    })
+                    .collect();
+
+                Type::HostUnion(repr_variants).into()
+            }
+            Type::Struct(_, ref fields) => {
+                let repr_fields = fields
+                    .iter()
+                    .map(|field| Field {
+                        doc: Rc::clone(&field.doc),
+                        name: field.name.clone(),
+                        value: field.value.repr(),
+                    })
+                    .collect();
+
+                Type::HostStruct(repr_fields).into()
+            }
+
+            _ => unimplemented!(),
+        }
+    }
+}
 
 // Typing
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExpectedType {
-    Array,
-    Arrow,
-    Unsigned,
-    Signed,
-    Numeric,
-    Actual(RcType),
-}
-
-/// An error that was encountered during type checking
-#[derive(Debug, Clone, PartialEq)]
-pub enum TypeError {
-    /// A variable of the requested name was not bound in this scope
-    UnboundVariable { expr: RcIExpr, name: Name },
-    /// Variable bound in the context was not at the value level
-    ExprBindingExpected { expr: RcIExpr, found: Scope },
-    /// One type was expected, but another was found
-    Mismatch {
-        expr: RcIExpr,
-        found: RcType,
-        expected: ExpectedType,
-    },
-    /// One type was expected, but another was found
-    InferenceMismatch {
-        expr: RcIExpr,
-        found: RcType,
-        expected: RcType,
-    },
-    /// Unexpected operand types in a binary operator expression
-    BinaryOperands {
-        context: Binop,
-        expr: RcIExpr,
-        lhs_ty: RcType,
-        rhs_ty: RcType,
-    },
-    /// A field was missing when projecting on a record
-    MissingField {
-        expr: RcIExpr,
-        struct_ty: RcType,
-        field_name: Ident,
-    },
-    /// A variant was missing when introducing on a union
-    MissingVariant {
-        expr: RcCExpr,
-        union_ty: RcType,
-        variant_name: Ident,
-    },
-    /// An invalid type was supplied to the cast expression
-    InvalidCastType { expr: RcIExpr, found: RcType },
-}
-
 /// Check that an expression has the given type in the context
-pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(), TypeError> {
-    use syntax::core::CExpr;
-    use syntax::core::Type;
-
+pub fn check_ty(ctx: &Context, expr: &RcExpr, expected_ty: &RcType) -> Result<(), TypeError> {
     match *expr.inner {
         // Variant introduction
-        CExpr::Intro(_, ref variant_name, ref expr) => {
+        Expr::Intro(_, ref variant_name, ref expr) => {
             // FIXME: Kindcheck union_ty
             match expected_ty.lookup_host_variant(variant_name).cloned() {
                 Some(variant_ty) => {
@@ -81,7 +124,7 @@ pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(
                     Ok(())
                 }
                 None => Err(TypeError::MissingVariant {
-                    expr: expr.clone(),
+                    span: ByteSpan::none(), // TODO: expr.span(),
                     union_ty: expected_ty.clone(),
                     variant_name: variant_name.clone(),
                 }),
@@ -89,7 +132,7 @@ pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(
         }
 
         // Empty arrays
-        CExpr::Array(_, ref elems) => match *expected_ty.inner {
+        Expr::Array(_, ref elems) => match *expected_ty.inner {
             Type::HostArray(ref elem_ty) => elems
                 .iter()
                 .map(|elem| check_ty(ctx, elem, elem_ty))
@@ -98,13 +141,13 @@ pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(
         },
 
         // Inferrable expressions
-        CExpr::Inf(ref iexpr) => {
-            let inferred_ty = infer_ty(ctx, iexpr)?;
+        _ => {
+            let inferred_ty = infer_ty(ctx, expr)?;
             if &inferred_ty == expected_ty {
                 Ok(())
             } else {
-                Err(TypeError::InferenceMismatch {
-                    expr: iexpr.clone(),
+                Err(TypeError::Mismatch {
+                    span: ByteSpan::none(), // TODO: expr.span(),
                     expected: expected_ty.clone(),
                     found: inferred_ty,
                 })
@@ -114,34 +157,32 @@ pub fn check_ty(ctx: &Context, expr: &RcCExpr, expected_ty: &RcType) -> Result<(
 }
 
 /// Infer the type of an expression in the context
-pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
-    use syntax::core::{IExpr, Type, TypeConst, Unop};
-
+pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
     match *expr.inner {
         // Annotated types
-        IExpr::Ann(_, ref expr, ref ty) => {
+        Expr::Ann(_, ref expr, ref ty) => {
             check_ty(ctx, expr, ty)?;
             Ok(ty.clone())
         }
 
         // Constants are easy!
-        IExpr::Const(_, c) => Ok(Type::Const(c.ty_const_of()).into()),
+        Expr::Const(_, c) => Ok(Type::Const(c.ty_const_of()).into()),
 
         // Variables
-        IExpr::Var(_, Var::Free(ref name)) => Err(TypeError::UnboundVariable {
-            expr: expr.clone(),
+        Expr::Var(_, Var::Free(ref name)) => Err(TypeError::UndefinedName {
+            var_span: ByteSpan::none(), // TODO: expr.span(),
             name: name.clone(),
         }),
-        IExpr::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_ty(i) {
+        Expr::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_ty(i) {
             Ok((_, ty)) => Ok(ty.clone()),
-            Err(scope) => Err(TypeError::ExprBindingExpected {
-                expr: expr.clone(),
+            Err(scope) => Err(TypeError::ExpectedExpr {
+                var_span: ByteSpan::none(), // TODO: expr.span(),
                 found: scope.clone(),
             }),
         },
 
         // Abstraction
-        IExpr::Lam(_, ref params, ref body_expr) => {
+        Expr::Lam(_, ref params, ref body_expr) => {
             // FIXME: avoid cloning the environment
             let mut ctx = ctx.clone();
             ctx.extend(Scope::ExprLam(params.clone()));
@@ -150,8 +191,13 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
             Ok(Type::Arrow(param_tys, infer_ty(&ctx, body_expr)?).into())
         }
 
+        // TODO: Better error
+        Expr::Intro(_, _, _) => unimplemented!(),
+        // TODO: Infer types
+        Expr::Array(_, _) => unimplemented!(),
+
         // Applications
-        IExpr::App(_, ref fn_expr, ref arg_exprs) => {
+        Expr::App(_, ref fn_expr, ref arg_exprs) => {
             let fn_ty = infer_ty(ctx, fn_expr)?;
 
             if let Type::Arrow(ref param_tys, ref ret_ty) = *fn_ty.inner {
@@ -164,51 +210,50 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
                 } else {
                     unimplemented!(); // FIXME
                 }
+            } else {
+                Err(TypeError::ArgsAppliedToNonFunction {
+                    fn_span: ByteSpan::none(),  // TODO: fn_expr.span(),
+                    arg_span: ByteSpan::none(), // TODO: arg_expr.span(),
+                    found: fn_ty.clone(),
+                })
             }
-
-            Err(TypeError::Mismatch {
-                expr: fn_expr.clone(),
-                expected: ExpectedType::Arrow,
-                found: fn_ty,
-            })
         }
 
         // Unary operators
-        IExpr::Unop(_, op, ref operand_expr) => {
-            use syntax::core::Type::Const;
+        Expr::Unop(_, op, ref operand_expr) => {
+            use syntax::core::Unop;
 
             let operand_ty = infer_ty(ctx, operand_expr)?;
 
             match (op, &*operand_ty.inner) {
-                (Unop::Neg, &Const(TypeConst::Signed(_)))
-                | (Unop::Neg, &Const(TypeConst::Float(_))) => Ok(operand_ty),
-                (Unop::Neg, _) => Err(TypeError::Mismatch {
-                    expr: expr.clone(),
-                    expected: ExpectedType::Signed,
-                    found: operand_ty,
+                (Unop::Neg, &Type::Const(TypeConst::Signed(_)))
+                | (Unop::Neg, &Type::Const(TypeConst::Float(_))) => Ok(operand_ty),
+                (Unop::Neg, _) => Err(TypeError::NegOnUnsigned {
+                    operand_span: ByteSpan::none(), // TODO: operand_expr.span(),
+                    operand_ty,
                 }),
-                (Unop::Not, &Const(TypeConst::Bool)) => Ok(operand_ty),
+                (Unop::Not, &Type::Const(TypeConst::Bool)) => Ok(operand_ty),
                 (Unop::Not, _) => Err(TypeError::Mismatch {
-                    expr: expr.clone(),
-                    expected: ExpectedType::Actual(Const(TypeConst::Bool).into()),
+                    span: ByteSpan::none(), // TODO: expr.span(),
                     found: operand_ty,
+                    expected: Type::Const(TypeConst::Bool).into(),
                 }),
             }
         }
 
         // Binary operators
-        IExpr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
+        Expr::Binop(_, op, ref lhs_expr, ref rhs_expr) => {
             use syntax::core::Type::{Const, HostArray};
 
             fn binop_err(
-                context: Binop,
-                expr: &RcIExpr,
+                binop: Binop,
+                _expr: &RcExpr,
                 lhs_ty: RcType,
                 rhs_ty: RcType,
             ) -> TypeError {
                 TypeError::BinaryOperands {
-                    context,
-                    expr: expr.clone(),
+                    expr_span: ByteSpan::none(), // TODO: expr.span(),
+                    binop,
                     lhs_ty,
                     rhs_ty,
                 }
@@ -256,7 +301,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
         }
 
         // Struct expressions
-        IExpr::Struct(ref fields) => {
+        Expr::Struct(ref fields) => {
             let field_tys = fields
                 .iter()
                 .map(|field| {
@@ -272,13 +317,13 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
         }
 
         // Field projection
-        IExpr::Proj(_, ref struct_expr, ref field_name) => {
+        Expr::Proj(_, ref struct_expr, ref field_name) => {
             let struct_ty = infer_ty(ctx, struct_expr)?;
 
             match struct_ty.lookup_host_field(field_name).cloned() {
                 Some(field_ty) => Ok(field_ty),
                 None => Err(TypeError::MissingField {
-                    expr: struct_expr.clone(),
+                    span: ByteSpan::none(), // TODO: struct_expr.span(),
                     struct_ty: struct_ty.clone(),
                     field_name: field_name.clone(),
                 }),
@@ -286,32 +331,31 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
         }
 
         // Array subscript
-        IExpr::Subscript(_, ref array_expr, ref index_expr) => {
+        Expr::Subscript(_, ref array_expr, ref index_expr) => {
             let index_ty = infer_ty(ctx, index_expr)?;
             match *index_ty.inner {
                 Type::Const(TypeConst::Unsigned(_)) => {}
                 _ => {
-                    return Err(TypeError::Mismatch {
-                        expr: index_expr.clone(),
-                        expected: ExpectedType::Unsigned,
+                    return Err(TypeError::UnexpectedIndexType {
+                        index_span: ByteSpan::none(), // TODO: index_expr.clone(),
                         found: index_ty,
-                    })
+                    });
                 }
             }
 
             let array_ty = infer_ty(ctx, array_expr)?;
             match *array_ty.inner {
                 Type::HostArray(ref elem_ty) => Ok(elem_ty.clone()),
-                _ => Err(TypeError::Mismatch {
-                    expr: array_expr.clone(),
-                    expected: ExpectedType::Array,
-                    found: array_ty.clone(),
+                _ => Err(TypeError::SubscriptOnNonArray {
+                    index_span: ByteSpan::none(),  // TODO: index_expr.span(),
+                    target_span: ByteSpan::none(), // TODO: array_ty.span()
+                    target_ty: array_ty.clone(),
                 }),
             }
         }
 
         // Cast Expressions
-        IExpr::Cast(_, ref src_expr, ref dst_ty) => {
+        Expr::Cast(_, ref src_expr, ref dst_ty) => {
             let src_ty = infer_ty(ctx, src_expr)?;
 
             match *dst_ty.inner {
@@ -320,18 +364,18 @@ pub fn infer_ty(ctx: &Context, expr: &RcIExpr) -> Result<RcType, TypeError> {
                 | Type::Const(TypeConst::Unsigned(_)) => match *src_ty.inner {
                     Type::Const(TypeConst::Float(_))
                     | Type::Const(TypeConst::Signed(_))
-                    | Type::Const(TypeConst::Unsigned(_)) => Ok(dst_ty.clone()),
-                    _ => Err(TypeError::Mismatch {
-                        expr: src_expr.clone(),
-                        expected: ExpectedType::Numeric,
-                        found: src_ty.clone(),
-                    }),
+                    | Type::Const(TypeConst::Unsigned(_)) => return Ok(dst_ty.clone()),
+                    _ => {}
                 },
-                _ => Err(TypeError::InvalidCastType {
-                    expr: expr.clone(),
-                    found: dst_ty.clone(),
-                }),
+                _ => {}
             }
+
+            Err(TypeError::InvalidCast {
+                src_span: ByteSpan::none(), // TODO: src_expr.span(),
+                dst_span: ByteSpan::none(), // TODO: src_expr.span(),
+                src_ty: src_ty.clone(),
+                dst_ty: src_ty.clone(),
+            })
         }
     }
 }
@@ -372,35 +416,6 @@ fn simplify_ty(ctx: &Context, ty: &RcType) -> RcType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExpectedKind {
-    Arrow,
-    Actual(RcKind),
-}
-
-/// An error that was encountered during kind checking
-#[derive(Debug, Clone, PartialEq)]
-pub enum KindError {
-    /// A variable of the requested name was not bound in this scope
-    UnboundVariable { ty: RcType, name: Name },
-    /// Variable bound in the context was not at the type level
-    TypeBindingExpected { ty: RcType, found: Scope },
-    /// One kind was expected, but another was found
-    Mismatch {
-        ty: RcType,
-        expected: ExpectedKind,
-        found: RcKind,
-    },
-    /// A type error
-    Type(TypeError),
-}
-
-impl From<TypeError> for KindError {
-    fn from(src: TypeError) -> KindError {
-        KindError::Type(src)
-    }
-}
-
 /// Check that a binary type has the given kind in the context
 fn check_kind(ctx: &Context, ty: &RcType, expected_kind: &RcKind) -> Result<(), KindError> {
     let found = infer_kind(ctx, ty)?;
@@ -409,8 +424,8 @@ fn check_kind(ctx: &Context, ty: &RcType, expected_kind: &RcKind) -> Result<(), 
         Ok(())
     } else {
         Err(KindError::Mismatch {
-            ty: ty.clone(),
-            expected: ExpectedKind::Actual(expected_kind.clone()),
+            span: ByteSpan::none(), // TODO: ty.span(),
+            expected: expected_kind.clone(),
             found,
         })
     }
@@ -422,14 +437,14 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
 
     match *ty.inner {
         // Variables
-        Type::Var(_, Var::Free(ref name)) => Err(KindError::UnboundVariable {
-            ty: ty.clone(),
+        Type::Var(_, Var::Free(ref name)) => Err(KindError::UndefinedName {
+            var_span: ByteSpan::none(), // TODO: ty.span(),
             name: name.clone(),
         }),
         Type::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_kind(i) {
             Ok((_, kind)) => Ok(kind.clone()),
-            Err(scope) => Err(KindError::TypeBindingExpected {
-                ty: ty.clone(),
+            Err(scope) => Err(KindError::ExpectedType {
+                span: ByteSpan::none(), // TODO: ty.span(),
                 found: scope.clone(),
             }),
         },
@@ -494,9 +509,9 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
                 }
             }
 
-            Err(KindError::Mismatch {
-                ty: fn_ty.clone(),
-                expected: ExpectedKind::Arrow,
+            Err(KindError::NotATypeConstructor {
+                fn_span: ByteSpan::none(), // TODO: fn_ty.span(),
+                arg_spans: vec![],         // TODO: arg_tys.iter().map(|a| a.span()).collect(),
                 found: fn_kind,
             })
         }
@@ -508,11 +523,10 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
             let size_ty = infer_ty(ctx, size_expr)?;
             match *size_ty.inner {
                 Type::Const(TypeConst::Unsigned(_)) => Ok(Kind::Binary.into()),
-                _ => Err(TypeError::Mismatch {
-                    expr: size_expr.clone(),
-                    expected: ExpectedType::Signed,
+                _ => Err(KindError::UnexpectedArraySizeType {
+                    size_span: ByteSpan::none(), // TODO: size_expr.span(),
                     found: size_ty,
-                }.into()),
+                }),
             }
         }
 

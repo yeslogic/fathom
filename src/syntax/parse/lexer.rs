@@ -1,5 +1,5 @@
 use codespan::{ByteIndex, ByteOffset, ByteSpan, FileMap, RawOffset};
-use codespan_reporting::{Diagnostic, Label, LabelStyle, Severity};
+use codespan_reporting::{Diagnostic, Label};
 use std::fmt;
 use std::str::CharIndices;
 use unicode_xid::UnicodeXID;
@@ -48,39 +48,19 @@ pub enum LexerError {
 impl LexerError {
     pub fn to_diagnostic(&self) -> Diagnostic {
         match *self {
-            LexerError::UnexpectedCharacter { start, found } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("unexpected character {:?}", found),
-                labels: vec![
-                    Label {
-                        message: Some("unexpected character".into()),
-                        style: LabelStyle::Primary,
-                        span: ByteSpan::from_offset(start, ByteOffset::from_char_utf8(found)),
-                    },
-                ],
-            },
-            LexerError::ExpectedBinLiteral { start } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("expected a binary literal"),
-                labels: vec![
-                    Label {
-                        message: None, // TODO
-                        style: LabelStyle::Primary,
-                        span: ByteSpan::new(start, start),
-                    },
-                ],
-            },
-            LexerError::ExpectedHexLiteral { start } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("expected a hexidecimal literal"),
-                labels: vec![
-                    Label {
-                        message: None, // TODO
-                        style: LabelStyle::Primary,
-                        span: ByteSpan::new(start, start),
-                    },
-                ],
-            },
+            LexerError::UnexpectedCharacter { start, found } => {
+                let char_span = ByteSpan::from_offset(start, ByteOffset::from_char_utf8(found));
+                Diagnostic::new_error(format!("unexpected character {:?}", found))
+                    .with_label(Label::new_primary(char_span))
+            }
+            LexerError::ExpectedBinLiteral { start } => {
+                Diagnostic::new_error("expected a binary literal")
+                    .with_label(Label::new_primary(ByteSpan::new(start, start)))
+            }
+            LexerError::ExpectedHexLiteral { start } => {
+                Diagnostic::new_error("expected a hexidecimal literal")
+                    .with_label(Label::new_primary(ByteSpan::new(start, start)))
+            }
         }
     }
 }
