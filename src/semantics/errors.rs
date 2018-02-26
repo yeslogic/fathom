@@ -1,5 +1,5 @@
 use codespan::ByteSpan;
-use codespan_reporting::{Diagnostic, Label, LabelStyle, Severity};
+use codespan_reporting::Diagnostic;
 
 use name::{Ident, Name};
 use syntax::core::{Binop, RcExpr, RcKind, RcType, Scope};
@@ -61,86 +61,40 @@ pub enum TypeError {
 impl TypeError {
     pub fn to_diagnostic(&self) -> Diagnostic {
         match *self {
-            TypeError::UndefinedName { ref name, var_span } => Diagnostic {
-                severity: Severity::Bug,
-                message: format!("cannot find `{}` in scope", name),
-                labels: vec![
-                    Label {
-                        message: Some("not found in this scope".into()),
-                        style: LabelStyle::Primary,
-                        span: var_span,
-                    },
-                ],
-            },
+            TypeError::UndefinedName { ref name, var_span } => {
+                Diagnostic::new_error(format!("cannot find `{}` in scope", name))
+                    .with_primary_label(var_span, "not found in this scope")
+            }
             TypeError::ExpectedExpr {
                 ref found,
                 var_span,
-            } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("expected a value, but found a type `{:?}`", found), // TODO: pretty print
-                labels: vec![
-                    Label {
-                        message: Some("the type".into()),
-                        style: LabelStyle::Primary,
-                        span: var_span,
-                    },
-                ],
-            },
+            } => Diagnostic::new_error(format!("expected a value, but found a type `{:?}`", found))
+                .with_primary_label(var_span, "the type"),
             // TypeError::Mismatch {
             //     span,
             //     ref found,
             //     ref expected,
-            // } => Diagnostic {
-            //     severity: Severity::Error,
-            //     message: format!(
-            //         "found an expression of type `{:?}`, but expected an expression of type `{:?}`", // TODO: pretty print
-            //         found, expected,
-            //     ),
-            //     labels: vec![
-            //         Label {
-            //             message: Some("the expression".into()),
-            //             style: LabelStyle::Primary,
-            //             span,
-            //         },
-            //     ],
-            // },
+            // } => Diagnostic::new_error(format!(
+            //     "found an expression of type `{:?}`, but expected an expression of type `{:?}`",
+            //     found, expected,
+            // )).with_primary_label(span, "the term"),
             TypeError::InferenceMismatch {
                 span,
                 ref found,
                 ref expected,
-            } => Diagnostic {
-                severity: Severity::Error,
-                message: format!(
-                    "found an expression of type `{:?}`, but expected an expression of type `{:?}`", // TODO: pretty print
-                    found, expected,
-                ),
-                labels: vec![
-                    Label {
-                        message: Some("the expression".into()),
-                        style: LabelStyle::Primary,
-                        span,
-                    },
-                ],
-            },
+            } => Diagnostic::new_error(format!(
+                "found an expression of type `{:?}`, but expected an expression of type `{:?}`",
+                found, expected,
+            )).with_primary_label(span, "the term"),
             TypeError::BinaryOperands {
                 expr_span,
                 binop,
                 lhs_ty: _, // TODO
                 rhs_ty: _, // TODO
-            } => Diagnostic {
-                severity: Severity::Error,
-                message: format!(
-                    "mismatched arguments passed to operator `{:?}`", // TODO: pretty print
-                    binop,
-                ),
-                labels: vec![
-                    Label {
-                        message: Some("the expression".into()),
-                        style: LabelStyle::Primary,
-                        span: expr_span,
-                    },
-                ],
-            },
+            } => Diagnostic::new_error(format!(
+                "mismatched arguments passed to operator `{:?}`",
+                binop,
+            )).with_primary_label(expr_span, "the expression"),
             _ => unimplemented!(),
         }
     }
@@ -172,71 +126,38 @@ pub enum KindError {
 
 impl KindError {
     pub fn to_diagnostic(&self) -> Diagnostic {
-        use std::iter;
-
         match *self {
-            KindError::UndefinedName { ref name, var_span } => Diagnostic {
-                severity: Severity::Bug,
-                message: format!("cannot find `{}` in scope", name),
-                labels: vec![
-                    Label {
-                        message: Some("not found in this scope".into()),
-                        style: LabelStyle::Primary,
-                        span: var_span,
-                    },
-                ],
-            },
+            KindError::UndefinedName { ref name, var_span } => {
+                Diagnostic::new_error(format!("cannot find `{}` in scope", name))
+                    .with_primary_label(var_span, "not found in this scope")
+            }
             KindError::NotATypeConstructor {
                 fn_span,
                 ref arg_spans,
                 ref found,
-            } => Diagnostic {
-                severity: Severity::Error,
-                message: format!(
-                    "applied {} arguments to a type that was not expecting them - found `{:?}`", // TODO: pretty print
+            } => {
+                let mut diagnostic = Diagnostic::new_error(format!(
+                    "applied {} arguments to a type that was not expecting them - found `{:?}`",
                     arg_spans.len(),
                     found,
-                ),
-                labels: iter::once(Label {
-                    message: Some("the type".into()),
-                    style: LabelStyle::Primary,
-                    span: fn_span,
-                }).chain(arg_spans.iter().map(|&span| Label {
-                    message: Some("applied argument".into()),
-                    style: LabelStyle::Secondary,
-                    span,
-                }))
-                    .collect(),
-            },
+                )).with_primary_label(fn_span, "the type");
+                for &span in arg_spans {
+                    diagnostic = diagnostic.with_secondary_label(span, "applied argument");
+                }
+                diagnostic
+            }
             KindError::Mismatch {
                 span,
                 ref found,
                 ref expected,
-            } => Diagnostic {
-                severity: Severity::Error,
-                message: format!(
-                    "found a type of kind `{:?}`, but expected a type of kind `{:?}`", // TODO: pretty print
-                    found, expected,
-                ),
-                labels: vec![
-                    Label {
-                        message: Some("the type".into()),
-                        style: LabelStyle::Primary,
-                        span,
-                    },
-                ],
-            },
-            KindError::ExpectedType { ref found, span } => Diagnostic {
-                severity: Severity::Error,
-                message: format!("expected type, found value `{:?}`", found), // TODO: pretty print
-                labels: vec![
-                    Label {
-                        message: Some("the value".into()),
-                        style: LabelStyle::Primary,
-                        span,
-                    },
-                ],
-            },
+            } => Diagnostic::new_error(format!(
+                "found a type of kind `{:?}`, but expected a type of kind `{:?}`",
+                found, expected,
+            )).with_primary_label(span, "the type"),
+            KindError::ExpectedType { ref found, span } => {
+                Diagnostic::new_error(format!("expected type, found value `{:?}`", found))
+                    .with_primary_label(span, "the value")
+            }
             KindError::Type(ref err) => err.to_diagnostic(),
         }
     }
