@@ -4,7 +4,7 @@ Module {
             doc: "",
             name: Ident("Offset32"),
             body_ty: Var(
-                ByteSpan {
+                Span {
                     start: ByteIndex(21),
                     end: ByteIndex(24)
                 },

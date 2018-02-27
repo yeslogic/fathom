@@ -124,7 +124,7 @@ pub fn check_ty(ctx: &Context, expr: &RcExpr, expected_ty: &RcType) -> Result<()
                     Ok(())
                 }
                 None => Err(TypeError::MissingVariant {
-                    span: ByteSpan::none(), // TODO: expr.span(),
+                    span: ByteSpan::default(), // TODO: expr.span(),
                     union_ty: expected_ty.clone(),
                     variant_name: variant_name.clone(),
                 }),
@@ -147,7 +147,7 @@ pub fn check_ty(ctx: &Context, expr: &RcExpr, expected_ty: &RcType) -> Result<()
                 Ok(())
             } else {
                 Err(TypeError::Mismatch {
-                    span: ByteSpan::none(), // TODO: expr.span(),
+                    span: ByteSpan::default(), // TODO: expr.span(),
                     expected: expected_ty.clone(),
                     found: inferred_ty,
                 })
@@ -170,13 +170,13 @@ pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
 
         // Variables
         Expr::Var(_, Var::Free(ref name)) => Err(TypeError::UndefinedName {
-            var_span: ByteSpan::none(), // TODO: expr.span(),
+            var_span: ByteSpan::default(), // TODO: expr.span(),
             name: name.clone(),
         }),
         Expr::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_ty(i) {
             Ok((_, ty)) => Ok(ty.clone()),
             Err(scope) => Err(TypeError::ExpectedExpr {
-                var_span: ByteSpan::none(), // TODO: expr.span(),
+                var_span: ByteSpan::default(), // TODO: expr.span(),
                 found: scope.clone(),
             }),
         },
@@ -212,8 +212,8 @@ pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
                 }
             } else {
                 Err(TypeError::ArgsAppliedToNonFunction {
-                    fn_span: ByteSpan::none(),  // TODO: fn_expr.span(),
-                    arg_span: ByteSpan::none(), // TODO: arg_expr.span(),
+                    fn_span: ByteSpan::default(),  // TODO: fn_expr.span(),
+                    arg_span: ByteSpan::default(), // TODO: arg_expr.span(),
                     found: fn_ty.clone(),
                 })
             }
@@ -229,12 +229,12 @@ pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
                 (Unop::Neg, &Type::Const(TypeConst::Signed(_)))
                 | (Unop::Neg, &Type::Const(TypeConst::Float(_))) => Ok(operand_ty),
                 (Unop::Neg, _) => Err(TypeError::NegOnUnsigned {
-                    operand_span: ByteSpan::none(), // TODO: operand_expr.span(),
+                    operand_span: ByteSpan::default(), // TODO: operand_expr.span(),
                     operand_ty,
                 }),
                 (Unop::Not, &Type::Const(TypeConst::Bool)) => Ok(operand_ty),
                 (Unop::Not, _) => Err(TypeError::Mismatch {
-                    span: ByteSpan::none(), // TODO: expr.span(),
+                    span: ByteSpan::default(), // TODO: expr.span(),
                     found: operand_ty,
                     expected: Type::Const(TypeConst::Bool).into(),
                 }),
@@ -252,7 +252,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
                 rhs_ty: RcType,
             ) -> TypeError {
                 TypeError::BinaryOperands {
-                    expr_span: ByteSpan::none(), // TODO: expr.span(),
+                    expr_span: ByteSpan::default(), // TODO: expr.span(),
                     binop,
                     lhs_ty,
                     rhs_ty,
@@ -323,7 +323,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
             match struct_ty.lookup_host_field(field_name).cloned() {
                 Some(field_ty) => Ok(field_ty),
                 None => Err(TypeError::MissingField {
-                    span: ByteSpan::none(), // TODO: struct_expr.span(),
+                    span: ByteSpan::default(), // TODO: struct_expr.span(),
                     struct_ty: struct_ty.clone(),
                     field_name: field_name.clone(),
                 }),
@@ -337,7 +337,7 @@ pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
                 Type::Const(TypeConst::Unsigned(_)) => {}
                 _ => {
                     return Err(TypeError::UnexpectedIndexType {
-                        index_span: ByteSpan::none(), // TODO: index_expr.clone(),
+                        index_span: ByteSpan::default(), // TODO: index_expr.clone(),
                         found: index_ty,
                     });
                 }
@@ -347,8 +347,8 @@ pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
             match *array_ty.inner {
                 Type::HostArray(ref elem_ty) => Ok(elem_ty.clone()),
                 _ => Err(TypeError::SubscriptOnNonArray {
-                    index_span: ByteSpan::none(),  // TODO: index_expr.span(),
-                    target_span: ByteSpan::none(), // TODO: array_ty.span()
+                    index_span: ByteSpan::default(),  // TODO: index_expr.span(),
+                    target_span: ByteSpan::default(), // TODO: array_ty.span()
                     target_ty: array_ty.clone(),
                 }),
             }
@@ -371,8 +371,8 @@ pub fn infer_ty(ctx: &Context, expr: &RcExpr) -> Result<RcType, TypeError> {
             }
 
             Err(TypeError::InvalidCast {
-                src_span: ByteSpan::none(), // TODO: src_expr.span(),
-                dst_span: ByteSpan::none(), // TODO: src_expr.span(),
+                src_span: ByteSpan::default(), // TODO: src_expr.span(),
+                dst_span: ByteSpan::default(), // TODO: src_expr.span(),
                 src_ty: src_ty.clone(),
                 dst_ty: src_ty.clone(),
             })
@@ -424,7 +424,7 @@ fn check_kind(ctx: &Context, ty: &RcType, expected_kind: &RcKind) -> Result<(), 
         Ok(())
     } else {
         Err(KindError::Mismatch {
-            span: ByteSpan::none(), // TODO: ty.span(),
+            span: ByteSpan::default(), // TODO: ty.span(),
             expected: expected_kind.clone(),
             found,
         })
@@ -438,13 +438,13 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
     match *ty.inner {
         // Variables
         Type::Var(_, Var::Free(ref name)) => Err(KindError::UndefinedName {
-            var_span: ByteSpan::none(), // TODO: ty.span(),
+            var_span: ByteSpan::default(), // TODO: ty.span(),
             name: name.clone(),
         }),
         Type::Var(_, Var::Bound(Named { inner: i, .. })) => match ctx.lookup_kind(i) {
             Ok((_, kind)) => Ok(kind.clone()),
             Err(scope) => Err(KindError::ExpectedType {
-                span: ByteSpan::none(), // TODO: ty.span(),
+                span: ByteSpan::default(), // TODO: ty.span(),
                 found: scope.clone(),
             }),
         },
@@ -510,8 +510,8 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
             }
 
             Err(KindError::NotATypeConstructor {
-                fn_span: ByteSpan::none(), // TODO: fn_ty.span(),
-                arg_spans: vec![],         // TODO: arg_tys.iter().map(|a| a.span()).collect(),
+                fn_span: ByteSpan::default(), // TODO: fn_ty.span(),
+                arg_spans: vec![],            // TODO: arg_tys.iter().map(|a| a.span()).collect(),
                 found: fn_kind,
             })
         }
@@ -524,7 +524,7 @@ pub fn infer_kind(ctx: &Context, ty: &RcType) -> Result<RcKind, KindError> {
             match *size_ty.inner {
                 Type::Const(TypeConst::Unsigned(_)) => Ok(Kind::Binary.into()),
                 _ => Err(KindError::UnexpectedArraySizeType {
-                    size_span: ByteSpan::none(), // TODO: size_expr.span(),
+                    size_span: ByteSpan::default(), // TODO: size_expr.span(),
                     found: size_ty,
                 }),
             }

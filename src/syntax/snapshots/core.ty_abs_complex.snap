@@ -1,5 +1,5 @@
 Lam(
-    ByteSpan {
+    Span {
         start: ByteIndex(0),
         end: ByteIndex(0)
     },
@@ -12,12 +12,12 @@ Lam(
         }
     ],
     App(
-        ByteSpan {
+        Span {
             start: ByteIndex(0),
             end: ByteIndex(0)
         },
         Lam(
-            ByteSpan {
+            Span {
                 start: ByteIndex(0),
                 end: ByteIndex(0)
             },
@@ -30,12 +30,12 @@ Lam(
                 }
             ],
             App(
-                ByteSpan {
+                Span {
                     start: ByteIndex(0),
                     end: ByteIndex(0)
                 },
                 Var(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(0),
                         end: ByteIndex(0)
                     },
@@ -50,7 +50,7 @@ Lam(
                 ),
                 [
                     Lam(
-                        ByteSpan {
+                        Span {
                             start: ByteIndex(0),
                             end: ByteIndex(0)
                         },
@@ -63,7 +63,7 @@ Lam(
                             }
                         ],
                         Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(0),
                                 end: ByteIndex(0)
                             },
@@ -82,7 +82,7 @@ Lam(
         ),
         [
             Lam(
-                ByteSpan {
+                Span {
                     start: ByteIndex(0),
                     end: ByteIndex(0)
                 },
@@ -95,12 +95,12 @@ Lam(
                     }
                 ],
                 App(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(0),
                         end: ByteIndex(0)
                     },
                     Var(
-                        ByteSpan {
+                        Span {
                             start: ByteIndex(0),
                             end: ByteIndex(0)
                         },
@@ -115,7 +115,7 @@ Lam(
                     ),
                     [
                         Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(0),
                                 end: ByteIndex(0)
                             },

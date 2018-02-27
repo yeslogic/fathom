@@ -1,21 +1,21 @@
 Unop(
-    ByteSpan {
+    Span {
         start: ByteIndex(1),
         end: ByteIndex(35)
     },
     Neg,
     Subscript(
-        ByteSpan {
+        Span {
             start: ByteIndex(2),
             end: ByteIndex(35)
         },
         Subscript(
-            ByteSpan {
+            Span {
                 start: ByteIndex(2),
                 end: ByteIndex(28)
             },
             Var(
-                ByteSpan {
+                Span {
                     start: ByteIndex(2),
                     end: ByteIndex(5)
                 },
@@ -26,33 +26,33 @@ Unop(
                 )
             ),
             Binop(
-                ByteSpan {
+                Span {
                     start: ByteIndex(6),
                     end: ByteIndex(27)
                 },
                 Add,
                 Const(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(6),
                         end: ByteIndex(11)
                     },
                     Int(23, Unsigned(U32))
                 ),
                 Binop(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(15),
                         end: ByteIndex(26)
                     },
                     Add,
                     Const(
-                        ByteSpan {
+                        Span {
                             start: ByteIndex(15),
                             end: ByteIndex(19)
                         },
                         Int(2, Unsigned(U32))
                     ),
                     Const(
-                        ByteSpan {
+                        Span {
                             start: ByteIndex(22),
                             end: ByteIndex(26)
                         },
@@ -62,7 +62,7 @@ Unop(
             )
         ),
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(29),
                 end: ByteIndex(34)
             },

@@ -1,5 +1,5 @@
 Struct(
-    ByteSpan {
+    Span {
         start: ByteIndex(10),
         end: ByteIndex(312)
     },
@@ -8,7 +8,7 @@ Struct(
             doc: "",
             name: Ident("len"),
             value: Var(
-                ByteSpan {
+                Span {
                     start: ByteIndex(36),
                     end: ByteIndex(39)
                 },
@@ -23,12 +23,12 @@ Struct(
             doc: "",
             name: Ident("data1"),
             value: Array(
-                ByteSpan {
+                Span {
                     start: ByteIndex(60),
                     end: ByteIndex(70)
                 },
                 Var(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(61),
                         end: ByteIndex(64)
                     },
@@ -39,7 +39,7 @@ Struct(
                     )
                 ),
                 Var(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(66),
                         end: ByteIndex(69)
                     },
@@ -58,7 +58,7 @@ Struct(
             doc: "",
             name: Ident("data2"),
             value: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(91),
                     end: ByteIndex(301)
                 },
@@ -67,12 +67,12 @@ Struct(
                         doc: "",
                         name: Ident("data1"),
                         value: Array(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(123),
                                 end: ByteIndex(133)
                             },
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(124),
                                     end: ByteIndex(127)
                                 },
@@ -83,7 +83,7 @@ Struct(
                                 )
                             ),
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(129),
                                     end: ByteIndex(132)
                                 },
@@ -102,7 +102,7 @@ Struct(
                         doc: "",
                         name: Ident("len"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(156),
                                 end: ByteIndex(159)
                             },
@@ -117,7 +117,7 @@ Struct(
                         doc: "Doc comment",
                         name: Ident("padding1"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(219),
                                 end: ByteIndex(221)
                             },
@@ -132,7 +132,7 @@ Struct(
                         doc: "",
                         name: Ident("padding2"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(249),
                                 end: ByteIndex(251)
                             },
@@ -147,12 +147,12 @@ Struct(
                         doc: "",
                         name: Ident("data2"),
                         value: Array(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(276),
                                 end: ByteIndex(286)
                             },
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(277),
                                     end: ByteIndex(280)
                                 },
@@ -163,7 +163,7 @@ Struct(
                                 )
                             ),
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(282),
                                     end: ByteIndex(285)
                                 },

@@ -1,17 +1,17 @@
 Binop(
-    ByteSpan {
+    Span {
         start: ByteIndex(1),
         end: ByteIndex(26)
     },
     Mul,
     Binop(
-        ByteSpan {
+        Span {
             start: ByteIndex(2),
             end: ByteIndex(7)
         },
         Add,
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(2),
                 end: ByteIndex(3)
             },
@@ -22,7 +22,7 @@ Binop(
             )
         ),
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(6),
                 end: ByteIndex(7)
             },
@@ -34,13 +34,13 @@ Binop(
         )
     ),
     Binop(
-        ByteSpan {
+        Span {
             start: ByteIndex(11),
             end: ByteIndex(26)
         },
         Div,
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(11),
                 end: ByteIndex(12)
             },
@@ -51,19 +51,19 @@ Binop(
             )
         ),
         Binop(
-            ByteSpan {
+            Span {
                 start: ByteIndex(15),
                 end: ByteIndex(26)
             },
             Mul,
             Binop(
-                ByteSpan {
+                Span {
                     start: ByteIndex(16),
                     end: ByteIndex(21)
                 },
                 Sub,
                 Var(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(16),
                         end: ByteIndex(17)
                     },
@@ -74,7 +74,7 @@ Binop(
                     )
                 ),
                 Var(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(20),
                         end: ByteIndex(21)
                     },
@@ -86,7 +86,7 @@ Binop(
                 )
             ),
             Var(
-                ByteSpan {
+                Span {
                     start: ByteIndex(25),
                     end: ByteIndex(26)
                 },

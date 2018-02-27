@@ -1,6 +1,6 @@
 use lalrpop_util::ParseError as LalrpopError;
 use codespan::{ByteIndex, ByteSpan, FileMap};
-use codespan_reporting::Diagnostic;
+use codespan_reporting::{Diagnostic, Label};
 use std::fmt;
 
 use super::{LexerError, Token};
@@ -75,15 +75,15 @@ impl ParseError {
 
             ParseError::ConstSuffixInvalid { span, ref suffix } => {
                 Diagnostic::new_error(format!("invalid constant suffix: {}", suffix))
-                    .with_primary_label(span, "invalid constant suffix")
+                    .with_label(Label::new_primary(span).with_message("invalid constant suffix"))
             }
             ParseError::ConstSuffixMissing { span } => {
                 Diagnostic::new_error(format!("missing constant suffix"))
-                    .with_primary_label(span, "suffix expected here")
+                    .with_label(Label::new_primary(span).with_message("suffix expected here"))
             }
             ParseError::InvalidHostTypeName { span, ref name } => {
                 Diagnostic::new_error(format!("invalid host type name: {}", name))
-                    .with_primary_label(span, "invalid host type name")
+                    .with_label(Label::new_primary(span).with_message("invalid host type name"))
             }
 
             ParseError::UnexpectedToken {
@@ -91,14 +91,16 @@ impl ParseError {
                 ref token,
                 ref expected,
             } => Diagnostic::new_error(format!("expected one of {}, found `{}`", expected, token))
-                .with_primary_label(span, "unexpected token"),
+                .with_label(Label::new_primary(span).with_message("unexpected token")),
             ParseError::UnexpectedEof { end, ref expected } => {
                 Diagnostic::new_error(format!("expected one of {}, found `EOF`", expected))
-                    .with_primary_label(ByteSpan::new(end, end), "unexpected EOF")
+                    .with_label(
+                        Label::new_primary(ByteSpan::new(end, end)).with_message("unexpected EOF"),
+                    )
             }
             ParseError::ExtraToken { span, ref token } => {
                 Diagnostic::new_error(format!("extra token `{}`", token))
-                    .with_primary_label(span, "extra token")
+                    .with_label(Label::new_primary(span).with_message("extra token"))
             }
         }
     }

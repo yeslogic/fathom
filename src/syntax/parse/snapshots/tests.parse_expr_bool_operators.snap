@@ -1,17 +1,17 @@
 Binop(
-    ByteSpan {
+    Span {
         start: ByteIndex(10),
         end: ByteIndex(44)
     },
     Or,
     Binop(
-        ByteSpan {
+        Span {
             start: ByteIndex(11),
             end: ByteIndex(24)
         },
         And,
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(11),
                 end: ByteIndex(15)
             },
@@ -22,7 +22,7 @@ Binop(
             )
         ),
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(19),
                 end: ByteIndex(24)
             },
@@ -34,13 +34,13 @@ Binop(
         )
     ),
     Binop(
-        ByteSpan {
+        Span {
             start: ByteIndex(30),
             end: ByteIndex(43)
         },
         Or,
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(30),
                 end: ByteIndex(34)
             },
@@ -51,7 +51,7 @@ Binop(
             )
         ),
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(38),
                 end: ByteIndex(43)
             },

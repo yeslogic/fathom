@@ -1,11 +1,11 @@
 Binop(
-    ByteSpan {
+    Span {
         start: ByteIndex(1),
         end: ByteIndex(18)
     },
     Mul,
     Var(
-        ByteSpan {
+        Span {
             start: ByteIndex(1),
             end: ByteIndex(2)
         },
@@ -16,13 +16,13 @@ Binop(
         )
     ),
     Binop(
-        ByteSpan {
+        Span {
             start: ByteIndex(5),
             end: ByteIndex(18)
         },
         Mul,
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(5),
                 end: ByteIndex(6)
             },
@@ -33,13 +33,13 @@ Binop(
             )
         ),
         Binop(
-            ByteSpan {
+            Span {
                 start: ByteIndex(9),
                 end: ByteIndex(18)
             },
             Div,
             Var(
-                ByteSpan {
+                Span {
                     start: ByteIndex(9),
                     end: ByteIndex(10)
                 },
@@ -50,13 +50,13 @@ Binop(
                 )
             ),
             Binop(
-                ByteSpan {
+                Span {
                     start: ByteIndex(13),
                     end: ByteIndex(18)
                 },
                 Mul,
                 Var(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(13),
                         end: ByteIndex(14)
                     },
@@ -67,7 +67,7 @@ Binop(
                     )
                 ),
                 Var(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(17),
                         end: ByteIndex(18)
                     },

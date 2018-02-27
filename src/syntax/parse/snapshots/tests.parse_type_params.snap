@@ -4,7 +4,7 @@ Module {
             doc: "",
             name: Ident("Pair"),
             body_ty: Lam(
-                ByteSpan {
+                Span {
                     start: ByteIndex(10),
                     end: ByteIndex(79)
                 },
@@ -23,7 +23,7 @@ Module {
                     }
                 ],
                 Struct(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(23),
                         end: ByteIndex(79)
                     },
@@ -32,7 +32,7 @@ Module {
                             doc: "",
                             name: Ident("l"),
                             value: Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(48),
                                     end: ByteIndex(49)
                                 },
@@ -50,7 +50,7 @@ Module {
                             doc: "",
                             name: Ident("r"),
                             value: Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(67),
                                     end: ByteIndex(68)
                                 },
@@ -72,7 +72,7 @@ Module {
             doc: "",
             name: Ident("Array"),
             body_ty: Lam(
-                ByteSpan {
+                Span {
                     start: ByteIndex(90),
                     end: ByteIndex(173)
                 },
@@ -85,7 +85,7 @@ Module {
                     }
                 ],
                 Struct(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(101),
                         end: ByteIndex(173)
                     },
@@ -94,7 +94,7 @@ Module {
                             doc: "",
                             name: Ident("len"),
                             value: Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(128),
                                     end: ByteIndex(133)
                                 },
@@ -109,12 +109,12 @@ Module {
                             doc: "",
                             name: Ident("data"),
                             value: Array(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(154),
                                     end: ByteIndex(162)
                                 },
                                 Var(
-                                    ByteSpan {
+                                    Span {
                                         start: ByteIndex(155),
                                         end: ByteIndex(156)
                                     },
@@ -128,7 +128,7 @@ Module {
                                     )
                                 ),
                                 Var(
-                                    ByteSpan {
+                                    Span {
                                         start: ByteIndex(158),
                                         end: ByteIndex(161)
                                     },
@@ -151,7 +151,7 @@ Module {
             doc: "",
             name: Ident("Data"),
             body_ty: Lam(
-                ByteSpan {
+                Span {
                     start: ByteIndex(184),
                     end: ByteIndex(278)
                 },
@@ -176,7 +176,7 @@ Module {
                     }
                 ],
                 Struct(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(200),
                         end: ByteIndex(278)
                     },
@@ -185,7 +185,7 @@ Module {
                             doc: "",
                             name: Ident("blah"),
                             value: Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(228),
                                     end: ByteIndex(229)
                                 },
@@ -203,12 +203,12 @@ Module {
                             doc: "",
                             name: Ident("data"),
                             value: App(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(250),
                                     end: ByteIndex(267)
                                 },
                                 Var(
-                                    ByteSpan {
+                                    Span {
                                         start: ByteIndex(250),
                                         end: ByteIndex(255)
                                     },
@@ -223,12 +223,12 @@ Module {
                                 ),
                                 [
                                     App(
-                                        ByteSpan {
+                                        Span {
                                             start: ByteIndex(256),
                                             end: ByteIndex(266)
                                         },
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(256),
                                                 end: ByteIndex(260)
                                             },
@@ -243,7 +243,7 @@ Module {
                                         ),
                                         [
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(261),
                                                     end: ByteIndex(262)
                                                 },
@@ -257,7 +257,7 @@ Module {
                                                 )
                                             ),
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(264),
                                                     end: ByteIndex(265)
                                                 },

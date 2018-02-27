@@ -4,7 +4,7 @@ Module {
             doc: "Binary data",
             name: Ident("BinData"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(27),
                     end: ByteIndex(399)
                 },
@@ -13,7 +13,7 @@ Module {
                         doc: "The number of bytes stored",
                         name: Ident("len"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(81),
                                 end: ByteIndex(86)
                             },
@@ -28,7 +28,7 @@ Module {
                         doc: "Binary data subtype\n\n- `0x00`: Generic binary subtype\n- `0x01`: Function\n- `0x02`: Binary (Old)\n- `0x03`: UUID (Old)\n- `0x04`: UUID\n- `0x05`: MD5\n- `0x80`: User defined",
                         name: Ident("subtype"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(342),
                                 end: ByteIndex(344)
                             },
@@ -43,12 +43,12 @@ Module {
                         doc: "The binary data",
                         name: Ident("data"),
                         value: Array(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(380),
                                 end: ByteIndex(396)
                             },
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(381),
                                     end: ByteIndex(383)
                                 },
@@ -59,12 +59,12 @@ Module {
                                 )
                             ),
                             Cast(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(385),
                                     end: ByteIndex(395)
                                 },
                                 Var(
-                                    ByteSpan {
+                                    Span {
                                         start: ByteIndex(385),
                                         end: ByteIndex(388)
                                     },
@@ -92,7 +92,7 @@ Module {
             doc: "",
             name: Ident("ObjectId"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(413),
                     end: ByteIndex(512)
                 },
@@ -101,7 +101,7 @@ Module {
                         doc: "",
                         name: Ident("epoch_time"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(438),
                                 end: ByteIndex(443)
                             },
@@ -116,7 +116,7 @@ Module {
                         doc: "",
                         name: Ident("machine_id"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(461),
                                 end: ByteIndex(466)
                             },
@@ -131,7 +131,7 @@ Module {
                         doc: "",
                         name: Ident("process_id"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(484),
                                 end: ByteIndex(489)
                             },
@@ -146,7 +146,7 @@ Module {
                         doc: "",
                         name: Ident("counter"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(504),
                                 end: ByteIndex(509)
                             },
@@ -164,7 +164,7 @@ Module {
             doc: "",
             name: Ident("Element"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(525),
                     end: ByteIndex(2269)
                 },
@@ -173,7 +173,7 @@ Module {
                         doc: "",
                         name: Ident("elem_type"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(550),
                                 end: ByteIndex(552)
                             },
@@ -188,7 +188,7 @@ Module {
                         doc: "",
                         name: Ident("content"),
                         value: Cond(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(567),
                                 end: ByteIndex(2266)
                             },
@@ -198,13 +198,13 @@ Module {
                                     name: Ident("double"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(625),
                                                 end: ByteIndex(644)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(625),
                                                     end: ByteIndex(634)
                                                 },
@@ -218,7 +218,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(638),
                                                     end: ByteIndex(644)
                                                 },
@@ -226,7 +226,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(648),
                                                 end: ByteIndex(653)
                                             },
@@ -243,13 +243,13 @@ Module {
                                     name: Ident("bin_data"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(994),
                                                 end: ByteIndex(1013)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(994),
                                                     end: ByteIndex(1003)
                                                 },
@@ -263,7 +263,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1007),
                                                     end: ByteIndex(1013)
                                                 },
@@ -271,7 +271,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1017),
                                                 end: ByteIndex(1024)
                                             },
@@ -291,13 +291,13 @@ Module {
                                     name: Ident("undefined"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1089),
                                                 end: ByteIndex(1108)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1089),
                                                     end: ByteIndex(1098)
                                                 },
@@ -311,7 +311,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1102),
                                                     end: ByteIndex(1108)
                                                 },
@@ -319,7 +319,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1112),
                                                 end: ByteIndex(1117)
                                             },
@@ -336,13 +336,13 @@ Module {
                                     name: Ident("object_id"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1160),
                                                 end: ByteIndex(1179)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1160),
                                                     end: ByteIndex(1169)
                                                 },
@@ -356,7 +356,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1173),
                                                     end: ByteIndex(1179)
                                                 },
@@ -364,7 +364,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1183),
                                                 end: ByteIndex(1191)
                                             },
@@ -384,13 +384,13 @@ Module {
                                     name: Ident("boolean"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1298),
                                                 end: ByteIndex(1317)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1298),
                                                     end: ByteIndex(1307)
                                                 },
@@ -404,7 +404,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1311),
                                                     end: ByteIndex(1317)
                                                 },
@@ -412,7 +412,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1321),
                                                 end: ByteIndex(1323)
                                             },
@@ -429,13 +429,13 @@ Module {
                                     name: Ident("utc_datetime"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1373),
                                                 end: ByteIndex(1392)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1373),
                                                     end: ByteIndex(1382)
                                                 },
@@ -449,7 +449,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1386),
                                                     end: ByteIndex(1392)
                                                 },
@@ -457,7 +457,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1396),
                                                 end: ByteIndex(1401)
                                             },
@@ -474,13 +474,13 @@ Module {
                                     name: Ident("null"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1441),
                                                 end: ByteIndex(1460)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1441),
                                                     end: ByteIndex(1450)
                                                 },
@@ -494,7 +494,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1454),
                                                     end: ByteIndex(1460)
                                                 },
@@ -502,7 +502,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1464),
                                                 end: ByteIndex(1469)
                                             },
@@ -519,13 +519,13 @@ Module {
                                     name: Ident("int"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1973),
                                                 end: ByteIndex(1992)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1973),
                                                     end: ByteIndex(1982)
                                                 },
@@ -539,7 +539,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(1986),
                                                     end: ByteIndex(1992)
                                                 },
@@ -547,7 +547,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(1996),
                                                 end: ByteIndex(2001)
                                             },
@@ -564,13 +564,13 @@ Module {
                                     name: Ident("timestamp"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(2045),
                                                 end: ByteIndex(2064)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(2045),
                                                     end: ByteIndex(2054)
                                                 },
@@ -584,7 +584,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(2058),
                                                     end: ByteIndex(2064)
                                                 },
@@ -592,7 +592,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(2068),
                                                 end: ByteIndex(2073)
                                             },
@@ -609,13 +609,13 @@ Module {
                                     name: Ident("long"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(2117),
                                                 end: ByteIndex(2136)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(2117),
                                                     end: ByteIndex(2126)
                                                 },
@@ -629,7 +629,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(2130),
                                                     end: ByteIndex(2136)
                                                 },
@@ -637,7 +637,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(2140),
                                                 end: ByteIndex(2145)
                                             },
@@ -659,7 +659,7 @@ Module {
             doc: "BSON Document\n\n<http://bsonspec.org/spec.html>",
             name: Ident("Document"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(2341),
                     end: ByteIndex(2600)
                 },
@@ -668,7 +668,7 @@ Module {
                         doc: "Total number of bytes comprising the document.",
                         name: Ident("len"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(2415),
                                 end: ByteIndex(2420)
                             },
@@ -683,12 +683,12 @@ Module {
                         doc: "The elements that make up this document",
                         name: Ident("fields"),
                         value: Array(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(2483),
                                 end: ByteIndex(2497)
                             },
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(2484),
                                     end: ByteIndex(2491)
                                 },
@@ -702,7 +702,7 @@ Module {
                                 )
                             ),
                             Const(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(2493),
                                     end: ByteIndex(2496)
                                 },

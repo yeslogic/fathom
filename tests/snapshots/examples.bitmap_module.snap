@@ -4,7 +4,7 @@ Module {
             doc: "",
             name: Ident("Pixel"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(9),
                     end: ByteIndex(67)
                 },
@@ -13,7 +13,7 @@ Module {
                         doc: "",
                         name: Ident("r"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(26),
                                 end: ByteIndex(28)
                             },
@@ -28,7 +28,7 @@ Module {
                         doc: "",
                         name: Ident("g"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(38),
                                 end: ByteIndex(40)
                             },
@@ -43,7 +43,7 @@ Module {
                         doc: "",
                         name: Ident("b"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(50),
                                 end: ByteIndex(52)
                             },
@@ -58,7 +58,7 @@ Module {
                         doc: "",
                         name: Ident("a"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(62),
                                 end: ByteIndex(64)
                             },
@@ -76,7 +76,7 @@ Module {
             doc: "",
             name: Ident("Bitmap"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(79),
                     end: ByteIndex(218)
                 },
@@ -85,7 +85,7 @@ Module {
                         doc: "",
                         name: Ident("extents"),
                         value: Struct(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(102),
                                 end: ByteIndex(163)
                             },
@@ -94,7 +94,7 @@ Module {
                                     doc: "",
                                     name: Ident("width"),
                                     value: Var(
-                                        ByteSpan {
+                                        Span {
                                             start: ByteIndex(127),
                                             end: ByteIndex(132)
                                         },
@@ -109,7 +109,7 @@ Module {
                                     doc: "",
                                     name: Ident("height"),
                                     value: Var(
-                                        ByteSpan {
+                                        Span {
                                             start: ByteIndex(151),
                                             end: ByteIndex(156)
                                         },
@@ -127,12 +127,12 @@ Module {
                         doc: "",
                         name: Ident("data"),
                         value: Array(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(176),
                                 end: ByteIndex(215)
                             },
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(177),
                                     end: ByteIndex(182)
                                 },
@@ -146,18 +146,18 @@ Module {
                                 )
                             ),
                             Binop(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(184),
                                     end: ByteIndex(214)
                                 },
                                 Mul,
                                 Proj(
-                                    ByteSpan {
+                                    Span {
                                         start: ByteIndex(184),
                                         end: ByteIndex(197)
                                     },
                                     Var(
-                                        ByteSpan {
+                                        Span {
                                             start: ByteIndex(184),
                                             end: ByteIndex(191)
                                         },
@@ -173,12 +173,12 @@ Module {
                                     Ident("width")
                                 ),
                                 Proj(
-                                    ByteSpan {
+                                    Span {
                                         start: ByteIndex(200),
                                         end: ByteIndex(214)
                                     },
                                     Var(
-                                        ByteSpan {
+                                        Span {
                                             start: ByteIndex(200),
                                             end: ByteIndex(207)
                                         },
@@ -203,7 +203,7 @@ Module {
             doc: "",
             name: Ident("Bmp"),
             body_ty: Var(
-                ByteSpan {
+                Span {
                     start: ByteIndex(227),
                     end: ByteIndex(233)
                 },

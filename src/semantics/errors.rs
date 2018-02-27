@@ -1,5 +1,5 @@
 use codespan::ByteSpan;
-use codespan_reporting::Diagnostic;
+use codespan_reporting::{Diagnostic, Label};
 
 use name::{Ident, Name};
 use syntax::core::{Binop, RcKind, RcType, Scope};
@@ -67,15 +67,17 @@ impl TypeError {
         match *self {
             TypeError::UndefinedName { ref name, var_span } => {
                 let message = format!("cannot find `{}` in scope", name);
-                Diagnostic::new_error(message)
-                    .with_primary_label(var_span, "not found in this scope")
+                Diagnostic::new_error(message).with_label(
+                    Label::new_primary(var_span).with_message("not found in this scope"),
+                )
             }
             TypeError::ExpectedExpr {
                 ref found,
                 var_span,
             } => {
                 let message = format!("expected a value, but found a type `{:?}`", found);
-                Diagnostic::new_error(message).with_primary_label(var_span, "the type")
+                Diagnostic::new_error(message)
+                    .with_label(Label::new_primary(var_span).with_message("the type"))
             }
             TypeError::Mismatch {
                 span,
@@ -87,7 +89,8 @@ impl TypeError {
                     found, expected,
                 );
 
-                Diagnostic::new_error(message).with_primary_label(span, "the term")
+                Diagnostic::new_error(message)
+                    .with_label(Label::new_primary(span).with_message("the term"))
             }
             TypeError::BinaryOperands {
                 expr_span,
@@ -96,13 +99,22 @@ impl TypeError {
                 rhs_ty: _, // TODO
             } => {
                 let message = format!("mismatched arguments passed to operator `{:?}`", binop,);
-                Diagnostic::new_error(message).with_primary_label(expr_span, "the expression")
+                Diagnostic::new_error(message)
+                    .with_label(Label::new_primary(expr_span).with_message("the expression"))
             }
             TypeError::MissingField {
-                span: _,       // TODO
-                struct_ty: _,  // TODO
-                field_name: _, // TODO
-            } => unimplemented!(),
+                span, // TODO
+                ref struct_ty,
+                ref field_name,
+            } => {
+                let message = format!(
+                    "no field `{}` found for an expression of type {:?}",
+                    field_name, struct_ty,
+                );
+
+                Diagnostic::new_error(message)
+                    .with_label(Label::new_primary(span).with_message("the expression"))
+            }
             TypeError::MissingVariant {
                 span: _,         // TODO
                 union_ty: _,     // TODO
@@ -119,8 +131,8 @@ impl TypeError {
                 );
 
                 Diagnostic::new_error(message)
-                    .with_primary_label(fn_span, "the term")
-                    .with_secondary_label(arg_span, "the applied argument")
+                    .with_label(Label::new_primary(fn_span).with_message("the term"))
+                    .with_label(Label::new_secondary(arg_span).with_message("the applied argument"))
             }
             TypeError::NegOnUnsigned {
                 operand_span,
@@ -131,7 +143,8 @@ impl TypeError {
                     operand_ty,
                 );
 
-                Diagnostic::new_error(message).with_primary_label(operand_span, "the operand")
+                Diagnostic::new_error(message)
+                    .with_label(Label::new_primary(operand_span).with_message("the operand"))
             }
             TypeError::SubscriptOnNonArray {
                 index_span,
@@ -144,8 +157,8 @@ impl TypeError {
                 );
 
                 Diagnostic::new_error(message)
-                    .with_primary_label(target_span, "the expression")
-                    .with_secondary_label(index_span, "the subscript")
+                    .with_label(Label::new_primary(target_span).with_message("the expression"))
+                    .with_label(Label::new_secondary(index_span).with_message("the subscript"))
             }
             TypeError::UnexpectedIndexType {
                 index_span,
@@ -157,7 +170,7 @@ impl TypeError {
                 );
 
                 Diagnostic::new_error(message)
-                    .with_primary_label(index_span, "the index expression")
+                    .with_label(Label::new_primary(index_span).with_message("the index expression"))
             }
             TypeError::InvalidCast {
                 src_span,
@@ -167,8 +180,8 @@ impl TypeError {
             } => {
                 let message = format!("invalid cast from `{:?}` to `{:?}`", src_ty, dst_ty,);
                 Diagnostic::new_error(message)
-                    .with_primary_label(src_span, "the source expression")
-                    .with_secondary_label(dst_span, "the type to cast to")
+                    .with_label(Label::new_primary(src_span).with_message("the source expression"))
+                    .with_label(Label::new_secondary(dst_span).with_message("the type to cast to"))
             }
         }
     }
@@ -207,8 +220,9 @@ impl KindError {
         match *self {
             KindError::UndefinedName { ref name, var_span } => {
                 let message = format!("cannot find `{}` in scope", name);
-                Diagnostic::new_error(message)
-                    .with_primary_label(var_span, "not found in this scope")
+                Diagnostic::new_error(message).with_label(
+                    Label::new_primary(var_span).with_message("not found in this scope"),
+                )
             }
             KindError::NotATypeConstructor {
                 fn_span,
@@ -221,13 +235,13 @@ impl KindError {
                     found,
                 );
 
-                let mut diagnostic =
-                    Diagnostic::new_error(message).with_primary_label(fn_span, "the type");
-                for &span in arg_spans {
-                    diagnostic = diagnostic.with_secondary_label(span, "applied argument");
-                }
-
-                diagnostic
+                Diagnostic::new_error(message)
+                    .with_label(Label::new_primary(fn_span).with_message("the type"))
+                    .with_labels(
+                        arg_spans.iter().map(|&span| {
+                            Label::new_secondary(span).with_message("applied argument")
+                        }),
+                    )
             }
             KindError::Mismatch {
                 span,
@@ -239,11 +253,13 @@ impl KindError {
                     found, expected,
                 );
 
-                Diagnostic::new_error(message).with_primary_label(span, "the type")
+                Diagnostic::new_error(message)
+                    .with_label(Label::new_primary(span).with_message("the type"))
             }
             KindError::ExpectedType { ref found, span } => {
                 let message = format!("expected type, found value `{:?}`", found);
-                Diagnostic::new_error(message).with_primary_label(span, "the value")
+                Diagnostic::new_error(message)
+                    .with_label(Label::new_primary(span).with_message("the value"))
             }
             KindError::UnexpectedArraySizeType {
                 size_span,
@@ -254,7 +270,8 @@ impl KindError {
                     found,
                 );
 
-                Diagnostic::new_error(message).with_primary_label(size_span, "the size expression")
+                Diagnostic::new_error(message)
+                    .with_label(Label::new_primary(size_span).with_message("the size expression"))
             }
             KindError::Type(ref err) => err.to_diagnostic(),
         }

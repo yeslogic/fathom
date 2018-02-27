@@ -1,11 +1,11 @@
 Binop(
-    ByteSpan {
+    Span {
         start: ByteIndex(1),
         end: ByteIndex(10)
     },
     Mul,
     Var(
-        ByteSpan {
+        Span {
             start: ByteIndex(1),
             end: ByteIndex(2)
         },
@@ -16,13 +16,13 @@ Binop(
         )
     ),
     Binop(
-        ByteSpan {
+        Span {
             start: ByteIndex(5),
             end: ByteIndex(10)
         },
         Mul,
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(5),
                 end: ByteIndex(6)
             },
@@ -33,7 +33,7 @@ Binop(
             )
         ),
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(9),
                 end: ByteIndex(10)
             },

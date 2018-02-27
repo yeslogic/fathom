@@ -4,7 +4,7 @@ Module {
             doc: "",
             name: Ident("Point"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(18),
                     end: ByteIndex(82)
                 },
@@ -13,7 +13,7 @@ Module {
                         doc: "",
                         name: Ident("x"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(43),
                                 end: ByteIndex(48)
                             },
@@ -28,7 +28,7 @@ Module {
                         doc: "",
                         name: Ident("y"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(66),
                                 end: ByteIndex(71)
                             },
@@ -46,7 +46,7 @@ Module {
             doc: "A doc comment\n\nWith some mor text",
             name: Ident("Array"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(170),
                     end: ByteIndex(246)
                 },
@@ -55,7 +55,7 @@ Module {
                         doc: "",
                         name: Ident("len"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(197),
                                 end: ByteIndex(202)
                             },
@@ -70,12 +70,12 @@ Module {
                         doc: "",
                         name: Ident("data"),
                         value: Array(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(223),
                                 end: ByteIndex(235)
                             },
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(224),
                                     end: ByteIndex(229)
                                 },
@@ -89,7 +89,7 @@ Module {
                                 )
                             ),
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(231),
                                     end: ByteIndex(234)
                                 },
@@ -111,7 +111,7 @@ Module {
             doc: "",
             name: Ident("Formats"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(267),
                     end: ByteIndex(597)
                 },
@@ -120,7 +120,7 @@ Module {
                         doc: "",
                         name: Ident("format"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(297),
                                 end: ByteIndex(299)
                             },
@@ -135,7 +135,7 @@ Module {
                         doc: "",
                         name: Ident("data"),
                         value: Cond(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(320),
                                 end: ByteIndex(586)
                             },
@@ -145,13 +145,13 @@ Module {
                                     name: Ident("u16"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(402),
                                                 end: ByteIndex(418)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(402),
                                                     end: ByteIndex(408)
                                                 },
@@ -165,7 +165,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(412),
                                                     end: ByteIndex(418)
                                                 },
@@ -173,7 +173,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(422),
                                                 end: ByteIndex(425)
                                             },
@@ -190,13 +190,13 @@ Module {
                                     name: Ident("point"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(451),
                                                 end: ByteIndex(467)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(451),
                                                     end: ByteIndex(457)
                                                 },
@@ -210,7 +210,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(461),
                                                     end: ByteIndex(467)
                                                 },
@@ -218,7 +218,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(471),
                                                 end: ByteIndex(476)
                                             },
@@ -238,13 +238,13 @@ Module {
                                     name: Ident("array"),
                                     value: (
                                         Binop(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(546),
                                                 end: ByteIndex(562)
                                             },
                                             Eq,
                                             Var(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(546),
                                                     end: ByteIndex(552)
                                                 },
@@ -258,7 +258,7 @@ Module {
                                                 )
                                             ),
                                             Const(
-                                                ByteSpan {
+                                                Span {
                                                     start: ByteIndex(556),
                                                     end: ByteIndex(562)
                                                 },
@@ -266,7 +266,7 @@ Module {
                                             )
                                         ),
                                         Var(
-                                            ByteSpan {
+                                            Span {
                                                 start: ByteIndex(566),
                                                 end: ByteIndex(571)
                                             },

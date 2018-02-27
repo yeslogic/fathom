@@ -1005,9 +1005,9 @@ mod tests {
                 // λx. x
                 // λ   0
                 let ty = RcT::lam(
-                    ByteSpan::none(),
+                    ByteSpan::default(),
                     vec![Named::new(Name::user("x"), Kind::Binary.into())],
-                    T::Var(ByteSpan::none(), Var::free(Name::user("x"))),
+                    T::Var(ByteSpan::default(), Var::free(Name::user("x"))),
                 );
 
                 assert_debug_snapshot!(ty_abs_id, ty);
@@ -1020,12 +1020,12 @@ mod tests {
                 // λx.λy. x
                 // λ  λ   1
                 let ty = RcT::lam(
-                    ByteSpan::none(),
+                    ByteSpan::default(),
                     vec![Named::new(Name::user("x"), Kind::Binary.into())],
                     RcT::lam(
-                        ByteSpan::none(),
+                        ByteSpan::default(),
                         vec![Named::new(Name::user("y"), Kind::Binary.into())],
-                        T::Var(ByteSpan::none(), Var::free(Name::user("x"))),
+                        T::Var(ByteSpan::default(), Var::free(Name::user("x"))),
                     ),
                 );
 
@@ -1037,29 +1037,31 @@ mod tests {
                 // λx.λy.λz. x z (y z)
                 // λ  λ  λ   2 0 (1 0)
                 let ty = RcT::lam(
-                    ByteSpan::none(),
+                    ByteSpan::default(),
                     vec![Named::new(Name::user("x"), Kind::Binary.into())],
                     RcT::lam(
-                        ByteSpan::none(),
+                        ByteSpan::default(),
                         vec![Named::new(Name::user("y"), Kind::Binary.into())],
                         RcT::lam(
-                            ByteSpan::none(),
+                            ByteSpan::default(),
                             vec![Named::new(Name::user("z"), Kind::Binary.into())],
                             T::App(
-                                ByteSpan::none(),
+                                ByteSpan::default(),
                                 T::App(
-                                    ByteSpan::none(),
-                                    T::Var(ByteSpan::none(), Var::free(Name::user("x"))).into(),
+                                    ByteSpan::default(),
+                                    T::Var(ByteSpan::default(), Var::free(Name::user("x"))).into(),
                                     vec![
-                                        T::Var(ByteSpan::none(), Var::free(Name::user("z"))).into(),
+                                        T::Var(ByteSpan::default(), Var::free(Name::user("z")))
+                                            .into(),
                                     ],
                                 ).into(),
                                 vec![
                                     T::App(
-                                        ByteSpan::none(),
-                                        T::Var(ByteSpan::none(), Var::free(Name::user("y"))).into(),
+                                        ByteSpan::default(),
+                                        T::Var(ByteSpan::default(), Var::free(Name::user("y")))
+                                            .into(),
                                         vec![
-                                            T::Var(ByteSpan::none(), Var::free(Name::user("z")))
+                                            T::Var(ByteSpan::default(), Var::free(Name::user("z")))
                                                 .into(),
                                         ],
                                     ).into(),
@@ -1077,34 +1079,35 @@ mod tests {
                 // λz.(λy. y (λx. x)) (λx. z x)
                 // λ  (λ   0 (λ   0)) (λ   1 0)
                 let ty = RcT::lam(
-                    ByteSpan::none(),
+                    ByteSpan::default(),
                     vec![Named::new(Name::user("z"), Kind::Binary.into())],
                     T::App(
-                        ByteSpan::none(),
+                        ByteSpan::default(),
                         RcT::lam(
-                            ByteSpan::none(),
+                            ByteSpan::default(),
                             vec![Named::new(Name::user("y"), Kind::Binary.into())],
                             T::App(
-                                ByteSpan::none(),
-                                T::Var(ByteSpan::none(), Var::free(Name::user("y"))).into(),
+                                ByteSpan::default(),
+                                T::Var(ByteSpan::default(), Var::free(Name::user("y"))).into(),
                                 vec![
                                     RcT::lam(
-                                        ByteSpan::none(),
+                                        ByteSpan::default(),
                                         vec![Named::new(Name::user("x"), Kind::Binary.into())],
-                                        T::Var(ByteSpan::none(), Var::free(Name::user("x"))),
+                                        T::Var(ByteSpan::default(), Var::free(Name::user("x"))),
                                     ),
                                 ],
                             ),
                         ),
                         vec![
                             RcT::lam(
-                                ByteSpan::none(),
+                                ByteSpan::default(),
                                 vec![Named::new(Name::user("x"), Kind::Binary.into())],
                                 T::App(
-                                    ByteSpan::none(),
-                                    T::Var(ByteSpan::none(), Var::free(Name::user("z"))).into(),
+                                    ByteSpan::default(),
+                                    T::Var(ByteSpan::default(), Var::free(Name::user("z"))).into(),
                                     vec![
-                                        T::Var(ByteSpan::none(), Var::free(Name::user("x"))).into(),
+                                        T::Var(ByteSpan::default(), Var::free(Name::user("x")))
+                                            .into(),
                                     ],
                                 ),
                             ),

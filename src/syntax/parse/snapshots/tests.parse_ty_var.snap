@@ -1,5 +1,5 @@
 Var(
-    ByteSpan {
+    Span {
         start: ByteIndex(10),
         end: ByteIndex(15)
     },

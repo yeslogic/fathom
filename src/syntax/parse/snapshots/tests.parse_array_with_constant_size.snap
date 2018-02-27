@@ -4,12 +4,12 @@ Module {
             doc: "",
             name: Ident("Point"),
             body_ty: Array(
-                ByteSpan {
+                Span {
                     start: ByteIndex(18),
                     end: ByteIndex(29)
                 },
                 Var(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(19),
                         end: ByteIndex(22)
                     },
@@ -20,7 +20,7 @@ Module {
                     )
                 ),
                 Const(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(24),
                         end: ByteIndex(28)
                     },

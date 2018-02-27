@@ -1,15 +1,15 @@
 Assert(
-    ByteSpan {
+    Span {
         start: ByteIndex(10),
         end: ByteIndex(127)
     },
     Assert(
-        ByteSpan {
+        Span {
             start: ByteIndex(10),
             end: ByteIndex(98)
         },
         Struct(
-            ByteSpan {
+            Span {
                 start: ByteIndex(10),
                 end: ByteIndex(69)
             },
@@ -18,12 +18,12 @@ Assert(
                     doc: "",
                     name: Ident("x"),
                     value: Assert(
-                        ByteSpan {
+                        Span {
                             start: ByteIndex(34),
                             end: ByteIndex(58)
                         },
                         Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(34),
                                 end: ByteIndex(37)
                             },
@@ -34,7 +34,7 @@ Assert(
                             )
                         ),
                         Lam(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(44),
                                 end: ByteIndex(58)
                             },
@@ -53,13 +53,13 @@ Assert(
                                 }
                             ],
                             Binop(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(49),
                                     end: ByteIndex(58)
                                 },
                                 Eq,
                                 Var(
-                                    ByteSpan {
+                                    Span {
                                         start: ByteIndex(49),
                                         end: ByteIndex(50)
                                     },
@@ -73,7 +73,7 @@ Assert(
                                     )
                                 ),
                                 Const(
-                                    ByteSpan {
+                                    Span {
                                         start: ByteIndex(54),
                                         end: ByteIndex(58)
                                     },
@@ -86,7 +86,7 @@ Assert(
             ]
         ),
         Lam(
-            ByteSpan {
+            Span {
                 start: ByteIndex(84),
                 end: ByteIndex(98)
             },
@@ -113,13 +113,13 @@ Assert(
                 }
             ],
             Binop(
-                ByteSpan {
+                Span {
                     start: ByteIndex(89),
                     end: ByteIndex(98)
                 },
                 Eq,
                 Var(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(89),
                         end: ByteIndex(90)
                     },
@@ -133,7 +133,7 @@ Assert(
                     )
                 ),
                 Const(
-                    ByteSpan {
+                    Span {
                         start: ByteIndex(94),
                         end: ByteIndex(98)
                     },
@@ -143,7 +143,7 @@ Assert(
         )
     ),
     Lam(
-        ByteSpan {
+        Span {
             start: ByteIndex(113),
             end: ByteIndex(127)
         },
@@ -170,13 +170,13 @@ Assert(
             }
         ],
         Binop(
-            ByteSpan {
+            Span {
                 start: ByteIndex(118),
                 end: ByteIndex(127)
             },
             Eq,
             Var(
-                ByteSpan {
+                Span {
                     start: ByteIndex(118),
                     end: ByteIndex(119)
                 },
@@ -190,7 +190,7 @@ Assert(
                 )
             ),
             Const(
-                ByteSpan {
+                Span {
                     start: ByteIndex(123),
                     end: ByteIndex(127)
                 },

@@ -4,7 +4,7 @@ Module {
             doc: "https://docs.mongodb.com/manual/reference/method/ObjectId/",
             name: Ident("ObjectId"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(75),
                     end: ByteIndex(174)
                 },
@@ -13,7 +13,7 @@ Module {
                         doc: "",
                         name: Ident("epoch_time"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(100),
                                 end: ByteIndex(105)
                             },
@@ -28,7 +28,7 @@ Module {
                         doc: "",
                         name: Ident("machine_id"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(123),
                                 end: ByteIndex(128)
                             },
@@ -43,7 +43,7 @@ Module {
                         doc: "",
                         name: Ident("process_id"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(146),
                                 end: ByteIndex(151)
                             },
@@ -58,7 +58,7 @@ Module {
                         doc: "",
                         name: Ident("counter"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(166),
                                 end: ByteIndex(171)
                             },

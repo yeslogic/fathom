@@ -4,7 +4,7 @@ Module {
             doc: "",
             name: Ident("Vec3d"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(9),
                     end: ByteIndex(61)
                 },
@@ -13,7 +13,7 @@ Module {
                         doc: "",
                         name: Ident("x"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(25),
                                 end: ByteIndex(30)
                             },
@@ -28,7 +28,7 @@ Module {
                         doc: "",
                         name: Ident("y"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(39),
                                 end: ByteIndex(44)
                             },
@@ -43,7 +43,7 @@ Module {
                         doc: "",
                         name: Ident("z"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(53),
                                 end: ByteIndex(58)
                             },
@@ -61,7 +61,7 @@ Module {
             doc: "",
             name: Ident("Triangle"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(75),
                     end: ByteIndex(408)
                 },
@@ -70,7 +70,7 @@ Module {
                         doc: "Normal vector",
                         name: Ident("normal"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(118),
                                 end: ByteIndex(123)
                             },
@@ -88,12 +88,12 @@ Module {
                         doc: "Coordinates of the vertices",
                         name: Ident("vertices"),
                         value: Array(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(175),
                                 end: ByteIndex(187)
                             },
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(176),
                                     end: ByteIndex(181)
                                 },
@@ -107,7 +107,7 @@ Module {
                                 )
                             ),
                             Const(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(183),
                                     end: ByteIndex(186)
                                 },
@@ -119,7 +119,7 @@ Module {
                         doc: "Attribute byte count\n\nThe attribute syntax is not documented in the formal specification. It is\nspecified that the attribute byte count should be set to zero.",
                         name: Ident("attribute_bytes"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(400),
                                 end: ByteIndex(405)
                             },
@@ -137,7 +137,7 @@ Module {
             doc: "https://en.wikipedia.org/wiki/STL_(file_format)",
             name: Ident("Stl"),
             body_ty: Struct(
-                ByteSpan {
+                Span {
                     start: ByteIndex(469),
                     end: ByteIndex(663)
                 },
@@ -146,12 +146,12 @@ Module {
                         doc: "Generally ignored",
                         name: Ident("header"),
                         value: Array(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(516),
                                 end: ByteIndex(526)
                             },
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(517),
                                     end: ByteIndex(519)
                                 },
@@ -162,7 +162,7 @@ Module {
                                 )
                             ),
                             Const(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(521),
                                     end: ByteIndex(525)
                                 },
@@ -174,7 +174,7 @@ Module {
                         doc: "Number of triangles that follow",
                         name: Ident("num_triangles"),
                         value: Var(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(587),
                                 end: ByteIndex(592)
                             },
@@ -189,12 +189,12 @@ Module {
                         doc: "The triangle data",
                         name: Ident("triangles"),
                         value: Array(
-                            ByteSpan {
+                            Span {
                                 start: ByteIndex(635),
                                 end: ByteIndex(660)
                             },
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(636),
                                     end: ByteIndex(644)
                                 },
@@ -208,7 +208,7 @@ Module {
                                 )
                             ),
                             Var(
-                                ByteSpan {
+                                Span {
                                     start: ByteIndex(646),
                                     end: ByteIndex(659)
                                 },

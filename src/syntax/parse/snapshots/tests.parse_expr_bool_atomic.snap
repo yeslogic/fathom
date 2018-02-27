@@ -1,17 +1,17 @@
 Unop(
-    ByteSpan {
+    Span {
         start: ByteIndex(10),
         end: ByteIndex(30)
     },
     Not,
     Binop(
-        ByteSpan {
+        Span {
             start: ByteIndex(13),
             end: ByteIndex(28)
         },
         Or,
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(13),
                 end: ByteIndex(17)
             },
@@ -22,7 +22,7 @@ Unop(
             )
         ),
         Var(
-            ByteSpan {
+            Span {
                 start: ByteIndex(22),
                 end: ByteIndex(27)
             },

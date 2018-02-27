@@ -1,5 +1,5 @@
 Lam(
-    ByteSpan {
+    Span {
         start: ByteIndex(0),
         end: ByteIndex(0)
     },
@@ -12,7 +12,7 @@ Lam(
         }
     ],
     Var(
-        ByteSpan {
+        Span {
             start: ByteIndex(0),
             end: ByteIndex(0)
         },
