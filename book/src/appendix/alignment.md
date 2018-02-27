@@ -1,10 +1,5 @@
-<!DOCTYPE html>
-<html>
-<body>
+# Size and alignment of dependently typed data
 
-<h1>Size and alignment of dependently typed data</h1>
-
-<p>
 Engineers have devised a vast number of data formats for
 a wide range of applications,
 and are devising new ones all the time.
@@ -15,13 +10,12 @@ verifying that an application correctly implements the spec,
 as well as validating that the spec really says what the author
 intended it to say.
 
-<p>
 Typically, DDLs use dependent types to give a precise
 characterisation of what is considered valid data.
 For example, it is common for a format to contain a field specifying
 the size of the data, followed by an array of the data itself.
-In this case the <em>type</em> of the array depends on
-the <em>value</em> of the field preceding it,
+In this case the _type_ of the array depends on
+the _value_ of the field preceding it,
 hence the data is dependently typed.
 In contrast, most programming languages would leave the array size
 out of the type, and it would either be left to programmer discipline
@@ -29,14 +23,12 @@ to ensure that offsets into the data stream are correctly aligned
 and that dynamic bounds checks are performed when needed,
 or else such checks would always be performed.
 
-<p>
 So what can we say, statically, about the size of terms of a given type?
 Such information is useful not just to cut down on parsing time
 by avoiding the need for unnecessary checks,
 but also as a guide for authors who are writing a new spec
 or formulating an existing spec in a DDL.
 
-<p>
 In this article, we present a small language of dependently typed terms
 representing a simple form of DDL,
 which includes integers, arrays, union types, recursive types
@@ -52,30 +44,29 @@ Hence, if all of the values in the set are aligned in a particular way,
 we can conclude that the size of the term will always be aligned that way
 as well.
 
-<h2>Preliminaries (optional)</h2>
+## Preliminaries (optional)
 
-<p>
 This section covers some background material that we use in the analysis.
 You can skip this part if it is already familiar to you.
 
-<h3>Polynomials</h3>
+### Polynomials
 
-<p>
 A (multivariate) polynomial is an expression that is built up using:
-<ul>
-    <li>integer constants</li>
-    <li>variables</li>
-    <li>binary operations <code>*</code> and <code>+</code></li>
-</ul>
+
+- integer constants
+- variables
+- binary operations <code>*</code> and <code>+</code>
+
 Any polynomial can be written in a simplified form as follows:
-<pre>
-     k₁x₁₁<sup>i₁₁</sup>x₁₂<sup>i₁₂</sup>... + k₂x₂₁<sup>i₂₁</sup>x₂₂<sup>i₂₂</sup>... + ...
-</pre>
+\\[
+    k_1x_{11}^{i_{11}}x_{12}^{i_{12}}\ldots +
+    k_2x_{21}^{i_{21}}x_{22}^{i_{22}}\ldots +
+    \ldots
+\\]
 That is, a sum of terms each of which is an integer,
 called the coefficient,
 multiplied by a set of variables raised to some power.
 
-<p>
 Two terms in a polynomial are "like" when they contain the same variables
 raised to the same powers;
 such terms can be combined by adding the coefficients.
@@ -83,7 +74,6 @@ In the sequel, we will assume that all polynomials are simplified as
 much as possible.
 That is, they are in the above form and all like terms have been combined.
 
-<p>
 You're probably familiar with the formula
 <code>
 <pre>
@@ -95,31 +85,24 @@ This works for positive integers,
 and if the operations are defined carefully
 it can work for negative integers as well, and even zero.
 
-<p>
 Polynomials have a long division operation analogous to integer division,
 and a similar formula to the above holds for it.
 We won't need the full definition of polynomial long division,
 so that won't be covered here, but we will need to use one special case,
 namely, dividing by a polynomial consisting of a single variable.
 
-<p>
 The definition is very simple.
 Assuming the polynomial is <code>p</code> and the variable is <code>x</code>,
 then:
-<ul>
-    <li>
-        <code>(p // x)</code> is the polynomial consisting of
-        each term of <code>p</code> that contains <code>x</code>,
-        with the power of <code>x</code> reduced by 1.
-        (Note that anything raised to the power 0 is 1,
-        and is therefore from the term.)
-    </li>
 
-    <li>
-        <code>(p % x)</code> is the polynomial consisting of
-        each term of <code>p</code> that does not contain <code>x</code>.
-    </li>
-</ul>
+- <code>(p // x)</code> is the polynomial consisting of
+  each term of <code>p</code> that contains <code>x</code>,
+  with the power of <code>x</code> reduced by 1.
+  (Note that anything raised to the power 0 is 1,
+  and is therefore from the term.)
+- <code>(p % x)</code> is the polynomial consisting of
+  each term of <code>p</code> that does not contain <code>x</code>.
+
 It is easy to check that
 <code>
 <pre>
@@ -128,40 +111,37 @@ It is easy to check that
 </code>
 as claimed.
 
-<h3>Greatest common divisor</h3>
+### Greatest common divisor
 
-<p>
-We say that <var>a</var> divides <var>b</var>,
-written <var>a</var>∣<var>b</var>,
-if there exists some <var>k</var> ∈ ℤ such that <var>ka</var> = <var>b</var>.
+We say that \\(a\\) divides \\(b\\),
+written \\(a \vert b\\),
+if there exists some \\(k ∈ \mathbb{Z}\\) such that \\(ka = b\\).
 Under this definition,
-the following are true for all <var>x</var>, <var>y</var> ∈ ℤ:
-<ul>
-    <li><var>x</var>∣0</li>
-    <li>1∣<var>x</var></li>
-    <li>if <var>x</var>∣<var>y</var> then <var>x</var>∣-<var>y</var></li>
-    <li>if <var>x</var>∣<var>y</var> then <var>-x</var>∣<var>y</var></li>
-</ul>
-In the first case, <var>k</var> = 0;
-in the second case, <var>k</var> = <var>x</var>;
-in the last two cases, <var>k</var> is negated.
+the following are true for all \\(x\\), \\(y \in \mathbb{Z}\\):
+
+- \\(x \vert 0\\)
+- \\(1 \vert x\\)
+- \\(\text{if}\ x \vert y \ \text{then}\ x \vert {-y}\\)
+- \\(\text{if}\ x \vert y \ \text{then}\ {-x} \vert y\\)
+
+In the first case, \\(k = 0\\);
+in the second case, \\(k = x\\);
+in the last two cases, \\(k\\) is negated.
 Note that this operator is sometimes defined to exclude the first case
-(that is, require that <var>k</var> ≠ 0),
+(that is, require that \\(k \neq 0\\)),
 but for the purposes of our analysis it is necessary to include this case.
 
-<p>
-The greatest common divisor (gcd) of a set <var>S</var> is defined as
-the least upper bound of the set of integers <var>x</var> that satisfy
-<pre>
-     ∀ <var>s</var> ∈ <var>S</var> . <var>x</var>∣<var>s</var>
-</pre>
-This set does not have a least upper bound if <var>S</var> is empty,
+The greatest common divisor (gcd) of a set \\(S\\) is defined as
+the least upper bound of the set of integers \\(x\\) that satisfy
+\\[
+     \forall s \in S . x \vert s
+\\]
+This set does not have a least upper bound if \\(S\\) is empty,
 or only contains 0;
 in these cases we define the gcd itself to be 0.
 Although this is not strictly justified by the above definition of "divides",
 it saves us dealing with a lot of special cases in the analysis below.
 
-<p>
 In a similar spirit, we extend the gcd function to polynomials,
 defining it as the gcd of the coefficients of the given polynomial.
 (Here is where it is important that we simplify the polynomial
@@ -169,95 +149,90 @@ as much as possible,
 since we may get a weaker result
 if the polynomial is not fully simplified.)
 
-<p>
-As an example, the gcd of
-6<var>x</var><sup>2</sup> + 12<var>xy</var> - 4<var>y</var><sup>2</sup>
-is 2.
+As an example, the gcd of \\(6x^2 + 12xy - 4y^2\\) is \\(2\\).
 
-<h2>A simple dependently-typed langauge</h2>
+## A simple dependently-typed langauge
 
-<h3>Terms</h3>
+### Terms
 
-<p>
 Terms in our language will play the role of the data that is being described.
 For the purposes of this article we will keep it minimal
 and only include integer types of various sizes,
 but it is not hard to see how to add a richer set of base types.
 
-<p>
 Terms conform to the following grammar:
-<code>
-<pre>
-     t  ::= κ<sub>bits</sub>
-        |   ()
-        |   (t<sub>1</sub>, t<sub>2</sub>)
-        |   [t<sub>1</sub>, ..., t<sub>n</sub>]
-</pre>
-</code>   
+
+\\[
+    \\begin{array}{rrl}
+    t   & ::= & κ_{\text{bits}} \\\\
+        &   | & () \\\\
+        &   | & (t_{1}, t_{2}) \\\\
+        &   | & [t_{1}, \ldots , t_{n}] \\\\
+    \\end{array}
+\\]
+
 These, respectively, are integer literals (with a size annotation),
 the empty tuple, pairs, and arrays.
 The number of elements in an array may be zero or more.
 
-<p>
 The following is an example of a valid term:
-<code>
-<pre>
-     (3<sub>16</sub>, [3<sub>8</sub>, 4<sub>8</sub>, 9<sub>8</sub>])
-</pre>
-</code>
+
+\\[
+     (3_{16}, [3_{8}, 4_{8}, 9_{8}])
+\\]
+
 This is a pair containing a 16-bit integer
 followed by an array of three 8-bit integers.
 
-<p>
 We define a size function on terms as follows:
-<code>
-<pre>
-     size( κ<sub><var>b</var></sub> )            = <var>b</var>
-     size( () )            = 0
-     size( (t<sub>1</sub>, t<sub>2</sub>) )      = size( t<sub>1</sub> ) + size( t<sub>2</sub> )
-     size( [t<sub>1</sub>, ..., t<sub>n</sub>] ) = size( t<sub>1</sub> ) + ... + size( t<sub>n</sub> )
-</pre>
-</code>
+
+\\[
+    \\begin{array}{rlrl}
+        \text{size}(& κ_{b} &)                  & = b \\\\
+        \text{size}(& () &)                     & = 0 \\\\
+        \text{size}(& (t_{1}, t_{2}) &)         & = \text{size}(t_{1}) + \text{size}(t_{2}) \\\\
+        \text{size}(& [t_{1}, \ldots, t_{n}] &) & = \text{size}(t_{1}) + \dots + \text{size}(t_{n}) \\\\
+    \\end{array}
+\\]
+
 In the next section we will give typing rules,
 and later we will give rules for approximating the set of possible sizes.
 The main theorem of this article will be that, for any typing derivation,
 the size of the term according to the size function
 will be in the set of possible sizes that we calculate for that type.
 
-<h3>Types</h3>
+### Types
 
 Types conform to the following grammar:
-<code>
-<pre>
-     τ  ::= i(<var>b</var>,<var>p</var>,<var>a</var>)
-        |   unit
-        |   Σx:τ<sub>1</sub>.τ<sub>2</sub>
-        |   τ[<var>e</var>]
-        |   τ<sub>1</sub> ∪ τ<sub>2</sub>
-        |   α
-        |   μα.τ
-</pre>
-</code>
-A type of the form <code>i(<var>b</var>,<var>p</var>,<var>a</var>)</code>
-is a signed integer type with size <var>b</var>.
+\\[
+    \\begin{array}{rrl}
+    \tau & ::= & i(b, p, a) \\\\
+         &   | & \text{unit} \\\\
+         &   | & \Sigma x:τ_{1}.\tau_{2} \\\\
+         &   | & \tau[e] \\\\
+         &   | & \tau_{1} \cup \tau_{2} \\\\
+         &   | & \alpha \\\\
+         &   | & \mu \alpha.\tau \\\\
+    \\end{array}
+\\]
+A type of the form \\(i(b, p, a)\\)
+is a signed integer type with size \\(b\\).
 The other two parameters tell us something about which integers are included,
-namely, integers from the set { <var>p</var> + k<var>a</var> | k ∈ ℤ }.
-Thus, if <var>a</var> is 1 then this includes all integers in the size range,
-and if <var>a</var> is 0 then the integer is a constant equal to <var>p</var>.
-If <var>p</var> is 0, then the values will be multiples of <var>a</var>,
+namely, integers from the set \\(\lbrace p + ka \vert k \in \mathbb{Z} \rbrace\\).
+Thus, if \\(a\\) is 1 then this includes all integers in the size range,
+and if \\(a\\) is 0 then the integer is a constant equal to \\(p\\).
+If \\(p\\) is 0, then the values will be multiples of \\(a\\),
 hence this tells us if they have any alignment.
 
-<p>
-<code>unit</code> is the type of the empty tuple,
-and Σ-types are used for pairs.
-<code>τ[<var>e</var>]</code> is the type of an array of <var>e</var> elements,
-each of type τ.
-<var>e</var> stands for an expression, which for the moment we will assume is
-a polynomial in the Σ-quantified variables,
+\\(\text{unit}\\) is the type of the empty tuple,
+and \\(\Sigma\\)-types are used for pairs.
+\\(\tau[e]\\) is the type of an array of \\(e\\) elements,
+each of type \\(\tau\\).
+\\(e\\) stands for an expression, which for the moment we will assume is
+a polynomial in the \\(\Sigma\\)-quantified variables,
 but we will discuss a broader range of expressions later on.
 
-<p>
-<code>τ₁ ∪ τ₂</code> is the undiscriminated union of two types.
+\\(\tau_{1} \cup \tau_{2}\\) is the undiscriminated union of two types.
 In practice, DDLs usually offer some mechanism to discriminate
 between the two branches of a union,
 such as conditional types or simply trying each branch in order.
@@ -265,15 +240,13 @@ For our present purposes the exact mechanism is not important,
 so we will avoid making any assumptions about how it will work;
 it turns out not to affect the results we are able to get.
 
-<p>
-<code>α</code> is a type variable,
+\\(\alpha\\) is a type variable,
 which might be a μ-quantified type
 or else a type that is already defined in the environment.
-<code>μα.τ</code> is a recursive type;
+\\(\mu \alpha.\tau\\) is a recursive type;
 that is, the type that results by substituting the μ-type itself
-for every occurrence of <code>α</code> in <code>τ</code>.
+for every occurrence of \\(\alpha\\) in \\(\tau\\).
 
-<p>
 The preceding paragraphs are formalized in the following typing rules.
 
 <div class="proof-rules">
@@ -351,14 +324,12 @@ The preceding paragraphs are formalized in the following typing rules.
 Here, the environment <code>Γ;Δ</code> maps Σ-quantified variables
 to terms and μ-quantified variables to types.
 
-<h2>Alignment</h2>
+## Alignment
 
-<h3>Notation</h3>
+### Notation
 
-<p>
 We introduce some notation that will simplify the following material.
 
-<p>
 The function <code>M</code> is defined as
 <code>
 <pre>
@@ -368,7 +339,6 @@ The function <code>M</code> is defined as
 Recall that this is the set of allowed integers for the type
 <code>i(<var>b</var>,<var>p</var>,<var>a</var>)</code>.
 
-<p>
 We will use the notation
 <code>
 <pre>
@@ -378,15 +348,14 @@ We will use the notation
 to mean that every term of type <code>τ</code> in environment <code>Γ;Δ</code>
 has a size that is an element of <code>M(<var>p</var>,<var>a</var>)</code>.
 
-<p>
-For the alignment analysis <code>Γ</code> is a <em>type</em> environment,
+For the alignment analysis <code>Γ</code> is a _type_ environment,
 which gives the types of Σ-quantified variables,
 rather than the values as we did previously.
 <code>Δ</code> is an environment
 containing statements of the form <code>α ⊑ M(p,a)</code>
 for type variables <code>α</code>.
 
-<h3>Rules</h3>
+### Rules
 
 <div class="proof-rules">
 <div class="proof-rule">
@@ -451,13 +420,12 @@ for type variables <code>α</code>.
 </div>
 </div>
 
-<p>
 Notes:
 <ul>
 <li>
 The CONST rule uses the <var>b</var> parameter,
 not the <var>p</var> or <var>a</var> parameters.
-That is because we are analyzing the <em>size</em> of the integer,
+That is because we are analyzing the _size_ of the integer,
 not its value.
 
 <li>
@@ -487,6 +455,3 @@ of the integer type.
 For this we would need a modified version of the PAIR rule.
 TBD.
 </ul>
-
-</body>
-</html>
