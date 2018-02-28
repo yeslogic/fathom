@@ -50,7 +50,11 @@ and a separate universe for binary types:
 \\newcommand{\Unit}{\mathsf{Unit}}
 \\newcommand{\unit}{\langle\rangle}
 \\
-\\DeclareMathOperator{\FV}{FV} \\
+\\DeclareMathOperator{\FV}{FV}
+\\
+\\newcommand{\eval}[2]{#1 \Rightarrow #2 }
+\\newcommand{\check}[3]{#1 \vdash #2 \uparrow #3}
+\\newcommand{\infer}[3]{#1 \vdash #2 \downarrow #3}
 \\
 \begin{array}{rrll}
     e,\tau  & ::= & x                               & \text{variables} \\\\
@@ -131,9 +135,9 @@ We define a bidirectional inference algorithm, using an approach pioneered by
 Pierce, and since championed by McBride. We'll end up with the following
 judgement forms for our syntax:
 
-- \\(e_1 \Rightarrow e_2\\): Evaluate an expression \\(e_1\\) to an expression \\(e_2\\)
-- \\(\Gamma \vdash e \uparrow \tau\\): Check that the expression \\(e\\) has the type \\(\tau\\) in the context \\(\Gamma\\)
-- \\(\Gamma \vdash e \downarrow \tau\\): Infer that the expression \\(e\\) has the type \\(\tau\\) in the context \\(\Gamma\\)
+- \\(\eval{ e_1 }{ e_2 }\\): Evaluate an expression \\(e_1\\) to an expression \\(e_2\\)
+- \\(\check{ \Gamma }{ e }{ \tau }\\): Check that the expression \\(e\\) has the type \\(\tau\\) in the context \\(\Gamma\\)
+- \\(\infer{ \Gamma }{ e }{ \tau }\\): Infer that the expression \\(e\\) has the type \\(\tau\\) in the context \\(\Gamma\\)
 
 Throughout the judgements we assume that variables are well-scoped. An actual
 implementation would most likely use a locally nameless representation, but
@@ -147,7 +151,7 @@ equivalence during type checking.
 
 \\[
 \boxed{
-    e_1 \Rightarrow e_2
+    \eval{ e_1 }{ e_2 }
 }
 \\]
 
@@ -161,29 +165,29 @@ previously evaluated before we start:
 
 \\[
 \boxed{
-    \Gamma \vdash e \uparrow \tau
+    \check{ \Gamma }{ e }{ \tau }
 }
 \\\\[2em]
 \rule{C-LAMBDA}{
-    \Gamma,x:\tau_1 \vdash e \downarrow \tau_2
+    \infer{ \Gamma,x:\tau_1 }{ e }{ \tau_2 }
 }{
-    \Gamma \vdash \lambda x.e \uparrow (x:\tau_1) \rightarrow \tau_2
+    \check{ \Gamma }{ \lambda x.e }{ (x:\tau_1) \rightarrow \tau_2 }
 }
 \\\\[2em]
 \rule{C-UNIT-BINARY}{}{
-    \Gamma \vdash \Unit \uparrow \Binary
+    \check{ \Gamma }{ \Unit }{ \Binary }
 }
 \\\\[2em]
 \rule{C-UNIT-HOST}{}{
-    \Gamma \vdash \Unit \uparrow \Host
+    \check{ \Gamma }{ \Unit }{ \Host }
 }
 \\\\[2em]
 \rule{C-CONV}{
-    \Gamma \vdash e \downarrow \tau_2
+    \infer{\Gamma}{e}{\tau_2}
     \qquad
     \tau_1 \equiv \tau_2
 }{
-    \Gamma \vdash e \uparrow \tau_1
+    \check{ \Gamma }{ e }{ \tau_1 }
 }
 \\]
 
@@ -205,131 +209,131 @@ replaced with a subtyping check in the future.
 
 \\[
 \boxed{
-    \Gamma \vdash e \downarrow \tau
+    \infer{ \Gamma }{ e }{ \tau }
 }
 \\\\[2em]
 \rule{I-VAR}{
     \Gamma (x) = \tau
 }{
-    \Gamma \vdash x \downarrow \tau
+    \infer{ \Gamma }{ x }{ \tau }
 }
 \\\\[2em]
 \rule{I-BINARY}{}{
-    \Gamma \vdash \Binary \downarrow \Kind
+    \infer{ \Gamma }{ \Binary }{ \Kind }
 }
 \\\\[2em]
 \rule{I-HOST}{}{
-    \Gamma \vdash \Host \downarrow \Kind
+    \infer{ \Gamma }{ \Host }{ \Kind }
 }
 \\\\[2em]
 \rule{I-ANN-BINARY}{
-    \Gamma \vdash e \downarrow \tau
+    \check{ \Gamma }{ e }{ \tau }
     \qquad
-    \tau \Rightarrow \tau'
+    \eval{ \tau }{ \tau' }
     \qquad
-    \Gamma \vdash \tau' \downarrow \Binary
+    \check{ \Gamma }{ \tau' }{ \Binary }
 }{
-    \Gamma \vdash e : \tau \downarrow \tau'
+    \infer{ \Gamma }{ e : \tau }{ \tau' }
 }
 \\\\[2em]
 \rule{I-ANN-HOST}{
-    \Gamma \vdash e \downarrow \tau
+    \check{ \Gamma }{ e }{ \tau }
     \qquad
-    \tau \Rightarrow \tau'
+    \eval{ \tau }{ \tau' }
     \qquad
-    \Gamma \vdash \tau' \downarrow \Host
+    \check{ \Gamma }{ \tau' }{ \Host }
 }{
-    \Gamma \vdash e : \tau \downarrow \tau'
+    \infer{ \Gamma }{ e : \tau }{ \tau' }
 }
 \\\\[2em]
 \rule{I-APP}{
-    \Gamma \vdash e_1 \uparrow (x:\tau_1) \rightarrow \tau_2
+    \check{ \Gamma }{ e_1 }{ (x:\tau_1) \rightarrow \tau_2 }
     \qquad
-    \Gamma \vdash e_2 \downarrow \tau_1
+    \infer{ \Gamma }{ e_2 }{ \tau_1 }
     \qquad
-    \tau_2 \Rightarrow \tau_2'
+    \eval{ \tau_2 }{ \tau_2' }
 }{
-    \Gamma \vdash e_1 e_2 \downarrow \tau_2'[x \rightarrow e_2]
+    \infer{ \Gamma }{ e_1 e_2 }{ \tau_2'[x \rightarrow e_2] }
 }
 \\\\[2em]
 \rule{I-PI-BINARY}{
-    \Gamma \vdash \tau_1 \downarrow \Binary
+    \infer{ \Gamma }{ \tau_1 }{ \Binary }
     \qquad
-    \tau_1 \Rightarrow \tau_1'
+    \eval{ \tau_1 }{ \tau_1' }
     \qquad
-    \Gamma,x:\tau_1' \vdash \tau_2 \uparrow \Binary
+    \check{ \Gamma,x:\tau_1' }{ \tau_2 }{ \Binary }
 }{
-    \Gamma \vdash (x:\tau_1) \rightarrow \tau_2 \downarrow \Binary
+    \infer{ \Gamma }{ (x:\tau_1) \rightarrow \tau_2 }{ \Binary }
 }
 \\\\[2em]
 \rule{I-PI-HOST}{
-    \Gamma \vdash \tau_1 \downarrow \Host
+    \infer{ \Gamma }{ \tau_1 }{ \Host }
     \qquad
-    \tau_1 \Rightarrow \tau_1'
+    \eval{ \tau_1 }{ \tau_1' }
     \qquad
-    \Gamma,x:\tau_1' \vdash \tau_2 \uparrow \Binary
+    \check{ \Gamma,x:\tau_1' }{ \tau_2 }{ \Binary }
 }{
-    \Gamma \vdash (x:\tau_1) \rightarrow \tau_2 \downarrow \Binary
+    \infer{ \Gamma }{ (x:\tau_1) \rightarrow \tau_2 }{ \Binary }
 }
 \\\\[2em]
 \rule{I-ARROW}{
-    \Gamma \vdash \tau_1 \downarrow \Host
+    \infer{ \Gamma }{ \tau_1 }{ \Host }
     \qquad
-    \Gamma \vdash \tau_2 \uparrow \Host
+    \check{ \Gamma }{ \tau_2 }{ \Host }
 }{
-    \Gamma \vdash \tau_1 \rightarrow \tau_2 \downarrow \Host
+    \infer{ \Gamma }{ \tau_1 \rightarrow \tau_2 }{ \Host }
 }
 \\\\[2em]
 \rule{I-SIGMA}{
-    \Gamma \vdash \tau_1 \downarrow \Binary
+    \infer{ \Gamma }{ \tau_1 }{ \Binary }
     \qquad
-    \tau_1 \Rightarrow \tau_1'
+    \eval{ \tau_1 }{ \tau_1' }
     \qquad
-    \Gamma, x:\tau_1' \vdash \tau_2 \uparrow \Binary
+    \check{ \Gamma, x:\tau_1' }{ \tau_2 }{ \Binary }
 }{
-    \Gamma \vdash \Pair{(x:\tau_1)}{\tau_2} \downarrow \Binary
+    \infer{ \Gamma }{ \Pair{(x:\tau_1)}{\tau_2} }{ \Binary }
 }
 \\\\[2em]
 \rule{I-PAIR}{
-    \Gamma \vdash \tau_1 \downarrow \Host
+    \infer{ \Gamma }{ \tau_1 }{ \Host }
     \qquad
-    \Gamma \vdash \tau_2 \uparrow \Host
+    \check{ \Gamma }{ \tau_2 }{ \Host }
 }{
-    \Gamma \vdash \Pair{\tau_1}{\tau_2} \downarrow \Host
+    \infer{ \Gamma }{ \Pair{\tau_1}{\tau_2} }{ \Host }
 }
 \\\\[2em]
 \rule{I-INTRO-SIGMA}{
-    \Gamma \vdash e_1 \downarrow \tau_1
+    \infer{ \Gamma }{ e_1 }{ \tau_1 }
     \qquad
-    \Gamma \vdash \tau_1 \uparrow  \Binary
+    \check{ \Gamma }{ \tau_1 }{  \Binary }
     \qquad
-    \Gamma, x:\tau_1 \vdash e_2 \downarrow \tau_2
+    \infer{ \Gamma, x:\tau_1 }{ e_2 }{ \tau_2 }
 }{
-    \Gamma \vdash \pair{x:e_1}{e_2} \downarrow \Pair{(x:\tau_1)}{\tau_2}
+    \infer{ \Gamma }{ \pair{x:e_1}{e_2} }{ \Pair{(x:\tau_1)}{\tau_2} }
 }
 \\\\[2em]
 \rule{I-INTRO-PAIR}{
-    \Gamma \vdash e_1 \downarrow \tau_1
+    \infer{ \Gamma }{ e_1 }{ \tau_1 }
     \qquad
-    \Gamma \vdash \tau_1 \uparrow  \Host
+    \check{ \Gamma }{ \tau_1 }{  \Host }
     \qquad
-    \Gamma \vdash e_2 \downarrow \tau_2
+    \infer{ \Gamma }{ e_2 }{ \tau_2 }
 }{
-    \Gamma \vdash \pair{x:e_1}{e_2} \downarrow \Pair{\tau_1}{\tau_2}
+    \infer{ \Gamma }{ \pair{x:e_1}{e_2} }{ \Pair{\tau_1}{\tau_2} }
 }
 \\\\[2em]
 \rule{I-PROJ}{
-    \Gamma \vdash e \downarrow \tau_1
+    \infer{ \Gamma }{ e }{ \tau_1 }
     \qquad
-    \tau_1 \Rightarrow \tau_1'
+    \eval{ \tau_1 }{ \tau_1' }
     \qquad
     \field(\tau_1',x) = \tau_2
 }{
-    \Gamma \vdash e.x \downarrow \tau_2
+    \infer{ \Gamma }{ e.x }{ \tau_2 }
 }
 \\\\[2em]
 \rule{I-INTRO-UNIT}{}{
-    \Gamma \vdash \unit \downarrow \Unit
+    \infer{ \Gamma }{ \unit }{ \Unit }
 }
 \\\\[2em]
 \\]
