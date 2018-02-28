@@ -38,6 +38,25 @@ and a separate universe for binary types:
     }
     \Tiny{\text{(#1)}}
 }
+\\
+\\DeclareMathOperator{\FV}{FV}
+\\
+\\newcommand{\subst}[3]
+    {#1 [#2 \rightarrow #3]
+}
+\\newcommand{\eval}[2]{
+    #1 \Rightarrow #2
+}
+\\newcommand{\check}[3]{
+    #1 \vdash #2 \uparrow #3
+}
+\\newcommand{\infer}[3]{
+    #1 \vdash #2 \downarrow #3
+}
+\\
+\\newcommand{\Arrow}[2]{
+    #1 \rightarrow #2
+}
 \\newcommand{\Pair}[2]{
     #1 \times #2
 }
@@ -50,16 +69,10 @@ and a separate universe for binary types:
 \\newcommand{\Unit}{\mathsf{Unit}}
 \\newcommand{\unit}{\langle\rangle}
 \\
-\\DeclareMathOperator{\FV}{FV}
-\\
-\\newcommand{\eval}[2]{#1 \Rightarrow #2 }
-\\newcommand{\check}[3]{#1 \vdash #2 \uparrow #3}
-\\newcommand{\infer}[3]{#1 \vdash #2 \downarrow #3}
-\\
 \begin{array}{rrll}
     e,\tau  & ::= & x                               & \text{variables} \\\\
             &   | & e : \tau                        & \text{term annotated with a type} \\\\
-            &   | & (x:\tau_1) \rightarrow \tau_2   & \text{dependent functions} \\\\
+            &   | & \Arrow{(x:\tau_1)}{\tau_2}      & \text{dependent functions} \\\\
             &   | & \lambda x.e                     & \text{functions} \\\\
             &   | & e_1 e_2                         & \text{function application} \\\\
             &   | & \Pair{(x:\tau_1)}{\tau_2}       & \text{dependent pair type} \\\\
@@ -82,9 +95,9 @@ once we come to our type checking rules because we would like to ensure our
 
 \\[
 \begin{array}{rrll}
-    \tau_1 \rightarrow \tau_2   & := & (x:\tau_1) \rightarrow \tau_2   & x \notin \FV(\tau_2) \\\\
-    \Pair{\tau_1}{\tau_2}       & := & \Pair{(x:\tau_1)}{\tau_2}       & x \notin \FV(\tau_2) \\\\
-    \pair{e_1}{e_2}             & := & \pair{x:e_1}{e_2}               & x \notin \FV(e_2) \\\\
+    \Arrow{\tau_1}{\tau_2}      & := & \Arrow{(x:\tau_1)}{\tau_2}   & x \notin \FV(\tau_2) \\\\
+    \Pair{\tau_1}{\tau_2}       & := & \Pair{(x:\tau_1)}{\tau_2}    & x \notin \FV(\tau_2) \\\\
+    \pair{e_1}{e_2}             & := & \pair{x:e_1}{e_2}            & x \notin \FV(e_2) \\\\
 \end{array}
 \\]
 
@@ -171,7 +184,7 @@ previously evaluated before we start:
 \rule{C-LAMBDA}{
     \infer{ \Gamma,x:\tau_1 }{ e }{ \tau_2 }
 }{
-    \check{ \Gamma }{ \lambda x.e }{ (x:\tau_1) \rightarrow \tau_2 }
+    \check{ \Gamma }{ \lambda x.e }{ \Arrow{(x:\tau_1)}{\tau_2} }
 }
 \\\\[2em]
 \rule{C-UNIT-BINARY}{}{
@@ -183,7 +196,7 @@ previously evaluated before we start:
 }
 \\\\[2em]
 \rule{C-CONV}{
-    \infer{\Gamma}{e}{\tau_2}
+    \infer{ \Gamma }{ e }{ \tau_2 }
     \qquad
     \tau_1 \equiv \tau_2
 }{
@@ -247,13 +260,13 @@ replaced with a subtyping check in the future.
 }
 \\\\[2em]
 \rule{I-APP}{
-    \check{ \Gamma }{ e_1 }{ (x:\tau_1) \rightarrow \tau_2 }
+    \check{ \Gamma }{ e_1 }{ \Arrow{(x:\tau_1)}{\tau_2} }
     \qquad
     \infer{ \Gamma }{ e_2 }{ \tau_1 }
     \qquad
     \eval{ \tau_2 }{ \tau_2' }
 }{
-    \infer{ \Gamma }{ e_1 e_2 }{ \tau_2'[x \rightarrow e_2] }
+    \infer{ \Gamma }{ e_1 e_2 }{ \subst{\tau_2'}{x}{e_2} }
 }
 \\\\[2em]
 \rule{I-PI-BINARY}{
@@ -263,7 +276,7 @@ replaced with a subtyping check in the future.
     \qquad
     \check{ \Gamma,x:\tau_1' }{ \tau_2 }{ \Binary }
 }{
-    \infer{ \Gamma }{ (x:\tau_1) \rightarrow \tau_2 }{ \Binary }
+    \infer{ \Gamma }{ \Arrow{(x:\tau_1)}{\tau_2} }{ \Binary }
 }
 \\\\[2em]
 \rule{I-PI-HOST}{
@@ -273,7 +286,7 @@ replaced with a subtyping check in the future.
     \qquad
     \check{ \Gamma,x:\tau_1' }{ \tau_2 }{ \Binary }
 }{
-    \infer{ \Gamma }{ (x:\tau_1) \rightarrow \tau_2 }{ \Binary }
+    \infer{ \Gamma }{ \Arrow{(x:\tau_1)}{\tau_2} }{ \Binary }
 }
 \\\\[2em]
 \rule{I-ARROW}{
@@ -281,7 +294,7 @@ replaced with a subtyping check in the future.
     \qquad
     \check{ \Gamma }{ \tau_2 }{ \Host }
 }{
-    \infer{ \Gamma }{ \tau_1 \rightarrow \tau_2 }{ \Host }
+    \infer{ \Gamma }{ \Arrow{\tau_1}{\tau_2} }{ \Host }
 }
 \\\\[2em]
 \rule{I-SIGMA}{
