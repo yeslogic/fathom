@@ -165,9 +165,88 @@ equivalence during type checking.
     \eval{ e_1 }{ e_2 }
 }
 \\\\[2em]
+\begin{array}{cl}
+    \rule{E-VAR}{}{
+        \eval{ x }{ x }
+    }
+    \\\\[2em]
+    \rule{E-ANN}{
+        \eval{ e }{ e' }
+        \qquad
+        \eval{ \tau }{ \tau' }
+    }{
+        e' : \tau'
+    }
+    \\\\[2em]
+    \rule{E-PI}{
+        \eval{ \tau_1 }{ \tau_1' }
+        \qquad
+        \eval{ \tau_2 }{ \tau_2' }
+    }{
+        \eval{ \Arrow{(x:\tau_1)}{\tau_2} }{ \Arrow{(x:\tau_1')}{\tau_2'} }
+    }
+    \\\\[2em]
+    \rule{E-LAMBDA }{
+        \eval{ e }{ e' }
+    }{
+        \eval{ \lambda x.e }{ \lambda x.e' }
+    }
+    \\\\[2em]
+    \rule{E-APP }{
+        \eval{ e_1 }{ \lambda x.e_1' }
+        \qquad
+        \eval{ e_2 }{ e_2' }
+    }{
+        \eval{ e_1 e_2 }{ \subst{e_1'}{x}{e_2'} }
+    }
+    \\\\[2em]
+    \rule{E-SIGMA}{
+        \eval{ \tau_1 }{ \tau_1' }
+        \qquad
+        \eval{ \tau_2 }{ \tau_2' }
+    }{
+        \eval{ \Pair{(x:\tau_1)}{\tau_2} }{ \Pair{(x:\tau_1')}{\tau_2'} }
+    }
+    \\\\[2em]
+    \rule{E-INTRO-SIGMA}{
+        \eval{ e_1 }{ e_1' }
+        \qquad
+        \eval{ e_2 }{ e_2' }
+    }{
+        \eval{ \pair{x:e_1}{e_2} }{ \pair{x:e_1'}{e_2'} }
+    }
+    \\\\[2em]
+    \rule{E-PROJ}{
+        \eval{ e_1 }{ e_1' }
+        \qquad
+        \field(e_1',x) = e_2
+    }{
+        \eval{ e_1.x }{ e_2 }
+    }
+    \\\\[2em]
+    \rule{E-HOST}{}{
+        \eval{ \Host }{ \Host }
+    }
+    \\\\[2em]
+    \rule{E-BINARY}{}{
+        \eval{ \Binary }{ \Binary }
+    }
+    \\\\[2em]
+    \rule{E-KIND}{}{
+        \eval{ \Kind }{ \Kind }
+    }
+    \\\\[2em]
+    \rule{E-UNIT}{}{
+        \eval{ \Unit }{ \Unit }
+    }
+    \\\\[2em]
+    \rule{E-INTRO-UNIT}{}{
+        \eval{ \unit }{ \unit }
+    }
+    \\\\[2em]
+\end{array}
 \\]
 
-TODO
 ### Type checking
 
 Now we get to the main part of typechecking. We supply and expression \\(e\\)
@@ -229,7 +308,7 @@ replaced with a subtyping check in the future.
 \\\\[2em]
 \begin{array}{cl}
     \rule{I-VAR}{
-        \Gamma (x) = \tau
+        x:\tau \in \Gamma
     }{
         \infer{ \Gamma }{ x }{ \tau }{ x }
     }
