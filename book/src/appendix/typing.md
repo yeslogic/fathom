@@ -10,9 +10,9 @@
         - [Representation types](#representation-types)
     - [Contexts](#contexts)
 - [Semantics](#semantics)
-    - [Evaluation](#evaluation)
+    - [Normalization](#normalization)
     - [Type checking](#type-checking)
-    - [Type inference](#type-inference)
+    - [Type synthesis](#type-synthesis)
 - [Related work](#related-work)
 - [References](#references)
 
@@ -151,18 +151,19 @@ TODO
 
 ## Semantics
 
-We define a bidirectional inference algorithm, using an approach pioneered by
-Pierce, and since championed by McBride. We'll end up with the following
-judgement forms for our syntax:
+We define a bidirectional type checking algorithm. We'll end up with the
+following judgement forms for our syntax:
 
-- \\(\eval{ e_1 }{ e_2 }\\): Evaluate an expression \\(e_1\\) to an expression \\(e_2\\)
-- \\(\check{ \Gamma }{ e }{ \tau }{ v }\\): Check that the expression \\(e\\) has the type \\(\tau\\) in the context \\(\Gamma\\)
-- \\(\infer{ \Gamma }{ e }{ \tau }{ v }\\): Infer that the expression \\(e\\) has the type \\(\tau\\) in the context \\(\Gamma\\)
+| name           | notation                                 | inputs                            | outputs             |
+|----------------|------------------------------------------|-----------------------------------|---------------------|
+| normalization  | \\(\eval{ e }{ v }\\)                    | \\(\Gamma\\), \\(e\\)             | \\(v\\)             |
+| type checking  | \\(\check{ \Gamma }{ e }{ \tau }{ v }\\) | \\(\Gamma\\), \\(e\\), \\(\tau\\) | \\(v\\)             |
+| type synthesis | \\(\check{ \Gamma }{ e }{ \tau }{ v }\\) | \\(\Gamma\\), \\(e\\)             | \\(\tau\\), \\(v\\) |
 
-### Evaluation
+### Normalization
 
 Since we are designing a dependent type system it is crucial that we first
-define evaluation. This ensures that we reduce terms before we check them for
+define normalization. This ensures that we reduce terms before we check them for
 equivalence during type checking.
 
 \\[
@@ -299,12 +300,12 @@ We want to be able to use the same \\(\Unit\\) type for both binary
 descriptions and host descriptions, so this means they must also be checked
 contextually.
 
-The flip between checking and inference also occurs here. We rely on alpha
+The flip between checking and synthesis also occurs here. We rely on alpha
 equivalence check (\\(\tau_1 \equiv_{\alpha} \tau_2\\)) to ensure that the expected type
 \\(\tau_1\\) is equivalent to the inferred type \\(\tau_2\\). This could be
 replaced with a subtyping check in the future.
 
-### Type inference
+### Type synthesis
 
 \\[
 \boxed{
