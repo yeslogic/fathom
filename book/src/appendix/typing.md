@@ -68,21 +68,29 @@ and a separate universe for binary types:
 \\newcommand{\unit}{\langle\rangle}
 \\
 \begin{array}{rrll}
-    e,v,\tau,\rho  & ::= & x                               & \text{variables} \\\\
-                   &   | & e : \tau                        & \text{term annotated with a type} \\\\
-                   &   | & \Arrow{(x:\tau_1)}{\tau_2}      & \text{dependent functions} \\\\
-                   &   | & \lambda x.e                     & \text{functions} \\\\
-                   &   | & e_1 e_2                         & \text{function application} \\\\
-                   &   | & \Pair{(x:\tau_1)}{\tau_2}       & \text{dependent pair type} \\\\
-                   &   | & \pair{x:e_1}{e_2}               & \text{dependent pairs} \\\\
-                   &   | & e.x                             & \text{field projection} \\\\
-                   &   | & \Host                           & \text{universe of host types} \\\\
-                   &   | & \Binary                         & \text{universe of binary descriptions} \\\\
-                   &   | & \Kind                           & \text{universe of universes} \\\\
-                   &   | & \Unit                           & \text{the unit type} \\\\
-                   &   | & \unit                           & \text{the element of the unit type} \\\\
+    s               & ::= & \Kind                           & \text{sort of kinds} \\\\
+    \\\\
+    \kappa          & ::= & \Host                           & \text{kind of host types} \\\\
+                    &   | & \Binary                         & \text{kind of binary descriptions} \\\\
+    \\\\
+    e,v,\tau,\rho   & ::= & x                               & \text{variables} \\\\
+                    &   | & e : \tau                        & \text{term annotated with a type} \\\\
+                    &   | & \Arrow{(x:\tau_1)}{\tau_2}      & \text{dependent function type} \\\\
+                    &   | & \lambda x.e                     & \text{functions} \\\\
+                    &   | & e_1 e_2                         & \text{function application} \\\\
+                    &   | & \Pair{(x:\tau_1)}{\tau_2}       & \text{dependent pair type} \\\\
+                    &   | & \pair{x:e_1}{e_2}               & \text{dependent pairs} \\\\
+                    &   | & s                               & \text{sorts} \\\\
+                    &   | & \kappa                          & \text{kinds} \\\\
+                    &   | & e.x                             & \text{field projection} \\\\
+                    &   | & \Unit                           & \text{the unit type} \\\\
+                    &   | & \unit                           & \text{the element of the unit type} \\\\
 \end{array}
 \\]
+
+We assume that variables are well-scoped. An actual implementation would most
+likely use a locally nameless representation, but for clarity we have chosen to
+omit this machinery from our typing rules.
 
 #### Syntactic sugar
 
@@ -101,17 +109,18 @@ once we come to our type checking rules because we would like to ensure our
 
 #### Field lookups
 
-Here we define field lookups at both the value and the type level:
+Here we define field lookups at both the type and the value level:
 
 \\[
 \\DeclareMathOperator{\field}{field} \\
 \\
 \begin{array}{lll}
+    \field((x:\tau_1) \times \tau_2, x)   & = & \tau_1 \\\\
+    \field((y:\tau_1) \times \tau_2, x)   & = & \field(\tau_2, x), ~ \text{if} ~ y \ne x \\\\
+    \\\\
     \field(\langle x:e_1, e_2 \rangle, x) & = & e_1 \\\\
     \field(\langle y:e_1, e_2 \rangle, x) & = & \field(e_2, x), ~ \text{if} ~ y \ne x \\\\
     \\\\
-    \field((x:\tau_1) \times \tau_2, x)   & = & \tau_1 \\\\
-    \field((y:\tau_1) \times \tau_2, x)   & = & \field(\tau_2, x), ~ \text{if} ~ y \ne x \\\\
 \end{array}
 \\]
 #### Representation types
@@ -135,7 +144,7 @@ TODO
 
 \\[
 \begin{array}{rrll}
-    \Gamma  & ::= & \cdot            & \text{the empty context} \\\\
+    \Gamma  & ::= & \epsilon         & \text{the empty context} \\\\
             &   | & \Gamma,x:\tau    & \text{context extended with a type} \\\\
 \end{array}
 \\]
@@ -149,10 +158,6 @@ judgement forms for our syntax:
 - \\(\eval{ e_1 }{ e_2 }\\): Evaluate an expression \\(e_1\\) to an expression \\(e_2\\)
 - \\(\check{ \Gamma }{ e }{ \tau }{ v }\\): Check that the expression \\(e\\) has the type \\(\tau\\) in the context \\(\Gamma\\)
 - \\(\infer{ \Gamma }{ e }{ \tau }{ v }\\): Infer that the expression \\(e\\) has the type \\(\tau\\) in the context \\(\Gamma\\)
-
-Throughout the judgements we assume that variables are well-scoped. An actual
-implementation would most likely use a locally nameless representation, but
-for clarity we have chosen to omit this machinery from our typing rules.
 
 ### Evaluation
 
@@ -351,8 +356,18 @@ replaced with a subtyping check in the future.
         \infer{ \Gamma }{ e_1 e_2 }{ \subst{\tau_2'}{x}{e_2} }{ v_1 v_2 }
     }
     \\\\[2em]
-    \rule{I-PI-BINARY}{
+    \rule{I-PI-BINARY1}{
         \infer{ \Gamma }{ \tau_1 }{ \Binary }{ \rho_1 }
+        \qquad
+        \eval{ \tau_1 }{ \tau_1' }
+        \qquad
+        \check{ \Gamma,x:\tau_1' }{ \tau_2 }{ \Binary }{ \rho_2 }
+    }{
+        \infer{ \Gamma }{ \Arrow{(x:\tau_1)}{\tau_2} }{ \Binary }{ \Arrow{(x:\rho_1)}{\rho_2} }
+    }
+    \\\\[2em]
+    \rule{I-PI-BINARY2}{
+        \infer{ \Gamma }{ \tau_1 }{ \Host }{ \rho_1 }
         \qquad
         \eval{ \tau_1 }{ \tau_1' }
         \qquad
@@ -364,22 +379,12 @@ replaced with a subtyping check in the future.
     \rule{I-PI-HOST}{
         \infer{ \Gamma }{ \tau_1 }{ \Host }{ \rho_1 }
         \qquad
-        \eval{ \tau_1 }{ \tau_1' }
-        \qquad
-        \check{ \Gamma,x:\tau_1' }{ \tau_2 }{ \Binary }{ \rho_2 }
-    }{
-        \infer{ \Gamma }{ \Arrow{(x:\tau_1)}{\tau_2} }{ \Binary }{ \Arrow{(x:\rho_1)}{\rho_2} }
-    }
-    \\\\[2em]
-    \rule{I-ARROW}{
-        \infer{ \Gamma }{ \tau_1 }{ \Host }{ \rho_1 }
-        \qquad
         \check{ \Gamma }{ \tau_2 }{ \Host }{ \rho_2 }
     }{
         \infer{ \Gamma }{ \Arrow{\tau_1}{\tau_2} }{ \Host }{ \Arrow{\rho_1}{\rho_2} }
     }
     \\\\[2em]
-    \rule{I-SIGMA}{
+    \rule{I-SIGMA-BINARY}{
         \infer{ \Gamma }{ \tau_1 }{ \Binary }{ \rho_1 }
         \qquad
         \eval{ \tau_1 }{ \tau_1' }
@@ -389,7 +394,7 @@ replaced with a subtyping check in the future.
         \infer{ \Gamma }{ \Pair{(x:\tau_1)}{\tau_2} }{ \Binary }{ \Pair{(x:\rho_1)}{\rho_2} }
     }
     \\\\[2em]
-    \rule{I-PAIR}{
+    \rule{I-SIGMA-HOST}{
         \infer{ \Gamma }{ \tau_1 }{ \Host }{ \rho_1 }
         \qquad
         \check{ \Gamma }{ \tau_2 }{ \Host }{ \rho_2 }
