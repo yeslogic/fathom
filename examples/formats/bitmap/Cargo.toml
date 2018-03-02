@@ -8,8 +8,8 @@ publish = false
 ddl-util = { path = "../../../ddl-util" }
 
 [build-dependencies]
-codespan = { git = "https://github.com/brendanzab/codespan", rev = "a7f34e8", version = "0.1.0" }
-codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "a7f34e8", version = "0.1.0" }
+codespan = { git = "https://github.com/brendanzab/codespan", rev = "e25e243", version = "0.1.0" }
+codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "e25e243", version = "0.1.0" }
 ddl = { path = "../../.." }
 
 [dev-dependencies]
