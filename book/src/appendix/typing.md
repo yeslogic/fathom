@@ -61,13 +61,16 @@ and a separate universe for binary types:
     #1 \times #2
 }
 \\newcommand{\pair}[2]{
-    \langle #1,#2 \rangle
+    \langle #1, ~ #2 \rangle
 }
 \\newcommand{\Host}{\mathsf{Host}}
 \\newcommand{\Binary}{\mathsf{Binary}}
 \\newcommand{\Kind}{\mathsf{Kind}}
 \\newcommand{\Unit}{\mathsf{Unit}}
 \\newcommand{\unit}{\langle\rangle}
+\\newcommand{\Array}{\mathsf{Array}}
+\\newcommand{\List}{\mathsf{List}}
+\\newcommand{\list}[1]{\left[#1 \right]}
 \\
 \begin{array}{rrll}
     s               & ::= & \Kind                           & \text{sort of kinds} \\\\
@@ -87,6 +90,11 @@ and a separate universe for binary types:
                     &   | & e.x                             & \text{field projection} \\\\
                     &   | & \Unit                           & \text{the unit type} \\\\
                     &   | & \unit                           & \text{the element of the unit type} \\\\
+                    &   | & \Array                          & \text{array type constructor} \\\\
+                    &   | & \List                           & \text{list type constructor} \\\\
+                    &   | & []                              & \text{the empty list} \\\\
+                    &   | & e_1 :: e_2                      & \text{list constructor} \\\\
+                    &   | & e_1[e_2]                        & \text{list subscript} \\\\
 \end{array}
 \\]
 
@@ -118,13 +126,26 @@ Here we define field lookups at both the type and the value level:
 \\
 \begin{array}{lll}
     \field((x:\tau_1) \times \tau_2, x)   & = & \tau_1 \\\\
-    \field((y:\tau_1) \times \tau_2, x)   & = & \field(\tau_2, x), ~ \text{if} ~ y \ne x \\\\
+    \field((y:\tau_1) \times \tau_2, x)   & = & \field(\tau_2, x), ~\text{if}~ y \ne x \\\\
     \\\\
     \field(\langle x:e_1, e_2 \rangle, x) & = & e_1 \\\\
-    \field(\langle y:e_1, e_2 \rangle, x) & = & \field(e_2, x), ~ \text{if} ~ y \ne x \\\\
+    \field(\langle y:e_1, e_2 \rangle, x) & = & \field(e_2, x), ~\text{if}~ y \ne x \\\\
     \\\\
 \end{array}
 \\]
+
+#### List operations
+
+\\[
+\\DeclareMathOperator{\index}{index} \\
+\\
+\begin{array}{lll}
+    \index(e_1::e_2, ~0)                    & = & e_1 \\\\
+    \index(e_1::e_2, ~n)                    & = & \index(e_2, ~n-1), ~\text{if}~ n \gt 0 \\\\
+    \\\\
+\end{array}
+\\]
+
 #### Representation types
 
 \\[
@@ -137,6 +158,9 @@ Here we define field lookups at both the type and the value level:
     \repr(\pair{x:e_1}{e_2})                & = & \pair{\repr(e_1)}{\repr(e_2)} \\\\
     \repr(\Unit)                            & = & \Unit \\\\
     \repr(\unit)                            & = & \unit \\\\
+    \repr(\Array ~ \tau ~ e)                & = & \List ~ \repr(\tau) \\\\
+    % could implement Arrays using a dependent struct to reify the length:
+    % \pair{\mathsf{len}: e}{\Array ~ \repr(\tau) ~ \mathsf{len}} \\\\
 \end{array}
 \\]
 
@@ -252,6 +276,28 @@ equivalence during type checking.
         \eval{ \unit }{ \unit }
     }
     \\\\[2em]
+    \rule{E-NIL}{}{
+        \eval{ [] }{ [] }
+    }
+    \\\\[2em]
+    \rule{E-CONS}{
+        \eval{ e_1 }{ e_1' }
+        \qquad
+        \eval{ e_2 }{ e_2' }
+    }{
+        \eval{ e_1 :: e_2 }{ e_1' :: e_2' }
+    }
+    \\\\[2em]
+    \rule{E-SUBSCRIPT}{
+        \eval{ e_1 }{ e_1' }
+        \qquad
+        \eval{ e_2 }{ e_2' }
+        \qquad
+        \index(e_1', e_2') = e_3
+    }{
+        \eval{ e_1[e_2] }{ e_3 }
+    }
+    \\\\[2em]
 \end{array}
 \\]
 
@@ -280,6 +326,10 @@ previously evaluated before we start:
         \infer{ \Gamma,x:\tau_1 }{ e }{ \tau_2 }{ v }
     }{
         \check{ \Gamma }{ \lambda x.e }{ \Arrow{(x:\tau_1)}{\tau_2} }{ \lambda x:\tau_1.v }
+    }
+    \\\\[2em]
+    \rule{C-NIL}{}{
+        \check{ \Gamma }{ [] }{ \List ~ \tau }{ []\_{\tau} }
     }
     \\\\[2em]
     \rule{C-CONV}{
@@ -437,6 +487,30 @@ replaced with a subtyping check in the future.
     \\\\[2em]
     \rule{I-INTRO-UNIT}{}{
         \infer{ \Gamma }{ \unit }{ \Unit }{ \unit }
+    }
+    \\\\[2em]
+    \rule{I-ARRAY}{}{
+        \infer{ \Gamma }{ \Array }{ \Arrow{\Binary}{\Arrow{\mathsf{Nat}}{\Binary}} }{ \Array }
+    }
+    \\\\[2em]
+    \rule{I-LIST}{}{
+        \infer{ \Gamma }{ \List }{ \Arrow{\Host}{\Host} }{ \List }
+    }
+    \\\\[2em]
+    \rule{I-CONS}{
+        \infer{ \Gamma }{ e_1 }{ \tau }{ v_1 }
+        \qquad
+        \check{ \Gamma }{ e_2 }{ \List ~ \tau }{ v_2 }
+    }{
+        \infer{ \Gamma }{ e_1 :: e_2 }{ \List ~ \tau }{ v_1 :: v_2 }
+    }
+    \\\\[2em]
+    \rule{I-SUBSCRIPT}{
+        \infer{ \Gamma }{ e_1 }{ \List ~ \tau }{ v_1 }
+        \qquad
+        \infer{ \Gamma }{ e_2 }{ \mathsf{Nat} }{ v_2 }
+    }{
+        \infer{ \Gamma }{ e_1[e_2] }{ \tau }{ v_1[v_2] }
     }
     \\\\[2em]
 \end{array}
