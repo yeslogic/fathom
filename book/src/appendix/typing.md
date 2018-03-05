@@ -156,11 +156,11 @@ TODO
 We define a bidirectional type checking algorithm. We'll end up with the
 following judgement forms for our syntax:
 
-| name           | notation                                 | inputs                            | outputs             |
-|----------------|------------------------------------------|-----------------------------------|---------------------|
-| normalization  | \\(\eval{ e }{ v }\\)                    | \\(\Gamma\\), \\(e\\)             | \\(v\\)             |
-| type checking  | \\(\check{ \Gamma }{ e }{ \tau }{ v }\\) | \\(\Gamma\\), \\(e\\), \\(\tau\\) | \\(v\\)             |
-| type synthesis | \\(\check{ \Gamma }{ e }{ \tau }{ v }\\) | \\(\Gamma\\), \\(e\\)             | \\(\tau\\), \\(v\\) |
+| name                              | notation                                 | inputs                            | outputs             |
+|-----------------------------------|------------------------------------------|-----------------------------------|---------------------|
+| [normalization](#normalization)   | \\(\eval{ e }{ v }\\)                    | \\(\Gamma\\), \\(e\\)             | \\(v\\)             |
+| [type checking](#type-checking)   | \\(\check{ \Gamma }{ e }{ \tau }{ v }\\) | \\(\Gamma\\), \\(e\\), \\(\tau\\) | \\(v\\)             |
+| [type synthesis](#type-synthesis) | \\(\check{ \Gamma }{ e }{ \tau }{ v }\\) | \\(\Gamma\\), \\(e\\)             | \\(\tau\\), \\(v\\) |
 
 ### Normalization
 
