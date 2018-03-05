@@ -36,17 +36,17 @@ natural deduction to allow us to describe our system with reasonable brevity.
 \\newcommand{\Kind}{\mathsf{Kind}}
 \\
 \begin{array}{rrll}
-    s               & ::= & \Kind                           & \text{sort of kinds} \\\\
+    s               & ::= & \Kind                           & \text{universe of kinds} \\\\
     \\\\
-    \kappa          & ::= & \Host                           & \text{kind of host types} \\\\
-                    &   | & \Binary                         & \text{kind of binary descriptions} \\\\
+    \kappa          & ::= & \Host                           & \text{universe of host types} \\\\
+                    &   | & \Binary                         & \text{universe of binary descriptions} \\\\
     \\\\
 \end{array}
 \\]
 
 ### Core terms
 
-We define a core dependently typed language with the addition of dependent pairs
+We define a dependently typed core language with the addition of dependent pairs
 and a separate universe for binary types:
 
 \\[
@@ -126,8 +126,8 @@ in isolation.
                     &   | & \Pair{(x:\etype_1)}{\etype_2}       & \text{dependent pair type} \\\\
                     &   | & \pair{x:\eexpr_1}{\eexpr_2}         & \text{dependent pairs} \\\\
                     &   | & \eexpr.x                            & \text{field projection} \\\\
-                    &   | & \Unit_{\change{s}}                  & \text{the unit type (indexed by a sort)} \\\\
-                    &   | & \unit                               & \text{the element of the unit type} \\\\
+                    &   | & \Unit_{\change{s}}                  & \text{unit types (indexed by a sort)} \\\\
+                    &   | & \unit_{\change{s}}                  & \text{element of a unit type (indexed by a sort)} \\\\
                     &   | & \Array                              & \text{array type constructor} \\\\
                     &   | & \List                               & \text{list type constructor} \\\\
                     &   | & []_{\change{\etype}}                & \text{the empty list (indexed by a type)} \\\\
@@ -141,12 +141,18 @@ light gray</span>, compared to the [core terms](#core-terms).
 
 ### Contexts
 
+As we typecheck our language, we'll be passing over bindings like lambdas and
+dependent pairs. Contexts allow us to keep track of the bound parameters and
+fields, even though we don't know the exact values these will eventually take
+during runtime.
+
 \\[
 \begin{array}{rrll}
     \Gamma  & ::= & \epsilon           & \text{the empty context} \\\\
-            &   | & \Gamma,x:\ttype    & \text{context extended with a type} \\\\
+            &   | & \Gamma,x:\etype    & \text{context extended with a term} \\\\
 \end{array}
 \\]
+
 ### Syntactic sugar
 
 To lighten some of our syntactic overhead, we'll be using some syntactic sugar
@@ -198,14 +204,14 @@ Here we define field lookups at both the type and the value level:
 \\
 \begin{array}{lll}
     \repr(x)                                & = & x \\\\
-    \repr(\texpr : \ttype)                  & = & \repr(\texpr) : \repr(\ttype) \\\\
-    \repr(\Pair{(x:\ttype_1)}{\ttype_2})    & = & \Pair{\repr(\ttype_1)}{\repr(\ttype_2)} \\\\
-    \repr(\pair{x:\texpr_1}{\texpr_2})      & = & \pair{\repr(\texpr_1)}{\repr(\texpr_2)} \\\\
-    \repr(\Unit)                            & = & \Unit \\\\
+    \repr(\eexpr : \etype)                  & = & \repr(\eexpr) : \repr(\etype) \\\\
+    \repr(\Pair{(x:\etype_1)}{\etype_2})    & = & \Pair{\repr(\etype_1)}{\repr(\etype_2)} \\\\
+    \repr(\pair{x:\eexpr_1}{\eexpr_2})      & = & \pair{\repr(\eexpr_1)}{\repr(\eexpr_2)} \\\\
+    \repr(\Unit_{\Binary})                  & = & \Unit_{\Host} \\\\
     \repr(\unit)                            & = & \unit \\\\
-    \repr(\Array ~ \ttype ~ \texpr)         & = & \List ~ \repr(\ttype) \\\\
+    \repr(\Array ~ \etype ~ \eexpr)         & = & \List ~ \repr(\etype) \\\\
     % could implement Arrays using a dependent struct to reify the length:
-    % \pair{\mathsf{len}: \texpr}{\Array ~ \repr(\ttype) ~ \mathsf{len}} \\\\
+    % \pair{\mathsf{len}: \eexpr}{\Array ~ \repr(\etype) ~ \mathsf{len}} \\\\
 \end{array}
 \\]
 
@@ -218,9 +224,9 @@ following judgement forms for our syntax:
 
 | name                              | notation                                             | inputs                                   | outputs                    |
 |-----------------------------------|------------------------------------------------------|------------------------------------------|----------------------------|
-| [normalization](#normalization)   | \\(\eval{ \texpr }{ \eexpr }\\)                      | \\(\Gamma\\), \\(\texpr\\)               | \\(\eexpr\\)               |
+| [normalization](#normalization)   | \\(\eval{ \texpr }{ \eexpr }\\)                      | \\(\texpr\\)                             | \\(\eexpr\\)               |
 | [type checking](#type-checking)   | \\(\check{ \Gamma }{ \texpr }{ \ttype }{ \eexpr }\\) | \\(\Gamma\\), \\(\texpr\\), \\(\ttype\\) | \\(\eexpr\\)               |
-| [type synthesis](#type-synthesis) | \\(\check{ \Gamma }{ \texpr }{ \ttype }{ \eexpr }\\) | \\(\Gamma\\), \\(\texpr\\)               | \\(\ttype\\), \\(\eexpr\\) |
+| [type synthesis](#type-synthesis) | \\(\infer{ \Gamma }{ \texpr }{ \ttype }{ \eexpr }\\) | \\(\Gamma\\), \\(\texpr\\)               | \\(\ttype\\), \\(\eexpr\\) |
 
 ### Normalization
 
@@ -342,7 +348,7 @@ equivalence during type checking.
 Now we get to the main part of typechecking. We supply and expression \\(\texpr\\)
 and a type \\(\ttype\\), and check to see if it meets any of the judgements in
 the context \\(\Gamma\\). Note that we expect that the type \\(\ttype\\) has been
-previously evaluated before we start:
+previously normalized before we start:
 
 \\[
 \boxed{
