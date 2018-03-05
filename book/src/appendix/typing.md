@@ -13,6 +13,8 @@
     - [Normalization](#normalization)
     - [Type checking](#type-checking)
     - [Type synthesis](#type-synthesis)
+    - [Parsing](#parsing)
+- [Compilation](#compilation)
 - [Related work](#related-work)
 - [References](#references)
 
@@ -439,6 +441,16 @@ replaced with a subtyping check in the future.
     \\\\[2em]
 \end{array}
 \\]
+
+### Parsing
+
+TODO
+
+## Compilation
+
+TODO
+
+To non-dependent backend languages
 
 ## Related work
 
