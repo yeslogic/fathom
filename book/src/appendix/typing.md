@@ -51,6 +51,7 @@ and a separate universe for binary types:
 
 \\[
 \\newcommand{\rule}[3]{ \dfrac{ ~~#2~~ }{ ~~#3~~ } & \Tiny{\text{(#1)}} }
+\\newcommand{\change}[1]{ \bbox[lightgray]{#1} }
 \\
 \\DeclareMathOperator{\FV}{FV}
 \\newcommand{\subst}[3]{ #1 [#2 \rightarrow #3] }
@@ -100,7 +101,7 @@ omit this machinery from our typing rules.
 
 ### Elaborated terms
 
-During typechecking we will have a chance to 'fill in' some of the missing
+During typechecking we will have a chance to fill in some of the missing
 variables in our term syntax. This allows for their types to be synthesized
 in isolation.
 
@@ -110,25 +111,28 @@ in isolation.
 \\newcommand{\etype}{E}
 \\
 \begin{array}{rrll}
-    \eexpr,\etype   & ::= & x                               & \text{variables} \\\\
-                    &   | & s                               & \text{sorts} \\\\
-                    &   | & \kappa                          & \text{kinds} \\\\
-                    &   | & \eexpr : \etype                 & \text{term annotated with a type} \\\\
-                    &   | & \Arrow{(x:\etype_1)}{\etype_2}  & \text{dependent function type} \\\\
-                    &   | & \lambda x:\etype.\eexpr         & \text{functions (annotated with a type)} \\\\
-                    &   | & \eexpr_1 \eexpr_2               & \text{function application} \\\\
-                    &   | & \Pair{(x:\etype_1)}{\etype_2}   & \text{dependent pair type} \\\\
-                    &   | & \pair{x:\eexpr_1}{\eexpr_2}     & \text{dependent pairs} \\\\
-                    &   | & \eexpr.x                        & \text{field projection} \\\\
-                    &   | & \Unit_s                         & \text{the unit type (indexed by a sort)} \\\\
-                    &   | & \unit                           & \text{the element of the unit type} \\\\
-                    &   | & \Array                          & \text{array type constructor} \\\\
-                    &   | & \List                           & \text{list type constructor} \\\\
-                    &   | & []_{\etype}                     & \text{the empty list (indexed by a type)} \\\\
-                    &   | & \eexpr_1 :: \eexpr_2            & \text{list constructor} \\\\
-                    &   | & \eexpr_1[\eexpr_2]              & \text{list subscript} \\\\
+    \eexpr,\etype   & ::= & x                                   & \text{variables} \\\\
+                    &   | & s                                   & \text{sorts} \\\\
+                    &   | & \kappa                              & \text{kinds} \\\\
+                    &   | & \eexpr : \etype                     & \text{term annotated with a type} \\\\
+                    &   | & \Arrow{(x:\etype_1)}{\etype_2}      & \text{dependent function type} \\\\
+                    &   | & \lambda x:\change{\etype}.\eexpr    & \text{functions (annotated with a type)} \\\\
+                    &   | & \eexpr_1 \eexpr_2                   & \text{function application} \\\\
+                    &   | & \Pair{(x:\etype_1)}{\etype_2}       & \text{dependent pair type} \\\\
+                    &   | & \pair{x:\eexpr_1}{\eexpr_2}         & \text{dependent pairs} \\\\
+                    &   | & \eexpr.x                            & \text{field projection} \\\\
+                    &   | & \Unit_{\change{s}}                  & \text{the unit type (indexed by a sort)} \\\\
+                    &   | & \unit                               & \text{the element of the unit type} \\\\
+                    &   | & \Array                              & \text{array type constructor} \\\\
+                    &   | & \List                               & \text{list type constructor} \\\\
+                    &   | & []_{\change{\etype}}                & \text{the empty list (indexed by a type)} \\\\
+                    &   | & \eexpr_1 :: \eexpr_2                & \text{list constructor} \\\\
+                    &   | & \eexpr_1[\eexpr_2]                  & \text{list subscript} \\\\
 \end{array}
 \\]
+
+Note the additions of type annotations marked in <span style="background:lightgray">
+light gray</span>, compared to the [core terms](#core-terms).
 
 ### Contexts
 
