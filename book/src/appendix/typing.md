@@ -99,6 +99,11 @@ We assume that variables are well-scoped. An actual implementation would most
 likely use a locally nameless representation, but for clarity we have chosen to
 omit this machinery from our typing rules.
 
+By convention we use lowercase metavariables for expression-like things, and
+uppercase metavariables for type-like things. Note that we will not enforce
+these conventions syntactically in our rules, they are only intended to aid
+readability.
+
 ### Elaborated terms
 
 During typechecking we will have a chance to fill in some of the missing
