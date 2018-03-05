@@ -76,14 +76,14 @@ and a separate universe for binary types:
                     &   | & \Binary                         & \text{kind of binary descriptions} \\\\
     \\\\
     e,v,\tau,\rho   & ::= & x                               & \text{variables} \\\\
+                    &   | & s                               & \text{sorts} \\\\
+                    &   | & \kappa                          & \text{kinds} \\\\
                     &   | & e : \tau                        & \text{term annotated with a type} \\\\
                     &   | & \Arrow{(x:\tau_1)}{\tau_2}      & \text{dependent function type} \\\\
                     &   | & \lambda x.e                     & \text{functions} \\\\
                     &   | & e_1 e_2                         & \text{function application} \\\\
                     &   | & \Pair{(x:\tau_1)}{\tau_2}       & \text{dependent pair type} \\\\
                     &   | & \pair{x:e_1}{e_2}               & \text{dependent pairs} \\\\
-                    &   | & s                               & \text{sorts} \\\\
-                    &   | & \kappa                          & \text{kinds} \\\\
                     &   | & e.x                             & \text{field projection} \\\\
                     &   | & \Unit                           & \text{the unit type} \\\\
                     &   | & \unit                           & \text{the element of the unit type} \\\\
@@ -178,6 +178,18 @@ equivalence during type checking.
         \eval{ x }{ x }
     }
     \\\\[2em]
+    \rule{E-KIND}{}{
+        \eval{ \Kind }{ \Kind }
+    }
+    \\\\[2em]
+    \rule{E-HOST}{}{
+        \eval{ \Host }{ \Host }
+    }
+    \\\\[2em]
+    \rule{E-BINARY}{}{
+        \eval{ \Binary }{ \Binary }
+    }
+    \\\\[2em]
     \rule{E-ANN}{
         \eval{ e }{ e' }
         \qquad
@@ -232,18 +244,6 @@ equivalence during type checking.
         \eval{ e_1.x }{ e_2 }
     }
     \\\\[2em]
-    \rule{E-HOST}{}{
-        \eval{ \Host }{ \Host }
-    }
-    \\\\[2em]
-    \rule{E-BINARY}{}{
-        \eval{ \Binary }{ \Binary }
-    }
-    \\\\[2em]
-    \rule{E-KIND}{}{
-        \eval{ \Kind }{ \Kind }
-    }
-    \\\\[2em]
     \rule{E-UNIT}{}{
         \eval{ \Unit }{ \Unit }
     }
@@ -268,18 +268,18 @@ previously evaluated before we start:
 }
 \\\\[2em]
 \begin{array}{cl}
-    \rule{C-LAMBDA}{
-        \infer{ \Gamma,x:\tau_1 }{ e }{ \tau_2 }{ v }
-    }{
-        \check{ \Gamma }{ \lambda x.e }{ \Arrow{(x:\tau_1)}{\tau_2} }{ \lambda x:\tau_1.v }
-    }
-    \\\\[2em]
     \rule{C-UNIT-BINARY}{}{
         \check{ \Gamma }{ \Unit }{ \Binary }{ \Unit_{\Binary} }
     }
     \\\\[2em]
     \rule{C-UNIT-HOST}{}{
         \check{ \Gamma }{ \Unit }{ \Host }{ \Unit_{\Host} }
+    }
+    \\\\[2em]
+    \rule{C-LAMBDA}{
+        \infer{ \Gamma,x:\tau_1 }{ e }{ \tau_2 }{ v }
+    }{
+        \check{ \Gamma }{ \lambda x.e }{ \Arrow{(x:\tau_1)}{\tau_2} }{ \lambda x:\tau_1.v }
     }
     \\\\[2em]
     \rule{C-CONV}{
@@ -418,7 +418,7 @@ replaced with a subtyping check in the future.
     \rule{I-INTRO-PAIR}{
         \infer{ \Gamma }{ e_1 }{ \tau_1 }{ v_1 }
         \qquad
-        \check{ \Gamma }{ \tau_1 }{  \Host }{ \rho_1 }
+        \check{ \Gamma }{ \tau_1 }{ \Host }{ \rho_1 }
         \qquad
         \infer{ \Gamma }{ e_2 }{ \tau_2 }{ v_2 }
     }{
