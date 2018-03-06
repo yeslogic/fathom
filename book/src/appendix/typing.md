@@ -369,7 +369,7 @@ previously normalized before we start:
     }
     \\\\[2em]
     \rule{C-INTRO-UNIT}{}{
-        \infer{ \Gamma }{ \unit_s }{ \Unit_s }{ \unit_s }
+        \infer{ \Gamma }{ \unit }{ \Unit_s }{ \unit_s }
     }
     \\\\[2em]
     \rule{C-NIL}{}{
