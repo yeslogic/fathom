@@ -86,7 +86,7 @@ and a separate universe for binary types:
                     &   | & \lambda x.\texpr                & \text{functions} \\\\
                     &   | & \texpr_1 \texpr_2               & \text{function application} \\\\
                     &   | & \Pair{(x:\ttype_1)}{\ttype_2}   & \text{dependent pair type} \\\\
-                    &   | & \pair{x:\texpr_1}{\texpr_2}     & \text{dependent pairs} \\\\
+                    &   | & \pair{x=\texpr_1}{\texpr_2}     & \text{dependent pairs} \\\\
                     &   | & \texpr.x                        & \text{field projection} \\\\
                     &   | & \Unit                           & \text{the unit type} \\\\
                     &   | & \unit                           & \text{the element of the unit type} \\\\
@@ -127,7 +127,7 @@ in isolation.
                     &   | & \lambda x:\change{\etype}.\eexpr    & \text{functions (annotated with a type)} \\\\
                     &   | & \eexpr_1 \eexpr_2                   & \text{function application} \\\\
                     &   | & \Pair{(x:\etype_1)}{\etype_2}       & \text{dependent pair type} \\\\
-                    &   | & \pair{x:\eexpr_1}{\eexpr_2}         & \text{dependent pairs} \\\\
+                    &   | & \pair{x=\eexpr_1}{\eexpr_2}         & \text{dependent pairs} \\\\
                     &   | & \eexpr.x                            & \text{field projection} \\\\
                     &   | & \Unit_{\change{\sort}}              & \text{unit types (indexed by a sort)} \\\\
                     &   | & \unit_{\change{\sort}}              & \text{element of a unit type (indexed by a sort)} \\\\
@@ -167,7 +167,7 @@ once we come to our type checking rules because we would like to ensure our
 \begin{array}{rrll}
     \Arrow{\ttype_1}{\ttype_2}  & := & \Arrow{(x:\ttype_1)}{\ttype_2}   & x \notin \FV(\ttype_2) \\\\
     \Pair{\ttype_1}{\ttype_2}   & := & \Pair{(x:\ttype_1)}{\ttype_2}    & x \notin \FV(\ttype_2) \\\\
-    \pair{\texpr_1}{\texpr_2}   & := & \pair{x:\texpr_1}{\texpr_2}      & x \notin \FV(\texpr_2) \\\\
+    \pair{\texpr_1}{\texpr_2}   & := & \pair{x=\texpr_1}{\texpr_2}      & x \notin \FV(\texpr_2) \\\\
 \end{array}
 \\]
 
@@ -182,8 +182,8 @@ Here we define field lookups at both the type and the value level:
     \field((x:\ttype_1) \times \ttype_2, x)   & = & \ttype_1 \\\\
     \field((y:\ttype_1) \times \ttype_2, x)   & = & \field(\ttype_2, x), ~\text{if}~ y \ne x \\\\
     \\\\
-    \field(\langle x:\texpr_1, \texpr_2 \rangle, x) & = & \texpr_1 \\\\
-    \field(\langle y:\texpr_1, \texpr_2 \rangle, x) & = & \field(\texpr_2, x), ~\text{if}~ y \ne x \\\\
+    \field(\langle x=\texpr_1, \texpr_2 \rangle, x) & = & \texpr_1 \\\\
+    \field(\langle y=\texpr_1, \texpr_2 \rangle, x) & = & \field(\texpr_2, x), ~\text{if}~ y \ne x \\\\
     \\\\
 \end{array}
 \\]
@@ -209,7 +209,7 @@ Here we define field lookups at both the type and the value level:
     \repr(x)                                & = & x \\\\
     \repr(\eexpr : \etype)                  & = & \repr(\eexpr) : \repr(\etype) \\\\
     \repr(\Pair{(x:\etype_1)}{\etype_2})    & = & \Pair{\repr(\etype_1)}{\repr(\etype_2)} \\\\
-    \repr(\pair{x:\eexpr_1}{\eexpr_2})      & = & \pair{\repr(\eexpr_1)}{\repr(\eexpr_2)} \\\\
+    \repr(\pair{x=\eexpr_1}{\eexpr_2})      & = & \pair{\repr(\eexpr_1)}{\repr(\eexpr_2)} \\\\
     \repr(\Unit_{\Binary})                  & = & \Unit_{\Host} \\\\
     \repr(\unit)                            & = & \unit \\\\
     \repr(\Array ~ \etype ~ \eexpr)         & = & \List ~ \repr(\etype) \\\\
@@ -304,7 +304,7 @@ equivalence during type checking.
         \qquad
         \eval{ \eexpr_2 }{ \eexpr_2' }
     }{
-        \eval{ \pair{x:\eexpr_1}{\eexpr_2} }{ \pair{x:\eexpr_1'}{\eexpr_2'} }
+        \eval{ \pair{x=\eexpr_1}{\eexpr_2} }{ \pair{x=\eexpr_1'}{\eexpr_2'} }
     }
     \\\\[2em]
     \rule{E-PROJ}{
@@ -509,7 +509,7 @@ This could be replaced with a subtyping check in the future.
         \qquad
         \infer{ \Gamma,x:\etype_1 }{ \texpr_2 }{ \ttype_2 }{ \eexpr_2 }
     }{
-        \infer{ \Gamma }{ \pair{x:\texpr_1}{\texpr_2} }{ \Pair{(x:\etype_1)}{\etype_2} }{ \pair{x:v_1}{v_2} }
+        \infer{ \Gamma }{ \pair{x=\texpr_1}{\texpr_2} }{ \Pair{(x:\etype_1)}{\etype_2} }{ \pair{x=v_1}{v_2} }
     }
     \\\\[2em]
     \rule{I-INTRO-PAIR}{
@@ -519,7 +519,7 @@ This could be replaced with a subtyping check in the future.
         \qquad
         \infer{ \Gamma }{ \texpr_2 }{ \etype_2 }{ \eexpr_2 }
     }{
-        \infer{ \Gamma }{ \pair{x:\texpr_1}{\texpr_2} }{ \Pair{\etype_1}{\etype_2} }{ \pair{x:v_1}{v_2} }
+        \infer{ \Gamma }{ \pair{x=\texpr_1}{\texpr_2} }{ \Pair{\etype_1}{\etype_2} }{ \pair{x=v_1}{v_2} }
     }
     \\\\[2em]
     \rule{I-PROJ}{
