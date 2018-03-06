@@ -35,10 +35,13 @@ natural deduction to allow us to describe our system with reasonable brevity.
 \\newcommand{\Binary}{\mathsf{Binary}}
 \\newcommand{\Kind}{\mathsf{Kind}}
 \\
+\\newcommand{\sort}{s}
+\\newcommand{\kind}{k}
+\\
 \begin{array}{rrll}
-    s               & ::= & \Kind                           & \text{universe of kinds} \\\\
+    \sort           & ::= & \Kind                           & \text{universe of kinds} \\\\
     \\\\
-    \kappa          & ::= & \Host                           & \text{universe of host types} \\\\
+    \kind           & ::= & \Host                           & \text{universe of host types} \\\\
                     &   | & \Binary                         & \text{universe of binary descriptions} \\\\
     \\\\
 \end{array}
@@ -76,8 +79,8 @@ and a separate universe for binary types:
 \\
 \begin{array}{rrll}
     \texpr,\ttype   & ::= & x                               & \text{variables} \\\\
-                    &   | & s                               & \text{sorts} \\\\
-                    &   | & \kappa                          & \text{kinds} \\\\
+                    &   | & \sort                           & \text{sorts} \\\\
+                    &   | & \kind                           & \text{kinds} \\\\
                     &   | & \texpr : \ttype                 & \text{term annotated with a type} \\\\
                     &   | & \Arrow{(x:\ttype_1)}{\ttype_2}  & \text{dependent function type} \\\\
                     &   | & \lambda x.\texpr                & \text{functions} \\\\
@@ -117,8 +120,8 @@ in isolation.
 \\
 \begin{array}{rrll}
     \eexpr,\etype   & ::= & x                                   & \text{variables} \\\\
-                    &   | & s                                   & \text{sorts} \\\\
-                    &   | & \kappa                              & \text{kinds} \\\\
+                    &   | & \sort                               & \text{sorts} \\\\
+                    &   | & \kind                               & \text{kinds} \\\\
                     &   | & \eexpr : \etype                     & \text{term annotated with a type} \\\\
                     &   | & \Arrow{(x:\etype_1)}{\etype_2}      & \text{dependent function type} \\\\
                     &   | & \lambda x:\change{\etype}.\eexpr    & \text{functions (annotated with a type)} \\\\
@@ -126,8 +129,8 @@ in isolation.
                     &   | & \Pair{(x:\etype_1)}{\etype_2}       & \text{dependent pair type} \\\\
                     &   | & \pair{x:\eexpr_1}{\eexpr_2}         & \text{dependent pairs} \\\\
                     &   | & \eexpr.x                            & \text{field projection} \\\\
-                    &   | & \Unit_{\change{s}}                  & \text{unit types (indexed by a sort)} \\\\
-                    &   | & \unit_{\change{s}}                  & \text{element of a unit type (indexed by a sort)} \\\\
+                    &   | & \Unit_{\change{\sort}}              & \text{unit types (indexed by a sort)} \\\\
+                    &   | & \unit_{\change{\sort}}              & \text{element of a unit type (indexed by a sort)} \\\\
                     &   | & \Array                              & \text{array type constructor} \\\\
                     &   | & \List                               & \text{list type constructor} \\\\
                     &   | & []_{\change{\etype}}                & \text{the empty list (indexed by a type)} \\\\
@@ -313,11 +316,11 @@ equivalence during type checking.
     }
     \\\\[2em]
     \rule{E-UNIT}{}{
-        \eval{ \Unit_s }{ \Unit_s }
+        \eval{ \Unit_{\sort} }{ \Unit_{\sort} }
     }
     \\\\[2em]
     \rule{E-INTRO-UNIT}{}{
-        \eval{ \unit_s }{ \unit_s }
+        \eval{ \unit_{\sort} }{ \unit_{\sort} }
     }
     \\\\[2em]
     \rule{E-NIL}{}{
@@ -365,11 +368,11 @@ previously normalized before we start:
     }
     \\\\[2em]
     \rule{C-UNIT}{}{
-        \check{ \Gamma }{ \Unit }{ s }{ \Unit_s }
+        \check{ \Gamma }{ \Unit }{ s }{ \Unit_{\sort} }
     }
     \\\\[2em]
     \rule{C-INTRO-UNIT}{}{
-        \infer{ \Gamma }{ \unit }{ \Unit_s }{ \unit_s }
+        \infer{ \Gamma }{ \unit }{ \Unit_{\sort} }{ \unit_{\sort} }
     }
     \\\\[2em]
     \rule{C-NIL}{}{
