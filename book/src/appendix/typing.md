@@ -272,7 +272,7 @@ equivalence during type checking.
         \eval{ \Arrow{(x:\etype_1)}{\etype_2} }{ \Arrow{(x:\etype_1')}{\etype_2'} }
     }
     \\\\[2em]
-    \rule{E-LAMBDA }{
+    \rule{E-LAMBDA}{
         \eval{ \eexpr }{ \eexpr' }
         \qquad
         \eval{ \etype }{ \etype' }
@@ -280,7 +280,7 @@ equivalence during type checking.
         \eval{ \lambda x:\etype.\eexpr }{ \lambda x:\etype'.\eexpr' }
     }
     \\\\[2em]
-    \rule{E-APP }{
+    \rule{E-APP}{
         \eval{ \eexpr_1 }{ \lambda x:\etype'.\eexpr_1' }
         \qquad
         \eval{ \subst{\eexpr_1'}{x}{\eexpr_2'} }{ \eexpr_1'' }
