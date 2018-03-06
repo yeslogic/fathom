@@ -57,7 +57,7 @@ and a separate universe for binary types:
 \\
 \\DeclareMathOperator{\FV}{FV}
 \\newcommand{\subst}[3]{ #1 [#2 \rightarrow #3] }
-\\newcommand{\eval}[2]{ #1 \Rightarrow #2 }
+\\newcommand{\eval}[3]{ #1 \vdash #2 \Rightarrow #3 }
 \\newcommand{\check}[3]{ #1 \vdash #2 \uparrow #3 }
 \\newcommand{\infer}[3]{ #1 \vdash #2 \downarrow #3 }
 \\
@@ -73,8 +73,8 @@ and a separate universe for binary types:
 \\newcommand{\unit}{ \langle\rangle }
 \\
 % Core metavariables
-\\newcommand{\texpr}{t}
-\\newcommand{\ttype}{T}
+\\newcommand{\texpr}{e}
+\\newcommand{\ttype}{\tau}
 \\
 \begin{array}{rrll}
     \texpr,\ttype   & ::= & x                               & \text{variables} \\\\
@@ -116,7 +116,8 @@ during runtime.
 \\[
 \begin{array}{rrll}
     \Gamma  & ::= & \epsilon           & \text{the empty context} \\\\
-            &   | & \Gamma,x:\ttype    & \text{context extended with a term} \\\\
+            &   | & \Gamma,x:\ttype    & \text{context extended with a type annotation} \\\\
+            &   | & \Gamma,x=\texpr    & \text{context extended with a definition} \\\\
 \end{array}
 \\]
 
@@ -191,7 +192,7 @@ following judgement forms for our syntax:
 
 | name                              | notation                                   | inputs                                   | outputs       |
 |-----------------------------------|--------------------------------------------|------------------------------------------|---------------|
-| [normalization](#normalization)   | \\(\eval{ \texpr }{ \texpr' }\\)           | \\(\texpr\\)                             | \\(\texpr'\\) |
+| [normalization](#normalization)   | \\(\eval{ \Gamma }{ \texpr }{ \texpr' }\\) | \\(\Gamma\\), \\(\texpr\\)               | \\(\texpr'\\) |
 | [type checking](#type-checking)   | \\(\check{ \Gamma }{ \texpr }{ \ttype }\\) | \\(\Gamma\\), \\(\texpr\\), \\(\ttype\\) |               |
 | [type synthesis](#type-synthesis) | \\(\infer{ \Gamma }{ \texpr }{ \ttype }\\) | \\(\Gamma\\), \\(\texpr\\)               | \\(\ttype\\)  |
 
@@ -203,110 +204,112 @@ equivalence during type checking.
 
 \\[
 \boxed{
-    \eval{ \texpr }{ \texpr' }
+    \eval{ \Gamma }{ \texpr }{ \texpr' }
 }
 \\\\[2em]
 \begin{array}{cl}
-    \rule{E-VAR}{}{
-        \eval{ x }{ x }
+    \rule{E-VAR-DEF}{
+        x=\texpr \in \Gamma
+    }{
+        \eval{ \Gamma }{ x }{ x }
     }
     \\\\[2em]
     \rule{E-KIND}{}{
-        \eval{ \Kind }{ \Kind }
+        \eval{ \Gamma }{ \Kind }{ \Kind }
     }
     \\\\[2em]
     \rule{E-HOST}{}{
-        \eval{ \Host }{ \Host }
+        \eval{ \Gamma }{ \Host }{ \Host }
     }
     \\\\[2em]
     \rule{E-BINARY}{}{
-        \eval{ \Binary }{ \Binary }
+        \eval{ \Gamma }{ \Binary }{ \Binary }
     }
     \\\\[2em]
     \rule{E-ANN}{
-        \eval{ \texpr }{ \texpr' }
+        \eval{ \Gamma }{ \texpr }{ \texpr' }
         \qquad
-        \eval{ \ttype }{ \ttype' }
+        \eval{ \Gamma }{ \ttype }{ \ttype' }
     }{
         \texpr' : \ttype'
     }
     \\\\[2em]
     \rule{E-PI}{
-        \eval{ \ttype_1 }{ \ttype_1' }
+        \eval{ \Gamma }{ \ttype_1 }{ \ttype_1' }
         \qquad
-        \eval{ \ttype_2 }{ \ttype_2' }
+        \eval{ \Gamma }{ \ttype_2 }{ \ttype_2' }
     }{
-        \eval{ \Arrow{(x:\ttype_1)}{\ttype_2} }{ \Arrow{(x:\ttype_1')}{\ttype_2'} }
+        \eval{ \Gamma }{ \Arrow{(x:\ttype_1)}{\ttype_2} }{ \Arrow{(x:\ttype_1')}{\ttype_2'} }
     }
     \\\\[2em]
     \rule{E-LAMBDA}{
-        \eval{ \texpr }{ \texpr' }
+        \eval{ \Gamma }{ \texpr }{ \texpr' }
         \qquad
-        \eval{ \ttype }{ \ttype' }
+        \eval{ \Gamma }{ \ttype }{ \ttype' }
     }{
-        \eval{ \lambda x.\texpr }{ \lambda x.\texpr' }
+        \eval{ \Gamma }{ \lambda x.\texpr }{ \lambda x.\texpr' }
     }
     \\\\[2em]
     \rule{E-APP}{
-        \eval{ \texpr_1 }{ \lambda x.\texpr_1' }
+        \eval{ \Gamma }{ \texpr_1 }{ \lambda x.\texpr_1' }
         \qquad
-        \eval{ \subst{\texpr_1'}{x}{\texpr_2'} }{ \texpr_1'' }
+        \eval{ \Gamma,x=\texpr_2 }{ \texpr_1' }{ \texpr_1'' }
     }{
-        \eval{ \texpr_1 ~ \texpr_2 }{ \texpr_1'' }
+        \eval{ \Gamma }{ \texpr_1 ~ \texpr_2 }{ \texpr_1'' }
     }
     \\\\[2em]
     \rule{E-SIGMA}{
-        \eval{ \ttype_1 }{ \ttype_1' }
+        \eval{ \Gamma }{ \ttype_1 }{ \ttype_1' }
         \qquad
-        \eval{ \ttype_2 }{ \ttype_2' }
+        \eval{ \Gamma }{ \ttype_2 }{ \ttype_2' }
     }{
-        \eval{ \Pair{(x:\ttype_1)}{\ttype_2} }{ \Pair{(x:\ttype_1')}{\ttype_2'} }
+        \eval{ \Gamma }{ \Pair{(x:\ttype_1)}{\ttype_2} }{ \Pair{(x:\ttype_1')}{\ttype_2'} }
     }
     \\\\[2em]
     \rule{E-INTRO-SIGMA}{
-        \eval{ \texpr_1 }{ \texpr_1' }
+        \eval{ \Gamma }{ \texpr_1 }{ \texpr_1' }
         \qquad
-        \eval{ \texpr_2 }{ \texpr_2' }
+        \eval{ \Gamma }{ \texpr_2 }{ \texpr_2' }
     }{
-        \eval{ \pair{x=\texpr_1}{\texpr_2} }{ \pair{x=\texpr_1'}{\texpr_2'} }
+        \eval{ \Gamma }{ \pair{x=\texpr_1}{\texpr_2} }{ \pair{x=\texpr_1'}{\texpr_2'} }
     }
     \\\\[2em]
     \rule{E-PROJ}{
-        \eval{ \texpr_1 }{ \texpr_1' }
+        \eval{ \Gamma }{ \texpr_1 }{ \texpr_1' }
         \qquad
         \field(\texpr_1',x) = \texpr_2
     }{
-        \eval{ \texpr_1.x }{ \texpr_2 }
+        \eval{ \Gamma }{ \texpr_1.x }{ \texpr_2 }
     }
     \\\\[2em]
     \rule{E-UNIT}{}{
-        \eval{ \Unit }{ \Unit }
+        \eval{ \Gamma }{ \Unit }{ \Unit }
     }
     \\\\[2em]
     \rule{E-INTRO-UNIT}{}{
-        \eval{ \unit }{ \unit }
+        \eval{ \Gamma }{ \unit }{ \unit }
     }
     \\\\[2em]
     \rule{E-NIL}{}{
-        \eval{ [] }{ [] }
+        \eval{ \Gamma }{ [] }{ [] }
     }
     \\\\[2em]
     \rule{E-CONS}{
-        \eval{ \texpr_1 }{ \texpr_1' }
+        \eval{ \Gamma }{ \texpr_1 }{ \texpr_1' }
         \qquad
-        \eval{ \texpr_2 }{ \texpr_2' }
+        \eval{ \Gamma }{ \texpr_2 }{ \texpr_2' }
     }{
-        \eval{ \texpr_1 :: \texpr_2 }{ \texpr_1' :: \texpr_2' }
+        \eval{ \Gamma }{ \texpr_1 :: \texpr_2 }{ \texpr_1' :: \texpr_2' }
     }
     \\\\[2em]
     \rule{E-SUBSCRIPT}{
-        \eval{ \texpr_1 }{ \texpr_1' }
+        \eval{ \Gamma }{ \texpr_1 }{ \texpr_1' }
         \qquad
-        \eval{ \texpr_2 }{ \texpr_2' }
+        \eval{ \Gamma }{ \texpr_2 }{ \texpr_2' }
         \qquad
         \index(\texpr_1', \texpr_2') = \texpr_3
     }{
-        \eval{ \texpr_1[\texpr_2] }{ \texpr_3 }
+        \eval{ \Gamma }{ \texpr_1[\texpr_2] }{ \texpr_3 }
     }
     \\\\[2em]
 \end{array}
@@ -376,7 +379,7 @@ This could be replaced with a subtyping check in the future.
 }
 \\\\[2em]
 \begin{array}{cl}
-    \rule{I-VAR}{
+    \rule{I-VAR-DEF}{
         x:\ttype \in \Gamma
     }{
         \infer{ \Gamma }{ x }{ \ttype }
@@ -393,7 +396,7 @@ This could be replaced with a subtyping check in the future.
     \rule{I-ANN-BINARY}{
         \check{ \Gamma }{ \ttype }{ \Binary }
         \qquad
-        \eval{ \ttype }{ \ttype' }
+        \eval{ \Gamma }{ \ttype }{ \ttype' }
         \qquad
         \check{ \Gamma }{ \texpr }{ \ttype' }
     }{
@@ -403,7 +406,7 @@ This could be replaced with a subtyping check in the future.
     \rule{I-ANN-HOST}{
         \check{ \Gamma }{ \ttype }{ \Host }
         \qquad
-        \eval{ \ttype }{ \ttype' }
+        \eval{ \Gamma }{ \ttype }{ \ttype' }
         \qquad
         \check{ \Gamma }{ \texpr }{ \ttype' }
     }{
@@ -415,7 +418,7 @@ This could be replaced with a subtyping check in the future.
         \qquad
         \check{ \Gamma }{ \texpr_2 }{ \ttype_1 }
         \qquad
-        \eval{ \subst{\ttype_2}{x}{\texpr_2} }{ \ttype_2' }
+        \eval{ \Gamma,x=\texpr_2 }{ \ttype_2 }{ \ttype_2' }
     }{
         \infer{ \Gamma }{ \texpr_1 ~ \texpr_2 }{ \ttype_2' }
     }
@@ -423,7 +426,7 @@ This could be replaced with a subtyping check in the future.
     \rule{I-PI-BINARY1}{
         \infer{ \Gamma }{ \ttype_1 }{ \Binary }
         \qquad
-        \eval{ \ttype_1 }{ \ttype_1' }
+        \eval{ \Gamma }{ \ttype_1 }{ \ttype_1' }
         \qquad
         \check{ \Gamma,x:\ttype_1' }{ \ttype_2 }{ \Binary }
     }{
@@ -433,7 +436,7 @@ This could be replaced with a subtyping check in the future.
     \rule{I-PI-BINARY2}{
         \infer{ \Gamma }{ \ttype_1 }{ \Host }
         \qquad
-        \eval{ \ttype_1 }{ \ttype_1' }
+        \eval{ \Gamma }{ \ttype_1 }{ \ttype_1' }
         \qquad
         \check{ \Gamma,x:\ttype_1' }{ \ttype_2 }{ \Binary }
     }{
@@ -451,7 +454,7 @@ This could be replaced with a subtyping check in the future.
     \rule{I-SIGMA-BINARY}{
         \infer{ \Gamma }{ \ttype_1 }{ \Binary }
         \qquad
-        \eval{ \ttype_1 }{ \ttype_1' }
+        \eval{ \Gamma }{ \ttype_1 }{ \ttype_1' }
         \qquad
         \check{ \Gamma,x:\ttype_1' }{ \ttype_2 }{ \Binary }
     }{
@@ -489,7 +492,7 @@ This could be replaced with a subtyping check in the future.
     \rule{I-PROJ}{
         \infer{ \Gamma }{ \texpr }{ \ttype_1 }
         \qquad
-        \eval{ \ttype_1 }{ \ttype_1' }
+        \eval{ \Gamma }{ \ttype_1 }{ \ttype_1' }
         \qquad
         \field(\ttype_1',x) = \ttype_2
     }{
