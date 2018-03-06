@@ -6,7 +6,6 @@
 - [Syntax](#syntax)
     - [Sorts and kinds](#sorts-and-kinds)
     - [Core terms](#core-terms)
-    - [Elaborated terms](#elaborated-terms)
     - [Contexts](#contexts)
     - [Syntactic sugar](#syntactic-sugar)
     - [Field lookups](#field-lookups)
@@ -59,8 +58,8 @@ and a separate universe for binary types:
 \\DeclareMathOperator{\FV}{FV}
 \\newcommand{\subst}[3]{ #1 [#2 \rightarrow #3] }
 \\newcommand{\eval}[2]{ #1 \Rightarrow #2 }
-\\newcommand{\check}[4]{ #1 \vdash #2 \uparrow #3 \rhd #4 }
-\\newcommand{\infer}[4]{ #1 \vdash #2 \downarrow #3 \rhd #4 }
+\\newcommand{\check}[3]{ #1 \vdash #2 \uparrow #3 }
+\\newcommand{\infer}[3]{ #1 \vdash #2 \downarrow #3 }
 \\
 % Type constructors
 \\newcommand{\Arrow}[2]{ #1 \rightarrow #2 }
@@ -84,7 +83,7 @@ and a separate universe for binary types:
                     &   | & \texpr : \ttype                 & \text{term annotated with a type} \\\\
                     &   | & \Arrow{(x:\ttype_1)}{\ttype_2}  & \text{dependent function type} \\\\
                     &   | & \lambda x.\texpr                & \text{functions} \\\\
-                    &   | & \texpr_1 \texpr_2               & \text{function application} \\\\
+                    &   | & \texpr_1 ~ \texpr_2             & \text{function application} \\\\
                     &   | & \Pair{(x:\ttype_1)}{\ttype_2}   & \text{dependent pair type} \\\\
                     &   | & \pair{x=\texpr_1}{\texpr_2}     & \text{dependent pairs} \\\\
                     &   | & \texpr.x                        & \text{field projection} \\\\
@@ -107,41 +106,6 @@ uppercase metavariables for type-like things. Note that we will not enforce
 these conventions syntactically in our rules, they are only intended to aid
 readability.
 
-### Elaborated terms
-
-During typechecking we will have a chance to fill in some of the missing
-variables in our term syntax. This allows for their types to be synthesized
-in isolation.
-
-\\[
-% Elaborated metavariables
-\\newcommand{\eexpr}{e}
-\\newcommand{\etype}{E}
-\\
-\begin{array}{rrll}
-    \eexpr,\etype   & ::= & x                                   & \text{variables} \\\\
-                    &   | & \sort                               & \text{sorts} \\\\
-                    &   | & \kind                               & \text{kinds} \\\\
-                    &   | & \eexpr : \etype                     & \text{term annotated with a type} \\\\
-                    &   | & \Arrow{(x:\etype_1)}{\etype_2}      & \text{dependent function type} \\\\
-                    &   | & \lambda x:\change{\etype}.\eexpr    & \text{functions (annotated with a type)} \\\\
-                    &   | & \eexpr_1 \eexpr_2                   & \text{function application} \\\\
-                    &   | & \Pair{(x:\etype_1)}{\etype_2}       & \text{dependent pair type} \\\\
-                    &   | & \pair{x=\eexpr_1}{\eexpr_2}         & \text{dependent pairs} \\\\
-                    &   | & \eexpr.x                            & \text{field projection} \\\\
-                    &   | & \Unit_{\change{\sort}}              & \text{unit types (indexed by a sort)} \\\\
-                    &   | & \unit_{\change{\sort}}              & \text{element of a unit type (indexed by a sort)} \\\\
-                    &   | & \Array                              & \text{array type constructor} \\\\
-                    &   | & \List                               & \text{list type constructor} \\\\
-                    &   | & []_{\change{\etype}}                & \text{the empty list (indexed by a type)} \\\\
-                    &   | & \eexpr_1 :: \eexpr_2                & \text{list constructor} \\\\
-                    &   | & \eexpr_1[\eexpr_2]                  & \text{list subscript} \\\\
-\end{array}
-\\]
-
-Note the additions of type annotations marked in <span style="background:lightgray">
-light gray</span>, compared to the [core terms](#core-terms).
-
 ### Contexts
 
 As we typecheck our language, we'll be passing over bindings like lambdas and
@@ -152,7 +116,7 @@ during runtime.
 \\[
 \begin{array}{rrll}
     \Gamma  & ::= & \epsilon           & \text{the empty context} \\\\
-            &   | & \Gamma,x:\etype    & \text{context extended with a term} \\\\
+            &   | & \Gamma,x:\ttype    & \text{context extended with a term} \\\\
 \end{array}
 \\]
 
@@ -207,14 +171,14 @@ Here we define field lookups at both the type and the value level:
 \\
 \begin{array}{lll}
     \repr(x)                                & = & x \\\\
-    \repr(\eexpr : \etype)                  & = & \repr(\eexpr) : \repr(\etype) \\\\
-    \repr(\Pair{(x:\etype_1)}{\etype_2})    & = & \Pair{\repr(\etype_1)}{\repr(\etype_2)} \\\\
-    \repr(\pair{x=\eexpr_1}{\eexpr_2})      & = & \pair{\repr(\eexpr_1)}{\repr(\eexpr_2)} \\\\
+    \repr(\texpr : \ttype)                  & = & \repr(\texpr) : \repr(\ttype) \\\\
+    \repr(\Pair{(x:\ttype_1)}{\ttype_2})    & = & \Pair{\repr(\ttype_1)}{\repr(\ttype_2)} \\\\
+    \repr(\pair{x=\texpr_1}{\texpr_2})      & = & \pair{\repr(\texpr_1)}{\repr(\texpr_2)} \\\\
     \repr(\Unit_{\Binary})                  & = & \Unit_{\Host} \\\\
     \repr(\unit)                            & = & \unit \\\\
-    \repr(\Array ~ \etype ~ \eexpr)         & = & \List ~ \repr(\etype) \\\\
+    \repr(\Array ~ \ttype ~ \texpr)         & = & \List ~ \repr(\ttype) \\\\
     % could implement Arrays using a dependent struct to reify the length:
-    % \pair{\mathsf{len}: \eexpr}{\Array ~ \repr(\etype) ~ \mathsf{len}} \\\\
+    % \pair{\mathsf{len}: \texpr}{\Array ~ \repr(\ttype) ~ \mathsf{len}} \\\\
 \end{array}
 \\]
 
@@ -225,11 +189,11 @@ TODO
 We define a bidirectional type checking algorithm. We'll end up with the
 following judgement forms for our syntax:
 
-| name                              | notation                                             | inputs                                   | outputs                    |
-|-----------------------------------|------------------------------------------------------|------------------------------------------|----------------------------|
-| [normalization](#normalization)   | \\(\eval{ \eexpr }{ \eexpr' }\\)                     | \\(\eexpr\\)                             | \\(\eexpr'\\)              |
-| [type checking](#type-checking)   | \\(\check{ \Gamma }{ \texpr }{ \etype }{ \eexpr }\\) | \\(\Gamma\\), \\(\texpr\\), \\(\etype\\) | \\(\eexpr\\)               |
-| [type synthesis](#type-synthesis) | \\(\infer{ \Gamma }{ \texpr }{ \etype }{ \eexpr }\\) | \\(\Gamma\\), \\(\texpr\\)               | \\(\etype\\), \\(\eexpr\\) |
+| name                              | notation                                   | inputs                                   | outputs       |
+|-----------------------------------|--------------------------------------------|------------------------------------------|---------------|
+| [normalization](#normalization)   | \\(\eval{ \texpr }{ \texpr' }\\)           | \\(\texpr\\)                             | \\(\texpr'\\) |
+| [type checking](#type-checking)   | \\(\check{ \Gamma }{ \texpr }{ \ttype }\\) | \\(\Gamma\\), \\(\texpr\\), \\(\ttype\\) |               |
+| [type synthesis](#type-synthesis) | \\(\infer{ \Gamma }{ \texpr }{ \ttype }\\) | \\(\Gamma\\), \\(\texpr\\)               | \\(\ttype\\)  |
 
 ### Normalization
 
@@ -239,7 +203,7 @@ equivalence during type checking.
 
 \\[
 \boxed{
-    \eval{ \eexpr }{ \eexpr' }
+    \eval{ \texpr }{ \texpr' }
 }
 \\\\[2em]
 \begin{array}{cl}
@@ -260,89 +224,89 @@ equivalence during type checking.
     }
     \\\\[2em]
     \rule{E-ANN}{
-        \eval{ \eexpr }{ \eexpr' }
+        \eval{ \texpr }{ \texpr' }
         \qquad
-        \eval{ \etype }{ \etype' }
+        \eval{ \ttype }{ \ttype' }
     }{
-        \eexpr' : \etype'
+        \texpr' : \ttype'
     }
     \\\\[2em]
     \rule{E-PI}{
-        \eval{ \etype_1 }{ \etype_1' }
+        \eval{ \ttype_1 }{ \ttype_1' }
         \qquad
-        \eval{ \etype_2 }{ \etype_2' }
+        \eval{ \ttype_2 }{ \ttype_2' }
     }{
-        \eval{ \Arrow{(x:\etype_1)}{\etype_2} }{ \Arrow{(x:\etype_1')}{\etype_2'} }
+        \eval{ \Arrow{(x:\ttype_1)}{\ttype_2} }{ \Arrow{(x:\ttype_1')}{\ttype_2'} }
     }
     \\\\[2em]
     \rule{E-LAMBDA}{
-        \eval{ \eexpr }{ \eexpr' }
+        \eval{ \texpr }{ \texpr' }
         \qquad
-        \eval{ \etype }{ \etype' }
+        \eval{ \ttype }{ \ttype' }
     }{
-        \eval{ \lambda x:\etype.\eexpr }{ \lambda x:\etype'.\eexpr' }
+        \eval{ \lambda x.\texpr }{ \lambda x.\texpr' }
     }
     \\\\[2em]
     \rule{E-APP}{
-        \eval{ \eexpr_1 }{ \lambda x:\etype'.\eexpr_1' }
+        \eval{ \texpr_1 }{ \lambda x.\texpr_1' }
         \qquad
-        \eval{ \subst{\eexpr_1'}{x}{\eexpr_2'} }{ \eexpr_1'' }
+        \eval{ \subst{\texpr_1'}{x}{\texpr_2'} }{ \texpr_1'' }
     }{
-        \eval{ \eexpr_1 \eexpr_2 }{ \eexpr_1'' }
+        \eval{ \texpr_1 ~ \texpr_2 }{ \texpr_1'' }
     }
     \\\\[2em]
     \rule{E-SIGMA}{
-        \eval{ \etype_1 }{ \etype_1' }
+        \eval{ \ttype_1 }{ \ttype_1' }
         \qquad
-        \eval{ \etype_2 }{ \etype_2' }
+        \eval{ \ttype_2 }{ \ttype_2' }
     }{
-        \eval{ \Pair{(x:\etype_1)}{\etype_2} }{ \Pair{(x:\etype_1')}{\etype_2'} }
+        \eval{ \Pair{(x:\ttype_1)}{\ttype_2} }{ \Pair{(x:\ttype_1')}{\ttype_2'} }
     }
     \\\\[2em]
     \rule{E-INTRO-SIGMA}{
-        \eval{ \eexpr_1 }{ \eexpr_1' }
+        \eval{ \texpr_1 }{ \texpr_1' }
         \qquad
-        \eval{ \eexpr_2 }{ \eexpr_2' }
+        \eval{ \texpr_2 }{ \texpr_2' }
     }{
-        \eval{ \pair{x=\eexpr_1}{\eexpr_2} }{ \pair{x=\eexpr_1'}{\eexpr_2'} }
+        \eval{ \pair{x=\texpr_1}{\texpr_2} }{ \pair{x=\texpr_1'}{\texpr_2'} }
     }
     \\\\[2em]
     \rule{E-PROJ}{
-        \eval{ \eexpr_1 }{ \eexpr_1' }
+        \eval{ \texpr_1 }{ \texpr_1' }
         \qquad
-        \field(\eexpr_1',x) = \eexpr_2
+        \field(\texpr_1',x) = \texpr_2
     }{
-        \eval{ \eexpr_1.x }{ \eexpr_2 }
+        \eval{ \texpr_1.x }{ \texpr_2 }
     }
     \\\\[2em]
     \rule{E-UNIT}{}{
-        \eval{ \Unit_{\sort} }{ \Unit_{\sort} }
+        \eval{ \Unit }{ \Unit }
     }
     \\\\[2em]
     \rule{E-INTRO-UNIT}{}{
-        \eval{ \unit_{\sort} }{ \unit_{\sort} }
+        \eval{ \unit }{ \unit }
     }
     \\\\[2em]
     \rule{E-NIL}{}{
-        \eval{ []\_\etype }{ []\_\etype }
+        \eval{ [] }{ [] }
     }
     \\\\[2em]
     \rule{E-CONS}{
-        \eval{ \eexpr_1 }{ \eexpr_1' }
+        \eval{ \texpr_1 }{ \texpr_1' }
         \qquad
-        \eval{ \eexpr_2 }{ \eexpr_2' }
+        \eval{ \texpr_2 }{ \texpr_2' }
     }{
-        \eval{ \eexpr_1 :: \eexpr_2 }{ \eexpr_1' :: \eexpr_2' }
+        \eval{ \texpr_1 :: \texpr_2 }{ \texpr_1' :: \texpr_2' }
     }
     \\\\[2em]
     \rule{E-SUBSCRIPT}{
-        \eval{ \eexpr_1 }{ \eexpr_1' }
+        \eval{ \texpr_1 }{ \texpr_1' }
         \qquad
-        \eval{ \eexpr_2 }{ \eexpr_2' }
+        \eval{ \texpr_2 }{ \texpr_2' }
         \qquad
-        \index(\eexpr_1', \eexpr_2') = \eexpr_3
+        \index(\texpr_1', \texpr_2') = \texpr_3
     }{
-        \eval{ \eexpr_1[\eexpr_2] }{ \eexpr_3 }
+        \eval{ \texpr_1[\texpr_2] }{ \texpr_3 }
     }
     \\\\[2em]
 \end{array}
@@ -351,40 +315,40 @@ equivalence during type checking.
 ### Type checking
 
 Now we get to the main part of typechecking. We supply and expression \\(\texpr\\)
-and a type \\(\etype\\), and check to see if it meets any of the judgements in
-the context \\(\Gamma\\). Note that we expect that the type \\(\etype\\) has been
+and a type \\(\ttype\\), and check to see if it meets any of the judgements in
+the context \\(\Gamma\\). Note that we expect that the type \\(\ttype\\) has been
 previously normalized before we start:
 
 \\[
 \boxed{
-    \check{ \Gamma }{ \texpr }{ \etype }{ \eexpr }
+    \check{ \Gamma }{ \texpr }{ \ttype }
 }
 \\\\[2em]
 \begin{array}{cl}
     \rule{C-LAMBDA}{
-        \infer{ \Gamma,x:\etype_1 }{ \texpr }{ \etype_2 }{ \eexpr }
+        \infer{ \Gamma,x:\ttype_1 }{ \texpr }{ \ttype_2 }
     }{
-        \check{ \Gamma }{ \lambda x.\texpr }{ \Arrow{(x:\etype_1)}{\etype_2} }{ \lambda x:\etype_1.\eexpr }
+        \check{ \Gamma }{ \lambda x.\texpr }{ \Arrow{(x:\ttype_1)}{\ttype_2} }
     }
     \\\\[2em]
     \rule{C-UNIT}{}{
-        \check{ \Gamma }{ \Unit }{ s }{ \Unit_{\sort} }
+        \check{ \Gamma }{ \Unit }{ s }
     }
     \\\\[2em]
     \rule{C-INTRO-UNIT}{}{
-        \infer{ \Gamma }{ \unit }{ \Unit_{\sort} }{ \unit_{\sort} }
+        \infer{ \Gamma }{ \unit }{ \Unit }
     }
     \\\\[2em]
     \rule{C-NIL}{}{
-        \check{ \Gamma }{ [] }{ \List ~ \etype }{ []\_{\etype} }
+        \check{ \Gamma }{ [] }{ \List ~ \ttype }
     }
     \\\\[2em]
     \rule{C-CONV}{
-        \infer{ \Gamma }{ \texpr }{ \etype_2 }{ \eexpr }
+        \infer{ \Gamma }{ \texpr }{ \ttype_2 }
         \qquad
-        \etype_1 \equiv_{\alpha} \etype_2
+        \ttype_1 \equiv_{\alpha} \ttype_2
     }{
-        \check{ \Gamma }{ \texpr }{ \etype_1 }{ \eexpr }
+        \check{ \Gamma }{ \texpr }{ \ttype_1 }
     }
     \\\\[2em]
 \end{array}
@@ -400,160 +364,160 @@ descriptions and host descriptions, so this means they must also be checked
 contextually.
 
 The flip between checking and synthesis also occurs here. We rely on alpha
-equivalence check (\\(\etype_1 \equiv_{\alpha} \etype_2\\)) to ensure that the
-expected type \\(\etype_1\\) is equivalent to the inferred type \\(\etype_2\\).
+equivalence check (\\(\ttype_1 \equiv_{\alpha} \ttype_2\\)) to ensure that the
+expected type \\(\ttype_1\\) is equivalent to the inferred type \\(\ttype_2\\).
 This could be replaced with a subtyping check in the future.
 
 ### Type synthesis
 
 \\[
 \boxed{
-    \infer{ \Gamma }{ \texpr }{ \etype }{ \eexpr }
+    \infer{ \Gamma }{ \texpr }{ \ttype }
 }
 \\\\[2em]
 \begin{array}{cl}
     \rule{I-VAR}{
-        x:\etype \in \Gamma
+        x:\ttype \in \Gamma
     }{
-        \infer{ \Gamma }{ x }{ \etype }{ x }
+        \infer{ \Gamma }{ x }{ \ttype }
     }
     \\\\[2em]
     \rule{I-BINARY}{}{
-        \infer{ \Gamma }{ \Binary }{ \Kind }{ \Binary }
+        \infer{ \Gamma }{ \Binary }{ \Kind }
     }
     \\\\[2em]
     \rule{I-HOST}{}{
-        \infer{ \Gamma }{ \Host }{ \Kind }{ \Host }
+        \infer{ \Gamma }{ \Host }{ \Kind }
     }
     \\\\[2em]
     \rule{I-ANN-BINARY}{
-        \check{ \Gamma }{ \ttype }{ \Binary }{ \etype }
+        \check{ \Gamma }{ \ttype }{ \Binary }
         \qquad
-        \eval{ \etype }{ \etype' }
+        \eval{ \ttype }{ \ttype' }
         \qquad
-        \check{ \Gamma }{ \texpr }{ \etype' }{ \eexpr }
+        \check{ \Gamma }{ \texpr }{ \ttype' }
     }{
-        \infer{ \Gamma }{ \texpr : \ttype }{ \etype' }{ \eexpr : \etype }
+        \infer{ \Gamma }{ \texpr : \ttype }{ \ttype' }
     }
     \\\\[2em]
     \rule{I-ANN-HOST}{
-        \check{ \Gamma }{ \ttype }{ \Host }{ \etype }
+        \check{ \Gamma }{ \ttype }{ \Host }
         \qquad
-        \eval{ \etype }{ \etype' }
+        \eval{ \ttype }{ \ttype' }
         \qquad
-        \check{ \Gamma }{ \texpr }{ \etype' }{ \eexpr }
+        \check{ \Gamma }{ \texpr }{ \ttype' }
     }{
-        \infer{ \Gamma }{ \texpr : \ttype }{ \etype' }{ \eexpr : \etype }
+        \infer{ \Gamma }{ \texpr : \ttype }{ \ttype' }
     }
     \\\\[2em]
     \rule{I-APP}{
-        \infer{ \Gamma }{ \texpr_1 }{ \Arrow{(x:\etype_1)}{\etype_2} }{ \eexpr_1 }
+        \infer{ \Gamma }{ \texpr_1 }{ \Arrow{(x:\ttype_1)}{\ttype_2} }
         \qquad
-        \check{ \Gamma }{ \texpr_2 }{ \etype_1 }{ \eexpr_2 }
+        \check{ \Gamma }{ \texpr_2 }{ \ttype_1 }
         \qquad
-        \eval{ \subst{\etype_2}{x}{\eexpr_2} }{ \etype_2' }
+        \eval{ \subst{\ttype_2}{x}{\texpr_2} }{ \ttype_2' }
     }{
-        \infer{ \Gamma }{ \texpr_1 \texpr_2 }{ \etype_2' }{ \eexpr_1 \eexpr_2 }
+        \infer{ \Gamma }{ \texpr_1 ~ \texpr_2 }{ \ttype_2' }
     }
     \\\\[2em]
     \rule{I-PI-BINARY1}{
-        \infer{ \Gamma }{ \ttype_1 }{ \Binary }{ \etype_1 }
+        \infer{ \Gamma }{ \ttype_1 }{ \Binary }
         \qquad
-        \eval{ \etype_1 }{ \etype_1' }
+        \eval{ \ttype_1 }{ \ttype_1' }
         \qquad
-        \check{ \Gamma,x:\etype_1' }{ \ttype_2 }{ \Binary }{ \etype_2 }
+        \check{ \Gamma,x:\ttype_1' }{ \ttype_2 }{ \Binary }
     }{
-        \infer{ \Gamma }{ \Arrow{(x:\ttype_1)}{\ttype_2} }{ \Binary }{ \Arrow{(x:\etype_1)}{\etype_2} }
+        \infer{ \Gamma }{ \Arrow{(x:\ttype_1)}{\ttype_2} }{ \Binary }
     }
     \\\\[2em]
     \rule{I-PI-BINARY2}{
-        \infer{ \Gamma }{ \ttype_1 }{ \Host }{ \etype_1 }
+        \infer{ \Gamma }{ \ttype_1 }{ \Host }
         \qquad
-        \eval{ \etype_1 }{ \etype_1' }
+        \eval{ \ttype_1 }{ \ttype_1' }
         \qquad
-        \check{ \Gamma,x:\etype_1' }{ \ttype_2 }{ \Binary }{ \etype_2 }
+        \check{ \Gamma,x:\ttype_1' }{ \ttype_2 }{ \Binary }
     }{
-        \infer{ \Gamma }{ \Arrow{(x:\ttype_1)}{\ttype_2} }{ \Binary }{ \Arrow{(x:\etype_1)}{\etype_2} }
+        \infer{ \Gamma }{ \Arrow{(x:\ttype_1)}{\ttype_2} }{ \Binary }
     }
     \\\\[2em]
     \rule{I-PI-HOST}{
-        \infer{ \Gamma }{ \ttype_1 }{ \Host }{ \etype_1 }
+        \infer{ \Gamma }{ \ttype_1 }{ \Host }
         \qquad
-        \check{ \Gamma }{ \ttype_2 }{ \Host }{ \etype_2 }
+        \check{ \Gamma }{ \ttype_2 }{ \Host }
     }{
-        \infer{ \Gamma }{ \Arrow{\ttype_1}{\ttype_2} }{ \Host }{ \Arrow{\etype_1}{\etype_2} }
+        \infer{ \Gamma }{ \Arrow{\ttype_1}{\ttype_2} }{ \Host }
     }
     \\\\[2em]
     \rule{I-SIGMA-BINARY}{
-        \infer{ \Gamma }{ \ttype_1 }{ \Binary }{ \etype_1 }
+        \infer{ \Gamma }{ \ttype_1 }{ \Binary }
         \qquad
-        \eval{ \etype_1 }{ \etype_1' }
+        \eval{ \ttype_1 }{ \ttype_1' }
         \qquad
-        \check{ \Gamma,x:\etype_1' }{ \ttype_2 }{ \Binary }{ \etype_2 }
+        \check{ \Gamma,x:\ttype_1' }{ \ttype_2 }{ \Binary }
     }{
-        \infer{ \Gamma }{ \Pair{(x:\ttype_1)}{\ttype_2} }{ \Binary }{ \Pair{(x:\etype_1)}{\etype_2} }
+        \infer{ \Gamma }{ \Pair{(x:\ttype_1)}{\ttype_2} }{ \Binary }
     }
     \\\\[2em]
     \rule{I-SIGMA-HOST}{
-        \infer{ \Gamma }{ \ttype_1 }{ \Host }{ \etype_1 }
+        \infer{ \Gamma }{ \ttype_1 }{ \Host }
         \qquad
-        \check{ \Gamma }{ \ttype_2 }{ \Host }{ \etype_2 }
+        \check{ \Gamma }{ \ttype_2 }{ \Host }
     }{
-        \infer{ \Gamma }{ \Pair{\ttype_1}{\ttype_2} }{ \Host }{ \Pair{\etype_1}{\etype_2} }
+        \infer{ \Gamma }{ \Pair{\ttype_1}{\ttype_2} }{ \Host }
     }
     \\\\[2em]
     \rule{I-INTRO-SIGMA}{
-        \infer{ \Gamma }{ \texpr_1 }{ \etype_1 }{ \eexpr_1 }
+        \infer{ \Gamma }{ \texpr_1 }{ \ttype_1 }
         \qquad
-        \check{ \Gamma }{ \etype_1 }{ \Binary }{ \etype_1 } % elaborated expression on lhs of check arrow???
+        \check{ \Gamma }{ \ttype_1 }{ \Binary }
         \qquad
-        \infer{ \Gamma,x:\etype_1 }{ \texpr_2 }{ \ttype_2 }{ \eexpr_2 }
+        \infer{ \Gamma,x:\ttype_1 }{ \texpr_2 }{ \ttype_2 }
     }{
-        \infer{ \Gamma }{ \pair{x=\texpr_1}{\texpr_2} }{ \Pair{(x:\etype_1)}{\etype_2} }{ \pair{x=v_1}{v_2} }
+        \infer{ \Gamma }{ \pair{x=\texpr_1}{\texpr_2} }{ \Pair{(x:\ttype_1)}{\ttype_2} }
     }
     \\\\[2em]
     \rule{I-INTRO-PAIR}{
-        \infer{ \Gamma }{ \texpr_1 }{ \etype_1 }{ \eexpr_1 }
+        \infer{ \Gamma }{ \texpr_1 }{ \ttype_1 }
         \qquad
-        \check{ \Gamma }{ \ttype_1 }{ \Host }{ \etype_1 }
+        \check{ \Gamma }{ \ttype_1 }{ \Host }
         \qquad
-        \infer{ \Gamma }{ \texpr_2 }{ \etype_2 }{ \eexpr_2 }
+        \infer{ \Gamma }{ \texpr_2 }{ \ttype_2 }
     }{
-        \infer{ \Gamma }{ \pair{x=\texpr_1}{\texpr_2} }{ \Pair{\etype_1}{\etype_2} }{ \pair{x=v_1}{v_2} }
+        \infer{ \Gamma }{ \pair{x=\texpr_1}{\texpr_2} }{ \Pair{\ttype_1}{\ttype_2} }
     }
     \\\\[2em]
     \rule{I-PROJ}{
-        \infer{ \Gamma }{ \texpr }{ \etype_1 }{ \eexpr }
+        \infer{ \Gamma }{ \texpr }{ \ttype_1 }
         \qquad
-        \eval{ \etype_1 }{ \etype_1' }
+        \eval{ \ttype_1 }{ \ttype_1' }
         \qquad
-        \field(\etype_1',x) = \etype_2
+        \field(\ttype_1',x) = \ttype_2
     }{
-        \infer{ \Gamma }{ \texpr.x }{ \etype_2 }{ v.x }
+        \infer{ \Gamma }{ \texpr.x }{ \ttype_2 }
     }
     \\\\[2em]
     \rule{I-ARRAY}{}{
-        \infer{ \Gamma }{ \Array }{ \Arrow{\Binary}{\Arrow{\mathsf{Nat}}{\Binary}} }{ \Array }
+        \infer{ \Gamma }{ \Array }{ \Arrow{\Binary}{\Arrow{\mathsf{Nat}}{\Binary}} }
     }
     \\\\[2em]
     \rule{I-LIST}{}{
-        \infer{ \Gamma }{ \List }{ \Arrow{\Host}{\Host} }{ \List }
+        \infer{ \Gamma }{ \List }{ \Arrow{\Host}{\Host} }
     }
     \\\\[2em]
     \rule{I-CONS}{
-        \infer{ \Gamma }{ \texpr_1 }{ \etype }{ \eexpr_1 }
+        \infer{ \Gamma }{ \texpr_1 }{ \ttype }
         \qquad
-        \check{ \Gamma }{ \texpr_2 }{ \List ~ \etype }{ \eexpr_2 }
+        \check{ \Gamma }{ \texpr_2 }{ \List ~ \ttype }
     }{
-        \infer{ \Gamma }{ \texpr_1 :: \texpr_2 }{ \List ~ \etype }{ \eexpr_1 :: \eexpr_2 }
+        \infer{ \Gamma }{ \texpr_1 :: \texpr_2 }{ \List ~ \ttype }
     }
     \\\\[2em]
     \rule{I-SUBSCRIPT}{
-        \infer{ \Gamma }{ \texpr_1 }{ \List ~ \etype }{ \eexpr_1 }
+        \infer{ \Gamma }{ \texpr_1 }{ \List ~ \ttype }
         \qquad
-        \infer{ \Gamma }{ \texpr_2 }{ \mathsf{Nat} }{ \eexpr_2 }
+        \infer{ \Gamma }{ \texpr_2 }{ \mathsf{Nat} }
     }{
-        \infer{ \Gamma }{ \texpr_1[\texpr_2] }{ \etype }{ \eexpr_1[\eexpr_2] }
+        \infer{ \Gamma }{ \texpr_1[\texpr_2] }{ \ttype }
     }
     \\\\[2em]
 \end{array}
