@@ -81,7 +81,7 @@ and a separate universe for binary types:
                     &   | & \sort                           & \text{sorts} \\\\
                     &   | & \kind                           & \text{kinds} \\\\
                     &   | & \texpr : \ttype                 & \text{term annotated with a type} \\\\
-                    &   | & \Arrow{(x:\ttype_1)}{\ttype_2}  & \text{dependent function type} \\\\
+                    &   | & \Arrow{\ttype_1}{\ttype_2}      & \text{function type} \\\\
                     &   | & \lambda x.\texpr                & \text{functions} \\\\
                     &   | & \texpr_1 ~ \texpr_2             & \text{function application} \\\\
                     &   | & \Pair{(x:\ttype_1)}{\ttype_2}   & \text{dependent pair type} \\\\
@@ -130,7 +130,6 @@ once we come to our type checking rules because we would like to ensure our
 
 \\[
 \begin{array}{rrll}
-    \Arrow{\ttype_1}{\ttype_2}  & := & \Arrow{(x:\ttype_1)}{\ttype_2}   & x \notin \FV(\ttype_2) \\\\
     \Pair{\ttype_1}{\ttype_2}   & := & \Pair{(x:\ttype_1)}{\ttype_2}    & x \notin \FV(\ttype_2) \\\\
     \pair{\texpr_1}{\texpr_2}   & := & \pair{x=\texpr_1}{\texpr_2}      & x \notin \FV(\texpr_2) \\\\
 \end{array}
@@ -173,6 +172,7 @@ Here we define field lookups at both the type and the value level:
 \begin{array}{lll}
     \repr(x)                                & = & x \\\\
     \repr(\texpr : \ttype)                  & = & \repr(\texpr) : \repr(\ttype) \\\\
+    \repr(\Arrow{?}{?})                     & = & ? \\\\ % TODO
     \repr(\Pair{(x:\ttype_1)}{\ttype_2})    & = & \Pair{\repr(\ttype_1)}{\repr(\ttype_2)} \\\\
     \repr(\pair{x=\texpr_1}{\texpr_2})      & = & \pair{\repr(\texpr_1)}{\repr(\texpr_2)} \\\\
     \repr(\Unit_{\Binary})                  & = & \Unit_{\Host} \\\\
@@ -184,6 +184,8 @@ Here we define field lookups at both the type and the value level:
 \\]
 
 TODO
+
+Should \\(\repr(-)\\) only accept normal forms?
 
 ## Semantics
 
@@ -234,12 +236,12 @@ equivalence during type checking.
         \texpr' : \ttype'
     }
     \\\\[2em]
-    \rule{E-PI}{
+    \rule{E-ARROW}{
         \eval{ \Gamma }{ \ttype_1 }{ \ttype_1' }
         \qquad
         \eval{ \Gamma }{ \ttype_2 }{ \ttype_2' }
     }{
-        \eval{ \Gamma }{ \Arrow{(x:\ttype_1)}{\ttype_2} }{ \Arrow{(x:\ttype_1')}{\ttype_2'} }
+        \eval{ \Gamma }{ \Arrow{\ttype_1}{\ttype_2} }{ \Arrow{\ttype_1'}{\ttype_2'} }
     }
     \\\\[2em]
     \rule{E-LAMBDA}{
@@ -331,7 +333,7 @@ previously normalized before we start:
     \rule{C-LAMBDA}{
         \infer{ \Gamma,x:\ttype_1 }{ \texpr }{ \ttype_2 }
     }{
-        \check{ \Gamma }{ \lambda x.\texpr }{ \Arrow{(x:\ttype_1)}{\ttype_2} }
+        \check{ \Gamma }{ \lambda x.\texpr }{ \Arrow{\ttype_1}{\ttype_2} }
     }
     \\\\[2em]
     \rule{C-UNIT}{}{
@@ -414,7 +416,7 @@ This could be replaced with a subtyping check in the future.
     }
     \\\\[2em]
     \rule{I-APP}{
-        \infer{ \Gamma }{ \texpr_1 }{ \Arrow{(x:\ttype_1)}{\ttype_2} }
+        \infer{ \Gamma }{ \texpr_1 }{ \Arrow{\ttype_1}{\ttype_2} }
         \qquad
         \check{ \Gamma }{ \texpr_2 }{ \ttype_1 }
         \qquad
@@ -423,27 +425,23 @@ This could be replaced with a subtyping check in the future.
         \infer{ \Gamma }{ \texpr_1 ~ \texpr_2 }{ \ttype_2' }
     }
     \\\\[2em]
-    \rule{I-PI-BINARY1}{
+    \rule{I-ARROW-BINARY1}{
         \infer{ \Gamma }{ \ttype_1 }{ \Binary }
         \qquad
-        \eval{ \Gamma }{ \ttype_1 }{ \ttype_1' }
-        \qquad
-        \check{ \Gamma,x:\ttype_1' }{ \ttype_2 }{ \Binary }
+        \check{ \Gamma }{ \ttype_2 }{ \Binary }
     }{
-        \infer{ \Gamma }{ \Arrow{(x:\ttype_1)}{\ttype_2} }{ \Binary }
+        \infer{ \Gamma }{ \Arrow{\ttype_1}{\ttype_2} }{ \Binary }
     }
     \\\\[2em]
-    \rule{I-PI-BINARY2}{
+    \rule{I-ARROW-BINARY2}{
         \infer{ \Gamma }{ \ttype_1 }{ \Host }
         \qquad
-        \eval{ \Gamma }{ \ttype_1 }{ \ttype_1' }
-        \qquad
-        \check{ \Gamma,x:\ttype_1' }{ \ttype_2 }{ \Binary }
+        \check{ \Gamma }{ \ttype_2 }{ \Binary }
     }{
-        \infer{ \Gamma }{ \Arrow{(x:\ttype_1)}{\ttype_2} }{ \Binary }
+        \infer{ \Gamma }{ \Arrow{\ttype_1}{\ttype_2} }{ \Binary }
     }
     \\\\[2em]
-    \rule{I-PI-HOST}{
+    \rule{I-ARROW-HOST}{
         \infer{ \Gamma }{ \ttype_1 }{ \Host }
         \qquad
         \check{ \Gamma }{ \ttype_2 }{ \Host }
