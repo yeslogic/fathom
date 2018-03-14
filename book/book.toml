@@ -1,2 +1,11 @@
+[book]
+title = "DDL Book"
+description = "Documentation for the DDL"
+multilingual = false
+src = "src"
+
+[build]
+build-dir = "build"
+
 [output.html]
 mathjax-support = true
