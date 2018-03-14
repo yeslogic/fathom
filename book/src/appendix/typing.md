@@ -332,6 +332,8 @@ previously normalized before we start:
 \begin{array}{cl}
     \rule{C-LAMBDA}{
         \infer{ \Gamma,x:\ttype_1 }{ \texpr }{ \ttype_2 }
+        \qquad
+        \check{ \Gamma }{ \Arrow{\ttype_1}{\ttype_2} }{ \kind }
     }{
         \check{ \Gamma }{ \lambda x.\texpr }{ \Arrow{\ttype_1}{\ttype_2} }
     }
@@ -361,8 +363,10 @@ previously normalized before we start:
 
 For concision, we allow lambdas to omit their type annotations, so they must be
 checked contextually. Type checking lambdas that lack this type annotation is
-easy, because we can pull it out of the input type, which we expect to be a
-dependent function type.
+easy, because we can pull the argument out of the input type, which we expect to
+be a function type. Care must be taken to ensure that we also check that the
+lambda is a value kind \\(\kind\\) in order to ensure that binary types can't be
+used as inputs to host types.
 
 We want to be able to use the same \\(\Unit\\) type for both binary
 descriptions and host descriptions, so this means they must also be checked
