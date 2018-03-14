@@ -1,7 +1,7 @@
 # Summary
 
-- [Chapter 1](./chapter_1.md)
-- [Appendix](./appendix.md)
-    - [Specification](./appendix/specification.md)
-    - [Typing](./appendix/typing.md)
-    - [Alignment](./appendix/alignment.md)
+- [Introduction](./chapter00-00-introduction.md)
+- [Appendix](./appendix00-00-appendix.md)
+    - [Specification](./appendix01-00-specification.md)
+    - [Semantics](./appendix02-00-semantics.md)
+    - [Alignment](./appendix03-00-alignment.md)

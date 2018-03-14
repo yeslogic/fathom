@@ -1,4 +1,4 @@
-# Typing
+# Semantics
 
 ## Contents
 
@@ -330,7 +330,7 @@ previously normalized before we start:
 }
 \\\\[2em]
 \begin{array}{cl}
-    \rule{C-LAMBDA}{
+    \rule{C-LAMBDA-KIND}{
         \infer{ \Gamma,x:\ttype_1 }{ \texpr }{ \ttype_2 }
         \qquad
         \check{ \Gamma }{ \Arrow{\ttype_1}{\ttype_2} }{ \kind }
