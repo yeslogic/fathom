@@ -12,7 +12,6 @@ extern crate pretty;
 extern crate pretty_assertions;
 extern crate unicode_xid;
 
-mod library;
 pub mod semantics;
 pub mod syntax;
 
@@ -27,7 +26,7 @@ extern crate term_size;
 #[cfg(feature = "cli")]
 pub mod cli;
 
-use codespan::{CodeMap, FileMap, FileName};
+use codespan::FileMap;
 use codespan_reporting::Diagnostic;
 
 use syntax::core::Module;
@@ -46,23 +45,6 @@ pub fn load_file(file: &FileMap) -> Result<Module, Vec<Diagnostic>> {
         Err(err) => {
             diagnostics.push(err.to_diagnostic());
             Err(diagnostics)
-        },
-    }
-}
-
-pub fn load_prelude(codemap: &mut CodeMap) -> Module {
-    let file = codemap.add_filemap(
-        FileName::real("library/prelude.pi"),
-        String::from(library::PRELUDE),
-    );
-
-    match load_file(&file) {
-        Ok(module) => module,
-        Err(_diagnostics) => {
-            // for diagnostic in diagnostics {
-            //     codespan_reporting::emit(codemap, &diagnostic);
-            // }
-            panic!("unexpected parse errors in prelude");
         },
     }
 }

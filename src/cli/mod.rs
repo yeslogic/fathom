@@ -1,4 +1,4 @@
-//! The command line interface for Pikelet
+//! The command line interface for the DDL
 
 use codespan_reporting::ColorArg;
 use failure::Error;
@@ -9,7 +9,7 @@ pub mod repl;
 // TODO: test using https://github.com/killercup/assert_cli
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "pikelet")]
+#[structopt(name = "ddl")]
 pub struct Opts {
     /// Configure coloring of output
     #[structopt(

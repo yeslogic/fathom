@@ -1,7 +1,7 @@
 [book]
-title = "Pikelet Language Book"
+title = "DDL Book"
 authors = ["Brendan Zabarauskas"]
-description = "Documentation for the Pikelet Language"
+description = "Documentation for the DDL"
 multilingual = false
 src = "src"
 

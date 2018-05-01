@@ -1,4 +1,4 @@
-# Pikelet Language Book
+# DDL Book
 
 To build the book, you will first need to [install mdBook via cargo][install-mdbook]:
 

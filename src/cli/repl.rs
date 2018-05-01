@@ -17,7 +17,7 @@ use syntax::parse;
 #[derive(Debug, StructOpt)]
 pub struct Opts {
     /// The prompt to display before expressions
-    #[structopt(long = "prompt", default_value = "Pikelet> ")]
+    #[structopt(long = "prompt", default_value = "DDL> ")]
     pub prompt: String,
 
     /// Disable the welcome banner on startup

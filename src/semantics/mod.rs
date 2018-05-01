@@ -2,7 +2,7 @@
 //!
 //! Here we define the rules of normalization, type checking, and type inference.
 //!
-//! For more information, check out the theory appendix of the Pikelet book.
+//! For more information, check out the theory appendix of the DDL book.
 
 use codespan::ByteSpan;
 use nameless::{self, BoundPattern, BoundTerm, Embed, Ignore, Name, Var};

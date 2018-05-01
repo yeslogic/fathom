@@ -1,12 +1,12 @@
 [package]
-name = "pikelet"
+name = "ddl"
 version = "0.1.0"
 readme = "README.md"
 license = "Apache-2.0"
 authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
-description = "An implementation of a small dependently typed lambda calculus in Rust."
-homepage = "https://github.com/brendanzab/pikelet"
-repository = "https://github.com/brendanzab/pikelet"
+description = "A binary data definition language"
+homepage = "https://github.com/yeslogic/ddl"
+repository = "https://github.com/yeslogic/ddl"
 publish = false
 
 [features]
@@ -18,7 +18,7 @@ cli = [
 ]
 
 [[bin]]
-name = "pikelet"
+name = "ddl"
 required-features = ["cli"]
 
 [dependencies]

@@ -1,6 +1,5 @@
 use codespan::{CodeMap, FileName};
 
-use library;
 use syntax::parse;
 
 use super::*;
@@ -13,31 +12,6 @@ fn parse(src: &str) -> core::RawTerm {
     assert!(errors.is_empty());
 
     concrete_term.desugar()
-}
-
-mod module {
-    use codespan_reporting;
-    use codespan_reporting::termcolor::{ColorChoice, StandardStream};
-
-    use super::*;
-
-    #[test]
-    fn parse_prelude() {
-        let mut codemap = CodeMap::new();
-        let filemap = codemap.add_filemap(FileName::virtual_("test"), library::PRELUDE.into());
-        let writer = StandardStream::stdout(ColorChoice::Always);
-
-        let (concrete_module, errors) = parse::module(&filemap);
-        if !errors.is_empty() {
-            for error in errors {
-                codespan_reporting::emit(&mut writer.lock(), &codemap, &error.to_diagnostic())
-                    .unwrap();
-            }
-            panic!("parse error!")
-        }
-
-        concrete_module.desugar();
-    }
 }
 
 mod term {

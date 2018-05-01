@@ -1,6 +1,6 @@
 # Theory
 
-A formalization of the semantics for type checking and normalizing Pikelet.
+A formalization of the semantics for type checking and normalizing the DDL.
 
 ## Contents
 
@@ -20,12 +20,12 @@ A formalization of the semantics for type checking and normalizing Pikelet.
 
 ## Introduction
 
-At its core, Pikelet is a dependently typed lambda calculus with a stratified
+At its core, the DDL is a dependently typed lambda calculus with a stratified
 universe hierarchy.
 
 > **Note:**
-> This document is intended for those who are interested in looking deeper into the formal foundations of Pikelet.
-> You _don't_ need to understand this for general use of Pikelet, so feel free to skip this document if that is easier.
+> This document is intended for those who are interested in looking deeper into the formal foundations of the DDL.
+> You _don't_ need to understand this for general use of the DDL, so feel free to skip this document if that is easier.
 > We will however make an effort to explain some of the notation we use here, and point to resources that might help if this piques your curiosity!
 
 ### Notation
@@ -57,12 +57,10 @@ Here we are only defining the rules of our language's type checking and
 evaluation. Further work needs to be done to verify that our system actually
 satisfies certain interesting [type soundness properties][type-soundness],
 like progress, preservation, [strong normalization][normalization-property],
-etc. If you would like to discuss this with us, please check out
-[the relevant github issue][formalization-issue]!
+etc.
 
 [type-soundness]: https://en.wikipedia.org/wiki/Type_safety
 [normalization-property]: https://en.wikipedia.org/wiki/Normalization_property_(abstract_rewriting)
-[formalization-issue]: https://github.com/brendanzab/pikelet/issues/39
 
 ## Syntax
 
@@ -230,7 +228,7 @@ dependent on each other. Care has been taken to design the judgments so that
 they are _syntax-directed_, meaning that an algorithm can be clearly derived
 from them.
 
-Here is a rough overview of how Pikelet terms are checked:
+Here is a rough overview of how the DDL's terms are checked:
 
 ```
                 (from parser)
@@ -259,7 +257,7 @@ Elaboration is the process of filling in missing information that the
 programmer omitted in the original code, generally based on the results
 of type inference.
 
-In Pikelet's judgements the elaborated terms are denoted after the
+In the DDL's judgements the elaborated terms are denoted after the
 diamond: \\(\rhd\\). At the moment not much is added - only the missing
 type annotations on function parameters. In the future this could be extended
 filling in type class instances and implicit arguments.

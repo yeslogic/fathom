@@ -1,7 +1,7 @@
 # References
 
 What follows is a non-exhaustive list of some of the references that were useful
-when building Pikelet:
+when building the DDL:
 
 - Christiansen, David Raymond (2013). “Bidirectional Typing Rules: A Tutorial”.
   [[PAPER][bidirectional-typing-paper]]

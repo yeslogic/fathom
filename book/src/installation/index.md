@@ -1,6 +1,6 @@
 # Installation
 
-Pikelet is written in [Rust][rust-site] and therefore needs to be compiled with
+The DDL is written in [Rust][rust-site] and therefore needs to be compiled with
 Cargo, because we don't yet offer prebuilt binaries. If you haven't already
 installed Rust, please [install it][rust-install] now!
 
@@ -9,16 +9,16 @@ installed Rust, please [install it][rust-install] now!
 
 ## Cloning the source from Github
 
-We've not yet published Pikelet on [crates.io][crates-io], so you'll first need
-to clone [the repository][pikelet-repository] using git:
+We've not yet published the DDL on [crates.io][crates-io], so you'll first need
+to clone [the repository][ddl-repository] using git:
 
 ```sh
-git clone https://github.com/brendanzab/pikelet.git
-cd pikelet
+git clone https://github.com/yeslogic/ddl.git
+cd ddl
 ```
 
 [crates-io]: https://crates.io/
-[pikelet-repository]: https://github.com/brendanzab/pikelet
+[ddl-repository]: https://github.com/yeslogic/ddl
 
 ## Running the REPL
 
