@@ -133,3 +133,12 @@ The Rust code is distributed under the terms of the Apache License (Version 2.0)
 The copyright to the Mercury implementation is currently reserved by YesLogic.
 
 See [LICENSE](LICENSE) for details.
+
+## Acknowledgments
+
+[![YesLogic Logo][yeslogic-logo]][yeslogic]
+
+This work was done with the generous support of [YesLogic][yeslogic].
+
+[yeslogic]: http://yeslogic.com/
+[yeslogic-logo]: assets/yeslogic-logo.png
