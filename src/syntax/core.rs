@@ -499,15 +499,24 @@ impl fmt::Display for Value {
     }
 }
 
+/// The head of an application
+#[derive(Debug, Clone, PartialEq, BoundTerm)]
+pub enum Head {
+    /// Variables that have not yet been replaced with a definition
+    Var(Var),
+    // TODO: Metavariables
+    // TODO: Primitives
+}
+
 /// Neutral terms
 ///
 /// These might be able to be reduced further depending on the bindings in the
 /// context
 #[derive(Debug, Clone, PartialEq, BoundTerm)]
 pub enum Neutral {
-    /// Variables
-    Var(Var),
-    /// RawTerm application
+    /// The head of an application
+    Head(Head),
+    /// Term application
     App(Rc<Neutral>, Rc<Value>),
     /// If expression
     If(Rc<Neutral>, Rc<Value>, Rc<Value>),
@@ -523,6 +532,18 @@ impl fmt::Display for Neutral {
 
 /// Types are at the term level, so this is just an alias
 pub type Type = Value;
+
+impl From<Var> for Neutral {
+    fn from(src: Var) -> Neutral {
+        Neutral::Head(Head::Var(src))
+    }
+}
+
+impl From<Var> for Value {
+    fn from(src: Var) -> Value {
+        Value::from(Neutral::from(src))
+    }
+}
 
 impl From<Neutral> for Value {
     fn from(src: Neutral) -> Value {
@@ -581,7 +602,7 @@ impl<'a> From<&'a Value> for Term {
 impl<'a> From<&'a Neutral> for Term {
     fn from(src: &'a Neutral) -> Term {
         match *src {
-            Neutral::Var(ref var) => Term::Var(Ignore::default(), var.clone()),
+            Neutral::Head(ref head) => Term::from(head),
             Neutral::App(ref fn_expr, ref arg_expr) => Term::App(
                 Rc::new(Term::from(&**fn_expr)),
                 Rc::new(Term::from(&**arg_expr)),
@@ -598,6 +619,14 @@ impl<'a> From<&'a Neutral> for Term {
                 Ignore::default(),
                 name.clone(),
             ),
+        }
+    }
+}
+
+impl<'a> From<&'a Head> for Term {
+    fn from(src: &'a Head) -> Term {
+        match *src {
+            Head::Var(ref var) => Term::Var(Ignore::default(), var.clone()),
         }
     }
 }
