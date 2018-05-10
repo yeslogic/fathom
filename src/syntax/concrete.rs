@@ -117,7 +117,7 @@ pub enum Declaration {
         span: ByteSpan,
         name: String,
         params: LamParams,
-        ann: Option<Term>,
+        ann: Option<Box<Term>>,
         body: Term,
         wheres: Vec<Declaration>,
     },
@@ -270,13 +270,17 @@ pub enum Term {
     /// ```text
     /// Record { x : t1, .. }
     /// ```
-    RecordType(ByteSpan, Vec<(ByteIndex, String, Box<Term>)>),
+    RecordType(ByteSpan, Vec<(ByteIndex, String, Term)>),
     /// Record value
     ///
     /// ```text
     /// record { x = t1, .. }
+    /// record { id (a : Type) (x : a) : a = x, .. }
     /// ```
-    Record(ByteSpan, Vec<(ByteIndex, String, Box<Term>)>),
+    Record(
+        ByteSpan,
+        Vec<(ByteIndex, String, LamParams, Option<Box<Term>>, Term)>,
+    ),
     /// Record field projection
     ///
     /// ```text
