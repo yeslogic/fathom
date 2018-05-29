@@ -92,37 +92,40 @@ impl Default for Context {
         use syntax::core::{Level, Literal, Value};
 
         let name = Name::user;
-        let fresh_name = || Name::from(GenId::fresh());
-        let free_var = |n| Rc::new(Value::from(Var::Free(name(n))));
-        let universe0 = Rc::new(Value::Universe(Level(0)));
+        let fresh = || Name::from(GenId::fresh());
+        let var = |n| Rc::new(Value::from(Var::Free(name(n))));
+        let u0 = Rc::new(Value::Universe(Level(0)));
         let bool_lit = |val| Rc::new(Term::Literal(Ignore::default(), Literal::Bool(val)));
+        let arrow = |params: Vec<Rc<Type>>, ret: Rc<Type>| {
+            params.into_iter().rev().fold(ret, |body, ann| {
+                Rc::new(Value::Pi(nameless::bind((fresh(), Embed(ann)), body)))
+            })
+        };
+        let pi = |params: Vec<(Name, Rc<Type>)>, ret: Rc<Type>| {
+            params.into_iter().rev().fold(ret, |body, (name, ann)| {
+                Rc::new(Value::Pi(nameless::bind((name, Embed(ann)), body)))
+            })
+        };
 
+        #[cfg_attr(rustfmt, rustfmt_skip)]
         Context::new()
-            .claim(name("Bool"), universe0.clone())
-            .define_term(name("true"), free_var("Bool"), bool_lit(true))
-            .define_term(name("false"), free_var("Bool"), bool_lit(false))
-            .claim(name("String"), universe0.clone())
-            .claim(name("Char"), universe0.clone())
-            .claim(name("U8"), universe0.clone())
-            .claim(name("U16"), universe0.clone())
-            .claim(name("U32"), universe0.clone())
-            .claim(name("U64"), universe0.clone())
-            .claim(name("I8"), universe0.clone())
-            .claim(name("I16"), universe0.clone())
-            .claim(name("I32"), universe0.clone())
-            .claim(name("I64"), universe0.clone())
-            .claim(name("F32"), universe0.clone())
-            .claim(name("F64"), universe0.clone())
-            .claim(
-                name("Array"),
-                Rc::new(Value::Pi(nameless::bind(
-                    (fresh_name(), Embed(free_var("U64"))),
-                    Rc::new(Value::Pi(nameless::bind(
-                        (fresh_name(), Embed(universe0.clone())),
-                        universe0.clone(),
-                    ))),
-                ))),
-            )
+            .claim(name("Bool"), u0.clone())
+            .define_term(name("true"), var("Bool"), bool_lit(true))
+            .define_term(name("false"), var("Bool"), bool_lit(false))
+            .claim(name("String"), u0.clone())
+            .claim(name("Char"), u0.clone())
+            .claim(name("U8"), u0.clone())
+            .claim(name("U16"), u0.clone())
+            .claim(name("U32"), u0.clone())
+            .claim(name("U64"), u0.clone())
+            .claim(name("I8"), u0.clone())
+            .claim(name("I16"), u0.clone())
+            .claim(name("I32"), u0.clone())
+            .claim(name("I64"), u0.clone())
+            .claim(name("F32"), u0.clone())
+            .claim(name("F64"), u0.clone())
+            .claim(name("Int"), pi(vec![(name("min"), var("U64")), (name("max"), var("U64"))], u0.clone()))
+            .claim(name("Array"), arrow(vec![var("U64"), u0.clone()], u0.clone()))
             .define_prim(name("prim-string-eq"), Rc::new(prim::string_eq()))
             .define_prim(name("prim-bool-eq"), Rc::new(prim::bool_eq()))
             .define_prim(name("prim-char-eq"), Rc::new(prim::char_eq()))
