@@ -143,9 +143,24 @@ impl ToDoc for Term {
                     Doc::space().append(Doc::as_string(level))
                 }))
             },
+            Term::IntTypeSingleton(_, ref value) => Doc::text("{=")
+                .append(Doc::space())
+                .append(value.to_doc())
+                .append(Doc::text("}")),
+            Term::IntType(_, ref min, ref max) => Doc::text("{")
+                .append(
+                    min.as_ref()
+                        .map_or(Doc::nil(), |x| x.to_doc().append(Doc::space())),
+                )
+                .append(Doc::text(".."))
+                .append(
+                    max.as_ref()
+                        .map_or(Doc::nil(), |x| Doc::space().append(x.to_doc())),
+                )
+                .append(Doc::text("}")),
             Term::String(_, ref value) => Doc::text(format!("{:?}", value)),
             Term::Char(_, value) => Doc::text(format!("{:?}", value)),
-            Term::Int(_, value) => Doc::as_string(value),
+            Term::Int(_, ref value) => Doc::as_string(value),
             Term::Float(_, value) => Doc::as_string(value),
             Term::Array(_, ref elems) => Doc::text("[")
                 .append(Doc::intersperse(
