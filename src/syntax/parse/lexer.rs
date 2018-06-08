@@ -1,7 +1,9 @@
 use codespan::{ByteSpan, FileMap};
 use codespan_reporting::{Diagnostic, Label};
+use num_bigint::BigInt;
+use num_traits::Num;
+use std::fmt;
 use std::str::{CharIndices, FromStr};
-use std::{fmt, u64};
 
 use codespan::{ByteIndex, ByteOffset, RawOffset};
 use unicode_xid::UnicodeXID;
@@ -40,8 +42,6 @@ pub enum LexerError {
     EmptyCharLiteral { span: ByteSpan },
     #[fail(display = "An unknown escape code \\{} was found.", found)]
     UnknownEscapeCode { start: ByteIndex, found: char },
-    #[fail(display = "An integer literal {} was too large for the target type.", value)]
-    IntegerLiteralOverflow { span: ByteSpan, value: String },
 }
 
 impl LexerError {
@@ -55,8 +55,7 @@ impl LexerError {
             LexerError::UnexpectedEof { end } => ByteSpan::new(end, end),
             LexerError::UnterminatedStringLiteral { span }
             | LexerError::UnterminatedCharLiteral { span }
-            | LexerError::EmptyCharLiteral { span }
-            | LexerError::IntegerLiteralOverflow { span, .. } => span,
+            | LexerError::EmptyCharLiteral { span } => span,
         }
     }
 
@@ -84,10 +83,6 @@ impl LexerError {
                 Diagnostic::new_error(format!("unknown escape code \\{}", found))
                     .with_label(Label::new_primary(char_span))
             },
-            LexerError::IntegerLiteralOverflow { span, ref value } => {
-                Diagnostic::new_error(format!("integer literal overflow with value `{}`", value))
-                    .with_label(Label::new_primary(span).with_message("overflowing literal"))
-            },
         }
     }
 }
@@ -101,7 +96,7 @@ pub enum Token<S> {
     ReplCommand(S),
     StringLiteral(String),
     CharLiteral(char),
-    DecLiteral(u64),
+    DecLiteral(BigInt),
     FloatLiteral(f64),
 
     // Keywords
@@ -427,13 +422,8 @@ impl<'input> Lexer<'input> {
                 Err(_) => unimplemented!(),
             }
         } else {
-            match u64::from_str_radix(src, 10) {
-                Ok(value) => Ok((start, Token::DecLiteral(value), end)),
-                Err(_) => Err(LexerError::IntegerLiteralOverflow {
-                    span: ByteSpan::new(start, end),
-                    value: src.to_string(),
-                }),
-            }
+            let value = BigInt::from_str_radix(src, 10).unwrap();
+            Ok((start, Token::DecLiteral(value), end))
         }
     }
 }
@@ -560,7 +550,7 @@ mod tests {
     fn dec_literal() {
         test! {
             "  123  ",
-            "  ~~~  " => Token::DecLiteral(123),
+            "  ~~~  " => Token::DecLiteral(BigInt::from(123)),
         };
     }
 

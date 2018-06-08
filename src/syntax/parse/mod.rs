@@ -172,7 +172,9 @@ mod tests {
 
     #[test]
     fn integer_overflow() {
-        let src = "Type 111111111111111111111111111111";
+        use num_bigint::BigInt;
+
+        let src = "Type 11111111111111111111";
         let mut codemap = CodeMap::new();
         let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
 
@@ -181,11 +183,11 @@ mod tests {
         assert_eq!(
             parse_result,
             (
-                concrete::Term::Error(ByteSpan::new(ByteIndex(1), ByteIndex(36))),
-                vec![ParseError::Lexer(LexerError::IntegerLiteralOverflow {
-                    span: ByteSpan::new(ByteIndex(6), ByteIndex(36)),
-                    value: String::from("111111111111111111111111111111"),
-                })],
+                concrete::Term::Error(ByteSpan::new(ByteIndex(1), ByteIndex(26))),
+                vec![ParseError::IntegerLiteralOverflow {
+                    span: ByteSpan::new(ByteIndex(6), ByteIndex(26)),
+                    value: BigInt::from(11111111111111111111_u64),
+                }],
             )
         );
     }

@@ -8,6 +8,8 @@ extern crate im;
 extern crate lalrpop_util;
 #[macro_use]
 extern crate nameless;
+extern crate num_bigint;
+extern crate num_traits;
 extern crate pretty;
 #[cfg(test)]
 #[macro_use]

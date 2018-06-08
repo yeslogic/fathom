@@ -123,16 +123,7 @@ fn resugar_literal(constant: &core::Literal) -> concrete::Term {
         core::Literal::String(ref value) => concrete::Term::String(span, value.clone()),
         core::Literal::Char(value) => concrete::Term::Char(span, value),
 
-        core::Literal::U8(value) => concrete::Term::Int(span, u64::from(value)),
-        core::Literal::U16(value) => concrete::Term::Int(span, u64::from(value)),
-        core::Literal::U32(value) => concrete::Term::Int(span, u64::from(value)),
-        core::Literal::U64(value) => concrete::Term::Int(span, value),
-
-        // FIXME: Underflow for negative numbers
-        core::Literal::I8(value) => concrete::Term::Int(span, value as u64),
-        core::Literal::I16(value) => concrete::Term::Int(span, value as u64),
-        core::Literal::I32(value) => concrete::Term::Int(span, value as u64),
-        core::Literal::I64(value) => concrete::Term::Int(span, value as u64),
+        core::Literal::Int(ref value) => concrete::Term::Int(span, value.clone()),
 
         core::Literal::F32(value) => concrete::Term::Float(span, f64::from(value)),
         core::Literal::F64(value) => concrete::Term::Float(span, value),
@@ -316,6 +307,14 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
                 Prec::APP < prec && level.is_some(),
                 concrete::Term::Universe(ByteSpan::default(), level),
             )
+        },
+        core::Term::IntType(Some(ref min), Some(ref max)) if min == max => {
+            concrete::Term::IntTypeSingleton(ByteSpan::default(), Box::new(min.resugar()))
+        },
+        core::Term::IntType(ref min, ref max) => {
+            let min = min.as_ref().map(|x| resugar_term(&**x, Prec::NO_WRAP));
+            let max = max.as_ref().map(|x| resugar_term(&**x, Prec::NO_WRAP));
+            concrete::Term::IntType(ByteSpan::default(), min.map(Box::new), max.map(Box::new))
         },
         core::Term::Literal(ref lit) => resugar_literal(lit),
         core::Term::Var(Var::Free(Name::User(ref name))) => {

@@ -1,6 +1,7 @@
 //! The core syntax of the language
 
-use nameless::{self, Bind, BoundPattern, Embed, Name, Var};
+use nameless::{self, Bind, BoundPattern, BoundTerm, Embed, Name, Var};
+use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;
 
@@ -10,21 +11,29 @@ use syntax::{Label, Level};
 /// Literals
 ///
 /// We could church encode all the things, but that would be prohibitively expensive!
-#[derive(Debug, Clone, PartialEq, PartialOrd, BoundTerm)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Literal {
     Bool(bool),
     String(String),
     Char(char),
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
+    Int(BigInt),
     F32(f32),
     F64(f64),
+}
+
+impl Literal {
+    pub fn try_int(&self) -> Option<&BigInt> {
+        match *self {
+            Literal::Int(ref value) => Some(value),
+            _ => None,
+        }
+    }
+}
+
+impl BoundTerm for Literal {
+    fn term_eq(&self, other: &Literal) -> bool {
+        self == other
+    }
 }
 
 impl fmt::Display for Literal {
@@ -58,6 +67,8 @@ pub enum Term {
     Ann(Rc<Term>, Rc<Term>),
     /// Universes
     Universe(Level),
+    /// Ranged integer types
+    IntType(Option<Rc<Term>>, Option<Rc<Term>>),
     /// Literals
     Literal(Literal),
     /// A variable
@@ -99,6 +110,8 @@ impl fmt::Display for Term {
 pub enum Value {
     /// Universes
     Universe(Level),
+    /// Bounded integers
+    IntType(Option<Rc<Value>>, Option<Rc<Value>>),
     /// Literals
     Literal(Literal),
     /// A pi type
@@ -167,6 +180,7 @@ impl Value {
         match *self {
             Value::Universe(_)
             | Value::Literal(_)
+            | Value::IntType(_, _)
             | Value::Pi(_)
             | Value::Lam(_)
             | Value::RecordType(_)
@@ -185,6 +199,9 @@ impl Value {
             | Value::Literal(_)
             | Value::RecordTypeEmpty
             | Value::RecordEmpty => true,
+            Value::IntType(ref min, ref max) => {
+                min.as_ref().map_or(true, |x| x.is_nf()) && max.as_ref().map_or(true, |x| x.is_nf())
+            },
             Value::Pi(ref scope) | Value::Lam(ref scope) => {
                 (scope.unsafe_pattern.1).0.is_nf() && scope.unsafe_body.is_nf()
             },
@@ -193,6 +210,20 @@ impl Value {
             },
             Value::Array(ref elems) => elems.iter().all(|elem| elem.is_nf()),
             Value::Neutral(_) => false,
+        }
+    }
+
+    pub fn try_literal(&self) -> Option<&Literal> {
+        match *self {
+            Value::Literal(ref literal) => Some(literal),
+            _ => None,
+        }
+    }
+
+    pub fn try_neutral(&self) -> Option<&Rc<Neutral>> {
+        match *self {
+            Value::Neutral(ref neutral) => Some(neutral),
+            _ => None,
         }
     }
 
@@ -270,6 +301,10 @@ impl<'a> From<&'a Value> for Term {
     fn from(src: &'a Value) -> Term {
         match *src {
             Value::Universe(level) => Term::Universe(level),
+            Value::IntType(ref min, ref max) => Term::IntType(
+                min.as_ref().map(|x| Rc::new(Term::from(&**x))),
+                max.as_ref().map(|x| Rc::new(Term::from(&**x))),
+            ),
             Value::Literal(ref lit) => Term::Literal(lit.clone()),
             Value::Pi(ref scope) => {
                 let ((name, Embed(param_ann)), body) = nameless::unbind(scope.clone());

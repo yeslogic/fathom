@@ -2,7 +2,8 @@
 //! be elaborated in a type-directed way during type checking and inference
 
 use codespan::{ByteIndex, ByteSpan};
-use nameless::{Bind, Embed, Ignore, Name, Var};
+use nameless::{Bind, BoundTerm, Embed, Ignore, Name, Var};
+use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;
 
@@ -40,12 +41,18 @@ impl fmt::Display for Definition {
 }
 
 /// Literals
-#[derive(Debug, Clone, PartialEq, PartialOrd, BoundTerm)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Literal {
     String(String),
     Char(char),
-    Int(u64),
+    Int(BigInt),
     Float(f64),
+}
+
+impl BoundTerm for Literal {
+    fn term_eq(&self, other: &Literal) -> bool {
+        self == other
+    }
 }
 
 impl fmt::Display for Literal {
@@ -64,6 +71,8 @@ pub enum Term {
     Ann(Ignore<ByteSpan>, Rc<Term>, Rc<Term>),
     /// Universes
     Universe(Ignore<ByteSpan>, Level),
+    /// Ranged integer types
+    IntType(Ignore<ByteSpan>, Option<Rc<Term>>, Option<Rc<Term>>),
     /// Literals
     Literal(Ignore<ByteSpan>, Literal),
     /// A hole
@@ -97,6 +106,7 @@ impl Term {
         match *self {
             Term::Ann(span, _, _)
             | Term::Universe(span, _)
+            | Term::IntType(span, _, _)
             | Term::Hole(span)
             | Term::Literal(span, _)
             | Term::Var(span, _)

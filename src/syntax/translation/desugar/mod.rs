@@ -241,11 +241,22 @@ impl Desugar<raw::Term> for concrete::Term {
             concrete::Term::Universe(_, level) => {
                 raw::Term::Universe(span, Level(level.unwrap_or(0)))
             },
+            concrete::Term::IntTypeSingleton(_, ref value) => {
+                let value = Rc::new(value.desugar());
+                raw::Term::IntType(span, Some(value.clone()), Some(value))
+            },
+            concrete::Term::IntType(_, ref min, ref max) => raw::Term::IntType(
+                span,
+                min.as_ref().map(|x| Rc::new(x.desugar())),
+                max.as_ref().map(|x| Rc::new(x.desugar())),
+            ),
             concrete::Term::String(_, ref value) => {
                 raw::Term::Literal(span, raw::Literal::String(value.clone()))
             },
             concrete::Term::Char(_, value) => raw::Term::Literal(span, raw::Literal::Char(value)),
-            concrete::Term::Int(_, value) => raw::Term::Literal(span, raw::Literal::Int(value)),
+            concrete::Term::Int(_, ref value) => {
+                raw::Term::Literal(span, raw::Literal::Int(value.clone()))
+            },
             concrete::Term::Float(_, value) => raw::Term::Literal(span, raw::Literal::Float(value)),
             concrete::Term::Array(_, ref elems) => raw::Term::Array(
                 span,
