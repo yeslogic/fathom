@@ -218,7 +218,7 @@ impl fmt::Display for RawTerm {
     }
 }
 
-/// A typechecked and elaborated module
+/// A type checked and elaborated module
 pub struct Module {
     /// The name of the module
     pub name: String,
@@ -226,7 +226,7 @@ pub struct Module {
     pub definitions: Vec<Definition>,
 }
 
-/// A typechecked and elaborated definition
+/// A type checked and elaborated definition
 pub struct Definition {
     /// The name of the definition
     pub name: String,

@@ -113,8 +113,8 @@ pub enum Declaration {
     /// foo = some-body
     /// foo x (y : some-type) = some-body
     ///     where {
-    ///         some-subdef : some-type
-    ///         some-subdef = some-body
+    ///         some-value : some-type
+    ///         some-value = some-body
     ///     }
     /// ```
     Definition {
@@ -318,7 +318,8 @@ impl Term {
             Term::Ann(ref term, ref ty) => term.span().to(ty.span()),
             Term::Arrow(ref ann, ref body) => ann.span().to(body.span()),
             Term::App(ref fn_term, ref arg) => fn_term.span().to(arg[arg.len() - 1].span()),
-            Term::Proj(ref term, label_start, ref label) => term.span()
+            Term::Proj(ref term, label_start, ref label) => term
+                .span()
                 .with_end(label_start + ByteOffset::from_str(label)),
         }
     }
