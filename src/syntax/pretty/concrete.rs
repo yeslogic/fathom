@@ -2,7 +2,7 @@
 
 use pretty::Doc;
 
-use syntax::concrete::{Declaration, Exposing, LamParams, Module, PiParams, Term};
+use syntax::concrete::{Declaration, Exposing, LamParamGroup, Module, PiParamGroup, Term};
 
 use super::{StaticDoc, ToDoc};
 
@@ -132,7 +132,8 @@ impl ToDoc for Term {
             Term::Parens(_, ref term) => {
                 Doc::text("(").append(term.to_doc()).append(Doc::text(")"))
             },
-            Term::Ann(ref term, ref ty) => term.to_doc()
+            Term::Ann(ref term, ref ty) => term
+                .to_doc()
                 .append(Doc::space())
                 .append(Doc::text(":"))
                 .append(Doc::space())
@@ -165,7 +166,8 @@ impl ToDoc for Term {
                 .append(Doc::text("->"))
                 .append(Doc::space())
                 .append(body.to_doc()),
-            Term::Arrow(ref ann, ref body) => ann.to_doc()
+            Term::Arrow(ref ann, ref body) => ann
+                .to_doc()
                 .append(Doc::space())
                 .append(Doc::text("->"))
                 .append(Doc::space())
@@ -241,7 +243,8 @@ impl ToDoc for Term {
                 )
                 .append(Doc::space())
                 .append(Doc::text("}")),
-            Term::Proj(ref expr, _, ref label) => expr.to_doc()
+            Term::Proj(ref expr, _, ref label) => expr
+                .to_doc()
                 .append(Doc::text("."))
                 .append(Doc::as_string(label)),
             Term::Error(_) => Doc::text("<error>"),
@@ -249,7 +252,7 @@ impl ToDoc for Term {
     }
 }
 
-fn pretty_lam_params(params: &LamParams) -> StaticDoc {
+fn pretty_lam_params(params: &[LamParamGroup]) -> StaticDoc {
     Doc::intersperse(
         params.iter().map(|&(ref names, ref ann)| match *ann {
             None if names.len() == 1 => Doc::as_string(&names[0].1),
@@ -269,7 +272,7 @@ fn pretty_lam_params(params: &LamParams) -> StaticDoc {
     )
 }
 
-fn pretty_pi_params(params: &PiParams) -> StaticDoc {
+fn pretty_pi_params(params: &[PiParamGroup]) -> StaticDoc {
     Doc::intersperse(
         params.iter().map(|&(ref names, ref ann)| {
             Doc::text("(")
