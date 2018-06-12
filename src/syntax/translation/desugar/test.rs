@@ -4,7 +4,7 @@ use syntax::parse;
 
 use super::*;
 
-fn parse(src: &str) -> core::RawTerm {
+fn parse(src: &str) -> raw::Term {
     let mut codemap = CodeMap::new();
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
 
@@ -17,13 +17,14 @@ fn parse(src: &str) -> core::RawTerm {
 mod term {
     use super::*;
 
-    use syntax::core::{Level, RawTerm};
+    use syntax::raw::Term;
+    use syntax::Level;
 
     #[test]
     fn var() {
         assert_term_eq!(
             parse(r"x"),
-            RawTerm::Var(Ignore::default(), Var::Free(Name::user("x"))),
+            Term::Var(Ignore::default(), Var::Free(Name::user("x"))),
         );
     }
 
@@ -31,23 +32,20 @@ mod term {
     fn var_kebab_case() {
         assert_term_eq!(
             parse(r"or-elim"),
-            RawTerm::Var(Ignore::default(), Var::Free(Name::user("or-elim"))),
+            Term::Var(Ignore::default(), Var::Free(Name::user("or-elim"))),
         );
     }
 
     #[test]
     fn ty() {
-        assert_term_eq!(
-            parse(r"Type"),
-            RawTerm::Universe(Ignore::default(), Level(0)),
-        );
+        assert_term_eq!(parse(r"Type"), Term::Universe(Ignore::default(), Level(0)),);
     }
 
     #[test]
     fn ty_level() {
         assert_term_eq!(
             parse(r"Type 2"),
-            RawTerm::Universe(Ignore::default(), Level(0).succ().succ()),
+            Term::Universe(Ignore::default(), Level(2)),
         );
     }
 
@@ -55,10 +53,10 @@ mod term {
     fn ann() {
         assert_term_eq!(
             parse(r"Type : Type"),
-            RawTerm::Ann(
+            Term::Ann(
                 Ignore::default(),
-                Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
-                Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
+                Rc::new(Term::Universe(Ignore::default(), Level(0))),
+                Rc::new(Term::Universe(Ignore::default(), Level(0))),
             ),
         );
     }
@@ -67,13 +65,13 @@ mod term {
     fn ann_ann_left() {
         assert_term_eq!(
             parse(r"Type : Type : Type"),
-            RawTerm::Ann(
+            Term::Ann(
                 Ignore::default(),
-                Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
-                Rc::new(RawTerm::Ann(
+                Rc::new(Term::Universe(Ignore::default(), Level(0))),
+                Rc::new(Term::Ann(
                     Ignore::default(),
-                    Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
-                    Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
+                    Rc::new(Term::Universe(Ignore::default(), Level(0))),
+                    Rc::new(Term::Universe(Ignore::default(), Level(0))),
                 )),
             ),
         );
@@ -83,13 +81,13 @@ mod term {
     fn ann_ann_right() {
         assert_term_eq!(
             parse(r"Type : (Type : Type)"),
-            RawTerm::Ann(
+            Term::Ann(
                 Ignore::default(),
-                Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
-                Rc::new(RawTerm::Ann(
+                Rc::new(Term::Universe(Ignore::default(), Level(0))),
+                Rc::new(Term::Ann(
                     Ignore::default(),
-                    Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
-                    Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
+                    Rc::new(Term::Universe(Ignore::default(), Level(0))),
+                    Rc::new(Term::Universe(Ignore::default(), Level(0))),
                 )),
             ),
         );
@@ -99,17 +97,17 @@ mod term {
     fn ann_ann_ann() {
         assert_term_eq!(
             parse(r"(Type : Type) : (Type : Type)"),
-            Rc::new(RawTerm::Ann(
+            Rc::new(Term::Ann(
                 Ignore::default(),
-                Rc::new(RawTerm::Ann(
+                Rc::new(Term::Ann(
                     Ignore::default(),
-                    Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
-                    Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
+                    Rc::new(Term::Universe(Ignore::default(), Level(0))),
+                    Rc::new(Term::Universe(Ignore::default(), Level(0))),
                 )),
-                Rc::new(RawTerm::Ann(
+                Rc::new(Term::Ann(
                     Ignore::default(),
-                    Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
-                    Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
+                    Rc::new(Term::Universe(Ignore::default(), Level(0))),
+                    Rc::new(Term::Universe(Ignore::default(), Level(0))),
                 )),
             )),
         );
@@ -119,23 +117,23 @@ mod term {
     fn lam_ann() {
         assert_term_eq!(
             parse(r"\x : Type -> Type => x"),
-            Rc::new(RawTerm::Lam(
+            Rc::new(Term::Lam(
                 Ignore::default(),
                 nameless::bind(
                     (
                         Name::user("x"),
-                        Embed(Rc::new(RawTerm::Pi(
+                        Embed(Rc::new(Term::Pi(
                             Ignore::default(),
                             nameless::bind(
                                 (
                                     Name::user("_"),
-                                    Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0)))),
+                                    Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                                 ),
-                                Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
+                                Rc::new(Term::Universe(Ignore::default(), Level(0))),
                             ),
                         ))),
                     ),
-                    Rc::new(RawTerm::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                    Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
                 ),
             )),
         );
@@ -145,26 +143,23 @@ mod term {
     fn lam() {
         assert_term_eq!(
             parse(r"\x : (\y => y) => x"),
-            Rc::new(RawTerm::Lam(
+            Rc::new(Term::Lam(
                 Ignore::default(),
                 nameless::bind(
                     (
                         Name::user("x"),
-                        Embed(Rc::new(RawTerm::Lam(
+                        Embed(Rc::new(Term::Lam(
                             Ignore::default(),
                             nameless::bind(
                                 (
                                     Name::user("y"),
-                                    Embed(Rc::new(RawTerm::Hole(Ignore::default()))),
+                                    Embed(Rc::new(Term::Hole(Ignore::default()))),
                                 ),
-                                Rc::new(RawTerm::Var(
-                                    Ignore::default(),
-                                    Var::Free(Name::user("y")),
-                                )),
+                                Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("y")),)),
                             ),
                         )),),
                     ),
-                    Rc::new(RawTerm::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                    Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
                 )
             )),
         );
@@ -174,21 +169,21 @@ mod term {
     fn lam_lam_ann() {
         assert_term_eq!(
             parse(r"\(x y : Type) => x"),
-            Rc::new(RawTerm::Lam(
+            Rc::new(Term::Lam(
                 Ignore::default(),
                 nameless::bind(
                     (
                         Name::user("x"),
-                        Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0)))),
+                        Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                     ),
-                    Rc::new(RawTerm::Lam(
+                    Rc::new(Term::Lam(
                         Ignore::default(),
                         nameless::bind(
                             (
                                 Name::user("y"),
-                                Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0),))),
+                                Embed(Rc::new(Term::Universe(Ignore::default(), Level(0),))),
                             ),
-                            Rc::new(RawTerm::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                            Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
                         ),
                     )),
                 )
@@ -200,14 +195,14 @@ mod term {
     fn arrow() {
         assert_term_eq!(
             parse(r"Type -> Type"),
-            Rc::new(RawTerm::Pi(
+            Rc::new(Term::Pi(
                 Ignore::default(),
                 nameless::bind(
                     (
                         Name::user("_"),
-                        Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0)))),
+                        Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                     ),
-                    Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
+                    Rc::new(Term::Universe(Ignore::default(), Level(0))),
                 ),
             )),
         );
@@ -217,23 +212,23 @@ mod term {
     fn pi() {
         assert_term_eq!(
             parse(r"(x : Type -> Type) -> x"),
-            Rc::new(RawTerm::Pi(
+            Rc::new(Term::Pi(
                 Ignore::default(),
                 nameless::bind(
                     (
                         Name::user("x"),
-                        Embed(Rc::new(RawTerm::Pi(
+                        Embed(Rc::new(Term::Pi(
                             Ignore::default(),
                             nameless::bind(
                                 (
                                     Name::user("_"),
-                                    Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0),))),
+                                    Embed(Rc::new(Term::Universe(Ignore::default(), Level(0),))),
                                 ),
-                                Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
+                                Rc::new(Term::Universe(Ignore::default(), Level(0))),
                             ),
                         ))),
                     ),
-                    Rc::new(RawTerm::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                    Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
                 ),
             )),
         );
@@ -243,21 +238,21 @@ mod term {
     fn pi_pi() {
         assert_term_eq!(
             parse(r"(x y : Type) -> x"),
-            Rc::new(RawTerm::Pi(
+            Rc::new(Term::Pi(
                 Ignore::default(),
                 nameless::bind(
                     (
                         Name::user("x"),
-                        Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0)))),
+                        Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                     ),
-                    Rc::new(RawTerm::Pi(
+                    Rc::new(Term::Pi(
                         Ignore::default(),
                         nameless::bind(
                             (
                                 Name::user("y"),
-                                Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0),))),
+                                Embed(Rc::new(Term::Universe(Ignore::default(), Level(0),))),
                             ),
-                            Rc::new(RawTerm::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                            Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
                         ),
                     )),
                 ),
@@ -269,24 +264,24 @@ mod term {
     fn pi_arrow() {
         assert_term_eq!(
             parse(r"(x : Type) -> x -> x"),
-            Rc::new(RawTerm::Pi(
+            Rc::new(Term::Pi(
                 Ignore::default(),
                 nameless::bind(
                     (
                         Name::user("x"),
-                        Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0)))),
+                        Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                     ),
-                    Rc::new(RawTerm::Pi(
+                    Rc::new(Term::Pi(
                         Ignore::default(),
                         nameless::bind(
                             (
                                 Name::user("_"),
-                                Embed(Rc::new(RawTerm::Var(
+                                Embed(Rc::new(Term::Var(
                                     Ignore::default(),
                                     Var::Free(Name::user("x")),
                                 ))),
                             ),
-                            Rc::new(RawTerm::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                            Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
                         ),
                     )),
                 ),
@@ -298,38 +293,32 @@ mod term {
     fn lam_app() {
         assert_term_eq!(
             parse(r"\(x : Type -> Type) (y : Type) => x y"),
-            Rc::new(RawTerm::Lam(
+            Rc::new(Term::Lam(
                 Ignore::default(),
                 nameless::bind(
                     (
                         Name::user("x"),
-                        Embed(Rc::new(RawTerm::Pi(
+                        Embed(Rc::new(Term::Pi(
                             Ignore::default(),
                             nameless::bind(
                                 (
                                     Name::user("_"),
-                                    Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0),))),
+                                    Embed(Rc::new(Term::Universe(Ignore::default(), Level(0),))),
                                 ),
-                                Rc::new(RawTerm::Universe(Ignore::default(), Level(0))),
+                                Rc::new(Term::Universe(Ignore::default(), Level(0))),
                             ),
                         ))),
                     ),
-                    Rc::new(RawTerm::Lam(
+                    Rc::new(Term::Lam(
                         Ignore::default(),
                         nameless::bind(
                             (
                                 Name::user("y"),
-                                Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0),))),
+                                Embed(Rc::new(Term::Universe(Ignore::default(), Level(0),))),
                             ),
-                            Rc::new(RawTerm::App(
-                                Rc::new(RawTerm::Var(
-                                    Ignore::default(),
-                                    Var::Free(Name::user("x")),
-                                )),
-                                Rc::new(RawTerm::Var(
-                                    Ignore::default(),
-                                    Var::Free(Name::user("y")),
-                                )),
+                            Rc::new(Term::App(
+                                Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                                Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("y")),)),
                             )),
                         ),
                     )),
@@ -344,21 +333,21 @@ mod term {
 
         assert_term_eq!(
             parse(r"\(a : Type) (x : a) => x"),
-            Rc::new(RawTerm::Lam(
+            Rc::new(Term::Lam(
                 Ignore::default(),
                 nameless::bind(
                     (
                         a.clone(),
-                        Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0)))),
+                        Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                     ),
-                    Rc::new(RawTerm::Lam(
+                    Rc::new(Term::Lam(
                         Ignore::default(),
                         nameless::bind(
                             (
                                 Name::user("x"),
-                                Embed(Rc::new(RawTerm::Var(Ignore::default(), Var::Free(a),))),
+                                Embed(Rc::new(Term::Var(Ignore::default(), Var::Free(a),))),
                             ),
-                            Rc::new(RawTerm::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                            Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
                         ),
                     )),
                 ),
@@ -370,24 +359,24 @@ mod term {
     fn id_ty() {
         assert_term_eq!(
             parse(r"(a : Type) -> a -> a"),
-            Rc::new(RawTerm::Pi(
+            Rc::new(Term::Pi(
                 Ignore::default(),
                 nameless::bind(
                     (
                         Name::user("a"),
-                        Embed(Rc::new(RawTerm::Universe(Ignore::default(), Level(0)))),
+                        Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                     ),
-                    Rc::new(RawTerm::Pi(
+                    Rc::new(Term::Pi(
                         Ignore::default(),
                         nameless::bind(
                             (
                                 Name::user("_"),
-                                Embed(Rc::new(RawTerm::Var(
+                                Embed(Rc::new(Term::Var(
                                     Ignore::default(),
                                     Var::Free(Name::user("a")),
                                 ))),
                             ),
-                            Rc::new(RawTerm::Var(Ignore::default(), Var::Free(Name::user("a")),)),
+                            Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("a")),)),
                         ),
                     )),
                 ),
