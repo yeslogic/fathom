@@ -234,13 +234,13 @@ Here is a rough overview of how the DDL's terms are checked:
                 (from parser)
                       |
                       v
-     +------------ RawTerm -----------+
+     +---------- raw::Term -----------+
      |                                |
      v                                v
 Type Inference <- - - - - - -> Type checking
      |                                ^
      |                                |
-   Term                             Value
+ core::Term                      core::Value
      |                                |
      +-------> Normalization ---------+
      |
