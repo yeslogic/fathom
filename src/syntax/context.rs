@@ -87,7 +87,7 @@ impl Context {
 
 impl Default for Context {
     fn default() -> Context {
-        use nameless::{self, Embed, GenId, Ignore, Var};
+        use nameless::{self, Embed, GenId, Var};
 
         use syntax::core::{Literal, Value};
         use syntax::Level;
@@ -96,7 +96,7 @@ impl Default for Context {
         let fresh = || Name::from(GenId::fresh());
         let var = |n| Rc::new(Value::from(Var::Free(name(n))));
         let u0 = Rc::new(Value::Universe(Level(0)));
-        let bool_lit = |val| Rc::new(Term::Literal(Ignore::default(), Literal::Bool(val)));
+        let bool_lit = |val| Rc::new(Term::Literal(Literal::Bool(val)));
         let arrow = |params: Vec<Rc<Type>>, ret: Rc<Type>| {
             params.into_iter().rev().fold(ret, |body, ann| {
                 Rc::new(Value::Pi(nameless::bind((fresh(), Embed(ann)), body)))
