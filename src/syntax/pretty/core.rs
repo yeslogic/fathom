@@ -104,7 +104,7 @@ impl ToDoc for raw::Literal {
         match *self {
             raw::Literal::String(ref value) => Doc::text(format!("{:?}", value)),
             raw::Literal::Char(value) => Doc::text(format!("{:?}", value)),
-            raw::Literal::Int(value) => Doc::as_string(value),
+            raw::Literal::Int(ref value) => Doc::as_string(value),
             raw::Literal::Float(value) => Doc::as_string(value),
         }
     }
@@ -117,14 +117,7 @@ impl ToDoc for Literal {
             Literal::Bool(false) => Doc::text("false"),
             Literal::String(ref value) => Doc::text(format!("{:?}", value)),
             Literal::Char(value) => Doc::text(format!("{:?}", value)),
-            Literal::U8(value) => Doc::as_string(value),
-            Literal::U16(value) => Doc::as_string(value),
-            Literal::U32(value) => Doc::as_string(value),
-            Literal::U64(value) => Doc::as_string(value),
-            Literal::I8(value) => Doc::as_string(value),
-            Literal::I16(value) => Doc::as_string(value),
-            Literal::I32(value) => Doc::as_string(value),
-            Literal::I64(value) => Doc::as_string(value),
+            Literal::Int(ref value) => Doc::as_string(value),
             Literal::F32(value) => Doc::as_string(value),
             Literal::F64(value) => Doc::as_string(value),
         }
@@ -137,6 +130,7 @@ impl ToDoc for raw::Term {
             raw::Term::Ann(_, ref expr, ref ty) => pretty_ann(expr, ty),
             raw::Term::Universe(_, level) => pretty_universe(level),
             raw::Term::Hole(_) => parens(Doc::text("hole")),
+            raw::Term::IntType(_, _, _) => unimplemented!(),
             raw::Term::Literal(_, ref lit) => lit.to_doc(),
             raw::Term::Var(_, ref var) => pretty_var(var),
             raw::Term::Lam(_, ref scope) => pretty_lam(
@@ -221,6 +215,7 @@ impl ToDoc for Term {
         match *self {
             Term::Ann(ref expr, ref ty) => pretty_ann(expr, ty),
             Term::Universe(level) => pretty_universe(level),
+            Term::IntType(_, _) => unimplemented!(),
             Term::Literal(ref lit) => lit.to_doc(),
             Term::Var(ref var) => pretty_var(var),
             Term::Lam(ref scope) => pretty_lam(
@@ -302,6 +297,7 @@ impl ToDoc for Value {
     fn to_doc(&self) -> StaticDoc {
         match *self {
             Value::Universe(level) => pretty_universe(level),
+            Value::IntType(_, _) => unimplemented!(),
             Value::Literal(ref lit) => lit.to_doc(),
             Value::Lam(ref scope) => pretty_lam(
                 &scope.unsafe_pattern.0,

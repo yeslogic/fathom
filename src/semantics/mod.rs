@@ -6,6 +6,7 @@
 
 use codespan::ByteSpan;
 use nameless::{self, BoundPattern, BoundTerm, Embed, Name, Var};
+use num_traits::ToPrimitive;
 use std::rc::Rc;
 
 use syntax::context::Context;
@@ -60,6 +61,10 @@ pub fn check_module(raw_module: &raw::Module) -> Result<Module, TypeError> {
 pub fn subst(value: &Value, substs: &[(Name, Rc<Term>)]) -> Rc<Term> {
     match *value {
         Value::Universe(level) => Rc::new(Term::Universe(level)),
+        Value::IntType(ref min, ref max) => Rc::new(Term::IntType(
+            min.as_ref().map(|x| subst(x, substs)),
+            max.as_ref().map(|x| subst(x, substs)),
+        )),
         Value::Literal(ref lit) => Rc::new(Term::Literal(lit.clone())),
         Value::Pi(ref scope) => {
             let ((name, Embed(ann)), body) = nameless::unbind(scope.clone());
@@ -143,6 +148,20 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
 
         // E-TYPE
         Term::Universe(level) => Ok(Rc::new(Value::Universe(level))),
+
+        Term::IntType(ref min, ref max) => {
+            let min = match *min {
+                None => None,
+                Some(ref x) => Some(normalize(context, x)?),
+            };
+
+            let max = match *max {
+                None => None,
+                Some(ref x) => Some(normalize(context, x)?),
+            };
+
+            Ok(Rc::new(Value::IntType(min, max)))
+        },
 
         Term::Literal(ref lit) => Ok(Rc::new(Value::Literal(lit.clone()))),
 
@@ -290,6 +309,80 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
     }
 }
 
+fn is_name(ty: &Type, name: &str) -> bool {
+    if let Value::Neutral(ref neutral) = *ty {
+        if let Neutral::App(Head::Var(Var::Free(ref n)), ref spine) = **neutral {
+            return Name::user(name) == *n && spine.is_empty();
+        }
+    }
+    false
+}
+
+/// Check that `ty1` is a subtype of `ty2`
+pub fn is_subtype(ty1: &Rc<Type>, ty2: &Rc<Type>) -> bool {
+    use num_bigint::BigInt;
+    use std::{i16, i32, i64, u16, u32, u64};
+
+    fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> Rc<Value> {
+        Rc::new(Value::IntType(
+            min.map(|x| Rc::new(Value::Literal(Literal::Int(x.into())))),
+            max.map(|x| Rc::new(Value::Literal(Literal::Int(x.into())))),
+        ))
+    }
+
+    match (&**ty1, &**ty2) {
+        (&Value::IntType(ref min1, ref max1), &Value::IntType(ref min2, ref max2)) => {
+            let in_min_bound = match (min1, min2) {
+                (None, None) => true,     // -∞ <= -∞
+                (Some(_), None) => true,  //  n <= -∞
+                (None, Some(_)) => false, // -∞ <=  n
+                (Some(ref min1), Some(ref min2)) => match (&**min1, &**min2) {
+                    (
+                        Value::Literal(Literal::Int(ref min1)),
+                        Value::Literal(Literal::Int(ref min2)),
+                    ) => min1 >= min2,
+                    _ => Value::term_eq(min1, min2), // Fallback to alpha-equality
+                },
+            };
+
+            let in_max_bound = match (max1, max2) {
+                (None, None) => true,     // +∞ <= +∞
+                (Some(_), None) => true,  //  n <= +∞
+                (None, Some(_)) => false, // +∞ <=  n
+                (Some(ref max1), Some(ref max2)) => match (&**max1, &**max2) {
+                    (
+                        Value::Literal(Literal::Int(ref max1)),
+                        Value::Literal(Literal::Int(ref max2)),
+                    ) => max1 <= max2,
+                    _ => Value::term_eq(max1, max2), // Fallback to alpha-equality
+                },
+            };
+
+            in_min_bound && in_max_bound
+        },
+
+        (t1, _) if is_name(t1, "U16Le") => is_subtype(&int_ty(Some(u16::MIN), Some(u16::MAX)), ty2),
+        (t1, _) if is_name(t1, "U32Le") => is_subtype(&int_ty(Some(u32::MIN), Some(u32::MAX)), ty2),
+        (t1, _) if is_name(t1, "U64Le") => is_subtype(&int_ty(Some(u64::MIN), Some(u64::MAX)), ty2),
+        (t1, _) if is_name(t1, "S16Le") => is_subtype(&int_ty(Some(i16::MIN), Some(i16::MAX)), ty2),
+        (t1, _) if is_name(t1, "S32Le") => is_subtype(&int_ty(Some(i32::MIN), Some(i32::MAX)), ty2),
+        (t1, _) if is_name(t1, "S64Le") => is_subtype(&int_ty(Some(i64::MIN), Some(i64::MAX)), ty2),
+        (t1, t2) if is_name(t1, "F32Le") && is_name(t2, "F32") => true,
+        (t1, t2) if is_name(t1, "F64Le") && is_name(t2, "F64") => true,
+        (t1, _) if is_name(t1, "U16Be") => is_subtype(&int_ty(Some(u16::MIN), Some(u16::MAX)), ty2),
+        (t1, _) if is_name(t1, "U32Be") => is_subtype(&int_ty(Some(u32::MIN), Some(u32::MAX)), ty2),
+        (t1, _) if is_name(t1, "U64Be") => is_subtype(&int_ty(Some(u64::MIN), Some(u64::MAX)), ty2),
+        (t1, _) if is_name(t1, "S16Be") => is_subtype(&int_ty(Some(i16::MIN), Some(i16::MAX)), ty2),
+        (t1, _) if is_name(t1, "S32Be") => is_subtype(&int_ty(Some(i32::MIN), Some(i32::MAX)), ty2),
+        (t1, _) if is_name(t1, "S64Be") => is_subtype(&int_ty(Some(i64::MIN), Some(i64::MAX)), ty2),
+        (t1, t2) if is_name(t1, "F32Be") && is_name(t2, "F32") => true,
+        (t1, t2) if is_name(t1, "F64Be") && is_name(t2, "F64") => true,
+
+        // Fallback to alpha-equality
+        _ => Type::term_eq(ty1, ty2),
+    }
+}
+
 /// Type checking of terms
 pub fn check(
     context: &Context,
@@ -297,16 +390,10 @@ pub fn check(
     expected_ty: &Rc<Type>,
 ) -> Result<Rc<Term>, TypeError> {
     match (&**raw_term, &**expected_ty) {
+        (&raw::Term::Literal(_, raw::Literal::Int(_)), Value::IntType(_, _)) => {
+            // Fallthrough to subtyping! We'll be checking that `{= val} <: {min .. max}`
+        },
         (&raw::Term::Literal(span, ref raw_literal), ty) => {
-            fn is_name(ty: &Type, name: &str) -> bool {
-                if let Value::Neutral(ref neutral) = *ty {
-                    if let Neutral::App(Head::Var(Var::Free(ref n)), ref spine) = **neutral {
-                        return Name::user(name) == *n && spine.is_empty();
-                    }
-                }
-                false
-            }
-
             let literal = match *raw_literal {
                 raw::Literal::String(ref val) if is_name(ty, "String") => {
                     Literal::String(val.clone())
@@ -314,17 +401,15 @@ pub fn check(
                 raw::Literal::Char(val) if is_name(ty, "Char") => Literal::Char(val),
 
                 // FIXME: overflow?
-                raw::Literal::Int(val) if is_name(ty, "U8") => Literal::U8(val as u8),
-                raw::Literal::Int(val) if is_name(ty, "U16") => Literal::U16(val as u16),
-                raw::Literal::Int(val) if is_name(ty, "U32") => Literal::U32(val as u32),
-                raw::Literal::Int(val) if is_name(ty, "U64") => Literal::U64(val),
-                raw::Literal::Int(val) if is_name(ty, "I8") => Literal::I8(val as i8),
-                raw::Literal::Int(val) if is_name(ty, "I16") => Literal::I16(val as i16),
-                raw::Literal::Int(val) if is_name(ty, "I32") => Literal::I32(val as i32),
-                raw::Literal::Int(val) if is_name(ty, "I64") => Literal::I64(val as i64),
-                raw::Literal::Int(val) if is_name(ty, "F32") => Literal::F32(val as f32),
-                raw::Literal::Int(val) if is_name(ty, "F64") => Literal::F64(val as f64),
-                raw::Literal::Float(val) if is_name(ty, "F32") => Literal::F32(val as f32),
+                raw::Literal::Int(ref val) if is_name(ty, "F32") => {
+                    Literal::F32(val.to_f32().unwrap())
+                },
+                raw::Literal::Int(ref val) if is_name(ty, "F64") => {
+                    Literal::F64(val.to_f64().unwrap())
+                },
+                raw::Literal::Float(val) if is_name(ty, "F32") => {
+                    Literal::F32(val.to_f32().unwrap())
+                },
                 raw::Literal::Float(val) if is_name(ty, "F64") => Literal::F64(val),
 
                 _ => {
@@ -401,12 +486,12 @@ pub fn check(
 
         (&raw::Term::Array(span, ref elems), ty) => match ty.free_app() {
             Some((name, [ref len, ref elem_ty])) if *name == Name::user("Array") => {
-                if let Value::Literal(Literal::U64(len)) = **len {
-                    if len != elems.len() as u64 {
+                if let Value::Literal(Literal::Int(ref len)) = **len {
+                    if *len != elems.len().into() {
                         return Err(TypeError::ArrayLengthMismatch {
                             span: span.0,
-                            found_len: elems.len() as u64,
-                            expected_len: len,
+                            found_len: elems.len(),
+                            expected_len: len.clone(),
                         });
                     }
                 }
@@ -433,7 +518,7 @@ pub fn check(
 
     // C-CONV
     let (term, inferred_ty) = infer(context, raw_term)?;
-    if Type::term_eq(&inferred_ty, expected_ty) {
+    if is_subtype(&inferred_ty, expected_ty) {
         Ok(term)
     } else {
         Err(TypeError::Mismatch {
@@ -488,6 +573,23 @@ pub fn infer(
             expected: None,
         }),
 
+        raw::Term::IntType(_, ref min, ref max) => {
+            let min = match *min {
+                None => None,
+                Some(ref min) => Some(check(context, min, &Rc::new(Value::IntType(None, None)))?),
+            };
+
+            let max = match *max {
+                None => None,
+                Some(ref max) => Some(check(context, max, &Rc::new(Value::IntType(None, None)))?),
+            };
+
+            Ok((
+                Rc::new(Term::IntType(min, max)),
+                Rc::new(Value::Universe(Level(0))),
+            ))
+        },
+
         raw::Term::Literal(span, ref raw_literal) => match *raw_literal {
             raw::Literal::String(ref value) => Ok((
                 Rc::new(Term::Literal(Literal::String(value.clone()))),
@@ -497,7 +599,12 @@ pub fn infer(
                 Rc::new(Term::Literal(Literal::Char(value))),
                 Rc::new(Value::from(Var::Free(Name::user("Char")))),
             )),
-            raw::Literal::Int(_) => Err(TypeError::AmbiguousIntLiteral { span: span.0 }),
+            raw::Literal::Int(ref value) => {
+                Ok((Rc::new(Term::Literal(Literal::Int(value.clone()))), {
+                    let value = Rc::new(Value::Literal(Literal::Int(value.clone())));
+                    Rc::new(Value::IntType(Some(value.clone()), Some(value)))
+                }))
+            },
             raw::Literal::Float(_) => Err(TypeError::AmbiguousFloatLiteral { span: span.0 }),
         },
 

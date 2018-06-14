@@ -1,6 +1,7 @@
 //! The concrete syntax of the language
 
 use codespan::{ByteIndex, ByteOffset, ByteSpan};
+use num_bigint::BigInt;
 use std::fmt;
 
 use syntax::pretty::{self, ToDoc};
@@ -217,12 +218,28 @@ pub enum Term {
     /// Type
     /// ```
     Universe(ByteSpan, Option<u32>),
+    // TODO: exclusive ranges
+    /// Byte span
+    ///
+    /// ```text
+    /// {..}
+    /// {1..}
+    /// {..10}
+    /// {4..10}
+    /// ```
+    IntType(ByteSpan, Option<Box<Term>>, Option<Box<Term>>),
+    /// Singleton byte span
+    ///
+    /// ```text
+    /// {= 10}
+    /// ```
+    IntTypeSingleton(ByteSpan, Box<Term>),
     /// String literals
     String(ByteSpan, String),
     /// Character literals
     Char(ByteSpan, char),
     /// Integer literals
-    Int(ByteSpan, u64),
+    Int(ByteSpan, BigInt),
     /// Floating point literals
     Float(ByteSpan, f64),
     /// Array literals
@@ -314,6 +331,8 @@ impl Term {
         match *self {
             Term::Parens(span, _)
             | Term::Universe(span, _)
+            | Term::IntTypeSingleton(span, _)
+            | Term::IntType(span, _, _)
             | Term::String(span, _)
             | Term::Char(span, _)
             | Term::Int(span, _)

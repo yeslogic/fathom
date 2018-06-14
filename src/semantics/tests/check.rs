@@ -30,7 +30,61 @@ fn dependent_record_propagate_types() {
     let context = Context::default();
 
     let expected_ty = r"Record { t : Type, x : t }";
-    let given_expr = r#"record { t = I32, x = 1 }"#;
+    let given_expr = r#"record { t = S32, x = 1 }"#;
+
+    let expected_ty = parse_normalize(&mut codemap, &context, expected_ty);
+    parse_check(&mut codemap, &context, given_expr, &expected_ty);
+}
+
+#[test]
+fn range_full() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+
+    let expected_ty = r"{..}";
+    let given_expr = r#"5"#;
+
+    let expected_ty = parse_normalize(&mut codemap, &context, expected_ty);
+    parse_check(&mut codemap, &context, given_expr, &expected_ty);
+}
+
+#[test]
+fn range_from() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+
+    let expected_ty = r"{0 ..}";
+    let given_expr = r#"0"#;
+
+    let expected_ty = parse_normalize(&mut codemap, &context, expected_ty);
+    parse_check(&mut codemap, &context, given_expr, &expected_ty);
+}
+
+#[test]
+fn range_to() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+
+    let expected_ty = r"{.. 10}";
+    let given_expr = r#"10"#;
+
+    let expected_ty = parse_normalize(&mut codemap, &context, expected_ty);
+    parse_check(&mut codemap, &context, given_expr, &expected_ty);
+}
+
+#[test]
+fn range_from_to() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+
+    let expected_ty = r"{0 .. 10}";
+    let given_expr = r#"0"#;
+
+    let expected_ty = parse_normalize(&mut codemap, &context, expected_ty);
+    parse_check(&mut codemap, &context, given_expr, &expected_ty);
+
+    let expected_ty = r"{0 .. 10}";
+    let given_expr = r#"10"#;
 
     let expected_ty = parse_normalize(&mut codemap, &context, expected_ty);
     parse_check(&mut codemap, &context, given_expr, &expected_ty);
