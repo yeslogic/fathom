@@ -2,6 +2,7 @@ use codespan::FileMap;
 use codespan::{ByteIndex, ByteSpan};
 use codespan_reporting::{Diagnostic, Label};
 use lalrpop_util::ParseError as LalrpopError;
+use num_bigint::BigInt;
 use std::fmt;
 
 use syntax::parse::{LexerError, Token};
@@ -14,6 +15,8 @@ pub enum ParseError {
     IdentifierExpectedInPiType { span: ByteSpan },
     #[fail(display = "Unknown repl command `:{}` found.", command)]
     UnknownReplCommand { span: ByteSpan, command: String },
+    #[fail(display = "An integer literal {} was too large for the target type.", value)]
+    IntegerLiteralOverflow { span: ByteSpan, value: BigInt },
     #[fail(display = "Unexpected EOF, expected one of: {}.", expected)]
     UnexpectedEof {
         end: ByteIndex,
@@ -72,7 +75,8 @@ impl ParseError {
             ParseError::IdentifierExpectedInPiType { span }
             | ParseError::UnknownReplCommand { span, .. }
             | ParseError::UnexpectedToken { span, .. }
-            | ParseError::ExtraToken { span, .. } => span,
+            | ParseError::ExtraToken { span, .. }
+            | ParseError::IntegerLiteralOverflow { span, .. } => span,
             ParseError::UnexpectedEof { end, .. } => ByteSpan::new(end, end),
         }
     }
@@ -89,6 +93,10 @@ impl ParseError {
             ParseError::UnknownReplCommand { span, ref command } => {
                 Diagnostic::new_error(format!("unknown repl command `:{}`", command))
                     .with_label(Label::new_primary(span).with_message("unexpected command"))
+            },
+            ParseError::IntegerLiteralOverflow { span, ref value } => {
+                Diagnostic::new_error(format!("integer literal overflow with value `{}`", value))
+                    .with_label(Label::new_primary(span).with_message("overflowing literal"))
             },
             ParseError::UnexpectedToken {
                 span,

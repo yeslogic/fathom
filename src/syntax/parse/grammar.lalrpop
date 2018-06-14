@@ -1,5 +1,7 @@
 use codespan::FileMap;
 use codespan::{ByteIndex, ByteSpan};
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 use syntax::concrete::{Declaration, Exposing, LamParams, Module, Term, ReplCommand};
 use syntax::parse::{LalrpopError, ParseError, Token};
@@ -18,7 +20,7 @@ extern {
         "REPL command" => Token::ReplCommand(<&'input str>),
         "string literal" => Token::StringLiteral(<String>),
         "character literal" => Token::CharLiteral(<char>),
-        "decimal literal" => Token::DecLiteral(<u64>),
+        "decimal literal" => Token::DecLiteral(<BigInt>),
         "float literal" => Token::FloatLiteral(<f64>),
 
         // Keywords
@@ -180,18 +182,32 @@ PiTerm: Term = {
 
 AppTerm: Term = {
     AtomicTerm,
-    <f: AtomicTerm> <args: AtomicTerm+> => {
-        if let (&Term::Universe(s1, None), &Term::Int(s2, value)) = (&f, &args[0]) {
-            Term::Universe(s1.to(s2), Some(value as u32)) // FIXME - overflow
-        } else {
-            Term::App(Box::new(f), args)
+    <f: AtomicTerm> <args: AtomicTerm+> =>? {
+        if let (&Term::Universe(s1, None), &Term::Int(s2, ref value)) = (&f, &args[0]) {
+            return match value.to_u32() {
+                Some(value) => Ok(Term::Universe(s1.to(s2), Some(value))),
+                None => Err(LalrpopError::User {
+                    error: ParseError::IntegerLiteralOverflow {
+                        span: s2,
+                        value: value.clone(),
+                    },
+                }),
+            };
         }
+
+        Ok(Term::App(Box::new(f), args))
     },
 };
 
 AtomicTerm: Term = {
     <start: @L> "(" <term: Term> ")" <end: @R> => Term::Parens(ByteSpan::new(start, end), Box::new(term)),
     <start: @L> "Type" <end: @R> => Term::Universe(ByteSpan::new(start, end), None),
+    <start: @L> "{" <min: Term?> ".." <max: Term?> "}" <end: @R> => {
+        Term::IntType(ByteSpan::new(start, end), min.map(Box::new), max.map(Box::new))
+    },
+    <start: @L> "{" "=" <value: Term> "}" <end: @R> => {
+        Term::IntTypeSingleton(ByteSpan::new(start, end), Box::new(value))
+    },
     <start: @L> <value: "string literal"> <end: @R> => Term::String(ByteSpan::new(start, end), value),
     <start: @L> <value: "character literal"> <end: @R> => Term::Char(ByteSpan::new(start, end), value),
     <start: @L> <value: "decimal literal"> <end: @R> => Term::Int(ByteSpan::new(start, end), value),

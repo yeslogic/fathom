@@ -46,6 +46,20 @@ fn ty_levels() {
 }
 
 #[test]
+fn int_literal() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+
+    let expected_ty = r"{= 23}";
+    let given_expr = r#"23"#;
+
+    assert_term_eq!(
+        parse_infer(&mut codemap, &context, given_expr).1,
+        parse_normalize(&mut codemap, &context, expected_ty),
+    );
+}
+
+#[test]
 fn ann_ty_id() {
     let mut codemap = CodeMap::new();
     let context = Context::new();
@@ -469,10 +483,10 @@ fn proj_weird() {
     let expected_ty = r"Type 1";
     let given_expr = r"Record {
         Array : U16 -> Type -> Type,
-        t : Record { n : U16, x : Array n I8, y : Array n I8 },
-        inner-prod : (len : U16) -> Array len I8 -> Array len I8 -> I32,
+        t : Record { n : U16, x : Array n S8, y : Array n S8 },
+        inner-prod : (len : U16) -> Array len S8 -> Array len S8 -> S32,
 
-        test1 : I32 -> Type,
+        test1 : S32 -> Type,
         test2 : test1 (inner-prod t.n t.x t.y),
     }";
 
@@ -487,11 +501,28 @@ fn array_ambiguous() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
 
-    let given_expr = r#"[1, 2 : I32]"#;
+    let given_expr = r#"[1, 2 : S32]"#;
 
     match infer(&context, &parse(&mut codemap, given_expr)) {
         Err(TypeError::AmbiguousArrayLiteral { .. }) => {},
         Err(err) => panic!("unexpected error: {:?}", err),
         Ok((term, ty)) => panic!("expected error, found {} : {}", term, ty),
     }
+}
+
+#[test]
+fn record_with_integer() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+
+    let expected_ty = r"Type";
+    let given_expr = r"Record {
+        len : U16Be,
+        data : Array len U32Be,
+    }";
+
+    assert_term_eq!(
+        parse_infer(&mut codemap, &context, given_expr).1,
+        parse_normalize(&mut codemap, &context, expected_ty),
+    );
 }

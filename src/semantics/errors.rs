@@ -3,6 +3,7 @@
 use codespan::ByteSpan;
 use codespan_reporting::{Diagnostic, Label};
 use nameless::{BoundName, Name};
+use num_bigint::BigInt;
 
 use syntax;
 use syntax::concrete;
@@ -119,8 +120,8 @@ pub enum TypeError {
     )]
     ArrayLengthMismatch {
         span: ByteSpan,
-        found_len: u64,
-        expected_len: u64,
+        found_len: usize,
+        expected_len: BigInt,
     },
     #[fail(display = "Ambiguous record")]
     AmbiguousArrayLiteral { span: ByteSpan },
@@ -236,7 +237,7 @@ impl TypeError {
             TypeError::ArrayLengthMismatch {
                 span,
                 found_len,
-                expected_len,
+                ref expected_len,
             } => Diagnostic::new_error(format!(
                 "mismatched array length: expected {} elements but found {}",
                 expected_len, found_len
