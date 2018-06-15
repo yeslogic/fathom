@@ -22,6 +22,7 @@ name = "ddl"
 required-features = ["cli"]
 
 [dependencies]
+byteorder = "1.2"
 codespan = "0.1.1"
 codespan-reporting = "0.1.3"
 failure = "0.1.1"

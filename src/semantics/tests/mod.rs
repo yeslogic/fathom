@@ -59,4 +59,5 @@ fn parse_check(codemap: &mut CodeMap, context: &Context, src: &str, expected: &R
 mod check;
 mod infer;
 mod normalize;
+mod parser;
 mod subtype;
