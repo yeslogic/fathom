@@ -16,6 +16,7 @@ use syntax::translation::Resugar;
 use syntax::{Label, Level};
 
 mod errors;
+pub mod parser;
 #[cfg(test)]
 mod tests;
 
