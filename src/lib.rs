@@ -1,3 +1,4 @@
+extern crate byteorder;
 extern crate codespan;
 extern crate codespan_reporting;
 #[macro_use]
