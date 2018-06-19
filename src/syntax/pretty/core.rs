@@ -18,7 +18,7 @@ fn pretty_ann(expr: &impl ToDoc, ty: &impl ToDoc) -> StaticDoc {
 }
 
 fn pretty_universe(level: Level) -> StaticDoc {
-    sexpr("Type", Doc::as_string(level))
+    sexpr("Type", Doc::as_string(&level))
 }
 
 fn pretty_var(var: &Var) -> StaticDoc {
@@ -105,7 +105,7 @@ impl ToDoc for raw::Literal {
             raw::Literal::String(ref value) => Doc::text(format!("{:?}", value)),
             raw::Literal::Char(value) => Doc::text(format!("{:?}", value)),
             raw::Literal::Int(ref value) => Doc::as_string(value),
-            raw::Literal::Float(value) => Doc::as_string(value),
+            raw::Literal::Float(value) => Doc::as_string(&value),
         }
     }
 }
@@ -118,8 +118,8 @@ impl ToDoc for Literal {
             Literal::String(ref value) => Doc::text(format!("{:?}", value)),
             Literal::Char(value) => Doc::text(format!("{:?}", value)),
             Literal::Int(ref value) => Doc::as_string(value),
-            Literal::F32(value) => Doc::as_string(value),
-            Literal::F64(value) => Doc::as_string(value),
+            Literal::F32(value) => Doc::as_string(&value),
+            Literal::F64(value) => Doc::as_string(&value),
         }
     }
 }
@@ -397,7 +397,7 @@ impl ToDoc for Head {
 fn pretty_definition(name: &str, ann: &impl ToDoc, term: &impl ToDoc) -> StaticDoc {
     sexpr(
         "define",
-        Doc::as_string(name)
+        Doc::as_string(&name)
             .append(Doc::space())
             .append(ann.to_doc())
             .append(Doc::space())
@@ -412,7 +412,7 @@ where
 {
     sexpr(
         "module",
-        Doc::as_string(name)
+        Doc::as_string(&name)
             .append(Doc::newline())
             .append(Doc::intersperse(
                 definitions

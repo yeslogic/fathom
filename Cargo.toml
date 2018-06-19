@@ -31,7 +31,7 @@ lalrpop-util = "0.15.1"
 nameless = { git = "https://github.com/brendanzab/nameless", rev = "4f9ed18", version = "0.1.0" }
 num-bigint = "0.2.0"
 num-traits = "0.2.4"
-pretty = { version = "0.4.0", features = ["termcolor"] }
+pretty = { version = "0.5.1", features = ["termcolor"] }
 unicode-xid = "0.1.0"
 
 # cli dependencies
