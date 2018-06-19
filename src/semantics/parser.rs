@@ -3,7 +3,7 @@ use std::io;
 use std::rc::Rc;
 
 use syntax::context::Context;
-use syntax::core::{Head, Literal, Module, Neutral, Term, Type, Value};
+use syntax::core::{Head, Literal, Neutral, Term, Type, Value};
 
 use super::{normalize, subst, InternalError};
 
