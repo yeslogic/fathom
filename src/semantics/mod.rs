@@ -5,7 +5,7 @@
 //! For more information, check out the theory appendix of the DDL book.
 
 use codespan::ByteSpan;
-use nameless::{self, BoundPattern, BoundTerm, Embed, Name, Var};
+use nameless::{self, BoundPattern, BoundTerm, Embed, FreeVar, Var};
 use num_traits::ToPrimitive;
 use std::rc::Rc;
 
@@ -44,7 +44,7 @@ pub fn check_module(raw_module: &raw::Module) -> Result<Module, TypeError> {
         };
 
         // Add the definition to the context
-        context = context.define_term(Name::user(name.clone()), ann.clone(), term.clone());
+        context = context.define_term(FreeVar::user(name.clone()), ann.clone(), term.clone());
 
         definitions.push(Definition { name, term, ann })
     }
@@ -59,7 +59,7 @@ pub fn check_module(raw_module: &raw::Module) -> Result<Module, TypeError> {
 ///
 /// Since this may 'un-stick' some neutral terms, the returned term will need to
 /// be re-evaluated afterwards to ensure that it remains in its normal form.
-pub fn subst(value: &Value, substs: &[(Name, Rc<Term>)]) -> Rc<Term> {
+pub fn subst(value: &Value, substs: &[(FreeVar, Rc<Term>)]) -> Rc<Term> {
     match *value {
         Value::Universe(level) => Rc::new(Term::Universe(level)),
         Value::IntType(ref min, ref max) => Rc::new(Term::IntType(
@@ -313,7 +313,7 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
 fn is_name(ty: &Type, name: &str) -> bool {
     if let Value::Neutral(ref neutral) = *ty {
         if let Neutral::App(Head::Var(Var::Free(ref n)), ref spine) = **neutral {
-            return Name::user(name) == *n && spine.is_empty();
+            return FreeVar::user(name) == *n && spine.is_empty();
         }
     }
     false
@@ -451,7 +451,7 @@ pub fn check(
 
         // C-IF
         (&raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false), _) => {
-            let bool_ty = Rc::new(Value::from(Var::Free(Name::user("Bool"))));
+            let bool_ty = Rc::new(Value::from(Var::Free(FreeVar::user("Bool"))));
             let cond = check(context, raw_cond, &bool_ty)?;
             let if_true = check(context, raw_if_true, expected_ty)?;
             let if_false = check(context, raw_if_false, expected_ty)?;
@@ -486,7 +486,7 @@ pub fn check(
         },
 
         (&raw::Term::Array(span, ref elems), ty) => match ty.free_app() {
-            Some((name, [ref len, ref elem_ty])) if *name == Name::user("Array") => {
+            Some((name, [ref len, ref elem_ty])) if *name == FreeVar::user("Array") => {
                 if let Value::Literal(Literal::Int(ref len)) = **len {
                     if *len != elems.len().into() {
                         return Err(TypeError::ArrayLengthMismatch {
@@ -594,11 +594,11 @@ pub fn infer(
         raw::Term::Literal(span, ref raw_literal) => match *raw_literal {
             raw::Literal::String(ref value) => Ok((
                 Rc::new(Term::Literal(Literal::String(value.clone()))),
-                Rc::new(Value::from(Var::Free(Name::user("String")))),
+                Rc::new(Value::from(Var::Free(FreeVar::user("String")))),
             )),
             raw::Literal::Char(value) => Ok((
                 Rc::new(Term::Literal(Literal::Char(value))),
-                Rc::new(Value::from(Var::Free(Name::user("Char")))),
+                Rc::new(Value::from(Var::Free(FreeVar::user("Char")))),
             )),
             raw::Literal::Int(ref value) => {
                 Ok((Rc::new(Term::Literal(Literal::Int(value.clone()))), {
@@ -674,7 +674,7 @@ pub fn infer(
 
         // I-IF
         raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false) => {
-            let bool_ty = Rc::new(Value::from(Var::Free(Name::user("Bool"))));
+            let bool_ty = Rc::new(Value::from(Var::Free(FreeVar::user("Bool"))));
             let cond = check(context, raw_cond, &bool_ty)?;
             let (if_true, ty) = infer(context, raw_if_true)?;
             let if_false = check(context, raw_if_false, &ty)?;
@@ -762,7 +762,7 @@ pub fn infer(
     }
 }
 
-fn field_substs(expr: &Rc<Term>, label: &Label, ty: &Rc<Type>) -> Vec<(Name, Rc<Term>)> {
+fn field_substs(expr: &Rc<Term>, label: &Label, ty: &Rc<Type>) -> Vec<(FreeVar, Rc<Term>)> {
     let mut substs = vec![];
     let mut current_scope = ty.record_ty();
 

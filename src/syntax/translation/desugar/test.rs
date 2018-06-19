@@ -81,19 +81,19 @@ mod term {
                 Ignore::default(),
                 nameless::bind(
                     (
-                        Name::user("x"),
+                        FreeVar::user("x"),
                         Embed(Rc::new(Term::Pi(
                             Ignore::default(),
                             nameless::bind(
                                 (
-                                    Name::user("_"),
+                                    FreeVar::user("_"),
                                     Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                                 ),
                                 Rc::new(Term::Universe(Ignore::default(), Level(0))),
                             ),
                         ))),
                     ),
-                    Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                    Rc::new(Term::Var(Ignore::default(), Var::Free(FreeVar::user("x")),)),
                 ),
             )),
         );
@@ -117,7 +117,7 @@ mod term {
                 Ignore::default(),
                 nameless::bind(
                     (
-                        Name::user("_"),
+                        FreeVar::user("_"),
                         Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                     ),
                     Rc::new(Term::Universe(Ignore::default(), Level(0))),
@@ -134,19 +134,19 @@ mod term {
                 Ignore::default(),
                 nameless::bind(
                     (
-                        Name::user("x"),
+                        FreeVar::user("x"),
                         Embed(Rc::new(Term::Pi(
                             Ignore::default(),
                             nameless::bind(
                                 (
-                                    Name::user("_"),
+                                    FreeVar::user("_"),
                                     Embed(Rc::new(Term::Universe(Ignore::default(), Level(0),))),
                                 ),
                                 Rc::new(Term::Universe(Ignore::default(), Level(0))),
                             ),
                         ))),
                     ),
-                    Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                    Rc::new(Term::Var(Ignore::default(), Var::Free(FreeVar::user("x")),)),
                 ),
             )),
         );
@@ -165,20 +165,20 @@ mod term {
                 Ignore::default(),
                 nameless::bind(
                     (
-                        Name::user("x"),
+                        FreeVar::user("x"),
                         Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                     ),
                     Rc::new(Term::Pi(
                         Ignore::default(),
                         nameless::bind(
                             (
-                                Name::user("_"),
+                                FreeVar::user("_"),
                                 Embed(Rc::new(Term::Var(
                                     Ignore::default(),
-                                    Var::Free(Name::user("x")),
+                                    Var::Free(FreeVar::user("x")),
                                 ))),
                             ),
-                            Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
+                            Rc::new(Term::Var(Ignore::default(), Var::Free(FreeVar::user("x")),)),
                         ),
                     )),
                 ),
@@ -194,12 +194,12 @@ mod term {
                 Ignore::default(),
                 nameless::bind(
                     (
-                        Name::user("x"),
+                        FreeVar::user("x"),
                         Embed(Rc::new(Term::Pi(
                             Ignore::default(),
                             nameless::bind(
                                 (
-                                    Name::user("_"),
+                                    FreeVar::user("_"),
                                     Embed(Rc::new(Term::Universe(Ignore::default(), Level(0),))),
                                 ),
                                 Rc::new(Term::Universe(Ignore::default(), Level(0))),
@@ -210,12 +210,18 @@ mod term {
                         Ignore::default(),
                         nameless::bind(
                             (
-                                Name::user("y"),
+                                FreeVar::user("y"),
                                 Embed(Rc::new(Term::Universe(Ignore::default(), Level(0),))),
                             ),
                             Rc::new(Term::App(
-                                Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("x")),)),
-                                Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("y")),)),
+                                Rc::new(Term::Var(
+                                    Ignore::default(),
+                                    Var::Free(FreeVar::user("x")),
+                                )),
+                                Rc::new(Term::Var(
+                                    Ignore::default(),
+                                    Var::Free(FreeVar::user("y")),
+                                )),
                             )),
                         ),
                     )),
@@ -237,20 +243,20 @@ mod term {
                 Ignore::default(),
                 nameless::bind(
                     (
-                        Name::user("a"),
+                        FreeVar::user("a"),
                         Embed(Rc::new(Term::Universe(Ignore::default(), Level(0)))),
                     ),
                     Rc::new(Term::Pi(
                         Ignore::default(),
                         nameless::bind(
                             (
-                                Name::user("_"),
+                                FreeVar::user("_"),
                                 Embed(Rc::new(Term::Var(
                                     Ignore::default(),
-                                    Var::Free(Name::user("a")),
+                                    Var::Free(FreeVar::user("a")),
                                 ))),
                             ),
-                            Rc::new(Term::Var(Ignore::default(), Var::Free(Name::user("a")),)),
+                            Rc::new(Term::Var(Ignore::default(), Var::Free(FreeVar::user("a")),)),
                         ),
                     )),
                 ),

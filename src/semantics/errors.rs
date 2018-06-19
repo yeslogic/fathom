@@ -2,7 +2,7 @@
 
 use codespan::ByteSpan;
 use codespan_reporting::{Diagnostic, Label};
-use nameless::{BoundName, Ident, Name};
+use nameless::{BoundVar, FreeVar, Ident};
 use num_bigint::BigInt;
 
 use syntax;
@@ -15,7 +15,7 @@ pub enum InternalError {
     #[fail(display = "Unsubstituted debruijn index: `{}`, `{:?}`.", index, hint)]
     UnsubstitutedDebruijnIndex {
         span: Option<ByteSpan>,
-        index: BoundName,
+        index: BoundVar,
         hint: Option<Ident>,
     },
     #[fail(display = "Argument applied to non-function.")]
@@ -70,7 +70,7 @@ pub enum TypeError {
     FunctionParamNeedsAnnotation {
         param_span: ByteSpan,
         var_span: Option<ByteSpan>,
-        name: Name,
+        name: FreeVar,
     },
     #[fail(display = "found a `{}`, but expected a type `{}`", found, expected)]
     LiteralMismatch {
@@ -104,7 +104,7 @@ pub enum TypeError {
         found: Box<concrete::Term>,
     },
     #[fail(display = "Undefined name `{}`", name)]
-    UndefinedName { var_span: ByteSpan, name: Name },
+    UndefinedName { var_span: ByteSpan, name: FreeVar },
     #[fail(display = "Label mismatch: found label `{}` but `{}` was expected", found, expected)]
     LabelMismatch {
         span: ByteSpan,

@@ -1,4 +1,4 @@
-use nameless::{self, Embed, Name, Var};
+use nameless::{self, Embed, FreeVar, Var};
 use std::io;
 use std::rc::Rc;
 
@@ -63,25 +63,25 @@ where
         Value::Neutral(ref neutral) => match **neutral {
             #[cfg_attr(rustfmt, rustfmt_skip)]
             Neutral::App(Head::Var(Var::Free(ref n)), ref spine) => match spine[..] {
-                [] if *n == Name::user("U8") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u8()?.into())))),
-                [] if *n == Name::user("U16Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u16::<Le>()?.into())))),
-                [] if *n == Name::user("U16Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u16::<Be>()?.into())))),
-                [] if *n == Name::user("U32Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u32::<Le>()?.into())))),
-                [] if *n == Name::user("U32Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u32::<Be>()?.into())))),
-                [] if *n == Name::user("U64Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u64::<Le>()?.into())))),
-                [] if *n == Name::user("U64Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u64::<Be>()?.into())))),
-                [] if *n == Name::user("S8") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i8()?.into())))),
-                [] if *n == Name::user("S16Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i16::<Le>()?.into())))),
-                [] if *n == Name::user("S16Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i16::<Be>()?.into())))),
-                [] if *n == Name::user("S32Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i32::<Le>()?.into())))),
-                [] if *n == Name::user("S32Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i32::<Be>()?.into())))),
-                [] if *n == Name::user("S64Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i64::<Le>()?.into())))),
-                [] if *n == Name::user("S64Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i64::<Be>()?.into())))),
-                [] if *n == Name::user("F32Le") => Ok(Rc::new(Value::Literal(Literal::F32(bytes.read_f32::<Le>()?)))),
-                [] if *n == Name::user("F32Be") => Ok(Rc::new(Value::Literal(Literal::F32(bytes.read_f32::<Be>()?)))),
-                [] if *n == Name::user("F64Le") => Ok(Rc::new(Value::Literal(Literal::F64(bytes.read_f64::<Le>()?)))),
-                [] if *n == Name::user("F64Be") => Ok(Rc::new(Value::Literal(Literal::F64(bytes.read_f64::<Be>()?)))),
-                [ref len, ref elem_ty] if *n == Name::user("Array") => match **len {
+                [] if *n == FreeVar::user("U8") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u8()?.into())))),
+                [] if *n == FreeVar::user("U16Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u16::<Le>()?.into())))),
+                [] if *n == FreeVar::user("U16Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u16::<Be>()?.into())))),
+                [] if *n == FreeVar::user("U32Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u32::<Le>()?.into())))),
+                [] if *n == FreeVar::user("U32Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u32::<Be>()?.into())))),
+                [] if *n == FreeVar::user("U64Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u64::<Le>()?.into())))),
+                [] if *n == FreeVar::user("U64Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u64::<Be>()?.into())))),
+                [] if *n == FreeVar::user("S8") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i8()?.into())))),
+                [] if *n == FreeVar::user("S16Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i16::<Le>()?.into())))),
+                [] if *n == FreeVar::user("S16Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i16::<Be>()?.into())))),
+                [] if *n == FreeVar::user("S32Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i32::<Le>()?.into())))),
+                [] if *n == FreeVar::user("S32Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i32::<Be>()?.into())))),
+                [] if *n == FreeVar::user("S64Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i64::<Le>()?.into())))),
+                [] if *n == FreeVar::user("S64Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i64::<Be>()?.into())))),
+                [] if *n == FreeVar::user("F32Le") => Ok(Rc::new(Value::Literal(Literal::F32(bytes.read_f32::<Le>()?)))),
+                [] if *n == FreeVar::user("F32Be") => Ok(Rc::new(Value::Literal(Literal::F32(bytes.read_f32::<Be>()?)))),
+                [] if *n == FreeVar::user("F64Le") => Ok(Rc::new(Value::Literal(Literal::F64(bytes.read_f64::<Le>()?)))),
+                [] if *n == FreeVar::user("F64Be") => Ok(Rc::new(Value::Literal(Literal::F64(bytes.read_f64::<Be>()?)))),
+                [ref len, ref elem_ty] if *n == FreeVar::user("Array") => match **len {
                     Value::Literal(Literal::Int(ref len)) => Ok(Rc::new(Value::Array(
                         (0..len.to_usize().unwrap()) // FIXME
                             .map(|_| parse(context, elem_ty, bytes))
