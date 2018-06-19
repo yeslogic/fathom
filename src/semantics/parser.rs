@@ -91,11 +91,11 @@ where
                 },
                 _ => Err(ParseError::InvalidType(ty.clone())),
             },
-            Neutral::App(Head::Var(Var::Bound(ref name, index)), _) => {
+            Neutral::App(Head::Var(Var::Bound(index, ref hint)), _) => {
                 Err(InternalError::UnsubstitutedDebruijnIndex {
                     span: None,
-                    name: name.clone(),
                     index,
+                    hint: hint.clone(),
                 }.into())
             },
             Neutral::If(_, _, _, _) | Neutral::Proj(_, _, _) => {
