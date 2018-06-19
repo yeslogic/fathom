@@ -129,18 +129,12 @@ pub enum Declaration {
     /// ```text
     /// foo = some-body
     /// foo x (y : some-type) = some-body
-    ///     where {
-    ///         some-value : some-type
-    ///         some-value = some-body
-    ///     }
     /// ```
     Definition {
-        span: ByteSpan,
-        name: String,
+        name: (ByteIndex, String),
         params: LamParams,
         ann: Option<Box<Term>>,
         body: Term,
-        wheres: Vec<Declaration>,
     },
     /// Declarations that could not be correctly parsed
     ///
@@ -152,9 +146,16 @@ impl Declaration {
     /// Return the span of source code that this declaration originated from
     pub fn span(&self) -> ByteSpan {
         match *self {
-            Declaration::Import { span, .. } | Declaration::Definition { span, .. } => span,
-            Declaration::Claim { ref name, ref ann } => ByteSpan::new(name.0, ann.span().end()),
-            Declaration::Error(span) => span,
+            Declaration::Import { span, .. } | Declaration::Error(span) => span,
+            Declaration::Claim {
+                name: (start, _),
+                ann: ref term,
+            }
+            | Declaration::Definition {
+                name: (start, _),
+                body: ref term,
+                ..
+            } => ByteSpan::new(start, term.span().end()),
         }
     }
 }

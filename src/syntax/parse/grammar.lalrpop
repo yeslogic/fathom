@@ -35,7 +35,6 @@ extern {
         "Record" => Token::RecordType,
         "then" => Token::Then,
         "Type" => Token::Type,
-        "where" => Token::Where,
 
         // Symbols
         "\\" => Token::BSlash,
@@ -105,14 +104,9 @@ Declaration: Declaration = {
         Declaration::Claim { name, ann }
     },
     <_comment: "doc comment"*> <name: IndexedIdent> <params: AtomicLamParam*> <ann: (":" <Term>)?> "="
-        <body: Term> <wheres: ("where" "{" <Declaration+> "}")?> <end: @R> ";" =>
+        <body: Term> ";" =>
     {
-        let (start, name) = name;
-        let span = ByteSpan::new(start, end);
-        let ann = ann.map(Box::new);
-        let wheres = wheres.unwrap_or(vec![]);
-
-        Declaration::Definition { span, name, params, ann, body, wheres }
+        Declaration::Definition { name, params, ann: ann.map(Box::new), body }
     },
     <start: @L> <recovered: !> <end: @R> ";" => {
         errors.push(super::errors::from_lalrpop(filemap, recovered.error));

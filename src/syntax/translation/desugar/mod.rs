@@ -158,7 +158,6 @@ impl Desugar<raw::Module> for concrete::Module {
                         concrete::Declaration::Claim {
                             name: (_, ref name),
                             ref ann,
-                            ..
                         } => match prev_claim.take() {
                             Some((name, ann)) => {
                                 let term = Rc::new(raw::Term::Hole(Ignore::default()));
@@ -167,18 +166,12 @@ impl Desugar<raw::Module> for concrete::Module {
                             None => prev_claim = Some((name.clone(), Rc::new(ann.desugar()))),
                         },
                         concrete::Declaration::Definition {
-                            ref name,
+                            name: (_, ref name),
                             ref params,
                             ref ann,
                             ref body,
-                            ref wheres,
-                            ..
                         } => {
                             let default_span = Ignore::default();
-
-                            if !wheres.is_empty() {
-                                unimplemented!("where clauses");
-                            }
 
                             match prev_claim.take() {
                                 None => definitions.push(raw::Definition {
