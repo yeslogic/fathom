@@ -1,6 +1,6 @@
 //! The core syntax of the language
 
-use nameless::{self, Bind, BoundPattern, BoundTerm, Embed, FreeVar, Var};
+use nameless::{BoundPattern, BoundTerm, Embed, FreeVar, Scope, Var};
 use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;
@@ -74,19 +74,19 @@ pub enum Term {
     /// A variable
     Var(Var),
     /// Dependent function types
-    Pi(Bind<(FreeVar, Embed<Rc<Term>>), Rc<Term>>),
+    Pi(Scope<(FreeVar, Embed<Rc<Term>>), Rc<Term>>),
     /// Lambda abstractions
-    Lam(Bind<(FreeVar, Embed<Rc<Term>>), Rc<Term>>),
+    Lam(Scope<(FreeVar, Embed<Rc<Term>>), Rc<Term>>),
     /// Term application
     App(Rc<Term>, Rc<Term>),
     /// If expression
     If(Rc<Term>, Rc<Term>, Rc<Term>),
     /// Dependent record types
-    RecordType(Bind<(Label, Embed<Rc<Term>>), Rc<Term>>),
+    RecordType(Scope<(Label, Embed<Rc<Term>>), Rc<Term>>),
     /// The unit type
     RecordTypeEmpty,
     /// Dependent record
-    Record(Bind<(Label, Embed<Rc<Term>>), Rc<Term>>),
+    Record(Scope<(Label, Embed<Rc<Term>>), Rc<Term>>),
     /// The element of the unit type
     RecordEmpty,
     /// Field projection
@@ -115,15 +115,15 @@ pub enum Value {
     /// Literals
     Literal(Literal),
     /// A pi type
-    Pi(Bind<(FreeVar, Embed<Rc<Value>>), Rc<Value>>),
+    Pi(Scope<(FreeVar, Embed<Rc<Value>>), Rc<Value>>),
     /// A lambda abstraction
-    Lam(Bind<(FreeVar, Embed<Rc<Value>>), Rc<Value>>),
+    Lam(Scope<(FreeVar, Embed<Rc<Value>>), Rc<Value>>),
     /// Dependent record types
-    RecordType(Bind<(Label, Embed<Rc<Value>>), Rc<Value>>),
+    RecordType(Scope<(Label, Embed<Rc<Value>>), Rc<Value>>),
     /// The unit type
     RecordTypeEmpty,
     /// Dependent record
-    Record(Bind<(Label, Embed<Rc<Value>>), Rc<Value>>),
+    Record(Scope<(Label, Embed<Rc<Value>>), Rc<Value>>),
     /// The element of the unit type
     RecordEmpty,
     /// Array literals
@@ -133,7 +133,7 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn record_ty(&self) -> Option<Bind<(Label, Embed<Rc<Value>>), Rc<Value>>> {
+    pub fn record_ty(&self) -> Option<Scope<(Label, Embed<Rc<Value>>), Rc<Value>>> {
         match *self {
             Value::RecordType(ref scope) => Some(scope.clone()),
             _ => None,
@@ -144,7 +144,7 @@ impl Value {
         let mut current_scope = self.record_ty();
 
         while let Some(scope) = current_scope {
-            let ((current_label, Embed(value)), body) = nameless::unbind(scope);
+            let ((current_label, Embed(value)), body) = scope.unbind();
             if Label::pattern_eq(&current_label, label) {
                 return Some(value);
             }
@@ -154,7 +154,7 @@ impl Value {
         None
     }
 
-    pub fn record(&self) -> Option<Bind<(Label, Embed<Rc<Value>>), Rc<Value>>> {
+    pub fn record(&self) -> Option<Scope<(Label, Embed<Rc<Value>>), Rc<Value>>> {
         match *self {
             Value::Record(ref scope) => Some(scope.clone()),
             _ => None,
@@ -165,7 +165,7 @@ impl Value {
         let mut current_scope = self.record();
 
         while let Some(scope) = current_scope {
-            let ((current_label, Embed(value)), body) = nameless::unbind(scope);
+            let ((current_label, Embed(value)), body) = scope.unbind();
             if Label::pattern_eq(&current_label, label) {
                 return Some(value);
             }
@@ -307,29 +307,29 @@ impl<'a> From<&'a Value> for Term {
             ),
             Value::Literal(ref lit) => Term::Literal(lit.clone()),
             Value::Pi(ref scope) => {
-                let ((name, Embed(param_ann)), body) = nameless::unbind(scope.clone());
+                let ((name, Embed(param_ann)), body) = scope.clone().unbind();
                 let param = (name, Embed(Rc::new(Term::from(&*param_ann))));
 
-                Term::Pi(nameless::bind(param, Rc::new(Term::from(&*body))))
+                Term::Pi(Scope::new(param, Rc::new(Term::from(&*body))))
             },
             Value::Lam(ref scope) => {
-                let ((name, Embed(param_ann)), body) = nameless::unbind(scope.clone());
+                let ((name, Embed(param_ann)), body) = scope.clone().unbind();
                 let param = (name, Embed(Rc::new(Term::from(&*param_ann))));
 
-                Term::Lam(nameless::bind(param, Rc::new(Term::from(&*body))))
+                Term::Lam(Scope::new(param, Rc::new(Term::from(&*body))))
             },
             Value::RecordType(ref scope) => {
-                let ((name, Embed(param_ann)), body) = nameless::unbind(scope.clone());
+                let ((name, Embed(param_ann)), body) = scope.clone().unbind();
                 let param = (name, Embed(Rc::new(Term::from(&*param_ann))));
 
-                Term::RecordType(nameless::bind(param, Rc::new(Term::from(&*body))))
+                Term::RecordType(Scope::new(param, Rc::new(Term::from(&*body))))
             },
             Value::RecordTypeEmpty => Term::RecordTypeEmpty,
             Value::Record(ref scope) => {
-                let ((name, Embed(param_value)), body) = nameless::unbind(scope.clone());
+                let ((name, Embed(param_value)), body) = scope.clone().unbind();
                 let param = (name, Embed(Rc::new(Term::from(&*param_value))));
 
-                Term::Record(nameless::bind(param, Rc::new(Term::from(&*body))))
+                Term::Record(Scope::new(param, Rc::new(Term::from(&*body))))
             },
             Value::RecordEmpty => Term::RecordEmpty,
             Value::Array(ref elems) => {

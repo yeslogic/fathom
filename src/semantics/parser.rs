@@ -1,4 +1,4 @@
-use nameless::{self, Embed, FreeVar, Var};
+use nameless::{Embed, FreeVar, Scope, Var};
 use std::io;
 use std::rc::Rc;
 
@@ -44,7 +44,7 @@ where
         | Value::RecordEmpty
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
         Value::RecordType(ref scope) => {
-            let ((label, Embed(ann)), body) = nameless::unbind(scope.clone());
+            let ((label, Embed(ann)), body) = scope.clone().unbind();
 
             let ann_value = parse(context, &ann, bytes)?;
             let body = subst(
@@ -54,7 +54,7 @@ where
             let body = normalize(context, &body)?;
             let body_value = parse(context, &body, bytes)?;
 
-            Ok(Rc::new(Value::Record(nameless::bind(
+            Ok(Rc::new(Value::Record(Scope::new(
                 (label, Embed(ann_value)),
                 body_value,
             ))))

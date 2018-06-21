@@ -87,7 +87,7 @@ impl Context {
 
 impl Default for Context {
     fn default() -> Context {
-        use nameless::{self, Embed, GenId, Var};
+        use nameless::{Embed, GenId, Scope, Var};
         use num_bigint::BigInt;
 
         use syntax::core::{Literal, Value};
@@ -107,7 +107,7 @@ impl Default for Context {
         let lit = |val| Rc::new(Term::Literal(val));
         let arrow = |params: Vec<Rc<Type>>, ret: Rc<Type>| {
             params.into_iter().rev().fold(ret, |body, ann| {
-                Rc::new(Value::Pi(nameless::bind((fresh(), Embed(ann)), body)))
+                Rc::new(Value::Pi(Scope::new((fresh(), Embed(ann)), body)))
             })
         };
 
