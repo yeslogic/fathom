@@ -55,7 +55,7 @@ impl ToDoc for Declaration {
                 ref ann,
             } => Doc::as_string(name)
                 .append(Doc::space())
-                .append(Doc::text(":"))
+                .append(":")
                 .append(Doc::space())
                 .append(ann.to_doc()),
             Declaration::Definition {
@@ -75,11 +75,11 @@ impl ToDoc for Declaration {
                     },
                     None => Doc::nil(),
                 })
-                .append(Doc::text("="))
+                .append("=")
                 .append(Doc::space())
                 .append(body.to_doc().nest(INDENT_WIDTH)),
             Declaration::Error(_) => Doc::text("<error>"),
-        }.append(Doc::text(";"))
+        }.append(";")
     }
 }
 
@@ -109,13 +109,11 @@ impl ToDoc for Exposing {
 impl ToDoc for Term {
     fn to_doc(&self) -> StaticDoc {
         match *self {
-            Term::Parens(_, ref term) => {
-                Doc::text("(").append(term.to_doc()).append(Doc::text(")"))
-            },
+            Term::Parens(_, ref term) => Doc::text("(").append(term.to_doc()).append(")"),
             Term::Ann(ref term, ref ty) => term
                 .to_doc()
                 .append(Doc::space())
-                .append(Doc::text(":"))
+                .append(":")
                 .append(Doc::space())
                 .append(ty.to_doc()),
             Term::Universe(_, level) => {
@@ -147,24 +145,24 @@ impl ToDoc for Term {
                     elems.iter().map(Term::to_doc),
                     Doc::text(",").append(Doc::space()),
                 ))
-                .append(Doc::text("]")),
+                .append("]"),
             Term::Hole(_) => Doc::text("_"),
             Term::Var(_, ref name) => Doc::as_string(name),
             Term::Lam(_, ref params, ref body) => Doc::text("\\")
                 .append(pretty_lam_params(params))
                 .append(Doc::space())
-                .append(Doc::text("=>"))
+                .append("=>")
                 .append(Doc::space())
                 .append(body.to_doc()),
             Term::Pi(_, ref params, ref body) => pretty_pi_params(params)
                 .append(Doc::space())
-                .append(Doc::text("->"))
+                .append("->")
                 .append(Doc::space())
                 .append(body.to_doc()),
             Term::Arrow(ref ann, ref body) => ann
                 .to_doc()
                 .append(Doc::space())
-                .append(Doc::text("->"))
+                .append("->")
                 .append(Doc::space())
                 .append(body.to_doc()),
             Term::App(ref fn_term, ref args) => fn_term.to_doc().append(Doc::space()).append(
@@ -178,18 +176,18 @@ impl ToDoc for Term {
                         decls.iter().map(|decl| decl.to_doc()),
                         Doc::newline(),
                     ))
-                    .append(Doc::text("in"))
+                    .append("in")
                     .append(body.to_doc())
             },
             Term::If(_, ref cond, ref if_true, ref if_false) => Doc::text("if")
                 .append(Doc::space())
                 .append(cond.to_doc())
                 .append(Doc::space())
-                .append(Doc::text("then"))
+                .append("then")
                 .append(Doc::space())
                 .append(if_true.to_doc())
                 .append(Doc::space())
-                .append(Doc::text("else"))
+                .append("else")
                 .append(Doc::space())
                 .append(if_false.to_doc()),
             Term::RecordType(_, ref fields) if fields.is_empty() => Doc::text("Record {}"),
@@ -201,7 +199,7 @@ impl ToDoc for Term {
                         fields.iter().map(|&(_, ref name, ref ann)| {
                             Doc::as_string(name)
                                 .append(Doc::space())
-                                .append(Doc::text(":"))
+                                .append(":")
                                 .append(Doc::space())
                                 .append(ann.to_doc())
                         }),
@@ -209,7 +207,7 @@ impl ToDoc for Term {
                     ).nest(INDENT_WIDTH),
                 )
                 .append(Doc::space())
-                .append(Doc::text("}")),
+                .append("}"),
             Term::Record(_, ref fields) => Doc::text("record {")
                 .append(Doc::space())
                 .append(
@@ -229,7 +227,7 @@ impl ToDoc for Term {
                                             .append(Doc::space()),
                                         None => Doc::nil(),
                                     })
-                                    .append(Doc::text("="))
+                                    .append("=")
                                     .append(Doc::space())
                                     .append(expr.to_doc())
                             }),
@@ -237,11 +235,10 @@ impl ToDoc for Term {
                     ).nest(INDENT_WIDTH),
                 )
                 .append(Doc::space())
-                .append(Doc::text("}")),
-            Term::Proj(ref expr, _, ref label) => expr
-                .to_doc()
-                .append(Doc::text("."))
-                .append(Doc::as_string(label)),
+                .append("}"),
+            Term::Proj(ref expr, _, ref label) => {
+                expr.to_doc().append(".").append(Doc::as_string(label))
+            },
             Term::Error(_) => Doc::text("<error>"),
         }
     }
@@ -258,10 +255,10 @@ fn pretty_lam_params(params: &[LamParamGroup]) -> StaticDoc {
                     Doc::space(),
                 ))
                 .append(Doc::space())
-                .append(Doc::text(":"))
+                .append(":")
                 .append(Doc::space())
                 .append(ann.to_doc())
-                .append(Doc::text(")")),
+                .append(")"),
         }),
         Doc::space(),
     )
@@ -276,10 +273,10 @@ fn pretty_pi_params(params: &[PiParamGroup]) -> StaticDoc {
                     Doc::space(),
                 ))
                 .append(Doc::space())
-                .append(Doc::text(":"))
+                .append(":")
                 .append(Doc::space())
                 .append(ann.to_doc())
-                .append(Doc::text(")"))
+                .append(")")
         }),
         Doc::space(),
     )
