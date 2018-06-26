@@ -6,42 +6,33 @@ use syntax::concrete;
 use syntax::core;
 use syntax::Level;
 
-/// Translate something to the corresponding concrete representation
+/// Translate something to the corresxponding concrete representation
 pub trait Resugar<T> {
     fn resugar(&self) -> T;
 }
 
-impl Resugar<(concrete::Declaration, concrete::Declaration)> for core::Definition {
-    fn resugar(&self) -> (concrete::Declaration, concrete::Declaration) {
-        // pull lambda arguments from the body into the definition
-        let (params, body) = match resugar_term(&self.term, Prec::ANN) {
-            concrete::Term::Lam(_, params, body) => (params, *body),
-            body => (vec![], body),
-        };
+impl Resugar<concrete::Module> for core::Module {
+    fn resugar(&self) -> concrete::Module {
+        let definitions = self.definitions.clone().unnest();
+        let mut declarations = Vec::with_capacity(definitions.len() * 2);
 
-        (
-            concrete::Declaration::Claim {
-                name: (ByteIndex::default(), self.name.clone()),
-                ann: resugar_term(&core::Term::from(&*self.ann), Prec::ANN),
-            },
-            concrete::Declaration::Definition {
-                name: (ByteIndex::default(), self.name.clone()),
+        for (name, Embed(definition)) in definitions {
+            // pull lambda arguments from the body into the definition
+            let (params, body) = match resugar_term(&definition.term, Prec::ANN) {
+                concrete::Term::Lam(_, params, body) => (params, *body),
+                body => (vec![], body),
+            };
+
+            declarations.push(concrete::Declaration::Claim {
+                name: (ByteIndex::default(), name.to_string()),
+                ann: resugar_term(&core::Term::from(&*definition.ann), Prec::ANN),
+            });
+            declarations.push(concrete::Declaration::Definition {
+                name: (ByteIndex::default(), name.to_string()),
                 ann: None,
                 params,
                 body,
-            },
-        )
-    }
-}
-
-impl Resugar<concrete::Module> for core::Module {
-    fn resugar(&self) -> concrete::Module {
-        let mut declarations = Vec::with_capacity(self.definitions.len() * 2);
-
-        for definition in &self.definitions {
-            let (new_ann, new_definition) = definition.resugar();
-            declarations.push(new_ann);
-            declarations.push(new_definition);
+            });
         }
 
         concrete::Module::Valid {

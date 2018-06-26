@@ -2,7 +2,7 @@
 //! be elaborated in a type-directed way during type checking and inference
 
 use codespan::{ByteIndex, ByteSpan};
-use nameless::{BoundTerm, Embed, FreeVar, Ignore, Scope, Var};
+use nameless::{BoundTerm, Embed, FreeVar, Ignore, Nest, Scope, Var};
 use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;
@@ -15,29 +15,16 @@ pub struct Module {
     /// The name of the module
     pub name: String,
     /// The definitions contained in the module
-    pub definitions: Vec<Definition>,
-}
-
-impl fmt::Display for Module {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.to_doc().group().render_fmt(pretty::FALLBACK_WIDTH, f)
-    }
+    pub definitions: Nest<(FreeVar, Embed<Definition>)>,
 }
 
 /// Top level definitions
+#[derive(Debug, Clone, PartialEq, BoundTerm)]
 pub struct Definition {
-    /// The name of the declaration
-    pub name: String,
     /// The body of the definition
     pub term: Rc<Term>,
     /// An optional type annotation to aid in type inference
     pub ann: Rc<Term>,
-}
-
-impl fmt::Display for Definition {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.to_doc().group().render_fmt(pretty::FALLBACK_WIDTH, f)
-    }
 }
 
 /// Literals
