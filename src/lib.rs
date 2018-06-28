@@ -8,7 +8,7 @@ extern crate goldenfile;
 extern crate im;
 extern crate lalrpop_util;
 #[macro_use]
-extern crate nameless;
+extern crate moniker;
 extern crate num_bigint;
 extern crate num_traits;
 extern crate pretty;

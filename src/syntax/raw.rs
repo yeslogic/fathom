@@ -2,7 +2,7 @@
 //! be elaborated in a type-directed way during type checking and inference
 
 use codespan::{ByteIndex, ByteSpan};
-use nameless::{BoundTerm, Embed, FreeVar, Ignore, Nest, Scope, Var};
+use moniker::{BoundTerm, Embed, FreeVar, Ignore, Nest, Scope, Var};
 use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;

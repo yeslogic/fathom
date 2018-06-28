@@ -5,7 +5,7 @@
 //! For more information, check out the theory appendix of the DDL book.
 
 use codespan::ByteSpan;
-use nameless::{BoundPattern, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
+use moniker::{BoundPattern, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
 use num_traits::ToPrimitive;
 use std::rc::Rc;
 

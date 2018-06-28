@@ -1,4 +1,4 @@
-use nameless::{Embed, FreeVar, Scope, Var};
+use moniker::{Embed, FreeVar, Scope, Var};
 use std::io;
 use std::rc::Rc;
 

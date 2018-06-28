@@ -1,6 +1,6 @@
 //! The core syntax of the language
 
-use nameless::{BoundPattern, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
+use moniker::{BoundPattern, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
 use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;

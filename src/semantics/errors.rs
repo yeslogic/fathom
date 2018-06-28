@@ -2,7 +2,7 @@
 
 use codespan::ByteSpan;
 use codespan_reporting::{Diagnostic, Label};
-use nameless::{BoundVar, FreeVar, Ident};
+use moniker::{BoundVar, FreeVar, Ident};
 use num_bigint::BigInt;
 
 use syntax;
