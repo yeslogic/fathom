@@ -5,7 +5,7 @@ use std::rc::Rc;
 use syntax::context::Context;
 use syntax::core::{Head, Literal, Neutral, Term, Type, Value};
 
-use super::{normalize, subst, InternalError};
+use super::{normalize, InternalError};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -47,10 +47,8 @@ where
             let ((label, Embed(ann)), body) = scope.clone().unbind();
 
             let ann_value = parse(context, &ann, bytes)?;
-            let body = subst(
-                &body,
-                &[(label.0.clone(), Rc::new(Term::from(&*ann_value)))],
-            );
+            let body =
+                Term::from(&*body).substs(&[(label.0.clone(), Rc::new(Term::from(&*ann_value)))]);
             let body = normalize(context, &body)?;
             let body_value = parse(context, &body, bytes)?;
 
