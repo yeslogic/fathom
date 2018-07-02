@@ -132,7 +132,7 @@ pub enum TypeError {
         found: Box<concrete::Term>,
     },
     #[fail(display = "Internal error - this is a bug! {}", _0)]
-    Internal(InternalError),
+    Internal(#[cause] InternalError),
 }
 
 impl TypeError {
