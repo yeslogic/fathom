@@ -120,7 +120,7 @@ fn resugar_literal(constant: &core::Literal) -> concrete::Term {
 }
 
 fn resugar_pi(
-    scope: &Scope<(FreeVar, Embed<Rc<core::Term>>), Rc<core::Term>>,
+    scope: &Scope<(FreeVar<String>, Embed<Rc<core::Term>>), Rc<core::Term>>,
     prec: Prec,
 ) -> concrete::Term {
     let ((name, Embed(mut ann)), mut body) = scope.clone().unbind();
@@ -218,7 +218,7 @@ fn resugar_pi(
 }
 
 fn resugar_lam(
-    scope: &Scope<(FreeVar, Embed<Rc<core::Term>>), Rc<core::Term>>,
+    scope: &Scope<(FreeVar<String>, Embed<Rc<core::Term>>), Rc<core::Term>>,
     prec: Prec,
 ) -> concrete::Term {
     let ((name, Embed(mut ann)), mut body) = scope.clone().unbind();

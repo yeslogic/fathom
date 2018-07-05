@@ -2,7 +2,7 @@
 
 use codespan::ByteSpan;
 use codespan_reporting::{Diagnostic, Label};
-use moniker::{BoundVar, FreeVar, Ident};
+use moniker::{BoundVar, FreeVar};
 use num_bigint::BigInt;
 
 use syntax;
@@ -16,14 +16,14 @@ pub enum InternalError {
     UnsubstitutedDebruijnIndex {
         span: Option<ByteSpan>,
         index: BoundVar,
-        hint: Option<Ident>,
+        hint: Option<String>,
     },
     #[fail(display = "Argument applied to non-function.")]
     ArgumentAppliedToNonFunction,
     #[fail(display = "Expected a boolean expression.")]
     ExpectedBoolExpr,
     #[fail(display = "Projected on non-existent field `{}`.", label)]
-    ProjectedOnNonExistentField { label: syntax::Label },
+    ProjectedOnNonExistentField { label: syntax::Label<String> },
 }
 
 impl InternalError {
@@ -70,7 +70,7 @@ pub enum TypeError {
     FunctionParamNeedsAnnotation {
         param_span: ByteSpan,
         var_span: Option<ByteSpan>,
-        name: FreeVar,
+        name: FreeVar<String>,
     },
     #[fail(display = "found a `{}`, but expected a type `{}`", found, expected)]
     LiteralMismatch {
@@ -104,12 +104,15 @@ pub enum TypeError {
         found: Box<concrete::Term>,
     },
     #[fail(display = "Undefined name `{}`", name)]
-    UndefinedName { var_span: ByteSpan, name: FreeVar },
+    UndefinedName {
+        var_span: ByteSpan,
+        name: FreeVar<String>,
+    },
     #[fail(display = "Label mismatch: found label `{}` but `{}` was expected", found, expected)]
     LabelMismatch {
         span: ByteSpan,
-        found: syntax::Label,
-        expected: syntax::Label,
+        found: syntax::Label<String>,
+        expected: syntax::Label<String>,
     },
     #[fail(display = "Ambiguous record")]
     AmbiguousRecord { span: ByteSpan },
@@ -128,7 +131,7 @@ pub enum TypeError {
     #[fail(display = "The type `{}` does not contain a field named `{}`.", found, expected_label)]
     NoFieldInType {
         label_span: ByteSpan,
-        expected_label: syntax::Label,
+        expected_label: syntax::Label<String>,
         found: Box<concrete::Term>,
     },
     #[fail(display = "Internal error - this is a bug! {}", _0)]
