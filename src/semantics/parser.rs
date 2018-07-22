@@ -1,17 +1,16 @@
 use moniker::{Embed, FreeVar, Scope, Var};
 use std::io;
-use std::rc::Rc;
 
 use syntax::context::Context;
-use syntax::core::{Head, Literal, Neutral, Term, Type, Value};
+use syntax::core::{Head, Literal, Neutral, RcTerm, RcType, RcValue, Term, Value};
 
 use super::{normalize, InternalError};
 
 #[derive(Debug)]
 pub enum ParseError {
-    InvalidType(Rc<Type>),
+    InvalidType(RcType),
     Internal(InternalError),
-    BadArrayIndex(Rc<Value>),
+    BadArrayIndex(RcValue),
     Io(io::Error),
 }
 
@@ -27,7 +26,7 @@ impl From<io::Error> for ParseError {
     }
 }
 
-pub fn parse<R>(context: &Context, ty: &Rc<Type>, bytes: &mut R) -> Result<Rc<Value>, ParseError>
+pub fn parse<R>(context: &Context, ty: &RcType, bytes: &mut R) -> Result<RcValue, ParseError>
 where
     R: io::Read + io::Seek,
 {
@@ -47,40 +46,39 @@ where
             let ((label, Embed(ann)), body) = scope.clone().unbind();
 
             let ann_value = parse(context, &ann, bytes)?;
-            let body =
-                Term::from(&*body).substs(&[(label.0.clone(), Rc::new(Term::from(&*ann_value)))]);
+            let body = body.substs(&[(label.0.clone(), RcTerm::from(Term::from(&*ann_value)))]);
             let body = normalize(context, &body)?;
             let body_value = parse(context, &body, bytes)?;
 
-            Ok(Rc::new(Value::Record(Scope::new(
+            Ok(RcValue::from(Value::Record(Scope::new(
                 (label, Embed(ann_value)),
                 body_value,
             ))))
         },
-        Value::RecordTypeEmpty => Ok(Rc::new(Value::RecordEmpty)),
+        Value::RecordTypeEmpty => Ok(RcValue::from(Value::RecordEmpty)),
         Value::Neutral(ref neutral) => match **neutral {
             #[cfg_attr(rustfmt, rustfmt_skip)]
             Neutral::App(Head::Var(Var::Free(ref n)), ref spine) => match spine[..] {
-                [] if *n == FreeVar::user("U8") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u8()?.into())))),
-                [] if *n == FreeVar::user("U16Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u16::<Le>()?.into())))),
-                [] if *n == FreeVar::user("U16Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u16::<Be>()?.into())))),
-                [] if *n == FreeVar::user("U32Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u32::<Le>()?.into())))),
-                [] if *n == FreeVar::user("U32Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u32::<Be>()?.into())))),
-                [] if *n == FreeVar::user("U64Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u64::<Le>()?.into())))),
-                [] if *n == FreeVar::user("U64Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_u64::<Be>()?.into())))),
-                [] if *n == FreeVar::user("S8") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i8()?.into())))),
-                [] if *n == FreeVar::user("S16Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i16::<Le>()?.into())))),
-                [] if *n == FreeVar::user("S16Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i16::<Be>()?.into())))),
-                [] if *n == FreeVar::user("S32Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i32::<Le>()?.into())))),
-                [] if *n == FreeVar::user("S32Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i32::<Be>()?.into())))),
-                [] if *n == FreeVar::user("S64Le") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i64::<Le>()?.into())))),
-                [] if *n == FreeVar::user("S64Be") => Ok(Rc::new(Value::Literal(Literal::Int(bytes.read_i64::<Be>()?.into())))),
-                [] if *n == FreeVar::user("F32Le") => Ok(Rc::new(Value::Literal(Literal::F32(bytes.read_f32::<Le>()?)))),
-                [] if *n == FreeVar::user("F32Be") => Ok(Rc::new(Value::Literal(Literal::F32(bytes.read_f32::<Be>()?)))),
-                [] if *n == FreeVar::user("F64Le") => Ok(Rc::new(Value::Literal(Literal::F64(bytes.read_f64::<Le>()?)))),
-                [] if *n == FreeVar::user("F64Be") => Ok(Rc::new(Value::Literal(Literal::F64(bytes.read_f64::<Be>()?)))),
+                [] if *n == FreeVar::user("U8") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u8()?.into())))),
+                [] if *n == FreeVar::user("U16Le") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u16::<Le>()?.into())))),
+                [] if *n == FreeVar::user("U16Be") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u16::<Be>()?.into())))),
+                [] if *n == FreeVar::user("U32Le") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u32::<Le>()?.into())))),
+                [] if *n == FreeVar::user("U32Be") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u32::<Be>()?.into())))),
+                [] if *n == FreeVar::user("U64Le") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u64::<Le>()?.into())))),
+                [] if *n == FreeVar::user("U64Be") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u64::<Be>()?.into())))),
+                [] if *n == FreeVar::user("S8") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i8()?.into())))),
+                [] if *n == FreeVar::user("S16Le") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i16::<Le>()?.into())))),
+                [] if *n == FreeVar::user("S16Be") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i16::<Be>()?.into())))),
+                [] if *n == FreeVar::user("S32Le") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i32::<Le>()?.into())))),
+                [] if *n == FreeVar::user("S32Be") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i32::<Be>()?.into())))),
+                [] if *n == FreeVar::user("S64Le") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i64::<Le>()?.into())))),
+                [] if *n == FreeVar::user("S64Be") => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i64::<Be>()?.into())))),
+                [] if *n == FreeVar::user("F32Le") => Ok(RcValue::from(Value::Literal(Literal::F32(bytes.read_f32::<Le>()?)))),
+                [] if *n == FreeVar::user("F32Be") => Ok(RcValue::from(Value::Literal(Literal::F32(bytes.read_f32::<Be>()?)))),
+                [] if *n == FreeVar::user("F64Le") => Ok(RcValue::from(Value::Literal(Literal::F64(bytes.read_f64::<Le>()?)))),
+                [] if *n == FreeVar::user("F64Be") => Ok(RcValue::from(Value::Literal(Literal::F64(bytes.read_f64::<Be>()?)))),
                 [ref len, ref elem_ty] if *n == FreeVar::user("Array") => match **len {
-                    Value::Literal(Literal::Int(ref len)) => Ok(Rc::new(Value::Array(
+                    Value::Literal(Literal::Int(ref len)) => Ok(RcValue::from(Value::Array(
                         (0..len.to_usize().unwrap()) // FIXME
                             .map(|_| parse(context, elem_ty, bytes))
                             .collect::<Result<_, _>>()?,

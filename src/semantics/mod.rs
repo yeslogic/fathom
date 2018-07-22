@@ -10,7 +10,9 @@ use num_traits::ToPrimitive;
 use std::rc::Rc;
 
 use syntax::context::Context;
-use syntax::core::{Definition, Head, Literal, Module, Neutral, Term, Type, Value};
+use syntax::core::{
+    Definition, Head, Literal, Module, Neutral, RcTerm, RcType, RcValue, Term, Type, Value,
+};
 use syntax::raw;
 use syntax::translation::Resugar;
 use syntax::{Label, Level};
@@ -31,7 +33,7 @@ pub fn check_module(raw_module: &raw::Module) -> Result<Module, TypeError> {
         .unnest()
         .into_iter()
         .map(|(name, Embed(raw_definition))| {
-            let (term, ann) = match *raw_definition.ann {
+            let (term, ann) = match *raw_definition.ann.inner {
                 // We don't have a type annotation available to us! Instead we will
                 // attempt to infer it based on the body of the definition
                 raw::Term::Hole(_) => infer(&context, &raw_definition.term)?,
@@ -59,15 +61,15 @@ pub fn check_module(raw_module: &raw::Module) -> Result<Module, TypeError> {
 }
 
 /// Reduce a term to its normal form
-pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, InternalError> {
+pub fn normalize(context: &Context, term: &RcTerm) -> Result<RcValue, InternalError> {
     use syntax::context::Definition;
 
-    match **term {
+    match *term.inner {
         // E-ANN
         Term::Ann(ref expr, _) => normalize(context, expr),
 
         // E-TYPE
-        Term::Universe(level) => Ok(Rc::new(Value::Universe(level))),
+        Term::Universe(level) => Ok(RcValue::from(Value::Universe(level))),
 
         Term::IntType(ref min, ref max) => {
             let min = match *min {
@@ -80,16 +82,16 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
                 Some(ref x) => Some(normalize(context, x)?),
             };
 
-            Ok(Rc::new(Value::IntType(min, max)))
+            Ok(RcValue::from(Value::IntType(min, max)))
         },
 
-        Term::Literal(ref lit) => Ok(Rc::new(Value::Literal(lit.clone()))),
+        Term::Literal(ref lit) => Ok(RcValue::from(Value::Literal(lit.clone()))),
 
         // E-VAR, E-VAR-DEF
         Term::Var(ref var) => match *var {
             Var::Free(ref name) => match context.lookup_definition(name) {
                 Some(Definition::Term(term)) => normalize(context, &term),
-                Some(Definition::Prim(_)) | None => Ok(Rc::new(Value::from(var.clone()))),
+                Some(Definition::Prim(_)) | None => Ok(RcValue::from(Value::from(var.clone()))),
             },
 
             // We should always be substituting bound variables with fresh
@@ -109,7 +111,10 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
             let ann = normalize(context, &ann)?;
             let body = normalize(context, &body)?;
 
-            Ok(Rc::new(Value::Pi(Scope::new((name, Embed(ann)), body))))
+            Ok(RcValue::from(Value::Pi(Scope::new(
+                (name, Embed(ann)),
+                body,
+            ))))
         },
 
         // E-LAM
@@ -119,24 +124,27 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
             let ann = normalize(context, &ann)?;
             let body = normalize(context, &body)?;
 
-            Ok(Rc::new(Value::Lam(Scope::new((name, Embed(ann)), body))))
+            Ok(RcValue::from(Value::Lam(Scope::new(
+                (name, Embed(ann)),
+                body,
+            ))))
         },
 
         // E-APP
         Term::App(ref expr, ref arg) => {
             let mut value_expr = normalize(context, expr)?;
 
-            match Rc::make_mut(&mut value_expr) {
+            match Rc::make_mut(&mut value_expr.inner) {
                 Value::Lam(ref scope) => {
                     // FIXME: do a local unbind here
                     let ((name, Embed(_)), body) = scope.clone().unbind();
-                    normalize(context, &Term::from(&*body).substs(&[(name, arg.clone())]))
+                    normalize(context, &body.substs(&[(name, arg.clone())]))
                 },
                 Value::Neutral(ref mut neutral) => {
                     let arg = normalize(context, arg)?;
 
                     // Update the spine in place, if possible
-                    match *Rc::make_mut(neutral) {
+                    match *Rc::make_mut(&mut neutral.inner) {
                         Neutral::App(Head::Var(Var::Free(ref name)), ref mut spine) => {
                             spine.push(arg);
 
@@ -155,7 +163,7 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
                         | Neutral::Proj(_, _, ref mut spine) => spine.push(arg),
                     }
 
-                    Ok(Rc::new(Value::Neutral(neutral.clone())))
+                    Ok(RcValue::from(Value::Neutral(neutral.clone())))
                 },
                 _ => Err(InternalError::ArgumentAppliedToNonFunction),
             }
@@ -168,7 +176,7 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
             match *value_cond {
                 Value::Literal(Literal::Bool(true)) => normalize(context, if_true),
                 Value::Literal(Literal::Bool(false)) => normalize(context, if_false),
-                Value::Neutral(ref cond) => Ok(Rc::new(Value::from(Neutral::If(
+                Value::Neutral(ref cond) => Ok(RcValue::from(Value::from(Neutral::If(
                     cond.clone(),
                     normalize(context, if_true)?,
                     normalize(context, if_false)?,
@@ -188,7 +196,7 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
         },
 
         // E-EMPTY-RECORD-TYPE
-        Term::RecordTypeEmpty => Ok(Rc::new(Value::RecordTypeEmpty)),
+        Term::RecordTypeEmpty => Ok(RcValue::from(Value::RecordTypeEmpty)),
 
         // E-RECORD
         Term::Record(ref scope) => {
@@ -200,11 +208,11 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
         },
 
         // E-EMPTY-RECORD
-        Term::RecordEmpty => Ok(Rc::new(Value::RecordEmpty)),
+        Term::RecordEmpty => Ok(RcValue::from(Value::RecordEmpty)),
 
         // E-PROJ
         Term::Proj(ref expr, ref label) => match *normalize(context, expr)? {
-            Value::Neutral(ref neutral) => Ok(Rc::new(Value::from(Neutral::Proj(
+            Value::Neutral(ref neutral) => Ok(RcValue::from(Value::from(Neutral::Proj(
                 neutral.clone(),
                 label.clone(),
                 vec![],
@@ -217,7 +225,7 @@ pub fn normalize(context: &Context, term: &Rc<Term>) -> Result<Rc<Value>, Intern
             },
         },
 
-        Term::Array(ref elems) => Ok(Rc::new(Value::Array(
+        Term::Array(ref elems) => Ok(RcValue::from(Value::Array(
             elems
                 .iter()
                 .map(|elem| normalize(context, elem))
@@ -236,24 +244,24 @@ fn is_name(ty: &Type, name: &str) -> bool {
 }
 
 /// Check that `ty1` is a subtype of `ty2`
-pub fn is_subtype(ty1: &Rc<Type>, ty2: &Rc<Type>) -> bool {
+pub fn is_subtype(ty1: &RcType, ty2: &RcType) -> bool {
     use num_bigint::BigInt;
     use std::{i16, i32, i64, u16, u32, u64};
 
-    fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> Rc<Value> {
-        Rc::new(Value::IntType(
-            min.map(|x| Rc::new(Value::Literal(Literal::Int(x.into())))),
-            max.map(|x| Rc::new(Value::Literal(Literal::Int(x.into())))),
+    fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> RcValue {
+        RcValue::from(Value::IntType(
+            min.map(|x| RcValue::from(Value::Literal(Literal::Int(x.into())))),
+            max.map(|x| RcValue::from(Value::Literal(Literal::Int(x.into())))),
         ))
     }
 
-    match (&**ty1, &**ty2) {
+    match (&*ty1.inner, &*ty2.inner) {
         (&Value::IntType(ref min1, ref max1), &Value::IntType(ref min2, ref max2)) => {
             let in_min_bound = match (min1, min2) {
                 (None, None) => true,     // -∞ <= -∞
                 (Some(_), None) => true,  //  n <= -∞
                 (None, Some(_)) => false, // -∞ <=  n
-                (Some(ref min1), Some(ref min2)) => match (&**min1, &**min2) {
+                (Some(ref min1), Some(ref min2)) => match (&*min1.inner, &*min2.inner) {
                     (
                         Value::Literal(Literal::Int(ref min1)),
                         Value::Literal(Literal::Int(ref min2)),
@@ -266,7 +274,7 @@ pub fn is_subtype(ty1: &Rc<Type>, ty2: &Rc<Type>) -> bool {
                 (None, None) => true,     // +∞ <= +∞
                 (Some(_), None) => true,  //  n <= +∞
                 (None, Some(_)) => false, // +∞ <=  n
-                (Some(ref max1), Some(ref max2)) => match (&**max1, &**max2) {
+                (Some(ref max1), Some(ref max2)) => match (&*max1.inner, &*max2.inner) {
                     (
                         Value::Literal(Literal::Int(ref max1)),
                         Value::Literal(Literal::Int(ref max2)),
@@ -303,10 +311,10 @@ pub fn is_subtype(ty1: &Rc<Type>, ty2: &Rc<Type>) -> bool {
 /// Type checking of terms
 pub fn check(
     context: &Context,
-    raw_term: &Rc<raw::Term>,
-    expected_ty: &Rc<Type>,
-) -> Result<Rc<Term>, TypeError> {
-    match (&**raw_term, &**expected_ty) {
+    raw_term: &raw::RcTerm,
+    expected_ty: &RcType,
+) -> Result<RcTerm, TypeError> {
+    match (&*raw_term.inner, &*expected_ty.inner) {
         (&raw::Term::Literal(_, raw::Literal::Int(_)), Value::IntType(_, _)) => {
             // Fallthrough to subtyping! We'll be checking that `{= val} <: {min .. max}`
         },
@@ -338,7 +346,7 @@ pub fn check(
                 },
             };
 
-            return Ok(Rc::new(Term::Literal(literal)));
+            return Ok(RcTerm::from(Term::Literal(literal)));
         },
 
         // C-LAM
@@ -347,12 +355,12 @@ pub fn check(
                 Scope::unbind2(lam_scope.clone(), pi_scope.clone());
 
             // Elaborate the hole, if it exists
-            if let raw::Term::Hole(_) = *lam_ann {
-                let lam_ann = Rc::new(Term::from(&*pi_ann));
+            if let raw::Term::Hole(_) = *lam_ann.inner {
+                let lam_ann = RcTerm::from(Term::from(&*pi_ann));
                 let lam_body = check(&context.claim(pi_name, pi_ann), &lam_body, &pi_body)?;
                 let lam_scope = Scope::new((lam_name, Embed(lam_ann)), lam_body);
 
-                return Ok(Rc::new(Term::Lam(lam_scope)));
+                return Ok(RcTerm::from(Term::Lam(lam_scope)));
             }
 
             // TODO: We might want to optimise for this case, rather than
@@ -367,12 +375,12 @@ pub fn check(
 
         // C-IF
         (&raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false), _) => {
-            let bool_ty = Rc::new(Value::from(Var::Free(FreeVar::user("Bool"))));
+            let bool_ty = RcValue::from(Value::from(Var::Free(FreeVar::user("Bool"))));
             let cond = check(context, raw_cond, &bool_ty)?;
             let if_true = check(context, raw_if_true, expected_ty)?;
             let if_false = check(context, raw_if_false, expected_ty)?;
 
-            return Ok(Rc::new(Term::If(cond, if_true, if_false)));
+            return Ok(RcTerm::from(Term::If(cond, if_true, if_false)));
         },
 
         // C-RECORD
@@ -382,13 +390,11 @@ pub fn check(
 
             if Label::pattern_eq(&label, &ty_label) {
                 let expr = check(context, &raw_expr, &ann)?;
-                let ty_body = normalize(
-                    context,
-                    &Term::from(&*ty_body).substs(&[(label.0.clone(), expr.clone())]),
-                )?;
+                let ty_body =
+                    normalize(context, &ty_body.substs(&[(label.0.clone(), expr.clone())]))?;
                 let body = check(context, &raw_body, &ty_body)?;
 
-                return Ok(Rc::new(Term::Record(Scope::new(
+                return Ok(RcTerm::from(Term::Record(Scope::new(
                     (label, Embed(expr)),
                     body,
                 ))));
@@ -413,7 +419,7 @@ pub fn check(
                     }
                 }
 
-                return Ok(Rc::new(Term::Array(
+                return Ok(RcTerm::from(Term::Array(
                     elems
                         .iter()
                         .map(|elem| check(context, elem, elem_ty))
@@ -447,18 +453,15 @@ pub fn check(
 }
 
 /// Type inference of terms
-pub fn infer(
-    context: &Context,
-    raw_term: &Rc<raw::Term>,
-) -> Result<(Rc<Term>, Rc<Type>), TypeError> {
+pub fn infer(context: &Context, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcType), TypeError> {
     use std::cmp;
 
     /// Ensures that the given term is a universe, returning the level of that
     /// universe and its elaborated form.
     fn infer_universe(
         context: &Context,
-        raw_term: &Rc<raw::Term>,
-    ) -> Result<(Rc<Term>, Level), TypeError> {
+        raw_term: &raw::RcTerm,
+    ) -> Result<(RcTerm, Level), TypeError> {
         let (term, ty) = infer(context, raw_term)?;
         match *ty {
             Value::Universe(level) => Ok((term, level)),
@@ -469,20 +472,20 @@ pub fn infer(
         }
     }
 
-    match **raw_term {
+    match *raw_term.inner {
         //  I-ANN
         raw::Term::Ann(_, ref raw_expr, ref raw_ty) => {
             let (ty, _) = infer_universe(context, raw_ty)?;
             let value_ty = normalize(context, &ty)?;
             let expr = check(context, raw_expr, &value_ty)?;
 
-            Ok((Rc::new(Term::Ann(expr, ty)), value_ty))
+            Ok((RcTerm::from(Term::Ann(expr, ty)), value_ty))
         },
 
         // I-TYPE
         raw::Term::Universe(_, level) => Ok((
-            Rc::new(Term::Universe(level)),
-            Rc::new(Value::Universe(level.succ())),
+            RcTerm::from(Term::Universe(level)),
+            RcValue::from(Value::Universe(level.succ())),
         )),
 
         raw::Term::Hole(span) => Err(TypeError::UnableToElaborateHole {
@@ -493,33 +496,41 @@ pub fn infer(
         raw::Term::IntType(_, ref min, ref max) => {
             let min = match *min {
                 None => None,
-                Some(ref min) => Some(check(context, min, &Rc::new(Value::IntType(None, None)))?),
+                Some(ref min) => Some(check(
+                    context,
+                    min,
+                    &RcValue::from(Value::IntType(None, None)),
+                )?),
             };
 
             let max = match *max {
                 None => None,
-                Some(ref max) => Some(check(context, max, &Rc::new(Value::IntType(None, None)))?),
+                Some(ref max) => Some(check(
+                    context,
+                    max,
+                    &RcValue::from(Value::IntType(None, None)),
+                )?),
             };
 
             Ok((
-                Rc::new(Term::IntType(min, max)),
-                Rc::new(Value::Universe(Level(0))),
+                RcTerm::from(Term::IntType(min, max)),
+                RcValue::from(Value::Universe(Level(0))),
             ))
         },
 
         raw::Term::Literal(span, ref raw_literal) => match *raw_literal {
             raw::Literal::String(ref value) => Ok((
-                Rc::new(Term::Literal(Literal::String(value.clone()))),
-                Rc::new(Value::from(Var::Free(FreeVar::user("String")))),
+                RcTerm::from(Term::Literal(Literal::String(value.clone()))),
+                RcValue::from(Value::from(Var::Free(FreeVar::user("String")))),
             )),
             raw::Literal::Char(value) => Ok((
-                Rc::new(Term::Literal(Literal::Char(value))),
-                Rc::new(Value::from(Var::Free(FreeVar::user("Char")))),
+                RcTerm::from(Term::Literal(Literal::Char(value))),
+                RcValue::from(Value::from(Var::Free(FreeVar::user("Char")))),
             )),
             raw::Literal::Int(ref value) => {
-                Ok((Rc::new(Term::Literal(Literal::Int(value.clone()))), {
-                    let value = Rc::new(Value::Literal(Literal::Int(value.clone())));
-                    Rc::new(Value::IntType(Some(value.clone()), Some(value)))
+                Ok((RcTerm::from(Term::Literal(Literal::Int(value.clone()))), {
+                    let value = RcValue::from(Value::Literal(Literal::Int(value.clone())));
+                    RcValue::from(Value::IntType(Some(value.clone()), Some(value)))
                 }))
             },
             raw::Literal::Float(_) => Err(TypeError::AmbiguousFloatLiteral { span: span.0 }),
@@ -528,7 +539,7 @@ pub fn infer(
         // I-VAR
         raw::Term::Var(span, ref var) => match *var {
             Var::Free(ref name) => match context.lookup_claim(name) {
-                Some(ty) => Ok((Rc::new(Term::Var(var.clone())), ty.clone())),
+                Some(ty) => Ok((RcTerm::from(Term::Var(var.clone())), ty.clone())),
                 None => Err(TypeError::UndefinedName {
                     var_span: span.0,
                     name: name.clone(),
@@ -556,8 +567,8 @@ pub fn infer(
             };
 
             Ok((
-                Rc::new(Term::Pi(Scope::new((name, Embed(ann)), body))),
-                Rc::new(Value::Universe(cmp::max(ann_level, body_level))),
+                RcTerm::from(Term::Pi(Scope::new((name, Embed(ann)), body))),
+                RcValue::from(Value::Universe(cmp::max(ann_level, body_level))),
             ))
         },
 
@@ -583,19 +594,19 @@ pub fn infer(
             let pi_param = (name.clone(), Embed(pi_ann));
 
             Ok((
-                Rc::new(Term::Lam(Scope::new(lam_param, lam_body))),
-                Rc::new(Value::Pi(Scope::new(pi_param, pi_body))),
+                RcTerm::from(Term::Lam(Scope::new(lam_param, lam_body))),
+                RcValue::from(Value::Pi(Scope::new(pi_param, pi_body))),
             ))
         },
 
         // I-IF
         raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false) => {
-            let bool_ty = Rc::new(Value::from(Var::Free(FreeVar::user("Bool"))));
+            let bool_ty = RcValue::from(Value::from(Var::Free(FreeVar::user("Bool"))));
             let cond = check(context, raw_cond, &bool_ty)?;
             let (if_true, ty) = infer(context, raw_if_true)?;
             let if_false = check(context, raw_if_false, &ty)?;
 
-            Ok((Rc::new(Term::If(cond, if_true, if_false)), ty))
+            Ok((RcTerm::from(Term::If(cond, if_true, if_false)), ty))
         },
 
         // I-APP
@@ -607,10 +618,9 @@ pub fn infer(
                     let ((name, Embed(ann)), body) = scope.clone().unbind();
 
                     let arg = check(context, raw_arg, &ann)?;
-                    let body =
-                        normalize(context, &Term::from(&*body).substs(&[(name, arg.clone())]))?;
+                    let body = normalize(context, &body.substs(&[(name, arg.clone())]))?;
 
-                    Ok((Rc::new(Term::App(expr, arg)), body))
+                    Ok((RcTerm::from(Term::App(expr, arg)), body))
                 },
                 _ => Err(TypeError::ArgAppliedToNonFunction {
                     fn_span: raw_expr.span(),
@@ -637,8 +647,8 @@ pub fn infer(
             let scope = Scope::new((label, Embed(ann)), body);
 
             Ok((
-                Rc::new(Term::RecordType(scope)),
-                Rc::new(Value::Universe(cmp::max(ann_level, body_level))),
+                RcTerm::from(Term::RecordType(scope)),
+                RcValue::from(Value::Universe(cmp::max(ann_level, body_level))),
             ))
         },
 
@@ -646,14 +656,15 @@ pub fn infer(
 
         // I-EMPTY-RECORD-TYPE
         raw::Term::RecordTypeEmpty(_) => Ok((
-            Rc::new(Term::RecordTypeEmpty),
-            Rc::new(Value::Universe(Level(0))),
+            RcTerm::from(Term::RecordTypeEmpty),
+            RcValue::from(Value::Universe(Level(0))),
         )),
 
         // I-EMPTY-RECORD
-        raw::Term::RecordEmpty(_) => {
-            Ok((Rc::new(Term::RecordEmpty), Rc::new(Value::RecordTypeEmpty)))
-        },
+        raw::Term::RecordEmpty(_) => Ok((
+            RcTerm::from(Term::RecordEmpty),
+            RcValue::from(Value::RecordTypeEmpty),
+        )),
 
         // I-PROJ
         raw::Term::Proj(_, ref expr, label_span, ref label) => {
@@ -663,8 +674,8 @@ pub fn infer(
                 Some(field_ty) => {
                     let mappings = field_substs(&expr, &label, &ty);
                     Ok((
-                        Rc::new(Term::Proj(expr, label.clone())),
-                        normalize(context, &Term::from(&*field_ty).substs(&mappings))?,
+                        RcTerm::from(Term::Proj(expr, label.clone())),
+                        normalize(context, &field_ty.substs(&mappings))?,
                     ))
                 },
                 None => Err(TypeError::NoFieldInType {
@@ -680,10 +691,10 @@ pub fn infer(
 }
 
 fn field_substs(
-    expr: &Rc<Term>,
+    expr: &RcTerm,
     label: &Label<String>,
-    ty: &Rc<Type>,
-) -> Vec<(FreeVar<String>, Rc<Term>)> {
+    ty: &RcType,
+) -> Vec<(FreeVar<String>, RcTerm)> {
     let mut substs = vec![];
     let mut current_scope = ty.record_ty();
 
@@ -694,7 +705,7 @@ fn field_substs(
             break;
         }
 
-        let proj = Rc::new(Term::Proj(expr.clone(), current_label.clone()));
+        let proj = RcTerm::from(Term::Proj(expr.clone(), current_label.clone()));
 
         substs.push((current_label.0, proj));
         current_scope = body.record_ty();

@@ -3,7 +3,7 @@ use moniker::FreeVar;
 use std::fmt;
 use std::rc::Rc;
 
-use syntax::core::{Term, Type};
+use syntax::core::{RcTerm, RcType, Term};
 use syntax::pretty::{self, ToDoc};
 use syntax::prim::{self, PrimFn};
 
@@ -11,14 +11,14 @@ use syntax::prim::{self, PrimFn};
 #[derive(Debug, Clone)]
 pub enum Entry {
     /// A type claim
-    Claim(FreeVar<String>, Rc<Type>),
+    Claim(FreeVar<String>, RcType),
     /// A value definition
     Definition(FreeVar<String>, Definition),
 }
 
 #[derive(Debug, Clone)]
 pub enum Definition {
-    Term(Rc<Term>),
+    Term(RcTerm),
     Prim(Rc<PrimFn>),
 }
 
@@ -40,13 +40,13 @@ impl Context {
         }
     }
 
-    pub fn claim(&self, name: FreeVar<String>, ann: Rc<Type>) -> Context {
+    pub fn claim(&self, name: FreeVar<String>, ann: RcType) -> Context {
         Context {
             entries: self.entries.push_front(Entry::Claim(name, ann)),
         }
     }
 
-    pub fn define_term(&self, name: FreeVar<String>, ann: Rc<Type>, term: Rc<Term>) -> Context {
+    pub fn define_term(&self, name: FreeVar<String>, ann: RcType, term: RcTerm) -> Context {
         Context {
             entries: self
                 .entries
@@ -64,7 +64,7 @@ impl Context {
         }
     }
 
-    pub fn lookup_claim(&self, name: &FreeVar<String>) -> Option<Rc<Type>> {
+    pub fn lookup_claim(&self, name: &FreeVar<String>) -> Option<RcType> {
         self.entries
             .iter()
             .filter_map(|entry| match *entry {
@@ -90,24 +90,24 @@ impl Default for Context {
         use moniker::{Embed, GenId, Scope, Var};
         use num_bigint::BigInt;
 
-        use syntax::core::{Literal, Value};
+        use syntax::core::{Literal, RcValue, Value};
         use syntax::Level;
 
-        fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> Rc<Term> {
-            Rc::new(Term::IntType(
-                min.map(|x| Rc::new(Term::Literal(Literal::Int(x.into())))),
-                max.map(|x| Rc::new(Term::Literal(Literal::Int(x.into())))),
+        fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> RcTerm {
+            RcTerm::from(Term::IntType(
+                min.map(|x| RcTerm::from(Term::Literal(Literal::Int(x.into())))),
+                max.map(|x| RcTerm::from(Term::Literal(Literal::Int(x.into())))),
             ))
         }
 
         let name = FreeVar::user;
         let fresh = || FreeVar::from(GenId::fresh());
-        let var = |n| Rc::new(Value::from(Var::Free(name(n))));
-        let u0 = Rc::new(Value::Universe(Level(0)));
-        let lit = |val| Rc::new(Term::Literal(val));
-        let arrow = |params: Vec<Rc<Type>>, ret: Rc<Type>| {
+        let var = |n| RcValue::from(Value::from(Var::Free(name(n))));
+        let u0 = RcValue::from(Value::Universe(Level(0)));
+        let lit = |val| RcTerm::from(Term::Literal(val));
+        let arrow = |params: Vec<RcType>, ret: RcType| {
             params.into_iter().rev().fold(ret, |body, ann| {
-                Rc::new(Value::Pi(Scope::new((fresh(), Embed(ann)), body)))
+                RcValue::from(Value::Pi(Scope::new((fresh(), Embed(ann)), body)))
             })
         };
 
@@ -132,8 +132,8 @@ impl Default for Context {
             .claim(name("F64"), u0.clone())
             .claim(name("Array"), arrow(
                 vec![
-                    Rc::new(Value::IntType(
-                        Some(Rc::new(Value::Literal(Literal::Int(0.into())))),
+                    RcValue::from(Value::IntType(
+                        Some(RcValue::from(Value::Literal(Literal::Int(0.into())))),
                         None,
                     )),
                     u0.clone(),
