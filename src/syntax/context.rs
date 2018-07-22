@@ -41,27 +41,23 @@ impl Context {
     }
 
     pub fn claim(&self, name: FreeVar<String>, ann: RcType) -> Context {
-        Context {
-            entries: self.entries.push_front(Entry::Claim(name, ann)),
-        }
+        let mut entries = self.entries.clone();
+        entries.push_front(Entry::Claim(name, ann));
+        Context { entries }
     }
 
     pub fn define_term(&self, name: FreeVar<String>, ann: RcType, term: RcTerm) -> Context {
-        Context {
-            entries: self
-                .entries
-                .push_front(Entry::Claim(name.clone(), ann))
-                .push_front(Entry::Definition(name, Definition::Term(term))),
-        }
+        let mut entries = self.entries.clone();
+        entries.push_front(Entry::Claim(name.clone(), ann));
+        entries.push_front(Entry::Definition(name, Definition::Term(term)));
+        Context { entries }
     }
 
     fn define_prim(&self, name: FreeVar<String>, prim: Rc<PrimFn>) -> Context {
-        Context {
-            entries: self
-                .entries
-                .push_front(Entry::Claim(name.clone(), prim.ann.clone()))
-                .push_front(Entry::Definition(name, Definition::Prim(prim))),
-        }
+        let mut entries = self.entries.clone();
+        entries.push_front(Entry::Claim(name.clone(), prim.ann.clone()));
+        entries.push_front(Entry::Definition(name, Definition::Prim(prim)));
+        Context { entries }
     }
 
     pub fn lookup_claim(&self, name: &FreeVar<String>) -> Option<RcType> {
@@ -87,10 +83,10 @@ impl Context {
 
 impl Default for Context {
     fn default() -> Context {
-        use moniker::{Embed, GenId, Scope, Var};
+        use moniker::{Binder, Embed, GenId, Scope, Var};
         use num_bigint::BigInt;
 
-        use syntax::core::{Literal, RcValue, Value};
+        use syntax::core::{Literal, RcTerm, RcValue, Value};
         use syntax::Level;
 
         fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> RcTerm {
@@ -101,63 +97,63 @@ impl Default for Context {
         }
 
         let name = FreeVar::user;
-        let fresh = || FreeVar::from(GenId::fresh());
-        let var = |n| RcValue::from(Value::from(Var::Free(name(n))));
-        let u0 = RcValue::from(Value::Universe(Level(0)));
-        let lit = |val| RcTerm::from(Term::Literal(val));
+        let fresh_binder = || Binder(FreeVar::from(GenId::fresh()));
+        let free_var = |n| RcValue::from(Value::from(Var::Free(name(n))));
+        let universe0 = RcValue::from(Value::Universe(Level(0)));
+        let bool_lit = |val| RcTerm::from(Term::Literal(Literal::Bool(val)));
         let arrow = |params: Vec<RcType>, ret: RcType| {
             params.into_iter().rev().fold(ret, |body, ann| {
-                RcValue::from(Value::Pi(Scope::new((fresh(), Embed(ann)), body)))
+                RcValue::from(Value::Pi(Scope::new((fresh_binder(), Embed(ann)), body)))
             })
         };
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Context::new()
-            .claim(name("Bool"), u0.clone())
-            .define_term(name("true"), var("Bool"), lit(Literal::Bool(true)))
-            .define_term(name("false"), var("Bool"), lit(Literal::Bool(false)))
-            .claim(name("String"), u0.clone())
-            .claim(name("Char"), u0.clone())
+            .claim(name("Bool"), universe0.clone())
+            .define_term(name("true"), free_var("Bool"), bool_lit(true))
+            .define_term(name("false"), free_var("Bool"), bool_lit(false))
+            .claim(name("String"), universe0.clone())
+            .claim(name("Char"), universe0.clone())
 
-            .define_term(name("U8"), u0.clone(), int_ty(Some(u8::min_value()), Some(u8::max_value())))
-            .define_term(name("U16"), u0.clone(), int_ty(Some(u16::min_value()), Some(u16::max_value())))
-            .define_term(name("U32"), u0.clone(), int_ty(Some(u32::min_value()), Some(u32::max_value())))
-            .define_term(name("U64"), u0.clone(), int_ty(Some(u64::min_value()), Some(u64::max_value())))
-            .define_term(name("S8"), u0.clone(), int_ty(Some(i8::min_value()), Some(i8::max_value())))
-            .define_term(name("S16"), u0.clone(), int_ty(Some(i16::min_value()), Some(i16::max_value())))
-            .define_term(name("S32"), u0.clone(), int_ty(Some(i32::min_value()), Some(i32::max_value())))
-            .define_term(name("S64"), u0.clone(), int_ty(Some(i64::min_value()), Some(i64::max_value())))
+            .define_term(name("U8"), universe0.clone(), int_ty(Some(u8::min_value()), Some(u8::max_value())))
+            .define_term(name("U16"), universe0.clone(), int_ty(Some(u16::min_value()), Some(u16::max_value())))
+            .define_term(name("U32"), universe0.clone(), int_ty(Some(u32::min_value()), Some(u32::max_value())))
+            .define_term(name("U64"), universe0.clone(), int_ty(Some(u64::min_value()), Some(u64::max_value())))
+            .define_term(name("S8"), universe0.clone(), int_ty(Some(i8::min_value()), Some(i8::max_value())))
+            .define_term(name("S16"), universe0.clone(), int_ty(Some(i16::min_value()), Some(i16::max_value())))
+            .define_term(name("S32"), universe0.clone(), int_ty(Some(i32::min_value()), Some(i32::max_value())))
+            .define_term(name("S64"), universe0.clone(), int_ty(Some(i64::min_value()), Some(i64::max_value())))
 
-            .claim(name("F32"), u0.clone())
-            .claim(name("F64"), u0.clone())
+            .claim(name("F32"), universe0.clone())
+            .claim(name("F64"), universe0.clone())
             .claim(name("Array"), arrow(
                 vec![
                     RcValue::from(Value::IntType(
                         Some(RcValue::from(Value::Literal(Literal::Int(0.into())))),
                         None,
                     )),
-                    u0.clone(),
+                    universe0.clone(),
                 ],
-                u0.clone(),
+                universe0.clone(),
             ))
 
             // TODO: Replace these with more general compute types
-            .claim(name("U16Le"), u0.clone())
-            .claim(name("U32Le"), u0.clone())
-            .claim(name("U64Le"), u0.clone())
-            .claim(name("S16Le"), u0.clone())
-            .claim(name("S32Le"), u0.clone())
-            .claim(name("S64Le"), u0.clone())
-            .claim(name("F32Le"), u0.clone())
-            .claim(name("F64Le"), u0.clone())
-            .claim(name("U16Be"), u0.clone())
-            .claim(name("U32Be"), u0.clone())
-            .claim(name("U64Be"), u0.clone())
-            .claim(name("S16Be"), u0.clone())
-            .claim(name("S32Be"), u0.clone())
-            .claim(name("S64Be"), u0.clone())
-            .claim(name("F32Be"), u0.clone())
-            .claim(name("F64Be"), u0.clone())
+            .claim(name("U16Le"), universe0.clone())
+            .claim(name("U32Le"), universe0.clone())
+            .claim(name("U64Le"), universe0.clone())
+            .claim(name("S16Le"), universe0.clone())
+            .claim(name("S32Le"), universe0.clone())
+            .claim(name("S64Le"), universe0.clone())
+            .claim(name("F32Le"), universe0.clone())
+            .claim(name("F64Le"), universe0.clone())
+            .claim(name("U16Be"), universe0.clone())
+            .claim(name("U32Be"), universe0.clone())
+            .claim(name("U64Be"), universe0.clone())
+            .claim(name("S16Be"), universe0.clone())
+            .claim(name("S32Be"), universe0.clone())
+            .claim(name("S64Be"), universe0.clone())
+            .claim(name("F32Be"), universe0.clone())
+            .claim(name("F64Be"), universe0.clone())
 
             .define_prim(name("prim-string-eq"), Rc::new(prim::string_eq()))
             .define_prim(name("prim-bool-eq"), Rc::new(prim::bool_eq()))

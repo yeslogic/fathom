@@ -2,7 +2,7 @@
 //! be elaborated in a type-directed way during type checking and inference
 
 use codespan::{ByteIndex, ByteSpan};
-use moniker::{BoundTerm, Embed, FreeVar, Ignore, Nest, Scope, Var};
+use moniker::{Binder, Embed, Nest, Scope, Var};
 use num_bigint::BigInt;
 use std::fmt;
 use std::ops;
@@ -16,7 +16,7 @@ pub struct Module {
     /// The name of the module
     pub name: String,
     /// The definitions contained in the module
-    pub definitions: Nest<(FreeVar<String>, Embed<Definition>)>,
+    pub definitions: Nest<(Binder<String>, Embed<Definition>)>,
 }
 
 /// Top level definitions
@@ -29,18 +29,12 @@ pub struct Definition {
 }
 
 /// Literals
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, BoundTerm, BoundPattern)]
 pub enum Literal {
     String(String),
     Char(char),
     Int(BigInt),
     Float(f64),
-}
-
-impl BoundTerm<String> for Literal {
-    fn term_eq(&self, other: &Literal) -> bool {
-        self == other
-    }
 }
 
 impl fmt::Display for Literal {
@@ -56,49 +50,37 @@ impl fmt::Display for Literal {
 #[derive(Debug, Clone, PartialEq, BoundTerm)]
 pub enum Term {
     /// A term annotated with a type
-    Ann(Ignore<ByteSpan>, RcTerm, RcTerm),
+    Ann(ByteSpan, RcTerm, RcTerm),
     /// Universes
-    Universe(Ignore<ByteSpan>, Level),
+    Universe(ByteSpan, Level),
     /// Ranged integer types
-    IntType(Ignore<ByteSpan>, Option<RcTerm>, Option<RcTerm>),
+    IntType(ByteSpan, Option<RcTerm>, Option<RcTerm>),
     /// Literals
-    Literal(Ignore<ByteSpan>, Literal),
+    Literal(ByteSpan, Literal),
     /// A hole
-    Hole(Ignore<ByteSpan>),
+    Hole(ByteSpan),
     /// A variable
-    Var(Ignore<ByteSpan>, Var<String>),
+    Var(ByteSpan, Var<String>),
     /// Dependent function types
-    Pi(
-        Ignore<ByteSpan>,
-        Scope<(FreeVar<String>, Embed<RcTerm>), RcTerm>,
-    ),
+    Pi(ByteSpan, Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Lambda abstractions
-    Lam(
-        Ignore<ByteSpan>,
-        Scope<(FreeVar<String>, Embed<RcTerm>), RcTerm>,
-    ),
+    Lam(ByteSpan, Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Term application
     App(RcTerm, RcTerm),
     /// If expression
-    If(Ignore<ByteIndex>, RcTerm, RcTerm, RcTerm),
+    If(ByteIndex, RcTerm, RcTerm, RcTerm),
     /// Dependent record types
-    RecordType(
-        Ignore<ByteSpan>,
-        Scope<(Label<String>, Embed<RcTerm>), RcTerm>,
-    ),
+    RecordType(ByteSpan, Scope<(Label<String>, Embed<RcTerm>), RcTerm>),
     /// Dependent record
-    Record(
-        Ignore<ByteSpan>,
-        Scope<(Label<String>, Embed<RcTerm>), RcTerm>,
-    ),
+    Record(ByteSpan, Scope<(Label<String>, Embed<RcTerm>), RcTerm>),
     /// The unit type
-    RecordTypeEmpty(Ignore<ByteSpan>),
+    RecordTypeEmpty(ByteSpan),
     /// The element of the unit type
-    RecordEmpty(Ignore<ByteSpan>),
+    RecordEmpty(ByteSpan),
     /// Field projection
-    Proj(Ignore<ByteSpan>, RcTerm, Ignore<ByteSpan>, Label<String>),
+    Proj(ByteSpan, RcTerm, ByteSpan, Label<String>),
     /// Array literals
-    Array(Ignore<ByteSpan>, Vec<RcTerm>),
+    Array(ByteSpan, Vec<RcTerm>),
 }
 
 /// Reference counted terms
@@ -145,9 +127,9 @@ impl Term {
             | Term::RecordTypeEmpty(span)
             | Term::RecordEmpty(span)
             | Term::Proj(span, _, _, _)
-            | Term::Array(span, _) => span.0,
+            | Term::Array(span, _) => span,
             Term::App(ref fn_term, ref arg) => fn_term.span().to(arg.span()),
-            Term::If(start, _, _, ref if_false) => ByteSpan::new(start.0, if_false.span().end()),
+            Term::If(start, _, _, ref if_false) => ByteSpan::new(start, if_false.span().end()),
         }
     }
 }

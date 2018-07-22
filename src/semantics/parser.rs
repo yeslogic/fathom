@@ -46,7 +46,7 @@ where
             let ((label, Embed(ann)), body) = scope.clone().unbind();
 
             let ann_value = parse(context, &ann, bytes)?;
-            let body = body.substs(&[(label.0.clone(), RcTerm::from(Term::from(&*ann_value)))]);
+            let body = body.substs(&[((label.0).0.clone(), RcTerm::from(Term::from(&*ann_value)))]);
             let body = normalize(context, &body)?;
             let body_value = parse(context, &body, bytes)?;
 
@@ -87,13 +87,10 @@ where
                 },
                 _ => Err(ParseError::InvalidType(ty.clone())),
             },
-            Neutral::App(Head::Var(Var::Bound(index, ref hint)), _) => {
-                Err(InternalError::UnsubstitutedDebruijnIndex {
-                    span: None,
-                    index,
-                    hint: hint.clone(),
-                }.into())
-            },
+            Neutral::App(Head::Var(ref var), _) => Err(InternalError::UnsubstitutedDebruijnIndex {
+                span: None,
+                var: var.clone(),
+            }.into()),
             Neutral::If(_, _, _, _) | Neutral::Proj(_, _, _) => {
                 Err(ParseError::InvalidType(ty.clone()))
             },
