@@ -7,11 +7,11 @@
 use codespan::ByteSpan;
 use moniker::{Binder, BoundPattern, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
 use num_traits::ToPrimitive;
-use std::rc::Rc;
 
 use syntax::context::Context;
 use syntax::core::{
-    Definition, Head, Literal, Module, Neutral, RcTerm, RcType, RcValue, Term, Type, Value,
+    Definition, Head, Literal, Module, Neutral, RcNeutral, RcTerm, RcType, RcValue, Term, Type,
+    Value,
 };
 use syntax::raw;
 use syntax::translation::Resugar;
@@ -107,12 +107,9 @@ pub fn normalize(context: &Context, term: &RcTerm) -> Result<RcValue, InternalEr
         Term::Pi(ref scope) => {
             let ((name, Embed(ann)), body) = scope.clone().unbind();
 
-            let ann = normalize(context, &ann)?;
-            let body = normalize(context, &body)?;
-
             Ok(RcValue::from(Value::Pi(Scope::new(
-                (name, Embed(ann)),
-                body,
+                (name, Embed(normalize(context, &ann)?)),
+                normalize(context, &body)?,
             ))))
         },
 
@@ -120,32 +117,27 @@ pub fn normalize(context: &Context, term: &RcTerm) -> Result<RcValue, InternalEr
         Term::Lam(ref scope) => {
             let ((name, Embed(ann)), body) = scope.clone().unbind();
 
-            let ann = normalize(context, &ann)?;
-            let body = normalize(context, &body)?;
-
             Ok(RcValue::from(Value::Lam(Scope::new(
-                (name, Embed(ann)),
-                body,
+                (name, Embed(normalize(context, &ann)?)),
+                normalize(context, &body)?,
             ))))
         },
 
         // E-APP
         Term::App(ref expr, ref arg) => {
-            let mut value_expr = normalize(context, expr)?;
-
-            match Rc::make_mut(&mut value_expr.inner) {
+            match *normalize(context, expr)?.inner {
                 Value::Lam(ref scope) => {
                     // FIXME: do a local unbind here
                     let ((Binder(free_var), Embed(_)), body) = scope.clone().unbind();
                     normalize(context, &body.substs(&[(free_var, arg.clone())]))
                 },
-                Value::Neutral(ref mut neutral) => {
+                Value::Neutral(ref neutral, ref spine) => {
                     let arg = normalize(context, arg)?;
+                    let mut spine = spine.clone();
 
-                    // Update the spine in place, if possible
-                    match *Rc::make_mut(&mut neutral.inner) {
-                        Neutral::App(Head::Var(Var::Free(ref free_var)), ref mut spine) => {
-                            spine.push(arg);
+                    match *neutral.inner {
+                        Neutral::Head(Head::Var(Var::Free(ref free_var))) => {
+                            spine.push_back(arg);
 
                             // Apply the arguments to primitive definitions if the number of
                             // arguments matches the arity of the primitive, all aof the arguments
@@ -159,12 +151,12 @@ pub fn normalize(context: &Context, term: &RcTerm) -> Result<RcValue, InternalEr
                                 }
                             }
                         },
-                        Neutral::App(_, ref mut spine)
-                        | Neutral::If(_, _, _, ref mut spine)
-                        | Neutral::Proj(_, _, ref mut spine) => spine.push(arg),
+                        Neutral::Head(_) | Neutral::If(_, _, _) | Neutral::Proj(_, _) => {
+                            spine.push_back(arg)
+                        },
                     }
 
-                    Ok(RcValue::from(Value::Neutral(neutral.clone())))
+                    Ok(RcValue::from(Value::Neutral(neutral.clone(), spine)))
                 },
                 _ => Err(InternalError::ArgumentAppliedToNonFunction),
             }
@@ -177,12 +169,14 @@ pub fn normalize(context: &Context, term: &RcTerm) -> Result<RcValue, InternalEr
             match *value_cond {
                 Value::Literal(Literal::Bool(true)) => normalize(context, if_true),
                 Value::Literal(Literal::Bool(false)) => normalize(context, if_false),
-                Value::Neutral(ref cond) => Ok(RcValue::from(Value::from(Neutral::If(
-                    cond.clone(),
-                    normalize(context, if_true)?,
-                    normalize(context, if_false)?,
-                    vec![],
-                )))),
+                Value::Neutral(ref cond, ref spine) => Ok(RcValue::from(Value::Neutral(
+                    RcNeutral::from(Neutral::If(
+                        cond.clone(),
+                        normalize(context, if_true)?,
+                        normalize(context, if_false)?,
+                    )),
+                    spine.clone(),
+                ))),
                 _ => Err(InternalError::ExpectedBoolExpr),
             }
         },
@@ -213,11 +207,10 @@ pub fn normalize(context: &Context, term: &RcTerm) -> Result<RcValue, InternalEr
 
         // E-PROJ
         Term::Proj(ref expr, ref label) => match *normalize(context, expr)? {
-            Value::Neutral(ref neutral) => Ok(RcValue::from(Value::from(Neutral::Proj(
-                neutral.clone(),
-                label.clone(),
-                vec![],
-            )))),
+            Value::Neutral(ref neutral, ref spine) => Ok(RcValue::from(Value::Neutral(
+                RcNeutral::from(Neutral::Proj(neutral.clone(), label.clone())),
+                spine.clone(),
+            ))),
             ref expr => match expr.lookup_record(label) {
                 Some(value) => Ok(value.clone()),
                 None => Err(InternalError::ProjectedOnNonExistentField {
@@ -236,8 +229,8 @@ pub fn normalize(context: &Context, term: &RcTerm) -> Result<RcValue, InternalEr
 }
 
 fn is_name(ty: &Type, name: &str) -> bool {
-    if let Value::Neutral(ref neutral) = *ty {
-        if let Neutral::App(Head::Var(Var::Free(ref n)), ref spine) = **neutral {
+    if let Value::Neutral(ref neutral, ref spine) = *ty {
+        if let Neutral::Head(Head::Var(Var::Free(ref n))) = **neutral {
             return FreeVar::user(name) == *n && spine.is_empty();
         }
     }
@@ -411,7 +404,9 @@ pub fn check(
         },
 
         (&raw::Term::Array(span, ref elems), ty) => match ty.free_app() {
-            Some((name, [ref len, ref elem_ty])) if *name == FreeVar::user("Array") => {
+            Some((name, spine)) if *name == FreeVar::user("Array") && spine.len() == 2 => {
+                let len = &spine[0];
+                let elem_ty = &spine[1];
                 if let Value::Literal(Literal::Int(ref len)) = **len {
                     if *len != elems.len().into() {
                         return Err(TypeError::ArrayLengthMismatch {
