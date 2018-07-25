@@ -100,7 +100,9 @@ where
                 span: None,
                 var: var.clone(),
             }.into()),
-            Neutral::If(_, _, _) | Neutral::Proj(_, _) => Err(ParseError::InvalidType(ty.clone())),
+            Neutral::If(_, _, _) | Neutral::Proj(_, _) | Neutral::Case(_, _) => {
+                Err(ParseError::InvalidType(ty.clone()))
+            },
         },
     }
 }

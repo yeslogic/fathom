@@ -54,6 +54,61 @@ impl fmt::Display for Literal {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, BoundPattern)]
+pub enum Pattern {
+    /// Patterns annotated with types
+    Ann(RcPattern, Embed<RcTerm>),
+    /// Patterns that bind variables
+    Binder(ByteSpan, Binder<String>),
+    /// Literal patterns
+    Literal(Literal),
+}
+
+impl Pattern {
+    /// Return the span of source code that this pattern originated from
+    pub fn span(&self) -> ByteSpan {
+        match *self {
+            Pattern::Ann(ref pattern, Embed(ref ty)) => pattern.span().to(ty.span()),
+            Pattern::Binder(span, _) => span,
+            Pattern::Literal(ref literal) => literal.span(),
+        }
+    }
+}
+
+impl fmt::Display for Pattern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.to_doc().group().render_fmt(pretty::FALLBACK_WIDTH, f)
+    }
+}
+
+/// Reference counted patterns
+#[derive(Debug, Clone, PartialEq, BoundPattern)]
+pub struct RcPattern {
+    pub inner: Rc<Pattern>,
+}
+
+impl From<Pattern> for RcPattern {
+    fn from(src: Pattern) -> RcPattern {
+        RcPattern {
+            inner: Rc::new(src),
+        }
+    }
+}
+
+impl ops::Deref for RcPattern {
+    type Target = Pattern;
+
+    fn deref(&self) -> &Pattern {
+        &self.inner
+    }
+}
+
+impl fmt::Display for RcPattern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.inner, f)
+    }
+}
+
 /// Terms, unchecked and with implicit syntax that needs to be elaborated
 ///
 /// For now the only implicit syntax we have is holes and lambdas that lack a
@@ -61,7 +116,7 @@ impl fmt::Display for Literal {
 #[derive(Debug, Clone, PartialEq, BoundTerm)]
 pub enum Term {
     /// A term annotated with a type
-    Ann(ByteSpan, RcTerm, RcTerm),
+    Ann(RcTerm, RcTerm),
     /// Universes
     Universe(ByteSpan, Level),
     /// Ranged integer types
@@ -90,6 +145,8 @@ pub enum Term {
     RecordEmpty(ByteSpan),
     /// Field projection
     Proj(ByteSpan, RcTerm, ByteSpan, Label<String>),
+    /// Case expressions
+    Case(ByteSpan, RcTerm, Vec<Scope<RcPattern, RcTerm>>),
     /// Array literals
     Array(ByteSpan, Vec<RcTerm>),
 }
@@ -97,8 +154,7 @@ pub enum Term {
 impl Term {
     pub fn span(&self) -> ByteSpan {
         match *self {
-            Term::Ann(span, _, _)
-            | Term::Universe(span, _)
+            Term::Universe(span, _)
             | Term::IntType(span, _, _)
             | Term::Hole(span)
             | Term::Var(span, _)
@@ -109,9 +165,11 @@ impl Term {
             | Term::RecordTypeEmpty(span)
             | Term::RecordEmpty(span)
             | Term::Proj(span, _, _, _)
+            | Term::Case(span, _, _)
             | Term::Array(span, _) => span,
             Term::Literal(ref literal) => literal.span(),
-            Term::App(ref fn_term, ref arg) => fn_term.span().to(arg.span()),
+            Term::Ann(ref expr, ref ty) => expr.span().to(ty.span()),
+            Term::App(ref head, ref arg) => head.span().to(arg.span()),
             Term::If(start, _, _, ref if_false) => ByteSpan::new(start, if_false.span().end()),
         }
     }

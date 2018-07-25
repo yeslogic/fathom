@@ -100,6 +100,48 @@ fn parens_if(should_wrap: bool, inner: concrete::Term) -> concrete::Term {
 //     "F64",
 // ];
 
+fn resugar_pattern(pattern: &core::Pattern, _prec: Prec) -> concrete::Pattern {
+    match *pattern {
+        core::Pattern::Ann(ref pattern, Embed(ref ty)) => concrete::Pattern::Ann(
+            Box::new(resugar_pattern(pattern, Prec::NO_WRAP)),
+            Box::new(resugar_term(ty, Prec::LAM)),
+        ),
+        // core::Pattern::Literal(ref literal) => concrete::Pattern::Literal(resugar_literal(lit)),
+        core::Pattern::Literal(ref literal) => {
+            use syntax::concrete::{Literal, Pattern};
+
+            let span = ByteSpan::default();
+
+            match *literal {
+                // FIXME: Draw these names from some environment?
+                core::Literal::Bool(true) => Pattern::Binder(span.start(), String::from("true")),
+                core::Literal::Bool(false) => Pattern::Binder(span.start(), String::from("false")),
+
+                core::Literal::String(ref value) => {
+                    Pattern::Literal(Literal::String(span, value.clone()))
+                },
+                core::Literal::Char(value) => Pattern::Literal(Literal::Char(span, value)),
+
+                core::Literal::Int(ref value) => {
+                    Pattern::Literal(Literal::Int(span, value.clone()))
+                },
+                core::Literal::F32(value) => {
+                    Pattern::Literal(Literal::Float(span, f64::from(value)))
+                },
+                core::Literal::F64(value) => Pattern::Literal(Literal::Float(span, value)),
+            }
+        },
+        core::Pattern::Binder(Binder(FreeVar::User(ref name))) => {
+            concrete::Pattern::Binder(ByteIndex::default(), name.to_string())
+        },
+        core::Pattern::Binder(Binder(ref name)) => {
+            // TODO: use name if it is present, and not used in the current scope
+            // TODO: otherwise create a pretty name
+            concrete::Pattern::Binder(ByteIndex::default(), name.to_string())
+        },
+    }
+}
+
 fn resugar_pi(
     scope: &Scope<(Binder<String>, Embed<core::RcTerm>), core::RcTerm>,
     prec: Prec,
@@ -320,10 +362,10 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
         },
         core::Term::Pi(ref scope) => resugar_pi(scope, prec),
         core::Term::Lam(ref scope) => resugar_lam(scope, prec),
-        core::Term::App(ref fn_term, ref arg) => parens_if(
+        core::Term::App(ref head, ref arg) => parens_if(
             Prec::APP < prec,
             concrete::Term::App(
-                Box::new(resugar_term(fn_term, Prec::NO_WRAP)),
+                Box::new(resugar_term(head, Prec::NO_WRAP)),
                 vec![resugar_term(arg, Prec::NO_WRAP)], // TODO
             ),
         ),
@@ -392,6 +434,20 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
             Box::new(resugar_term(expr, Prec::ATOMIC)),
             ByteIndex::default(),
             label.0.clone().to_string(),
+        ),
+        core::Term::Case(ref head, ref clauses) => concrete::Term::Case(
+            ByteSpan::default(),
+            Box::new(resugar_term(head, Prec::NO_WRAP)),
+            clauses
+                .iter()
+                .map(|scope| {
+                    let (pattern, term) = scope.clone().unbind();
+                    (
+                        resugar_pattern(&pattern, Prec::NO_WRAP),
+                        resugar_term(&term, Prec::NO_WRAP),
+                    )
+                })
+                .collect(),
         ),
         core::Term::Array(ref elems) => concrete::Term::Array(
             ByteSpan::default(),

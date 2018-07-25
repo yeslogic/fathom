@@ -2,7 +2,7 @@
 
 use codespan::ByteSpan;
 use codespan_reporting::{Diagnostic, Label};
-use moniker::{FreeVar, Var};
+use moniker::{Binder, FreeVar, Var};
 use num_bigint::BigInt;
 
 use syntax;
@@ -23,6 +23,8 @@ pub enum InternalError {
     ExpectedBoolExpr,
     #[fail(display = "Projected on non-existent field `{}`.", label)]
     ProjectedOnNonExistentField { label: syntax::Label<String> },
+    #[fail(display = "No patterns matched the given expression.")]
+    NoPatternsApplicable,
 }
 
 impl InternalError {
@@ -44,6 +46,9 @@ impl InternalError {
             InternalError::ProjectedOnNonExistentField { ref label } => {
                 Diagnostic::new_bug(format!("projected on non-existent field `{}`.", label))
             },
+            InternalError::NoPatternsApplicable => {
+                Diagnostic::new_bug("no patterns matched the given expression")
+            },
         }
     }
 }
@@ -53,7 +58,7 @@ impl InternalError {
 pub enum TypeError {
     #[fail(
         display = "Applied an argument to a non-function type `{}`",
-        found
+        found,
     )]
     ArgAppliedToNonFunction {
         fn_span: ByteSpan,
@@ -62,7 +67,7 @@ pub enum TypeError {
     },
     #[fail(
         display = "Type annotation needed for the function parameter `{}`",
-        name
+        name,
     )]
     FunctionParamNeedsAnnotation {
         param_span: ByteSpan,
@@ -70,9 +75,17 @@ pub enum TypeError {
         name: FreeVar<String>,
     },
     #[fail(
+        display = "Type annotation needed for the binder `{}`",
+        binder,
+    )]
+    BinderNeedsAnnotation {
+        span: ByteSpan,
+        binder: Binder<String>,
+    },
+    #[fail(
         display = "found a `{}`, but expected a type `{}`",
         found,
-        expected
+        expected,
     )]
     LiteralMismatch {
         literal_span: ByteSpan,
@@ -83,9 +96,11 @@ pub enum TypeError {
     AmbiguousIntLiteral { span: ByteSpan },
     #[fail(display = "Ambiguous floating point literal")]
     AmbiguousFloatLiteral { span: ByteSpan },
+    #[fail(display = "Empty case expressions need type annotations.")]
+    AmbiguousEmptyCase { span: ByteSpan },
     #[fail(
         display = "Unable to elaborate hole, expected: `{:?}`",
-        expected
+        expected,
     )]
     UnableToElaborateHole {
         span: ByteSpan,
@@ -94,7 +109,7 @@ pub enum TypeError {
     #[fail(
         display = "Type mismatch: found `{}` but `{}` was expected",
         found,
-        expected
+        expected,
     )]
     Mismatch {
         span: ByteSpan,
@@ -119,7 +134,7 @@ pub enum TypeError {
     #[fail(
         display = "Label mismatch: found label `{}` but `{}` was expected",
         found,
-        expected
+        expected,
     )]
     LabelMismatch {
         span: ByteSpan,
@@ -143,7 +158,7 @@ pub enum TypeError {
     #[fail(
         display = "The type `{}` does not contain a field named `{}`.",
         found,
-        expected_label
+        expected_label,
     )]
     NoFieldInType {
         label_span: ByteSpan,
@@ -179,6 +194,11 @@ impl TypeError {
                 Label::new_primary(param_span)
                     .with_message("the parameter that requires an annotation"),
             ),
+            TypeError::BinderNeedsAnnotation { span, ref binder } => Diagnostic::new_error(
+                format!("type annotation needed for the binder `{}`", binder),
+            ).with_label(
+                Label::new_primary(span).with_message("the binder that requires an annotation"),
+            ),
             TypeError::LiteralMismatch {
                 literal_span,
                 ref found,
@@ -198,12 +218,17 @@ impl TypeError {
             },
             TypeError::AmbiguousIntLiteral { span } => {
                 Diagnostic::new_error("ambiguous integer literal").with_label(
-                    Label::new_primary(span).with_message("type annotations needed here"),
+                    Label::new_primary(span).with_message("type annotation needed here"),
                 )
             },
             TypeError::AmbiguousFloatLiteral { span } => {
                 Diagnostic::new_error("ambiguous floating point literal").with_label(
-                    Label::new_primary(span).with_message("type annotations needed here"),
+                    Label::new_primary(span).with_message("type annotation needed here"),
+                )
+            },
+            TypeError::AmbiguousEmptyCase { span } => {
+                Diagnostic::new_error("empty case expressions need type annotations").with_label(
+                    Label::new_primary(span).with_message("type annotation needed here"),
                 )
             },
             TypeError::UnableToElaborateHole {
