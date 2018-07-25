@@ -36,13 +36,13 @@ pub fn check_module(raw_module: &raw::Module) -> Result<Module, TypeError> {
             let (term, ann) = match *raw_definition.ann.inner {
                 // We don't have a type annotation available to us! Instead we will
                 // attempt to infer it based on the body of the definition
-                raw::Term::Hole(_) => infer(&context, &raw_definition.term)?,
+                raw::Term::Hole(_) => infer_term(&context, &raw_definition.term)?,
                 // We have a type annotation! Elaborate it, then normalize it, then
                 // check that it matches the body of the definition
                 _ => {
-                    let (ann, _) = infer(&context, &raw_definition.ann)?;
+                    let (ann, _) = infer_term(&context, &raw_definition.ann)?;
                     let ann = normalize(&context, &ann)?;
-                    let term = check(&context, &raw_definition.term, &ann)?;
+                    let term = check_term(&context, &raw_definition.term, &ann)?;
                     (term, ann)
                 },
             };
@@ -302,44 +302,86 @@ pub fn is_subtype(ty1: &RcType, ty2: &RcType) -> bool {
     }
 }
 
-/// Type checking of terms
-pub fn check(
+/// Checks that a literal is compatible with the given type, returning the
+/// elaborated literal if successful
+fn check_literal(raw_literal: &raw::Literal, expected_ty: &RcType) -> Result<Literal, TypeError> {
+    fn is_name(ty: &RcType, name: &str) -> bool {
+        match ty.free_app() {
+            Some((free_var, spine)) => *free_var == FreeVar::user(name) && spine.is_empty(),
+            _ => false,
+        }
+    }
+
+    match (raw_literal, &*expected_ty.inner) {
+        (&raw::Literal::String(_, ref value), _) if is_name(expected_ty, "String") => {
+            return Ok(Literal::String(value.clone()));
+        },
+        (&raw::Literal::Char(_, value), _) if is_name(expected_ty, "Char") => {
+            return Ok(Literal::Char(value));
+        },
+
+        (&raw::Literal::Int(_, _), Value::IntType(_, _)) => {
+            // Fallthrough to subtyping! We'll be checking that `{= val} <: {min .. max}`
+        },
+        // FIXME: overflow?
+        (&raw::Literal::Int(_, ref value), _) if is_name(expected_ty, "F32") => {
+            return Ok(Literal::F32(value.to_f32().unwrap()));
+        },
+        (&raw::Literal::Int(_, ref value), _) if is_name(expected_ty, "F64") => {
+            return Ok(Literal::F64(value.to_f64().unwrap()));
+        },
+        (&raw::Literal::Float(_, value), _) if is_name(expected_ty, "F32") => {
+            return Ok(Literal::F32(value as f32));
+        },
+        (&raw::Literal::Float(_, value), _) if is_name(expected_ty, "F64") => {
+            return Ok(Literal::F64(value));
+        },
+
+        _ => {},
+    }
+
+    let (literal, inferred_ty) = infer_literal(raw_literal)?;
+    if is_subtype(&inferred_ty, expected_ty) {
+        Ok(literal)
+    } else {
+        Err(TypeError::LiteralMismatch {
+            literal_span: raw_literal.span(),
+            found: raw_literal.clone(),
+            expected: Box::new(expected_ty.resugar()),
+        })
+    }
+}
+
+/// Synthesize the type of a literal, returning the elaborated literal and the
+/// inferred type if successful
+fn infer_literal(raw_literal: &raw::Literal) -> Result<(Literal, RcType), TypeError> {
+    match *raw_literal {
+        raw::Literal::String(_, ref value) => Ok((
+            Literal::String(value.clone()),
+            RcValue::from(Value::from(Var::user("String"))),
+        )),
+        raw::Literal::Char(_, value) => Ok((
+            Literal::Char(value),
+            RcValue::from(Value::from(Var::user("Char"))),
+        )),
+        raw::Literal::Int(_, ref value) => Ok((Literal::Int(value.clone()), {
+            let value = RcValue::from(Value::Literal(Literal::Int(value.clone())));
+            RcValue::from(Value::IntType(Some(value.clone()), Some(value)))
+        })),
+        raw::Literal::Float(span, _) => Err(TypeError::AmbiguousFloatLiteral { span }),
+    }
+}
+
+/// Checks that a term is compatible with the given type, returning the
+/// elaborated term if successful
+pub fn check_term(
     context: &Context,
     raw_term: &raw::RcTerm,
     expected_ty: &RcType,
 ) -> Result<RcTerm, TypeError> {
     match (&*raw_term.inner, &*expected_ty.inner) {
-        (&raw::Term::Literal(_, raw::Literal::Int(_)), Value::IntType(_, _)) => {
-            // Fallthrough to subtyping! We'll be checking that `{= val} <: {min .. max}`
-        },
-        (&raw::Term::Literal(literal_span, ref raw_literal), ty) => {
-            let literal = match *raw_literal {
-                raw::Literal::String(ref val) if is_name(ty, "String") => {
-                    Literal::String(val.clone())
-                },
-                raw::Literal::Char(val) if is_name(ty, "Char") => Literal::Char(val),
-
-                // FIXME: overflow?
-                raw::Literal::Int(ref val) if is_name(ty, "F32") => {
-                    Literal::F32(val.to_f32().unwrap())
-                },
-                raw::Literal::Int(ref val) if is_name(ty, "F64") => {
-                    Literal::F64(val.to_f64().unwrap())
-                },
-                raw::Literal::Float(val) if is_name(ty, "F32") => {
-                    Literal::F32(val.to_f32().unwrap())
-                },
-                raw::Literal::Float(val) if is_name(ty, "F64") => Literal::F64(val),
-
-                _ => {
-                    return Err(TypeError::LiteralMismatch {
-                        literal_span,
-                        found: raw_literal.clone(),
-                        expected: Box::new(expected_ty.resugar()),
-                    });
-                },
-            };
-
+        (&raw::Term::Literal(ref raw_literal), _) => {
+            let literal = check_literal(raw_literal, expected_ty)?;
             return Ok(RcTerm::from(Term::Literal(literal)));
         },
 
@@ -351,7 +393,7 @@ pub fn check(
             // Elaborate the hole, if it exists
             if let raw::Term::Hole(_) = *lam_ann.inner {
                 let lam_ann = RcTerm::from(Term::from(&*pi_ann));
-                let lam_body = check(&context.claim(pi_name, pi_ann), &lam_body, &pi_body)?;
+                let lam_body = check_term(&context.claim(pi_name, pi_ann), &lam_body, &pi_body)?;
                 let lam_scope = Scope::new((lam_name, Embed(lam_ann)), lam_body);
 
                 return Ok(RcTerm::from(Term::Lam(lam_scope)));
@@ -370,9 +412,9 @@ pub fn check(
         // C-IF
         (&raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false), _) => {
             let bool_ty = RcValue::from(Value::from(Var::user("Bool")));
-            let cond = check(context, raw_cond, &bool_ty)?;
-            let if_true = check(context, raw_if_true, expected_ty)?;
-            let if_false = check(context, raw_if_false, expected_ty)?;
+            let cond = check_term(context, raw_cond, &bool_ty)?;
+            let if_true = check_term(context, raw_if_true, expected_ty)?;
+            let if_false = check_term(context, raw_if_false, expected_ty)?;
 
             return Ok(RcTerm::from(Term::If(cond, if_true, if_false)));
         },
@@ -383,12 +425,12 @@ pub fn check(
                 Scope::unbind2(scope.clone(), ty_scope.clone());
 
             if Label::pattern_eq(&label, &ty_label) {
-                let expr = check(context, &raw_expr, &ann)?;
+                let expr = check_term(context, &raw_expr, &ann)?;
                 let ty_body = normalize(
                     context,
                     &ty_body.substs(&[((label.0).0.clone(), expr.clone())]),
                 )?;
-                let body = check(context, &raw_body, &ty_body)?;
+                let body = check_term(context, &raw_body, &ty_body)?;
 
                 return Ok(RcTerm::from(Term::Record(Scope::new(
                     (label, Embed(expr)),
@@ -420,7 +462,7 @@ pub fn check(
                 return Ok(RcTerm::from(Term::Array(
                     elems
                         .iter()
-                        .map(|elem| check(context, elem, elem_ty))
+                        .map(|elem| check_term(context, elem, elem_ty))
                         .collect::<Result<_, _>>()?,
                 )));
             },
@@ -436,7 +478,7 @@ pub fn check(
     }
 
     // C-CONV
-    let (term, inferred_ty) = infer(context, raw_term)?;
+    let (term, inferred_ty) = infer_term(context, raw_term)?;
     if is_subtype(&inferred_ty, expected_ty) {
         Ok(term)
     } else {
@@ -448,8 +490,12 @@ pub fn check(
     }
 }
 
-/// Type inference of terms
-pub fn infer(context: &Context, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcType), TypeError> {
+/// Synthesize the type of a term, returning the elaborated term and the
+/// inferred type if successful
+pub fn infer_term(
+    context: &Context,
+    raw_term: &raw::RcTerm,
+) -> Result<(RcTerm, RcType), TypeError> {
     use std::cmp;
 
     /// Ensures that the given term is a universe, returning the level of that
@@ -458,7 +504,7 @@ pub fn infer(context: &Context, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcTyp
         context: &Context,
         raw_term: &raw::RcTerm,
     ) -> Result<(RcTerm, Level), TypeError> {
-        let (term, ty) = infer(context, raw_term)?;
+        let (term, ty) = infer_term(context, raw_term)?;
         match *ty {
             Value::Universe(level) => Ok((term, level)),
             _ => Err(TypeError::ExpectedUniverse {
@@ -473,7 +519,7 @@ pub fn infer(context: &Context, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcTyp
         raw::Term::Ann(_, ref raw_expr, ref raw_ty) => {
             let (ty, _) = infer_universe(context, raw_ty)?;
             let value_ty = normalize(context, &ty)?;
-            let expr = check(context, raw_expr, &value_ty)?;
+            let expr = check_term(context, raw_expr, &value_ty)?;
 
             Ok((RcTerm::from(Term::Ann(expr, ty)), value_ty))
         },
@@ -492,20 +538,18 @@ pub fn infer(context: &Context, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcTyp
         raw::Term::IntType(_, ref min, ref max) => {
             let min = match *min {
                 None => None,
-                Some(ref min) => Some(check(
-                    context,
-                    min,
-                    &RcValue::from(Value::IntType(None, None)),
-                )?),
+                Some(ref min) => {
+                    let any_int = RcValue::from(Value::IntType(None, None));
+                    Some(check_term(context, min, &any_int)?)
+                },
             };
 
             let max = match *max {
                 None => None,
-                Some(ref max) => Some(check(
-                    context,
-                    max,
-                    &RcValue::from(Value::IntType(None, None)),
-                )?),
+                Some(ref max) => {
+                    let any_int = RcValue::from(Value::IntType(None, None));
+                    Some(check_term(context, max, &any_int)?)
+                },
             };
 
             Ok((
@@ -514,22 +558,9 @@ pub fn infer(context: &Context, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcTyp
             ))
         },
 
-        raw::Term::Literal(span, ref raw_literal) => match *raw_literal {
-            raw::Literal::String(ref value) => Ok((
-                RcTerm::from(Term::Literal(Literal::String(value.clone()))),
-                RcValue::from(Value::from(Var::user("String"))),
-            )),
-            raw::Literal::Char(value) => Ok((
-                RcTerm::from(Term::Literal(Literal::Char(value))),
-                RcValue::from(Value::from(Var::user("Char"))),
-            )),
-            raw::Literal::Int(ref value) => {
-                Ok((RcTerm::from(Term::Literal(Literal::Int(value.clone()))), {
-                    let value = RcValue::from(Value::Literal(Literal::Int(value.clone())));
-                    RcValue::from(Value::IntType(Some(value.clone()), Some(value)))
-                }))
-            },
-            raw::Literal::Float(_) => Err(TypeError::AmbiguousFloatLiteral { span }),
+        raw::Term::Literal(ref raw_literal) => {
+            let (literal, ty) = infer_literal(raw_literal)?;
+            Ok((RcTerm::from(Term::Literal(literal)), ty))
         },
 
         // I-VAR
@@ -583,7 +614,7 @@ pub fn infer(context: &Context, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcTyp
             let (lam_ann, _) = infer_universe(context, &raw_ann)?;
             let pi_ann = normalize(context, &lam_ann)?;
             let (lam_body, pi_body) =
-                infer(&context.claim(name.clone(), pi_ann.clone()), &raw_body)?;
+                infer_term(&context.claim(name.clone(), pi_ann.clone()), &raw_body)?;
 
             let lam_param = (Binder(name.clone()), Embed(lam_ann));
             let pi_param = (Binder(name.clone()), Embed(pi_ann));
@@ -597,22 +628,22 @@ pub fn infer(context: &Context, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcTyp
         // I-IF
         raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false) => {
             let bool_ty = RcValue::from(Value::from(Var::user("Bool")));
-            let cond = check(context, raw_cond, &bool_ty)?;
-            let (if_true, ty) = infer(context, raw_if_true)?;
-            let if_false = check(context, raw_if_false, &ty)?;
+            let cond = check_term(context, raw_cond, &bool_ty)?;
+            let (if_true, ty) = infer_term(context, raw_if_true)?;
+            let if_false = check_term(context, raw_if_false, &ty)?;
 
             Ok((RcTerm::from(Term::If(cond, if_true, if_false)), ty))
         },
 
         // I-APP
         raw::Term::App(ref raw_expr, ref raw_arg) => {
-            let (expr, expr_ty) = infer(context, raw_expr)?;
+            let (expr, expr_ty) = infer_term(context, raw_expr)?;
 
             match *expr_ty {
                 Value::Pi(ref scope) => {
                     let ((Binder(free_var), Embed(ann)), body) = scope.clone().unbind();
 
-                    let arg = check(context, raw_arg, &ann)?;
+                    let arg = check_term(context, raw_arg, &ann)?;
                     let body = normalize(context, &body.substs(&[(free_var, arg.clone())]))?;
 
                     Ok((RcTerm::from(Term::App(expr, arg)), body))
@@ -663,7 +694,7 @@ pub fn infer(context: &Context, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcTyp
 
         // I-PROJ
         raw::Term::Proj(_, ref expr, label_span, ref label) => {
-            let (expr, ty) = infer(context, expr)?;
+            let (expr, ty) = infer_term(context, expr)?;
 
             match ty.lookup_record_ty(label) {
                 Some(field_ty) => {

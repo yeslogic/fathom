@@ -3,7 +3,7 @@ use codespan::{ByteIndex, ByteSpan};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 
-use syntax::concrete::{Declaration, Exposing, LamParams, Module, Term, ReplCommand};
+use syntax::concrete::{Declaration, Exposing, LamParams, Literal, Module, Term, ReplCommand};
 use syntax::parse::{LalrpopError, ParseError, Token};
 
 #[LALR]
@@ -128,7 +128,14 @@ Exposing : Exposing = {
 };
 
 ExposedIdent : ((ByteIndex, String), Option<(ByteIndex, String)>) = {
-    <IndexedIdent> <("as" <IndexedIdent>)?>
+    <IndexedIdent> <("as" <IndexedIdent>)?>,
+};
+
+Literal: Literal = {
+    <start: @L> <value: "string literal"> <end: @R> => Literal::String(ByteSpan::new(start, end), value),
+    <start: @L> <value: "character literal"> <end: @R> => Literal::Char(ByteSpan::new(start, end), value),
+    <start: @L> <value: "decimal literal"> <end: @R> => Literal::Int(ByteSpan::new(start, end), value),
+    <start: @L> <value: "float literal"> <end: @R> => Literal::Float(ByteSpan::new(start, end), value),
 };
 
 pub Term: Term = {
@@ -177,7 +184,7 @@ PiTerm: Term = {
 AppTerm: Term = {
     AtomicTerm,
     <f: AtomicTerm> <args: AtomicTerm+> =>? {
-        if let (&Term::Universe(s1, None), &Term::Int(s2, ref value)) = (&f, &args[0]) {
+        if let (&Term::Universe(s1, None), &Term::Literal(Literal::Int(s2, ref value))) = (&f, &args[0]) {
             return match value.to_u32() {
                 Some(value) => Ok(Term::Universe(s1.to(s2), Some(value))),
                 None => Err(LalrpopError::User {
@@ -202,10 +209,7 @@ AtomicTerm: Term = {
     <start: @L> "{" "=" <value: Term> "}" <end: @R> => {
         Term::IntTypeSingleton(ByteSpan::new(start, end), Box::new(value))
     },
-    <start: @L> <value: "string literal"> <end: @R> => Term::String(ByteSpan::new(start, end), value),
-    <start: @L> <value: "character literal"> <end: @R> => Term::Char(ByteSpan::new(start, end), value),
-    <start: @L> <value: "decimal literal"> <end: @R> => Term::Int(ByteSpan::new(start, end), value),
-    <start: @L> <value: "float literal"> <end: @R> => Term::Float(ByteSpan::new(start, end), value),
+    <literal: Literal> => Term::Literal(literal),
     <start: @L> "[" <elems: (<Term> ",")*> <last: Term?> "]" <end: @R> => {
         let mut elems = elems;
         elems.extend(last);

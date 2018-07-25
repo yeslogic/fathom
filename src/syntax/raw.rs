@@ -31,10 +31,21 @@ pub struct Definition {
 /// Literals
 #[derive(Debug, Clone, PartialEq, PartialOrd, BoundTerm, BoundPattern)]
 pub enum Literal {
-    String(String),
-    Char(char),
-    Int(BigInt),
-    Float(f64),
+    String(ByteSpan, String),
+    Char(ByteSpan, char),
+    Int(ByteSpan, BigInt),
+    Float(ByteSpan, f64),
+}
+
+impl Literal {
+    pub fn span(&self) -> ByteSpan {
+        match *self {
+            Literal::String(span, _)
+            | Literal::Char(span, _)
+            | Literal::Int(span, _)
+            | Literal::Float(span, _) => span,
+        }
+    }
 }
 
 impl fmt::Display for Literal {
@@ -56,7 +67,7 @@ pub enum Term {
     /// Ranged integer types
     IntType(ByteSpan, Option<RcTerm>, Option<RcTerm>),
     /// Literals
-    Literal(ByteSpan, Literal),
+    Literal(Literal),
     /// A hole
     Hole(ByteSpan),
     /// A variable
@@ -90,7 +101,6 @@ impl Term {
             | Term::Universe(span, _)
             | Term::IntType(span, _, _)
             | Term::Hole(span)
-            | Term::Literal(span, _)
             | Term::Var(span, _)
             | Term::Pi(span, _)
             | Term::Lam(span, _)
@@ -100,6 +110,7 @@ impl Term {
             | Term::RecordEmpty(span)
             | Term::Proj(span, _, _, _)
             | Term::Array(span, _) => span,
+            Term::Literal(ref literal) => literal.span(),
             Term::App(ref fn_term, ref arg) => fn_term.span().to(arg.span()),
             Term::If(start, _, _, ref if_false) => ByteSpan::new(start, if_false.span().end()),
         }

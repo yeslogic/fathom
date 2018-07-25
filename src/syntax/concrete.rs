@@ -198,6 +198,31 @@ impl fmt::Display for Exposing {
     }
 }
 
+/// Literals
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal {
+    /// String literals
+    String(ByteSpan, String),
+    /// Character literals
+    Char(ByteSpan, char),
+    /// Integer literals
+    Int(ByteSpan, BigInt),
+    /// Floating point literals
+    Float(ByteSpan, f64),
+}
+
+impl Literal {
+    /// Return the span of source code that the literal originated from
+    pub fn span(&self) -> ByteSpan {
+        match *self {
+            Literal::String(span, _)
+            | Literal::Char(span, _)
+            | Literal::Int(span, _)
+            | Literal::Float(span, _) => span,
+        }
+    }
+}
+
 /// Terms
 #[derive(Debug, Clone, PartialEq)]
 pub enum Term {
@@ -235,14 +260,8 @@ pub enum Term {
     /// {= 10}
     /// ```
     IntTypeSingleton(ByteSpan, Box<Term>),
-    /// String literals
-    String(ByteSpan, String),
-    /// Character literals
-    Char(ByteSpan, char),
-    /// Integer literals
-    Int(ByteSpan, BigInt),
-    /// Floating point literals
-    Float(ByteSpan, f64),
+    /// Literals
+    Literal(Literal),
     /// Array literals
     Array(ByteSpan, Vec<Term>),
     /// Holes
@@ -334,16 +353,13 @@ impl Term {
             | Term::Universe(span, _)
             | Term::IntTypeSingleton(span, _)
             | Term::IntType(span, _, _)
-            | Term::String(span, _)
-            | Term::Char(span, _)
-            | Term::Int(span, _)
-            | Term::Float(span, _)
             | Term::Array(span, _)
             | Term::Hole(span)
             | Term::RecordType(span, _)
             | Term::Record(span, _)
             | Term::Error(span) => span,
             Term::Var(start, ref name) => ByteSpan::from_offset(start, ByteOffset::from_str(name)),
+            Term::Literal(ref literal) => literal.span(),
             Term::Pi(start, _, ref body)
             | Term::Lam(start, _, ref body)
             | Term::Let(start, _, ref body)

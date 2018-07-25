@@ -100,24 +100,6 @@ fn parens_if(should_wrap: bool, inner: concrete::Term) -> concrete::Term {
 //     "F64",
 // ];
 
-fn resugar_literal(constant: &core::Literal) -> concrete::Term {
-    let span = ByteSpan::default();
-
-    match *constant {
-        // FIXME: Draw these names from some environment?
-        core::Literal::Bool(true) => concrete::Term::Var(span.start(), String::from("true")),
-        core::Literal::Bool(false) => concrete::Term::Var(span.start(), String::from("false")),
-
-        core::Literal::String(ref value) => concrete::Term::String(span, value.clone()),
-        core::Literal::Char(value) => concrete::Term::Char(span, value),
-
-        core::Literal::Int(ref value) => concrete::Term::Int(span, value.clone()),
-
-        core::Literal::F32(value) => concrete::Term::Float(span, f64::from(value)),
-        core::Literal::F64(value) => concrete::Term::Float(span, value),
-    }
-}
-
 fn resugar_pi(
     scope: &Scope<(Binder<String>, Embed<core::RcTerm>), core::RcTerm>,
     prec: Prec,
@@ -304,7 +286,25 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
             let max = max.as_ref().map(|x| resugar_term(&**x, Prec::NO_WRAP));
             concrete::Term::IntType(ByteSpan::default(), min.map(Box::new), max.map(Box::new))
         },
-        core::Term::Literal(ref lit) => resugar_literal(lit),
+        core::Term::Literal(ref literal) => {
+            use syntax::concrete::{Literal, Term};
+
+            let span = ByteSpan::default();
+
+            match *literal {
+                // FIXME: Draw these names from some environment?
+                core::Literal::Bool(true) => Term::Var(span.start(), String::from("true")),
+                core::Literal::Bool(false) => Term::Var(span.start(), String::from("false")),
+
+                core::Literal::String(ref value) => {
+                    Term::Literal(Literal::String(span, value.clone()))
+                },
+                core::Literal::Char(value) => Term::Literal(Literal::Char(span, value)),
+                core::Literal::Int(ref value) => Term::Literal(Literal::Int(span, value.clone())),
+                core::Literal::F32(value) => Term::Literal(Literal::Float(span, f64::from(value))),
+                core::Literal::F64(value) => Term::Literal(Literal::Float(span, value)),
+            }
+        },
         core::Term::Var(Var::Free(FreeVar::User(ref name))) => {
             concrete::Term::Var(ByteIndex::default(), name.to_string())
         },
@@ -388,6 +388,11 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
             concrete::Term::Record(ByteSpan::default(), fields)
         },
         core::Term::RecordEmpty => concrete::Term::Record(ByteSpan::default(), vec![]),
+        core::Term::Proj(ref expr, ref label) => concrete::Term::Proj(
+            Box::new(resugar_term(expr, Prec::ATOMIC)),
+            ByteIndex::default(),
+            label.0.clone().to_string(),
+        ),
         core::Term::Array(ref elems) => concrete::Term::Array(
             ByteSpan::default(),
             elems
@@ -395,17 +400,6 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
                 .map(|elem| resugar_term(elem, Prec::NO_WRAP))
                 .collect(),
         ),
-        core::Term::Proj(ref expr, ref label) => concrete::Term::Proj(
-            Box::new(resugar_term(expr, Prec::ATOMIC)),
-            ByteIndex::default(),
-            label.0.clone().to_string(),
-        ),
-    }
-}
-
-impl Resugar<concrete::Term> for core::Literal {
-    fn resugar(&self) -> concrete::Term {
-        resugar_literal(self)
     }
 }
 
