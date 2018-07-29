@@ -43,15 +43,15 @@ where
         | Value::RecordEmpty
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
         Value::RecordType(ref scope) => {
-            let ((label, Embed(ann)), body) = scope.clone().unbind();
+            let ((label, binder, Embed(ann)), body) = scope.clone().unbind();
 
             let ann_value = parse(context, &ann, bytes)?;
-            let body = body.substs(&[((label.0).0.clone(), RcTerm::from(Term::from(&*ann_value)))]);
+            let body = body.substs(&[(binder.0.clone(), RcTerm::from(Term::from(&*ann_value)))]);
             let body = normalize(context, &body)?;
             let body_value = parse(context, &body, bytes)?;
 
             Ok(RcValue::from(Value::Record(Scope::new(
-                (label, Embed(ann_value)),
+                (label, binder, Embed(ann_value)),
                 body_value,
             ))))
         },

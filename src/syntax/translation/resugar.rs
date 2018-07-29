@@ -383,11 +383,11 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
             let mut scope = scope.clone();
 
             loop {
-                let ((label, Embed(expr)), body) = scope.unbind();
+                let ((label, _, Embed(expr)), body) = scope.unbind();
 
                 fields.push((
                     ByteIndex::default(),
-                    label.0.to_string(),
+                    label.clone(),
                     resugar_term(&expr, Prec::NO_WRAP),
                 ));
 
@@ -406,7 +406,7 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
             let mut scope = scope.clone();
 
             loop {
-                let ((label, Embed(expr)), body) = scope.unbind();
+                let ((label, _, Embed(expr)), body) = scope.unbind();
                 let (expr_params, expr_body) = match resugar_term(&expr, Prec::NO_WRAP) {
                     concrete::Term::Lam(_, params, expr_body) => (params, *expr_body),
                     expr_body => (vec![], expr_body),
@@ -414,7 +414,7 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
 
                 fields.push((
                     ByteIndex::default(),
-                    label.0.to_string(),
+                    label.clone(),
                     expr_params,
                     None,
                     expr_body,
