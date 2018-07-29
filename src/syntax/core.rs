@@ -114,6 +114,8 @@ pub enum Term {
     Var(Var<String>),
     /// An external definition
     Extern(String, RcTerm),
+    /// A global name
+    Global(String),
     /// Dependent function types
     Pi(Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Lambda abstractions
@@ -142,6 +144,10 @@ impl Term {
     pub fn universe(level: impl Into<Level>) -> Term {
         Term::Universe(level.into())
     }
+
+    pub fn global(name: impl Into<String>) -> Term {
+        Term::Global(name.into())
+    }
 }
 
 impl fmt::Display for Term {
@@ -166,7 +172,7 @@ impl RcTerm {
                 min.as_ref().map(|x| x.substs(mappings)),
                 max.as_ref().map(|x| x.substs(mappings)),
             )),
-            Term::Universe(_) | Term::Literal(_) => self.clone(),
+            Term::Universe(_) | Term::Literal(_) | Term::Global(_) => self.clone(),
             Term::Var(ref var) => match mappings.iter().find(|&(ref name, _)| var == name) {
                 Some(&(_, ref term)) => term.clone(),
                 None => self.clone(),
@@ -221,8 +227,7 @@ impl RcTerm {
                     .map(|scope| Scope {
                         unsafe_pattern: scope.unsafe_pattern.clone(), // subst?
                         unsafe_body: scope.unsafe_body.substs(mappings),
-                    })
-                    .collect(),
+                    }).collect(),
             )),
             Term::Array(ref elems) => RcTerm::from(Term::Array(
                 elems.iter().map(|elem| elem.substs(mappings)).collect(),
@@ -289,6 +294,10 @@ impl Value {
         Value::Universe(level.into())
     }
 
+    pub fn global(name: impl Into<String>) -> Value {
+        Value::Neutral(RcNeutral::from(Neutral::global(name)), Spine::new())
+    }
+
     pub fn substs(&self, mappings: &[(FreeVar<String>, RcTerm)]) -> RcTerm {
         // FIXME: This seems quite wasteful!
         RcTerm::from(Term::from(self)).substs(mappings)
@@ -299,20 +308,6 @@ impl Value {
             Value::RecordType(ref scope) => Some(scope.clone()),
             _ => None,
         }
-    }
-
-    pub fn lookup_record_ty(&self, label: &str) -> Option<RcValue> {
-        let mut current_scope = self.record_ty();
-
-        while let Some(scope) = current_scope {
-            let ((current_label, _, Embed(value)), body) = scope.unbind();
-            if current_label == label {
-                return Some(value);
-            }
-            current_scope = body.record_ty();
-        }
-
-        None
     }
 
     pub fn record(&self) -> Option<Scope<(String, Binder<String>, Embed<RcValue>), RcValue>> {
@@ -388,13 +383,20 @@ impl Value {
         }
     }
 
-    pub fn free_app(&self) -> Option<(&FreeVar<String>, &Spine)> {
+    pub fn head_app(&self) -> Option<(&Head, &Spine)> {
         if let Value::Neutral(ref neutral, ref spine) = *self {
-            if let Neutral::Head(Head::Var(Var::Free(ref free_var))) = **neutral {
-                return Some((free_var, spine));
+            if let Neutral::Head(ref head) = **neutral {
+                return Some((head, spine));
             }
         }
         None
+    }
+
+    pub fn global_app(&self) -> Option<(&str, &Spine)> {
+        self.head_app().and_then(|(head, spine)| match head {
+            Head::Global(ref name) => Some((name.as_str(), spine)),
+            Head::Extern(_, _) | Head::Var(_) => None,
+        })
     }
 }
 
@@ -439,6 +441,8 @@ pub enum Head {
     Var(Var<String>),
     /// External definitions
     Extern(String, RcType),
+    /// A global name
+    Global(String),
     // TODO: Metavariables
 }
 
@@ -461,6 +465,12 @@ pub enum Neutral {
     Proj(RcNeutral, String),
     /// Case expressions
     Case(RcNeutral, Vec<Scope<RcPattern, RcValue>>),
+}
+
+impl Neutral {
+    pub fn global(name: impl Into<String>) -> Neutral {
+        Neutral::Head(Head::Global(name.into()))
+    }
 }
 
 impl fmt::Display for Neutral {
@@ -592,8 +602,7 @@ impl<'a> From<&'a Neutral> for Term {
                     .map(|clause| Scope {
                         unsafe_pattern: clause.unsafe_pattern.clone(),
                         unsafe_body: RcTerm::from(&*clause.unsafe_body),
-                    })
-                    .collect(),
+                    }).collect(),
             ),
         }
     }
@@ -610,6 +619,7 @@ impl<'a> From<&'a Head> for Term {
         match *src {
             Head::Var(ref var) => Term::Var(var.clone()),
             Head::Extern(ref name, ref ty) => Term::Extern(name.clone(), RcTerm::from(&**ty)),
+            Head::Global(ref name) => Term::Global(name.clone()),
         }
     }
 }

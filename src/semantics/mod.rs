@@ -37,7 +37,9 @@ pub use self::prim::{PrimEnv, PrimFn};
 #[derive(Clone, Debug)]
 pub struct TcEnv {
     /// Primitive definitions
-    pub prim_env: PrimEnv,
+    pub primitives: PrimEnv,
+    ///
+    pub globals: HashMap<&'static str, (Option<RcValue>, RcType)>,
     /// The type annotations of the binders we have passed over
     pub claims: HashMap<FreeVar<String>, RcType>,
     /// Any definitions we have passed over
@@ -46,82 +48,74 @@ pub struct TcEnv {
 
 impl Default for TcEnv {
     fn default() -> TcEnv {
-        use moniker::GenId;
         use num_bigint::BigInt;
 
-        fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> RcTerm {
-            RcTerm::from(Term::IntType(
-                min.map(|x| RcTerm::from(Term::Literal(Literal::Int(x.into())))),
-                max.map(|x| RcTerm::from(Term::Literal(Literal::Int(x.into())))),
+        fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> RcValue {
+            RcValue::from(Value::IntType(
+                min.map(|x| RcValue::from(Value::Literal(Literal::Int(x.into())))),
+                max.map(|x| RcValue::from(Value::Literal(Literal::Int(x.into())))),
             ))
         }
 
         let universe0 = RcValue::from(Value::universe(0));
-        let bool_ty = RcValue::from(Value::from(Var::Free(FreeVar::user("Bool"))));
+        let true_value = RcValue::from(Value::Literal(Literal::Bool(true)));
+        let false_value = RcValue::from(Value::Literal(Literal::Bool(false)));
+        let bool_ty = RcValue::from(Value::global("Bool"));
         let nat_ty = RcValue::from(Value::IntType(
             Some(RcValue::from(Value::Literal(Literal::Int(0.into())))),
             None,
         ));
-        let fresh_binder = || Binder(FreeVar::from(GenId::fresh()));
         let arrow = |params: Vec<RcType>, ret: RcType| {
             params.into_iter().rev().fold(ret, |body, ann| {
-                RcValue::from(Value::Pi(Scope::new((fresh_binder(), Embed(ann)), body)))
+                RcValue::from(Value::Pi(Scope::new(
+                    (Binder(FreeVar::fresh_unnamed()), Embed(ann)),
+                    body,
+                )))
             })
         };
 
         TcEnv {
-            prim_env: PrimEnv::default(),
-            claims: hashmap!{
-                FreeVar::user("Bool") => universe0.clone(),
-                FreeVar::user("true") => bool_ty.clone(),
-                FreeVar::user("false") => bool_ty.clone(),
-                FreeVar::user("String") => universe0.clone(),
-                FreeVar::user("Char") => universe0.clone(),
+            primitives: PrimEnv::default(),
+            globals: hashmap!{
+                "Bool" => (None, universe0.clone()),
+                "true" => (Some(true_value), bool_ty.clone()),
+                "false" => (Some(false_value), bool_ty.clone()),
+                "String" => (None, universe0.clone()),
+                "Char" => (None, universe0.clone()),
 
-                FreeVar::user("U8") => universe0.clone(),
-                FreeVar::user("U16") => universe0.clone(),
-                FreeVar::user("U32") => universe0.clone(),
-                FreeVar::user("U64") => universe0.clone(),
-                FreeVar::user("S8") => universe0.clone(),
-                FreeVar::user("S16") => universe0.clone(),
-                FreeVar::user("S32") => universe0.clone(),
-                FreeVar::user("S64") => universe0.clone(),
+                "U8" => (Some(int_ty(Some(u8::min_value()), Some(u8::max_value()))), universe0.clone()),
+                "U16" => (Some(int_ty(Some(u16::min_value()), Some(u16::max_value()))), universe0.clone()),
+                "U32" => (Some(int_ty(Some(u32::min_value()), Some(u32::max_value()))), universe0.clone()),
+                "U64" => (Some(int_ty(Some(u64::min_value()), Some(u64::max_value()))), universe0.clone()),
+                "S8" => (Some(int_ty(Some(i8::min_value()), Some(i8::max_value()))), universe0.clone()),
+                "S16" => (Some(int_ty(Some(i16::min_value()), Some(i16::max_value()))), universe0.clone()),
+                "S32" => (Some(int_ty(Some(i32::min_value()), Some(i32::max_value()))), universe0.clone()),
+                "S64" => (Some(int_ty(Some(i64::min_value()), Some(i64::max_value()))), universe0.clone()),
 
-                FreeVar::user("F32") => universe0.clone(),
-                FreeVar::user("F64") => universe0.clone(),
-                FreeVar::user("Array") => arrow(vec![nat_ty, universe0.clone()], universe0.clone()),
+                "F32" => (None, universe0.clone()),
+                "F64" => (None, universe0.clone()),
+                "Array" => (None, arrow(vec![nat_ty, universe0.clone()], universe0.clone())),
 
                 // TODO: Replace these with more general compute types
-                FreeVar::user("U16Le") => universe0.clone(),
-                FreeVar::user("U32Le") => universe0.clone(),
-                FreeVar::user("U64Le") => universe0.clone(),
-                FreeVar::user("S16Le") => universe0.clone(),
-                FreeVar::user("S32Le") => universe0.clone(),
-                FreeVar::user("S64Le") => universe0.clone(),
-                FreeVar::user("F32Le") => universe0.clone(),
-                FreeVar::user("F64Le") => universe0.clone(),
-                FreeVar::user("U16Be") => universe0.clone(),
-                FreeVar::user("U32Be") => universe0.clone(),
-                FreeVar::user("U64Be") => universe0.clone(),
-                FreeVar::user("S16Be") => universe0.clone(),
-                FreeVar::user("S32Be") => universe0.clone(),
-                FreeVar::user("S64Be") => universe0.clone(),
-                FreeVar::user("F32Be") => universe0.clone(),
-                FreeVar::user("F64Be") => universe0.clone(),
+                "U16Le" => (None, universe0.clone()),
+                "U32Le" => (None, universe0.clone()),
+                "U64Le" => (None, universe0.clone()),
+                "S16Le" => (None, universe0.clone()),
+                "S32Le" => (None, universe0.clone()),
+                "S64Le" => (None, universe0.clone()),
+                "F32Le" => (None, universe0.clone()),
+                "F64Le" => (None, universe0.clone()),
+                "U16Be" => (None, universe0.clone()),
+                "U32Be" => (None, universe0.clone()),
+                "U64Be" => (None, universe0.clone()),
+                "S16Be" => (None, universe0.clone()),
+                "S32Be" => (None, universe0.clone()),
+                "S64Be" => (None, universe0.clone()),
+                "F32Be" => (None, universe0.clone()),
+                "F64Be" => (None, universe0.clone()),
             },
-            definitions: hashmap!{
-                FreeVar::user("true") => RcTerm::from(Term::Literal(Literal::Bool(true))),
-                FreeVar::user("false") => RcTerm::from(Term::Literal(Literal::Bool(false))),
-
-                FreeVar::user("U8") => int_ty(Some(u8::min_value()), Some(u8::max_value())),
-                FreeVar::user("U16") => int_ty(Some(u16::min_value()), Some(u16::max_value())),
-                FreeVar::user("U32") => int_ty(Some(u32::min_value()), Some(u32::max_value())),
-                FreeVar::user("U64") => int_ty(Some(u64::min_value()), Some(u64::max_value())),
-                FreeVar::user("S8") => int_ty(Some(i8::min_value()), Some(i8::max_value())),
-                FreeVar::user("S16") => int_ty(Some(i16::min_value()), Some(i16::max_value())),
-                FreeVar::user("S32") => int_ty(Some(i32::min_value()), Some(i32::max_value())),
-                FreeVar::user("S64") => int_ty(Some(i64::min_value()), Some(i64::max_value())),
-            },
+            claims: hashmap!{},
+            definitions: hashmap!{},
         }
     }
 }
@@ -197,7 +191,7 @@ pub fn normalize(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError
             // We should always be substituting bound variables with fresh
             // variables when entering scopes using `unbind`, so if we've
             // encountered one here this is definitely a bug!
-            Var::Bound(_, _, _) => Err(InternalError::UnsubstitutedDebruijnIndex {
+            Var::Bound(_) => Err(InternalError::UnsubstitutedDebruijnIndex {
                 span: None,
                 var: var.clone(),
             }),
@@ -206,6 +200,11 @@ pub fn normalize(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError
         Term::Extern(ref name, ref ty) => Ok(RcValue::from(Value::from(Neutral::Head(
             Head::Extern(name.clone(), normalize(tc_env, ty)?),
         )))),
+
+        Term::Global(ref name) => match tc_env.globals.get(name.as_str()) {
+            Some(&(Some(ref value), _)) => Ok(value.clone()),
+            Some(&(None, _)) | None => Ok(RcValue::from(Value::global(name.clone()))),
+        },
 
         // E-PI
         Term::Pi(ref scope) => {
@@ -246,7 +245,7 @@ pub fn normalize(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError
                             // Apply the arguments to primitive definitions if the number of
                             // arguments matches the arity of the primitive, all aof the arguments
                             // are fully normalized
-                            if let Some(prim) = tc_env.prim_env.get(name) {
+                            if let Some(prim) = tc_env.primitives.get(name) {
                                 if prim.arity == spine.len() && spine.iter().all(|arg| arg.is_nf())
                                 {
                                     match (prim.interpretation)(spine) {
@@ -257,6 +256,7 @@ pub fn normalize(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError
                             }
                         },
                         Neutral::Head(Head::Var(_))
+                        | Neutral::Head(Head::Global(_))
                         | Neutral::If(_, _, _)
                         | Neutral::Proj(_, _)
                         | Neutral::Case(_, _) => spine.push_back(arg),
@@ -386,19 +386,19 @@ pub fn match_value(
     }
 }
 
-fn is_name(ty: &Type, name: &str) -> bool {
-    if let Value::Neutral(ref neutral, ref spine) = *ty {
-        if let Neutral::Head(Head::Var(Var::Free(ref n))) = **neutral {
-            return FreeVar::user(name) == *n && spine.is_empty();
-        }
-    }
-    false
-}
-
 /// Check that `ty1` is a subtype of `ty2`
 pub fn is_subtype(ty1: &RcType, ty2: &RcType) -> bool {
     use num_bigint::BigInt;
     use std::{i16, i32, i64, u16, u32, u64};
+
+    fn is_name(ty: &Type, name: &str) -> bool {
+        if let Value::Neutral(ref neutral, ref spine) = *ty {
+            if let Neutral::Head(Head::Global(ref n)) = **neutral {
+                return name == *n && spine.is_empty();
+            }
+        }
+        false
+    }
 
     fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> RcValue {
         RcValue::from(Value::IntType(
@@ -476,39 +476,27 @@ fn infer_universe(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, Lev
 /// Checks that a literal is compatible with the given type, returning the
 /// elaborated literal if successful
 fn check_literal(raw_literal: &raw::Literal, expected_ty: &RcType) -> Result<Literal, TypeError> {
-    fn is_name(ty: &RcType, name: &str) -> bool {
-        match ty.free_app() {
-            Some((free_var, spine)) => *free_var == FreeVar::user(name) && spine.is_empty(),
-            _ => false,
-        }
-    }
+    match expected_ty.global_app() {
+        Some((name, spine)) if spine.is_empty() => {
+            match (raw_literal, name) {
+                (&raw::Literal::String(_, ref val), "String") => {
+                    return Ok(Literal::String(val.clone()));
+                },
+                (&raw::Literal::Char(_, val), "Char") => return Ok(Literal::Char(val)),
+                // FIXME: overflow?
+                (&raw::Literal::Int(_, ref val), "F32") => {
+                    return Ok(Literal::F32(val.to_f32().unwrap()))
+                },
+                (&raw::Literal::Int(_, ref val), "F64") => {
+                    return Ok(Literal::F64(val.to_f64().unwrap()))
+                },
+                (&raw::Literal::Float(_, val), "F32") => return Ok(Literal::F32(val as f32)),
+                (&raw::Literal::Float(_, val), "F64") => return Ok(Literal::F64(val)),
 
-    match (raw_literal, &*expected_ty.inner) {
-        (&raw::Literal::String(_, ref value), _) if is_name(expected_ty, "String") => {
-            return Ok(Literal::String(value.clone()));
+                _ => {},
+            }
         },
-        (&raw::Literal::Char(_, value), _) if is_name(expected_ty, "Char") => {
-            return Ok(Literal::Char(value));
-        },
-
-        (&raw::Literal::Int(_, _), Value::IntType(_, _)) => {
-            // Fallthrough to subtyping! We'll be checking that `{= val} <: {min .. max}`
-        },
-        // FIXME: overflow?
-        (&raw::Literal::Int(_, ref value), _) if is_name(expected_ty, "F32") => {
-            return Ok(Literal::F32(value.to_f32().unwrap()));
-        },
-        (&raw::Literal::Int(_, ref value), _) if is_name(expected_ty, "F64") => {
-            return Ok(Literal::F64(value.to_f64().unwrap()));
-        },
-        (&raw::Literal::Float(_, value), _) if is_name(expected_ty, "F32") => {
-            return Ok(Literal::F32(value as f32));
-        },
-        (&raw::Literal::Float(_, value), _) if is_name(expected_ty, "F64") => {
-            return Ok(Literal::F64(value));
-        },
-
-        _ => {},
+        Some(_) | None => {},
     }
 
     let (literal, inferred_ty) = infer_literal(raw_literal)?;
@@ -529,12 +517,11 @@ fn infer_literal(raw_literal: &raw::Literal) -> Result<(Literal, RcType), TypeEr
     match *raw_literal {
         raw::Literal::String(_, ref value) => Ok((
             Literal::String(value.clone()),
-            RcValue::from(Value::from(Var::user("String"))),
+            RcValue::from(Value::global("String")),
         )),
-        raw::Literal::Char(_, value) => Ok((
-            Literal::Char(value),
-            RcValue::from(Value::from(Var::user("Char"))),
-        )),
+        raw::Literal::Char(_, value) => {
+            Ok((Literal::Char(value), RcValue::from(Value::global("Char"))))
+        },
         raw::Literal::Int(_, ref value) => Ok((Literal::Int(value.clone()), {
             let value = RcValue::from(Value::Literal(Literal::Int(value.clone())));
             RcValue::from(Value::IntType(Some(value.clone()), Some(value)))
@@ -648,7 +635,7 @@ pub fn check_term(
 
         // C-IF
         (&raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false), _) => {
-            let bool_ty = RcValue::from(Value::from(Var::user("Bool")));
+            let bool_ty = RcValue::from(Value::global("Bool"));
             let cond = check_term(tc_env, raw_cond, &bool_ty)?;
             let if_true = check_term(tc_env, raw_if_true, expected_ty)?;
             let if_false = check_term(tc_env, raw_if_false, expected_ty)?;
@@ -703,8 +690,8 @@ pub fn check_term(
             return Ok(RcTerm::from(Term::Case(head, clauses)));
         },
 
-        (&raw::Term::Array(span, ref elems), ty) => match ty.free_app() {
-            Some((name, spine)) if *name == FreeVar::user("Array") && spine.len() == 2 => {
+        (&raw::Term::Array(span, ref elems), ty) => match ty.global_app() {
+            Some(("Array", spine)) if spine.len() == 2 => {
                 let len = &spine[0];
                 let elem_ty = &spine[1];
                 if let Value::Literal(Literal::Int(ref len)) = **len {
@@ -803,25 +790,25 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
         },
 
         // I-VAR
-        raw::Term::Var(var_span, ref var) => match *var {
-            Var::Free(ref name) => match tc_env.claims.get(name) {
+        raw::Term::Var(span, ref var) => match *var {
+            Var::Free(ref free_var) => match tc_env.claims.get(free_var) {
                 Some(ty) => Ok((RcTerm::from(Term::Var(var.clone())), ty.clone())),
-                None => Err(TypeError::UndefinedName {
-                    var_span,
-                    name: name.clone(),
-                }),
+                None => Err(InternalError::UndefinedFreeVar {
+                    span,
+                    free_var: free_var.clone(),
+                }.into()),
             },
 
             // We should always be substituting bound variables with fresh
             // variables when entering scopes using `unbind`, so if we've
             // encountered one here this is definitely a bug!
-            Var::Bound(_, _, _) => Err(InternalError::UnsubstitutedDebruijnIndex {
+            Var::Bound(_) => Err(InternalError::UnsubstitutedDebruijnIndex {
                 span: Some(raw_term.span()),
                 var: var.clone(),
             }.into()),
         },
 
-        raw::Term::Extern(_, name_span, ref name, _) if tc_env.prim_env.get(name).is_none() => {
+        raw::Term::Extern(_, name_span, ref name, _) if tc_env.primitives.get(name).is_none() => {
             Err(TypeError::UndefinedExternName {
                 span: name_span,
                 name: name.clone(),
@@ -832,6 +819,14 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
             let (ty, _) = infer_universe(tc_env, raw_ty)?;
             let value_ty = normalize(tc_env, &ty)?;
             Ok((RcTerm::from(Term::Extern(name.clone(), ty)), value_ty))
+        },
+
+        raw::Term::Global(span, ref name) => match tc_env.globals.get(name.as_str()) {
+            Some((_, ref ty)) => Ok((RcTerm::from(Term::global(name.clone())), ty.clone())),
+            None => Err(TypeError::UndefinedName {
+                span,
+                name: name.clone(),
+            }),
         },
 
         // I-PI
@@ -884,7 +879,7 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
 
         // I-IF
         raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false) => {
-            let bool_ty = RcValue::from(Value::from(Var::user("Bool")));
+            let bool_ty = RcValue::from(Value::global("Bool"));
             let cond = check_term(tc_env, raw_cond, &bool_ty)?;
             let (if_true, ty) = infer_term(tc_env, raw_if_true)?;
             let if_false = check_term(tc_env, raw_if_false, &ty)?;
@@ -955,14 +950,29 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
         raw::Term::Proj(_, ref expr, label_span, ref label) => {
             let (expr, ty) = infer_term(tc_env, expr)?;
 
-            match ty.lookup_record_ty(label) {
-                Some(field_ty) => {
-                    let mappings = field_substs(&expr, &label, &ty);
-                    Ok((
-                        RcTerm::from(Term::Proj(expr, label.clone())),
-                        normalize(tc_env, &field_ty.substs(&mappings))?,
-                    ))
-                },
+            let mut mappings = vec![];
+            let mut current_scope = ty.record_ty();
+            let mut field_ty = None;
+
+            while let Some(scope) = current_scope {
+                let ((current_label, current_binder, Embed(current_field_ty)), body) =
+                    scope.unbind();
+
+                if current_label == *label {
+                    field_ty = Some(current_field_ty.substs(&mappings));
+                    break;
+                }
+
+                let proj = RcTerm::from(Term::Proj(expr.clone(), current_label));
+                mappings.push((current_binder.0, proj));
+                current_scope = body.record_ty();
+            }
+
+            match field_ty {
+                Some(field_ty) => Ok((
+                    RcTerm::from(Term::Proj(expr, label.clone())),
+                    normalize(tc_env, &field_ty)?,
+                )),
                 None => Err(TypeError::NoFieldInType {
                     label_span,
                     expected_label: label.clone(),
@@ -1012,24 +1022,4 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
 
         raw::Term::Array(span, _) => Err(TypeError::AmbiguousArrayLiteral { span }),
     }
-}
-
-fn field_substs(expr: &RcTerm, label: &str, ty: &RcType) -> Vec<(FreeVar<String>, RcTerm)> {
-    let mut substs = vec![];
-    let mut current_scope = ty.record_ty();
-
-    while let Some(scope) = current_scope {
-        let ((current_label, current_binder, Embed(_)), body) = scope.unbind();
-
-        if current_label == label {
-            break;
-        }
-
-        let proj = RcTerm::from(Term::Proj(expr.clone(), current_label));
-        substs.push((current_binder.0, proj));
-
-        current_scope = body.record_ty();
-    }
-
-    substs
 }
