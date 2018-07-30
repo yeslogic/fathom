@@ -1,11 +1,9 @@
 use moniker::{Embed, FreeVar, Scope, Var};
 use std::io;
 
-use syntax::context::Context;
 use syntax::core::{Head, Literal, Neutral, RcTerm, RcType, RcValue, Term, Value};
-use syntax::prim::PrimEnv;
 
-use super::{normalize, InternalError};
+use super::{normalize, InternalError, TcEnv};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -27,12 +25,7 @@ impl From<io::Error> for ParseError {
     }
 }
 
-pub fn parse<R>(
-    prim_env: &PrimEnv,
-    context: &Context,
-    ty: &RcType,
-    bytes: &mut R,
-) -> Result<RcValue, ParseError>
+pub fn parse<R>(tc_env: &TcEnv, ty: &RcType, bytes: &mut R) -> Result<RcValue, ParseError>
 where
     R: io::Read + io::Seek,
 {
@@ -51,10 +44,10 @@ where
         Value::RecordType(ref scope) => {
             let ((label, binder, Embed(ann)), body) = scope.clone().unbind();
 
-            let ann_value = parse(prim_env, context, &ann, bytes)?;
+            let ann_value = parse(tc_env, &ann, bytes)?;
             let body = body.substs(&[(binder.0.clone(), RcTerm::from(Term::from(&*ann_value)))]);
-            let body = normalize(prim_env, context, &body)?;
-            let body_value = parse(prim_env, context, &body, bytes)?;
+            let body = normalize(tc_env, &body)?;
+            let body_value = parse(tc_env, &body, bytes)?;
 
             Ok(RcValue::from(Value::Record(Scope::new(
                 (label, binder, Embed(ann_value)),
@@ -93,7 +86,7 @@ where
                     match **len {
                         Value::Literal(Literal::Int(ref len)) => Ok(RcValue::from(Value::Array(
                             (0..len.to_usize().unwrap()) // FIXME
-                                .map(|_| parse(prim_env, context, elem_ty, bytes))
+                                .map(|_| parse(tc_env, elem_ty, bytes))
                                 .collect::<Result<_, _>>()?,
                         ))),
                         _ => Err(ParseError::BadArrayIndex(len.clone())),

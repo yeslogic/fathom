@@ -73,6 +73,7 @@ impl fmt::Debug for PrimFn {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct PrimEnv {
     definitions: HashMap<String, PrimFn>,
 }

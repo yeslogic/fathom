@@ -3,14 +3,13 @@ use super::*;
 macro_rules! assert_subtype {
     ($sub_ty_src:expr, $super_ty_src:expr) => {{
         let mut codemap = CodeMap::new();
-        let prim_env = PrimEnv::default();
-        let context = Context::default();
+        let tc_env = TcEnv::default();
 
         let super_ty = $super_ty_src;
         let sub_ty = $sub_ty_src;
 
-        let super_ty = parse_normalize(&mut codemap, &prim_env, &context, &super_ty);
-        let sub_ty = parse_normalize(&mut codemap, &prim_env, &context, &sub_ty);
+        let super_ty = parse_normalize(&mut codemap, &tc_env, &super_ty);
+        let sub_ty = parse_normalize(&mut codemap, &tc_env, &sub_ty);
 
         assert!(
             is_subtype(&sub_ty, &super_ty),
@@ -24,14 +23,13 @@ macro_rules! assert_subtype {
 macro_rules! assert_not_subtype {
     ($sub_ty_src:expr, $super_ty_src:expr) => {{
         let mut codemap = CodeMap::new();
-        let prim_env = PrimEnv::default();
-        let context = Context::default();
+        let tc_env = TcEnv::default();
 
         let super_ty = $super_ty_src;
         let sub_ty = $sub_ty_src;
 
-        let super_ty = parse_normalize(&mut codemap, &prim_env, &context, &super_ty);
-        let sub_ty = parse_normalize(&mut codemap, &prim_env, &context, &sub_ty);
+        let super_ty = parse_normalize(&mut codemap, &tc_env, &super_ty);
+        let sub_ty = parse_normalize(&mut codemap, &tc_env, &sub_ty);
 
         assert!(
             !is_subtype(&sub_ty, &super_ty),
