@@ -127,6 +127,8 @@ pub enum Term {
     Hole(ByteSpan),
     /// A variable
     Var(ByteSpan, Var<String>),
+    /// An external definition
+    Extern(ByteSpan, ByteIndex, String, RcTerm),
     /// Dependent function types
     Pi(ByteSpan, Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Lambda abstractions
@@ -164,6 +166,7 @@ impl Term {
             | Term::IntType(span, _, _)
             | Term::Hole(span)
             | Term::Var(span, _)
+            | Term::Extern(span, _, _, _)
             | Term::Pi(span, _)
             | Term::Lam(span, _)
             | Term::RecordType(span, _)

@@ -3,6 +3,7 @@ use std::io;
 
 use syntax::context::Context;
 use syntax::core::{Head, Literal, Neutral, RcTerm, RcType, RcValue, Term, Value};
+use syntax::prim::PrimEnv;
 
 use super::{normalize, InternalError};
 
@@ -26,7 +27,12 @@ impl From<io::Error> for ParseError {
     }
 }
 
-pub fn parse<R>(context: &Context, ty: &RcType, bytes: &mut R) -> Result<RcValue, ParseError>
+pub fn parse<R>(
+    prim_env: &PrimEnv,
+    context: &Context,
+    ty: &RcType,
+    bytes: &mut R,
+) -> Result<RcValue, ParseError>
 where
     R: io::Read + io::Seek,
 {
@@ -45,10 +51,10 @@ where
         Value::RecordType(ref scope) => {
             let ((label, binder, Embed(ann)), body) = scope.clone().unbind();
 
-            let ann_value = parse(context, &ann, bytes)?;
+            let ann_value = parse(prim_env, context, &ann, bytes)?;
             let body = body.substs(&[(binder.0.clone(), RcTerm::from(Term::from(&*ann_value)))]);
-            let body = normalize(context, &body)?;
-            let body_value = parse(context, &body, bytes)?;
+            let body = normalize(prim_env, context, &body)?;
+            let body_value = parse(prim_env, context, &body, bytes)?;
 
             Ok(RcValue::from(Value::Record(Scope::new(
                 (label, binder, Embed(ann_value)),
@@ -87,7 +93,7 @@ where
                     match **len {
                         Value::Literal(Literal::Int(ref len)) => Ok(RcValue::from(Value::Array(
                             (0..len.to_usize().unwrap()) // FIXME
-                                .map(|_| parse(context, elem_ty, bytes))
+                                .map(|_| parse(prim_env, context, elem_ty, bytes))
                                 .collect::<Result<_, _>>()?,
                         ))),
                         _ => Err(ParseError::BadArrayIndex(len.clone())),
@@ -100,9 +106,10 @@ where
                 span: None,
                 var: var.clone(),
             }.into()),
-            Neutral::If(_, _, _) | Neutral::Proj(_, _) | Neutral::Case(_, _) => {
-                Err(ParseError::InvalidType(ty.clone()))
-            },
+            Neutral::Head(Head::Extern(_, _))
+            | Neutral::If(_, _, _)
+            | Neutral::Proj(_, _)
+            | Neutral::Case(_, _) => Err(ParseError::InvalidType(ty.clone())),
         },
     }
 }

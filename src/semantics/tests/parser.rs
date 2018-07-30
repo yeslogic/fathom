@@ -8,6 +8,7 @@ use super::*;
 #[test]
 fn test_silly_format() {
     let mut codemap = CodeMap::new();
+    let prim_env = PrimEnv::default();
     let context = Context::default();
 
     let given_format = r#"Record {
@@ -34,10 +35,10 @@ fn test_silly_format() {
         data : Array len U32,
     }"#;
 
-    let given_format = parse_normalize(&mut codemap, &context, given_format);
-    let expected_term = parse_normalize(&mut codemap, &context, expected_term);
+    let given_format = parse_normalize(&mut codemap, &prim_env, &context, given_format);
+    let expected_term = parse_normalize(&mut codemap, &prim_env, &context, expected_term);
 
-    let result_term = parser::parse(&context, &given_format, &mut given_bytes).unwrap();
+    let result_term = parser::parse(&prim_env, &context, &given_format, &mut given_bytes).unwrap();
 
     assert_term_eq!(result_term, expected_term);
 }

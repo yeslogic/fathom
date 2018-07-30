@@ -1,9 +1,9 @@
 //! Primitive operations
 
-use moniker::Var;
+use im::HashMap;
 use std::fmt;
 
-use syntax::core::{Literal, RcType, RcValue, Spine, Value};
+use syntax::core::{Literal, RcValue, Spine, Value};
 
 // Some helper traits for marshalling between Rust and Pikelet values
 //
@@ -15,10 +15,6 @@ trait IntoValue {
 
 trait TryFromValueRef {
     fn try_from_value_ref(src: &Value) -> Result<&Self, ()>;
-}
-
-trait HasType {
-    fn ty() -> RcType;
 }
 
 macro_rules! impl_into_value {
@@ -56,143 +52,124 @@ impl_try_from_value_ref!(bool, Bool);
 impl_try_from_value_ref!(f32, F32);
 impl_try_from_value_ref!(f64, F64);
 
-macro_rules! impl_has_ty {
-    ($T:ty, $ty_name:expr) => {
-        impl HasType for $T {
-            fn ty() -> RcType {
-                RcValue::from(Value::from(Var::user($ty_name)))
-            }
-        }
-    };
-}
-
-impl_has_ty!(String, "String");
-impl_has_ty!(char, "Char");
-impl_has_ty!(bool, "Bool");
-impl_has_ty!(f32, "F32");
-impl_has_ty!(f64, "F64");
-
 // TODO: Return a `Result` with better errors
 pub type NormFn = fn(Spine) -> Result<RcValue, ()>;
 
 /// Primitive functions
 #[derive(Clone)]
 pub struct PrimFn {
-    /// A name to be used when translating the primitive to the target language
-    /// during compilation
-    pub name: String,
     /// The number of arguments to pass to the primitive during normalization
     pub arity: usize,
-    /// The type of the primitive
-    pub ann: RcType,
     /// The primitive definition to be used during normalization
-    pub fun: NormFn,
+    pub interpretation: NormFn,
 }
 
 impl fmt::Debug for PrimFn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("PrimFn")
-            .field("name", &self.name)
             .field("arity", &self.arity)
-            .field("ann", &self.ann)
-            .field("fun", &"|params| { .. }")
+            .field("interpretation", &"|params| { .. }")
             .finish()
     }
 }
 
-/// Boilerplate macro for counting the number of supplied token trees
-macro_rules! count {
-    () => (0_usize);
-    ( $x:tt $($xs:tt)* ) => (1_usize + count!($($xs)*));
+pub struct PrimEnv {
+    definitions: HashMap<String, PrimFn>,
 }
 
-/// Define a primitive function
-macro_rules! def_prim {
-    ($id:ident, $name:expr,fn($($param_name:ident : $PType:ty),*) -> $RType:ty $body:block) => {
-        pub fn $id() -> PrimFn {
-            use moniker::{Embed, Binder, Scope};
+impl PrimEnv {
+    pub fn get(&self, name: &str) -> Option<&PrimFn> {
+        self.definitions.get(name)
+    }
+}
 
-            fn fun(params: Spine) -> Result<RcValue, ()> {
-                if params.len() == count!($($param_name)*) {
-                    let mut arg_index = 0;
-                    $(
-                        arg_index += 1;
-                        let $param_name = <$PType>::try_from_value_ref(&params[arg_index - 1])?;
-                    )*
-                    Ok(<$RType>::into_value($body))
-                } else {
-                    Err(()) // TODO: Better errors
-                }
-            }
-
-            let name = $name.to_string();
-            let arity = count!($($param_name)*);
-            let mut ann = <$RType>::ty();
-            $(ann = RcValue::from(Value::Pi(Scope::new(
-                (Binder::user(stringify!($param_name)), Embed(<$PType>::ty())),
-                ann
-            )));)+
-
-            PrimFn { name, arity, ann, fun }
+impl Default for PrimEnv {
+    fn default() -> PrimEnv {
+        /// Boilerplate macro for counting the number of supplied token trees
+        macro_rules! count {
+            () => (0_usize);
+            ( $x:tt $($xs:tt)* ) => (1_usize + count!($($xs)*));
         }
-    };
+
+        /// Define a primitive function
+        macro_rules! prim {
+            (fn($($param_name:ident : $PType:ty),*) -> $RType:ty $body:block) => {{
+                fn interpretation(params: Spine) -> Result<RcValue, ()> {
+                    if params.len() == count!($($param_name)*) {
+                        let mut arg_index = 0;
+                        $(
+                            arg_index += 1;
+                            let $param_name = <$PType>::try_from_value_ref(&params[arg_index - 1])?;
+                        )*
+                        Ok(<$RType>::into_value($body))
+                    } else {
+                        Err(()) // TODO: Better errors
+                    }
+                }
+
+                PrimFn {
+                    arity: count!($($param_name)*),
+                    interpretation,
+                }
+            }};
+        }
+
+        let definitions = hashmap!{
+            "string-eq".to_string() => prim!(fn(x: String, y: String) -> bool { x == y }),
+            "bool-eq".to_string() => prim!(fn(x: bool, y: bool) -> bool { x == y }),
+            "char-eq".to_string() => prim!(fn(x: char, y: char) -> bool { x == y }),
+            "f32-eq".to_string() => prim!(fn(x: f32, y: f32) -> bool { f32::eq(x, y) }),
+            "f64-eq".to_string() => prim!(fn(x: f64, y: f64) -> bool { f64::eq(x, y) }),
+
+            "string-ne".to_string() => prim!(fn(x: String, y: String) -> bool { x != y }),
+            "bool-ne".to_string() => prim!(fn(x: bool, y: bool) -> bool { x != y }),
+            "char-ne".to_string() => prim!(fn(x: char, y: char) -> bool { x != y }),
+            "f32-ne".to_string() => prim!(fn(x: f32, y: f32) -> bool { f32::ne(x, y) }),
+            "f64-ne".to_string() => prim!(fn(x: f64, y: f64) -> bool { f64::ne(x, y) }),
+
+            "string-le".to_string() => prim!(fn(x: String, y: String) -> bool { x <= y }),
+            "bool-le".to_string() => prim!(fn(x: bool, y: bool) -> bool { x <= y }),
+            "char-le".to_string() => prim!(fn(x: char, y: char) -> bool { x <= y }),
+            "f32-le".to_string() => prim!(fn(x: f32, y: f32) -> bool { x <= y }),
+            "f64-le".to_string() => prim!(fn(x: f64, y: f64) -> bool { x <= y }),
+
+            "string-lt".to_string() => prim!(fn(x: String, y: String) -> bool { x < y }),
+            "bool-lt".to_string() => prim!(fn(x: bool, y: bool) -> bool { x < y }),
+            "char-lt".to_string() => prim!(fn(x: char, y: char) -> bool { x < y }),
+            "f32-lt".to_string() => prim!(fn(x: f32, y: f32) -> bool { x < y }),
+            "f64-lt".to_string() => prim!(fn(x: f64, y: f64) -> bool { x < y }),
+
+            "string-gt".to_string() => prim!(fn(x: String, y: String) -> bool { x > y }),
+            "bool-gt".to_string() => prim!(fn(x: bool, y: bool) -> bool { x > y }),
+            "char-gt".to_string() => prim!(fn(x: char, y: char) -> bool { x > y }),
+            "f32-gt".to_string() => prim!(fn(x: f32, y: f32) -> bool { x > y }),
+            "f64-gt".to_string() => prim!(fn(x: f64, y: f64) -> bool { x > y }),
+
+            "string-ge".to_string() => prim!(fn(x: String, y: String) -> bool { x >= y }),
+            "bool-ge".to_string() => prim!(fn(x: bool, y: bool) -> bool { x >= y }),
+            "char-ge".to_string() => prim!(fn(x: char, y: char) -> bool { x >= y }),
+            "f32-ge".to_string() => prim!(fn(x: f32, y: f32) -> bool { x >= y }),
+            "f64-ge".to_string() => prim!(fn(x: f64, y: f64) -> bool { x >= y }),
+
+            "f32-add".to_string() => prim!(fn(x: f32, y: f32) -> f32 { x + y }),
+            "f64-add".to_string() => prim!(fn(x: f64, y: f64) -> f64 { x + y }),
+
+            "f32-sub".to_string() => prim!(fn(x: f32, y: f32) -> f32 { x - y }),
+            "f64-sub".to_string() => prim!(fn(x: f64, y: f64) -> f64 { x - y }),
+
+            "f32-mul".to_string() => prim!(fn(x: f32, y: f32) -> f32 { x * y }),
+            "f64-mul".to_string() => prim!(fn(x: f64, y: f64) -> f64 { x * y }),
+
+            "f32-div".to_string() => prim!(fn(x: f32, y: f32) -> f32 { x / y }),
+            "f64-div".to_string() => prim!(fn(x: f64, y: f64) -> f64 { x / y }),
+
+            "char-to-string".to_string() => prim!(fn(val: char) -> String { val.to_string() }),
+            "f32-to-string".to_string() => prim!(fn(val: f32) -> String { val.to_string() }),
+            "f64-to-string".to_string() => prim!(fn(val: f64) -> String { val.to_string() }),
+
+            "string-append".to_string() => prim!(fn(x: String, y: String) -> String { x.clone() + y }), // FIXME: Clone
+        };
+
+        PrimEnv { definitions }
+    }
 }
-
-// Primitive functions
-//
-// These are included in the default context, which can be created by via the
-// `Context::default` function.
-
-def_prim!(string_eq, "prim-string-eq", fn(x: String, y: String) -> bool { x == y });
-def_prim!(bool_eq, "prim-bool-eq", fn(x: bool, y: bool) -> bool { x == y });
-def_prim!(char_eq, "prim-char-eq", fn(x: char, y: char) -> bool { x == y });
-def_prim!(f32_eq, "prim-f32-eq", fn(x: f32, y: f32) -> bool { f32::eq(x, y) });
-def_prim!(f64_eq, "prim-f64-eq", fn(x: f64, y: f64) -> bool { f64::eq(x, y) });
-
-def_prim!(string_ne, "prim-string-ne", fn(x: String, y: String) -> bool { x != y });
-def_prim!(bool_ne, "prim-bool-ne", fn(x: bool, y: bool) -> bool { x != y });
-def_prim!(char_ne, "prim-char-ne", fn(x: char, y: char) -> bool { x != y });
-def_prim!(f32_ne, "prim-f32-ne", fn(x: f32, y: f32) -> bool { f32::ne(x, y) });
-def_prim!(f64_ne, "prim-f64-ne", fn(x: f64, y: f64) -> bool { f64::ne(x, y) });
-
-def_prim!(string_le, "prim-string-le", fn(x: String, y: String) -> bool { x <= y });
-def_prim!(bool_le, "prim-bool-le", fn(x: bool, y: bool) -> bool { x <= y });
-def_prim!(char_le, "prim-char-le", fn(x: char, y: char) -> bool { x <= y });
-def_prim!(f32_le, "prim-f32-le", fn(x: f32, y: f32) -> bool { x <= y });
-def_prim!(f64_le, "prim-f64-le", fn(x: f64, y: f64) -> bool { x <= y });
-
-def_prim!(string_lt, "prim-string-lt", fn(x: String, y: String) -> bool { x < y });
-def_prim!(bool_lt, "prim-bool-lt", fn(x: bool, y: bool) -> bool { x < y });
-def_prim!(char_lt, "prim-char-lt", fn(x: char, y: char) -> bool { x < y });
-def_prim!(f32_lt, "prim-f32-lt", fn(x: f32, y: f32) -> bool { x < y });
-def_prim!(f64_lt, "prim-f64-lt", fn(x: f64, y: f64) -> bool { x < y });
-
-def_prim!(string_gt, "prim-string-gt", fn(x: String, y: String) -> bool { x > y });
-def_prim!(bool_gt, "prim-bool-gt", fn(x: bool, y: bool) -> bool { x > y });
-def_prim!(char_gt, "prim-char-gt", fn(x: char, y: char) -> bool { x > y });
-def_prim!(f32_gt, "prim-f32-gt", fn(x: f32, y: f32) -> bool { x > y });
-def_prim!(f64_gt, "prim-f64-gt", fn(x: f64, y: f64) -> bool { x > y });
-
-def_prim!(string_ge, "prim-string-ge", fn(x: String, y: String) -> bool { x >= y });
-def_prim!(bool_ge, "prim-bool-ge", fn(x: bool, y: bool) -> bool { x >= y });
-def_prim!(char_ge, "prim-char-ge", fn(x: char, y: char) -> bool { x >= y });
-def_prim!(f32_ge, "prim-f32-ge", fn(x: f32, y: f32) -> bool { x >= y });
-def_prim!(f64_ge, "prim-f64-ge", fn(x: f64, y: f64) -> bool { x >= y });
-
-def_prim!(f32_add, "prim-f32-add", fn(x: f32, y: f32) -> f32 { x + y });
-def_prim!(f64_add, "prim-f64-add", fn(x: f64, y: f64) -> f64 { x + y });
-
-def_prim!(f32_sub, "prim-f32-sub", fn(x: f32, y: f32) -> f32 { x - y });
-def_prim!(f64_sub, "prim-f64-sub", fn(x: f64, y: f64) -> f64 { x - y });
-
-def_prim!(f32_mul, "prim-f32-mul", fn(x: f32, y: f32) -> f32 { x * y });
-def_prim!(f64_mul, "prim-f64-mul", fn(x: f64, y: f64) -> f64 { x * y });
-
-def_prim!(f32_div, "prim-f32-div", fn(x: f32, y: f32) -> f32 { x / y });
-def_prim!(f64_div, "prim-f64-div", fn(x: f64, y: f64) -> f64 { x / y });
-
-def_prim!(char_to_string, "prim-char-to-string", fn(val: char) -> String { val.to_string() });
-def_prim!(f32_to_string, "prim-f32-to-string", fn(val: f32) -> String { val.to_string() });
-def_prim!(f64_to_string, "prim-f64-to-string", fn(val: f64) -> String { val.to_string() });
-
-def_prim!(string_append, "prim-string-append", fn(x: String, y: String) -> String { x.clone() + y }); // FIXME: Clone
