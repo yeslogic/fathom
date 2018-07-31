@@ -56,10 +56,13 @@ impl Default for TcEnv {
             ))
         }
 
-        let universe0 = RcValue::from(Value::Universe(Level(0)));
+        let universe0 = RcValue::from(Value::universe(0));
+        let bool_ty = RcValue::from(Value::from(Var::Free(FreeVar::user("Bool"))));
+        let nat_ty = RcValue::from(Value::IntType(
+            Some(RcValue::from(Value::Literal(Literal::Int(0.into())))),
+            None,
+        ));
         let fresh_binder = || Binder(FreeVar::from(GenId::fresh()));
-        let free_val = |n| RcValue::from(Value::from(Var::Free(FreeVar::user(n))));
-        let bool_lit = |val| RcTerm::from(Term::Literal(Literal::Bool(val)));
         let arrow = |params: Vec<RcType>, ret: RcType| {
             params.into_iter().rev().fold(ret, |body, ann| {
                 RcValue::from(Value::Pi(Scope::new((fresh_binder(), Embed(ann)), body)))
@@ -70,8 +73,8 @@ impl Default for TcEnv {
             prim_env: PrimEnv::default(),
             claims: hashmap!{
                 FreeVar::user("Bool") => universe0.clone(),
-                FreeVar::user("true") => free_val("Bool"),
-                FreeVar::user("false") => free_val("Bool"),
+                FreeVar::user("true") => bool_ty.clone(),
+                FreeVar::user("false") => bool_ty.clone(),
                 FreeVar::user("String") => universe0.clone(),
                 FreeVar::user("Char") => universe0.clone(),
 
@@ -86,16 +89,7 @@ impl Default for TcEnv {
 
                 FreeVar::user("F32") => universe0.clone(),
                 FreeVar::user("F64") => universe0.clone(),
-                FreeVar::user("Array") => arrow(
-                    vec![
-                        RcValue::from(Value::IntType(
-                            Some(RcValue::from(Value::Literal(Literal::Int(0.into())))),
-                            None,
-                        )),
-                        universe0.clone(),
-                    ],
-                    universe0.clone(),
-                ),
+                FreeVar::user("Array") => arrow(vec![nat_ty, universe0.clone()], universe0.clone()),
 
                 // TODO: Replace these with more general compute types
                 FreeVar::user("U16Le") => universe0.clone(),
@@ -116,8 +110,8 @@ impl Default for TcEnv {
                 FreeVar::user("F64Be") => universe0.clone(),
             },
             definitions: hashmap!{
-                FreeVar::user("true") => bool_lit(true),
-                FreeVar::user("false") => bool_lit(false),
+                FreeVar::user("true") => RcTerm::from(Term::Literal(Literal::Bool(true))),
+                FreeVar::user("false") => RcTerm::from(Term::Literal(Literal::Bool(false))),
 
                 FreeVar::user("U8") => int_ty(Some(u8::min_value()), Some(u8::max_value())),
                 FreeVar::user("U16") => int_ty(Some(u16::min_value()), Some(u16::max_value())),
@@ -948,7 +942,7 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
         // I-EMPTY-RECORD-TYPE
         raw::Term::RecordTypeEmpty(_) => Ok((
             RcTerm::from(Term::RecordTypeEmpty),
-            RcValue::from(Value::Universe(Level(0))),
+            RcValue::from(Value::universe(0)),
         )),
 
         // I-EMPTY-RECORD
