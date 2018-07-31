@@ -13,17 +13,18 @@ use syntax::core::{
     Definition, Head, Literal, Module, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcType,
     RcValue, Term, Type, Value,
 };
-use syntax::prim::PrimEnv;
 use syntax::raw;
 use syntax::translation::Resugar;
 use syntax::Level;
 
 mod errors;
 pub mod parser;
+mod prim;
 #[cfg(test)]
 mod tests;
 
 pub use self::errors::{InternalError, TypeError};
+pub use self::prim::{PrimEnv, PrimFn};
 
 /// The type checking environment
 ///
@@ -159,8 +160,7 @@ pub fn check_module(raw_module: &raw::Module) -> Result<Module, TypeError> {
             tc_env.definitions.insert(free_var.clone(), term.clone());
 
             Ok((Binder(free_var), Embed(Definition { term, ann })))
-        })
-        .collect::<Result<_, TypeError>>()?;
+        }).collect::<Result<_, TypeError>>()?;
 
     Ok(Module {
         name: raw_module.name.clone(),
@@ -344,8 +344,7 @@ pub fn normalize(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError
                             .map(|clause| {
                                 let (pattern, body) = clause.clone().unbind();
                                 Ok(Scope::new(pattern, normalize(tc_env, &body)?))
-                            })
-                            .collect::<Result<_, _>>()?,
+                            }).collect::<Result<_, _>>()?,
                     )),
                     spine.clone(),
                 )))
@@ -705,8 +704,7 @@ pub fn check_term(
                     let body = check_term(&body_tc_env, &raw_body, expected_ty)?;
 
                     Ok(Scope::new(pattern, body))
-                })
-                .collect::<Result<_, TypeError>>()?;
+                }).collect::<Result<_, TypeError>>()?;
 
             return Ok(RcTerm::from(Term::Case(head, clauses)));
         },
@@ -1010,8 +1008,7 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
                     }
 
                     Ok(Scope::new(pattern, body))
-                })
-                .collect::<Result<_, TypeError>>()?;
+                }).collect::<Result<_, TypeError>>()?;
 
             match ty {
                 Some(ty) => Ok((RcTerm::from(Term::Case(head, clauses)), ty)),
