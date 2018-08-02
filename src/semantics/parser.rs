@@ -95,7 +95,7 @@ where
                     Err(ParseError::InvalidType(ty.clone()))
                 }
             },
-            Neutral::Head(Head::Var(ref var)) => Err(InternalError::UnsubstitutedDebruijnIndex {
+            Neutral::Head(Head::Var(ref var)) => Err(InternalError::UnexpectedBoundVar {
                 span: None,
                 var: var.clone(),
             }.into()),
