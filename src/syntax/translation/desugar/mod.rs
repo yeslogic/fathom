@@ -202,7 +202,7 @@ impl Desugar<raw::Module> for concrete::Module {
         match *self {
             concrete::Module::Valid {
                 ref name,
-                ref declarations,
+                ref items,
             } => {
                 // The type claims that we have encountered so far! We'll use these when
                 // we encounter their corresponding definitions later as type annotations
@@ -210,12 +210,10 @@ impl Desugar<raw::Module> for concrete::Module {
                 // The definitions, desugared from the concrete syntax
                 let mut definitions = Vec::<(Binder<String>, Embed<raw::Definition>)>::new();
 
-                for declaration in declarations {
-                    match *declaration {
-                        concrete::Declaration::Import { .. } => {
-                            unimplemented!("import declarations")
-                        },
-                        concrete::Declaration::Claim {
+                for item in items {
+                    match *item {
+                        concrete::Item::Import { .. } => unimplemented!("import declarations"),
+                        concrete::Item::Claim {
                             name: (_, ref name),
                             ref ann,
                         } => match prev_claim.take() {
@@ -229,7 +227,7 @@ impl Desugar<raw::Module> for concrete::Module {
                             },
                             None => prev_claim = Some((name, ann.desugar(&env))),
                         },
-                        concrete::Declaration::Definition {
+                        concrete::Item::Define {
                             name: (_, ref name),
                             ref params,
                             ref ann,
@@ -271,7 +269,7 @@ impl Desugar<raw::Module> for concrete::Module {
                                 },
                             };
                         },
-                        concrete::Declaration::Error(_) => unimplemented!("error recovery"),
+                        concrete::Item::Error(_) => unimplemented!("error recovery"),
                     }
                 }
 
@@ -370,7 +368,7 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                     raw::RcTerm::from(raw::Term::App(acc, arg.desugar(env)))
                 })
             },
-            concrete::Term::Let(_, ref _declarations, ref _body) => unimplemented!("let bindings"),
+            concrete::Term::Let(_, ref _items, ref _body) => unimplemented!("let bindings"),
             concrete::Term::If(start, ref cond, ref if_true, ref if_false) => {
                 raw::RcTerm::from(raw::Term::If(
                     start,

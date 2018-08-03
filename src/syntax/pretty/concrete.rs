@@ -3,7 +3,7 @@
 use pretty::Doc;
 
 use syntax::concrete::{
-    Declaration, Exposing, LamParamGroup, Literal, Module, Pattern, PiParamGroup, Term,
+    Exposing, Item, LamParamGroup, Literal, Module, Pattern, PiParamGroup, Term,
 };
 
 use super::{StaticDoc, ToDoc};
@@ -15,7 +15,7 @@ impl ToDoc for Module {
         match *self {
             Module::Valid {
                 ref name,
-                ref declarations,
+                ref items,
             } => Doc::group(
                 Doc::text("module")
                     .append(Doc::space())
@@ -24,7 +24,7 @@ impl ToDoc for Module {
             ).append(Doc::newline())
             .append(Doc::newline())
             .append(Doc::intersperse(
-                declarations.iter().map(|declaration| declaration.to_doc()),
+                items.iter().map(|item| item.to_doc()),
                 Doc::newline().append(Doc::newline()),
             )),
             Module::Error(_) => Doc::text("<error>"),
@@ -32,10 +32,10 @@ impl ToDoc for Module {
     }
 }
 
-impl ToDoc for Declaration {
+impl ToDoc for Item {
     fn to_doc(&self) -> StaticDoc {
         match *self {
-            Declaration::Import {
+            Item::Import {
                 name: (_, ref name),
                 ref rename,
                 ref exposing,
@@ -51,7 +51,7 @@ impl ToDoc for Declaration {
                 })).append(exposing.as_ref().map_or(Doc::nil(), |exposing| {
                     Doc::space().append(exposing.to_doc())
                 })),
-            Declaration::Claim {
+            Item::Claim {
                 name: (_, ref name),
                 ref ann,
             } => Doc::as_string(name)
@@ -59,7 +59,7 @@ impl ToDoc for Declaration {
                 .append(":")
                 .append(Doc::space())
                 .append(ann.to_doc()),
-            Declaration::Definition {
+            Item::Define {
                 name: (_, ref name),
                 ref params,
                 ref ann,
@@ -77,7 +77,7 @@ impl ToDoc for Declaration {
                 }).append("=")
                 .append(Doc::space())
                 .append(body.to_doc().nest(INDENT_WIDTH)),
-            Declaration::Error(_) => Doc::text("<error>"),
+            Item::Error(_) => Doc::text("<error>"),
         }.append(";")
     }
 }

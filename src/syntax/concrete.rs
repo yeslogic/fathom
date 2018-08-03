@@ -65,11 +65,11 @@ pub enum Module {
     /// ```text
     /// module my-module;
     ///
-    /// <declarations>
+    /// <items>
     /// ```
     Valid {
         name: (ByteIndex, String),
-        declarations: Vec<Declaration>,
+        items: Vec<Item>,
     },
     /// Modules commands that could not be parsed correctly
     ///
@@ -99,9 +99,9 @@ pub type RecordTypeField = (ByteIndex, String, Term);
 
 pub type RecordField = (ByteIndex, String, LamParams, Option<Box<Term>>, Term);
 
-/// Top level declarations
+/// Top level items
 #[derive(Debug, Clone, PartialEq)]
-pub enum Declaration {
+pub enum Item {
     /// Imports a module into the current scope
     ///
     /// ```text
@@ -130,28 +130,28 @@ pub enum Declaration {
     /// foo = some-body
     /// foo x (y : some-type) = some-body
     /// ```
-    Definition {
+    Define {
         name: (ByteIndex, String),
         params: LamParams,
         ann: Option<Box<Term>>,
         body: Term,
     },
-    /// Declarations that could not be correctly parsed
+    /// Items that could not be correctly parsed
     ///
     /// This is used for error recovery
     Error(ByteSpan),
 }
 
-impl Declaration {
+impl Item {
     /// Return the span of source code that this declaration originated from
     pub fn span(&self) -> ByteSpan {
         match *self {
-            Declaration::Import { span, .. } | Declaration::Error(span) => span,
-            Declaration::Claim {
+            Item::Import { span, .. } | Item::Error(span) => span,
+            Item::Claim {
                 name: (start, _),
                 ann: ref term,
             }
-            | Declaration::Definition {
+            | Item::Define {
                 name: (start, _),
                 body: ref term,
                 ..
@@ -160,7 +160,7 @@ impl Declaration {
     }
 }
 
-impl fmt::Display for Declaration {
+impl fmt::Display for Item {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.to_doc().group().render_fmt(pretty::FALLBACK_WIDTH, f)
     }
@@ -362,7 +362,7 @@ pub enum Term {
     /// in
     ///     x
     /// ```
-    Let(ByteIndex, Vec<Declaration>, Box<Term>),
+    Let(ByteIndex, Vec<Item>, Box<Term>),
     /// If expression
     ///
     /// ```text
