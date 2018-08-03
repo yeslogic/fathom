@@ -133,7 +133,7 @@ pub enum Item {
     Define {
         name: (ByteIndex, String),
         params: LamParams,
-        ann: Option<Box<Term>>,
+        return_ann: Option<Box<Term>>,
         body: Term,
     },
     /// Items that could not be correctly parsed

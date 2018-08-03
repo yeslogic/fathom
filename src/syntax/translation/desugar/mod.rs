@@ -107,7 +107,7 @@ fn desugar_pi(
 fn desugar_lam(
     env: &DesugarEnv,
     param_groups: &[concrete::LamParamGroup],
-    ret_ann: Option<&concrete::Term>,
+    return_ann: Option<&concrete::Term>,
     body: &concrete::Term,
 ) -> raw::RcTerm {
     let mut env = env.clone();
@@ -125,7 +125,7 @@ fn desugar_lam(
         }));
     }
 
-    let body = match ret_ann {
+    let body = match return_ann {
         None => body.desugar(&env),
         Some(ann) => raw::RcTerm::from(raw::Term::Ann(body.desugar(&env), ann.desugar(&env))),
     };
@@ -177,11 +177,13 @@ fn desugar_record(
 
     let fields = fields
         .iter()
-        .map(|&(start, ref label, ref params, ref ret_ann, ref value)| {
-            let value = desugar_lam(&env, params, ret_ann.as_ref().map(<_>::as_ref), value);
-            let free_var = env.on_binding(label.clone());
-            (start, label.clone(), Binder(free_var), value)
-        }).collect::<Vec<_>>();
+        .map(
+            |&(start, ref label, ref params, ref return_ann, ref value)| {
+                let value = desugar_lam(&env, params, return_ann.as_ref().map(<_>::as_ref), value);
+                let free_var = env.on_binding(label.clone());
+                (start, label.clone(), Binder(free_var), value)
+            },
+        ).collect::<Vec<_>>();
 
     let end_span = ByteSpan::new(span.end(), span.end());
     fields.into_iter().rev().fold(
@@ -234,16 +236,16 @@ impl Desugar<raw::Module> for concrete::Module {
                 concrete::Item::Define {
                     name: (_, ref name),
                     ref params,
-                    ref ann,
+                    ref return_ann,
                     ref body,
                 } => {
                     let default_span = ByteSpan::default();
+                    let return_ann = return_ann.as_ref().map(<_>::as_ref);
 
                     match prev_claim.take() {
                         None => {
-                            let ret_ann = ann.as_ref().map(<_>::as_ref);
                             let ann = raw::RcTerm::from(raw::Term::Hole(default_span));
-                            let term = desugar_lam(&env, params, ret_ann, body);
+                            let term = desugar_lam(&env, params, return_ann, body);
                             definitions.push((
                                 Binder(env.on_binding(name.clone())),
                                 Embed(raw::Definition { ann, term }),
@@ -264,7 +266,7 @@ impl Desugar<raw::Module> for concrete::Module {
                                 ));
 
                                 let ann = raw::RcTerm::from(raw::Term::Hole(default_span));
-                                let term = desugar_lam(&env, params, None, body);
+                                let term = desugar_lam(&env, params, return_ann, body);
                                 definitions.push((
                                     Binder(env.on_binding(name.clone())),
                                     Embed(raw::Definition { ann, term }),

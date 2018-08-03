@@ -106,10 +106,10 @@ Item: Item = {
     <_comment: "doc comment"*> <name: IndexedIdent> ":" <ann: Term> ";" => {
         Item::Claim { name, ann }
     },
-    <_comment: "doc comment"*> <name: IndexedIdent> <params: AtomicLamParam*> <ann: (":" <Term>)?> "="
+    <_comment: "doc comment"*> <name: IndexedIdent> <params: AtomicLamParam*> <return_ann: (":" <Term>)?> "="
         <body: Term> ";" =>
     {
-        Item::Define { name, params, ann: ann.map(Box::new), body }
+        Item::Define { name, params, return_ann: return_ann.map(Box::new), body }
     },
     <start: @L> <recovered: !> <end: @R> ";" => {
         errors.push(super::errors::from_lalrpop(filemap, recovered.error));
