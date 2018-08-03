@@ -199,86 +199,87 @@ impl Desugar<raw::Module> for concrete::Module {
     /// Convert the module in the concrete syntax to a module in the core syntax
     fn desugar(&self, env: &DesugarEnv) -> raw::Module {
         let mut env = env.clone();
-        match *self {
+        let (name, items) = match *self {
             concrete::Module::Valid {
                 ref name,
                 ref items,
-            } => {
-                // The type claims that we have encountered so far! We'll use these when
-                // we encounter their corresponding definitions later as type annotations
-                let mut prev_claim = None::<(&str, raw::RcTerm)>;
-                // The definitions, desugared from the concrete syntax
-                let mut definitions = Vec::<(Binder<String>, Embed<raw::Definition>)>::new();
-
-                for item in items {
-                    match *item {
-                        concrete::Item::Import { .. } => unimplemented!("import declarations"),
-                        concrete::Item::Claim {
-                            name: (_, ref name),
-                            ref ann,
-                        } => match prev_claim.take() {
-                            Some((claim_name, ann)) => {
-                                let claim_free_var = env.on_binding(claim_name);
-                                let term = raw::RcTerm::from(raw::Term::Hole(ByteSpan::default()));
-                                definitions.push((
-                                    Binder(claim_free_var.clone()),
-                                    Embed(raw::Definition { term, ann }),
-                                ));
-                            },
-                            None => prev_claim = Some((name, ann.desugar(&env))),
-                        },
-                        concrete::Item::Define {
-                            name: (_, ref name),
-                            ref params,
-                            ref ann,
-                            ref body,
-                        } => {
-                            let default_span = ByteSpan::default();
-
-                            match prev_claim.take() {
-                                None => {
-                                    let ret_ann = ann.as_ref().map(<_>::as_ref);
-                                    let ann = raw::RcTerm::from(raw::Term::Hole(default_span));
-                                    let term = desugar_lam(&env, params, ret_ann, body);
-                                    definitions.push((
-                                        Binder(env.on_binding(name.clone())),
-                                        Embed(raw::Definition { ann, term }),
-                                    ));
-                                },
-                                Some((claim_name, ann)) => {
-                                    if claim_name == *name {
-                                        let term = desugar_lam(&env, params, None, body);
-                                        definitions.push((
-                                            Binder(env.on_binding(name.clone())),
-                                            Embed(raw::Definition { ann, term }),
-                                        ));
-                                    } else {
-                                        let term = raw::RcTerm::from(raw::Term::Hole(default_span));
-                                        definitions.push((
-                                            Binder(env.on_binding(claim_name.clone())),
-                                            Embed(raw::Definition { ann, term }),
-                                        ));
-
-                                        let ann = raw::RcTerm::from(raw::Term::Hole(default_span));
-                                        let term = desugar_lam(&env, params, None, body);
-                                        definitions.push((
-                                            Binder(env.on_binding(name.clone())),
-                                            Embed(raw::Definition { ann, term }),
-                                        ));
-                                    }
-                                },
-                            };
-                        },
-                        concrete::Item::Error(_) => unimplemented!("error recovery"),
-                    }
-                }
-
-                raw::Module {
-                    name: name.1.clone(),
-                    definitions: Nest::new(definitions),
-                }
-            },
+            } => (name, items),
             concrete::Module::Error(_) => unimplemented!("error recovery"),
+        };
+
+        // The type claims that we have encountered so far! We'll use these when
+        // we encounter their corresponding definitions later as type annotations
+        let mut prev_claim = None::<(&str, raw::RcTerm)>;
+        // The definitions, desugared from the concrete syntax
+        let mut definitions = Vec::<(Binder<String>, Embed<raw::Definition>)>::new();
+
+        for item in items {
+            match *item {
+                concrete::Item::Import { .. } => unimplemented!("import declarations"),
+                concrete::Item::Claim {
+                    name: (_, ref name),
+                    ref ann,
+                    ..
+                } => match prev_claim.take() {
+                    Some((claim_name, ann)) => {
+                        let claim_free_var = env.on_binding(claim_name);
+                        let term = raw::RcTerm::from(raw::Term::Hole(ByteSpan::default()));
+                        definitions.push((
+                            Binder(claim_free_var.clone()),
+                            Embed(raw::Definition { term, ann }),
+                        ));
+                    },
+                    None => prev_claim = Some((name, ann.desugar(&env))),
+                },
+                concrete::Item::Define {
+                    name: (_, ref name),
+                    ref params,
+                    ref ann,
+                    ref body,
+                } => {
+                    let default_span = ByteSpan::default();
+
+                    match prev_claim.take() {
+                        None => {
+                            let ret_ann = ann.as_ref().map(<_>::as_ref);
+                            let ann = raw::RcTerm::from(raw::Term::Hole(default_span));
+                            let term = desugar_lam(&env, params, ret_ann, body);
+                            definitions.push((
+                                Binder(env.on_binding(name.clone())),
+                                Embed(raw::Definition { ann, term }),
+                            ));
+                        },
+                        Some((claim_name, ann)) => {
+                            if claim_name == *name {
+                                let term = desugar_lam(&env, params, None, body);
+                                definitions.push((
+                                    Binder(env.on_binding(name.clone())),
+                                    Embed(raw::Definition { ann, term }),
+                                ));
+                            } else {
+                                let term = raw::RcTerm::from(raw::Term::Hole(default_span));
+                                definitions.push((
+                                    Binder(env.on_binding(claim_name.clone())),
+                                    Embed(raw::Definition { ann, term }),
+                                ));
+
+                                let ann = raw::RcTerm::from(raw::Term::Hole(default_span));
+                                let term = desugar_lam(&env, params, None, body);
+                                definitions.push((
+                                    Binder(env.on_binding(name.clone())),
+                                    Embed(raw::Definition { ann, term }),
+                                ));
+                            }
+                        },
+                    };
+                },
+                concrete::Item::Error(_) => unimplemented!("error recovery"),
+            }
+        }
+
+        raw::Module {
+            name: name.1.clone(),
+            definitions: Nest::new(definitions),
         }
     }
 }
