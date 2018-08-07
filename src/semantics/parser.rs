@@ -58,28 +58,27 @@ where
         Value::Neutral(ref neutral, ref spine) => match **neutral {
             Neutral::Head(Head::Global(ref n)) => {
                 if spine.len() == 0 {
-                    #[cfg_attr(rustfmt, rustfmt_skip)]
-                    match n.as_str() {
-                        "U8" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u8()?.into())))),
-                        "U16Le" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u16::<Le>()?.into())))),
-                        "U16Be" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u16::<Be>()?.into())))),
-                        "U32Le" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u32::<Le>()?.into())))),
-                        "U32Be" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u32::<Be>()?.into())))),
-                        "U64Le" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u64::<Le>()?.into())))),
-                        "U64Be" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_u64::<Be>()?.into())))),
-                        "S8" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i8()?.into())))),
-                        "S16Le" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i16::<Le>()?.into())))),
-                        "S16Be" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i16::<Be>()?.into())))),
-                        "S32Le" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i32::<Le>()?.into())))),
-                        "S32Be" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i32::<Be>()?.into())))),
-                        "S64Le" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i64::<Le>()?.into())))),
-                        "S64Be" => Ok(RcValue::from(Value::Literal(Literal::Int(bytes.read_i64::<Be>()?.into())))),
-                        "F32Le" => Ok(RcValue::from(Value::Literal(Literal::F32(bytes.read_f32::<Le>()?)))),
-                        "F32Be" => Ok(RcValue::from(Value::Literal(Literal::F32(bytes.read_f32::<Be>()?)))),
-                        "F64Le" => Ok(RcValue::from(Value::Literal(Literal::F64(bytes.read_f64::<Le>()?)))),
-                        "F64Be" => Ok(RcValue::from(Value::Literal(Literal::F64(bytes.read_f64::<Be>()?)))),
-                        _ => Err(ParseError::InvalidType(ty.clone())),
-                    }
+                    Ok(RcValue::from(Value::Literal(match n.as_str() {
+                        "U8" => Literal::Int(bytes.read_u8()?.into()),
+                        "U16Le" => Literal::Int(bytes.read_u16::<Le>()?.into()),
+                        "U16Be" => Literal::Int(bytes.read_u16::<Be>()?.into()),
+                        "U32Le" => Literal::Int(bytes.read_u32::<Le>()?.into()),
+                        "U32Be" => Literal::Int(bytes.read_u32::<Be>()?.into()),
+                        "U64Le" => Literal::Int(bytes.read_u64::<Le>()?.into()),
+                        "U64Be" => Literal::Int(bytes.read_u64::<Be>()?.into()),
+                        "S8" => Literal::Int(bytes.read_i8()?.into()),
+                        "S16Le" => Literal::Int(bytes.read_i16::<Le>()?.into()),
+                        "S16Be" => Literal::Int(bytes.read_i16::<Be>()?.into()),
+                        "S32Le" => Literal::Int(bytes.read_i32::<Le>()?.into()),
+                        "S32Be" => Literal::Int(bytes.read_i32::<Be>()?.into()),
+                        "S64Le" => Literal::Int(bytes.read_i64::<Le>()?.into()),
+                        "S64Be" => Literal::Int(bytes.read_i64::<Be>()?.into()),
+                        "F32Le" => Literal::F32(bytes.read_f32::<Le>()?),
+                        "F32Be" => Literal::F32(bytes.read_f32::<Be>()?),
+                        "F64Le" => Literal::F64(bytes.read_f64::<Le>()?),
+                        "F64Be" => Literal::F64(bytes.read_f64::<Be>()?),
+                        _ => return Err(ParseError::InvalidType(ty.clone())),
+                    })))
                 } else if spine.len() == 2 && *n == "Array" {
                     let len = &spine[0];
                     let elem_ty = &spine[1];
