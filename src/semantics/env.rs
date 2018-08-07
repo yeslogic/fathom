@@ -28,6 +28,7 @@ impl Default for TcEnv {
     fn default() -> TcEnv {
         use moniker::{Binder, Embed, FreeVar, Scope};
         use num_bigint::BigInt;
+        use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
         use syntax::core::{Literal, Value};
 
@@ -64,14 +65,14 @@ impl Default for TcEnv {
                 "String" => (None, universe0.clone()),
                 "Char" => (None, universe0.clone()),
 
-                "U8" => (Some(int_ty(Some(u8::min_value()), Some(u8::max_value()))), universe0.clone()),
-                "U16" => (Some(int_ty(Some(u16::min_value()), Some(u16::max_value()))), universe0.clone()),
-                "U32" => (Some(int_ty(Some(u32::min_value()), Some(u32::max_value()))), universe0.clone()),
-                "U64" => (Some(int_ty(Some(u64::min_value()), Some(u64::max_value()))), universe0.clone()),
-                "S8" => (Some(int_ty(Some(i8::min_value()), Some(i8::max_value()))), universe0.clone()),
-                "S16" => (Some(int_ty(Some(i16::min_value()), Some(i16::max_value()))), universe0.clone()),
-                "S32" => (Some(int_ty(Some(i32::min_value()), Some(i32::max_value()))), universe0.clone()),
-                "S64" => (Some(int_ty(Some(i64::min_value()), Some(i64::max_value()))), universe0.clone()),
+                "U8" => (Some(int_ty(Some(u8::MIN), Some(u8::MAX))), universe0.clone()),
+                "U16" => (Some(int_ty(Some(u16::MIN), Some(u16::MAX))), universe0.clone()),
+                "U32" => (Some(int_ty(Some(u32::MIN), Some(u32::MAX))), universe0.clone()),
+                "U64" => (Some(int_ty(Some(u64::MIN), Some(u64::MAX))), universe0.clone()),
+                "S8" => (Some(int_ty(Some(i8::MIN), Some(i8::MAX))), universe0.clone()),
+                "S16" => (Some(int_ty(Some(i16::MIN), Some(i16::MAX))), universe0.clone()),
+                "S32" => (Some(int_ty(Some(i32::MIN), Some(i32::MAX))), universe0.clone()),
+                "S64" => (Some(int_ty(Some(i64::MIN), Some(i64::MAX))), universe0.clone()),
 
                 "F32" => (None, universe0.clone()),
                 "F64" => (None, universe0.clone()),
