@@ -1,7 +1,7 @@
 //! The core syntax of the language
 
 use im::Vector;
-use moniker::{Binder, Embed, FreeVar, Nest, Scope, Var};
+use moniker::{Binder, Embed, FreeVar, Scope, Var};
 use num_bigint::BigInt;
 use std::fmt;
 use std::ops;
@@ -9,6 +9,23 @@ use std::rc::Rc;
 
 use syntax::pretty::{self, ToDoc};
 use syntax::Level;
+
+/// A module definition
+pub struct Module {
+    /// The name of the module
+    pub name: String,
+    /// The items contained in the module
+    pub items: Vec<Item>,
+}
+
+/// Top-level items within a module
+#[derive(Debug, Clone, PartialEq)]
+pub enum Item {
+    /// Claims that a term abides by the given type
+    Claim(FreeVar<String>, RcTerm),
+    /// Defines the body of a term
+    Define(FreeVar<String>, RcTerm),
+}
 
 /// Literals
 ///
@@ -36,23 +53,6 @@ impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.to_doc().group().render_fmt(pretty::FALLBACK_WIDTH, f)
     }
-}
-
-/// A type checked and elaborated module
-pub struct Module {
-    /// The name of the module
-    pub name: String,
-    /// The definitions contained in the module
-    pub definitions: Nest<(Binder<String>, Embed<Definition>)>,
-}
-
-/// A type checked and elaborated definition
-#[derive(Debug, Clone, PartialEq, BoundTerm)]
-pub struct Definition {
-    /// The elaborated value
-    pub term: RcTerm,
-    /// The type of the definition
-    pub ann: RcType,
 }
 
 #[derive(Debug, Clone, PartialEq, BoundPattern)]

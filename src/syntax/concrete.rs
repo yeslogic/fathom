@@ -99,7 +99,7 @@ pub type RecordTypeField = (ByteIndex, String, Term);
 
 pub type RecordField = (ByteIndex, String, LamParams, Option<Box<Term>>, Term);
 
-/// Top level items
+/// Top-level items within a module
 #[derive(Debug, Clone, PartialEq)]
 pub enum Item {
     /// Imports a module into the current scope
@@ -124,7 +124,7 @@ pub enum Item {
         name: (ByteIndex, String),
         ann: Term,
     },
-    /// Declares the body of a term
+    /// Defines the body of a term
     ///
     /// ```text
     /// foo = some-body
