@@ -34,8 +34,8 @@ fn test_silly_format() {
         data : Array len U32,
     }"#;
 
-    let given_format = parse_normalize(&mut codemap, &tc_env, given_format);
-    let expected_term = parse_normalize(&mut codemap, &tc_env, expected_term);
+    let given_format = parse_nf_term(&mut codemap, &tc_env, given_format);
+    let expected_term = parse_nf_term(&mut codemap, &tc_env, expected_term);
 
     let result_term = parser::parse(&tc_env, &given_format, &mut given_bytes).unwrap();
 

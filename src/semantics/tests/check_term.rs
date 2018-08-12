@@ -8,7 +8,7 @@ fn record() {
     let expected_ty = r"Record { t : Type, x : String }";
     let given_expr = r#"record { t = String, x = "hello" }"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -20,7 +20,7 @@ fn dependent_record() {
     let expected_ty = r"Record { t : Type, x : t }";
     let given_expr = r#"record { t = String, x = "hello" }"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -32,7 +32,7 @@ fn dependent_record_propagate_types() {
     let expected_ty = r"Record { t : Type, x : t }";
     let given_expr = r#"record { t = S32, x = 1 }"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -44,7 +44,7 @@ fn range_full() {
     let expected_ty = r"{..}";
     let given_expr = r#"5"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -56,7 +56,7 @@ fn range_from() {
     let expected_ty = r"{0 ..}";
     let given_expr = r#"0"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -68,7 +68,7 @@ fn range_to() {
     let expected_ty = r"{.. 10}";
     let given_expr = r#"10"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -80,13 +80,13 @@ fn range_from_to() {
     let expected_ty = r"{0 .. 10}";
     let given_expr = r#"0"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 
     let expected_ty = r"{0 .. 10}";
     let given_expr = r#"10"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -102,7 +102,7 @@ fn case_expr() {
         greeting => (extern "string-append" : String -> String -> String) greeting "!!";
     }"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -117,7 +117,7 @@ fn case_expr_bad_literal() {
         1 => "byee";
     }"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     match check_term(&tc_env, &parse(&mut codemap, given_expr), &expected_ty) {
         Err(TypeError::LiteralMismatch { .. }) => {},
         Err(err) => panic!("unexpected error: {:?}", err),
@@ -135,7 +135,7 @@ fn case_expr_wildcard() {
         _ => 123;
     }"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -147,7 +147,7 @@ fn case_expr_empty() {
     let expected_ty = r"String";
     let given_expr = r#"case "helloo" of {}"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -159,7 +159,7 @@ fn array_0_string() {
     let expected_ty = r"Array 0 String";
     let given_expr = r#"[]"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -171,7 +171,7 @@ fn array_3_string() {
     let expected_ty = r"Array 3 String";
     let given_expr = r#"["hello", "hi", "byee"]"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
@@ -183,7 +183,7 @@ fn array_len_mismatch() {
     let expected_ty = r"Array 3 String";
     let given_expr = r#"["hello", "hi"]"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     match check_term(&tc_env, &parse(&mut codemap, given_expr), &expected_ty) {
         Err(TypeError::ArrayLengthMismatch { .. }) => {},
         Err(err) => panic!("unexpected error: {:?}", err),
@@ -199,7 +199,7 @@ fn array_elem_ty_mismatch() {
     let expected_ty = r"Array 3 String";
     let given_expr = r#"["hello", "hi", 4]"#;
 
-    let expected_ty = parse_normalize(&mut codemap, &tc_env, expected_ty);
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     match check_term(&tc_env, &parse(&mut codemap, given_expr), &expected_ty) {
         Err(_) => {},
         Ok(term) => panic!("expected error but found: {}", term),

@@ -8,8 +8,8 @@ macro_rules! assert_subtype {
         let super_ty = $super_ty_src;
         let sub_ty = $sub_ty_src;
 
-        let super_ty = parse_normalize(&mut codemap, &tc_env, &super_ty);
-        let sub_ty = parse_normalize(&mut codemap, &tc_env, &sub_ty);
+        let super_ty = parse_nf_term(&mut codemap, &tc_env, &super_ty);
+        let sub_ty = parse_nf_term(&mut codemap, &tc_env, &sub_ty);
 
         assert!(
             is_subtype(&sub_ty, &super_ty),
@@ -28,8 +28,8 @@ macro_rules! assert_not_subtype {
         let super_ty = $super_ty_src;
         let sub_ty = $sub_ty_src;
 
-        let super_ty = parse_normalize(&mut codemap, &tc_env, &super_ty);
-        let sub_ty = parse_normalize(&mut codemap, &tc_env, &sub_ty);
+        let super_ty = parse_nf_term(&mut codemap, &tc_env, &super_ty);
+        let sub_ty = parse_nf_term(&mut codemap, &tc_env, &sub_ty);
 
         assert!(
             !is_subtype(&sub_ty, &super_ty),

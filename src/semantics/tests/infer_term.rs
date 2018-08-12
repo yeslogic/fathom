@@ -56,7 +56,7 @@ fn ty() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -70,7 +70,7 @@ fn ty_levels() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -84,7 +84,7 @@ fn int_literal() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -98,7 +98,7 @@ fn ann_ty_id() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -112,7 +112,7 @@ fn ann_arrow_ty_id() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -139,7 +139,7 @@ fn app() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -170,7 +170,7 @@ fn lam() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -184,7 +184,7 @@ fn pi() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -198,7 +198,7 @@ fn id() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -212,7 +212,7 @@ fn id_ann() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -228,7 +228,7 @@ fn id_app_ty() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -243,7 +243,7 @@ fn id_app_ty_ty() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -257,7 +257,7 @@ fn id_app_ty_arr_ty() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -271,7 +271,7 @@ fn id_app_arr_pi_ty() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -285,7 +285,7 @@ fn apply() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -299,7 +299,7 @@ fn const_() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -313,7 +313,7 @@ fn const_flipped() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -327,7 +327,7 @@ fn flip() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -341,7 +341,7 @@ fn compose() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -359,7 +359,7 @@ fn case_expr() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -376,7 +376,7 @@ fn case_expr_bool() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -410,7 +410,7 @@ fn case_expr_wildcard() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -440,7 +440,7 @@ mod church_encodings {
 
         assert_term_eq!(
             parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-            parse_normalize(&mut codemap, &tc_env, expected_ty),
+            parse_nf_term(&mut codemap, &tc_env, expected_ty),
         );
     }
 
@@ -460,7 +460,7 @@ mod church_encodings {
 
         assert_term_eq!(
             parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-            parse_normalize(&mut codemap, &tc_env, expected_ty),
+            parse_nf_term(&mut codemap, &tc_env, expected_ty),
         );
     }
 
@@ -480,7 +480,7 @@ mod church_encodings {
 
         assert_term_eq!(
             parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-            parse_normalize(&mut codemap, &tc_env, expected_ty),
+            parse_nf_term(&mut codemap, &tc_env, expected_ty),
         );
     }
 
@@ -499,7 +499,7 @@ mod church_encodings {
 
         assert_term_eq!(
             parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-            parse_normalize(&mut codemap, &tc_env, expected_ty),
+            parse_nf_term(&mut codemap, &tc_env, expected_ty),
         );
     }
 }
@@ -514,7 +514,7 @@ fn empty_record_ty() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -528,7 +528,7 @@ fn empty_record() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -542,7 +542,7 @@ fn dependent_record_ty() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -569,7 +569,7 @@ fn proj() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -604,7 +604,7 @@ fn proj_weird1() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -625,7 +625,7 @@ fn proj_weird2() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }
 
@@ -656,6 +656,6 @@ fn record_with_integer() {
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_normalize(&mut codemap, &tc_env, expected_ty),
+        parse_nf_term(&mut codemap, &tc_env, expected_ty),
     );
 }

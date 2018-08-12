@@ -3,7 +3,7 @@ use std::io;
 
 use syntax::core::{Head, Literal, Neutral, RcTerm, RcType, RcValue, Term, Value};
 
-use super::{normalize, InternalError, TcEnv};
+use super::{nf_term, InternalError, TcEnv};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -46,7 +46,7 @@ where
 
             let ann_value = parse(tc_env, &ann, bytes)?;
             let body = body.substs(&[(binder.0.clone(), RcTerm::from(Term::from(&*ann_value)))]);
-            let body = normalize(tc_env, &body)?;
+            let body = nf_term(tc_env, &body)?;
             let body_value = parse(tc_env, &body, bytes)?;
 
             Ok(RcValue::from(Value::Record(Scope::new(
