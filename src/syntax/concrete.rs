@@ -115,22 +115,22 @@ pub enum Item {
         rename: Option<(ByteIndex, String)>,
         exposing: Option<Exposing>,
     },
-    /// Claims that a term abides by the given type
+    /// Declares the type associated with a name, prior to its definition
     ///
     /// ```text
     /// foo : some-type
     /// ```
-    Claim {
+    Declaration {
         name: (ByteIndex, String),
         ann: Term,
     },
-    /// Defines the body of a term
+    /// Defines the term that should be associated with a name
     ///
     /// ```text
     /// foo = some-body
     /// foo x (y : some-type) = some-body
     /// ```
-    Define {
+    Definition {
         name: (ByteIndex, String),
         params: LamParams,
         return_ann: Option<Box<Term>>,
@@ -147,11 +147,11 @@ impl Item {
     pub fn span(&self) -> ByteSpan {
         match *self {
             Item::Import { span, .. } | Item::Error(span) => span,
-            Item::Claim {
+            Item::Declaration {
                 name: (start, _),
                 ann: ref term,
             }
-            | Item::Define {
+            | Item::Definition {
                 name: (start, _),
                 body: ref term,
                 ..

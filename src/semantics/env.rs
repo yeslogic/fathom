@@ -19,7 +19,7 @@ pub struct TcEnv {
     /// Global annotation/definition pairs
     pub globals: HashMap<&'static str, (Option<RcValue>, RcType)>,
     /// The type annotations of the binders we have passed over
-    pub claims: HashMap<FreeVar<String>, RcType>,
+    pub declarations: HashMap<FreeVar<String>, RcType>,
     /// Any definitions we have passed over
     pub definitions: HashMap<FreeVar<String>, RcTerm>,
 }
@@ -95,7 +95,7 @@ impl Default for TcEnv {
                 "F32Be" => (None, universe0.clone()),
                 "F64Be" => (None, universe0.clone()),
             },
-            claims: hashmap!{},
+            declarations: hashmap!{},
             definitions: hashmap!{},
         }
     }

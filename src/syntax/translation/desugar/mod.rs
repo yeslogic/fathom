@@ -219,16 +219,16 @@ impl Desugar<raw::Module> for concrete::Module {
         for concrete_item in concrete_items {
             let item = match *concrete_item {
                 concrete::Item::Import { .. } => unimplemented!("import declarations"),
-                concrete::Item::Claim {
+                concrete::Item::Declaration {
                     name: (start, ref name),
                     ref ann,
                 } => {
                     let name_span = ByteSpan::from_offset(start, ByteOffset::from_str(name));
                     let ann = ann.desugar(&env);
                     let free_var = env.on_item(name);
-                    raw::Item::Claim(name_span, free_var, ann)
+                    raw::Item::Declaration(name_span, free_var, ann)
                 },
-                concrete::Item::Define {
+                concrete::Item::Definition {
                     name: (start, ref name),
                     ref params,
                     ref return_ann,
@@ -238,7 +238,7 @@ impl Desugar<raw::Module> for concrete::Module {
                     let return_ann = return_ann.as_ref().map(<_>::as_ref);
                     let term = desugar_lam(&env, params, return_ann, body);
                     let free_var = env.on_item(name);
-                    raw::Item::Define(name_span, free_var, term)
+                    raw::Item::Definition(name_span, free_var, term)
                 },
                 concrete::Item::Error(_) => unimplemented!("error recovery"),
             };

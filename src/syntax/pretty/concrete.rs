@@ -51,7 +51,7 @@ impl ToDoc for Item {
                 })).append(exposing.as_ref().map_or(Doc::nil(), |exposing| {
                     Doc::space().append(exposing.to_doc())
                 })),
-            Item::Claim {
+            Item::Declaration {
                 name: (_, ref name),
                 ref ann,
             } => Doc::as_string(name)
@@ -59,7 +59,7 @@ impl ToDoc for Item {
                 .append(":")
                 .append(Doc::space())
                 .append(ann.to_doc()),
-            Item::Define {
+            Item::Definition {
                 name: (_, ref name),
                 ref params,
                 ref return_ann,

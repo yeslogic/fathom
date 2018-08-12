@@ -104,12 +104,12 @@ Item: Item = {
         Item::Import { span: ByteSpan::new(start, end), name, rename, exposing }
     },
     <_comment: "doc comment"*> <name: IndexedIdent> ":" <ann: Term> ";" => {
-        Item::Claim { name, ann }
+        Item::Declaration { name, ann }
     },
     <_comment: "doc comment"*> <name: IndexedIdent> <params: AtomicLamParam*> <return_ann: (":" <Term>)?> "="
         <body: Term> ";" =>
     {
-        Item::Define { name, params, return_ann: return_ann.map(Box::new), body }
+        Item::Definition { name, params, return_ann: return_ann.map(Box::new), body }
     },
     <start: @L> <recovered: !> <end: @R> ";" => {
         errors.push(super::errors::from_lalrpop(filemap, recovered.error));

@@ -19,7 +19,7 @@ fn infer_bare_definition() {
 }
 
 #[test]
-fn forward_decls() {
+fn forward_declarations() {
     let mut codemap = CodeMap::new();
     let writer = StandardStream::stdout(ColorChoice::Always);
 
@@ -40,7 +40,7 @@ fn forward_decls() {
 }
 
 #[test]
-fn forward_decls_forward_ref() {
+fn forward_declarations_forward_ref() {
     let mut codemap = CodeMap::new();
 
     let src = "
@@ -61,7 +61,7 @@ fn forward_decls_forward_ref() {
 }
 
 #[test]
-fn claim_after_definition() {
+fn declaration_after_definition() {
     let mut codemap = CodeMap::new();
 
     let src = "
@@ -74,13 +74,13 @@ fn claim_after_definition() {
     let raw_module = parse_module(&mut codemap, src);
     match check_module(&TcEnv::default(), &raw_module) {
         Ok(_) => panic!("expected error"),
-        Err(TypeError::ClaimFollowedDefinition { .. }) => {},
+        Err(TypeError::DeclarationFollowedDefinition { .. }) => {},
         Err(err) => panic!("unexpected error: {}", err),
     }
 }
 
 #[test]
-fn duplicate_claims() {
+fn duplicate_declarations() {
     let mut codemap = CodeMap::new();
 
     let src = "
@@ -93,7 +93,7 @@ fn duplicate_claims() {
     let raw_module = parse_module(&mut codemap, src);
     match check_module(&TcEnv::default(), &raw_module) {
         Ok(_) => panic!("expected error"),
-        Err(TypeError::DuplicateClaims { .. }) => {},
+        Err(TypeError::DuplicateDeclarations { .. }) => {},
         Err(err) => panic!("unexpected error: {}", err),
     }
 }
