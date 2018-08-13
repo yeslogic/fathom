@@ -184,13 +184,11 @@ fn desugar_record(
 
     let fields = fields
         .iter()
-        .map(
-            |&(start, ref label, ref params, ref return_ann, ref value)| {
-                let value = desugar_lam(&env, params, return_ann.as_ref().map(<_>::as_ref), value);
-                let free_var = env.on_binding(label);
-                (start, label.clone(), Binder(free_var), value)
-            },
-        ).collect::<Vec<_>>();
+        .map(|&(start, ref label, ref value)| {
+            let value = value.desugar(&env);
+            let free_var = env.on_binding(label);
+            (start, label.clone(), Binder(free_var), value)
+        }).collect::<Vec<_>>();
 
     let end_span = ByteSpan::new(span.end(), span.end());
     fields.into_iter().rev().fold(

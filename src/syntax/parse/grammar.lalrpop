@@ -3,7 +3,7 @@ use codespan::{ByteIndex, ByteSpan};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 
-use syntax::concrete::{Item, Exposing, LamParams, Literal, Module, Pattern, Term, ReplCommand};
+use syntax::concrete::{Item, Exposing, Literal, Module, Pattern, Term, ReplCommand};
 use syntax::parse::{LalrpopError, ParseError, Token};
 
 #[LALR]
@@ -286,9 +286,9 @@ PatternArm: (Pattern, Term) = {
     <Pattern> "=>" <Term>,
 };
 
-RecordField: (ByteIndex, String, LamParams, Option<Box<Term>>, Term) = {
-    <start: @L> <label: Ident> <params: AtomicLamParam*> <ann: (":" <Term>)?> "=" <term: Term> => {
-        (start, label, params, ann.map(Box::new), term)
+RecordField: (ByteIndex, String, Term) = {
+    <start: @L> <label: Ident>"=" <term: Term> => {
+        (start, label, term)
     },
 };
 

@@ -257,22 +257,13 @@ impl ToDoc for Term {
                 .append(Doc::space())
                 .append(
                     Doc::intersperse(
-                        fields.iter().map(
-                            |&(_, ref name, ref params, ref return_ann, ref expr)| {
-                                Doc::as_string(name)
-                                    .append(Doc::space())
-                                    .append(match params[..] {
-                                        [] => Doc::nil(),
-                                        _ => pretty_lam_params(params).append(Doc::space()),
-                                    }).append(return_ann.as_ref().map_or(Doc::nil(), |return_ann| {
-                                        Doc::text(":")
-                                            .append(return_ann.to_doc())
-                                            .append(Doc::space())
-                                    })).append("=")
-                                    .append(Doc::space())
-                                    .append(expr.to_doc())
-                            },
-                        ),
+                        fields.iter().map(|&(_, ref name, ref expr)| {
+                            Doc::as_string(name)
+                                .append(Doc::space())
+                                .append("=")
+                                .append(Doc::space())
+                                .append(expr.to_doc())
+                        }),
                         Doc::text(",").append(Doc::space()),
                     ).nest(INDENT_WIDTH),
                 ).append(Doc::space())

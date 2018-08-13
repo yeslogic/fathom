@@ -97,7 +97,7 @@ pub type PiParams = Vec<PiParamGroup>;
 
 pub type RecordTypeField = (ByteIndex, String, Term);
 
-pub type RecordField = (ByteIndex, String, LamParams, Option<Box<Term>>, Term);
+pub type RecordField = (ByteIndex, String, Term);
 
 /// Top-level items within a module
 #[derive(Debug, Clone, PartialEq)]
@@ -136,6 +136,12 @@ pub enum Item {
         return_ann: Option<Box<Term>>,
         body: Term,
     },
+    // /// Defines a struct associated with the given name
+    // Struct {
+    //     span: ByteSpan,
+    //     name: (ByteIndex, String),
+    //     fields:
+    // }
     /// Items that could not be correctly parsed
     ///
     /// This is used for error recovery
