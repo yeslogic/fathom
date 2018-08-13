@@ -386,7 +386,7 @@ pub fn check_term(
         },
 
         // C-RECORD
-        (&raw::Term::Record(span, ref scope), &Value::RecordType(ref ty_scope)) => {
+        (&raw::Term::Struct(span, ref scope), &Value::StructType(ref ty_scope)) => {
             let (
                 (label, binder, Embed(raw_expr)),
                 raw_body,
@@ -399,7 +399,7 @@ pub fn check_term(
                 let ty_body = nf_term(tc_env, &ty_body.substs(&[(ty_binder.0, expr.clone())]))?;
                 let body = check_term(tc_env, &raw_body, &ty_body)?;
 
-                return Ok(RcTerm::from(Term::Record(Scope::new(
+                return Ok(RcTerm::from(Term::Struct(Scope::new(
                     (label, binder, Embed(expr)),
                     body,
                 ))));
@@ -653,12 +653,12 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
         },
 
         // I-RECORD-TYPE
-        raw::Term::RecordType(_, ref raw_scope) => {
+        raw::Term::StructType(_, ref raw_scope) => {
             let ((label, Binder(free_var), Embed(raw_ann)), raw_body) = raw_scope.clone().unbind();
 
-            // Check that rest of record is well-formed?
+            // Check that rest of struct is well-formed?
             // Might be able to skip that for now, because there's no way to
-            // express ill-formed records in the concrete syntax...
+            // express ill-formed structs in the concrete syntax...
 
             let (ann, ann_level) = infer_universe(tc_env, &raw_ann)?;
             let (body, body_level) = {
@@ -671,23 +671,23 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
             let scope = Scope::new((label, Binder(free_var), Embed(ann)), body);
 
             Ok((
-                RcTerm::from(Term::RecordType(scope)),
+                RcTerm::from(Term::StructType(scope)),
                 RcValue::from(Value::Universe(cmp::max(ann_level, body_level))),
             ))
         },
 
-        raw::Term::Record(span, _) => Err(TypeError::AmbiguousRecord { span }),
+        raw::Term::Struct(span, _) => Err(TypeError::AmbiguousStruct { span }),
 
         // I-EMPTY-RECORD-TYPE
-        raw::Term::RecordTypeEmpty(_) => Ok((
-            RcTerm::from(Term::RecordTypeEmpty),
+        raw::Term::StructTypeEmpty(_) => Ok((
+            RcTerm::from(Term::StructTypeEmpty),
             RcValue::from(Value::universe(0)),
         )),
 
         // I-EMPTY-RECORD
-        raw::Term::RecordEmpty(_) => Ok((
-            RcTerm::from(Term::RecordEmpty),
-            RcValue::from(Value::RecordTypeEmpty),
+        raw::Term::StructEmpty(_) => Ok((
+            RcTerm::from(Term::StructEmpty),
+            RcValue::from(Value::StructTypeEmpty),
         )),
 
         // I-PROJ
@@ -695,7 +695,7 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
             let (expr, ty) = infer_term(tc_env, expr)?;
 
             let mut mappings = vec![];
-            let mut current_scope = ty.record_ty();
+            let mut current_scope = ty.struct_ty();
             let mut field_ty = None;
 
             while let Some(scope) = current_scope {
@@ -709,7 +709,7 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
 
                 let proj = RcTerm::from(Term::Proj(expr.clone(), current_label));
                 mappings.push((current_binder.0, proj));
-                current_scope = body.record_ty();
+                current_scope = body.struct_ty();
             }
 
             match field_ty {

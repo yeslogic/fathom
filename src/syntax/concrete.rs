@@ -95,9 +95,9 @@ pub type PiParamGroup = (Vec<(ByteIndex, String)>, Term);
 /// The parameters to a dependent function type
 pub type PiParams = Vec<PiParamGroup>;
 
-pub type RecordTypeField = (ByteIndex, String, Term);
+pub type StructTypeField = (ByteIndex, String, Term);
 
-pub type RecordField = (ByteIndex, String, Term);
+pub type StructField = (ByteIndex, String, Term);
 
 /// Top-level items within a module
 #[derive(Debug, Clone, PartialEq)]
@@ -381,20 +381,20 @@ pub enum Term {
     /// case t1 of { pat => t2; .. }
     /// ```
     Case(ByteSpan, Box<Term>, Vec<(Pattern, Term)>),
-    /// Record type
+    /// Struct type
     ///
     /// ```text
-    /// Record { x : t1, .. }
+    /// Struct { x : t1, .. }
     /// ```
-    RecordType(ByteSpan, Vec<RecordTypeField>),
-    /// Record value
+    StructType(ByteSpan, Vec<StructTypeField>),
+    /// Struct value
     ///
     /// ```text
-    /// record { x = t1, .. }
-    /// record { id (a : Type) (x : a) : a = x, .. }
+    /// struct { x = t1, .. }
+    /// struct { id (a : Type) (x : a) : a = x, .. }
     /// ```
-    Record(ByteSpan, Vec<RecordField>),
-    /// Record field projection
+    Struct(ByteSpan, Vec<StructField>),
+    /// Struct field projection
     ///
     /// ```text
     /// e.l
@@ -418,8 +418,8 @@ impl Term {
             | Term::Array(span, _)
             | Term::Hole(span)
             | Term::Case(span, _, _)
-            | Term::RecordType(span, _)
-            | Term::Record(span, _)
+            | Term::StructType(span, _)
+            | Term::Struct(span, _)
             | Term::Error(span) => span,
             Term::Name(start, ref name) => ByteSpan::from_offset(start, ByteOffset::from_str(name)),
             Term::Literal(ref literal) => literal.span(),

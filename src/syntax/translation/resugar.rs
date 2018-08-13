@@ -387,7 +387,7 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
                 Box::new(resugar_term(if_false, Prec::APP)),
             ),
         ),
-        core::Term::RecordType(ref scope) => {
+        core::Term::StructType(ref scope) => {
             let mut fields = vec![];
             let mut scope = scope.clone();
 
@@ -401,16 +401,16 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
                 ));
 
                 match *body {
-                    core::Term::RecordType(ref next_scope) => scope = next_scope.clone(),
-                    core::Term::RecordTypeEmpty => break,
-                    _ => panic!("ill-formed record type"), // FIXME: better error
+                    core::Term::StructType(ref next_scope) => scope = next_scope.clone(),
+                    core::Term::StructTypeEmpty => break,
+                    _ => panic!("ill-formed struct type"), // FIXME: better error
                 }
             }
 
-            concrete::Term::RecordType(ByteSpan::default(), fields)
+            concrete::Term::StructType(ByteSpan::default(), fields)
         },
-        core::Term::RecordTypeEmpty => concrete::Term::RecordType(ByteSpan::default(), vec![]),
-        core::Term::Record(ref scope) => {
+        core::Term::StructTypeEmpty => concrete::Term::StructType(ByteSpan::default(), vec![]),
+        core::Term::Struct(ref scope) => {
             let mut fields = vec![];
             let mut scope = scope.clone();
 
@@ -424,15 +424,15 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
                 ));
 
                 match *body.inner {
-                    core::Term::Record(ref next_scope) => scope = next_scope.clone(),
-                    core::Term::RecordEmpty => break,
-                    _ => panic!("ill-formed record"), // FIXME: better error
+                    core::Term::Struct(ref next_scope) => scope = next_scope.clone(),
+                    core::Term::StructEmpty => break,
+                    _ => panic!("ill-formed struct"), // FIXME: better error
                 }
             }
 
-            concrete::Term::Record(ByteSpan::default(), fields)
+            concrete::Term::Struct(ByteSpan::default(), fields)
         },
-        core::Term::RecordEmpty => concrete::Term::Record(ByteSpan::default(), vec![]),
+        core::Term::StructEmpty => concrete::Term::Struct(ByteSpan::default(), vec![]),
         core::Term::Proj(ref expr, ref label) => concrete::Term::Proj(
             Box::new(resugar_term(expr, Prec::ATOMIC)),
             ByteIndex::default(),

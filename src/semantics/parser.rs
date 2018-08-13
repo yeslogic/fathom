@@ -38,10 +38,10 @@ where
         | Value::Literal(_)
         | Value::Pi(_)
         | Value::Lam(_)
-        | Value::Record(_)
-        | Value::RecordEmpty
+        | Value::Struct(_)
+        | Value::StructEmpty
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
-        Value::RecordType(ref scope) => {
+        Value::StructType(ref scope) => {
             let ((label, binder, Embed(ann)), body) = scope.clone().unbind();
 
             let ann_value = parse(tc_env, &ann, bytes)?;
@@ -49,12 +49,12 @@ where
             let body = nf_term(tc_env, &body)?;
             let body_value = parse(tc_env, &body, bytes)?;
 
-            Ok(RcValue::from(Value::Record(Scope::new(
+            Ok(RcValue::from(Value::Struct(Scope::new(
                 (label, binder, Embed(ann_value)),
                 body_value,
             ))))
         },
-        Value::RecordTypeEmpty => Ok(RcValue::from(Value::RecordEmpty)),
+        Value::StructTypeEmpty => Ok(RcValue::from(Value::StructEmpty)),
         Value::Neutral(ref neutral, ref spine) => match **neutral {
             Neutral::Head(Head::Global(ref n)) => {
                 if spine.len() == 0 {

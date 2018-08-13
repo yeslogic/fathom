@@ -139,28 +139,28 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
         },
 
         // E-RECORD-TYPE
-        Term::RecordType(ref scope) => {
+        Term::StructType(ref scope) => {
             let ((label, binder, Embed(ann)), body) = scope.clone().unbind();
             let ann = nf_term(tc_env, &ann)?;
             let body = nf_term(tc_env, &body)?;
 
-            Ok(Value::RecordType(Scope::new((label, binder, Embed(ann)), body)).into())
+            Ok(Value::StructType(Scope::new((label, binder, Embed(ann)), body)).into())
         },
 
         // E-EMPTY-RECORD-TYPE
-        Term::RecordTypeEmpty => Ok(RcValue::from(Value::RecordTypeEmpty)),
+        Term::StructTypeEmpty => Ok(RcValue::from(Value::StructTypeEmpty)),
 
         // E-RECORD
-        Term::Record(ref scope) => {
+        Term::Struct(ref scope) => {
             let ((label, binder, Embed(term)), body) = scope.clone().unbind();
             let value = nf_term(tc_env, &term)?;
             let body = nf_term(tc_env, &body)?;
 
-            Ok(Value::Record(Scope::new((label, binder, Embed(value)), body)).into())
+            Ok(Value::Struct(Scope::new((label, binder, Embed(value)), body)).into())
         },
 
         // E-EMPTY-RECORD
-        Term::RecordEmpty => Ok(RcValue::from(Value::RecordEmpty)),
+        Term::StructEmpty => Ok(RcValue::from(Value::StructEmpty)),
 
         // E-PROJ
         Term::Proj(ref expr, ref label) => match *nf_term(tc_env, expr)? {
@@ -168,7 +168,7 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
                 RcNeutral::from(Neutral::Proj(neutral.clone(), label.clone())),
                 spine.clone(),
             ))),
-            ref expr => match expr.lookup_record(label) {
+            ref expr => match expr.lookup_struct(label) {
                 Some(value) => Ok(value.clone()),
                 None => Err(InternalError::ProjectedOnNonExistentField {
                     label: label.clone(),

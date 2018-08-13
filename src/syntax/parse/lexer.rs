@@ -112,8 +112,8 @@ pub enum Token<S> {
     Let,        // let
     Module,     // module
     Of,         // of
-    Record,     // record
-    RecordType, // Record
+    Struct,     // struct
+    StructType, // Struct
     Then,       // then
     Type,       // Type
 
@@ -157,8 +157,8 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::Let => write!(f, "let"),
             Token::Module => write!(f, "module"),
             Token::Of => write!(f, "of"),
-            Token::Record => write!(f, "record"),
-            Token::RecordType => write!(f, "Record"),
+            Token::Struct => write!(f, "struct"),
+            Token::StructType => write!(f, "Struct"),
             Token::Then => write!(f, "then"),
             Token::Type => write!(f, "Type"),
             Token::BSlash => write!(f, "\\"),
@@ -200,8 +200,8 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::Let => Token::Let,
             Token::Module => Token::Module,
             Token::Of => Token::Of,
-            Token::Record => Token::Record,
-            Token::RecordType => Token::RecordType,
+            Token::Struct => Token::Struct,
+            Token::StructType => Token::StructType,
             Token::Then => Token::Then,
             Token::Type => Token::Type,
             Token::BSlash => Token::BSlash,
@@ -348,8 +348,8 @@ impl<'input> Lexer<'input> {
             "let" => Token::Let,
             "module" => Token::Module,
             "of" => Token::Of,
-            "record" => Token::Record,
-            "Record" => Token::RecordType,
+            "struct" => Token::Struct,
+            "Struct" => Token::StructType,
             "then" => Token::Then,
             "Type" => Token::Type,
             ident => Token::Ident(ident),
@@ -575,7 +575,7 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  as else extern if import in let module of record Record then Type  ",
+            "  as else extern if import in let module of struct Struct then Type  ",
             "  ~~                                                                 " => Token::As,
             "     ~~~~                                                            " => Token::Else,
             "          ~~~~~~                                                     " => Token::Extern,
@@ -585,8 +585,8 @@ mod tests {
             "                              ~~~                                    " => Token::Let,
             "                                  ~~~~~~                             " => Token::Module,
             "                                         ~~                          " => Token::Of,
-            "                                            ~~~~~~                   " => Token::Record,
-            "                                                   ~~~~~~            " => Token::RecordType,
+            "                                            ~~~~~~                   " => Token::Struct,
+            "                                                   ~~~~~~            " => Token::StructType,
             "                                                          ~~~~       " => Token::Then,
             "                                                               ~~~~  " => Token::Type,
         };

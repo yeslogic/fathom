@@ -91,20 +91,20 @@ fn pretty_if(cond: &impl ToDoc, if_true: &impl ToDoc, if_false: &impl ToDoc) -> 
     )
 }
 
-fn pretty_record_ty(inner: StaticDoc) -> StaticDoc {
-    sexpr("Record", inner)
+fn pretty_struct_ty(inner: StaticDoc) -> StaticDoc {
+    sexpr("Struct", inner)
 }
 
-fn pretty_record(inner: StaticDoc) -> StaticDoc {
-    sexpr("record", inner)
+fn pretty_struct(inner: StaticDoc) -> StaticDoc {
+    sexpr("struct", inner)
 }
 
-fn pretty_empty_record_ty() -> StaticDoc {
-    pretty_record_ty(Doc::text("()"))
+fn pretty_empty_struct_ty() -> StaticDoc {
+    pretty_struct_ty(Doc::text("()"))
 }
 
-fn pretty_empty_record() -> StaticDoc {
-    pretty_record(Doc::text("()"))
+fn pretty_empty_struct() -> StaticDoc {
+    pretty_struct(Doc::text("()"))
 }
 
 fn pretty_case<'a, Cs, P, T>(head: &impl ToDoc, clauses: Cs) -> StaticDoc
@@ -179,7 +179,7 @@ impl ToDoc for raw::Term {
             raw::Term::If(_, ref cond, ref if_true, ref if_false) => {
                 pretty_if(&cond.inner, &if_true.inner, &if_false.inner)
             },
-            raw::Term::RecordType(_, ref scope) => {
+            raw::Term::StructType(_, ref scope) => {
                 let mut inner = Doc::nil();
                 let mut scope = scope;
 
@@ -195,16 +195,16 @@ impl ToDoc for raw::Term {
                         ));
 
                     match *scope.unsafe_body {
-                        raw::Term::RecordType(_, ref next_scope) => scope = next_scope,
-                        raw::Term::RecordTypeEmpty(_) => break,
-                        _ => panic!("ill-formed record"),
+                        raw::Term::StructType(_, ref next_scope) => scope = next_scope,
+                        raw::Term::StructTypeEmpty(_) => break,
+                        _ => panic!("ill-formed struct"),
                     }
                 }
 
-                pretty_record_ty(inner)
+                pretty_struct_ty(inner)
             },
-            raw::Term::RecordTypeEmpty(_) => pretty_empty_record_ty(),
-            raw::Term::Record(_, ref scope) => {
+            raw::Term::StructTypeEmpty(_) => pretty_empty_struct_ty(),
+            raw::Term::Struct(_, ref scope) => {
                 let mut inner = Doc::nil();
                 let mut scope = scope;
 
@@ -220,15 +220,15 @@ impl ToDoc for raw::Term {
                         ));
 
                     match *scope.unsafe_body {
-                        raw::Term::Record(_, ref next_scope) => scope = next_scope,
-                        raw::Term::RecordEmpty(_) => break,
-                        _ => panic!("ill-formed record"),
+                        raw::Term::Struct(_, ref next_scope) => scope = next_scope,
+                        raw::Term::StructEmpty(_) => break,
+                        _ => panic!("ill-formed struct"),
                     }
                 }
 
-                pretty_record(inner)
+                pretty_struct(inner)
             },
-            raw::Term::RecordEmpty(_) => pretty_empty_record(),
+            raw::Term::StructEmpty(_) => pretty_empty_struct(),
             raw::Term::Proj(_, ref expr, _, ref label) => pretty_proj(&expr.inner, label),
             raw::Term::Case(_, ref head, ref clauses) => pretty_case(
                 &head.inner,
@@ -293,7 +293,7 @@ impl ToDoc for Term {
             Term::If(ref cond, ref if_true, ref if_false) => {
                 pretty_if(&cond.inner, &if_true.inner, &if_false.inner)
             },
-            Term::RecordType(ref scope) => {
+            Term::StructType(ref scope) => {
                 let mut inner = Doc::nil();
                 let mut scope = scope;
 
@@ -309,16 +309,16 @@ impl ToDoc for Term {
                         ));
 
                     match *scope.unsafe_body {
-                        Term::RecordType(ref next_scope) => scope = next_scope,
-                        Term::RecordTypeEmpty => break,
-                        _ => panic!("ill-formed record"),
+                        Term::StructType(ref next_scope) => scope = next_scope,
+                        Term::StructTypeEmpty => break,
+                        _ => panic!("ill-formed struct"),
                     }
                 }
 
-                pretty_record_ty(inner)
+                pretty_struct_ty(inner)
             },
-            Term::RecordTypeEmpty => pretty_empty_record_ty(),
-            Term::Record(ref scope) => {
+            Term::StructTypeEmpty => pretty_empty_struct_ty(),
+            Term::Struct(ref scope) => {
                 let mut inner = Doc::nil();
                 let mut scope = scope;
 
@@ -334,15 +334,15 @@ impl ToDoc for Term {
                         ));
 
                     match *scope.unsafe_body {
-                        Term::Record(ref next_scope) => scope = next_scope,
-                        Term::RecordEmpty => break,
-                        _ => panic!("ill-formed record"),
+                        Term::Struct(ref next_scope) => scope = next_scope,
+                        Term::StructEmpty => break,
+                        _ => panic!("ill-formed struct"),
                     }
                 }
 
-                pretty_record(inner)
+                pretty_struct(inner)
             },
-            Term::RecordEmpty => pretty_empty_record(),
+            Term::StructEmpty => pretty_empty_struct(),
             Term::Proj(ref expr, ref label) => pretty_proj(&expr.inner, label),
             Term::Case(ref head, ref clauses) => pretty_case(
                 &head.inner,
@@ -375,7 +375,7 @@ impl ToDoc for Value {
                 &(scope.unsafe_pattern.1).0.inner,
                 &scope.unsafe_body.inner,
             ),
-            Value::RecordType(ref scope) => {
+            Value::StructType(ref scope) => {
                 let mut inner = Doc::nil();
                 let mut scope = scope;
 
@@ -391,16 +391,16 @@ impl ToDoc for Value {
                         ));
 
                     match *scope.unsafe_body {
-                        Value::RecordType(ref next_scope) => scope = next_scope,
-                        Value::RecordTypeEmpty => break,
-                        _ => panic!("ill-formed record"),
+                        Value::StructType(ref next_scope) => scope = next_scope,
+                        Value::StructTypeEmpty => break,
+                        _ => panic!("ill-formed struct"),
                     }
                 }
 
-                pretty_record_ty(inner)
+                pretty_struct_ty(inner)
             },
-            Value::RecordTypeEmpty => pretty_empty_record_ty(),
-            Value::Record(ref scope) => {
+            Value::StructTypeEmpty => pretty_empty_struct_ty(),
+            Value::Struct(ref scope) => {
                 let mut inner = Doc::nil();
                 let mut scope = scope;
 
@@ -416,15 +416,15 @@ impl ToDoc for Value {
                         ));
 
                     match *scope.unsafe_body {
-                        Value::Record(ref next_scope) => scope = next_scope,
-                        Value::RecordEmpty => break,
-                        _ => panic!("ill-formed record"),
+                        Value::Struct(ref next_scope) => scope = next_scope,
+                        Value::StructEmpty => break,
+                        _ => panic!("ill-formed struct"),
                     }
                 }
 
-                pretty_record(inner)
+                pretty_struct(inner)
             },
-            Value::RecordEmpty => pretty_empty_record(),
+            Value::StructEmpty => pretty_empty_struct(),
             Value::Array(ref elems) => Doc::text("[")
                 .append(Doc::intersperse(
                     elems.iter().map(|elem| elem.to_doc()),

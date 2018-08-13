@@ -168,8 +168,8 @@ pub enum TypeError {
         found: String,
         expected: String,
     },
-    #[fail(display = "Ambiguous record")]
-    AmbiguousRecord { span: ByteSpan },
+    #[fail(display = "Ambiguous struct")]
+    AmbiguousStruct { span: ByteSpan },
     #[fail(
         display = "Mismatched array length: expected {} elements but found {}",
         expected_len,
@@ -180,7 +180,7 @@ pub enum TypeError {
         found_len: usize,
         expected_len: BigInt,
     },
-    #[fail(display = "Ambiguous record")]
+    #[fail(display = "Ambiguous struct")]
     AmbiguousArrayLiteral { span: ByteSpan },
     #[fail(
         display = "The type `{}` does not contain a field named `{}`.",
@@ -339,7 +339,7 @@ impl TypeError {
                 "expected field called `{}`, but found a field called `{}",
                 expected, found,
             )).with_label(Label::new_primary(span)),
-            TypeError::AmbiguousRecord { span } => Diagnostic::new_error("ambiguous record")
+            TypeError::AmbiguousStruct { span } => Diagnostic::new_error("ambiguous struct")
                 .with_label(Label::new_primary(span).with_message("type annotations needed here")),
             TypeError::ArrayLengthMismatch {
                 span,

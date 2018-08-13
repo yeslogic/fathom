@@ -124,14 +124,14 @@ pub enum Term {
     App(RcTerm, RcTerm),
     /// If expression
     If(RcTerm, RcTerm, RcTerm),
-    /// Dependent record types
-    RecordType(Scope<(String, Binder<String>, Embed<RcTerm>), RcTerm>),
+    /// Dependent struct types
+    StructType(Scope<(String, Binder<String>, Embed<RcTerm>), RcTerm>),
     /// The unit type
-    RecordTypeEmpty,
-    /// Dependent record
-    Record(Scope<(String, Binder<String>, Embed<RcTerm>), RcTerm>),
+    StructTypeEmpty,
+    /// Dependent struct
+    Struct(Scope<(String, Binder<String>, Embed<RcTerm>), RcTerm>),
     /// The element of the unit type
-    RecordEmpty,
+    StructEmpty,
     /// Field projection
     Proj(RcTerm, String),
     /// Case expressions
@@ -202,21 +202,21 @@ impl RcTerm {
                 if_true.substs(mappings),
                 if_false.substs(mappings),
             )),
-            Term::RecordType(ref scope) => {
+            Term::StructType(ref scope) => {
                 let (ref label, ref binder, Embed(ref ann)) = scope.unsafe_pattern;
-                RcTerm::from(Term::RecordType(Scope {
+                RcTerm::from(Term::StructType(Scope {
                     unsafe_pattern: (label.clone(), binder.clone(), Embed(ann.substs(mappings))),
                     unsafe_body: scope.unsafe_body.substs(mappings),
                 }))
             },
-            Term::Record(ref scope) => {
+            Term::Struct(ref scope) => {
                 let (ref label, ref binder, Embed(ref expr)) = scope.unsafe_pattern;
-                RcTerm::from(Term::Record(Scope {
+                RcTerm::from(Term::Struct(Scope {
                     unsafe_pattern: (label.clone(), binder.clone(), Embed(expr.substs(mappings))),
                     unsafe_body: scope.unsafe_body.substs(mappings),
                 }))
             },
-            Term::RecordTypeEmpty | Term::RecordEmpty => self.clone(),
+            Term::StructTypeEmpty | Term::StructEmpty => self.clone(),
             Term::Proj(ref expr, ref label) => {
                 RcTerm::from(Term::Proj(expr.substs(mappings), label.clone()))
             },
@@ -275,14 +275,14 @@ pub enum Value {
     Pi(Scope<(Binder<String>, Embed<RcValue>), RcValue>),
     /// A lambda abstraction
     Lam(Scope<(Binder<String>, Embed<RcValue>), RcValue>),
-    /// Dependent record types
-    RecordType(Scope<(String, Binder<String>, Embed<RcValue>), RcValue>),
+    /// Dependent struct types
+    StructType(Scope<(String, Binder<String>, Embed<RcValue>), RcValue>),
     /// The unit type
-    RecordTypeEmpty,
-    /// Dependent record
-    Record(Scope<(String, Binder<String>, Embed<RcValue>), RcValue>),
+    StructTypeEmpty,
+    /// Dependent struct
+    Struct(Scope<(String, Binder<String>, Embed<RcValue>), RcValue>),
     /// The element of the unit type
-    RecordEmpty,
+    StructEmpty,
     /// Array literals
     Array(Vec<RcValue>),
     /// Neutral terms
@@ -303,29 +303,29 @@ impl Value {
         RcTerm::from(Term::from(self)).substs(mappings)
     }
 
-    pub fn record_ty(&self) -> Option<Scope<(String, Binder<String>, Embed<RcValue>), RcValue>> {
+    pub fn struct_ty(&self) -> Option<Scope<(String, Binder<String>, Embed<RcValue>), RcValue>> {
         match *self {
-            Value::RecordType(ref scope) => Some(scope.clone()),
+            Value::StructType(ref scope) => Some(scope.clone()),
             _ => None,
         }
     }
 
-    pub fn record(&self) -> Option<Scope<(String, Binder<String>, Embed<RcValue>), RcValue>> {
+    pub fn struct_(&self) -> Option<Scope<(String, Binder<String>, Embed<RcValue>), RcValue>> {
         match *self {
-            Value::Record(ref scope) => Some(scope.clone()),
+            Value::Struct(ref scope) => Some(scope.clone()),
             _ => None,
         }
     }
 
-    pub fn lookup_record(&self, label: &str) -> Option<RcValue> {
-        let mut current_scope = self.record();
+    pub fn lookup_struct(&self, label: &str) -> Option<RcValue> {
+        let mut current_scope = self.struct_();
 
         while let Some(scope) = current_scope {
             let ((current_label, _, Embed(value)), body) = scope.unbind();
             if current_label == label {
                 return Some(value);
             }
-            current_scope = body.record();
+            current_scope = body.struct_();
         }
 
         None
@@ -339,10 +339,10 @@ impl Value {
             | Value::IntType(_, _)
             | Value::Pi(_)
             | Value::Lam(_)
-            | Value::RecordType(_)
-            | Value::RecordTypeEmpty
-            | Value::Record(_)
-            | Value::RecordEmpty
+            | Value::StructType(_)
+            | Value::StructTypeEmpty
+            | Value::Struct(_)
+            | Value::StructEmpty
             | Value::Array(_) => true,
             Value::Neutral(_, _) => false,
         }
@@ -353,15 +353,15 @@ impl Value {
         match *self {
             Value::Universe(_)
             | Value::Literal(_)
-            | Value::RecordTypeEmpty
-            | Value::RecordEmpty => true,
+            | Value::StructTypeEmpty
+            | Value::StructEmpty => true,
             Value::IntType(ref min, ref max) => {
                 min.as_ref().map_or(true, |x| x.is_nf()) && max.as_ref().map_or(true, |x| x.is_nf())
             },
             Value::Pi(ref scope) | Value::Lam(ref scope) => {
                 (scope.unsafe_pattern.1).0.is_nf() && scope.unsafe_body.is_nf()
             },
-            Value::RecordType(ref scope) | Value::Record(ref scope) => {
+            Value::StructType(ref scope) | Value::Struct(ref scope) => {
                 (scope.unsafe_pattern.2).0.is_nf() && scope.unsafe_body.is_nf()
             },
             Value::Array(ref elems) => elems.iter().all(|elem| elem.is_nf()),
@@ -551,22 +551,22 @@ impl<'a> From<&'a Value> for Term {
                     unsafe_body: RcTerm::from(&*scope.unsafe_body),
                 })
             },
-            Value::RecordType(ref scope) => {
+            Value::StructType(ref scope) => {
                 let (ref label, ref binder, Embed(ref ann)) = scope.unsafe_pattern;
-                Term::RecordType(Scope {
+                Term::StructType(Scope {
                     unsafe_pattern: (label.clone(), binder.clone(), Embed(RcTerm::from(&**ann))),
                     unsafe_body: RcTerm::from(&*scope.unsafe_body),
                 })
             },
-            Value::RecordTypeEmpty => Term::RecordTypeEmpty,
-            Value::Record(ref scope) => {
+            Value::StructTypeEmpty => Term::StructTypeEmpty,
+            Value::Struct(ref scope) => {
                 let (ref label, ref binder, Embed(ref term)) = scope.unsafe_pattern;
-                Term::Record(Scope {
+                Term::Struct(Scope {
                     unsafe_pattern: (label.clone(), binder.clone(), Embed(RcTerm::from(&**term))),
                     unsafe_body: RcTerm::from(&*scope.unsafe_body),
                 })
             },
-            Value::RecordEmpty => Term::RecordEmpty,
+            Value::StructEmpty => Term::StructEmpty,
             Value::Array(ref elems) => {
                 Term::Array(elems.iter().map(|elem| RcTerm::from(&**elem)).collect())
             },

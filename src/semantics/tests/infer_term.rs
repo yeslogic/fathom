@@ -37,7 +37,7 @@ fn extern_not_found() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let given_expr = r#"extern "does-not-exist" : Record {}"#;
+    let given_expr = r#"extern "does-not-exist" : Struct {}"#;
 
     match infer_term(&tc_env, &parse(&mut codemap, given_expr)) {
         Err(TypeError::UndefinedExternName { .. }) => {},
@@ -505,12 +505,12 @@ mod church_encodings {
 }
 
 #[test]
-fn empty_record_ty() {
+fn empty_struct_ty() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
     let expected_ty = r"Type";
-    let given_expr = r"Record {}";
+    let given_expr = r"Struct {}";
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
@@ -519,12 +519,12 @@ fn empty_record_ty() {
 }
 
 #[test]
-fn empty_record() {
+fn empty_struct() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let expected_ty = r"Record {}";
-    let given_expr = r"record {}";
+    let expected_ty = r"Struct {}";
+    let given_expr = r"struct {}";
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
@@ -533,12 +533,12 @@ fn empty_record() {
 }
 
 #[test]
-fn dependent_record_ty() {
+fn dependent_struct_ty() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
     let expected_ty = r"Type 2";
-    let given_expr = r"Record { t : Type 1, x : t }";
+    let given_expr = r"Struct { t : Type 1, x : t }";
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
@@ -547,15 +547,15 @@ fn dependent_record_ty() {
 }
 
 #[test]
-fn record() {
+fn struct_() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let given_expr = r#"record { x = "Hello" }"#;
+    let given_expr = r#"struct { x = "Hello" }"#;
 
     match infer_term(&tc_env, &parse(&mut codemap, given_expr)) {
-        Err(TypeError::AmbiguousRecord { .. }) => {},
-        x => panic!("expected an ambiguous record error, found {:?}", x),
+        Err(TypeError::AmbiguousStruct { .. }) => {},
+        x => panic!("expected an ambiguous struct error, found {:?}", x),
     }
 }
 
@@ -565,7 +565,7 @@ fn proj() {
     let tc_env = TcEnv::default();
 
     let expected_ty = r"String";
-    let given_expr = r#"(record { t = String, x = "hello" } : Record { t : Type, x : String }).x"#;
+    let given_expr = r#"(struct { t = String, x = "hello" } : Struct { t : Type, x : String }).x"#;
 
     assert_term_eq!(
         parse_infer_term(&mut codemap, &tc_env, given_expr).1,
@@ -578,7 +578,7 @@ fn proj_missing() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let given_expr = r#"(record { x = "hello" } : Record { x : String }).bloop"#;
+    let given_expr = r#"(struct { x = "hello" } : Struct { x : String }).bloop"#;
 
     match infer_term(&tc_env, &parse(&mut codemap, given_expr)) {
         Err(TypeError::NoFieldInType { .. }) => {},
@@ -592,8 +592,8 @@ fn proj_weird1() {
     let tc_env = TcEnv::default();
 
     let expected_ty = r"Type 1";
-    let given_expr = r"Record {
-        data : Record {
+    let given_expr = r"Struct {
+        data : Struct {
             t : Type,
             x : t,
         },
@@ -614,9 +614,9 @@ fn proj_weird2() {
     let tc_env = TcEnv::default();
 
     let expected_ty = r"Type 1";
-    let given_expr = r"Record {
+    let given_expr = r"Struct {
         Array : U16 -> Type -> Type,
-        t : Record { n : U16, x : Array n S8, y : Array n S8 },
+        t : Struct { n : U16, x : Array n S8, y : Array n S8 },
         inner-prod : (len : U16) -> Array len S8 -> Array len S8 -> S32,
 
         test1 : S32 -> Type,
@@ -644,12 +644,12 @@ fn array_ambiguous() {
 }
 
 #[test]
-fn record_with_integer() {
+fn struct_with_integer() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
     let expected_ty = r"Type";
-    let given_expr = r"Record {
+    let given_expr = r"Struct {
         len : U16Be,
         data : Array len U32Be,
     }";

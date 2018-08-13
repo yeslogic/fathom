@@ -34,8 +34,8 @@ extern {
         "module" => Token::Module,
         "import" => Token::Import,
         "of" => Token::Of,
-        "record" => Token::Record,
-        "Record" => Token::RecordType,
+        "struct" => Token::Struct,
+        "Struct" => Token::StructType,
         "then" => Token::Then,
         "Type" => Token::Type,
 
@@ -252,15 +252,15 @@ AtomicTerm: Term = {
             Term::Name(start, ident)
         }
     },
-    <start: @L> "Record" "{" <fields: (<RecordTypeField> ",")*> <last: RecordTypeField?> "}" <end: @R> => {
+    <start: @L> "Struct" "{" <fields: (<StructTypeField> ",")*> <last: StructTypeField?> "}" <end: @R> => {
         let mut fields = fields;
         fields.extend(last);
-        Term::RecordType(ByteSpan::new(start, end), fields)
+        Term::StructType(ByteSpan::new(start, end), fields)
     },
-    <start: @L> "record" "{" <fields: (<RecordField> ",")*> <last: RecordField?> "}" <end: @R> => {
+    <start: @L> "struct" "{" <fields: (<StructField> ",")*> <last: StructField?> "}" <end: @R> => {
         let mut fields = fields;
         fields.extend(last);
-        Term::Record(ByteSpan::new(start, end), fields)
+        Term::Struct(ByteSpan::new(start, end), fields)
     },
     <term: AtomicTerm> "." <label_start: @L> <label: Ident> => {
         Term::Proj(Box::new(term), label_start, label)
@@ -276,7 +276,7 @@ AtomicLamParam: (Vec<(ByteIndex, String)>, Option<Box<Term>>) = {
     "(" <names: IndexedIdent+> <ann: (":" <PiTerm>)?> ")" => (names, ann.map(Box::new)),
 };
 
-RecordTypeField: (ByteIndex, String, Term) = {
+StructTypeField: (ByteIndex, String, Term) = {
     <_comment: "doc comment"*> <start: @L> <label: Ident> ":" <ty: Term> => {
         (start, label, ty)
     },
@@ -286,7 +286,7 @@ PatternArm: (Pattern, Term) = {
     <Pattern> "=>" <Term>,
 };
 
-RecordField: (ByteIndex, String, Term) = {
+StructField: (ByteIndex, String, Term) = {
     <start: @L> <label: Ident>"=" <term: Term> => {
         (start, label, term)
     },

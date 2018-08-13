@@ -148,10 +148,10 @@ fn desugar_lam(
         })
 }
 
-fn desugar_record_ty(
+fn desugar_struct_ty(
     env: &DesugarEnv,
     span: ByteSpan,
-    fields: &[concrete::RecordTypeField],
+    fields: &[concrete::StructTypeField],
 ) -> raw::RcTerm {
     let mut env = env.clone();
 
@@ -165,9 +165,9 @@ fn desugar_record_ty(
 
     let end_span = ByteSpan::new(span.end(), span.end());
     fields.into_iter().rev().fold(
-        raw::RcTerm::from(raw::Term::RecordTypeEmpty(end_span)),
+        raw::RcTerm::from(raw::Term::StructTypeEmpty(end_span)),
         |acc, (start, label, binder, ann)| {
-            raw::RcTerm::from(raw::Term::RecordType(
+            raw::RcTerm::from(raw::Term::StructType(
                 ByteSpan::new(start, acc.span().end()),
                 Scope::new((label, binder, Embed(ann)), acc),
             ))
@@ -175,10 +175,10 @@ fn desugar_record_ty(
     )
 }
 
-fn desugar_record(
+fn desugar_struct(
     env: &DesugarEnv,
     span: ByteSpan,
-    fields: &[concrete::RecordField],
+    fields: &[concrete::StructField],
 ) -> raw::RcTerm {
     let mut env = env.clone();
 
@@ -192,9 +192,9 @@ fn desugar_record(
 
     let end_span = ByteSpan::new(span.end(), span.end());
     fields.into_iter().rev().fold(
-        raw::RcTerm::from(raw::Term::RecordEmpty(end_span)),
+        raw::RcTerm::from(raw::Term::StructEmpty(end_span)),
         |acc, (start, label, binder, value)| {
-            raw::RcTerm::from(raw::Term::Record(
+            raw::RcTerm::from(raw::Term::Struct(
                 ByteSpan::new(start, acc.span().end()),
                 Scope::new((label, binder, Embed(value)), acc),
             ))
@@ -354,8 +354,8 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                         }).collect(),
                 ))
             },
-            concrete::Term::RecordType(span, ref fields) => desugar_record_ty(env, span, fields),
-            concrete::Term::Record(span, ref fields) => desugar_record(env, span, fields),
+            concrete::Term::StructType(span, ref fields) => desugar_struct_ty(env, span, fields),
+            concrete::Term::Struct(span, ref fields) => desugar_struct(env, span, fields),
             concrete::Term::Proj(ref tm, label_start, ref label) => {
                 raw::RcTerm::from(raw::Term::Proj(
                     span,

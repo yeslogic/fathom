@@ -10,7 +10,7 @@ fn test_silly_format() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let given_format = r#"Record {
+    let given_format = r#"Struct {
         len : U16Be,
         data : Array len U32Be,
     }"#;
@@ -26,10 +26,10 @@ fn test_silly_format() {
         Cursor::new(given_bytes)
     };
 
-    let expected_term = r#"record {
+    let expected_term = r#"struct {
         len = 3,
         data = [1, 3, 6],
-    } : Record {
+    } : Struct {
         len : U16,
         data : Array len U32,
     }"#;

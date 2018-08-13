@@ -1,36 +1,36 @@
 use super::*;
 
 #[test]
-fn record() {
+fn struct_() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let expected_ty = r"Record { t : Type, x : String }";
-    let given_expr = r#"record { t = String, x = "hello" }"#;
+    let expected_ty = r"Struct { t : Type, x : String }";
+    let given_expr = r#"struct { t = String, x = "hello" }"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
 #[test]
-fn dependent_record() {
+fn dependent_struct() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let expected_ty = r"Record { t : Type, x : t }";
-    let given_expr = r#"record { t = String, x = "hello" }"#;
+    let expected_ty = r"Struct { t : Type, x : t }";
+    let given_expr = r#"struct { t = String, x = "hello" }"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 }
 
 #[test]
-fn dependent_record_propagate_types() {
+fn dependent_struct_propagate_types() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let expected_ty = r"Record { t : Type, x : t }";
-    let given_expr = r#"record { t = S32, x = 1 }"#;
+    let expected_ty = r"Struct { t : Type, x : t }";
+    let given_expr = r#"struct { t = S32, x = 1 }"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);

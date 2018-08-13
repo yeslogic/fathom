@@ -156,20 +156,20 @@ pub enum Term {
     App(RcTerm, RcTerm),
     /// If expression
     If(ByteIndex, RcTerm, RcTerm, RcTerm),
-    /// Dependent record types
-    RecordType(
+    /// Dependent struct types
+    StructType(
         ByteSpan,
         Scope<(String, Binder<String>, Embed<RcTerm>), RcTerm>,
     ),
-    /// Dependent record
-    Record(
+    /// Dependent struct
+    Struct(
         ByteSpan,
         Scope<(String, Binder<String>, Embed<RcTerm>), RcTerm>,
     ),
     /// The unit type
-    RecordTypeEmpty(ByteSpan),
+    StructTypeEmpty(ByteSpan),
     /// The element of the unit type
-    RecordEmpty(ByteSpan),
+    StructEmpty(ByteSpan),
     /// Field projection
     Proj(ByteSpan, RcTerm, ByteSpan, String),
     /// Case expressions
@@ -189,10 +189,10 @@ impl Term {
             | Term::Global(span, _)
             | Term::Pi(span, _)
             | Term::Lam(span, _)
-            | Term::RecordType(span, _)
-            | Term::Record(span, _)
-            | Term::RecordTypeEmpty(span)
-            | Term::RecordEmpty(span)
+            | Term::StructType(span, _)
+            | Term::Struct(span, _)
+            | Term::StructTypeEmpty(span)
+            | Term::StructEmpty(span)
             | Term::Proj(span, _, _, _)
             | Term::Case(span, _, _)
             | Term::Array(span, _) => span,

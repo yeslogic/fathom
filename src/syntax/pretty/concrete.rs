@@ -236,9 +236,9 @@ impl ToDoc for Term {
                             .append(Doc::newline())
                     })).nest(INDENT_WIDTH),
                 ).append("}"),
-            Term::RecordType(_, ref fields) if fields.is_empty() => Doc::text("Record {}"),
-            Term::Record(_, ref fields) if fields.is_empty() => Doc::text("record {}"),
-            Term::RecordType(_, ref fields) => Doc::text("Record {")
+            Term::StructType(_, ref fields) if fields.is_empty() => Doc::text("Struct {}"),
+            Term::Struct(_, ref fields) if fields.is_empty() => Doc::text("struct {}"),
+            Term::StructType(_, ref fields) => Doc::text("Struct {")
                 .append(Doc::space())
                 .append(
                     Doc::intersperse(
@@ -253,7 +253,7 @@ impl ToDoc for Term {
                     ).nest(INDENT_WIDTH),
                 ).append(Doc::space())
                 .append("}"),
-            Term::Record(_, ref fields) => Doc::text("record {")
+            Term::Struct(_, ref fields) => Doc::text("struct {")
                 .append(Doc::space())
                 .append(
                     Doc::intersperse(
