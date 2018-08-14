@@ -5,6 +5,7 @@ use codespan_reporting::{Diagnostic, Label};
 use moniker::{Binder, FreeVar, Var};
 use num_bigint::BigInt;
 
+use syntax;
 use syntax::concrete;
 use syntax::raw;
 
@@ -21,7 +22,7 @@ pub enum InternalError {
     #[fail(display = "Expected a boolean expression.")]
     ExpectedBoolExpr,
     #[fail(display = "Projected on non-existent field `{}`.", label)]
-    ProjectedOnNonExistentField { label: String },
+    ProjectedOnNonExistentField { label: syntax::Label },
     #[fail(display = "No patterns matched the given expression.")]
     NoPatternsApplicable,
 }
@@ -165,8 +166,8 @@ pub enum TypeError {
     )]
     LabelMismatch {
         span: ByteSpan,
-        found: String,
-        expected: String,
+        found: syntax::Label,
+        expected: syntax::Label,
     },
     #[fail(display = "Ambiguous struct")]
     AmbiguousStruct { span: ByteSpan },
@@ -189,7 +190,7 @@ pub enum TypeError {
     )]
     NoFieldInType {
         label_span: ByteSpan,
-        expected_label: String,
+        expected_label: syntax::Label,
         found: Box<concrete::Term>,
     },
     #[fail(display = "Internal error - this is a bug! {}", _0)]

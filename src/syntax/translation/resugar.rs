@@ -3,7 +3,7 @@ use moniker::{Binder, BoundTerm, Embed, Scope, Var};
 
 use syntax::concrete;
 use syntax::core;
-use syntax::Level;
+use syntax::{Label, Level};
 
 /// Translate something to the corresponding concrete representation
 pub trait Resugar<T> {
@@ -392,13 +392,10 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
             let mut scope = scope.clone();
 
             loop {
-                let ((label, _, Embed(expr)), body) = scope.unbind();
+                let ((Label(label), _, Embed(term)), body) = scope.unbind();
+                let term = resugar_term(&term, Prec::NO_WRAP);
 
-                fields.push((
-                    ByteIndex::default(),
-                    label.clone(),
-                    resugar_term(&expr, Prec::NO_WRAP),
-                ));
+                fields.push((ByteIndex::default(), label, term));
 
                 match *body {
                     core::Term::StructType(ref next_scope) => scope = next_scope.clone(),
@@ -415,13 +412,10 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
             let mut scope = scope.clone();
 
             loop {
-                let ((label, _, Embed(expr)), body) = scope.unbind();
+                let ((Label(label), _, Embed(term)), body) = scope.unbind();
+                let term = resugar_term(&term, Prec::NO_WRAP);
 
-                fields.push((
-                    ByteIndex::default(),
-                    label.clone(),
-                    resugar_term(&expr, Prec::NO_WRAP),
-                ));
+                fields.push((ByteIndex::default(), label, term));
 
                 match *body.inner {
                     core::Term::Struct(ref next_scope) => scope = next_scope.clone(),
@@ -433,7 +427,7 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
             concrete::Term::Struct(ByteSpan::default(), fields)
         },
         core::Term::StructEmpty => concrete::Term::Struct(ByteSpan::default(), vec![]),
-        core::Term::Proj(ref expr, ref label) => concrete::Term::Proj(
+        core::Term::Proj(ref expr, Label(ref label)) => concrete::Term::Proj(
             Box::new(resugar_term(expr, Prec::ATOMIC)),
             ByteIndex::default(),
             label.clone(),

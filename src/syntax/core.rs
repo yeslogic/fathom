@@ -8,7 +8,7 @@ use std::ops;
 use std::rc::Rc;
 
 use syntax::pretty::{self, ToDoc};
-use syntax::Level;
+use syntax::{Label, Level};
 
 /// A module definition
 pub struct Module {
@@ -125,15 +125,15 @@ pub enum Term {
     /// If expression
     If(RcTerm, RcTerm, RcTerm),
     /// Dependent struct types
-    StructType(Scope<(String, Binder<String>, Embed<RcTerm>), RcTerm>),
+    StructType(Scope<(Label, Binder<String>, Embed<RcTerm>), RcTerm>),
     /// The unit type
     StructTypeEmpty,
     /// Dependent struct
-    Struct(Scope<(String, Binder<String>, Embed<RcTerm>), RcTerm>),
+    Struct(Scope<(Label, Binder<String>, Embed<RcTerm>), RcTerm>),
     /// The element of the unit type
     StructEmpty,
     /// Field projection
-    Proj(RcTerm, String),
+    Proj(RcTerm, Label),
     /// Case expressions
     Case(RcTerm, Vec<Scope<RcPattern, RcTerm>>),
     /// Array literals
@@ -276,11 +276,11 @@ pub enum Value {
     /// A lambda abstraction
     Lam(Scope<(Binder<String>, Embed<RcValue>), RcValue>),
     /// Dependent struct types
-    StructType(Scope<(String, Binder<String>, Embed<RcValue>), RcValue>),
+    StructType(Scope<(Label, Binder<String>, Embed<RcValue>), RcValue>),
     /// The unit type
     StructTypeEmpty,
     /// Dependent struct
-    Struct(Scope<(String, Binder<String>, Embed<RcValue>), RcValue>),
+    Struct(Scope<(Label, Binder<String>, Embed<RcValue>), RcValue>),
     /// The element of the unit type
     StructEmpty,
     /// Array literals
@@ -303,26 +303,26 @@ impl Value {
         RcTerm::from(Term::from(self)).substs(mappings)
     }
 
-    pub fn struct_ty(&self) -> Option<Scope<(String, Binder<String>, Embed<RcValue>), RcValue>> {
+    pub fn struct_ty(&self) -> Option<Scope<(Label, Binder<String>, Embed<RcValue>), RcValue>> {
         match *self {
             Value::StructType(ref scope) => Some(scope.clone()),
             _ => None,
         }
     }
 
-    pub fn struct_(&self) -> Option<Scope<(String, Binder<String>, Embed<RcValue>), RcValue>> {
+    pub fn struct_(&self) -> Option<Scope<(Label, Binder<String>, Embed<RcValue>), RcValue>> {
         match *self {
             Value::Struct(ref scope) => Some(scope.clone()),
             _ => None,
         }
     }
 
-    pub fn lookup_struct(&self, label: &str) -> Option<RcValue> {
+    pub fn lookup_struct(&self, label: &Label) -> Option<RcValue> {
         let mut current_scope = self.struct_();
 
         while let Some(scope) = current_scope {
             let ((current_label, _, Embed(value)), body) = scope.unbind();
-            if current_label == label {
+            if current_label == *label {
                 return Some(value);
             }
             current_scope = body.struct_();
@@ -462,7 +462,7 @@ pub enum Neutral {
     /// If expression
     If(RcNeutral, RcValue, RcValue),
     /// Field projection
-    Proj(RcNeutral, String),
+    Proj(RcNeutral, Label),
     /// Case expressions
     Case(RcNeutral, Vec<Scope<RcPattern, RcValue>>),
 }
