@@ -5,7 +5,7 @@ use syntax::concrete;
 use syntax::core;
 use syntax::Level;
 
-/// Translate something to the corresxponding concrete representation
+/// Translate something to the corresponding concrete representation
 pub trait Resugar<T> {
     fn resugar(&self) -> T;
 }
