@@ -297,4 +297,46 @@ mod nf_term {
             parse_nf_term(&mut codemap, &tc_env, expected_expr),
         );
     }
+
+    #[test]
+    fn case_expr_bool_true() {
+        let mut codemap = CodeMap::new();
+        let tc_env = TcEnv::default();
+
+        let given_expr = r#"
+            case true of {
+                true => "true";
+                false => "false";
+            }
+        "#;
+        let expected_expr = r#"
+            "true"
+        "#;
+
+        assert_term_eq!(
+            parse_nf_term(&mut codemap, &tc_env, given_expr),
+            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+        );
+    }
+
+    #[test]
+    fn case_expr_bool_false() {
+        let mut codemap = CodeMap::new();
+        let tc_env = TcEnv::default();
+
+        let given_expr = r#"
+            case false of {
+                true => "true";
+                false => "false";
+            }
+        "#;
+        let expected_expr = r#"
+            "false"
+        "#;
+
+        assert_term_eq!(
+            parse_nf_term(&mut codemap, &tc_env, given_expr),
+            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+        );
+    }
 }
