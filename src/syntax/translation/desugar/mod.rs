@@ -1,6 +1,6 @@
 use codespan::{ByteOffset, ByteSpan};
 use im::HashMap;
-use moniker::{Binder, Embed, FreeVar, Scope, Var};
+use moniker::{Binder, Embed, FreeVar, Nest, Scope, Var};
 
 use syntax::concrete;
 use syntax::raw;
@@ -157,22 +157,16 @@ fn desugar_struct_ty(
 
     let fields = fields
         .iter()
-        .map(|&(start, ref label, ref ann)| {
+        .map(|&(_, ref label, ref ann)| {
             let ann = ann.desugar(&env);
             let free_var = env.on_binding(label);
-            (start, Label(label.clone()), Binder(free_var), ann)
+            (Label(label.clone()), Binder(free_var), Embed(ann))
         }).collect::<Vec<_>>();
 
-    let end_span = ByteSpan::new(span.end(), span.end());
-    fields.into_iter().rev().fold(
-        raw::RcTerm::from(raw::Term::StructTypeEmpty(end_span)),
-        |acc, (start, label, binder, ann)| {
-            raw::RcTerm::from(raw::Term::StructType(
-                ByteSpan::new(start, acc.span().end()),
-                Scope::new((label, binder, Embed(ann)), acc),
-            ))
-        },
-    )
+    raw::RcTerm::from(raw::Term::StructType(
+        span,
+        Scope::new(Nest::new(fields), ()),
+    ))
 }
 
 fn desugar_struct(
@@ -184,22 +178,13 @@ fn desugar_struct(
 
     let fields = fields
         .iter()
-        .map(|&(start, ref label, ref value)| {
-            let value = value.desugar(&env);
+        .map(|&(_, ref label, ref expr)| {
+            let expr = expr.desugar(&env);
             let free_var = env.on_binding(label);
-            (start, Label(label.clone()), Binder(free_var), value)
+            (Label(label.clone()), Binder(free_var), Embed(expr))
         }).collect::<Vec<_>>();
 
-    let end_span = ByteSpan::new(span.end(), span.end());
-    fields.into_iter().rev().fold(
-        raw::RcTerm::from(raw::Term::StructEmpty(end_span)),
-        |acc, (start, label, binder, value)| {
-            raw::RcTerm::from(raw::Term::Struct(
-                ByteSpan::new(start, acc.span().end()),
-                Scope::new((label, binder, Embed(value)), acc),
-            ))
-        },
-    )
+    raw::RcTerm::from(raw::Term::Struct(span, Scope::new(Nest::new(fields), ())))
 }
 
 impl Desugar<raw::Module> for concrete::Module {

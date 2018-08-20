@@ -1,4 +1,4 @@
-use moniker::{Embed, Scope};
+use moniker::{Embed, Nest, Scope};
 use std::io;
 
 use syntax::core::{Head, Literal, Neutral, RcTerm, RcType, RcValue, Term, Value};
@@ -39,22 +39,26 @@ where
         | Value::Pi(_)
         | Value::Lam(_)
         | Value::Struct(_)
-        | Value::StructEmpty
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
         Value::StructType(ref scope) => {
-            let ((label, binder, Embed(ann)), body) = scope.clone().unbind();
+            let (fields, ()) = scope.clone().unbind();
+            let fields = fields.unnest();
 
-            let ann_value = parse(tc_env, &ann, bytes)?;
-            let body = body.substs(&[(binder.0.clone(), RcTerm::from(Term::from(&*ann_value)))]);
-            let body = nf_term(tc_env, &body)?;
-            let body_value = parse(tc_env, &body, bytes)?;
+            let mut mappings = Vec::with_capacity(fields.len());
+            let fields = Nest::new(
+                fields
+                    .into_iter()
+                    .map(|(label, binder, Embed(ann))| {
+                        let ann = nf_term(tc_env, &ann.substs(&mappings))?;
+                        let ann_value = parse(tc_env, &ann, bytes)?;
+                        mappings.push((binder.0.clone(), RcTerm::from(Term::from(&*ann_value))));
 
-            Ok(RcValue::from(Value::Struct(Scope::new(
-                (label, binder, Embed(ann_value)),
-                body_value,
-            ))))
+                        Ok((label, binder, Embed(ann_value)))
+                    }).collect::<Result<_, ParseError>>()?,
+            );
+
+            Ok(RcValue::from(Value::Struct(Scope::new(fields, ()))))
         },
-        Value::StructTypeEmpty => Ok(RcValue::from(Value::StructEmpty)),
         Value::Neutral(ref neutral, ref spine) => match **neutral {
             Neutral::Head(Head::Global(ref n)) => {
                 if spine.len() == 0 {

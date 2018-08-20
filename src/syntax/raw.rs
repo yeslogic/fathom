@@ -2,7 +2,7 @@
 //! be elaborated in a type-directed way during type checking and inference
 
 use codespan::{ByteIndex, ByteSpan};
-use moniker::{Binder, Embed, Scope, Var};
+use moniker::{Binder, Embed, Nest, Scope, Var};
 use num_bigint::BigInt;
 use std::fmt;
 use std::ops;
@@ -181,17 +181,13 @@ pub enum Term {
     /// Dependent struct types
     StructType(
         ByteSpan,
-        Scope<(Label, Binder<String>, Embed<RcTerm>), RcTerm>,
+        Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>,
     ),
     /// Dependent struct
     Struct(
         ByteSpan,
-        Scope<(Label, Binder<String>, Embed<RcTerm>), RcTerm>,
+        Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>,
     ),
-    /// The unit type
-    StructTypeEmpty(ByteSpan),
-    /// The element of the unit type
-    StructEmpty(ByteSpan),
     /// Field projection
     Proj(ByteSpan, RcTerm, ByteSpan, Label),
     /// Case expressions
@@ -213,8 +209,6 @@ impl Term {
             | Term::Lam(span, _)
             | Term::StructType(span, _)
             | Term::Struct(span, _)
-            | Term::StructTypeEmpty(span)
-            | Term::StructEmpty(span)
             | Term::Proj(span, _, _, _)
             | Term::Case(span, _, _)
             | Term::Array(span, _) => span,

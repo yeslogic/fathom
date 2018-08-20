@@ -394,47 +394,33 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
             ),
         ),
         core::Term::StructType(ref scope) => {
-            let mut fields = vec![];
-            let mut scope = scope.clone();
+            let (scope, ()) = scope.clone().unbind();
 
-            loop {
-                // TODO: add label->binder mapping to locals
-                let ((Label(label), _, Embed(term)), body) = scope.unbind();
-                let term = resugar_term(&term, Prec::NO_WRAP);
-
-                fields.push((ByteIndex::default(), label, term));
-
-                match *body {
-                    core::Term::StructType(ref next_scope) => scope = next_scope.clone(),
-                    core::Term::StructTypeEmpty => break,
-                    _ => panic!("ill-formed struct type"), // FIXME: better error
-                }
-            }
+            let fields = scope
+                .unnest()
+                .into_iter()
+                .map(|(Label(label), _, Embed(term))| {
+                    // TODO: add label->binder mapping to locals
+                    let term = resugar_term(&term, Prec::NO_WRAP);
+                    (ByteIndex::default(), label, term)
+                }).collect();
 
             concrete::Term::StructType(ByteSpan::default(), fields)
         },
-        core::Term::StructTypeEmpty => concrete::Term::StructType(ByteSpan::default(), vec![]),
         core::Term::Struct(ref scope) => {
-            let mut fields = vec![];
-            let mut scope = scope.clone();
+            let (scope, ()) = scope.clone().unbind();
 
-            loop {
-                // TODO: add label->binder mapping to locals
-                let ((Label(label), _, Embed(term)), body) = scope.unbind();
-                let term = resugar_term(&term, Prec::NO_WRAP);
-
-                fields.push((ByteIndex::default(), label, term));
-
-                match *body.inner {
-                    core::Term::Struct(ref next_scope) => scope = next_scope.clone(),
-                    core::Term::StructEmpty => break,
-                    _ => panic!("ill-formed struct"), // FIXME: better error
-                }
-            }
+            let fields = scope
+                .unnest()
+                .into_iter()
+                .map(|(Label(label), _, Embed(term))| {
+                    // TODO: add label->binder mapping to locals
+                    let term = resugar_term(&term, Prec::NO_WRAP);
+                    (ByteIndex::default(), label, term)
+                }).collect();
 
             concrete::Term::Struct(ByteSpan::default(), fields)
         },
-        core::Term::StructEmpty => concrete::Term::Struct(ByteSpan::default(), vec![]),
         core::Term::Proj(ref expr, Label(ref label)) => concrete::Term::Proj(
             Box::new(resugar_term(expr, Prec::ATOMIC)),
             ByteIndex::default(),
