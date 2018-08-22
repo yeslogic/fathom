@@ -184,10 +184,7 @@ pub enum Term {
         Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>,
     ),
     /// Dependent struct
-    Struct(
-        ByteSpan,
-        Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>,
-    ),
+    Struct(ByteSpan, Vec<(Label, RcTerm)>),
     /// Field projection
     Proj(ByteSpan, RcTerm, ByteSpan, Label),
     /// Case expressions

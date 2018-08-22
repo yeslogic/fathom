@@ -183,18 +183,16 @@ impl ToDoc for raw::Term {
                     },
                 ),
             )),
-            raw::Term::Struct(_, ref scope) => pretty_struct(Doc::concat(
-                scope.unsafe_pattern.unsafe_patterns.iter().map(
-                    |&(ref label, _, Embed(ref term))| {
-                        parens(
-                            Doc::as_string(label)
-                                .append(Doc::space())
-                                .append(term.to_doc())
-                                .append(Doc::newline()),
-                        )
-                    },
-                ),
-            )),
+            raw::Term::Struct(_, ref fields) => {
+                pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
+                    parens(
+                        Doc::as_string(label)
+                            .append(Doc::space())
+                            .append(term.to_doc())
+                            .append(Doc::newline()),
+                    )
+                })))
+            },
             raw::Term::Proj(_, ref expr, _, ref label) => pretty_proj(&expr.inner, label),
             raw::Term::Case(_, ref head, ref clauses) => pretty_case(
                 &head.inner,
@@ -271,18 +269,16 @@ impl ToDoc for Term {
                     },
                 ),
             )),
-            Term::Struct(ref scope) => pretty_struct(Doc::concat(
-                scope.unsafe_pattern.unsafe_patterns.iter().map(
-                    |&(ref label, _, Embed(ref term))| {
-                        parens(
-                            Doc::as_string(label)
-                                .append(Doc::space())
-                                .append(term.to_doc())
-                                .append(Doc::newline()),
-                        )
-                    },
-                ),
-            )),
+            Term::Struct(ref fields) => {
+                pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
+                    parens(
+                        Doc::as_string(label)
+                            .append(Doc::space())
+                            .append(term.to_doc())
+                            .append(Doc::newline()),
+                    )
+                })))
+            },
             Term::Proj(ref expr, ref label) => pretty_proj(&expr.inner, label),
             Term::Case(ref head, ref clauses) => pretty_case(
                 &head.inner,
@@ -327,18 +323,16 @@ impl ToDoc for Value {
                     },
                 ),
             )),
-            Value::Struct(ref scope) => pretty_struct(Doc::concat(
-                scope.unsafe_pattern.unsafe_patterns.iter().map(
-                    |&(ref label, _, Embed(ref term))| {
-                        parens(
-                            Doc::as_string(label)
-                                .append(Doc::space())
-                                .append(term.to_doc())
-                                .append(Doc::newline()),
-                        )
-                    },
-                ),
-            )),
+            Value::Struct(ref fields) => {
+                pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
+                    parens(
+                        Doc::as_string(label)
+                            .append(Doc::space())
+                            .append(term.to_doc())
+                            .append(Doc::newline()),
+                    )
+                })))
+            },
             Value::Array(ref elems) => Doc::text("[")
                 .append(Doc::intersperse(
                     elems.iter().map(|elem| elem.to_doc()),

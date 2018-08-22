@@ -404,11 +404,8 @@ pub fn check_term(
         },
 
         // C-STRUCT
-        (&raw::Term::Struct(span, ref raw_scope), &Value::StructType(ref raw_ty_scope)) => {
-            let (raw_fields, (), raw_ty_fields, ()) =
-                Scope::unbind2(raw_scope.clone(), raw_ty_scope.clone());
-
-            let raw_fields = raw_fields.unnest();
+        (&raw::Term::Struct(span, ref raw_fields), &Value::StructType(ref raw_ty_scope)) => {
+            let (raw_ty_fields, ()) = raw_ty_scope.clone().unbind();
             let raw_ty_fields = raw_ty_fields.unnest();
 
             if raw_fields.len() != raw_ty_fields.len() {
@@ -418,29 +415,27 @@ pub fn check_term(
             // FIXME: Check that struct is well-formed?
             let fields = {
                 let mut mappings = Vec::with_capacity(raw_fields.len());
-                let fields = <_>::zip(raw_fields.into_iter(), raw_ty_fields.into_iter())
+                <_>::zip(raw_fields.into_iter(), raw_ty_fields.into_iter())
                     .map(|(field, ty_field)| {
-                        let (label, Binder(free_var), Embed(raw_expr)) = field;
-                        let (ty_label, Binder(ty_free_var), Embed(ann)) = ty_field;
+                        let &(ref label, ref raw_expr) = field;
+                        let (ty_label, Binder(free_var), Embed(ann)) = ty_field;
 
-                        if label == ty_label {
+                        if *label == ty_label {
                             let ann = nf_term(tc_env, &ann.substs(&mappings))?;
-                            let expr = check_term(&tc_env, &raw_expr, &ann)?;
-                            mappings.push((ty_free_var, expr.clone()));
-                            Ok((label, Binder(free_var), Embed(expr)))
+                            let expr = check_term(&tc_env, raw_expr, &ann)?;
+                            mappings.push((free_var, expr.clone()));
+                            Ok((label.clone(), expr))
                         } else {
                             Err(TypeError::LabelMismatch {
                                 span,
-                                found: label,
+                                found: label.clone(),
                                 expected: ty_label,
                             })
                         }
-                    }).collect::<Result<_, _>>()?;
-
-                Nest::new(fields)
+                    }).collect::<Result<_, _>>()?
             };
 
-            return Ok(RcTerm::from(Term::Struct(Scope::new(fields, ()))));
+            return Ok(RcTerm::from(Term::Struct(fields)));
         },
 
         (&raw::Term::Case(_, ref raw_head, ref raw_clauses), _) => {
@@ -712,10 +707,10 @@ pub fn infer_term(tc_env: &TcEnv, raw_term: &raw::RcTerm) -> Result<(RcTerm, RcT
         },
 
         // I-EMPTY-STRUCT
-        raw::Term::Struct(span, ref raw_scope) => {
-            if raw_scope.unsafe_pattern.unsafe_patterns.is_empty() {
+        raw::Term::Struct(span, ref raw_fields) => {
+            if raw_fields.is_empty() {
                 Ok((
-                    RcTerm::from(Term::Struct(Scope::new(Nest::new(vec![]), ()))),
+                    RcTerm::from(Term::Struct(vec![])),
                     RcValue::from(Value::StructType(Scope::new(Nest::new(vec![]), ()))),
                 ))
             } else {

@@ -145,7 +145,7 @@ pub enum Term {
     /// Dependent struct types
     StructType(Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>),
     /// Dependent struct
-    Struct(Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>),
+    Struct(Vec<(Label, RcTerm)>),
     /// Field projection
     Proj(RcTerm, Label),
     /// Case expressions
@@ -216,11 +216,10 @@ impl RcTerm {
                 if_true.substs(mappings),
                 if_false.substs(mappings),
             )),
-            Term::StructType(ref scope) | Term::Struct(ref scope)
-                if scope.unsafe_pattern.unsafe_patterns.is_empty() =>
-            {
+            Term::StructType(ref scope) if scope.unsafe_pattern.unsafe_patterns.is_empty() => {
                 self.clone()
             },
+            Term::Struct(ref fields) if fields.is_empty() => self.clone(),
             Term::StructType(ref scope) => {
                 let unsafe_patterns = scope
                     .unsafe_pattern
@@ -235,20 +234,12 @@ impl RcTerm {
                     unsafe_body: (),
                 }))
             },
-            Term::Struct(ref scope) => {
-                let unsafe_patterns = scope
-                    .unsafe_pattern
-                    .unsafe_patterns
+            Term::Struct(ref fields) => RcTerm::from(Term::Struct(
+                fields
                     .iter()
-                    .map(|&(ref label, ref binder, Embed(ref expr))| {
-                        (label.clone(), binder.clone(), Embed(expr.substs(mappings)))
-                    }).collect();
-
-                RcTerm::from(Term::Struct(Scope {
-                    unsafe_pattern: Nest { unsafe_patterns },
-                    unsafe_body: (),
-                }))
-            },
+                    .map(|&(ref field, ref term)| (field.clone(), term.substs(mappings)))
+                    .collect(),
+            )),
             Term::Proj(ref expr, ref label) => {
                 RcTerm::from(Term::Proj(expr.substs(mappings), label.clone()))
             },
@@ -310,7 +301,7 @@ pub enum Value {
     /// Dependent struct types
     StructType(Scope<Nest<(Label, Binder<String>, Embed<RcValue>)>, ()>),
     /// Dependent struct
-    Struct(Scope<Nest<(Label, Binder<String>, Embed<RcValue>)>, ()>),
+    Struct(Vec<(Label, RcValue)>),
     /// Array literals
     Array(Vec<RcValue>),
     /// Neutral terms
@@ -329,20 +320,6 @@ impl Value {
     pub fn substs(&self, mappings: &[(FreeVar<String>, RcTerm)]) -> RcTerm {
         // FIXME: This seems quite wasteful!
         RcTerm::from(Term::from(self)).substs(mappings)
-    }
-
-    pub fn struct_ty(&self) -> Option<&Scope<Nest<(Label, Binder<String>, Embed<RcValue>)>, ()>> {
-        match *self {
-            Value::StructType(ref scope) => Some(scope),
-            _ => None,
-        }
-    }
-
-    pub fn struct_(&self) -> Option<&Scope<Nest<(Label, Binder<String>, Embed<RcValue>)>, ()>> {
-        match *self {
-            Value::Struct(ref scope) => Some(scope),
-            _ => None,
-        }
     }
 
     /// Returns `true` if the value is in weak head normal form
@@ -370,11 +347,12 @@ impl Value {
             Value::Pi(ref scope) | Value::Lam(ref scope) => {
                 (scope.unsafe_pattern.1).0.is_nf() && scope.unsafe_body.is_nf()
             },
-            Value::StructType(ref scope) | Value::Struct(ref scope) => scope
+            Value::StructType(ref scope) => scope
                 .unsafe_pattern
                 .unsafe_patterns
                 .iter()
                 .all(|(_, _, Embed(ref term))| term.is_nf()),
+            Value::Struct(ref fields) => fields.iter().all(|&(_, ref term)| term.is_nf()),
             Value::Array(ref elems) => elems.iter().all(|elem| elem.is_nf()),
             Value::Neutral(_, _) => false,
         }
@@ -576,20 +554,12 @@ impl<'a> From<&'a Value> for Term {
                     unsafe_body: (),
                 })
             },
-            Value::Struct(ref scope) => {
-                let unsafe_patterns = scope
-                    .unsafe_pattern
-                    .unsafe_patterns
+            Value::Struct(ref fields) => Term::Struct(
+                fields
                     .iter()
-                    .map(|&(ref label, ref binder, Embed(ref expr))| {
-                        (label.clone(), binder.clone(), Embed(RcTerm::from(&**expr)))
-                    }).collect();
-
-                Term::Struct(Scope {
-                    unsafe_pattern: Nest { unsafe_patterns },
-                    unsafe_body: (),
-                })
-            },
+                    .map(|&(ref field, ref term)| (field.clone(), RcTerm::from(&**term)))
+                    .collect(),
+            ),
             Value::Array(ref elems) => {
                 Term::Array(elems.iter().map(|elem| RcTerm::from(&**elem)).collect())
             },

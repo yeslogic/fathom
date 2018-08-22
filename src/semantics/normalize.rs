@@ -154,18 +154,13 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
         },
 
         // E-STRUCT, E-EMPTY-STRUCT
-        Term::Struct(ref scope) => {
-            let (fields, ()) = scope.clone().unbind();
-            let fields = Nest::new(
-                fields
-                    .unnest()
-                    .into_iter()
-                    .map(|(label, binder, Embed(term))| {
-                        Ok((label, binder, Embed(nf_term(tc_env, &term)?)))
-                    }).collect::<Result<_, _>>()?,
-            );
+        Term::Struct(ref fields) => {
+            let fields = fields
+                .iter()
+                .map(|&(ref label, ref term)| Ok((label.clone(), nf_term(tc_env, &term)?)))
+                .collect::<Result<_, _>>()?;
 
-            Ok(RcValue::from(Value::Struct(Scope::new(fields, ()))))
+            Ok(RcValue::from(Value::Struct(fields)))
         },
 
         // E-PROJ
@@ -177,12 +172,9 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
                         spine.clone(),
                     )));
                 },
-                Value::Struct(ref scope) => {
-                    let (fields, ()) = scope.clone().unbind();
-
-                    // FIXME: mappings?
-                    for (current_label, _, Embed(current_expr)) in fields.unnest() {
-                        if current_label == *label {
+                Value::Struct(ref fields) => {
+                    for &(ref current_label, ref current_expr) in fields {
+                        if current_label == label {
                             return Ok(current_expr.clone());
                         }
                     }

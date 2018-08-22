@@ -1,4 +1,4 @@
-use moniker::{Embed, Nest, Scope};
+use moniker::Embed;
 use std::io;
 
 use syntax::core::{Head, Literal, Neutral, RcTerm, RcType, RcValue, Term, Value};
@@ -45,19 +45,17 @@ where
             let fields = fields.unnest();
 
             let mut mappings = Vec::with_capacity(fields.len());
-            let fields = Nest::new(
-                fields
-                    .into_iter()
-                    .map(|(label, binder, Embed(ann))| {
-                        let ann = nf_term(tc_env, &ann.substs(&mappings))?;
-                        let ann_value = parse(tc_env, &ann, bytes)?;
-                        mappings.push((binder.0.clone(), RcTerm::from(Term::from(&*ann_value))));
+            let fields = fields
+                .into_iter()
+                .map(|(label, binder, Embed(ann))| {
+                    let ann = nf_term(tc_env, &ann.substs(&mappings))?;
+                    let ann_value = parse(tc_env, &ann, bytes)?;
+                    mappings.push((binder.0.clone(), RcTerm::from(Term::from(&*ann_value))));
 
-                        Ok((label, binder, Embed(ann_value)))
-                    }).collect::<Result<_, ParseError>>()?,
-            );
+                    Ok((label.clone(), ann_value))
+                }).collect::<Result<_, ParseError>>()?;
 
-            Ok(RcValue::from(Value::Struct(Scope::new(fields, ()))))
+            Ok(RcValue::from(Value::Struct(fields)))
         },
         Value::Neutral(ref neutral, ref spine) => match **neutral {
             Neutral::Head(Head::Global(ref n)) => {

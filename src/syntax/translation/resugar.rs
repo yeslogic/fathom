@@ -407,16 +407,12 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
 
             concrete::Term::StructType(ByteSpan::default(), fields)
         },
-        core::Term::Struct(ref scope) => {
-            let (scope, ()) = scope.clone().unbind();
-
-            let fields = scope
-                .unnest()
-                .into_iter()
-                .map(|(Label(label), _, Embed(term))| {
-                    // TODO: add label->binder mapping to locals
+        core::Term::Struct(ref fields) => {
+            let fields = fields
+                .iter()
+                .map(|&(Label(ref label), ref term)| {
                     let term = resugar_term(&term, Prec::NO_WRAP);
-                    (ByteIndex::default(), label, term)
+                    (ByteIndex::default(), label.clone(), term)
                 }).collect();
 
             concrete::Term::Struct(ByteSpan::default(), fields)

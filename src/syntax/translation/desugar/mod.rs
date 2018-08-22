@@ -174,17 +174,14 @@ fn desugar_struct(
     span: ByteSpan,
     fields: &[concrete::StructField],
 ) -> raw::RcTerm {
-    let mut env = env.clone();
-
     let fields = fields
         .iter()
         .map(|&(_, ref label, ref expr)| {
             let expr = expr.desugar(&env);
-            let free_var = env.on_binding(label);
-            (Label(label.clone()), Binder(free_var), Embed(expr))
+            (Label(label.clone()), expr)
         }).collect::<Vec<_>>();
 
-    raw::RcTerm::from(raw::Term::Struct(span, Scope::new(Nest::new(fields), ())))
+    raw::RcTerm::from(raw::Term::Struct(span, fields))
 }
 
 impl Desugar<raw::Module> for concrete::Module {
