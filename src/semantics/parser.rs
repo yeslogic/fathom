@@ -3,7 +3,7 @@ use std::io;
 
 use syntax::core::{Head, Literal, Neutral, RcTerm, RcType, RcValue, Term, Value};
 
-use super::{nf_term, InternalError, TcEnv};
+use super::{nf_term, DefinitionEnv, InternalError};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -25,8 +25,9 @@ impl From<io::Error> for ParseError {
     }
 }
 
-pub fn parse_term<R>(tc_env: &TcEnv, ty: &RcType, bytes: &mut R) -> Result<RcValue, ParseError>
+pub fn parse_term<Env, R>(env: &Env, ty: &RcType, bytes: &mut R) -> Result<RcValue, ParseError>
 where
+    Env: DefinitionEnv,
     R: io::Read + io::Seek,
 {
     use byteorder::{BigEndian as Be, LittleEndian as Le, ReadBytesExt};
@@ -48,8 +49,8 @@ where
             let fields = fields
                 .into_iter()
                 .map(|(label, binder, Embed(ann))| {
-                    let ann = nf_term(tc_env, &ann.substs(&mappings))?;
-                    let ann_value = parse_term(tc_env, &ann, bytes)?;
+                    let ann = nf_term(env, &ann.substs(&mappings))?;
+                    let ann_value = parse_term(env, &ann, bytes)?;
                     mappings.push((binder.0.clone(), RcTerm::from(Term::from(&*ann_value))));
 
                     Ok((label.clone(), ann_value))
@@ -87,7 +88,7 @@ where
                     match **len {
                         Value::Literal(Literal::Int(ref len)) => Ok(RcValue::from(Value::Array(
                             (0..len.to_usize().unwrap()) // FIXME
-                                .map(|_| parse_term(tc_env, elem_ty, bytes))
+                                .map(|_| parse_term(env, elem_ty, bytes))
                                 .collect::<Result<_, _>>()?,
                         ))),
                         _ => Err(ParseError::BadArrayIndex(len.clone())),

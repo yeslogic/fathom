@@ -5,13 +5,16 @@ use syntax::core::{
 };
 
 use semantics::errors::InternalError;
-use semantics::TcEnv;
+use semantics::DefinitionEnv;
 
 /// Reduce a term to its normal form
-pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> {
+pub fn nf_term<Env>(env: &Env, term: &RcTerm) -> Result<RcValue, InternalError>
+where
+    Env: DefinitionEnv,
+{
     match *term.inner {
         // E-ANN
-        Term::Ann(ref expr, _) => nf_term(tc_env, expr),
+        Term::Ann(ref expr, _) => nf_term(env, expr),
 
         // E-TYPE
         Term::Universe(level) => Ok(RcValue::from(Value::Universe(level))),
@@ -19,12 +22,12 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
         Term::IntType(ref min, ref max) => {
             let min = match *min {
                 None => None,
-                Some(ref x) => Some(nf_term(tc_env, x)?),
+                Some(ref x) => Some(nf_term(env, x)?),
             };
 
             let max = match *max {
                 None => None,
-                Some(ref x) => Some(nf_term(tc_env, x)?),
+                Some(ref x) => Some(nf_term(env, x)?),
             };
 
             Ok(RcValue::from(Value::IntType(min, max)))
@@ -34,8 +37,8 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
 
         // E-VAR, E-VAR-DEF
         Term::Var(ref var) => match *var {
-            Var::Free(ref name) => match tc_env.definitions.get(name) {
-                Some(term) => nf_term(tc_env, term),
+            Var::Free(ref name) => match env.get_definition(name) {
+                Some(term) => nf_term(env, term),
                 None => Ok(RcValue::from(Value::from(var.clone()))),
             },
 
@@ -49,12 +52,12 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
         },
 
         Term::Extern(ref name, ref ty) => Ok(RcValue::from(Value::from(Neutral::Head(
-            Head::Extern(name.clone(), nf_term(tc_env, ty)?),
+            Head::Extern(name.clone(), nf_term(env, ty)?),
         )))),
 
-        Term::Global(ref name) => match tc_env.globals.get(name.as_str()) {
-            Some(&(Some(ref value), _)) => Ok(value.clone()),
-            Some(&(None, _)) | None => Ok(RcValue::from(Value::global(name.clone()))),
+        Term::Global(ref name) => match env.get_global_definition(name.as_str()) {
+            Some(value) => Ok(value.clone()),
+            None => Ok(RcValue::from(Value::global(name.clone()))),
         },
 
         // E-PI
@@ -62,8 +65,8 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
             let ((name, Embed(ann)), body) = scope.clone().unbind();
 
             Ok(RcValue::from(Value::Pi(Scope::new(
-                (name, Embed(nf_term(tc_env, &ann)?)),
-                nf_term(tc_env, &body)?,
+                (name, Embed(nf_term(env, &ann)?)),
+                nf_term(env, &body)?,
             ))))
         },
 
@@ -72,21 +75,21 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
             let ((name, Embed(ann)), body) = scope.clone().unbind();
 
             Ok(RcValue::from(Value::Lam(Scope::new(
-                (name, Embed(nf_term(tc_env, &ann)?)),
-                nf_term(tc_env, &body)?,
+                (name, Embed(nf_term(env, &ann)?)),
+                nf_term(env, &body)?,
             ))))
         },
 
         // E-APP
         Term::App(ref head, ref arg) => {
-            match *nf_term(tc_env, head)?.inner {
+            match *nf_term(env, head)?.inner {
                 Value::Lam(ref scope) => {
                     // FIXME: do a local unbind here
                     let ((Binder(free_var), Embed(_)), body) = scope.clone().unbind();
-                    nf_term(tc_env, &body.substs(&[(free_var, arg.clone())]))
+                    nf_term(env, &body.substs(&[(free_var, arg.clone())]))
                 },
                 Value::Neutral(ref neutral, ref spine) => {
-                    let arg = nf_term(tc_env, arg)?;
+                    let arg = nf_term(env, arg)?;
                     let mut spine = spine.clone();
 
                     match *neutral.inner {
@@ -96,7 +99,7 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
                             // Apply the arguments to primitive definitions if the number of
                             // arguments matches the arity of the primitive, all aof the arguments
                             // are fully nfd
-                            if let Some(prim) = tc_env.primitives.get(name) {
+                            if let Some(prim) = env.get_extern_definition(name) {
                                 if prim.arity == spine.len() && spine.iter().all(|arg| arg.is_nf())
                                 {
                                     match (prim.interpretation)(spine) {
@@ -121,16 +124,16 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
 
         // E-IF, E-IF-TRUE, E-IF-FALSE
         Term::If(ref cond, ref if_true, ref if_false) => {
-            let value_cond = nf_term(tc_env, cond)?;
+            let value_cond = nf_term(env, cond)?;
 
             match *value_cond {
-                Value::Literal(Literal::Bool(true)) => nf_term(tc_env, if_true),
-                Value::Literal(Literal::Bool(false)) => nf_term(tc_env, if_false),
+                Value::Literal(Literal::Bool(true)) => nf_term(env, if_true),
+                Value::Literal(Literal::Bool(false)) => nf_term(env, if_false),
                 Value::Neutral(ref cond, ref spine) => Ok(RcValue::from(Value::Neutral(
                     RcNeutral::from(Neutral::If(
                         cond.clone(),
-                        nf_term(tc_env, if_true)?,
-                        nf_term(tc_env, if_false)?,
+                        nf_term(env, if_true)?,
+                        nf_term(env, if_false)?,
                     )),
                     spine.clone(),
                 ))),
@@ -146,7 +149,7 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
                     .unnest()
                     .into_iter()
                     .map(|(label, binder, Embed(ann))| {
-                        Ok((label, binder, Embed(nf_term(tc_env, &ann)?)))
+                        Ok((label, binder, Embed(nf_term(env, &ann)?)))
                     }).collect::<Result<_, _>>()?,
             );
 
@@ -157,7 +160,7 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
         Term::Struct(ref fields) => {
             let fields = fields
                 .iter()
-                .map(|&(ref label, ref term)| Ok((label.clone(), nf_term(tc_env, &term)?)))
+                .map(|&(ref label, ref term)| Ok((label.clone(), nf_term(env, &term)?)))
                 .collect::<Result<_, _>>()?;
 
             Ok(RcValue::from(Value::Struct(fields)))
@@ -165,7 +168,7 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
 
         // E-PROJ
         Term::Proj(ref expr, ref label) => {
-            match *nf_term(tc_env, expr)? {
+            match *nf_term(env, expr)? {
                 Value::Neutral(ref neutral, ref spine) => {
                     return Ok(RcValue::from(Value::Neutral(
                         RcNeutral::from(Neutral::Proj(neutral.clone(), label.clone())),
@@ -189,7 +192,7 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
 
         // E-CASE
         Term::Case(ref head, ref clauses) => {
-            let head = nf_term(tc_env, head)?;
+            let head = nf_term(env, head)?;
 
             if let Value::Neutral(ref neutral, ref spine) = *head {
                 Ok(RcValue::from(Value::Neutral(
@@ -199,7 +202,7 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
                             .iter()
                             .map(|clause| {
                                 let (pattern, body) = clause.clone().unbind();
-                                Ok(Scope::new(pattern, nf_term(tc_env, &body)?))
+                                Ok(Scope::new(pattern, nf_term(env, &body)?))
                             }).collect::<Result<_, _>>()?,
                     )),
                     spine.clone(),
@@ -212,7 +215,7 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
                             .into_iter()
                             .map(|(free_var, value)| (free_var, RcTerm::from(&*value.inner)))
                             .collect::<Vec<_>>();
-                        return nf_term(tc_env, &body.substs(&mappings));
+                        return nf_term(env, &body.substs(&mappings));
                     }
                 }
                 Err(InternalError::NoPatternsApplicable)
@@ -223,7 +226,7 @@ pub fn nf_term(tc_env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> 
         Term::Array(ref elems) => Ok(RcValue::from(Value::Array(
             elems
                 .iter()
-                .map(|elem| nf_term(tc_env, elem))
+                .map(|elem| nf_term(env, elem))
                 .collect::<Result<_, _>>()?,
         ))),
     }
