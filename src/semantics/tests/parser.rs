@@ -37,7 +37,7 @@ fn test_silly_format() {
     let given_format = parse_nf_term(&mut codemap, &tc_env, given_format);
     let expected_term = parse_nf_term(&mut codemap, &tc_env, expected_term);
 
-    let result_term = parser::parse(&tc_env, &given_format, &mut given_bytes).unwrap();
+    let result_term = parser::parse_term(&tc_env, &given_format, &mut given_bytes).unwrap();
 
     assert_term_eq!(result_term, expected_term);
 }
