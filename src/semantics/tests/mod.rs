@@ -23,6 +23,17 @@ fn parse_module(codemap: &mut CodeMap, src: &str) -> raw::Module {
     concrete_module.desugar(&DesugarEnv::new())
 }
 
+fn parse_check_module(codemap: &mut CodeMap, tc_env: &TcEnv, src: &str) -> Module {
+    match check_module(tc_env, &parse_module(codemap, src)) {
+        Ok(module) => module,
+        Err(error) => {
+            let writer = StandardStream::stdout(ColorChoice::Always);
+            codespan_reporting::emit(&mut writer.lock(), &codemap, &error.to_diagnostic()).unwrap();
+            panic!("type error!");
+        },
+    }
+}
+
 fn parse_term(codemap: &mut CodeMap, src: &str) -> raw::RcTerm {
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
     let (concrete_term, errors) = parse::term(&filemap);
@@ -50,7 +61,7 @@ fn parse_infer_term(codemap: &mut CodeMap, tc_env: &TcEnv, src: &str) -> (RcTerm
 }
 
 fn parse_nf_term(codemap: &mut CodeMap, tc_env: &TcEnv, src: &str) -> RcValue {
-    let term = parse_infer_term(codemap, tc_env, src).0;
+    let (term, _) = parse_infer_term(codemap, tc_env, src);
     match nf_term(tc_env, &term) {
         Ok(value) => value,
         Err(error) => {

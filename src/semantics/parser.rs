@@ -1,7 +1,8 @@
-use moniker::Embed;
+use moniker::{Binder, Embed};
 use std::io;
 
-use syntax::core::{Head, Literal, Neutral, RcTerm, RcType, RcValue, Term, Value};
+use syntax::core::{Head, Item, Literal, Module, Neutral, RcTerm, RcType, RcValue, Term, Value};
+use syntax::Label;
 
 use super::{nf_term, DefinitionEnv, InternalError};
 
@@ -10,6 +11,7 @@ pub enum ParseError {
     InvalidType(RcType),
     Internal(InternalError),
     BadArrayIndex(RcValue),
+    MissingRoot(Label),
     Io(io::Error),
 }
 
@@ -23,6 +25,44 @@ impl From<io::Error> for ParseError {
     fn from(src: io::Error) -> ParseError {
         ParseError::Io(src)
     }
+}
+
+pub fn parse_module<Env, R>(
+    env: &Env,
+    root: &Label,
+    module: &Module,
+    bytes: &mut R,
+) -> Result<RcValue, ParseError>
+where
+    Env: DefinitionEnv,
+    R: io::Read + io::Seek,
+{
+    let mut env = env.clone();
+
+    for item in &module.items {
+        match *item {
+            Item::Declaration { .. } => {},
+            Item::Definition {
+                ref label,
+                ref term,
+                ..
+            }
+                if label == root =>
+            {
+                let term = nf_term(&env, term)?;
+                return parse_term(&env, &term, bytes);
+            }
+            Item::Definition {
+                binder: Binder(ref free_var),
+                ref term,
+                ..
+            } => {
+                env.insert_definition(free_var.clone(), term.clone());
+            },
+        }
+    }
+
+    Err(ParseError::MissingRoot(root.clone()))
 }
 
 pub fn parse_term<Env, R>(env: &Env, ty: &RcType, bytes: &mut R) -> Result<RcValue, ParseError>
