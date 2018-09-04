@@ -91,10 +91,6 @@ fn pretty_if(cond: &impl ToDoc, if_true: &impl ToDoc, if_false: &impl ToDoc) -> 
     )
 }
 
-fn pretty_struct_ty(inner: StaticDoc) -> StaticDoc {
-    sexpr("Struct", inner)
-}
-
 fn pretty_struct(inner: StaticDoc) -> StaticDoc {
     sexpr("struct", inner)
 }
@@ -171,18 +167,6 @@ impl ToDoc for raw::Term {
             raw::Term::If(_, ref cond, ref if_true, ref if_false) => {
                 pretty_if(&cond.inner, &if_true.inner, &if_false.inner)
             },
-            raw::Term::StructType(_, ref scope) => pretty_struct_ty(Doc::concat(
-                scope.unsafe_pattern.unsafe_patterns.iter().map(
-                    |&(ref label, _, Embed(ref ann))| {
-                        parens(
-                            Doc::as_string(label)
-                                .append(Doc::space())
-                                .append(ann.to_doc())
-                                .append(Doc::newline()),
-                        )
-                    },
-                ),
-            )),
             raw::Term::Struct(_, ref fields) => {
                 pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
                     parens(
@@ -257,18 +241,6 @@ impl ToDoc for Term {
             Term::If(ref cond, ref if_true, ref if_false) => {
                 pretty_if(&cond.inner, &if_true.inner, &if_false.inner)
             },
-            Term::StructType(ref scope) => pretty_struct_ty(Doc::concat(
-                scope.unsafe_pattern.unsafe_patterns.iter().map(
-                    |&(ref label, _, Embed(ref ann))| {
-                        parens(
-                            Doc::as_string(label)
-                                .append(Doc::space())
-                                .append(ann.to_doc())
-                                .append(Doc::newline()),
-                        )
-                    },
-                ),
-            )),
             Term::Struct(ref fields) => {
                 pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
                     parens(
@@ -311,18 +283,6 @@ impl ToDoc for Value {
                 &(scope.unsafe_pattern.1).0.inner,
                 &scope.unsafe_body.inner,
             ),
-            Value::StructType(ref scope) => pretty_struct_ty(Doc::concat(
-                scope.unsafe_pattern.unsafe_patterns.iter().map(
-                    |&(ref label, _, Embed(ref ann))| {
-                        parens(
-                            Doc::as_string(label)
-                                .append(Doc::space())
-                                .append(ann.to_doc())
-                                .append(Doc::newline()),
-                        )
-                    },
-                ),
-            )),
             Value::Struct(ref fields) => {
                 pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
                     parens(

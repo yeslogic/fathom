@@ -152,6 +152,7 @@ fn eval_print(
     use codespan::ByteIndex;
 
     use syntax::concrete::{ReplCommand, Term};
+    use syntax::core::Definition;
     use syntax::pretty::{self, ToDoc};
     use syntax::translation::{Desugar, Resugar};
 
@@ -206,7 +207,7 @@ fn eval_print(
 
             let free_var = desugar_env.on_binding(&name);
             tc_env.insert_declaration(free_var.clone(), inferred);
-            tc_env.insert_definition(free_var.clone(), term);
+            tc_env.insert_definition(free_var.clone(), Definition::Alias(term));
 
             return Ok(ControlFlow::Continue);
         },

@@ -102,20 +102,19 @@ pub enum Token<S> {
     FloatLiteral(f64),
 
     // Keywords
-    As,         // as
-    Case,       // case
-    Else,       // else
-    Extern,     // extern
-    If,         // if
-    Import,     // import
-    In,         // in
-    Let,        // let
-    Module,     // module
-    Of,         // of
-    Struct,     // struct
-    StructType, // Struct
-    Then,       // then
-    Type,       // Type
+    As,     // as
+    Case,   // case
+    Else,   // else
+    Extern, // extern
+    If,     // if
+    Import, // import
+    In,     // in
+    Let,    // let
+    Module, // module
+    Of,     // of
+    Struct, // struct
+    Then,   // then
+    Type,   // Type
 
     // Symbols
     BSlash,    // \
@@ -158,7 +157,6 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::Module => write!(f, "module"),
             Token::Of => write!(f, "of"),
             Token::Struct => write!(f, "struct"),
-            Token::StructType => write!(f, "Struct"),
             Token::Then => write!(f, "then"),
             Token::Type => write!(f, "Type"),
             Token::BSlash => write!(f, "\\"),
@@ -201,7 +199,6 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::Module => Token::Module,
             Token::Of => Token::Of,
             Token::Struct => Token::Struct,
-            Token::StructType => Token::StructType,
             Token::Then => Token::Then,
             Token::Type => Token::Type,
             Token::BSlash => Token::BSlash,
@@ -349,7 +346,6 @@ impl<'input> Lexer<'input> {
             "module" => Token::Module,
             "of" => Token::Of,
             "struct" => Token::Struct,
-            "Struct" => Token::StructType,
             "then" => Token::Then,
             "Type" => Token::Type,
             ident => Token::Ident(ident),
@@ -575,20 +571,19 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  as else extern if import in let module of struct Struct then Type  ",
-            "  ~~                                                                 " => Token::As,
-            "     ~~~~                                                            " => Token::Else,
-            "          ~~~~~~                                                     " => Token::Extern,
-            "                 ~~                                                  " => Token::If,
-            "                    ~~~~~~                                           " => Token::Import,
-            "                           ~~                                        " => Token::In,
-            "                              ~~~                                    " => Token::Let,
-            "                                  ~~~~~~                             " => Token::Module,
-            "                                         ~~                          " => Token::Of,
-            "                                            ~~~~~~                   " => Token::Struct,
-            "                                                   ~~~~~~            " => Token::StructType,
-            "                                                          ~~~~       " => Token::Then,
-            "                                                               ~~~~  " => Token::Type,
+            "  as else extern if import in let module of struct then Type  ",
+            "  ~~                                                          " => Token::As,
+            "     ~~~~                                                     " => Token::Else,
+            "          ~~~~~~                                              " => Token::Extern,
+            "                 ~~                                           " => Token::If,
+            "                    ~~~~~~                                    " => Token::Import,
+            "                           ~~                                 " => Token::In,
+            "                              ~~~                             " => Token::Let,
+            "                                  ~~~~~~                      " => Token::Module,
+            "                                         ~~                   " => Token::Of,
+            "                                            ~~~~~~            " => Token::Struct,
+            "                                                   ~~~~       " => Token::Then,
+            "                                                        ~~~~  " => Token::Type,
         };
     }
 

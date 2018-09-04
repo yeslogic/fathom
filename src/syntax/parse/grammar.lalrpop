@@ -3,7 +3,7 @@ use codespan::{ByteIndex, ByteSpan};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 
-use syntax::concrete::{Item, Exposing, Literal, Module, Pattern, Term, ReplCommand};
+use syntax::concrete::{Definition, Exposing, Item, Literal, Module, Pattern, Term, ReplCommand};
 use syntax::parse::{LalrpopError, ParseError, Token};
 
 #[LALR]
@@ -35,7 +35,6 @@ extern {
         "import" => Token::Import,
         "of" => Token::Of,
         "struct" => Token::Struct,
-        "Struct" => Token::StructType,
         "then" => Token::Then,
         "Type" => Token::Type,
 
@@ -108,9 +107,18 @@ Item: Item = {
         Item::Declaration { name, ann }
     },
     <_comment: "doc comment"*> <name: IndexedIdent> <params: AtomicLamParam*> <return_ann: (":" <Term>)?> "="
-        <body: Term> ";" =>
+        <term: Term> ";" =>
     {
-        Item::Definition { name, params, return_ann: return_ann.map(Box::new), body }
+        let return_ann = return_ann.map(Box::new);
+        Item::Definition(Definition::Alias { name, params, return_ann, term })
+    },
+    <_comment: "doc comment"*> <start: @L> "struct" <name: IndexedIdent>
+        "{" <fields: (<StructTypeField> ",")*> <last: StructTypeField?> "}" <end: @R> ";" =>
+    {
+        let span = ByteSpan::new(start, end);
+        let mut fields = fields;
+        fields.extend(last);
+        Item::Definition(Definition::StructType { span, name, fields })
     },
     <start: @L> <recovered: !> <end: @R> ";" => {
         errors.push(super::errors::from_lalrpop(filemap, recovered.error));
@@ -252,11 +260,6 @@ AtomicTerm: Term = {
         } else {
             Term::Name(start, ident)
         }
-    },
-    <start: @L> "Struct" "{" <fields: (<StructTypeField> ",")*> <last: StructTypeField?> "}" <end: @R> => {
-        let mut fields = fields;
-        fields.extend(last);
-        Term::StructType(ByteSpan::new(start, end), fields)
     },
     <start: @L> "struct" "{" <fields: (<StructField> ",")*> <last: StructField?> "}" <end: @R> => {
         let mut fields = fields;

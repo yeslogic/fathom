@@ -2,7 +2,7 @@ use im::HashMap;
 use moniker::FreeVar;
 use std::fmt;
 
-use syntax::core::{Literal, RcTerm, RcType, RcValue, Spine, Value};
+use syntax::core::{Definition, Literal, RcType, RcValue, Spine, Value};
 
 // Some helper traits for marshalling between Rust and Pikelet values
 //
@@ -255,11 +255,11 @@ pub trait DeclarationEnv: Clone {
 pub trait DefinitionEnv: Clone {
     fn get_extern_definition(&self, name: &str) -> Option<&Extern>;
     fn get_global_definition(&self, name: &str) -> Option<&RcValue>;
-    fn get_definition(&self, free_var: &FreeVar<String>) -> Option<&RcTerm>;
-    fn insert_definition(&mut self, free_var: FreeVar<String>, RcTerm);
+    fn get_definition(&self, free_var: &FreeVar<String>) -> Option<&Definition>;
+    fn insert_definition(&mut self, free_var: FreeVar<String>, Definition);
     fn extend_definitions<T>(&mut self, iter: T)
     where
-        T: IntoIterator<Item = (FreeVar<String>, RcTerm)>;
+        T: IntoIterator<Item = (FreeVar<String>, Definition)>;
 }
 
 /// The type checking environment
@@ -281,7 +281,7 @@ pub struct TcEnv {
     /// The type annotations of the binders we have passed over
     declarations: HashMap<FreeVar<String>, RcType>,
     /// Any definitions we have passed over
-    definitions: HashMap<FreeVar<String>, RcTerm>,
+    definitions: HashMap<FreeVar<String>, Definition>,
 }
 
 impl Default for TcEnv {
@@ -326,17 +326,17 @@ impl DefinitionEnv for TcEnv {
         self.global_definitions.get(name)
     }
 
-    fn get_definition(&self, free_var: &FreeVar<String>) -> Option<&RcTerm> {
+    fn get_definition(&self, free_var: &FreeVar<String>) -> Option<&Definition> {
         self.definitions.get(free_var)
     }
 
-    fn insert_definition(&mut self, free_var: FreeVar<String>, term: RcTerm) {
+    fn insert_definition(&mut self, free_var: FreeVar<String>, term: Definition) {
         self.definitions.insert(free_var, term);
     }
 
     fn extend_definitions<T>(&mut self, iter: T)
     where
-        T: IntoIterator<Item = (FreeVar<String>, RcTerm)>,
+        T: IntoIterator<Item = (FreeVar<String>, Definition)>,
     {
         self.definitions.extend(iter)
     }
