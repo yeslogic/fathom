@@ -39,9 +39,15 @@ pub enum Item {
         /// The internal name for this definition., to be used when binding
         /// this name to variables
         binder: Binder<String>,
-        /// The term for associated with the label
-        term: RcTerm,
+        /// The definition for associated with the label
+        definition: Definition,
     },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Definition {
+    Alias(RcTerm),
+    StructType(Nest<(Label, Binder<String>, Embed<RcTerm>)>),
 }
 
 /// Literals
@@ -141,8 +147,6 @@ pub enum Term {
     App(RcTerm, RcTerm),
     /// If expression
     If(RcTerm, RcTerm, RcTerm),
-    /// Dependent struct types
-    StructType(Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>),
     /// Dependent struct
     Struct(Vec<(Label, RcTerm)>),
     /// Field projection
@@ -215,24 +219,7 @@ impl RcTerm {
                 if_true.substs(mappings),
                 if_false.substs(mappings),
             )),
-            Term::StructType(ref scope) if scope.unsafe_pattern.unsafe_patterns.is_empty() => {
-                self.clone()
-            },
             Term::Struct(ref fields) if fields.is_empty() => self.clone(),
-            Term::StructType(ref scope) => {
-                let unsafe_patterns = scope
-                    .unsafe_pattern
-                    .unsafe_patterns
-                    .iter()
-                    .map(|&(ref label, ref binder, Embed(ref ann))| {
-                        (label.clone(), binder.clone(), Embed(ann.substs(mappings)))
-                    }).collect();
-
-                RcTerm::from(Term::StructType(Scope {
-                    unsafe_pattern: Nest { unsafe_patterns },
-                    unsafe_body: (),
-                }))
-            },
             Term::Struct(ref fields) => RcTerm::from(Term::Struct(
                 fields
                     .iter()
@@ -297,8 +284,6 @@ pub enum Value {
     Pi(Scope<(Binder<String>, Embed<RcValue>), RcValue>),
     /// A lambda abstraction
     Lam(Scope<(Binder<String>, Embed<RcValue>), RcValue>),
-    /// Dependent struct types
-    StructType(Scope<Nest<(Label, Binder<String>, Embed<RcValue>)>, ()>),
     /// Dependent struct
     Struct(Vec<(Label, RcValue)>),
     /// Array literals
@@ -332,7 +317,6 @@ impl Value {
             | Value::IntType(_, _)
             | Value::Pi(_)
             | Value::Lam(_)
-            | Value::StructType(_)
             | Value::Struct(_)
             | Value::Array(_) => true,
             Value::Neutral(_, _) => false,
@@ -349,11 +333,6 @@ impl Value {
             Value::Pi(ref scope) | Value::Lam(ref scope) => {
                 (scope.unsafe_pattern.1).0.is_nf() && scope.unsafe_body.is_nf()
             },
-            Value::StructType(ref scope) => scope
-                .unsafe_pattern
-                .unsafe_patterns
-                .iter()
-                .all(|(_, _, Embed(ref term))| term.is_nf()),
             Value::Struct(ref fields) => fields.iter().all(|&(_, ref term)| term.is_nf()),
             Value::Array(ref elems) => elems.iter().all(|elem| elem.is_nf()),
             Value::Neutral(_, _) => false,
@@ -540,20 +519,6 @@ impl<'a> From<&'a Value> for Term {
                 Term::Lam(Scope {
                     unsafe_pattern: (name.clone(), Embed(RcTerm::from(&**ann))),
                     unsafe_body: RcTerm::from(&*scope.unsafe_body),
-                })
-            },
-            Value::StructType(ref scope) => {
-                let unsafe_patterns = scope
-                    .unsafe_pattern
-                    .unsafe_patterns
-                    .iter()
-                    .map(|&(ref label, ref binder, Embed(ref ann))| {
-                        (label.clone(), binder.clone(), Embed(RcTerm::from(&**ann)))
-                    }).collect();
-
-                Term::StructType(Scope {
-                    unsafe_pattern: Nest { unsafe_patterns },
-                    unsafe_body: (),
                 })
             },
             Value::Struct(ref fields) => Term::Struct(

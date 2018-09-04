@@ -148,27 +148,6 @@ fn desugar_lam(
         })
 }
 
-fn desugar_struct_ty(
-    env: &DesugarEnv,
-    span: ByteSpan,
-    fields: &[concrete::StructTypeField],
-) -> raw::RcTerm {
-    let mut env = env.clone();
-
-    let fields = fields
-        .iter()
-        .map(|&(_, ref label, ref ann)| {
-            let ann = ann.desugar(&env);
-            let free_var = env.on_binding(label);
-            (Label(label.clone()), Binder(free_var), Embed(ann))
-        }).collect::<Vec<_>>();
-
-    raw::RcTerm::from(raw::Term::StructType(
-        span,
-        Scope::new(Nest::new(fields), ()),
-    ))
-}
-
 fn desugar_struct(
     env: &DesugarEnv,
     span: ByteSpan,
@@ -212,20 +191,43 @@ impl Desugar<raw::Module> for concrete::Module {
                         term,
                     }
                 },
-                concrete::Item::Definition {
+                concrete::Item::Definition(concrete::Definition::Alias {
                     name: (start, ref name),
                     ref params,
                     ref return_ann,
-                    ref body,
-                } => {
+                    ref term,
+                }) => {
                     let return_ann = return_ann.as_ref().map(<_>::as_ref);
-                    let term = desugar_lam(&env, params, return_ann, body);
+                    let term = desugar_lam(&env, params, return_ann, term);
 
                     raw::Item::Definition {
                         label_span: ByteSpan::from_offset(start, ByteOffset::from_str(name)),
                         label: Label(name.clone()),
                         binder: env.on_item(name),
-                        term,
+                        definition: raw::Definition::Alias(term),
+                    }
+                },
+                concrete::Item::Definition(concrete::Definition::StructType {
+                    span,
+                    name: (start, ref name),
+                    ref fields,
+                }) => {
+                    let fields = {
+                        let mut env = env.clone();
+                        fields
+                            .iter()
+                            .map(|&(_, ref label, ref ann)| {
+                                let ann = ann.desugar(&env);
+                                let free_var = env.on_binding(label);
+                                (Label(label.clone()), Binder(free_var), Embed(ann))
+                            }).collect::<Vec<_>>()
+                    };
+
+                    raw::Item::Definition {
+                        label_span: ByteSpan::from_offset(start, ByteOffset::from_str(name)),
+                        label: Label(name.clone()),
+                        binder: env.on_item(name),
+                        definition: raw::Definition::StructType(span, Nest::new(fields)),
                     }
                 },
                 concrete::Item::Error(_) => unimplemented!("error recovery"),
@@ -344,7 +346,6 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                         }).collect(),
                 ))
             },
-            concrete::Term::StructType(span, ref fields) => desugar_struct_ty(env, span, fields),
             concrete::Term::Struct(span, ref fields) => desugar_struct(env, span, fields),
             concrete::Term::Proj(ref tm, label_start, ref label) => {
                 raw::RcTerm::from(raw::Term::Proj(

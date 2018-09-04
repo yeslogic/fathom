@@ -1,7 +1,7 @@
-use moniker::{Binder, Embed, FreeVar, Nest, Scope, Var};
+use moniker::{Binder, Embed, FreeVar, Scope, Var};
 
 use syntax::core::{
-    Head, Literal, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcValue, Term, Value,
+    Definition, Head, Literal, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcValue, Term, Value,
 };
 
 use semantics::errors::InternalError;
@@ -38,8 +38,10 @@ where
         // E-VAR, E-VAR-DEF
         Term::Var(ref var) => match *var {
             Var::Free(ref name) => match env.get_definition(name) {
-                Some(term) => nf_term(env, term),
-                None => Ok(RcValue::from(Value::from(var.clone()))),
+                Some(&Definition::Alias(ref term)) => nf_term(env, term),
+                Some(&Definition::StructType(_)) | None => {
+                    Ok(RcValue::from(Value::from(var.clone())))
+                },
             },
 
             // We should always be substituting bound variables with fresh
@@ -139,21 +141,6 @@ where
                 ))),
                 _ => Err(InternalError::ExpectedBoolExpr),
             }
-        },
-
-        // E-STRUCT-TYPE, E-EMPTY-STRUCT-TYPE
-        Term::StructType(ref scope) => {
-            let (fields, ()) = scope.clone().unbind();
-            let fields = Nest::new(
-                fields
-                    .unnest()
-                    .into_iter()
-                    .map(|(label, binder, Embed(ann))| {
-                        Ok((label, binder, Embed(nf_term(env, &ann)?)))
-                    }).collect::<Result<_, _>>()?,
-            );
-
-            Ok(RcValue::from(Value::StructType(Scope::new(fields, ()))))
         },
 
         // E-STRUCT, E-EMPTY-STRUCT

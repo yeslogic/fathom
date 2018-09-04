@@ -1,10 +1,11 @@
-use moniker::{Binder, Embed};
+use moniker::{Binder, Embed, Nest};
 use std::io;
 
-use syntax::core::{Head, Item, Literal, Module, Neutral, RcTerm, RcType, RcValue, Term, Value};
+use semantics::{nf_term, DefinitionEnv, InternalError};
+use syntax::core::{
+    self, Definition, Head, Item, Literal, Module, Neutral, RcTerm, RcType, RcValue, Term, Value,
+};
 use syntax::Label;
-
-use super::{nf_term, DefinitionEnv, InternalError};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -44,25 +45,63 @@ where
             Item::Declaration { .. } => {},
             Item::Definition {
                 ref label,
-                ref term,
+                ref definition,
                 ..
             }
                 if label == root =>
             {
-                let term = nf_term(&env, term)?;
-                return parse_term(&env, &term, bytes);
-            }
+                match *definition {
+                    core::Definition::Alias(ref term) => {
+                        let term = nf_term(&env, term)?;
+                        return parse_term(&env, &term, bytes);
+                    },
+                    core::Definition::StructType(ref fields) => {
+                        return parse_struct(&env, fields, bytes)
+                    },
+                }
+            },
             Item::Definition {
                 binder: Binder(ref free_var),
-                ref term,
+                ref definition,
                 ..
-            } => {
-                env.insert_definition(free_var.clone(), term.clone());
-            },
+            } => env.insert_definition(
+                free_var.clone(),
+                match *definition {
+                    core::Definition::Alias(ref term) => Definition::Alias(term.clone()),
+                    core::Definition::StructType(ref scope) => {
+                        Definition::StructType(scope.clone())
+                    },
+                },
+            ),
         }
     }
 
     Err(ParseError::MissingRoot(root.clone()))
+}
+
+pub fn parse_struct<Env, R>(
+    env: &Env,
+    fields: &Nest<(Label, Binder<String>, Embed<RcTerm>)>,
+    bytes: &mut R,
+) -> Result<RcValue, ParseError>
+where
+    Env: DefinitionEnv,
+    R: io::Read + io::Seek,
+{
+    let fields = fields.clone().unnest();
+
+    let mut mappings = Vec::with_capacity(fields.len());
+    let fields = fields
+        .into_iter()
+        .map(|(label, binder, Embed(ann))| {
+            let ann = nf_term(env, &ann.substs(&mappings))?;
+            let ann_value = parse_term(env, &ann, bytes)?;
+            mappings.push((binder.0.clone(), RcTerm::from(Term::from(&*ann_value))));
+
+            Ok((label.clone(), ann_value))
+        }).collect::<Result<_, ParseError>>()?;
+
+    Ok(RcValue::from(Value::Struct(fields)))
 }
 
 pub fn parse_term<Env, R>(env: &Env, ty: &RcType, bytes: &mut R) -> Result<RcValue, ParseError>
@@ -81,23 +120,6 @@ where
         | Value::Lam(_)
         | Value::Struct(_)
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
-        Value::StructType(ref scope) => {
-            let (fields, ()) = scope.clone().unbind();
-            let fields = fields.unnest();
-
-            let mut mappings = Vec::with_capacity(fields.len());
-            let fields = fields
-                .into_iter()
-                .map(|(label, binder, Embed(ann))| {
-                    let ann = nf_term(env, &ann.substs(&mappings))?;
-                    let ann_value = parse_term(env, &ann, bytes)?;
-                    mappings.push((binder.0.clone(), RcTerm::from(Term::from(&*ann_value))));
-
-                    Ok((label.clone(), ann_value))
-                }).collect::<Result<_, ParseError>>()?;
-
-            Ok(RcValue::from(Value::Struct(fields)))
-        },
         Value::Neutral(ref neutral, ref spine) => match **neutral {
             Neutral::Head(Head::Global(ref n)) => {
                 if spine.len() == 0 {

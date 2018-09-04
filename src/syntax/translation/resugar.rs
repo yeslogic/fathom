@@ -30,7 +30,7 @@ impl Resugar<concrete::Module> for core::Module {
                 core::Item::Definition {
                     label,
                     binder: _,
-                    ref term,
+                    definition: core::Definition::Alias(ref term),
                 } => {
                     // TODO: add label->binder mapping to locals
                     // pull lambda arguments from the body into the definition
@@ -39,12 +39,35 @@ impl Resugar<concrete::Module> for core::Module {
                         body => (vec![], body),
                     };
 
-                    items.push(concrete::Item::Definition {
+                    items.push(concrete::Item::Definition(concrete::Definition::Alias {
                         name: (ByteIndex::default(), label.0.clone()),
                         return_ann: None,
                         params,
-                        body,
-                    });
+                        term: body,
+                    }));
+                },
+                core::Item::Definition {
+                    label,
+                    binder: _,
+                    definition: core::Definition::StructType(ref fields),
+                } => {
+                    let fields = fields
+                        .clone()
+                        .unnest()
+                        .into_iter()
+                        .map(|(Label(label), _, Embed(term))| {
+                            // TODO: add label->binder mapping to locals
+                            let term = resugar_term(&term, Prec::NO_WRAP);
+                            (ByteIndex::default(), label, term)
+                        }).collect();
+
+                    items.push(concrete::Item::Definition(
+                        concrete::Definition::StructType {
+                            span: ByteSpan::default(),
+                            name: (ByteIndex::default(), label.0.clone()),
+                            fields,
+                        },
+                    ));
                 },
             };
         }
@@ -393,20 +416,6 @@ fn resugar_term(term: &core::Term, prec: Prec) -> concrete::Term {
                 Box::new(resugar_term(if_false, Prec::APP)),
             ),
         ),
-        core::Term::StructType(ref scope) => {
-            let (scope, ()) = scope.clone().unbind();
-
-            let fields = scope
-                .unnest()
-                .into_iter()
-                .map(|(Label(label), _, Embed(term))| {
-                    // TODO: add label->binder mapping to locals
-                    let term = resugar_term(&term, Prec::NO_WRAP);
-                    (ByteIndex::default(), label, term)
-                }).collect();
-
-            concrete::Term::StructType(ByteSpan::default(), fields)
-        },
         core::Term::Struct(ref fields) => {
             let fields = fields
                 .iter()

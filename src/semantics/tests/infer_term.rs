@@ -37,7 +37,7 @@ fn extern_not_found() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let given_expr = r#"extern "does-not-exist" : Struct {}"#;
+    let given_expr = r#"extern "does-not-exist" : U32"#;
 
     match infer_term(&tc_env, &parse_term(&mut codemap, given_expr)) {
         Err(TypeError::UndefinedExternName { .. }) => {},
@@ -505,131 +505,6 @@ mod church_encodings {
 }
 
 #[test]
-fn empty_struct_ty() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-
-    let expected_ty = r"Type";
-    let given_expr = r"Struct {}";
-
-    assert_term_eq!(
-        parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_nf_term(&mut codemap, &tc_env, expected_ty),
-    );
-}
-
-#[test]
-fn empty_struct() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-
-    let expected_ty = r"Struct {}";
-    let given_expr = r"struct {}";
-
-    assert_term_eq!(
-        parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_nf_term(&mut codemap, &tc_env, expected_ty),
-    );
-}
-
-#[test]
-fn dependent_struct_ty() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-
-    let expected_ty = r"Type 2";
-    let given_expr = r"Struct { t : Type 1, x : t }";
-
-    assert_term_eq!(
-        parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_nf_term(&mut codemap, &tc_env, expected_ty),
-    );
-}
-
-#[test]
-fn struct_() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-
-    let given_expr = r#"struct { x = "Hello" }"#;
-
-    match infer_term(&tc_env, &parse_term(&mut codemap, given_expr)) {
-        Err(TypeError::AmbiguousStruct { .. }) => {},
-        x => panic!("expected an ambiguous struct error, found {:?}", x),
-    }
-}
-
-#[test]
-fn proj() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-
-    let expected_ty = r"String";
-    let given_expr = r#"(struct { t = String, x = "hello" } : Struct { t : Type, x : String }).x"#;
-
-    assert_term_eq!(
-        parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_nf_term(&mut codemap, &tc_env, expected_ty),
-    );
-}
-
-#[test]
-fn proj_missing() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-
-    let given_expr = r#"(struct { x = "hello" } : Struct { x : String }).bloop"#;
-
-    match infer_term(&tc_env, &parse_term(&mut codemap, given_expr)) {
-        Err(TypeError::NoFieldInType { .. }) => {},
-        x => panic!("expected a field lookup error, found {:?}", x),
-    }
-}
-
-#[test]
-fn proj_weird1() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-
-    let expected_ty = r"Type 1";
-    let given_expr = r"Struct {
-        data : Struct {
-            t : Type,
-            x : t,
-        },
-
-        f : data.t -> Type,
-        test : f data.x,
-    }";
-
-    assert_term_eq!(
-        parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_nf_term(&mut codemap, &tc_env, expected_ty),
-    );
-}
-
-#[test]
-fn proj_weird2() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-
-    let expected_ty = r"Type 1";
-    let given_expr = r"Struct {
-        Array : U16 -> Type -> Type,
-        t : Struct { n : U16, x : Array n S8, y : Array n S8 },
-        inner-prod : (len : U16) -> Array len S8 -> Array len S8 -> S32,
-
-        test1 : S32 -> Type,
-        test2 : test1 (inner-prod t.n t.x t.y),
-    }";
-
-    assert_term_eq!(
-        parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_nf_term(&mut codemap, &tc_env, expected_ty),
-    );
-}
-
-#[test]
 fn array_ambiguous() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
@@ -641,21 +516,4 @@ fn array_ambiguous() {
         Err(err) => panic!("unexpected error: {:?}", err),
         Ok((term, ty)) => panic!("expected error, found {} : {}", term, ty),
     }
-}
-
-#[test]
-fn struct_with_integer() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-
-    let expected_ty = r"Type";
-    let given_expr = r"Struct {
-        len : U16Be,
-        data : Array len U32Be,
-    }";
-
-    assert_term_eq!(
-        parse_infer_term(&mut codemap, &tc_env, given_expr).1,
-        parse_nf_term(&mut codemap, &tc_env, expected_ty),
-    );
 }

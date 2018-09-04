@@ -3,7 +3,7 @@
 use pretty::Doc;
 
 use syntax::concrete::{
-    Exposing, Item, LamParamGroup, Literal, Module, Pattern, PiParamGroup, Term,
+    Definition, Exposing, Item, LamParamGroup, Literal, Module, Pattern, PiParamGroup, Term,
 };
 
 use super::{StaticDoc, ToDoc};
@@ -59,11 +59,20 @@ impl ToDoc for Item {
                 .append(":")
                 .append(Doc::space())
                 .append(ann.to_doc()),
-            Item::Definition {
+            Item::Definition(ref definition) => definition.to_doc(),
+            Item::Error(_) => Doc::text("<error>"),
+        }.append(";")
+    }
+}
+
+impl ToDoc for Definition {
+    fn to_doc(&self) -> StaticDoc {
+        match *self {
+            Definition::Alias {
                 name: (_, ref name),
                 ref params,
                 ref return_ann,
-                ref body,
+                ref term,
             } => Doc::as_string(name)
                 .append(Doc::space())
                 .append(match params[..] {
@@ -75,9 +84,44 @@ impl ToDoc for Item {
                         .append(Doc::space())
                 })).append("=")
                 .append(Doc::space())
-                .append(body.to_doc().nest(INDENT_WIDTH)),
-            Item::Error(_) => Doc::text("<error>"),
-        }.append(";")
+                .append(term.to_doc().nest(INDENT_WIDTH)),
+            Definition::StructType {
+                name: (_, ref name),
+                ref fields,
+                ..
+            }
+                if fields.is_empty() =>
+            {
+                Doc::text("struct")
+                    .append(Doc::space())
+                    .append(Doc::as_string(name))
+                    .append(Doc::space())
+                    .append("{}")
+            },
+            Definition::StructType {
+                name: (_, ref name),
+                ref fields,
+                ..
+            } => Doc::text("struct")
+                .append(Doc::space())
+                .append(Doc::as_string(name))
+                .append(Doc::space())
+                .append("{")
+                .append(Doc::space())
+                .append(
+                    Doc::intersperse(
+                        fields.iter().map(|&(_, ref name, ref ann)| {
+                            Doc::as_string(name)
+                                .append(Doc::space())
+                                .append(":")
+                                .append(Doc::space())
+                                .append(ann.to_doc())
+                        }),
+                        Doc::text(",").append(Doc::space()),
+                    ).nest(INDENT_WIDTH),
+                ).append(Doc::space())
+                .append("}"),
+        }
     }
 }
 
@@ -236,23 +280,7 @@ impl ToDoc for Term {
                             .append(Doc::newline())
                     })).nest(INDENT_WIDTH),
                 ).append("}"),
-            Term::StructType(_, ref fields) if fields.is_empty() => Doc::text("Struct {}"),
             Term::Struct(_, ref fields) if fields.is_empty() => Doc::text("struct {}"),
-            Term::StructType(_, ref fields) => Doc::text("Struct {")
-                .append(Doc::space())
-                .append(
-                    Doc::intersperse(
-                        fields.iter().map(|&(_, ref name, ref ann)| {
-                            Doc::as_string(name)
-                                .append(Doc::space())
-                                .append(":")
-                                .append(Doc::space())
-                                .append(ann.to_doc())
-                        }),
-                        Doc::text(",").append(Doc::space()),
-                    ).nest(INDENT_WIDTH),
-                ).append(Doc::space())
-                .append("}"),
             Term::Struct(_, ref fields) => Doc::text("struct {")
                 .append(Doc::space())
                 .append(

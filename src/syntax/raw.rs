@@ -45,9 +45,17 @@ pub enum Item {
         /// The internal name for this definition., to be used when binding
         /// this name to variables
         binder: Binder<String>,
-        /// The term for associated with the label
-        term: RcTerm,
+        /// The definition associated with the label
+        definition: Definition,
     },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Definition {
+    /// Alias definitions
+    Alias(RcTerm),
+    /// Dependent struct types
+    StructType(ByteSpan, Nest<(Label, Binder<String>, Embed<RcTerm>)>),
 }
 
 impl Item {
@@ -60,9 +68,14 @@ impl Item {
             }
             | Item::Definition {
                 label_span,
-                ref term,
+                definition: Definition::Alias(ref term),
                 ..
             } => label_span.to(term.span()),
+            Item::Definition {
+                label_span,
+                definition: Definition::StructType(span, _),
+                ..
+            } => label_span.to(span),
         }
     }
 }
@@ -178,11 +191,6 @@ pub enum Term {
     App(RcTerm, RcTerm),
     /// If expression
     If(ByteIndex, RcTerm, RcTerm, RcTerm),
-    /// Dependent struct types
-    StructType(
-        ByteSpan,
-        Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>,
-    ),
     /// Dependent struct
     Struct(ByteSpan, Vec<(Label, RcTerm)>),
     /// Field projection
@@ -204,7 +212,6 @@ impl Term {
             | Term::Global(span, _)
             | Term::Pi(span, _)
             | Term::Lam(span, _)
-            | Term::StructType(span, _)
             | Term::Struct(span, _)
             | Term::Proj(span, _, _, _)
             | Term::Case(span, _, _)

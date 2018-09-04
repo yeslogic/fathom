@@ -130,24 +130,8 @@ pub enum Item {
         name: (ByteIndex, String),
         ann: Term,
     },
-    /// Defines the term that should be associated with a name
-    ///
-    /// ```text
-    /// foo = some-body
-    /// foo x (y : some-type) = some-body
-    /// ```
-    Definition {
-        name: (ByteIndex, String),
-        params: LamParams,
-        return_ann: Option<Box<Term>>,
-        body: Term,
-    },
-    // /// Defines a struct associated with the given name
-    // Struct {
-    //     span: ByteSpan,
-    //     name: (ByteIndex, String),
-    //     fields:
-    // }
+    /// Definitions
+    Definition(Definition),
     /// Items that could not be correctly parsed
     ///
     /// This is used for error recovery
@@ -162,12 +146,48 @@ impl Item {
             Item::Declaration {
                 name: (start, _),
                 ann: ref term,
-            }
-            | Item::Definition {
+            } => ByteSpan::new(start, term.span().end()),
+            Item::Definition(ref definition) => definition.span(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Definition {
+    /// Alias definition
+    ///
+    /// ```text
+    /// foo = some-body
+    /// foo x (y : some-type) = some-body
+    /// ```
+    Alias {
+        name: (ByteIndex, String),
+        params: LamParams,
+        return_ann: Option<Box<Term>>,
+        term: Term,
+    },
+    /// Struct type definition
+    ///
+    /// ```text
+    /// struct { x : t1, .. }
+    /// ```
+    StructType {
+        span: ByteSpan,
+        name: (ByteIndex, String),
+        fields: Vec<StructTypeField>,
+    },
+}
+
+impl Definition {
+    /// Return the span of source code that this declaration originated from
+    pub fn span(&self) -> ByteSpan {
+        match *self {
+            Definition::Alias {
                 name: (start, _),
-                body: ref term,
+                ref term,
                 ..
             } => ByteSpan::new(start, term.span().end()),
+            Definition::StructType { span, .. } => span,
         }
     }
 }
@@ -387,12 +407,6 @@ pub enum Term {
     /// case t1 of { pat => t2; .. }
     /// ```
     Case(ByteSpan, Box<Term>, Vec<(Pattern, Term)>),
-    /// Struct type
-    ///
-    /// ```text
-    /// Struct { x : t1, .. }
-    /// ```
-    StructType(ByteSpan, Vec<StructTypeField>),
     /// Struct value
     ///
     /// ```text
@@ -424,7 +438,6 @@ impl Term {
             | Term::Array(span, _)
             | Term::Hole(span)
             | Term::Case(span, _, _)
-            | Term::StructType(span, _)
             | Term::Struct(span, _)
             | Term::Error(span) => span,
             Term::Name(start, ref name) => ByteSpan::from_offset(start, ByteOffset::from_str(name)),

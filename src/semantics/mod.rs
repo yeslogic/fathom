@@ -9,12 +9,12 @@ use moniker::{Binder, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
 use num_traits::ToPrimitive;
 
 use syntax::core::{
-    Head, Item, Literal, Module, Neutral, Pattern, RcPattern, RcTerm, RcType, RcValue, Term, Type,
-    Value,
+    Definition, Head, Item, Literal, Module, Neutral, Pattern, RcPattern, RcTerm, RcType, RcValue,
+    Term, Type, Value,
 };
 use syntax::raw;
 use syntax::translation::Resugar;
-use syntax::Level;
+use syntax::{Label, Level};
 
 mod env;
 mod errors;
@@ -99,16 +99,16 @@ where
                 label_span,
                 ref label,
                 ref binder,
-                term: ref raw_term,
+                ref definition,
             } => {
-                let (term, ty) = match forward_declarations.get(binder).cloned() {
+                let (definition, ty) = match (forward_declarations.get(binder), definition) {
                     // This declaration was already given a definition, so this
                     // is an error!
                     //
                     // NOTE: Some languages (eg. Haskell, Agda, Idris, and
                     // Erlang) turn duplicate definitions into case matches.
                     // Languages like Elm don't. What should we do here?
-                    Some(ForwardDecl::Defined(original_span)) => {
+                    (Some(&ForwardDecl::Defined(original_span)), _) => {
                         return Err(TypeError::DuplicateDefinitions {
                             original_span,
                             duplicate_span: label_span,
@@ -117,13 +117,48 @@ where
                     },
                     // We found a prior declaration, so we'll use it as a basis
                     // for checking the definition
-                    Some(ForwardDecl::Pending(_, ty)) => {
-                        let ty = nf_term(&env, &ty)?;
-                        (check_term(&env, &raw_term, &ty)?, ty)
+                    (
+                        Some(ForwardDecl::Pending(_, ref ty)),
+                        &raw::Definition::Alias(ref raw_term),
+                    ) => {
+                        let ty = nf_term(&env, ty)?;
+                        (Definition::Alias(check_term(&env, &raw_term, &ty)?), ty)
+                    },
+                    (Some(ForwardDecl::Pending(_, _)), &raw::Definition::StructType(_, _)) => {
+                        unimplemented!("forward struct definitions");
                     },
                     // No prior declaration was found, so try to infer the type
                     // from the given definition alone
-                    None => infer_term(&env, &raw_term)?,
+                    (None, &raw::Definition::Alias(ref raw_term)) => {
+                        let (term, ty) = infer_term(&env, &raw_term)?;
+                        (Definition::Alias(term), ty)
+                    },
+                    (None, &raw::Definition::StructType(_, ref raw_fields)) => {
+                        let mut env = env.clone();
+                        let mut max_level = Level(0);
+
+                        // FIXME: Check that struct is well-formed?
+                        let fields = raw_fields
+                            .clone()
+                            .unnest()
+                            .into_iter()
+                            .map(|(label, Binder(free_var), Embed(raw_ann))| {
+                                use std::cmp;
+
+                                let (ann, ann_level) = infer_universe(&env, &raw_ann)?;
+                                let nf_ann = nf_term(&env, &ann)?;
+
+                                max_level = cmp::max(max_level, ann_level);
+                                env.insert_declaration(free_var.clone(), nf_ann);
+
+                                Ok((label, Binder(free_var), Embed(ann)))
+                            }).collect::<Result<_, TypeError>>()?;
+
+                        (
+                            Definition::StructType(Nest::new(fields)),
+                            RcValue::from(Value::Universe(max_level)),
+                        )
+                    },
                 };
 
                 // We must not remove this from the list of pending
@@ -133,12 +168,12 @@ where
                 // Add the declaration and definition to the environment,
                 // allowing them to be used in later type checking
                 env.insert_declaration(binder.0.clone(), ty);
-                env.insert_definition(binder.0.clone(), term.clone());
+                env.insert_definition(binder.0.clone(), definition.clone());
                 // Add the definition to the elaborated items
                 items.push(Item::Definition {
                     label: label.clone(),
                     binder: binder.clone(),
-                    term,
+                    definition,
                 });
             },
         }
@@ -362,6 +397,24 @@ where
     }
 }
 
+pub fn expect_struct<'a, Env>(
+    env: &'a Env,
+    ty: &RcType,
+) -> Option<&'a Nest<(Label, Binder<String>, Embed<RcTerm>)>>
+where
+    Env: DeclarationEnv + DefinitionEnv,
+{
+    match ty.inner.head_app()? {
+        (Head::Var(Var::Free(ref free_var)), spine) if spine.is_empty() => {
+            match *env.get_definition(free_var)? {
+                Definition::Alias(_) => None, // FIXME: follow alias?
+                Definition::StructType(ref fields) => Some(fields),
+            }
+        },
+        _ => None,
+    }
+}
+
 /// Checks that a term is compatible with the given type, returning the
 /// elaborated term if successful
 pub fn check_term<Env>(
@@ -417,38 +470,39 @@ where
         },
 
         // C-STRUCT
-        (&raw::Term::Struct(span, ref raw_fields), &Value::StructType(ref raw_ty_scope)) => {
-            let (raw_ty_fields, ()) = raw_ty_scope.clone().unbind();
-            let raw_ty_fields = raw_ty_fields.unnest();
+        (&raw::Term::Struct(span, ref raw_fields), _) => {
+            if let Some(ty_fields) = expect_struct(env, expected_ty) {
+                let ty_fields = ty_fields.clone().unnest();
 
-            if raw_fields.len() != raw_ty_fields.len() {
-                unimplemented!();
+                if raw_fields.len() != ty_fields.len() {
+                    unimplemented!();
+                }
+
+                // FIXME: Check that struct is well-formed?
+                let fields = {
+                    let mut mappings = Vec::with_capacity(raw_fields.len());
+                    <_>::zip(raw_fields.into_iter(), ty_fields.into_iter())
+                        .map(|(field, ty_field)| {
+                            let &(ref label, ref raw_expr) = field;
+                            let (ty_label, Binder(free_var), Embed(ann)) = ty_field;
+
+                            if *label == ty_label {
+                                let ann = nf_term(env, &ann.substs(&mappings))?;
+                                let expr = check_term(env, raw_expr, &ann)?;
+                                mappings.push((free_var, expr.clone()));
+                                Ok((label.clone(), expr))
+                            } else {
+                                Err(TypeError::LabelMismatch {
+                                    span,
+                                    found: label.clone(),
+                                    expected: ty_label,
+                                })
+                            }
+                        }).collect::<Result<_, _>>()?
+                };
+
+                return Ok(RcTerm::from(Term::Struct(fields)));
             }
-
-            // FIXME: Check that struct is well-formed?
-            let fields = {
-                let mut mappings = Vec::with_capacity(raw_fields.len());
-                <_>::zip(raw_fields.into_iter(), raw_ty_fields.into_iter())
-                    .map(|(field, ty_field)| {
-                        let &(ref label, ref raw_expr) = field;
-                        let (ty_label, Binder(free_var), Embed(ann)) = ty_field;
-
-                        if *label == ty_label {
-                            let ann = nf_term(env, &ann.substs(&mappings))?;
-                            let expr = check_term(env, raw_expr, &ann)?;
-                            mappings.push((free_var, expr.clone()));
-                            Ok((label.clone(), expr))
-                        } else {
-                            Err(TypeError::LabelMismatch {
-                                span,
-                                found: label.clone(),
-                                expected: ty_label,
-                            })
-                        }
-                    }).collect::<Result<_, _>>()?
-            };
-
-            return Ok(RcTerm::from(Term::Struct(fields)));
         },
 
         (&raw::Term::Case(_, ref raw_head, ref raw_clauses), _) => {
@@ -694,55 +748,18 @@ where
             }
         },
 
-        // I-STRUCT-TYPE, I-EMPTY-STRUCT-TYPE
-        raw::Term::StructType(_, ref raw_scope) => {
-            let (raw_fields, ()) = raw_scope.clone().unbind();
-            let mut max_level = Level(0);
-
-            // FIXME: Check that struct is well-formed?
-            let fields = {
-                let mut env = env.clone();
-                raw_fields
-                    .unnest()
-                    .into_iter()
-                    .map(|(label, Binder(free_var), Embed(raw_ann))| {
-                        let (ann, ann_level) = infer_universe(&env, &raw_ann)?;
-                        let nf_ann = nf_term(&env, &ann)?;
-
-                        max_level = cmp::max(max_level, ann_level);
-                        env.insert_declaration(free_var.clone(), nf_ann);
-
-                        Ok((label, Binder(free_var), Embed(ann)))
-                    }).collect::<Result<_, TypeError>>()?
-            };
-
-            Ok((
-                RcTerm::from(Term::StructType(Scope::new(Nest::new(fields), ()))),
-                RcValue::from(Value::Universe(max_level)),
-            ))
-        },
-
-        // I-EMPTY-STRUCT
-        raw::Term::Struct(span, ref raw_fields) => {
-            if raw_fields.is_empty() {
-                Ok((
-                    RcTerm::from(Term::Struct(vec![])),
-                    RcValue::from(Value::StructType(Scope::new(Nest::new(vec![]), ()))),
-                ))
-            } else {
-                Err(TypeError::AmbiguousStruct { span })
-            }
-        },
+        raw::Term::Struct(span, _) => Err(TypeError::AmbiguousStruct { span }),
 
         // I-PROJ
         raw::Term::Proj(_, ref expr, label_span, ref label) => {
             let (expr, ty) = infer_term(env, expr)?;
 
-            if let Value::StructType(ref scope) = *ty.inner {
-                let (fields, ()) = scope.clone().unbind();
+            if let Some(ty_fields) = expect_struct(env, &ty) {
                 let mut mappings = vec![];
 
-                for (current_label, Binder(free_var), Embed(current_ann)) in fields.unnest() {
+                for (current_label, Binder(free_var), Embed(current_ann)) in
+                    ty_fields.clone().unnest()
+                {
                     if current_label == *label {
                         return Ok((
                             RcTerm::from(Term::Proj(expr, current_label)),
