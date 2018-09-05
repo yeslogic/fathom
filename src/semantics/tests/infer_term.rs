@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn free() {
+fn undefined_name() {
     let tc_env = TcEnv::default();
 
     let x = FreeVar::fresh_named("x");
@@ -9,25 +9,9 @@ fn free() {
 
     assert_eq!(
         infer_term(&tc_env, &given_expr),
-        Err(TypeError::NotYetDefined {
+        Err(TypeError::UndefinedName {
             span: ByteSpan::default(),
             free_var: x.clone(),
-        }),
-    );
-}
-
-#[test]
-fn undefined_name() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-
-    let given_expr = "x";
-
-    assert_eq!(
-        infer_term(&tc_env, &parse_term(&mut codemap, given_expr)),
-        Err(TypeError::UndefinedName {
-            span: ByteSpan::new(ByteIndex(1), ByteIndex(2)),
-            name: String::from("x"),
         }),
     );
 }
@@ -36,10 +20,13 @@ fn undefined_name() {
 fn extern_not_found() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
 
     let given_expr = r#"extern "does-not-exist" : U32"#;
 
-    match infer_term(&tc_env, &parse_term(&mut codemap, given_expr)) {
+    let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
+
+    match infer_term(&tc_env, &raw_term) {
         Err(TypeError::UndefinedExternName { .. }) => {},
         Err(err) => panic!("unexpected error: {:?}", err),
         Ok((term, ty)) => panic!("expected error, found {} : {}", term, ty),
@@ -120,10 +107,13 @@ fn ann_arrow_ty_id() {
 fn ann_id_as_ty() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
 
     let given_expr = r"(\a => a) : Type";
 
-    match infer_term(&tc_env, &parse_term(&mut codemap, given_expr)) {
+    let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
+
+    match infer_term(&tc_env, &raw_term) {
         Err(TypeError::UnexpectedFunction { .. }) => {},
         other => panic!("unexpected result: {:#?}", other),
     }
@@ -147,11 +137,14 @@ fn app() {
 fn app_ty() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
 
     let given_expr = r"Type Type";
 
+    let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
+
     assert_eq!(
-        infer_term(&tc_env, &parse_term(&mut codemap, given_expr)),
+        infer_term(&tc_env, &raw_term),
         Err(TypeError::ArgAppliedToNonFunction {
             fn_span: ByteSpan::new(ByteIndex(1), ByteIndex(5)),
             arg_span: ByteSpan::new(ByteIndex(6), ByteIndex(10)),
@@ -385,13 +378,16 @@ fn case_expr_bool() {
 fn case_expr_bool_bad() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
 
     let given_expr = r#"case "hello" of {
         true => "hello";
         false => "hi";
     }"#;
 
-    match infer_term(&tc_env, &parse_term(&mut codemap, given_expr)) {
+    let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
+
+    match infer_term(&tc_env, &raw_term) {
         Err(TypeError::Mismatch { .. }) => {},
         Err(err) => panic!("unexpected error: {:?}", err),
         Ok((term, ty)) => panic!("expected error, found {} : {}", term, ty),
@@ -418,10 +414,13 @@ fn case_expr_wildcard() {
 fn case_expr_empty() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
 
     let given_expr = r#"case "helloo" of {}"#;
 
-    match infer_term(&tc_env, &parse_term(&mut codemap, given_expr)) {
+    let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
+
+    match infer_term(&tc_env, &raw_term) {
         Err(TypeError::AmbiguousEmptyCase { .. }) => {},
         other => panic!("unexpected result: {:#?}", other),
     }
@@ -508,10 +507,13 @@ mod church_encodings {
 fn array_ambiguous() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
 
     let given_expr = r#"[1, 2 : S32]"#;
 
-    match infer_term(&tc_env, &parse_term(&mut codemap, given_expr)) {
+    let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
+
+    match infer_term(&tc_env, &raw_term) {
         Err(TypeError::AmbiguousArrayLiteral { .. }) => {},
         Err(err) => panic!("unexpected error: {:?}", err),
         Ok((term, ty)) => panic!("expected error, found {} : {}", term, ty),

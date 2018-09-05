@@ -11,6 +11,7 @@ use super::*;
 fn silly_root() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
 
     let given_format = r#"
         module silly;
@@ -35,13 +36,14 @@ fn silly_root() {
         Cursor::new(given_bytes)
     };
 
-    let given_format = parse_check_module(&mut codemap, &tc_env, given_format);
+    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let module = check_module(&tc_env, &raw_module).unwrap();
 
     assert_term_eq!(
         parser::parse_module(
             &tc_env,
             &Label(String::from("Silly")),
-            &given_format,
+            &module,
             &mut given_bytes,
         ).unwrap(),
         RcValue::from(Value::Struct(vec![
@@ -65,6 +67,7 @@ fn silly_root() {
 fn missing_root() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
 
     let given_format = r#"
         module silly;
@@ -73,13 +76,15 @@ fn missing_root() {
         Data len = Array len U32Be;
     "#;
 
-    let given_format = parse_check_module(&mut codemap, &tc_env, given_format);
+    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let module = check_module(&tc_env, &raw_module).unwrap();
+
     let mut given_bytes = Cursor::new(vec![]);
 
     let result_term = parser::parse_module(
         &tc_env,
         &Label(String::from("Silly")),
-        &given_format,
+        &module,
         &mut given_bytes,
     );
 

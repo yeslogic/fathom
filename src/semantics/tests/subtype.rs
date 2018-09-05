@@ -12,7 +12,7 @@ macro_rules! assert_subtype {
         let sub_ty = parse_nf_term(&mut codemap, &tc_env, &sub_ty);
 
         assert!(
-            is_subtype(&sub_ty, &super_ty),
+            is_subtype(&tc_env, &sub_ty, &super_ty),
             "{} <: {}",
             $sub_ty_src,
             $super_ty_src
@@ -32,7 +32,7 @@ macro_rules! assert_not_subtype {
         let sub_ty = parse_nf_term(&mut codemap, &tc_env, &sub_ty);
 
         assert!(
-            !is_subtype(&sub_ty, &super_ty),
+            !is_subtype(&tc_env, &sub_ty, &super_ty),
             "{} </: {}",
             $sub_ty_src,
             $super_ty_src

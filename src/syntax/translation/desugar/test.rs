@@ -24,7 +24,7 @@ fn parse(src: &str) -> raw::RcTerm {
     let (concrete_term, errors) = parse::term(&filemap);
     assert!(errors.is_empty());
 
-    concrete_term.desugar(&DesugarEnv::new())
+    concrete_term.desugar(&DesugarEnv::new(HashMap::new()))
 }
 
 mod term {
@@ -35,12 +35,12 @@ mod term {
 
     #[test]
     fn var() {
-        golden("var", r"x");
-    }
-
-    #[test]
-    fn var_kebab_case() {
-        golden("var_kebab_case", r"or-elim");
+        match *parse(r"or-elim").inner {
+            raw::Term::Var(_, Var::Free(ref free_var)) => {
+                assert_eq!(free_var.pretty_name, Some("or-elim".to_owned()));
+            },
+            ref term => panic!("unexpected term: {}", term),
+        }
     }
 
     #[test]
@@ -330,8 +330,8 @@ mod term {
         #[test]
         fn pi_args_multi() {
             assert_term_eq!(
-                parse(r"(a : Type) (x y z : a) (w : I8) -> x"),
-                parse(r"(a : Type) -> (x : a) -> (y : a) -> (z : a) -> (w : I8) -> x"),
+                parse(r"(a : Type) (x y z : a) (w : x) -> x"),
+                parse(r"(a : Type) -> (x : a) -> (y : a) -> (z : a) -> (w : x) -> x"),
             );
         }
 

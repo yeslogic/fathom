@@ -5,7 +5,7 @@
 //! For more information, check out the theory appendix of the DDL book.
 
 use codespan::ByteSpan;
-use moniker::{Binder, BoundPattern, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
+use moniker::{Binder, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
 use num_traits::ToPrimitive;
 
 use syntax::core::{
@@ -23,7 +23,7 @@ pub mod parser;
 #[cfg(test)]
 mod tests;
 
-pub use self::env::{DeclarationEnv, DefinitionEnv, Extern, TcEnv};
+pub use self::env::{DeclarationEnv, DefinitionEnv, Extern, GlobalEnv, Globals, TcEnv};
 pub use self::errors::{InternalError, TypeError};
 pub use self::normalize::{match_value, nf_term};
 
@@ -183,25 +183,30 @@ where
 }
 
 /// Check that `ty1` is a subtype of `ty2`
-pub fn is_subtype(ty1: &RcType, ty2: &RcType) -> bool {
+pub fn is_subtype<Env>(env: &Env, ty1: &RcType, ty2: &RcType) -> bool
+where
+    Env: GlobalEnv,
+{
     use num_bigint::BigInt;
     use std::{i16, i32, i64, u16, u32, u64};
 
-    fn is_name(ty: &Type, name: &str) -> bool {
+    fn is_fv(ty: &Type, free_var: &FreeVar<String>) -> bool {
         if let Value::Neutral(ref neutral, ref spine) = *ty {
-            if let Neutral::Head(Head::Global(ref n)) = **neutral {
-                return name == *n && spine.is_empty();
+            if let Neutral::Head(Head::Var(Var::Free(ref fv))) = **neutral {
+                return free_var == fv && spine.is_empty();
             }
         }
         false
     }
 
-    fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> RcValue {
+    fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcValue {
         RcValue::from(Value::IntType(
-            min.map(|x| RcValue::from(Value::Literal(Literal::Int(x.into())))),
-            max.map(|x| RcValue::from(Value::Literal(Literal::Int(x.into())))),
+            Some(RcValue::from(Value::Literal(Literal::Int(min.into())))),
+            Some(RcValue::from(Value::Literal(Literal::Int(max.into())))),
         ))
     }
+
+    let globals = env.globals();
 
     match (&*ty1.inner, &*ty2.inner) {
         (&Value::IntType(ref min1, ref max1), &Value::IntType(ref min2, ref max2)) => {
@@ -234,22 +239,22 @@ pub fn is_subtype(ty1: &RcType, ty2: &RcType) -> bool {
             in_min_bound && in_max_bound
         },
 
-        (t1, _) if is_name(t1, "U16Le") => is_subtype(&int_ty(Some(u16::MIN), Some(u16::MAX)), ty2),
-        (t1, _) if is_name(t1, "U32Le") => is_subtype(&int_ty(Some(u32::MIN), Some(u32::MAX)), ty2),
-        (t1, _) if is_name(t1, "U64Le") => is_subtype(&int_ty(Some(u64::MIN), Some(u64::MAX)), ty2),
-        (t1, _) if is_name(t1, "S16Le") => is_subtype(&int_ty(Some(i16::MIN), Some(i16::MAX)), ty2),
-        (t1, _) if is_name(t1, "S32Le") => is_subtype(&int_ty(Some(i32::MIN), Some(i32::MAX)), ty2),
-        (t1, _) if is_name(t1, "S64Le") => is_subtype(&int_ty(Some(i64::MIN), Some(i64::MAX)), ty2),
-        (t1, t2) if is_name(t1, "F32Le") && is_name(t2, "F32") => true,
-        (t1, t2) if is_name(t1, "F64Le") && is_name(t2, "F64") => true,
-        (t1, _) if is_name(t1, "U16Be") => is_subtype(&int_ty(Some(u16::MIN), Some(u16::MAX)), ty2),
-        (t1, _) if is_name(t1, "U32Be") => is_subtype(&int_ty(Some(u32::MIN), Some(u32::MAX)), ty2),
-        (t1, _) if is_name(t1, "U64Be") => is_subtype(&int_ty(Some(u64::MIN), Some(u64::MAX)), ty2),
-        (t1, _) if is_name(t1, "S16Be") => is_subtype(&int_ty(Some(i16::MIN), Some(i16::MAX)), ty2),
-        (t1, _) if is_name(t1, "S32Be") => is_subtype(&int_ty(Some(i32::MIN), Some(i32::MAX)), ty2),
-        (t1, _) if is_name(t1, "S64Be") => is_subtype(&int_ty(Some(i64::MIN), Some(i64::MAX)), ty2),
-        (t1, t2) if is_name(t1, "F32Be") && is_name(t2, "F32") => true,
-        (t1, t2) if is_name(t1, "F64Be") && is_name(t2, "F64") => true,
+        (t1, _) if is_fv(t1, &globals.u16le) => is_subtype(env, &int_ty(u16::MIN, u16::MAX), ty2),
+        (t1, _) if is_fv(t1, &globals.u32le) => is_subtype(env, &int_ty(u32::MIN, u32::MAX), ty2),
+        (t1, _) if is_fv(t1, &globals.u64le) => is_subtype(env, &int_ty(u64::MIN, u64::MAX), ty2),
+        (t1, _) if is_fv(t1, &globals.s16le) => is_subtype(env, &int_ty(i16::MIN, i16::MAX), ty2),
+        (t1, _) if is_fv(t1, &globals.s32le) => is_subtype(env, &int_ty(i32::MIN, i32::MAX), ty2),
+        (t1, _) if is_fv(t1, &globals.s64le) => is_subtype(env, &int_ty(i64::MIN, i64::MAX), ty2),
+        (t1, t2) if is_fv(t1, &globals.f32le) && is_fv(t2, &globals.f32) => true,
+        (t1, t2) if is_fv(t1, &globals.f64le) && is_fv(t2, &globals.f64) => true,
+        (t1, _) if is_fv(t1, &globals.u16be) => is_subtype(env, &int_ty(u16::MIN, u16::MAX), ty2),
+        (t1, _) if is_fv(t1, &globals.u32be) => is_subtype(env, &int_ty(u32::MIN, u32::MAX), ty2),
+        (t1, _) if is_fv(t1, &globals.u64be) => is_subtype(env, &int_ty(u64::MIN, u64::MAX), ty2),
+        (t1, _) if is_fv(t1, &globals.s16be) => is_subtype(env, &int_ty(i16::MIN, i16::MAX), ty2),
+        (t1, _) if is_fv(t1, &globals.s32be) => is_subtype(env, &int_ty(i32::MIN, i32::MAX), ty2),
+        (t1, _) if is_fv(t1, &globals.s64be) => is_subtype(env, &int_ty(i64::MIN, i64::MAX), ty2),
+        (t1, t2) if is_fv(t1, &globals.f32be) && is_fv(t2, &globals.f32) => true,
+        (t1, t2) if is_fv(t1, &globals.f64be) && is_fv(t2, &globals.f64) => true,
 
         // Fallback to alpha-equality
         _ => Type::term_eq(ty1, ty2),
@@ -274,23 +279,37 @@ where
 
 /// Checks that a literal is compatible with the given type, returning the
 /// elaborated literal if successful
-fn check_literal(raw_literal: &raw::Literal, expected_ty: &RcType) -> Result<Literal, TypeError> {
-    match expected_ty.global_app() {
-        Some((name, spine)) if spine.is_empty() => {
-            match (raw_literal, name) {
-                (&raw::Literal::String(_, ref val), "String") => {
+fn check_literal<Env>(
+    env: &Env,
+    raw_literal: &raw::Literal,
+    expected_ty: &RcType,
+) -> Result<Literal, TypeError>
+where
+    Env: GlobalEnv,
+{
+    match expected_ty.free_var_app() {
+        Some((free_var, spine)) if spine.is_empty() => {
+            match *raw_literal {
+                raw::Literal::String(_, ref val) if *free_var == env.globals().string => {
                     return Ok(Literal::String(val.clone()));
                 },
-                (&raw::Literal::Char(_, val), "Char") => return Ok(Literal::Char(val)),
+                raw::Literal::Char(_, val) if *free_var == env.globals().char => {
+                    return Ok(Literal::Char(val))
+                },
+
                 // FIXME: overflow?
-                (&raw::Literal::Int(_, ref val), "F32") => {
+                raw::Literal::Int(_, ref val) if *free_var == env.globals().f32 => {
                     return Ok(Literal::F32(val.to_f32().unwrap()))
                 },
-                (&raw::Literal::Int(_, ref val), "F64") => {
+                raw::Literal::Int(_, ref val) if *free_var == env.globals().f64 => {
                     return Ok(Literal::F64(val.to_f64().unwrap()))
                 },
-                (&raw::Literal::Float(_, val), "F32") => return Ok(Literal::F32(val as f32)),
-                (&raw::Literal::Float(_, val), "F64") => return Ok(Literal::F64(val)),
+                raw::Literal::Float(_, val) if *free_var == env.globals().f32 => {
+                    return Ok(Literal::F32(val as f32))
+                },
+                raw::Literal::Float(_, val) if *free_var == env.globals().f64 => {
+                    return Ok(Literal::F64(val))
+                },
 
                 _ => {},
             }
@@ -298,8 +317,8 @@ fn check_literal(raw_literal: &raw::Literal, expected_ty: &RcType) -> Result<Lit
         Some(_) | None => {},
     }
 
-    let (literal, inferred_ty) = infer_literal(raw_literal)?;
-    if is_subtype(&inferred_ty, expected_ty) {
+    let (literal, inferred_ty) = infer_literal(env, raw_literal)?;
+    if is_subtype(env, &inferred_ty, expected_ty) {
         Ok(literal)
     } else {
         Err(TypeError::LiteralMismatch {
@@ -312,15 +331,19 @@ fn check_literal(raw_literal: &raw::Literal, expected_ty: &RcType) -> Result<Lit
 
 /// Synthesize the type of a literal, returning the elaborated literal and the
 /// inferred type if successful
-fn infer_literal(raw_literal: &raw::Literal) -> Result<(Literal, RcType), TypeError> {
+fn infer_literal<Env>(env: &Env, raw_literal: &raw::Literal) -> Result<(Literal, RcType), TypeError>
+where
+    Env: GlobalEnv,
+{
     match *raw_literal {
         raw::Literal::String(_, ref value) => Ok((
             Literal::String(value.clone()),
-            RcValue::from(Value::global("String")),
+            RcValue::from(Value::from(Var::Free(env.globals().string.clone()))),
         )),
-        raw::Literal::Char(_, value) => {
-            Ok((Literal::Char(value), RcValue::from(Value::global("Char"))))
-        },
+        raw::Literal::Char(_, value) => Ok((
+            Literal::Char(value),
+            RcValue::from(Value::from(Var::Free(env.globals().char.clone()))),
+        )),
         raw::Literal::Int(_, ref value) => Ok((Literal::Int(value.clone()), {
             let value = RcValue::from(Value::Literal(Literal::Int(value.clone())));
             RcValue::from(Value::IntType(Some(value.clone()), Some(value)))
@@ -347,7 +370,7 @@ where
             ));
         },
         (&raw::Pattern::Literal(ref raw_literal), _) => {
-            let literal = check_literal(raw_literal, expected_ty)?;
+            let literal = check_literal(env, raw_literal, expected_ty)?;
             return Ok((RcPattern::from(Pattern::Literal(literal)), vec![]));
         },
         _ => {},
@@ -387,7 +410,7 @@ where
             ))
         },
         raw::Pattern::Literal(ref literal) => {
-            let (literal, ty) = infer_literal(literal)?;
+            let (literal, ty) = infer_literal(env, literal)?;
             Ok((RcPattern::from(Pattern::Literal(literal)), ty, vec![]))
         },
         raw::Pattern::Binder(span, ref binder) => Err(TypeError::BinderNeedsAnnotation {
@@ -427,7 +450,7 @@ where
 {
     match (&*raw_term.inner, &*expected_ty.inner) {
         (&raw::Term::Literal(ref raw_literal), _) => {
-            let literal = check_literal(raw_literal, expected_ty)?;
+            let literal = check_literal(env, raw_literal, expected_ty)?;
             return Ok(RcTerm::from(Term::Literal(literal)));
         },
 
@@ -461,7 +484,8 @@ where
 
         // C-IF
         (&raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false), _) => {
-            let bool_ty = RcValue::from(Value::global("Bool"));
+            let bool_ty = RcValue::from(Value::from(Var::Free(env.globals().bool.clone())));
+
             let cond = check_term(env, raw_cond, &bool_ty)?;
             let if_true = check_term(env, raw_if_true, expected_ty)?;
             let if_false = check_term(env, raw_if_false, expected_ty)?;
@@ -529,8 +553,8 @@ where
             return Ok(RcTerm::from(Term::Case(head, clauses)));
         },
 
-        (&raw::Term::Array(span, ref elems), ty) => match ty.global_app() {
-            Some(("Array", spine)) if spine.len() == 2 => {
+        (&raw::Term::Array(span, ref elems), ty) => match ty.free_var_app() {
+            Some((free_var, spine)) if *free_var == env.globals().array && spine.len() == 2 => {
                 let len = &spine[0];
                 let elem_ty = &spine[1];
                 if let Value::Literal(Literal::Int(ref len)) = **len {
@@ -568,7 +592,7 @@ where
 
     // C-CONV
     let (term, inferred_ty) = infer_term(env, raw_term)?;
-    if is_subtype(&inferred_ty, expected_ty) {
+    if is_subtype(env, &inferred_ty, expected_ty) {
         Ok(term)
     } else {
         Err(TypeError::Mismatch {
@@ -632,7 +656,7 @@ where
         },
 
         raw::Term::Literal(ref raw_literal) => {
-            let (literal, ty) = infer_literal(raw_literal)?;
+            let (literal, ty) = infer_literal(env, raw_literal)?;
             Ok((RcTerm::from(Term::Literal(literal)), ty))
         },
 
@@ -640,7 +664,7 @@ where
         raw::Term::Var(span, ref var) => match *var {
             Var::Free(ref free_var) => match env.get_declaration(free_var) {
                 Some(ty) => Ok((RcTerm::from(Term::Var(var.clone())), ty.clone())),
-                None => Err(TypeError::NotYetDefined {
+                None => Err(TypeError::UndefinedName {
                     span,
                     free_var: free_var.clone(),
                 }),
@@ -668,14 +692,6 @@ where
             let (ty, _) = infer_universe(env, raw_ty)?;
             let value_ty = nf_term(env, &ty)?;
             Ok((RcTerm::from(Term::Extern(name.clone(), ty)), value_ty))
-        },
-
-        raw::Term::Global(span, ref name) => match env.get_global_declaration(name.as_str()) {
-            Some(ty) => Ok((RcTerm::from(Term::global(name.clone())), ty.clone())),
-            None => Err(TypeError::UndefinedName {
-                span,
-                name: name.clone(),
-            }),
         },
 
         // I-PI
@@ -728,7 +744,7 @@ where
 
         // I-IF
         raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false) => {
-            let bool_ty = RcValue::from(Value::global("Bool"));
+            let bool_ty = RcValue::from(Value::from(Var::Free(env.globals().bool.clone())));
             let cond = check_term(env, raw_cond, &bool_ty)?;
             let (if_true, ty) = infer_term(env, raw_if_true)?;
             let if_false = check_term(env, raw_if_false, &ty)?;

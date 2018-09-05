@@ -1,6 +1,7 @@
 use im::HashMap;
 use moniker::FreeVar;
 use std::fmt;
+use std::rc::Rc;
 
 use syntax::core::{Definition, Literal, RcType, RcValue, Spine, Value};
 
@@ -157,93 +158,168 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
     }
 }
 
-fn default_global_declarations() -> HashMap<&'static str, RcType> {
-    use moniker::{Binder, Embed, Scope};
+fn default_declarations(globals: &Globals) -> HashMap<FreeVar<String>, RcType> {
+    use moniker::{Binder, Embed, Scope, Var};
 
     let universe0 = RcValue::from(Value::universe(0));
-    let bool_ty = RcValue::from(Value::global("Bool"));
+    let bool_ty = RcValue::from(Value::from(Var::Free(globals.bool.clone())));
     let nat_ty = RcValue::from(Value::IntType(
         Some(RcValue::from(Value::Literal(Literal::Int(0.into())))),
         None,
     ));
-    let arrow = |params: Vec<RcType>, ret: RcType| {
-        params.into_iter().rev().fold(ret, |body, ann| {
-            RcValue::from(Value::Pi(Scope::new(
-                (Binder(FreeVar::fresh_unnamed()), Embed(ann)),
-                body,
-            )))
-        })
-    };
 
     hashmap!{
-        "Bool" => universe0.clone(),
-        "true" => bool_ty.clone(),
-        "false" => bool_ty.clone(),
-        "String" => universe0.clone(),
-        "Char" => universe0.clone(),
-
-        "U8" => universe0.clone(),
-        "U16" => universe0.clone(),
-        "U32" => universe0.clone(),
-        "U64" => universe0.clone(),
-        "S8" => universe0.clone(),
-        "S16" => universe0.clone(),
-        "S32" => universe0.clone(),
-        "S64" => universe0.clone(),
-
-        "F32" => universe0.clone(),
-        "F64" => universe0.clone(),
-        "Array" => arrow(vec![nat_ty, universe0.clone()], universe0.clone()),
-
-        // TODO: Replace these with more general compute types
-        "U16Le" => universe0.clone(),
-        "U32Le" => universe0.clone(),
-        "U64Le" => universe0.clone(),
-        "S16Le" => universe0.clone(),
-        "S32Le" => universe0.clone(),
-        "S64Le" => universe0.clone(),
-        "F32Le" => universe0.clone(),
-        "F64Le" => universe0.clone(),
-        "U16Be" => universe0.clone(),
-        "U32Be" => universe0.clone(),
-        "U64Be" => universe0.clone(),
-        "S16Be" => universe0.clone(),
-        "S32Be" => universe0.clone(),
-        "S64Be" => universe0.clone(),
-        "F32Be" => universe0.clone(),
-        "F64Be" => universe0.clone(),
+        globals.bool.clone() => universe0.clone(),
+        globals.true_.clone() => bool_ty.clone(),
+        globals.false_.clone() => bool_ty.clone(),
+        globals.string.clone() => universe0.clone(),
+        globals.char.clone() => universe0.clone(),
+        globals.u8.clone() => universe0.clone(),
+        globals.u16.clone() => universe0.clone(),
+        globals.u32.clone() => universe0.clone(),
+        globals.u64.clone() => universe0.clone(),
+        globals.s8.clone() => universe0.clone(),
+        globals.s16.clone() => universe0.clone(),
+        globals.s32.clone() => universe0.clone(),
+        globals.s64.clone() => universe0.clone(),
+        globals.f32.clone() => universe0.clone(),
+        globals.f64.clone() => universe0.clone(),
+        globals.array.clone() => RcValue::from(Value::Pi(Scope::new(
+            (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty)),
+            RcValue::from(Value::Pi(Scope::new(
+                (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
+                universe0.clone(),
+            ))),
+        ))),
+        globals.u16le.clone() => universe0.clone(),
+        globals.u32le.clone() => universe0.clone(),
+        globals.u64le.clone() => universe0.clone(),
+        globals.s16le.clone() => universe0.clone(),
+        globals.s32le.clone() => universe0.clone(),
+        globals.s64le.clone() => universe0.clone(),
+        globals.f32le.clone() => universe0.clone(),
+        globals.f64le.clone() => universe0.clone(),
+        globals.u16be.clone() => universe0.clone(),
+        globals.u32be.clone() => universe0.clone(),
+        globals.u64be.clone() => universe0.clone(),
+        globals.s16be.clone() => universe0.clone(),
+        globals.s32be.clone() => universe0.clone(),
+        globals.s64be.clone() => universe0.clone(),
+        globals.f32be.clone() => universe0.clone(),
+        globals.f64be.clone() => universe0.clone(),
     }
 }
 
-fn default_global_definitions() -> HashMap<&'static str, RcValue> {
+fn default_definitions(globals: &Globals) -> HashMap<FreeVar<String>, Definition> {
     use num_bigint::BigInt;
     use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
-    fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> RcValue {
-        RcValue::from(Value::IntType(
-            min.map(|x| RcValue::from(Value::Literal(Literal::Int(x.into())))),
-            max.map(|x| RcValue::from(Value::Literal(Literal::Int(x.into())))),
+    use syntax::core::{RcTerm, Term};
+
+    fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> RcTerm {
+        RcTerm::from(Term::IntType(
+            min.map(|x| RcTerm::from(Term::Literal(Literal::Int(x.into())))),
+            max.map(|x| RcTerm::from(Term::Literal(Literal::Int(x.into())))),
         ))
     }
 
     hashmap!{
-        "true" => RcValue::from(Value::Literal(Literal::Bool(true))),
-        "false" => RcValue::from(Value::Literal(Literal::Bool(false))),
+        globals.true_.clone() => Definition::Alias(RcTerm::from(Term::Literal(Literal::Bool(true)))),
+        globals.false_.clone() => Definition::Alias(RcTerm::from(Term::Literal(Literal::Bool(false)))),
 
-        "U8" => int_ty(Some(u8::MIN), Some(u8::MAX)),
-        "U16" => int_ty(Some(u16::MIN), Some(u16::MAX)),
-        "U32" => int_ty(Some(u32::MIN), Some(u32::MAX)),
-        "U64" => int_ty(Some(u64::MIN), Some(u64::MAX)),
-        "S8" => int_ty(Some(i8::MIN), Some(i8::MAX)),
-        "S16" => int_ty(Some(i16::MIN), Some(i16::MAX)),
-        "S32" => int_ty(Some(i32::MIN), Some(i32::MAX)),
-        "S64" => int_ty(Some(i64::MIN), Some(i64::MAX)),
+        globals.u8.clone() => Definition::Alias(int_ty(Some(u8::MIN), Some(u8::MAX))),
+        globals.u16.clone() => Definition::Alias(int_ty(Some(u16::MIN), Some(u16::MAX))),
+        globals.u32.clone() => Definition::Alias(int_ty(Some(u32::MIN), Some(u32::MAX))),
+        globals.u64.clone() => Definition::Alias(int_ty(Some(u64::MIN), Some(u64::MAX))),
+        globals.s8.clone() => Definition::Alias(int_ty(Some(i8::MIN), Some(i8::MAX))),
+        globals.s16.clone() => Definition::Alias(int_ty(Some(i16::MIN), Some(i16::MAX))),
+        globals.s32.clone() => Definition::Alias(int_ty(Some(i32::MIN), Some(i32::MAX))),
+        globals.s64.clone() => Definition::Alias(int_ty(Some(i64::MIN), Some(i64::MAX))),
+    }
+}
+
+pub trait GlobalEnv {
+    fn globals(&self) -> &Globals;
+}
+
+#[derive(Clone, Debug)]
+pub struct Globals {
+    pub bool: FreeVar<String>,
+    pub true_: FreeVar<String>,
+    pub false_: FreeVar<String>,
+    pub string: FreeVar<String>,
+    pub char: FreeVar<String>,
+    pub u8: FreeVar<String>,
+    pub u16: FreeVar<String>,
+    pub u32: FreeVar<String>,
+    pub u64: FreeVar<String>,
+    pub s8: FreeVar<String>,
+    pub s16: FreeVar<String>,
+    pub s32: FreeVar<String>,
+    pub s64: FreeVar<String>,
+    pub f32: FreeVar<String>,
+    pub f64: FreeVar<String>,
+    pub array: FreeVar<String>,
+    pub u16le: FreeVar<String>,
+    pub u32le: FreeVar<String>,
+    pub u64le: FreeVar<String>,
+    pub s16le: FreeVar<String>,
+    pub s32le: FreeVar<String>,
+    pub s64le: FreeVar<String>,
+    pub f32le: FreeVar<String>,
+    pub f64le: FreeVar<String>,
+    pub u16be: FreeVar<String>,
+    pub u32be: FreeVar<String>,
+    pub u64be: FreeVar<String>,
+    pub s16be: FreeVar<String>,
+    pub s32be: FreeVar<String>,
+    pub s64be: FreeVar<String>,
+    pub f32be: FreeVar<String>,
+    pub f64be: FreeVar<String>,
+}
+
+impl Default for Globals {
+    fn default() -> Globals {
+        Globals {
+            bool: FreeVar::fresh_named("Bool"),
+            true_: FreeVar::fresh_named("true"),
+            false_: FreeVar::fresh_named("false"),
+            string: FreeVar::fresh_named("String"),
+            char: FreeVar::fresh_named("Char"),
+            u8: FreeVar::fresh_named("U8"),
+            u16: FreeVar::fresh_named("U16"),
+            u32: FreeVar::fresh_named("U32"),
+            u64: FreeVar::fresh_named("U64"),
+            s8: FreeVar::fresh_named("S8"),
+            s16: FreeVar::fresh_named("S16"),
+            s32: FreeVar::fresh_named("S32"),
+            s64: FreeVar::fresh_named("S64"),
+            f32: FreeVar::fresh_named("F32"),
+            f64: FreeVar::fresh_named("F64"),
+            array: FreeVar::fresh_named("Array"),
+            // TODO: Replace these with more general compute types
+            u16le: FreeVar::fresh_named("U16Le"),
+            u32le: FreeVar::fresh_named("U32Le"),
+            u64le: FreeVar::fresh_named("U64Le"),
+            s16le: FreeVar::fresh_named("S16Le"),
+            s32le: FreeVar::fresh_named("S32Le"),
+            s64le: FreeVar::fresh_named("S64Le"),
+            f32le: FreeVar::fresh_named("F32Le"),
+            f64le: FreeVar::fresh_named("F64Le"),
+            u16be: FreeVar::fresh_named("U16Be"),
+            u32be: FreeVar::fresh_named("U32Be"),
+            u64be: FreeVar::fresh_named("U64Be"),
+            s16be: FreeVar::fresh_named("S16Be"),
+            s32be: FreeVar::fresh_named("S32Be"),
+            s64be: FreeVar::fresh_named("S64Be"),
+            f32be: FreeVar::fresh_named("F32Be"),
+            f64be: FreeVar::fresh_named("F64Be"),
+        }
     }
 }
 
 /// An environment that contains declarations
-pub trait DeclarationEnv: Clone {
-    fn get_global_declaration(&self, name: &str) -> Option<&RcType>;
+pub trait DeclarationEnv: Clone + GlobalEnv {
     fn get_declaration(&self, free_var: &FreeVar<String>) -> Option<&RcType>;
     fn insert_declaration(&mut self, free_var: FreeVar<String>, ty: RcType);
     fn extend_declarations<T>(&mut self, iter: T)
@@ -252,9 +328,8 @@ pub trait DeclarationEnv: Clone {
 }
 
 /// An environment that contains definitions
-pub trait DefinitionEnv: Clone {
+pub trait DefinitionEnv: Clone + GlobalEnv {
     fn get_extern_definition(&self, name: &str) -> Option<&Extern>;
-    fn get_global_definition(&self, name: &str) -> Option<&RcValue>;
     fn get_definition(&self, free_var: &FreeVar<String>) -> Option<&Definition>;
     fn insert_definition(&mut self, free_var: FreeVar<String>, Definition);
     fn extend_definitions<T>(&mut self, iter: T)
@@ -272,35 +347,49 @@ pub trait DefinitionEnv: Clone {
 /// error-prone tedium of working with mutable context.
 #[derive(Clone, Debug)]
 pub struct TcEnv {
+    globals: Rc<Globals>,
     /// External definitions
     extern_definitions: HashMap<&'static str, Extern>,
-    /// Global declarations
-    global_declarations: HashMap<&'static str, RcType>,
-    /// Global definitions
-    global_definitions: HashMap<&'static str, RcValue>,
     /// The type annotations of the binders we have passed over
     declarations: HashMap<FreeVar<String>, RcType>,
     /// Any definitions we have passed over
     definitions: HashMap<FreeVar<String>, Definition>,
 }
 
+impl TcEnv {
+    pub fn mappings(&self) -> HashMap<String, FreeVar<String>> {
+        self.declarations
+            .iter()
+            .filter_map(|(free_var, _)| {
+                let pretty_name = free_var.pretty_name.as_ref()?;
+                Some((pretty_name.clone(), free_var.clone()))
+            }).collect()
+    }
+}
+
 impl Default for TcEnv {
     fn default() -> TcEnv {
+        let globals = Rc::new(Globals::default());
+        let extern_definitions = default_extern_definitions();
+        let declarations = default_declarations(&globals);
+        let definitions = default_definitions(&globals);
+
         TcEnv {
-            extern_definitions: default_extern_definitions(),
-            global_declarations: default_global_declarations(),
-            global_definitions: default_global_definitions(),
-            declarations: hashmap!{},
-            definitions: hashmap!{},
+            globals,
+            extern_definitions,
+            declarations,
+            definitions,
         }
     }
 }
 
-impl DeclarationEnv for TcEnv {
-    fn get_global_declaration(&self, name: &str) -> Option<&RcType> {
-        self.global_declarations.get(name)
+impl GlobalEnv for TcEnv {
+    fn globals(&self) -> &Globals {
+        &self.globals
     }
+}
 
+impl DeclarationEnv for TcEnv {
     fn get_declaration(&self, free_var: &FreeVar<String>) -> Option<&RcType> {
         self.declarations.get(free_var)
     }
@@ -320,10 +409,6 @@ impl DeclarationEnv for TcEnv {
 impl DefinitionEnv for TcEnv {
     fn get_extern_definition(&self, name: &str) -> Option<&Extern> {
         self.extern_definitions.get(name)
-    }
-
-    fn get_global_definition(&self, name: &str) -> Option<&RcValue> {
-        self.global_definitions.get(name)
     }
 
     fn get_definition(&self, free_var: &FreeVar<String>) -> Option<&Definition> {

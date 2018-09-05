@@ -1,4 +1,4 @@
-use moniker::{Binder, Embed, Nest};
+use moniker::{Binder, Embed, Nest, Var};
 use std::io;
 
 use semantics::{nf_term, DefinitionEnv, InternalError};
@@ -121,30 +121,31 @@ where
         | Value::Struct(_)
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
         Value::Neutral(ref neutral, ref spine) => match **neutral {
-            Neutral::Head(Head::Global(ref n)) => {
+            Neutral::Head(Head::Var(Var::Free(ref fv))) => {
+                let globals = env.globals();
                 if spine.len() == 0 {
-                    Ok(RcValue::from(Value::Literal(match n.as_str() {
-                        "U8" => Literal::Int(bytes.read_u8()?.into()),
-                        "U16Le" => Literal::Int(bytes.read_u16::<Le>()?.into()),
-                        "U16Be" => Literal::Int(bytes.read_u16::<Be>()?.into()),
-                        "U32Le" => Literal::Int(bytes.read_u32::<Le>()?.into()),
-                        "U32Be" => Literal::Int(bytes.read_u32::<Be>()?.into()),
-                        "U64Le" => Literal::Int(bytes.read_u64::<Le>()?.into()),
-                        "U64Be" => Literal::Int(bytes.read_u64::<Be>()?.into()),
-                        "S8" => Literal::Int(bytes.read_i8()?.into()),
-                        "S16Le" => Literal::Int(bytes.read_i16::<Le>()?.into()),
-                        "S16Be" => Literal::Int(bytes.read_i16::<Be>()?.into()),
-                        "S32Le" => Literal::Int(bytes.read_i32::<Le>()?.into()),
-                        "S32Be" => Literal::Int(bytes.read_i32::<Be>()?.into()),
-                        "S64Le" => Literal::Int(bytes.read_i64::<Le>()?.into()),
-                        "S64Be" => Literal::Int(bytes.read_i64::<Be>()?.into()),
-                        "F32Le" => Literal::F32(bytes.read_f32::<Le>()?),
-                        "F32Be" => Literal::F32(bytes.read_f32::<Be>()?),
-                        "F64Le" => Literal::F64(bytes.read_f64::<Le>()?),
-                        "F64Be" => Literal::F64(bytes.read_f64::<Be>()?),
+                    Ok(RcValue::from(Value::Literal(match () {
+                        () if *fv == globals.u8 => Literal::Int(bytes.read_u8()?.into()),
+                        () if *fv == globals.u16le => Literal::Int(bytes.read_u16::<Le>()?.into()),
+                        () if *fv == globals.u16be => Literal::Int(bytes.read_u16::<Be>()?.into()),
+                        () if *fv == globals.u32le => Literal::Int(bytes.read_u32::<Le>()?.into()),
+                        () if *fv == globals.u32be => Literal::Int(bytes.read_u32::<Be>()?.into()),
+                        () if *fv == globals.u64le => Literal::Int(bytes.read_u64::<Le>()?.into()),
+                        () if *fv == globals.u64be => Literal::Int(bytes.read_u64::<Be>()?.into()),
+                        () if *fv == globals.s8 => Literal::Int(bytes.read_i8()?.into()),
+                        () if *fv == globals.s16le => Literal::Int(bytes.read_i16::<Le>()?.into()),
+                        () if *fv == globals.s16be => Literal::Int(bytes.read_i16::<Be>()?.into()),
+                        () if *fv == globals.s32le => Literal::Int(bytes.read_i32::<Le>()?.into()),
+                        () if *fv == globals.s32be => Literal::Int(bytes.read_i32::<Be>()?.into()),
+                        () if *fv == globals.s64le => Literal::Int(bytes.read_i64::<Le>()?.into()),
+                        () if *fv == globals.s64be => Literal::Int(bytes.read_i64::<Be>()?.into()),
+                        () if *fv == globals.f32le => Literal::F32(bytes.read_f32::<Le>()?),
+                        () if *fv == globals.f32be => Literal::F32(bytes.read_f32::<Be>()?),
+                        () if *fv == globals.f64le => Literal::F64(bytes.read_f64::<Le>()?),
+                        () if *fv == globals.f64be => Literal::F64(bytes.read_f64::<Be>()?),
                         _ => return Err(ParseError::InvalidType(ty.clone())),
                     })))
-                } else if spine.len() == 2 && *n == "Array" {
+                } else if spine.len() == 2 && *fv == globals.array {
                     let len = &spine[0];
                     let elem_ty = &spine[1];
                     match **len {
