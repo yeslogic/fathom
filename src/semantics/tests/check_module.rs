@@ -352,3 +352,53 @@ fn dependent_struct_with_integer() {
         panic!("type error!")
     }
 }
+
+#[test]
+fn struct_field_mismatch_lt() {
+    let mut codemap = CodeMap::new();
+
+    let src = r#"
+        module test;
+
+        struct Test {
+            x : String,
+            y : String,
+        };
+
+        test : Test = struct {
+            x = "hello",
+        };
+    "#;
+
+    let raw_module = parse_module(&mut codemap, src);
+    match check_module(&TcEnv::default(), &raw_module) {
+        Ok(_) => panic!("expected error"),
+        Err(TypeError::StructSizeMismatch { .. }) => {},
+        Err(err) => panic!("unexpected error: {}", err),
+    }
+}
+
+#[test]
+fn struct_field_mismatch_gt() {
+    let mut codemap = CodeMap::new();
+
+    let src = r#"
+        module test;
+
+        struct Test {
+            x : String,
+        };
+
+        test : Test = struct {
+            x = "hello",
+            y = "hello",
+        };
+    "#;
+
+    let raw_module = parse_module(&mut codemap, src);
+    match check_module(&TcEnv::default(), &raw_module) {
+        Ok(_) => panic!("expected error"),
+        Err(TypeError::StructSizeMismatch { .. }) => {},
+        Err(err) => panic!("unexpected error: {}", err),
+    }
+}

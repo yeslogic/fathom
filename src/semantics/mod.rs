@@ -5,7 +5,7 @@
 //! For more information, check out the theory appendix of the DDL book.
 
 use codespan::ByteSpan;
-use moniker::{Binder, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
+use moniker::{Binder, BoundPattern, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
 use num_traits::ToPrimitive;
 
 use syntax::core::{
@@ -475,7 +475,11 @@ where
                 let ty_fields = ty_fields.clone().unnest();
 
                 if raw_fields.len() != ty_fields.len() {
-                    unimplemented!();
+                    return Err(TypeError::StructSizeMismatch {
+                        span,
+                        found_size: raw_fields.len() as u64,
+                        expected_size: ty_fields.len() as u64,
+                    });
                 }
 
                 // FIXME: Check that struct is well-formed?
