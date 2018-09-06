@@ -1,9 +1,10 @@
 use im::HashMap;
-use moniker::FreeVar;
+use moniker::{Binder, FreeVar};
 use std::fmt;
 use std::rc::Rc;
 
 use syntax::core::{Definition, Literal, RcType, RcValue, Spine, Value};
+use syntax::translation::ResugarEnv;
 
 // Some helper traits for marshalling between Rust and Pikelet values
 //
@@ -158,90 +159,6 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
     }
 }
 
-fn default_declarations(globals: &Globals) -> HashMap<FreeVar<String>, RcType> {
-    use moniker::{Binder, Embed, Scope, Var};
-
-    let universe0 = RcValue::from(Value::universe(0));
-    let bool_ty = RcValue::from(Value::from(Var::Free(globals.bool.clone())));
-    let nat_ty = RcValue::from(Value::IntType(
-        Some(RcValue::from(Value::Literal(Literal::Int(0.into())))),
-        None,
-    ));
-
-    hashmap!{
-        globals.bool.clone() => universe0.clone(),
-        globals.true_.clone() => bool_ty.clone(),
-        globals.false_.clone() => bool_ty.clone(),
-        globals.string.clone() => universe0.clone(),
-        globals.char.clone() => universe0.clone(),
-        globals.u8.clone() => universe0.clone(),
-        globals.u16.clone() => universe0.clone(),
-        globals.u32.clone() => universe0.clone(),
-        globals.u64.clone() => universe0.clone(),
-        globals.s8.clone() => universe0.clone(),
-        globals.s16.clone() => universe0.clone(),
-        globals.s32.clone() => universe0.clone(),
-        globals.s64.clone() => universe0.clone(),
-        globals.f32.clone() => universe0.clone(),
-        globals.f64.clone() => universe0.clone(),
-        globals.array.clone() => RcValue::from(Value::Pi(Scope::new(
-            (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty)),
-            RcValue::from(Value::Pi(Scope::new(
-                (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
-                universe0.clone(),
-            ))),
-        ))),
-        globals.u16le.clone() => universe0.clone(),
-        globals.u32le.clone() => universe0.clone(),
-        globals.u64le.clone() => universe0.clone(),
-        globals.s16le.clone() => universe0.clone(),
-        globals.s32le.clone() => universe0.clone(),
-        globals.s64le.clone() => universe0.clone(),
-        globals.f32le.clone() => universe0.clone(),
-        globals.f64le.clone() => universe0.clone(),
-        globals.u16be.clone() => universe0.clone(),
-        globals.u32be.clone() => universe0.clone(),
-        globals.u64be.clone() => universe0.clone(),
-        globals.s16be.clone() => universe0.clone(),
-        globals.s32be.clone() => universe0.clone(),
-        globals.s64be.clone() => universe0.clone(),
-        globals.f32be.clone() => universe0.clone(),
-        globals.f64be.clone() => universe0.clone(),
-    }
-}
-
-fn default_definitions(globals: &Globals) -> HashMap<FreeVar<String>, Definition> {
-    use num_bigint::BigInt;
-    use std::{i16, i32, i64, i8, u16, u32, u64, u8};
-
-    use syntax::core::{RcTerm, Term};
-
-    fn int_ty<T: Into<BigInt>>(min: Option<T>, max: Option<T>) -> RcTerm {
-        RcTerm::from(Term::IntType(
-            min.map(|x| RcTerm::from(Term::Literal(Literal::Int(x.into())))),
-            max.map(|x| RcTerm::from(Term::Literal(Literal::Int(x.into())))),
-        ))
-    }
-
-    hashmap!{
-        globals.true_.clone() => Definition::Alias(RcTerm::from(Term::Literal(Literal::Bool(true)))),
-        globals.false_.clone() => Definition::Alias(RcTerm::from(Term::Literal(Literal::Bool(false)))),
-
-        globals.u8.clone() => Definition::Alias(int_ty(Some(u8::MIN), Some(u8::MAX))),
-        globals.u16.clone() => Definition::Alias(int_ty(Some(u16::MIN), Some(u16::MAX))),
-        globals.u32.clone() => Definition::Alias(int_ty(Some(u32::MIN), Some(u32::MAX))),
-        globals.u64.clone() => Definition::Alias(int_ty(Some(u64::MIN), Some(u64::MAX))),
-        globals.s8.clone() => Definition::Alias(int_ty(Some(i8::MIN), Some(i8::MAX))),
-        globals.s16.clone() => Definition::Alias(int_ty(Some(i16::MIN), Some(i16::MAX))),
-        globals.s32.clone() => Definition::Alias(int_ty(Some(i32::MIN), Some(i32::MAX))),
-        globals.s64.clone() => Definition::Alias(int_ty(Some(i64::MIN), Some(i64::MAX))),
-    }
-}
-
-pub trait GlobalEnv {
-    fn globals(&self) -> &Globals;
-}
-
 #[derive(Clone, Debug)]
 pub struct Globals {
     pub bool: FreeVar<String>,
@@ -318,8 +235,13 @@ impl Default for Globals {
     }
 }
 
+pub trait GlobalEnv: Clone {
+    fn resugar_env(&self) -> &ResugarEnv;
+    fn globals(&self) -> &Globals;
+}
+
 /// An environment that contains declarations
-pub trait DeclarationEnv: Clone + GlobalEnv {
+pub trait DeclarationEnv: GlobalEnv {
     fn get_declaration(&self, free_var: &FreeVar<String>) -> Option<&RcType>;
     fn insert_declaration(&mut self, free_var: FreeVar<String>, ty: RcType);
     fn extend_declarations<T>(&mut self, iter: T)
@@ -328,7 +250,7 @@ pub trait DeclarationEnv: Clone + GlobalEnv {
 }
 
 /// An environment that contains definitions
-pub trait DefinitionEnv: Clone + GlobalEnv {
+pub trait DefinitionEnv: GlobalEnv {
     fn get_extern_definition(&self, name: &str) -> Option<&Extern>;
     fn get_definition(&self, free_var: &FreeVar<String>) -> Option<&Definition>;
     fn insert_definition(&mut self, free_var: FreeVar<String>, Definition);
@@ -347,6 +269,12 @@ pub trait DefinitionEnv: Clone + GlobalEnv {
 /// error-prone tedium of working with mutable context.
 #[derive(Clone, Debug)]
 pub struct TcEnv {
+    /// The resugar environment
+    ///
+    /// We'll keep this up to date as we type check to make it easier to do
+    /// resugaring on any errors that we encounter
+    resugar_env: ResugarEnv,
+    /// The globals
     globals: Rc<Globals>,
     /// External definitions
     extern_definitions: HashMap<&'static str, Extern>,
@@ -369,21 +297,128 @@ impl TcEnv {
 
 impl Default for TcEnv {
     fn default() -> TcEnv {
-        let globals = Rc::new(Globals::default());
-        let extern_definitions = default_extern_definitions();
-        let declarations = default_declarations(&globals);
-        let definitions = default_definitions(&globals);
+        use moniker::{Embed, Scope, Var};
+        use num_bigint::BigInt;
+        use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
-        TcEnv {
-            globals,
-            extern_definitions,
-            declarations,
-            definitions,
+        use syntax::core::{RcTerm, Term};
+
+        let mut tc_env = TcEnv {
+            resugar_env: ResugarEnv::new(),
+            globals: Rc::new(Globals::default()),
+            extern_definitions: default_extern_definitions(),
+            declarations: HashMap::new(),
+            definitions: HashMap::new(),
+        };
+
+        let var_bool = tc_env.globals.bool.clone();
+        let var_true_ = tc_env.globals.true_.clone();
+        let var_false_ = tc_env.globals.false_.clone();
+        let var_string = tc_env.globals.string.clone();
+        let var_char = tc_env.globals.char.clone();
+        let var_u8 = tc_env.globals.u8.clone();
+        let var_u16 = tc_env.globals.u16.clone();
+        let var_u32 = tc_env.globals.u32.clone();
+        let var_u64 = tc_env.globals.u64.clone();
+        let var_s8 = tc_env.globals.s8.clone();
+        let var_s16 = tc_env.globals.s16.clone();
+        let var_s32 = tc_env.globals.s32.clone();
+        let var_s64 = tc_env.globals.s64.clone();
+        let var_f32 = tc_env.globals.f32.clone();
+        let var_f64 = tc_env.globals.f64.clone();
+        let var_array = tc_env.globals.array.clone();
+        let var_u16le = tc_env.globals.u16le.clone();
+        let var_u32le = tc_env.globals.u32le.clone();
+        let var_u64le = tc_env.globals.u64le.clone();
+        let var_s16le = tc_env.globals.s16le.clone();
+        let var_s32le = tc_env.globals.s32le.clone();
+        let var_s64le = tc_env.globals.s64le.clone();
+        let var_f32le = tc_env.globals.f32le.clone();
+        let var_f64le = tc_env.globals.f64le.clone();
+        let var_u16be = tc_env.globals.u16be.clone();
+        let var_u32be = tc_env.globals.u32be.clone();
+        let var_u64be = tc_env.globals.u64be.clone();
+        let var_s16be = tc_env.globals.s16be.clone();
+        let var_s32be = tc_env.globals.s32be.clone();
+        let var_s64be = tc_env.globals.s64be.clone();
+        let var_f32be = tc_env.globals.f32be.clone();
+        let var_f64be = tc_env.globals.f64be.clone();
+
+        let universe0 = RcValue::from(Value::universe(0));
+        let nat_ty = RcValue::from(Value::IntType(
+            Some(RcValue::from(Value::Literal(Literal::Int(0.into())))),
+            None,
+        ));
+        let bool_ty = RcValue::from(Value::from(Var::Free(var_bool.clone())));
+        let bool_lit = |value| RcTerm::from(Term::Literal(Literal::Bool(value)));
+        let array_ty = RcValue::from(Value::Pi(Scope::new(
+            (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty)),
+            RcValue::from(Value::Pi(Scope::new(
+                (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
+                universe0.clone(),
+            ))),
+        )));
+
+        fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcTerm {
+            RcTerm::from(Term::IntType(
+                Some(RcTerm::from(Term::Literal(Literal::Int(min.into())))),
+                Some(RcTerm::from(Term::Literal(Literal::Int(max.into())))),
+            ))
         }
+
+        tc_env.insert_declaration(var_bool, universe0.clone());
+        tc_env.insert_declaration(var_true_.clone(), bool_ty.clone());
+        tc_env.insert_declaration(var_false_.clone(), bool_ty.clone());
+        tc_env.insert_declaration(var_string, universe0.clone());
+        tc_env.insert_declaration(var_char, universe0.clone());
+        tc_env.insert_declaration(var_u8.clone(), universe0.clone());
+        tc_env.insert_declaration(var_u16.clone(), universe0.clone());
+        tc_env.insert_declaration(var_u32.clone(), universe0.clone());
+        tc_env.insert_declaration(var_u64.clone(), universe0.clone());
+        tc_env.insert_declaration(var_s8.clone(), universe0.clone());
+        tc_env.insert_declaration(var_s16.clone(), universe0.clone());
+        tc_env.insert_declaration(var_s32.clone(), universe0.clone());
+        tc_env.insert_declaration(var_s64.clone(), universe0.clone());
+        tc_env.insert_declaration(var_f32, universe0.clone());
+        tc_env.insert_declaration(var_f64, universe0.clone());
+        tc_env.insert_declaration(var_array, array_ty);
+        tc_env.insert_declaration(var_u16le, universe0.clone());
+        tc_env.insert_declaration(var_u32le, universe0.clone());
+        tc_env.insert_declaration(var_u64le, universe0.clone());
+        tc_env.insert_declaration(var_s16le, universe0.clone());
+        tc_env.insert_declaration(var_s32le, universe0.clone());
+        tc_env.insert_declaration(var_s64le, universe0.clone());
+        tc_env.insert_declaration(var_f32le, universe0.clone());
+        tc_env.insert_declaration(var_f64le, universe0.clone());
+        tc_env.insert_declaration(var_u16be, universe0.clone());
+        tc_env.insert_declaration(var_u32be, universe0.clone());
+        tc_env.insert_declaration(var_u64be, universe0.clone());
+        tc_env.insert_declaration(var_s16be, universe0.clone());
+        tc_env.insert_declaration(var_s32be, universe0.clone());
+        tc_env.insert_declaration(var_s64be, universe0.clone());
+        tc_env.insert_declaration(var_f32be, universe0.clone());
+        tc_env.insert_declaration(var_f64be, universe0.clone());
+
+        tc_env.insert_definition(var_true_, Definition::Alias(bool_lit(true)));
+        tc_env.insert_definition(var_false_, Definition::Alias(bool_lit(false)));
+        tc_env.insert_definition(var_u8, Definition::Alias(int_ty(u8::MIN, u8::MAX)));
+        tc_env.insert_definition(var_u16, Definition::Alias(int_ty(u16::MIN, u16::MAX)));
+        tc_env.insert_definition(var_u32, Definition::Alias(int_ty(u32::MIN, u32::MAX)));
+        tc_env.insert_definition(var_u64, Definition::Alias(int_ty(u64::MIN, u64::MAX)));
+        tc_env.insert_definition(var_s8, Definition::Alias(int_ty(i8::MIN, i8::MAX)));
+        tc_env.insert_definition(var_s16, Definition::Alias(int_ty(i16::MIN, i16::MAX)));
+        tc_env.insert_definition(var_s32, Definition::Alias(int_ty(i32::MIN, i32::MAX)));
+        tc_env.insert_definition(var_s64, Definition::Alias(int_ty(i64::MIN, i64::MAX)));
+
+        tc_env
     }
 }
 
 impl GlobalEnv for TcEnv {
+    fn resugar_env(&self) -> &ResugarEnv {
+        &self.resugar_env
+    }
+
     fn globals(&self) -> &Globals {
         &self.globals
     }
@@ -395,6 +430,7 @@ impl DeclarationEnv for TcEnv {
     }
 
     fn insert_declaration(&mut self, free_var: FreeVar<String>, ty: RcType) {
+        self.resugar_env.on_binder(&Binder(free_var.clone()));
         self.declarations.insert(free_var, ty);
     }
 
@@ -416,6 +452,7 @@ impl DefinitionEnv for TcEnv {
     }
 
     fn insert_definition(&mut self, free_var: FreeVar<String>, term: Definition) {
+        self.resugar_env.on_binder(&Binder(free_var.clone()));
         self.definitions.insert(free_var, term);
     }
 

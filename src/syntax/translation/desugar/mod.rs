@@ -7,7 +7,7 @@ use syntax::raw;
 use syntax::{Label, Level};
 
 #[cfg(test)]
-mod test;
+mod tests;
 
 /// The environment used when desugaring from the concrete to raw syntax
 #[derive(Debug, Clone)]
@@ -41,7 +41,7 @@ impl DesugarEnv {
         free_var
     }
 
-    pub fn on_var(&self, span: ByteSpan, name: &str) -> raw::RcTerm {
+    pub fn on_name(&self, span: ByteSpan, name: &str) -> raw::RcTerm {
         raw::RcTerm::from(raw::Term::Var(
             span,
             Var::Free(match self.locals.get(name) {
@@ -150,9 +150,10 @@ fn desugar_struct(
 ) -> raw::RcTerm {
     let fields = fields
         .iter()
-        .map(|&(_, ref label, ref expr)| {
-            let expr = expr.desugar(&env);
-            (Label(label.clone()), expr)
+        .map(|field| {
+            let (_, ref label) = field.label;
+            let term = field.term.desugar(&env);
+            (Label(label.clone()), term)
         }).collect::<Vec<_>>();
 
     raw::RcTerm::from(raw::Term::Struct(span, fields))
@@ -211,8 +212,9 @@ impl Desugar<raw::Module> for concrete::Module {
                         let mut env = env.clone();
                         fields
                             .iter()
-                            .map(|&(_, ref label, ref ann)| {
-                                let ann = ann.desugar(&env);
+                            .map(|field| {
+                                let (_, ref label) = field.label;
+                                let ann = field.ann.desugar(&env);
                                 let free_var = env.on_binding(label);
                                 (Label(label.clone()), Binder(free_var), Embed(ann))
                             }).collect::<Vec<_>>()
@@ -302,7 +304,7 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                 elems.iter().map(|elem| elem.desugar(env)).collect(),
             )),
             concrete::Term::Hole(_) => raw::RcTerm::from(raw::Term::Hole(span)),
-            concrete::Term::Name(_, ref name) => env.on_var(span, name),
+            concrete::Term::Name(_, ref name) => env.on_name(span, name),
             concrete::Term::Extern(_, name_span, ref name, ref ty) => raw::RcTerm::from(
                 raw::Term::Extern(span, name_span, name.clone(), ty.desugar(env)),
             ),

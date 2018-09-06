@@ -101,9 +101,18 @@ pub type PiParamGroup = (Vec<(ByteIndex, String)>, Term);
 /// The parameters to a dependent function type
 pub type PiParams = Vec<PiParamGroup>;
 
-pub type StructTypeField = (ByteIndex, String, Term);
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructTypeField {
+    pub label: (ByteIndex, String),
+    pub binder: Option<(ByteIndex, String)>,
+    pub ann: Term,
+}
 
-pub type StructField = (ByteIndex, String, Term);
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructField {
+    pub label: (ByteIndex, String),
+    pub term: Term,
+}
 
 /// Top-level items within a module
 #[derive(Debug, Clone, PartialEq)]

@@ -3,7 +3,10 @@ use codespan::{ByteIndex, ByteSpan};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 
-use syntax::concrete::{Definition, Exposing, Item, Literal, Module, Pattern, Term, ReplCommand};
+use syntax::concrete::{
+    Definition, Exposing, Item, Literal, Module, Pattern, StructTypeField, StructField, Term,
+    ReplCommand,
+};
 use syntax::parse::{LalrpopError, ParseError, Token};
 
 #[LALR]
@@ -280,9 +283,9 @@ AtomicLamParam: (Vec<(ByteIndex, String)>, Option<Box<Term>>) = {
     "(" <names: IndexedIdent+> <ann: (":" <PiTerm>)?> ")" => (names, ann.map(Box::new)),
 };
 
-StructTypeField: (ByteIndex, String, Term) = {
-    <_comment: "doc comment"*> <start: @L> <label: Ident> ":" <ty: Term> => {
-        (start, label, ty)
+StructTypeField: StructTypeField = {
+    <_comment: "doc comment"*> <label: IndexedIdent> <binder: ("as" <IndexedIdent>)?> ":" <ann: Term> => {
+        StructTypeField { label, binder, ann }
     },
 };
 
@@ -290,9 +293,9 @@ PatternArm: (Pattern, Term) = {
     <Pattern> "=>" <Term>,
 };
 
-StructField: (ByteIndex, String, Term) = {
-    <start: @L> <label: Ident>"=" <term: Term> => {
-        (start, label, term)
+StructField: StructField = {
+    <start: @L> <label: IndexedIdent>"=" <term: Term> => {
+        StructField { label, term }
     },
 };
 
