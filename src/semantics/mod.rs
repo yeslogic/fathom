@@ -550,7 +550,11 @@ where
                         .collect::<Result<_, _>>()?,
                 )));
             },
-            Some(_) | None => unimplemented!(),
+            Some(_) | None => {
+                return Err(TypeError::Internal(InternalError::Unimplemented {
+                    feat: "arrays".to_string(),
+                }))
+            },
         },
 
         (&raw::Term::Hole(span), _) => {
