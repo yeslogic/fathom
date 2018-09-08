@@ -552,8 +552,9 @@ where
             },
             Some(_) | None => {
                 return Err(TypeError::Internal(InternalError::Unimplemented {
-                    feat: "arrays".to_string(),
-                }))
+                    span: Some(span),
+                    message: "unexpected arguments to `Array`".to_owned(),
+                }));
             },
         },
 
