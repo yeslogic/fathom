@@ -240,4 +240,61 @@ mod nf_term {
             parse_nf_term(&mut codemap, &tc_env, expected_expr),
         );
     }
+
+    #[test]
+    fn if_true() {
+        let mut codemap = CodeMap::new();
+        let tc_env = TcEnv::default();
+
+        let given_expr = r#"
+            if true then "true" else "false"
+        "#;
+        let expected_expr = r#"
+            "true"
+        "#;
+
+        assert_term_eq!(
+            parse_nf_term(&mut codemap, &tc_env, given_expr),
+            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+        );
+    }
+
+    #[test]
+    fn if_false() {
+        let mut codemap = CodeMap::new();
+        let tc_env = TcEnv::default();
+
+        let given_expr = r#"
+            if false then "true" else "false"
+        "#;
+        let expected_expr = r#"
+            "false"
+        "#;
+
+        assert_term_eq!(
+            parse_nf_term(&mut codemap, &tc_env, given_expr),
+            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+        );
+    }
+
+    #[test]
+    fn if_eval_cond() {
+        let mut codemap = CodeMap::new();
+        let tc_env = TcEnv::default();
+
+        let given_expr = r#"
+            if (case "hi" of {
+                "hi" => true;
+                _ => false;
+            }) then "true" else "false"
+        "#;
+        let expected_expr = r#"
+            "true"
+        "#;
+
+        assert_term_eq!(
+            parse_nf_term(&mut codemap, &tc_env, given_expr),
+            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+        );
+    }
 }
