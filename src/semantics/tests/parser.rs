@@ -42,17 +42,17 @@ fn silly_root() {
     assert_term_eq!(
         parser::parse_module(
             &tc_env,
-            &Label(String::from("Silly")),
+            &Label("Silly".to_owned()),
             &module,
             &mut given_bytes,
         ).unwrap(),
         RcValue::from(Value::Struct(vec![
             (
-                Label(String::from("len")),
+                Label("len".to_owned()),
                 RcValue::from(Value::Literal(Literal::Int(BigInt::from(3))))
             ),
             (
-                Label(String::from("data")),
+                Label("data".to_owned()),
                 RcValue::from(Value::Array(vec![
                     RcValue::from(Value::Literal(Literal::Int(BigInt::from(1)))),
                     RcValue::from(Value::Literal(Literal::Int(BigInt::from(3)))),
@@ -83,7 +83,7 @@ fn missing_root() {
 
     let result_term = parser::parse_module(
         &tc_env,
-        &Label(String::from("Silly")),
+        &Label("Silly".to_owned()),
         &module,
         &mut given_bytes,
     );

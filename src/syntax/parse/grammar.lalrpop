@@ -70,7 +70,7 @@ pub ReplCommand: ReplCommand = {
         "q" | "quit" => Ok(ReplCommand::Quit),
         command => {
             let span = ByteSpan::new(start, end);
-            let command = String::from(command);
+            let command = command.to_owned();
             Err(LalrpopError::User { error: ParseError::UnknownReplCommand { span, command} })
         },
     },
@@ -80,7 +80,7 @@ pub ReplCommand: ReplCommand = {
         "t" | "type" => Ok(ReplCommand::TypeOf(Box::new(term))),
         command => {
             let span = ByteSpan::new(start, end);
-            let command = String::from(command);
+            let command = command.to_owned();
             Err(LalrpopError::User { error: ParseError::UnknownReplCommand { span, command} })
         },
     },
@@ -88,7 +88,7 @@ pub ReplCommand: ReplCommand = {
         "let" => Ok(ReplCommand::Let(ident, Box::new(term))),
         command => {
             let span = ByteSpan::new(start, end);
-            let command = String::from(command);
+            let command = command.to_owned();
             Err(LalrpopError::User { error: ParseError::UnknownReplCommand { span, command} })
         },
     },
@@ -304,5 +304,5 @@ IndexedIdent: (ByteIndex, String) = {
 };
 
 Ident: String = {
-    "identifier" => String::from(<>),
+    "identifier" => (<>).to_owned()
 };
