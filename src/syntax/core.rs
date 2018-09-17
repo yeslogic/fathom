@@ -145,8 +145,6 @@ pub enum Term {
     Lam(Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Term application
     App(RcTerm, RcTerm),
-    /// If expression
-    If(RcTerm, RcTerm, RcTerm),
     /// Dependent struct
     Struct(Vec<(Label, RcTerm)>),
     /// Field projection
@@ -210,11 +208,6 @@ impl RcTerm {
             Term::App(ref head, ref arg) => {
                 RcTerm::from(Term::App(head.substs(mappings), arg.substs(mappings)))
             },
-            Term::If(ref cond, ref if_true, ref if_false) => RcTerm::from(Term::If(
-                cond.substs(mappings),
-                if_true.substs(mappings),
-                if_false.substs(mappings),
-            )),
             Term::Struct(ref fields) if fields.is_empty() => self.clone(),
             Term::Struct(ref fields) => RcTerm::from(Term::Struct(
                 fields
@@ -419,8 +412,6 @@ pub type Spine = Vec<RcValue>;
 pub enum Neutral {
     /// Head of an application
     Head(Head),
-    /// If expression
-    If(RcNeutral, RcValue, RcValue),
     /// Field projection
     Proj(RcNeutral, Label),
     /// Case expressions
@@ -533,11 +524,6 @@ impl<'a> From<&'a Neutral> for Term {
     fn from(src: &'a Neutral) -> Term {
         match *src {
             Neutral::Head(ref head) => Term::from(head),
-            Neutral::If(ref cond, ref if_true, ref if_false) => Term::If(
-                RcTerm::from(&**cond),
-                RcTerm::from(&**if_true),
-                RcTerm::from(&**if_false),
-            ),
             Neutral::Proj(ref expr, ref name) => Term::Proj(RcTerm::from(&**expr), name.clone()),
             Neutral::Case(ref head, ref clauses) => Term::Case(
                 RcTerm::from(&**head),

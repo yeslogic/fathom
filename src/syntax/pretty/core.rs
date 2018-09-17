@@ -76,17 +76,6 @@ where
     )
 }
 
-fn pretty_if(cond: &impl ToDoc, if_true: &impl ToDoc, if_false: &impl ToDoc) -> StaticDoc {
-    sexpr(
-        "if",
-        cond.to_doc()
-            .append(Doc::space())
-            .append(if_true.to_doc())
-            .append(Doc::space())
-            .append(if_false.to_doc()),
-    )
-}
-
 fn pretty_struct(inner: StaticDoc) -> StaticDoc {
     sexpr("struct", inner)
 }
@@ -160,9 +149,6 @@ impl ToDoc for raw::Term {
                 &scope.unsafe_body.inner,
             ),
             raw::Term::App(ref head, ref arg) => pretty_app(head.to_doc(), iter::once(&arg.inner)),
-            raw::Term::If(_, ref cond, ref if_true, ref if_false) => {
-                pretty_if(&cond.inner, &if_true.inner, &if_false.inner)
-            },
             raw::Term::Struct(_, ref fields) => {
                 pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
                     parens(
@@ -234,9 +220,6 @@ impl ToDoc for Term {
                 &scope.unsafe_body.inner,
             ),
             Term::App(ref head, ref arg) => pretty_app(head.to_doc(), iter::once(&arg.inner)),
-            Term::If(ref cond, ref if_true, ref if_false) => {
-                pretty_if(&cond.inner, &if_true.inner, &if_false.inner)
-            },
             Term::Struct(ref fields) => {
                 pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
                     parens(
@@ -306,9 +289,6 @@ impl ToDoc for Neutral {
     fn to_doc(&self) -> StaticDoc {
         match *self {
             Neutral::Head(ref head) => head.to_doc(),
-            Neutral::If(ref cond, ref if_true, ref if_false) => {
-                pretty_if(&cond.inner, &if_true.inner, &if_false.inner)
-            },
             Neutral::Proj(ref expr, ref label) => pretty_proj(&expr.inner, label),
             Neutral::Case(ref head, ref clauses) => pretty_case(
                 &head.inner,

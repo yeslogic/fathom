@@ -1,7 +1,7 @@
 use moniker::{Binder, Embed, FreeVar, Scope, Var};
 
 use syntax::core::{
-    Definition, Head, Literal, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcValue, Term, Value,
+    Definition, Head, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcValue, Term, Value,
 };
 
 use semantics::errors::InternalError;
@@ -106,34 +106,14 @@ where
                                 }
                             }
                         },
-                        Neutral::Head(Head::Var(_))
-                        | Neutral::If(_, _, _)
-                        | Neutral::Proj(_, _)
-                        | Neutral::Case(_, _) => spine.push(arg),
+                        Neutral::Head(Head::Var(_)) | Neutral::Proj(_, _) | Neutral::Case(_, _) => {
+                            spine.push(arg)
+                        },
                     }
 
                     Ok(RcValue::from(Value::Neutral(neutral.clone(), spine)))
                 },
                 _ => Err(InternalError::ArgumentAppliedToNonFunction),
-            }
-        },
-
-        // E-IF, E-IF-TRUE, E-IF-FALSE
-        Term::If(ref cond, ref if_true, ref if_false) => {
-            let value_cond = nf_term(env, cond)?;
-
-            match *value_cond {
-                Value::Literal(Literal::Bool(true)) => nf_term(env, if_true),
-                Value::Literal(Literal::Bool(false)) => nf_term(env, if_false),
-                Value::Neutral(ref cond, ref spine) => Ok(RcValue::from(Value::Neutral(
-                    RcNeutral::from(Neutral::If(
-                        cond.clone(),
-                        nf_term(env, if_true)?,
-                        nf_term(env, if_false)?,
-                    )),
-                    spine.clone(),
-                ))),
-                _ => Err(InternalError::ExpectedBoolExpr),
             }
         },
 

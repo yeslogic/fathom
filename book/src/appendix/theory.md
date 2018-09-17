@@ -118,14 +118,10 @@ etc.
 \\newcommand{\var}{x}
 \\newcommand{\label}{l}
 \\newcommand{\Type}{\kw{Type}}
-\\newcommand{\Bool}{\kw{Bool}}
-\\newcommand{\true}{\kw{true}}
-\\newcommand{\false}{\kw{false}}
 \\newcommand{\Arrow}[2]{ #1 \rightarrow #2 }
 \\newcommand{\Pi}[2]{ \Arrow{(#1)}{#2} }
 \\newcommand{\lam}[2]{ \kw{\lambda} #1 . #2 }
 \\newcommand{\app}[2]{ #1 ~ #2 }
-\\newcommand{\ifte}[3]{ \kw{if} ~ #1 ~ \kw{then} ~ #2 ~ \kw{else} ~ #3 }
 \\newcommand{\case}[2]{ \kw{case} ~ #1 \left\\{ #2 \right\\} }
 \\newcommand{\RecordCons}[2]{ \kw{Record} \left\\{ #1; #2 \right\\} }
 \\newcommand{\RecordEmpty}{ \kw{Record} \left\\{\right\\} }
@@ -146,15 +142,11 @@ etc.
     \rexpr,\rtype   & ::= & \var                                & \text{variables} \\\\
                     &   | & \Type_i                             & \text{universe of types ($i \in \mathbb{N}$)} \\\\
                     &   | & ?                                   & \text{holes} \\\\
-                    &   | & \Bool                               & \text{type of booleans} \\\\
-                    &   | & \true ~|~ \false                    & \text{boolean literals} \\\\
                     &   | & \rexpr : \rtype                     & \text{term annotated with a type} \\\\
                     &   | & \Pi{\var:\rtype_1}{\rtype_2}        & \text{dependent function type} \\\\
                     &   | & \lam{\var:\rtype}{\rexpr}           & \text{functions} \\\\
                     &   | & \app{\rexpr_1}{\rexpr_2}            & \text{function application} \\\\
-                    &   | & \ifte{\rexpr_1}{\rexpr_2}{\rexpr_3} & \text{if expressions} \\\\
-                    &   | & \case{\rexpr}{\overline{\rpat_i \rightarrow \rexpr_i}^{;}}
-                                                                & \text{case expressions} \\\\
+                    &   | & \case{\rexpr}{\overline{\rpat_i \rightarrow \rexpr_i}^{;}} & \text{case expressions} \\\\
                     &   | & \RecordCons{\label \as \var:\rtype_1}{\rtype_2} & \text{record type extension} \\\\
                     &   | & \RecordEmpty{}                      & \text{empty record type} \\\\
                     &   | & \record{\label=\rexpr_1, \rexpr_2}  & \text{record extension} \\\\
@@ -163,7 +155,6 @@ etc.
     \\\\
     \rpat           & ::= & \var                                & \text{binder pattern} \\\\
                     &   | & \rpat : \rtype                      & \text{pattern annotated with a type} \\\\
-                    &   | & \true ~|~ \false                    & \text{boolean literal patterns} \\\\
                 %   &   | & \record{\label=\rpat_1, \rpat_2}    & \text{record extension pattern} \\\\
                 %   &   | & \record{}                           & \text{empty record pattern} \\\\
     \\\\
@@ -185,13 +176,10 @@ The core term syntax skips holes, ensuring that everything is fully elaborated:
 \begin{array}{rrll}
     \texpr,\ttype   & ::= & \var                                & \text{variables} \\\\
                     &   | & \Type_i                             & \text{universe of types ($i \in \mathbb{N}$)} \\\\
-                    &   | & \Bool                               & \text{type of booleans} \\\\
-                    &   | & \true ~|~ \false                    & \text{boolean literals} \\\\
                     &   | & \texpr : \ttype                     & \text{term annotated with a type} \\\\
                     &   | & \Pi{\var:\ttype_1}{\ttype_2}        & \text{dependent function type} \\\\
                     &   | & \lam{\var:\ttype}{\texpr}           & \text{functions} \\\\
                     &   | & \app{\texpr_1}{\texpr_2}            & \text{function application} \\\\
-                    &   | & \ifte{\texpr_1}{\texpr_2}{\texpr_3} & \text{if expressions} \\\\
                     &   | & \case{\texpr}{\overline{\tpat_i \rightarrow \texpr_i}^{;}} & \text{case expressions} \\\\
                     &   | & \RecordCons{\label \as \var:\ttype_1}{\ttype_2} & \text{record type extension} \\\\
                     &   | & \RecordEmpty{}                      & \text{empty record type} \\\\
@@ -201,7 +189,6 @@ The core term syntax skips holes, ensuring that everything is fully elaborated:
     \\\\
     \tpat           & ::= & \var                                 & \text{binder pattern} \\\\
                     &   | & \tpat : \ttype                      & \text{pattern annotated with a type} \\\\
-                    &   | & \true ~|~ \false                    & \text{boolean literal patterns} \\\\
                     &   | & \record{\label=\tpat_1, \tpat_2}    & \text{record extension pattern} \\\\
                     &   | & \record{}                           & \text{empty record pattern} \\\\
     \\\\
@@ -221,13 +208,10 @@ and neutral terms (\\(\nexpr\\)):
     \\\\
     \nexpr,\ntype   & ::= & \var                                & \text{variables} \\\\
                     &   | & \app{\nexpr}{\texpr}                & \text{function application} \\\\
-                    &   | & \ifte{\nexpr_1}{\texpr_2}{\texpr_3} & \text{if expressions} \\\\
                     &   | & \case{\nexpr}{\overline{\tpat_i \rightarrow \texpr_i}^{;}} & \text{case expressions} \\\\
                     &   | & \nexpr.\label                       & \text{record projection} \\\\
     \\\\
     \wexpr,\wtype   & ::= & \Type_i                             & \text{universe of types ($i \in \mathbb{N}$)} \\\\
-                    &   | & \Bool                               & \text{type of booleans} \\\\
-                    &   | & \true ~|~ \false                    & \text{boolean literals} \\\\
                     &   | & \Pi{\var:\vtype_1}{\vtype_2}        & \text{dependent function type} \\\\
                     &   | & \lam{\var:\vtype}{\vexpr}           & \text{functions} \\\\
                     &   | & \RecordCons{\label \as \var:\vtype_1}{\vtype_2} & \text{record type extension} \\\\
@@ -310,18 +294,6 @@ in the context.
         \eval{ \ctx }{ \Type_i }{ \Type_i }
     }
     \\\\[2em]
-    \rule{E-BOOL}{}{
-        \eval{ \ctx }{ \Bool }{ \Bool }
-    }
-    \\\\[2em]
-    \rule{E-TRUE}{}{
-        \eval{ \ctx }{ \true }{ \true }
-    }
-    \\\\[2em]
-    \rule{E-FALSE}{}{
-        \eval{ \ctx }{ \false }{ \false }
-    }
-    \\\\[2em]
     \rule{E-VAR}{
         \defnItem{\var}{\texpr} \notin \ctx
     }{
@@ -358,28 +330,6 @@ in the context.
         \eval{ \ctx }{ \subst{\vexpr_1}{\var}{\texpr_2} }{ \vexpr_3 }
     }{
         \eval{ \ctx }{ \app{\texpr_1}{\texpr_2} }{ \vexpr_3 }
-    }
-    \\\\[2em]
-    \rule{E-IF}{
-        \eval{ \ctx }{ \nexpr }{ \nexpr' }
-    }{
-        \eval{ \ctx }{ \ifte{\nexpr}{\texpr_1}{\texpr_2} }{ \ifte{\nexpr'}{\texpr_1}{\texpr_2} }
-    }
-    \\\\[2em]
-    \rule{E-IF-TRUE}{
-        \eval{ \ctx }{ \nexpr }{ \true }
-        \qquad
-        \eval{ \ctx }{ \texpr_1 }{ \vexpr_1 }
-    }{
-        \eval{ \ctx }{ \ifte{\nexpr}{\texpr_1}{\texpr_2} }{ \vexpr_1 }
-    }
-    \\\\[2em]
-    \rule{E-IF-FALSE}{
-        \eval{ \ctx }{ \nexpr }{ \false }
-        \qquad
-        \eval{ \ctx }{ \texpr_2 }{ \vexpr_2 }
-    }{
-        \eval{ \ctx }{ \ifte{\nexpr}{\texpr_1}{\texpr_2} }{ \vexpr_2 }
     }
     \\\\[2em]
     \rule{E-CASE}{
@@ -460,16 +410,6 @@ elaborated form.
         \check{ \ctx }{ \lam{\var}{\rexpr} }{ \Pi{\var:\vtype_1}{\vtype_2} }{ \lam{\var:\vtype_1}{\texpr} }
     }
     \\\\[2em]
-    \rule{C-IF}{
-        \check{ \ctx }{ \rexpr_1 }{ \Bool }{ \texpr_1 }
-        \qquad
-        \check{ \ctx }{ \rexpr_2 }{ \vtype }{ \texpr_2 }
-        \qquad
-        \check{ \ctx }{ \rexpr_3 }{ \vtype }{ \texpr_3 }
-    }{
-        \check{ \ctx }{ \ifte{\rexpr_1}{\rexpr_2}{\rexpr_3} }{ \vtype }{ \ifte{\texpr_1}{\texpr_2}{\texpr_3} }
-    }
-    \\\\[2em]
     \rule{C-CASE}{
         \infer{ \ctx }{ \rexpr }{ \vtype_1 }{ \texpr }
         \qquad
@@ -541,18 +481,6 @@ returns its elaborated form.
     \\\\[2em]
     \rule{I-TYPE}{}{
         \infer{ \ctx }{ \Type_i }{ \Type_{i+1} }{ \Type_i }
-    }
-    \\\\[2em]
-    \rule{I-BOOL}{}{
-        \infer{ \ctx }{ \Bool }{ \Type_0 }{ \Bool }
-    }
-    \\\\[2em]
-    \rule{I-TRUE}{}{
-        \infer{ \ctx }{ \true }{ \Bool }{ \true }
-    }
-    \\\\[2em]
-    \rule{I-FALSE}{}{
-        \infer{ \ctx }{ \false }{ \Bool }{ \false }
     }
     \\\\[2em]
     \rule{I-VAR}{
@@ -675,14 +603,6 @@ pattern \\(\tpat\\) and returns a substitution \\(\theta\\) with the matched bin
         \match{ \wexpr }{ \var }{ [\var \rightarrow \wexpr] }
     }
     \\\\[2em]
-    \rule{M-TRUE}{}{
-        \match{ \true }{ \true }{ [] }
-    }
-    \\\\[2em]
-    \rule{M-FALSE}{}{
-        \match{ \false }{ \false }{ [] }
-    }
-    \\\\[2em]
 % TODO:
 %   \rule{M-RECORD}{
 %       \match{ \wexpr_1 }{ \tpat_1 }{ \theta_1 }
@@ -738,14 +658,6 @@ pattern \\(\tpat\\) and returns a substitution \\(\theta\\) with the matched bin
         \checkpat{ \ctx }{ \rpat }{ \vtype }{ \rpat }{ \ctx' }
     }{
         \inferpat{ \ctx }{ \rpat : \rtype }{ \rtype }{ \rpat : \rtype }{ \ctx' }
-    }
-    \\\\[2em]
-    \rule{IP-TRUE}{}{
-        \inferpat{ \ctx }{ \true }{ \Bool }{ \true }{ \emptyCtx }
-    }
-    \\\\[2em]
-    \rule{IP-FALSE}{}{
-        \inferpat{ \ctx }{ \false }{ \Bool }{ \false }{ \emptyCtx }
     }
     \\\\[2em]
 \end{array}

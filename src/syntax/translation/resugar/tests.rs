@@ -322,32 +322,6 @@ mod term {
 
     // TODO: core::Term::Lam
     // TODO: core::Term::App
-
-    #[test]
-    fn if_else() {
-        let core_term = core::Term::If(
-            core::RcTerm::from(core::Term::Literal(core::Literal::Bool(false))),
-            core::RcTerm::from(core::Term::Literal(core::Literal::String(
-                "hello".to_owned(),
-            ))),
-            core::RcTerm::from(core::Term::Literal(core::Literal::String("bye".to_owned()))),
-        );
-        let concrete_term = concrete::Term::If(
-            index(),
-            Box::new(concrete::Term::Name(index(), "false".to_owned())),
-            Box::new(concrete::Term::Literal(concrete::Literal::String(
-                span(),
-                "hello".to_owned(),
-            ))),
-            Box::new(concrete::Term::Literal(concrete::Literal::String(
-                span(),
-                "bye".to_owned(),
-            ))),
-        );
-
-        assert_eq!(core_term.resugar(&ResugarEnv::new()), concrete_term);
-    }
-
     // TODO: core::Term::Struct
 
     #[test]

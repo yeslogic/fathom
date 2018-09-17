@@ -509,15 +509,6 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
                 vec![resugar_term(env, arg, Prec::NO_WRAP)], // TODO
             ),
         ),
-        core::Term::If(ref cond, ref if_true, ref if_false) => parens_if(
-            Prec::LAM < prec,
-            concrete::Term::If(
-                ByteIndex::default(),
-                Box::new(resugar_term(env, cond, Prec::APP)),
-                Box::new(resugar_term(env, if_true, Prec::APP)),
-                Box::new(resugar_term(env, if_false, Prec::APP)),
-            ),
-        ),
         core::Term::Struct(ref fields) => {
             let fields = fields
                 .iter()
@@ -533,6 +524,7 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
             ByteIndex::default(),
             label.clone(),
         ),
+        // TODO: Resugar boolean patterns into if-then-else expressions?
         core::Term::Case(ref head, ref clauses) => concrete::Term::Case(
             ByteSpan::default(),
             Box::new(resugar_term(env, head, Prec::NO_WRAP)),

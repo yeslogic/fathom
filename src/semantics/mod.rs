@@ -503,17 +503,6 @@ where
             });
         },
 
-        // C-IF
-        (&raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false), _) => {
-            let bool_ty = RcValue::from(Value::from(Var::Free(env.globals().bool.clone())));
-
-            let cond = check_term(env, raw_cond, &bool_ty)?;
-            let if_true = check_term(env, raw_if_true, expected_ty)?;
-            let if_false = check_term(env, raw_if_false, expected_ty)?;
-
-            return Ok(RcTerm::from(Term::If(cond, if_true, if_false)));
-        },
-
         // C-STRUCT
         (&raw::Term::Struct(span, ref raw_fields), _) => {
             if let Some(ty_fields) = expect_struct(env, expected_ty) {
@@ -761,16 +750,6 @@ where
                 RcTerm::from(Term::Lam(Scope::new(lam_param, lam_body))),
                 RcValue::from(Value::Pi(Scope::new(pi_param, pi_body))),
             ))
-        },
-
-        // I-IF
-        raw::Term::If(_, ref raw_cond, ref raw_if_true, ref raw_if_false) => {
-            let bool_ty = RcValue::from(Value::from(Var::Free(env.globals().bool.clone())));
-            let cond = check_term(env, raw_cond, &bool_ty)?;
-            let (if_true, ty) = infer_term(env, raw_if_true)?;
-            let if_false = check_term(env, raw_if_false, &ty)?;
-
-            Ok((RcTerm::from(Term::If(cond, if_true, if_false)), ty))
         },
 
         // I-APP

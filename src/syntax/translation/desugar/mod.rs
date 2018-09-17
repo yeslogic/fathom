@@ -332,12 +332,24 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                 })
             },
             concrete::Term::Let(_, ref _items, ref _body) => unimplemented!("let bindings"),
-            concrete::Term::If(start, ref cond, ref if_true, ref if_false) => {
-                raw::RcTerm::from(raw::Term::If(
-                    start,
+            concrete::Term::If(_, ref cond, ref if_true, ref if_false) => {
+                let bool_pattern = |name: &str| {
+                    raw::RcPattern::from(raw::Pattern::Var(
+                        ByteSpan::default(),
+                        Embed(Var::Free(match env.locals.get(name) {
+                            Some(free_var) => free_var.clone(),
+                            None => FreeVar::fresh_named("oops"),
+                        })),
+                    ))
+                };
+
+                raw::RcTerm::from(raw::Term::Case(
+                    span,
                     cond.desugar(env),
-                    if_true.desugar(env),
-                    if_false.desugar(env),
+                    vec![
+                        Scope::new(bool_pattern("true"), if_true.desugar(&env)),
+                        Scope::new(bool_pattern("false"), if_false.desugar(&env)),
+                    ],
                 ))
             },
             concrete::Term::Case(span, ref head, ref clauses) => {

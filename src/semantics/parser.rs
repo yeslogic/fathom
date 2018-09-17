@@ -164,10 +164,9 @@ where
                 span: None,
                 var: var.clone(),
             }.into()),
-            Neutral::Head(Head::Extern(_, _))
-            | Neutral::If(_, _, _)
-            | Neutral::Proj(_, _)
-            | Neutral::Case(_, _) => Err(ParseError::InvalidType(ty.clone())),
+            Neutral::Head(Head::Extern(_, _)) | Neutral::Proj(_, _) | Neutral::Case(_, _) => {
+                Err(ParseError::InvalidType(ty.clone()))
+            },
         },
     }
 }
