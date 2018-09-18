@@ -23,7 +23,10 @@ extern {
         "REPL command" => Token::ReplCommand(<&'input str>),
         "string literal" => Token::StringLiteral(<String>),
         "character literal" => Token::CharLiteral(<char>),
+        "binary literal" => Token::BinLiteral(<BigInt>),
+        "octal literal" => Token::OctLiteral(<BigInt>),
         "decimal literal" => Token::DecLiteral(<BigInt>),
+        "hex literal" => Token::HexLiteral(<BigInt>),
         "float literal" => Token::FloatLiteral(<f64>),
 
         // Keywords
@@ -149,7 +152,10 @@ ExposedIdent : ((ByteIndex, String), Option<(ByteIndex, String)>) = {
 Literal: Literal = {
     <start: @L> <value: "string literal"> <end: @R> => Literal::String(ByteSpan::new(start, end), value),
     <start: @L> <value: "character literal"> <end: @R> => Literal::Char(ByteSpan::new(start, end), value),
-    <start: @L> <value: "decimal literal"> <end: @R> => Literal::Int(ByteSpan::new(start, end), value),
+    <start: @L> <value: "binary literal"> <end: @R> => Literal::Bin(ByteSpan::new(start, end), value),
+    <start: @L> <value: "octal literal"> <end: @R> => Literal::Oct(ByteSpan::new(start, end), value),
+    <start: @L> <value: "decimal literal"> <end: @R> => Literal::Dec(ByteSpan::new(start, end), value),
+    <start: @L> <value: "hex literal"> <end: @R> => Literal::Hex(ByteSpan::new(start, end), value),
     <start: @L> <value: "float literal"> <end: @R> => Literal::Float(ByteSpan::new(start, end), value),
 };
 
@@ -226,7 +232,7 @@ PiTerm: Term = {
 AppTerm: Term = {
     AtomicTerm,
     <f: AtomicTerm> <args: AtomicTerm+> =>? {
-        if let (&Term::Universe(s1, None), &Term::Literal(Literal::Int(s2, ref value))) = (&f, &args[0]) {
+        if let (&Term::Universe(s1, None), &Term::Literal(Literal::Dec(s2, ref value))) = (&f, &args[0]) {
             return match value.to_u32() {
                 Some(value) => Ok(Term::Universe(s1.to(s2), Some(value))),
                 None => Err(LalrpopError::User {

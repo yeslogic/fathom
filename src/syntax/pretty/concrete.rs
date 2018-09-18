@@ -159,7 +159,10 @@ impl ToDoc for Literal {
         match *self {
             Literal::String(_, ref value) => Doc::text(format!("{:?}", value)),
             Literal::Char(_, value) => Doc::text(format!("{:?}", value)),
-            Literal::Int(_, ref value) => Doc::as_string(&value),
+            Literal::Bin(_, ref value) => Doc::text(format!("{:b}", value)),
+            Literal::Oct(_, ref value) => Doc::text(format!("{:o}", value)),
+            Literal::Dec(_, ref value) => Doc::as_string(value),
+            Literal::Hex(_, ref value) => Doc::text(format!("{:x}", value)),
             Literal::Float(_, value) => Doc::as_string(&value),
         }
     }

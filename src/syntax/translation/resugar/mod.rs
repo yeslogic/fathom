@@ -263,7 +263,7 @@ fn resugar_pattern(
                 core::Literal::Char(value) => Pattern::Literal(Literal::Char(span, value)),
 
                 core::Literal::Int(ref value) => {
-                    Pattern::Literal(Literal::Int(span, value.clone()))
+                    Pattern::Literal(Literal::Dec(span, value.clone()))
                 },
                 core::Literal::F32(value) => {
                     Pattern::Literal(Literal::Float(span, f64::from(value)))
@@ -481,7 +481,7 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
                     Term::Literal(Literal::String(span, value.clone()))
                 },
                 core::Literal::Char(value) => Term::Literal(Literal::Char(span, value)),
-                core::Literal::Int(ref value) => Term::Literal(Literal::Int(span, value.clone())),
+                core::Literal::Int(ref value) => Term::Literal(Literal::Dec(span, value.clone())),
                 core::Literal::F32(value) => Term::Literal(Literal::Float(span, f64::from(value))),
                 core::Literal::F64(value) => Term::Literal(Literal::Float(span, value)),
             }

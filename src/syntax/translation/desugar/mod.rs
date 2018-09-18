@@ -242,7 +242,10 @@ impl Desugar<raw::Literal> for concrete::Literal {
         match *self {
             concrete::Literal::String(span, ref value) => raw::Literal::String(span, value.clone()),
             concrete::Literal::Char(span, value) => raw::Literal::Char(span, value),
-            concrete::Literal::Int(span, ref value) => raw::Literal::Int(span, value.clone()),
+            concrete::Literal::Bin(span, ref value) => raw::Literal::Int(span, value.clone()),
+            concrete::Literal::Oct(span, ref value) => raw::Literal::Int(span, value.clone()),
+            concrete::Literal::Dec(span, ref value) => raw::Literal::Int(span, value.clone()),
+            concrete::Literal::Hex(span, ref value) => raw::Literal::Int(span, value.clone()),
             concrete::Literal::Float(span, value) => raw::Literal::Float(span, value),
         }
     }

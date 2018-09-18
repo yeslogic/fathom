@@ -246,8 +246,14 @@ pub enum Literal {
     String(ByteSpan, String),
     /// Character literals
     Char(ByteSpan, char),
-    /// Integer literals
-    Int(ByteSpan, BigInt),
+    /// Binary integer literals
+    Bin(ByteSpan, BigInt),
+    /// Octal integer literals
+    Oct(ByteSpan, BigInt),
+    /// Decimal integer literals
+    Dec(ByteSpan, BigInt),
+    /// Hexadecimal integer literals
+    Hex(ByteSpan, BigInt),
     /// Floating point literals
     Float(ByteSpan, f64),
 }
@@ -258,7 +264,10 @@ impl Literal {
         match *self {
             Literal::String(span, _)
             | Literal::Char(span, _)
-            | Literal::Int(span, _)
+            | Literal::Bin(span, _)
+            | Literal::Oct(span, _)
+            | Literal::Dec(span, _)
+            | Literal::Hex(span, _)
             | Literal::Float(span, _) => span,
         }
     }
