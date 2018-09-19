@@ -248,7 +248,8 @@ fn resugar_pattern(
             panic!("Tried to convert a term that was not locally closed");
         },
         core::Pattern::Literal(ref literal) => {
-            use syntax::concrete::{Literal, Pattern};
+            use syntax::concrete::Literal::*;
+            use syntax::concrete::Pattern;
 
             let span = ByteSpan::default();
 
@@ -257,18 +258,13 @@ fn resugar_pattern(
                 core::Literal::Bool(true) => Pattern::Name(span.start(), "true".to_owned()),
                 core::Literal::Bool(false) => Pattern::Name(span.start(), "false".to_owned()),
 
-                core::Literal::String(ref value) => {
-                    Pattern::Literal(Literal::String(span, value.clone()))
-                },
-                core::Literal::Char(value) => Pattern::Literal(Literal::Char(span, value)),
+                core::Literal::String(ref value) => Pattern::Literal(String(span, value.clone())),
+                core::Literal::Char(value) => Pattern::Literal(Char(span, value)),
 
-                core::Literal::Int(ref value) => {
-                    Pattern::Literal(Literal::Dec(span, value.clone()))
-                },
-                core::Literal::F32(value) => {
-                    Pattern::Literal(Literal::Float(span, f64::from(value)))
-                },
-                core::Literal::F64(value) => Pattern::Literal(Literal::Float(span, value)),
+                // FIXME: remember how to format these from before desugaring
+                core::Literal::Int(ref value) => Pattern::Literal(DecInt(span, value.clone())),
+                core::Literal::F32(value) => Pattern::Literal(DecFloat(span, f64::from(value))),
+                core::Literal::F64(value) => Pattern::Literal(DecFloat(span, value)),
             }
         },
     }
@@ -468,7 +464,8 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
             concrete::Term::IntType(ByteSpan::default(), min.map(Box::new), max.map(Box::new))
         },
         core::Term::Literal(ref literal) => {
-            use syntax::concrete::{Literal, Term};
+            use syntax::concrete::Literal::*;
+            use syntax::concrete::Term;
 
             let span = ByteSpan::default();
 
@@ -477,13 +474,12 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
                 core::Literal::Bool(true) => Term::Name(span.start(), "true".to_owned()),
                 core::Literal::Bool(false) => Term::Name(span.start(), "false".to_owned()),
 
-                core::Literal::String(ref value) => {
-                    Term::Literal(Literal::String(span, value.clone()))
-                },
-                core::Literal::Char(value) => Term::Literal(Literal::Char(span, value)),
-                core::Literal::Int(ref value) => Term::Literal(Literal::Dec(span, value.clone())),
-                core::Literal::F32(value) => Term::Literal(Literal::Float(span, f64::from(value))),
-                core::Literal::F64(value) => Term::Literal(Literal::Float(span, value)),
+                core::Literal::String(ref value) => Term::Literal(String(span, value.clone())),
+                core::Literal::Char(value) => Term::Literal(Char(span, value)),
+                // FIXME: remember how to format these from before desugaring
+                core::Literal::Int(ref value) => Term::Literal(DecInt(span, value.clone())),
+                core::Literal::F32(value) => Term::Literal(DecFloat(span, f64::from(value))),
+                core::Literal::F64(value) => Term::Literal(DecFloat(span, value)),
             }
         },
         core::Term::Var(Var::Free(ref free_var)) => {
