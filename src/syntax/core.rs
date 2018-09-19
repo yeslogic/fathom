@@ -289,6 +289,10 @@ impl Value {
         Value::Universe(level.into())
     }
 
+    pub fn var(var: impl Into<Var<String>>) -> Value {
+        Value::Neutral(RcNeutral::from(Neutral::var(var)), Spine::new())
+    }
+
     pub fn substs(&self, mappings: &[(FreeVar<String>, RcTerm)]) -> RcTerm {
         // FIXME: This seems quite wasteful!
         RcTerm::from(Term::from(self)).substs(mappings)
@@ -347,9 +351,9 @@ impl Value {
         None
     }
 
-    pub fn free_var_app(&self) -> Option<(&FreeVar<String>, &Spine)> {
+    pub fn free_var_app(&self) -> Option<(&FreeVar<String>, &[RcValue])> {
         self.head_app().and_then(|(head, spine)| match head {
-            Head::Var(Var::Free(ref free_var)) => Some((free_var, spine)),
+            Head::Var(Var::Free(ref free_var)) => Some((free_var, &spine[..])),
             Head::Extern(_, _) | Head::Var(Var::Bound(_)) => None,
         })
     }
@@ -416,6 +420,12 @@ pub enum Neutral {
     Proj(RcNeutral, Label),
     /// Case expressions
     Case(RcNeutral, Vec<Scope<RcPattern, RcValue>>),
+}
+
+impl Neutral {
+    pub fn var(var: impl Into<Var<String>>) -> Neutral {
+        Neutral::Head(Head::Var(var.into()))
+    }
 }
 
 impl fmt::Display for Neutral {

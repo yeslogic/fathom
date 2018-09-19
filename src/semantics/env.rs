@@ -1,5 +1,6 @@
 use im::HashMap;
-use moniker::{Binder, FreeVar};
+use moniker::{Binder, FreeVar, Var};
+use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;
 
@@ -161,83 +162,79 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
 
 #[derive(Clone, Debug)]
 pub struct Globals {
-    pub bool: FreeVar<String>,
-    pub true_: FreeVar<String>,
-    pub false_: FreeVar<String>,
-    pub string: FreeVar<String>,
-    pub char: FreeVar<String>,
-    pub u8: FreeVar<String>,
-    pub u16: FreeVar<String>,
-    pub u32: FreeVar<String>,
-    pub u64: FreeVar<String>,
-    pub s8: FreeVar<String>,
-    pub s16: FreeVar<String>,
-    pub s32: FreeVar<String>,
-    pub s64: FreeVar<String>,
-    pub f32: FreeVar<String>,
-    pub f64: FreeVar<String>,
-    pub array: FreeVar<String>,
-    pub u16le: FreeVar<String>,
-    pub u32le: FreeVar<String>,
-    pub u64le: FreeVar<String>,
-    pub s16le: FreeVar<String>,
-    pub s32le: FreeVar<String>,
-    pub s64le: FreeVar<String>,
-    pub f32le: FreeVar<String>,
-    pub f64le: FreeVar<String>,
-    pub u16be: FreeVar<String>,
-    pub u32be: FreeVar<String>,
-    pub u64be: FreeVar<String>,
-    pub s16be: FreeVar<String>,
-    pub s32be: FreeVar<String>,
-    pub s64be: FreeVar<String>,
-    pub f32be: FreeVar<String>,
-    pub f64be: FreeVar<String>,
-}
+    ty_bool: RcType,
+    ty_string: RcType,
+    ty_char: RcType,
 
-impl Default for Globals {
-    fn default() -> Globals {
-        Globals {
-            bool: FreeVar::fresh_named("Bool"),
-            true_: FreeVar::fresh_named("true"),
-            false_: FreeVar::fresh_named("false"),
-            string: FreeVar::fresh_named("String"),
-            char: FreeVar::fresh_named("Char"),
-            u8: FreeVar::fresh_named("U8"),
-            u16: FreeVar::fresh_named("U16"),
-            u32: FreeVar::fresh_named("U32"),
-            u64: FreeVar::fresh_named("U64"),
-            s8: FreeVar::fresh_named("S8"),
-            s16: FreeVar::fresh_named("S16"),
-            s32: FreeVar::fresh_named("S32"),
-            s64: FreeVar::fresh_named("S64"),
-            f32: FreeVar::fresh_named("F32"),
-            f64: FreeVar::fresh_named("F64"),
-            array: FreeVar::fresh_named("Array"),
-            // TODO: Replace these with more general compute types
-            u16le: FreeVar::fresh_named("U16Le"),
-            u32le: FreeVar::fresh_named("U32Le"),
-            u64le: FreeVar::fresh_named("U64Le"),
-            s16le: FreeVar::fresh_named("S16Le"),
-            s32le: FreeVar::fresh_named("S32Le"),
-            s64le: FreeVar::fresh_named("S64Le"),
-            f32le: FreeVar::fresh_named("F32Le"),
-            f64le: FreeVar::fresh_named("F64Le"),
-            u16be: FreeVar::fresh_named("U16Be"),
-            u32be: FreeVar::fresh_named("U32Be"),
-            u64be: FreeVar::fresh_named("U64Be"),
-            s16be: FreeVar::fresh_named("S16Be"),
-            s32be: FreeVar::fresh_named("S32Be"),
-            s64be: FreeVar::fresh_named("S64Be"),
-            f32be: FreeVar::fresh_named("F32Be"),
-            f64be: FreeVar::fresh_named("F64Be"),
-        }
-    }
+    ty_u8: RcType,
+    ty_u16: RcType,
+    ty_u32: RcType,
+    ty_u64: RcType,
+    ty_u16le: RcType,
+    ty_u32le: RcType,
+    ty_u64le: RcType,
+    ty_u16be: RcType,
+    ty_u32be: RcType,
+    ty_u64be: RcType,
+
+    ty_s8: RcType,
+    ty_s16: RcType,
+    ty_s32: RcType,
+    ty_s64: RcType,
+    ty_s16le: RcType,
+    ty_s32le: RcType,
+    ty_s64le: RcType,
+    ty_s16be: RcType,
+    ty_s32be: RcType,
+    ty_s64be: RcType,
+
+    ty_f32: RcType,
+    ty_f64: RcType,
+    ty_f32le: RcType,
+    ty_f64le: RcType,
+    ty_f32be: RcType,
+    ty_f64be: RcType,
+
+    var_array: FreeVar<String>,
 }
 
 pub trait GlobalEnv: Clone {
     fn resugar_env(&self) -> &ResugarEnv;
-    fn globals(&self) -> &Globals;
+
+    // Not the happiest with this stuff, but eh...
+    fn bool(&self) -> &RcType;
+    fn string(&self) -> &RcType;
+    fn char(&self) -> &RcType;
+    fn u8(&self) -> &RcType;
+    fn u16(&self) -> &RcType;
+    fn u32(&self) -> &RcType;
+    fn u64(&self) -> &RcType;
+    fn u16le(&self) -> &RcType;
+    fn u32le(&self) -> &RcType;
+    fn u64le(&self) -> &RcType;
+    fn u16be(&self) -> &RcType;
+    fn u32be(&self) -> &RcType;
+    fn u64be(&self) -> &RcType;
+
+    fn s8(&self) -> &RcType;
+    fn s16(&self) -> &RcType;
+    fn s32(&self) -> &RcType;
+    fn s64(&self) -> &RcType;
+    fn s16le(&self) -> &RcType;
+    fn s32le(&self) -> &RcType;
+    fn s64le(&self) -> &RcType;
+    fn s16be(&self) -> &RcType;
+    fn s32be(&self) -> &RcType;
+    fn s64be(&self) -> &RcType;
+
+    fn f32(&self) -> &RcType;
+    fn f64(&self) -> &RcType;
+    fn f32le(&self) -> &RcType;
+    fn f64le(&self) -> &RcType;
+    fn f32be(&self) -> &RcType;
+    fn f64be(&self) -> &RcType;
+
+    fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)>;
 }
 
 /// An environment that contains declarations
@@ -297,60 +294,114 @@ impl TcEnv {
 
 impl Default for TcEnv {
     fn default() -> TcEnv {
-        use moniker::{Embed, Scope, Var};
+        use moniker::{Embed, Scope};
         use num_bigint::BigInt;
         use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
         use syntax::core::{RcTerm, Term};
 
+        let var_bool = FreeVar::fresh_named("Bool");
+        let var_true = FreeVar::fresh_named("true");
+        let var_false = FreeVar::fresh_named("false");
+        let var_string = FreeVar::fresh_named("String");
+        let var_char = FreeVar::fresh_named("Char");
+
+        let var_u8 = FreeVar::fresh_named("U8");
+        let var_u16 = FreeVar::fresh_named("U16");
+        let var_u32 = FreeVar::fresh_named("U32");
+        let var_u64 = FreeVar::fresh_named("U64");
+        let var_u16le = FreeVar::fresh_named("U16Le");
+        let var_u32le = FreeVar::fresh_named("U32Le");
+        let var_u64le = FreeVar::fresh_named("U64Le");
+        let var_u16be = FreeVar::fresh_named("U16Be");
+        let var_u32be = FreeVar::fresh_named("U32Be");
+        let var_u64be = FreeVar::fresh_named("U64Be");
+
+        let var_s8 = FreeVar::fresh_named("S8");
+        let var_s16 = FreeVar::fresh_named("S16");
+        let var_s32 = FreeVar::fresh_named("S32");
+        let var_s64 = FreeVar::fresh_named("S64");
+        let var_s16le = FreeVar::fresh_named("S16Le");
+        let var_s32le = FreeVar::fresh_named("S32Le");
+        let var_s64le = FreeVar::fresh_named("S64Le");
+        let var_s16be = FreeVar::fresh_named("S16Be");
+        let var_s32be = FreeVar::fresh_named("S32Be");
+        let var_s64be = FreeVar::fresh_named("S64Be");
+
+        let var_f32 = FreeVar::fresh_named("F32");
+        let var_f64 = FreeVar::fresh_named("F64");
+        let var_f32le = FreeVar::fresh_named("F32Le");
+        let var_f64le = FreeVar::fresh_named("F64Le");
+        let var_f32be = FreeVar::fresh_named("F32Be");
+        let var_f64be = FreeVar::fresh_named("F64Be");
+
+        let var_array = FreeVar::fresh_named("Array");
+
+        fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcType {
+            RcValue::from(Value::IntType(
+                Some(RcValue::from(Value::Literal(Literal::Int(min.into())))),
+                Some(RcValue::from(Value::Literal(Literal::Int(max.into())))),
+            ))
+        }
+
         let mut tc_env = TcEnv {
             resugar_env: ResugarEnv::new(),
-            globals: Rc::new(Globals::default()),
+            globals: Rc::new(Globals {
+                ty_bool: RcValue::from(Value::var(Var::Free(var_bool.clone()))),
+                ty_string: RcValue::from(Value::var(Var::Free(var_string.clone()))),
+                ty_char: RcValue::from(Value::var(Var::Free(var_char.clone()))),
+
+                ty_u8: int_ty(u8::MIN, u8::MAX),
+                ty_u16: int_ty(u16::MIN, u16::MAX),
+                ty_u32: int_ty(u32::MIN, u32::MAX),
+                ty_u64: int_ty(u64::MIN, u64::MAX),
+                ty_u16le: RcValue::from(Value::var(Var::Free(var_u16le.clone()))),
+                ty_u32le: RcValue::from(Value::var(Var::Free(var_u32le.clone()))),
+                ty_u64le: RcValue::from(Value::var(Var::Free(var_u64le.clone()))),
+                ty_u16be: RcValue::from(Value::var(Var::Free(var_u16be.clone()))),
+                ty_u32be: RcValue::from(Value::var(Var::Free(var_u32be.clone()))),
+                ty_u64be: RcValue::from(Value::var(Var::Free(var_u64be.clone()))),
+
+                ty_s8: int_ty(i8::MIN, i8::MAX),
+                ty_s16: int_ty(i16::MIN, i16::MAX),
+                ty_s32: int_ty(i32::MIN, i32::MAX),
+                ty_s64: int_ty(i64::MIN, i64::MAX),
+                ty_s16le: RcValue::from(Value::var(Var::Free(var_s16le.clone()))),
+                ty_s32le: RcValue::from(Value::var(Var::Free(var_s32le.clone()))),
+                ty_s64le: RcValue::from(Value::var(Var::Free(var_s64le.clone()))),
+                ty_s16be: RcValue::from(Value::var(Var::Free(var_s16be.clone()))),
+                ty_s32be: RcValue::from(Value::var(Var::Free(var_s32be.clone()))),
+                ty_s64be: RcValue::from(Value::var(Var::Free(var_s64be.clone()))),
+
+                ty_f32: RcValue::from(Value::var(Var::Free(var_f32.clone()))),
+                ty_f64: RcValue::from(Value::var(Var::Free(var_f64.clone()))),
+                ty_f32le: RcValue::from(Value::var(Var::Free(var_f32le.clone()))),
+                ty_f64le: RcValue::from(Value::var(Var::Free(var_f64le.clone()))),
+                ty_f32be: RcValue::from(Value::var(Var::Free(var_f32be.clone()))),
+                ty_f64be: RcValue::from(Value::var(Var::Free(var_f64be.clone()))),
+
+                var_array: var_array.clone(),
+            }),
             extern_definitions: default_extern_definitions(),
             declarations: HashMap::new(),
             definitions: HashMap::new(),
         };
-
-        let var_bool = tc_env.globals.bool.clone();
-        let var_true_ = tc_env.globals.true_.clone();
-        let var_false_ = tc_env.globals.false_.clone();
-        let var_string = tc_env.globals.string.clone();
-        let var_char = tc_env.globals.char.clone();
-        let var_u8 = tc_env.globals.u8.clone();
-        let var_u16 = tc_env.globals.u16.clone();
-        let var_u32 = tc_env.globals.u32.clone();
-        let var_u64 = tc_env.globals.u64.clone();
-        let var_s8 = tc_env.globals.s8.clone();
-        let var_s16 = tc_env.globals.s16.clone();
-        let var_s32 = tc_env.globals.s32.clone();
-        let var_s64 = tc_env.globals.s64.clone();
-        let var_f32 = tc_env.globals.f32.clone();
-        let var_f64 = tc_env.globals.f64.clone();
-        let var_array = tc_env.globals.array.clone();
-        let var_u16le = tc_env.globals.u16le.clone();
-        let var_u32le = tc_env.globals.u32le.clone();
-        let var_u64le = tc_env.globals.u64le.clone();
-        let var_s16le = tc_env.globals.s16le.clone();
-        let var_s32le = tc_env.globals.s32le.clone();
-        let var_s64le = tc_env.globals.s64le.clone();
-        let var_f32le = tc_env.globals.f32le.clone();
-        let var_f64le = tc_env.globals.f64le.clone();
-        let var_u16be = tc_env.globals.u16be.clone();
-        let var_u32be = tc_env.globals.u32be.clone();
-        let var_u64be = tc_env.globals.u64be.clone();
-        let var_s16be = tc_env.globals.s16be.clone();
-        let var_s32be = tc_env.globals.s32be.clone();
-        let var_s64be = tc_env.globals.s64be.clone();
-        let var_f32be = tc_env.globals.f32be.clone();
-        let var_f64be = tc_env.globals.f64be.clone();
 
         let universe0 = RcValue::from(Value::universe(0));
         let nat_ty = RcValue::from(Value::IntType(
             Some(RcValue::from(Value::Literal(Literal::Int(0.into())))),
             None,
         ));
-        let bool_ty = RcValue::from(Value::from(Var::Free(var_bool.clone())));
+        let bool_ty = tc_env.globals.ty_bool.clone();
         let bool_lit = |value| RcTerm::from(Term::Literal(Literal::Bool(value)));
+        let ty_u8 = RcTerm::from(Term::from(&*tc_env.globals.ty_u8.clone()));
+        let ty_u16 = RcTerm::from(Term::from(&*tc_env.globals.ty_u16.clone()));
+        let ty_u32 = RcTerm::from(Term::from(&*tc_env.globals.ty_u32.clone()));
+        let ty_u64 = RcTerm::from(Term::from(&*tc_env.globals.ty_u64.clone()));
+        let ty_s8 = RcTerm::from(Term::from(&*tc_env.globals.ty_s8.clone()));
+        let ty_s16 = RcTerm::from(Term::from(&*tc_env.globals.ty_s16.clone()));
+        let ty_s32 = RcTerm::from(Term::from(&*tc_env.globals.ty_s32.clone()));
+        let ty_s64 = RcTerm::from(Term::from(&*tc_env.globals.ty_s64.clone()));
         let array_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty)),
             RcValue::from(Value::Pi(Scope::new(
@@ -359,56 +410,52 @@ impl Default for TcEnv {
             ))),
         )));
 
-        fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcTerm {
-            RcTerm::from(Term::IntType(
-                Some(RcTerm::from(Term::Literal(Literal::Int(min.into())))),
-                Some(RcTerm::from(Term::Literal(Literal::Int(max.into())))),
-            ))
-        }
-
+        tc_env.insert_declaration(var_true.clone(), bool_ty.clone());
+        tc_env.insert_declaration(var_false.clone(), bool_ty.clone());
+        tc_env.insert_definition(var_true, Definition::Alias(bool_lit(true)));
+        tc_env.insert_definition(var_false, Definition::Alias(bool_lit(false)));
         tc_env.insert_declaration(var_bool, universe0.clone());
-        tc_env.insert_declaration(var_true_.clone(), bool_ty.clone());
-        tc_env.insert_declaration(var_false_.clone(), bool_ty.clone());
         tc_env.insert_declaration(var_string, universe0.clone());
         tc_env.insert_declaration(var_char, universe0.clone());
+
         tc_env.insert_declaration(var_u8.clone(), universe0.clone());
         tc_env.insert_declaration(var_u16.clone(), universe0.clone());
         tc_env.insert_declaration(var_u32.clone(), universe0.clone());
         tc_env.insert_declaration(var_u64.clone(), universe0.clone());
+        tc_env.insert_definition(var_u8, Definition::Alias(ty_u8.clone()));
+        tc_env.insert_definition(var_u16, Definition::Alias(ty_u16.clone()));
+        tc_env.insert_definition(var_u32, Definition::Alias(ty_u32.clone()));
+        tc_env.insert_definition(var_u64, Definition::Alias(ty_u64.clone()));
+        tc_env.insert_declaration(var_u16le, universe0.clone());
+        tc_env.insert_declaration(var_u32le, universe0.clone());
+        tc_env.insert_declaration(var_u64le, universe0.clone());
+        tc_env.insert_declaration(var_u16be, universe0.clone());
+        tc_env.insert_declaration(var_u32be, universe0.clone());
+        tc_env.insert_declaration(var_u64be, universe0.clone());
+
         tc_env.insert_declaration(var_s8.clone(), universe0.clone());
         tc_env.insert_declaration(var_s16.clone(), universe0.clone());
         tc_env.insert_declaration(var_s32.clone(), universe0.clone());
         tc_env.insert_declaration(var_s64.clone(), universe0.clone());
-        tc_env.insert_declaration(var_f32, universe0.clone());
-        tc_env.insert_declaration(var_f64, universe0.clone());
-        tc_env.insert_declaration(var_array, array_ty);
-        tc_env.insert_declaration(var_u16le, universe0.clone());
-        tc_env.insert_declaration(var_u32le, universe0.clone());
-        tc_env.insert_declaration(var_u64le, universe0.clone());
+        tc_env.insert_definition(var_s8, Definition::Alias(ty_s8.clone()));
+        tc_env.insert_definition(var_s16, Definition::Alias(ty_s16.clone()));
+        tc_env.insert_definition(var_s32, Definition::Alias(ty_s32.clone()));
+        tc_env.insert_definition(var_s64, Definition::Alias(ty_s64.clone()));
         tc_env.insert_declaration(var_s16le, universe0.clone());
         tc_env.insert_declaration(var_s32le, universe0.clone());
         tc_env.insert_declaration(var_s64le, universe0.clone());
-        tc_env.insert_declaration(var_f32le, universe0.clone());
-        tc_env.insert_declaration(var_f64le, universe0.clone());
-        tc_env.insert_declaration(var_u16be, universe0.clone());
-        tc_env.insert_declaration(var_u32be, universe0.clone());
-        tc_env.insert_declaration(var_u64be, universe0.clone());
         tc_env.insert_declaration(var_s16be, universe0.clone());
         tc_env.insert_declaration(var_s32be, universe0.clone());
         tc_env.insert_declaration(var_s64be, universe0.clone());
+
+        tc_env.insert_declaration(var_f32, universe0.clone());
+        tc_env.insert_declaration(var_f64, universe0.clone());
+        tc_env.insert_declaration(var_f32le, universe0.clone());
+        tc_env.insert_declaration(var_f64le, universe0.clone());
         tc_env.insert_declaration(var_f32be, universe0.clone());
         tc_env.insert_declaration(var_f64be, universe0.clone());
 
-        tc_env.insert_definition(var_true_, Definition::Alias(bool_lit(true)));
-        tc_env.insert_definition(var_false_, Definition::Alias(bool_lit(false)));
-        tc_env.insert_definition(var_u8, Definition::Alias(int_ty(u8::MIN, u8::MAX)));
-        tc_env.insert_definition(var_u16, Definition::Alias(int_ty(u16::MIN, u16::MAX)));
-        tc_env.insert_definition(var_u32, Definition::Alias(int_ty(u32::MIN, u32::MAX)));
-        tc_env.insert_definition(var_u64, Definition::Alias(int_ty(u64::MIN, u64::MAX)));
-        tc_env.insert_definition(var_s8, Definition::Alias(int_ty(i8::MIN, i8::MAX)));
-        tc_env.insert_definition(var_s16, Definition::Alias(int_ty(i16::MIN, i16::MAX)));
-        tc_env.insert_definition(var_s32, Definition::Alias(int_ty(i32::MIN, i32::MAX)));
-        tc_env.insert_definition(var_s64, Definition::Alias(int_ty(i64::MIN, i64::MAX)));
+        tc_env.insert_declaration(var_array, array_ty);
 
         tc_env
     }
@@ -419,8 +466,132 @@ impl GlobalEnv for TcEnv {
         &self.resugar_env
     }
 
-    fn globals(&self) -> &Globals {
-        &self.globals
+    fn bool(&self) -> &RcType {
+        &self.globals.ty_bool
+    }
+
+    fn string(&self) -> &RcType {
+        &self.globals.ty_string
+    }
+
+    fn char(&self) -> &RcType {
+        &self.globals.ty_char
+    }
+
+    fn u8(&self) -> &RcType {
+        &self.globals.ty_u8
+    }
+
+    fn u16(&self) -> &RcType {
+        &self.globals.ty_u16
+    }
+
+    fn u32(&self) -> &RcType {
+        &self.globals.ty_u32
+    }
+
+    fn u64(&self) -> &RcType {
+        &self.globals.ty_u64
+    }
+
+    fn u16le(&self) -> &RcType {
+        &self.globals.ty_u16le
+    }
+
+    fn u32le(&self) -> &RcType {
+        &self.globals.ty_u32le
+    }
+
+    fn u64le(&self) -> &RcType {
+        &self.globals.ty_u64le
+    }
+
+    fn u16be(&self) -> &RcType {
+        &self.globals.ty_u16be
+    }
+
+    fn u32be(&self) -> &RcType {
+        &self.globals.ty_u32be
+    }
+
+    fn u64be(&self) -> &RcType {
+        &self.globals.ty_u64be
+    }
+
+    fn s8(&self) -> &RcType {
+        &self.globals.ty_s8
+    }
+
+    fn s16(&self) -> &RcType {
+        &self.globals.ty_s16
+    }
+
+    fn s32(&self) -> &RcType {
+        &self.globals.ty_s32
+    }
+
+    fn s64(&self) -> &RcType {
+        &self.globals.ty_s64
+    }
+
+    fn s16le(&self) -> &RcType {
+        &self.globals.ty_s16le
+    }
+
+    fn s32le(&self) -> &RcType {
+        &self.globals.ty_s32le
+    }
+
+    fn s64le(&self) -> &RcType {
+        &self.globals.ty_s64le
+    }
+
+    fn s16be(&self) -> &RcType {
+        &self.globals.ty_s16be
+    }
+
+    fn s32be(&self) -> &RcType {
+        &self.globals.ty_s32be
+    }
+
+    fn s64be(&self) -> &RcType {
+        &self.globals.ty_s64be
+    }
+
+    fn f32(&self) -> &RcType {
+        &self.globals.ty_f32
+    }
+
+    fn f64(&self) -> &RcType {
+        &self.globals.ty_f64
+    }
+
+    fn f32le(&self) -> &RcType {
+        &self.globals.ty_f32le
+    }
+
+    fn f64le(&self) -> &RcType {
+        &self.globals.ty_f64le
+    }
+
+    fn f32be(&self) -> &RcType {
+        &self.globals.ty_f32be
+    }
+
+    fn f64be(&self) -> &RcType {
+        &self.globals.ty_f64be
+    }
+
+    fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)> {
+        match ty.free_var_app() {
+            // Conservatively forcing the shift to be zero for now. Perhaps this
+            // could be relaxed in the future if it becomes a problem?
+            Some((fv, &[ref len, ref elem_ty])) if *fv == self.globals.var_array => match **len {
+                Value::Literal(Literal::Int(ref len)) => Some((len, elem_ty)),
+                _ => None,
+            },
+            Some(_) | None => None,
+        }
     }
 }
 

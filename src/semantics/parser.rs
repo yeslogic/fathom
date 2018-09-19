@@ -1,10 +1,8 @@
-use moniker::{Binder, Embed, Nest, Var};
+use moniker::{Binder, Embed, Nest};
 use std::io;
 
 use semantics::{nf_term, DefinitionEnv, InternalError};
-use syntax::core::{
-    self, Definition, Head, Item, Literal, Module, Neutral, RcTerm, RcType, RcValue, Term, Value,
-};
+use syntax::core::{self, Definition, Item, Module, RcTerm, RcType, RcValue, Term, Value};
 use syntax::Label;
 
 #[derive(Debug)]
@@ -112,6 +110,9 @@ where
     use byteorder::{BigEndian as Be, LittleEndian as Le, ReadBytesExt};
     use num_traits::ToPrimitive;
 
+    use syntax::core::Literal::*;
+    use syntax::core::Value::Literal;
+
     match **ty {
         Value::Universe(_)
         | Value::IntType(_, _)
@@ -120,53 +121,33 @@ where
         | Value::Lam(_)
         | Value::Struct(_)
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
-        Value::Neutral(ref neutral, ref spine) => match **neutral {
-            Neutral::Head(Head::Var(Var::Free(ref fv))) => {
-                let globals = env.globals();
-                if spine.len() == 0 {
-                    Ok(RcValue::from(Value::Literal(match () {
-                        () if *fv == globals.u8 => Literal::Int(bytes.read_u8()?.into()),
-                        () if *fv == globals.u16le => Literal::Int(bytes.read_u16::<Le>()?.into()),
-                        () if *fv == globals.u16be => Literal::Int(bytes.read_u16::<Be>()?.into()),
-                        () if *fv == globals.u32le => Literal::Int(bytes.read_u32::<Le>()?.into()),
-                        () if *fv == globals.u32be => Literal::Int(bytes.read_u32::<Be>()?.into()),
-                        () if *fv == globals.u64le => Literal::Int(bytes.read_u64::<Le>()?.into()),
-                        () if *fv == globals.u64be => Literal::Int(bytes.read_u64::<Be>()?.into()),
-                        () if *fv == globals.s8 => Literal::Int(bytes.read_i8()?.into()),
-                        () if *fv == globals.s16le => Literal::Int(bytes.read_i16::<Le>()?.into()),
-                        () if *fv == globals.s16be => Literal::Int(bytes.read_i16::<Be>()?.into()),
-                        () if *fv == globals.s32le => Literal::Int(bytes.read_i32::<Le>()?.into()),
-                        () if *fv == globals.s32be => Literal::Int(bytes.read_i32::<Be>()?.into()),
-                        () if *fv == globals.s64le => Literal::Int(bytes.read_i64::<Le>()?.into()),
-                        () if *fv == globals.s64be => Literal::Int(bytes.read_i64::<Be>()?.into()),
-                        () if *fv == globals.f32le => Literal::F32(bytes.read_f32::<Le>()?),
-                        () if *fv == globals.f32be => Literal::F32(bytes.read_f32::<Be>()?),
-                        () if *fv == globals.f64le => Literal::F64(bytes.read_f64::<Le>()?),
-                        () if *fv == globals.f64be => Literal::F64(bytes.read_f64::<Be>()?),
-                        _ => return Err(ParseError::InvalidType(ty.clone())),
-                    })))
-                } else if spine.len() == 2 && *fv == globals.array {
-                    let len = &spine[0];
-                    let elem_ty = &spine[1];
-                    match **len {
-                        Value::Literal(Literal::Int(ref len)) => Ok(RcValue::from(Value::Array(
-                            (0..len.to_usize().unwrap()) // FIXME
-                                .map(|_| parse_term(env, elem_ty, bytes))
-                                .collect::<Result<_, _>>()?,
-                        ))),
-                        _ => Err(ParseError::BadArrayIndex(len.clone())),
-                    }
-                } else {
-                    Err(ParseError::InvalidType(ty.clone()))
-                }
-            },
-            Neutral::Head(Head::Var(ref var)) => Err(InternalError::UnexpectedBoundVar {
-                span: None,
-                var: var.clone(),
-            }.into()),
-            Neutral::Head(Head::Extern(_, _)) | Neutral::Proj(_, _) | Neutral::Case(_, _) => {
-                Err(ParseError::InvalidType(ty.clone()))
-            },
+
+        _ if ty == env.u8() => Ok(RcValue::from(Literal(Int(bytes.read_u8()?.into())))),
+        _ if ty == env.u16le() => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Le>()?.into())))),
+        _ if ty == env.u16be() => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Be>()?.into())))),
+        _ if ty == env.u32le() => Ok(RcValue::from(Literal(Int(bytes.read_u32::<Le>()?.into())))),
+        _ if ty == env.u32be() => Ok(RcValue::from(Literal(Int(bytes.read_u32::<Be>()?.into())))),
+        _ if ty == env.u64le() => Ok(RcValue::from(Literal(Int(bytes.read_u64::<Le>()?.into())))),
+        _ if ty == env.u64be() => Ok(RcValue::from(Literal(Int(bytes.read_u64::<Be>()?.into())))),
+        _ if ty == env.s8() => Ok(RcValue::from(Literal(Int(bytes.read_i8()?.into())))),
+        _ if ty == env.s16le() => Ok(RcValue::from(Literal(Int(bytes.read_i16::<Le>()?.into())))),
+        _ if ty == env.s16be() => Ok(RcValue::from(Literal(Int(bytes.read_i16::<Be>()?.into())))),
+        _ if ty == env.s32le() => Ok(RcValue::from(Literal(Int(bytes.read_i32::<Le>()?.into())))),
+        _ if ty == env.s32be() => Ok(RcValue::from(Literal(Int(bytes.read_i32::<Be>()?.into())))),
+        _ if ty == env.s64le() => Ok(RcValue::from(Literal(Int(bytes.read_i64::<Le>()?.into())))),
+        _ if ty == env.s64be() => Ok(RcValue::from(Literal(Int(bytes.read_i64::<Be>()?.into())))),
+        _ if ty == env.f32le() => Ok(RcValue::from(Literal(F32(bytes.read_f32::<Le>()?)))),
+        _ if ty == env.f32be() => Ok(RcValue::from(Literal(F32(bytes.read_f32::<Be>()?)))),
+        _ if ty == env.f64le() => Ok(RcValue::from(Literal(F64(bytes.read_f64::<Le>()?)))),
+        _ if ty == env.f64be() => Ok(RcValue::from(Literal(F64(bytes.read_f64::<Be>()?)))),
+
+        _ => match env.array(ty) {
+            Some((len, elem_ty)) => Ok(RcValue::from(Value::Array(
+                (0..len.to_usize().unwrap()) // FIXME
+                    .map(|_| parse_term(env, elem_ty, bytes))
+                    .collect::<Result<_, _>>()?,
+            ))),
+            None => Err(ParseError::InvalidType(ty.clone())),
         },
     }
 }

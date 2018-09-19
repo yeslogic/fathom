@@ -9,8 +9,8 @@ use moniker::{Binder, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
 use num_traits::ToPrimitive;
 
 use syntax::core::{
-    Definition, Head, Item, Literal, Module, Neutral, Pattern, RcPattern, RcTerm, RcType, RcValue,
-    Term, Type, Value,
+    Definition, Head, Item, Literal, Module, Pattern, RcPattern, RcTerm, RcType, RcValue, Term,
+    Type, Value,
 };
 use syntax::raw;
 use syntax::translation::Resugar;
@@ -187,27 +187,6 @@ pub fn is_subtype<Env>(env: &Env, ty1: &RcType, ty2: &RcType) -> bool
 where
     Env: GlobalEnv,
 {
-    use num_bigint::BigInt;
-    use std::{i16, i32, i64, u16, u32, u64};
-
-    fn is_fv(ty: &Type, free_var: &FreeVar<String>) -> bool {
-        if let Value::Neutral(ref neutral, ref spine) = *ty {
-            if let Neutral::Head(Head::Var(Var::Free(ref fv))) = **neutral {
-                return free_var == fv && spine.is_empty();
-            }
-        }
-        false
-    }
-
-    fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcValue {
-        RcValue::from(Value::IntType(
-            Some(RcValue::from(Value::Literal(Literal::Int(min.into())))),
-            Some(RcValue::from(Value::Literal(Literal::Int(max.into())))),
-        ))
-    }
-
-    let globals = env.globals();
-
     match (&*ty1.inner, &*ty2.inner) {
         (&Value::IntType(ref min1, ref max1), &Value::IntType(ref min2, ref max2)) => {
             let in_min_bound = match (min1, min2) {
@@ -239,22 +218,22 @@ where
             in_min_bound && in_max_bound
         },
 
-        (t1, _) if is_fv(t1, &globals.u16le) => is_subtype(env, &int_ty(u16::MIN, u16::MAX), ty2),
-        (t1, _) if is_fv(t1, &globals.u32le) => is_subtype(env, &int_ty(u32::MIN, u32::MAX), ty2),
-        (t1, _) if is_fv(t1, &globals.u64le) => is_subtype(env, &int_ty(u64::MIN, u64::MAX), ty2),
-        (t1, _) if is_fv(t1, &globals.s16le) => is_subtype(env, &int_ty(i16::MIN, i16::MAX), ty2),
-        (t1, _) if is_fv(t1, &globals.s32le) => is_subtype(env, &int_ty(i32::MIN, i32::MAX), ty2),
-        (t1, _) if is_fv(t1, &globals.s64le) => is_subtype(env, &int_ty(i64::MIN, i64::MAX), ty2),
-        (t1, t2) if is_fv(t1, &globals.f32le) && is_fv(t2, &globals.f32) => true,
-        (t1, t2) if is_fv(t1, &globals.f64le) && is_fv(t2, &globals.f64) => true,
-        (t1, _) if is_fv(t1, &globals.u16be) => is_subtype(env, &int_ty(u16::MIN, u16::MAX), ty2),
-        (t1, _) if is_fv(t1, &globals.u32be) => is_subtype(env, &int_ty(u32::MIN, u32::MAX), ty2),
-        (t1, _) if is_fv(t1, &globals.u64be) => is_subtype(env, &int_ty(u64::MIN, u64::MAX), ty2),
-        (t1, _) if is_fv(t1, &globals.s16be) => is_subtype(env, &int_ty(i16::MIN, i16::MAX), ty2),
-        (t1, _) if is_fv(t1, &globals.s32be) => is_subtype(env, &int_ty(i32::MIN, i32::MAX), ty2),
-        (t1, _) if is_fv(t1, &globals.s64be) => is_subtype(env, &int_ty(i64::MIN, i64::MAX), ty2),
-        (t1, t2) if is_fv(t1, &globals.f32be) && is_fv(t2, &globals.f32) => true,
-        (t1, t2) if is_fv(t1, &globals.f64be) && is_fv(t2, &globals.f64) => true,
+        _ if ty1 == env.u16le() => is_subtype(env, env.u16(), ty2),
+        _ if ty1 == env.u32le() => is_subtype(env, env.u32(), ty2),
+        _ if ty1 == env.u64le() => is_subtype(env, env.u64(), ty2),
+        _ if ty1 == env.s16le() => is_subtype(env, env.s16(), ty2),
+        _ if ty1 == env.s32le() => is_subtype(env, env.s32(), ty2),
+        _ if ty1 == env.s64le() => is_subtype(env, env.s64(), ty2),
+        _ if ty1 == env.f32le() && ty2 == env.f32() => true,
+        _ if ty1 == env.f64le() && ty2 == env.f64() => true,
+        _ if ty1 == env.u16be() => is_subtype(env, env.u16(), ty2),
+        _ if ty1 == env.u32be() => is_subtype(env, env.u32(), ty2),
+        _ if ty1 == env.u64be() => is_subtype(env, env.u64(), ty2),
+        _ if ty1 == env.s16be() => is_subtype(env, env.s16(), ty2),
+        _ if ty1 == env.s32be() => is_subtype(env, env.s32(), ty2),
+        _ if ty1 == env.s64be() => is_subtype(env, env.s64(), ty2),
+        _ if ty1 == env.f32be() && ty2 == env.f32() => true,
+        _ if ty1 == env.f64be() && ty2 == env.f64() => true,
 
         // Fallback to alpha-equality
         _ => Type::term_eq(ty1, ty2),
@@ -287,34 +266,20 @@ fn check_literal<Env>(
 where
     Env: GlobalEnv,
 {
-    match expected_ty.free_var_app() {
-        Some((free_var, spine)) if spine.is_empty() => {
-            match *raw_literal {
-                raw::Literal::String(_, ref val) if *free_var == env.globals().string => {
-                    return Ok(Literal::String(val.clone()));
-                },
-                raw::Literal::Char(_, val) if *free_var == env.globals().char => {
-                    return Ok(Literal::Char(val))
-                },
+    use syntax::core::Literal::{Char, String, F32, F64};
 
-                // FIXME: overflow?
-                raw::Literal::Int(_, ref val) if *free_var == env.globals().f32 => {
-                    return Ok(Literal::F32(val.to_f32().unwrap()))
-                },
-                raw::Literal::Int(_, ref val) if *free_var == env.globals().f64 => {
-                    return Ok(Literal::F64(val.to_f64().unwrap()))
-                },
-                raw::Literal::Float(_, val) if *free_var == env.globals().f32 => {
-                    return Ok(Literal::F32(val as f32))
-                },
-                raw::Literal::Float(_, val) if *free_var == env.globals().f64 => {
-                    return Ok(Literal::F64(val))
-                },
+    let ty = expected_ty;
+    match *raw_literal {
+        raw::Literal::String(_, ref val) if env.string() == ty => return Ok(String(val.clone())),
+        raw::Literal::Char(_, val) if env.char() == ty => return Ok(Char(val)),
 
-                _ => {},
-            }
-        },
-        Some(_) | None => {},
+        // FIXME: overflow?
+        raw::Literal::Int(_, ref val) if env.f32() == ty => return Ok(F32(val.to_f32().unwrap())),
+        raw::Literal::Int(_, ref val) if env.f64() == ty => return Ok(F64(val.to_f64().unwrap())),
+        raw::Literal::Float(_, val) if env.f32() == ty => return Ok(F32(val as f32)),
+        raw::Literal::Float(_, val) if env.f64() == ty => return Ok(F64(val)),
+
+        _ => {},
     }
 
     let (literal, inferred_ty) = infer_literal(env, raw_literal)?;
@@ -336,14 +301,10 @@ where
     Env: GlobalEnv,
 {
     match *raw_literal {
-        raw::Literal::String(_, ref value) => Ok((
-            Literal::String(value.clone()),
-            RcValue::from(Value::from(Var::Free(env.globals().string.clone()))),
-        )),
-        raw::Literal::Char(_, value) => Ok((
-            Literal::Char(value),
-            RcValue::from(Value::from(Var::Free(env.globals().char.clone()))),
-        )),
+        raw::Literal::String(_, ref value) => {
+            Ok((Literal::String(value.clone()), env.string().clone()))
+        },
+        raw::Literal::Char(_, value) => Ok((Literal::Char(value), env.char().clone())),
         raw::Literal::Int(_, ref value) => Ok((Literal::Int(value.clone()), {
             let value = RcValue::from(Value::Literal(Literal::Int(value.clone())));
             RcValue::from(Value::IntType(Some(value.clone()), Some(value)))
@@ -563,33 +524,26 @@ where
             return Ok(RcTerm::from(Term::Case(head, clauses)));
         },
 
-        (&raw::Term::Array(span, ref elems), ty) => match ty.free_var_app() {
-            Some((free_var, spine)) if *free_var == env.globals().array && spine.len() == 2 => {
-                let len = &spine[0];
-                let elem_ty = &spine[1];
-                if let Value::Literal(Literal::Int(ref len)) = **len {
-                    if *len != elems.len().into() {
-                        return Err(TypeError::ArrayLengthMismatch {
-                            span,
-                            found_len: elems.len(),
-                            expected_len: len.clone(),
-                        });
-                    }
-                }
-
-                return Ok(RcTerm::from(Term::Array(
-                    elems
+        (&raw::Term::Array(span, ref elems), _) => {
+            return match env.array(expected_ty) {
+                Some((len, elem_ty)) if *len == elems.len().into() => {
+                    let elems = elems
                         .iter()
                         .map(|elem| check_term(env, elem, elem_ty))
-                        .collect::<Result<_, _>>()?,
-                )));
-            },
-            Some(_) | None => {
-                return Err(TypeError::Internal(InternalError::Unimplemented {
+                        .collect::<Result<_, _>>()?;
+
+                    Ok(RcTerm::from(Term::Array(elems)))
+                },
+                Some((len, _)) => Err(TypeError::ArrayLengthMismatch {
+                    span,
+                    found_len: elems.len(),
+                    expected_len: len.clone(),
+                }),
+                None => Err(TypeError::Internal(InternalError::Unimplemented {
                     span: Some(span),
                     message: "unexpected arguments to `Array`".to_owned(),
-                }));
-            },
+                })),
+            }
         },
 
         (&raw::Term::Hole(span), _) => {
