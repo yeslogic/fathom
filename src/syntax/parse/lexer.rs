@@ -16,11 +16,11 @@ fn is_symbol(ch: char) -> bool {
 }
 
 fn is_ident_start(ch: char) -> bool {
-    UnicodeXID::is_xid_start(ch) || ch == '_' || ch == '-'
+    UnicodeXID::is_xid_start(ch) || ch == '_'
 }
 
 fn is_ident_continue(ch: char) -> bool {
-    UnicodeXID::is_xid_continue(ch) || ch == '_' || ch == '-'
+    UnicodeXID::is_xid_continue(ch) || ch == '_'
 }
 
 fn is_bin_digit(ch: char) -> bool {
@@ -610,8 +610,8 @@ mod tests {
     #[test]
     fn data() {
         test! {
-            "  hello-hahaha8ABC  ",
-            "  ~~~~~~~~~~~~~~~~  " => Token::Ident("hello-hahaha8ABC"),
+            "  hello_hahaha8ABC  ",
+            "  ~~~~~~~~~~~~~~~~  " => Token::Ident("hello_hahaha8ABC"),
         };
     }
 

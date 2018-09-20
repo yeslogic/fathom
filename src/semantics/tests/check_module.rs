@@ -259,7 +259,7 @@ fn simple_struct_proj() {
             x = "hello",
         };
 
-        test-x : String = test.x;
+        test_x : String = test.x;
     "#;
 
     let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
@@ -288,7 +288,7 @@ fn simple_struct_proj_missing() {
             x = "hello",
         };
 
-        test-bloop = test.bloop;
+        test_bloop = test.bloop;
     "#;
 
     let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
@@ -345,10 +345,10 @@ fn dependent_struct_proj_weird2() {
 
         struct Test {
             data : Data,
-            inner-prod : (len : U16) -> Array len S8 -> Array len S8 -> S32,
+            inner_prod : (len : U16) -> Array len S8 -> Array len S8 -> S32,
 
             test1 : S32 -> Type,
-            test2 : test1 (inner-prod data.n data.x data.y),
+            test2 : test1 (inner_prod data.n data.x data.y),
         };
     "#;
 

@@ -38,9 +38,9 @@ mod term {
     fn var() {
         let env = DesugarEnv::new(HashMap::new());
 
-        match *parse(&env, "or-elim").inner {
+        match *parse(&env, "or_elim").inner {
             raw::Term::Var(_, Var::Free(ref free_var)) => {
-                assert_eq!(free_var.pretty_name, Some("or-elim".to_owned()));
+                assert_eq!(free_var.pretty_name, Some("or_elim".to_owned()));
             },
             ref term => panic!("unexpected term: {}", term),
         }
