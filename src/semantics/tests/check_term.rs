@@ -61,9 +61,9 @@ fn match_expr() {
 
     let expected_ty = r"String";
     let given_expr = r#"match "helloo" : String {
-        "hi" => "haha";
-        "hello" => "byee";
-        greeting => (extern "string-append" : String -> String -> String) greeting "!!";
+        "hi" => "haha",
+        "hello" => "byee",
+        greeting => (extern "string-append" : String -> String -> String) greeting "!!",
     }"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
@@ -78,8 +78,8 @@ fn match_expr_bad_literal() {
 
     let expected_ty = r"String";
     let given_expr = r#"match "helloo" : String {
-        "hi" => "haha";
-        1 => "byee";
+        "hi" => "haha",
+        1 => "byee",
     }"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
@@ -99,7 +99,7 @@ fn match_expr_wildcard() {
 
     let expected_ty = r"int {=123}";
     let given_expr = r#"match "helloo" : String {
-        _ => 123;
+        _ => 123,
     }"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);

@@ -129,9 +129,9 @@ fn opentype() {
         struct TtcHeader {
             version : U32Be,
             body : match version {
-                // FIXME: 0x00010000 => TtcHeader1;
-                // FIXME: 0x00020000 => TtcHeader2;
-                _ => Unknown;
+                // FIXME: 0x00010000 => TtcHeader1,
+                // FIXME: 0x00020000 => TtcHeader2,
+                _ => Unknown,
             },
         };
 
@@ -139,9 +139,9 @@ fn opentype() {
             tag : Tag,
             body : match tag {
                 // FIXME: 0x00010000
-                "OTTO" => OffsetTable;
-                "ttcf" => TtcHeader;
-                _ => Unknown;
+                "OTTO" => OffsetTable,
+                "ttcf" => TtcHeader,
+                _ => Unknown,
             },
         };
     "#;

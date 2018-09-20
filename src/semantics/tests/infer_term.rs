@@ -345,9 +345,9 @@ fn match_expr() {
 
     let expected_ty = r"String";
     let given_expr = r#"match "helloo" : String {
-        "hi" => "haha" : String;
-        "hello" => "byee" : String;
-        greeting => (extern "string-append" : String -> String -> String) greeting "!!";
+        "hi" => "haha" : String,
+        "hello" => "byee" : String,
+        greeting => (extern "string-append" : String -> String -> String) greeting "!!",
     }"#;
 
     assert_term_eq!(
@@ -363,8 +363,8 @@ fn match_expr_bool() {
 
     let expected_ty = r"String";
     let given_expr = r#"match true {
-        true => "hello" : String;
-        false => "hi" : String;
+        true => "hello" : String,
+        false => "hi" : String,
     }"#;
 
     assert_term_eq!(
@@ -380,8 +380,8 @@ fn match_expr_bool_bad() {
     let desugar_env = DesugarEnv::new(tc_env.mappings());
 
     let given_expr = r#"match "hello" : String {
-        true => "hello" : String;
-        false => "hi" : String;
+        true => "hello" : String,
+        false => "hi" : String,
     }"#;
 
     let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
@@ -400,7 +400,7 @@ fn match_expr_wildcard() {
 
     let expected_ty = r"String";
     let given_expr = r#"match "helloo" : String {
-        test => test;
+        test => test,
     }"#;
 
     assert_term_eq!(

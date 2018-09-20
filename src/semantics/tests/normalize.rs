@@ -284,8 +284,8 @@ mod nf_term {
 
         let given_expr = r#"
             (if (match "hi" : String {
-                "hi" => true;
-                _ => false;
+                "hi" => true,
+                _ => false,
             }) then "true" else "false") : String
         "#;
         let expected_expr = r#"
@@ -305,8 +305,8 @@ mod nf_term {
 
         let given_expr = r#"
             match true {
-                true => "true" : String;
-                false => "false" : String;
+                true => "true" : String,
+                false => "false" : String,
             }
         "#;
         let expected_expr = r#"
@@ -326,8 +326,8 @@ mod nf_term {
 
         let given_expr = r#"
             match false {
-                true => "true" : String;
-                false => "false" : String;
+                true => "true" : String,
+                false => "false" : String,
             }
         "#;
         let expected_expr = r#"
