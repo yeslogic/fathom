@@ -283,7 +283,7 @@ mod nf_term {
         let tc_env = TcEnv::default();
 
         let given_expr = r#"
-            (if (case "hi" : String of {
+            (if (match "hi" : String {
                 "hi" => true;
                 _ => false;
             }) then "true" else "false") : String
@@ -299,12 +299,12 @@ mod nf_term {
     }
 
     #[test]
-    fn case_expr_bool_true() {
+    fn match_expr_bool_true() {
         let mut codemap = CodeMap::new();
         let tc_env = TcEnv::default();
 
         let given_expr = r#"
-            case true of {
+            match true {
                 true => "true" : String;
                 false => "false" : String;
             }
@@ -320,12 +320,12 @@ mod nf_term {
     }
 
     #[test]
-    fn case_expr_bool_false() {
+    fn match_expr_bool_false() {
         let mut codemap = CodeMap::new();
         let tc_env = TcEnv::default();
 
         let given_expr = r#"
-            case false of {
+            match false {
                 true => "true" : String;
                 false => "false" : String;
             }

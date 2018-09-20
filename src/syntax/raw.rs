@@ -193,8 +193,8 @@ pub enum Term {
     Struct(ByteSpan, Vec<(Label, RcTerm)>),
     /// Field projection
     Proj(ByteSpan, RcTerm, ByteSpan, Label),
-    /// Case expressions
-    Case(ByteSpan, RcTerm, Vec<Scope<RcPattern, RcTerm>>),
+    /// Match expressions
+    Match(ByteSpan, RcTerm, Vec<Scope<RcPattern, RcTerm>>),
     /// Array literals
     Array(ByteSpan, Vec<RcTerm>),
 }
@@ -211,7 +211,7 @@ impl Term {
             | Term::Lam(span, _)
             | Term::Struct(span, _)
             | Term::Proj(span, _, _, _)
-            | Term::Case(span, _, _)
+            | Term::Match(span, _, _)
             | Term::Array(span, _) => span,
             Term::Literal(ref literal) => literal.span(),
             Term::Ann(ref expr, ref ty) => expr.span().to(ty.span()),

@@ -21,7 +21,7 @@ pub enum ParseError {
     )]
     IntegerLiteralOverflow { span: ByteSpan, value: BigInt },
     #[fail(display = "Unexpected EOF, expected one of: {}.", expected)]
-    UnexpectedEof {
+    UnexpectedE {
         end: ByteIndex,
         expected: ExpectedTokens,
     },
@@ -53,7 +53,7 @@ where
         LalrpopError::UnrecognizedToken {
             token: None,
             expected,
-        } => ParseError::UnexpectedEof {
+        } => ParseError::UnexpectedE {
             end: filemap.span().end(),
             expected: ExpectedTokens(expected),
         },
@@ -84,7 +84,7 @@ impl ParseError {
             | ParseError::UnexpectedToken { span, .. }
             | ParseError::ExtraToken { span, .. }
             | ParseError::IntegerLiteralOverflow { span, .. } => span,
-            ParseError::UnexpectedEof { end, .. } => ByteSpan::new(end, end),
+            ParseError::UnexpectedE { end, .. } => ByteSpan::new(end, end),
         }
     }
 
@@ -110,13 +110,12 @@ impl ParseError {
                 span,
                 ref token,
                 ref expected,
-            } => Diagnostic::new_error(format!("expected one of {}, found `{}`", expected, token))
+            } => Diagnostic::new_error(format!("expected one {}, found `{}`", expected, token))
                 .with_label(Label::new_primary(span).with_message("unexpected token")),
-            ParseError::UnexpectedEof { end, ref expected } => {
-                Diagnostic::new_error(format!("expected one of {}, found `EOF`", expected))
-                    .with_label(
-                        Label::new_primary(ByteSpan::new(end, end)).with_message("unexpected EOF"),
-                    )
+            ParseError::UnexpectedE { end, ref expected } => {
+                Diagnostic::new_error(format!("expected one {}, found `EOF`", expected)).with_label(
+                    Label::new_primary(ByteSpan::new(end, end)).with_message("unexpected EOF"),
+                )
             },
             ParseError::ExtraToken { span, ref token } => {
                 Diagnostic::new_error(format!("extra token `{}`", token))

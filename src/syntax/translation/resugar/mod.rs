@@ -17,7 +17,7 @@ pub struct ResugarEnv {
 }
 
 const KEYWORDS: &[&str] = &[
-    "as", "case", "else", "extern", "if", "in", "let", "of", "struct", "then", "Type",
+    "as", "match", "else", "extern", "if", "in", "int", "let", "struct", "then", "Type",
 ];
 
 impl ResugarEnv {
@@ -522,7 +522,7 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
             label.clone(),
         ),
         // TODO: Resugar boolean patterns into if-then-else expressions?
-        core::Term::Case(ref head, ref clauses) => concrete::Term::Case(
+        core::Term::Match(ref head, ref clauses) => concrete::Term::Match(
             ByteSpan::default(),
             Box::new(resugar_term(env, head, Prec::NO_WRAP)),
             clauses

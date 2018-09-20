@@ -80,14 +80,14 @@ fn pretty_struct(inner: StaticDoc) -> StaticDoc {
     sexpr("struct", inner)
 }
 
-fn pretty_case<'a, Cs, P, T>(head: &impl ToDoc, clauses: Cs) -> StaticDoc
+fn pretty_match<'a, Cs, P, T>(head: &impl ToDoc, clauses: Cs) -> StaticDoc
 where
     Cs: 'a + IntoIterator<Item = (&'a P, &'a T)>,
     P: 'a + ToDoc,
     T: 'a + ToDoc,
 {
     sexpr(
-        "case",
+        "match",
         head.to_doc().append(Doc::space()).append(Doc::intersperse(
             clauses.into_iter().map(|(pattern, body)| {
                 parens(pattern.to_doc().append(Doc::space()).append(body.to_doc()))
@@ -160,7 +160,7 @@ impl ToDoc for raw::Term {
                 })))
             },
             raw::Term::Proj(_, ref expr, _, ref label) => pretty_proj(&expr.inner, label),
-            raw::Term::Case(_, ref head, ref clauses) => pretty_case(
+            raw::Term::Match(_, ref head, ref clauses) => pretty_match(
                 &head.inner,
                 clauses
                     .iter()
@@ -236,7 +236,7 @@ impl ToDoc for Term {
                 })))
             },
             Term::Proj(ref expr, ref label) => pretty_proj(&expr.inner, label),
-            Term::Case(ref head, ref clauses) => pretty_case(
+            Term::Match(ref head, ref clauses) => pretty_match(
                 &head.inner,
                 clauses
                     .iter()
@@ -295,7 +295,7 @@ impl ToDoc for Neutral {
         match *self {
             Neutral::Head(ref head) => head.to_doc(),
             Neutral::Proj(ref expr, ref label) => pretty_proj(&expr.inner, label),
-            Neutral::Case(ref head, ref clauses) => pretty_case(
+            Neutral::Match(ref head, ref clauses) => pretty_match(
                 &head.inner,
                 clauses
                     .iter()

@@ -45,7 +45,7 @@ pub enum LexerError {
     #[fail(display = "An unexpected character {:?} was found.", found)]
     UnexpectedCharacter { start: ByteIndex, found: char },
     #[fail(display = "Unexpected end of file.")]
-    UnexpectedEof { end: ByteIndex },
+    UnexpectedE { end: ByteIndex },
     #[fail(display = "Unterminated string literal.")]
     UnterminatedStringLiteral { span: ByteSpan },
     #[fail(display = "Unterminated character literal.")]
@@ -70,7 +70,7 @@ impl LexerError {
             | LexerError::UnknownEscapeCode { start, found } => {
                 ByteSpan::from_offset(start, ByteOffset::from_char_utf8(found))
             },
-            LexerError::UnexpectedEof { end } => ByteSpan::new(end, end),
+            LexerError::UnexpectedE { end } => ByteSpan::new(end, end),
             LexerError::UnterminatedStringLiteral { span }
             | LexerError::UnterminatedCharLiteral { span }
             | LexerError::UnterminatedBinLiteral { span }
@@ -87,7 +87,7 @@ impl LexerError {
                 Diagnostic::new_error(format!("unexpected character {:?}", found))
                     .with_label(Label::new_primary(char_span))
             },
-            LexerError::UnexpectedEof { end } => Diagnostic::new_error("unexpected end of file")
+            LexerError::UnexpectedE { end } => Diagnostic::new_error("unexpected end of file")
                 .with_label(Label::new_primary(ByteSpan::new(end, end))),
             LexerError::UnterminatedStringLiteral { span } => {
                 Diagnostic::new_error("unterminated string literal")
@@ -139,15 +139,15 @@ pub enum Token<S> {
 
     // Keywords
     As,     // as
-    Case,   // case
+    Match,  // match
     Else,   // else
     Extern, // extern
     If,     // if
     Import, // import
     In,     // in
+    Int,    // int
     Let,    // let
     Module, // module
-    Of,     // of
     Struct, // struct
     Then,   // then
     Type,   // Type
@@ -186,15 +186,15 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::HexIntLiteral(ref value) => write!(f, "{:x}", value),
             Token::DecFloatLiteral(ref value) => write!(f, "{}", value),
             Token::As => write!(f, "as"),
-            Token::Case => write!(f, "case"),
+            Token::Match => write!(f, "match"),
             Token::Else => write!(f, "else"),
             Token::Extern => write!(f, "extern"),
             Token::If => write!(f, "if"),
             Token::Import => write!(f, "import"),
             Token::In => write!(f, "in"),
+            Token::Int => write!(f, "int"),
             Token::Let => write!(f, "let"),
             Token::Module => write!(f, "module"),
-            Token::Of => write!(f, "of"),
             Token::Struct => write!(f, "struct"),
             Token::Then => write!(f, "then"),
             Token::Type => write!(f, "Type"),
@@ -231,15 +231,15 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::HexIntLiteral(value) => Token::HexIntLiteral(value),
             Token::DecFloatLiteral(value) => Token::DecFloatLiteral(value),
             Token::As => Token::As,
-            Token::Case => Token::Case,
+            Token::Match => Token::Match,
             Token::Else => Token::Else,
             Token::Extern => Token::Extern,
             Token::If => Token::If,
             Token::Import => Token::Import,
             Token::In => Token::In,
+            Token::Int => Token::Int,
             Token::Let => Token::Let,
             Token::Module => Token::Module,
-            Token::Of => Token::Of,
             Token::Struct => Token::Struct,
             Token::Then => Token::Then,
             Token::Type => Token::Type,
@@ -378,15 +378,15 @@ impl<'input> Lexer<'input> {
 
         let token = match ident {
             "as" => Token::As,
-            "case" => Token::Case,
+            "match" => Token::Match,
             "else" => Token::Else,
             "extern" => Token::Extern,
             "if" => Token::If,
             "import" => Token::Import,
             "in" => Token::In,
+            "int" => Token::Int,
             "let" => Token::Let,
             "module" => Token::Module,
-            "of" => Token::Of,
             "struct" => Token::Struct,
             "then" => Token::Then,
             "Type" => Token::Type,
@@ -408,7 +408,7 @@ impl<'input> Lexer<'input> {
             Some((_, 't')) => Ok('\t'),
             // TODO: Unicode escape codes
             Some((start, ch)) => Err(LexerError::UnknownEscapeCode { start, found: ch }),
-            None => Err(LexerError::UnexpectedEof { end: start }),
+            None => Err(LexerError::UnexpectedE { end: start }),
         }
     }
 
@@ -441,7 +441,7 @@ impl<'input> Lexer<'input> {
                 })
             },
             Some((_, ch)) => ch,
-            None => return Err(LexerError::UnexpectedEof { end: start }),
+            None => return Err(LexerError::UnexpectedE { end: start }),
         };
 
         match self.bump() {
@@ -453,7 +453,7 @@ impl<'input> Lexer<'input> {
             Some((next, ch)) => Err(LexerError::UnterminatedCharLiteral {
                 span: ByteSpan::new(start, next + ByteOffset::from_char_utf8(ch)),
             }),
-            None => Err(LexerError::UnexpectedEof { end: start }),
+            None => Err(LexerError::UnexpectedE { end: start }),
         }
     }
 
@@ -588,7 +588,7 @@ mod tests {
 
     use super::*;
 
-    /// A handy macro to give us a nice syntax for declaring test cases
+    /// A handy macro to give us a nice syntax for declaring test matchs
     ///
     /// This was inspired by the tests in the LALRPOP lexer
     macro_rules! test {
@@ -691,19 +691,20 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  as else extern if import in let module of struct then Type  ",
-            "  ~~                                                          " => Token::As,
-            "     ~~~~                                                     " => Token::Else,
-            "          ~~~~~~                                              " => Token::Extern,
-            "                 ~~                                           " => Token::If,
-            "                    ~~~~~~                                    " => Token::Import,
-            "                           ~~                                 " => Token::In,
-            "                              ~~~                             " => Token::Let,
-            "                                  ~~~~~~                      " => Token::Module,
-            "                                         ~~                   " => Token::Of,
-            "                                            ~~~~~~            " => Token::Struct,
-            "                                                   ~~~~       " => Token::Then,
-            "                                                        ~~~~  " => Token::Type,
+            "  as else extern if import in int let match module struct then Type  ",
+            "  ~~                                                                 " => Token::As,
+            "     ~~~~                                                            " => Token::Else,
+            "          ~~~~~~                                                     " => Token::Extern,
+            "                 ~~                                                  " => Token::If,
+            "                    ~~~~~~                                           " => Token::Import,
+            "                           ~~                                        " => Token::In,
+            "                              ~~~                                    " => Token::Int,
+            "                                  ~~~                                " => Token::Let,
+            "                                      ~~~~~                          " => Token::Match,
+            "                                            ~~~~~~                   " => Token::Module,
+            "                                                   ~~~~~~            " => Token::Struct,
+            "                                                          ~~~~       " => Token::Then,
+            "                                                               ~~~~  " => Token::Type,
         };
     }
 

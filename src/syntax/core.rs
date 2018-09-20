@@ -151,8 +151,8 @@ pub enum Term {
     Struct(Vec<(Label, RcTerm)>),
     /// Field projection
     Proj(RcTerm, Label),
-    /// Case expressions
-    Case(RcTerm, Vec<Scope<RcPattern, RcTerm>>),
+    /// Match expressions
+    Match(RcTerm, Vec<Scope<RcPattern, RcTerm>>),
     /// Array literals
     Array(Vec<RcTerm>),
 }
@@ -220,7 +220,7 @@ impl RcTerm {
             Term::Proj(ref expr, ref label) => {
                 RcTerm::from(Term::Proj(expr.substs(mappings), label.clone()))
             },
-            Term::Case(ref head, ref clauses) => RcTerm::from(Term::Case(
+            Term::Match(ref head, ref clauses) => RcTerm::from(Term::Match(
                 head.substs(mappings),
                 clauses
                     .iter()
@@ -420,8 +420,8 @@ pub enum Neutral {
     Head(Head),
     /// Field projection
     Proj(RcNeutral, Label),
-    /// Case expressions
-    Case(RcNeutral, Vec<Scope<RcPattern, RcValue>>),
+    /// Match expressions
+    Match(RcNeutral, Vec<Scope<RcPattern, RcValue>>),
 }
 
 impl Neutral {
@@ -537,7 +537,7 @@ impl<'a> From<&'a Neutral> for Term {
         match *src {
             Neutral::Head(ref head) => Term::from(head),
             Neutral::Proj(ref expr, ref name) => Term::Proj(RcTerm::from(&**expr), name.clone()),
-            Neutral::Case(ref head, ref clauses) => Term::Case(
+            Neutral::Match(ref head, ref clauses) => Term::Match(
                 RcTerm::from(&**head),
                 clauses
                     .iter()

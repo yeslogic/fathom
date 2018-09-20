@@ -346,7 +346,7 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                     ))
                 };
 
-                raw::RcTerm::from(raw::Term::Case(
+                raw::RcTerm::from(raw::Term::Match(
                     span,
                     cond.desugar(env),
                     vec![
@@ -355,8 +355,8 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                     ],
                 ))
             },
-            concrete::Term::Case(span, ref head, ref clauses) => {
-                raw::RcTerm::from(raw::Term::Case(
+            concrete::Term::Match(span, ref head, ref clauses) => {
+                raw::RcTerm::from(raw::Term::Match(
                     span,
                     head.desugar(env),
                     clauses

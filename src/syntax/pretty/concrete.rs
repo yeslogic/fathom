@@ -204,7 +204,9 @@ impl ToDoc for Term {
                 .append(Doc::space())
                 .append(value.to_doc())
                 .append(Doc::text("}")),
-            Term::IntType(_, ref min, ref max) => Doc::text("{")
+            Term::IntType(_, ref min, ref max) => Doc::text("int")
+                .append(Doc::space())
+                .append(Doc::text("{"))
                 .append(
                     min.as_ref()
                         .map_or(Doc::nil(), |x| x.to_doc().append(Doc::space())),
@@ -269,11 +271,9 @@ impl ToDoc for Term {
                 .append("else")
                 .append(Doc::space())
                 .append(if_false.to_doc()),
-            Term::Case(_, ref head, ref clauses) => Doc::text("case")
+            Term::Match(_, ref head, ref clauses) => Doc::text("match")
                 .append(Doc::space())
                 .append(head.to_doc())
-                .append(Doc::space())
-                .append("of")
                 .append(Doc::space())
                 .append("{")
                 .append(Doc::newline())

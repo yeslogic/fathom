@@ -388,7 +388,7 @@ mod term {
 
             assert_term_eq!(
                 parse(&env, r#"if true then "true" else "false""#),
-                parse(&env, r#"case true of { true => "true"; false => "false" }"#),
+                parse(&env, r#"match true { true => "true"; false => "false" }"#),
             )
         }
     }

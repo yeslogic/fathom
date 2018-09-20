@@ -106,7 +106,7 @@ where
                     // is an error!
                     //
                     // NOTE: Some languages (eg. Haskell, Agda, Idris, and
-                    // Erlang) turn duplicate definitions into case matches.
+                    // Erlang) turn duplicate definitions into match matches.
                     // Languages like Elm don't. What should we do here?
                     (Some(&ForwardDecl::Defined(original_span)), _) => {
                         return Err(TypeError::DuplicateDefinitions {
@@ -501,7 +501,7 @@ where
                 return Ok(RcTerm::from(Term::Lam(lam_scope)));
             }
 
-            // TODO: We might want to optimise for this case, rather than
+            // TODO: We might want to optimise for this match, rather than
             // falling through to `infer` and unbinding again at I-LAM
         },
         (&raw::Term::Lam(_, _), _) => {
@@ -551,7 +551,7 @@ where
             }
         },
 
-        (&raw::Term::Case(_, ref raw_head, ref raw_clauses), _) => {
+        (&raw::Term::Match(_, ref raw_head, ref raw_clauses), _) => {
             let (head, head_ty) = infer_term(env, raw_head)?;
 
             // TODO: ensure that patterns are exhaustive
@@ -568,7 +568,7 @@ where
                     Ok(Scope::new(pattern, body))
                 }).collect::<Result<_, TypeError>>()?;
 
-            return Ok(RcTerm::from(Term::Case(head, clauses)));
+            return Ok(RcTerm::from(Term::Match(head, clauses)));
         },
 
         (&raw::Term::Array(span, ref elems), _) => {
@@ -807,7 +807,7 @@ where
         },
 
         // I-CASE
-        raw::Term::Case(span, ref raw_head, ref raw_clauses) => {
+        raw::Term::Match(span, ref raw_head, ref raw_clauses) => {
             let (head, head_ty) = infer_term(env, raw_head)?;
             let mut ty = None;
 
@@ -840,8 +840,8 @@ where
                 }).collect::<Result<_, TypeError>>()?;
 
             match ty {
-                Some(ty) => Ok((RcTerm::from(Term::Case(head, clauses)), ty)),
-                None => Err(TypeError::AmbiguousEmptyCase { span }),
+                Some(ty) => Ok((RcTerm::from(Term::Match(head, clauses)), ty)),
+                None => Err(TypeError::AmbiguousEmptyMatch { span }),
             }
         },
 

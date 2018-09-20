@@ -422,12 +422,12 @@ pub enum Term {
     /// if t1 then t2 else t3
     /// ```
     If(ByteIndex, Box<Term>, Box<Term>, Box<Term>),
-    /// Case expression
+    /// Match expression
     ///
     /// ```text
-    /// case t1 of { pat => t2; .. }
+    /// match t1 { pat => t2; .. }
     /// ```
-    Case(ByteSpan, Box<Term>, Vec<(Pattern, Term)>),
+    Match(ByteSpan, Box<Term>, Vec<(Pattern, Term)>),
     /// Struct value
     ///
     /// ```text
@@ -458,7 +458,7 @@ impl Term {
             | Term::Extern(span, _, _, _)
             | Term::Array(span, _)
             | Term::Hole(span)
-            | Term::Case(span, _, _)
+            | Term::Match(span, _, _)
             | Term::Struct(span, _)
             | Term::Error(span) => span,
             Term::Name(start, ref name) => ByteSpan::from_offset(start, ByteOffset::from_str(name)),

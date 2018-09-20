@@ -137,8 +137,8 @@ pub enum TypeError {
     AmbiguousIntLiteral { span: ByteSpan },
     #[fail(display = "Ambiguous floating point literal")]
     AmbiguousFloatLiteral { span: ByteSpan },
-    #[fail(display = "Empty case expressions need type annotations.")]
-    AmbiguousEmptyCase { span: ByteSpan },
+    #[fail(display = "Empty match expressions need type annotations.")]
+    AmbiguousEmptyMatch { span: ByteSpan },
     #[fail(
         display = "Unable to elaborate hole, expected: `{:?}`",
         expected,
@@ -311,8 +311,8 @@ impl TypeError {
             TypeError::AmbiguousFloatLiteral { span } => Diagnostic::new_error(
                 "ambiguous floating point literal",
             ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
-            TypeError::AmbiguousEmptyCase { span } => Diagnostic::new_error(
-                "empty case expressions need type annotations",
+            TypeError::AmbiguousEmptyMatch { span } => Diagnostic::new_error(
+                "empty match expressions need type annotations",
             ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
             TypeError::UnableToElaborateHole {
                 span,

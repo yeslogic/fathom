@@ -66,7 +66,7 @@ fn int_literal() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let expected_ty = r"{= 23}";
+    let expected_ty = r"int {= 23}";
     let given_expr = r#"23"#;
 
     assert_term_eq!(
@@ -339,12 +339,12 @@ fn compose() {
 }
 
 #[test]
-fn case_expr() {
+fn match_expr() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
     let expected_ty = r"String";
-    let given_expr = r#"case "helloo" : String of {
+    let given_expr = r#"match "helloo" : String {
         "hi" => "haha" : String;
         "hello" => "byee" : String;
         greeting => (extern "string-append" : String -> String -> String) greeting "!!";
@@ -357,12 +357,12 @@ fn case_expr() {
 }
 
 #[test]
-fn case_expr_bool() {
+fn match_expr_bool() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
     let expected_ty = r"String";
-    let given_expr = r#"case true of {
+    let given_expr = r#"match true {
         true => "hello" : String;
         false => "hi" : String;
     }"#;
@@ -374,12 +374,12 @@ fn case_expr_bool() {
 }
 
 #[test]
-fn case_expr_bool_bad() {
+fn match_expr_bool_bad() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
     let desugar_env = DesugarEnv::new(tc_env.mappings());
 
-    let given_expr = r#"case "hello" : String of {
+    let given_expr = r#"match "hello" : String {
         true => "hello" : String;
         false => "hi" : String;
     }"#;
@@ -394,12 +394,12 @@ fn case_expr_bool_bad() {
 }
 
 #[test]
-fn case_expr_wildcard() {
+fn match_expr_wildcard() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
     let expected_ty = r"String";
-    let given_expr = r#"case "helloo" : String of {
+    let given_expr = r#"match "helloo" : String {
         test => test;
     }"#;
 
@@ -410,17 +410,17 @@ fn case_expr_wildcard() {
 }
 
 #[test]
-fn case_expr_empty() {
+fn match_expr_empty() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
     let desugar_env = DesugarEnv::new(tc_env.mappings());
 
-    let given_expr = r#"case "helloo" : String of {}"#;
+    let given_expr = r#"match "helloo" : String {}"#;
 
     let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
 
     match infer_term(&tc_env, &raw_term) {
-        Err(TypeError::AmbiguousEmptyCase { .. }) => {},
+        Err(TypeError::AmbiguousEmptyMatch { .. }) => {},
         other => panic!("unexpected result: {:#?}", other),
     }
 }

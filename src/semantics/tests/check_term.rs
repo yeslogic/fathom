@@ -5,7 +5,7 @@ fn range_full() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let expected_ty = r"{..}";
+    let expected_ty = r"int {..}";
     let given_expr = r#"5"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
@@ -17,7 +17,7 @@ fn range_from() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let expected_ty = r"{0 ..}";
+    let expected_ty = r"int {0 ..}";
     let given_expr = r#"0"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
@@ -29,7 +29,7 @@ fn range_to() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let expected_ty = r"{.. 10}";
+    let expected_ty = r"int {.. 10}";
     let given_expr = r#"10"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
@@ -41,13 +41,13 @@ fn range_from_to() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let expected_ty = r"{0 .. 10}";
+    let expected_ty = r"int {0 .. 10}";
     let given_expr = r#"0"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
 
-    let expected_ty = r"{0 .. 10}";
+    let expected_ty = r"int {0 .. 10}";
     let given_expr = r#"10"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
@@ -55,12 +55,12 @@ fn range_from_to() {
 }
 
 #[test]
-fn case_expr() {
+fn match_expr() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
     let expected_ty = r"String";
-    let given_expr = r#"case "helloo" : String of {
+    let given_expr = r#"match "helloo" : String {
         "hi" => "haha";
         "hello" => "byee";
         greeting => (extern "string-append" : String -> String -> String) greeting "!!";
@@ -71,13 +71,13 @@ fn case_expr() {
 }
 
 #[test]
-fn case_expr_bad_literal() {
+fn match_expr_bad_literal() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
     let desugar_env = DesugarEnv::new(tc_env.mappings());
 
     let expected_ty = r"String";
-    let given_expr = r#"case "helloo" : String of {
+    let given_expr = r#"match "helloo" : String {
         "hi" => "haha";
         1 => "byee";
     }"#;
@@ -93,12 +93,12 @@ fn case_expr_bad_literal() {
 }
 
 #[test]
-fn case_expr_wildcard() {
+fn match_expr_wildcard() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
-    let expected_ty = r"{=123}";
-    let given_expr = r#"case "helloo" : String of {
+    let expected_ty = r"int {=123}";
+    let given_expr = r#"match "helloo" : String {
         _ => 123;
     }"#;
 
@@ -107,12 +107,12 @@ fn case_expr_wildcard() {
 }
 
 #[test]
-fn case_expr_empty() {
+fn match_expr_empty() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
 
     let expected_ty = r"String";
-    let given_expr = r#"case "helloo" : String of {}"#;
+    let given_expr = r#"match "helloo" : String {}"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
     parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);

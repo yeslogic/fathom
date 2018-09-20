@@ -367,7 +367,7 @@ mod term {
         assert_eq!(core_term.resugar(&ResugarEnv::new()), concrete_term);
     }
 
-    // TODO: core::Term::Case
+    // TODO: core::Term::Match
 
     #[test]
     fn array() {

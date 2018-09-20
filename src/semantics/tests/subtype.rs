@@ -45,27 +45,27 @@ mod range_full {
 
     #[test]
     fn range_full() {
-        assert_subtype!(r"{..}", r"{..}");
+        assert_subtype!(r"int {..}", r"int {..}");
     }
 
     #[test]
     fn range_from() {
-        assert_not_subtype!(r"{..}", r"{1 ..}");
+        assert_not_subtype!(r"int {..}", r"int {1 ..}");
     }
 
     #[test]
     fn range_to() {
-        assert_not_subtype!(r"{..}", r"{.. 1}");
+        assert_not_subtype!(r"int {..}", r"int {.. 1}");
     }
 
     #[test]
     fn range_from_to() {
-        assert_not_subtype!(r"{..}", r"{1 .. 100}");
+        assert_not_subtype!(r"int {..}", r"int {1 .. 100}");
     }
 
     #[test]
     fn range_from_to_flip() {
-        assert_not_subtype!(r"{..}", r"{100 .. 1}");
+        assert_not_subtype!(r"int {..}", r"int {100 .. 1}");
     }
 }
 
@@ -74,32 +74,32 @@ mod range_from {
 
     #[test]
     fn range_full() {
-        assert_subtype!(r"{1 ..}", r"{..}");
+        assert_subtype!(r"int {1 ..}", r"int {..}");
     }
 
     #[test]
     fn range_from() {
-        assert_subtype!(r"{1 ..}", r"{0 ..}");
+        assert_subtype!(r"int {1 ..}", r"int {0 ..}");
     }
 
     #[test]
     fn range_from_exact() {
-        assert_subtype!(r"{1 ..}", r"{1 ..}");
+        assert_subtype!(r"int {1 ..}", r"int {1 ..}");
     }
 
     #[test]
     fn range_from_disjoint() {
-        assert_not_subtype!(r"{0 ..}", r"{1 ..}");
+        assert_not_subtype!(r"int {0 ..}", r"int {1 ..}");
     }
 
     #[test]
     fn range_to() {
-        assert_not_subtype!(r"{1 ..}", r"{.. 3}");
+        assert_not_subtype!(r"int {1 ..}", r"int {.. 3}");
     }
 
     #[test]
     fn range_to_disjoint() {
-        assert_not_subtype!(r"{3 ..}", r"{.. 1}");
+        assert_not_subtype!(r"int {3 ..}", r"int {.. 1}");
     }
 
     // TODO: range_from_to
@@ -110,32 +110,32 @@ mod range_to {
 
     #[test]
     fn range_full() {
-        assert_subtype!(r"{.. 1}", r"{..}");
+        assert_subtype!(r"int {.. 1}", r"int {..}");
     }
 
     #[test]
     fn range_from() {
-        assert_not_subtype!(r"{.. 1}", r"{0 ..}");
+        assert_not_subtype!(r"int {.. 1}", r"int {0 ..}");
     }
 
     #[test]
     fn range_from_disjoint() {
-        assert_not_subtype!(r"{.. 1}", r"{2 ..}");
+        assert_not_subtype!(r"int {.. 1}", r"int {2 ..}");
     }
 
     #[test]
     fn range_to() {
-        assert_subtype!(r"{.. 99}", r"{.. 100}");
+        assert_subtype!(r"int {.. 99}", r"int {.. 100}");
     }
 
     #[test]
     fn range_to_exact() {
-        assert_subtype!(r"{.. 100}", r"{.. 100}");
+        assert_subtype!(r"int {.. 100}", r"int {.. 100}");
     }
 
     #[test]
     fn range_to_disjoint() {
-        assert_not_subtype!(r"{.. 100}", r"{.. 99}");
+        assert_not_subtype!(r"int {.. 100}", r"int {.. 99}");
     }
 
     // TODO: range_from_to
@@ -146,7 +146,7 @@ mod range_from_to {
 
     #[test]
     fn range_full() {
-        assert_subtype!(r"{1 .. 100}", r"{..}");
+        assert_subtype!(r"int {1 .. 100}", r"int {..}");
     }
 
     // TODO: range_from
@@ -156,12 +156,12 @@ mod range_from_to {
 
 #[test]
 fn range_flipped() {
-    assert_not_subtype!(r"{1 .. 100}", r"{100 .. 1}");
+    assert_not_subtype!(r"int {1 .. 100}", r"int {100 .. 1}");
 }
 
 #[test]
 fn range_flipped2() {
-    assert_subtype!(r"{100 .. 1}", r"{1 .. 100}");
+    assert_subtype!(r"int {100 .. 1}", r"int {1 .. 100}");
 }
 
 // TODO: integer types

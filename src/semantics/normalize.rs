@@ -106,7 +106,7 @@ where
                                 }
                             }
                         },
-                        Neutral::Head(Head::Var(_)) | Neutral::Proj(_, _) | Neutral::Case(_, _) => {
+                        Neutral::Head(Head::Var(_)) | Neutral::Proj(_, _) | Neutral::Match(_, _) => {
                             spine.push(arg)
                         },
                     }
@@ -152,12 +152,12 @@ where
         },
 
         // E-CASE
-        Term::Case(ref head, ref clauses) => {
+        Term::Match(ref head, ref clauses) => {
             let head = nf_term(env, head)?;
 
             if let Value::Neutral(ref neutral, ref spine) = *head {
                 Ok(RcValue::from(Value::Neutral(
-                    RcNeutral::from(Neutral::Case(
+                    RcNeutral::from(Neutral::Match(
                         neutral.clone(),
                         clauses
                             .iter()
