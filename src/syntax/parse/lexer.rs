@@ -176,7 +176,7 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref name) => write!(f, "{}", name),
-            Token::DocComment(ref comment) => write!(f, "||| {}", comment),
+            Token::DocComment(ref comment) => write!(f, "/// {}", comment),
             Token::ReplCommand(ref command) => write!(f, ":{}", command),
             Token::StringLiteral(ref value) => write!(f, "{:?}", value),
             Token::CharLiteral(ref value) => write!(f, "'{:?}'", value),
@@ -362,7 +362,7 @@ impl<'input> Lexer<'input> {
     /// Consume a doc comment
     fn doc_comment(&mut self, start: ByteIndex) -> SpannedToken<'input> {
         let (end, mut comment) =
-            self.take_until(start + ByteOffset::from_str("|||"), |ch| ch == '\n');
+            self.take_until(start + ByteOffset::from_str("///"), |ch| ch == '\n');
 
         // Skip preceding space
         if comment.starts_with(' ') {
@@ -550,8 +550,8 @@ impl<'input> Iterator for Lexer<'input> {
                         "->" => Ok((start, Token::LArrow, end)),
                         "=>" => Ok((start, Token::LFatArrow, end)),
                         ";" => Ok((start, Token::Semi, end)),
-                        symbol if symbol.starts_with("|||") => Ok(self.doc_comment(start)),
-                        symbol if symbol.starts_with("--") => {
+                        symbol if symbol.starts_with("///") => Ok(self.doc_comment(start)),
+                        symbol if symbol.starts_with("//") => {
                             self.take_until(start, |ch| ch == '\n');
                             continue;
                         },
@@ -618,14 +618,14 @@ mod tests {
     #[test]
     fn comment() {
         test! {
-            "       -- hello this is dog\n  ",
+            "       // hello this is dog\n  ",
         };
     }
 
     #[test]
     fn doc_comment() {
         test! {
-            "       ||| hello this is dog",
+            "       /// hello this is dog",
             "       ~~~~~~~~~~~~~~~~~~~~~" => Token::DocComment("hello this is dog"),
         };
     }

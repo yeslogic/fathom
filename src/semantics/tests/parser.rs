@@ -129,8 +129,8 @@ fn opentype() {
         struct TtcHeader {
             version : U32Be,
             body : case version of {
-                -- FIXME: 0x00010000 => TtcHeader1;
-                -- FIXME: 0x00020000 => TtcHeader2;
+                // FIXME: 0x00010000 => TtcHeader1;
+                // FIXME: 0x00020000 => TtcHeader2;
                 _ => Unknown;
             },
         };
@@ -138,7 +138,7 @@ fn opentype() {
         struct OpenType {
             tag : Tag,
             body : case tag of {
-                -- FIXME: 0x00010000
+                // FIXME: 0x00010000
                 "OTTO" => OffsetTable;
                 "ttcf" => TtcHeader;
                 _ => Unknown;
