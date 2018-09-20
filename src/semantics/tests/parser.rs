@@ -94,3 +94,65 @@ fn missing_root() {
         Err(err) => panic!("unexpected error: {:?}", err),
     }
 }
+
+#[test]
+fn opentype() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let given_format = r#"
+        module opentype;
+
+        struct Unknown {};
+
+        Tag = Array 4 U8;
+
+        struct OffsetTableRecord {
+            tag : U32Be,
+            checksum : U32Be,
+            offset : U32Be,
+            length : U32Be,
+        };
+
+        struct OffsetTable {
+            num_tables : U16Be,
+            search_range : U16Be,
+            entry_selector : U16Be,
+            range_shift : U16Be,
+            table_records : Array num_tables OffsetTableRecord,
+        };
+
+        struct TtcHeader1 {};
+        struct TtcHeader2 {};
+
+        struct TtcHeader {
+            version : U32Be,
+            body : case version of {
+                -- FIXME: 0x00010000 => TtcHeader1;
+                -- FIXME: 0x00020000 => TtcHeader2;
+                _ => Unknown;
+            },
+        };
+
+        struct OpenType {
+            tag : Tag,
+            body : case tag of {
+                -- FIXME: 0x00010000
+                "OTTO" => OffsetTable;
+                "ttcf" => TtcHeader;
+                _ => Unknown;
+            },
+        };
+    "#;
+
+    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    match check_module(&tc_env, &raw_module) {
+        Ok(_module) => {},
+        Err(error) => {
+            let writer = StandardStream::stdout(ColorChoice::Always);
+            codespan_reporting::emit(&mut writer.lock(), &codemap, &error.to_diagnostic()).unwrap();
+            panic!("type error!");
+        },
+    }
+}

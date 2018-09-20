@@ -247,10 +247,10 @@ mod nf_term {
         let tc_env = TcEnv::default();
 
         let given_expr = r#"
-            if true then "true" else "false"
+            (if true then "true" else "false") : String
         "#;
         let expected_expr = r#"
-            "true"
+            "true" : String
         "#;
 
         assert_term_eq!(
@@ -265,10 +265,10 @@ mod nf_term {
         let tc_env = TcEnv::default();
 
         let given_expr = r#"
-            if false then "true" else "false"
+            (if false then "true" else "false") : String
         "#;
         let expected_expr = r#"
-            "false"
+            "false" : String
         "#;
 
         assert_term_eq!(
@@ -283,13 +283,13 @@ mod nf_term {
         let tc_env = TcEnv::default();
 
         let given_expr = r#"
-            if (case "hi" of {
+            (if (case "hi" : String of {
                 "hi" => true;
                 _ => false;
-            }) then "true" else "false"
+            }) then "true" else "false") : String
         "#;
         let expected_expr = r#"
-            "true"
+            "true" : String
         "#;
 
         assert_term_eq!(
@@ -305,12 +305,12 @@ mod nf_term {
 
         let given_expr = r#"
             case true of {
-                true => "true";
-                false => "false";
+                true => "true" : String;
+                false => "false" : String;
             }
         "#;
         let expected_expr = r#"
-            "true"
+            "true" : String
         "#;
 
         assert_term_eq!(
@@ -326,12 +326,12 @@ mod nf_term {
 
         let given_expr = r#"
             case false of {
-                true => "true";
-                false => "false";
+                true => "true" : String;
+                false => "false" : String;
             }
         "#;
         let expected_expr = r#"
-            "false"
+            "false" : String
         "#;
 
         assert_term_eq!(

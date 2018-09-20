@@ -131,6 +131,8 @@ pub enum TypeError {
         found: raw::Literal,
         expected: Box<concrete::Term>,
     },
+    #[fail(display = "Ambiguous string literal")]
+    AmbiguousStringLiteral { span: ByteSpan },
     #[fail(display = "Ambiguous integer literal")]
     AmbiguousIntLiteral { span: ByteSpan },
     #[fail(display = "Ambiguous floating point literal")]
@@ -300,6 +302,9 @@ impl TypeError {
                     found_text, expected,
                 )).with_label(Label::new_primary(literal_span).with_message("the literal"))
             },
+            TypeError::AmbiguousStringLiteral { span } => Diagnostic::new_error(
+                "ambiguous string literal",
+            ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
             TypeError::AmbiguousIntLiteral { span } => Diagnostic::new_error(
                 "ambiguous integer literal",
             ).with_label(Label::new_primary(span).with_message("type annotation needed here")),

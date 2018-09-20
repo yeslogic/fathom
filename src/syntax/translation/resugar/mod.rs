@@ -267,6 +267,7 @@ fn resugar_pattern(
                 core::Literal::F64(value) => Pattern::Literal(DecFloat(span, value)),
             }
         },
+        core::Pattern::Array(ref _elems) => unimplemented!("resugar: array patterns"),
     }
 }
 

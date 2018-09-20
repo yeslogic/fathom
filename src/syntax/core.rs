@@ -88,6 +88,8 @@ pub enum Pattern {
     Var(Embed<Var<String>>),
     /// Literal patterns
     Literal(Literal),
+    /// Array patterns
+    Array(Vec<RcPattern>),
 }
 
 impl fmt::Display for Pattern {

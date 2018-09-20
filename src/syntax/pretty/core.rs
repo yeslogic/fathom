@@ -196,6 +196,11 @@ impl ToDoc for Pattern {
             Pattern::Binder(ref binder) => pretty_binder(binder),
             Pattern::Var(Embed(ref var)) => pretty_var(var),
             Pattern::Literal(ref literal) => literal.to_doc(),
+            Pattern::Array(ref elems) => Doc::text("[")
+                .append(Doc::intersperse(
+                    elems.iter().map(|elem| elem.to_doc()),
+                    Doc::text(";").append(Doc::space()),
+                )).append("]"),
         }
     }
 }

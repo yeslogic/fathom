@@ -258,33 +258,62 @@ where
 
 /// Checks that a literal is compatible with the given type, returning the
 /// elaborated literal if successful
-fn check_literal<Env>(
+fn check_literal<Env, T>(
     env: &Env,
     raw_literal: &raw::Literal,
     expected_ty: &RcType,
-) -> Result<Literal, TypeError>
+    wrap_literal: impl Fn(Literal) -> T,
+    wrap_array: impl Fn(Vec<T>) -> T,
+) -> Result<T, TypeError>
 where
     Env: GlobalEnv,
 {
-    use syntax::core::Literal::{Char, String, F32, F64};
-
-    let ty = expected_ty;
     match *raw_literal {
-        raw::Literal::String(_, ref val) if env.string() == ty => return Ok(String(val.clone())),
-        raw::Literal::Char(_, val) if env.char() == ty => return Ok(Char(val)),
+        raw::Literal::String(_, ref val) if env.string() == expected_ty => {
+            return Ok(wrap_literal(Literal::String(val.clone())));
+        },
+        raw::Literal::String(_, ref val) => match env.array(expected_ty) {
+            Some((len, elem_ty)) if *len == val.len().into() && elem_ty == env.u8() => {
+                let elems = val
+                    .bytes()
+                    .map(|elem| wrap_literal(Literal::Int(elem.into())))
+                    .collect();
+
+                return Ok(wrap_array(elems));
+            },
+            Some((len, _)) => {
+                return Err(TypeError::ArrayLengthMismatch {
+                    span: raw_literal.span(),
+                    found_len: val.len(),
+                    expected_len: len.clone(),
+                });
+            },
+            None => {},
+        },
+        raw::Literal::Char(_, val) if env.char() == expected_ty => {
+            return Ok(wrap_literal(Literal::Char(val)));
+        },
 
         // FIXME: overflow?
-        raw::Literal::Int(_, ref val) if env.f32() == ty => return Ok(F32(val.to_f32().unwrap())),
-        raw::Literal::Int(_, ref val) if env.f64() == ty => return Ok(F64(val.to_f64().unwrap())),
-        raw::Literal::Float(_, val) if env.f32() == ty => return Ok(F32(val as f32)),
-        raw::Literal::Float(_, val) if env.f64() == ty => return Ok(F64(val)),
+        raw::Literal::Int(_, ref val) if env.f32() == expected_ty => {
+            return Ok(wrap_literal(Literal::F32(val.to_f32().unwrap())));
+        },
+        raw::Literal::Int(_, ref val) if env.f64() == expected_ty => {
+            return Ok(wrap_literal(Literal::F64(val.to_f64().unwrap())));
+        },
+        raw::Literal::Float(_, val) if env.f32() == expected_ty => {
+            return Ok(wrap_literal(Literal::F32(val as f32)));
+        },
+        raw::Literal::Float(_, val) if env.f64() == expected_ty => {
+            return Ok(wrap_literal(Literal::F64(val)));
+        },
 
         _ => {},
     }
 
-    let (literal, inferred_ty) = infer_literal(env, raw_literal)?;
+    let (term, inferred_ty) = infer_literal(env, raw_literal, wrap_literal)?;
     if is_subtype(env, &inferred_ty, expected_ty) {
-        Ok(literal)
+        Ok(term)
     } else {
         Err(TypeError::LiteralMismatch {
             literal_span: raw_literal.span(),
@@ -296,16 +325,20 @@ where
 
 /// Synthesize the type of a literal, returning the elaborated literal and the
 /// inferred type if successful
-fn infer_literal<Env>(env: &Env, raw_literal: &raw::Literal) -> Result<(Literal, RcType), TypeError>
+fn infer_literal<Env, T>(
+    env: &Env,
+    raw_literal: &raw::Literal,
+    wrap_literal: impl Fn(Literal) -> T,
+) -> Result<(T, RcType), TypeError>
 where
     Env: GlobalEnv,
 {
     match *raw_literal {
-        raw::Literal::String(_, ref value) => {
-            Ok((Literal::String(value.clone()), env.string().clone()))
+        raw::Literal::String(span, _) => Err(TypeError::AmbiguousStringLiteral { span }),
+        raw::Literal::Char(_, value) => {
+            Ok((wrap_literal(Literal::Char(value)), env.char().clone()))
         },
-        raw::Literal::Char(_, value) => Ok((Literal::Char(value), env.char().clone())),
-        raw::Literal::Int(_, ref value) => Ok((Literal::Int(value.clone()), {
+        raw::Literal::Int(_, ref value) => Ok((wrap_literal(Literal::Int(value.clone())), {
             let value = RcValue::from(Value::Literal(Literal::Int(value.clone())));
             RcValue::from(Value::IntType(Some(value.clone()), Some(value)))
         })),
@@ -331,8 +364,16 @@ where
             ));
         },
         (&raw::Pattern::Literal(ref raw_literal), _) => {
-            let literal = check_literal(env, raw_literal, expected_ty)?;
-            return Ok((RcPattern::from(Pattern::Literal(literal)), vec![]));
+            return Ok((
+                check_literal(
+                    env,
+                    raw_literal,
+                    expected_ty,
+                    |lit| RcPattern::from(Pattern::Literal(lit)),
+                    |elems| RcPattern::from(Pattern::Array(elems)),
+                )?,
+                vec![],
+            ));
         },
         _ => {},
     }
@@ -396,8 +437,9 @@ where
             }.into()),
         },
         raw::Pattern::Literal(ref literal) => {
-            let (literal, ty) = infer_literal(env, literal)?;
-            Ok((RcPattern::from(Pattern::Literal(literal)), ty, vec![]))
+            let (pattern, ty) =
+                infer_literal(env, literal, |lit| RcPattern::from(Pattern::Literal(lit)))?;
+            Ok((pattern, ty, vec![]))
         },
     }
 }
@@ -432,8 +474,13 @@ where
 {
     match (&*raw_term.inner, &*expected_ty.inner) {
         (&raw::Term::Literal(ref raw_literal), _) => {
-            let literal = check_literal(env, raw_literal, expected_ty)?;
-            return Ok(RcTerm::from(Term::Literal(literal)));
+            return check_literal(
+                env,
+                raw_literal,
+                expected_ty,
+                |lit| RcTerm::from(Term::Literal(lit)),
+                |elems| RcTerm::from(Term::Array(elems)),
+            );
         },
 
         // C-LAM
@@ -620,8 +667,7 @@ where
         },
 
         raw::Term::Literal(ref raw_literal) => {
-            let (literal, ty) = infer_literal(env, raw_literal)?;
-            Ok((RcTerm::from(Term::Literal(literal)), ty))
+            infer_literal(env, raw_literal, |lit| RcTerm::from(Term::Literal(lit)))
         },
 
         // I-VAR
