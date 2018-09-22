@@ -7,7 +7,7 @@ use std::ops;
 use std::rc::Rc;
 
 use syntax::pretty::{self, ToDoc};
-use syntax::{Label, Level};
+use syntax::{FloatFormat, IntFormat, Label, Level};
 
 /// A module definition
 pub struct Module {
@@ -58,15 +58,15 @@ pub enum Literal {
     Bool(bool),
     String(String),
     Char(char),
-    Int(BigInt),
-    F32(f32),
-    F64(f64),
+    Int(BigInt, IntFormat),
+    F32(f32, FloatFormat),
+    F64(f64, FloatFormat),
 }
 
 impl Literal {
     pub fn try_int(&self) -> Option<&BigInt> {
         match *self {
-            Literal::Int(ref value) => Some(value),
+            Literal::Int(ref value, _) => Some(value),
             _ => None,
         }
     }

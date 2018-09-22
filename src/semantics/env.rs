@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use syntax::core::{Definition, Literal, RcType, RcValue, Spine, Value};
 use syntax::translation::ResugarEnv;
+use syntax::{FloatFormat, IntFormat};
 
 // Some helper traits for marshalling between Rust and Pikelet values
 //
@@ -13,10 +14,6 @@ use syntax::translation::ResugarEnv;
 
 trait IntoValue {
     fn into_value(self) -> RcValue;
-}
-
-trait TryFromValueRef {
-    fn try_from_value_ref(src: &Value) -> Result<&Self, ()>;
 }
 
 macro_rules! impl_into_value {
@@ -27,32 +24,69 @@ macro_rules! impl_into_value {
             }
         }
     };
-}
-
-impl_into_value!(String, String);
-impl_into_value!(char, Char);
-impl_into_value!(bool, Bool);
-impl_into_value!(f32, F32);
-impl_into_value!(f64, F64);
-
-macro_rules! impl_try_from_value_ref {
-    ($T:ty, $Variant:ident) => {
-        impl TryFromValueRef for $T {
-            fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
-                match *src {
-                    Value::Literal(Literal::$Variant(ref x)) => Ok(x),
-                    _ => Err(()),
-                }
+    ($T:ty, $Variant:ident, $format:expr) => {
+        impl IntoValue for $T {
+            fn into_value(self) -> RcValue {
+                RcValue::from(Value::Literal(Literal::$Variant(self, $format)))
             }
         }
     };
 }
 
-impl_try_from_value_ref!(String, String);
-impl_try_from_value_ref!(char, Char);
-impl_try_from_value_ref!(bool, Bool);
-impl_try_from_value_ref!(f32, F32);
-impl_try_from_value_ref!(f64, F64);
+impl_into_value!(String, String);
+impl_into_value!(char, Char);
+impl_into_value!(bool, Bool);
+impl_into_value!(f32, F32, FloatFormat::Dec);
+impl_into_value!(f64, F64, FloatFormat::Dec);
+
+trait TryFromValueRef {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, ()>;
+}
+
+impl TryFromValueRef for String {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+        match *src {
+            Value::Literal(Literal::String(ref val)) => Ok(val),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFromValueRef for char {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+        match *src {
+            Value::Literal(Literal::Char(ref val)) => Ok(val),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFromValueRef for bool {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+        match *src {
+            Value::Literal(Literal::Bool(ref val)) => Ok(val),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFromValueRef for f32 {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+        match *src {
+            Value::Literal(Literal::F32(ref val, _)) => Ok(val),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFromValueRef for f64 {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+        match *src {
+            Value::Literal(Literal::F64(ref val, _)) => Ok(val),
+            _ => Err(()),
+        }
+    }
+}
 
 /// External functions
 #[derive(Clone)]
@@ -339,8 +373,14 @@ impl Default for TcEnv {
 
         fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcType {
             RcValue::from(Value::IntType(
-                Some(RcValue::from(Value::Literal(Literal::Int(min.into())))),
-                Some(RcValue::from(Value::Literal(Literal::Int(max.into())))),
+                Some(RcValue::from(Value::Literal(Literal::Int(
+                    min.into(),
+                    IntFormat::Dec,
+                )))),
+                Some(RcValue::from(Value::Literal(Literal::Int(
+                    max.into(),
+                    IntFormat::Dec,
+                )))),
             ))
         }
 
@@ -389,7 +429,10 @@ impl Default for TcEnv {
 
         let universe0 = RcValue::from(Value::universe(0));
         let nat_ty = RcValue::from(Value::IntType(
-            Some(RcValue::from(Value::Literal(Literal::Int(0.into())))),
+            Some(RcValue::from(Value::Literal(Literal::Int(
+                0.into(),
+                IntFormat::Dec,
+            )))),
             None,
         ));
         let bool_ty = tc_env.globals.ty_bool.clone();
@@ -584,10 +627,8 @@ impl GlobalEnv for TcEnv {
 
     fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)> {
         match ty.free_var_app() {
-            // Conservatively forcing the shift to be zero for now. Perhaps this
-            // could be relaxed in the future if it becomes a problem?
             Some((fv, &[ref len, ref elem_ty])) if *fv == self.globals.var_array => match **len {
-                Value::Literal(Literal::Int(ref len)) => Some((len, elem_ty)),
+                Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty)),
                 _ => None,
             },
             Some(_) | None => None,

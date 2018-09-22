@@ -6,7 +6,7 @@ use std::iter;
 
 use syntax::core::{Head, Literal, Neutral, Pattern, Term, Value};
 use syntax::raw;
-use syntax::{Label, Level};
+use syntax::{FloatFormat, IntFormat, Label, Level};
 
 use super::{parens, sexpr, StaticDoc, ToDoc};
 
@@ -111,8 +111,11 @@ impl ToDoc for raw::Literal {
         match *self {
             raw::Literal::String(_, ref value) => Doc::text(format!("{:?}", value)),
             raw::Literal::Char(_, value) => Doc::text(format!("{:?}", value)),
-            raw::Literal::Int(_, ref value) => Doc::as_string(value),
-            raw::Literal::Float(_, value) => Doc::as_string(&value),
+            raw::Literal::Int(_, ref value, IntFormat::Bin) => Doc::text(format!("0b{:b}", value)),
+            raw::Literal::Int(_, ref value, IntFormat::Oct) => Doc::text(format!("0o{:o}", value)),
+            raw::Literal::Int(_, ref value, IntFormat::Dec) => Doc::text(format!("{}", value)),
+            raw::Literal::Int(_, ref value, IntFormat::Hex) => Doc::text(format!("0x{:x}", value)),
+            raw::Literal::Float(_, value, FloatFormat::Dec) => Doc::text(format!("{}", value)),
         }
     }
 }
@@ -182,9 +185,12 @@ impl ToDoc for Literal {
             Literal::Bool(false) => Doc::text("false"),
             Literal::String(ref value) => Doc::text(format!("{:?}", value)),
             Literal::Char(value) => Doc::text(format!("{:?}", value)),
-            Literal::Int(ref value) => Doc::as_string(value),
-            Literal::F32(value) => Doc::as_string(&value),
-            Literal::F64(value) => Doc::as_string(&value),
+            Literal::Int(ref value, IntFormat::Bin) => Doc::text(format!("0b{:b}", value)),
+            Literal::Int(ref value, IntFormat::Oct) => Doc::text(format!("0o{:o}", value)),
+            Literal::Int(ref value, IntFormat::Dec) => Doc::text(format!("{}", value)),
+            Literal::Int(ref value, IntFormat::Hex) => Doc::text(format!("0x{:x}", value)),
+            Literal::F32(value, FloatFormat::Dec) => Doc::as_string(&value),
+            Literal::F64(value, FloatFormat::Dec) => Doc::as_string(&value),
         }
     }
 }

@@ -3,7 +3,7 @@ use num_bigint::BigInt;
 use std::io::Cursor;
 
 use semantics::parser::{self, ParseError};
-use syntax::Label;
+use syntax::{IntFormat, Label};
 
 use super::*;
 
@@ -49,14 +49,26 @@ fn silly_root() {
         RcValue::from(Value::Struct(vec![
             (
                 Label("len".to_owned()),
-                RcValue::from(Value::Literal(Literal::Int(BigInt::from(3))))
+                RcValue::from(Value::Literal(Literal::Int(
+                    BigInt::from(3),
+                    IntFormat::Dec,
+                )))
             ),
             (
                 Label("data".to_owned()),
                 RcValue::from(Value::Array(vec![
-                    RcValue::from(Value::Literal(Literal::Int(BigInt::from(1)))),
-                    RcValue::from(Value::Literal(Literal::Int(BigInt::from(3)))),
-                    RcValue::from(Value::Literal(Literal::Int(BigInt::from(6)))),
+                    RcValue::from(Value::Literal(Literal::Int(
+                        BigInt::from(1),
+                        IntFormat::Dec,
+                    ))),
+                    RcValue::from(Value::Literal(Literal::Int(
+                        BigInt::from(3),
+                        IntFormat::Dec,
+                    ))),
+                    RcValue::from(Value::Literal(Literal::Int(
+                        BigInt::from(6),
+                        IntFormat::Dec,
+                    ))),
                 ])),
             ),
         ])),

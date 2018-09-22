@@ -14,7 +14,7 @@ use syntax::core::{
 };
 use syntax::raw;
 use syntax::translation::Resugar;
-use syntax::{Label, Level};
+use syntax::{FloatFormat, IntFormat, Label, Level};
 
 mod env;
 mod errors;
@@ -195,8 +195,8 @@ where
                 (None, Some(_)) => false, // -∞ <=  n
                 (Some(ref min1), Some(ref min2)) => match (&*min1.inner, &*min2.inner) {
                     (
-                        Value::Literal(Literal::Int(ref min1)),
-                        Value::Literal(Literal::Int(ref min2)),
+                        Value::Literal(Literal::Int(ref min1, IntFormat::Dec)),
+                        Value::Literal(Literal::Int(ref min2, IntFormat::Dec)),
                     ) => min1 >= min2,
                     _ => Value::term_eq(min1, min2), // Fallback to alpha-equality
                 },
@@ -208,8 +208,8 @@ where
                 (None, Some(_)) => false, // +∞ <=  n
                 (Some(ref max1), Some(ref max2)) => match (&*max1.inner, &*max2.inner) {
                     (
-                        Value::Literal(Literal::Int(ref max1)),
-                        Value::Literal(Literal::Int(ref max2)),
+                        Value::Literal(Literal::Int(ref max1, IntFormat::Dec)),
+                        Value::Literal(Literal::Int(ref max2, IntFormat::Dec)),
                     ) => max1 <= max2,
                     _ => Value::term_eq(max1, max2), // Fallback to alpha-equality
                 },
@@ -276,7 +276,7 @@ where
             Some((len, elem_ty)) if *len == val.len().into() && elem_ty == env.u8() => {
                 let elems = val
                     .bytes()
-                    .map(|elem| wrap_literal(Literal::Int(elem.into())))
+                    .map(|elem| wrap_literal(Literal::Int(elem.into(), IntFormat::Dec)))
                     .collect();
 
                 return Ok(wrap_array(elems));
@@ -295,17 +295,23 @@ where
         },
 
         // FIXME: overflow?
-        raw::Literal::Int(_, ref val) if env.f32() == expected_ty => {
-            return Ok(wrap_literal(Literal::F32(val.to_f32().unwrap())));
+        raw::Literal::Int(_, ref val, _) if env.f32() == expected_ty => {
+            return Ok(wrap_literal(Literal::F32(
+                val.to_f32().unwrap(),
+                FloatFormat::Dec,
+            )));
         },
-        raw::Literal::Int(_, ref val) if env.f64() == expected_ty => {
-            return Ok(wrap_literal(Literal::F64(val.to_f64().unwrap())));
+        raw::Literal::Int(_, ref val, _) if env.f64() == expected_ty => {
+            return Ok(wrap_literal(Literal::F64(
+                val.to_f64().unwrap(),
+                FloatFormat::Dec,
+            )));
         },
-        raw::Literal::Float(_, val) if env.f32() == expected_ty => {
-            return Ok(wrap_literal(Literal::F32(val as f32)));
+        raw::Literal::Float(_, val, format) if env.f32() == expected_ty => {
+            return Ok(wrap_literal(Literal::F32(val as f32, format)));
         },
-        raw::Literal::Float(_, val) if env.f64() == expected_ty => {
-            return Ok(wrap_literal(Literal::F64(val)));
+        raw::Literal::Float(_, val, format) if env.f64() == expected_ty => {
+            return Ok(wrap_literal(Literal::F64(val, format)));
         },
 
         _ => {},
@@ -338,11 +344,13 @@ where
         raw::Literal::Char(_, value) => {
             Ok((wrap_literal(Literal::Char(value)), env.char().clone()))
         },
-        raw::Literal::Int(_, ref value) => Ok((wrap_literal(Literal::Int(value.clone())), {
-            let value = RcValue::from(Value::Literal(Literal::Int(value.clone())));
-            RcValue::from(Value::IntType(Some(value.clone()), Some(value)))
-        })),
-        raw::Literal::Float(span, _) => Err(TypeError::AmbiguousFloatLiteral { span }),
+        raw::Literal::Int(_, ref value, format) => {
+            Ok((wrap_literal(Literal::Int(value.clone(), format)), {
+                let value = RcValue::from(Value::Literal(Literal::Int(value.clone(), format)));
+                RcValue::from(Value::IntType(Some(value.clone()), Some(value)))
+            }))
+        },
+        raw::Literal::Float(span, _, _) => Err(TypeError::AmbiguousFloatLiteral { span }),
     }
 }
 

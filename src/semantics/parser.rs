@@ -112,7 +112,9 @@ where
 
     use syntax::core::Literal::*;
     use syntax::core::Value::Literal;
+    use syntax::{FloatFormat, IntFormat};
 
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     match **ty {
         Value::Universe(_)
         | Value::IntType(_, _)
@@ -122,24 +124,24 @@ where
         | Value::Struct(_)
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
 
-        _ if ty == env.u8() => Ok(RcValue::from(Literal(Int(bytes.read_u8()?.into())))),
-        _ if ty == env.u16le() => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Le>()?.into())))),
-        _ if ty == env.u16be() => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Be>()?.into())))),
-        _ if ty == env.u32le() => Ok(RcValue::from(Literal(Int(bytes.read_u32::<Le>()?.into())))),
-        _ if ty == env.u32be() => Ok(RcValue::from(Literal(Int(bytes.read_u32::<Be>()?.into())))),
-        _ if ty == env.u64le() => Ok(RcValue::from(Literal(Int(bytes.read_u64::<Le>()?.into())))),
-        _ if ty == env.u64be() => Ok(RcValue::from(Literal(Int(bytes.read_u64::<Be>()?.into())))),
-        _ if ty == env.s8() => Ok(RcValue::from(Literal(Int(bytes.read_i8()?.into())))),
-        _ if ty == env.s16le() => Ok(RcValue::from(Literal(Int(bytes.read_i16::<Le>()?.into())))),
-        _ if ty == env.s16be() => Ok(RcValue::from(Literal(Int(bytes.read_i16::<Be>()?.into())))),
-        _ if ty == env.s32le() => Ok(RcValue::from(Literal(Int(bytes.read_i32::<Le>()?.into())))),
-        _ if ty == env.s32be() => Ok(RcValue::from(Literal(Int(bytes.read_i32::<Be>()?.into())))),
-        _ if ty == env.s64le() => Ok(RcValue::from(Literal(Int(bytes.read_i64::<Le>()?.into())))),
-        _ if ty == env.s64be() => Ok(RcValue::from(Literal(Int(bytes.read_i64::<Be>()?.into())))),
-        _ if ty == env.f32le() => Ok(RcValue::from(Literal(F32(bytes.read_f32::<Le>()?)))),
-        _ if ty == env.f32be() => Ok(RcValue::from(Literal(F32(bytes.read_f32::<Be>()?)))),
-        _ if ty == env.f64le() => Ok(RcValue::from(Literal(F64(bytes.read_f64::<Le>()?)))),
-        _ if ty == env.f64be() => Ok(RcValue::from(Literal(F64(bytes.read_f64::<Be>()?)))),
+        _ if ty == env.u8() => Ok(RcValue::from(Literal(Int(bytes.read_u8()?.into(), IntFormat::Dec)))),
+        _ if ty == env.u16le() => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Le>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.u16be() => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Be>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.u32le() => Ok(RcValue::from(Literal(Int(bytes.read_u32::<Le>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.u32be() => Ok(RcValue::from(Literal(Int(bytes.read_u32::<Be>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.u64le() => Ok(RcValue::from(Literal(Int(bytes.read_u64::<Le>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.u64be() => Ok(RcValue::from(Literal(Int(bytes.read_u64::<Be>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.s8() => Ok(RcValue::from(Literal(Int(bytes.read_i8()?.into(), IntFormat::Dec)))),
+        _ if ty == env.s16le() => Ok(RcValue::from(Literal(Int(bytes.read_i16::<Le>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.s16be() => Ok(RcValue::from(Literal(Int(bytes.read_i16::<Be>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.s32le() => Ok(RcValue::from(Literal(Int(bytes.read_i32::<Le>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.s32be() => Ok(RcValue::from(Literal(Int(bytes.read_i32::<Be>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.s64le() => Ok(RcValue::from(Literal(Int(bytes.read_i64::<Le>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.s64be() => Ok(RcValue::from(Literal(Int(bytes.read_i64::<Be>()?.into(), IntFormat::Dec)))),
+        _ if ty == env.f32le() => Ok(RcValue::from(Literal(F32(bytes.read_f32::<Le>()?, FloatFormat::Dec)))),
+        _ if ty == env.f32be() => Ok(RcValue::from(Literal(F32(bytes.read_f32::<Be>()?, FloatFormat::Dec)))),
+        _ if ty == env.f64le() => Ok(RcValue::from(Literal(F64(bytes.read_f64::<Le>()?, FloatFormat::Dec)))),
+        _ if ty == env.f64be() => Ok(RcValue::from(Literal(F64(bytes.read_f64::<Be>()?, FloatFormat::Dec)))),
 
         _ => match env.array(ty) {
             Some((len, elem_ty)) => Ok(RcValue::from(Value::Array(

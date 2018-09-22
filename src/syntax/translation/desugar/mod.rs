@@ -240,13 +240,12 @@ impl Desugar<raw::Module> for concrete::Module {
 impl Desugar<raw::Literal> for concrete::Literal {
     fn desugar(&self, _: &DesugarEnv) -> raw::Literal {
         match *self {
-            concrete::Literal::String(span, ref value) => raw::Literal::String(span, value.clone()),
-            concrete::Literal::Char(span, value) => raw::Literal::Char(span, value),
-            concrete::Literal::BinInt(span, ref value) => raw::Literal::Int(span, value.clone()),
-            concrete::Literal::OctInt(span, ref value) => raw::Literal::Int(span, value.clone()),
-            concrete::Literal::DecInt(span, ref value) => raw::Literal::Int(span, value.clone()),
-            concrete::Literal::HexInt(span, ref value) => raw::Literal::Int(span, value.clone()),
-            concrete::Literal::DecFloat(span, value) => raw::Literal::Float(span, value),
+            concrete::Literal::String(span, ref val) => raw::Literal::String(span, val.clone()),
+            concrete::Literal::Char(span, val) => raw::Literal::Char(span, val),
+            concrete::Literal::Int(span, ref val, format) => {
+                raw::Literal::Int(span, val.clone(), format)
+            },
+            concrete::Literal::Float(span, val, format) => raw::Literal::Float(span, val, format),
         }
     }
 }
