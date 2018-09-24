@@ -119,13 +119,13 @@ Item: Item = {
         let return_ann = return_ann.map(Box::new);
         Item::Definition(Definition::Alias { name, params, return_ann, term })
     },
-    <_comment: "doc comment"*> <start: @L> "struct" <name: IndexedIdent>
+    <_comment: "doc comment"*> <start: @L> "struct" <name: IndexedIdent> <params: ("(" <Ident> ":" <Term> ")")*>
         "{" <fields: (<StructTypeField> ",")*> <last: StructTypeField?> "}" <end: @R> ";" =>
     {
         let span = ByteSpan::new(start, end);
         let mut fields = fields;
         fields.extend(last);
-        Item::Definition(Definition::StructType { span, name, fields })
+        Item::Definition(Definition::StructType { span, name, params, fields })
     },
     <start: @L> <recovered: !> <end: @R> ";" => {
         errors.push(super::errors::from_lalrpop(filemap, recovered.error));

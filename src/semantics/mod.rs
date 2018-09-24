@@ -133,18 +133,34 @@ where
                         let (term, ty) = infer_term(&env, &raw_term)?;
                         (Definition::Alias(term), ty)
                     },
-                    (None, &raw::Definition::StructType(_, ref raw_fields)) => {
+                    (None, &raw::Definition::StructType(_, ref raw_scope)) => {
+                        use std::cmp;
+
                         let mut env = env.clone();
                         let mut max_level = Level(0);
 
+                        let (raw_params, raw_fields_scope) = raw_scope.clone().unbind();
+                        let (raw_fields, ()) = raw_fields_scope.unbind();
+                        let raw_params = raw_params.unnest();
+
+                        let mut struct_params = Vec::with_capacity(raw_params.len());
+                        let mut pi_params = Vec::with_capacity(raw_params.len());
+
+                        for (Binder(free_var), Embed(raw_ann)) in raw_params {
+                            let (ann, _) = infer_universe(&env, &raw_ann)?;
+                            let nf_ann = nf_term(&env, &ann)?;
+
+                            env.insert_declaration(free_var.clone(), nf_ann.clone());
+
+                            struct_params.push((Binder(free_var.clone()), Embed(ann)));
+                            pi_params.push((Binder(free_var), Embed(nf_ann)));
+                        }
+
                         // FIXME: Check that struct is well-formed?
                         let fields = raw_fields
-                            .clone()
                             .unnest()
                             .into_iter()
                             .map(|(label, Binder(free_var), Embed(raw_ann))| {
-                                use std::cmp;
-
                                 let (ann, ann_level) = infer_universe(&env, &raw_ann)?;
                                 let nf_ann = nf_term(&env, &ann)?;
 
@@ -154,10 +170,19 @@ where
                                 Ok((label, Binder(free_var), Embed(ann)))
                             }).collect::<Result<_, TypeError>>()?;
 
-                        (
-                            Definition::StructType(Nest::new(fields)),
-                            RcValue::from(Value::Universe(max_level)),
-                        )
+                        let struct_ty = Definition::StructType(Scope::new(
+                            Nest::new(struct_params),
+                            Scope::new(Nest::new(fields), ()),
+                        ));
+
+                        let ty = pi_params
+                            .into_iter()
+                            .rev()
+                            .fold(RcValue::from(Value::Universe(max_level)), |acc, param| {
+                                RcValue::from(Value::Pi(Scope::new(param, acc)))
+                            });
+
+                        (struct_ty, ty)
                     },
                 };
 
@@ -452,18 +477,43 @@ where
     }
 }
 
-pub fn expect_struct<'a, Env>(
+pub fn expect_struct<'a, 'b, Env>(
     env: &'a Env,
-    ty: &RcType,
-) -> Option<&'a Nest<(Label, Binder<String>, Embed<RcTerm>)>>
+    ty: &'b RcType,
+) -> Option<(
+    Vec<(Label, Binder<String>, Embed<RcTerm>)>,
+    Vec<(FreeVar<String>, RcTerm)>,
+)>
 where
     Env: DeclarationEnv + DefinitionEnv,
 {
     match ty.inner.head_app()? {
-        (Head::Var(Var::Free(ref free_var)), spine) if spine.is_empty() => {
+        (Head::Var(Var::Free(ref free_var)), spine) => {
             match *env.get_definition(free_var)? {
                 Definition::Alias(_) => None, // FIXME: follow alias?
-                Definition::StructType(ref fields) => Some(fields),
+                Definition::StructType(ref scope) => {
+                    let (params, fields_scope) = scope.clone().unbind();
+                    let (fields, ()) = fields_scope.unbind();
+                    let params = params.unnest();
+                    let fields = fields.unnest();
+
+                    if params.len() != spine.len() {
+                        unimplemented!();
+                    }
+
+                    // FIXME: check that the args match the spine
+
+                    let mut mappings = Vec::with_capacity(params.len() + fields.len());
+
+                    for (&(Binder(ref free_var), _), arg) in
+                        Iterator::zip(params.iter(), spine.iter())
+                    {
+                        let arg = arg.substs(&mappings);
+                        mappings.push((free_var.clone(), arg));
+                    }
+
+                    Some((fields, mappings))
+                },
             }
         },
         _ => None,
@@ -521,9 +571,7 @@ where
 
         // C-STRUCT
         (&raw::Term::Struct(span, ref raw_fields), _) => {
-            if let Some(ty_fields) = expect_struct(env, expected_ty) {
-                let ty_fields = ty_fields.clone().unnest();
-
+            if let Some((ty_fields, mut mappings)) = expect_struct(env, expected_ty) {
                 if raw_fields.len() != ty_fields.len() {
                     return Err(TypeError::StructSizeMismatch {
                         span,
@@ -533,27 +581,24 @@ where
                 }
 
                 // FIXME: Check that struct is well-formed?
-                let fields = {
-                    let mut mappings = Vec::with_capacity(raw_fields.len());
-                    <_>::zip(raw_fields.into_iter(), ty_fields.into_iter())
-                        .map(|(field, ty_field)| {
-                            let &(ref label, ref raw_expr) = field;
-                            let (ty_label, Binder(free_var), Embed(ann)) = ty_field;
+                let fields = <_>::zip(raw_fields.into_iter(), ty_fields.into_iter())
+                    .map(|(field, ty_field)| {
+                        let &(ref label, ref raw_expr) = field;
+                        let (ty_label, Binder(free_var), Embed(ann)) = ty_field;
 
-                            if *label == ty_label {
-                                let ann = nf_term(env, &ann.substs(&mappings))?;
-                                let expr = check_term(env, raw_expr, &ann)?;
-                                mappings.push((free_var, expr.clone()));
-                                Ok((label.clone(), expr))
-                            } else {
-                                Err(TypeError::LabelMismatch {
-                                    span,
-                                    found: label.clone(),
-                                    expected: ty_label,
-                                })
-                            }
-                        }).collect::<Result<_, _>>()?
-                };
+                        if *label == ty_label {
+                            let ann = nf_term(env, &ann.substs(&mappings))?;
+                            let expr = check_term(env, raw_expr, &ann)?;
+                            mappings.push((free_var, expr.clone()));
+                            Ok((label.clone(), expr))
+                        } else {
+                            Err(TypeError::LabelMismatch {
+                                span,
+                                found: label.clone(),
+                                expected: ty_label,
+                            })
+                        }
+                    }).collect::<Result<_, _>>()?;
 
                 return Ok(RcTerm::from(Term::Struct(fields)));
             }
@@ -787,12 +832,8 @@ where
         raw::Term::Proj(_, ref expr, label_span, ref label) => {
             let (expr, ty) = infer_term(env, expr)?;
 
-            if let Some(ty_fields) = expect_struct(env, &ty) {
-                let mut mappings = vec![];
-
-                for (current_label, Binder(free_var), Embed(current_ann)) in
-                    ty_fields.clone().unnest()
-                {
+            if let Some((ty_fields, mut mappings)) = expect_struct(env, &ty) {
+                for (current_label, Binder(free_var), Embed(current_ann)) in ty_fields {
                     if current_label == *label {
                         return Ok((
                             RcTerm::from(Term::Proj(expr, current_label)),

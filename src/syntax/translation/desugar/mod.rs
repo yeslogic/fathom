@@ -206,25 +206,37 @@ impl Desugar<raw::Module> for concrete::Module {
                 concrete::Item::Definition(concrete::Definition::StructType {
                     span,
                     name: (start, ref name),
+                    ref params,
                     ref fields,
                 }) => {
-                    let fields = {
+                    let scope = {
                         let mut env = env.clone();
-                        fields
+
+                        let params = params
+                            .iter()
+                            .map(|&(ref name, ref ann)| {
+                                let ann = ann.desugar(&env);
+                                let binder = env.on_binding(name);
+                                (Binder(binder), Embed(ann))
+                            }).collect();
+
+                        let fields = fields
                             .iter()
                             .map(|field| {
                                 let (_, ref label) = field.label;
                                 let ann = field.ann.desugar(&env);
                                 let free_var = env.on_binding(label);
                                 (Label(label.clone()), Binder(free_var), Embed(ann))
-                            }).collect::<Vec<_>>()
+                            }).collect();
+
+                        Scope::new(Nest::new(params), Scope::new(Nest::new(fields), ()))
                     };
 
                     raw::Item::Definition {
                         label_span: ByteSpan::from_offset(start, ByteOffset::from_str(name)),
                         label: Label(name.clone()),
                         binder: env.on_item(name),
-                        definition: raw::Definition::StructType(span, Nest::new(fields)),
+                        definition: raw::Definition::StructType(span, scope),
                     }
                 },
                 concrete::Item::Error(_) => unimplemented!("error recovery"),

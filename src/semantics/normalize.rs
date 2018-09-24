@@ -106,9 +106,9 @@ where
                                 }
                             }
                         },
-                        Neutral::Head(Head::Var(_)) | Neutral::Proj(_, _) | Neutral::Match(_, _) => {
-                            spine.push(arg)
-                        },
+                        Neutral::Head(Head::Var(_))
+                        | Neutral::Proj(_, _)
+                        | Neutral::Match(_, _) => spine.push(arg),
                     }
 
                     Ok(RcValue::from(Value::Neutral(neutral.clone(), spine)))
