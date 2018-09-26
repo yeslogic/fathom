@@ -224,13 +224,9 @@ impl ToDoc for Term {
                 )).append("]"),
             Term::Hole(_) => Doc::text("_"),
             Term::Name(_, ref name) => Doc::as_string(name),
-            Term::Extern(_, _, ref name, ref ty) => Doc::text("extern")
+            Term::Extern(_, _, ref name) => Doc::text("extern")
                 .append(Doc::space())
-                .append(format!("{:?}", name))
-                .append(Doc::space())
-                .append(":")
-                .append(Doc::space())
-                .append(ty.to_doc()),
+                .append(format!("{:?}", name)),
             Term::Lam(_, ref params, ref body) => Doc::text("\\")
                 .append(pretty_lam_params(params))
                 .append(Doc::space())

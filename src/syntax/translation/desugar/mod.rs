@@ -319,6 +319,9 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                 min.as_ref().map(|x| x.desugar(env)),
                 max.as_ref().map(|x| x.desugar(env)),
             )),
+            concrete::Term::Extern(_, name_span, ref name) => {
+                raw::RcTerm::from(raw::Term::Extern(span, name_span, name.clone()))
+            },
             concrete::Term::Literal(ref literal) => {
                 raw::RcTerm::from(raw::Term::Literal(literal.desugar(env)))
             },
@@ -328,9 +331,6 @@ impl Desugar<raw::RcTerm> for concrete::Term {
             )),
             concrete::Term::Hole(_) => raw::RcTerm::from(raw::Term::Hole(span)),
             concrete::Term::Name(_, ref name) => env.on_name(span, name),
-            concrete::Term::Extern(_, name_span, ref name, ref ty) => raw::RcTerm::from(
-                raw::Term::Extern(span, name_span, name.clone(), ty.desugar(env)),
-            ),
             concrete::Term::Pi(_, ref params, ref body) => desugar_pi(env, params, body),
             concrete::Term::Lam(_, ref params, ref body) => desugar_lam(env, params, None, body),
             concrete::Term::Arrow(ref ann, ref body) => raw::RcTerm::from(raw::Term::Pi(

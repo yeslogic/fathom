@@ -144,7 +144,7 @@ pub enum Term {
     /// A variable
     Var(Var<String>),
     /// An external definition
-    Extern(String, RcTerm),
+    Extern(String),
     /// Dependent function types
     Pi(Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Lambda abstractions
@@ -194,9 +194,7 @@ impl RcTerm {
                 Some(&(_, ref term)) => term.clone(),
                 None => self.clone(),
             },
-            Term::Extern(ref name, ref ty) => {
-                RcTerm::from(Term::Extern(name.clone(), ty.substs(mappings)))
-            },
+            Term::Extern(ref name) => RcTerm::from(Term::Extern(name.clone())),
             Term::Pi(ref scope) => {
                 let (ref name, Embed(ref ann)) = scope.unsafe_pattern;
                 RcTerm::from(Term::Pi(Scope {
@@ -359,7 +357,7 @@ impl Value {
     pub fn free_var_app(&self) -> Option<(&FreeVar<String>, &[RcValue])> {
         self.head_app().and_then(|(head, spine)| match head {
             Head::Var(Var::Free(ref free_var)) => Some((free_var, &spine[..])),
-            Head::Extern(_, _) | Head::Var(Var::Bound(_)) => None,
+            Head::Extern(_) | Head::Var(Var::Bound(_)) => None,
         })
     }
 }
@@ -404,7 +402,7 @@ pub enum Head {
     /// Variables that have not yet been replaced with a definition
     Var(Var<String>),
     /// External definitions
-    Extern(String, RcType),
+    Extern(String),
     // TODO: Metavariables
 }
 
@@ -563,7 +561,7 @@ impl<'a> From<&'a Head> for Term {
     fn from(src: &'a Head) -> Term {
         match *src {
             Head::Var(ref var) => Term::Var(var.clone()),
-            Head::Extern(ref name, ref ty) => Term::Extern(name.clone(), RcTerm::from(&**ty)),
+            Head::Extern(ref name) => Term::Extern(name.clone()),
         }
     }
 }

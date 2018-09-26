@@ -137,6 +137,8 @@ pub enum TypeError {
     AmbiguousIntLiteral { span: ByteSpan },
     #[fail(display = "Ambiguous floating point literal")]
     AmbiguousFloatLiteral { span: ByteSpan },
+    #[fail(display = "Ambiguous extern definition")]
+    AmbiguousExtern { span: ByteSpan },
     #[fail(display = "Empty match expressions need type annotations.")]
     AmbiguousEmptyMatch { span: ByteSpan },
     #[fail(
@@ -310,6 +312,9 @@ impl TypeError {
             ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
             TypeError::AmbiguousFloatLiteral { span } => Diagnostic::new_error(
                 "ambiguous floating point literal",
+            ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
+            TypeError::AmbiguousExtern { span } => Diagnostic::new_error(
+                "ambiguous extern definition",
             ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
             TypeError::AmbiguousEmptyMatch { span } => Diagnostic::new_error(
                 "empty match expressions need type annotations",

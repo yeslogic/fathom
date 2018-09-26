@@ -372,9 +372,9 @@ pub enum Term {
     /// Extern definitions
     ///
     /// ```text
-    /// extern "extern-name" : t
+    /// extern "extern-name"
     /// ```
-    Extern(ByteSpan, ByteSpan, String, Box<Term>),
+    Extern(ByteSpan, ByteSpan, String),
     /// Lambda abstraction
     ///
     /// ```text
@@ -452,7 +452,7 @@ impl Term {
             | Term::Universe(span, _)
             | Term::IntTypeSingleton(span, _)
             | Term::IntType(span, _, _)
-            | Term::Extern(span, _, _, _)
+            | Term::Extern(span, _, _)
             | Term::Array(span, _)
             | Term::Hole(span)
             | Term::If(span, _, _, _)

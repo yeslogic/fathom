@@ -53,9 +53,9 @@ where
             }),
         },
 
-        Term::Extern(ref name, ref ty) => Ok(RcValue::from(Value::from(Neutral::Head(
-            Head::Extern(name.clone(), nf_term(env, ty)?),
-        )))),
+        Term::Extern(ref name) => Ok(RcValue::from(Value::from(Neutral::Head(Head::Extern(
+            name.clone(),
+        ))))),
 
         // E-PI
         Term::Pi(ref scope) => {
@@ -90,7 +90,7 @@ where
                     let mut spine = spine.clone();
 
                     match *neutral.inner {
-                        Neutral::Head(Head::Extern(ref name, _)) => {
+                        Neutral::Head(Head::Extern(ref name)) => {
                             spine.push(arg);
 
                             // Apply the arguments to primitive definitions if the number of
