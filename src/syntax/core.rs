@@ -44,10 +44,14 @@ pub enum Item {
     },
 }
 
+pub type Telescope = Nest<(Binder<String>, Embed<RcTerm>)>;
+
+pub type StructType = Scope<Telescope, Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>>;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
     Alias(RcTerm),
-    StructType(Nest<(Label, Binder<String>, Embed<RcTerm>)>),
+    StructType(StructType),
 }
 
 /// Literals
@@ -210,7 +214,6 @@ impl RcTerm {
             Term::App(ref head, ref arg) => {
                 RcTerm::from(Term::App(head.substs(mappings), arg.substs(mappings)))
             },
-            Term::Struct(ref fields) if fields.is_empty() => self.clone(),
             Term::Struct(ref fields) => RcTerm::from(Term::Struct(
                 fields
                     .iter()

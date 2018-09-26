@@ -50,12 +50,16 @@ pub enum Item {
     },
 }
 
+pub type Telescope = Nest<(Binder<String>, Embed<RcTerm>)>;
+
+pub type StructType = Scope<Telescope, Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>>;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
     /// Alias definitions
     Alias(RcTerm),
     /// Dependent struct types
-    StructType(ByteSpan, Nest<(Label, Binder<String>, Embed<RcTerm>)>),
+    StructType(ByteSpan, StructType),
 }
 
 impl Item {

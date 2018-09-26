@@ -148,7 +148,7 @@ impl Resugar<concrete::Module> for core::Module {
                 core::Item::Definition {
                     ref label,
                     ref binder,
-                    definition: core::Definition::StructType(ref fields),
+                    definition: core::Definition::StructType(ref scope),
                 } => {
                     let name = local_decls.get(binder).cloned().unwrap_or_else(|| {
                         let name = env.on_item(label, binder);
@@ -156,10 +156,22 @@ impl Resugar<concrete::Module> for core::Module {
                         name
                     });
 
-                    let fields = {
+                    let (params, fields_scope) = scope.clone().unbind();
+                    let (fields, ()) = fields_scope.unbind();
+
+                    let (params, fields) = {
                         let mut env = env.clone();
-                        fields
-                            .clone()
+
+                        let params = params
+                            .unnest()
+                            .into_iter()
+                            .map(|(binder, Embed(ann))| {
+                                let term = resugar_term(&env, &ann, Prec::NO_WRAP);
+                                let name = env.on_binder(&binder);
+                                (name, term)
+                            }).collect();
+
+                        let fields = fields
                             .unnest()
                             .into_iter()
                             .map(|(label, binder, Embed(ann))| {
@@ -174,13 +186,16 @@ impl Resugar<concrete::Module> for core::Module {
                                     },
                                     ann,
                                 }
-                            }).collect()
+                            }).collect();
+
+                        (params, fields)
                     };
 
                     items.push(concrete::Item::Definition(
                         concrete::Definition::StructType {
                             span: ByteSpan::default(),
                             name: (ByteIndex::default(), name),
+                            params,
                             fields,
                         },
                     ));

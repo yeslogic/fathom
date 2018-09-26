@@ -179,11 +179,12 @@ pub enum Definition {
     /// Struct type definition
     ///
     /// ```text
-    /// struct { x : t1, .. }
+    /// struct Foo (A : Type) { x : t1, .. }
     /// ```
     StructType {
         span: ByteSpan,
         name: (ByteIndex, String),
+        params: Vec<(String, Term)>,
         fields: Vec<StructTypeField>,
     },
 }

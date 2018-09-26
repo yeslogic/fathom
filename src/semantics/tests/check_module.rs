@@ -436,3 +436,35 @@ fn struct_field_mismatch_gt() {
         Err(err) => panic!("unexpected error: {}", err),
     }
 }
+
+#[test]
+fn struct_parameterised() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let src = "
+        module test;
+
+        struct Foo (len : U32) (A : Type) {
+            data : Array len A,
+        };
+
+        Foo3U32 = Foo 3 U32;
+        Foo3 = Foo 3;
+
+        foo : Foo3 U32;
+        foo = struct {
+            data = [1, 2, 3],
+        };
+
+        data = foo.data : Array 3 U32;
+    ";
+
+    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    if let Err(err) = check_module(&tc_env, &raw_module) {
+        let writer = StandardStream::stdout(ColorChoice::Always);
+        codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
+        panic!("type error!")
+    }
+}

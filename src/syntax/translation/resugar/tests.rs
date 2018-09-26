@@ -85,7 +85,10 @@ mod module {
             items: vec![core::Item::Definition {
                 label: Label("Test".to_owned()),
                 binder: Binder(FreeVar::fresh_named("Test")),
-                definition: core::Definition::StructType(Nest::new(vec![])),
+                definition: core::Definition::StructType(Scope::new(
+                    Nest::new(vec![]),
+                    Scope::new(Nest::new(vec![]), ()),
+                )),
             }],
         };
         let concrete_module = concrete::Module::Valid {
@@ -94,6 +97,7 @@ mod module {
                 concrete::Definition::StructType {
                     span: span(),
                     name: (index(), "Test".to_owned()),
+                    params: vec![],
                     fields: vec![],
                 },
             )],
@@ -118,22 +122,28 @@ mod module {
             items: vec![core::Item::Definition {
                 label: Label("Test".to_owned()),
                 binder: Binder(FreeVar::fresh_named("Test")),
-                definition: core::Definition::StructType(Nest::new(vec![
-                    (
-                        Label("String".to_owned()),
-                        Binder(var_string.clone()),
-                        Embed(core::RcTerm::from(core::RcTerm::from(
-                            core::Term::universe(0),
-                        ))),
+                definition: core::Definition::StructType(Scope::new(
+                    Nest::new(vec![]),
+                    Scope::new(
+                        Nest::new(vec![
+                            (
+                                Label("String".to_owned()),
+                                Binder(var_string.clone()),
+                                Embed(core::RcTerm::from(core::RcTerm::from(
+                                    core::Term::universe(0),
+                                ))),
+                            ),
+                            (
+                                Label("x".to_owned()),
+                                Binder(var_x.clone()),
+                                Embed(core::RcTerm::from(core::RcTerm::from(core::Term::Var(
+                                    Var::Free(var_string),
+                                )))),
+                            ),
+                        ]),
+                        (),
                     ),
-                    (
-                        Label("x".to_owned()),
-                        Binder(var_x.clone()),
-                        Embed(core::RcTerm::from(core::RcTerm::from(core::Term::Var(
-                            Var::Free(var_string),
-                        )))),
-                    ),
-                ])),
+                )),
             }],
         };
         let concrete_module = concrete::Module::Valid {
@@ -142,6 +152,7 @@ mod module {
                 concrete::Definition::StructType {
                     span: span(),
                     name: (index(), "Test".to_owned()),
+                    params: vec![],
                     fields: vec![
                         concrete::StructTypeField {
                             label: (index(), "String".to_owned()),
