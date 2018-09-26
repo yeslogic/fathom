@@ -2,9 +2,7 @@ use moniker::{Binder, Embed, FreeVar, Var};
 use std::io;
 
 use semantics::{nf_term, DefinitionEnv, InternalError};
-use syntax::core::{
-    self, Definition, Head, Item, Module, Neutral, RcTerm, RcType, RcValue, Term, Value,
-};
+use syntax::core::{Definition, Head, Item, Module, Neutral, RcTerm, RcType, RcValue, Term, Value};
 use syntax::Label;
 
 #[derive(Debug)]
@@ -52,11 +50,11 @@ where
                 if label == root =>
             {
                 match *definition {
-                    core::Definition::Alias(ref term) => {
+                    Definition::Alias(ref term) => {
                         let term = nf_term(&env, term)?;
                         return parse_term(&env, &term, bytes);
                     },
-                    core::Definition::StructType(ref scope) => {
+                    Definition::StructType(ref scope) => {
                         let (params, fields_scope) = scope.clone().unbind();
 
                         if !params.unsafe_patterns.is_empty() {
@@ -79,10 +77,8 @@ where
             } => env.insert_definition(
                 free_var.clone(),
                 match *definition {
-                    core::Definition::Alias(ref term) => Definition::Alias(term.clone()),
-                    core::Definition::StructType(ref scope) => {
-                        Definition::StructType(scope.clone())
-                    },
+                    Definition::Alias(ref term) => Definition::Alias(term.clone()),
+                    Definition::StructType(ref scope) => Definition::StructType(scope.clone()),
                 },
             ),
         }
