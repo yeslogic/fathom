@@ -477,9 +477,9 @@ where
     }
 }
 
-pub fn expect_struct<'a, 'b, Env>(
-    env: &'a Env,
-    ty: &'b RcType,
+pub fn expect_struct<Env>(
+    env: &Env,
+    ty: &RcType,
 ) -> Option<(
     Vec<(Label, Binder<String>, Embed<RcTerm>)>,
     Vec<(FreeVar<String>, RcTerm)>,
