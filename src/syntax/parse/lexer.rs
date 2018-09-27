@@ -149,7 +149,6 @@ pub enum Token<S> {
     Let,    // let
     Module, // module
     Struct, // struct
-    Then,   // then
     Type,   // Type
 
     // Symbols
@@ -196,7 +195,6 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::Let => write!(f, "let"),
             Token::Module => write!(f, "module"),
             Token::Struct => write!(f, "struct"),
-            Token::Then => write!(f, "then"),
             Token::Type => write!(f, "Type"),
             Token::BSlash => write!(f, "\\"),
             Token::Colon => write!(f, ":"),
@@ -241,7 +239,6 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::Let => Token::Let,
             Token::Module => Token::Module,
             Token::Struct => Token::Struct,
-            Token::Then => Token::Then,
             Token::Type => Token::Type,
             Token::BSlash => Token::BSlash,
             Token::Colon => Token::Colon,
@@ -388,7 +385,6 @@ impl<'input> Lexer<'input> {
             "let" => Token::Let,
             "module" => Token::Module,
             "struct" => Token::Struct,
-            "then" => Token::Then,
             "Type" => Token::Type,
             ident => Token::Ident(ident),
         };
@@ -691,20 +687,19 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  as else extern if import in int let match module struct then Type  ",
-            "  ~~                                                                 " => Token::As,
-            "     ~~~~                                                            " => Token::Else,
-            "          ~~~~~~                                                     " => Token::Extern,
-            "                 ~~                                                  " => Token::If,
-            "                    ~~~~~~                                           " => Token::Import,
-            "                           ~~                                        " => Token::In,
-            "                              ~~~                                    " => Token::Int,
-            "                                  ~~~                                " => Token::Let,
-            "                                      ~~~~~                          " => Token::Match,
-            "                                            ~~~~~~                   " => Token::Module,
-            "                                                   ~~~~~~            " => Token::Struct,
-            "                                                          ~~~~       " => Token::Then,
-            "                                                               ~~~~  " => Token::Type,
+            "  as else extern if import in int let match module struct Type  ",
+            "  ~~                                                            " => Token::As,
+            "     ~~~~                                                       " => Token::Else,
+            "          ~~~~~~                                                " => Token::Extern,
+            "                 ~~                                             " => Token::If,
+            "                    ~~~~~~                                      " => Token::Import,
+            "                           ~~                                   " => Token::In,
+            "                              ~~~                               " => Token::Int,
+            "                                  ~~~                           " => Token::Let,
+            "                                      ~~~~~                     " => Token::Match,
+            "                                            ~~~~~~              " => Token::Module,
+            "                                                   ~~~~~~       " => Token::Struct,
+            "                                                          ~~~~  " => Token::Type,
         };
     }
 

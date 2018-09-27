@@ -247,7 +247,7 @@ mod nf_term {
         let tc_env = TcEnv::default();
 
         let given_expr = r#"
-            (if true then "true" else "false") : String
+            if true { "true" } else { "false" } : String
         "#;
         let expected_expr = r#"
             "true" : String
@@ -265,7 +265,7 @@ mod nf_term {
         let tc_env = TcEnv::default();
 
         let given_expr = r#"
-            (if false then "true" else "false") : String
+            if false { "true" } else { "false" } : String
         "#;
         let expected_expr = r#"
             "false" : String
@@ -283,10 +283,10 @@ mod nf_term {
         let tc_env = TcEnv::default();
 
         let given_expr = r#"
-            (if (match "hi" : String {
+            if (match "hi" : String {
                 "hi" => true,
                 _ => false,
-            }) then "true" else "false") : String
+            }) { "true" } else { "false" } : String
         "#;
         let expected_expr = r#"
             "true" : String

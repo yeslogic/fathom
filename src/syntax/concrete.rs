@@ -418,7 +418,7 @@ pub enum Term {
     /// ```text
     /// if t1 then t2 else t3
     /// ```
-    If(ByteIndex, Box<Term>, Box<Term>, Box<Term>),
+    If(ByteSpan, Box<Term>, Box<Term>, Box<Term>),
     /// Match expression
     ///
     /// ```text
@@ -455,6 +455,7 @@ impl Term {
             | Term::Extern(span, _, _, _)
             | Term::Array(span, _)
             | Term::Hole(span)
+            | Term::If(span, _, _, _)
             | Term::Match(span, _, _)
             | Term::Struct(span, _)
             | Term::Error(span) => span,
@@ -462,8 +463,7 @@ impl Term {
             Term::Literal(ref literal) => literal.span(),
             Term::Pi(start, _, ref body)
             | Term::Lam(start, _, ref body)
-            | Term::Let(start, _, ref body)
-            | Term::If(start, _, _, ref body) => ByteSpan::new(start, body.span().end()),
+            | Term::Let(start, _, ref body) => ByteSpan::new(start, body.span().end()),
             Term::Ann(ref term, ref ty) => term.span().to(ty.span()),
             Term::Arrow(ref ann, ref body) => ann.span().to(body.span()),
             Term::App(ref head, ref arg) => head.span().to(arg.last().unwrap().span()),
