@@ -13,7 +13,5 @@ struct Color (A : Type) {
 
 struct Bitmap {
     header : Header,
-    // TODO:
-    // data : Array (header.height * Array header.width) (Color F32Be),
     data : Array header.height (Array header.width (Color F32Be)),
 };

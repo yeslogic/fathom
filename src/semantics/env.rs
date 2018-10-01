@@ -36,6 +36,7 @@ macro_rules! impl_into_value {
 impl_into_value!(String, String);
 impl_into_value!(char, Char);
 impl_into_value!(bool, Bool);
+impl_into_value!(BigInt, Int, IntFormat::Dec);
 impl_into_value!(f32, F32, FloatFormat::Dec);
 impl_into_value!(f64, F64, FloatFormat::Dec);
 
@@ -65,6 +66,15 @@ impl TryFromValueRef for bool {
     fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
         match *src {
             Value::Literal(Literal::Bool(ref val)) => Ok(val),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFromValueRef for BigInt {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+        match *src {
+            Value::Literal(Literal::Int(ref val, _)) => Ok(val),
             _ => Err(()),
         }
     }
@@ -174,19 +184,30 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
         "f32-ge" => prim!(fn(x: f32, y: f32) -> bool { x >= y }),
         "f64-ge" => prim!(fn(x: f64, y: f64) -> bool { x >= y }),
 
+        "int-add" => prim!(fn(x: BigInt, y: BigInt) -> BigInt { x + y }),
         "f32-add" => prim!(fn(x: f32, y: f32) -> f32 { x + y }),
         "f64-add" => prim!(fn(x: f64, y: f64) -> f64 { x + y }),
 
+        "int-sub" => prim!(fn(x: BigInt, y: BigInt) -> BigInt { x - y }),
         "f32-sub" => prim!(fn(x: f32, y: f32) -> f32 { x - y }),
         "f64-sub" => prim!(fn(x: f64, y: f64) -> f64 { x - y }),
 
+        "int-mul" => prim!(fn(x: BigInt, y: BigInt) -> BigInt { x * y }),
         "f32-mul" => prim!(fn(x: f32, y: f32) -> f32 { x * y }),
         "f64-mul" => prim!(fn(x: f64, y: f64) -> f64 { x * y }),
 
+        "int-div" => prim!(fn(x: BigInt, y: BigInt) -> BigInt { x / y }),
         "f32-div" => prim!(fn(x: f32, y: f32) -> f32 { x / y }),
         "f64-div" => prim!(fn(x: f64, y: f64) -> f64 { x / y }),
 
+        "int-neg" => prim!(fn(val: BigInt) -> BigInt { -val }),
+        "f32-neg" => prim!(fn(val: f32) -> f32 { -val }),
+        "f64-neg" => prim!(fn(val: f64) -> f64 { -val }),
+
+        "bool-not" => prim!(fn(val: bool) -> bool { !val }),
+
         "char-to-string" => prim!(fn(val: char) -> String { val.to_string() }),
+        "int-to-string" => prim!(fn(val: BigInt) -> String { val.to_string() }),
         "f32-to-string" => prim!(fn(val: f32) -> String { val.to_string() }),
         "f64-to-string" => prim!(fn(val: f64) -> String { val.to_string() }),
 
