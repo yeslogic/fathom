@@ -202,24 +202,24 @@ fn parse_bitmap_flat() {
 
         given_bytes.write_u32::<BigEndian>(3).unwrap(); // header.width
         given_bytes.write_u32::<BigEndian>(2).unwrap(); // header.height
-        given_bytes.write_f32::<BigEndian>(0.00).unwrap(); // data[0][0].r
-        given_bytes.write_f32::<BigEndian>(0.01).unwrap(); // data[0][0].g
-        given_bytes.write_f32::<BigEndian>(0.02).unwrap(); // data[0][0].b
-        given_bytes.write_f32::<BigEndian>(0.10).unwrap(); // data[0][1].r
-        given_bytes.write_f32::<BigEndian>(0.11).unwrap(); // data[0][1].g
-        given_bytes.write_f32::<BigEndian>(0.12).unwrap(); // data[0][1].b
-        given_bytes.write_f32::<BigEndian>(0.20).unwrap(); // data[0][2].r
-        given_bytes.write_f32::<BigEndian>(0.21).unwrap(); // data[0][2].g
-        given_bytes.write_f32::<BigEndian>(0.22).unwrap(); // data[0][2].b
-        given_bytes.write_f32::<BigEndian>(1.00).unwrap(); // data[1][0].r
-        given_bytes.write_f32::<BigEndian>(1.01).unwrap(); // data[1][0].g
-        given_bytes.write_f32::<BigEndian>(1.02).unwrap(); // data[1][0].b
-        given_bytes.write_f32::<BigEndian>(1.10).unwrap(); // data[1][1].r
-        given_bytes.write_f32::<BigEndian>(1.11).unwrap(); // data[1][1].g
-        given_bytes.write_f32::<BigEndian>(1.12).unwrap(); // data[1][1].b
-        given_bytes.write_f32::<BigEndian>(1.20).unwrap(); // data[1][2].r
-        given_bytes.write_f32::<BigEndian>(1.21).unwrap(); // data[1][2].g
-        given_bytes.write_f32::<BigEndian>(1.22).unwrap(); // data[1][2].b
+        given_bytes.write_f32::<BigEndian>(0.00).unwrap(); // data[(0 * 3) + 0].r
+        given_bytes.write_f32::<BigEndian>(0.01).unwrap(); // data[(0 * 3) + 0].g
+        given_bytes.write_f32::<BigEndian>(0.02).unwrap(); // data[(0 * 3) + 0].b
+        given_bytes.write_f32::<BigEndian>(0.10).unwrap(); // data[(0 * 3) + 1].r
+        given_bytes.write_f32::<BigEndian>(0.11).unwrap(); // data[(0 * 3) + 1].g
+        given_bytes.write_f32::<BigEndian>(0.12).unwrap(); // data[(0 * 3) + 1].b
+        given_bytes.write_f32::<BigEndian>(0.20).unwrap(); // data[(0 * 3) + 2].r
+        given_bytes.write_f32::<BigEndian>(0.21).unwrap(); // data[(0 * 3) + 2].g
+        given_bytes.write_f32::<BigEndian>(0.22).unwrap(); // data[(0 * 3) + 2].b
+        given_bytes.write_f32::<BigEndian>(1.00).unwrap(); // data[(1 * 3) + 0].r
+        given_bytes.write_f32::<BigEndian>(1.01).unwrap(); // data[(1 * 3) + 0].g
+        given_bytes.write_f32::<BigEndian>(1.02).unwrap(); // data[(1 * 3) + 0].b
+        given_bytes.write_f32::<BigEndian>(1.10).unwrap(); // data[(1 * 3) + 1].r
+        given_bytes.write_f32::<BigEndian>(1.11).unwrap(); // data[(1 * 3) + 1].g
+        given_bytes.write_f32::<BigEndian>(1.12).unwrap(); // data[(1 * 3) + 1].b
+        given_bytes.write_f32::<BigEndian>(1.20).unwrap(); // data[(1 * 3) + 2].r
+        given_bytes.write_f32::<BigEndian>(1.21).unwrap(); // data[(1 * 3) + 2].g
+        given_bytes.write_f32::<BigEndian>(1.22).unwrap(); // data[(1 * 3) + 2].b
 
         Cursor::new(given_bytes)
     };
