@@ -1,6 +1,6 @@
-use byteorder::{BigEndian, WriteBytesExt};
+use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use num_bigint::BigInt;
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 use semantics::parser::{self, ParseError};
 use syntax::{FloatFormat, IntFormat, Label};
@@ -281,6 +281,65 @@ fn parse_bitmap_flat() {
                 ]),
             ),
         ])),
+    );
+}
+
+#[test]
+fn gif() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let given_format = include_str!("./fixtures/gif.ddl");
+
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write(b"GIF").unwrap(); // header.magic
+        given_bytes.write(b"87a").unwrap(); // header.version
+        given_bytes.write_u16::<LittleEndian>(200).unwrap(); // logical_screen.image_width
+        given_bytes.write_u16::<LittleEndian>(300).unwrap(); // logical_screen.image_height
+        given_bytes.write_u8(0).unwrap(); // logical_screen.flags
+        given_bytes.write_u8(0).unwrap(); // logical_screen.bg_color_index
+        given_bytes.write_u8(0).unwrap(); // logical_screen.pixel_aspect_ratio
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let module = check_module(&tc_env, &raw_module).unwrap();
+
+    let label = |name: &str| Label(name.to_owned());
+    let array = |elems: Vec<RcValue>| RcValue::from(Value::Array(elems));
+    let struct_ = |fields: Vec<(Label, RcValue)>| RcValue::from(Value::Struct(fields));
+    let int = |value: u32| {
+        RcValue::from(Value::Literal(Literal::Int(
+            BigInt::from(value),
+            IntFormat::Dec,
+        )))
+    };
+
+    assert_term_eq!(
+        parser::parse_module(&tc_env, &label("Gif"), &module, &mut given_bytes).unwrap(),
+        struct_(vec![
+            (
+                label("header"),
+                struct_(vec![
+                    (label("magic"), array(vec![int(71), int(73), int(70)])), // "GIF"
+                    (label("version"), array(vec![int(56), int(55), int(97)])), // "87a"
+                ]),
+            ),
+            (
+                label("logical_screen"),
+                struct_(vec![
+                    (label("image_width"), int(200)),
+                    (label("image_height"), int(300)),
+                    (label("flags"), int(0)),
+                    (label("bg_color_index"), int(0)),
+                    (label("pixel_aspect_ratio"), int(0)),
+                ]),
+            ),
+        ]),
     );
 }
 

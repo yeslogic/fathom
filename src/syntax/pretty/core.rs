@@ -29,6 +29,15 @@ fn pretty_var(var: &Var<String>) -> StaticDoc {
     sexpr("var", Doc::text(format!("{:#}", var)))
 }
 
+fn pretty_int_ty(min: Option<&impl ToDoc>, max: Option<&impl ToDoc>) -> StaticDoc {
+    sexpr(
+        "int",
+        min.map_or(Doc::nil(), |x| x.to_doc().append(Doc::space()))
+            .append("..")
+            .append(max.map_or(Doc::nil(), |x| Doc::space().append(x.to_doc()))),
+    )
+}
+
 fn pretty_extern(name: &str) -> StaticDoc {
     sexpr("extern", Doc::text(format!("{:?}", name)))
 }
@@ -132,7 +141,10 @@ impl ToDoc for raw::Term {
             raw::Term::Ann(ref expr, ref ty) => pretty_ann(&expr.inner, &ty.inner),
             raw::Term::Universe(_, level) => pretty_universe(level),
             raw::Term::Hole(_) => parens(Doc::text("hole")),
-            raw::Term::IntType(_, _, _) => unimplemented!(),
+            raw::Term::IntType(_, ref min, ref max) => pretty_int_ty(
+                min.as_ref().map(|x| &x.inner),
+                max.as_ref().map(|x| &x.inner),
+            ),
             raw::Term::Literal(ref literal) => literal.to_doc(),
             raw::Term::Var(_, ref var) => pretty_var(var),
             raw::Term::Extern(_, _, ref name) => pretty_extern(name),
@@ -211,7 +223,10 @@ impl ToDoc for Term {
         match *self {
             Term::Ann(ref expr, ref ty) => pretty_ann(&expr.inner, &ty.inner),
             Term::Universe(level) => pretty_universe(level),
-            Term::IntType(_, _) => unimplemented!(),
+            Term::IntType(ref min, ref max) => pretty_int_ty(
+                min.as_ref().map(|x| &x.inner),
+                max.as_ref().map(|x| &x.inner),
+            ),
             Term::Literal(ref literal) => literal.to_doc(),
             Term::Var(ref var) => pretty_var(var),
             Term::Extern(ref name) => pretty_extern(name),
@@ -256,7 +271,10 @@ impl ToDoc for Value {
     fn to_doc(&self) -> StaticDoc {
         match *self {
             Value::Universe(level) => pretty_universe(level),
-            Value::IntType(_, _) => unimplemented!(),
+            Value::IntType(ref min, ref max) => pretty_int_ty(
+                min.as_ref().map(|x| &x.inner),
+                max.as_ref().map(|x| &x.inner),
+            ),
             Value::Literal(ref literal) => literal.to_doc(),
             Value::Lam(ref scope) => pretty_lam(
                 &scope.unsafe_pattern.0,

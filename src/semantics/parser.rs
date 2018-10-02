@@ -116,6 +116,7 @@ where
     R: io::Read + io::Seek,
 {
     use byteorder::{BigEndian as Be, LittleEndian as Le, ReadBytesExt};
+    use moniker::BoundTerm;
     use num_traits::ToPrimitive;
 
     use syntax::core::Literal::*;
@@ -124,6 +125,25 @@ where
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
     match **ty {
+        _ if RcValue::term_eq(ty, env.u8()) => Ok(RcValue::from(Literal(Int(bytes.read_u8()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.u16le()) => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Le>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.u16be()) => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Be>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.u32le()) => Ok(RcValue::from(Literal(Int(bytes.read_u32::<Le>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.u32be()) => Ok(RcValue::from(Literal(Int(bytes.read_u32::<Be>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.u64le()) => Ok(RcValue::from(Literal(Int(bytes.read_u64::<Le>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.u64be()) => Ok(RcValue::from(Literal(Int(bytes.read_u64::<Be>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.s8()) => Ok(RcValue::from(Literal(Int(bytes.read_i8()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.s16le()) => Ok(RcValue::from(Literal(Int(bytes.read_i16::<Le>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.s16be()) => Ok(RcValue::from(Literal(Int(bytes.read_i16::<Be>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.s32le()) => Ok(RcValue::from(Literal(Int(bytes.read_i32::<Le>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.s32be()) => Ok(RcValue::from(Literal(Int(bytes.read_i32::<Be>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.s64le()) => Ok(RcValue::from(Literal(Int(bytes.read_i64::<Le>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.s64be()) => Ok(RcValue::from(Literal(Int(bytes.read_i64::<Be>()?.into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.f32le()) => Ok(RcValue::from(Literal(F32(bytes.read_f32::<Le>()?, FloatFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.f32be()) => Ok(RcValue::from(Literal(F32(bytes.read_f32::<Be>()?, FloatFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.f64le()) => Ok(RcValue::from(Literal(F64(bytes.read_f64::<Le>()?, FloatFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.f64be()) => Ok(RcValue::from(Literal(F64(bytes.read_f64::<Be>()?, FloatFormat::Dec)))),
+
         Value::Universe(_)
         | Value::IntType(_, _)
         | Value::Literal(_)
@@ -132,67 +152,46 @@ where
         | Value::Struct(_)
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
 
-        Value::Neutral(ref neutral, ref spine) => match **neutral {
-            _ if ty == env.u8() => Ok(RcValue::from(Literal(Int(bytes.read_u8()?.into(), IntFormat::Dec)))),
-            _ if ty == env.u16le() => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Le>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.u16be() => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Be>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.u32le() => Ok(RcValue::from(Literal(Int(bytes.read_u32::<Le>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.u32be() => Ok(RcValue::from(Literal(Int(bytes.read_u32::<Be>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.u64le() => Ok(RcValue::from(Literal(Int(bytes.read_u64::<Le>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.u64be() => Ok(RcValue::from(Literal(Int(bytes.read_u64::<Be>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.s8() => Ok(RcValue::from(Literal(Int(bytes.read_i8()?.into(), IntFormat::Dec)))),
-            _ if ty == env.s16le() => Ok(RcValue::from(Literal(Int(bytes.read_i16::<Le>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.s16be() => Ok(RcValue::from(Literal(Int(bytes.read_i16::<Be>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.s32le() => Ok(RcValue::from(Literal(Int(bytes.read_i32::<Le>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.s32be() => Ok(RcValue::from(Literal(Int(bytes.read_i32::<Be>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.s64le() => Ok(RcValue::from(Literal(Int(bytes.read_i64::<Le>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.s64be() => Ok(RcValue::from(Literal(Int(bytes.read_i64::<Be>()?.into(), IntFormat::Dec)))),
-            _ if ty == env.f32le() => Ok(RcValue::from(Literal(F32(bytes.read_f32::<Le>()?, FloatFormat::Dec)))),
-            _ if ty == env.f32be() => Ok(RcValue::from(Literal(F32(bytes.read_f32::<Be>()?, FloatFormat::Dec)))),
-            _ if ty == env.f64le() => Ok(RcValue::from(Literal(F64(bytes.read_f64::<Le>()?, FloatFormat::Dec)))),
-            _ if ty == env.f64be() => Ok(RcValue::from(Literal(F64(bytes.read_f64::<Be>()?, FloatFormat::Dec)))),
+        Value::Neutral(ref neutral, ref spine) => match env.array(ty) {
+            Some((len, elem_ty)) => Ok(RcValue::from(Value::Array(
+                (0..len.to_usize().unwrap()) // FIXME
+                    .map(|_| parse_term(env, elem_ty, bytes))
+                    .collect::<Result<_, _>>()?,
+            ))),
+            None => match **neutral {
+                Neutral::Head(Head::Var(Var::Free(ref free_var))) => {
+                    match env.get_definition(free_var) {
+                        Some(&Definition::StructType(ref scope)) => {
+                            let (params, fields_scope) = scope.clone().unbind();
+                            let (fields, ()) = fields_scope.unbind();
+                            let params = params.unnest();
+                            let fields = fields.unnest();
 
-            _ => match env.array(ty) {
-                Some((len, elem_ty)) => Ok(RcValue::from(Value::Array(
-                    (0..len.to_usize().unwrap()) // FIXME
-                        .map(|_| parse_term(env, elem_ty, bytes))
-                        .collect::<Result<_, _>>()?,
-                ))),
-                None => match **neutral {
-                    Neutral::Head(Head::Var(Var::Free(ref free_var))) => {
-                        match env.get_definition(free_var) {
-                            Some(&Definition::StructType(ref scope)) => {
-                                let (params, fields_scope) = scope.clone().unbind();
-                                let (fields, ()) = fields_scope.unbind();
-                                let params = params.unnest();
-                                let fields = fields.unnest();
+                            if params.len() != spine.len() {
+                                unimplemented!();
+                            }
 
-                                if params.len() != spine.len() {
-                                    unimplemented!();
-                                }
+                            let mut mappings = Vec::with_capacity(params.len() + fields.len());
 
-                                let mut mappings = Vec::with_capacity(params.len() + fields.len());
+                            for (&(Binder(ref free_var), _), arg) in
+                                Iterator::zip(params.iter(), spine.iter())
+                            {
+                                let arg = arg.substs(&mappings);
+                                mappings.push((free_var.clone(), arg));
+                            }
 
-                                for (&(Binder(ref free_var), _), arg) in
-                                    Iterator::zip(params.iter(), spine.iter())
-                                {
-                                    let arg = arg.substs(&mappings);
-                                    mappings.push((free_var.clone(), arg));
-                                }
-
-                                parse_struct(env, fields, mappings, bytes)
-                            },
-                            // FIXME: follow alias?
-                            None | Some(&Definition::Alias(_)) => {
-                                Err(ParseError::InvalidType(ty.clone()))
-                            },
-                        }
-                    },
-                    Neutral::Head(_) | Neutral::Proj(_, _) | Neutral::Match(_, _) => {
-                        Err(ParseError::InvalidType(ty.clone()))
-                    },
-                }
-            },
-        }
+                            parse_struct(env, fields, mappings, bytes)
+                        },
+                        // FIXME: follow alias?
+                        None | Some(&Definition::Alias(_)) => {
+                            Err(ParseError::InvalidType(ty.clone()))
+                        },
+                    }
+                },
+                Neutral::Head(_) | Neutral::Proj(_, _) | Neutral::Match(_, _) => {
+                    Err(ParseError::InvalidType(ty.clone()))
+                },
+            }
+        },
     }
 }
