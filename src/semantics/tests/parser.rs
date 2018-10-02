@@ -91,6 +91,76 @@ fn missing_root() {
 }
 
 #[test]
+fn pos() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let given_format = r#"
+        module pos_test;
+
+        struct PosEntry {
+            pad : U32Be,
+            end: Pos,
+        };
+
+        struct PosTest {
+            start : Pos,
+            data : Array 3 PosEntry,
+            end : Pos,
+        };
+    "#;
+
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(0).unwrap(); // data[0]
+        given_bytes.write_u32::<BigEndian>(0).unwrap(); // data[1]
+        given_bytes.write_u32::<BigEndian>(0).unwrap(); // data[2]
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let module = check_module(&tc_env, &raw_module).unwrap();
+
+    let label = |name: &str| Label(name.to_owned());
+    let array = |elems: Vec<RcValue>| RcValue::from(Value::Array(elems));
+    let struct_ = |fields: Vec<(Label, RcValue)>| RcValue::from(Value::Struct(fields));
+    let int = |value: u32| {
+        RcValue::from(Value::Literal(Literal::Int(
+            BigInt::from(value),
+            IntFormat::Dec,
+        )))
+    };
+
+    assert_term_eq!(
+        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes,).unwrap(),
+        struct_(vec![
+            (label("start"), int(0)),
+            (
+                label("data"),
+                array(vec![
+                    struct_(vec![
+                        (label("pad"), int(0)),
+                        (label("end"), int((32 / 8) * 1)),
+                    ]),
+                    struct_(vec![
+                        (label("pad"), int(0)),
+                        (label("end"), int((32 / 8) * 2)),
+                    ]),
+                    struct_(vec![
+                        (label("pad"), int(0)),
+                        (label("end"), int((32 / 8) * 3)),
+                    ])
+                ])
+            ),
+            (label("end"), int((32 / 8) * 3)),
+        ]),
+    );
+}
+
+#[test]
 fn parse_bitmap_nested() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();

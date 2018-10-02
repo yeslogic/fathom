@@ -4,7 +4,7 @@ use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;
 
-use syntax::core::{Definition, Literal, RcTerm, RcType, RcValue, Spine, Value};
+use syntax::core::{Definition, Literal, RcType, RcValue, Spine, Value};
 use syntax::translation::ResugarEnv;
 use syntax::{FloatFormat, IntFormat};
 
@@ -220,6 +220,8 @@ pub struct Globals {
     ty_bool: RcType,
     ty_string: RcType,
     ty_char: RcType,
+    ty_unit: RcType,
+    ty_pos: RcType,
 
     ty_u8: RcType,
     ty_u16: RcType,
@@ -251,9 +253,6 @@ pub struct Globals {
     ty_f64be: RcType,
 
     var_array_ty: FreeVar<String>,
-
-    ty_unit: RcType,
-    val_unit: RcTerm,
 }
 
 pub trait GlobalEnv: Clone {
@@ -263,6 +262,9 @@ pub trait GlobalEnv: Clone {
     fn bool(&self) -> &RcType;
     fn string(&self) -> &RcType;
     fn char(&self) -> &RcType;
+    fn unit(&self) -> &RcType;
+    fn pos(&self) -> &RcType;
+
     fn u8(&self) -> &RcType;
     fn u16(&self) -> &RcType;
     fn u32(&self) -> &RcType;
@@ -293,9 +295,6 @@ pub trait GlobalEnv: Clone {
     fn f64be(&self) -> &RcType;
 
     fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)>;
-
-    fn unit_ty(&self) -> &RcType;
-    fn unit(&self) -> &RcTerm;
 }
 
 /// An environment that contains declarations
@@ -349,7 +348,8 @@ impl TcEnv {
             .filter_map(|(free_var, _)| {
                 let pretty_name = free_var.pretty_name.as_ref()?;
                 Some((pretty_name.clone(), free_var.clone()))
-            }).collect()
+            })
+            .collect()
     }
 }
 
@@ -366,6 +366,9 @@ impl Default for TcEnv {
         let var_false = FreeVar::fresh_named("false");
         let var_string = FreeVar::fresh_named("String");
         let var_char = FreeVar::fresh_named("Char");
+        let var_unit_ty = FreeVar::fresh_named("Unit");
+        let var_unit = FreeVar::fresh_named("unit");
+        let var_pos = FreeVar::fresh_named("Pos");
 
         let var_u8 = FreeVar::fresh_named("U8");
         let var_u16 = FreeVar::fresh_named("U16");
@@ -398,9 +401,6 @@ impl Default for TcEnv {
 
         let var_array_ty = FreeVar::fresh_named("Array");
 
-        let var_unit_ty = FreeVar::fresh_named("Unit");
-        let var_unit = FreeVar::fresh_named("unit");
-
         fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcType {
             RcValue::from(Value::IntType(
                 Some(RcValue::from(Value::Literal(Literal::Int(
@@ -420,6 +420,8 @@ impl Default for TcEnv {
                 ty_bool: RcValue::from(Value::var(Var::Free(var_bool.clone()))),
                 ty_string: RcValue::from(Value::var(Var::Free(var_string.clone()))),
                 ty_char: RcValue::from(Value::var(Var::Free(var_char.clone()))),
+                ty_unit: RcValue::from(Value::var(Var::Free(var_unit_ty.clone()))),
+                ty_pos: RcValue::from(Value::var(Var::Free(var_pos.clone()))),
 
                 ty_u8: int_ty(u8::MIN, u8::MAX),
                 ty_u16: int_ty(u16::MIN, u16::MAX),
@@ -451,9 +453,6 @@ impl Default for TcEnv {
                 ty_f64be: RcValue::from(Value::var(Var::Free(var_f64be.clone()))),
 
                 var_array_ty: var_array_ty.clone(),
-
-                ty_unit: RcValue::from(Value::var(Var::Free(var_unit_ty.clone()))),
-                val_unit: RcTerm::from(Term::Var(Var::Free(var_unit.clone()))),
             }),
             extern_definitions: default_extern_definitions(),
             declarations: HashMap::new(),
@@ -470,6 +469,12 @@ impl Default for TcEnv {
         ));
         let bool_ty = tc_env.globals.ty_bool.clone();
         let bool_lit = |value| RcTerm::from(Term::Literal(Literal::Bool(value)));
+        let ty_unit = tc_env.globals.ty_unit.clone();
+        let ty_unit_def = Definition::StructType(Scope::new(
+            Nest::new(vec![]),
+            Scope::new(Nest::new(vec![]), ()),
+        ));
+        let unit_def = Definition::Alias(RcTerm::from(Term::Struct(vec![])));
         let ty_u8 = RcTerm::from(Term::from(&*tc_env.globals.ty_u8.clone()));
         let ty_u16 = RcTerm::from(Term::from(&*tc_env.globals.ty_u16.clone()));
         let ty_u32 = RcTerm::from(Term::from(&*tc_env.globals.ty_u32.clone()));
@@ -485,12 +490,6 @@ impl Default for TcEnv {
                 universe0.clone(),
             ))),
         )));
-        let ty_unit = tc_env.globals.ty_unit.clone();
-        let ty_unit_def = Definition::StructType(Scope::new(
-            Nest::new(vec![]),
-            Scope::new(Nest::new(vec![]), ()),
-        ));
-        let unit_def = Definition::Alias(RcTerm::from(Term::Struct(vec![])));
 
         tc_env.insert_declaration(var_true.clone(), bool_ty.clone());
         tc_env.insert_declaration(var_false.clone(), bool_ty.clone());
@@ -499,6 +498,7 @@ impl Default for TcEnv {
         tc_env.insert_declaration(var_bool, universe0.clone());
         tc_env.insert_declaration(var_string, universe0.clone());
         tc_env.insert_declaration(var_char, universe0.clone());
+        tc_env.insert_declaration(var_pos, universe0.clone());
 
         tc_env.insert_declaration(var_u8.clone(), universe0.clone());
         tc_env.insert_declaration(var_u16.clone(), universe0.clone());
@@ -563,6 +563,14 @@ impl GlobalEnv for TcEnv {
 
     fn char(&self) -> &RcType {
         &self.globals.ty_char
+    }
+
+    fn unit(&self) -> &RcType {
+        &self.globals.ty_unit
+    }
+
+    fn pos(&self) -> &RcType {
+        &self.globals.ty_pos
     }
 
     fn u8(&self) -> &RcType {
@@ -679,14 +687,6 @@ impl GlobalEnv for TcEnv {
             },
             Some(_) | None => None,
         }
-    }
-
-    fn unit_ty(&self) -> &RcType {
-        &self.globals.ty_unit
-    }
-
-    fn unit(&self) -> &RcTerm {
-        &self.globals.val_unit
     }
 }
 
