@@ -4,7 +4,7 @@ use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;
 
-use syntax::core::{Definition, Literal, RcType, RcValue, Spine, Value};
+use syntax::core::{Definition, Literal, RcTerm, RcType, RcValue, Spine, Value};
 use syntax::translation::ResugarEnv;
 use syntax::{FloatFormat, IntFormat};
 
@@ -250,7 +250,10 @@ pub struct Globals {
     ty_f32be: RcType,
     ty_f64be: RcType,
 
-    var_array: FreeVar<String>,
+    var_array_ty: FreeVar<String>,
+
+    ty_unit: RcType,
+    val_unit: RcTerm,
 }
 
 pub trait GlobalEnv: Clone {
@@ -290,6 +293,9 @@ pub trait GlobalEnv: Clone {
     fn f64be(&self) -> &RcType;
 
     fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)>;
+
+    fn unit_ty(&self) -> &RcType;
+    fn unit(&self) -> &RcTerm;
 }
 
 /// An environment that contains declarations
@@ -349,7 +355,7 @@ impl TcEnv {
 
 impl Default for TcEnv {
     fn default() -> TcEnv {
-        use moniker::{Embed, Scope};
+        use moniker::{Embed, Nest, Scope};
         use num_bigint::BigInt;
         use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
@@ -390,7 +396,10 @@ impl Default for TcEnv {
         let var_f32be = FreeVar::fresh_named("F32Be");
         let var_f64be = FreeVar::fresh_named("F64Be");
 
-        let var_array = FreeVar::fresh_named("Array");
+        let var_array_ty = FreeVar::fresh_named("Array");
+
+        let var_unit_ty = FreeVar::fresh_named("Unit");
+        let var_unit = FreeVar::fresh_named("unit");
 
         fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcType {
             RcValue::from(Value::IntType(
@@ -441,7 +450,10 @@ impl Default for TcEnv {
                 ty_f32be: RcValue::from(Value::var(Var::Free(var_f32be.clone()))),
                 ty_f64be: RcValue::from(Value::var(Var::Free(var_f64be.clone()))),
 
-                var_array: var_array.clone(),
+                var_array_ty: var_array_ty.clone(),
+
+                ty_unit: RcValue::from(Value::var(Var::Free(var_unit_ty.clone()))),
+                val_unit: RcTerm::from(Term::Var(Var::Free(var_unit.clone()))),
             }),
             extern_definitions: default_extern_definitions(),
             declarations: HashMap::new(),
@@ -473,6 +485,12 @@ impl Default for TcEnv {
                 universe0.clone(),
             ))),
         )));
+        let ty_unit = tc_env.globals.ty_unit.clone();
+        let ty_unit_def = Definition::StructType(Scope::new(
+            Nest::new(vec![]),
+            Scope::new(Nest::new(vec![]), ()),
+        ));
+        let unit_def = Definition::Alias(RcTerm::from(Term::Struct(vec![])));
 
         tc_env.insert_declaration(var_true.clone(), bool_ty.clone());
         tc_env.insert_declaration(var_false.clone(), bool_ty.clone());
@@ -519,7 +537,12 @@ impl Default for TcEnv {
         tc_env.insert_declaration(var_f32be, universe0.clone());
         tc_env.insert_declaration(var_f64be, universe0.clone());
 
-        tc_env.insert_declaration(var_array, array_ty);
+        tc_env.insert_declaration(var_array_ty, array_ty);
+
+        tc_env.insert_declaration(var_unit_ty.clone(), universe0.clone());
+        tc_env.insert_definition(var_unit_ty, ty_unit_def);
+        tc_env.insert_declaration(var_unit.clone(), ty_unit.clone());
+        tc_env.insert_definition(var_unit, unit_def);
 
         tc_env
     }
@@ -648,12 +671,22 @@ impl GlobalEnv for TcEnv {
 
     fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)> {
         match ty.free_var_app() {
-            Some((fv, &[ref len, ref elem_ty])) if *fv == self.globals.var_array => match **len {
-                Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty)),
-                _ => None,
+            Some((fv, &[ref len, ref elem_ty])) if *fv == self.globals.var_array_ty => {
+                match **len {
+                    Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty)),
+                    _ => None,
+                }
             },
             Some(_) | None => None,
         }
+    }
+
+    fn unit_ty(&self) -> &RcType {
+        &self.globals.ty_unit
+    }
+
+    fn unit(&self) -> &RcTerm {
+        &self.globals.val_unit
     }
 }
 
