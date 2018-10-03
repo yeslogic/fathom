@@ -148,12 +148,24 @@ fn desugar_struct(
     span: ByteSpan,
     fields: &[concrete::StructField],
 ) -> raw::RcTerm {
+    use syntax::concrete::StructField;
+
     let fields = fields
         .iter()
-        .map(|field| {
-            let (_, ref label) = field.label;
-            let term = field.term.desugar(&env);
-            (Label(label.clone()), term)
+        .map(|field| match field {
+            StructField::Punned {
+                label: (_, ref name),
+            } => {
+                let var = env.on_name(span, name);
+                (Label(name.clone()), var)
+            },
+            StructField::Explicit {
+                label: (_, ref name),
+                ref term,
+            } => {
+                let term = term.desugar(&env);
+                (Label(name.clone()), term)
+            },
         })
         .collect::<Vec<_>>();
 

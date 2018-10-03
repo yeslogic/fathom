@@ -295,8 +295,11 @@ PatternArm: (Pattern, Term) = {
 };
 
 StructField: StructField = {
+    <label: IndexedIdent> => {
+        StructField::Punned { label }
+    },
     <start: @L> <label: IndexedIdent>"=" <term: Term> => {
-        StructField { label, term }
+        StructField::Explicit { label, term }
     },
 };
 

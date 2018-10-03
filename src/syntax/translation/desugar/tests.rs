@@ -391,5 +391,18 @@ mod term {
                 parse(&env, r#"match true { true => "true", false => "false" }"#),
             )
         }
+
+        #[test]
+        fn struct_field_puns() {
+            let env = DesugarEnv::new(hashmap!{
+                "x".to_owned() => FreeVar::fresh_named("x"),
+                "y".to_owned() => FreeVar::fresh_named("y"),
+            });
+
+            assert_term_eq!(
+                parse(&env, r#"struct { x, y }"#),
+                parse(&env, r#"struct { x = x, y = y }"#),
+            )
+        }
     }
 }

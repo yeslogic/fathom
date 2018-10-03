@@ -536,10 +536,12 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
         core::Term::Struct(ref fields) => {
             let fields = fields
                 .iter()
-                .map(|&(Label(ref label), ref term)| concrete::StructField {
-                    label: (ByteIndex::default(), label.clone()),
-                    term: resugar_term(env, &term, Prec::NO_WRAP),
-                })
+                .map(
+                    |&(Label(ref label), ref term)| concrete::StructField::Explicit {
+                        label: (ByteIndex::default(), label.clone()),
+                        term: resugar_term(env, &term, Prec::NO_WRAP),
+                    },
+                )
                 .collect();
 
             concrete::Term::Struct(ByteSpan::default(), fields)

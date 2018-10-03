@@ -3,7 +3,8 @@
 use pretty::Doc;
 
 use syntax::concrete::{
-    Definition, Exposing, Item, LamParamGroup, Literal, Module, Pattern, PiParamGroup, Term,
+    Definition, Exposing, Item, LamParamGroup, Literal, Module, Pattern, PiParamGroup, StructField,
+    Term,
 };
 use syntax::{FloatFormat, IntFormat};
 
@@ -294,12 +295,18 @@ impl ToDoc for Term {
                 .append(Doc::space())
                 .append(
                     Doc::intersperse(
-                        fields.iter().map(|field| {
-                            Doc::as_string(&field.label.1)
+                        fields.iter().map(|field| match field {
+                            StructField::Punned {
+                                label: (_, ref label),
+                            } => Doc::text(format!("{}", label)),
+                            StructField::Explicit {
+                                label: (_, ref label),
+                                ref term,
+                            } => Doc::as_string(label)
                                 .append(Doc::space())
                                 .append("=")
                                 .append(Doc::space())
-                                .append(field.term.to_doc())
+                                .append(term.to_doc()),
                         }),
                         Doc::text(",").append(Doc::space()),
                     )

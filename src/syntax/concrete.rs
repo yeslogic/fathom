@@ -110,9 +110,14 @@ pub struct StructTypeField {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct StructField {
-    pub label: (ByteIndex, String),
-    pub term: Term,
+pub enum StructField {
+    Punned {
+        label: (ByteIndex, String),
+    },
+    Explicit {
+        label: (ByteIndex, String),
+        term: Term,
+    },
 }
 
 /// Top-level items within a module
