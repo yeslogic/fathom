@@ -158,13 +158,23 @@ where
         | Value::Struct(_)
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
 
-        Value::Neutral(ref neutral, ref spine) => match env.array(ty) {
-            Some((len, elem_ty)) => Ok(RcValue::from(Value::Array(
-                (0..len.to_usize().unwrap()) // FIXME
-                    .map(|_| parse_term(env, elem_ty, bytes))
-                    .collect::<Result<_, _>>()?,
-            ))),
-            None => match **neutral {
+        Value::Neutral(ref neutral, ref spine) => {
+            if let Some((base_pos, _)) = env.offset8(ty) { return Ok(RcValue::from(Literal(Offset8(base_pos, bytes.read_u8()?)))); }
+            if let Some((base_pos, _)) = env.offset16le(ty) { return Ok(RcValue::from(Literal(Offset16(base_pos, bytes.read_u16::<Le>()?)))); }
+            if let Some((base_pos, _)) = env.offset16be(ty) { return Ok(RcValue::from(Literal(Offset16(base_pos, bytes.read_u16::<Be>()?)))); }
+            if let Some((base_pos, _)) = env.offset32le(ty) { return Ok(RcValue::from(Literal(Offset32(base_pos, bytes.read_u32::<Le>()?)))); }
+            if let Some((base_pos, _)) = env.offset32be(ty) { return Ok(RcValue::from(Literal(Offset32(base_pos, bytes.read_u32::<Be>()?)))); }
+            if let Some((base_pos, _)) = env.offset64le(ty) { return Ok(RcValue::from(Literal(Offset64(base_pos, bytes.read_u64::<Le>()?)))); }
+            if let Some((base_pos, _)) = env.offset64be(ty) { return Ok(RcValue::from(Literal(Offset64(base_pos, bytes.read_u64::<Be>()?)))); }
+            if let Some((len, elem_ty)) = env.array(ty) {
+                return Ok(RcValue::from(Value::Array(
+                    (0..len.to_usize().unwrap()) // FIXME
+                        .map(|_| parse_term(env, elem_ty, bytes))
+                        .collect::<Result<_, _>>()?,
+                )));
+            }
+
+            match **neutral {
                 Neutral::Head(Head::Var(Var::Free(ref free_var))) => {
                     match env.get_definition(free_var) {
                         Some(&Definition::StructType(ref scope)) => {

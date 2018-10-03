@@ -278,7 +278,12 @@ fn resugar_pattern(
 
                 core::Literal::String(ref val) => Literal(String(span, val.clone())),
                 core::Literal::Char(val) => Literal(Char(span, val)),
+
                 core::Literal::Pos(_) => panic!("tried to resugar a position"),
+                core::Literal::Offset8(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset16(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset32(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset64(_, _) => panic!("tried to resugar an offset"),
 
                 core::Literal::Int(ref val, format) => Literal(Int(span, val.clone(), format)),
                 core::Literal::F32(val, format) => Literal(Float(span, f64::from(val), format)),
@@ -496,7 +501,12 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
 
                 core::Literal::String(ref value) => Term::Literal(String(span, value.clone())),
                 core::Literal::Char(value) => Term::Literal(Char(span, value)),
+
                 core::Literal::Pos(_) => panic!("tried to resugar a position"),
+                core::Literal::Offset8(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset16(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset32(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset64(_, _) => panic!("tried to resugar an offset"),
 
                 core::Literal::Int(ref val, format) => Literal(Int(span, val.clone(), format)),
                 core::Literal::F32(val, format) => Literal(Float(span, f64::from(val), format)),
