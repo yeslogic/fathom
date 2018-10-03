@@ -169,7 +169,8 @@ impl Resugar<concrete::Module> for core::Module {
                                 let term = resugar_term(&env, &ann, Prec::NO_WRAP);
                                 let name = env.on_binder(&binder);
                                 (name, term)
-                            }).collect();
+                            })
+                            .collect();
 
                         let fields = fields
                             .unnest()
@@ -186,7 +187,8 @@ impl Resugar<concrete::Module> for core::Module {
                                     },
                                     ann,
                                 }
-                            }).collect();
+                            })
+                            .collect();
 
                         (params, fields)
                     };
@@ -276,6 +278,12 @@ fn resugar_pattern(
 
                 core::Literal::String(ref val) => Literal(String(span, val.clone())),
                 core::Literal::Char(val) => Literal(Char(span, val)),
+
+                core::Literal::Pos(_) => panic!("tried to resugar a position"),
+                core::Literal::Offset8(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset16(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset32(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset64(_, _) => panic!("tried to resugar an offset"),
 
                 core::Literal::Int(ref val, format) => Literal(Int(span, val.clone(), format)),
                 core::Literal::F32(val, format) => Literal(Float(span, f64::from(val), format)),
@@ -494,6 +502,12 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
                 core::Literal::String(ref value) => Term::Literal(String(span, value.clone())),
                 core::Literal::Char(value) => Term::Literal(Char(span, value)),
 
+                core::Literal::Pos(_) => panic!("tried to resugar a position"),
+                core::Literal::Offset8(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset16(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset32(_, _) => panic!("tried to resugar an offset"),
+                core::Literal::Offset64(_, _) => panic!("tried to resugar an offset"),
+
                 core::Literal::Int(ref val, format) => Literal(Int(span, val.clone(), format)),
                 core::Literal::F32(val, format) => Literal(Float(span, f64::from(val), format)),
                 core::Literal::F64(val, format) => Literal(Float(span, val, format)),
@@ -525,7 +539,8 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
                 .map(|&(Label(ref label), ref term)| concrete::StructField {
                     label: (ByteIndex::default(), label.clone()),
                     term: resugar_term(env, &term, Prec::NO_WRAP),
-                }).collect();
+                })
+                .collect();
 
             concrete::Term::Struct(ByteSpan::default(), fields)
         },
@@ -547,7 +562,8 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
                         resugar_pattern(&mut env, &pattern, Prec::NO_WRAP),
                         resugar_term(&env, &term, Prec::NO_WRAP),
                     )
-                }).collect(),
+                })
+                .collect(),
         ),
         core::Term::Array(ref elems) => concrete::Term::Array(
             ByteSpan::default(),

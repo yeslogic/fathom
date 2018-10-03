@@ -27,15 +27,15 @@ impl From<io::Error> for ParseError {
     }
 }
 
-pub fn parse_module<Env, R>(
+pub fn parse_module<Env, T>(
     env: &Env,
     root: &Label,
     module: &Module,
-    bytes: &mut R,
+    bytes: &mut io::Cursor<T>,
 ) -> Result<RcValue, ParseError>
 where
     Env: DefinitionEnv,
-    R: io::Read + io::Seek,
+    io::Cursor<T>: io::Read + io::Seek,
 {
     let mut env = env.clone();
 
@@ -87,15 +87,15 @@ where
     Err(ParseError::MissingRoot(root.clone()))
 }
 
-pub fn parse_struct<Env, R>(
+pub fn parse_struct<Env, T>(
     env: &Env,
     fields: Vec<(Label, Binder<String>, Embed<RcTerm>)>,
     mut mappings: Vec<(FreeVar<String>, RcTerm)>,
-    bytes: &mut R,
+    bytes: &mut io::Cursor<T>,
 ) -> Result<RcValue, ParseError>
 where
     Env: DefinitionEnv,
-    R: io::Read + io::Seek,
+    io::Cursor<T>: io::Read + io::Seek,
 {
     let fields = fields
         .into_iter()
@@ -105,15 +105,20 @@ where
             mappings.push((binder.0.clone(), RcTerm::from(Term::from(&*ann_value))));
 
             Ok((label.clone(), ann_value))
-        }).collect::<Result<_, ParseError>>()?;
+        })
+        .collect::<Result<_, ParseError>>()?;
 
     Ok(RcValue::from(Value::Struct(fields)))
 }
 
-pub fn parse_term<Env, R>(env: &Env, ty: &RcType, bytes: &mut R) -> Result<RcValue, ParseError>
+pub fn parse_term<Env, T>(
+    env: &Env,
+    ty: &RcType,
+    bytes: &mut io::Cursor<T>,
+) -> Result<RcValue, ParseError>
 where
     Env: DefinitionEnv,
-    R: io::Read + io::Seek,
+    io::Cursor<T>: io::Read + io::Seek,
 {
     use byteorder::{BigEndian as Be, LittleEndian as Le, ReadBytesExt};
     use moniker::BoundTerm;
@@ -125,6 +130,7 @@ where
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
     match **ty {
+        _ if RcValue::term_eq(ty, env.pos()) => Ok(RcValue::from(Literal(Pos(bytes.position())))),
         _ if RcValue::term_eq(ty, env.u8()) => Ok(RcValue::from(Literal(Int(bytes.read_u8()?.into(), IntFormat::Dec)))),
         _ if RcValue::term_eq(ty, env.u16le()) => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Le>()?.into(), IntFormat::Dec)))),
         _ if RcValue::term_eq(ty, env.u16be()) => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Be>()?.into(), IntFormat::Dec)))),
@@ -152,13 +158,23 @@ where
         | Value::Struct(_)
         | Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
 
-        Value::Neutral(ref neutral, ref spine) => match env.array(ty) {
-            Some((len, elem_ty)) => Ok(RcValue::from(Value::Array(
-                (0..len.to_usize().unwrap()) // FIXME
-                    .map(|_| parse_term(env, elem_ty, bytes))
-                    .collect::<Result<_, _>>()?,
-            ))),
-            None => match **neutral {
+        Value::Neutral(ref neutral, ref spine) => {
+            if let Some((base_pos, _)) = env.offset8(ty) { return Ok(RcValue::from(Literal(Offset8(base_pos, bytes.read_u8()?)))); }
+            if let Some((base_pos, _)) = env.offset16le(ty) { return Ok(RcValue::from(Literal(Offset16(base_pos, bytes.read_u16::<Le>()?)))); }
+            if let Some((base_pos, _)) = env.offset16be(ty) { return Ok(RcValue::from(Literal(Offset16(base_pos, bytes.read_u16::<Be>()?)))); }
+            if let Some((base_pos, _)) = env.offset32le(ty) { return Ok(RcValue::from(Literal(Offset32(base_pos, bytes.read_u32::<Le>()?)))); }
+            if let Some((base_pos, _)) = env.offset32be(ty) { return Ok(RcValue::from(Literal(Offset32(base_pos, bytes.read_u32::<Be>()?)))); }
+            if let Some((base_pos, _)) = env.offset64le(ty) { return Ok(RcValue::from(Literal(Offset64(base_pos, bytes.read_u64::<Le>()?)))); }
+            if let Some((base_pos, _)) = env.offset64be(ty) { return Ok(RcValue::from(Literal(Offset64(base_pos, bytes.read_u64::<Be>()?)))); }
+            if let Some((len, elem_ty)) = env.array(ty) {
+                return Ok(RcValue::from(Value::Array(
+                    (0..len.to_usize().unwrap()) // FIXME
+                        .map(|_| parse_term(env, elem_ty, bytes))
+                        .collect::<Result<_, _>>()?,
+                )));
+            }
+
+            match **neutral {
                 Neutral::Head(Head::Var(Var::Free(ref free_var))) => {
                     match env.get_definition(free_var) {
                         Some(&Definition::StructType(ref scope)) => {

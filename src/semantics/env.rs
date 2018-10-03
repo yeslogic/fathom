@@ -4,7 +4,7 @@ use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;
 
-use syntax::core::{Definition, Literal, RcTerm, RcType, RcValue, Spine, Value};
+use syntax::core::{Definition, Literal, RcType, RcValue, Spine, Value};
 use syntax::translation::ResugarEnv;
 use syntax::{FloatFormat, IntFormat};
 
@@ -220,6 +220,8 @@ pub struct Globals {
     ty_bool: RcType,
     ty_string: RcType,
     ty_char: RcType,
+    ty_unit: RcType,
+    ty_pos: RcType,
 
     ty_u8: RcType,
     ty_u16: RcType,
@@ -250,10 +252,15 @@ pub struct Globals {
     ty_f32be: RcType,
     ty_f64be: RcType,
 
-    var_array_ty: FreeVar<String>,
+    var_offset8: FreeVar<String>,
+    var_offset16le: FreeVar<String>,
+    var_offset32le: FreeVar<String>,
+    var_offset64le: FreeVar<String>,
+    var_offset16be: FreeVar<String>,
+    var_offset32be: FreeVar<String>,
+    var_offset64be: FreeVar<String>,
 
-    ty_unit: RcType,
-    val_unit: RcTerm,
+    var_array: FreeVar<String>,
 }
 
 pub trait GlobalEnv: Clone {
@@ -263,6 +270,9 @@ pub trait GlobalEnv: Clone {
     fn bool(&self) -> &RcType;
     fn string(&self) -> &RcType;
     fn char(&self) -> &RcType;
+    fn unit(&self) -> &RcType;
+    fn pos(&self) -> &RcType;
+
     fn u8(&self) -> &RcType;
     fn u16(&self) -> &RcType;
     fn u32(&self) -> &RcType;
@@ -292,10 +302,15 @@ pub trait GlobalEnv: Clone {
     fn f32be(&self) -> &RcType;
     fn f64be(&self) -> &RcType;
 
-    fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)>;
+    fn offset8<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
+    fn offset16le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
+    fn offset32le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
+    fn offset64le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
+    fn offset16be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
+    fn offset32be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
+    fn offset64be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
 
-    fn unit_ty(&self) -> &RcType;
-    fn unit(&self) -> &RcTerm;
+    fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)>;
 }
 
 /// An environment that contains declarations
@@ -349,7 +364,8 @@ impl TcEnv {
             .filter_map(|(free_var, _)| {
                 let pretty_name = free_var.pretty_name.as_ref()?;
                 Some((pretty_name.clone(), free_var.clone()))
-            }).collect()
+            })
+            .collect()
     }
 }
 
@@ -366,6 +382,9 @@ impl Default for TcEnv {
         let var_false = FreeVar::fresh_named("false");
         let var_string = FreeVar::fresh_named("String");
         let var_char = FreeVar::fresh_named("Char");
+        let var_unit_ty = FreeVar::fresh_named("Unit");
+        let var_unit = FreeVar::fresh_named("unit");
+        let var_pos = FreeVar::fresh_named("Pos");
 
         let var_u8 = FreeVar::fresh_named("U8");
         let var_u16 = FreeVar::fresh_named("U16");
@@ -396,10 +415,15 @@ impl Default for TcEnv {
         let var_f32be = FreeVar::fresh_named("F32Be");
         let var_f64be = FreeVar::fresh_named("F64Be");
 
-        let var_array_ty = FreeVar::fresh_named("Array");
+        let var_offset8 = FreeVar::fresh_named("Offset8");
+        let var_offset16le = FreeVar::fresh_named("Offset16Le");
+        let var_offset32le = FreeVar::fresh_named("Offset32Le");
+        let var_offset64le = FreeVar::fresh_named("Offset64Le");
+        let var_offset16be = FreeVar::fresh_named("Offset16Be");
+        let var_offset32be = FreeVar::fresh_named("Offset32Be");
+        let var_offset64be = FreeVar::fresh_named("Offset64Be");
 
-        let var_unit_ty = FreeVar::fresh_named("Unit");
-        let var_unit = FreeVar::fresh_named("unit");
+        let var_array = FreeVar::fresh_named("Array");
 
         fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcType {
             RcValue::from(Value::IntType(
@@ -420,6 +444,8 @@ impl Default for TcEnv {
                 ty_bool: RcValue::from(Value::var(Var::Free(var_bool.clone()))),
                 ty_string: RcValue::from(Value::var(Var::Free(var_string.clone()))),
                 ty_char: RcValue::from(Value::var(Var::Free(var_char.clone()))),
+                ty_unit: RcValue::from(Value::var(Var::Free(var_unit_ty.clone()))),
+                ty_pos: RcValue::from(Value::var(Var::Free(var_pos.clone()))),
 
                 ty_u8: int_ty(u8::MIN, u8::MAX),
                 ty_u16: int_ty(u16::MIN, u16::MAX),
@@ -450,10 +476,15 @@ impl Default for TcEnv {
                 ty_f32be: RcValue::from(Value::var(Var::Free(var_f32be.clone()))),
                 ty_f64be: RcValue::from(Value::var(Var::Free(var_f64be.clone()))),
 
-                var_array_ty: var_array_ty.clone(),
+                var_offset8: var_offset8.clone(),
+                var_offset16le: var_offset16le.clone(),
+                var_offset32le: var_offset32le.clone(),
+                var_offset64le: var_offset64le.clone(),
+                var_offset16be: var_offset16be.clone(),
+                var_offset32be: var_offset32be.clone(),
+                var_offset64be: var_offset64be.clone(),
 
-                ty_unit: RcValue::from(Value::var(Var::Free(var_unit_ty.clone()))),
-                val_unit: RcTerm::from(Term::Var(Var::Free(var_unit.clone()))),
+                var_array: var_array.clone(),
             }),
             extern_definitions: default_extern_definitions(),
             declarations: HashMap::new(),
@@ -470,6 +501,13 @@ impl Default for TcEnv {
         ));
         let bool_ty = tc_env.globals.ty_bool.clone();
         let bool_lit = |value| RcTerm::from(Term::Literal(Literal::Bool(value)));
+        let pos_ty = tc_env.globals.ty_pos.clone();
+        let ty_unit = tc_env.globals.ty_unit.clone();
+        let ty_unit_def = Definition::StructType(Scope::new(
+            Nest::new(vec![]),
+            Scope::new(Nest::new(vec![]), ()),
+        ));
+        let unit_def = Definition::Alias(RcTerm::from(Term::Struct(vec![])));
         let ty_u8 = RcTerm::from(Term::from(&*tc_env.globals.ty_u8.clone()));
         let ty_u16 = RcTerm::from(Term::from(&*tc_env.globals.ty_u16.clone()));
         let ty_u32 = RcTerm::from(Term::from(&*tc_env.globals.ty_u32.clone()));
@@ -478,6 +516,13 @@ impl Default for TcEnv {
         let ty_s16 = RcTerm::from(Term::from(&*tc_env.globals.ty_s16.clone()));
         let ty_s32 = RcTerm::from(Term::from(&*tc_env.globals.ty_s32.clone()));
         let ty_s64 = RcTerm::from(Term::from(&*tc_env.globals.ty_s64.clone()));
+        let offset_ty = RcValue::from(Value::Pi(Scope::new(
+            (Binder(FreeVar::fresh_unnamed()), Embed(pos_ty)),
+            RcValue::from(Value::Pi(Scope::new(
+                (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
+                universe0.clone(),
+            ))),
+        )));
         let array_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty)),
             RcValue::from(Value::Pi(Scope::new(
@@ -485,12 +530,6 @@ impl Default for TcEnv {
                 universe0.clone(),
             ))),
         )));
-        let ty_unit = tc_env.globals.ty_unit.clone();
-        let ty_unit_def = Definition::StructType(Scope::new(
-            Nest::new(vec![]),
-            Scope::new(Nest::new(vec![]), ()),
-        ));
-        let unit_def = Definition::Alias(RcTerm::from(Term::Struct(vec![])));
 
         tc_env.insert_declaration(var_true.clone(), bool_ty.clone());
         tc_env.insert_declaration(var_false.clone(), bool_ty.clone());
@@ -499,6 +538,7 @@ impl Default for TcEnv {
         tc_env.insert_declaration(var_bool, universe0.clone());
         tc_env.insert_declaration(var_string, universe0.clone());
         tc_env.insert_declaration(var_char, universe0.clone());
+        tc_env.insert_declaration(var_pos, universe0.clone());
 
         tc_env.insert_declaration(var_u8.clone(), universe0.clone());
         tc_env.insert_declaration(var_u16.clone(), universe0.clone());
@@ -537,7 +577,15 @@ impl Default for TcEnv {
         tc_env.insert_declaration(var_f32be, universe0.clone());
         tc_env.insert_declaration(var_f64be, universe0.clone());
 
-        tc_env.insert_declaration(var_array_ty, array_ty);
+        tc_env.insert_declaration(var_offset8, offset_ty.clone());
+        tc_env.insert_declaration(var_offset16le, offset_ty.clone());
+        tc_env.insert_declaration(var_offset32le, offset_ty.clone());
+        tc_env.insert_declaration(var_offset64le, offset_ty.clone());
+        tc_env.insert_declaration(var_offset16be, offset_ty.clone());
+        tc_env.insert_declaration(var_offset32be, offset_ty.clone());
+        tc_env.insert_declaration(var_offset64be, offset_ty.clone());
+
+        tc_env.insert_declaration(var_array, array_ty);
 
         tc_env.insert_declaration(var_unit_ty.clone(), universe0.clone());
         tc_env.insert_definition(var_unit_ty, ty_unit_def);
@@ -546,6 +594,23 @@ impl Default for TcEnv {
 
         tc_env
     }
+}
+
+fn free_var_app<'a>(free_var: &FreeVar<String>, ty: &'a RcType) -> Option<&'a [RcValue]> {
+    match ty.free_var_app() {
+        Some((fv, spine)) if fv == free_var => Some(spine),
+        Some(_) | None => None,
+    }
+}
+
+fn offset_app<'a>(free_var: &FreeVar<String>, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    free_var_app(free_var, ty).and_then(|spine| match spine {
+        &[ref pos, ref elem_ty] => match **pos {
+            Value::Literal(Literal::Pos(pos)) => Some((pos, elem_ty)),
+            _ => None,
+        },
+        _ => None,
+    })
 }
 
 impl GlobalEnv for TcEnv {
@@ -563,6 +628,14 @@ impl GlobalEnv for TcEnv {
 
     fn char(&self) -> &RcType {
         &self.globals.ty_char
+    }
+
+    fn unit(&self) -> &RcType {
+        &self.globals.ty_unit
+    }
+
+    fn pos(&self) -> &RcType {
+        &self.globals.ty_pos
     }
 
     fn u8(&self) -> &RcType {
@@ -669,24 +742,42 @@ impl GlobalEnv for TcEnv {
         &self.globals.ty_f64be
     }
 
+    fn offset8<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+        offset_app(&self.globals.var_offset8, ty)
+    }
+
+    fn offset16le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+        offset_app(&self.globals.var_offset16le, ty)
+    }
+
+    fn offset32le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+        offset_app(&self.globals.var_offset32le, ty)
+    }
+
+    fn offset64le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+        offset_app(&self.globals.var_offset64le, ty)
+    }
+
+    fn offset16be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+        offset_app(&self.globals.var_offset16be, ty)
+    }
+
+    fn offset32be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+        offset_app(&self.globals.var_offset32be, ty)
+    }
+
+    fn offset64be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+        offset_app(&self.globals.var_offset64be, ty)
+    }
+
     fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)> {
-        match ty.free_var_app() {
-            Some((fv, &[ref len, ref elem_ty])) if *fv == self.globals.var_array_ty => {
-                match **len {
-                    Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty)),
-                    _ => None,
-                }
+        free_var_app(&self.globals.var_array, ty).and_then(|spine| match spine {
+            &[ref len, ref elem_ty] => match **len {
+                Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty)),
+                _ => None,
             },
-            Some(_) | None => None,
-        }
-    }
-
-    fn unit_ty(&self) -> &RcType {
-        &self.globals.ty_unit
-    }
-
-    fn unit(&self) -> &RcTerm {
-        &self.globals.val_unit
+            _ => None,
+        })
     }
 }
 

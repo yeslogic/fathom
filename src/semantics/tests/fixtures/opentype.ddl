@@ -12,12 +12,6 @@ struct Unknown {};
 
 Tag = Array 4 U8;
 
-Offset16Be : Type -> Type;
-Offset16Be _ = U16Be;
-
-Offset32Be : Type -> Type;
-Offset32Be _ = U32Be;
-
 
 
 // =============================================================================
@@ -29,9 +23,9 @@ Offset32Be _ = U32Be;
 // =============================================================================
 
 // TODO:
-// union OpenType {
-//     OffsetTable,
-//     TtcHeader,
+// union OpenType (file_start : Pos) {
+//     OffsetTable file_start,
+//     TtcHeader file_start,
 // };
 
 
@@ -41,7 +35,7 @@ Offset32Be _ = U32Be;
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font>
 // -----------------------------------------------------------------------------
 
-struct OffsetTableRecord {
+struct OffsetTableRecord (file_start : Pos) {
     /// Table identifier
     tag : Tag,
     /// CheckSum for this table
@@ -49,12 +43,12 @@ struct OffsetTableRecord {
     /// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#calculating-checksums>
     checksum : U32Be,
     /// Offset from beginning of TrueType font file
-    offset : Offset32Be Unknown,
+    offset : Offset32Be file_start Unknown,
     /// Length of this table
     length : U32Be,
 };
 
-struct OffsetTable {
+struct OffsetTable (file_start : Pos) {
     /// 0x00010000 or 0x4F54544F ('OTTO')
     ///
     /// Apple allows 'true' and 'typ1' ?
@@ -68,7 +62,7 @@ struct OffsetTable {
     /// NumTables x 16-searchRange
     range_shift : U16Be,
     /// FIXME: sorted in ascending order by tag
-    table_records : Array num_tables OffsetTableRecord,
+    table_records : Array num_tables (OffsetTableRecord file_start),
 };
 
 
@@ -80,12 +74,12 @@ struct OffsetTable {
 
 // TODO:
 // /// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header>
-// union TtcHeader {
-//     TtcHeader1,
-//     TtcHeader2,
+// union TtcHeader (file_start : Pos) {
+//     TtcHeader1 file_start,
+//     TtcHeader2 file_start,
 // };
 
-struct TtcHeader1 {
+struct TtcHeader1 (file_start : Pos) {
     /// Font Collection ID
     ttc_tag : Tag,
     /// Major version of the TTC Header, = 1
@@ -95,10 +89,10 @@ struct TtcHeader1 {
     /// Number of fonts in TTC
     num_fonts : U32Be,
     /// Array of offsets to the OffsetTable for each font from the beginning of the file
-    offset_tables : Array num_fonts (Offset32Be OffsetTable),
+    offset_tables : Array num_fonts (Offset32Be file_start (OffsetTable file_start)),
 };
 
-struct TtcHeader2 {
+struct TtcHeader2 (file_start : Pos) {
     /// Font Collection ID
     ttc_tag : Tag,
     /// Major version of the TTC Header, = 2
@@ -108,14 +102,14 @@ struct TtcHeader2 {
     /// Number of fonts in TTC
     num_fonts : U32Be,
     /// Array of offsets to the OffsetTable for each font from the beginning of the file
-    offset_tables : Array num_fonts (Offset32Be OffsetTable),
+    offset_tables : Array num_fonts (Offset32Be file_start (OffsetTable file_start)),
     /// Tag indicating that a DSIG table exists, 0x44534947 ('DSIG') (null if no signature)
     dsig_tag : U32Be, // FIXME: Tag?
     /// The length (in bytes) of the DSIG table (null if no signature)
     dsig_length : U32Be,
     /// The offset (in bytes) of the DSIG table from the beginning of the TTC file (null if no signature)
-    // FIXME: dsig_offset : Offset32Be U32Be Dsig,
-    dsig_offset : Offset32Be Unknown,
+    // FIXME: dsig_offset : Offset32Be file_start Dsig,
+    dsig_offset : Offset32Be file_start Unknown,
 };
 
 
@@ -138,47 +132,49 @@ struct TtcHeader2 {
 /// Script Record
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#slTbl_sRec>
-struct ScriptRecord {
+struct ScriptRecord (script_list_start : Pos) {
     /// 4-byte script tag identifier
     script_tag : Tag,
     /// Offset to Script table, from beginning of ScriptList
     // FIXME: script_offset : Offset16Be Script,
-    script_offset : Offset16Be Unknown,
+    script_offset : Offset16Be script_list_start Unknown,
 };
 
 /// Script List Table
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#slTbl_sRec>
 struct ScriptList {
+    table_start : Pos,
     /// Number of ScriptRecords
     script_count : U16Be,
     /// Array of ScriptRecords, listed alphabetically by script tag
-    script_records : Array script_count ScriptRecord,
+    script_records : Array script_count (ScriptRecord table_start),
 };
 
 
 /// Language System Record
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-table-and-language-system-record>
-struct LangSysRecord {
+struct LangSysRecord (script_start : Pos) {
     /// 4-byte LangSysTag identifier
     lang_sys_tag : Tag,
     /// Offset to LangSys table, from beginning of Script table
     // FIXME: lang_sys_offset : Offset16Be LangSys,
-    lang_sys_offset : Offset16Be Unknown,
+    lang_sys_offset : Offset16Be script_start Unknown,
 };
 
 /// Script Table
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-table-and-language-system-record>
 struct Script {
+    table_start : Pos,
     /// Offset to default LangSys table, from beginning of Script table — may be NULL
-    // FIXME: default_lang_sys : Offset16Be LangSys,
-    default_lang_sys : Offset16Be Unknown,
+    // FIXME: default_lang_sys : Offset16Be table_start LangSys,
+    default_lang_sys : Offset16Be table_start Unknown,
     /// Number of LangSysRecords for this script — excluding the default LangSys
     lang_sys_count : U16Be,
     /// Array of LangSysRecords, listed alphabetically by LangSys tag
-    lang_sys_records : Array lang_sys_count LangSysRecord,
+    lang_sys_records : Array lang_sys_count (LangSysRecord table_start),
 };
 
 
@@ -187,7 +183,8 @@ struct Script {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#language-system-table>
 struct LangSys {
     /// = NULL (reserved for an offset to a reordering table)
-    lookup_order : Offset16Be Unknown,
+    // lookup_order : Offset16Be _ Unknown,
+    lookup_order : U16Be, // TODO: Mark as private?
     /// Index of a feature required for this language system; if no required features = 0xFFFF
     required_feature_index : U16Be,
     /// Number of feature index values for this language system — excludes the required feature
@@ -206,22 +203,23 @@ struct LangSys {
 /// Feature Record
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#flTbl>
-struct FeatureRecord {
+struct FeatureRecord (feature_list_start : Pos) {
     /// 4-byte feature identification tag
     feature_tag : Tag,
     /// Offset to Feature table, from beginning of FeatureList
     // FIXME: feature_offset : Offset16Be Feature,
-    feature_offset : Offset16Be Unknown,
+    feature_offset : Offset16Be feature_list_start Unknown,
 };
 
 /// Feature List table
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#flTbl>
 struct FeatureList {
+    table_start : Pos,
     /// Number of FeatureRecords in this table
     feature_count : U16Be,
     /// Array of FeatureRecords — zero-based (first feature has FeatureIndex = 0), listed alphabetically by feature tag
-    feature_records : Array feature_count FeatureRecord,
+    feature_records : Array feature_count (FeatureRecord table_start),
 };
 
 
@@ -230,7 +228,8 @@ struct FeatureList {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#feature-table>
 struct Feature {
     /// = NULL (reserved for offset to FeatureParams)
-    feature_params : Offset16Be Unknown,
+    // feature_params : Offset16Be _ Unknown,
+    feature_params : U16Be, // TODO: Mark as private?
     /// Number of LookupList indices for this feature
     lookup_index_count : U16Be,
     /// Array of indices into the LookupList — zero-based (first lookup is LookupListIndex = 0)
@@ -242,11 +241,12 @@ struct Feature {
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookup-list-table>
 struct LookupList {
+    table_start : Pos,
     /// Number of lookups in this table
     lookup_count : U16Be,
     /// Array of offsets to Lookup tables, from beginning of LookupList — zero based (first lookup is Lookup index = 0)
-    // FIXME: lookups : Array lookup_count (Offset16Be Lookup),
-    lookups : Array lookup_count (Offset16Be Unknown),
+    // FIXME: lookups : Array lookup_count (Offset16Be table_start Lookup),
+    lookups : Array lookup_count (Offset16Be table_start Unknown),
 };
 
 
@@ -276,6 +276,7 @@ struct LookupList {
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookupTbl>
 struct Lookup {
+    table_start : Pos,
     /// Different enumerations for GSUB and GPOS
     lookup_type : U16Be,
     /// Lookup qualifiers
@@ -284,7 +285,7 @@ struct Lookup {
     /// Number of subtables for this lookup
     sub_table_count : U16Be,
     /// Array of offsets to lookup subtables, from beginning of Lookup table
-    subtable_offsets : Array sub_table_count (Offset16Be Unknown),
+    subtable_offsets : Array sub_table_count (Offset16Be table_start Unknown),
     /// Index (base 0) into GDEF mark glyph sets structure. This field is only present if bit useMarkFilteringSet of lookup flags is set.
     mark_filtering_set : U16Be,
 };

@@ -49,7 +49,8 @@ fn pretty_lam(binder: &Binder<String>, ann: &impl ToDoc, body: &impl ToDoc) -> S
             pretty_binder(binder)
                 .append(Doc::space())
                 .append(ann.to_doc().group()),
-        )).append(Doc::space())
+        ))
+        .append(Doc::space())
         .append(body.to_doc()),
     )
 }
@@ -61,7 +62,8 @@ fn pretty_pi(binder: &Binder<String>, ann: &impl ToDoc, body: &impl ToDoc) -> St
             pretty_binder(binder)
                 .append(Doc::space())
                 .append(ann.to_doc().group()),
-        )).append(Doc::space())
+        ))
+        .append(Doc::space())
         .append(body.to_doc()),
     )
 }
@@ -180,7 +182,8 @@ impl ToDoc for raw::Term {
                 .append(Doc::intersperse(
                     elems.iter().map(|elem| elem.to_doc()),
                     Doc::text(";").append(Doc::space()),
-                )).append("]"),
+                ))
+                .append("]"),
         }
     }
 }
@@ -192,6 +195,11 @@ impl ToDoc for Literal {
             Literal::Bool(false) => Doc::text("false"),
             Literal::String(ref value) => Doc::text(format!("{:?}", value)),
             Literal::Char(value) => Doc::text(format!("{:?}", value)),
+            Literal::Pos(value) => Doc::text(format!("{}", value)),
+            Literal::Offset8(value, offset) => Doc::text(format!("{} + {}", value, offset)),
+            Literal::Offset16(value, offset) => Doc::text(format!("{} + {}", value, offset)),
+            Literal::Offset32(value, offset) => Doc::text(format!("{} + {}", value, offset)),
+            Literal::Offset64(value, offset) => Doc::text(format!("{} + {}", value, offset)),
             Literal::Int(ref value, IntFormat::Bin) => Doc::text(format!("0b{:b}", value)),
             Literal::Int(ref value, IntFormat::Oct) => Doc::text(format!("0o{:o}", value)),
             Literal::Int(ref value, IntFormat::Dec) => Doc::text(format!("{}", value)),
@@ -213,7 +221,8 @@ impl ToDoc for Pattern {
                 .append(Doc::intersperse(
                     elems.iter().map(|elem| elem.to_doc()),
                     Doc::text(";").append(Doc::space()),
-                )).append("]"),
+                ))
+                .append("]"),
         }
     }
 }
@@ -262,7 +271,8 @@ impl ToDoc for Term {
                 .append(Doc::intersperse(
                     elems.iter().map(|elem| elem.to_doc()),
                     Doc::text(";").append(Doc::space()),
-                )).append("]"),
+                ))
+                .append("]"),
         }
     }
 }
@@ -300,7 +310,8 @@ impl ToDoc for Value {
                 .append(Doc::intersperse(
                     elems.iter().map(|elem| elem.to_doc()),
                     Doc::text(";").append(Doc::space()),
-                )).append("]"),
+                ))
+                .append("]"),
             Value::Neutral(ref neutral, ref spine) if spine.is_empty() => neutral.to_doc(),
             Value::Neutral(ref neutral, ref spine) => {
                 pretty_app(neutral.to_doc(), spine.iter().map(|arg| &arg.inner))
