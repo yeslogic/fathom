@@ -62,6 +62,7 @@ pub enum Literal {
     Bool(bool),
     String(String),
     Char(char),
+    Pos(u64),
     Int(BigInt, IntFormat),
     F32(f32, FloatFormat),
     F64(f64, FloatFormat),
@@ -228,7 +229,8 @@ impl RcTerm {
                     .map(|scope| Scope {
                         unsafe_pattern: scope.unsafe_pattern.clone(), // subst?
                         unsafe_body: scope.unsafe_body.substs(mappings),
-                    }).collect(),
+                    })
+                    .collect(),
             )),
             Term::Array(ref elems) => RcTerm::from(Term::Array(
                 elems.iter().map(|elem| elem.substs(mappings)).collect(),
@@ -545,7 +547,8 @@ impl<'a> From<&'a Neutral> for Term {
                     .map(|clause| Scope {
                         unsafe_pattern: clause.unsafe_pattern.clone(),
                         unsafe_body: RcTerm::from(&*clause.unsafe_body),
-                    }).collect(),
+                    })
+                    .collect(),
             ),
         }
     }

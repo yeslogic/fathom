@@ -1,6 +1,7 @@
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use num_bigint::BigInt;
 use std::io::{Cursor, Write};
+use std::mem;
 
 use semantics::parser::{self, ParseError};
 use syntax::{FloatFormat, IntFormat, Label};
@@ -127,6 +128,7 @@ fn pos() {
     let label = |name: &str| Label(name.to_owned());
     let array = |elems: Vec<RcValue>| RcValue::from(Value::Array(elems));
     let struct_ = |fields: Vec<(Label, RcValue)>| RcValue::from(Value::Struct(fields));
+    let pos = |value: u64| RcValue::from(Value::Literal(Literal::Pos(value)));
     let int = |value: u32| {
         RcValue::from(Value::Literal(Literal::Int(
             BigInt::from(value),
@@ -137,25 +139,25 @@ fn pos() {
     assert_term_eq!(
         parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes,).unwrap(),
         struct_(vec![
-            (label("start"), int(0)),
+            (label("start"), pos(0)),
             (
                 label("data"),
                 array(vec![
                     struct_(vec![
                         (label("pad"), int(0)),
-                        (label("end"), int((32 / 8) * 1)),
+                        (label("end"), pos(mem::size_of::<u32>() as u64 * 1)),
                     ]),
                     struct_(vec![
                         (label("pad"), int(0)),
-                        (label("end"), int((32 / 8) * 2)),
+                        (label("end"), pos(mem::size_of::<u32>() as u64 * 2)),
                     ]),
                     struct_(vec![
                         (label("pad"), int(0)),
-                        (label("end"), int((32 / 8) * 3)),
+                        (label("end"), pos(mem::size_of::<u32>() as u64 * 3)),
                     ])
                 ])
             ),
-            (label("end"), int((32 / 8) * 3)),
+            (label("end"), pos(mem::size_of::<u32>() as u64 * 3)),
         ]),
     );
 }

@@ -130,8 +130,7 @@ where
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
     match **ty {
-        // FIXME: pointer literal?
-        _ if RcValue::term_eq(ty, env.pos()) => Ok(RcValue::from(Literal(Int(bytes.position().into(), IntFormat::Dec)))),
+        _ if RcValue::term_eq(ty, env.pos()) => Ok(RcValue::from(Literal(Pos(bytes.position())))),
         _ if RcValue::term_eq(ty, env.u8()) => Ok(RcValue::from(Literal(Int(bytes.read_u8()?.into(), IntFormat::Dec)))),
         _ if RcValue::term_eq(ty, env.u16le()) => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Le>()?.into(), IntFormat::Dec)))),
         _ if RcValue::term_eq(ty, env.u16be()) => Ok(RcValue::from(Literal(Int(bytes.read_u16::<Be>()?.into(), IntFormat::Dec)))),
