@@ -12,12 +12,6 @@ struct Unknown {};
 
 Tag = Array 4 U8;
 
-Offset16Be : Pos -> Type -> Type;
-Offset16Be _ _ = U16Be;
-
-Offset32Be : Pos -> Type -> Type;
-Offset32Be _ _ = U32Be;
-
 
 
 // =============================================================================
