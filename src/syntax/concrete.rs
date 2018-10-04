@@ -404,15 +404,6 @@ pub enum Term {
     /// e1 e2
     /// ```
     App(Box<Term>, Vec<Term>),
-    /// Let binding
-    ///
-    /// ```text
-    /// let x : I32
-    ///     x = 1
-    /// in
-    ///     x
-    /// ```
-    Let(ByteIndex, Vec<Item>, Box<Term>),
     /// If expression
     ///
     /// ```text
@@ -461,9 +452,9 @@ impl Term {
             | Term::Error(span) => span,
             Term::Name(start, ref name) => ByteSpan::from_offset(start, ByteOffset::from_str(name)),
             Term::Literal(ref literal) => literal.span(),
-            Term::Pi(start, _, ref body)
-            | Term::Lam(start, _, ref body)
-            | Term::Let(start, _, ref body) => ByteSpan::new(start, body.span().end()),
+            Term::Pi(start, _, ref body) | Term::Lam(start, _, ref body) => {
+                ByteSpan::new(start, body.span().end())
+            },
             Term::Ann(ref term, ref ty) => term.span().to(ty.span()),
             Term::Arrow(ref ann, ref body) => ann.span().to(body.span()),
             Term::App(ref head, ref arg) => head.span().to(arg.last().unwrap().span()),

@@ -154,7 +154,8 @@ fn desugar_struct(
             let (_, ref label) = field.label;
             let term = field.term.desugar(&env);
             (Label(label.clone()), term)
-        }).collect::<Vec<_>>();
+        })
+        .collect::<Vec<_>>();
 
     raw::RcTerm::from(raw::Term::Struct(span, fields))
 }
@@ -218,7 +219,8 @@ impl Desugar<raw::Module> for concrete::Module {
                                 let ann = ann.desugar(&env);
                                 let binder = env.on_binding(name);
                                 (Binder(binder), Embed(ann))
-                            }).collect();
+                            })
+                            .collect();
 
                         let fields = fields
                             .iter()
@@ -227,7 +229,8 @@ impl Desugar<raw::Module> for concrete::Module {
                                 let ann = field.ann.desugar(&env);
                                 let free_var = env.on_binding(label);
                                 (Label(label.clone()), Binder(free_var), Embed(ann))
-                            }).collect();
+                            })
+                            .collect();
 
                         Scope::new(Nest::new(params), Scope::new(Nest::new(fields), ()))
                     };
@@ -345,7 +348,6 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                     raw::RcTerm::from(raw::Term::App(acc, arg.desugar(env)))
                 })
             },
-            concrete::Term::Let(_, ref _items, ref _body) => unimplemented!("let bindings"),
             concrete::Term::If(_, ref cond, ref if_true, ref if_false) => {
                 let bool_pattern = |name: &str| {
                     raw::RcPattern::from(raw::Pattern::Var(
@@ -375,7 +377,8 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                         .map(|(pattern, term)| {
                             let (pattern, env) = pattern.desugar(env);
                             Scope::new(pattern, term.desugar(&env))
-                        }).collect(),
+                        })
+                        .collect(),
                 ))
             },
             concrete::Term::Struct(span, ref fields) => desugar_struct(env, span, fields),
