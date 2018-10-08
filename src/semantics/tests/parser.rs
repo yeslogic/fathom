@@ -1,12 +1,15 @@
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
-use num_bigint::BigInt;
 use std::io::{Cursor, Write};
 use std::mem;
 
-use semantics::parser::{self, ParseError};
-use syntax::{FloatFormat, IntFormat, Label};
+use semantics::parser::{self, ParseError, Value};
+use syntax::Label;
 
 use super::*;
+
+fn label(name: &str) -> Label {
+    Label(name.to_owned())
+}
 
 #[test]
 fn silly_root() {
@@ -40,21 +43,14 @@ fn silly_root() {
     let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
     let module = check_module(&tc_env, &raw_module).unwrap();
 
-    let label = |name: &str| Label(name.to_owned());
-    let array = |elems: Vec<RcValue>| RcValue::from(Value::Array(elems));
-    let struct_ = |fields: Vec<(Label, RcValue)>| RcValue::from(Value::Struct(fields));
-    let int = |value: u32| {
-        RcValue::from(Value::Literal(Literal::Int(
-            BigInt::from(value),
-            IntFormat::Dec,
-        )))
-    };
-
-    assert_term_eq!(
-        parser::parse_module(&tc_env, &label("Silly"), &module, &mut given_bytes,).unwrap(),
-        struct_(vec![
-            (label("len"), int(3)),
-            (label("data"), array(vec![int(1), int(3), int(6)])),
+    assert_eq!(
+        parser::parse_module(&tc_env, &label("Silly"), &module, &mut given_bytes).unwrap(),
+        Value::Struct(vec![
+            (label("len"), Value::U16(3)),
+            (
+                label("data"),
+                Value::Array(vec![Value::U32(1), Value::U32(3), Value::U32(6)]),
+            ),
         ]),
     );
 }
@@ -125,39 +121,28 @@ fn pos() {
     let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
     let module = check_module(&tc_env, &raw_module).unwrap();
 
-    let label = |name: &str| Label(name.to_owned());
-    let array = |elems: Vec<RcValue>| RcValue::from(Value::Array(elems));
-    let struct_ = |fields: Vec<(Label, RcValue)>| RcValue::from(Value::Struct(fields));
-    let pos = |value: u64| RcValue::from(Value::Literal(Literal::Pos(value)));
-    let int = |value: u32| {
-        RcValue::from(Value::Literal(Literal::Int(
-            BigInt::from(value),
-            IntFormat::Dec,
-        )))
-    };
-
-    assert_term_eq!(
-        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes,).unwrap(),
-        struct_(vec![
-            (label("start"), pos(0)),
+    assert_eq!(
+        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        Value::Struct(vec![
+            (label("start"), Value::Pos(0)),
             (
                 label("data"),
-                array(vec![
-                    struct_(vec![
-                        (label("pad"), int(0)),
-                        (label("end"), pos(mem::size_of::<u32>() as u64 * 1)),
+                Value::Array(vec![
+                    Value::Struct(vec![
+                        (label("pad"), Value::U32(0)),
+                        (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 1)),
                     ]),
-                    struct_(vec![
-                        (label("pad"), int(0)),
-                        (label("end"), pos(mem::size_of::<u32>() as u64 * 2)),
+                    Value::Struct(vec![
+                        (label("pad"), Value::U32(0)),
+                        (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 2)),
                     ]),
-                    struct_(vec![
-                        (label("pad"), int(0)),
-                        (label("end"), pos(mem::size_of::<u32>() as u64 * 3)),
-                    ])
-                ])
+                    Value::Struct(vec![
+                        (label("pad"), Value::U32(0)),
+                        (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 3)),
+                    ]),
+                ]),
             ),
-            (label("end"), pos(mem::size_of::<u32>() as u64 * 3)),
+            (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 3),),
         ]),
     );
 }
@@ -200,64 +185,56 @@ fn parse_bitmap_nested() {
     let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
     let module = check_module(&tc_env, &raw_module).unwrap();
 
-    let label = |name: &str| Label(name.to_owned());
-    let array = |elems: Vec<RcValue>| RcValue::from(Value::Array(elems));
-    let struct_ = |fields: Vec<(Label, RcValue)>| RcValue::from(Value::Struct(fields));
-    let float = |value: f32| RcValue::from(Value::Literal(Literal::F32(value, FloatFormat::Dec)));
-    let int = |value: u32| {
-        RcValue::from(Value::Literal(Literal::Int(
-            BigInt::from(value),
-            IntFormat::Dec,
-        )))
-    };
-
-    assert_term_eq!(
+    assert_eq!(
         parser::parse_module(&tc_env, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
-        RcValue::from(Value::Struct(vec![
+        Value::Struct(vec![
             (
                 label("header"),
-                struct_(vec![(label("width"), int(3)), (label("height"), int(2)),]),
+                Value::Struct(vec![
+                    (label("width"), Value::U32(3)),
+                    (label("height"), Value::U32(2)),
+                ]),
             ),
             (
                 label("data"),
-                array(vec![
-                    array(vec![
-                        struct_(vec![
-                            (label("r"), float(0.00)),
-                            (label("g"), float(0.01)),
-                            (label("b"), float(0.02)),
+                Value::Array(vec![
+                    Value::Array(vec![
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(0.00)),
+                            (label("g"), Value::F32(0.01)),
+                            (label("b"), Value::F32(0.02)),
                         ]),
-                        struct_(vec![
-                            (label("r"), float(0.10)),
-                            (label("g"), float(0.11)),
-                            (label("b"), float(0.12)),
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(0.10)),
+                            (label("g"), Value::F32(0.11)),
+                            (label("b"), Value::F32(0.12)),
                         ]),
-                        struct_(vec![
-                            (label("r"), float(0.20)),
-                            (label("g"), float(0.21)),
-                            (label("b"), float(0.22)),
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(0.20)),
+                            (label("g"), Value::F32(0.21)),
+                            (label("b"), Value::F32(0.22)),
                         ]),
                     ]),
-                    array(vec![
-                        struct_(vec![
-                            (label("r"), float(1.00)),
-                            (label("g"), float(1.01)),
-                            (label("b"), float(1.02)),
+                    Value::Array(vec![
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(1.00)),
+                            (label("g"), Value::F32(1.01)),
+                            (label("b"), Value::F32(1.02)),
                         ]),
-                        struct_(vec![
-                            (label("r"), float(1.10)),
-                            (label("g"), float(1.11)),
-                            (label("b"), float(1.12)),
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(1.10)),
+                            (label("g"), Value::F32(1.11)),
+                            (label("b"), Value::F32(1.12)),
                         ]),
-                        struct_(vec![
-                            (label("r"), float(1.20)),
-                            (label("g"), float(1.21)),
-                            (label("b"), float(1.22)),
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(1.20)),
+                            (label("g"), Value::F32(1.21)),
+                            (label("b"), Value::F32(1.22)),
                         ]),
                     ]),
                 ]),
             ),
-        ])),
+        ]),
     );
 }
 
@@ -299,60 +276,52 @@ fn parse_bitmap_flat() {
     let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
     let module = check_module(&tc_env, &raw_module).unwrap();
 
-    let label = |name: &str| Label(name.to_owned());
-    let array = |elems: Vec<RcValue>| RcValue::from(Value::Array(elems));
-    let struct_ = |fields: Vec<(Label, RcValue)>| RcValue::from(Value::Struct(fields));
-    let float = |value: f32| RcValue::from(Value::Literal(Literal::F32(value, FloatFormat::Dec)));
-    let int = |value: u32| {
-        RcValue::from(Value::Literal(Literal::Int(
-            BigInt::from(value),
-            IntFormat::Dec,
-        )))
-    };
-
-    assert_term_eq!(
+    assert_eq!(
         parser::parse_module(&tc_env, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
-        RcValue::from(Value::Struct(vec![
+        Value::Struct(vec![
             (
                 label("header"),
-                struct_(vec![(label("width"), int(3)), (label("height"), int(2)),]),
+                Value::Struct(vec![
+                    (label("width"), Value::U32(3)),
+                    (label("height"), Value::U32(2)),
+                ]),
             ),
             (
                 label("data"),
-                array(vec![
-                    struct_(vec![
-                        (label("r"), float(0.00)),
-                        (label("g"), float(0.01)),
-                        (label("b"), float(0.02)),
+                Value::Array(vec![
+                    Value::Struct(vec![
+                        (label("r"), Value::F32(0.00)),
+                        (label("g"), Value::F32(0.01)),
+                        (label("b"), Value::F32(0.02)),
                     ]),
-                    struct_(vec![
-                        (label("r"), float(0.10)),
-                        (label("g"), float(0.11)),
-                        (label("b"), float(0.12)),
+                    Value::Struct(vec![
+                        (label("r"), Value::F32(0.10)),
+                        (label("g"), Value::F32(0.11)),
+                        (label("b"), Value::F32(0.12)),
                     ]),
-                    struct_(vec![
-                        (label("r"), float(0.20)),
-                        (label("g"), float(0.21)),
-                        (label("b"), float(0.22)),
+                    Value::Struct(vec![
+                        (label("r"), Value::F32(0.20)),
+                        (label("g"), Value::F32(0.21)),
+                        (label("b"), Value::F32(0.22)),
                     ]),
-                    struct_(vec![
-                        (label("r"), float(1.00)),
-                        (label("g"), float(1.01)),
-                        (label("b"), float(1.02)),
+                    Value::Struct(vec![
+                        (label("r"), Value::F32(1.00)),
+                        (label("g"), Value::F32(1.01)),
+                        (label("b"), Value::F32(1.02)),
                     ]),
-                    struct_(vec![
-                        (label("r"), float(1.10)),
-                        (label("g"), float(1.11)),
-                        (label("b"), float(1.12)),
+                    Value::Struct(vec![
+                        (label("r"), Value::F32(1.10)),
+                        (label("g"), Value::F32(1.11)),
+                        (label("b"), Value::F32(1.12)),
                     ]),
-                    struct_(vec![
-                        (label("r"), float(1.20)),
-                        (label("g"), float(1.21)),
-                        (label("b"), float(1.22)),
+                    Value::Struct(vec![
+                        (label("r"), Value::F32(1.20)),
+                        (label("g"), Value::F32(1.21)),
+                        (label("b"), Value::F32(1.22)),
                     ]),
                 ]),
             ),
-        ])),
+        ]),
     );
 }
 
@@ -381,34 +350,30 @@ fn gif() {
     let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
     let module = check_module(&tc_env, &raw_module).unwrap();
 
-    let label = |name: &str| Label(name.to_owned());
-    let array = |elems: Vec<RcValue>| RcValue::from(Value::Array(elems));
-    let struct_ = |fields: Vec<(Label, RcValue)>| RcValue::from(Value::Struct(fields));
-    let int = |value: u32| {
-        RcValue::from(Value::Literal(Literal::Int(
-            BigInt::from(value),
-            IntFormat::Dec,
-        )))
-    };
-
-    assert_term_eq!(
+    assert_eq!(
         parser::parse_module(&tc_env, &label("Gif"), &module, &mut given_bytes).unwrap(),
-        struct_(vec![
+        Value::Struct(vec![
             (
                 label("header"),
-                struct_(vec![
-                    (label("magic"), array(vec![int(71), int(73), int(70)])), // "GIF"
-                    (label("version"), array(vec![int(56), int(55), int(97)])), // "87a"
+                Value::Struct(vec![
+                    (
+                        label("magic"),
+                        Value::Array(vec![Value::U8(71), Value::U8(73), Value::U8(70)]), // "GIF"
+                    ),
+                    (
+                        label("version"),
+                        Value::Array(vec![Value::U8(56), Value::U8(55), Value::U8(97)]), // "87a"
+                    ),
                 ]),
             ),
             (
                 label("logical_screen"),
-                struct_(vec![
-                    (label("image_width"), int(200)),
-                    (label("image_height"), int(300)),
-                    (label("flags"), int(0)),
-                    (label("bg_color_index"), int(0)),
-                    (label("pixel_aspect_ratio"), int(0)),
+                Value::Struct(vec![
+                    (label("image_width"), Value::U16(200)),
+                    (label("image_height"), Value::U16(300)),
+                    (label("flags"), Value::U8(0)),
+                    (label("bg_color_index"), Value::U8(0)),
+                    (label("pixel_aspect_ratio"), Value::U8(0)),
                 ]),
             ),
         ]),
