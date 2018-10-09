@@ -20,33 +20,25 @@ mod module {
 
         let core_module = core::Module {
             name: "test".to_owned(),
-            items: vec![
-                core::Item::Declaration {
-                    label: Label("else".to_owned()),
-                    binder: Binder(var_else1.clone()),
-                    term: core::RcTerm::from(core::Term::universe(1)),
-                },
-                core::Item::Definition {
-                    label: Label("else".to_owned()),
-                    binder: Binder(var_else1.clone()),
-                    definition: core::Definition::Alias(core::RcTerm::from(core::Term::universe(
-                        0,
-                    ))),
-                },
+            items: Nest::new(vec![
+                (
+                    Label("else".to_owned()),
+                    Binder(var_else1.clone()),
+                    Embed((
+                        core::RcTerm::from(core::Term::universe(1)),
+                        core::Definition::Alias(core::RcTerm::from(core::Term::universe(0))),
+                    )),
+                ),
                 // This shouldn't happen, but let's test what happens anyway!
-                core::Item::Declaration {
-                    label: Label("else".to_owned()),
-                    binder: Binder(var_else2.clone()),
-                    term: core::RcTerm::from(core::Term::universe(1)),
-                },
-                core::Item::Definition {
-                    label: Label("else".to_owned()),
-                    binder: Binder(var_else2.clone()),
-                    definition: core::Definition::Alias(core::RcTerm::from(core::Term::universe(
-                        0,
-                    ))),
-                },
-            ],
+                (
+                    Label("else".to_owned()),
+                    Binder(var_else2.clone()),
+                    Embed((
+                        core::RcTerm::from(core::Term::universe(1)),
+                        core::Definition::Alias(core::RcTerm::from(core::Term::universe(0))),
+                    )),
+                ),
+            ]),
         };
 
         let concrete_module = concrete::Module::Valid {
@@ -82,14 +74,17 @@ mod module {
     fn record_ty_empty() {
         let core_module = core::Module {
             name: "test".to_owned(),
-            items: vec![core::Item::Definition {
-                label: Label("Test".to_owned()),
-                binder: Binder(FreeVar::fresh_named("Test")),
-                definition: core::Definition::StructType(Scope::new(
-                    Nest::new(vec![]),
-                    Scope::new(Nest::new(vec![]), ()),
+            items: Nest::new(vec![(
+                Label("Test".to_owned()),
+                Binder(FreeVar::fresh_named("Test")),
+                Embed((
+                    core::RcTerm::from(core::Term::universe(0)),
+                    core::Definition::StructType(Scope::new(
+                        Nest::new(vec![]),
+                        Scope::new(Nest::new(vec![]), ()),
+                    )),
                 )),
-            }],
+            )]),
         };
         let concrete_module = concrete::Module::Valid {
             name: (index(), "test".to_owned()),
@@ -119,32 +114,35 @@ mod module {
 
         let core_module = core::Module {
             name: "test".to_owned(),
-            items: vec![core::Item::Definition {
-                label: Label("Test".to_owned()),
-                binder: Binder(FreeVar::fresh_named("Test")),
-                definition: core::Definition::StructType(Scope::new(
-                    Nest::new(vec![]),
-                    Scope::new(
-                        Nest::new(vec![
-                            (
-                                Label("String".to_owned()),
-                                Binder(var_string.clone()),
-                                Embed(core::RcTerm::from(core::RcTerm::from(
-                                    core::Term::universe(0),
-                                ))),
-                            ),
-                            (
-                                Label("x".to_owned()),
-                                Binder(var_x.clone()),
-                                Embed(core::RcTerm::from(core::RcTerm::from(core::Term::Var(
-                                    Var::Free(var_string),
-                                )))),
-                            ),
-                        ]),
-                        (),
-                    ),
+            items: Nest::new(vec![(
+                Label("Test".to_owned()),
+                Binder(FreeVar::fresh_named("Test")),
+                Embed((
+                    core::RcTerm::from(core::Term::universe(0)),
+                    core::Definition::StructType(Scope::new(
+                        Nest::new(vec![]),
+                        Scope::new(
+                            Nest::new(vec![
+                                (
+                                    Label("String".to_owned()),
+                                    Binder(var_string.clone()),
+                                    Embed(core::RcTerm::from(core::RcTerm::from(
+                                        core::Term::universe(0),
+                                    ))),
+                                ),
+                                (
+                                    Label("x".to_owned()),
+                                    Binder(var_x.clone()),
+                                    Embed(core::RcTerm::from(core::RcTerm::from(core::Term::Var(
+                                        Var::Free(var_string),
+                                    )))),
+                                ),
+                            ]),
+                            (),
+                        ),
+                    )),
                 )),
-            }],
+            )]),
         };
         let concrete_module = concrete::Module::Valid {
             name: (index(), "test".to_owned()),

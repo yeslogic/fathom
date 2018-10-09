@@ -164,7 +164,8 @@ where
                             .map(|clause| {
                                 let (pattern, body) = clause.clone().unbind();
                                 Ok(Scope::new(pattern, nf_term(env, &body)?))
-                            }).collect::<Result<_, _>>()?,
+                            })
+                            .collect::<Result<_, _>>()?,
                     )),
                     spine.clone(),
                 )))

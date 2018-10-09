@@ -104,30 +104,22 @@ impl Resugar<concrete::Module> for core::Module {
     fn resugar(&self, env: &ResugarEnv) -> concrete::Module {
         let mut env = env.clone();
         let mut local_decls = HashMap::new();
-        let mut items = Vec::with_capacity(self.items.len() * 2);
+        let items = self.items.clone().unnest();
+        let mut concrete_items = Vec::with_capacity(items.len() * 2);
 
-        for item in &self.items {
-            match item {
-                core::Item::Declaration {
-                    ref label,
-                    ref binder,
-                    ref term,
-                } => {
-                    let name = env.on_item(label, binder);
-                    local_decls.insert(binder, name.clone());
+        for (label, binder, Embed((ann, definition))) in items {
+            let name = env.on_item(&label, &binder);
+            local_decls.insert(binder.clone(), name.clone());
 
-                    items.push(concrete::Item::Declaration {
+            match definition {
+                core::Definition::Alias(ref term) => {
+                    concrete_items.push(concrete::Item::Declaration {
                         name: (ByteIndex::default(), name),
-                        ann: resugar_term(&env, term, Prec::ANN),
+                        ann: resugar_term(&env, &ann, Prec::ANN),
                     });
-                },
-                core::Item::Definition {
-                    ref label,
-                    ref binder,
-                    definition: core::Definition::Alias(ref term),
-                } => {
-                    let name = local_decls.get(binder).cloned().unwrap_or_else(|| {
-                        let name = env.on_item(label, binder);
+
+                    let name = local_decls.get(&binder).cloned().unwrap_or_else(|| {
+                        let name = env.on_item(&label, &binder);
                         local_decls.insert(binder, name.clone());
                         name
                     });
@@ -138,20 +130,16 @@ impl Resugar<concrete::Module> for core::Module {
                         body => (vec![], body),
                     };
 
-                    items.push(concrete::Item::Definition(concrete::Definition::Alias {
+                    concrete_items.push(concrete::Item::Definition(concrete::Definition::Alias {
                         name: (ByteIndex::default(), name),
                         params,
                         return_ann: None,
                         term: body,
                     }));
                 },
-                core::Item::Definition {
-                    ref label,
-                    ref binder,
-                    definition: core::Definition::StructType(ref scope),
-                } => {
-                    let name = local_decls.get(binder).cloned().unwrap_or_else(|| {
-                        let name = env.on_item(label, binder);
+                core::Definition::StructType(ref scope) => {
+                    let name = local_decls.get(&binder).cloned().unwrap_or_else(|| {
+                        let name = env.on_item(&label, &binder);
                         local_decls.insert(binder, name.clone());
                         name
                     });
@@ -193,7 +181,7 @@ impl Resugar<concrete::Module> for core::Module {
                         (params, fields)
                     };
 
-                    items.push(concrete::Item::Definition(
+                    concrete_items.push(concrete::Item::Definition(
                         concrete::Definition::StructType {
                             span: ByteSpan::default(),
                             name: (ByteIndex::default(), name),
@@ -207,7 +195,7 @@ impl Resugar<concrete::Module> for core::Module {
 
         concrete::Module::Valid {
             name: (ByteIndex::default(), self.name.clone()),
-            items,
+            items: concrete_items,
         }
     }
 }

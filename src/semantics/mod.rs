@@ -9,8 +9,8 @@ use moniker::{Binder, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
 use num_traits::ToPrimitive;
 
 use syntax::core::{
-    Definition, Head, Item, Literal, Module, Pattern, RcPattern, RcTerm, RcType, RcValue, Term,
-    Type, Value,
+    Definition, Head, Literal, Module, Pattern, RcPattern, RcTerm, RcType, RcValue, Term, Type,
+    Value,
 };
 use syntax::raw;
 use syntax::translation::Resugar;
@@ -32,179 +32,126 @@ pub fn check_module<Env>(env: &Env, raw_module: &raw::Module) -> Result<Module, 
 where
     Env: DeclarationEnv + DefinitionEnv,
 {
-    use im::HashMap;
-
-    #[derive(Clone)]
-    pub enum ForwardDecl {
-        Pending(ByteSpan, RcTerm),
-        Defined(ByteSpan),
-    }
-
-    // Declarations that may be waiting to be defined
-    let mut forward_declarations = HashMap::new();
     let mut env = env.clone();
-    // The elaborated items, pre-allocated to improve performance
-    let mut items = Vec::with_capacity(raw_module.items.len());
-    let name = raw_module.name.clone();
-
-    // Iterate through the items in the module, checking each in turn
-    for raw_item in &raw_module.items {
-        match *raw_item {
-            raw::Item::Declaration {
-                label_span,
-                ref label,
-                ref binder,
-                term: ref raw_term,
-            } => {
-                // Ensure that this declaration has not already been seen
-                match forward_declarations.get(binder) {
-                    // There's already a definition associated with this name -
-                    // we can't add a new declaration for it!
-                    Some(&ForwardDecl::Defined(definition_span)) => {
-                        return Err(TypeError::DeclarationFollowedDefinition {
-                            definition_span,
-                            declaration_span: label_span,
-                            binder: binder.clone(),
-                        });
-                    },
-                    // There's a declaration  for this name already pending - we
-                    // can't add a new one!
-                    Some(&ForwardDecl::Pending(original_span, _)) => {
-                        return Err(TypeError::DuplicateDeclarations {
-                            original_span,
-                            duplicate_span: label_span,
-                            binder: binder.clone(),
-                        });
-                    },
-                    // No previous declaration for this name was seen, so we can
-                    // go-ahead and type check, elaborate, and then add it to
-                    // the context
-                    None => {},
-                }
-
-                // Ensure that the declaration's type annotation is actually a type
-                let (term, _) = infer_universe(&env, raw_term)?;
-                // Remember the declaration for when we get to a subsequent definition
-                let declaration = ForwardDecl::Pending(label_span, term.clone());
-                forward_declarations.insert(binder.clone(), declaration);
-                // Add the declaration to the elaborated items
-                items.push(Item::Declaration {
-                    label: label.clone(),
-                    binder: binder.clone(),
-                    term,
-                });
-            },
-
-            raw::Item::Definition {
-                label_span,
-                ref label,
-                ref binder,
-                ref definition,
-            } => {
-                let (definition, ty) = match (forward_declarations.get(binder), definition) {
-                    // This declaration was already given a definition, so this
-                    // is an error!
-                    //
-                    // NOTE: Some languages (eg. Haskell, Agda, Idris, and
-                    // Erlang) turn duplicate definitions into match matches.
-                    // Languages like Elm don't. What should we do here?
-                    (Some(&ForwardDecl::Defined(original_span)), _) => {
-                        return Err(TypeError::DuplicateDefinitions {
-                            original_span,
-                            duplicate_span: label_span,
-                            binder: binder.clone(),
-                        });
-                    },
-                    // We found a prior declaration, so we'll use it as a basis
-                    // for checking the definition
+    let items = raw_module
+        .items
+        .clone()
+        .unnest()
+        .into_iter()
+        .map(
+            |(label, Binder(free_var), Embed((raw_ann, raw_definition)))| {
+                let (definition, ann, ann_value) = if let raw::Term::Hole(_) = *raw_ann {
+                    let (definition, ann_value) = infer_definition(&env, &raw_definition)?;
+                    (definition, RcTerm::from(&*ann_value.inner), ann_value)
+                } else {
+                    let (ann, _) = infer_universe(&env, &raw_ann)?;
+                    let ann_value = nf_term(&env, &ann)?;
                     (
-                        Some(ForwardDecl::Pending(_, ref ty)),
-                        &raw::Definition::Alias(ref raw_term),
-                    ) => {
-                        let ty = nf_term(&env, ty)?;
-                        (Definition::Alias(check_term(&env, &raw_term, &ty)?), ty)
-                    },
-                    (Some(ForwardDecl::Pending(_, _)), &raw::Definition::StructType(_, _)) => {
-                        unimplemented!("forward struct definitions");
-                    },
-                    // No prior declaration was found, so try to infer the type
-                    // from the given definition alone
-                    (None, &raw::Definition::Alias(ref raw_term)) => {
-                        let (term, ty) = infer_term(&env, &raw_term)?;
-                        (Definition::Alias(term), ty)
-                    },
-                    (None, &raw::Definition::StructType(_, ref raw_scope)) => {
-                        use std::cmp;
-
-                        let mut env = env.clone();
-                        let mut max_level = Level(0);
-
-                        let (raw_params, raw_fields_scope) = raw_scope.clone().unbind();
-                        let (raw_fields, ()) = raw_fields_scope.unbind();
-                        let raw_params = raw_params.unnest();
-
-                        let mut struct_params = Vec::with_capacity(raw_params.len());
-                        let mut pi_params = Vec::with_capacity(raw_params.len());
-
-                        for (Binder(free_var), Embed(raw_ann)) in raw_params {
-                            let (ann, _) = infer_universe(&env, &raw_ann)?;
-                            let nf_ann = nf_term(&env, &ann)?;
-
-                            env.insert_declaration(free_var.clone(), nf_ann.clone());
-
-                            struct_params.push((Binder(free_var.clone()), Embed(ann)));
-                            pi_params.push((Binder(free_var), Embed(nf_ann)));
-                        }
-
-                        // FIXME: Check that struct is well-formed?
-                        let fields = raw_fields
-                            .unnest()
-                            .into_iter()
-                            .map(|(label, Binder(free_var), Embed(raw_ann))| {
-                                let (ann, ann_level) = infer_universe(&env, &raw_ann)?;
-                                let nf_ann = nf_term(&env, &ann)?;
-
-                                max_level = cmp::max(max_level, ann_level);
-                                env.insert_declaration(free_var.clone(), nf_ann);
-
-                                Ok((label, Binder(free_var), Embed(ann)))
-                            }).collect::<Result<_, TypeError>>()?;
-
-                        let struct_ty = Definition::StructType(Scope::new(
-                            Nest::new(struct_params),
-                            Scope::new(Nest::new(fields), ()),
-                        ));
-
-                        let ty = pi_params
-                            .into_iter()
-                            .rev()
-                            .fold(RcValue::from(Value::Universe(max_level)), |acc, param| {
-                                RcValue::from(Value::Pi(Scope::new(param, acc)))
-                            });
-
-                        (struct_ty, ty)
-                    },
+                        check_definition(&env, &raw_definition, &ann_value)?,
+                        ann,
+                        ann_value,
+                    )
                 };
 
-                // We must not remove this from the list of pending
-                // declarations, lest we encounter another declaration or
-                // definition of the same name later on!
-                forward_declarations.insert(binder.clone(), ForwardDecl::Defined(label_span));
-                // Add the declaration and definition to the environment,
-                // allowing them to be used in later type checking
-                env.insert_declaration(binder.0.clone(), ty);
-                env.insert_definition(binder.0.clone(), definition.clone());
-                // Add the definition to the elaborated items
-                items.push(Item::Definition {
-                    label: label.clone(),
-                    binder: binder.clone(),
-                    definition,
-                });
-            },
-        }
-    }
+                env.insert_definition(free_var.clone(), definition.clone());
+                env.insert_declaration(free_var.clone(), ann_value);
 
-    Ok(Module { name, items })
+                Ok((label, Binder(free_var), Embed((ann, definition))))
+            },
+        )
+        .collect::<Result<_, TypeError>>()?;
+
+    Ok(Module {
+        name: raw_module.name.clone(),
+        items: Nest::new(items),
+    })
+}
+
+fn check_definition<Env>(
+    env: &Env,
+    raw_definition: &raw::Definition,
+    expected_ty: &RcType,
+) -> Result<Definition, TypeError>
+where
+    Env: DeclarationEnv + DefinitionEnv,
+{
+    match *raw_definition {
+        raw::Definition::Alias(ref raw_term) => {
+            Ok(Definition::Alias(check_term(env, raw_term, expected_ty)?))
+        },
+        raw::Definition::StructType(span, ref _raw_scope) => Err(InternalError::Unimplemented {
+            span: Some(span),
+            message: "struct declarations".to_owned(),
+        }
+        .into()),
+    }
+}
+
+fn infer_definition<Env>(
+    env: &Env,
+    raw_definition: &raw::Definition,
+) -> Result<(Definition, RcType), TypeError>
+where
+    Env: DeclarationEnv + DefinitionEnv,
+{
+    match *raw_definition {
+        raw::Definition::Alias(ref raw_term) => {
+            let (term, ty) = infer_term(env, raw_term)?;
+            Ok((Definition::Alias(term), ty))
+        },
+        raw::Definition::StructType(_, ref raw_scope) => {
+            use std::cmp;
+
+            let mut env = env.clone();
+            let mut max_level = Level(0);
+
+            let (raw_params, raw_fields_scope) = raw_scope.clone().unbind();
+            let (raw_fields, ()) = raw_fields_scope.unbind();
+            let raw_params = raw_params.unnest();
+
+            let mut struct_params = Vec::with_capacity(raw_params.len());
+            let mut pi_params = Vec::with_capacity(raw_params.len());
+
+            for (Binder(free_var), Embed(raw_ann)) in raw_params {
+                let (ann, _) = infer_universe(&env, &raw_ann)?;
+                let nf_ann = nf_term(&env, &ann)?;
+
+                env.insert_declaration(free_var.clone(), nf_ann.clone());
+
+                struct_params.push((Binder(free_var.clone()), Embed(ann)));
+                pi_params.push((Binder(free_var), Embed(nf_ann)));
+            }
+
+            // FIXME: Check that struct is well-formed?
+            let fields = raw_fields
+                .unnest()
+                .into_iter()
+                .map(|(label, Binder(free_var), Embed(raw_ann))| {
+                    let (ann, ann_level) = infer_universe(&env, &raw_ann)?;
+                    let nf_ann = nf_term(&env, &ann)?;
+
+                    max_level = cmp::max(max_level, ann_level);
+                    env.insert_declaration(free_var.clone(), nf_ann);
+
+                    Ok((label, Binder(free_var), Embed(ann)))
+                })
+                .collect::<Result<_, TypeError>>()?;
+
+            let struct_ty = Definition::StructType(Scope::new(
+                Nest::new(struct_params),
+                Scope::new(Nest::new(fields), ()),
+            ));
+
+            let ty = pi_params
+                .into_iter()
+                .rev()
+                .fold(RcValue::from(Value::Universe(max_level)), |acc, param| {
+                    RcValue::from(Value::Pi(Scope::new(param, acc)))
+                });
+
+            Ok((struct_ty, ty))
+        },
+    }
 }
 
 /// Check that `ty1` is a subtype of `ty2`
@@ -467,7 +414,8 @@ where
             Var::Bound(_) => Err(InternalError::UnexpectedBoundVar {
                 span: Some(raw_pattern.span()),
                 var: var.clone(),
-            }.into()),
+            }
+            .into()),
         },
         raw::Pattern::Literal(ref literal) => {
             let (pattern, ty) =
@@ -608,7 +556,8 @@ where
                                 expected: ty_label,
                             })
                         }
-                    }).collect::<Result<_, _>>()?;
+                    })
+                    .collect::<Result<_, _>>()?;
 
                 return Ok(RcTerm::from(Term::Struct(fields)));
             }
@@ -629,7 +578,8 @@ where
                     let body = check_term(&body_env, &raw_body, expected_ty)?;
 
                     Ok(Scope::new(pattern, body))
-                }).collect::<Result<_, TypeError>>()?;
+                })
+                .collect::<Result<_, TypeError>>()?;
 
             return Ok(RcTerm::from(Term::Match(head, clauses)));
         },
@@ -749,7 +699,8 @@ where
             Var::Bound(_) => Err(InternalError::UnexpectedBoundVar {
                 span: Some(raw_term.span()),
                 var: var.clone(),
-            }.into()),
+            }
+            .into()),
         },
 
         raw::Term::Extern(span, name_span, ref name) => match env.get_extern_definition(name) {
@@ -889,7 +840,8 @@ where
                     }
 
                     Ok(Scope::new(pattern, body))
-                }).collect::<Result<_, TypeError>>()?;
+                })
+                .collect::<Result<_, TypeError>>()?;
 
             match ty {
                 Some(ty) => Ok((RcTerm::from(Term::Match(head, clauses)), ty)),

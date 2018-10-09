@@ -40,7 +40,9 @@ fn silly_root() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
     let module = check_module(&tc_env, &raw_module).unwrap();
 
     assert_eq!(
@@ -68,7 +70,9 @@ fn missing_root() {
         Data len = Array len U32Be;
     "#;
 
-    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
     let module = check_module(&tc_env, &raw_module).unwrap();
 
     let mut given_bytes = Cursor::new(vec![]);
@@ -118,7 +122,9 @@ fn pos() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
     let module = check_module(&tc_env, &raw_module).unwrap();
 
     assert_eq!(
@@ -182,7 +188,9 @@ fn parse_bitmap_nested() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
     let module = check_module(&tc_env, &raw_module).unwrap();
 
     assert_eq!(
@@ -273,7 +281,9 @@ fn parse_bitmap_flat() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
     let module = check_module(&tc_env, &raw_module).unwrap();
 
     assert_eq!(
@@ -347,7 +357,9 @@ fn gif() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
     let module = check_module(&tc_env, &raw_module).unwrap();
 
     assert_eq!(
@@ -388,7 +400,9 @@ fn opentype() {
 
     let given_format = include_str!("./fixtures/opentype.ddl");
 
-    let raw_module = parse_module(&mut codemap, given_format).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
     match check_module(&tc_env, &raw_module) {
         Ok(_module) => {},
         Err(error) => {
