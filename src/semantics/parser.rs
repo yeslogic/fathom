@@ -1,7 +1,7 @@
 use moniker::{Binder, Embed, FreeVar, Var};
 use std::io;
 
-use semantics::{nf_term, DefinitionEnv, InternalError};
+use semantics::{nf_term, Definition, DefinitionEnv, InternalError};
 use syntax::core;
 use syntax::Label;
 
@@ -102,14 +102,14 @@ where
 {
     let mut env = env.clone();
 
-    for (label, Binder(free_var), Embed((_, definition))) in module.items.clone().unnest() {
+    for (label, Binder(free_var), Embed(definition)) in module.items.clone().unnest() {
         if label == *root {
             match definition {
-                core::Definition::Alias(ref term) => {
+                core::Definition::Alias { ref term, .. } => {
                     let term = nf_term(&env, term)?;
                     return parse_term(&env, &term, bytes);
                 },
-                core::Definition::StructType(ref scope) => {
+                core::Definition::StructType { ref scope } => {
                     let (params, fields_scope) = scope.clone().unbind();
 
                     if !params.unsafe_patterns.is_empty() {
@@ -128,9 +128,9 @@ where
             env.insert_definition(
                 free_var.clone(),
                 match definition {
-                    core::Definition::Alias(ref term) => core::Definition::Alias(term.clone()),
-                    core::Definition::StructType(ref scope) => {
-                        core::Definition::StructType(scope.clone())
+                    core::Definition::Alias { ref term, .. } => Definition::Alias(term.clone()),
+                    core::Definition::StructType { ref scope } => {
+                        Definition::StructType(scope.clone())
                     },
                 },
             );
@@ -229,7 +229,7 @@ where
             match **neutral {
                 core::Neutral::Head(core::Head::Var(Var::Free(ref free_var))) => {
                     match env.get_definition(free_var) {
-                        Some(&core::Definition::StructType(ref scope)) => {
+                        Some(&Definition::StructType(ref scope)) => {
                             let (params, fields_scope) = scope.clone().unbind();
                             let (fields, ()) = fields_scope.unbind();
                             let params = params.unnest();
@@ -251,7 +251,7 @@ where
                             parse_struct(env, fields, mappings, bytes)
                         },
                         // FIXME: follow alias?
-                        None | Some(&core::Definition::Alias(_)) => {
+                        None | Some(&Definition::Alias(_)) => {
                             Err(ParseError::InvalidType(ty.clone()))
                         },
                     }

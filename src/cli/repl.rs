@@ -157,8 +157,8 @@ fn eval_print(
 ) -> Result<ControlFlow, EvalPrintError> {
     use codespan::ByteIndex;
 
+    use semantics::Definition;
     use syntax::concrete::{ReplCommand, Term};
-    use syntax::core::Definition;
     use syntax::pretty::{self, ToDoc};
     use syntax::translation::{Desugar, Resugar};
 

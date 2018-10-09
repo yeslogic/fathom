@@ -107,15 +107,15 @@ impl Resugar<concrete::Module> for core::Module {
         let items = self.items.clone().unnest();
         let mut concrete_items = Vec::with_capacity(items.len() * 2);
 
-        for (label, binder, Embed((ann, definition))) in items {
+        for (label, binder, Embed(definition)) in items {
             let name = env.on_item(&label, &binder);
             local_decls.insert(binder.clone(), name.clone());
 
             match definition {
-                core::Definition::Alias(ref term) => {
+                core::Definition::Alias { ref term, ref ty } => {
                     concrete_items.push(concrete::Item::Declaration {
                         name: (ByteIndex::default(), name),
-                        ann: resugar_term(&env, &ann, Prec::ANN),
+                        ann: resugar_term(&env, &ty, Prec::ANN),
                     });
 
                     let name = local_decls.get(&binder).cloned().unwrap_or_else(|| {
@@ -137,7 +137,7 @@ impl Resugar<concrete::Module> for core::Module {
                         term: body,
                     }));
                 },
-                core::Definition::StructType(ref scope) => {
+                core::Definition::StructType { ref scope } => {
                     let name = local_decls.get(&binder).cloned().unwrap_or_else(|| {
                         let name = env.on_item(&label, &binder);
                         local_decls.insert(binder, name.clone());

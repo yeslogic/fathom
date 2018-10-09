@@ -4,7 +4,7 @@ use num_bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;
 
-use syntax::core::{Definition, Literal, RcType, RcValue, Spine, Value};
+use syntax::core::{self, Literal, RcType, RcValue, Spine, Value};
 use syntax::translation::ResugarEnv;
 use syntax::{FloatFormat, IntFormat};
 
@@ -320,6 +320,12 @@ pub trait DeclarationEnv: GlobalEnv {
     fn extend_declarations<T>(&mut self, iter: T)
     where
         T: IntoIterator<Item = (FreeVar<String>, RcType)>;
+}
+
+#[derive(Debug, Clone, PartialEq, BoundTerm)]
+pub enum Definition {
+    Alias(core::RcTerm),
+    StructType(core::StructType),
 }
 
 /// An environment that contains definitions

@@ -9,8 +9,7 @@ use moniker::{Binder, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
 use num_traits::ToPrimitive;
 
 use syntax::core::{
-    Definition, Head, Literal, Module, Pattern, RcPattern, RcTerm, RcType, RcValue, Term, Type,
-    Value,
+    self, Head, Literal, Module, Pattern, RcPattern, RcTerm, RcType, RcValue, Term, Type, Value,
 };
 use syntax::raw;
 use syntax::translation::Resugar;
@@ -23,7 +22,7 @@ pub mod parser;
 #[cfg(test)]
 mod tests;
 
-pub use self::env::{DeclarationEnv, DefinitionEnv, Extern, GlobalEnv, Globals, TcEnv};
+pub use self::env::{DeclarationEnv, Definition, DefinitionEnv, Extern, GlobalEnv, Globals, TcEnv};
 pub use self::errors::{InternalError, TypeError};
 pub use self::normalize::{match_value, nf_term};
 
@@ -38,120 +37,104 @@ where
         .clone()
         .unnest()
         .into_iter()
-        .map(
-            |(label, Binder(free_var), Embed((raw_ann, raw_definition)))| {
-                let (definition, ann, ann_value) = if let raw::Term::Hole(_) = *raw_ann {
-                    let (definition, ann_value) = infer_definition(&env, &raw_definition)?;
-                    (definition, RcTerm::from(&*ann_value.inner), ann_value)
-                } else {
-                    let (ann, _) = infer_universe(&env, &raw_ann)?;
-                    let ann_value = nf_term(&env, &ann)?;
+        .map(|(label, Binder(free_var), Embed(raw_definition))| {
+            let (ty_value, definition, core_definition) = match raw_definition {
+                raw::Definition::Alias {
+                    term: ref raw_term,
+                    ty: ref raw_ty,
+                } => match *raw_ty.inner {
+                    raw::Term::Hole(_) => {
+                        let (term, ty_value) = infer_term(&env, &raw_term)?;
+                        let ty = RcTerm::from(&*ty_value.inner);
+
+                        (
+                            ty_value,
+                            Definition::Alias(term.clone()),
+                            core::Definition::Alias { term, ty },
+                        )
+                    },
+                    _ => {
+                        let (ty, _) = infer_universe(&env, &raw_ty)?;
+                        let ty_value = nf_term(&env, &ty)?;
+                        let term = check_term(&env, &raw_term, &ty_value)?;
+
+                        (
+                            ty_value,
+                            Definition::Alias(term.clone()),
+                            core::Definition::Alias { term, ty },
+                        )
+                    },
+                },
+                raw::Definition::StructType {
+                    scope: ref raw_scope,
+                    ..
+                } => {
+                    use std::cmp;
+
+                    let mut env = env.clone();
+                    let mut max_level = Level(0);
+
+                    let (raw_params, raw_fields_scope) = raw_scope.clone().unbind();
+                    let (raw_fields, ()) = raw_fields_scope.unbind();
+                    let raw_params = raw_params.unnest();
+
+                    let mut struct_params = Vec::with_capacity(raw_params.len());
+                    let mut pi_params = Vec::with_capacity(raw_params.len());
+
+                    for (Binder(free_var), Embed(raw_ann)) in raw_params {
+                        let (ann, _) = infer_universe(&env, &raw_ann)?;
+                        let nf_ann = nf_term(&env, &ann)?;
+
+                        env.insert_declaration(free_var.clone(), nf_ann.clone());
+
+                        struct_params.push((Binder(free_var.clone()), Embed(ann)));
+                        pi_params.push((Binder(free_var), Embed(nf_ann)));
+                    }
+
+                    // FIXME: Check that struct is well-formed?
+                    let fields = raw_fields
+                        .unnest()
+                        .into_iter()
+                        .map(|(label, Binder(free_var), Embed(raw_ann))| {
+                            let (ann, ann_level) = infer_universe(&env, &raw_ann)?;
+                            let nf_ann = nf_term(&env, &ann)?;
+
+                            max_level = cmp::max(max_level, ann_level);
+                            env.insert_declaration(free_var.clone(), nf_ann);
+
+                            Ok((label, Binder(free_var), Embed(ann)))
+                        })
+                        .collect::<Result<_, TypeError>>()?;
+
+                    let scope =
+                        Scope::new(Nest::new(struct_params), Scope::new(Nest::new(fields), ()));
+
+                    let ty = pi_params
+                        .into_iter()
+                        .rev()
+                        .fold(RcValue::from(Value::Universe(max_level)), |acc, param| {
+                            RcValue::from(Value::Pi(Scope::new(param, acc)))
+                        });
+
                     (
-                        check_definition(&env, &raw_definition, &ann_value)?,
-                        ann,
-                        ann_value,
+                        ty,
+                        Definition::StructType(scope.clone()),
+                        core::Definition::StructType { scope },
                     )
-                };
+                },
+            };
 
-                env.insert_definition(free_var.clone(), definition.clone());
-                env.insert_declaration(free_var.clone(), ann_value);
+            env.insert_declaration(free_var.clone(), ty_value.clone());
+            env.insert_definition(free_var.clone(), definition);
 
-                Ok((label, Binder(free_var), Embed((ann, definition))))
-            },
-        )
+            Ok((label, Binder(free_var), Embed(core_definition)))
+        })
         .collect::<Result<_, TypeError>>()?;
 
     Ok(Module {
         name: raw_module.name.clone(),
         items: Nest::new(items),
     })
-}
-
-fn check_definition<Env>(
-    env: &Env,
-    raw_definition: &raw::Definition,
-    expected_ty: &RcType,
-) -> Result<Definition, TypeError>
-where
-    Env: DeclarationEnv + DefinitionEnv,
-{
-    match *raw_definition {
-        raw::Definition::Alias(ref raw_term) => {
-            Ok(Definition::Alias(check_term(env, raw_term, expected_ty)?))
-        },
-        raw::Definition::StructType(span, ref _raw_scope) => Err(InternalError::Unimplemented {
-            span: Some(span),
-            message: "struct declarations".to_owned(),
-        }
-        .into()),
-    }
-}
-
-fn infer_definition<Env>(
-    env: &Env,
-    raw_definition: &raw::Definition,
-) -> Result<(Definition, RcType), TypeError>
-where
-    Env: DeclarationEnv + DefinitionEnv,
-{
-    match *raw_definition {
-        raw::Definition::Alias(ref raw_term) => {
-            let (term, ty) = infer_term(env, raw_term)?;
-            Ok((Definition::Alias(term), ty))
-        },
-        raw::Definition::StructType(_, ref raw_scope) => {
-            use std::cmp;
-
-            let mut env = env.clone();
-            let mut max_level = Level(0);
-
-            let (raw_params, raw_fields_scope) = raw_scope.clone().unbind();
-            let (raw_fields, ()) = raw_fields_scope.unbind();
-            let raw_params = raw_params.unnest();
-
-            let mut struct_params = Vec::with_capacity(raw_params.len());
-            let mut pi_params = Vec::with_capacity(raw_params.len());
-
-            for (Binder(free_var), Embed(raw_ann)) in raw_params {
-                let (ann, _) = infer_universe(&env, &raw_ann)?;
-                let nf_ann = nf_term(&env, &ann)?;
-
-                env.insert_declaration(free_var.clone(), nf_ann.clone());
-
-                struct_params.push((Binder(free_var.clone()), Embed(ann)));
-                pi_params.push((Binder(free_var), Embed(nf_ann)));
-            }
-
-            // FIXME: Check that struct is well-formed?
-            let fields = raw_fields
-                .unnest()
-                .into_iter()
-                .map(|(label, Binder(free_var), Embed(raw_ann))| {
-                    let (ann, ann_level) = infer_universe(&env, &raw_ann)?;
-                    let nf_ann = nf_term(&env, &ann)?;
-
-                    max_level = cmp::max(max_level, ann_level);
-                    env.insert_declaration(free_var.clone(), nf_ann);
-
-                    Ok((label, Binder(free_var), Embed(ann)))
-                })
-                .collect::<Result<_, TypeError>>()?;
-
-            let struct_ty = Definition::StructType(Scope::new(
-                Nest::new(struct_params),
-                Scope::new(Nest::new(fields), ()),
-            ));
-
-            let ty = pi_params
-                .into_iter()
-                .rev()
-                .fold(RcValue::from(Value::Universe(max_level)), |acc, param| {
-                    RcValue::from(Value::Pi(Scope::new(param, acc)))
-                });
-
-            Ok((struct_ty, ty))
-        },
-    }
 }
 
 /// Check that `ty1` is a subtype of `ty2`

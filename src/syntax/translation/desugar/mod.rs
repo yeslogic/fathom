@@ -257,7 +257,7 @@ fn desugar_struct(
 fn desugar_items(
     env: &mut DesugarEnv,
     concrete_items: &[concrete::Item],
-) -> Result<Nest<(Label, Binder<String>, Embed<(raw::RcTerm, raw::Definition)>)>, DesugarError> {
+) -> Result<Nest<(Label, Binder<String>, Embed<raw::Definition>)>, DesugarError> {
     use im::HashMap;
 
     #[derive(Clone)]
@@ -324,7 +324,7 @@ fn desugar_items(
                 let binder = env.on_item(name);
                 let name_span = ByteSpan::from_offset(start, ByteOffset::from_str(name));
                 let term = desugar_lam(env, params, return_ann.as_ref().map(<_>::as_ref), term)?;
-                let ann = match forward_declarations.get(&binder).cloned() {
+                let ty = match forward_declarations.get(&binder).cloned() {
                     // This declaration was already given a definition, so this
                     // is an error!
                     //
@@ -340,7 +340,7 @@ fn desugar_items(
                     },
                     // We found a prior declaration, so we'll use it as a basis
                     // for checking the definition
-                    Some(ForwardDecl::Pending(_, ann)) => ann.clone(),
+                    Some(ForwardDecl::Pending(_, ty)) => ty.clone(),
                     // No prior declaration was found, so use a hole instead
                     None => hole.clone(),
                 };
@@ -353,7 +353,7 @@ fn desugar_items(
                 items.push((
                     Label(name.clone()),
                     binder,
-                    Embed((ann, raw::Definition::Alias(term))),
+                    Embed(raw::Definition::Alias { term, ty }),
                 ));
             },
 
@@ -391,7 +391,7 @@ fn desugar_items(
                     Scope::new(Nest::new(params), Scope::new(Nest::new(fields), ()))
                 };
 
-                let ann = match forward_declarations.get(&binder).cloned() {
+                match forward_declarations.get(&binder).cloned() {
                     // This declaration was already given a definition, so this
                     // is an error!
                     Some(ForwardDecl::Defined(original_span)) => {
@@ -406,8 +406,8 @@ fn desugar_items(
                     Some(ForwardDecl::Pending(_, _)) => {
                         unimplemented!("forward struct definitions")
                     },
-                    // No prior declaration was found, so use a hole instead
-                    None => hole.clone(),
+                    // No prior declaration was found
+                    None => {},
                 };
 
                 // We must not remove this from the list of pending
@@ -418,7 +418,7 @@ fn desugar_items(
                 items.push((
                     Label(name.clone()),
                     binder,
-                    Embed((ann, raw::Definition::StructType(span, scope))),
+                    Embed(raw::Definition::StructType { span, scope }),
                 ));
             },
 

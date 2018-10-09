@@ -24,19 +24,19 @@ mod module {
                 (
                     Label("else".to_owned()),
                     Binder(var_else1.clone()),
-                    Embed((
-                        core::RcTerm::from(core::Term::universe(1)),
-                        core::Definition::Alias(core::RcTerm::from(core::Term::universe(0))),
-                    )),
+                    Embed(core::Definition::Alias {
+                        term: core::RcTerm::from(core::Term::universe(0)),
+                        ty: core::RcTerm::from(core::Term::universe(1)),
+                    }),
                 ),
                 // This shouldn't happen, but let's test what happens anyway!
                 (
                     Label("else".to_owned()),
                     Binder(var_else2.clone()),
-                    Embed((
-                        core::RcTerm::from(core::Term::universe(1)),
-                        core::Definition::Alias(core::RcTerm::from(core::Term::universe(0))),
-                    )),
+                    Embed(core::Definition::Alias {
+                        term: core::RcTerm::from(core::Term::universe(0)),
+                        ty: core::RcTerm::from(core::Term::universe(1)),
+                    }),
                 ),
             ]),
         };
@@ -77,13 +77,9 @@ mod module {
             items: Nest::new(vec![(
                 Label("Test".to_owned()),
                 Binder(FreeVar::fresh_named("Test")),
-                Embed((
-                    core::RcTerm::from(core::Term::universe(0)),
-                    core::Definition::StructType(Scope::new(
-                        Nest::new(vec![]),
-                        Scope::new(Nest::new(vec![]), ()),
-                    )),
-                )),
+                Embed(core::Definition::StructType {
+                    scope: Scope::new(Nest::new(vec![]), Scope::new(Nest::new(vec![]), ())),
+                }),
             )]),
         };
         let concrete_module = concrete::Module::Valid {
@@ -117,9 +113,8 @@ mod module {
             items: Nest::new(vec![(
                 Label("Test".to_owned()),
                 Binder(FreeVar::fresh_named("Test")),
-                Embed((
-                    core::RcTerm::from(core::Term::universe(0)),
-                    core::Definition::StructType(Scope::new(
+                Embed(core::Definition::StructType {
+                    scope: Scope::new(
                         Nest::new(vec![]),
                         Scope::new(
                             Nest::new(vec![
@@ -140,8 +135,8 @@ mod module {
                             ]),
                             (),
                         ),
-                    )),
-                )),
+                    ),
+                }),
             )]),
         };
         let concrete_module = concrete::Module::Valid {

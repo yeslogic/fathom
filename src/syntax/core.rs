@@ -14,7 +14,7 @@ pub struct Module {
     /// The name of the module
     pub name: String,
     /// The items contained in the module
-    pub items: Nest<(Label, Binder<String>, Embed<(RcTerm, Definition)>)>,
+    pub items: Nest<(Label, Binder<String>, Embed<Definition>)>,
 }
 
 pub type Telescope = Nest<(Binder<String>, Embed<RcTerm>)>;
@@ -23,8 +23,10 @@ pub type StructType = Scope<Telescope, Scope<Nest<(Label, Binder<String>, Embed<
 
 #[derive(Debug, Clone, PartialEq, BoundTerm)]
 pub enum Definition {
-    Alias(RcTerm),
-    StructType(StructType),
+    /// Alias definitions
+    Alias { term: RcTerm, ty: RcTerm },
+    /// Dependent struct types
+    StructType { scope: StructType },
 }
 
 /// Literals
