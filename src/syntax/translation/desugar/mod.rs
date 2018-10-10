@@ -23,16 +23,24 @@ pub struct DesugarEnv {
     locals: HashMap<String, FreeVar<String>>,
 }
 
+pub type DesugarGlobals = HashMap<String, FreeVar<String>>;
+
 impl DesugarEnv {
     pub fn new(mappings: HashMap<String, FreeVar<String>>) -> DesugarEnv {
         DesugarEnv { locals: mappings }
     }
 
-    pub fn on_item(&mut self, name: &str) -> Binder<String> {
-        if let Some(free_var) = self.locals.get(name) {
-            return Binder(free_var.clone());
+    pub fn on_definition(&mut self, name: &str, globals: &mut DesugarGlobals) -> Binder<String> {
+        use im::hashmap::Entry;
+
+        match globals.entry(name.to_owned()) {
+            Entry::Occupied(ent) => {
+                let free_var = ent.remove();
+                self.locals.insert(name.to_owned(), free_var.clone());
+                Binder(free_var.clone())
+            },
+            Entry::Vacant(_ent) => Binder(self.on_binding(name)),
         }
-        Binder(self.on_binding(name))
     }
 
     pub fn on_binding(&mut self, name: &str) -> FreeVar<String> {
@@ -42,14 +50,18 @@ impl DesugarEnv {
         free_var
     }
 
-    pub fn on_name(&self, span: ByteSpan, name: &str) -> raw::RcTerm {
-        raw::RcTerm::from(raw::Term::Var(
-            span,
-            Var::Free(match self.locals.get(name) {
-                None => FreeVar::fresh_named(name),
-                Some(free_var) => free_var.clone(),
-            }),
-        ))
+    pub fn on_name(&self, span: ByteSpan, name: &str, globals: &mut DesugarGlobals) -> raw::RcTerm {
+        let free_var = self.locals.get(name).cloned().unwrap_or_else(|| {
+            if let Some(free_var) = globals.get(name) {
+                return free_var.clone();
+            }
+
+            let free_var = FreeVar::fresh_named(name);
+            globals.insert(name.to_owned(), free_var.clone());
+            free_var
+        });
+
+        raw::RcTerm::from(raw::Term::Var(span, Var::Free(free_var)))
     }
 }
 
@@ -80,6 +92,8 @@ pub enum DesugarError {
         duplicate_span: ByteSpan,
         name: String,
     },
+    #[fail(display = "cyclic definition: `{}`", cycle)]
+    CyclicDefinitions { cycle: String },
 }
 
 impl DesugarError {
@@ -130,13 +144,28 @@ impl DesugarError {
                 DiagnosticLabel::new_secondary(original_span)
                     .with_message("the original definition"),
             ),
+            DesugarError::CyclicDefinitions { ref cycle } => {
+                Diagnostic::new_error(format!("cyclic definition `{}`", cycle)) // TODO: better formatting
+            },
         }
     }
 }
 
 /// Translate something to the corresponding core representation
 pub trait Desugar<T> {
-    fn desugar(&self, env: &DesugarEnv) -> Result<T, DesugarError>;
+    fn desugar(&self, env: &DesugarEnv) -> Result<T, DesugarError> {
+        let mut globals = HashMap::new();
+        let desugared = self.desugar_globals(env, &mut globals)?;
+        // return an error here?
+        // assert_eq!(globals, HashMap::new());
+        Ok(desugared)
+    }
+
+    fn desugar_globals(
+        &self,
+        env: &DesugarEnv,
+        globals: &mut DesugarGlobals,
+    ) -> Result<T, DesugarError>;
 }
 
 /// Convert a sugary pi type from something like:
@@ -154,27 +183,28 @@ fn desugar_pi(
     env: &DesugarEnv,
     param_groups: &[concrete::PiParamGroup],
     body: &concrete::Term,
+    globals: &mut DesugarGlobals,
 ) -> Result<raw::RcTerm, DesugarError> {
     let mut env = env.clone();
 
     let mut params = Vec::new();
     for &(ref names, ref ann) in param_groups {
-        let ann = raw::RcTerm::from(ann.desugar(&env)?);
+        let ann = raw::RcTerm::from(ann.desugar_globals(&env, globals)?);
         params.extend(names.iter().map(|&(start, ref name)| {
             let free_var = env.on_binding(name);
             (start, Binder(free_var), ann.clone())
         }));
     }
 
-    Ok(params
-        .into_iter()
-        .rev()
-        .fold(body.desugar(&env)?, |acc, (start, binder, ann)| {
+    Ok(params.into_iter().rev().fold(
+        body.desugar_globals(&env, globals)?,
+        |acc, (start, binder, ann)| {
             raw::RcTerm::from(raw::Term::Pi(
                 ByteSpan::new(start, acc.span().end()),
                 Scope::new((binder, Embed(ann.clone())), acc),
             ))
-        }))
+        },
+    ))
 }
 
 /// Convert a sugary lambda from something like:
@@ -193,6 +223,7 @@ fn desugar_lam(
     param_groups: &[concrete::LamParamGroup],
     return_ann: Option<&concrete::Term>,
     body: &concrete::Term,
+    globals: &mut DesugarGlobals,
 ) -> Result<raw::RcTerm, DesugarError> {
     let mut env = env.clone();
 
@@ -200,7 +231,7 @@ fn desugar_lam(
     for &(ref names, ref ann) in param_groups {
         let ann = match *ann {
             None => raw::RcTerm::from(raw::Term::Hole(ByteSpan::default())),
-            Some(ref ann) => ann.desugar(&env)?,
+            Some(ref ann) => ann.desugar_globals(&env, globals)?,
         };
 
         params.extend(names.iter().map(|&(start, ref name)| {
@@ -210,8 +241,11 @@ fn desugar_lam(
     }
 
     let body = match return_ann {
-        None => body.desugar(&env)?,
-        Some(ann) => raw::RcTerm::from(raw::Term::Ann(body.desugar(&env)?, ann.desugar(&env)?)),
+        None => body.desugar_globals(&env, globals)?,
+        Some(ann) => raw::RcTerm::from(raw::Term::Ann(
+            body.desugar_globals(&env, globals)?,
+            ann.desugar_globals(&env, globals)?,
+        )),
     };
 
     Ok(params
@@ -229,6 +263,7 @@ fn desugar_struct(
     env: &DesugarEnv,
     span: ByteSpan,
     fields: &[concrete::StructField],
+    globals: &mut DesugarGlobals,
 ) -> Result<raw::RcTerm, DesugarError> {
     use syntax::concrete::StructField;
 
@@ -238,14 +273,14 @@ fn desugar_struct(
             StructField::Punned {
                 label: (_, ref name),
             } => {
-                let var = env.on_name(span, name);
+                let var = env.on_name(span, name, globals);
                 Ok((Label(name.clone()), var))
             },
             StructField::Explicit {
                 label: (_, ref name),
                 ref term,
             } => {
-                let term = term.desugar(&env)?;
+                let term = term.desugar_globals(&env, globals)?;
                 Ok((Label(name.clone()), term))
             },
         })
@@ -257,8 +292,11 @@ fn desugar_struct(
 fn desugar_items(
     env: &mut DesugarEnv,
     concrete_items: &[concrete::Item],
+    globals: &mut DesugarGlobals,
 ) -> Result<Nest<(Label, Binder<String>, Embed<raw::Definition>)>, DesugarError> {
     use im::HashMap;
+    use moniker::BoundTerm;
+    use petgraph::{self, Graph};
 
     #[derive(Clone)]
     pub enum ForwardDecl {
@@ -268,8 +306,11 @@ fn desugar_items(
 
     // Declarations that may be waiting to be defined
     let mut forward_declarations = HashMap::new();
-    // The elaborated items, pre-allocated to improve performance
-    let mut items = Vec::with_capacity(concrete_items.len());
+
+    let mut definition_graph = Graph::new();
+    let mut free_vars_to_definitions = HashMap::new();
+    let mut free_vars_to_nodes = HashMap::new();
+
     let hole = raw::RcTerm::from(raw::Term::Hole(ByteSpan::default()));
 
     // Iterate through the items in the module, checking each in turn
@@ -281,11 +322,10 @@ fn desugar_items(
                 name: (start, ref name),
                 ref ann,
             } => {
-                let binder = env.on_item(name);
                 let name_span = ByteSpan::from_offset(start, ByteOffset::from_str(name));
 
                 // Ensure that this declaration has not already been seen
-                match forward_declarations.get(&binder) {
+                match forward_declarations.get(&name) {
                     // There's already a definition associated with this name -
                     // we can't add a new declaration for it!
                     Some(&ForwardDecl::Defined(definition_span)) => {
@@ -311,8 +351,9 @@ fn desugar_items(
                 }
 
                 // Remember the declaration for when we get to a subsequent definition
-                let declaration = ForwardDecl::Pending(name_span, ann.desugar(&env)?);
-                forward_declarations.insert(binder.clone(), declaration);
+                let declaration =
+                    ForwardDecl::Pending(name_span, ann.desugar_globals(&env, globals)?);
+                forward_declarations.insert(name, declaration);
             },
 
             concrete::Item::Definition(concrete::Definition::Alias {
@@ -321,10 +362,11 @@ fn desugar_items(
                 ref return_ann,
                 ref term,
             }) => {
-                let binder = env.on_item(name);
+                let binder = env.on_definition(name, globals);
                 let name_span = ByteSpan::from_offset(start, ByteOffset::from_str(name));
-                let term = desugar_lam(env, params, return_ann.as_ref().map(<_>::as_ref), term)?;
-                let ty = match forward_declarations.get(&binder).cloned() {
+                let return_ann = return_ann.as_ref().map(<_>::as_ref);
+                let term = desugar_lam(env, params, return_ann, term, globals)?;
+                let ty = match forward_declarations.get(&name).cloned() {
                     // This declaration was already given a definition, so this
                     // is an error!
                     //
@@ -348,13 +390,15 @@ fn desugar_items(
                 // We must not remove this from the list of pending
                 // declarations, lest we encounter another declaration or
                 // definition of the same name later on!
-                forward_declarations.insert(binder.clone(), ForwardDecl::Defined(name_span));
-                // Add the definition to the elaborated items
-                items.push((
-                    Label(name.clone()),
-                    binder,
-                    Embed(raw::Definition::Alias { term, ty }),
-                ));
+                forward_declarations.insert(name, ForwardDecl::Defined(name_span));
+
+                let Binder(free_var) = binder;
+                let node = definition_graph.add_node(free_var.clone());
+                free_vars_to_nodes.insert(free_var.clone(), node);
+
+                let label = Label(name.clone());
+                let definition = raw::Definition::Alias { term, ty };
+                free_vars_to_definitions.insert(free_var, (label, definition));
             },
 
             concrete::Item::Definition(concrete::Definition::StructType {
@@ -363,7 +407,7 @@ fn desugar_items(
                 ref params,
                 ref fields,
             }) => {
-                let binder = env.on_item(name);
+                let binder = env.on_definition(name, globals);
                 let name_span = ByteSpan::from_offset(start, ByteOffset::from_str(name));
 
                 let scope = {
@@ -372,7 +416,7 @@ fn desugar_items(
                     let params = params
                         .iter()
                         .map(|&(ref name, ref ann)| {
-                            let ann = ann.desugar(&env)?;
+                            let ann = ann.desugar_globals(&env, globals)?;
                             let binder = env.on_binding(name);
                             Ok((Binder(binder), Embed(ann)))
                         })
@@ -382,7 +426,7 @@ fn desugar_items(
                         .iter()
                         .map(|field| {
                             let (_, ref label) = field.label;
-                            let ann = field.ann.desugar(&env)?;
+                            let ann = field.ann.desugar_globals(&env, globals)?;
                             let free_var = env.on_binding(label);
                             Ok((Label(label.clone()), Binder(free_var), Embed(ann)))
                         })
@@ -391,7 +435,7 @@ fn desugar_items(
                     Scope::new(Nest::new(params), Scope::new(Nest::new(fields), ()))
                 };
 
-                match forward_declarations.get(&binder).cloned() {
+                match forward_declarations.get(&name).cloned() {
                     // This declaration was already given a definition, so this
                     // is an error!
                     Some(ForwardDecl::Defined(original_span)) => {
@@ -413,24 +457,56 @@ fn desugar_items(
                 // We must not remove this from the list of pending
                 // declarations, lest we encounter another declaration or
                 // definition of the same name later on!
-                forward_declarations.insert(binder.clone(), ForwardDecl::Defined(name_span));
-                // Add the definition to the elaborated items
-                items.push((
-                    Label(name.clone()),
-                    binder,
-                    Embed(raw::Definition::StructType { span, scope }),
-                ));
+                forward_declarations.insert(name, ForwardDecl::Defined(name_span));
+
+                let Binder(free_var) = binder;
+                let node = definition_graph.add_node(free_var.clone());
+                free_vars_to_nodes.insert(free_var.clone(), node);
+
+                let label = Label(name.clone());
+                let definition = raw::Definition::StructType { span, scope };
+                free_vars_to_definitions.insert(free_var, (label, definition));
             },
 
             concrete::Item::Error(_) => unimplemented!("error recovery"),
         }
     }
 
-    Ok(Nest::new(items))
+    for (child_fv, (_, ref definition)) in &free_vars_to_definitions {
+        let child = *free_vars_to_nodes.get(child_fv).unwrap();
+
+        for parent_fv in definition.free_vars() {
+            if let Some(&parent) = free_vars_to_nodes.get(&parent_fv) {
+                definition_graph.add_edge(child, parent, ());
+            }
+        }
+    }
+
+    match petgraph::algo::toposort(&definition_graph, None) {
+        Ok(nodes) => Ok(Nest::new(
+            nodes
+                .into_iter()
+                .rev()
+                .map(|node| {
+                    let free_var = definition_graph.node_weight(node).unwrap().clone();
+                    let (label, definition) =
+                        free_vars_to_definitions.get(&free_var).unwrap().clone();
+                    (label, Binder(free_var), Embed(definition))
+                })
+                .collect(),
+        )),
+        Err(cycle) => Err(DesugarError::CyclicDefinitions {
+            cycle: format!("{}", definition_graph[cycle.node_id()]), // FIXME: better formatting
+        }),
+    }
 }
 
 impl Desugar<raw::Module> for concrete::Module {
-    fn desugar(&self, env: &DesugarEnv) -> Result<raw::Module, DesugarError> {
+    fn desugar_globals(
+        &self,
+        env: &DesugarEnv,
+        globals: &mut DesugarGlobals,
+    ) -> Result<raw::Module, DesugarError> {
         let mut env = env.clone();
         match *self {
             concrete::Module::Valid {
@@ -438,7 +514,7 @@ impl Desugar<raw::Module> for concrete::Module {
                 items: ref concrete_items,
             } => Ok(raw::Module {
                 name: name.clone(),
-                items: desugar_items(&mut env, concrete_items)?,
+                items: desugar_items(&mut env, concrete_items, globals)?,
             }),
             concrete::Module::Error(_) => unimplemented!("error recovery"),
         }
@@ -446,7 +522,11 @@ impl Desugar<raw::Module> for concrete::Module {
 }
 
 impl Desugar<raw::Literal> for concrete::Literal {
-    fn desugar(&self, _: &DesugarEnv) -> Result<raw::Literal, DesugarError> {
+    fn desugar_globals(
+        &self,
+        _: &DesugarEnv,
+        _: &mut DesugarGlobals,
+    ) -> Result<raw::Literal, DesugarError> {
         match *self {
             concrete::Literal::String(span, ref val) => Ok(raw::Literal::String(span, val.clone())),
             concrete::Literal::Char(span, val) => Ok(raw::Literal::Char(span, val)),
@@ -461,13 +541,17 @@ impl Desugar<raw::Literal> for concrete::Literal {
 }
 
 impl Desugar<(raw::RcPattern, DesugarEnv)> for concrete::Pattern {
-    fn desugar(&self, env: &DesugarEnv) -> Result<(raw::RcPattern, DesugarEnv), DesugarError> {
+    fn desugar_globals(
+        &self,
+        env: &DesugarEnv,
+        globals: &mut DesugarGlobals,
+    ) -> Result<(raw::RcPattern, DesugarEnv), DesugarError> {
         let span = self.span();
         match *self {
-            concrete::Pattern::Parens(_, ref pattern) => pattern.desugar(env),
+            concrete::Pattern::Parens(_, ref pattern) => pattern.desugar_globals(env, globals),
             concrete::Pattern::Ann(ref pattern, ref ty) => {
-                let ty = ty.desugar(env)?;
-                let (pattern, env) = pattern.desugar(env)?;
+                let ty = ty.desugar_globals(env, globals)?;
+                let (pattern, env) = pattern.desugar_globals(env, globals)?;
                 let ann_pattern = raw::RcPattern::from(raw::Pattern::Ann(pattern, Embed(ty)));
 
                 Ok((ann_pattern, env))
@@ -489,7 +573,9 @@ impl Desugar<(raw::RcPattern, DesugarEnv)> for concrete::Pattern {
                 },
             },
             concrete::Pattern::Literal(ref literal) => Ok((
-                raw::RcPattern::from(raw::Pattern::Literal(literal.desugar(env)?)),
+                raw::RcPattern::from(raw::Pattern::Literal(
+                    literal.desugar_globals(env, globals)?,
+                )),
                 env.clone(),
             )),
             concrete::Pattern::Error(_) => unimplemented!("error recovery"),
@@ -498,20 +584,24 @@ impl Desugar<(raw::RcPattern, DesugarEnv)> for concrete::Pattern {
 }
 
 impl Desugar<raw::RcTerm> for concrete::Term {
-    fn desugar(&self, env: &DesugarEnv) -> Result<raw::RcTerm, DesugarError> {
+    fn desugar_globals(
+        &self,
+        env: &DesugarEnv,
+        globals: &mut DesugarGlobals,
+    ) -> Result<raw::RcTerm, DesugarError> {
         let span = self.span();
         match *self {
-            concrete::Term::Parens(_, ref term) => term.desugar(env),
+            concrete::Term::Parens(_, ref term) => term.desugar_globals(env, globals),
             concrete::Term::Ann(ref expr, ref ty) => Ok(raw::RcTerm::from(raw::Term::Ann(
-                expr.desugar(env)?,
-                ty.desugar(env)?,
+                expr.desugar_globals(env, globals)?,
+                ty.desugar_globals(env, globals)?,
             ))),
             concrete::Term::Universe(_, level) => Ok(raw::RcTerm::from(raw::Term::Universe(
                 span,
                 Level(level.unwrap_or(0)),
             ))),
             concrete::Term::IntTypeSingleton(_, ref value) => {
-                let value = value.desugar(env)?;
+                let value = value.desugar_globals(env, globals)?;
                 Ok(raw::RcTerm::from(raw::Term::IntType(
                     span,
                     Some(value.clone()),
@@ -523,42 +613,51 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                     span,
                     match min {
                         None => None,
-                        Some(x) => Some(x.desugar(env)?),
+                        Some(x) => Some(x.desugar_globals(env, globals)?),
                     },
                     match max {
                         None => None,
-                        Some(x) => Some(x.desugar(env)?),
+                        Some(x) => Some(x.desugar_globals(env, globals)?),
                     },
                 )))
             },
             concrete::Term::Extern(_, name_span, ref name) => Ok(raw::RcTerm::from(
                 raw::Term::Extern(span, name_span, name.clone()),
             )),
-            concrete::Term::Literal(ref literal) => {
-                Ok(raw::RcTerm::from(raw::Term::Literal(literal.desugar(env)?)))
-            },
+            concrete::Term::Literal(ref literal) => Ok(raw::RcTerm::from(raw::Term::Literal(
+                literal.desugar_globals(env, globals)?,
+            ))),
             concrete::Term::Array(_, ref elems) => Ok(raw::RcTerm::from(raw::Term::Array(
                 span,
                 elems
                     .iter()
-                    .map(|elem| elem.desugar(env))
+                    .map(|elem| elem.desugar_globals(env, globals))
                     .collect::<Result<_, _>>()?,
             ))),
             concrete::Term::Hole(_) => Ok(raw::RcTerm::from(raw::Term::Hole(span))),
-            concrete::Term::Name(_, ref name) => Ok(env.on_name(span, name)),
-            concrete::Term::Pi(_, ref params, ref body) => desugar_pi(env, params, body),
-            concrete::Term::Lam(_, ref params, ref body) => desugar_lam(env, params, None, body),
+            concrete::Term::Name(_, ref name) => Ok(env.on_name(span, name, globals)),
+            concrete::Term::Pi(_, ref params, ref body) => desugar_pi(env, params, body, globals),
+            concrete::Term::Lam(_, ref params, ref body) => {
+                desugar_lam(env, params, None, body, globals)
+            },
             concrete::Term::Arrow(ref ann, ref body) => Ok(raw::RcTerm::from(raw::Term::Pi(
                 span,
                 Scope::new(
-                    (Binder(FreeVar::fresh_unnamed()), Embed(ann.desugar(env)?)),
-                    body.desugar(env)?,
+                    (
+                        Binder(FreeVar::fresh_unnamed()),
+                        Embed(ann.desugar_globals(env, globals)?),
+                    ),
+                    body.desugar_globals(env, globals)?,
                 ),
             ))),
             concrete::Term::App(ref head, ref args) => {
-                args.iter().fold(head.desugar(env), |acc, arg| {
-                    Ok(raw::RcTerm::from(raw::Term::App(acc?, arg.desugar(env)?)))
-                })
+                args.iter()
+                    .fold(head.desugar_globals(env, globals), |acc, arg| {
+                        Ok(raw::RcTerm::from(raw::Term::App(
+                            acc?,
+                            arg.desugar_globals(env, globals)?,
+                        )))
+                    })
             },
             concrete::Term::If(_, ref cond, ref if_true, ref if_false) => {
                 let bool_pattern = |name: &str| {
@@ -573,31 +672,37 @@ impl Desugar<raw::RcTerm> for concrete::Term {
 
                 Ok(raw::RcTerm::from(raw::Term::Match(
                     span,
-                    cond.desugar(env)?,
+                    cond.desugar_globals(env, globals)?,
                     vec![
-                        Scope::new(bool_pattern("true"), if_true.desugar(&env)?),
-                        Scope::new(bool_pattern("false"), if_false.desugar(&env)?),
+                        Scope::new(
+                            bool_pattern("true"),
+                            if_true.desugar_globals(&env, globals)?,
+                        ),
+                        Scope::new(
+                            bool_pattern("false"),
+                            if_false.desugar_globals(&env, globals)?,
+                        ),
                     ],
                 )))
             },
             concrete::Term::Match(span, ref head, ref clauses) => {
                 Ok(raw::RcTerm::from(raw::Term::Match(
                     span,
-                    head.desugar(env)?,
+                    head.desugar_globals(env, globals)?,
                     clauses
                         .iter()
                         .map(|(pattern, term)| {
-                            let (pattern, env) = pattern.desugar(env)?;
-                            Ok(Scope::new(pattern, term.desugar(&env)?))
+                            let (pattern, env) = pattern.desugar_globals(env, globals)?;
+                            Ok(Scope::new(pattern, term.desugar_globals(&env, globals)?))
                         })
                         .collect::<Result<_, _>>()?,
                 )))
             },
-            concrete::Term::Struct(span, ref fields) => desugar_struct(env, span, fields),
+            concrete::Term::Struct(span, ref fields) => desugar_struct(env, span, fields, globals),
             concrete::Term::Proj(ref tm, label_start, ref label) => {
                 Ok(raw::RcTerm::from(raw::Term::Proj(
                     span,
-                    tm.desugar(env)?,
+                    tm.desugar_globals(env, globals)?,
                     ByteSpan::from_offset(label_start, ByteOffset::from_str(label)),
                     Label(label.clone()),
                 )))

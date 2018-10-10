@@ -112,6 +112,44 @@ mod module {
     }
 
     #[test]
+    fn cyclic_alias_definitions() {
+        let mut codemap = CodeMap::new();
+        let desugar_env = DesugarEnv::new(HashMap::new());
+
+        let src = "
+            module test;
+
+            Bar = Foo;
+            Foo = Bar;
+        ";
+
+        match parse_module(&mut codemap, src).desugar(&desugar_env) {
+            Ok(_) => panic!("expected error"),
+            Err(DesugarError::CyclicDefinitions { .. }) => {},
+            Err(err) => panic!("unexpected error: {}", err),
+        }
+    }
+
+    #[test]
+    fn cyclic_struct_definitions() {
+        let mut codemap = CodeMap::new();
+        let desugar_env = DesugarEnv::new(HashMap::new());
+
+        let src = "
+            module test;
+
+            struct Bar { foo : Foo };
+            struct Foo { bar : Bar };
+        ";
+
+        match parse_module(&mut codemap, src).desugar(&desugar_env) {
+            Ok(_) => panic!("expected error"),
+            Err(DesugarError::CyclicDefinitions { .. }) => {},
+            Err(err) => panic!("unexpected error: {}", err),
+        }
+    }
+
+    #[test]
     fn declaration_after_definition() {
         let mut codemap = CodeMap::new();
         let desugar_env = DesugarEnv::new(hashmap!{

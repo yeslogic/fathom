@@ -143,6 +143,7 @@ extern crate pretty;
 #[cfg(test)]
 #[macro_use]
 extern crate pretty_assertions;
+extern crate petgraph;
 extern crate unicode_xid;
 
 pub mod semantics;

@@ -65,10 +65,33 @@ fn forward_declarations_forward_ref() {
     let raw_module = parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    match check_module(&tc_env, &raw_module) {
-        Ok(_) => panic!("expected error"),
-        Err(TypeError::UndefinedName { .. }) => {},
-        Err(err) => panic!("unexpected error: {}", err),
+    if let Err(err) = check_module(&tc_env, &raw_module) {
+        let writer = StandardStream::stdout(ColorChoice::Always);
+        codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
+        panic!("type error!")
+    }
+}
+
+#[test]
+fn forward_struct_definitions() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let src = "
+        module test;
+
+        struct Bar { foo : Foo };
+        struct Foo {};
+    ";
+
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
+    if let Err(err) = check_module(&tc_env, &raw_module) {
+        let writer = StandardStream::stdout(ColorChoice::Always);
+        codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
+        panic!("type error!")
     }
 }
 
