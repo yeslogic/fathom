@@ -72,32 +72,8 @@ impl InternalError {
 #[derive(Debug, Fail, Clone, PartialEq)]
 pub enum TypeError {
     #[fail(
-        display = "Name had more than one declaration associated with it: `{}`",
-        binder,
-    )]
-    DuplicateDeclarations {
-        original_span: ByteSpan,
-        duplicate_span: ByteSpan,
-        binder: Binder<String>,
-    },
-    #[fail(display = "Declaration followed definition: `{}`", binder)]
-    DeclarationFollowedDefinition {
-        definition_span: ByteSpan,
-        declaration_span: ByteSpan,
-        binder: Binder<String>,
-    },
-    #[fail(
-        display = "Name had more than one definition associated with it: `{}`",
-        binder,
-    )]
-    DuplicateDefinitions {
-        original_span: ByteSpan,
-        duplicate_span: ByteSpan,
-        binder: Binder<String>,
-    },
-    #[fail(
         display = "Applied an argument to a non-function type `{}`",
-        found,
+        found
     )]
     ArgAppliedToNonFunction {
         fn_span: ByteSpan,
@@ -106,7 +82,7 @@ pub enum TypeError {
     },
     #[fail(
         display = "Type annotation needed for the function parameter `{}`",
-        name,
+        name
     )]
     FunctionParamNeedsAnnotation {
         param_span: ByteSpan,
@@ -115,7 +91,7 @@ pub enum TypeError {
     },
     #[fail(
         display = "Type annotation needed for the binder `{}`",
-        binder,
+        binder
     )]
     BinderNeedsAnnotation {
         span: ByteSpan,
@@ -124,7 +100,7 @@ pub enum TypeError {
     #[fail(
         display = "found a `{}`, but expected a type `{}`",
         found,
-        expected,
+        expected
     )]
     LiteralMismatch {
         literal_span: ByteSpan,
@@ -143,7 +119,7 @@ pub enum TypeError {
     AmbiguousEmptyMatch { span: ByteSpan },
     #[fail(
         display = "Unable to elaborate hole, expected: `{:?}`",
-        expected,
+        expected
     )]
     UnableToElaborateHole {
         span: ByteSpan,
@@ -152,7 +128,7 @@ pub enum TypeError {
     #[fail(
         display = "Type mismatch: found `{}` but `{}` was expected",
         found,
-        expected,
+        expected
     )]
     Mismatch {
         span: ByteSpan,
@@ -179,7 +155,7 @@ pub enum TypeError {
     #[fail(
         display = "Label mismatch: found label `{}` but `{}` was expected",
         found,
-        expected,
+        expected
     )]
     LabelMismatch {
         span: ByteSpan,
@@ -191,7 +167,7 @@ pub enum TypeError {
     #[fail(
         display = "Mismatched array length: expected {} elements but found {}",
         expected_len,
-        found_len,
+        found_len
     )]
     ArrayLengthMismatch {
         span: ByteSpan,
@@ -203,7 +179,7 @@ pub enum TypeError {
     #[fail(
         display = "The type `{}` does not contain a field named `{}`.",
         found,
-        expected_label,
+        expected_label
     )]
     NoFieldInType {
         label_span: ByteSpan,
@@ -213,7 +189,7 @@ pub enum TypeError {
     #[fail(
         display = "Mismatched record size: expected {} fields but found {}",
         expected_size,
-        found_size,
+        found_size
     )]
     StructSizeMismatch {
         span: ByteSpan,
@@ -229,39 +205,6 @@ impl TypeError {
     pub fn to_diagnostic(&self) -> Diagnostic {
         match *self {
             TypeError::Internal(ref err) => err.to_diagnostic(),
-            TypeError::DuplicateDeclarations {
-                original_span,
-                duplicate_span,
-                ref binder,
-            } => Diagnostic::new_error(format!(
-                "name had more than one declaration associated with it `{}`",
-                binder,
-            )).with_label(
-                Label::new_primary(duplicate_span).with_message("the duplicated declaration"),
-            ).with_label(
-                Label::new_secondary(original_span).with_message("the original declaration"),
-            ),
-            TypeError::DeclarationFollowedDefinition {
-                definition_span,
-                declaration_span,
-                binder: _,
-            } => Diagnostic::new_error(format!("declarations cannot follow definitions"))
-                .with_label(Label::new_primary(declaration_span).with_message("the declaration"))
-                .with_label(
-                    Label::new_secondary(definition_span).with_message("the original definition"),
-                ),
-            TypeError::DuplicateDefinitions {
-                original_span,
-                duplicate_span,
-                ref binder,
-            } => Diagnostic::new_error(format!(
-                "name had more than one definition associated with it `{}`",
-                binder,
-            )).with_label(
-                Label::new_primary(duplicate_span).with_message("the duplicated definition"),
-            ).with_label(
-                Label::new_secondary(original_span).with_message("the original definition"),
-            ),
             TypeError::ArgAppliedToNonFunction {
                 fn_span,
                 arg_span,
@@ -269,7 +212,8 @@ impl TypeError {
             } => Diagnostic::new_error(format!(
                 "applied an argument to a term that was not a function - found type `{}`",
                 found,
-            )).with_label(Label::new_primary(fn_span).with_message("the term"))
+            ))
+            .with_label(Label::new_primary(fn_span).with_message("the term"))
             .with_label(Label::new_secondary(arg_span).with_message("the applied argument")),
             TypeError::FunctionParamNeedsAnnotation {
                 param_span,
@@ -278,13 +222,15 @@ impl TypeError {
             } => Diagnostic::new_error(format!(
                 "type annotation needed for the function parameter `{}`",
                 name
-            )).with_label(
+            ))
+            .with_label(
                 Label::new_primary(param_span)
                     .with_message("the parameter that requires an annotation"),
             ),
             TypeError::BinderNeedsAnnotation { span, ref binder } => Diagnostic::new_error(
                 format!("type annotation needed for the binder `{}`", binder),
-            ).with_label(
+            )
+            .with_label(
                 Label::new_primary(span).with_message("the binder that requires an annotation"),
             ),
             TypeError::LiteralMismatch {
@@ -302,23 +248,29 @@ impl TypeError {
                 Diagnostic::new_error(format!(
                     "found a {} literal, but expected a type `{}`",
                     found_text, expected,
-                )).with_label(Label::new_primary(literal_span).with_message("the literal"))
+                ))
+                .with_label(Label::new_primary(literal_span).with_message("the literal"))
             },
             TypeError::AmbiguousStringLiteral { span } => Diagnostic::new_error(
                 "ambiguous string literal",
-            ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
+            )
+            .with_label(Label::new_primary(span).with_message("type annotation needed here")),
             TypeError::AmbiguousIntLiteral { span } => Diagnostic::new_error(
                 "ambiguous integer literal",
-            ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
+            )
+            .with_label(Label::new_primary(span).with_message("type annotation needed here")),
             TypeError::AmbiguousFloatLiteral { span } => Diagnostic::new_error(
                 "ambiguous floating point literal",
-            ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
+            )
+            .with_label(Label::new_primary(span).with_message("type annotation needed here")),
             TypeError::AmbiguousExtern { span } => Diagnostic::new_error(
                 "ambiguous extern definition",
-            ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
+            )
+            .with_label(Label::new_primary(span).with_message("type annotation needed here")),
             TypeError::AmbiguousEmptyMatch { span } => Diagnostic::new_error(
                 "empty match expressions need type annotations",
-            ).with_label(Label::new_primary(span).with_message("type annotation needed here")),
+            )
+            .with_label(Label::new_primary(span).with_message("type annotation needed here")),
             TypeError::UnableToElaborateHole {
                 span,
                 expected: None,
@@ -332,13 +284,15 @@ impl TypeError {
             } => Diagnostic::new_error(format!(
                 "unable to elaborate hole - expected: `{}`",
                 expected,
-            )).with_label(Label::new_primary(span).with_message("the hole")),
+            ))
+            .with_label(Label::new_primary(span).with_message("the hole")),
             TypeError::UnexpectedFunction {
                 span, ref expected, ..
             } => Diagnostic::new_error(format!(
                 "found a function but expected a term of type `{}`",
                 expected,
-            )).with_label(Label::new_primary(span).with_message("the function")),
+            ))
+            .with_label(Label::new_primary(span).with_message("the function")),
             TypeError::Mismatch {
                 span,
                 ref found,
@@ -346,7 +300,8 @@ impl TypeError {
             } => Diagnostic::new_error(format!(
                 "found a term of type `{}`, but expected a term of type `{}`",
                 found, expected,
-            )).with_label(Label::new_primary(span).with_message("the term")),
+            ))
+            .with_label(Label::new_primary(span).with_message("the term")),
             TypeError::ExpectedUniverse { ref found, span } => {
                 Diagnostic::new_error(format!("expected type, found a value of type `{}`", found))
                     .with_label(Label::new_primary(span).with_message("the value"))
@@ -368,7 +323,8 @@ impl TypeError {
             } => Diagnostic::new_error(format!(
                 "expected field called `{}`, but found a field called `{}`",
                 expected, found,
-            )).with_label(Label::new_primary(span)),
+            ))
+            .with_label(Label::new_primary(span)),
             TypeError::AmbiguousStruct { span } => Diagnostic::new_error("ambiguous struct")
                 .with_label(Label::new_primary(span).with_message("type annotations needed here")),
             TypeError::ArrayLengthMismatch {
@@ -378,12 +334,14 @@ impl TypeError {
             } => Diagnostic::new_error(format!(
                 "mismatched array length: expected {} elements but found {}",
                 expected_len, found_len
-            )).with_label(
+            ))
+            .with_label(
                 Label::new_primary(span).with_message(format!("array with {} elements", found_len)),
             ),
             TypeError::AmbiguousArrayLiteral { span } => Diagnostic::new_error(
                 "ambiguous array literal",
-            ).with_label(Label::new_primary(span).with_message("type annotations needed here")),
+            )
+            .with_label(Label::new_primary(span).with_message("type annotations needed here")),
             TypeError::NoFieldInType {
                 label_span,
                 ref expected_label,
@@ -391,7 +349,8 @@ impl TypeError {
             } => Diagnostic::new_error(format!(
                 "the type `{}` does not contain a field called `{}`",
                 found, expected_label
-            )).with_label(Label::new_primary(label_span).with_message("the field lookup")),
+            ))
+            .with_label(Label::new_primary(label_span).with_message("the field lookup")),
             TypeError::StructSizeMismatch {
                 span,
                 found_size,
@@ -399,7 +358,8 @@ impl TypeError {
             } => Diagnostic::new_error(format!(
                 "mismatched record size: expected {} fields but found {}",
                 expected_size, found_size
-            )).with_label(
+            ))
+            .with_label(
                 Label::new_primary(span).with_message(format!("record with {} fields", found_size)),
             ),
         }

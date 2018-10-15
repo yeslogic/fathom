@@ -10,7 +10,7 @@ use term_size;
 
 use semantics::{self, DeclarationEnv, DefinitionEnv, GlobalEnv, TcEnv};
 use syntax::parse;
-use syntax::translation::DesugarEnv;
+use syntax::translation::{self, DesugarEnv};
 
 /// Options for the `repl` subcommand
 #[derive(Debug, StructOpt)]
@@ -125,6 +125,10 @@ pub fn run(color: ColorChoice, opts: &Opts) -> Result<(), Error> {
                             codespan_reporting::emit(&mut writer.lock(), &codemap, &diagnostic)?;
                         }
                     },
+                    Err(EvalPrintError::Desugar(err)) => {
+                        let diagnostic = err.to_diagnostic();
+                        codespan_reporting::emit(&mut writer.lock(), &codemap, &diagnostic)?;
+                    },
                     Err(EvalPrintError::Type(err)) => {
                         let diagnostic = err.to_diagnostic();
                         codespan_reporting::emit(&mut writer.lock(), &codemap, &diagnostic)?;
@@ -153,8 +157,8 @@ fn eval_print(
 ) -> Result<ControlFlow, EvalPrintError> {
     use codespan::ByteIndex;
 
+    use semantics::Definition;
     use syntax::concrete::{ReplCommand, Term};
-    use syntax::core::Definition;
     use syntax::pretty::{self, ToDoc};
     use syntax::translation::{Desugar, Resugar};
 
@@ -173,7 +177,7 @@ fn eval_print(
         ReplCommand::Help => print_help_text(),
 
         ReplCommand::Eval(parse_term) => {
-            let raw_term = parse_term.desugar(desugar_env);
+            let raw_term = parse_term.desugar(desugar_env)?;
             let (term, inferred) = semantics::infer_term(tc_env, &raw_term)?;
             let evaluated = semantics::nf_term(tc_env, &term)?;
 
@@ -187,7 +191,7 @@ fn eval_print(
         ReplCommand::Core(parse_term) => {
             use syntax::core::{RcTerm, Term};
 
-            let raw_term = parse_term.desugar(desugar_env);
+            let raw_term = parse_term.desugar(desugar_env)?;
             let (term, inferred) = semantics::infer_term(tc_env, &raw_term)?;
 
             let ann_term = Term::Ann(term, RcTerm::from(Term::from(&*inferred)));
@@ -195,12 +199,12 @@ fn eval_print(
             println!("{}", ann_term.to_doc().group().pretty(term_width()));
         },
         ReplCommand::Raw(parse_term) => {
-            let raw_term = parse_term.desugar(desugar_env);
+            let raw_term = parse_term.desugar(desugar_env)?;
 
             println!("{}", raw_term.to_doc().group().pretty(term_width()));
         },
         ReplCommand::Let(name, parse_term) => {
-            let raw_term = parse_term.desugar(desugar_env);
+            let raw_term = parse_term.desugar(desugar_env)?;
             let (term, inferred) = semantics::infer_term(tc_env, &raw_term)?;
 
             let ann_term = Term::Ann(
@@ -217,7 +221,7 @@ fn eval_print(
             return Ok(ControlFlow::Continue);
         },
         ReplCommand::TypeOf(parse_term) => {
-            let raw_term = parse_term.desugar(desugar_env);
+            let raw_term = parse_term.desugar(desugar_env)?;
             let (_, inferred) = semantics::infer_term(tc_env, &raw_term)?;
 
             let inferred = inferred.resugar(tc_env.resugar_env());
@@ -242,6 +246,8 @@ enum ControlFlow {
 enum EvalPrintError {
     #[fail(display = "Parse error")]
     Parse(Vec<parse::ParseError>),
+    #[fail(display = "Desugar error: {}", _0)]
+    Desugar(#[cause] translation::DesugarError),
     #[fail(display = "Type error: {}", _0)]
     Type(#[cause] semantics::TypeError),
 }
@@ -255,6 +261,12 @@ impl From<parse::ParseError> for EvalPrintError {
 impl From<Vec<parse::ParseError>> for EvalPrintError {
     fn from(src: Vec<parse::ParseError>) -> EvalPrintError {
         EvalPrintError::Parse(src)
+    }
+}
+
+impl From<translation::DesugarError> for EvalPrintError {
+    fn from(src: translation::DesugarError) -> EvalPrintError {
+        EvalPrintError::Desugar(src)
     }
 }
 

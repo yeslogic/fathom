@@ -136,8 +136,7 @@ struct ScriptRecord (script_list_start : Pos) {
     /// 4-byte script tag identifier
     script_tag : Tag,
     /// Offset to Script table, from beginning of ScriptList
-    // FIXME: script_offset : Offset16Be Script,
-    script_offset : Offset16Be script_list_start Unknown,
+    script_offset : Offset16Be script_list_start Script,
 };
 
 /// Script List Table
@@ -159,8 +158,7 @@ struct LangSysRecord (script_start : Pos) {
     /// 4-byte LangSysTag identifier
     lang_sys_tag : Tag,
     /// Offset to LangSys table, from beginning of Script table
-    // FIXME: lang_sys_offset : Offset16Be LangSys,
-    lang_sys_offset : Offset16Be script_start Unknown,
+    lang_sys_offset : Offset16Be script_start LangSys,
 };
 
 /// Script Table
@@ -170,7 +168,7 @@ struct Script {
     table_start : Pos,
     /// Offset to default LangSys table, from beginning of Script table — may be NULL
     // FIXME: default_lang_sys : Offset16Be table_start LangSys,
-    default_lang_sys : Offset16Be table_start Unknown,
+    default_lang_sys : Offset16Be table_start LangSys,
     /// Number of LangSysRecords for this script — excluding the default LangSys
     lang_sys_count : U16Be,
     /// Array of LangSysRecords, listed alphabetically by LangSys tag
@@ -207,8 +205,7 @@ struct FeatureRecord (feature_list_start : Pos) {
     /// 4-byte feature identification tag
     feature_tag : Tag,
     /// Offset to Feature table, from beginning of FeatureList
-    // FIXME: feature_offset : Offset16Be Feature,
-    feature_offset : Offset16Be feature_list_start Unknown,
+    feature_offset : Offset16Be feature_list_start Feature,
 };
 
 /// Feature List table
@@ -245,8 +242,7 @@ struct LookupList {
     /// Number of lookups in this table
     lookup_count : U16Be,
     /// Array of offsets to Lookup tables, from beginning of LookupList — zero based (first lookup is Lookup index = 0)
-    // FIXME: lookups : Array lookup_count (Offset16Be table_start Lookup),
-    lookups : Array lookup_count (Offset16Be table_start Unknown),
+    lookups : Array lookup_count (Offset16Be table_start Lookup),
 };
 
 

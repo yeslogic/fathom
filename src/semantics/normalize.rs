@@ -1,11 +1,9 @@
 use moniker::{Binder, Embed, FreeVar, Scope, Var};
 
-use syntax::core::{
-    Definition, Head, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcValue, Term, Value,
-};
+use syntax::core::{Head, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcValue, Term, Value};
 
 use semantics::errors::InternalError;
-use semantics::DefinitionEnv;
+use semantics::{Definition, DefinitionEnv};
 
 /// Reduce a term to its normal form
 pub fn nf_term<Env>(env: &Env, term: &RcTerm) -> Result<RcValue, InternalError>
@@ -164,7 +162,8 @@ where
                             .map(|clause| {
                                 let (pattern, body) = clause.clone().unbind();
                                 Ok(Scope::new(pattern, nf_term(env, &body)?))
-                            }).collect::<Result<_, _>>()?,
+                            })
+                            .collect::<Result<_, _>>()?,
                     )),
                     spine.clone(),
                 )))

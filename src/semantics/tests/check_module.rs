@@ -12,7 +12,9 @@ fn infer_bare_definition() {
         foo = true;
     ";
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
@@ -35,7 +37,9 @@ fn forward_declarations() {
         foo = false;
     ";
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
@@ -58,16 +62,18 @@ fn forward_declarations_forward_ref() {
         foo = false;
     ";
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
-    match check_module(&tc_env, &raw_module) {
-        Ok(_) => panic!("expected error"),
-        Err(TypeError::UndefinedName { .. }) => {},
-        Err(err) => panic!("unexpected error: {}", err),
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
+    if let Err(err) = check_module(&tc_env, &raw_module) {
+        let writer = StandardStream::stdout(ColorChoice::Always);
+        codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
+        panic!("type error!")
     }
 }
 
 #[test]
-fn declaration_after_definition() {
+fn forward_struct_definitions() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
     let desugar_env = DesugarEnv::new(tc_env.mappings());
@@ -75,57 +81,17 @@ fn declaration_after_definition() {
     let src = "
         module test;
 
-        foo = true;
-        foo : Bool;
+        struct Bar { foo : Foo };
+        struct Foo {};
     ";
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
-    match check_module(&tc_env, &raw_module) {
-        Ok(_) => panic!("expected error"),
-        Err(TypeError::DeclarationFollowedDefinition { .. }) => {},
-        Err(err) => panic!("unexpected error: {}", err),
-    }
-}
-
-#[test]
-fn duplicate_declarations() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
-
-    let src = "
-        module test;
-
-        foo : Bool;
-        foo : I32;
-    ";
-
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
-    match check_module(&tc_env, &raw_module) {
-        Ok(_) => panic!("expected error"),
-        Err(TypeError::DuplicateDeclarations { .. }) => {},
-        Err(err) => panic!("unexpected error: {}", err),
-    }
-}
-
-#[test]
-fn duplicate_definitions() {
-    let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
-
-    let src = "
-        module test;
-
-        foo = Bool;
-        foo = I32;
-    ";
-
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
-    match check_module(&tc_env, &raw_module) {
-        Ok(_) => panic!("expected error"),
-        Err(TypeError::DuplicateDefinitions { .. }) => {},
-        Err(err) => panic!("unexpected error: {}", err),
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
+    if let Err(err) = check_module(&tc_env, &raw_module) {
+        let writer = StandardStream::stdout(ColorChoice::Always);
+        codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
+        panic!("type error!")
     }
 }
 
@@ -144,7 +110,9 @@ fn empty_struct() {
         test = struct {};
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
@@ -173,7 +141,9 @@ fn simple_struct() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
@@ -202,7 +172,9 @@ fn dependent_struct() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
@@ -231,7 +203,9 @@ fn dependent_struct_propagate_types() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
@@ -262,7 +236,9 @@ fn simple_struct_proj() {
         test_x : String = test.x;
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
@@ -291,7 +267,9 @@ fn simple_struct_proj_missing() {
         test_bloop = test.bloop;
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     match check_module(&tc_env, &raw_module) {
         Ok(_) => panic!("expected error"),
         Err(TypeError::NoFieldInType { .. }) => {},
@@ -320,7 +298,9 @@ fn dependent_struct_proj_weird1() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
@@ -352,7 +332,9 @@ fn dependent_struct_proj_weird2() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
@@ -375,7 +357,9 @@ fn dependent_struct_with_integer() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
@@ -402,7 +386,9 @@ fn struct_field_mismatch_lt() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     match check_module(&tc_env, &raw_module) {
         Ok(_) => panic!("expected error"),
         Err(TypeError::StructSizeMismatch { .. }) => {},
@@ -429,7 +415,9 @@ fn struct_field_mismatch_gt() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     match check_module(&tc_env, &raw_module) {
         Ok(_) => panic!("expected error"),
         Err(TypeError::StructSizeMismatch { .. }) => {},
@@ -461,7 +449,9 @@ fn struct_parameterised() {
         data = foo.data : Array 3 U32;
     ";
 
-    let raw_module = parse_module(&mut codemap, src).desugar(&desugar_env);
+    let raw_module = parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
     if let Err(err) = check_module(&tc_env, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();

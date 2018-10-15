@@ -14,44 +14,19 @@ pub struct Module {
     /// The name of the module
     pub name: String,
     /// The items contained in the module
-    pub items: Vec<Item>,
-}
-
-/// Top-level items within a module
-#[derive(Debug, Clone, PartialEq)]
-pub enum Item {
-    /// Declares the type associated with a label, prior to its definition
-    Declaration {
-        /// The external name for this declaration, to be used when referring
-        /// to this item from other modules
-        label: Label,
-        /// The internal name for this declaration., to be used when binding
-        /// this name to variables
-        binder: Binder<String>,
-        /// The type annotation for associated with the label
-        term: RcTerm,
-    },
-    /// Defines the term that should be associated with a label
-    Definition {
-        /// The external name for this definition, to be used when referring
-        /// to this item from other modules
-        label: Label,
-        /// The internal name for this definition., to be used when binding
-        /// this name to variables
-        binder: Binder<String>,
-        /// The definition for associated with the label
-        definition: Definition,
-    },
+    pub items: Nest<(Label, Binder<String>, Embed<Definition>)>,
 }
 
 pub type Telescope = Nest<(Binder<String>, Embed<RcTerm>)>;
 
 pub type StructType = Scope<Telescope, Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, BoundTerm)]
 pub enum Definition {
-    Alias(RcTerm),
-    StructType(StructType),
+    /// Alias definitions
+    Alias { term: RcTerm, ty: RcTerm },
+    /// Dependent struct types
+    StructType { scope: StructType },
 }
 
 /// Literals

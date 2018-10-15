@@ -83,7 +83,9 @@ fn match_expr_bad_literal() {
     }"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
-    let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
+    let raw_term = parse_term(&mut codemap, given_expr)
+        .desugar(&desugar_env)
+        .unwrap();
 
     match check_term(&tc_env, &raw_term, &expected_ty) {
         Err(TypeError::LiteralMismatch { .. }) => {},
@@ -152,7 +154,9 @@ fn array_len_mismatch() {
     let given_expr = r#"["hello", "hi"]"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
-    let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
+    let raw_term = parse_term(&mut codemap, given_expr)
+        .desugar(&desugar_env)
+        .unwrap();
 
     match check_term(&tc_env, &raw_term, &expected_ty) {
         Err(TypeError::ArrayLengthMismatch { .. }) => {},
@@ -171,7 +175,9 @@ fn array_elem_ty_mismatch() {
     let given_expr = r#"["hello", "hi", 4]"#;
 
     let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
-    let raw_term = parse_term(&mut codemap, given_expr).desugar(&desugar_env);
+    let raw_term = parse_term(&mut codemap, given_expr)
+        .desugar(&desugar_env)
+        .unwrap();
 
     match check_term(&tc_env, &raw_term, &expected_ty) {
         Err(_) => {},

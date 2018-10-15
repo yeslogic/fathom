@@ -143,6 +143,7 @@ extern crate pretty;
 #[cfg(test)]
 #[macro_use]
 extern crate pretty_assertions;
+extern crate petgraph;
 extern crate unicode_xid;
 
 pub mod semantics;
@@ -175,8 +176,13 @@ pub fn load_file(file: &FileMap) -> Result<core::Module, Vec<Diagnostic>> {
         .collect::<Vec<_>>();
 
     let tc_env = TcEnv::default();
+
     let desugar_env = DesugarEnv::new(tc_env.mappings());
-    let raw_module = concrete_module.desugar(&desugar_env);
+    let raw_module = match concrete_module.desugar(&desugar_env) {
+        Ok(raw_module) => raw_module,
+        Err(err) => return Err(vec![err.to_diagnostic()]),
+    };
+
     semantics::check_module(&tc_env, &raw_module).map_err(|err| {
         diagnostics.push(err.to_diagnostic());
         diagnostics

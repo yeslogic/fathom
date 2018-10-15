@@ -58,6 +58,8 @@ impl<N: Clone + PartialEq> BoundPattern<N> for IntFormat {
 
     fn close_pattern(&mut self, _: ScopeState, _: &impl OnFreeFn<N>) {}
     fn open_pattern(&mut self, _: ScopeState, _: &impl OnBoundFn<N>) {}
+    fn visit_vars(&self, _: &mut impl FnMut(&Var<N>)) {}
+    fn visit_mut_vars(&mut self, _: &mut impl FnMut(&mut Var<N>)) {}
     fn visit_binders(&self, _: &mut impl FnMut(&Binder<N>)) {}
     fn visit_mut_binders(&mut self, _: &mut impl FnMut(&mut Binder<N>)) {}
 }
@@ -86,6 +88,8 @@ impl<N: Clone + PartialEq> BoundPattern<N> for FloatFormat {
 
     fn close_pattern(&mut self, _: ScopeState, _: &impl OnFreeFn<N>) {}
     fn open_pattern(&mut self, _: ScopeState, _: &impl OnBoundFn<N>) {}
+    fn visit_vars(&self, _: &mut impl FnMut(&Var<N>)) {}
+    fn visit_mut_vars(&mut self, _: &mut impl FnMut(&mut Var<N>)) {}
     fn visit_binders(&self, _: &mut impl FnMut(&Binder<N>)) {}
     fn visit_mut_binders(&mut self, _: &mut impl FnMut(&mut Binder<N>)) {}
 }
