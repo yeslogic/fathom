@@ -68,19 +68,6 @@ struct Tag {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font>
 // -----------------------------------------------------------------------------
 
-struct OffsetTableRecord (file_start : Pos) {
-    /// Table identifier
-    tag : Tag,
-    /// CheckSum for this table
-    ///
-    /// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#calculating-checksums>
-    checksum : U32Be,
-    /// Offset from beginning of TrueType font file
-    offset : Offset32Be file_start (FontTable tag),
-    /// Length of this table
-    length : U32Be,
-};
-
 struct OffsetTable (file_start : Pos) {
     /// 0x00010000 or 0x4F54544F ('OTTO')
     ///
@@ -96,6 +83,19 @@ struct OffsetTable (file_start : Pos) {
     range_shift : U16Be,
     /// FIXME: sorted in ascending order by tag
     table_records : Array num_tables (OffsetTableRecord file_start),
+};
+
+struct OffsetTableRecord (file_start : Pos) {
+    /// Table identifier
+    tag : Tag,
+    /// CheckSum for this table
+    ///
+    /// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#calculating-checksums>
+    checksum : U32Be,
+    /// Offset from beginning of TrueType font file
+    offset : Offset32Be file_start (FontTable tag),
+    /// Length of this table
+    length : U32Be,
 };
 
 
@@ -152,7 +152,7 @@ struct TtcHeader2 (file_start : Pos) {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#font-tables>
 // -----------------------------------------------------------------------------
 
-/// A mapping from a tag to the corresponding font table
+/// A mapping from a tag to the corresponding font table type
 FontTable (tag : Tag) = match tag.value {
     // Required Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
