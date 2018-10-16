@@ -3,6 +3,11 @@ module opentype;
 
 struct Unknown {};
 
+// TODO: Missing primitives:
+
+struct VArray (A : Type) {};
+struct U24Be {};
+
 
 // -----------------------------------------------------------------------------
 // Data types
@@ -338,6 +343,358 @@ struct Coverage {
 // TODO: ConditionSet Table
 
 // TODO: FeatureTableSubstitution Table
+
+
+
+// =============================================================================
+//
+// cmap - Character To Glyph Index Mapping Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap>
+//
+// =============================================================================
+
+
+// -----------------------------------------------------------------------------
+//
+// CMap Header
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap>
+//
+// -----------------------------------------------------------------------------
+
+/// Character To Glyph Index Mapping Table
+///
+/// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#cmap-header>
+struct CMap {
+    table_start : Pos,
+    /// Table version number (0)
+    version : U16Be,
+    /// Number of encoding records that follow
+    num_tables : U16Be,
+    /// A list of encoding records
+    encoding_records : Array num_tables (EncodingRecord table_start),
+};
+
+/// Specifies a particular encoding and the offset to the corresponding subtable
+///
+/// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#encoding-records-and-encodings>
+struct EncodingRecord (cmap_start : Pos) {
+    /// Platform ID.
+    platform_id : U16Be,
+    /// Platform-specific encoding ID.
+    encoding_id : U16Be,
+    /// Byte offset from beginning of table to the subtable for this encoding.
+    subtable_offset : Offset32Be cmap_start CMapSubtable,
+};
+
+/// CMap Subtable
+struct CMapSubtable {
+    format : U16Be,
+    body : match format {
+        // TODO: 0 => CMapSubtable0,
+        // TODO: 2 => CMapSubtable2,
+        // TODO: 4 => CMapSubtable4,
+        // TODO: 6 => CMapSubtable6,
+        // TODO: 8 => CMapSubtable8,
+        // TODO: 10 => CmapSubtable10,
+        // TODO: 12 => CMapSubtable12,
+        // TODO: 13 => CMapSubtable13,
+        // TODO: 14 => CMapSubtable14,
+        _ => Unknown,
+    },
+};
+
+
+// -----------------------------------------------------------------------------
+// FORMAT 0
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-0-byte-encoding-table>
+// -----------------------------------------------------------------------------
+
+/// Format 0: Byte encoding table
+struct CMapSubtable0 {
+    /// This is the length in bytes of the subtable.
+    length : U16Be,
+    /// Please see "[Note on the language field in 'cmap' subtables]
+    /// (https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#language)".
+    language : U16Be,
+    /// An array that maps character codes to glyph index values.
+    glyph_id_array : Array 256 U8,
+};
+
+
+// -----------------------------------------------------------------------------
+// FORMAT 2
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-2-high-byte-mapping-through-table>
+// -----------------------------------------------------------------------------
+
+/// Format 2: High-byte mapping through table
+struct CMapSubtable2 {
+    /// This is the length in bytes of the subtable.
+    length : U16Be,
+    /// Please see "[Note on the language field in 'cmap' subtables]
+    /// (https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#language)".
+    language : U16Be,
+    /// Array that maps high bytes to subHeaders: value is subHeader index * 8.
+    sub_header_keys : Array 256 U16Be,
+    /// Variable-length array of `CMapSubtable2SubHeader` records.
+    subHeaders : VArray CMapSubtable2SubHeader,
+    /// Variable-length array containing subarrays used for mapping the low byte
+    /// of 2-byte characters.
+    glyphIndexArray : VArray U16Be,
+};
+
+struct CMapSubtable2SubHeader {
+    /// First valid low byte for this SubHeader.
+    first_code : U16Be,
+    /// Number of valid low bytes for this SubHeader.
+    entry_count : U16Be,
+    /// See text below.
+    id_delta : S16Be,
+    /// See text below.
+    id_range_offset : U16Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// FORMAT 4
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-4-segment-mapping-to-delta-values>
+// -----------------------------------------------------------------------------
+
+/// Format 4: Segment mapping to delta values
+struct CMapSubtable4 {
+    /// This is the length in bytes of the subtable.
+    length : U16Be,
+    /// Please see "[Note on the language field in 'cmap' subtables]
+    /// (https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#language)".
+    language : U16Be,
+    /// `2 x seg_count.`
+    seg_count_x2 : U16Be,
+    /// `2 x (2**floor(log2(seg_count)))`
+    search_range : U16Be,
+    /// `log2(search_range/2)`
+    entry_selector : U16Be,
+    /// `2 x seg_count - search_range`
+    range_shift : U16Be,
+    // TODO:
+    // /// End characterCode for each segment, `last = 0xFFFF`.
+    // end_count : Array (seg_count_x2 / 2) U16Be,
+    // /// Set to `0`.
+    // reserved_pad : U16Be,
+    // /// Start character code for each segment.
+    // start_count : Array (seg_count_x2 / 2) U16Be,
+    // /// Delta for all character codes in segment.
+    // id_delta : Array (seg_count_x2 / 2) S16Be,
+    // /// Offsets into `glyph_id_array` or 0
+    // id_range_offset : Array (seg_count_x2 / 2) U16Be,
+    // /// Glyph index array (arbitrary length)
+    // glyph_id_array : Array ((length / 2 - 8) - (2 * seg_count_x2)) U16Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// FORMAT 6
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-6-trimmed-table-mapping>
+// -----------------------------------------------------------------------------
+
+/// Format 6: Trimmed table mapping
+struct CMapSubtable6 {
+    /// This is the length in bytes of the subtable.
+    length : U16Be,
+    /// Please see "[Note on the language field in 'cmap' subtables]
+    /// (https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#language)".
+    language : U16Be,
+    /// First character code of subrange.
+    first_code : U16Be,
+    /// Number of character codes in subrange.
+    entry_count : U16Be,
+    /// Array of glyph index values for character codes in the range.
+    glyph_id_array : Array entry_count U16Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// FORMAT 8
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-8-mixed-16-bit-and-32-bit-coverage>
+// -----------------------------------------------------------------------------
+
+/// Format 8: mixed 16-bit and 32-bit coverage
+struct CMapSubtable8 {
+    /// Reserved; set to 0
+    reserved : U16Be,
+    /// Byte length of this subtable (including the header)
+    length : U32Be,
+    /// Please see "[Note on the language field in 'cmap' subtables]
+    /// (https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#language)".
+    language : U32Be,
+    /// Tightly packed array of bits (8K bytes total) indicating whether the
+    /// particular 16-bit (index) value is the start of a 32-bit character code
+    is32 : Array 8192 U8,
+    /// Number of groupings which follow
+    num_groups : U32Be,
+    /// Array of SequentialMapGroup records.
+    groups : Array num_groups CMapSubtable8SequentialMapGroup,
+};
+
+struct CMapSubtable8SequentialMapGroup {
+    /// First character code in this group; note that if this group is for one
+    /// or more 16-bit character codes (which is determined from the is32
+    /// array), this 32-bit value will have the high 16-bits set to zero
+    start_char_code : U32Be,
+    /// Last character code in this group; same condition as listed above for
+    /// the `start_char_code`
+    end_char_code : U32Be,
+    /// Glyph index corresponding to the starting character code
+    start_glyph_id : U32Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// FORMAT 10
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-10-trimmed-array>
+// -----------------------------------------------------------------------------
+
+/// Format 10: Trimmed array
+struct CmapSubtable10 {
+    /// Reserved; set to 0
+    reserved : U16Be,
+    /// Byte length of this subtable (including the header)
+    length : U32Be,
+    /// Please see "[Note on the language field in 'cmap' subtables]
+    /// (https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#language)".
+    language : U32Be,
+    /// First character code covered
+    start_char_code : U32Be,
+    /// Number of character codes covered
+    num_chars : U32Be,
+    /// Array of glyph indices for the character codes covered
+    glyphs : VArray U16Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// FORMAT 12
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-12-segmented-coverage>
+// -----------------------------------------------------------------------------
+
+/// Format 12: Segmented coverage
+struct CMapSubtable12 {
+    /// Reserved; set to 0
+    reserved : U16Be,
+    /// Byte length of this subtable (including the header)
+    length : U32Be,
+    /// Please see "[Note on the language field in 'cmap' subtables]
+    /// (https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#language)".
+    language : U32Be,
+    /// Number of groupings which follow
+    num_groups : U32Be,
+    /// Array of `CMapSubtable12SequentialMapGroup` records.
+    groups : Array num_groups CMapSubtable12SequentialMapGroup,
+};
+
+struct CMapSubtable12SequentialMapGroup {
+    /// First character code in this group
+    start_char_code : U32Be,
+    /// Last character code in this group
+    end_char_code : U32Be,
+    /// Glyph index corresponding to the starting character code
+    start_glyph_id : U32Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// FORMAT 13
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-13-many-to-one-range-mappings>
+// -----------------------------------------------------------------------------
+
+/// Format 13: Many-to-one range mappings
+struct CMapSubtable13 {
+    /// Reserved; set to 0
+    reserved : U16Be,
+    /// Byte length of this subtable (including the header)
+    length : U32Be,
+    /// Please see "[Note on the language field in 'cmap' subtables]
+    /// (https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#language)".
+    language : U32Be,
+    /// Number of groupings which follow
+    num_groups : U32Be,
+    /// Array of `CMapSubtable13ConstantMapGroup` records.
+    groups : Array num_groups CMapSubtable13ConstantMapGroup,
+};
+
+struct CMapSubtable13ConstantMapGroup {
+    /// First character code in this group
+    start_char_code : U32Be,
+    /// Last character code in this group
+    end_char_code : U32Be,
+    /// Glyph index to be used for all the characters in the group's range.
+    start_glyph_id : U32Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// FORMAT 14
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#format-14-unicode-variation-sequences>
+// -----------------------------------------------------------------------------
+
+/// Format 14: Unicode Variation Sequences
+struct CMapSubtable14 {
+    table_start : Pos,
+    /// Byte length of this subtable (including this header)
+    length : U32Be,
+    /// Number of variation Selector Records
+    num_var_selector_records : U32Be,
+    /// Array of `CMapSubtable14VariationSelector` records.
+    var_selector : Array num_var_selector_records (CMapSubtable14VariationSelector table_start),
+};
+
+struct CMapSubtable14VariationSelector (subtable_start : Pos) {
+    /// Variation selector
+    var_selector : U24Be,
+    /// Offset from the start of the format 14 subtable to Default UVS Table. May be 0.
+    default_uvs_offset : Offset32Be subtable_start DefaultUvs,
+    /// Offset from the start of the format 14 subtable to Non-Default UVS Table. May be 0.
+    non_default_uvs_offset : Offset32Be subtable_start NonDefaultUvs,
+};
+
+/// Default UVS table
+struct DefaultUvs {
+    /// Number of Unicode character ranges.
+    num_unicode_value_ranges : U32Be,
+    /// Array of UnicodeRange records.
+    ranges : Array num_unicode_value_ranges UnicodeRange,
+};
+
+struct UnicodeRange {
+    /// First value in this range
+    start_unicode_value : U24Be,
+    /// Number of additional values in this range
+    additional_count : U8,
+};
+
+/// Non-Default UVS Table
+struct NonDefaultUvs {
+    /// Number of UVS Mappings that follow
+    num_uvs_mappings : U32Be,
+    /// Array of `UvsMapping` records.
+    uvs_mappings : Array num_uvs_mappings UvsMapping,
+};
+
+struct UvsMapping {
+    /// Base Unicode value of the UVS
+    unicode_value : U24Be,
+    /// Glyph ID of the UVS
+    glyph_id : U16Be,
+};
 
 
 // TODO: Rest of OpenType!
