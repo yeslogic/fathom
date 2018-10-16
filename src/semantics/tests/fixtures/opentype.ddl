@@ -76,7 +76,7 @@ struct OffsetTableRecord (file_start : Pos) {
     /// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#calculating-checksums>
     checksum : U32Be,
     /// Offset from beginning of TrueType font file
-    offset : Offset32Be file_start Unknown,
+    offset : Offset32Be file_start (FontTable tag),
     /// Length of this table
     length : U32Be,
 };
@@ -143,6 +143,101 @@ struct TtcHeader2 (file_start : Pos) {
     /// The offset (in bytes) of the DSIG table from the beginning of the TTC file (null if no signature)
     // FIXME: dsig_offset : Offset32Be file_start Dsig,
     dsig_offset : Offset32Be file_start Unknown,
+};
+
+
+// -----------------------------------------------------------------------------
+// Font Tables
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#font-tables>
+// -----------------------------------------------------------------------------
+
+/// A mapping from a tag to the corresponding font table
+FontTable (tag : Tag) = match tag.value {
+    // Required Tables
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
+    "cmap" => CMap,             // Character to glyph mapping
+    "head" => FontHeader,       // Font header
+    "hhea" => HorizontalHeader, // Horizontal header
+    "hmtx" => Unknown,          // Horizontal metrics
+    "maxp" => MaximumProfile,   // Maximum profile
+    "name" => Unknown,          // Naming table
+    "OS/2" => Os2,              // OS/2 and Windows specific metrics
+    "post" => PostScript,       // PostScript information
+
+    // Tables Related to TrueType Outlines
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
+
+    "cvt " => Unknown,          // Control Value Table (optional table)
+    "fpgm" => Unknown,          // Font program (optional table)
+    "glyf" => Unknown,          // Glyph data
+    "loca" => Unknown,          // Index to location
+    "prep" => Unknown,          // CVT Program (optional table)
+    "gasp" => Unknown,          // Grid-fitting/Scan-conversion (optional table)
+
+    // Tables Related to CFF Outlines
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
+    "CFF " => Unknown,          // Compact Font Format 1.0
+    "CFF2" => Unknown,          // Compact Font Format 2.0
+    "VORG" => Unknown,          // Vertical Origin (optional table)
+
+    // Table Related to SVG Outlines
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
+    "SVG " => Unknown,          // The SVG (Scalable Vector Graphics) table
+
+    // Tables Related to Bitmap Glyphs
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
+    "EBDT" => Unknown,          // Embedded bitmap data
+    "EBLC" => Unknown,          // Embedded bitmap location data
+    "EBSC" => Unknown,          // Embedded bitmap scaling data
+    "CBDT" => Unknown,          // Color bitmap data
+    "CBLC" => Unknown,          // Color bitmap location data
+    "sbix" => Unknown,          // Standard bitmap graphics
+
+    // Advanced Typographic Tables
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
+    "BASE" => Unknown,          // Baseline data
+    "GDEF" => Unknown,          // Glyph definition data
+    "GPOS" => Unknown,          // Glyph positioning data
+    "GSUB" => Unknown,          // Glyph substitution data
+    "JSTF" => Unknown,          // Justification data
+    "MATH" => Unknown,          // Math layout data
+
+    // Tables used for OpenType Font Variations
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
+    "avar" => Unknown,          // Axis variations
+    "cvar" => Unknown,          // CVT variations (TrueType outlines only)
+    "fvar" => Unknown,          // Font variations
+    "gvar" => Unknown,          // Glyph variations (TrueType outlines only)
+    "HVAR" => Unknown,          // Horizontal metrics variations
+    "MVAR" => Unknown,          // Metrics variations
+    "STAT" => Unknown,          // Style attributes (required for variable fonts, optional for non-variable fonts)
+    "VVAR" => Unknown,          // Vertical metrics variations
+
+    // Tables Related to Color Fonts
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
+    "COLR" => Unknown,          // Color table
+    "CPAL" => Unknown,          // Color palette table
+    "CBDT" => Unknown,          // Color bitmap data
+    "CBLC" => Unknown,          // Color bitmap location data
+    "sbix" => Unknown,          // Standard bitmap graphics
+    "SVG " => Unknown,          // The SVG (Scalable Vector Graphics) table
+
+    // Other OpenType Tables
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
+    "DSIG" => Unknown,          // Digital signature
+    "hdmx" => Unknown,          // Horizontal device metrics
+    "kern" => Unknown,          // Kerning
+    "LTSH" => Unknown,          // Linear threshold data
+    "MERG" => Unknown,          // Merge
+    "meta" => Unknown,          // Metadata
+    "STAT" => Unknown,          // Style attributes
+    "PCLT" => Unknown,          // PCL 5 data
+    "VDMX" => Unknown,          // Vertical device metrics
+    "vhea" => Unknown,          // Vertical Metrics header
+    "vmtx" => Unknown,          // Vertical Metrics
+
+    _ => Unknown,
 };
 
 
@@ -738,7 +833,7 @@ struct UvsMapping {
 /// Font header table
 ///
 /// <https://www.microsoft.com/typography/otspec/head.htm>
-struct FontHeaderTable {
+struct FontHeader {
     /// Major version number of the font header table — set to `1`.
     major_version : U16Be,
     /// Minor version number of the font header table — set to `0`.
@@ -1056,7 +1151,7 @@ struct Os2 {
 // =============================================================================
 
 /// PostScript Table
-struct Post {
+struct PostScript {
     /// Version number.
     ///
     /// * `0x00010000` - for version 1.0
