@@ -6,7 +6,10 @@ struct Unknown {};
 // TODO: Missing primitives:
 
 struct VArray (A : Type) {};
-struct U24Be {};
+
+struct U24Be {
+    value : Array 3 U8,
+};
 
 
 // -----------------------------------------------------------------------------
@@ -15,7 +18,32 @@ struct U24Be {};
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#data-types>
 // -----------------------------------------------------------------------------
 
-Tag = Array 4 U8;
+/// 32-bit signed fixed-point number (16.16)
+struct Fixed {
+    value : U32Be,
+};
+
+/// `S16Be` that describes a quantity in font design units.
+struct FWord {
+    value : S16Be,
+};
+
+/// `U16Be` that describes a quantity in font design units.
+struct UfWord {
+    value : U16Be,
+};
+
+/// Date represented in number of seconds since 12:00 midnight, January 1, 1904.
+/// The value is represented as a signed 64-bit integer.
+struct LongDateTime {
+    value : S64Be,
+};
+
+/// Array of four uint8s (length = 32 bits) used to identify a script, language
+/// system, feature, or baseline
+struct Tag {
+    value: Array 4 U8,
+};
 
 
 
@@ -695,6 +723,600 @@ struct UvsMapping {
     /// Glyph ID of the UVS
     glyph_id : U16Be,
 };
+
+
+
+// =============================================================================
+//
+// head — Font Header Table
+//
+// <https://www.microsoft.com/typography/otspec/head.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6head.html>
+//
+// =============================================================================
+
+/// Font header table
+///
+/// <https://www.microsoft.com/typography/otspec/head.htm>
+struct FontHeaderTable {
+    /// Major version number of the font header table — set to `1`.
+    major_version : U16Be,
+    /// Minor version number of the font header table — set to `0`.
+    minor_version : U16Be,
+    /// Set by font manufacturer.
+    font_revision : Fixed,
+    /// To compute: set it to `0`, sum the entire font as `U32Be`, then store
+    /// `0xB1B0AFBA - sum`. If the font is used as a component in a font
+    /// collection file, the value of this field will be invalidated by changes
+    /// to the file structure and font table directory, and must be ignored.
+    check_sum_adjustment : U32Be,
+    /// Set to `0x5F0F3CF5`.
+    magic_number : U32Be,
+    // TODO: Docs
+    flags : U16Be,
+    /// Set to a value from `16` to `16384`. Any value in this range is valid.
+    /// In fonts that have TrueType outlines, a power of 2 is recommended as
+    /// this allows performance optimizations in some rasterizers.
+    units_per_em : U16Be,
+    /// Number of seconds since 12:00 midnight that started January 1st 1904 in
+    /// GMT/UTC time zone. 64-bit integer
+    created : LongDateTime,
+    /// Number of seconds since 12:00 midnight that started January 1st 1904 in
+    /// GMT/UTC time zone. 64-bit integer
+    modified : LongDateTime,
+    /// For all glyph bounding boxes.
+    x_min : S16Be,
+    /// For all glyph bounding boxes.
+    y_min : S16Be,
+    /// For all glyph bounding boxes.
+    x_max : S16Be,
+    /// For all glyph bounding boxes.
+    y_max : S16Be,
+    // TODO: Docs
+    mac_style : U16Be,
+    /// Smallest readable size in pixels.
+    lowest_rec_ppem : U16Be,
+    /// Deprecated (Set to 2).
+    ///
+    /// * `0`: Fully mixed directional glyphs
+    /// * `1`: Only strongly left to right
+    /// * `2`: Like `1` but also contains neutrals
+    /// * `-1`: Only strongly right to left
+    /// * `-2`: Like `-1` but also contains neutrals
+    font_direction_hint : S16Be,
+    /// `0` for short offsets (`Offset16`), `1` for long (`Offset32`).
+    index_to_loc_format : S16Be,
+    /// `0` for current format.
+    glyph_data_format : S16Be,
+};
+
+
+
+// =============================================================================
+//
+// hhea — Horizontal Header Table
+//
+// <https://www.microsoft.com/typography/otspec/hhea.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hhea.html>
+//
+// =============================================================================
+
+/// Horizontal Header Table
+///
+/// <https://www.microsoft.com/typography/otspec/hhea.htm>
+struct HorizontalHeader {
+    /// Minor version number of the horizontal header table — set to 0.
+    minor_version : U16Be,
+    /// Major version number of the horizontal header table — set to 1.
+    major_version : U16Be,
+    /// Typographic ascent (Distance from baseline of highest ascender).
+    ascender : FWord,
+    /// Typographic descent (Distance from baseline of lowest descender).
+    descender : FWord,
+    /// Typographic line gap.
+    ///
+    /// Negative `line_gap` values are treated as zero in Windows 3.1, and in
+    /// Mac OS System 6 and System 7.
+    line_gap : FWord,
+    /// Maximum advance width value in 'hmtx' table.
+    advance_width_max : UfWord,
+    /// Minimum left sidebearing value in 'hmtx' table.
+    min_left_side_bearing : FWord,
+    /// Minimum right sidebearing value; calculated as `min(aw - lsb - (x_max - x_min))`.
+    min_right_side_bearing : FWord,
+    /// `max(lsb + (x_max - x_min))`.
+    x_max_extent : FWord,
+    /// Used to calculate the slope of the cursor (rise/run); 1 for vertical.
+    caret_slope_rise : S16Be,
+    /// 0 for vertical.
+    caret_slope_run : S16Be,
+    /// The amount by which a slanted highlight on a glyph needs to be shifted
+    /// to produce the best appearance. Set to 0 for non-slanted fonts
+    caret_offset : S16Be,
+    /// (reserved) set to 0
+    reserved0 : S16Be,
+    /// (reserved) set to 0
+    reserved1 : S16Be,
+    /// (reserved) set to 0
+    reserved2 : S16Be,
+    /// (reserved) set to 0
+    reserved3 : S16Be,
+    /// 0 for current format.
+    metric_data_format : S16Be,
+    /// Number of `h_metric` entries in 'hmtx' table
+    number_of_h_metrics : U16Be,
+};
+
+
+
+// =============================================================================
+//
+// hmtx - Horizontal Metrics
+//
+// <https://www.microsoft.com/typography/otspec/hmtx.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html>
+//
+// =============================================================================
+
+/// <https://www.microsoft.com/typography/otspec/hmtx.htm#hmtxHeader>
+struct HorizontalMetrics (num_glyphs : U16) (number_of_h_metrics : U16) {
+    /// Paired advance width and left side bearing values for each glyph.
+    /// Records are indexed by glyph ID.
+    h_metrics : Array number_of_h_metrics LongHorMetric,
+    // TODO:
+    // /// Left side bearings for glyph IDs greater than or equal to `number_of_h_metrics`.
+    // left_side_bearings : Array (num_glyphs - number_of_h_metrics) S16Be,
+};
+
+/// <https://www.microsoft.com/typography/otspec/hmtx.htm#lhm>
+struct LongHorMetric {
+    /// Advance width, in font design units.
+    advance_width : U16Be,
+    /// Glyph left side bearing, in font design units.
+    lsb : S16Be,
+};
+
+
+
+// =============================================================================
+//
+// maxp - Maximum Profile
+//
+// <https://www.microsoft.com/typography/otspec/hmtx.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6maxp.html>
+//
+// =============================================================================
+
+/// Maximum Profile
+///
+/// <https://www.microsoft.com/typography/otspec/maxp.htm>
+///
+/// Establishes the memory requirements for this font.
+struct MaximumProfile {
+    version : Fixed,
+    data : match version.value {
+        // TODO: 0x00005000u32 => Version_0_5,
+        // TODO: 0x00010000u32 => Version_1_0,
+        _ => Unknown,
+    },
+};
+
+/// Version 0.5
+///
+/// Fonts with CFF data must use Version 0.5 of this table, specifying only the
+/// `num_glyphs` field
+struct Version_0_5 {
+    /// The number of glyphs in the font
+    num_glyphs : U16Be,
+};
+
+/// Version 1.0
+///
+/// Fonts with TrueType outlines must use Version 1.0 of this table, where all
+/// data is required
+struct Version_1_0 {
+    /// The number of glyphs in the font
+    num_glyphs : U16Be,
+    /// Maximum points in a non-composite glyph.
+    max_points : U16Be,
+    /// Maximum contours in a non-composite glyph.
+    max_contours : U16Be,
+    /// Maximum points in a composite glyph.
+    max_composite_points : U16Be,
+    /// Maximum contours in a composite glyph.
+    max_composite_contours : U16Be,
+    /// 1 if instructions do not use the twilight zone (Z0), or 2 if
+    /// instructions do use Z0; should be set to 2 in most cases.
+    max_zones : U16Be,
+    /// Maximum points used in Z0.
+    max_twilight_points : U16Be,
+    /// Number of Storage Area locations.
+    max_storage : U16Be,
+    /// Number of FDEFs, equal to the highest function number + 1.
+    max_function_defs : U16Be,
+    /// Number of IDEFs.
+    max_instruction_defs : U16Be,
+    /// Maximum stack depth2.
+    max_stack_elements : U16Be,
+    /// Maximum byte count for glyph instructions.
+    max_size_of_instructions : U16Be,
+    /// Maximum number of components referenced at “top level” for any composite glyph.
+    max_component_elements : U16Be,
+    /// Maximum levels of recursion; 1 for simple components.
+    max_component_depth : U16Be,
+};
+
+
+
+// =============================================================================
+//
+// name — Naming Table
+//
+// <https://www.microsoft.com/typography/otspec/name.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// OS/2 — OS/2 and Windows Metrics Table
+//
+// <https://www.microsoft.com/typography/otspec/os2.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html>
+//
+// =============================================================================
+
+/// OS/2 and Windows Metrics Table
+///
+/// <https://www.microsoft.com/typography/otspec/os2.htm>
+struct Os2 {
+    version : U16Be,
+
+    // FIXME: Proper version switching
+    // TODO: Documentation
+
+    // Version 0
+    //
+    // <https://www.microsoft.com/typography/otspec/os2ver0.htm>
+
+    x_avg_char_width : S16Be,
+    us_weight_class : U16Be,
+    us_width_class : U16Be,
+    fs_type : U16Be,
+    y_subscript_x_size : S16Be,
+    y_subscript_y_size : S16Be,
+    y_subscript_x_offset : S16Be,
+    y_subscript_y_offset : S16Be,
+    y_superscript_x_size : S16Be,
+    y_superscript_y_size : S16Be,
+    y_superscript_x_offset : S16Be,
+    y_superscript_y_offset : S16Be,
+    y_strikeout_size : S16Be,
+    y_strikeout_position : S16Be,
+    s_family_class : S16Be,
+    panose : Array 10 U8,
+    /// Bits 0–31
+    ul_unicode_range1 : U32Be,
+    /// Bits 32–63
+    ul_unicode_range2 : U32Be,
+    /// Bits 64–95
+    ul_unicode_range3 : U32Be,
+    /// Bits 96–127
+    ul_unicode_range4 : U32Be,
+    ach_vend_id : Tag,
+    fs_selection : U16Be,
+    us_first_char_index : U16Be,
+    us_last_char_index : U16Be,
+
+    // Version 1
+    //
+    // <https://www.microsoft.com/typography/otspec/os2ver1.htm>
+
+    s_typo_ascender : S16Be,
+    s_typo_descender : S16Be,
+    s_typo_line_gap : S16Be,
+    us_win_ascent : U16Be,
+    us_win_descent : U16Be,
+    /// Bits 0–31
+    ul_code_page_range1 : U32Be,
+    /// Bits 32–63
+    ul_code_page_range2 : U32Be,
+
+    // Version 2
+    //
+    // <https://www.microsoft.com/typography/otspec/os2ver2.htm>
+
+    sx_height : S16Be,
+    s_cap_height : S16Be,
+    us_default_char : U16Be,
+    us_break_char : U16Be,
+    us_max_context : U16Be,
+
+    // Version 5
+    //
+    // <https://www.microsoft.com/typography/otspec/os2.htm>
+
+    us_lower_optical_point_size : U16Be,
+    us_upper_optical_point_size : U16Be,
+};
+
+
+
+// =============================================================================
+//
+// post — PostScript Table
+//
+// <https://www.microsoft.com/typography/otspec/post.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6post.html>
+//
+// =============================================================================
+
+/// PostScript Table
+struct Post {
+    /// Version number.
+    ///
+    /// * `0x00010000` - for version 1.0
+    /// * `0x00020000` - for version 2.0
+    /// * `0x00025000` - for version 2.5 (deprecated)
+    /// * `0x00030000` - for version 3.0
+    version : Fixed,
+    /// Italic angle in counter-clockwise degrees from the vertical. Zero for
+    /// upright text, negative for text that leans to the right (forward).
+    italic_angle : Fixed,
+    /// This is the suggested distance of the top of the underline from the
+    /// baseline (negative values indicate below baseline).
+    ///
+    /// The PostScript definition of this FontInfo dictionary key (the y
+    /// coordinate of the center of the stroke) is not used for historical
+    /// reasons. The value of the PostScript key may be calculated by
+    /// subtracting half the `underline_thickness` from the value of this field.
+    underline_position : FWord,
+    /// Suggested values for the underline thickness.
+    underline_thickness : FWord,
+    /// Set to 0 if the font is proportionally spaced, non-zero if the font is
+    /// not proportionally spaced (i.e. monospaced).
+    is_fixed_pitch : U32Be,
+    /// Minimum memory usage when an OpenType font is downloaded.
+    min_mem_type42 : U32Be,
+    /// Maximum memory usage when an OpenType font is downloaded.
+    max_mem_type42 : U32Be,
+    /// Minimum memory usage when an OpenType font is downloaded as a Type 1 font.
+    min_mem_type1 : U32Be,
+    /// Maximum memory usage when an OpenType font is downloaded as a Type 1 font.
+    max_mem_type1 : U32Be,
+
+    // Version 2.0
+
+    /// Number of glyphs (this should be the same as numGlyphs in 'maxp' table).
+    num_glyphs : U16Be,
+    /// This is not an offset, but is the ordinal number of the glyph in 'post'
+    /// string tables.
+    glyph_name_index : Array num_glyphs U16Be,
+    // FIXME: num_new_glyphs ???
+    // /// Glyph names with length bytes [variable] (a Pascal string).
+    // names : Array num_new_glyphs i8,
+
+
+    // TODO: other versions!
+};
+
+
+
+
+// =============================================================================
+//
+// cvt — Control Value Table
+//
+// <https://www.microsoft.com/typography/otspec/cvt.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cvt.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// fpgm - Font Program
+//
+// <https://www.microsoft.com/typography/otspec/fpgm.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6fpgm.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// glyf - Glyf Data
+//
+// <https://www.microsoft.com/typography/otspec/glyf.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// loca - Index to Location
+//
+// <https://www.microsoft.com/typography/otspec/loca.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6loca.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// prep - Control Value Program
+//
+// <https://www.microsoft.com/typography/otspec/prep.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6prep.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// gasp — Grid-fitting And Scan-conversion Procedure Table
+//
+// <https://www.microsoft.com/typography/otspec/gasp.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6gasp.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// CFF - Compact Font Format table
+//
+// <https://www.microsoft.com/typography/otspec/cff.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// CFF - Compact Font Format table
+//
+// <https://www.microsoft.com/typography/otspec/cff2.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// VORG - Vertical Origin Table
+//
+// <https://www.microsoft.com/typography/otspec/vorg.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// SVG - The SVG (Scalable Vector Graphics) table
+//
+// <https://www.microsoft.com/typography/otspec/svg.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// EBDT - Embedded Bitmap Data Table
+//
+// <https://www.microsoft.com/typography/otspec/ebdt.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// EBLC - Embedded Bitmap Location Table
+//
+// <https://www.microsoft.com/typography/otspec/eblc.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// EBSC - Embedded Bitmap Scaling Table
+//
+// <https://www.microsoft.com/typography/otspec/ebsc.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6EBSC.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// CBDT - Color Bitmap Data Table
+//
+// <https://www.microsoft.com/typography/otspec/cbdt.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// CBLC - Color Bitmap Location Table
+//
+// <https://www.microsoft.com/typography/otspec/cblc.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// sbix — Standard Bitmap Graphics Table
+//
+// <https://www.microsoft.com/typography/otspec/sbix.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6sbix.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// BASE - Baseline Table
+//
+// <https://www.microsoft.com/typography/otspec/base.htm>
+//
+// =============================================================================
+
+// TODO
+
 
 
 // TODO: Rest of OpenType!
