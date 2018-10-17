@@ -11,6 +11,8 @@ struct U24Be {
     value : Array 3 U8,
 };
 
+// TODO: Nullable offsets?
+
 
 // -----------------------------------------------------------------------------
 // Data types
@@ -39,7 +41,7 @@ struct LongDateTime {
     value : S64Be,
 };
 
-/// Array of four uint8s (length = 32 bits) used to identify a script, language
+/// Array of four `U8`s (length = 32 bits) used to identify a script, language
 /// system, feature, or baseline
 struct Tag {
     value: Array 4 U8,
@@ -141,8 +143,7 @@ struct TtcHeader2 (file_start : Pos) {
     /// The length (in bytes) of the DSIG table (null if no signature)
     dsig_length : U32Be,
     /// The offset (in bytes) of the DSIG table from the beginning of the TTC file (null if no signature)
-    // FIXME: dsig_offset : Offset32Be file_start Dsig,
-    dsig_offset : Offset32Be file_start Unknown,
+    dsig_offset : Offset32Be file_start DigitalSignature,
 };
 
 
@@ -225,7 +226,7 @@ FontTable (tag : Tag) = match tag.value {
 
     // Other OpenType Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
-    "DSIG" => Unknown,          // Digital signature
+    "DSIG" => DigitalSignature, // Digital signature
     "hdmx" => Unknown,          // Horizontal device metrics
     "kern" => Unknown,          // Kerning
     "LTSH" => Unknown,          // Linear threshold data
@@ -1839,11 +1840,48 @@ struct GSub {
 //
 // DSIG - Digital Signature Table
 //
-// <https://www.microsoft.com/typography/otspec/dsig.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/dsig>
 //
 // =============================================================================
 
-// TODO
+/// DSIG — Digital Signature Table
+struct DigitalSignature {
+    table_start : Pos,
+    /// Version number of the DSIG table (0x00000001)
+    version : U32Be,
+    /// Number of signatures in the table
+    num_signatures : U16Be,
+    /// permission flags Bit 0: cannot be resigned Bits 1-7: Reserved (Set to 0)
+    flags : U16Be,
+    /// Array of signature records
+    signature_records : Array num_signatures (SignatureRecord table_start),
+};
+
+struct SignatureRecord (digital_signature_start : Pos) {
+    /// Format of the signature
+    format : U32Be,
+    /// Length of signature in bytes
+    length : U32Be,
+    /// Offset to the signature block from the beginning of the table
+    // TODO: offset : Offset32Be digital_signature_start SignatureBlock,
+    offset : Offset32Be digital_signature_start Unknown,
+};
+
+// TODO:
+// union SignatureBlock {
+//     SignatureBlockFormat1,
+// }
+
+struct SignatureBlockFormat1 {
+    /// Reserved for future use; set to zero.
+    reserved1 : U16Be, // TODO: private?
+    /// Reserved for future use; set to zero.
+    reserved2 : U16Be, // TODO: private?
+    /// Length (in bytes) of the PKCS#7 packet in the signature field.
+    signature_length : U32Be,
+    /// PKCS#7 packet
+    signature : Array signature_length U8,
+};
 
 
 
