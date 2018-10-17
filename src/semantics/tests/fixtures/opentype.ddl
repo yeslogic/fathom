@@ -231,7 +231,7 @@ FontTable (tag : Tag) = match tag.value {
     "kern" => Unknown,          // Kerning
     "LTSH" => Unknown,          // Linear threshold data
     "MERG" => Unknown,          // Merge
-    "meta" => Unknown,          // Metadata
+    "meta" => Metadata,         // Metadata
     "STAT" => Unknown,          // Style attributes
     "PCLT" => Unknown,          // PCL 5 data
     "VDMX" => Unknown,          // Vertical device metrics
@@ -2087,6 +2087,42 @@ struct DeviceRecord (num_glyphs : U16) {
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6meta.html>
 //
 // =============================================================================
+
+/// Metadata Table
+struct Metadata {
+    table_start : Pos,
+    /// Version number of the metadata table — set to 1.
+    version : U32Be,
+    /// Flags — currently unused; set to 0.
+    flags : U32Be,
+    /// Not used; should be set to 0.
+    reserved : U32Be,
+    /// The number of data maps in the table.
+    data_maps_count : U32Be,
+    /// Array of data map records.
+    data_maps : Array data_maps_count (DataMap table_start),
+};
+
+/// DataMap record
+struct DataMap (metadata_start : Pos) {
+    /// A tag indicating the type of metadata.
+    tag : Tag,
+    /// Offset in bytes from the beginning of the metadata table to the data for this tag.
+    data_offset : Offset32Be metadata_start (MetadataInfo tag), // TODO
+    /// Length of the data, in bytes. The data is not required to be padded to any byte boundary.
+    data_length : U32Be,
+};
+
+/// Metadata information
+///
+/// <https://docs.microsoft.com/en-us/typography/opentype/spec/meta#metadata-tags>
+MetadataInfo (tag : Tag) = match tag.value {
+    "appl" => Unknown, // TODO
+    "bild" => Unknown, // TODO
+    "dlng" => Unknown, // TODO
+    "slng" => Unknown, // TODO
+    _ => Unknown,
+};
 
 // TODO
 
