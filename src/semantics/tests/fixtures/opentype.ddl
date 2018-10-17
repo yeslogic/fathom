@@ -227,7 +227,7 @@ FontTable (tag : Tag) = match tag.value {
     // Other OpenType Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
     "DSIG" => DigitalSignature, // Digital signature
-    "hdmx" => Unknown,          // Horizontal device metrics
+    "hdmx" => Unknown,          // Horizontal device metrics // TODO: Depends on "maxp"
     "kern" => Unknown,          // Kerning
     "LTSH" => Unknown,          // Linear threshold data
     "MERG" => Unknown,          // Merge
@@ -2016,7 +2016,29 @@ struct SignatureBlockFormat1 {
 //
 // =============================================================================
 
-// TODO
+/// Horizontal Device Metrics Table
+struct HorizontalDeviceMetrics (num_glyphs : U16) {
+    /// Table version number (0)
+    version : U16Be,
+    /// Number of device records.
+    num_records : S16Be,
+    /// Size of a device record, 32-bit aligned.
+    size_device_record : S32Be,
+    /// Array of device records.
+    // FIXME: num_records is signed!
+    // records : Array num_records (DeviceRecord num_glyphs),
+    records : Unknown,
+};
+
+/// Device Record
+struct DeviceRecord (num_glyphs : U16) {
+    /// Pixel size for following widths (as ppem).
+    pixel_size : U8,
+    /// Maximum width.e
+    max_width : U8,
+    /// Array of widths (numGlyphs is from the 'maxp' table).
+    widths : Array num_glyphs U8,
+};
 
 
 
