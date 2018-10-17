@@ -157,7 +157,7 @@ struct TtcHeader2 (file_start : Pos) {
 FontTable (tag : Tag) = match tag.value {
     // Required Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
-    "cmap" => CMap,             // Character to glyph mapping
+    "cmap" => CharMap,          // Character to glyph mapping
     "head" => FontHeader,       // Font header
     "hhea" => HorizontalHeader, // Horizontal header
     "hmtx" => Unknown,          // Horizontal metrics
@@ -198,9 +198,9 @@ FontTable (tag : Tag) = match tag.value {
     // Advanced Typographic Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
     "BASE" => Unknown,          // Baseline data
-    "GDEF" => GDef,             // Glyph definition data
-    "GPOS" => GPos,             // Glyph positioning data
-    "GSUB" => GSub,             // Glyph substitution data
+    "GDEF" => GlyphDef,         // Glyph definition data
+    "GPOS" => GlyphPos,         // Glyph positioning data
+    "GSUB" => GlyphSub,         // Glyph substitution data
     "JSTF" => Unknown,          // Justification data
     "MATH" => Unknown,          // Math layout data
 
@@ -485,7 +485,7 @@ struct FeatureVariations {};
 
 // -----------------------------------------------------------------------------
 //
-// CMap Header
+// cmap Header
 //
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap>
 //
@@ -494,7 +494,7 @@ struct FeatureVariations {};
 /// Character To Glyph Index Mapping Table
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#cmap-header>
-struct CMap {
+struct CharMap {
     table_start : Pos,
     /// Table version number (0)
     version : U16Be,
@@ -513,22 +513,22 @@ struct EncodingRecord (cmap_start : Pos) {
     /// Platform-specific encoding ID.
     encoding_id : U16Be,
     /// Byte offset from beginning of table to the subtable for this encoding.
-    subtable_offset : Offset32Be cmap_start CMapSubtable,
+    subtable_offset : Offset32Be cmap_start CharMapSubtable,
 };
 
-/// CMap Subtable
-struct CMapSubtable {
+/// CharMap Subtable
+struct CharMapSubtable {
     format : U16Be,
     body : match format {
-        // TODO: 0 => CMapSubtable0,
-        // TODO: 2 => CMapSubtable2,
-        // TODO: 4 => CMapSubtable4,
-        // TODO: 6 => CMapSubtable6,
-        // TODO: 8 => CMapSubtable8,
-        // TODO: 10 => CmapSubtable10,
-        // TODO: 12 => CMapSubtable12,
-        // TODO: 13 => CMapSubtable13,
-        // TODO: 14 => CMapSubtable14,
+        // TODO: 0 => CharMapSubtable0,
+        // TODO: 2 => CharMapSubtable2,
+        // TODO: 4 => CharMapSubtable4,
+        // TODO: 6 => CharMapSubtable6,
+        // TODO: 8 => CharMapSubtable8,
+        // TODO: 10 => CharMapSubtable10,
+        // TODO: 12 => CharMapSubtable12,
+        // TODO: 13 => CharMapSubtable13,
+        // TODO: 14 => CharMapSubtable14,
         _ => Unknown,
     },
 };
@@ -541,7 +541,7 @@ struct CMapSubtable {
 // -----------------------------------------------------------------------------
 
 /// Format 0: Byte encoding table
-struct CMapSubtable0 {
+struct CharMapSubtable0 {
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -559,7 +559,7 @@ struct CMapSubtable0 {
 // -----------------------------------------------------------------------------
 
 /// Format 2: High-byte mapping through table
-struct CMapSubtable2 {
+struct CharMapSubtable2 {
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -567,14 +567,14 @@ struct CMapSubtable2 {
     language : U16Be,
     /// Array that maps high bytes to subHeaders: value is subHeader index * 8.
     sub_header_keys : Array 256 U16Be,
-    /// Variable-length array of `CMapSubtable2SubHeader` records.
-    subHeaders : VArray CMapSubtable2SubHeader,
+    /// Variable-length array of `CharMapSubtable2SubHeader` records.
+    subHeaders : VArray CharMapSubtable2SubHeader,
     /// Variable-length array containing subarrays used for mapping the low byte
     /// of 2-byte characters.
     glyphIndexArray : VArray U16Be,
 };
 
-struct CMapSubtable2SubHeader {
+struct CharMapSubtable2SubHeader {
     /// First valid low byte for this SubHeader.
     first_code : U16Be,
     /// Number of valid low bytes for this SubHeader.
@@ -593,7 +593,7 @@ struct CMapSubtable2SubHeader {
 // -----------------------------------------------------------------------------
 
 /// Format 4: Segment mapping to delta values
-struct CMapSubtable4 {
+struct CharMapSubtable4 {
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -630,7 +630,7 @@ struct CMapSubtable4 {
 // -----------------------------------------------------------------------------
 
 /// Format 6: Trimmed table mapping
-struct CMapSubtable6 {
+struct CharMapSubtable6 {
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -652,7 +652,7 @@ struct CMapSubtable6 {
 // -----------------------------------------------------------------------------
 
 /// Format 8: mixed 16-bit and 32-bit coverage
-struct CMapSubtable8 {
+struct CharMapSubtable8 {
     /// Reserved; set to 0
     reserved : U16Be,
     /// Byte length of this subtable (including the header)
@@ -666,10 +666,10 @@ struct CMapSubtable8 {
     /// Number of groupings which follow
     num_groups : U32Be,
     /// Array of SequentialMapGroup records.
-    groups : Array num_groups CMapSubtable8SequentialMapGroup,
+    groups : Array num_groups CharMapSubtable8SequentialMapGroup,
 };
 
-struct CMapSubtable8SequentialMapGroup {
+struct CharMapSubtable8SequentialMapGroup {
     /// First character code in this group; note that if this group is for one
     /// or more 16-bit character codes (which is determined from the is32
     /// array), this 32-bit value will have the high 16-bits set to zero
@@ -689,7 +689,7 @@ struct CMapSubtable8SequentialMapGroup {
 // -----------------------------------------------------------------------------
 
 /// Format 10: Trimmed array
-struct CmapSubtable10 {
+struct CharMapSubtable10 {
     /// Reserved; set to 0
     reserved : U16Be,
     /// Byte length of this subtable (including the header)
@@ -713,7 +713,7 @@ struct CmapSubtable10 {
 // -----------------------------------------------------------------------------
 
 /// Format 12: Segmented coverage
-struct CMapSubtable12 {
+struct CharMapSubtable12 {
     /// Reserved; set to 0
     reserved : U16Be,
     /// Byte length of this subtable (including the header)
@@ -723,11 +723,11 @@ struct CMapSubtable12 {
     language : U32Be,
     /// Number of groupings which follow
     num_groups : U32Be,
-    /// Array of `CMapSubtable12SequentialMapGroup` records.
-    groups : Array num_groups CMapSubtable12SequentialMapGroup,
+    /// Array of `CharMapSubtable12SequentialMapGroup` records.
+    groups : Array num_groups CharMapSubtable12SequentialMapGroup,
 };
 
-struct CMapSubtable12SequentialMapGroup {
+struct CharMapSubtable12SequentialMapGroup {
     /// First character code in this group
     start_char_code : U32Be,
     /// Last character code in this group
@@ -744,7 +744,7 @@ struct CMapSubtable12SequentialMapGroup {
 // -----------------------------------------------------------------------------
 
 /// Format 13: Many-to-one range mappings
-struct CMapSubtable13 {
+struct CharMapSubtable13 {
     /// Reserved; set to 0
     reserved : U16Be,
     /// Byte length of this subtable (including the header)
@@ -754,11 +754,11 @@ struct CMapSubtable13 {
     language : U32Be,
     /// Number of groupings which follow
     num_groups : U32Be,
-    /// Array of `CMapSubtable13ConstantMapGroup` records.
-    groups : Array num_groups CMapSubtable13ConstantMapGroup,
+    /// Array of `CharMapSubtable13ConstantMapGroup` records.
+    groups : Array num_groups CharMapSubtable13ConstantMapGroup,
 };
 
-struct CMapSubtable13ConstantMapGroup {
+struct CharMapSubtable13ConstantMapGroup {
     /// First character code in this group
     start_char_code : U32Be,
     /// Last character code in this group
@@ -775,17 +775,17 @@ struct CMapSubtable13ConstantMapGroup {
 // -----------------------------------------------------------------------------
 
 /// Format 14: Unicode Variation Sequences
-struct CMapSubtable14 {
+struct CharMapSubtable14 {
     table_start : Pos,
     /// Byte length of this subtable (including this header)
     length : U32Be,
     /// Number of variation Selector Records
     num_var_selector_records : U32Be,
-    /// Array of `CMapSubtable14VariationSelector` records.
-    var_selector : Array num_var_selector_records (CMapSubtable14VariationSelector table_start),
+    /// Array of `CharMapSubtable14VariationSelector` records.
+    var_selector : Array num_var_selector_records (CharMapSubtable14VariationSelector table_start),
 };
 
-struct CMapSubtable14VariationSelector (subtable_start : Pos) {
+struct CharMapSubtable14VariationSelector (subtable_start : Pos) {
     /// Variation selector
     var_selector : U24Be,
     /// Offset from the start of the format 14 subtable to Default UVS Table. May be 0.
@@ -1480,7 +1480,7 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
 /// GDEF Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader>
-struct GDef {
+struct GlyphDef {
     table_start : Pos,
     /// Major version of the GDEF table, = 1
     major_version : U16Be,
@@ -1660,7 +1660,7 @@ struct CaretValueFormat3 (caret_value_start : Pos) {
 /// GPOS Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gpos.htm#header>
-struct GPos {
+struct GlyphPos {
     table_start : Pos,
     /// Major version of the GPOS table
     major_version : U16Be,
@@ -1699,7 +1699,7 @@ struct GPos {
 /// GSUB Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gsub.htm#header>
-struct GSub {
+struct GlyphSub {
     table_start : Pos,
     /// Major version of the GSUB table
     major_version : U16Be,
