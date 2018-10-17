@@ -375,26 +375,26 @@ struct LookupList {
 };
 
 
-// FIXME: enumerations
+// TODO: enumerations
 // /// LookupFlag bit enumeration
 // ///
 // /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookupTbl>
 // enum LookupFlag : u16 {
 //     /// This bit relates only to the correct processing of the cursive attachment lookup type (GPOS lookup type 3). When this bit is set, the last glyph in a given sequence to which the cursive attachment lookup is applied, will be positioned on the baseline.
 //     /// Note: Setting of this bit is not intended to be used by operating systems or applications to determine text direction.
-//     right_to_left = 0x0001,
+//     RIGHT_TO_LEFT = 0x0001,
 //     /// If set, skips over base glyphs
-//     ignore_base_glyphs = 0x0002,
+//     IGNORE_BASE_GLYPHS = 0x0002,
 //     /// If set, skips over ligatures
-//     ignore_ligatures = 0x0004,
+//     IGNORE_LIGATURES = 0x0004,
 //     /// If set, skips over all combining marks
-//     ignore_marks = 0x0008,
+//     IGNORE_MARKS = 0x0008,
 //     /// If set, indicates that the lookup table structure is followed by a MarkFilteringSet field. The layout engine skips over all mark glyphs not in the mark filtering set indicated.
-//     use_mark_filtering_set = 0x0010,
+//     USE_MARK_FILTERING_SET = 0x0010,
 //     /// For future use (Set to zero)
-//     reserved = 0x00E0,
+//     RESERVED = 0x00E0,
 //     /// If not zero, skips over all marks of attachment type different from specified.
-//     mark_attachment_type = 0xFF00,
+//     MARK_ATTACHMENT_TYPE = 0xFF00,
 // };
 
 /// Lookup Table
@@ -438,16 +438,6 @@ struct CoverageFormat1 {
     glyph_array : Array glyph_count U16Be,
 };
 
-/// Range Record
-struct RangeRecord {
-    /// First glyph ID in the range
-    start_glyph_id : U16Be,
-    /// Last glyph ID in the range
-    end_glyph_id : U16Be,
-    /// Coverage Index of first glyph ID in range
-    start_coverage_index : U16Be,
-};
-
 /// Coverage Format 2 table: Range of glyphs
 struct CoverageFormat2 {
     /// Format identifier — format = 2
@@ -458,19 +448,111 @@ struct CoverageFormat2 {
     range_records : Array range_count RangeRecord,
 };
 
-// TODO: Class Definition Table
+/// Range Record
+struct RangeRecord {
+    /// First glyph ID in the range
+    start_glyph_id : U16Be,
+    /// Last glyph ID in the range
+    end_glyph_id : U16Be,
+    /// Coverage Index of first glyph ID in range
+    start_coverage_index : U16Be,
+};
 
-// TODO: Device and VariationIndex Tables
 
-struct Device {};
+// -----------------------------------------------------------------------------
+// Class Definition Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#class-definition-table>
+// -----------------------------------------------------------------------------
 
-// TODO: FeatureVariations Table
+// TODO
 
-struct FeatureVariations {};
 
-// TODO: ConditionSet Table
 
-// TODO: FeatureTableSubstitution Table
+// -----------------------------------------------------------------------------
+// Device and VariationIndex Tables
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#device-and-variationindex-tables>
+// -----------------------------------------------------------------------------
+
+// TODO: enumerations
+// enum DeltaFormat {
+//     /// Signed 2-bit value, 8 values per `U16`
+//     LOCAL_2_BIT_DELTAS = 0x0001,
+//     /// Signed 4-bit value, 4 values per `U16`
+//     LOCAL_4_BIT_DELTAS = 0x0002,
+//     /// Signed 8-bit value, 2 values per `U16`
+//     LOCAL_8_BIT_DELTAS = 0x0003,
+//     /// VariationIndex table, contains a delta-set index pair.
+//     VARIATION_INDEX = 0x8000,
+//     /// For future use — set to 0
+//     Reserved = 0x7FFC,
+// }
+
+struct Device {
+    /// Smallest size to correct, in ppem
+    start_size : U16Be,
+    /// Largest size to correct, in ppem
+    end_size : U16Be,
+    /// Format of deltaValue array data: 0x0001, 0x0002, or 0x0003
+    // TODO: delta_format : DeltaFormat,
+    delta_format : U16Be,
+    /// Array of compressed data
+    delta_value : VArray U16Be, // TODO: what length?
+};
+
+struct VariationIndex {
+    /// A delta-set outer index — used to select an item variation data subtable within the item variation store.
+    delta_set_outer_index : U16Be,
+    /// A delta-set inner index — used to select a delta-set row within an item variation data subtable.
+    delta_set_inner_index : U16Be,
+    /// Format, = 0x8000
+    // TODO: delta_format : DeltaFormat,
+    delta_format : U16Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// FeatureVariations Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#featurevariations-table>
+// -----------------------------------------------------------------------------
+
+struct FeatureVariations {
+    // TODO
+};
+
+
+
+// -----------------------------------------------------------------------------
+// ConditionSet Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#conditionset-table>
+// -----------------------------------------------------------------------------
+
+// TODO
+
+
+
+// -----------------------------------------------------------------------------
+// FeatureTableSubstitution Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#featuretablesubstitution-table>
+// -----------------------------------------------------------------------------
+
+// TODO
+
+
+
+// =============================================================================
+//
+// OpenType Font Variations Common Table Formats
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/otvarcommonformats>
+//
+// =============================================================================
+
+// TODO
 
 
 
@@ -568,10 +650,10 @@ struct CharMapSubtable2 {
     /// Array that maps high bytes to subHeaders: value is subHeader index * 8.
     sub_header_keys : Array 256 U16Be,
     /// Variable-length array of `CharMapSubtable2SubHeader` records.
-    subHeaders : VArray CharMapSubtable2SubHeader,
+    subHeaders : VArray CharMapSubtable2SubHeader, // TODO
     /// Variable-length array containing subarrays used for mapping the low byte
     /// of 2-byte characters.
-    glyphIndexArray : VArray U16Be,
+    glyphIndexArray : VArray U16Be, // TODO
 };
 
 struct CharMapSubtable2SubHeader {
@@ -702,7 +784,7 @@ struct CharMapSubtable10 {
     /// Number of character codes covered
     num_chars : U32Be,
     /// Array of glyph indices for the character codes covered
-    glyphs : VArray U16Be,
+    glyphs : VArray U16Be, // TODO
 };
 
 
