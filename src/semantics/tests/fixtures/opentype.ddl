@@ -184,7 +184,7 @@ FontTable (tag : Tag) = match tag.value {
 
     // Table Related to SVG Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
-    "SVG " => Unknown,          // The SVG (Scalable Vector Graphics) table
+    "SVG " => Svg,              // The SVG (Scalable Vector Graphics) table
 
     // Tables Related to Bitmap Glyphs
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
@@ -219,10 +219,10 @@ FontTable (tag : Tag) = match tag.value {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
     "COLR" => Unknown,          // Color table
     "CPAL" => Unknown,          // Color palette table
-    "CBDT" => Unknown,          // Color bitmap data
-    "CBLC" => Unknown,          // Color bitmap location data
-    "sbix" => Unknown,          // Standard bitmap graphics
-    "SVG " => Unknown,          // The SVG (Scalable Vector Graphics) table
+    // "CBDT" => Unknown,          // Color bitmap data
+    // "CBLC" => Unknown,          // Color bitmap location data
+    // "sbix" => Unknown,          // Standard bitmap graphics
+    // "SVG " => Svg,              // The SVG (Scalable Vector Graphics) table
 
     // Other OpenType Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
@@ -1325,11 +1325,52 @@ struct PostScript {
 //
 // SVG - The SVG (Scalable Vector Graphics) table
 //
-// <https://www.microsoft.com/typography/otspec/svg.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/svg>
 //
 // =============================================================================
 
-// TODO
+
+// -----------------------------------------------------------------------------
+// SVG Table Header
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/svg#svg-table-header>
+// -----------------------------------------------------------------------------
+
+struct Svg {
+    table_start : Pos,
+    /// Table version (starting at 0). Set to 0.
+    version : U16Be,
+    /// Offset to the SVG Document List, from the start of the SVG table. Must be non-zero.
+    offset_to_svg_document_list : Offset32Be table_start SvgDocumentList,
+    /// Set to 0.
+    reserved : U32Be, // TODO: Private?
+};
+
+
+// -----------------------------------------------------------------------------
+// SVG Document List
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/svg#svg-document-list>
+// -----------------------------------------------------------------------------
+
+struct SvgDocumentList {
+    table_start : Pos,
+    /// Number of SVG document records. Must be non-zero.
+    num_entries : U16Be,
+    /// Array of SVG document records.
+    document_records : Array num_entries (SvgDocumentRecord table_start),
+};
+
+struct SvgDocumentRecord (svg_document_list_start : Pos) {
+    /// The first glyph ID for the range covered by this record.
+    start_glyph_id : U16Be,
+    /// The last glyph ID for the range covered by this record.
+    end_glyph_id : U16Be,
+    /// Offset from the beginning of the SVGDocumentList to an SVG document. Must be non-zero.
+    svg_doc_offset : Offset32Be svg_document_list_start Unknown, // TODO
+    /// Length of the SVG document data. Must be non-zero.
+    svg_doc_length : U32Be,
+};
 
 
 
