@@ -197,9 +197,9 @@ FontTable (tag : Tag) = match tag.value {
     // Advanced Typographic Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
     "BASE" => Unknown,          // Baseline data
-    "GDEF" => Unknown,          // Glyph definition data
-    "GPOS" => Unknown,          // Glyph positioning data
-    "GSUB" => Unknown,          // Glyph substitution data
+    "GDEF" => GDef,             // Glyph definition data
+    "GPOS" => GPos,             // Glyph positioning data
+    "GSUB" => GSub,             // Glyph substitution data
     "JSTF" => Unknown,          // Justification data
     "MATH" => Unknown,          // Math layout data
 
@@ -414,6 +414,19 @@ struct Lookup {
     mark_filtering_set : U16Be,
 };
 
+/// Coverage Table
+///
+/// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverage-table>
+struct Coverage {
+    /// Format identifier
+    coverage_format : U16Be,
+    body : match coverage_format {
+        // FIXME: 1 => CoverageFormat1,
+        // FIXME: 2 => CoverageFormat2,
+        _ => Unknown,
+    },
+};
+
 /// Coverage Format 1 table: Individual glyph indices
 struct CoverageFormat1 {
     /// Format identifier — format = 1
@@ -444,24 +457,15 @@ struct CoverageFormat2 {
     range_records : Array range_count RangeRecord,
 };
 
-/// Coverage Table
-///
-/// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverage-table>
-struct Coverage {
-    /// Format identifier
-    coverage_format : U16Be,
-    body : match coverage_format {
-        // FIXME: 1 => CoverageFormat1,
-        // FIXME: 2 => CoverageFormat2,
-        _ => Unknown,
-    },
-};
-
 // TODO: Class Definition Table
 
 // TODO: Device and VariationIndex Tables
 
+struct Device {};
+
 // TODO: FeatureVariations Table
+
+struct FeatureVariations {};
 
 // TODO: ConditionSet Table
 
@@ -1414,4 +1418,553 @@ struct PostScript {
 
 
 
-// TODO: Rest of OpenType!
+// =============================================================================
+//
+// GDEF — Glyph Definition Table
+//
+// <https://www.microsoft.com/typography/otspec/gdef.htm>
+//
+// =============================================================================
+
+
+// -----------------------------------------------------------------------------
+//
+// GDEF Header
+//
+// <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader>
+//
+// -----------------------------------------------------------------------------
+
+/// GDEF Header
+///
+/// <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader>
+struct GDef {
+    table_start : Pos,
+    /// Major version of the GDEF table, = 1
+    major_version : U16Be,
+    /// Minor version of the GDEF table, = 3
+    minor_version : U16Be,
+
+    // FIXME: Proper version switching
+
+    // GDEF Header, Version 1.0
+    // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_10>
+
+    /// Offset to class definition table for glyph type, from beginning of GDEF header (may be NULL)
+    glyph_class_def_offset : Offset16Be table_start Unknown, // TODO
+    /// Offset to attachment point list table, from beginning of GDEF header (may be NULL)
+    attach_list_offset : Offset16Be table_start Unknown, // TODO
+    /// Offset to ligature caret list table, from beginning of GDEF header (may be NULL)
+    lig_caret_list_offset : Offset16Be table_start LigCaretList,
+    /// Offset to class definition table for mark attachment type, from beginning of GDEF header (may be NULL)
+    mark_attach_class_def_offset : Offset16Be table_start Unknown, // TODO
+
+    // GDEF Header, Version 1.2
+    // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_12>
+
+    /// Offset to the table of mark glyph set definitions, from beginning of GDEF header (may be NULL)
+    mark_glyph_sets_def_offset : Offset16Be table_start Unknown, // TODO
+
+    // GDEF Header, Version 1.3
+    // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_12>
+
+    /// Offset to the Item Variation Store table, from beginning of GDEF header (may be NULL)
+    item_var_store_offset : Offset32Be table_start Unknown, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// Glyph Class Definition Table
+//
+// <https://www.microsoft.com/typography/otspec/gsub.htm#glyphClassDefTbl>
+// -----------------------------------------------------------------------------
+
+// TODO: GlyphClassDef = ClassDef(GlyphClassDefEnum);
+
+
+// -----------------------------------------------------------------------------
+// Attachment Point List Table
+//
+// <https://www.microsoft.com/typography/otspec/gsub.htm#attachmentPointListTbl>
+// -----------------------------------------------------------------------------
+
+/// AttachList table
+///
+/// <https://www.microsoft.com/typography/otspec/gdef.htm#attachListTable>
+struct AttachList {
+    table_start : Pos,
+    /// Offset to Coverage table - from beginning of AttachList table
+    coverage_offset : Offset16Be table_start Coverage,
+    /// Number of glyphs with attachment points
+    glyph_count : U16Be,
+    /// Array of offsets to AttachPoint tables-from beginning of AttachList
+    /// table-in Coverage Index order
+    attach_point_offsets : Array glyph_count (Offset16Be table_start AttachPoint),
+};
+
+/// AttachPoint table
+///
+/// <https://www.microsoft.com/typography/otspec/gdef.htm#attachPointTable>
+struct AttachPoint {
+    /// Number of attachment points on this glyph
+    point_count : U16Be,
+    /// Array of contour point indices -in increasing numerical order
+    point_indices : Array point_count U16Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// Ligature Caret List Table
+//
+// <https://www.microsoft.com/typography/otspec/gsub.htm#ligatureCaretListTbl>
+// -----------------------------------------------------------------------------
+
+/// Ligature Caret List Table
+///
+/// <https://www.microsoft.com/typography/otspec/gsub.htm#ligatureCaretListTbl>
+struct LigCaretList {
+    table_start : Pos,
+    /// Offset to Coverage table - from beginning of LigCaretList table
+    coverage_offset : Offset16Be table_start Coverage,
+    /// Number of ligature glyphs
+    lig_glyph_count : U16Be,
+    /// Array of offsets to LigGlyph tables, from beginning of LigCaretList
+    /// table —in Coverage Index order
+    lig_glyph_offsets : Array lig_glyph_count (Offset16Be table_start LigGlyph),
+};
+
+/// LigGlyph table
+///
+/// <https://www.microsoft.com/typography/otspec/gdef.htm#ligGlyphTable>
+struct LigGlyph {
+    table_start : Pos,
+    /// Number of CaretValue tables for this ligature (components - 1)
+    caret_count : U16Be,
+    /// Array of offsets to CaretValue tables, from beginning of LigGlyph
+    /// table — in increasing coordinate order
+    caret_value_offsets : Array caret_count (Offset16Be table_start CaretValue),
+};
+
+/// Caret Value Tables
+///
+/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbls>
+struct CaretValue {
+    table_start : Pos,
+    /// Format identifier
+    caret_value_format : U16Be,
+    caret_value : match caret_value_format {
+        // TODO: 1 => CaretValueFormat1,
+        // TODO: 2 => CaretValueFormat2,
+        // TODO: 3 => CaretValueFormat3 table_start,
+        _ => Unknown,
+    },
+};
+
+/// CaretValue Format 1: Design units only
+///
+/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbl1>
+struct CaretValueFormat1 {
+    /// X or Y value, in design units
+    coordinate : S16Be,
+};
+
+/// CaretValue Format 2: Contour point
+///
+/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbl2>
+struct CaretValueFormat2 {
+    /// Contour point index on glyph
+    caret_value_point_index : U16Be,
+};
+
+/// Caret Value Format 3: Design units plus Device or VariationIndex table
+///
+/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTable_3>
+struct CaretValueFormat3 (caret_value_start : Pos) {
+    /// X or Y value, in design units
+    coordinate : S16Be,
+    /// Offset to Device table (non-variable font) / Variation Index table
+    /// (variable font) for X or Y value-from beginning of CaretValue table
+    device_offset : Offset16Be caret_value_start Device,
+};
+
+
+// -----------------------------------------------------------------------------
+// Mark Attachment Class Definition Table
+//
+// <https://www.microsoft.com/typography/otspec/gsub.htm#ligatureCaretListTbl>
+// -----------------------------------------------------------------------------
+
+// TODO
+
+
+
+// =============================================================================
+//
+// GPOS — Glyph Positioning Table
+//
+// <https://www.microsoft.com/typography/otspec/gpos.htm>
+//
+// =============================================================================
+
+
+// -----------------------------------------------------------------------------
+//
+// GPOS Header
+//
+// <https://www.microsoft.com/typography/otspec/gpos.htm>
+//
+// -----------------------------------------------------------------------------
+
+/// GPOS Header
+///
+/// <https://www.microsoft.com/typography/otspec/gpos.htm#header>
+struct GPos {
+    table_start : Pos,
+    /// Major version of the GPOS table
+    major_version : U16Be,
+    /// Minor version of the GPOS table
+    minor_version : U16Be,
+
+    // FIXME: Proper version switching
+
+    // GPOS Header, Version 1.0
+    // <https://www.microsoft.com/typography/otspec/gpos.htm#gposHeader_10>
+
+    /// Offset to `ScriptList` table, from beginning of GPOS table
+    script_list_offset : Offset16Be table_start ScriptList,
+    /// Offset to `FeatureList` table, from beginning of GPOS table
+    feature_list_offset : Offset16Be table_start FeatureList,
+    /// Offset to `LookupList` table, from beginning of GPOS table
+    lookup_list_offset : Offset16Be table_start LookupList,
+
+    // GPOS Header, Version 1.1
+    // <https://www.microsoft.com/typography/otspec/gpos.htm#gposHeader_11>
+
+    /// Offset to `FeatureVariations` table, from beginning of GPOS table (may be NULL)
+    feature_variations_offset : Offset32Be table_start FeatureVariations,
+};
+
+
+
+// =============================================================================
+//
+// GSUB — Glyph Substitution Table
+//
+// <https://www.microsoft.com/typography/otspec/gsub.htm>
+//
+// =============================================================================
+
+/// GSUB Header
+///
+/// <https://www.microsoft.com/typography/otspec/gsub.htm#header>
+struct GSub {
+    table_start : Pos,
+    /// Major version of the GSUB table
+    major_version : U16Be,
+    /// Minor version of the GSUB table
+    minor_version : U16Be,
+
+    // FIXME: Proper version switching
+
+    // GSUB Header, Version 1.0
+    // <https://www.microsoft.com/typography/otspec/gsub.htm#gsubHeader_10>
+
+    /// Offset to `ScriptList` table, from beginning of GSUB table
+    script_list_offset : Offset16Be table_start ScriptList,
+    /// Offset to `FeatureList` table, from beginning of GSUB table
+    feature_list_offset : Offset16Be table_start FeatureList,
+    /// Offset to `LookupList` table, from beginning of GSUB table
+    lookup_list_offset : Offset16Be table_start LookupList,
+
+    // GSUB Header, Version 1.1
+    // <https://www.microsoft.com/typography/otspec/gsub.htm#gsubHeader_11>
+
+    /// Offset to `FeatureVariations` table, from beginning of GSUB table (may be NULL)
+    feature_variations_offset : Offset32Be table_start FeatureVariations,
+};
+
+// TODO
+
+
+
+// =============================================================================
+//
+// JSTF — Justification Table
+//
+// <https://www.microsoft.com/typography/otspec/jstf.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// MATH - The mathematical typesetting table
+//
+// <https://www.microsoft.com/typography/otspec/math.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// avar — Axis Variations Table
+//
+// <https://www.microsoft.com/typography/otspec/avar.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6avar.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// cvar — CVT Variations Table
+//
+// <https://www.microsoft.com/typography/otspec/cvar.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cvar.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// fvar — Font Variations Table
+//
+// <https://www.microsoft.com/typography/otspec/fvar.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6fvar.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// gvar — Glyph Variations Table
+//
+// <https://www.microsoft.com/typography/otspec/gvar.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6gvar.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// HVAR — Horizontal Metrics Variations Table
+//
+// <https://www.microsoft.com/typography/otspec/hvar.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// MVAR — Metrics Variations Table
+//
+// <https://www.microsoft.com/typography/otspec/mvar.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// STAT — Style Attributes Table
+//
+// <https://www.microsoft.com/typography/otspec/stat.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// VVAR — Vertical Metrics Variations Table
+//
+// <https://www.microsoft.com/typography/otspec/vvar.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// COLR - Color Table
+//
+// <https://www.microsoft.com/typography/otspec/colr.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// CPAL - Color Palette Table
+//
+// <https://www.microsoft.com/typography/otspec/cpal.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// DSIG - Digital Signature Table
+//
+// <https://www.microsoft.com/typography/otspec/dsig.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// hdmx - Horizontal Device Metrics
+//
+// <https://www.microsoft.com/typography/otspec/hdmx.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// kern - Kerning
+//
+// <https://www.microsoft.com/typography/otspec/kern.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6kern.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// LTSH - Linear Threshold
+//
+// <https://www.microsoft.com/typography/otspec/ltsh.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// MERG — Merge Table
+//
+// <https://www.microsoft.com/typography/otspec/merg.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// meta — Metadata Table
+//
+// <https://www.microsoft.com/typography/otspec/meta.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6meta.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// STAT — Style Attributes Table
+//
+// <https://www.microsoft.com/typography/otspec/stat.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// PCLT - PCL 5 Table
+//
+// <https://www.microsoft.com/typography/otspec/pclt.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// VDMX - Vertical Device Metrics
+//
+// <https://www.microsoft.com/typography/otspec/vdmx.htm>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// vhea — Vertical Header Table
+//
+// <https://www.microsoft.com/typography/otspec/vhea.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6vhea.html>
+//
+// =============================================================================
+
+// TODO
+
+
+
+// =============================================================================
+//
+// vmtx - Vertical Metrics Table
+//
+// <https://www.microsoft.com/typography/otspec/vmtx.htm>
+// <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6vmtx.html>
+//
+// =============================================================================
+
+// TODO
