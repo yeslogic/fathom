@@ -1076,9 +1076,9 @@ struct LongHorMetric {
 /// Establishes the memory requirements for this font.
 struct MaximumProfile {
     version : Fixed,
-    data : match version.value {
-        // TODO: 0x00005000u32 => Version_0_5,
-        // TODO: 0x00010000u32 => Version_1_0,
+    data : match (version.value : U32) {
+        0x00005000 => Version_0_5,
+        0x00010000 => Version_1_0,
         _ => Unknown,
     },
 };

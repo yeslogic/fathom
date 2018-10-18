@@ -155,6 +155,23 @@ fn match_binary() {
 }
 
 #[test]
+fn match_binary_hex() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+
+    let expected_ty = r"U32Be -> Unit";
+    let given_expr = r#"\x : U32Be => match (x : U32) {
+        0x00 => unit,
+        1 => unit,
+        3 => unit,
+        _ => unit,
+    }"#;
+
+    let expected_ty = parse_nf_term(&mut codemap, &tc_env, expected_ty);
+    parse_check_term(&mut codemap, &tc_env, given_expr, &expected_ty);
+}
+
+#[test]
 fn array_0_string() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();

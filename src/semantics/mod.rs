@@ -142,6 +142,9 @@ pub fn is_subtype<Env>(env: &Env, ty1: &RcType, ty2: &RcType) -> bool
 where
     Env: GlobalEnv,
 {
+    use syntax::core::Literal::Int;
+    use syntax::core::Value::Literal;
+
     match (&*ty1.inner, &*ty2.inner) {
         (&Value::IntType(ref min1, ref max1), &Value::IntType(ref min2, ref max2)) => {
             let in_min_bound = match (min1, min2) {
@@ -149,10 +152,7 @@ where
                 (Some(_), None) => true,  //  n <= -∞
                 (None, Some(_)) => false, // -∞ <=  n
                 (Some(ref min1), Some(ref min2)) => match (&*min1.inner, &*min2.inner) {
-                    (
-                        Value::Literal(Literal::Int(ref min1, IntFormat::Dec)),
-                        Value::Literal(Literal::Int(ref min2, IntFormat::Dec)),
-                    ) => min1 >= min2,
+                    (Literal(Int(ref min1, _)), Literal(Int(ref min2, _))) => min1 >= min2,
                     _ => Value::term_eq(min1, min2), // Fallback to alpha-equality
                 },
             };
@@ -162,10 +162,7 @@ where
                 (Some(_), None) => true,  //  n <= +∞
                 (None, Some(_)) => false, // +∞ <=  n
                 (Some(ref max1), Some(ref max2)) => match (&*max1.inner, &*max2.inner) {
-                    (
-                        Value::Literal(Literal::Int(ref max1, IntFormat::Dec)),
-                        Value::Literal(Literal::Int(ref max2, IntFormat::Dec)),
-                    ) => max1 <= max2,
+                    (Literal(Int(ref max1, _)), Literal(Int(ref max2, _))) => max1 <= max2,
                     _ => Value::term_eq(max1, max2), // Fallback to alpha-equality
                 },
             };
