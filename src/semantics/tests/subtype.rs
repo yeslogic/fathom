@@ -164,6 +164,28 @@ fn range_flipped2() {
     assert_subtype!(r"int {100 .. 1}", r"int {1 .. 100}");
 }
 
+#[test]
+fn test_binary() {
+    assert_subtype!(r"U8", r"U8");
+    assert_subtype!(r"U16Le", r"U16");
+    assert_subtype!(r"U32Le", r"U32");
+    assert_subtype!(r"U64Le", r"U64");
+    assert_subtype!(r"U16Be", r"U16");
+    assert_subtype!(r"U32Be", r"U32");
+    assert_subtype!(r"U64Be", r"U64");
+    assert_subtype!(r"S8", r"S8");
+    assert_subtype!(r"S16Le", r"S16");
+    assert_subtype!(r"S32Le", r"S32");
+    assert_subtype!(r"S64Le", r"S64");
+    assert_subtype!(r"S16Be", r"S16");
+    assert_subtype!(r"S32Be", r"S32");
+    assert_subtype!(r"S64Be", r"S64");
+    assert_subtype!(r"F32Le", r"F32");
+    assert_subtype!(r"F64Le", r"F64");
+    assert_subtype!(r"F32Be", r"F32");
+    assert_subtype!(r"F64Be", r"F64");
+}
+
 // TODO: integer types
 
 mod f32le {
