@@ -421,9 +421,9 @@ struct Lookup {
 struct Coverage {
     /// Format identifier
     coverage_format : U16Be,
-    body : match coverage_format {
-        // FIXME: 1 => CoverageFormat1,
-        // FIXME: 2 => CoverageFormat2,
+    body : match (coverage_format : U16) {
+        1 => CoverageFormat1,
+        2 => CoverageFormat2,
         _ => Unknown,
     },
 };
@@ -601,16 +601,16 @@ struct EncodingRecord (cmap_start : Pos) {
 /// CharMap Subtable
 struct CharMapSubtable {
     format : U16Be,
-    body : match format {
-        // TODO: 0 => CharMapSubtable0,
-        // TODO: 2 => CharMapSubtable2,
-        // TODO: 4 => CharMapSubtable4,
-        // TODO: 6 => CharMapSubtable6,
-        // TODO: 8 => CharMapSubtable8,
-        // TODO: 10 => CharMapSubtable10,
-        // TODO: 12 => CharMapSubtable12,
-        // TODO: 13 => CharMapSubtable13,
-        // TODO: 14 => CharMapSubtable14,
+    body : match (format : U16) {
+        0 => CharMapSubtable0,
+        2 => CharMapSubtable2,
+        4 => CharMapSubtable4,
+        6 => CharMapSubtable6,
+        8 => CharMapSubtable8,
+        10 => CharMapSubtable10,
+        12 => CharMapSubtable12,
+        13 => CharMapSubtable13,
+        14 => CharMapSubtable14,
         _ => Unknown,
     },
 };
@@ -1676,10 +1676,10 @@ struct CaretValue {
     table_start : Pos,
     /// Format identifier
     caret_value_format : U16Be,
-    caret_value : match caret_value_format {
-        // TODO: 1 => CaretValueFormat1,
-        // TODO: 2 => CaretValueFormat2,
-        // TODO: 3 => CaretValueFormat3 table_start,
+    caret_value : match (caret_value_format : U16) {
+        1 => CaretValueFormat1,
+        2 => CaretValueFormat2,
+        3 => CaretValueFormat3 table_start,
         _ => Unknown,
     },
 };
