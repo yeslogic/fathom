@@ -170,22 +170,22 @@ where
             in_min_bound && in_max_bound
         },
 
-        _ if ty1 == env.u16le() => is_subtype(env, env.u16(), ty2),
-        _ if ty1 == env.u32le() => is_subtype(env, env.u32(), ty2),
-        _ if ty1 == env.u64le() => is_subtype(env, env.u64(), ty2),
-        _ if ty1 == env.s16le() => is_subtype(env, env.s16(), ty2),
-        _ if ty1 == env.s32le() => is_subtype(env, env.s32(), ty2),
-        _ if ty1 == env.s64le() => is_subtype(env, env.s64(), ty2),
-        _ if ty1 == env.f32le() && ty2 == env.f32() => true,
-        _ if ty1 == env.f64le() && ty2 == env.f64() => true,
-        _ if ty1 == env.u16be() => is_subtype(env, env.u16(), ty2),
-        _ if ty1 == env.u32be() => is_subtype(env, env.u32(), ty2),
-        _ if ty1 == env.u64be() => is_subtype(env, env.u64(), ty2),
-        _ if ty1 == env.s16be() => is_subtype(env, env.s16(), ty2),
-        _ if ty1 == env.s32be() => is_subtype(env, env.s32(), ty2),
-        _ if ty1 == env.s64be() => is_subtype(env, env.s64(), ty2),
-        _ if ty1 == env.f32be() && ty2 == env.f32() => true,
-        _ if ty1 == env.f64be() && ty2 == env.f64() => true,
+        _ if Type::term_eq(ty1, env.u16le()) => is_subtype(env, env.u16(), ty2),
+        _ if Type::term_eq(ty1, env.u32le()) => is_subtype(env, env.u32(), ty2),
+        _ if Type::term_eq(ty1, env.u64le()) => is_subtype(env, env.u64(), ty2),
+        _ if Type::term_eq(ty1, env.s16le()) => is_subtype(env, env.s16(), ty2),
+        _ if Type::term_eq(ty1, env.s32le()) => is_subtype(env, env.s32(), ty2),
+        _ if Type::term_eq(ty1, env.s64le()) => is_subtype(env, env.s64(), ty2),
+        _ if Type::term_eq(ty1, env.f32le()) && Type::term_eq(ty2, env.f32()) => true,
+        _ if Type::term_eq(ty1, env.f64le()) && Type::term_eq(ty2, env.f64()) => true,
+        _ if Type::term_eq(ty1, env.u16be()) => is_subtype(env, env.u16(), ty2),
+        _ if Type::term_eq(ty1, env.u32be()) => is_subtype(env, env.u32(), ty2),
+        _ if Type::term_eq(ty1, env.u64be()) => is_subtype(env, env.u64(), ty2),
+        _ if Type::term_eq(ty1, env.s16be()) => is_subtype(env, env.s16(), ty2),
+        _ if Type::term_eq(ty1, env.s32be()) => is_subtype(env, env.s32(), ty2),
+        _ if Type::term_eq(ty1, env.s64be()) => is_subtype(env, env.s64(), ty2),
+        _ if Type::term_eq(ty1, env.f32be()) && Type::term_eq(ty2, env.f32()) => true,
+        _ if Type::term_eq(ty1, env.f64be()) && Type::term_eq(ty2, env.f64()) => true,
 
         // Fallback to alpha-equality
         _ => Type::term_eq(ty1, ty2),
@@ -221,18 +221,20 @@ where
     Env: GlobalEnv,
 {
     match *raw_literal {
-        raw::Literal::String(_, ref val) if env.string() == expected_ty => {
+        raw::Literal::String(_, ref val) if Type::term_eq(env.string(), expected_ty) => {
             return Ok(wrap_literal(Literal::String(val.clone())));
         },
         raw::Literal::String(_, ref val) => match env.array(expected_ty) {
-            Some((len, elem_ty)) if *len == val.len().into() && elem_ty == env.u8() => {
+            Some((len, elem_ty))
+                if *len == val.len().into() && Type::term_eq(elem_ty, env.u8()) =>
+            {
                 let elems = val
                     .bytes()
                     .map(|elem| wrap_literal(Literal::Int(elem.into(), IntFormat::Dec)))
                     .collect();
 
                 return Ok(wrap_array(elems));
-            },
+            }
             Some((len, _)) => {
                 return Err(TypeError::ArrayLengthMismatch {
                     span: raw_literal.span(),
@@ -242,27 +244,27 @@ where
             },
             None => {},
         },
-        raw::Literal::Char(_, val) if env.char() == expected_ty => {
+        raw::Literal::Char(_, val) if Type::term_eq(env.char(), expected_ty) => {
             return Ok(wrap_literal(Literal::Char(val)));
         },
 
         // FIXME: overflow?
-        raw::Literal::Int(_, ref val, _) if env.f32() == expected_ty => {
+        raw::Literal::Int(_, ref val, _) if Type::term_eq(env.f32(), expected_ty) => {
             return Ok(wrap_literal(Literal::F32(
                 val.to_f32().unwrap(),
                 FloatFormat::Dec,
             )));
         },
-        raw::Literal::Int(_, ref val, _) if env.f64() == expected_ty => {
+        raw::Literal::Int(_, ref val, _) if Type::term_eq(env.f64(), expected_ty) => {
             return Ok(wrap_literal(Literal::F64(
                 val.to_f64().unwrap(),
                 FloatFormat::Dec,
             )));
         },
-        raw::Literal::Float(_, val, format) if env.f32() == expected_ty => {
+        raw::Literal::Float(_, val, format) if Type::term_eq(env.f32(), expected_ty) => {
             return Ok(wrap_literal(Literal::F32(val as f32, format)));
         },
-        raw::Literal::Float(_, val, format) if env.f64() == expected_ty => {
+        raw::Literal::Float(_, val, format) if Type::term_eq(env.f64(), expected_ty) => {
             return Ok(wrap_literal(Literal::F64(val, format)));
         },
 
@@ -339,7 +341,7 @@ where
     }
 
     let (pattern, inferred_ty, declarations) = infer_pattern(env, raw_pattern)?;
-    if Type::term_eq(&inferred_ty, expected_ty) {
+    if is_subtype(env, &inferred_ty, expected_ty) {
         Ok((pattern, declarations))
     } else {
         Err(TypeError::Mismatch {
