@@ -212,7 +212,7 @@ FontTable (tag : Tag) = match tag.value {
     "gvar" => Unknown,          // Glyph variations (TrueType outlines only)
     "HVAR" => Unknown,          // Horizontal metrics variations
     "MVAR" => Unknown,          // Metrics variations
-    "STAT" => Unknown,          // Style attributes (required for variable fonts, optional for non-variable fonts)
+    // "STAT" => StyleAttributes,  // Style attributes (required for variable fonts, optional for non-variable fonts)
     "VVAR" => Unknown,          // Vertical metrics variations
 
     // Tables Related to Color Fonts
@@ -232,7 +232,7 @@ FontTable (tag : Tag) = match tag.value {
     "LTSH" => Unknown,          // Linear threshold data
     "MERG" => Unknown,          // Merge
     "meta" => Metadata,         // Metadata
-    "STAT" => Unknown,          // Style attributes
+    "STAT" => StyleAttributes,  // Style attributes
     "PCLT" => Unknown,          // PCL 5 data
     "VDMX" => Unknown,          // Vertical device metrics
     "vhea" => Unknown,          // Vertical Metrics header
@@ -2136,7 +2136,138 @@ MetadataInfo (tag : Tag) = match tag.value {
 //
 // =============================================================================
 
-// TODO
+struct StyleAttributes {
+    table_start : Pos,
+    /// Major version number of the style attributes table — set to 1.
+    major_version: U16Be,
+    /// Minor version number of the style attributes table — set to 2.
+    minor_version: U16Be,
+
+    // FIXME: Proper version switching
+
+    // Version 1.0 (deprecated)
+
+    /// The size in bytes of each axis record.
+    design_axis_size : U16Be,
+    /// The number of design axis records. In a font with an 'fvar' table, this
+    /// value must be greater than or equal to the axisCount value in the 'fvar'
+    /// table. In all fonts, must be greater than zero if axisValueCount is
+    /// greater than zero.
+    design_axis_count : U16Be,
+    /// Offset in bytes from the beginning of the STAT table to the start of the
+    /// design axes array. If designAxisCount is zero, set to zero; if
+    /// designAxisCount is greater than zero, must be greater than zero.
+    design_axes_offset : Offset32Be table_start (Array design_axis_count AxisRecord),
+    /// The number of axis value tables.
+    axis_value_count : U16Be,
+    /// Offset in bytes from the beginning of the STAT table to the start of the
+    /// design axes value offsets array. If axisValueCount is zero, set to zero;
+    /// if axisValueCount is greater than zero, must be greater than zero.
+    offset_to_axis_value_offsets : Offset32Be table_start (Array axis_value_count Unknown),
+
+    // Version 1.1
+
+    /// Name ID used as fallback when projection of names into a particular font
+    /// model produces a subfamily name containing only elidable elements.
+    elided_fallback_name_id: U16Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// Axis Records
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/stat#axis-records>
+// -----------------------------------------------------------------------------
+
+/// https://docs.microsoft.com/en-us/typography/opentype/spec/stat#axis-records
+struct AxisRecord {
+    /// A tag identifying the axis of design variation.
+    axis_tag : Tag,
+    /// The name ID for entries in the 'name' table that provide a display string for this axis.
+    axis_name_id : U16Be,
+    /// A value that applications can use to determine primary sorting of face names, or for ordering of descriptors when composing family or face names.
+    axis_ordering : U16Be,
+};
+
+
+// -----------------------------------------------------------------------------
+// Axis Value Tables
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/stat#axis-value-tables>
+// -----------------------------------------------------------------------------
+
+// TODO:
+// union AxisValueFormat (major_version : U16Be) (minor_version : U16Be) {
+//     AxisValueFormat1,
+//     AxisValueFormat2,
+//     AxisValueFormat3,
+//     AxisValueFormat4, // TODO: If Version 1.2
+// }
+
+struct AxisValueFormat1 {
+    /// Format identifier — set to 1.
+    format : U16Be,
+    /// Zero-base index into the axis record array identifying the axis of design variation to which the axis value record applies. Must be less than designAxisCount.
+    axis_index : U16Be,
+    /// Flags — see below for details.
+    flags : U16Be,
+    /// The name ID for entries in the 'name' table that provide a display string for this attribute value.
+    value_name_id : U16Be,
+    /// A numeric value for this attribute value.
+    value : Fixed,
+};
+
+struct AxisValueFormat2 {
+    /// Format identifier — set to 2.
+    format : U16Be,
+    /// Zero-base index into the axis record array identifying the axis of design variation to which the axis value record applies. Must be less than designAxisCount.
+    axis_index : U16Be,
+    /// Flags — see below for details.
+    flags : U16Be,
+    /// The name ID for entries in the 'name' table that provide a display string for this attribute value.
+    value_name_id : U16Be,
+    /// A nominal numeric value for this attribute value.
+    nominal_value : Fixed,
+    /// The minimum value for a range associated with the specified name ID.
+    range_min_value : Fixed,
+    /// The maximum value for a range associated with the specified name ID.
+    range_max_value : Fixed,
+};
+
+struct AxisValueFormat3 {
+    /// Format identifier — set to 3.
+    format : U16Be,
+    /// Zero-base index into the axis record array identifying the axis of design variation to which the axis value record applies. Must be less than designAxisCount.
+    axis_index : U16Be,
+    /// Flags — see below for details.
+    flags : U16Be,
+    /// The name ID for entries in the 'name' table that provide a display string for this attribute value.
+    value_name_id : U16Be,
+    /// A numeric value for this attribute value.
+    value : Fixed,
+    /// The numeric value for a style-linked mapping from this value.
+    linked_value : Fixed,
+};
+
+struct AxisValueFormat4 {
+    /// Format identifier — set to 4.
+    format : U16Be,
+    /// The total number of axes contributing to this axis-values combination.
+    axis_count : U16Be,
+    /// Flags — see below for details.
+    flags : U16Be,
+    /// The name ID for entries in the 'name' table that provide a display string for this combination of axis values.
+    value_name_id : U16Be,
+    /// Array of AxisValue records that provide the combination of axis values, one for each contributing axis.
+    axis_values : Array axis_count AxisValue,
+};
+
+struct AxisValue {
+    /// Zero-base index into the axis record array identifying the axis to which this value applies. Must be less than designAxisCount.
+    axis_index : U16Be,
+    /// A numeric value for this attribute value.
+    value : Fixed,
+};
 
 
 
