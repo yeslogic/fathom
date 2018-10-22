@@ -1134,10 +1134,101 @@ struct Version_1_0 {
 //
 // name — Naming Table
 //
-// <https://www.microsoft.com/typography/otspec/name.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/name>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6name.html>
 //
 // =============================================================================
+
+// TODO
+// union Naming {
+//     NamingFormat0,
+//     NamingFormat1,
+// };
+
+// -----------------------------------------------------------------------------
+// Naming table format 0
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/name#naming-table-format-0>
+// -----------------------------------------------------------------------------
+
+struct NamingFormat0 {
+    table_start : Pos,
+    /// Format selector (=0).
+    format : U16Be,
+    /// Number of name records.
+    count : U16Be,
+    /// Offset to start of string storage (from start of table).
+    string_offset : Offset16Be table_start Unknown, // TODO
+    // TODO: name_record : Array count (NameRecord string_offset),
+    name_record : Array count Unknown,
+    // TODO:
+    // /// Storage for the actual string data.
+    // // (Variable),
+};
+
+
+// -----------------------------------------------------------------------------
+// Naming table format 1
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/name#naming-table-format-1>
+// -----------------------------------------------------------------------------
+
+struct NamingFormat1 {
+    table_start : Pos,
+    /// Format selector (=1).
+    format : U16Be,
+    /// Number of name records.
+    count : U16Be,
+    /// Offset to start of string storage (from start of table).
+    string_offset : Offset16Be table_start Unknown, // TODO
+    /// The name records where count is the number of records.
+    // TODO: name_record : Array count (NameRecord string_offset),
+    name_record : Array count Unknown,
+    /// Number of language-tag records.
+    lang_tag_count : U16Be,
+    /// The language-tag records where langTagCount is the number of records.
+    // TODO: lang_tag_record : Array lang_tag_count (LangTagRecord string_offset),
+    lang_tag_record : Array lang_tag_count Unknown,
+    // TODO:
+    // /// Storage for the actual string data.
+    // // (Variable),
+};
+
+struct LangTagRecord (storage_start : Pos) {
+    /// Language-tag string length (in bytes)
+    length : U16Be,
+    // /// Language-tag string offset from start of storage area (in bytes).
+    offset : Offset16Be storage_start (Array length U8), // TODO: String?
+};
+
+
+// -----------------------------------------------------------------------------
+// Name Records
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/name#name-records>
+// -----------------------------------------------------------------------------
+
+struct NameRecord (storage_start : Pos) {
+    /// Platform ID.
+    platform_id : U16Be,
+    /// Platform-specific encoding ID.
+    encoding_id : U16Be,
+    /// Language ID.
+    language_id : U16Be,
+    /// Name ID.
+    name_id : U16Be,
+    /// String length (in bytes).
+    length : U16Be,
+    /// String offset from start of storage area (in bytes).
+    offset : Offset16Be storage_start (Array length U8), // TODO: String?
+};
+
+
+// -----------------------------------------------------------------------------
+// Platform IDs
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/name#platform-ids>
+// -----------------------------------------------------------------------------
 
 // TODO
 
