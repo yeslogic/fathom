@@ -161,7 +161,7 @@ FontTable (tag : Tag) = match tag.value {
     "head" => FontHeader,       // Font header
     "hhea" => HorizontalHeader, // Horizontal header
     "hmtx" => Unknown,          // Horizontal metrics // TODO: Depends on "hhea"
-    "maxp" => MaximumProfile,   // Maximum profile
+    "maxp" => Unknown,          // Maximum profile
     "name" => Unknown,          // Naming table
     "OS/2" => Os2,              // OS/2 and Windows specific metrics
     "post" => PostScript,       // PostScript information
@@ -415,18 +415,14 @@ struct Lookup {
     mark_filtering_set : U16Be,
 };
 
-/// Coverage Table
-///
-/// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverage-table>
-struct Coverage {
-    /// Format identifier
-    coverage_format : U16Be,
-    body : match (coverage_format : U16) {
-        1 => CoverageFormat1,
-        2 => CoverageFormat2,
-        _ => Unknown,
-    },
-};
+// TODO:
+// /// Coverage Table
+// ///
+// /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverage-table>
+// union Coverage {
+//     CoverageFormat1,
+//     CoverageFormat2,
+// };
 
 /// Coverage Format 1 table: Individual glyph indices
 struct CoverageFormat1 {
@@ -595,25 +591,23 @@ struct EncodingRecord (cmap_start : Pos) {
     /// Platform-specific encoding ID.
     encoding_id : U16Be,
     /// Byte offset from beginning of table to the subtable for this encoding.
-    subtable_offset : Offset32Be cmap_start CharMapSubtable,
+    // TODO: subtable_offset : Offset32Be cmap_start CharMapSubtable,
+    subtable_offset : Offset32Be cmap_start Unknown,
 };
 
-/// CharMap Subtable
-struct CharMapSubtable {
-    format : U16Be,
-    body : match (format : U16) {
-        0 => CharMapSubtable0,
-        2 => CharMapSubtable2,
-        4 => CharMapSubtable4,
-        6 => CharMapSubtable6,
-        8 => CharMapSubtable8,
-        10 => CharMapSubtable10,
-        12 => CharMapSubtable12,
-        13 => CharMapSubtable13,
-        14 => CharMapSubtable14,
-        _ => Unknown,
-    },
-};
+// TODO:
+// /// CharMap Subtable
+// union CharMapSubtable {
+//     CharMapSubtable0,
+//     CharMapSubtable2,
+//     CharMapSubtable4,
+//     CharMapSubtable6,
+//     CharMapSubtable8,
+//     CharMapSubtable10,
+//     CharMapSubtable12,
+//     CharMapSubtable13,
+//     CharMapSubtable14,
+// };
 
 
 // -----------------------------------------------------------------------------
@@ -624,6 +618,8 @@ struct CharMapSubtable {
 
 /// Format 0: Byte encoding table
 struct CharMapSubtable0 {
+    /// Format number is set to 0
+    format : U16Be,
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -642,6 +638,8 @@ struct CharMapSubtable0 {
 
 /// Format 2: High-byte mapping through table
 struct CharMapSubtable2 {
+    /// Format number is set to 2
+    format : U16Be,
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -676,6 +674,8 @@ struct CharMapSubtable2SubHeader {
 
 /// Format 4: Segment mapping to delta values
 struct CharMapSubtable4 {
+    /// Format number is set to 4
+    format : U16Be,
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -713,6 +713,8 @@ struct CharMapSubtable4 {
 
 /// Format 6: Trimmed table mapping
 struct CharMapSubtable6 {
+    /// Format number is set to 6
+    format : U16Be,
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -735,6 +737,8 @@ struct CharMapSubtable6 {
 
 /// Format 8: mixed 16-bit and 32-bit coverage
 struct CharMapSubtable8 {
+    /// Format number is set to 8
+    format : U16Be,
     /// Reserved; set to 0
     reserved : U16Be,
     /// Byte length of this subtable (including the header)
@@ -772,6 +776,8 @@ struct CharMapSubtable8SequentialMapGroup {
 
 /// Format 10: Trimmed array
 struct CharMapSubtable10 {
+    /// Format number is set to 10
+    format : U16Be,
     /// Reserved; set to 0
     reserved : U16Be,
     /// Byte length of this subtable (including the header)
@@ -796,6 +802,8 @@ struct CharMapSubtable10 {
 
 /// Format 12: Segmented coverage
 struct CharMapSubtable12 {
+    /// Format number is set to 12
+    format : U16Be,
     /// Reserved; set to 0
     reserved : U16Be,
     /// Byte length of this subtable (including the header)
@@ -827,6 +835,8 @@ struct CharMapSubtable12SequentialMapGroup {
 
 /// Format 13: Many-to-one range mappings
 struct CharMapSubtable13 {
+    /// Format number is set to 13
+    format : U16Be,
     /// Reserved; set to 0
     reserved : U16Be,
     /// Byte length of this subtable (including the header)
@@ -859,6 +869,8 @@ struct CharMapSubtable13ConstantMapGroup {
 /// Format 14: Unicode Variation Sequences
 struct CharMapSubtable14 {
     start : Pos,
+    /// Format number is set to 14
+    format : U16Be,
     /// Byte length of this subtable (including this header)
     length : U32Be,
     /// Number of variation Selector Records
@@ -1069,25 +1081,24 @@ struct LongHorMetric {
 //
 // =============================================================================
 
-/// Maximum Profile
-///
-/// <https://www.microsoft.com/typography/otspec/maxp.htm>
-///
-/// Establishes the memory requirements for this font.
-struct MaximumProfile {
-    version : Fixed,
-    data : match (version.value : U32) {
-        0x00005000 => Version_0_5,
-        0x00010000 => Version_1_0,
-        _ => Unknown,
-    },
-};
+// TODO:
+// /// Maximum Profile
+// ///
+// /// <https://www.microsoft.com/typography/otspec/maxp.htm>
+// ///
+// /// Establishes the memory requirements for this font.
+// union MaximumProfile {
+//     MaximumProfileVersion_0_5,
+//     MaximumProfileVersion_1_0,
+// };
 
 /// Version 0.5
 ///
 /// Fonts with CFF data must use Version 0.5 of this table, specifying only the
 /// `num_glyphs` field
-struct Version_0_5 {
+struct MaximumProfileVersion_0_5 {
+    /// 0x00005000 for version 0.5
+    version : Fixed,
     /// The number of glyphs in the font
     num_glyphs : U16Be,
 };
@@ -1096,7 +1107,9 @@ struct Version_0_5 {
 ///
 /// Fonts with TrueType outlines must use Version 1.0 of this table, where all
 /// data is required
-struct Version_1_0 {
+struct MaximumProfileVersion_1_0 {
+    /// 0x00010000 for version 1.0.
+    version : Fixed,
     /// The number of glyphs in the font
     num_glyphs : U16Be,
     /// Maximum points in a non-composite glyph.
@@ -1709,7 +1722,8 @@ struct GlyphDef {
 struct AttachList {
     start : Pos,
     /// Offset to Coverage table - from beginning of AttachList table
-    coverage_offset : Offset16Be start Coverage,
+    // TODO: coverage_offset : Offset16Be start Coverage,
+    coverage_offset : Offset16Be start Unknown,
     /// Number of glyphs with attachment points
     glyph_count : U16Be,
     /// Array of offsets to AttachPoint tables-from beginning of AttachList
@@ -1740,7 +1754,8 @@ struct AttachPoint {
 struct LigCaretList {
     start : Pos,
     /// Offset to Coverage table - from beginning of LigCaretList table
-    coverage_offset : Offset16Be start Coverage,
+    // TODO: coverage_offset : Offset16Be start Coverage,
+    coverage_offset : Offset16Be start Unknown,
     /// Number of ligature glyphs
     lig_glyph_count : U16Be,
     /// Array of offsets to LigGlyph tables, from beginning of LigCaretList
@@ -1757,28 +1772,26 @@ struct LigGlyph {
     caret_count : U16Be,
     /// Array of offsets to CaretValue tables, from beginning of LigGlyph
     /// table — in increasing coordinate order
-    caret_value_offsets : Array caret_count (Offset16Be start CaretValue),
+    // TODO: caret_value_offsets : Array caret_count (Offset16Be start CaretValue),
+    caret_value_offsets : Array caret_count (Offset16Be start Unknown),
 };
 
-/// Caret Value Tables
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbls>
-struct CaretValue {
-    start : Pos,
-    /// Format identifier
-    caret_value_format : U16Be,
-    caret_value : match (caret_value_format : U16) {
-        1 => CaretValueFormat1,
-        2 => CaretValueFormat2,
-        3 => CaretValueFormat3 start,
-        _ => Unknown,
-    },
-};
+// TODO:
+// /// Caret Value Tables
+// ///
+// /// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbls>
+// union CaretValue {
+//     CaretValueFormat1,
+//     CaretValueFormat2,
+//     CaretValueFormat3,
+// };
 
 /// CaretValue Format 1: Design units only
 ///
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbl1>
 struct CaretValueFormat1 {
+    /// Format identifier: format = 1
+    caret_value_format : U16Be,
     /// X or Y value, in design units
     coordinate : S16Be,
 };
@@ -1787,6 +1800,8 @@ struct CaretValueFormat1 {
 ///
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbl2>
 struct CaretValueFormat2 {
+    /// Format identifier: format = 2
+    caret_value_format : U16Be,
     /// Contour point index on glyph
     caret_value_point_index : U16Be,
 };
@@ -1794,12 +1809,15 @@ struct CaretValueFormat2 {
 /// Caret Value Format 3: Design units plus Device or VariationIndex table
 ///
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTable_3>
-struct CaretValueFormat3 (caret_value_start : Pos) {
+struct CaretValueFormat3 {
+    start : Pos,
+    /// Format identifier: format = 3
+    caret_value_format : U16Be,
     /// X or Y value, in design units
     coordinate : S16Be,
     /// Offset to Device table (non-variable font) / Variation Index table
     /// (variable font) for X or Y value-from beginning of CaretValue table
-    device_offset : Offset16Be caret_value_start Device,
+    device_offset : Offset16Be start Device,
 };
 
 
