@@ -272,11 +272,11 @@ struct ScriptRecord (script_list_start : Pos) {
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#slTbl_sRec>
 struct ScriptList {
-    table_start : Pos,
+    start : Pos,
     /// Number of ScriptRecords
     script_count : U16Be,
     /// Array of ScriptRecords, listed alphabetically by script tag
-    script_records : Array script_count (ScriptRecord table_start),
+    script_records : Array script_count (ScriptRecord start),
 };
 
 
@@ -294,14 +294,14 @@ struct LangSysRecord (script_start : Pos) {
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-table-and-language-system-record>
 struct Script {
-    table_start : Pos,
+    start : Pos,
     /// Offset to default LangSys table, from beginning of Script table — may be NULL
-    // FIXME: default_lang_sys : Offset16Be table_start LangSys,
-    default_lang_sys : Offset16Be table_start LangSys,
+    // FIXME: default_lang_sys : Offset16Be start LangSys,
+    default_lang_sys : Offset16Be start LangSys,
     /// Number of LangSysRecords for this script — excluding the default LangSys
     lang_sys_count : U16Be,
     /// Array of LangSysRecords, listed alphabetically by LangSys tag
-    lang_sys_records : Array lang_sys_count (LangSysRecord table_start),
+    lang_sys_records : Array lang_sys_count (LangSysRecord start),
 };
 
 
@@ -341,11 +341,11 @@ struct FeatureRecord (feature_list_start : Pos) {
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#flTbl>
 struct FeatureList {
-    table_start : Pos,
+    start : Pos,
     /// Number of FeatureRecords in this table
     feature_count : U16Be,
     /// Array of FeatureRecords — zero-based (first feature has FeatureIndex = 0), listed alphabetically by feature tag
-    feature_records : Array feature_count (FeatureRecord table_start),
+    feature_records : Array feature_count (FeatureRecord start),
 };
 
 
@@ -367,11 +367,11 @@ struct Feature {
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookup-list-table>
 struct LookupList {
-    table_start : Pos,
+    start : Pos,
     /// Number of lookups in this table
     lookup_count : U16Be,
     /// Array of offsets to Lookup tables, from beginning of LookupList — zero based (first lookup is Lookup index = 0)
-    lookups : Array lookup_count (Offset16Be table_start Lookup),
+    lookups : Array lookup_count (Offset16Be start Lookup),
 };
 
 
@@ -401,7 +401,7 @@ struct LookupList {
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookupTbl>
 struct Lookup {
-    table_start : Pos,
+    start : Pos,
     /// Different enumerations for GSUB and GPOS
     lookup_type : U16Be,
     /// Lookup qualifiers
@@ -410,7 +410,7 @@ struct Lookup {
     /// Number of subtables for this lookup
     sub_table_count : U16Be,
     /// Array of offsets to lookup subtables, from beginning of Lookup table
-    subtable_offsets : Array sub_table_count (Offset16Be table_start Unknown),
+    subtable_offsets : Array sub_table_count (Offset16Be start Unknown),
     /// Index (base 0) into GDEF mark glyph sets structure. This field is only present if bit useMarkFilteringSet of lookup flags is set.
     mark_filtering_set : U16Be,
 };
@@ -577,13 +577,13 @@ struct FeatureVariations {
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#cmap-header>
 struct CharMap {
-    table_start : Pos,
+    start : Pos,
     /// Table version number (0)
     version : U16Be,
     /// Number of encoding records that follow
     num_tables : U16Be,
     /// A list of encoding records
-    encoding_records : Array num_tables (EncodingRecord table_start),
+    encoding_records : Array num_tables (EncodingRecord start),
 };
 
 /// Specifies a particular encoding and the offset to the corresponding subtable
@@ -858,22 +858,22 @@ struct CharMapSubtable13ConstantMapGroup {
 
 /// Format 14: Unicode Variation Sequences
 struct CharMapSubtable14 {
-    table_start : Pos,
+    start : Pos,
     /// Byte length of this subtable (including this header)
     length : U32Be,
     /// Number of variation Selector Records
     num_var_selector_records : U32Be,
     /// Array of `CharMapSubtable14VariationSelector` records.
-    var_selector : Array num_var_selector_records (CharMapSubtable14VariationSelector table_start),
+    var_selector : Array num_var_selector_records (CharMapSubtable14VariationSelector start),
 };
 
-struct CharMapSubtable14VariationSelector (subtable_start : Pos) {
+struct CharMapSubtable14VariationSelector (substart : Pos) {
     /// Variation selector
     var_selector : U24Be,
     /// Offset from the start of the format 14 subtable to Default UVS Table. May be 0.
-    default_uvs_offset : Offset32Be subtable_start DefaultUvs,
+    default_uvs_offset : Offset32Be substart DefaultUvs,
     /// Offset from the start of the format 14 subtable to Non-Default UVS Table. May be 0.
-    non_default_uvs_offset : Offset32Be subtable_start NonDefaultUvs,
+    non_default_uvs_offset : Offset32Be substart NonDefaultUvs,
 };
 
 /// Default UVS table
@@ -1152,13 +1152,13 @@ struct Version_1_0 {
 // -----------------------------------------------------------------------------
 
 struct NamingFormat0 {
-    table_start : Pos,
+    start : Pos,
     /// Format selector (=0).
     format : U16Be,
     /// Number of name records.
     count : U16Be,
     /// Offset to start of string storage (from start of table).
-    string_offset : Offset16Be table_start Unknown, // TODO
+    string_offset : Offset16Be start Unknown, // TODO
     // TODO: name_record : Array count (NameRecord string_offset),
     name_record : Array count Unknown,
     // TODO:
@@ -1174,13 +1174,13 @@ struct NamingFormat0 {
 // -----------------------------------------------------------------------------
 
 struct NamingFormat1 {
-    table_start : Pos,
+    start : Pos,
     /// Format selector (=1).
     format : U16Be,
     /// Number of name records.
     count : U16Be,
     /// Offset to start of string storage (from start of table).
-    string_offset : Offset16Be table_start Unknown, // TODO
+    string_offset : Offset16Be start Unknown, // TODO
     /// The name records where count is the number of records.
     // TODO: name_record : Array count (NameRecord string_offset),
     name_record : Array count Unknown,
@@ -1510,11 +1510,11 @@ struct PostScript {
 // -----------------------------------------------------------------------------
 
 struct Svg {
-    table_start : Pos,
+    start : Pos,
     /// Table version (starting at 0). Set to 0.
     version : U16Be,
     /// Offset to the SVG Document List, from the start of the SVG table. Must be non-zero.
-    offset_to_svg_document_list : Offset32Be table_start SvgDocumentList,
+    offset_to_svg_document_list : Offset32Be start SvgDocumentList,
     /// Set to 0.
     reserved : U32Be, // TODO: Private?
 };
@@ -1527,11 +1527,11 @@ struct Svg {
 // -----------------------------------------------------------------------------
 
 struct SvgDocumentList {
-    table_start : Pos,
+    start : Pos,
     /// Number of SVG document records. Must be non-zero.
     num_entries : U16Be,
     /// Array of SVG document records.
-    document_records : Array num_entries (SvgDocumentRecord table_start),
+    document_records : Array num_entries (SvgDocumentRecord start),
 };
 
 struct SvgDocumentRecord (svg_document_list_start : Pos) {
@@ -1654,7 +1654,7 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
 ///
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader>
 struct GlyphDef {
-    table_start : Pos,
+    start : Pos,
     /// Major version of the GDEF table, = 1
     major_version : U16Be,
     /// Minor version of the GDEF table, = 3
@@ -1666,25 +1666,25 @@ struct GlyphDef {
     // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_10>
 
     /// Offset to class definition table for glyph type, from beginning of GDEF header (may be NULL)
-    glyph_class_def_offset : Offset16Be table_start Unknown, // TODO
+    glyph_class_def_offset : Offset16Be start Unknown, // TODO
     /// Offset to attachment point list table, from beginning of GDEF header (may be NULL)
-    attach_list_offset : Offset16Be table_start Unknown, // TODO
+    attach_list_offset : Offset16Be start Unknown, // TODO
     /// Offset to ligature caret list table, from beginning of GDEF header (may be NULL)
-    lig_caret_list_offset : Offset16Be table_start LigCaretList,
+    lig_caret_list_offset : Offset16Be start LigCaretList,
     /// Offset to class definition table for mark attachment type, from beginning of GDEF header (may be NULL)
-    mark_attach_class_def_offset : Offset16Be table_start Unknown, // TODO
+    mark_attach_class_def_offset : Offset16Be start Unknown, // TODO
 
     // GDEF Header, Version 1.2
     // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_12>
 
     /// Offset to the table of mark glyph set definitions, from beginning of GDEF header (may be NULL)
-    mark_glyph_sets_def_offset : Offset16Be table_start Unknown, // TODO
+    mark_glyph_sets_def_offset : Offset16Be start Unknown, // TODO
 
     // GDEF Header, Version 1.3
     // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_12>
 
     /// Offset to the Item Variation Store table, from beginning of GDEF header (may be NULL)
-    item_var_store_offset : Offset32Be table_start Unknown, // TODO
+    item_var_store_offset : Offset32Be start Unknown, // TODO
 };
 
 
@@ -1707,14 +1707,14 @@ struct GlyphDef {
 ///
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#attachListTable>
 struct AttachList {
-    table_start : Pos,
+    start : Pos,
     /// Offset to Coverage table - from beginning of AttachList table
-    coverage_offset : Offset16Be table_start Coverage,
+    coverage_offset : Offset16Be start Coverage,
     /// Number of glyphs with attachment points
     glyph_count : U16Be,
     /// Array of offsets to AttachPoint tables-from beginning of AttachList
     /// table-in Coverage Index order
-    attach_point_offsets : Array glyph_count (Offset16Be table_start AttachPoint),
+    attach_point_offsets : Array glyph_count (Offset16Be start AttachPoint),
 };
 
 /// AttachPoint table
@@ -1738,39 +1738,39 @@ struct AttachPoint {
 ///
 /// <https://www.microsoft.com/typography/otspec/gsub.htm#ligatureCaretListTbl>
 struct LigCaretList {
-    table_start : Pos,
+    start : Pos,
     /// Offset to Coverage table - from beginning of LigCaretList table
-    coverage_offset : Offset16Be table_start Coverage,
+    coverage_offset : Offset16Be start Coverage,
     /// Number of ligature glyphs
     lig_glyph_count : U16Be,
     /// Array of offsets to LigGlyph tables, from beginning of LigCaretList
     /// table —in Coverage Index order
-    lig_glyph_offsets : Array lig_glyph_count (Offset16Be table_start LigGlyph),
+    lig_glyph_offsets : Array lig_glyph_count (Offset16Be start LigGlyph),
 };
 
 /// LigGlyph table
 ///
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#ligGlyphTable>
 struct LigGlyph {
-    table_start : Pos,
+    start : Pos,
     /// Number of CaretValue tables for this ligature (components - 1)
     caret_count : U16Be,
     /// Array of offsets to CaretValue tables, from beginning of LigGlyph
     /// table — in increasing coordinate order
-    caret_value_offsets : Array caret_count (Offset16Be table_start CaretValue),
+    caret_value_offsets : Array caret_count (Offset16Be start CaretValue),
 };
 
 /// Caret Value Tables
 ///
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbls>
 struct CaretValue {
-    table_start : Pos,
+    start : Pos,
     /// Format identifier
     caret_value_format : U16Be,
     caret_value : match (caret_value_format : U16) {
         1 => CaretValueFormat1,
         2 => CaretValueFormat2,
-        3 => CaretValueFormat3 table_start,
+        3 => CaretValueFormat3 start,
         _ => Unknown,
     },
 };
@@ -1834,7 +1834,7 @@ struct CaretValueFormat3 (caret_value_start : Pos) {
 ///
 /// <https://www.microsoft.com/typography/otspec/gpos.htm#header>
 struct GlyphPos {
-    table_start : Pos,
+    start : Pos,
     /// Major version of the GPOS table
     major_version : U16Be,
     /// Minor version of the GPOS table
@@ -1846,17 +1846,17 @@ struct GlyphPos {
     // <https://www.microsoft.com/typography/otspec/gpos.htm#gposHeader_10>
 
     /// Offset to `ScriptList` table, from beginning of GPOS table
-    script_list_offset : Offset16Be table_start ScriptList,
+    script_list_offset : Offset16Be start ScriptList,
     /// Offset to `FeatureList` table, from beginning of GPOS table
-    feature_list_offset : Offset16Be table_start FeatureList,
+    feature_list_offset : Offset16Be start FeatureList,
     /// Offset to `LookupList` table, from beginning of GPOS table
-    lookup_list_offset : Offset16Be table_start LookupList,
+    lookup_list_offset : Offset16Be start LookupList,
 
     // GPOS Header, Version 1.1
     // <https://www.microsoft.com/typography/otspec/gpos.htm#gposHeader_11>
 
     /// Offset to `FeatureVariations` table, from beginning of GPOS table (may be NULL)
-    feature_variations_offset : Offset32Be table_start FeatureVariations,
+    feature_variations_offset : Offset32Be start FeatureVariations,
 };
 
 
@@ -1873,7 +1873,7 @@ struct GlyphPos {
 ///
 /// <https://www.microsoft.com/typography/otspec/gsub.htm#header>
 struct GlyphSub {
-    table_start : Pos,
+    start : Pos,
     /// Major version of the GSUB table
     major_version : U16Be,
     /// Minor version of the GSUB table
@@ -1885,17 +1885,17 @@ struct GlyphSub {
     // <https://www.microsoft.com/typography/otspec/gsub.htm#gsubHeader_10>
 
     /// Offset to `ScriptList` table, from beginning of GSUB table
-    script_list_offset : Offset16Be table_start ScriptList,
+    script_list_offset : Offset16Be start ScriptList,
     /// Offset to `FeatureList` table, from beginning of GSUB table
-    feature_list_offset : Offset16Be table_start FeatureList,
+    feature_list_offset : Offset16Be start FeatureList,
     /// Offset to `LookupList` table, from beginning of GSUB table
-    lookup_list_offset : Offset16Be table_start LookupList,
+    lookup_list_offset : Offset16Be start LookupList,
 
     // GSUB Header, Version 1.1
     // <https://www.microsoft.com/typography/otspec/gsub.htm#gsubHeader_11>
 
     /// Offset to `FeatureVariations` table, from beginning of GSUB table (may be NULL)
-    feature_variations_offset : Offset32Be table_start FeatureVariations,
+    feature_variations_offset : Offset32Be start FeatureVariations,
 };
 
 // TODO
@@ -2060,7 +2060,7 @@ struct GlyphSub {
 
 /// DSIG — Digital Signature Table
 struct DigitalSignature {
-    table_start : Pos,
+    start : Pos,
     /// Version number of the DSIG table (0x00000001)
     version : U32Be,
     /// Number of signatures in the table
@@ -2068,7 +2068,7 @@ struct DigitalSignature {
     /// permission flags Bit 0: cannot be resigned Bits 1-7: Reserved (Set to 0)
     flags : U16Be,
     /// Array of signature records
-    signature_records : Array num_signatures (SignatureRecord table_start),
+    signature_records : Array num_signatures (SignatureRecord start),
 };
 
 struct SignatureRecord (digital_signature_start : Pos) {
@@ -2181,7 +2181,7 @@ struct DeviceRecord (num_glyphs : U16) {
 
 /// Metadata Table
 struct Metadata {
-    table_start : Pos,
+    start : Pos,
     /// Version number of the metadata table — set to 1.
     version : U32Be,
     /// Flags — currently unused; set to 0.
@@ -2191,7 +2191,7 @@ struct Metadata {
     /// The number of data maps in the table.
     data_maps_count : U32Be,
     /// Array of data map records.
-    data_maps : Array data_maps_count (DataMap table_start),
+    data_maps : Array data_maps_count (DataMap start),
 };
 
 /// DataMap record
@@ -2228,7 +2228,7 @@ MetadataInfo (tag : Tag) = match tag.value {
 // =============================================================================
 
 struct StyleAttributes {
-    table_start : Pos,
+    start : Pos,
     /// Major version number of the style attributes table — set to 1.
     major_version: U16Be,
     /// Minor version number of the style attributes table — set to 2.
@@ -2248,13 +2248,13 @@ struct StyleAttributes {
     /// Offset in bytes from the beginning of the STAT table to the start of the
     /// design axes array. If designAxisCount is zero, set to zero; if
     /// designAxisCount is greater than zero, must be greater than zero.
-    design_axes_offset : Offset32Be table_start (Array design_axis_count AxisRecord),
+    design_axes_offset : Offset32Be start (Array design_axis_count AxisRecord),
     /// The number of axis value tables.
     axis_value_count : U16Be,
     /// Offset in bytes from the beginning of the STAT table to the start of the
     /// design axes value offsets array. If axisValueCount is zero, set to zero;
     /// if axisValueCount is greater than zero, must be greater than zero.
-    offset_to_axis_value_offsets : Offset32Be table_start (Array axis_value_count Unknown),
+    offset_to_axis_value_offsets : Offset32Be start (Array axis_value_count Unknown),
 
     // Version 1.1
 
