@@ -41,10 +41,6 @@ pub enum Value {
     S64(i64),
     F32(f32),
     F64(f64),
-    Offset8(u64, u8),
-    Offset16(u64, u16),
-    Offset32(u64, u32),
-    Offset64(u64, u64),
     Struct(Vec<(Label, Value)>),
     Array(Vec<Value>),
 }
@@ -66,10 +62,6 @@ impl<'a> From<&'a Value> for core::Term {
             Value::S64(value) => Term::Literal(Literal::Int(value.into(), IntFormat::Dec)),
             Value::F32(value) => Term::Literal(Literal::F32(value.into(), FloatFormat::Dec)),
             Value::F64(value) => Term::Literal(Literal::F64(value.into(), FloatFormat::Dec)),
-            Value::Offset8(value, offset) => Term::Literal(Literal::Offset8(value, offset)),
-            Value::Offset16(value, offset) => Term::Literal(Literal::Offset16(value, offset)),
-            Value::Offset32(value, offset) => Term::Literal(Literal::Offset32(value, offset)),
-            Value::Offset64(value, offset) => Term::Literal(Literal::Offset64(value, offset)),
             Value::Struct(ref fields) => {
                 let fields = fields
                     .iter()
@@ -211,13 +203,13 @@ where
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         core::Value::Neutral(ref neutral, ref spine) => {
-            if let Some((pos, _)) = env.offset8(ty) { return Ok(Value::Offset8(pos, bytes.read_u8()?)); }
-            if let Some((pos, _)) = env.offset16le(ty) { return Ok(Value::Offset16(pos, bytes.read_u16::<Le>()?)); }
-            if let Some((pos, _)) = env.offset16be(ty) { return Ok(Value::Offset16(pos, bytes.read_u16::<Be>()?)); }
-            if let Some((pos, _)) = env.offset32le(ty) { return Ok(Value::Offset32(pos, bytes.read_u32::<Le>()?)); }
-            if let Some((pos, _)) = env.offset32be(ty) { return Ok(Value::Offset32(pos, bytes.read_u32::<Be>()?)); }
-            if let Some((pos, _)) = env.offset64le(ty) { return Ok(Value::Offset64(pos, bytes.read_u64::<Le>()?)); }
-            if let Some((pos, _)) = env.offset64be(ty) { return Ok(Value::Offset64(pos, bytes.read_u64::<Be>()?)); }
+            if let Some((pos, _)) = env.offset8(ty) { return Ok(Value::Pos(pos + bytes.read_u8()? as u64)); }
+            if let Some((pos, _)) = env.offset16le(ty) { return Ok(Value::Pos(pos + bytes.read_u16::<Le>()? as u64)); }
+            if let Some((pos, _)) = env.offset16be(ty) { return Ok(Value::Pos(pos + bytes.read_u16::<Be>()? as u64)); }
+            if let Some((pos, _)) = env.offset32le(ty) { return Ok(Value::Pos(pos + bytes.read_u32::<Le>()? as u64)); }
+            if let Some((pos, _)) = env.offset32be(ty) { return Ok(Value::Pos(pos + bytes.read_u32::<Be>()? as u64)); }
+            if let Some((pos, _)) = env.offset64le(ty) { return Ok(Value::Pos(pos + bytes.read_u64::<Le>()? as u64)); }
+            if let Some((pos, _)) = env.offset64be(ty) { return Ok(Value::Pos(pos + bytes.read_u64::<Be>()? as u64)); }
             if let Some((len, elem_ty)) = env.array(ty) {
                 return Ok(Value::Array(
                     (0..len.to_usize().unwrap()) // FIXME
