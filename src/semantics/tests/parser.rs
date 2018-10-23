@@ -154,6 +154,58 @@ fn pos() {
 }
 
 #[test]
+fn offset() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let given_format = r#"
+        module offset_test;
+
+        struct PosTest {
+            magic : U32Be,
+            data_start : Pos,
+            data : Array 3 (Offset16Be data_start U8),
+        };
+    "#;
+
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(0x123).unwrap(); // magic
+        given_bytes.write_u16::<BigEndian>(0 + (3 * 2) + 2).unwrap(); // data[0]
+        given_bytes.write_u16::<BigEndian>(0 + (3 * 2) + 1).unwrap(); // data[1]
+        given_bytes.write_u16::<BigEndian>(0 + (3 * 2) + 0).unwrap(); // data[2]
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&tc_env, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        Value::Struct(vec![
+            (label("magic"), Value::U32(0x123)),
+            (
+                label("data_start"),
+                Value::Pos(mem::size_of::<u32>() as u64)
+            ),
+            (
+                label("data"),
+                Value::Array(vec![
+                    Value::Pos(mem::size_of::<u32>() as u64 + (3 * 2) + 2),
+                    Value::Pos(mem::size_of::<u32>() as u64 + (3 * 2) + 1),
+                    Value::Pos(mem::size_of::<u32>() as u64 + (3 * 2) + 0),
+                ]),
+            ),
+        ]),
+    );
+}
+
+#[test]
 fn parse_bitmap_nested() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();
