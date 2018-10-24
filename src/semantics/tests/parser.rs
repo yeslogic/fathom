@@ -47,13 +47,15 @@ fn silly_root() {
 
     assert_eq!(
         parser::parse_module(&tc_env, &label("Silly"), &module, &mut given_bytes).unwrap(),
-        Value::Struct(vec![
-            (label("len"), Value::U16(3)),
-            (
-                label("data"),
-                Value::Array(vec![Value::U32(1), Value::U32(3), Value::U32(6)]),
-            ),
-        ]),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (label("len"), Value::U16(3)),
+                (
+                    label("data"),
+                    Value::Array(vec![Value::U32(1), Value::U32(3), Value::U32(6)]),
+                ),
+            ]),
+        },
     );
 }
 
@@ -129,27 +131,29 @@ fn pos() {
 
     assert_eq!(
         parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        Value::Struct(vec![
-            (label("start"), Value::Pos(0)),
-            (
-                label("data"),
-                Value::Array(vec![
-                    Value::Struct(vec![
-                        (label("pad"), Value::U32(0)),
-                        (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 1)),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (label("start"), Value::Pos(0)),
+                (
+                    label("data"),
+                    Value::Array(vec![
+                        Value::Struct(vec![
+                            (label("pad"), Value::U32(0)),
+                            (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 1)),
+                        ]),
+                        Value::Struct(vec![
+                            (label("pad"), Value::U32(0)),
+                            (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 2)),
+                        ]),
+                        Value::Struct(vec![
+                            (label("pad"), Value::U32(0)),
+                            (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 3)),
+                        ]),
                     ]),
-                    Value::Struct(vec![
-                        (label("pad"), Value::U32(0)),
-                        (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 2)),
-                    ]),
-                    Value::Struct(vec![
-                        (label("pad"), Value::U32(0)),
-                        (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 3)),
-                    ]),
-                ]),
-            ),
-            (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 3),),
-        ]),
+                ),
+                (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 3),),
+            ]),
+        },
     );
 }
 
@@ -169,13 +173,17 @@ fn offset() {
         };
     "#;
 
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     let mut given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(0x123).unwrap(); // magic
-        given_bytes.write_u16::<BigEndian>(0 + (3 * 2) + 2).unwrap(); // data[0]
-        given_bytes.write_u16::<BigEndian>(0 + (3 * 2) + 1).unwrap(); // data[1]
-        given_bytes.write_u16::<BigEndian>(0 + (3 * 2) + 0).unwrap(); // data[2]
+        given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 3]>() as u16 + 2).unwrap(); // data[0]
+        given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 3]>() as u16 + 1).unwrap(); // data[1]
+        given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 3]>() as u16 + 0).unwrap(); // data[2]
+        given_bytes.write_u8(25).unwrap(); // *data[2]
+        given_bytes.write_u8(30).unwrap(); // *data[1]
+        given_bytes.write_u8(35).unwrap(); // *data[0]
 
         Cursor::new(given_bytes)
     };
@@ -187,21 +195,71 @@ fn offset() {
 
     assert_eq!(
         parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        Value::Struct(vec![
-            (label("magic"), Value::U32(0x123)),
-            (
-                label("data_start"),
-                Value::Pos(mem::size_of::<u32>() as u64)
-            ),
-            (
-                label("data"),
-                Value::Array(vec![
-                    Value::Pos(mem::size_of::<u32>() as u64 + (3 * 2) + 2),
-                    Value::Pos(mem::size_of::<u32>() as u64 + (3 * 2) + 1),
-                    Value::Pos(mem::size_of::<u32>() as u64 + (3 * 2) + 0),
-                ]),
-            ),
-        ]),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (label("magic"), Value::U32(0x123)),
+                (
+                    label("data_start"),
+                    Value::Pos(mem::size_of::<u32>() as u64)
+                ),
+                (
+                    label("data"),
+                    Value::Array(vec![
+                        Value::Pos((mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 2),
+                        Value::Pos((mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 1),
+                        Value::Pos((mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 0),
+                    ]),
+                ),
+            ]),
+            (mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 0 => Value::U8(25),
+            (mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 1 => Value::U8(30),
+            (mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 2 => Value::U8(35),
+        },
+    );
+}
+
+#[test]
+fn offset_same_pos() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let given_format = r#"
+        module offset_test;
+
+        struct PosTest {
+            start : Pos,
+            offset1 : Offset16Be start U8,
+            offset2 : Offset16Be start U8,
+        };
+    "#;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 2]>() as u16).unwrap(); // offset1
+        given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 2]>() as u16).unwrap(); // offset2
+        given_bytes.write_u8(25).unwrap(); // *offset1, *offset2
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&tc_env, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (label("start"), Value::Pos(0)),
+                (label("offset1"), Value::Pos(mem::size_of::<[u16; 2]>() as u64)),
+                (label("offset2"), Value::Pos(mem::size_of::<[u16; 2]>() as u64)),
+            ]),
+            mem::size_of::<[u16; 2]>() as u64 => Value::U8(25),
+        },
     );
 }
 
@@ -247,54 +305,56 @@ fn parse_bitmap_nested() {
 
     assert_eq!(
         parser::parse_module(&tc_env, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
-        Value::Struct(vec![
-            (
-                label("header"),
-                Value::Struct(vec![
-                    (label("width"), Value::U32(3)),
-                    (label("height"), Value::U32(2)),
-                ]),
-            ),
-            (
-                label("data"),
-                Value::Array(vec![
+        hashmap!{
+            0 => Value::Struct(vec![
+                (
+                    label("header"),
+                    Value::Struct(vec![
+                        (label("width"), Value::U32(3)),
+                        (label("height"), Value::U32(2)),
+                    ]),
+                ),
+                (
+                    label("data"),
                     Value::Array(vec![
-                        Value::Struct(vec![
-                            (label("r"), Value::F32(0.00)),
-                            (label("g"), Value::F32(0.01)),
-                            (label("b"), Value::F32(0.02)),
+                        Value::Array(vec![
+                            Value::Struct(vec![
+                                (label("r"), Value::F32(0.00)),
+                                (label("g"), Value::F32(0.01)),
+                                (label("b"), Value::F32(0.02)),
+                            ]),
+                            Value::Struct(vec![
+                                (label("r"), Value::F32(0.10)),
+                                (label("g"), Value::F32(0.11)),
+                                (label("b"), Value::F32(0.12)),
+                            ]),
+                            Value::Struct(vec![
+                                (label("r"), Value::F32(0.20)),
+                                (label("g"), Value::F32(0.21)),
+                                (label("b"), Value::F32(0.22)),
+                            ]),
                         ]),
-                        Value::Struct(vec![
-                            (label("r"), Value::F32(0.10)),
-                            (label("g"), Value::F32(0.11)),
-                            (label("b"), Value::F32(0.12)),
-                        ]),
-                        Value::Struct(vec![
-                            (label("r"), Value::F32(0.20)),
-                            (label("g"), Value::F32(0.21)),
-                            (label("b"), Value::F32(0.22)),
+                        Value::Array(vec![
+                            Value::Struct(vec![
+                                (label("r"), Value::F32(1.00)),
+                                (label("g"), Value::F32(1.01)),
+                                (label("b"), Value::F32(1.02)),
+                            ]),
+                            Value::Struct(vec![
+                                (label("r"), Value::F32(1.10)),
+                                (label("g"), Value::F32(1.11)),
+                                (label("b"), Value::F32(1.12)),
+                            ]),
+                            Value::Struct(vec![
+                                (label("r"), Value::F32(1.20)),
+                                (label("g"), Value::F32(1.21)),
+                                (label("b"), Value::F32(1.22)),
+                            ]),
                         ]),
                     ]),
-                    Value::Array(vec![
-                        Value::Struct(vec![
-                            (label("r"), Value::F32(1.00)),
-                            (label("g"), Value::F32(1.01)),
-                            (label("b"), Value::F32(1.02)),
-                        ]),
-                        Value::Struct(vec![
-                            (label("r"), Value::F32(1.10)),
-                            (label("g"), Value::F32(1.11)),
-                            (label("b"), Value::F32(1.12)),
-                        ]),
-                        Value::Struct(vec![
-                            (label("r"), Value::F32(1.20)),
-                            (label("g"), Value::F32(1.21)),
-                            (label("b"), Value::F32(1.22)),
-                        ]),
-                    ]),
-                ]),
-            ),
-        ]),
+                ),
+            ]),
+        },
     );
 }
 
@@ -340,50 +400,52 @@ fn parse_bitmap_flat() {
 
     assert_eq!(
         parser::parse_module(&tc_env, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
-        Value::Struct(vec![
-            (
-                label("header"),
-                Value::Struct(vec![
-                    (label("width"), Value::U32(3)),
-                    (label("height"), Value::U32(2)),
-                ]),
-            ),
-            (
-                label("data"),
-                Value::Array(vec![
+        hashmap!{
+            0 => Value::Struct(vec![
+                (
+                    label("header"),
                     Value::Struct(vec![
-                        (label("r"), Value::F32(0.00)),
-                        (label("g"), Value::F32(0.01)),
-                        (label("b"), Value::F32(0.02)),
+                        (label("width"), Value::U32(3)),
+                        (label("height"), Value::U32(2)),
                     ]),
-                    Value::Struct(vec![
-                        (label("r"), Value::F32(0.10)),
-                        (label("g"), Value::F32(0.11)),
-                        (label("b"), Value::F32(0.12)),
+                ),
+                (
+                    label("data"),
+                    Value::Array(vec![
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(0.00)),
+                            (label("g"), Value::F32(0.01)),
+                            (label("b"), Value::F32(0.02)),
+                        ]),
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(0.10)),
+                            (label("g"), Value::F32(0.11)),
+                            (label("b"), Value::F32(0.12)),
+                        ]),
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(0.20)),
+                            (label("g"), Value::F32(0.21)),
+                            (label("b"), Value::F32(0.22)),
+                        ]),
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(1.00)),
+                            (label("g"), Value::F32(1.01)),
+                            (label("b"), Value::F32(1.02)),
+                        ]),
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(1.10)),
+                            (label("g"), Value::F32(1.11)),
+                            (label("b"), Value::F32(1.12)),
+                        ]),
+                        Value::Struct(vec![
+                            (label("r"), Value::F32(1.20)),
+                            (label("g"), Value::F32(1.21)),
+                            (label("b"), Value::F32(1.22)),
+                        ]),
                     ]),
-                    Value::Struct(vec![
-                        (label("r"), Value::F32(0.20)),
-                        (label("g"), Value::F32(0.21)),
-                        (label("b"), Value::F32(0.22)),
-                    ]),
-                    Value::Struct(vec![
-                        (label("r"), Value::F32(1.00)),
-                        (label("g"), Value::F32(1.01)),
-                        (label("b"), Value::F32(1.02)),
-                    ]),
-                    Value::Struct(vec![
-                        (label("r"), Value::F32(1.10)),
-                        (label("g"), Value::F32(1.11)),
-                        (label("b"), Value::F32(1.12)),
-                    ]),
-                    Value::Struct(vec![
-                        (label("r"), Value::F32(1.20)),
-                        (label("g"), Value::F32(1.21)),
-                        (label("b"), Value::F32(1.22)),
-                    ]),
-                ]),
-            ),
-        ]),
+                ),
+            ]),
+        },
     );
 }
 
@@ -416,31 +478,33 @@ fn gif() {
 
     assert_eq!(
         parser::parse_module(&tc_env, &label("Gif"), &module, &mut given_bytes).unwrap(),
-        Value::Struct(vec![
-            (
-                label("header"),
-                Value::Struct(vec![
-                    (
-                        label("magic"),
-                        Value::Array(vec![Value::U8(71), Value::U8(73), Value::U8(70)]), // "GIF"
-                    ),
-                    (
-                        label("version"),
-                        Value::Array(vec![Value::U8(56), Value::U8(55), Value::U8(97)]), // "87a"
-                    ),
-                ]),
-            ),
-            (
-                label("logical_screen"),
-                Value::Struct(vec![
-                    (label("image_width"), Value::U16(200)),
-                    (label("image_height"), Value::U16(300)),
-                    (label("flags"), Value::U8(0)),
-                    (label("bg_color_index"), Value::U8(0)),
-                    (label("pixel_aspect_ratio"), Value::U8(0)),
-                ]),
-            ),
-        ]),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (
+                    label("header"),
+                    Value::Struct(vec![
+                        (
+                            label("magic"),
+                            Value::Array(vec![Value::U8(71), Value::U8(73), Value::U8(70)]), // "GIF"
+                        ),
+                        (
+                            label("version"),
+                            Value::Array(vec![Value::U8(56), Value::U8(55), Value::U8(97)]), // "87a"
+                        ),
+                    ]),
+                ),
+                (
+                    label("logical_screen"),
+                    Value::Struct(vec![
+                        (label("image_width"), Value::U16(200)),
+                        (label("image_height"), Value::U16(300)),
+                        (label("flags"), Value::U8(0)),
+                        (label("bg_color_index"), Value::U8(0)),
+                        (label("pixel_aspect_ratio"), Value::U8(0)),
+                    ]),
+                ),
+            ]),
+        },
     );
 }
 

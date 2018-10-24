@@ -1,3 +1,4 @@
+use im;
 use moniker::{Binder, Embed, FreeVar, Var};
 use std::io;
 
@@ -26,6 +27,9 @@ impl From<io::Error> for ParseError {
         ParseError::Io(src)
     }
 }
+
+/// A stack of references that we still need to parse
+type PendingOffsets = Vec<(u64, core::RcType)>;
 
 /// Values returned as a result of parsing a binary format
 #[derive(Debug, Clone, PartialEq)]
@@ -87,19 +91,20 @@ pub fn parse_module<Env, T>(
     root: &Label,
     module: &core::Module,
     bytes: &mut io::Cursor<T>,
-) -> Result<Value, ParseError>
+) -> Result<im::HashMap<u64, Value>, ParseError>
 where
     Env: DefinitionEnv,
     io::Cursor<T>: io::Read + io::Seek,
 {
     let mut env = env.clone();
+    let mut pending = PendingOffsets::new();
 
     for (label, Binder(free_var), Embed(definition)) in module.items.clone().unnest() {
         if label == *root {
-            match definition {
+            let root_value = match definition {
                 core::Definition::Alias { ref term, .. } => {
                     let term = nf_term(&env, term)?;
-                    return parse_term(&env, &term, bytes);
+                    parse_term(&env, &mut pending, &term, bytes)?
                 },
                 core::Definition::StructType { ref scope } => {
                     let (params, fields_scope) = scope.clone().unbind();
@@ -113,9 +118,41 @@ where
                     let fields = fields.clone().unnest();
                     let mappings = Vec::with_capacity(fields.len());
 
-                    return parse_struct(&env, fields, mappings, bytes);
+                    parse_struct(&env, &mut pending, fields, mappings, bytes)?
                 },
+            };
+
+            // A dump of the previously parsed values
+            let mut parsed_values = im::HashMap::new();
+            // A cache of the core types we've looked at through offsets
+            let mut parsed_tys = im::HashMap::<u64, core::RcValue>::new();
+            parsed_values.insert(0, root_value);
+
+            while let Some((pos, ty)) = pending.pop() {
+                use im::hashmap::Entry;
+                use moniker::BoundTerm;
+
+                match parsed_values.entry(pos) {
+                    Entry::Occupied(_) => {
+                        // It's ok to refer to the same region of memory from
+                        // two locations in the same file if the types match
+                        if !core::Type::term_eq(
+                            parsed_tys.get(&pos).expect("expected entry"),
+                            &ty.inner,
+                        ) {
+                            unimplemented!("occupied entry");
+                        }
+                    },
+                    Entry::Vacant(parsed_entry) => {
+                        bytes.set_position(pos); // Bounds check?
+                        let value = parse_term(&mut env, &mut pending, &ty, bytes)?;
+                        parsed_entry.insert(value);
+                        parsed_tys.insert(pos, ty);
+                    },
+                }
             }
+
+            return Ok(parsed_values);
         } else {
             env.insert_definition(
                 free_var.clone(),
@@ -132,8 +169,9 @@ where
     Err(ParseError::MissingRoot(root.clone()))
 }
 
-pub fn parse_struct<Env, T>(
+fn parse_struct<Env, T>(
     env: &Env,
+    pending: &mut PendingOffsets,
     fields: Vec<(Label, Binder<String>, Embed<core::RcTerm>)>,
     mut mappings: Vec<(FreeVar<String>, core::RcTerm)>,
     bytes: &mut io::Cursor<T>,
@@ -146,7 +184,7 @@ where
         .into_iter()
         .map(|(label, binder, Embed(ann))| {
             let ann = nf_term(env, &ann.substs(&mappings))?;
-            let ann_value = parse_term(env, &ann, bytes)?;
+            let ann_value = parse_term(env, pending, &ann, bytes)?;
             mappings.push((
                 binder.0.clone(),
                 core::RcTerm::from(core::Term::from(&ann_value)),
@@ -159,8 +197,18 @@ where
     Ok(Value::Struct(fields))
 }
 
-pub fn parse_term<Env, T>(
+fn parse_offset(
+    pending: &mut PendingOffsets,
+    offset_pos: u64,
+    ty: &core::RcType,
+) -> Result<Value, ParseError> {
+    pending.push((offset_pos, ty.clone()));
+    Ok(Value::Pos(offset_pos))
+}
+
+fn parse_term<Env, T>(
     env: &Env,
+    pending: &mut PendingOffsets,
     ty: &core::RcType,
     bytes: &mut io::Cursor<T>,
 ) -> Result<Value, ParseError>
@@ -203,17 +251,17 @@ where
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         core::Value::Neutral(ref neutral, ref spine) => {
-            if let Some((pos, _)) = env.offset8(ty) { return Ok(Value::Pos(pos + bytes.read_u8()? as u64)); }
-            if let Some((pos, _)) = env.offset16le(ty) { return Ok(Value::Pos(pos + bytes.read_u16::<Le>()? as u64)); }
-            if let Some((pos, _)) = env.offset16be(ty) { return Ok(Value::Pos(pos + bytes.read_u16::<Be>()? as u64)); }
-            if let Some((pos, _)) = env.offset32le(ty) { return Ok(Value::Pos(pos + bytes.read_u32::<Le>()? as u64)); }
-            if let Some((pos, _)) = env.offset32be(ty) { return Ok(Value::Pos(pos + bytes.read_u32::<Be>()? as u64)); }
-            if let Some((pos, _)) = env.offset64le(ty) { return Ok(Value::Pos(pos + bytes.read_u64::<Le>()? as u64)); }
-            if let Some((pos, _)) = env.offset64be(ty) { return Ok(Value::Pos(pos + bytes.read_u64::<Be>()? as u64)); }
+            if let Some((pos, ty)) = env.offset8(ty) { return parse_offset(pending, pos + bytes.read_u8()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset16le(ty) { return parse_offset(pending, pos + bytes.read_u16::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset16be(ty) { return parse_offset(pending, pos + bytes.read_u16::<Be>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset32le(ty) { return parse_offset(pending, pos + bytes.read_u32::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset32be(ty) { return parse_offset(pending, pos + bytes.read_u32::<Be>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset64le(ty) { return parse_offset(pending, pos + bytes.read_u64::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset64be(ty) { return parse_offset(pending, pos + bytes.read_u64::<Be>()? as u64, ty); }
             if let Some((len, elem_ty)) = env.array(ty) {
                 return Ok(Value::Array(
                     (0..len.to_usize().unwrap()) // FIXME
-                        .map(|_| parse_term(env, elem_ty, bytes))
+                        .map(|_| parse_term(env, pending, elem_ty, bytes))
                         .collect::<Result<_, _>>()?,
                 ));
             }
@@ -240,7 +288,7 @@ where
                                 mappings.push((free_var.clone(), arg));
                             }
 
-                            parse_struct(env, fields, mappings, bytes)
+                            parse_struct(env, pending, fields, mappings, bytes)
                         },
                         // FIXME: follow alias?
                         None | Some(&Definition::Alias(_)) => {
