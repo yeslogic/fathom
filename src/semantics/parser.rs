@@ -126,13 +126,24 @@ where
             let mut parsed_values = im::HashMap::new();
             // A cache of the core types we've looked at through offsets
             let mut parsed_tys = im::HashMap::<u64, core::RcValue>::new();
+
+            // Add root definition
             parsed_values.insert(0, root_value);
 
+            // Follow pending offsets until exhausted ヾ(｡ꏿ﹏ꏿ)ﾉﾞ
             while let Some((pos, ty)) = pending.pop() {
                 use im::hashmap::Entry;
                 use moniker::BoundTerm;
 
                 match parsed_values.entry(pos) {
+                    // This position has not yet been parsed!
+                    Entry::Vacant(parsed_entry) => {
+                        bytes.set_position(pos); // FIXME: Bounds check?
+                        let value = parse_term(&mut env, &mut pending, &ty, bytes)?;
+                        parsed_entry.insert(value);
+                        parsed_tys.insert(pos, ty);
+                    },
+                    // Was already parsed!
                     Entry::Occupied(_) => {
                         // It's ok to refer to the same region of memory from
                         // two locations in the same file if the types match
@@ -140,14 +151,9 @@ where
                             parsed_tys.get(&pos).expect("expected entry"),
                             &ty.inner,
                         ) {
+                            // FIXME: Better error?
                             unimplemented!("occupied entry");
                         }
-                    },
-                    Entry::Vacant(parsed_entry) => {
-                        bytes.set_position(pos); // Bounds check?
-                        let value = parse_term(&mut env, &mut pending, &ty, bytes)?;
-                        parsed_entry.insert(value);
-                        parsed_tys.insert(pos, ty);
                     },
                 }
             }
@@ -221,6 +227,7 @@ where
     use num_traits::ToPrimitive;
 
     match **ty {
+        // Parse builtin types
         _ if core::RcValue::term_eq(ty, env.pos()) => Ok(Value::Pos(bytes.position())),
         _ if core::RcValue::term_eq(ty, env.u8()) => Ok(Value::U8(bytes.read_u8()?)),
         _ if core::RcValue::term_eq(ty, env.u16le()) => Ok(Value::U16(bytes.read_u16::<Le>()?)),
@@ -241,6 +248,7 @@ where
         _ if core::RcValue::term_eq(ty, env.f64le()) => Ok(Value::F64(bytes.read_f64::<Le>()?)),
         _ if core::RcValue::term_eq(ty, env.f64be()) => Ok(Value::F64(bytes.read_f64::<Be>()?)),
 
+        // Invalid parse types
         core::Value::Universe(_)
         | core::Value::IntType(_, _)
         | core::Value::Literal(_)
@@ -251,6 +259,7 @@ where
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         core::Value::Neutral(ref neutral, ref spine) => {
+            // Parse offsets
             if let Some((pos, ty)) = env.offset8(ty) { return queue_offset(pending, pos + bytes.read_u8()? as u64, ty); }
             if let Some((pos, ty)) = env.offset16le(ty) { return queue_offset(pending, pos + bytes.read_u16::<Le>()? as u64, ty); }
             if let Some((pos, ty)) = env.offset16be(ty) { return queue_offset(pending, pos + bytes.read_u16::<Be>()? as u64, ty); }
@@ -258,6 +267,8 @@ where
             if let Some((pos, ty)) = env.offset32be(ty) { return queue_offset(pending, pos + bytes.read_u32::<Be>()? as u64, ty); }
             if let Some((pos, ty)) = env.offset64le(ty) { return queue_offset(pending, pos + bytes.read_u64::<Le>()? as u64, ty); }
             if let Some((pos, ty)) = env.offset64be(ty) { return queue_offset(pending, pos + bytes.read_u64::<Be>()? as u64, ty); }
+
+            // Parse arrays
             if let Some((len, elem_ty)) = env.array(ty) {
                 return Ok(Value::Array(
                     (0..len.to_usize().unwrap()) // FIXME
@@ -268,6 +279,7 @@ where
 
             match **neutral {
                 core::Neutral::Head(core::Head::Var(Var::Free(ref free_var))) => {
+                    // Follow definitions
                     match env.get_definition(free_var) {
                         Some(&Definition::StructType(ref scope)) => {
                             let (params, fields_scope) = scope.clone().unbind();
@@ -291,11 +303,12 @@ where
                             parse_struct(env, pending, fields, mappings, bytes)
                         },
                         // FIXME: follow alias?
-                        None | Some(&Definition::Alias(_)) => {
-                            Err(ParseError::InvalidType(ty.clone()))
-                        },
+                        Some(&Definition::Alias(_)) => Err(ParseError::InvalidType(ty.clone())),
+                        // Definition not found
+                        None => Err(ParseError::InvalidType(ty.clone())),
                     }
                 },
+                // Invalid parse types
                 core::Neutral::Head(_) | core::Neutral::Proj(_, _) | core::Neutral::Match(_, _) => {
                     Err(ParseError::InvalidType(ty.clone()))
                 },
