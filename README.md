@@ -89,14 +89,14 @@ structures, such as file formats, network protocols or bitstreams.
     - [ ] Unsigned integers
       - [x] 1-byte (8-bit)
       - [x] 2-byte (16-bit)
-      - [x] 3-byte (24-bit)
+      - [ ] 3-byte (24-bit)
       - [x] 4-byte (32-bit)
       - [x] 8-byte (64-bit)
       - [ ] n-byte
     - [ ] Two's complement signed integers
       - [x] 1-byte (8-bit)
       - [x] 2-byte (16-bit)
-      - [x] 3-byte (24-bit)
+      - [ ] 3-byte (24-bit)
       - [x] 4-byte (32-bit)
       - [x] 8-byte (64-bit)
       - [ ] n-byte
@@ -104,13 +104,14 @@ structures, such as file formats, network protocols or bitstreams.
       - [x] 32 bit
       - [x] 64 bit
   - [ ] Polymorphic types
-    - [ ] Types depending on values
+    - [x] Types depending on values
     - [x] Dependant arrays: eg. `Array(u8, 4)`
     - [ ] Parametrised Endianness: eg. `Body(E: Endianness) = ...`
-  - [x] Dependant records: eg. `struct { len: u8, data: Array(u8, len) }`
-  - [x] Unions: eg. `union { T1, T2 }`
+  - [x] Dependent records: eg. `struct { len: u8, data: Array(u8, len) }`
+  - [ ] Unions: eg. `union { T1, T2 }`
   - [ ] Constraints `x where expr`
-  - [ ] Pointer offsets
+  - [x] Pointer offsets
+- [x] Interpreted parser
 - [ ] Backends
   - [ ] Rust codegen:
     - [ ] zero copy
@@ -118,7 +119,7 @@ structures, such as file formats, network protocols or bitstreams.
   - [ ] Graphvis DOT output
   - [ ] HTML Formatted Specification
 - [ ] Tooling
-  - [ ] Pretty error messages
+  - [x] Pretty error messages
   - [ ] Textmate syntax highlighting
   - [ ] Language server (via Language Server Protocol)
   - [ ] Binary explorer tool
