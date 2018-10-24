@@ -11,8 +11,9 @@ pub enum ParseError {
     InvalidType(core::RcType),
     Internal(InternalError),
     BadArrayIndex(core::RcValue),
-    MissingRoot(Label),
+    OffsetPointedToDifferentTypes(core::RcType, core::RcType),
     ParametrizedStructType,
+    MissingRoot(Label),
     Io(io::Error),
 }
 
@@ -147,12 +148,9 @@ where
                     Entry::Occupied(_) => {
                         // It's ok to refer to the same region of memory from
                         // two locations in the same file if the types match
-                        if !core::Type::term_eq(
-                            parsed_tys.get(&pos).expect("expected entry"),
-                            &ty.inner,
-                        ) {
-                            // FIXME: Better error?
-                            unimplemented!("occupied entry");
+                        let parsed_ty = parsed_tys.get(&pos).expect("expected entry").clone();
+                        if !core::Type::term_eq(&parsed_ty, &ty.inner) {
+                            return Err(ParseError::OffsetPointedToDifferentTypes(ty, parsed_ty));
                         }
                     },
                 }

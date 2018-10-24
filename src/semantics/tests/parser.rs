@@ -79,14 +79,14 @@ fn missing_root() {
 
     let mut given_bytes = Cursor::new(vec![]);
 
-    let result_term = parser::parse_module(
+    let parsed_value = parser::parse_module(
         &tc_env,
         &Label("Silly".to_owned()),
         &module,
         &mut given_bytes,
     );
 
-    match result_term {
+    match parsed_value {
         Ok(_) => panic!("expected error"),
         Err(ParseError::MissingRoot { .. }) => {},
         Err(err) => panic!("unexpected error: {:?}", err),
@@ -261,6 +261,46 @@ fn offset_same_pos() {
             mem::size_of::<[u16; 2]>() as u64 => Value::U8(25),
         },
     );
+}
+
+#[test]
+fn offset_same_pos_different_tys() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let given_format = r#"
+        module offset_test;
+
+        struct PosTest {
+            start : Pos,
+            offset1 : Offset16Be start U8,
+            offset2 : Offset16Be start S8,
+        };
+    "#;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 2]>() as u16).unwrap(); // offset1
+        given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 2]>() as u16).unwrap(); // offset2
+        given_bytes.write_u8(25).unwrap(); // *offset1, *offset2
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&tc_env, &raw_module).unwrap();
+
+    let parsed_value = parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes);
+    match parsed_value {
+        Ok(_) => panic!("expected error"),
+        Err(ParseError::OffsetPointedToDifferentTypes(_, _)) => {},
+        Err(err) => panic!("unexpected error: {:?}", err),
+    }
 }
 
 #[test]
