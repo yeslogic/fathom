@@ -197,7 +197,7 @@ where
     Ok(Value::Struct(fields))
 }
 
-fn parse_offset(
+fn queue_offset(
     pending: &mut PendingOffsets,
     offset_pos: u64,
     ty: &core::RcType,
@@ -251,13 +251,13 @@ where
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
         core::Value::Neutral(ref neutral, ref spine) => {
-            if let Some((pos, ty)) = env.offset8(ty) { return parse_offset(pending, pos + bytes.read_u8()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset16le(ty) { return parse_offset(pending, pos + bytes.read_u16::<Le>()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset16be(ty) { return parse_offset(pending, pos + bytes.read_u16::<Be>()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset32le(ty) { return parse_offset(pending, pos + bytes.read_u32::<Le>()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset32be(ty) { return parse_offset(pending, pos + bytes.read_u32::<Be>()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset64le(ty) { return parse_offset(pending, pos + bytes.read_u64::<Le>()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset64be(ty) { return parse_offset(pending, pos + bytes.read_u64::<Be>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset8(ty) { return queue_offset(pending, pos + bytes.read_u8()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset16le(ty) { return queue_offset(pending, pos + bytes.read_u16::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset16be(ty) { return queue_offset(pending, pos + bytes.read_u16::<Be>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset32le(ty) { return queue_offset(pending, pos + bytes.read_u32::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset32be(ty) { return queue_offset(pending, pos + bytes.read_u32::<Be>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset64le(ty) { return queue_offset(pending, pos + bytes.read_u64::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = env.offset64be(ty) { return queue_offset(pending, pos + bytes.read_u64::<Be>()? as u64, ty); }
             if let Some((len, elem_ty)) = env.array(ty) {
                 return Ok(Value::Array(
                     (0..len.to_usize().unwrap()) // FIXME
