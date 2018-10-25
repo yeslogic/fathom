@@ -43,6 +43,11 @@ struct UfWord {
     value : U16Be,
 };
 
+/// 16-bit signed fixed number with the low 14 bits of fraction (2.14).
+struct F2Dot14 {
+    value: S16Be,
+};
+
 /// Date represented in number of seconds since 12:00 midnight, January 1, 1904.
 /// The value is represented as a signed 64-bit integer.
 struct LongDateTime {
@@ -525,9 +530,23 @@ struct VariationIndex {
 // -----------------------------------------------------------------------------
 
 struct FeatureVariations {
-    // TODO
+    start : Pos,
+    /// Major version of the FeatureVariations table — set to 1.
+    major_version : U16Be,
+    /// Minor version of the FeatureVariations table — set to 0.
+    minor_version : U16Be,
+    /// Number of feature variation records.
+    feature_variation_record_count : U32Be,
+    /// Array of feature variation records.
+    feature_variation_records : Array feature_variation_record_count (FeatureVariationRecord start),
 };
 
+struct FeatureVariationRecord (feature_variations_start : Pos) {
+    /// Offset to a condition set table, from beginning of FeatureVariations table.
+    condition_set_offset : Offset32Be feature_variations_start ConditionSet,
+    /// Offset to a feature table substitution table, from beginning of the FeatureVariations table.
+    feature_table_substitution_offset : Offset32Be feature_variations_start FeatureTableSubstitution,
+};
 
 
 // -----------------------------------------------------------------------------
@@ -536,8 +555,37 @@ struct FeatureVariations {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#conditionset-table>
 // -----------------------------------------------------------------------------
 
-// TODO
+struct ConditionSet {
+    start : Pos,
+    /// Number of conditions for this condition set.
+    condition_count : U16Be,
+    /// Array of offsets to condition tables, from beginning of the ConditionSet table.
+    // TODO: conditions : Array condition_count (Offset32Be start ConditionTableFormat),
+    conditions : Array condition_count (Offset32Be start Unknown),
+};
 
+
+// -----------------------------------------------------------------------------
+// Condition Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#condition-table>
+// -----------------------------------------------------------------------------
+
+// TODO:
+// union ConditionTableFormat {
+//     ConditionTableFormat1,
+// };
+
+struct ConditionTableFormat1 {
+    /// Format, = 1
+    format : U16Be,
+    /// Index (zero-based) for the variation axis within the 'fvar' table.
+    axis_index : U16Be,
+    /// Minimum value of the font variation instances that satisfy this condition.
+    filter_range_min_value : F2Dot14,
+    /// Maximum value of the font variation instances that satisfy this condition.
+    filter_range_max_value : F2Dot14,
+};
 
 
 // -----------------------------------------------------------------------------
@@ -546,7 +594,24 @@ struct FeatureVariations {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#featuretablesubstitution-table>
 // -----------------------------------------------------------------------------
 
-// TODO
+struct FeatureTableSubstitution {
+    start : Pos,
+    /// Major version of the feature table substitution table — set to 1
+    major_version : U16Be,
+    /// Minor version of the feature table substitution table — set to 0.
+    minor_version : U16Be,
+    /// Number of feature table substitution records.
+    substitution_count : U16Be,
+    /// Array of feature table substitution records.
+    substitutions : Array substitution_count (FeatureTableSubstitutionRecord start),
+};
+
+struct FeatureTableSubstitutionRecord (feature_table_substitution_start : Pos) {
+    /// The feature table index to match.
+    feature_index : U16Be,
+    /// Offset to an alternate feature table, from start of the FeatureTableSubstitution table.
+    alternate_feature_table : Offset32Be feature_table_substitution_start Unknown, // TODO
+};
 
 
 
