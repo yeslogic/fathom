@@ -95,9 +95,11 @@ struct OffsetTableRecord (file_start : Pos) {
     /// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#calculating-checksums>
     checksum : U32Be,
     /// Offset from beginning of TrueType font file
-    offset : Offset32Be file_start (FontTable tag),
+    offset : U32Be,
     /// Length of this table
     length : U32Be,
+    /// The computed position of this table
+    pos : OffsetPos file_start offset (FontTable tag length)
 };
 
 
@@ -154,7 +156,7 @@ struct TtcHeader2 (file_start : Pos) {
 // -----------------------------------------------------------------------------
 
 /// A mapping from a tag to the corresponding font table type
-FontTable (tag : Tag) = match tag.value {
+FontTable (tag : Tag) (length : U32) = match tag.value {
     // Required Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
     "cmap" => CharMap,          // Character to glyph mapping
@@ -2217,15 +2219,17 @@ struct DataMap (metadata_start : Pos) {
     /// A tag indicating the type of metadata.
     tag : Tag,
     /// Offset in bytes from the beginning of the metadata table to the data for this tag.
-    data_offset : Offset32Be metadata_start (MetadataInfo tag), // TODO
+    data_offset : U32Be,
     /// Length of the data, in bytes. The data is not required to be padded to any byte boundary.
     data_length : U32Be,
+    /// The metadata information for this tag
+    data_pos : OffsetPos metadata_start data_offset (MetadataInfo tag data_length),
 };
 
 /// Metadata information
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/meta#metadata-tags>
-MetadataInfo (tag : Tag) = match tag.value {
+MetadataInfo (tag : Tag) (length : U32) = match tag.value {
     "appl" => Unknown, // TODO
     "bild" => Unknown, // TODO
     "dlng" => Unknown, // TODO

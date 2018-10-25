@@ -265,6 +265,11 @@ where
             if let Some((pos, ty)) = env.offset32be(ty) { return queue_offset(pending, pos + bytes.read_u32::<Be>()? as u64, ty); }
             if let Some((pos, ty)) = env.offset64le(ty) { return queue_offset(pending, pos + bytes.read_u64::<Le>()? as u64, ty); }
             if let Some((pos, ty)) = env.offset64be(ty) { return queue_offset(pending, pos + bytes.read_u64::<Be>()? as u64, ty); }
+            if let Some((pos, offset, ty)) = env.offset_pos(ty) {
+                let offset_pos = pos + offset.to_u64().unwrap(); // FIXME
+                pending.push((offset_pos, ty.clone()));
+                return Ok(Value::Pos(offset_pos));
+            }
 
             // Parse arrays
             if let Some((len, elem_ty)) = env.array(ty) {
