@@ -11,6 +11,14 @@ struct U24Be {
     value : Array 3 U8,
 };
 
+// FIXME: A tad hacky - add operators and proper bounds handling?
+nat_mul : int {0 ..} -> int {0 ..} -> int {0 ..};
+nat_mul = extern "int-mul";
+
+// FIXME: A tad hacky - add operators and proper bounds handling?
+nat_add : int {0 ..} -> int {0 ..} -> int {0 ..};
+nat_add = extern "int-add";
+
 // TODO: Nullable offsets?
 
 
@@ -1173,9 +1181,9 @@ struct NamingFormat0 {
     /// Number of name records.
     count : U16Be,
     /// Offset to start of string storage (from start of table).
-    string_offset : Offset16Be start Unknown, // TODO
-    // TODO: name_record : Array count (NameRecord string_offset),
-    name_record : Array count Unknown,
+    string_offset : U16Be,
+    /// The name records where count is the number of records.
+    name_record : Array count (NameRecord start string_offset),
     // TODO:
     // /// Storage for the actual string data.
     // // (Variable),
@@ -1195,10 +1203,9 @@ struct NamingFormat1 {
     /// Number of name records.
     count : U16Be,
     /// Offset to start of string storage (from start of table).
-    string_offset : Offset16Be start Unknown, // TODO
+    string_offset : U16Be,
     /// The name records where count is the number of records.
-    // TODO: name_record : Array count (NameRecord string_offset),
-    name_record : Array count Unknown,
+    name_record : Array count (NameRecord start string_offset),
     /// Number of language-tag records.
     lang_tag_count : U16Be,
     /// The language-tag records where langTagCount is the number of records.
@@ -1209,11 +1216,15 @@ struct NamingFormat1 {
     // // (Variable),
 };
 
-struct LangTagRecord (storage_start : Pos) {
+struct LangTagRecord (naming_start : Pos) (storage_offset : U16) {
     /// Language-tag string length (in bytes)
     length : U16Be,
-    // /// Language-tag string offset from start of storage area (in bytes).
-    offset : Offset16Be storage_start (Array length U8), // TODO: String?
+    /// Language-tag string offset from start of storage area (in bytes).
+    offset : U16Be,
+    /// Language-tag string
+    // TODO: Array->String
+    // TODO: Operators
+    name_pos : OffsetPos naming_start (nat_add storage_offset offset) (Array length U8),
 };
 
 
@@ -1223,7 +1234,7 @@ struct LangTagRecord (storage_start : Pos) {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/name#name-records>
 // -----------------------------------------------------------------------------
 
-struct NameRecord (storage_start : Pos) {
+struct NameRecord (naming_start : Pos) (storage_offset : U16) {
     /// Platform ID.
     platform_id : U16Be,
     /// Platform-specific encoding ID.
@@ -1235,7 +1246,11 @@ struct NameRecord (storage_start : Pos) {
     /// String length (in bytes).
     length : U16Be,
     /// String offset from start of storage area (in bytes).
-    offset : Offset16Be storage_start (Array length U8), // TODO: String?
+    offset : U16Be,
+    /// The computed position of the name
+    // TODO: Array->String
+    // TODO: Operators
+    name_pos : OffsetPos naming_start (nat_add storage_offset offset) (Array length U8),
 };
 
 
