@@ -12,12 +12,20 @@ struct U24Be {
 };
 
 // FIXME: A tad hacky - add operators and proper bounds handling?
+nat_add : int {0 ..} -> int {0 ..} -> int {0 ..};
+nat_add = extern "int-add";
+
+// FIXME: A tad hacky - add operators and proper bounds handling?
+nat_sub : int {0 ..} -> int {0 ..} -> int {0 ..};
+nat_sub = extern "int-sub";
+
+// FIXME: A tad hacky - add operators and proper bounds handling?
 nat_mul : int {0 ..} -> int {0 ..} -> int {0 ..};
 nat_mul = extern "int-mul";
 
 // FIXME: A tad hacky - add operators and proper bounds handling?
-nat_add : int {0 ..} -> int {0 ..} -> int {0 ..};
-nat_add = extern "int-add";
+nat_div : int {0 ..} -> int {0 ..} -> int {0 ..};
+nat_div = extern "int-div";
 
 // TODO: Nullable offsets?
 
@@ -69,6 +77,12 @@ struct Tag {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font>
 //
 // =============================================================================
+
+struct File {
+    start : Pos,
+    // TODO: top : OpenType start,
+    top : OffsetTable start,
+};
 
 // TODO:
 // union OpenType (file_start : Pos) {
@@ -764,19 +778,18 @@ struct CharMapSubtable4 {
     entry_selector : U16Be,
     /// `2 x seg_count - search_range`
     range_shift : U16Be,
-    // TODO:
-    // /// End characterCode for each segment, `last = 0xFFFF`.
-    // end_count : Array (seg_count_x2 / 2) U16Be,
-    // /// Set to `0`.
-    // reserved_pad : U16Be,
-    // /// Start character code for each segment.
-    // start_count : Array (seg_count_x2 / 2) U16Be,
-    // /// Delta for all character codes in segment.
-    // id_delta : Array (seg_count_x2 / 2) S16Be,
-    // /// Offsets into `glyph_id_array` or 0
-    // id_range_offset : Array (seg_count_x2 / 2) U16Be,
-    // /// Glyph index array (arbitrary length)
-    // glyph_id_array : Array ((length / 2 - 8) - (2 * seg_count_x2)) U16Be,
+    /// End characterCode for each segment, `last = 0xFFFF`.
+    end_count : Array (nat_div seg_count_x2 2) U16Be,
+    /// Set to `0`.
+    reserved_pad : U16Be,
+    /// Start character code for each segment.
+    start_count : Array (nat_div seg_count_x2 2) U16Be,
+    /// Delta for all character codes in segment.
+    id_delta : Array (nat_div seg_count_x2 2) S16Be,
+    /// Offsets into `glyph_id_array` or 0
+    id_range_offset : Array (nat_div seg_count_x2 2) U16Be,
+    /// Glyph index array (arbitrary length)
+    glyph_id_array : Array (nat_sub (nat_sub (nat_div length 2) 8) (nat_mul 2 seg_count_x2)) U16Be,
 };
 
 
