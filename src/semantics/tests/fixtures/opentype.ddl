@@ -339,8 +339,8 @@ struct Script {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#language-system-table>
 struct LangSys {
     /// = NULL (reserved for an offset to a reordering table)
-    // lookup_order : Offset16Be _ Unknown,
-    lookup_order : U16Be, // TODO: Mark as private?
+    // TODO: lookup_order : Reserved U16Be 0,
+    lookup_order : Reserved U16Be,
     /// Index of a feature required for this language system; if no required features = 0xFFFF
     required_feature_index : U16Be,
     /// Number of feature index values for this language system — excludes the required feature
@@ -383,8 +383,8 @@ struct FeatureList {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#feature-table>
 struct Feature {
     /// = NULL (reserved for offset to FeatureParams)
-    // feature_params : Offset16Be _ Unknown,
-    feature_params : U16Be, // TODO: Mark as private?
+    // TODO: feature_params : Reserved U16Be 0,
+    feature_params : Reserved U16Be,
     /// Number of LookupList indices for this feature
     lookup_index_count : U16Be,
     /// Array of indices into the LookupList — zero-based (first lookup is LookupListIndex = 0)
@@ -781,7 +781,8 @@ struct CharMapSubtable4 {
     /// End characterCode for each segment, `last = 0xFFFF`.
     end_count : Array (nat_div seg_count_x2 2) U16Be,
     /// Set to `0`.
-    reserved_pad : U16Be,
+    // TODO: reserved_pad : Reserved U16Be 0,
+    reserved_pad : Reserved U16Be,
     /// Start character code for each segment.
     start_count : Array (nat_div seg_count_x2 2) U16Be,
     /// Delta for all character codes in segment.
@@ -828,7 +829,8 @@ struct CharMapSubtable8 {
     /// Format number is set to 8
     format : U16Be,
     /// Reserved; set to 0
-    reserved : U16Be,
+    // TODO: reserved : Reserved U16Be 0,
+    reserved : Reserved U16Be,
     /// Byte length of this subtable (including the header)
     length : U32Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -867,7 +869,8 @@ struct CharMapSubtable10 {
     /// Format number is set to 10
     format : U16Be,
     /// Reserved; set to 0
-    reserved : U16Be,
+    // TODO: reserved : Reserved U16Be 0,
+    reserved : Reserved U16Be,
     /// Byte length of this subtable (including the header)
     length : U32Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -893,7 +896,8 @@ struct CharMapSubtable12 {
     /// Format number is set to 12
     format : U16Be,
     /// Reserved; set to 0
-    reserved : U16Be,
+    // TODO: reserved : Reserved U16Be 0,
+    reserved : Reserved U16Be,
     /// Byte length of this subtable (including the header)
     length : U32Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -926,7 +930,8 @@ struct CharMapSubtable13 {
     /// Format number is set to 13
     format : U16Be,
     /// Reserved; set to 0
-    reserved : U16Be,
+    // TODO: reserved : Reserved U16Be 0,
+    reserved : Reserved U16Be,
     /// Byte length of this subtable (including the header)
     length : U32Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -1116,13 +1121,17 @@ struct HorizontalHeader {
     /// to produce the best appearance. Set to 0 for non-slanted fonts
     caret_offset : S16Be,
     /// (reserved) set to 0
-    reserved0 : S16Be,
+    // TODO: reserved0 : Reserved S16Be 0,
+    reserved0 : Reserved S16Be,
     /// (reserved) set to 0
-    reserved1 : S16Be,
+    // TODO: reserved1 : Reserved S16Be 0,
+    reserved1 : Reserved S16Be,
     /// (reserved) set to 0
-    reserved2 : S16Be,
+    // TODO: reserved2 : Reserved S16Be 0,
+    reserved2 : Reserved S16Be,
     /// (reserved) set to 0
-    reserved3 : S16Be,
+    // TODO: reserved3 : Reserved S16Be 0,
+    reserved3 : Reserved S16Be,
     /// 0 for current format.
     metric_data_format : S16Be,
     /// Number of `h_metric` entries in 'hmtx' table
@@ -1624,7 +1633,8 @@ struct Svg {
     /// Offset to the SVG Document List, from the start of the SVG table. Must be non-zero.
     offset_to_svg_document_list : Offset32Be start SvgDocumentList,
     /// Set to 0.
-    reserved : U32Be, // TODO: Private?
+    // TODO: reserved : Reserved U32Be 0,
+    reserved : Reserved U32Be,
 };
 
 
@@ -2179,7 +2189,8 @@ struct DigitalSignature (length : U32) {
     /// Number of signatures in the table
     num_signatures : U16Be,
     /// permission flags Bit 0: cannot be resigned Bits 1-7: Reserved (Set to 0)
-    flags : U16Be,
+    // TODO: flags : Reserved U16Be 0
+    flags : Reserved U16Be,
     /// Array of signature records
     signature_records : Array num_signatures (SignatureRecord start),
 };
@@ -2201,9 +2212,11 @@ struct SignatureRecord (digital_signature_start : Pos) {
 
 struct SignatureBlockFormat1 {
     /// Reserved for future use; set to zero.
-    reserved1 : U16Be, // TODO: private?
+    // TODO: reserved1 : Reserved U16Be 0,
+    reserved1 : Reserved U16Be,
     /// Reserved for future use; set to zero.
-    reserved2 : U16Be, // TODO: private?
+    // TODO: reserved2 : Reserved U16Be 0,
+    reserved2 : Reserved U16Be,
     /// Length (in bytes) of the PKCS#7 packet in the signature field.
     signature_length : U32Be,
     /// PKCS#7 packet
@@ -2287,7 +2300,7 @@ struct DeviceRecord (num_glyphs : U16) {
 //
 // meta — Metadata Table
 //
-// <https://www.microsoft.com/typography/otspec/meta.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/meta>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6meta.html>
 //
 // =============================================================================
@@ -2298,9 +2311,11 @@ struct Metadata {
     /// Version number of the metadata table — set to 1.
     version : U32Be,
     /// Flags — currently unused; set to 0.
-    flags : U32Be,
+    // TODO: flags : Reserved U32Be 0,
+    flags : Reserved U32Be,
     /// Not used; should be set to 0.
-    reserved : U32Be,
+    // TODO: reserved : Reserved U32Be 0,
+    reserved : Reserved U32Be,
     /// The number of data maps in the table.
     data_maps_count : U32Be,
     /// Array of data map records.
