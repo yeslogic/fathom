@@ -304,6 +304,180 @@ fn offset_same_pos_different_tys() {
 }
 
 #[test]
+fn offset_pos() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let given_format = r#"
+        module offset_test;
+
+        struct PosTest {
+            magic : U32Be,
+
+            start : Pos,
+            offset0 : U16Be,
+            offset1 : U16Be,
+            offset2 : U16Be,
+
+            pos0 : OffsetPos start offset0 U8,
+            pos1 : OffsetPos start offset1 U8,
+            pos2 : OffsetPos start offset2 U8,
+        };
+    "#;
+
+    let start = mem::size_of::<u32>() as u64;
+    let offset0 = mem::size_of::<[u16; 3]>() as u16 + 2;
+    let offset1 = mem::size_of::<[u16; 3]>() as u16 + 1;
+    let offset2 = mem::size_of::<[u16; 3]>() as u16 + 0;
+    let pos0 = start + offset0 as u64;
+    let pos1 = start + offset1 as u64;
+    let pos2 = start + offset2 as u64;
+
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(0x123).unwrap(); // magic
+
+        given_bytes.write_u16::<BigEndian>(offset0).unwrap(); // offset0
+        given_bytes.write_u16::<BigEndian>(offset1).unwrap(); // offset1
+        given_bytes.write_u16::<BigEndian>(offset2).unwrap(); // offset2
+
+        given_bytes.write_u8(25).unwrap(); // *(start + offset2)
+        given_bytes.write_u8(30).unwrap(); // *(start + offset1)
+        given_bytes.write_u8(35).unwrap(); // *(start + offset0)
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&tc_env, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (label("magic"), Value::U32(0x123)),
+
+                (label("start"), Value::Pos(start)),
+                (label("offset0"), Value::U16(offset0)),
+                (label("offset1"), Value::U16(offset1)),
+                (label("offset2"), Value::U16(offset2)),
+
+                (label("pos0"), Value::Pos(pos0)),
+                (label("pos1"), Value::Pos(pos1)),
+                (label("pos2"), Value::Pos(pos2)),
+            ]),
+            pos2 => Value::U8(25),
+            pos1 => Value::U8(30),
+            pos0 => Value::U8(35),
+        },
+    );
+}
+
+#[test]
+fn offset_pos_same_pos() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let given_format = r#"
+        module offset_test;
+
+        struct PosTest {
+            start : Pos,
+            offset0 : U16Be,
+            offset1 : U16Be,
+            pos0 : OffsetPos start offset0 U8,
+            pos1 : OffsetPos start offset1 U8,
+        };
+    "#;
+
+    let start = 0;
+    let offset0 = mem::size_of::<[u16; 2]>() as u16;
+    let offset1 = mem::size_of::<[u16; 2]>() as u16;
+    let pos0 = start + offset0 as u64;
+    let pos1 = start + offset1 as u64;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u16::<BigEndian>(offset0).unwrap(); // offset0
+        given_bytes.write_u16::<BigEndian>(offset1).unwrap(); // offset1
+        given_bytes.write_u8(25).unwrap(); // *(start + offset0), *(start + offset1)
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&tc_env, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (label("start"), Value::Pos(start)),
+                (label("offset0"), Value::U16(offset0)),
+                (label("offset1"), Value::U16(offset1)),
+                (label("pos0"), Value::Pos(pos0)),
+                (label("pos1"), Value::Pos(pos1)),
+            ]),
+            pos0 => Value::U8(25),
+        },
+    );
+}
+
+#[test]
+fn offset_pos_same_pos_different_tys() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let given_format = r#"
+        module offset_test;
+
+        struct PosTest {
+            start : Pos,
+            offset0 : U16Be,
+            offset1 : U16Be,
+            pos0 : OffsetPos start offset0 U8,
+            pos1 : OffsetPos start offset1 S8,
+        };
+    "#;
+
+    let offset0 = mem::size_of::<[u16; 2]>() as u16;
+    let offset1 = mem::size_of::<[u16; 2]>() as u16;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u16::<BigEndian>(offset0).unwrap(); // offset0
+        given_bytes.write_u16::<BigEndian>(offset1).unwrap(); // offset1
+        given_bytes.write_u8(25).unwrap(); // *(start + offset0), *(start + offset1)
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&tc_env, &raw_module).unwrap();
+
+    let parsed_value = parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes);
+    match parsed_value {
+        Ok(_) => panic!("expected error"),
+        Err(ParseError::OffsetPointedToDifferentTypes(_, _)) => {},
+        Err(err) => panic!("unexpected error: {:?}", err),
+    }
+}
+
+#[test]
 fn parse_bitmap_nested() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();

@@ -11,6 +11,22 @@ struct U24Be {
     value : Array 3 U8,
 };
 
+// FIXME: A tad hacky - add operators and proper bounds handling?
+nat_add : int {0 ..} -> int {0 ..} -> int {0 ..};
+nat_add = extern "int-add";
+
+// FIXME: A tad hacky - add operators and proper bounds handling?
+nat_sub : int {0 ..} -> int {0 ..} -> int {0 ..};
+nat_sub = extern "int-sub";
+
+// FIXME: A tad hacky - add operators and proper bounds handling?
+nat_mul : int {0 ..} -> int {0 ..} -> int {0 ..};
+nat_mul = extern "int-mul";
+
+// FIXME: A tad hacky - add operators and proper bounds handling?
+nat_div : int {0 ..} -> int {0 ..} -> int {0 ..};
+nat_div = extern "int-div";
+
 // TODO: Nullable offsets?
 
 
@@ -35,6 +51,11 @@ struct UfWord {
     value : U16Be,
 };
 
+/// 16-bit signed fixed number with the low 14 bits of fraction (2.14).
+struct F2Dot14 {
+    value: S16Be,
+};
+
 /// Date represented in number of seconds since 12:00 midnight, January 1, 1904.
 /// The value is represented as a signed 64-bit integer.
 struct LongDateTime {
@@ -56,6 +77,12 @@ struct Tag {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font>
 //
 // =============================================================================
+
+struct File {
+    start : Pos,
+    // TODO: top : OpenType start,
+    top : OffsetTable start,
+};
 
 // TODO:
 // union OpenType (file_start : Pos) {
@@ -95,9 +122,11 @@ struct OffsetTableRecord (file_start : Pos) {
     /// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#calculating-checksums>
     checksum : U32Be,
     /// Offset from beginning of TrueType font file
-    offset : Offset32Be file_start (FontTable tag),
+    offset : U32Be,
     /// Length of this table
     length : U32Be,
+    /// The computed position of this table
+    pos : OffsetPos file_start offset (FontTable tag length)
 };
 
 
@@ -143,7 +172,7 @@ struct TtcHeader2 (file_start : Pos) {
     /// The length (in bytes) of the DSIG table (null if no signature)
     dsig_length : U32Be,
     /// The offset (in bytes) of the DSIG table from the beginning of the TTC file (null if no signature)
-    dsig_offset : Offset32Be file_start DigitalSignature,
+    dsig_offset : Offset32Be file_start (DigitalSignature dsig_length),
 };
 
 
@@ -154,89 +183,89 @@ struct TtcHeader2 (file_start : Pos) {
 // -----------------------------------------------------------------------------
 
 /// A mapping from a tag to the corresponding font table type
-FontTable (tag : Tag) = match tag.value {
+FontTable (tag : Tag) (length : U32) = match tag.value {
     // Required Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
-    "cmap" => CharMap,          // Character to glyph mapping
-    "head" => FontHeader,       // Font header
-    "hhea" => HorizontalHeader, // Horizontal header
-    "hmtx" => Unknown,          // Horizontal metrics // TODO: Depends on "hhea"
-    "maxp" => Unknown,          // Maximum profile
-    "name" => Unknown,          // Naming table
-    "OS/2" => Os2,              // OS/2 and Windows specific metrics
-    "post" => PostScript,       // PostScript information
+    "cmap" => CharMap,                  // Character to glyph mapping
+    "head" => FontHeader,               // Font header
+    "hhea" => HorizontalHeader,         // Horizontal header
+    "hmtx" => Unknown,                  // Horizontal metrics // TODO: Depends on "hhea"
+    "maxp" => Unknown,                  // Maximum profile
+    "name" => Unknown,                  // Naming table
+    "OS/2" => Os2,                      // OS/2 and Windows specific metrics
+    "post" => PostScript,               // PostScript information
 
     // Tables Related to TrueType Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
 
-    "cvt " => Unknown,          // Control Value Table (optional table)
-    "fpgm" => Unknown,          // Font program (optional table)
-    "glyf" => Unknown,          // Glyph data
-    "loca" => Unknown,          // Index to location
-    "prep" => Unknown,          // CVT Program (optional table)
-    "gasp" => Unknown,          // Grid-fitting/Scan-conversion (optional table)
+    "cvt " => Unknown,                  // Control Value Table (optional table)
+    "fpgm" => Unknown,                  // Font program (optional table)
+    "glyf" => Unknown,                  // Glyph data
+    "loca" => Unknown,                  // Index to location
+    "prep" => Unknown,                  // CVT Program (optional table)
+    "gasp" => Unknown,                  // Grid-fitting/Scan-conversion (optional table)
 
     // Tables Related to CFF Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
-    "CFF " => Unknown,          // Compact Font Format 1.0
-    "CFF2" => Unknown,          // Compact Font Format 2.0
-    "VORG" => Unknown,          // Vertical Origin (optional table)
+    "CFF " => Unknown,                  // Compact Font Format 1.0
+    "CFF2" => Unknown,                  // Compact Font Format 2.0
+    "VORG" => Unknown,                  // Vertical Origin (optional table)
 
     // Table Related to SVG Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
-    "SVG " => Svg,              // The SVG (Scalable Vector Graphics) table
+    "SVG " => Svg,                      // The SVG (Scalable Vector Graphics) table
 
     // Tables Related to Bitmap Glyphs
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
-    "EBDT" => Unknown,          // Embedded bitmap data
-    "EBLC" => Unknown,          // Embedded bitmap location data
-    "EBSC" => Unknown,          // Embedded bitmap scaling data
-    "CBDT" => Unknown,          // Color bitmap data
-    "CBLC" => Unknown,          // Color bitmap location data
-    "sbix" => Unknown,          // Standard bitmap graphics
+    "EBDT" => Unknown,                  // Embedded bitmap data
+    "EBLC" => Unknown,                  // Embedded bitmap location data
+    "EBSC" => Unknown,                  // Embedded bitmap scaling data
+    "CBDT" => Unknown,                  // Color bitmap data
+    "CBLC" => Unknown,                  // Color bitmap location data
+    "sbix" => Unknown,                  // Standard bitmap graphics
 
     // Advanced Typographic Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
-    "BASE" => Unknown,          // Baseline data
-    "GDEF" => GlyphDef,         // Glyph definition data
-    "GPOS" => GlyphPos,         // Glyph positioning data
-    "GSUB" => GlyphSub,         // Glyph substitution data
-    "JSTF" => Unknown,          // Justification data
-    "MATH" => Unknown,          // Math layout data
+    "BASE" => Unknown,                  // Baseline data
+    "GDEF" => GlyphDef,                 // Glyph definition data
+    "GPOS" => GlyphPos,                 // Glyph positioning data
+    "GSUB" => GlyphSub,                 // Glyph substitution data
+    "JSTF" => Unknown,                  // Justification data
+    "MATH" => Unknown,                  // Math layout data
 
     // Tables used for OpenType Font Variations
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
-    "avar" => Unknown,          // Axis variations
-    "cvar" => Unknown,          // CVT variations (TrueType outlines only)
-    "fvar" => Unknown,          // Font variations
-    "gvar" => Unknown,          // Glyph variations (TrueType outlines only)
-    "HVAR" => Unknown,          // Horizontal metrics variations
-    "MVAR" => Unknown,          // Metrics variations
-    // "STAT" => StyleAttributes,  // Style attributes (required for variable fonts, optional for non-variable fonts)
-    "VVAR" => Unknown,          // Vertical metrics variations
+    "avar" => Unknown,                  // Axis variations
+    "cvar" => Unknown,                  // CVT variations (TrueType outlines only)
+    "fvar" => Unknown,                  // Font variations
+    "gvar" => Unknown,                  // Glyph variations (TrueType outlines only)
+    "HVAR" => Unknown,                  // Horizontal metrics variations
+    "MVAR" => Unknown,                  // Metrics variations
+    // "STAT" => StyleAttributes,          // Style attributes (required for variable fonts, optional for non-variable fonts)
+    "VVAR" => Unknown,                  // Vertical metrics variations
 
     // Tables Related to Color Fonts
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
-    "COLR" => Unknown,          // Color table
-    "CPAL" => Unknown,          // Color palette table
-    // "CBDT" => Unknown,          // Color bitmap data
-    // "CBLC" => Unknown,          // Color bitmap location data
-    // "sbix" => Unknown,          // Standard bitmap graphics
-    // "SVG " => Svg,              // The SVG (Scalable Vector Graphics) table
+    "COLR" => Unknown,                  // Color table
+    "CPAL" => Unknown,                  // Color palette table
+    // "CBDT" => Unknown,                  // Color bitmap data
+    // "CBLC" => Unknown,                  // Color bitmap location data
+    // "sbix" => Unknown,                  // Standard bitmap graphics
+    // "SVG " => Svg,                      // The SVG (Scalable Vector Graphics) table
 
     // Other OpenType Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
-    "DSIG" => DigitalSignature, // Digital signature
-    "hdmx" => Unknown,          // Horizontal device metrics // TODO: Depends on "maxp"
-    "kern" => Unknown,          // Kerning
-    "LTSH" => Unknown,          // Linear threshold data
-    "MERG" => Unknown,          // Merge
-    "meta" => Metadata,         // Metadata
-    "STAT" => StyleAttributes,  // Style attributes
-    "PCLT" => Unknown,          // PCL 5 data
-    "VDMX" => Unknown,          // Vertical device metrics
-    "vhea" => Unknown,          // Vertical Metrics header
-    "vmtx" => Unknown,          // Vertical Metrics
+    "DSIG" => DigitalSignature length,  // Digital signature
+    "hdmx" => Unknown,                  // Horizontal device metrics // TODO: Depends on "maxp"
+    "kern" => Unknown,                  // Kerning
+    "LTSH" => Unknown,                  // Linear threshold data
+    "MERG" => Unknown,                  // Merge
+    "meta" => Metadata,                 // Metadata
+    "STAT" => StyleAttributes,          // Style attributes
+    "PCLT" => Unknown,                  // PCL 5 data
+    "VDMX" => Unknown,                  // Vertical device metrics
+    "vhea" => Unknown,                  // Vertical Metrics header
+    "vmtx" => Unknown,                  // Vertical Metrics
 
     _ => Unknown,
 };
@@ -515,9 +544,23 @@ struct VariationIndex {
 // -----------------------------------------------------------------------------
 
 struct FeatureVariations {
-    // TODO
+    start : Pos,
+    /// Major version of the FeatureVariations table — set to 1.
+    major_version : U16Be,
+    /// Minor version of the FeatureVariations table — set to 0.
+    minor_version : U16Be,
+    /// Number of feature variation records.
+    feature_variation_record_count : U32Be,
+    /// Array of feature variation records.
+    feature_variation_records : Array feature_variation_record_count (FeatureVariationRecord start),
 };
 
+struct FeatureVariationRecord (feature_variations_start : Pos) {
+    /// Offset to a condition set table, from beginning of FeatureVariations table.
+    condition_set_offset : Offset32Be feature_variations_start ConditionSet,
+    /// Offset to a feature table substitution table, from beginning of the FeatureVariations table.
+    feature_table_substitution_offset : Offset32Be feature_variations_start FeatureTableSubstitution,
+};
 
 
 // -----------------------------------------------------------------------------
@@ -526,8 +569,37 @@ struct FeatureVariations {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#conditionset-table>
 // -----------------------------------------------------------------------------
 
-// TODO
+struct ConditionSet {
+    start : Pos,
+    /// Number of conditions for this condition set.
+    condition_count : U16Be,
+    /// Array of offsets to condition tables, from beginning of the ConditionSet table.
+    // TODO: conditions : Array condition_count (Offset32Be start ConditionTableFormat),
+    conditions : Array condition_count (Offset32Be start Unknown),
+};
 
+
+// -----------------------------------------------------------------------------
+// Condition Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#condition-table>
+// -----------------------------------------------------------------------------
+
+// TODO:
+// union ConditionTableFormat {
+//     ConditionTableFormat1,
+// };
+
+struct ConditionTableFormat1 {
+    /// Format, = 1
+    format : U16Be,
+    /// Index (zero-based) for the variation axis within the 'fvar' table.
+    axis_index : U16Be,
+    /// Minimum value of the font variation instances that satisfy this condition.
+    filter_range_min_value : F2Dot14,
+    /// Maximum value of the font variation instances that satisfy this condition.
+    filter_range_max_value : F2Dot14,
+};
 
 
 // -----------------------------------------------------------------------------
@@ -536,7 +608,24 @@ struct FeatureVariations {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#featuretablesubstitution-table>
 // -----------------------------------------------------------------------------
 
-// TODO
+struct FeatureTableSubstitution {
+    start : Pos,
+    /// Major version of the feature table substitution table — set to 1
+    major_version : U16Be,
+    /// Minor version of the feature table substitution table — set to 0.
+    minor_version : U16Be,
+    /// Number of feature table substitution records.
+    substitution_count : U16Be,
+    /// Array of feature table substitution records.
+    substitutions : Array substitution_count (FeatureTableSubstitutionRecord start),
+};
+
+struct FeatureTableSubstitutionRecord (feature_table_substitution_start : Pos) {
+    /// The feature table index to match.
+    feature_index : U16Be,
+    /// Offset to an alternate feature table, from start of the FeatureTableSubstitution table.
+    alternate_feature_table : Offset32Be feature_table_substitution_start Unknown, // TODO
+};
 
 
 
@@ -689,19 +778,18 @@ struct CharMapSubtable4 {
     entry_selector : U16Be,
     /// `2 x seg_count - search_range`
     range_shift : U16Be,
-    // TODO:
-    // /// End characterCode for each segment, `last = 0xFFFF`.
-    // end_count : Array (seg_count_x2 / 2) U16Be,
-    // /// Set to `0`.
-    // reserved_pad : U16Be,
-    // /// Start character code for each segment.
-    // start_count : Array (seg_count_x2 / 2) U16Be,
-    // /// Delta for all character codes in segment.
-    // id_delta : Array (seg_count_x2 / 2) S16Be,
-    // /// Offsets into `glyph_id_array` or 0
-    // id_range_offset : Array (seg_count_x2 / 2) U16Be,
-    // /// Glyph index array (arbitrary length)
-    // glyph_id_array : Array ((length / 2 - 8) - (2 * seg_count_x2)) U16Be,
+    /// End characterCode for each segment, `last = 0xFFFF`.
+    end_count : Array (nat_div seg_count_x2 2) U16Be,
+    /// Set to `0`.
+    reserved_pad : U16Be,
+    /// Start character code for each segment.
+    start_count : Array (nat_div seg_count_x2 2) U16Be,
+    /// Delta for all character codes in segment.
+    id_delta : Array (nat_div seg_count_x2 2) S16Be,
+    /// Offsets into `glyph_id_array` or 0
+    id_range_offset : Array (nat_div seg_count_x2 2) U16Be,
+    /// Glyph index array (arbitrary length)
+    glyph_id_array : Array (nat_sub (nat_sub (nat_div length 2) 8) (nat_mul 2 seg_count_x2)) U16Be,
 };
 
 
@@ -1171,9 +1259,9 @@ struct NamingFormat0 {
     /// Number of name records.
     count : U16Be,
     /// Offset to start of string storage (from start of table).
-    string_offset : Offset16Be start Unknown, // TODO
-    // TODO: name_record : Array count (NameRecord string_offset),
-    name_record : Array count Unknown,
+    string_offset : U16Be,
+    /// The name records where count is the number of records.
+    name_record : Array count (NameRecord start string_offset),
     // TODO:
     // /// Storage for the actual string data.
     // // (Variable),
@@ -1193,10 +1281,9 @@ struct NamingFormat1 {
     /// Number of name records.
     count : U16Be,
     /// Offset to start of string storage (from start of table).
-    string_offset : Offset16Be start Unknown, // TODO
+    string_offset : U16Be,
     /// The name records where count is the number of records.
-    // TODO: name_record : Array count (NameRecord string_offset),
-    name_record : Array count Unknown,
+    name_record : Array count (NameRecord start string_offset),
     /// Number of language-tag records.
     lang_tag_count : U16Be,
     /// The language-tag records where langTagCount is the number of records.
@@ -1207,11 +1294,15 @@ struct NamingFormat1 {
     // // (Variable),
 };
 
-struct LangTagRecord (storage_start : Pos) {
+struct LangTagRecord (naming_start : Pos) (storage_offset : U16) {
     /// Language-tag string length (in bytes)
     length : U16Be,
-    // /// Language-tag string offset from start of storage area (in bytes).
-    offset : Offset16Be storage_start (Array length U8), // TODO: String?
+    /// Language-tag string offset from start of storage area (in bytes).
+    offset : U16Be,
+    /// Language-tag string
+    // TODO: Array->String
+    // TODO: Operators
+    name_pos : OffsetPos naming_start (nat_add storage_offset offset) (Array length U8),
 };
 
 
@@ -1221,7 +1312,7 @@ struct LangTagRecord (storage_start : Pos) {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/name#name-records>
 // -----------------------------------------------------------------------------
 
-struct NameRecord (storage_start : Pos) {
+struct NameRecord (naming_start : Pos) (storage_offset : U16) {
     /// Platform ID.
     platform_id : U16Be,
     /// Platform-specific encoding ID.
@@ -1233,7 +1324,11 @@ struct NameRecord (storage_start : Pos) {
     /// String length (in bytes).
     length : U16Be,
     /// String offset from start of storage area (in bytes).
-    offset : Offset16Be storage_start (Array length U8), // TODO: String?
+    offset : U16Be,
+    /// The computed position of the name
+    // TODO: Array->String
+    // TODO: Operators
+    name_pos : OffsetPos naming_start (nat_add storage_offset offset) (Array length U8),
 };
 
 
@@ -2077,7 +2172,7 @@ struct GlyphSub {
 // =============================================================================
 
 /// DSIG — Digital Signature Table
-struct DigitalSignature {
+struct DigitalSignature (length : U32) {
     start : Pos,
     /// Version number of the DSIG table (0x00000001)
     version : U32Be,
@@ -2217,15 +2312,17 @@ struct DataMap (metadata_start : Pos) {
     /// A tag indicating the type of metadata.
     tag : Tag,
     /// Offset in bytes from the beginning of the metadata table to the data for this tag.
-    data_offset : Offset32Be metadata_start (MetadataInfo tag), // TODO
+    data_offset : U32Be,
     /// Length of the data, in bytes. The data is not required to be padded to any byte boundary.
     data_length : U32Be,
+    /// The metadata information for this tag
+    data_pos : OffsetPos metadata_start data_offset (MetadataInfo tag data_length),
 };
 
 /// Metadata information
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/meta#metadata-tags>
-MetadataInfo (tag : Tag) = match tag.value {
+MetadataInfo (tag : Tag) (length : U32) = match tag.value {
     "appl" => Unknown, // TODO
     "bild" => Unknown, // TODO
     "dlng" => Unknown, // TODO
