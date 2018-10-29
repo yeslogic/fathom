@@ -478,6 +478,44 @@ fn offset_pos_same_pos_different_tys() {
 }
 
 #[test]
+fn reserved() {
+    let mut codemap = CodeMap::new();
+    let tc_env = TcEnv::default();
+    let desugar_env = DesugarEnv::new(tc_env.mappings());
+
+    let given_format = r#"
+        module reserved_test;
+
+        struct Test {
+            reserved : Reserved U32Be,
+        };
+    "#;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(42).unwrap(); // reserved
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&tc_env, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&tc_env, &label("Test"), &module, &mut given_bytes).unwrap(),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (label("reserved"), Value::Struct(Vec::new())),
+            ]),
+        },
+    );
+}
+
+#[test]
 fn parse_bitmap_nested() {
     let mut codemap = CodeMap::new();
     let tc_env = TcEnv::default();

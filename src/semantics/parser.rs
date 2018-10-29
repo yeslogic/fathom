@@ -271,6 +271,12 @@ where
                 return Ok(Value::Pos(offset_pos));
             }
 
+            // Reserved things
+            if let Some(elem_ty) = env.reserved(ty) {
+                parse_term(env, pending, elem_ty, bytes)?;
+                return Ok(Value::Struct(Vec::new()));
+            }
+
             // Parse arrays
             if let Some((len, elem_ty)) = env.array(ty) {
                 return Ok(Value::Array(

@@ -261,6 +261,7 @@ pub struct Globals {
     var_offset64be: FreeVar<String>,
 
     var_array: FreeVar<String>,
+    var_reserved: FreeVar<String>,
     var_offset_pos: FreeVar<String>,
 }
 
@@ -312,6 +313,7 @@ pub trait GlobalEnv: Clone {
     fn offset64be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
 
     fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)>;
+    fn reserved<'a>(&self, ty: &'a RcType) -> Option<&'a RcValue>;
     fn offset_pos<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a BigInt, &'a RcType)>;
 }
 
@@ -432,6 +434,7 @@ impl Default for TcEnv {
         let var_offset64be = FreeVar::fresh_named("Offset64Be");
 
         let var_array = FreeVar::fresh_named("Array");
+        let var_reserved = FreeVar::fresh_named("Reserved");
         let var_offset_pos = FreeVar::fresh_named("OffsetPos");
 
         fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcType {
@@ -494,6 +497,7 @@ impl Default for TcEnv {
                 var_offset64be: var_offset64be.clone(),
 
                 var_array: var_array.clone(),
+                var_reserved: var_reserved.clone(),
                 var_offset_pos: var_offset_pos.clone(),
             }),
             extern_definitions: default_extern_definitions(),
@@ -539,6 +543,10 @@ impl Default for TcEnv {
                 (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
                 universe0.clone(),
             ))),
+        )));
+        let reserved_ty = RcValue::from(Value::Pi(Scope::new(
+            (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
+            universe0.clone(),
         )));
         let offset_pos_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(pos_ty.clone())),
@@ -606,6 +614,7 @@ impl Default for TcEnv {
         tc_env.insert_declaration(var_offset64be, offset_ty_old.clone());
 
         tc_env.insert_declaration(var_array, array_ty);
+        tc_env.insert_declaration(var_reserved, reserved_ty);
         tc_env.insert_declaration(var_offset_pos, offset_pos_ty);
 
         tc_env.insert_declaration(var_unit_ty.clone(), universe0.clone());
@@ -797,6 +806,13 @@ impl GlobalEnv for TcEnv {
                 Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty)),
                 _ => None,
             },
+            _ => None,
+        })
+    }
+
+    fn reserved<'a>(&self, ty: &'a RcType) -> Option<&'a RcValue> {
+        free_var_app(&self.globals.var_reserved, ty).and_then(|spine| match spine {
+            &[ref elem_ty] => Some(elem_ty),
             _ => None,
         })
     }
