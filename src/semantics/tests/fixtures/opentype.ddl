@@ -217,7 +217,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
 
     // Tables Related to Bitmap Glyphs
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
-    "EBDT" => Unknown,                      // Embedded bitmap data
+    "EBDT" => EmbeddedBitmapData,           // Embedded bitmap data // TODO: Depends on "EBLC" table
     "EBLC" => Unknown,                      // Embedded bitmap location data
     "EBSC" => Unknown,                      // Embedded bitmap scaling data
     "CBDT" => Unknown,                      // Color bitmap data
@@ -1873,11 +1873,174 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
 //
 // EBDT - Embedded Bitmap Data Table
 //
-// <https://www.microsoft.com/typography/otspec/ebdt.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt>
 //
 // =============================================================================
 
-// TODO
+struct EmbeddedBitmapData {
+    /// Major version of the EBDT table, = 2.
+    major_version : U16Be,
+    /// Minor version of the EBDT table, = 0.
+    minor_version : U16Be,
+    // TODO: array of GlyphBitmapDataFormat[1-9], based off "EBLC" table
+};
+
+struct BigGlyphMetrics {
+    height : U8,
+    width : U8,
+    horizontal_bearing_x : S8,
+    horizontal_bearing_y : S8,
+    horizontal_advance : U8,
+    vertical_bearing_x : S8,
+    vertical_bearing_y : S8,
+    vertical_advance : U8,
+};
+
+// Note: bearing direction depends on the `flags` field in the `BitmapSize` tables
+// within the EBLC table
+struct SmallGlyphMetrics {
+    height : U8,
+    width : U8,
+    bearing_x : S8,
+    bearing_y : S8,
+    advance : U8,
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 1: small metrics, byte-aligned data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-1-small-metrics-byte-aligned-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat1 {
+    /// Metrics information for the glyph
+    small_metrics : SmallGlyphMetrics,
+    /// Byte-aligned bitmap data
+    image_data : VArray U8, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 2: small metrics, bit-aligned data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-2-small-metrics-bit-aligned-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat2 {
+    /// Metrics information for the glyph
+    small_metrics : SmallGlyphMetrics,
+    /// Bit-aligned bitmap data
+    image_data : VArray U8, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 3: (obsolete)
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-3-obsolete>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat3 {};
+
+
+// -----------------------------------------------------------------------------
+// Format 4: (not supported) metrics in EBLC, compressed data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-4-not-supported-metrics-in-eblc-compressed-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat4 {};
+
+
+// -----------------------------------------------------------------------------
+// Format 5: metrics in EBLC, bit-aligned image data only
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-5-metrics-in-eblc-bit-aligned-image-data-only>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat5 {
+    /// Bit-aligned bitmap data
+    image_data : VArray U8, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 6: big metrics, byte-aligned data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-6-big-metrics-byte-aligned-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat6 {
+    /// Metrics information for the glyph
+    big_metrics : BigGlyphMetrics,
+    /// Byte-aligned bitmap data
+    image_data : VArray U8, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 7: big metrics, bit-aligned data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format7-big-metrics-bit-aligned-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat7 {
+    /// Metrics information for the glyph
+    big_metrics : BigGlyphMetrics,
+    /// Bit-aligned bitmap data
+    image_data : VArray U8, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// EbdtComponent Record
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#ebdtcomponent-record>
+// -----------------------------------------------------------------------------
+
+struct EmbeddedBitmapDataComponent {
+    /// Component glyph ID
+    glyph_id : U16Be,
+    /// Position of component left
+    x_offset : S8,
+    /// Position of component top
+    y_offset : S8,
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 8: small metrics, component data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-8-small-metrics-component-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat8 {
+    /// Metrics information for the glyph
+    small_metrics : SmallGlyphMetrics,
+    /// Pad to 16-bit boundary
+    pad : Reserved U8,
+    /// Number of components
+    num_components : U16Be,
+    /// Array of EmbeddedBitmapDataComponent records
+    components : Array num_components EmbeddedBitmapDataComponent,
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 9: big metrics, component data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-9-big-metrics-component-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat9 {
+    /// Metrics information for the glyph
+    big_metrics : BigGlyphMetrics,
+    /// Number of components
+    num_components : U16Be,
+    /// Array of EmbeddedBitmapDataComponent records
+    components : Array num_components EmbeddedBitmapDataComponent,
+};
 
 
 
