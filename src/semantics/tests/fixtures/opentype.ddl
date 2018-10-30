@@ -198,7 +198,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // Tables Related to TrueType Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
 
-    "cvt " => Unknown,                  // Control Value Table (optional table)
+    "cvt " => ControlValue length,      // Control Value Table (optional table)
     "fpgm" => Unknown,                  // Font program (optional table)
     "glyf" => Unknown,                  // Glyph data // TODO: Depends on `num_glyphs` from "maxp"
     "loca" => Unknown,                  // Index to location
@@ -1501,12 +1501,15 @@ struct PostScript {
 //
 // cvt — Control Value Table
 //
-// <https://www.microsoft.com/typography/otspec/cvt.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cvt>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cvt.html>
 //
 // =============================================================================
 
-// TODO
+struct ControlValue (length : U32) {
+    /// List of values referenceable by instructions.
+    values : Array (nat_div length 2) FWord, // TODO: repeat to length?
+};
 
 
 
