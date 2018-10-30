@@ -186,86 +186,86 @@ struct TtcHeader2 (file_start : Pos) {
 FontTable (tag : Tag) (length : U32) = match tag.value {
     // Required Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
-    "cmap" => CharMap,                  // Character to glyph mapping
-    "head" => FontHeader,               // Font header
-    "hhea" => HorizontalHeader,         // Horizontal header
-    "hmtx" => Unknown,                  // Horizontal metrics // TODO: Depends on `num_glyphs` and `number_of_h_metrics` from "hhea"
-    "maxp" => Unknown,                  // Maximum profile
-    "name" => Unknown,                  // Naming table
-    "OS/2" => Os2,                      // OS/2 and Windows specific metrics
-    "post" => PostScript,               // PostScript information
+    "cmap" => CharMap,                      // Character to glyph mapping
+    "head" => FontHeader,                   // Font header
+    "hhea" => HorizontalHeader,             // Horizontal header
+    "hmtx" => Unknown,                      // Horizontal metrics // TODO: Depends on `num_glyphs` and `number_of_h_metrics` from "hhea"
+    "maxp" => Unknown,                      // Maximum profile // TODO: unions
+    "name" => Unknown,                      // Naming table // TODO: unions
+    "OS/2" => Os2,                          // OS/2 and Windows specific metrics
+    "post" => PostScript,                   // PostScript information
 
     // Tables Related to TrueType Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
 
-    "cvt " => ControlValue length,      // Control Value Table (optional table)
-    "fpgm" => FontProgram length,       // Font program (optional table)
-    "glyf" => Unknown,                  // Glyph data // TODO: Depends on `num_glyphs` from "maxp"
-    "loca" => Unknown,                  // Index to location // TODO: Depends on `num_glyphs` from "maxp", offset to "glyph", `index_to_loc_format` from "head"
-    "prep" => Unknown,                  // CVT Program (optional table)
-    "gasp" => Unknown,                  // Grid-fitting/Scan-conversion (optional table)
+    "cvt " => ControlValue length,          // Control Value Table (optional table)
+    "fpgm" => FontProgram length,           // Font program (optional table)
+    "glyf" => Unknown,                      // Glyph data // TODO: Depends on `num_glyphs` from "maxp"
+    "loca" => Unknown,                      // Index to location // TODO: Depends on `num_glyphs` from "maxp", offset to "glyph", `index_to_loc_format` from "head"
+    "prep" => ControlValueProgram length,   // CVT Program (optional table)
+    "gasp" => Unknown,                      // Grid-fitting/Scan-conversion (optional table)
 
     // Tables Related to CFF Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
-    "CFF " => Unknown,                  // Compact Font Format 1.0
-    "CFF2" => Unknown,                  // Compact Font Format 2.0
-    "VORG" => Unknown,                  // Vertical Origin (optional table)
+    "CFF " => Unknown,                      // Compact Font Format 1.0
+    "CFF2" => Unknown,                      // Compact Font Format 2.0
+    "VORG" => Unknown,                      // Vertical Origin (optional table)
 
     // Table Related to SVG Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
-    "SVG " => Svg,                      // The SVG (Scalable Vector Graphics) table
+    "SVG " => Svg,                          // The SVG (Scalable Vector Graphics) table
 
     // Tables Related to Bitmap Glyphs
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
-    "EBDT" => Unknown,                  // Embedded bitmap data
-    "EBLC" => Unknown,                  // Embedded bitmap location data
-    "EBSC" => Unknown,                  // Embedded bitmap scaling data
-    "CBDT" => Unknown,                  // Color bitmap data
-    "CBLC" => Unknown,                  // Color bitmap location data
-    "sbix" => Unknown,                  // Standard bitmap graphics
+    "EBDT" => Unknown,                      // Embedded bitmap data
+    "EBLC" => Unknown,                      // Embedded bitmap location data
+    "EBSC" => Unknown,                      // Embedded bitmap scaling data
+    "CBDT" => Unknown,                      // Color bitmap data
+    "CBLC" => Unknown,                      // Color bitmap location data
+    "sbix" => Unknown,                      // Standard bitmap graphics
 
     // Advanced Typographic Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
-    "BASE" => Unknown,                  // Baseline data
-    "GDEF" => GlyphDef,                 // Glyph definition data
-    "GPOS" => GlyphPos,                 // Glyph positioning data
-    "GSUB" => GlyphSub,                 // Glyph substitution data
-    "JSTF" => Unknown,                  // Justification data
-    "MATH" => Unknown,                  // Math layout data
+    "BASE" => Unknown,                      // Baseline data
+    "GDEF" => GlyphDef,                     // Glyph definition data
+    "GPOS" => GlyphPos,                     // Glyph positioning data
+    "GSUB" => GlyphSub,                     // Glyph substitution data
+    "JSTF" => Unknown,                      // Justification data
+    "MATH" => Unknown,                      // Math layout data
 
     // Tables used for OpenType Font Variations
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
-    "avar" => Unknown,                  // Axis variations
-    "cvar" => Unknown,                  // CVT variations (TrueType outlines only)
-    "fvar" => Unknown,                  // Font variations
-    "gvar" => Unknown,                  // Glyph variations (TrueType outlines only)
-    "HVAR" => Unknown,                  // Horizontal metrics variations
-    "MVAR" => Unknown,                  // Metrics variations
-    // "STAT" => StyleAttributes,          // Style attributes (required for variable fonts, optional for non-variable fonts)
-    "VVAR" => Unknown,                  // Vertical metrics variations
+    "avar" => Unknown,                      // Axis variations
+    "cvar" => Unknown,                      // CVT variations (TrueType outlines only)
+    "fvar" => Unknown,                      // Font variations
+    "gvar" => Unknown,                      // Glyph variations (TrueType outlines only)
+    "HVAR" => Unknown,                      // Horizontal metrics variations
+    "MVAR" => Unknown,                      // Metrics variations
+    // "STAT" => StyleAttributes,              // Style attributes (required for variable fonts, optional for non-variable fonts)
+    "VVAR" => Unknown,                      // Vertical metrics variations
 
     // Tables Related to Color Fonts
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
-    "COLR" => Unknown,                  // Color table
-    "CPAL" => Unknown,                  // Color palette table
-    // "CBDT" => Unknown,                  // Color bitmap data
-    // "CBLC" => Unknown,                  // Color bitmap location data
-    // "sbix" => Unknown,                  // Standard bitmap graphics
-    // "SVG " => Svg,                      // The SVG (Scalable Vector Graphics) table
+    "COLR" => Unknown,                      // Color table
+    "CPAL" => Unknown,                      // Color palette table
+    // "CBDT" => Unknown,                      // Color bitmap data
+    // "CBLC" => Unknown,                      // Color bitmap location data
+    // "sbix" => Unknown,                      // Standard bitmap graphics
+    // "SVG " => Svg,                          // The SVG (Scalable Vector Graphics) table
 
     // Other OpenType Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
-    "DSIG" => DigitalSignature length,  // Digital signature
-    "hdmx" => Unknown,                  // Horizontal device metrics // TODO: Depends on `num_glyphs` from "maxp"
-    "kern" => Unknown,                  // Kerning
-    "LTSH" => Unknown,                  // Linear threshold data
-    "MERG" => Unknown,                  // Merge
-    "meta" => Metadata,                 // Metadata
-    "STAT" => StyleAttributes,          // Style attributes
-    "PCLT" => Unknown,                  // PCL 5 data
-    "VDMX" => Unknown,                  // Vertical device metrics
-    "vhea" => Unknown,                  // Vertical Metrics header
-    "vmtx" => Unknown,                  // Vertical Metrics
+    "DSIG" => DigitalSignature length,      // Digital signature
+    "hdmx" => Unknown,                      // Horizontal device metrics // TODO: Depends on `num_glyphs` from "maxp"
+    "kern" => Unknown,                      // Kerning
+    "LTSH" => Unknown,                      // Linear threshold data
+    "MERG" => Unknown,                      // Merge
+    "meta" => Metadata,                     // Metadata
+    "STAT" => StyleAttributes,              // Style attributes
+    "PCLT" => Unknown,                      // PCL 5 data
+    "VDMX" => Unknown,                      // Vertical device metrics
+    "vhea" => Unknown,                      // Vertical Metrics header
+    "vmtx" => Unknown,                      // Vertical Metrics
 
     _ => Unknown,
 };
@@ -1722,12 +1722,17 @@ struct IndexToLocation (num_glyphs : U32) (glyph_data_start : Pos) {
 //
 // prep - Control Value Program
 //
-// <https://www.microsoft.com/typography/otspec/prep.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/prep>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6prep.html>
 //
 // =============================================================================
 
-// TODO
+struct ControlValueProgram (length : U32) {
+    /// Set of instructions executed whenever point size or font or transformation change.
+    // TODO: repeat to length?
+    // TODO: constrain U8 by ControlValue table?
+    instructions : Array length U8,
+};
 
 
 
