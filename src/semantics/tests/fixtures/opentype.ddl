@@ -227,9 +227,9 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // Advanced Typographic Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
     "BASE" => Unknown,                      // Baseline data
-    "GDEF" => GlyphDef,                     // Glyph definition data
-    "GPOS" => GlyphPos,                     // Glyph positioning data
-    "GSUB" => GlyphSub,                     // Glyph substitution data
+    "GDEF" => GlyphDefinitionData,          // Glyph definition data
+    "GPOS" => GlyphPositioningData,         // Glyph positioning data
+    "GSUB" => GlyphSubstitutionData,        // Glyph substitution data
     "JSTF" => Unknown,                      // Justification data
     "MATH" => Unknown,                      // Math layout data
 
@@ -2416,7 +2416,7 @@ struct BitmapScale {
 /// GDEF Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader>
-struct GlyphDef {
+struct GlyphDefinitionData {
     start : Pos,
     /// Major version of the GDEF table, = 1
     major_version : U16Be,
@@ -2601,7 +2601,7 @@ struct CaretValueFormat3 {
 /// GPOS Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gpos.htm#header>
-struct GlyphPos {
+struct GlyphPositioningData {
     start : Pos,
     /// Major version of the GPOS table
     major_version : U16Be,
@@ -2640,7 +2640,7 @@ struct GlyphPos {
 /// GSUB Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gsub.htm#header>
-struct GlyphSub {
+struct GlyphSubstitutionData {
     start : Pos,
     /// Major version of the GSUB table
     major_version : U16Be,
