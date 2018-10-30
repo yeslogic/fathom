@@ -201,7 +201,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "cvt " => ControlValue length,      // Control Value Table (optional table)
     "fpgm" => FontProgram length,       // Font program (optional table)
     "glyf" => Unknown,                  // Glyph data // TODO: Depends on `num_glyphs` from "maxp"
-    "loca" => Unknown,                  // Index to location
+    "loca" => Unknown,                  // Index to location // TODO: Depends on `num_glyphs` from "maxp", offset to "glyph", `index_to_loc_format` from "head"
     "prep" => Unknown,                  // CVT Program (optional table)
     "gasp" => Unknown,                  // Grid-fitting/Scan-conversion (optional table)
 
@@ -256,7 +256,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // Other OpenType Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
     "DSIG" => DigitalSignature length,  // Digital signature
-    "hdmx" => Unknown,                  // Horizontal device metrics // TODO: Depends on "maxp"
+    "hdmx" => Unknown,                  // Horizontal device metrics // TODO: Depends on `num_glyphs` from "maxp"
     "kern" => Unknown,                  // Kerning
     "LTSH" => Unknown,                  // Linear threshold data
     "MERG" => Unknown,                  // Merge
@@ -1708,12 +1708,14 @@ struct CompositeGlyph {
 //
 // loca - Index to Location
 //
-// <https://www.microsoft.com/typography/otspec/loca.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/loca>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6loca.html>
 //
 // =============================================================================
 
-// TODO
+struct IndexToLocation (num_glyphs : U32) (glyph_data_start : Pos) {
+    // TODO
+};
 
 
 
