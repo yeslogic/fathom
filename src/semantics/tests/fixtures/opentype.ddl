@@ -199,7 +199,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
 
     "cvt " => ControlValue length,      // Control Value Table (optional table)
-    "fpgm" => Unknown,                  // Font program (optional table)
+    "fpgm" => FontProgram length,       // Font program (optional table)
     "glyf" => Unknown,                  // Glyph data // TODO: Depends on `num_glyphs` from "maxp"
     "loca" => Unknown,                  // Index to location
     "prep" => Unknown,                  // CVT Program (optional table)
@@ -1517,12 +1517,14 @@ struct ControlValue (length : U32) {
 //
 // fpgm - Font Program
 //
-// <https://www.microsoft.com/typography/otspec/fpgm.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/fpgm>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6fpgm.html>
 //
 // =============================================================================
 
-// TODO
+struct FontProgram (length : U32) {
+    instructions : Array length U8, // TODO: repeat to length?
+};
 
 
 
