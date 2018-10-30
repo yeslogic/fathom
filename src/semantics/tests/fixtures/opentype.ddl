@@ -189,7 +189,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "cmap" => CharMap,                  // Character to glyph mapping
     "head" => FontHeader,               // Font header
     "hhea" => HorizontalHeader,         // Horizontal header
-    "hmtx" => Unknown,                  // Horizontal metrics // TODO: Depends on "hhea"
+    "hmtx" => Unknown,                  // Horizontal metrics // TODO: Depends on `num_glyphs` and `number_of_h_metrics` from "hhea"
     "maxp" => Unknown,                  // Maximum profile
     "name" => Unknown,                  // Naming table
     "OS/2" => Os2,                      // OS/2 and Windows specific metrics
@@ -1144,7 +1144,7 @@ struct HorizontalHeader {
 //
 // hmtx - Horizontal Metrics
 //
-// <https://www.microsoft.com/typography/otspec/hmtx.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/hmtx>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html>
 //
 // =============================================================================
@@ -1154,9 +1154,8 @@ struct HorizontalMetrics (num_glyphs : U16) (number_of_h_metrics : U16) {
     /// Paired advance width and left side bearing values for each glyph.
     /// Records are indexed by glyph ID.
     h_metrics : Array number_of_h_metrics LongHorMetric,
-    // TODO:
-    // /// Left side bearings for glyph IDs greater than or equal to `number_of_h_metrics`.
-    // left_side_bearings : Array (num_glyphs - number_of_h_metrics) S16Be,
+    /// Left side bearings for glyph IDs greater than or equal to `number_of_h_metrics`.
+    left_side_bearings : Array (nat_sub num_glyphs number_of_h_metrics) S16Be,
 };
 
 /// <https://www.microsoft.com/typography/otspec/hmtx.htm#lhm>
