@@ -203,7 +203,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "glyf" => Unknown,                      // Glyph data // TODO: Depends on `num_glyphs` from "maxp"
     "loca" => Unknown,                      // Index to location // TODO: Depends on `num_glyphs` from "maxp", offset to "glyph", `index_to_loc_format` from "head"
     "prep" => ControlValueProgram length,   // CVT Program (optional table)
-    "gasp" => Unknown,                      // Grid-fitting/Scan-conversion (optional table)
+    "gasp" => GridFittingScanConversion,    // Grid-fitting/Scan-conversion (optional table)
 
     // Tables Related to CFF Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
@@ -1740,12 +1740,42 @@ struct ControlValueProgram (length : U32) {
 //
 // gasp — Grid-fitting And Scan-conversion Procedure Table
 //
-// <https://www.microsoft.com/typography/otspec/gasp.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gasp>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6gasp.html>
 //
 // =============================================================================
 
-// TODO
+struct GridFittingScanConversion {
+    /// Version number (set to 1)
+    version : U16Be, // TODO
+    /// Number of records to follow
+    num_ranges : U16Be,
+    /// Sorted by ppem
+    gasp_ranges : Array num_ranges GridFittingScanConversionRange,
+};
+
+struct GridFittingScanConversionRange {
+    /// Upper limit of range, in PPEM
+    range_max_ppem : U16Be,
+    /// Flags describing desired rasterizer behavior.
+    range_gasp_behavior : U16Be,
+};
+
+// TODO:
+// enum RangeGridFittingScanConversionBehavior {
+//     /// Use gridfitting
+//     GASP_GRIDFIT = 0x0001,
+//     /// Use grayscale rendering
+//     GASP_DOGRAY = 0x0002,
+//     /// Use gridfitting with ClearType symmetric smoothing
+//     /// Only supported in version 1 'gasp'
+//     GASP_SYMMETRIC_GRIDFIT = 0x0004,
+//     ///  smoothing along multiple axes with ClearType®
+//     /// Only supported in version 1 'gasp'
+//     GASP_SYMMETRIC_SMOOTHING = 0x0008,
+//     /// Reserved flags — set to 0
+//     Reserved = 0xFFF0,
+// };
 
 
 
