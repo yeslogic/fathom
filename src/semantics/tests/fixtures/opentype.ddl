@@ -219,7 +219,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
     "EBDT" => EmbeddedBitmapData,           // Embedded bitmap data // TODO: Depends on "EBLC" table
     "EBLC" => EmbeddedBitmapLocationData,   // Embedded bitmap location data // TODO: Depends on "EBDT" table start position
-    "EBSC" => Unknown,                      // Embedded bitmap scaling data
+    "EBSC" => EmbeddedBitmapScalingData,    // Embedded bitmap scaling data
     "CBDT" => Unknown,                      // Color bitmap data
     "CBLC" => Unknown,                      // Color bitmap location data
     "sbix" => Unknown,                      // Standard bitmap graphics
@@ -2307,12 +2307,43 @@ struct IndexSubTable5 (embedded_bitmap_data_start : Pos) {
 //
 // EBSC - Embedded Bitmap Scaling Table
 //
-// <https://www.microsoft.com/typography/otspec/ebsc.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebsc>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6EBSC.html>
 //
 // =============================================================================
 
-// TODO
+struct EmbeddedBitmapScalingData {
+    /// Major version of the EBSC table, = 2.
+    major_version : U16Be,
+    /// Minor version of the EBSC table, = 0.
+    minor_version : U16Be,
+    /// Number of `BitmapScale` tables
+    num_sizes : U32Be,
+    /// `BitmapScale` table array
+    scales : Array num_sizes BitmapScale,
+};
+
+
+// -----------------------------------------------------------------------------
+// BitmapScale Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebsc#bitmapscale-table>
+// -----------------------------------------------------------------------------
+
+struct BitmapScale {
+    /// line metrics
+    horizontal : ScalarBitmapLineMetrics,
+    /// line metrics
+    vertical : ScalarBitmapLineMetrics,
+    /// target horizontal pixels per Em
+    ppem_x : U8,
+    /// target vertical pixels per Em
+    ppem_y : U8,
+    /// use bitmaps of this size
+    substitute_ppem_x : U8,
+    /// use bitmaps of this size
+    substitute_ppem_y : U8,
+};
 
 
 
