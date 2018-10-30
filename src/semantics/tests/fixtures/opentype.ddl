@@ -218,7 +218,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // Tables Related to Bitmap Glyphs
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
     "EBDT" => EmbeddedBitmapData,           // Embedded bitmap data // TODO: Depends on "EBLC" table
-    "EBLC" => Unknown,                      // Embedded bitmap location data
+    "EBLC" => EmbeddedBitmapLocationData,   // Embedded bitmap location data // TODO: Depends on "EBDT" table start position
     "EBSC" => Unknown,                      // Embedded bitmap scaling data
     "CBDT" => Unknown,                      // Color bitmap data
     "CBLC" => Unknown,                      // Color bitmap location data
@@ -2048,11 +2048,258 @@ struct GlyphBitmapDataFormat9 {
 //
 // EBLC - Embedded Bitmap Location Table
 //
-// <https://www.microsoft.com/typography/otspec/eblc.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc>
 //
 // =============================================================================
 
-// TODO
+struct EmbeddedBitmapLocationData {
+    start : Pos,
+    /// Major version of the EBLC table, = 2.
+    major_version : U16Be,
+    /// Minor version of the EBLC table, = 0.
+    minor_version : U16Be,
+    /// Number of `BitmapSize` tables.
+    num_sizes : U32Be,
+    /// Array of `BitmapSize` tables.
+    bitmap_sizes : Array num_sizes (BitmapSize start),
+};
+
+
+// -----------------------------------------------------------------------------
+// BitmapSize Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#bitmapsize-table>
+// -----------------------------------------------------------------------------
+
+struct BitmapSize (embedded_bitmap_location_start : Pos) {
+    start : Pos,
+    /// Offset to IndexSubtableArray, from beginning of EBLC.
+    index_sub_table_array_offset : Offset32Be embedded_bitmap_location_start (IndexSubtableArray start),
+    /// Number of bytes in corresponding index subtables and array.
+    index_tables_size : U32Be,
+    /// There is an IndexSubtable for each range or format change.
+    number_of_index_sub_tables : U32Be,
+    /// Not used; set to 0.
+    color_ref : U32Be,
+    /// Line metrics for text rendered horizontally.
+    hori : ScalarBitmapLineMetrics,
+    /// Line metrics for text rendered vertically.
+    vert : ScalarBitmapLineMetrics,
+    /// Lowest glyph index for this size.
+    start_glyph_index : U16Be,
+    /// Highest glyph index for this size.
+    end_glyph_index : U16Be,
+    /// Horizontal pixels per em.
+    ppem_x : U8,
+    /// Vertical pixels per em.
+    ppem_y : U8,
+    /// The Microsoft rasterizer v.1.7 or greater supports the following
+    /// `bit_depth` values, as described below: 1, 2, 4, and 8.
+    // TODO: bit_depth : BitDepth,
+    bit_depth : U8,
+    /// Vertical or horizontal (see Bitmap Flags, below).
+    // TODO: flags : BitmapFlags,
+    flags : S8,
+};
+
+
+// -----------------------------------------------------------------------------
+// SbitLineMetrics
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#bitmapsize-table>
+// -----------------------------------------------------------------------------
+
+struct ScalarBitmapLineMetrics {
+    ascender : S8,
+    descender : S8,
+    width_max : U8,
+    caret_slope_numerator : S8,
+    caret_slope_denominator : S8,
+    caret_offset : S8,
+    min_origin_sb : S8,
+    min_advance_sb : S8,
+    max_before_bl : S8,
+    min_after_bl : S8,
+    pad1 : Reserved S8,
+    pad2 : Reserved S8,
+};
+
+
+// -----------------------------------------------------------------------------
+// Bit Depth
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#bit-depth>
+// -----------------------------------------------------------------------------
+
+// TODO:
+// enum BitDepth : U8 {
+//     /// black/white
+//     BLACK_AND_WHITE = 1,
+//     /// 4 levels of gray
+//     GRAYSCALE_4 = 2,
+//     /// 16 levels of gray
+//     GRAYSCALE_16 = 4,
+//     /// 256 levels of gray
+//     GRAYSCALE_256 = 8,
+// };
+
+
+// -----------------------------------------------------------------------------
+// Bitmap Flags
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#bitmap-flags>
+// -----------------------------------------------------------------------------
+
+// TODO:
+// enum BitmapFlags : S8 {
+//     /// Horizontal
+//     HORIZONTAL_METRICS = 0x01,
+//     /// Vertical
+//     VERTICAL_METRICS = 0x02,
+//     /// For future use — set to 0.
+//     Reserved = 0xFC,
+// };
+
+
+// -----------------------------------------------------------------------------
+// BigGlyphMetrics
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#bigglyphmetrics>
+// -----------------------------------------------------------------------------
+
+// NOTE: Already defined with EBDT definitions
+// struct BigGlyphMetrics {
+//     height : U8,
+//     width : U8,
+//     horizontal_bearing_x : S8,
+//     horizontal_bearing_y : S8,
+//     horizontal_advance : U8,
+//     vertical_bearing_x : S8,
+//     vertical_bearing_y : S8,
+//     vertical_advance : U8,
+// };
+
+
+// -----------------------------------------------------------------------------
+// SmallGlyphMetrics
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#smallglyphmetrics>
+// -----------------------------------------------------------------------------
+
+// NOTE: Already defined with EBDT definitions
+// struct SmallGlyphMetrics {
+//     height : U8,
+//     width : U8,
+//     bearing_x : S8,
+//     bearing_y : S8,
+//     advance : U8,
+// };
+
+
+// -----------------------------------------------------------------------------
+// IndexSubTableArray
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#indexsubtablearray>
+// -----------------------------------------------------------------------------
+
+struct IndexSubtableArray (bitmap_size_start : Pos) {
+    /// First glyph ID of this range.
+    first_glyph_index : U16Be,
+    /// Last glyph ID of this range (inclusive).
+    last_glyph_index : U16Be,
+    /// Add to `index_sub_table_array_offset` to get offset from beginning of EBLC.
+    // TODO: additional_offset_to_index_subtable : Offset32Be bitmap_size_start IndexSubTable,
+    additional_offset_to_index_subtable : Offset32Be bitmap_size_start Unknown,
+};
+
+
+// -----------------------------------------------------------------------------
+// IndexSubHeader
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#indexsubheader>
+// -----------------------------------------------------------------------------
+
+struct IndexSubHeader (embedded_bitmap_data_start : Pos) {
+    /// Format of this IndexSubTable.
+    index_format : U16Be,
+    /// Format of EBDT image data.
+    image_format : U16Be,
+    /// Offset to image data in EBDT table.
+    image_data_offset : Offset32Be embedded_bitmap_data_start Unknown, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// IndexSubTables
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#indexsubtables>
+// -----------------------------------------------------------------------------
+
+// TODO:
+// union IndexSubTable {
+//     IndexSubTable1,
+//     IndexSubTable2,
+//     IndexSubTable3,
+//     IndexSubTable4,
+//     IndexSubTable5,
+// };
+
+/// IndexSubTable1: variable-metrics glyphs with 4-byte offsets
+struct IndexSubTable1 (embedded_bitmap_data_start : Pos) {
+    /// Header info.
+    header : IndexSubHeader embedded_bitmap_data_start,
+    /// offsetArray[glyphIndex] + imageDataOffset = glyphData sizeOfArray = (lastGlyph - firstGlyph + 1) + 1 + 1 pad if needed
+    offset_array : VArray U32Be, // TODO: Offset and length?
+};
+
+/// IndexSubTable2: all glyphs have identical metrics
+struct IndexSubTable2 (embedded_bitmap_data_start : Pos) {
+    /// Header info.
+    header : IndexSubHeader embedded_bitmap_data_start,
+    /// All the glyphs are of the same size.
+    image_size : U32Be,
+    /// All glyphs have the same metrics; glyph data may be compressed, byte-aligned, or bit-aligned.
+    big_metrics : BigGlyphMetrics,
+};
+
+/// IndexSubTable3: variable-metrics glyphs with 2-byte offsets
+struct IndexSubTable3 (embedded_bitmap_data_start : Pos) {
+    /// Header info.
+    header : IndexSubHeader embedded_bitmap_data_start,
+    /// offsetArray[glyphIndex] + imageDataOffset = glyphData sizeOfArray = (lastGlyph - firstGlyph + 1) + 1 + 1 pad if needed
+    offset_array : VArray U16Be, // TODO: Offset and length?
+};
+
+/// IndexSubTable4: variable-metrics glyphs with sparse glyph codes
+struct IndexSubTable4 (embedded_bitmap_data_start : Pos) {
+    /// Header info.
+    header : IndexSubHeader embedded_bitmap_data_start,
+    /// Array length.
+    num_glyphs : U32Be,
+    /// One per glyph.
+    glyph_array : Array (nat_add num_glyphs 1) (GlyphIdOffsetPair embedded_bitmap_data_start),
+};
+
+struct GlyphIdOffsetPair (embedded_bitmap_data_start : Pos) {
+    /// Glyph ID of glyph present.
+    glyph_id : U16Be,
+    /// Location in EBDT.
+    offset : Offset16Be embedded_bitmap_data_start Unknown, // TODO
+};
+
+/// IndexSubTable5: constant-metrics glyphs with sparse glyph codes
+struct IndexSubTable5 (embedded_bitmap_data_start : Pos) {
+    /// Header info.
+    header : IndexSubHeader embedded_bitmap_data_start,
+    /// All glyphs have the same data size.
+    image_size : U32Be,
+    /// All glyphs have the same metrics.
+    big_metrics : BigGlyphMetrics,
+    /// Array length.
+    num_glyphs : U32Be,
+    /// One per glyph, sorted by glyph ID.
+    glyph_id_array : Array num_glyphs U16Be,
+};
 
 
 
