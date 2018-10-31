@@ -226,7 +226,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
 
     // Advanced Typographic Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
-    "BASE" => Unknown,                      // Baseline data
+    "BASE" => BaselineData,                 // Baseline data
     "GDEF" => GlyphDefinitionData,          // Glyph definition data
     "GPOS" => GlyphPositioningData,         // Glyph positioning data
     "GSUB" => GlyphSubstitutionData,        // Glyph substitution data
@@ -2392,7 +2392,214 @@ struct BitmapScale {
 //
 // =============================================================================
 
+struct BaselineData {
+    start : Pos,
+    /// Major version of the BASE table, = 1
+    major_version : U16Be,
+    /// Minor version of the BASE table, = 0
+    minor_version : U16Be,
+
+    // FIXME: Proper version switching
+
+    // BASE Header, Version 1.0
+
+    /// Offset to horizontal Axis table, from beginning of BASE table (may be NULL)
+    horizontal_axis_offset : Offset16Be start Axis,
+    /// Offset to vertical Axis table, from beginning of BASE table (may be NULL)
+    vertical_axis_offset : Offset16Be start Axis,
+
+    // BASE Header, Version 1.1
+
+    /// Offset to Item Variation Store table, from beginning of BASE table (may be null)
+    item_var_store_offset : Offset32Be start Unknown, // TODO: font variation common formats
+};
+
+
+// -----------------------------------------------------------------------------
+//
+// Axis Tables: HorizAxis and VertAxis
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#axis-tables-horizaxis-and-vertaxis>
+//
+// -----------------------------------------------------------------------------
+
+struct Axis {
+    start : Pos,
+    /// Offset to BaseTagList table, from beginning of Axis table (may be NULL)
+    base_tag_list_offset : Offset16Be start BaseTagList,
+    /// Offset to BaseScriptList table, from beginning of Axis table
+    base_script_list_offset : Offset16Be start BaseScriptList,
+};
+
+
+// -----------------------------------------------------------------------------
+// BaseTagList Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#basetaglist-table>
+// -----------------------------------------------------------------------------
+
+struct BaseTagList {
+    /// Number of baseline identification tags in this text direction — may be zero (0)
+    base_tag_count : U16Be,
+    /// Array of 4-byte baseline identification tags — must be in alphabetical order
+    baseline_tags : Array base_tag_count Tag, // TODO: alphabetical order
+};
+
+
+// -----------------------------------------------------------------------------
+// BaseScriptList Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#basescriptlist-table>
+// -----------------------------------------------------------------------------
+
+struct BaseScriptList {
+    start : Pos,
+    /// 4-byte script identification tag
+    base_script_tag : Tag,
+    /// Offset to BaseScript table, from beginning of BaseScriptList
+    base_script_offset : Offset16Be start BaseScript,
+};
+
+
+// -----------------------------------------------------------------------------
+// BaseScript Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#basescript-table>
+// -----------------------------------------------------------------------------
+
+struct BaseScript {
+    start : Pos,
+    /// Offset to BaseValues table, from beginning of BaseScript table (may be NULL)
+    base_values_offset : Offset16Be start BaseValues,
+    /// Offset to MinMax table, from beginning of BaseScript table (may be NULL)
+    default_min_max_offset : Offset16Be start MinMax,
+    /// Number of BaseLangSysRecords defined — may be zero (0)
+    base_lang_sys_count : U16Be,
+    /// Array of BaseLangSysRecords, in alphabetical order by BaseLangSysTag
+    base_lang_sys_records : Array base_lang_sys_count (BaseLangSysRecord start), // TODO: alphabetical order
+};
+
+
+// -----------------------------------------------------------------------------
+// BaseLangSysRecord
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#baselangsysrecord>
+// -----------------------------------------------------------------------------
+
+struct BaseLangSysRecord (base_script_start : Pos) {
+    /// 4-byte language system identification tag
+    base_lang_sys_tag : Tag,
+    /// Offset to MinMax table, from beginning of BaseScript table
+    min_max_offset : Offset16Be base_script_start MinMax,
+};
+
+
+// -----------------------------------------------------------------------------
+// BaseValues Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#basevalues-table>
+// -----------------------------------------------------------------------------
+
+struct BaseValues {
+    start : Pos,
+    /// Index number of default baseline for this script — equals index position
+    /// of baseline tag in baselineTags array of the BaseTagList
+    default_baseline_index : U16Be,
+    /// Number of BaseCoord tables defined — should equal baseTagCount in the BaseTagList
+    base_coord_count : U16Be,
+    /// Array of offsets to BaseCoord tables, from beginning of BaseValues table
+    /// — order matches `baseline_tags` array in the BaseTagList
+    base_coords : Array base_coord_count (Offset16Be start BaseCoord), // TODO: order matches `baseline_tags` array
+};
+
+
+// -----------------------------------------------------------------------------
+// MinMax table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#minmax-table>
+// -----------------------------------------------------------------------------
+
+struct MinMax {
+    start : Pos,
+    /// Offset to BaseCoord table that defines the minimum extent value, from
+    /// the beginning of MinMax table (may be NULL)
+    min_coord : Offset16Be start BaseCoord,
+    /// Offset to BaseCoord table that defines maximum extent value, from the
+    /// beginning of MinMax table (may be NULL)
+    max_coord : Offset16Be start BaseCoord,
+    /// Number of FeatMinMaxRecords — may be zero (0)
+    feat_min_max_count : U16Be,
+    /// Array of FeatMinMaxRecords, in alphabetical order by featureTableTag
+    feat_min_max_records : Array feat_min_max_count (FeatMinMaxRecord start), // TODO: alphabetical order
+};
+
+
+// -----------------------------------------------------------------------------
+// FeatMinMaxRecord
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#featminmaxrecord>
+// -----------------------------------------------------------------------------
+
+struct FeatMinMaxRecord (min_max_start : Pos) {
+    /// 4-byte feature identification tag — must match feature tag in FeatureList
+    feature_table_tag : Tag,
+    /// Offset to BaseCoord table that defines the minimum extent value, from
+    /// beginning of MinMax table (may be NULL)
+    min_coord : Offset16Be min_max_start BaseCoord,
+    /// Offset to BaseCoord table that defines the maximum extent value, from
+    /// beginning of MinMax table (may be NULL)
+    max_coord : Offset16Be min_max_start BaseCoord,
+};
+
+
+// -----------------------------------------------------------------------------
+//
+// BaseCoord Tables
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#basecoord-tables>
+//
+// -----------------------------------------------------------------------------
+
+struct BaseCoord {
+    // TODO: unions
+};
+
 // TODO
+// union BaseCoord {
+//     BaseCoordFormat1,
+//     BaseCoordFormat2,
+//     BaseCoordFormat3,
+// };
+
+struct BaseCoordFormat1 {
+    /// Format identifier — format = 1
+    base_coord_format : U16Be,
+    /// X or Y value, in design units
+    coordinate : S16Be,
+};
+
+struct BaseCoordFormat2 {
+    /// Format identifier — format = 2
+    base_coord_format : U16Be,
+    /// X or Y value, in design units
+    coordinate : S16Be,
+    /// Glyph ID of control glyph
+    reference_glyph : U16Be,
+    /// Index of contour point on the reference glyph
+    base_coord_point : U16Be,
+};
+
+struct BaseCoordFormat3 {
+    start : Pos,
+    /// Format identifier — format = 3
+    base_coord_format : U16Be,
+    /// X or Y value, in design units
+    coordinate : S16Be,
+    /// Offset to Device table (non-variable font) / Variation Index table
+    /// (variable font) for X or Y value, from beginning of BaseCoord table
+    /// (may be NULL).
+    device_table : Offset16Be start Device,
+};
 
 
 
