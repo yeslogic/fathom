@@ -972,13 +972,13 @@ struct CharMapSubtable14 {
     var_selector : Array num_var_selector_records (CharMapSubtable14VariationSelector start),
 };
 
-struct CharMapSubtable14VariationSelector (substart : Pos) {
+struct CharMapSubtable14VariationSelector (subtable_start : Pos) {
     /// Variation selector
     var_selector : U24Be,
     /// Offset from the start of the format 14 subtable to Default UVS Table. May be 0.
-    default_uvs_offset : Offset32Be substart DefaultUvs,
+    default_uvs_offset : Offset32Be subtable_start DefaultUvs,
     /// Offset from the start of the format 14 subtable to Non-Default UVS Table. May be 0.
-    non_default_uvs_offset : Offset32Be substart NonDefaultUvs,
+    non_default_uvs_offset : Offset32Be subtable_start NonDefaultUvs,
 };
 
 /// Default UVS table
