@@ -236,7 +236,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // Tables used for OpenType Font Variations
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
     "avar" => AxisVariations,               // Axis variations
-    "cvar" => Unknown,                      // CVT variations (TrueType outlines only)
+    "cvar" => ControlValueVariations,       // CVT variations (TrueType outlines only)
     "fvar" => Unknown,                      // Font variations
     "gvar" => Unknown,                      // Glyph variations (TrueType outlines only)
     "HVAR" => Unknown,                      // Horizontal metrics variations
@@ -3431,7 +3431,19 @@ struct AxisValueMap {
 //
 // =============================================================================
 
-// TODO
+struct ControlValueVariations {
+    start : Pos,
+    /// Major version number of the CVT variations table — set to 1.
+    major_version : U16Be,
+    /// Minor version number of the CVT variations table — set to 0.
+    minor_version : U16Be,
+    /// A packed field. The high 4 bits are flags, and the low 12 bits are the number of tuple-variation data tables. The count can be any number between 1 and 4095.
+    tuple_variation_count : U16Be,
+    /// Offset from the start of the 'cvar' table to the serialized data.
+    data_offset : Offset16Be start Unknown, // TODO: "serialized data"?
+    /// Array of tuple variation headers.
+    tuple_variation_headers : Array tuple_variation_count Unknown, // TODO: TupleVariationHeader
+};
 
 
 
