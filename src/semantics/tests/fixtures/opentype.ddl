@@ -230,7 +230,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "GDEF" => GlyphDefinitionData,          // Glyph definition data
     "GPOS" => GlyphPositioningData,         // Glyph positioning data
     "GSUB" => GlyphSubstitutionData,        // Glyph substitution data
-    "JSTF" => Unknown,                      // Justification data
+    "JSTF" => JustificationData,            // Justification data
     "MATH" => Unknown,                      // Math layout data
 
     // Tables used for OpenType Font Variations
@@ -2881,11 +2881,127 @@ struct GlyphSubstitutionData {
 //
 // JSTF — Justification Table
 //
-// <https://www.microsoft.com/typography/otspec/jstf.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/jstf>
 //
 // =============================================================================
 
-// TODO
+struct JustificationData {
+    start : Pos,
+    /// Major version of the JSTF table, = 1
+    major_version : U16Be,
+    /// Minor version of the JSTF table, = 0
+    minor_version : U16Be,
+    /// Number of JstfScriptRecords in this table
+    justification_script_count : U16Be,
+    /// Array of JustificationScriptRecords, in alphabetical order by
+    /// `justification_script_tag`
+    justification_script_records : Array justification_script_count (JustificationScriptRecord start), // TODO: alphabetical order
+};
+
+struct JustificationScriptRecord (justification_data_start : Pos) {
+    /// 4-byte JustificationScript identification
+    justification_script_tag : Tag,
+    /// Offset to JustificationScript table, from beginning of JSTF Header
+    justification_script_offset : Offset16Be justification_data_start JustificationScript,
+};
+
+struct JustificationScript {
+    start : Pos,
+    /// Offset to ExtenderGlyph table, from beginning of JustificationScript
+    /// table (may be NULL)
+    extender_glyph_offset : Offset16Be start ExtenderGlyph,
+    /// Offset to default JustificationLangSys table, from beginning of
+    /// JustificationScript table (may be NULL)
+    def_justification_lang_sys_offset : Offset16Be start JustificationLangSys,
+    /// Number of JustificationLangSysRecords in this table - may be zero (0)
+    justification_lang_sys_count : U16Be,
+    /// Array of JustificationLangSysRecords, in alphabetical order by
+    /// JustificationLangSysTag
+    justification_lang_sys_records : Array justification_lang_sys_count (JustificationLangSysRecord start), // TODO: alphabetical order
+};
+
+struct JustificationLangSysRecord (justification_script_start : Pos) {
+    /// 4-byte JustificationLangSys identifier
+    justification_lang_sys_tag : Tag,
+    /// Offset to JustificationLangSys table, from beginning of
+    /// JustificationScript table
+    justification_lang_sys_offset : Offset16Be justification_script_start JustificationLangSys,
+};
+
+struct ExtenderGlyph {
+    /// Number of extender glyphs in this script
+    glyph_count : U16Be,
+    /// Extender glyph IDs — in increasing numerical order
+    extender_glyphs : Array glyph_count U16Be, // TODO: numerical order
+};
+
+struct JustificationLangSys {
+    start : Pos,
+    /// Number of JustificationPriority tables
+    justification_priority_count : U16Be,
+    /// Array of offsets to JustificationPriority tables, from beginning of
+    /// JustificationLangSys table, in priority order
+    justification_priority_offsets : Array justification_priority_count (Offset16Be start JustificationPriority), // TODO: priority order
+};
+
+struct JustificationPriority {
+    start : Pos,
+    /// Offset to shrinkage-enable JustificationGlyphPositionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    shrinkage_enable_gsub : Offset16Be start JustificationGlyphPositionModList,
+    /// Offset to shrinkage-disable JustificationGlyphPositionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    shrinkage_disable_gsub : Offset16Be start JustificationGlyphPositionModList,
+    /// Offset to shrinkage-enable JustificationGlyphSubstitutionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    shrinkage_enable_gpos : Offset16Be start JustificationGlyphSubstitutionModList,
+    /// Offset to shrinkage-disable JustificationGlyphSubstitutionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    shrinkage_disable_gpos : Offset16Be start JustificationGlyphSubstitutionModList,
+    /// Offset to shrinkage JustificationMax table, from beginning of
+    /// JustificationPriority table (may be NULL)
+    shrinkage_justification_max : Offset16Be start JustificationMax,
+    /// Offset to extension-enable JustificationGlyphPositionModList table,
+    /// from beginnning of JustificationPriority table (may be NULL)
+    extension_enable_gsub : Offset16Be start JustificationGlyphPositionModList,
+    /// Offset to extension-disable JustificationGlyphPositionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    extension_disable_gsub : Offset16Be start JustificationGlyphPositionModList,
+    /// Offset to extension-enable JustificationGlyphSubstitutionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    extension_enable_gpos : Offset16Be start JustificationGlyphSubstitutionModList,
+    /// Offset to extension-disable JustificationGlyphSubstitutionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    extension_disable_gpos : Offset16Be start JustificationGlyphSubstitutionModList,
+    /// Offset to extension JustificationMax table, from beginning of
+    /// JustificationPriority table (may be NULL)
+    extension_justification_max : Offset16Be start JustificationMax,
+};
+
+struct JustificationGlyphSubstitutionModList {
+    /// Number of lookups for this modification
+    lookup_count : U16Be,
+    /// Array of Lookup indices into the GlyphSubstitution LookupList, in increasing
+    /// numerical order
+    gsub_lookup_indices : Array lookup_count U16Be, // TODO: numerical order
+};
+
+struct JustificationGlyphPositionModList {
+    /// Number of lookups for this modification
+    lookup_count : U16Be,
+    /// Array of Lookup indices into the GlyphPosition LookupList, in increasing
+    /// numerical order
+    gpos_lookup_indices : Array lookup_count U16Be, // TODO: numerical order
+};
+
+struct JustificationMax {
+    start : Pos,
+    /// Number of lookup Indices for this modification
+    lookup_count : U16Be,
+    /// Array of offsets to GPOS-type lookup tables, from beginning of
+    /// JustificationMax table, in design order
+    lookup_offsets : Array lookup_count (Offset16Be start Unknown), // TODO: design order, "GPOS-type lookup tables"???
+};
 
 
 
