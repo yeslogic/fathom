@@ -186,86 +186,86 @@ struct TtcHeader2 (file_start : Pos) {
 FontTable (tag : Tag) (length : U32) = match tag.value {
     // Required Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
-    "cmap" => CharMap,                  // Character to glyph mapping
-    "head" => FontHeader,               // Font header
-    "hhea" => HorizontalHeader,         // Horizontal header
-    "hmtx" => Unknown,                  // Horizontal metrics // TODO: Depends on "hhea"
-    "maxp" => Unknown,                  // Maximum profile
-    "name" => Unknown,                  // Naming table
-    "OS/2" => Os2,                      // OS/2 and Windows specific metrics
-    "post" => PostScript,               // PostScript information
+    "cmap" => CharMap,                      // Character to glyph mapping
+    "head" => FontHeader,                   // Font header
+    "hhea" => HorizontalHeader,             // Horizontal header
+    "hmtx" => Unknown,                      // Horizontal metrics // TODO: Depends on `num_glyphs` and `number_of_h_metrics` from "hhea"
+    "maxp" => Unknown,                      // Maximum profile // TODO: unions
+    "name" => Unknown,                      // Naming table // TODO: unions
+    "OS/2" => Os2,                          // OS/2 and Windows specific metrics
+    "post" => PostScript,                   // PostScript information
 
     // Tables Related to TrueType Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
 
-    "cvt " => Unknown,                  // Control Value Table (optional table)
-    "fpgm" => Unknown,                  // Font program (optional table)
-    "glyf" => Unknown,                  // Glyph data
-    "loca" => Unknown,                  // Index to location
-    "prep" => Unknown,                  // CVT Program (optional table)
-    "gasp" => Unknown,                  // Grid-fitting/Scan-conversion (optional table)
+    "cvt " => ControlValue length,          // Control Value Table (optional table)
+    "fpgm" => FontProgram length,           // Font program (optional table)
+    "glyf" => Unknown,                      // Glyph data // TODO: Depends on `num_glyphs` from "maxp"
+    "loca" => Unknown,                      // Index to location // TODO: Depends on `num_glyphs` from "maxp", offset to "glyph", `index_to_loc_format` from "head"
+    "prep" => ControlValueProgram length,   // CVT Program (optional table)
+    "gasp" => GridFittingScanConversion,    // Grid-fitting/Scan-conversion (optional table)
 
     // Tables Related to CFF Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
-    "CFF " => Unknown,                  // Compact Font Format 1.0
-    "CFF2" => Unknown,                  // Compact Font Format 2.0
-    "VORG" => Unknown,                  // Vertical Origin (optional table)
+    "CFF " => Unknown,                      // Compact Font Format 1.0
+    "CFF2" => Unknown,                      // Compact Font Format 2.0
+    "VORG" => Unknown,                      // Vertical Origin (optional table)
 
     // Table Related to SVG Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
-    "SVG " => Svg,                      // The SVG (Scalable Vector Graphics) table
+    "SVG " => Svg,                          // The SVG (Scalable Vector Graphics) table
 
     // Tables Related to Bitmap Glyphs
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
-    "EBDT" => Unknown,                  // Embedded bitmap data
-    "EBLC" => Unknown,                  // Embedded bitmap location data
-    "EBSC" => Unknown,                  // Embedded bitmap scaling data
-    "CBDT" => Unknown,                  // Color bitmap data
-    "CBLC" => Unknown,                  // Color bitmap location data
-    "sbix" => Unknown,                  // Standard bitmap graphics
+    "EBDT" => EmbeddedBitmapData,           // Embedded bitmap data // TODO: Depends on "EBLC" table
+    "EBLC" => EmbeddedBitmapLocationData,   // Embedded bitmap location data // TODO: Depends on "EBDT" table start position
+    "EBSC" => EmbeddedBitmapScalingData,    // Embedded bitmap scaling data
+    "CBDT" => Unknown,                      // Color bitmap data
+    "CBLC" => Unknown,                      // Color bitmap location data
+    "sbix" => Unknown,                      // Standard bitmap graphics
 
     // Advanced Typographic Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
-    "BASE" => Unknown,                  // Baseline data
-    "GDEF" => GlyphDef,                 // Glyph definition data
-    "GPOS" => GlyphPos,                 // Glyph positioning data
-    "GSUB" => GlyphSub,                 // Glyph substitution data
-    "JSTF" => Unknown,                  // Justification data
-    "MATH" => Unknown,                  // Math layout data
+    "BASE" => BaselineData,                 // Baseline data
+    "GDEF" => GlyphDefinitionData,          // Glyph definition data
+    "GPOS" => GlyphPositioningData,         // Glyph positioning data
+    "GSUB" => GlyphSubstitutionData,        // Glyph substitution data
+    "JSTF" => JustificationData,            // Justification data
+    "MATH" => MathLayoutData,               // Math layout data
 
     // Tables used for OpenType Font Variations
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
-    "avar" => Unknown,                  // Axis variations
-    "cvar" => Unknown,                  // CVT variations (TrueType outlines only)
-    "fvar" => Unknown,                  // Font variations
-    "gvar" => Unknown,                  // Glyph variations (TrueType outlines only)
-    "HVAR" => Unknown,                  // Horizontal metrics variations
-    "MVAR" => Unknown,                  // Metrics variations
-    // "STAT" => StyleAttributes,          // Style attributes (required for variable fonts, optional for non-variable fonts)
-    "VVAR" => Unknown,                  // Vertical metrics variations
+    "avar" => AxisVariations,               // Axis variations
+    "cvar" => ControlValueVariations,       // CVT variations (TrueType outlines only)
+    "fvar" => FontVariations,               // Font variations
+    "gvar" => Unknown,                      // Glyph variations (TrueType outlines only)
+    "HVAR" => Unknown,                      // Horizontal metrics variations
+    "MVAR" => Unknown,                      // Metrics variations
+    // "STAT" => StyleAttributes,              // Style attributes (required for variable fonts, optional for non-variable fonts)
+    "VVAR" => Unknown,                      // Vertical metrics variations
 
     // Tables Related to Color Fonts
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
-    "COLR" => Unknown,                  // Color table
-    "CPAL" => Unknown,                  // Color palette table
-    // "CBDT" => Unknown,                  // Color bitmap data
-    // "CBLC" => Unknown,                  // Color bitmap location data
-    // "sbix" => Unknown,                  // Standard bitmap graphics
-    // "SVG " => Svg,                      // The SVG (Scalable Vector Graphics) table
+    "COLR" => Unknown,                      // Color table
+    "CPAL" => Unknown,                      // Color palette table
+    // "CBDT" => Unknown,                      // Color bitmap data
+    // "CBLC" => Unknown,                      // Color bitmap location data
+    // "sbix" => Unknown,                      // Standard bitmap graphics
+    // "SVG " => Svg,                          // The SVG (Scalable Vector Graphics) table
 
     // Other OpenType Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
-    "DSIG" => DigitalSignature length,  // Digital signature
-    "hdmx" => Unknown,                  // Horizontal device metrics // TODO: Depends on "maxp"
-    "kern" => Unknown,                  // Kerning
-    "LTSH" => Unknown,                  // Linear threshold data
-    "MERG" => Unknown,                  // Merge
-    "meta" => Metadata,                 // Metadata
-    "STAT" => StyleAttributes,          // Style attributes
-    "PCLT" => Unknown,                  // PCL 5 data
-    "VDMX" => Unknown,                  // Vertical device metrics
-    "vhea" => Unknown,                  // Vertical Metrics header
-    "vmtx" => Unknown,                  // Vertical Metrics
+    "DSIG" => DigitalSignature length,      // Digital signature
+    "hdmx" => Unknown,                      // Horizontal device metrics // TODO: Depends on `num_glyphs` from "maxp"
+    "kern" => Unknown,                      // Kerning
+    "LTSH" => Unknown,                      // Linear threshold data
+    "MERG" => Unknown,                      // Merge
+    "meta" => Metadata,                     // Metadata
+    "STAT" => StyleAttributes,              // Style attributes
+    "PCLT" => Unknown,                      // PCL 5 data
+    "VDMX" => Unknown,                      // Vertical device metrics
+    "vhea" => Unknown,                      // Vertical Metrics header
+    "vmtx" => Unknown,                      // Vertical Metrics
 
     _ => Unknown,
 };
@@ -972,13 +972,13 @@ struct CharMapSubtable14 {
     var_selector : Array num_var_selector_records (CharMapSubtable14VariationSelector start),
 };
 
-struct CharMapSubtable14VariationSelector (substart : Pos) {
+struct CharMapSubtable14VariationSelector (subtable_start : Pos) {
     /// Variation selector
     var_selector : U24Be,
     /// Offset from the start of the format 14 subtable to Default UVS Table. May be 0.
-    default_uvs_offset : Offset32Be substart DefaultUvs,
+    default_uvs_offset : Offset32Be subtable_start DefaultUvs,
     /// Offset from the start of the format 14 subtable to Non-Default UVS Table. May be 0.
-    non_default_uvs_offset : Offset32Be substart NonDefaultUvs,
+    non_default_uvs_offset : Offset32Be subtable_start NonDefaultUvs,
 };
 
 /// Default UVS table
@@ -1144,7 +1144,7 @@ struct HorizontalHeader {
 //
 // hmtx - Horizontal Metrics
 //
-// <https://www.microsoft.com/typography/otspec/hmtx.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/hmtx>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html>
 //
 // =============================================================================
@@ -1154,9 +1154,8 @@ struct HorizontalMetrics (num_glyphs : U16) (number_of_h_metrics : U16) {
     /// Paired advance width and left side bearing values for each glyph.
     /// Records are indexed by glyph ID.
     h_metrics : Array number_of_h_metrics LongHorMetric,
-    // TODO:
-    // /// Left side bearings for glyph IDs greater than or equal to `number_of_h_metrics`.
-    // left_side_bearings : Array (num_glyphs - number_of_h_metrics) S16Be,
+    /// Left side bearings for glyph IDs greater than or equal to `number_of_h_metrics`.
+    left_side_bearings : Array (nat_sub num_glyphs number_of_h_metrics) S16Be,
 };
 
 /// <https://www.microsoft.com/typography/otspec/hmtx.htm#lhm>
@@ -1501,12 +1500,15 @@ struct PostScript {
 //
 // cvt — Control Value Table
 //
-// <https://www.microsoft.com/typography/otspec/cvt.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cvt>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cvt.html>
 //
 // =============================================================================
 
-// TODO
+struct ControlValue (length : U32) {
+    /// List of values referenceable by instructions.
+    values : Array (nat_div length 2) FWord, // TODO: repeat to length?
+};
 
 
 
@@ -1514,12 +1516,14 @@ struct PostScript {
 //
 // fpgm - Font Program
 //
-// <https://www.microsoft.com/typography/otspec/fpgm.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/fpgm>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6fpgm.html>
 //
 // =============================================================================
 
-// TODO
+struct FontProgram (length : U32) {
+    instructions : Array length U8, // TODO: repeat to length?
+};
 
 
 
@@ -1527,12 +1531,175 @@ struct PostScript {
 //
 // glyf - Glyf Data
 //
-// <https://www.microsoft.com/typography/otspec/glyf.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/glyf>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html>
 //
 // =============================================================================
 
-// TODO
+struct Glyphs (num_glyphs : U16) {
+    glyphs : Array num_glyphs Glyph,
+};
+
+struct Glyph {
+    /// If the number of contours is greater than or equal to zero, this is a
+    /// simple glyph. If negative, this is a composite glyph — the value -1
+    /// should be used for composite glyphs.
+    number_of_contours : S16Be,
+    /// Minimum x for coordinate data.
+    x_min : S16Be,
+    /// Minimum y for coordinate data.
+    y_min : S16Be,
+    /// Maximum x for coordinate data.
+    x_max : S16Be,
+    /// Maximum y for coordinate data.
+    y_max : S16Be,
+    // TODO: SimpleGlyph or CompositeGlyph depending on `number_of_contours`
+    // description : if number_of_contours >= 0 {
+    //     SimpleGlyph (floor 0 number_of_contours)
+    // } else {
+    //     CompositeGlyph
+    // },
+};
+
+
+// -----------------------------------------------------------------------------
+// Simple Glyph Description
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/glyf#simple-glyph-description>
+// -----------------------------------------------------------------------------
+
+struct SimpleGlyph (number_of_contours : U16) {
+    /// Array of point indices for the last point of each contour, in increasing
+    /// numeric order.
+    end_pts_of_contours : Array number_of_contours U16Be,
+    /// Total number of bytes for instructions. If instruction_length is zero, no
+    /// instructions are present for this glyph, and this field is followed
+    /// directly by the flags field.
+    instruction_length : U16Be,
+    /// Array of instruction byte code for the glyph.
+    instructions : Array instruction_length U8,
+    /// Array of flag elements. See below for details regarding the number of
+    /// flag array elements.
+    flags : VArray U8,
+    // TODO: depends on `flags`
+    // /// Contour point x-coordinates. See below for details regarding the number
+    // /// of coordinate array elements. Coordinate for the first point is relative
+    // /// to (0,0); others are relative to previous point.
+    // x_coordinates : VArray (U8 or S16Be),
+    // /// Contour point y-coordinates. See below for details regarding the number
+    // /// of coordinate array elements. Coordinate for the first point is relative
+    // /// to (0,0); others are relative to previous point.
+    // y_coordinates : VArray (U8 or S16Be),
+};
+
+// enum SimpleGlyphFlags : U8 {
+//     /// Bit 0: If set, the point is on the curve; otherwise, it is off the curve.
+//     ON_CURVE_POINT = 0x01,
+//     /// Bit 1: If set, the corresponding x-coordinate is 1 byte long. If not set,
+//     /// it is two bytes long. For the sign of this value, see the description of
+//     /// the X_IS_SAME_OR_POSITIVE_X_SHORT_VECTOR flag.
+//     X_SHORT_VECTOR = 0x02,
+//     /// Bit 2: If set, the corresponding y-coordinate is 1 byte long. If not set,
+//     /// it is two bytes long. For the sign of this value, see the description of
+//     /// the Y_IS_SAME_OR_POSITIVE_Y_SHORT_VECTOR flag.
+//     Y_SHORT_VECTOR = 0x04,
+//     /// Bit 3: If set, the next byte (read as unsigned) specifies the number of
+//     /// additional times this flag byte is to be repeated in the logical flags
+//     /// array — that is, the number of additional logical flag entries inserted
+//     /// after this entry. (In the expanded logical array, this bit is ignored.)
+//     /// In this way, the number of flags listed can be smaller than the number
+//     /// of points in the glyph description.
+//     REPEAT_FLAG = 0x08,
+//     /// Bit 4: This flag has two meanings, depending on how the X_SHORT_VECTOR
+//     /// flag is set. If X_SHORT_VECTOR is set, this bit describes the sign of
+//     /// the value, with 1 equalling positive and 0 negative. If X_SHORT_VECTOR
+//     /// is not set and this bit is set, then the current x-coordinate is the
+//     /// same as the previous x-coordinate. If X_SHORT_VECTOR is not set and this
+//     /// bit is also not set, the current x-coordinate is a signed 16-bit delta
+//     /// vector.
+//     X_IS_SAME_OR_POSITIVE_X_SHORT_VECTOR = 0x10,
+//     /// Bit 5: This flag has two meanings, depending on how the Y_SHORT_VECTOR
+//     /// flag is set. If Y_SHORT_VECTOR is set, this bit describes the sign of
+//     /// the value, with 1 equalling positive and 0 negative. If Y_SHORT_VECTOR
+//     /// is not set and this bit is set, then the current y-coordinate is the
+//     /// same as the previous y-coordinate. If Y_SHORT_VECTOR is not set and this
+//     /// bit is also not set, the current y-coordinate is a signed 16-bit delta
+//     /// vector.
+//     Y_IS_SAME_OR_POSITIVE_Y_SHORT_VECTOR = 0x20,
+//     /// Bit 6: If set, contours in the glyph description may overlap. Use of
+//     /// this flag is not required in OpenType — that is, it is valid to have
+//     /// contours overlap without having this flag set. It may affect behaviors
+//     /// in some platforms, however. (See the discussion of “Overlapping
+//     /// contours” in Apple’s specification for details regarding behavior in
+//     /// Apple platforms.) When used, it must be set on the first flag byte for
+//     /// the glyph. See additional details below.
+//     OVERLAP_SIMPLE = 0x40,
+//     /// Bit 7 is reserved: set to zero.
+//     Reserved = 0x80,
+// };
+
+
+// -----------------------------------------------------------------------------
+// Composite Glyph Description
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/glyf#composite-glyph-description>
+// -----------------------------------------------------------------------------
+
+struct CompositeGlyph {
+    /// component flag
+    flags : U16Be,
+    /// glyph index of component
+    glyph_index : U16Be,
+    // TODO: depends on `flags`
+    // /// x-offset for component or point number; type depends on bits 0 and 1 in component flags
+    // argument1 : U8, S8, U16Be or S16Be,
+    // /// y-offset for component or point number; type depends on bits 0 and 1 in component flags
+    // argument2 : U8, S8, U16Be or S16Be,
+};
+
+// TODO:
+// enum CompositeGlyphFlags : U16 {
+//     /// Bit 0: If this is set, the arguments are 16-bit (uint16 or int16);
+//     /// otherwise, they are bytes (uint8 or int8).
+//     ARG_1_AND_2_ARE_WORDS = 0x0001,
+//     /// Bit 1: If this is set, the arguments are signed xy values; otherwise,
+//     /// they are unsigned point numbers.
+//     ARGS_ARE_XY_VALUES = 0x0002,
+//     /// Bit 2: For the xy values if the preceding is true.
+//     ROUND_XY_TO_GRID = 0x0004,
+//     /// Bit 3: This indicates that there is a simple scale for the component.
+//     /// Otherwise, scale = 1.0.
+//     WE_HAVE_A_SCALE = 0x0008,
+//     /// Bit 5: Indicates at least one more glyph after this one.
+//     MORE_COMPONENTS = 0x0020,
+//     /// Bit 6: The x direction will use a different scale from the y direction.
+//     WE_HAVE_AN_X_AND_Y_SCALE = 0x0040,
+//     /// Bit 7: There is a 2 by 2 transformation that will be used to scale the
+//     /// component.
+//     WE_HAVE_A_TWO_BY_TWO = 0x0080,
+//     /// Bit 8: Following the last component are instructions for the composite
+//     /// character.
+//     WE_HAVE_INSTRUCTIONS = 0x0100,
+//     /// Bit 9: If set, this forces the aw and lsb (and rsb) for the composite to
+//     /// be equal to those from this original glyph. This works for hinted and
+//     /// unhinted characters.
+//     USE_MY_METRICS = 0x0200,
+//     /// Bit 10: If set, the components of the compound glyph overlap. Use of
+//     /// this flag is not required in OpenType — that is, it is valid to have
+//     /// components overlap without having this flag set. It may affect behaviors
+//     /// in some platforms, however. (See Apple’s specification for details
+//     /// regarding behavior in Apple platforms.) When used, it must be set on the
+//     /// flag word for the first component. See additional remarks, above, for
+//     /// the similar OVERLAP_SIMPLE flag used in simple-glyph descriptions.
+//     OVERLAP_COMPOUND = 0x0400,
+//     /// Bit 11: The composite is designed to have the component offset scaled.
+//     SCALED_COMPONENT_OFFSET = 0x0800,
+//     /// Bit 12: The composite is designed not to have the component offset
+//     /// scaled.
+//     UNSCALED_COMPONENT_OFFSET = 0x1000,
+//     /// Bits 4, 13, 14 and 15 are reserved: set to 0.
+//     Reserved = 0xE010,
+// };
 
 
 
@@ -1540,12 +1707,14 @@ struct PostScript {
 //
 // loca - Index to Location
 //
-// <https://www.microsoft.com/typography/otspec/loca.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/loca>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6loca.html>
 //
 // =============================================================================
 
-// TODO
+struct IndexToLocation (num_glyphs : U32) (glyph_data_start : Pos) {
+    // TODO
+};
 
 
 
@@ -1553,12 +1722,17 @@ struct PostScript {
 //
 // prep - Control Value Program
 //
-// <https://www.microsoft.com/typography/otspec/prep.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/prep>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6prep.html>
 //
 // =============================================================================
 
-// TODO
+struct ControlValueProgram (length : U32) {
+    /// Set of instructions executed whenever point size or font or transformation change.
+    // TODO: repeat to length?
+    // TODO: constrain U8 by ControlValue table?
+    instructions : Array length U8,
+};
 
 
 
@@ -1566,12 +1740,42 @@ struct PostScript {
 //
 // gasp — Grid-fitting And Scan-conversion Procedure Table
 //
-// <https://www.microsoft.com/typography/otspec/gasp.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gasp>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6gasp.html>
 //
 // =============================================================================
 
-// TODO
+struct GridFittingScanConversion {
+    /// Version number (set to 1)
+    version : U16Be, // TODO
+    /// Number of records to follow
+    num_ranges : U16Be,
+    /// Sorted by ppem
+    gasp_ranges : Array num_ranges GridFittingScanConversionRange,
+};
+
+struct GridFittingScanConversionRange {
+    /// Upper limit of range, in PPEM
+    range_max_ppem : U16Be,
+    /// Flags describing desired rasterizer behavior.
+    range_gasp_behavior : U16Be,
+};
+
+// TODO:
+// enum RangeGridFittingScanConversionBehavior {
+//     /// Use gridfitting
+//     GASP_GRIDFIT = 0x0001,
+//     /// Use grayscale rendering
+//     GASP_DOGRAY = 0x0002,
+//     /// Use gridfitting with ClearType symmetric smoothing
+//     /// Only supported in version 1 'gasp'
+//     GASP_SYMMETRIC_GRIDFIT = 0x0004,
+//     ///  smoothing along multiple axes with ClearType®
+//     /// Only supported in version 1 'gasp'
+//     GASP_SYMMETRIC_SMOOTHING = 0x0008,
+//     /// Reserved flags — set to 0
+//     Reserved = 0xFFF0,
+// };
 
 
 
@@ -1669,11 +1873,174 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
 //
 // EBDT - Embedded Bitmap Data Table
 //
-// <https://www.microsoft.com/typography/otspec/ebdt.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt>
 //
 // =============================================================================
 
-// TODO
+struct EmbeddedBitmapData {
+    /// Major version of the EBDT table, = 2.
+    major_version : U16Be,
+    /// Minor version of the EBDT table, = 0.
+    minor_version : U16Be,
+    // TODO: array of GlyphBitmapDataFormat[1-9], based off "EBLC" table
+};
+
+struct BigGlyphMetrics {
+    height : U8,
+    width : U8,
+    horizontal_bearing_x : S8,
+    horizontal_bearing_y : S8,
+    horizontal_advance : U8,
+    vertical_bearing_x : S8,
+    vertical_bearing_y : S8,
+    vertical_advance : U8,
+};
+
+// Note: bearing direction depends on the `flags` field in the `BitmapSize` tables
+// within the EBLC table
+struct SmallGlyphMetrics {
+    height : U8,
+    width : U8,
+    bearing_x : S8,
+    bearing_y : S8,
+    advance : U8,
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 1: small metrics, byte-aligned data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-1-small-metrics-byte-aligned-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat1 {
+    /// Metrics information for the glyph
+    small_metrics : SmallGlyphMetrics,
+    /// Byte-aligned bitmap data
+    image_data : VArray U8, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 2: small metrics, bit-aligned data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-2-small-metrics-bit-aligned-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat2 {
+    /// Metrics information for the glyph
+    small_metrics : SmallGlyphMetrics,
+    /// Bit-aligned bitmap data
+    image_data : VArray U8, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 3: (obsolete)
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-3-obsolete>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat3 {};
+
+
+// -----------------------------------------------------------------------------
+// Format 4: (not supported) metrics in EBLC, compressed data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-4-not-supported-metrics-in-eblc-compressed-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat4 {};
+
+
+// -----------------------------------------------------------------------------
+// Format 5: metrics in EBLC, bit-aligned image data only
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-5-metrics-in-eblc-bit-aligned-image-data-only>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat5 {
+    /// Bit-aligned bitmap data
+    image_data : VArray U8, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 6: big metrics, byte-aligned data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-6-big-metrics-byte-aligned-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat6 {
+    /// Metrics information for the glyph
+    big_metrics : BigGlyphMetrics,
+    /// Byte-aligned bitmap data
+    image_data : VArray U8, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 7: big metrics, bit-aligned data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format7-big-metrics-bit-aligned-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat7 {
+    /// Metrics information for the glyph
+    big_metrics : BigGlyphMetrics,
+    /// Bit-aligned bitmap data
+    image_data : VArray U8, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// EbdtComponent Record
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#ebdtcomponent-record>
+// -----------------------------------------------------------------------------
+
+struct EmbeddedBitmapDataComponent {
+    /// Component glyph ID
+    glyph_id : U16Be,
+    /// Position of component left
+    x_offset : S8,
+    /// Position of component top
+    y_offset : S8,
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 8: small metrics, component data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-8-small-metrics-component-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat8 {
+    /// Metrics information for the glyph
+    small_metrics : SmallGlyphMetrics,
+    /// Pad to 16-bit boundary
+    pad : Reserved U8,
+    /// Number of components
+    num_components : U16Be,
+    /// Array of EmbeddedBitmapDataComponent records
+    components : Array num_components EmbeddedBitmapDataComponent,
+};
+
+
+// -----------------------------------------------------------------------------
+// Format 9: big metrics, component data
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebdt#format-9-big-metrics-component-data>
+// -----------------------------------------------------------------------------
+
+struct GlyphBitmapDataFormat9 {
+    /// Metrics information for the glyph
+    big_metrics : BigGlyphMetrics,
+    /// Number of components
+    num_components : U16Be,
+    /// Array of EmbeddedBitmapDataComponent records
+    components : Array num_components EmbeddedBitmapDataComponent,
+};
 
 
 
@@ -1681,11 +2048,258 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
 //
 // EBLC - Embedded Bitmap Location Table
 //
-// <https://www.microsoft.com/typography/otspec/eblc.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc>
 //
 // =============================================================================
 
-// TODO
+struct EmbeddedBitmapLocationData {
+    start : Pos,
+    /// Major version of the EBLC table, = 2.
+    major_version : U16Be,
+    /// Minor version of the EBLC table, = 0.
+    minor_version : U16Be,
+    /// Number of `BitmapSize` tables.
+    num_sizes : U32Be,
+    /// Array of `BitmapSize` tables.
+    bitmap_sizes : Array num_sizes (BitmapSize start),
+};
+
+
+// -----------------------------------------------------------------------------
+// BitmapSize Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#bitmapsize-table>
+// -----------------------------------------------------------------------------
+
+struct BitmapSize (embedded_bitmap_location_start : Pos) {
+    start : Pos,
+    /// Offset to IndexSubtableArray, from beginning of EBLC.
+    index_sub_table_array_offset : Offset32Be embedded_bitmap_location_start (IndexSubtableArray start),
+    /// Number of bytes in corresponding index subtables and array.
+    index_tables_size : U32Be,
+    /// There is an IndexSubtable for each range or format change.
+    number_of_index_sub_tables : U32Be,
+    /// Not used; set to 0.
+    color_ref : U32Be,
+    /// Line metrics for text rendered horizontally.
+    hori : ScalarBitmapLineMetrics,
+    /// Line metrics for text rendered vertically.
+    vert : ScalarBitmapLineMetrics,
+    /// Lowest glyph index for this size.
+    start_glyph_index : U16Be,
+    /// Highest glyph index for this size.
+    end_glyph_index : U16Be,
+    /// Horizontal pixels per em.
+    ppem_x : U8,
+    /// Vertical pixels per em.
+    ppem_y : U8,
+    /// The Microsoft rasterizer v.1.7 or greater supports the following
+    /// `bit_depth` values, as described below: 1, 2, 4, and 8.
+    // TODO: bit_depth : BitDepth,
+    bit_depth : U8,
+    /// Vertical or horizontal (see Bitmap Flags, below).
+    // TODO: flags : BitmapFlags,
+    flags : S8,
+};
+
+
+// -----------------------------------------------------------------------------
+// SbitLineMetrics
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#bitmapsize-table>
+// -----------------------------------------------------------------------------
+
+struct ScalarBitmapLineMetrics {
+    ascender : S8,
+    descender : S8,
+    width_max : U8,
+    caret_slope_numerator : S8,
+    caret_slope_denominator : S8,
+    caret_offset : S8,
+    min_origin_sb : S8,
+    min_advance_sb : S8,
+    max_before_bl : S8,
+    min_after_bl : S8,
+    pad1 : Reserved S8,
+    pad2 : Reserved S8,
+};
+
+
+// -----------------------------------------------------------------------------
+// Bit Depth
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#bit-depth>
+// -----------------------------------------------------------------------------
+
+// TODO:
+// enum BitDepth : U8 {
+//     /// black/white
+//     BLACK_AND_WHITE = 1,
+//     /// 4 levels of gray
+//     GRAYSCALE_4 = 2,
+//     /// 16 levels of gray
+//     GRAYSCALE_16 = 4,
+//     /// 256 levels of gray
+//     GRAYSCALE_256 = 8,
+// };
+
+
+// -----------------------------------------------------------------------------
+// Bitmap Flags
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#bitmap-flags>
+// -----------------------------------------------------------------------------
+
+// TODO:
+// enum BitmapFlags : S8 {
+//     /// Horizontal
+//     HORIZONTAL_METRICS = 0x01,
+//     /// Vertical
+//     VERTICAL_METRICS = 0x02,
+//     /// For future use — set to 0.
+//     Reserved = 0xFC,
+// };
+
+
+// -----------------------------------------------------------------------------
+// BigGlyphMetrics
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#bigglyphmetrics>
+// -----------------------------------------------------------------------------
+
+// NOTE: Already defined with EBDT definitions
+// struct BigGlyphMetrics {
+//     height : U8,
+//     width : U8,
+//     horizontal_bearing_x : S8,
+//     horizontal_bearing_y : S8,
+//     horizontal_advance : U8,
+//     vertical_bearing_x : S8,
+//     vertical_bearing_y : S8,
+//     vertical_advance : U8,
+// };
+
+
+// -----------------------------------------------------------------------------
+// SmallGlyphMetrics
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#smallglyphmetrics>
+// -----------------------------------------------------------------------------
+
+// NOTE: Already defined with EBDT definitions
+// struct SmallGlyphMetrics {
+//     height : U8,
+//     width : U8,
+//     bearing_x : S8,
+//     bearing_y : S8,
+//     advance : U8,
+// };
+
+
+// -----------------------------------------------------------------------------
+// IndexSubTableArray
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#indexsubtablearray>
+// -----------------------------------------------------------------------------
+
+struct IndexSubtableArray (bitmap_size_start : Pos) {
+    /// First glyph ID of this range.
+    first_glyph_index : U16Be,
+    /// Last glyph ID of this range (inclusive).
+    last_glyph_index : U16Be,
+    /// Add to `index_sub_table_array_offset` to get offset from beginning of EBLC.
+    // TODO: additional_offset_to_index_subtable : Offset32Be bitmap_size_start IndexSubTable,
+    additional_offset_to_index_subtable : Offset32Be bitmap_size_start Unknown,
+};
+
+
+// -----------------------------------------------------------------------------
+// IndexSubHeader
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#indexsubheader>
+// -----------------------------------------------------------------------------
+
+struct IndexSubHeader (embedded_bitmap_data_start : Pos) {
+    /// Format of this IndexSubTable.
+    index_format : U16Be,
+    /// Format of EBDT image data.
+    image_format : U16Be,
+    /// Offset to image data in EBDT table.
+    image_data_offset : Offset32Be embedded_bitmap_data_start Unknown, // TODO
+};
+
+
+// -----------------------------------------------------------------------------
+// IndexSubTables
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#indexsubtables>
+// -----------------------------------------------------------------------------
+
+// TODO:
+// union IndexSubTable {
+//     IndexSubTable1,
+//     IndexSubTable2,
+//     IndexSubTable3,
+//     IndexSubTable4,
+//     IndexSubTable5,
+// };
+
+/// IndexSubTable1: variable-metrics glyphs with 4-byte offsets
+struct IndexSubTable1 (embedded_bitmap_data_start : Pos) {
+    /// Header info.
+    header : IndexSubHeader embedded_bitmap_data_start,
+    /// offsetArray[glyphIndex] + imageDataOffset = glyphData sizeOfArray = (lastGlyph - firstGlyph + 1) + 1 + 1 pad if needed
+    offset_array : VArray U32Be, // TODO: Offset and length?
+};
+
+/// IndexSubTable2: all glyphs have identical metrics
+struct IndexSubTable2 (embedded_bitmap_data_start : Pos) {
+    /// Header info.
+    header : IndexSubHeader embedded_bitmap_data_start,
+    /// All the glyphs are of the same size.
+    image_size : U32Be,
+    /// All glyphs have the same metrics; glyph data may be compressed, byte-aligned, or bit-aligned.
+    big_metrics : BigGlyphMetrics,
+};
+
+/// IndexSubTable3: variable-metrics glyphs with 2-byte offsets
+struct IndexSubTable3 (embedded_bitmap_data_start : Pos) {
+    /// Header info.
+    header : IndexSubHeader embedded_bitmap_data_start,
+    /// offsetArray[glyphIndex] + imageDataOffset = glyphData sizeOfArray = (lastGlyph - firstGlyph + 1) + 1 + 1 pad if needed
+    offset_array : VArray U16Be, // TODO: Offset and length?
+};
+
+/// IndexSubTable4: variable-metrics glyphs with sparse glyph codes
+struct IndexSubTable4 (embedded_bitmap_data_start : Pos) {
+    /// Header info.
+    header : IndexSubHeader embedded_bitmap_data_start,
+    /// Array length.
+    num_glyphs : U32Be,
+    /// One per glyph.
+    glyph_array : Array (nat_add num_glyphs 1) (GlyphIdOffsetPair embedded_bitmap_data_start),
+};
+
+struct GlyphIdOffsetPair (embedded_bitmap_data_start : Pos) {
+    /// Glyph ID of glyph present.
+    glyph_id : U16Be,
+    /// Location in EBDT.
+    offset : Offset16Be embedded_bitmap_data_start Unknown, // TODO
+};
+
+/// IndexSubTable5: constant-metrics glyphs with sparse glyph codes
+struct IndexSubTable5 (embedded_bitmap_data_start : Pos) {
+    /// Header info.
+    header : IndexSubHeader embedded_bitmap_data_start,
+    /// All glyphs have the same data size.
+    image_size : U32Be,
+    /// All glyphs have the same metrics.
+    big_metrics : BigGlyphMetrics,
+    /// Array length.
+    num_glyphs : U32Be,
+    /// One per glyph, sorted by glyph ID.
+    glyph_id_array : Array num_glyphs U16Be,
+};
 
 
 
@@ -1693,12 +2307,43 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
 //
 // EBSC - Embedded Bitmap Scaling Table
 //
-// <https://www.microsoft.com/typography/otspec/ebsc.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebsc>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6EBSC.html>
 //
 // =============================================================================
 
-// TODO
+struct EmbeddedBitmapScalingData {
+    /// Major version of the EBSC table, = 2.
+    major_version : U16Be,
+    /// Minor version of the EBSC table, = 0.
+    minor_version : U16Be,
+    /// Number of `BitmapScale` tables
+    num_sizes : U32Be,
+    /// `BitmapScale` table array
+    scales : Array num_sizes BitmapScale,
+};
+
+
+// -----------------------------------------------------------------------------
+// BitmapScale Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ebsc#bitmapscale-table>
+// -----------------------------------------------------------------------------
+
+struct BitmapScale {
+    /// line metrics
+    horizontal : ScalarBitmapLineMetrics,
+    /// line metrics
+    vertical : ScalarBitmapLineMetrics,
+    /// target horizontal pixels per Em
+    ppem_x : U8,
+    /// target vertical pixels per Em
+    ppem_y : U8,
+    /// use bitmaps of this size
+    substitute_ppem_x : U8,
+    /// use bitmaps of this size
+    substitute_ppem_y : U8,
+};
 
 
 
@@ -1747,7 +2392,214 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
 //
 // =============================================================================
 
+struct BaselineData {
+    start : Pos,
+    /// Major version of the BASE table, = 1
+    major_version : U16Be,
+    /// Minor version of the BASE table, = 0
+    minor_version : U16Be,
+
+    // FIXME: Proper version switching
+
+    // BASE Header, Version 1.0
+
+    /// Offset to horizontal Axis table, from beginning of BASE table (may be NULL)
+    horizontal_axis_offset : Offset16Be start Axis,
+    /// Offset to vertical Axis table, from beginning of BASE table (may be NULL)
+    vertical_axis_offset : Offset16Be start Axis,
+
+    // BASE Header, Version 1.1
+
+    /// Offset to Item Variation Store table, from beginning of BASE table (may be null)
+    item_var_store_offset : Offset32Be start Unknown, // TODO: font variation common formats
+};
+
+
+// -----------------------------------------------------------------------------
+//
+// Axis Tables: HorizAxis and VertAxis
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#axis-tables-horizaxis-and-vertaxis>
+//
+// -----------------------------------------------------------------------------
+
+struct Axis {
+    start : Pos,
+    /// Offset to BaseTagList table, from beginning of Axis table (may be NULL)
+    base_tag_list_offset : Offset16Be start BaseTagList,
+    /// Offset to BaseScriptList table, from beginning of Axis table
+    base_script_list_offset : Offset16Be start BaseScriptList,
+};
+
+
+// -----------------------------------------------------------------------------
+// BaseTagList Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#basetaglist-table>
+// -----------------------------------------------------------------------------
+
+struct BaseTagList {
+    /// Number of baseline identification tags in this text direction — may be zero (0)
+    base_tag_count : U16Be,
+    /// Array of 4-byte baseline identification tags — must be in alphabetical order
+    baseline_tags : Array base_tag_count Tag, // TODO: alphabetical order
+};
+
+
+// -----------------------------------------------------------------------------
+// BaseScriptList Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#basescriptlist-table>
+// -----------------------------------------------------------------------------
+
+struct BaseScriptList {
+    start : Pos,
+    /// 4-byte script identification tag
+    base_script_tag : Tag,
+    /// Offset to BaseScript table, from beginning of BaseScriptList
+    base_script_offset : Offset16Be start BaseScript,
+};
+
+
+// -----------------------------------------------------------------------------
+// BaseScript Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#basescript-table>
+// -----------------------------------------------------------------------------
+
+struct BaseScript {
+    start : Pos,
+    /// Offset to BaseValues table, from beginning of BaseScript table (may be NULL)
+    base_values_offset : Offset16Be start BaseValues,
+    /// Offset to MinMax table, from beginning of BaseScript table (may be NULL)
+    default_min_max_offset : Offset16Be start MinMax,
+    /// Number of BaseLangSysRecords defined — may be zero (0)
+    base_lang_sys_count : U16Be,
+    /// Array of BaseLangSysRecords, in alphabetical order by BaseLangSysTag
+    base_lang_sys_records : Array base_lang_sys_count (BaseLangSysRecord start), // TODO: alphabetical order
+};
+
+
+// -----------------------------------------------------------------------------
+// BaseLangSysRecord
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#baselangsysrecord>
+// -----------------------------------------------------------------------------
+
+struct BaseLangSysRecord (base_script_start : Pos) {
+    /// 4-byte language system identification tag
+    base_lang_sys_tag : Tag,
+    /// Offset to MinMax table, from beginning of BaseScript table
+    min_max_offset : Offset16Be base_script_start MinMax,
+};
+
+
+// -----------------------------------------------------------------------------
+// BaseValues Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#basevalues-table>
+// -----------------------------------------------------------------------------
+
+struct BaseValues {
+    start : Pos,
+    /// Index number of default baseline for this script — equals index position
+    /// of baseline tag in baselineTags array of the BaseTagList
+    default_baseline_index : U16Be,
+    /// Number of BaseCoord tables defined — should equal baseTagCount in the BaseTagList
+    base_coord_count : U16Be,
+    /// Array of offsets to BaseCoord tables, from beginning of BaseValues table
+    /// — order matches `baseline_tags` array in the BaseTagList
+    base_coords : Array base_coord_count (Offset16Be start BaseCoord), // TODO: order matches `baseline_tags` array
+};
+
+
+// -----------------------------------------------------------------------------
+// MinMax table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#minmax-table>
+// -----------------------------------------------------------------------------
+
+struct MinMax {
+    start : Pos,
+    /// Offset to BaseCoord table that defines the minimum extent value, from
+    /// the beginning of MinMax table (may be NULL)
+    min_coord : Offset16Be start BaseCoord,
+    /// Offset to BaseCoord table that defines maximum extent value, from the
+    /// beginning of MinMax table (may be NULL)
+    max_coord : Offset16Be start BaseCoord,
+    /// Number of FeatMinMaxRecords — may be zero (0)
+    feat_min_max_count : U16Be,
+    /// Array of FeatMinMaxRecords, in alphabetical order by featureTableTag
+    feat_min_max_records : Array feat_min_max_count (FeatMinMaxRecord start), // TODO: alphabetical order
+};
+
+
+// -----------------------------------------------------------------------------
+// FeatMinMaxRecord
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#featminmaxrecord>
+// -----------------------------------------------------------------------------
+
+struct FeatMinMaxRecord (min_max_start : Pos) {
+    /// 4-byte feature identification tag — must match feature tag in FeatureList
+    feature_table_tag : Tag,
+    /// Offset to BaseCoord table that defines the minimum extent value, from
+    /// beginning of MinMax table (may be NULL)
+    min_coord : Offset16Be min_max_start BaseCoord,
+    /// Offset to BaseCoord table that defines the maximum extent value, from
+    /// beginning of MinMax table (may be NULL)
+    max_coord : Offset16Be min_max_start BaseCoord,
+};
+
+
+// -----------------------------------------------------------------------------
+//
+// BaseCoord Tables
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/base#basecoord-tables>
+//
+// -----------------------------------------------------------------------------
+
+struct BaseCoord {
+    // TODO: unions
+};
+
 // TODO
+// union BaseCoord {
+//     BaseCoordFormat1,
+//     BaseCoordFormat2,
+//     BaseCoordFormat3,
+// };
+
+struct BaseCoordFormat1 {
+    /// Format identifier — format = 1
+    base_coord_format : U16Be,
+    /// X or Y value, in design units
+    coordinate : S16Be,
+};
+
+struct BaseCoordFormat2 {
+    /// Format identifier — format = 2
+    base_coord_format : U16Be,
+    /// X or Y value, in design units
+    coordinate : S16Be,
+    /// Glyph ID of control glyph
+    reference_glyph : U16Be,
+    /// Index of contour point on the reference glyph
+    base_coord_point : U16Be,
+};
+
+struct BaseCoordFormat3 {
+    start : Pos,
+    /// Format identifier — format = 3
+    base_coord_format : U16Be,
+    /// X or Y value, in design units
+    coordinate : S16Be,
+    /// Offset to Device table (non-variable font) / Variation Index table
+    /// (variable font) for X or Y value, from beginning of BaseCoord table
+    /// (may be NULL).
+    device_table : Offset16Be start Device,
+};
 
 
 
@@ -1771,7 +2623,7 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
 /// GDEF Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader>
-struct GlyphDef {
+struct GlyphDefinitionData {
     start : Pos,
     /// Major version of the GDEF table, = 1
     major_version : U16Be,
@@ -1956,7 +2808,7 @@ struct CaretValueFormat3 {
 /// GPOS Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gpos.htm#header>
-struct GlyphPos {
+struct GlyphPositioningData {
     start : Pos,
     /// Major version of the GPOS table
     major_version : U16Be,
@@ -1995,7 +2847,7 @@ struct GlyphPos {
 /// GSUB Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gsub.htm#header>
-struct GlyphSub {
+struct GlyphSubstitutionData {
     start : Pos,
     /// Major version of the GSUB table
     major_version : U16Be,
@@ -2029,11 +2881,127 @@ struct GlyphSub {
 //
 // JSTF — Justification Table
 //
-// <https://www.microsoft.com/typography/otspec/jstf.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/jstf>
 //
 // =============================================================================
 
-// TODO
+struct JustificationData {
+    start : Pos,
+    /// Major version of the JSTF table, = 1
+    major_version : U16Be,
+    /// Minor version of the JSTF table, = 0
+    minor_version : U16Be,
+    /// Number of JstfScriptRecords in this table
+    justification_script_count : U16Be,
+    /// Array of JustificationScriptRecords, in alphabetical order by
+    /// `justification_script_tag`
+    justification_script_records : Array justification_script_count (JustificationScriptRecord start), // TODO: alphabetical order
+};
+
+struct JustificationScriptRecord (justification_data_start : Pos) {
+    /// 4-byte JustificationScript identification
+    justification_script_tag : Tag,
+    /// Offset to JustificationScript table, from beginning of JSTF Header
+    justification_script_offset : Offset16Be justification_data_start JustificationScript,
+};
+
+struct JustificationScript {
+    start : Pos,
+    /// Offset to ExtenderGlyph table, from beginning of JustificationScript
+    /// table (may be NULL)
+    extender_glyph_offset : Offset16Be start ExtenderGlyph,
+    /// Offset to default JustificationLangSys table, from beginning of
+    /// JustificationScript table (may be NULL)
+    def_justification_lang_sys_offset : Offset16Be start JustificationLangSys,
+    /// Number of JustificationLangSysRecords in this table - may be zero (0)
+    justification_lang_sys_count : U16Be,
+    /// Array of JustificationLangSysRecords, in alphabetical order by
+    /// JustificationLangSysTag
+    justification_lang_sys_records : Array justification_lang_sys_count (JustificationLangSysRecord start), // TODO: alphabetical order
+};
+
+struct JustificationLangSysRecord (justification_script_start : Pos) {
+    /// 4-byte JustificationLangSys identifier
+    justification_lang_sys_tag : Tag,
+    /// Offset to JustificationLangSys table, from beginning of
+    /// JustificationScript table
+    justification_lang_sys_offset : Offset16Be justification_script_start JustificationLangSys,
+};
+
+struct ExtenderGlyph {
+    /// Number of extender glyphs in this script
+    glyph_count : U16Be,
+    /// Extender glyph IDs — in increasing numerical order
+    extender_glyphs : Array glyph_count U16Be, // TODO: numerical order
+};
+
+struct JustificationLangSys {
+    start : Pos,
+    /// Number of JustificationPriority tables
+    justification_priority_count : U16Be,
+    /// Array of offsets to JustificationPriority tables, from beginning of
+    /// JustificationLangSys table, in priority order
+    justification_priority_offsets : Array justification_priority_count (Offset16Be start JustificationPriority), // TODO: priority order
+};
+
+struct JustificationPriority {
+    start : Pos,
+    /// Offset to shrinkage-enable JustificationGlyphPositionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    shrinkage_enable_gsub : Offset16Be start JustificationGlyphPositionModList,
+    /// Offset to shrinkage-disable JustificationGlyphPositionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    shrinkage_disable_gsub : Offset16Be start JustificationGlyphPositionModList,
+    /// Offset to shrinkage-enable JustificationGlyphSubstitutionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    shrinkage_enable_gpos : Offset16Be start JustificationGlyphSubstitutionModList,
+    /// Offset to shrinkage-disable JustificationGlyphSubstitutionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    shrinkage_disable_gpos : Offset16Be start JustificationGlyphSubstitutionModList,
+    /// Offset to shrinkage JustificationMax table, from beginning of
+    /// JustificationPriority table (may be NULL)
+    shrinkage_justification_max : Offset16Be start JustificationMax,
+    /// Offset to extension-enable JustificationGlyphPositionModList table,
+    /// from beginnning of JustificationPriority table (may be NULL)
+    extension_enable_gsub : Offset16Be start JustificationGlyphPositionModList,
+    /// Offset to extension-disable JustificationGlyphPositionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    extension_disable_gsub : Offset16Be start JustificationGlyphPositionModList,
+    /// Offset to extension-enable JustificationGlyphSubstitutionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    extension_enable_gpos : Offset16Be start JustificationGlyphSubstitutionModList,
+    /// Offset to extension-disable JustificationGlyphSubstitutionModList table,
+    /// from beginning of JustificationPriority table (may be NULL)
+    extension_disable_gpos : Offset16Be start JustificationGlyphSubstitutionModList,
+    /// Offset to extension JustificationMax table, from beginning of
+    /// JustificationPriority table (may be NULL)
+    extension_justification_max : Offset16Be start JustificationMax,
+};
+
+struct JustificationGlyphSubstitutionModList {
+    /// Number of lookups for this modification
+    lookup_count : U16Be,
+    /// Array of Lookup indices into the GlyphSubstitution LookupList, in increasing
+    /// numerical order
+    gsub_lookup_indices : Array lookup_count U16Be, // TODO: numerical order
+};
+
+struct JustificationGlyphPositionModList {
+    /// Number of lookups for this modification
+    lookup_count : U16Be,
+    /// Array of Lookup indices into the GlyphPosition LookupList, in increasing
+    /// numerical order
+    gpos_lookup_indices : Array lookup_count U16Be, // TODO: numerical order
+};
+
+struct JustificationMax {
+    start : Pos,
+    /// Number of lookup Indices for this modification
+    lookup_count : U16Be,
+    /// Array of offsets to GPOS-type lookup tables, from beginning of
+    /// JustificationMax table, in design order
+    lookup_offsets : Array lookup_count (Offset16Be start Unknown), // TODO: design order, "GPOS-type lookup tables"???
+};
 
 
 
@@ -2041,11 +3009,376 @@ struct GlyphSub {
 //
 // MATH - The mathematical typesetting table
 //
-// <https://www.microsoft.com/typography/otspec/math.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/math>
 //
 // =============================================================================
 
-// TODO
+struct MathLayoutData {
+    start : Pos,
+    /// Major version of the MATH table, = 1.
+    major_version : U16Be,
+    /// Minor version of the MATH table, = 0.
+    minor_version : U16Be,
+    /// Offset to MathConstants table - from the beginning of MATH table.
+    math_constants_offset : Offset16Be start MathConstants,
+    /// Offset to MathGlyphInfo table - from the beginning of MATH table.
+    math_glyph_info_offset : Offset16Be start MathGlyphInfo,
+    /// Offset to MathVariants table - from the beginning of MATH table.
+    math_variants_offset : Offset16Be start MathVariants,
+};
+
+struct MathValueRecord (parent_start : Pos) {
+    /// The X or Y value in design units
+    value : S16Be,
+    /// Offset to the device table – from the beginning of parent table. May be
+    /// NULL. Suggested format for device table is 1.
+    device_table_offset : Offset16Be parent_start Device,
+};
+
+struct MathConstants {
+    start : Pos,
+    /// Percentage of scaling down for level 1 superscripts and subscripts.
+    /// Suggested value: 80%.
+    script_percent_scale_down : S16Be,
+    /// Percentage of scaling down for level 2 (scriptScript) superscripts and
+    /// subscripts. Suggested value: 60%.
+    script_script_percent_scale_down : S16Be,
+    /// Minimum height required for a delimited expression (contained within
+    /// parentheses, etc.) to be treated as a sub-formula. Suggested value:
+    /// normal line height × 1.5.
+    delimited_sub_formula_min_height : U16Be,
+    /// Minimum height of n-ary operators (such as integral and summation) for
+    /// formulas in display mode (that is, appearing as standalone page
+    /// elements, not embedded inline within text).
+    display_operator_min_height : U16Be,
+    /// White space to be left between math formulas to ensure proper line
+    /// spacing. For example, for applications that treat line gap as a part of
+    /// line ascender, formulas with ink going above (os2.sTypoAscender +
+    /// os2.sTypoLineGap - MathLeading) or with ink going below
+    /// os2.sTypoDescender will result in increasing line height.
+    math_leading : MathValueRecord start,
+    /// Axis height of the font.
+    ///
+    /// In math typesetting, the term axis refers to a horizontal reference line
+    /// used for positioning elements in a formula. The math axis is similar to
+    /// but distinct from the baseline for regular text layout. For example, in
+    /// a simple equation, a minus symbol or fraction rule would be on the axis,
+    /// but a string for a variable name would be set on a baseline that is
+    /// offset from the axis. The axisHeight value determines the amount of that
+    /// offset.
+    axis_height : MathValueRecord start,
+    /// Maximum (ink) height of accent base that does not require raising the
+    /// accents. Suggested: x‑height of the font (os2.sxHeight) plus any
+    /// possible overshots.
+    accent_base_height : MathValueRecord start,
+    /// Maximum (ink) height of accent base that does not require flattening the
+    /// accents. Suggested: cap height of the font (os2.sCapHeight).
+    flattened_accent_base_height : MathValueRecord start,
+    /// The standard shift down applied to subscript elements. Positive for
+    /// moving in the downward direction. Suggested: os2.ySubscriptYOffset.
+    subscript_shift_down : MathValueRecord start,
+    /// Maximum allowed height of the (ink) top of subscripts that does not
+    /// require moving subscripts further down. Suggested: 4/5 x- height.
+    subscript_top_max : MathValueRecord start,
+    /// Minimum allowed drop of the baseline of subscripts relative to the (ink)
+    /// bottom of the base. Checked for bases that are treated as a box or
+    /// extended shape. Positive for subscript baseline dropped below the base
+    /// bottom.
+    subscript_baseline_drop_min : MathValueRecord start,
+    /// Standard shift up applied to superscript elements.
+    /// Suggested: os2.ySuperscriptYOffset.
+    superscript_shift_up : MathValueRecord start,
+    /// Standard shift of superscripts relative to the base, in cramped style.
+    superscript_shift_up_cramped : MathValueRecord start,
+    /// Minimum allowed height of the (ink) bottom of superscripts that does not
+    /// require moving subscripts further up. Suggested: ¼ x-height.
+    superscript_bottom_min : MathValueRecord start,
+    /// Maximum allowed drop of the baseline of superscripts relative to the
+    /// (ink) top of the base. Checked for bases that are treated as a box or
+    /// extended shape. Positive for superscript baseline below the base top.
+    superscript_baseline_drop_max : MathValueRecord start,
+    /// Minimum gap between the superscript and subscript ink. Suggested:
+    /// 4 × default rule thickness.
+    sub_superscript_gap_min : MathValueRecord start,
+    /// The maximum level to which the (ink) bottom of superscript can be
+    /// pushed to increase the gap between superscript and subscript, before
+    /// subscript starts being moved down. Suggested: 4/5 x-height.
+    superscript_bottom_max_with_subscript : MathValueRecord start,
+    /// Extra white space to be added after each subscript and superscript.
+    /// Suggested: 0.5 pt for a 12 pt font.
+    space_after_script : MathValueRecord start,
+    /// Minimum gap between the (ink) bottom of the upper limit, and the (ink)
+    /// top of the base operator.
+    upper_limit_gap_min : MathValueRecord start,
+    /// Minimum distance between baseline of upper limit and (ink) top of the
+    /// base operator.
+    upper_limit_baseline_rise_min : MathValueRecord start,
+    /// Minimum gap between (ink) top of the lower limit, and (ink) bottom of
+    /// the base operator.
+    lower_limit_gap_min : MathValueRecord start,
+    /// Minimum distance between baseline of the lower limit and (ink) bottom of
+    /// the base operator.
+    lower_limit_baseline_drop_min : MathValueRecord start,
+    /// Standard shift up applied to the top element of a stack.
+    stack_top_shift_up : MathValueRecord start,
+    /// Standard shift up applied to the top element of a stack in display
+    /// style.
+    stack_top_display_style_shift_up : MathValueRecord start,
+    /// Standard shift down applied to the bottom element of a stack. Positive
+    /// for moving in the downward direction.
+    stack_bottom_shift_down : MathValueRecord start,
+    /// Standard shift down applied to the bottom element of a stack in display
+    /// style. Positive for moving in the downward direction.
+    stack_bottom_display_style_shift_down : MathValueRecord start,
+    /// Minimum gap between (ink) bottom of the top element of a stack, and the
+    /// (ink) top of the bottom element. Suggested: 3 × default rule thickness.
+    stack_gap_min : MathValueRecord start,
+    /// Minimum gap between (ink) bottom of the top element of a stack, and the
+    /// (ink) top of the bottom element in display style. Suggested: 7 × default
+    /// rule thickness.
+    stack_display_style_gap_min : MathValueRecord start,
+    /// Standard shift up applied to the top element of the stretch stack.
+    stretch_stack_top_shift_up : MathValueRecord start,
+    /// Standard shift down applied to the bottom element of the stretch stack.
+    /// Positive for moving in the downward direction.
+    stretch_stack_bottom_shift_down : MathValueRecord start,
+    /// Minimum gap between the ink of the stretched element, and the (ink)
+    /// bottom of the element above. Suggested: same value as upperLimitGapMin.
+    stretch_stack_gap_above_min : MathValueRecord start,
+    /// Minimum gap between the ink of the stretched element, and the (ink)
+    /// top of the element below. Suggested: same value as lowerLimitGapMin.
+    stretch_stack_gap_below_min : MathValueRecord start,
+    /// Standard shift up applied to the numerator.
+    fraction_numerator_shift_up : MathValueRecord start,
+    /// Standard shift up applied to the numerator in display style.
+    /// Suggested: same value as stackTopDisplayStyleShiftUp.
+    fraction_numerator_display_style_shift_up : MathValueRecord start,
+    /// Standard shift down applied to the denominator. Positive for moving in
+    /// the downward direction.
+    fraction_denominator_shift_down : MathValueRecord start,
+    /// Standard shift down applied to the denominator in display style.
+    /// Positive for moving in the downward direction. Suggested: same value as
+    /// stackBottomDisplayStyleShiftDown.
+    fraction_denominator_display_style_shift_down : MathValueRecord start,
+    /// Minimum tolerated gap between the (ink) bottom of the numerator and the
+    /// ink of the fraction bar. Suggested: default rule thickness.
+    fraction_numerator_gap_min : MathValueRecord start,
+    /// Minimum tolerated gap between the (ink) bottom of the numerator and the
+    /// ink of the fraction bar in display style. Suggested: 3 × default rule
+    /// thickness.
+    fraction_num_display_style_gap_min : MathValueRecord start,
+    /// Thickness of the fraction bar. Suggested: default rule thickness.
+    fraction_rule_thickness : MathValueRecord start,
+    /// Minimum tolerated gap between the (ink) top of the denominator and the
+    /// ink of the fraction bar. Suggested: default rule thickness.
+    fraction_denominator_gap_min : MathValueRecord start,
+    /// Minimum tolerated gap between the (ink) top of the denominator and the
+    /// ink of the fraction bar in display style. Suggested: 3 × default rule
+    /// thickness.
+    fraction_denom_display_style_gap_min : MathValueRecord start,
+    /// Horizontal distance between the top and bottom elements of a skewed
+    /// fraction.
+    skewed_fraction_horizontal_gap : MathValueRecord start,
+    /// Vertical distance between the ink of the top and bottom elements of a
+    /// skewed fraction.
+    skewed_fraction_vertical_gap : MathValueRecord start,
+    /// Distance between the overbar and the (ink) top of he base.
+    /// Suggested: 3 × default rule thickness.
+    overbar_vertical_gap : MathValueRecord start,
+    /// Thickness of overbar. Suggested: default rule thickness.
+    overbar_rule_thickness : MathValueRecord start,
+    /// Extra white space reserved above the overbar. Suggested: default rule
+    /// thickness.
+    overbar_extra_ascender : MathValueRecord start,
+    /// Distance between underbar and (ink) bottom of the base.
+    /// Suggested: 3 × default rule thickness.
+    underbar_vertical_gap : MathValueRecord start,
+    /// Thickness of underbar. Suggested: default rule thickness.
+    underbar_rule_thickness : MathValueRecord start,
+    /// Extra white space reserved below the underbar. Always positive.
+    /// Suggested: default rule thickness.
+    underbar_extra_descender : MathValueRecord start,
+    /// Space between the (ink) top of the expression and the bar over it.
+    /// Suggested: 1¼ default rule thickness.
+    radical_vertical_gap : MathValueRecord start,
+    /// Space between the (ink) top of the expression and the bar over it.
+    /// Suggested: default rule thickness + ¼ x-height.
+    radical_display_style_vertical_gap : MathValueRecord start,
+    /// Thickness of the radical rule. This is the thickness of the rule in
+    /// designed or constructed radical signs. Suggested: default rule thickness.
+    radical_rule_thickness : MathValueRecord start,
+    /// Extra white space reserved above the radical. Suggested: same value as
+    /// radicalRuleThickness.
+    radical_extra_ascender : MathValueRecord start,
+    /// Extra horizontal kern before the degree of a radical, if such is
+    /// present.
+    radical_kern_before_degree : MathValueRecord start,
+    /// Negative kern after the degree of a radical, if such is present.
+    /// Suggested: −10/18 of em.
+    radical_kern_after_degree : MathValueRecord start,
+    /// Height of the bottom of the radical degree, if such is present, in
+    /// proportion to the ascender of the radical sign. Suggested: 60%.
+    radical_degree_bottom_raise_percent : S16Be,
+};
+
+struct MathGlyphInfo {
+    start : Pos,
+    /// Offset to MathItalicsCorrectionInfo table, from the beginning of the
+    /// MathGlyphInfo table.
+    math_italics_correction_info_offset : Offset16Be start MathItalicsCorrectionInfo,
+    /// Offset to MathTopAccentAttachment table, from the beginning of the
+    /// MathGlyphInfo table.
+    math_top_accent_attachment_offset : Offset16Be start MathTopAccentAttachment,
+    /// Offset to ExtendedShapes coverage table, from the beginning of the
+    /// MathGlyphInfo table. When the glyph to the left or right of a box is an
+    /// extended shape variant, the (ink) box should be used for vertical
+    /// positioning purposes, not the default position defined by values in
+    /// MathConstants table. May be NULL.
+    extended_shape_coverage_offset : Offset16Be start Unknown, // TODO: ExtendedShapes coverage table
+    /// Offset to MathKernInfo table, from the beginning of the MathGlyphInfo
+    /// table.
+    math_kern_info_offset : Offset16Be start MathKernInfo,
+};
+
+struct MathItalicsCorrectionInfo {
+    start : Pos,
+    /// Offset to Coverage table - from the beginning of MathItalicsCorrectionInfo table.
+    italics_correction_coverage_offset : Offset16Be start Unknown, // TODO: Coverage table
+    /// Number of italics correction values. Should coincide with the number of covered glyphs.
+    italics_correction_count : U16Be,
+    /// Array of MathValueRecords defining italics correction values for each covered glyph.
+    italics_correction : Array italics_correction_count (MathValueRecord start),
+};
+
+struct MathTopAccentAttachment {
+    start : Pos,
+    /// Offset to Coverage table, from the beginning of the
+    /// MathTopAccentAttachment table.
+    top_accent_coverage_offset : Offset16Be start Unknown, // TODO: Coverage table
+    /// Number of top accent attachment point values. Must be the same as the
+    /// number of glyph IDs referenced in the Coverage table.
+    top_accent_attachment_count : U16Be,
+    /// Array of MathValueRecords defining top accent attachment points for each
+    /// covered glyph.
+    top_accent_attachment : Array top_accent_attachment_count (MathValueRecord start),
+};
+
+struct MathKernInfo {
+    start : Pos,
+    /// Offset to Coverage table, from the beginning of the MathKernInfo table.
+    math_kern_coverage_offset : Offset16Be start Unknown, // TODO: Coverage table
+    /// Number of MathKernInfoRecords. Must be the same as the number of glyph
+    /// IDs referenced in the Coverage table.
+    math_kern_count : U16Be,
+    /// Array of MathKernInfoRecords, one for each covered glyph.
+    math_kern_info_records : Array math_kern_count (MathKernInfoRecord start),
+};
+
+struct MathKernInfoRecord (math_kern_info_start : Pos) {
+    /// Offset to MathKern table for top right corner, from the beginning of the
+    /// MathKernInfo table. May be NULL.
+    top_right_math_kern_offset : Offset16Be math_kern_info_start MathKern,
+    /// Offset to MathKern table for the top left corner, from the beginning of
+    /// the MathKernInfo table. May be NULL.
+    top_left_math_kern_offset : Offset16Be math_kern_info_start MathKern,
+    /// Offset to MathKern table for bottom right corner, from the beginning of
+    /// the MathKernInfo table. May be NULL.
+    bottom_right_math_kern_offset : Offset16Be math_kern_info_start MathKern,
+    /// Offset to MathKern table for bottom left corner, from the beginning of
+    /// the MathKernInfo table. May be NULL.
+    bottom_left_math_kern_offset : Offset16Be math_kern_info_start MathKern,
+};
+
+struct MathKern {
+    start : Pos,
+    /// Number of heights at which the kern value changes.
+    height_count : U16Be,
+    /// Array of correction heights, in design units, sorted from lowest to
+    /// highest.
+    correction_height : Array height_count (MathValueRecord start),
+    /// Array of kerning values for different height ranges. Negative values are
+    /// used to move glyphs closer to each other.
+    kern_values : Array (nat_add height_count 1) (MathValueRecord start),
+};
+
+struct MathVariants {
+    start : Pos,
+    /// Minimum overlap of connecting glyphs during glyph construction, in
+    /// design units.
+    min_connector_overlap : U16Be,
+    /// Offset to Coverage table, from the beginning of the MathVariants table.
+    vertical_glyph_coverage_offset : Offset16Be start Unknown, // TODO: Coverage table
+    /// Offset to Coverage table, from the beginning of the MathVariants table.
+    horizontal_glyph_coverage_offset : Offset16Be start Unknown, // TODO: Coverage table
+    /// Number of glyphs for which information is provided for vertically
+    /// growing variants. Must be the same as the number of glyph IDs referenced
+    /// in the vertical Coverage table.
+    vertical_glyph_count : U16Be,
+    /// Number of glyphs for which information is provided for horizontally
+    /// growing variants. Must be the same as the number of glyph IDs referenced
+    /// in the horizontal Coverage table.
+    horizontal_glyph_count : U16Be,
+    /// Array of offsets to MathGlyphConstruction tables, from the beginning of
+    /// the MathVariants table, for shapes growing in the vertical direction.
+    vertical_glyph_construction_offsets : Array vertical_glyph_count (Offset16Be start MathGlyphConstruction),
+    /// Array of offsets to MathGlyphConstruction tables, from the beginning of
+    /// the MathVariants table, for shapes growing in the horizontal direction.
+    horizontal_glyph_construction_offsets : Array horizontal_glyph_count (Offset16Be start MathGlyphConstruction),
+};
+
+struct MathGlyphConstruction {
+    start : Pos,
+    /// Offset to the GlyphAssembly table for this shape, from the beginning of
+    /// the MathGlyphConstruction table. May be NULL.
+    glyph_assembly_offset : Offset16Be start GlyphAssembly,
+    /// Count of glyph growing variants for this glyph.
+    variant_count : U16Be,
+    /// MathGlyphVariantRecords for alternative variants of the glyphs.
+    math_glyph_variant_record : Array variant_count MathGlyphVariantRecord,
+};
+
+struct MathGlyphVariantRecord {
+    /// Glyph ID for the variant.
+    variant_glyph : U16Be,
+    /// Advance width/height, in design units, of the variant, in the direction
+    /// of requested glyph extension.
+    advance_measurement : U16Be,
+};
+
+struct GlyphAssembly {
+    start : Pos,
+    /// Italics correction of this GlyphAssembly. Should not depend on the
+    /// assembly size.
+    italics_correction : MathValueRecord start,
+    /// Number of parts in this assembly.
+    part_count : U16Be,
+    /// Array of part records, from left to right (for assemblies that extend
+    /// horizontally) or bottom to top (for assemblies that extend vertically).
+    part_records : Array part_count GlyphPartRecord,
+};
+
+struct GlyphPartRecord {
+    /// Glyph ID for the part.
+    glyph_id : U16Be,
+    /// Advance width/ height, in design units, of the straight bar connector
+    /// material at the start of the glyph in the direction of the extension
+    /// (the left end for horizontal extension, the bottom end for vertical
+    /// extension).
+    start_connector_length : U16Be,
+    /// Advance width/ height, in design units, of the straight bar connector
+    /// material at the end of the glyph in the direction of the extension
+    /// (the right end for horizontal extension, the top end for vertical
+    /// extension).
+    end_connector_length : U16Be,
+    /// Full advance width/height for this part in the direction of the
+    /// extension, in design units.
+    full_advance : U16Be,
+    /// Part qualifiers. PartFlags enumeration currently uses only one bit:
+    ///
+    /// - 0x0001 fExtender If set, the part can be skipped or repeated.
+    /// - 0xFFFE Reserved.
+    part_flags : U16Be,
+};
 
 
 
@@ -2053,12 +3386,39 @@ struct GlyphSub {
 //
 // avar — Axis Variations Table
 //
-// <https://www.microsoft.com/typography/otspec/avar.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/avar>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6avar.html>
 //
 // =============================================================================
 
-// TODO
+struct AxisVariations {
+    /// Major version number of the axis variations table — set to 1.
+    major_version : U16Be,
+    /// Minor version number of the axis variations table — set to 0.
+    minor_version : U16Be,
+    /// Permanently reserved; set to zero.
+    reserved : Reserved U16Be,
+    /// The number of variation axes for this font. This must be the same number
+    /// as axisCount in the 'fvar' table.
+    axis_count : U16Be,
+    /// The segment maps array — one segment map for each axis, in the order of
+    /// axes specified in the 'fvar' table.
+    axis_segment_maps : Array axis_count SegmentMaps,
+};
+
+struct SegmentMaps {
+    /// The number of correspondence pairs for this axis.
+    position_map_count : U16Be,
+    /// The array of axis value map records for this axis.
+    axis_value_maps : Array position_map_count AxisValueMap,
+};
+
+struct AxisValueMap {
+    /// A normalized coordinate value obtained using default normalization.
+    from_coordinate : F2Dot14,
+    /// The modified, normalized coordinate value.
+    to_coordinate : F2Dot14,
+};
 
 
 
@@ -2071,7 +3431,19 @@ struct GlyphSub {
 //
 // =============================================================================
 
-// TODO
+struct ControlValueVariations {
+    start : Pos,
+    /// Major version number of the CVT variations table — set to 1.
+    major_version : U16Be,
+    /// Minor version number of the CVT variations table — set to 0.
+    minor_version : U16Be,
+    /// A packed field. The high 4 bits are flags, and the low 12 bits are the number of tuple-variation data tables. The count can be any number between 1 and 4095.
+    tuple_variation_count : U16Be,
+    /// Offset from the start of the 'cvar' table to the serialized data.
+    data_offset : Offset16Be start Unknown, // TODO: "serialized data"?
+    /// Array of tuple variation headers.
+    tuple_variation_headers : Array tuple_variation_count Unknown, // TODO: TupleVariationHeader
+};
 
 
 
@@ -2084,7 +3456,76 @@ struct GlyphSub {
 //
 // =============================================================================
 
-// TODO
+struct FontVariations {
+    start : Pos,
+    /// Major version number of the font variations table — set to 1.
+    major_version : U16Be,
+    /// Minor version number of the font variations table — set to 0.
+    minor_version : U16Be,
+    /// Offset in bytes from the beginning of the table to the start of the
+    /// VariationAxisRecord array.
+    axes_array_offset : Offset16Be start VariationAxisRecord, // TODO: avoid reparsing?
+    /// This field is permanently reserved. Set to 2.
+    reserved : Reserved U16Be,
+    /// The number of variation axes in the font (the number of records in the
+    /// axes array).
+    axis_count : U16Be,
+    /// The size in bytes of each VariationAxisRecord — set to 20 (0x0014) for
+    /// this version.
+    axis_size : U16Be,
+    /// The number of named instances defined in the font (the number of records
+    /// in the instances array).
+    instance_count : U16Be,
+    /// The size in bytes of each InstanceRecord — set to either
+    /// axisCount * sizeof(Fixed) + 4, or to axisCount * sizeof(Fixed) + 6.
+    instance_size : U16Be,
+    /// The variation axis array.
+    axes : Array axis_count VariationAxisRecord,
+    /// The named instance array.
+    instances : Array instance_count (InstanceRecord axis_count),
+};
+
+struct VariationAxisRecord {
+    /// Tag identifying the design variation for the axis.
+    axis_tag : Tag,
+    /// The minimum coordinate value for the axis.
+    min_value : Fixed,
+    /// The default coordinate value for the axis.
+    default_value : Fixed,
+    /// The maximum coordinate value for the axis.
+    max_value : Fixed,
+    /// Axis qualifiers — see details below.
+    flags : U16Be, // TODO: VariationAxisFlags
+    /// The name ID for entries in the 'name' table that provide a display name
+    /// for this axis.
+    axis_name_id : U16Be,
+};
+
+// TODO:
+// enum VariationAxisFlags : U16 {
+//     /// The axis should not be exposed directly in user interfaces.
+//     HIDDEN_AXIS = 0x0001,
+//     /// Reserved for future use — set to 0.
+//     Reserved = 0xFFFE,
+// };
+
+struct InstanceTuple (axis_count : U16) {
+    /// Coordinate array specifying a position within the font’s variation space.
+    coordinates : Array axis_count Fixed,
+};
+
+struct InstanceRecord (axis_count : U16) {
+    /// The name ID for entries in the 'name' table that provide subfamily names
+    /// for this instance.
+    subfamily_name_id : U16Be,
+    /// Reserved for future use — set to 0.
+    flags : U16Be,
+    /// The coordinates array for this instance.
+    coordinates : InstanceTuple axis_count,
+    /// Optional. The name ID for entries in the 'name' table that provide
+    /// PostScript names for this instance.
+    post_script_name_id : U16Be,
+};
 
 
 
