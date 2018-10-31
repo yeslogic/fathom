@@ -235,7 +235,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
 
     // Tables used for OpenType Font Variations
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
-    "avar" => Unknown,                      // Axis variations
+    "avar" => AxisVariations,               // Axis variations
     "cvar" => Unknown,                      // CVT variations (TrueType outlines only)
     "fvar" => Unknown,                      // Font variations
     "gvar" => Unknown,                      // Glyph variations (TrueType outlines only)
@@ -3386,12 +3386,39 @@ struct GlyphPartRecord {
 //
 // avar — Axis Variations Table
 //
-// <https://www.microsoft.com/typography/otspec/avar.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/avar>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6avar.html>
 //
 // =============================================================================
 
-// TODO
+struct AxisVariations {
+    /// Major version number of the axis variations table — set to 1.
+    major_version : U16Be,
+    /// Minor version number of the axis variations table — set to 0.
+    minor_version : U16Be,
+    /// Permanently reserved; set to zero.
+    reserved : Reserved U16Be,
+    /// The number of variation axes for this font. This must be the same number
+    /// as axisCount in the 'fvar' table.
+    axis_count : U16Be,
+    /// The segment maps array — one segment map for each axis, in the order of
+    /// axes specified in the 'fvar' table.
+    axis_segment_maps : Array axis_count SegmentMaps,
+};
+
+struct SegmentMaps {
+    /// The number of correspondence pairs for this axis.
+    position_map_count : U16Be,
+    /// The array of axis value map records for this axis.
+    axis_value_maps : Array position_map_count AxisValueMap,
+};
+
+struct AxisValueMap {
+    /// A normalized coordinate value obtained using default normalization.
+    from_coordinate : F2Dot14,
+    /// The modified, normalized coordinate value.
+    to_coordinate : F2Dot14,
+};
 
 
 
