@@ -237,7 +237,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-used-for-opentype-font-variations
     "avar" => AxisVariations,               // Axis variations
     "cvar" => ControlValueVariations,       // CVT variations (TrueType outlines only)
-    "fvar" => Unknown,                      // Font variations
+    "fvar" => FontVariations,               // Font variations
     "gvar" => Unknown,                      // Glyph variations (TrueType outlines only)
     "HVAR" => Unknown,                      // Horizontal metrics variations
     "MVAR" => Unknown,                      // Metrics variations
@@ -3456,7 +3456,76 @@ struct ControlValueVariations {
 //
 // =============================================================================
 
-// TODO
+struct FontVariations {
+    start : Pos,
+    /// Major version number of the font variations table — set to 1.
+    major_version : U16Be,
+    /// Minor version number of the font variations table — set to 0.
+    minor_version : U16Be,
+    /// Offset in bytes from the beginning of the table to the start of the
+    /// VariationAxisRecord array.
+    axes_array_offset : Offset16Be start VariationAxisRecord, // TODO: avoid reparsing?
+    /// This field is permanently reserved. Set to 2.
+    reserved : Reserved U16Be,
+    /// The number of variation axes in the font (the number of records in the
+    /// axes array).
+    axis_count : U16Be,
+    /// The size in bytes of each VariationAxisRecord — set to 20 (0x0014) for
+    /// this version.
+    axis_size : U16Be,
+    /// The number of named instances defined in the font (the number of records
+    /// in the instances array).
+    instance_count : U16Be,
+    /// The size in bytes of each InstanceRecord — set to either
+    /// axisCount * sizeof(Fixed) + 4, or to axisCount * sizeof(Fixed) + 6.
+    instance_size : U16Be,
+    /// The variation axis array.
+    axes : Array axis_count VariationAxisRecord,
+    /// The named instance array.
+    instances : Array instance_count (InstanceRecord axis_count),
+};
+
+struct VariationAxisRecord {
+    /// Tag identifying the design variation for the axis.
+    axis_tag : Tag,
+    /// The minimum coordinate value for the axis.
+    min_value : Fixed,
+    /// The default coordinate value for the axis.
+    default_value : Fixed,
+    /// The maximum coordinate value for the axis.
+    max_value : Fixed,
+    /// Axis qualifiers — see details below.
+    flags : U16Be, // TODO: VariationAxisFlags
+    /// The name ID for entries in the 'name' table that provide a display name
+    /// for this axis.
+    axis_name_id : U16Be,
+};
+
+// TODO:
+// enum VariationAxisFlags : U16 {
+//     /// The axis should not be exposed directly in user interfaces.
+//     HIDDEN_AXIS = 0x0001,
+//     /// Reserved for future use — set to 0.
+//     Reserved = 0xFFFE,
+// };
+
+struct InstanceTuple (axis_count : U16) {
+    /// Coordinate array specifying a position within the font’s variation space.
+    coordinates : Array axis_count Fixed,
+};
+
+struct InstanceRecord (axis_count : U16) {
+    /// The name ID for entries in the 'name' table that provide subfamily names
+    /// for this instance.
+    subfamily_name_id : U16Be,
+    /// Reserved for future use — set to 0.
+    flags : U16Be,
+    /// The coordinates array for this instance.
+    coordinates : InstanceTuple axis_count,
+    /// Optional. The name ID for entries in the 'name' table that provide
+    /// PostScript names for this instance.
+    post_script_name_id : U16Be,
+};
 
 
 
