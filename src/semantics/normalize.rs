@@ -112,6 +112,15 @@ pub fn nf_term(context: &Context, term: &RcTerm) -> Result<RcValue, InternalErro
             }
         },
 
+        Term::CondType(ref scope) => {
+            let ((name, Embed(ann)), body) = scope.clone().unbind();
+
+            Ok(RcValue::from(Value::CondType(Scope::new(
+                (name, Embed(nf_term(context, &ann)?)),
+                nf_term(context, &body)?,
+            ))))
+        },
+
         // E-STRUCT, E-EMPTY-STRUCT
         Term::Struct(ref fields) => {
             let fields = fields

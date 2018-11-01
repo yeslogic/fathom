@@ -243,3 +243,17 @@ mod f64be {
         assert_subtype!(r"F64Be", r"F64Be");
     }
 }
+
+mod cond_ty {
+    use super::*;
+
+    #[test]
+    fn f64() {
+        assert_subtype!(r"{ x : F64Be | false }", r"F64");
+    }
+
+    #[test]
+    fn f64be() {
+        assert_subtype!(r"{ x : F64Be | false }", r"F64Be");
+    }
+}

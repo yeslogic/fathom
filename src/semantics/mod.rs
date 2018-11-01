@@ -164,6 +164,12 @@ pub fn is_subtype(context: &Context, ty1: &RcType, ty2: &RcType) -> bool {
             in_min_bound && in_max_bound
         },
 
+        (&Value::CondType(ref scope), _) => {
+            // NOTE: It's safe to access the pattern without binding the body.
+            // TODO: Should this be reflected in the API of Moniker?
+            is_subtype(context, &(scope.unsafe_pattern.1).0, ty2)
+        },
+
         _ if Type::term_eq(ty1, context.u16le()) => is_subtype(context, context.u16(), ty2),
         _ if Type::term_eq(ty1, context.u32le()) => is_subtype(context, context.u32(), ty2),
         _ if Type::term_eq(ty1, context.u64le()) => is_subtype(context, context.u64(), ty2),
@@ -738,6 +744,26 @@ pub fn infer_term(
                     found: Box::new(head_ty.resugar(context.resugar_env())),
                 }),
             }
+        },
+
+        raw::Term::CondType(_, ref raw_scope) => {
+            let ((Binder(free_var), Embed(raw_ann)), raw_body) = raw_scope.clone().unbind();
+            let (ann, level) = infer_universe(context, &raw_ann)?;
+            let ann_value = nf_term(context, &ann)?;
+
+            // TODO: We should add the predicate to a constraint store
+            let body = {
+                let mut body_context = context.clone();
+                body_context.insert_declaration(free_var.clone(), ann_value);
+                check_term(&body_context, &raw_body, body_context.bool())?
+            };
+
+            let cond_param = (Binder(free_var), Embed(ann));
+
+            Ok((
+                RcTerm::from(Term::CondType(Scope::new(cond_param, body))),
+                RcValue::from(Value::Universe(level)),
+            ))
         },
 
         raw::Term::Struct(span, _) => Err(TypeError::AmbiguousStruct { span }),
