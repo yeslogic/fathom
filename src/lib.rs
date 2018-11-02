@@ -166,7 +166,7 @@ use codespan_reporting::Diagnostic;
 use syntax::core;
 
 pub fn load_file(file: &FileMap) -> Result<core::Module, Vec<Diagnostic>> {
-    use semantics::TcEnv;
+    use semantics::Context;
     use syntax::translation::{Desugar, DesugarEnv};
 
     let (concrete_module, errors) = syntax::parse::module(&file);
@@ -175,15 +175,15 @@ pub fn load_file(file: &FileMap) -> Result<core::Module, Vec<Diagnostic>> {
         .map(|err| err.to_diagnostic())
         .collect::<Vec<_>>();
 
-    let tc_env = TcEnv::default();
+    let context = Context::default();
 
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let desugar_env = DesugarEnv::new(context.mappings());
     let raw_module = match concrete_module.desugar(&desugar_env) {
         Ok(raw_module) => raw_module,
         Err(err) => return Err(vec![err.to_diagnostic()]),
     };
 
-    semantics::check_module(&tc_env, &raw_module).map_err(|err| {
+    semantics::check_module(&context, &raw_module).map_err(|err| {
         diagnostics.push(err.to_diagnostic());
         diagnostics
     })

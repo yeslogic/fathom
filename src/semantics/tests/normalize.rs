@@ -7,13 +7,13 @@ mod nf_term {
 
     #[test]
     fn var() {
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let x = FreeVar::fresh_named("x");
         let var = RcTerm::from(Term::Var(Var::Free(x.clone())));
 
         assert_eq!(
-            nf_term(&tc_env, &var).unwrap(),
+            nf_term(&context, &var).unwrap(),
             RcValue::from(Value::from(Var::Free(x))),
         );
     }
@@ -21,10 +21,10 @@ mod nf_term {
     #[test]
     fn ty() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         assert_eq!(
-            parse_nf_term(&mut codemap, &tc_env, r"Type"),
+            parse_nf_term(&mut codemap, &context, r"Type"),
             RcValue::from(Value::universe(0)),
         );
     }
@@ -32,12 +32,12 @@ mod nf_term {
     #[test]
     fn lam() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let x = FreeVar::fresh_named("x");
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, r"\x : Type => x"),
+            parse_nf_term(&mut codemap, &context, r"\x : Type => x"),
             RcValue::from(Value::Lam(Scope::new(
                 (Binder(x.clone()), Embed(RcValue::from(Value::universe(0)))),
                 RcValue::from(Value::from(Var::Free(x))),
@@ -48,12 +48,12 @@ mod nf_term {
     #[test]
     fn pi() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let x = FreeVar::fresh_named("x");
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, r"(x : Type) -> x"),
+            parse_nf_term(&mut codemap, &context, r"(x : Type) -> x"),
             RcValue::from(Value::Pi(Scope::new(
                 (Binder(x.clone()), Embed(RcValue::from(Value::universe(0)))),
                 RcValue::from(Value::from(Var::Free(x))),
@@ -64,7 +64,7 @@ mod nf_term {
     #[test]
     fn lam_app() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r"\(x : Type -> Type) (y : Type) => x y";
 
@@ -79,7 +79,7 @@ mod nf_term {
         )));
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr,),
+            parse_nf_term(&mut codemap, &context, given_expr,),
             RcValue::from(Value::Lam(Scope::new(
                 (Binder(x.clone()), Embed(ty_arr)),
                 RcValue::from(Value::Lam(Scope::new(
@@ -96,7 +96,7 @@ mod nf_term {
     #[test]
     fn pi_app() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r"(x : Type -> Type) -> (y : Type) -> x y";
 
@@ -111,7 +111,7 @@ mod nf_term {
         )));
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
             RcValue::from(Value::Pi(Scope::new(
                 (Binder(x.clone()), Embed(ty_arr)),
                 RcValue::from(Value::Pi(Scope::new(
@@ -130,14 +130,14 @@ mod nf_term {
     #[test]
     fn id_app_ty() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r"(\(a : Type 1) (x : a) => x) Type";
         let expected_expr = r"\x : Type => x";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -145,14 +145,14 @@ mod nf_term {
     #[test]
     fn id_app_ty_ty() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r"(\(a : Type 2) (x : a) => x) (Type 1) Type";
         let expected_expr = r"Type";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -161,14 +161,14 @@ mod nf_term {
     #[test]
     fn id_app_ty_arr_ty() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r"(\(a : Type 2) (x : a) => x) (Type 1) (Type -> Type)";
         let expected_expr = r"Type -> Type";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -176,7 +176,7 @@ mod nf_term {
     #[test]
     fn id_app_id() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r"
             (\(a : Type 1) (x : a) => x)
@@ -186,8 +186,8 @@ mod nf_term {
         let expected_expr = r"\(a : Type) (x : a) => x";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -196,7 +196,7 @@ mod nf_term {
     #[test]
     fn const_app_id_ty() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r"
             (\(a : Type 1) (b : Type 2) (x : a) (y : b) => x)
@@ -208,43 +208,43 @@ mod nf_term {
         let expected_expr = r"\(a : Type) (x : a) => x";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
     #[test]
     fn horrifying_app_1() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r"(\(t : Type) (f : (a : Type) -> Type) => f t) String (\(a : Type) => a)";
         let expected_expr = r"String";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
     #[test]
     fn horrifying_app_2() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r#"(\(t: String) (f: String -> String) => f t) "hello""#;
         let expected_expr = r#"\(f : String -> String) => f "hello""#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
     #[test]
     fn if_true() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r#"
             if true { "true" } else { "false" } : String
@@ -254,15 +254,15 @@ mod nf_term {
         "#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
     #[test]
     fn if_false() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r#"
             if false { "true" } else { "false" } : String
@@ -272,15 +272,15 @@ mod nf_term {
         "#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
     #[test]
     fn if_eval_cond() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r#"
             if (match "hi" : String {
@@ -293,15 +293,15 @@ mod nf_term {
         "#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
     #[test]
     fn match_expr_bool_true() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r#"
             match true {
@@ -314,15 +314,15 @@ mod nf_term {
         "#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
     #[test]
     fn match_expr_bool_false() {
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let given_expr = r#"
             match false {
@@ -335,8 +335,8 @@ mod nf_term {
         "#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &tc_env, given_expr),
-            parse_nf_term(&mut codemap, &tc_env, expected_expr),
+            parse_nf_term(&mut codemap, &context, given_expr),
+            parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 }

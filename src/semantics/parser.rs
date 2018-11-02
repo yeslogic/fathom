@@ -2,7 +2,7 @@ use im;
 use moniker::{Binder, Embed, FreeVar, Var};
 use std::io;
 
-use semantics::{nf_term, Definition, DefinitionEnv, InternalError};
+use semantics::{nf_term, Context, Definition, InternalError};
 use syntax::core;
 use syntax::Label;
 
@@ -87,25 +87,24 @@ impl<'a> From<&'a Value> for core::Term {
     }
 }
 
-pub fn parse_module<Env, T>(
-    env: &Env,
+pub fn parse_module<T>(
+    context: &Context,
     root: &Label,
     module: &core::Module,
     bytes: &mut io::Cursor<T>,
 ) -> Result<im::HashMap<u64, Value>, ParseError>
 where
-    Env: DefinitionEnv,
     io::Cursor<T>: io::Read + io::Seek,
 {
-    let mut env = env.clone();
+    let mut context = context.clone();
     let mut pending = PendingOffsets::new();
 
     for (label, Binder(free_var), Embed(definition)) in module.items.clone().unnest() {
         if label == *root {
             let root_value = match definition {
                 core::Definition::Alias { ref term, .. } => {
-                    let term = nf_term(&env, term)?;
-                    parse_term(&env, &mut pending, &term, bytes)?
+                    let term = nf_term(&context, term)?;
+                    parse_term(&context, &mut pending, &term, bytes)?
                 },
                 core::Definition::StructType { ref scope } => {
                     let (params, fields_scope) = scope.clone().unbind();
@@ -119,7 +118,7 @@ where
                     let fields = fields.clone().unnest();
                     let mappings = Vec::with_capacity(fields.len());
 
-                    parse_struct(&env, &mut pending, fields, mappings, bytes)?
+                    parse_struct(&context, &mut pending, fields, mappings, bytes)?
                 },
             };
 
@@ -140,7 +139,7 @@ where
                     // This position has not yet been parsed!
                     Entry::Vacant(parsed_entry) => {
                         bytes.set_position(pos); // FIXME: Bounds check?
-                        let value = parse_term(&mut env, &mut pending, &ty, bytes)?;
+                        let value = parse_term(&mut context, &mut pending, &ty, bytes)?;
                         parsed_entry.insert(value);
                         parsed_tys.insert(pos, ty);
                     },
@@ -158,7 +157,7 @@ where
 
             return Ok(parsed_values);
         } else {
-            env.insert_definition(
+            context.insert_definition(
                 free_var.clone(),
                 match definition {
                     core::Definition::Alias { ref term, .. } => Definition::Alias(term.clone()),
@@ -173,22 +172,21 @@ where
     Err(ParseError::MissingRoot(root.clone()))
 }
 
-fn parse_struct<Env, T>(
-    env: &Env,
+fn parse_struct<T>(
+    context: &Context,
     pending: &mut PendingOffsets,
     fields: Vec<(Label, Binder<String>, Embed<core::RcTerm>)>,
     mut mappings: Vec<(FreeVar<String>, core::RcTerm)>,
     bytes: &mut io::Cursor<T>,
 ) -> Result<Value, ParseError>
 where
-    Env: DefinitionEnv,
     io::Cursor<T>: io::Read + io::Seek,
 {
     let fields = fields
         .into_iter()
         .map(|(label, binder, Embed(ann))| {
-            let ann = nf_term(env, &ann.substs(&mappings))?;
-            let ann_value = parse_term(env, pending, &ann, bytes)?;
+            let ann = nf_term(context, &ann.substs(&mappings))?;
+            let ann_value = parse_term(context, pending, &ann, bytes)?;
             mappings.push((
                 binder.0.clone(),
                 core::RcTerm::from(core::Term::from(&ann_value)),
@@ -210,14 +208,13 @@ fn queue_offset(
     Ok(Value::Pos(offset_pos))
 }
 
-fn parse_term<Env, T>(
-    env: &Env,
+fn parse_term<T>(
+    context: &Context,
     pending: &mut PendingOffsets,
     ty: &core::RcType,
     bytes: &mut io::Cursor<T>,
 ) -> Result<Value, ParseError>
 where
-    Env: DefinitionEnv,
     io::Cursor<T>: io::Read + io::Seek,
 {
     use byteorder::{BigEndian as Be, LittleEndian as Le, ReadBytesExt};
@@ -226,25 +223,25 @@ where
 
     match **ty {
         // Parse builtin types
-        _ if core::RcValue::term_eq(ty, env.pos()) => Ok(Value::Pos(bytes.position())),
-        _ if core::RcValue::term_eq(ty, env.u8()) => Ok(Value::U8(bytes.read_u8()?)),
-        _ if core::RcValue::term_eq(ty, env.u16le()) => Ok(Value::U16(bytes.read_u16::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, env.u16be()) => Ok(Value::U16(bytes.read_u16::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, env.u32le()) => Ok(Value::U32(bytes.read_u32::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, env.u32be()) => Ok(Value::U32(bytes.read_u32::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, env.u64le()) => Ok(Value::U64(bytes.read_u64::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, env.u64be()) => Ok(Value::U64(bytes.read_u64::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, env.s8()) => Ok(Value::S8(bytes.read_i8()?)),
-        _ if core::RcValue::term_eq(ty, env.s16le()) => Ok(Value::S16(bytes.read_i16::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, env.s16be()) => Ok(Value::S16(bytes.read_i16::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, env.s32le()) => Ok(Value::S32(bytes.read_i32::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, env.s32be()) => Ok(Value::S32(bytes.read_i32::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, env.s64le()) => Ok(Value::S64(bytes.read_i64::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, env.s64be()) => Ok(Value::S64(bytes.read_i64::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, env.f32le()) => Ok(Value::F32(bytes.read_f32::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, env.f32be()) => Ok(Value::F32(bytes.read_f32::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, env.f64le()) => Ok(Value::F64(bytes.read_f64::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, env.f64be()) => Ok(Value::F64(bytes.read_f64::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.pos()) => Ok(Value::Pos(bytes.position())),
+        _ if core::RcValue::term_eq(ty, context.u8()) => Ok(Value::U8(bytes.read_u8()?)),
+        _ if core::RcValue::term_eq(ty, context.u16le()) => Ok(Value::U16(bytes.read_u16::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.u16be()) => Ok(Value::U16(bytes.read_u16::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.u32le()) => Ok(Value::U32(bytes.read_u32::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.u32be()) => Ok(Value::U32(bytes.read_u32::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.u64le()) => Ok(Value::U64(bytes.read_u64::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.u64be()) => Ok(Value::U64(bytes.read_u64::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.s8()) => Ok(Value::S8(bytes.read_i8()?)),
+        _ if core::RcValue::term_eq(ty, context.s16le()) => Ok(Value::S16(bytes.read_i16::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.s16be()) => Ok(Value::S16(bytes.read_i16::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.s32le()) => Ok(Value::S32(bytes.read_i32::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.s32be()) => Ok(Value::S32(bytes.read_i32::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.s64le()) => Ok(Value::S64(bytes.read_i64::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.s64be()) => Ok(Value::S64(bytes.read_i64::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.f32le()) => Ok(Value::F32(bytes.read_f32::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.f32be()) => Ok(Value::F32(bytes.read_f32::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.f64le()) => Ok(Value::F64(bytes.read_f64::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.f64be()) => Ok(Value::F64(bytes.read_f64::<Be>()?)),
 
         // Invalid parse types
         core::Value::Universe(_)
@@ -258,30 +255,30 @@ where
         #[cfg_attr(rustfmt, rustfmt_skip)]
         core::Value::Neutral(ref neutral, ref spine) => {
             // Parse offsets
-            if let Some((pos, ty)) = env.offset8(ty) { return queue_offset(pending, pos + bytes.read_u8()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset16le(ty) { return queue_offset(pending, pos + bytes.read_u16::<Le>()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset16be(ty) { return queue_offset(pending, pos + bytes.read_u16::<Be>()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset32le(ty) { return queue_offset(pending, pos + bytes.read_u32::<Le>()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset32be(ty) { return queue_offset(pending, pos + bytes.read_u32::<Be>()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset64le(ty) { return queue_offset(pending, pos + bytes.read_u64::<Le>()? as u64, ty); }
-            if let Some((pos, ty)) = env.offset64be(ty) { return queue_offset(pending, pos + bytes.read_u64::<Be>()? as u64, ty); }
-            if let Some((pos, offset, ty)) = env.offset_pos(ty) {
+            if let Some((pos, ty)) = context.offset8(ty) { return queue_offset(pending, pos + bytes.read_u8()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset16le(ty) { return queue_offset(pending, pos + bytes.read_u16::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset16be(ty) { return queue_offset(pending, pos + bytes.read_u16::<Be>()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset32le(ty) { return queue_offset(pending, pos + bytes.read_u32::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset32be(ty) { return queue_offset(pending, pos + bytes.read_u32::<Be>()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset64le(ty) { return queue_offset(pending, pos + bytes.read_u64::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset64be(ty) { return queue_offset(pending, pos + bytes.read_u64::<Be>()? as u64, ty); }
+            if let Some((pos, offset, ty)) = context.offset_pos(ty) {
                 let offset_pos = pos + offset.to_u64().unwrap(); // FIXME
                 pending.push((offset_pos, ty.clone()));
                 return Ok(Value::Pos(offset_pos));
             }
 
             // Reserved things
-            if let Some(elem_ty) = env.reserved(ty) {
-                parse_term(env, pending, elem_ty, bytes)?;
+            if let Some(elem_ty) = context.reserved(ty) {
+                parse_term(context, pending, elem_ty, bytes)?;
                 return Ok(Value::Struct(Vec::new()));
             }
 
             // Parse arrays
-            if let Some((len, elem_ty)) = env.array(ty) {
+            if let Some((len, elem_ty)) = context.array(ty) {
                 return Ok(Value::Array(
                     (0..len.to_usize().unwrap()) // FIXME
-                        .map(|_| parse_term(env, pending, elem_ty, bytes))
+                        .map(|_| parse_term(context, pending, elem_ty, bytes))
                         .collect::<Result<_, _>>()?,
                 ));
             }
@@ -289,7 +286,7 @@ where
             match **neutral {
                 core::Neutral::Head(core::Head::Var(Var::Free(ref free_var))) => {
                     // Follow definitions
-                    match env.get_definition(free_var) {
+                    match context.get_definition(free_var) {
                         Some(&Definition::StructType(ref scope)) => {
                             let (params, fields_scope) = scope.clone().unbind();
                             let (fields, ()) = fields_scope.unbind();
@@ -309,7 +306,7 @@ where
                                 mappings.push((free_var.clone(), arg));
                             }
 
-                            parse_struct(env, pending, fields, mappings, bytes)
+                            parse_struct(context, pending, fields, mappings, bytes)
                         },
                         // FIXME: follow alias?
                         Some(&Definition::Alias(_)) => Err(ParseError::InvalidType(ty.clone())),

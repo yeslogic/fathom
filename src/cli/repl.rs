@@ -8,7 +8,7 @@ use linefeed::{Interface, ReadResult, Signal};
 use std::path::PathBuf;
 use term_size;
 
-use semantics::{self, DeclarationEnv, DefinitionEnv, GlobalEnv, TcEnv};
+use semantics::{self, Context};
 use syntax::parse;
 use syntax::translation::{self, DesugarEnv};
 
@@ -87,8 +87,8 @@ pub fn run(color: ColorChoice, opts: &Opts) -> Result<(), Error> {
     let interface = Interface::new("repl")?;
     let mut codemap = CodeMap::new();
     let writer = StandardStream::stderr(color);
-    let mut tc_env = TcEnv::default();
-    let mut desugar_env = DesugarEnv::new(tc_env.mappings());
+    let mut context = Context::default();
+    let mut desugar_env = DesugarEnv::new(context.mappings());
 
     interface.set_prompt(&opts.prompt)?;
     interface.set_report_signal(Signal::Interrupt, true);
@@ -114,7 +114,7 @@ pub fn run(color: ColorChoice, opts: &Opts) -> Result<(), Error> {
                 let filename = FileName::virtual_("repl");
                 match eval_print(
                     &mut desugar_env,
-                    &mut tc_env,
+                    &mut context,
                     &codemap.add_filemap(filename, line),
                 ) {
                     Ok(ControlFlow::Continue) => {},
@@ -152,7 +152,7 @@ pub fn run(color: ColorChoice, opts: &Opts) -> Result<(), Error> {
 
 fn eval_print(
     desugar_env: &mut DesugarEnv,
-    tc_env: &mut TcEnv,
+    context: &mut Context,
     filemap: &FileMap,
 ) -> Result<ControlFlow, EvalPrintError> {
     use codespan::ByteIndex;
@@ -178,12 +178,12 @@ fn eval_print(
 
         ReplCommand::Eval(parse_term) => {
             let raw_term = parse_term.desugar(desugar_env)?;
-            let (term, inferred) = semantics::infer_term(tc_env, &raw_term)?;
-            let evaluated = semantics::nf_term(tc_env, &term)?;
+            let (term, inferred) = semantics::infer_term(context, &raw_term)?;
+            let evaluated = semantics::nf_term(context, &term)?;
 
             let ann_term = Term::Ann(
-                Box::new(evaluated.resugar(tc_env.resugar_env())),
-                Box::new(inferred.resugar(tc_env.resugar_env())),
+                Box::new(evaluated.resugar(context.resugar_env())),
+                Box::new(inferred.resugar(context.resugar_env())),
             );
 
             println!("{}", ann_term.to_doc().group().pretty(term_width()));
@@ -192,7 +192,7 @@ fn eval_print(
             use syntax::core::{RcTerm, Term};
 
             let raw_term = parse_term.desugar(desugar_env)?;
-            let (term, inferred) = semantics::infer_term(tc_env, &raw_term)?;
+            let (term, inferred) = semantics::infer_term(context, &raw_term)?;
 
             let ann_term = Term::Ann(term, RcTerm::from(Term::from(&*inferred)));
 
@@ -205,26 +205,26 @@ fn eval_print(
         },
         ReplCommand::Let(name, parse_term) => {
             let raw_term = parse_term.desugar(desugar_env)?;
-            let (term, inferred) = semantics::infer_term(tc_env, &raw_term)?;
+            let (term, inferred) = semantics::infer_term(context, &raw_term)?;
 
             let ann_term = Term::Ann(
                 Box::new(Term::Name(ByteIndex::default(), name.clone())),
-                Box::new(inferred.resugar(tc_env.resugar_env())),
+                Box::new(inferred.resugar(context.resugar_env())),
             );
 
             println!("{}", ann_term.to_doc().group().pretty(term_width()));
 
             let free_var = desugar_env.on_binding(&name);
-            tc_env.insert_declaration(free_var.clone(), inferred);
-            tc_env.insert_definition(free_var.clone(), Definition::Alias(term));
+            context.insert_declaration(free_var.clone(), inferred);
+            context.insert_definition(free_var.clone(), Definition::Alias(term));
 
             return Ok(ControlFlow::Continue);
         },
         ReplCommand::TypeOf(parse_term) => {
             let raw_term = parse_term.desugar(desugar_env)?;
-            let (_, inferred) = semantics::infer_term(tc_env, &raw_term)?;
+            let (_, inferred) = semantics::infer_term(context, &raw_term)?;
 
-            let inferred = inferred.resugar(tc_env.resugar_env());
+            let inferred = inferred.resugar(context.resugar_env());
 
             println!("{}", inferred.to_doc().group().pretty(term_width()));
         },
