@@ -38,11 +38,11 @@ fn parse_term(codemap: &mut CodeMap, src: &str) -> concrete::Term {
     concrete_term
 }
 
-fn parse_infer_term(codemap: &mut CodeMap, tc_env: &TcEnv, src: &str) -> (RcTerm, RcType) {
+fn parse_infer_term(codemap: &mut CodeMap, context: &Context, src: &str) -> (RcTerm, RcType) {
     let raw_term = parse_term(codemap, src)
-        .desugar(&DesugarEnv::new(tc_env.mappings()))
+        .desugar(&DesugarEnv::new(context.mappings()))
         .unwrap();
-    match infer_term(tc_env, &raw_term) {
+    match infer_term(context, &raw_term) {
         Ok((term, ty)) => (term, ty),
         Err(error) => {
             let writer = StandardStream::stdout(ColorChoice::Always);
@@ -52,9 +52,9 @@ fn parse_infer_term(codemap: &mut CodeMap, tc_env: &TcEnv, src: &str) -> (RcTerm
     }
 }
 
-fn parse_nf_term(codemap: &mut CodeMap, tc_env: &TcEnv, src: &str) -> RcValue {
-    let (term, _) = parse_infer_term(codemap, tc_env, src);
-    match nf_term(tc_env, &term) {
+fn parse_nf_term(codemap: &mut CodeMap, context: &Context, src: &str) -> RcValue {
+    let (term, _) = parse_infer_term(codemap, context, src);
+    match nf_term(context, &term) {
         Ok(value) => value,
         Err(error) => {
             let writer = StandardStream::stdout(ColorChoice::Always);
@@ -64,11 +64,11 @@ fn parse_nf_term(codemap: &mut CodeMap, tc_env: &TcEnv, src: &str) -> RcValue {
     }
 }
 
-fn parse_check_term(codemap: &mut CodeMap, tc_env: &TcEnv, src: &str, expected: &RcType) {
+fn parse_check_term(codemap: &mut CodeMap, context: &Context, src: &str, expected: &RcType) {
     let raw_term = parse_term(codemap, src)
-        .desugar(&DesugarEnv::new(tc_env.mappings()))
+        .desugar(&DesugarEnv::new(context.mappings()))
         .unwrap();
-    match check_term(tc_env, &raw_term, expected) {
+    match check_term(context, &raw_term, expected) {
         Ok(_) => {},
         Err(error) => {
             let writer = StandardStream::stdout(ColorChoice::Always);

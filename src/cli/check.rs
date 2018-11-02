@@ -15,13 +15,13 @@ pub fn run(color: ColorChoice, opts: Opts) -> Result<(), Error> {
     use codespan::CodeMap;
     use codespan_reporting;
 
-    use semantics::{self, TcEnv};
+    use semantics::{self, Context};
     use syntax::parse;
     use syntax::translation::{Desugar, DesugarEnv};
 
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
     let writer = StandardStream::stderr(color);
 
     let mut is_error = false;
@@ -48,7 +48,7 @@ pub fn run(color: ColorChoice, opts: Opts) -> Result<(), Error> {
             },
         };
 
-        match semantics::check_module(&tc_env, &raw_module) {
+        match semantics::check_module(&context, &raw_module) {
             Ok(_) => {},
             Err(err) => {
                 codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic())?;

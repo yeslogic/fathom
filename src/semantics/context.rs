@@ -280,7 +280,7 @@ pub enum Definition {
 /// environment as we enter into scopes, without having to deal with the
 /// error-prone tedium of working with mutable context.
 #[derive(Clone, Debug)]
-pub struct TcEnv {
+pub struct Context {
     /// The resugar environment
     ///
     /// We'll keep this up to date as we type check to make it easier to do
@@ -296,8 +296,8 @@ pub struct TcEnv {
     definitions: HashMap<FreeVar<String>, Definition>,
 }
 
-impl Default for TcEnv {
-    fn default() -> TcEnv {
+impl Default for Context {
+    fn default() -> Context {
         use moniker::{Embed, Nest, Scope};
         use num_bigint::BigInt;
         use std::{i16, i32, i64, i8, u16, u32, u64, u8};
@@ -367,7 +367,7 @@ impl Default for TcEnv {
             ))
         }
 
-        let mut tc_env = TcEnv {
+        let mut context = Context {
             resugar_env: ResugarEnv::new(),
             globals: Rc::new(Globals {
                 ty_bool: RcValue::from(Value::var(Var::Free(var_bool.clone()))),
@@ -430,23 +430,23 @@ impl Default for TcEnv {
             )))),
             None,
         ));
-        let bool_ty = tc_env.globals.ty_bool.clone();
+        let bool_ty = context.globals.ty_bool.clone();
         let bool_lit = |value| RcTerm::from(Term::Literal(Literal::Bool(value)));
-        let pos_ty = tc_env.globals.ty_pos.clone();
-        let ty_unit = tc_env.globals.ty_unit.clone();
+        let pos_ty = context.globals.ty_pos.clone();
+        let ty_unit = context.globals.ty_unit.clone();
         let ty_unit_def = Definition::StructType(Scope::new(
             Nest::new(vec![]),
             Scope::new(Nest::new(vec![]), ()),
         ));
         let unit_def = Definition::Alias(RcTerm::from(Term::Struct(vec![])));
-        let ty_u8 = RcTerm::from(Term::from(&*tc_env.globals.ty_u8.clone()));
-        let ty_u16 = RcTerm::from(Term::from(&*tc_env.globals.ty_u16.clone()));
-        let ty_u32 = RcTerm::from(Term::from(&*tc_env.globals.ty_u32.clone()));
-        let ty_u64 = RcTerm::from(Term::from(&*tc_env.globals.ty_u64.clone()));
-        let ty_s8 = RcTerm::from(Term::from(&*tc_env.globals.ty_s8.clone()));
-        let ty_s16 = RcTerm::from(Term::from(&*tc_env.globals.ty_s16.clone()));
-        let ty_s32 = RcTerm::from(Term::from(&*tc_env.globals.ty_s32.clone()));
-        let ty_s64 = RcTerm::from(Term::from(&*tc_env.globals.ty_s64.clone()));
+        let ty_u8 = RcTerm::from(Term::from(&*context.globals.ty_u8.clone()));
+        let ty_u16 = RcTerm::from(Term::from(&*context.globals.ty_u16.clone()));
+        let ty_u32 = RcTerm::from(Term::from(&*context.globals.ty_u32.clone()));
+        let ty_u64 = RcTerm::from(Term::from(&*context.globals.ty_u64.clone()));
+        let ty_s8 = RcTerm::from(Term::from(&*context.globals.ty_s8.clone()));
+        let ty_s16 = RcTerm::from(Term::from(&*context.globals.ty_s16.clone()));
+        let ty_s32 = RcTerm::from(Term::from(&*context.globals.ty_s32.clone()));
+        let ty_s64 = RcTerm::from(Term::from(&*context.globals.ty_s64.clone()));
         let offset_ty_old = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(pos_ty.clone())),
             RcValue::from(Value::Pi(Scope::new(
@@ -476,70 +476,70 @@ impl Default for TcEnv {
             ))),
         )));
 
-        tc_env.insert_declaration(var_true.clone(), bool_ty.clone());
-        tc_env.insert_declaration(var_false.clone(), bool_ty.clone());
-        tc_env.insert_definition(var_true, Definition::Alias(bool_lit(true)));
-        tc_env.insert_definition(var_false, Definition::Alias(bool_lit(false)));
-        tc_env.insert_declaration(var_bool, universe0.clone());
-        tc_env.insert_declaration(var_string, universe0.clone());
-        tc_env.insert_declaration(var_char, universe0.clone());
-        tc_env.insert_declaration(var_pos, universe0.clone());
+        context.insert_declaration(var_true.clone(), bool_ty.clone());
+        context.insert_declaration(var_false.clone(), bool_ty.clone());
+        context.insert_definition(var_true, Definition::Alias(bool_lit(true)));
+        context.insert_definition(var_false, Definition::Alias(bool_lit(false)));
+        context.insert_declaration(var_bool, universe0.clone());
+        context.insert_declaration(var_string, universe0.clone());
+        context.insert_declaration(var_char, universe0.clone());
+        context.insert_declaration(var_pos, universe0.clone());
 
-        tc_env.insert_declaration(var_u8.clone(), universe0.clone());
-        tc_env.insert_declaration(var_u16.clone(), universe0.clone());
-        tc_env.insert_declaration(var_u32.clone(), universe0.clone());
-        tc_env.insert_declaration(var_u64.clone(), universe0.clone());
-        tc_env.insert_definition(var_u8, Definition::Alias(ty_u8.clone()));
-        tc_env.insert_definition(var_u16, Definition::Alias(ty_u16.clone()));
-        tc_env.insert_definition(var_u32, Definition::Alias(ty_u32.clone()));
-        tc_env.insert_definition(var_u64, Definition::Alias(ty_u64.clone()));
-        tc_env.insert_declaration(var_u16le, universe0.clone());
-        tc_env.insert_declaration(var_u32le, universe0.clone());
-        tc_env.insert_declaration(var_u64le, universe0.clone());
-        tc_env.insert_declaration(var_u16be, universe0.clone());
-        tc_env.insert_declaration(var_u32be, universe0.clone());
-        tc_env.insert_declaration(var_u64be, universe0.clone());
+        context.insert_declaration(var_u8.clone(), universe0.clone());
+        context.insert_declaration(var_u16.clone(), universe0.clone());
+        context.insert_declaration(var_u32.clone(), universe0.clone());
+        context.insert_declaration(var_u64.clone(), universe0.clone());
+        context.insert_definition(var_u8, Definition::Alias(ty_u8.clone()));
+        context.insert_definition(var_u16, Definition::Alias(ty_u16.clone()));
+        context.insert_definition(var_u32, Definition::Alias(ty_u32.clone()));
+        context.insert_definition(var_u64, Definition::Alias(ty_u64.clone()));
+        context.insert_declaration(var_u16le, universe0.clone());
+        context.insert_declaration(var_u32le, universe0.clone());
+        context.insert_declaration(var_u64le, universe0.clone());
+        context.insert_declaration(var_u16be, universe0.clone());
+        context.insert_declaration(var_u32be, universe0.clone());
+        context.insert_declaration(var_u64be, universe0.clone());
 
-        tc_env.insert_declaration(var_s8.clone(), universe0.clone());
-        tc_env.insert_declaration(var_s16.clone(), universe0.clone());
-        tc_env.insert_declaration(var_s32.clone(), universe0.clone());
-        tc_env.insert_declaration(var_s64.clone(), universe0.clone());
-        tc_env.insert_definition(var_s8, Definition::Alias(ty_s8.clone()));
-        tc_env.insert_definition(var_s16, Definition::Alias(ty_s16.clone()));
-        tc_env.insert_definition(var_s32, Definition::Alias(ty_s32.clone()));
-        tc_env.insert_definition(var_s64, Definition::Alias(ty_s64.clone()));
-        tc_env.insert_declaration(var_s16le, universe0.clone());
-        tc_env.insert_declaration(var_s32le, universe0.clone());
-        tc_env.insert_declaration(var_s64le, universe0.clone());
-        tc_env.insert_declaration(var_s16be, universe0.clone());
-        tc_env.insert_declaration(var_s32be, universe0.clone());
-        tc_env.insert_declaration(var_s64be, universe0.clone());
+        context.insert_declaration(var_s8.clone(), universe0.clone());
+        context.insert_declaration(var_s16.clone(), universe0.clone());
+        context.insert_declaration(var_s32.clone(), universe0.clone());
+        context.insert_declaration(var_s64.clone(), universe0.clone());
+        context.insert_definition(var_s8, Definition::Alias(ty_s8.clone()));
+        context.insert_definition(var_s16, Definition::Alias(ty_s16.clone()));
+        context.insert_definition(var_s32, Definition::Alias(ty_s32.clone()));
+        context.insert_definition(var_s64, Definition::Alias(ty_s64.clone()));
+        context.insert_declaration(var_s16le, universe0.clone());
+        context.insert_declaration(var_s32le, universe0.clone());
+        context.insert_declaration(var_s64le, universe0.clone());
+        context.insert_declaration(var_s16be, universe0.clone());
+        context.insert_declaration(var_s32be, universe0.clone());
+        context.insert_declaration(var_s64be, universe0.clone());
 
-        tc_env.insert_declaration(var_f32, universe0.clone());
-        tc_env.insert_declaration(var_f64, universe0.clone());
-        tc_env.insert_declaration(var_f32le, universe0.clone());
-        tc_env.insert_declaration(var_f64le, universe0.clone());
-        tc_env.insert_declaration(var_f32be, universe0.clone());
-        tc_env.insert_declaration(var_f64be, universe0.clone());
+        context.insert_declaration(var_f32, universe0.clone());
+        context.insert_declaration(var_f64, universe0.clone());
+        context.insert_declaration(var_f32le, universe0.clone());
+        context.insert_declaration(var_f64le, universe0.clone());
+        context.insert_declaration(var_f32be, universe0.clone());
+        context.insert_declaration(var_f64be, universe0.clone());
 
-        tc_env.insert_declaration(var_offset8, offset_ty_old.clone());
-        tc_env.insert_declaration(var_offset16le, offset_ty_old.clone());
-        tc_env.insert_declaration(var_offset32le, offset_ty_old.clone());
-        tc_env.insert_declaration(var_offset64le, offset_ty_old.clone());
-        tc_env.insert_declaration(var_offset16be, offset_ty_old.clone());
-        tc_env.insert_declaration(var_offset32be, offset_ty_old.clone());
-        tc_env.insert_declaration(var_offset64be, offset_ty_old.clone());
+        context.insert_declaration(var_offset8, offset_ty_old.clone());
+        context.insert_declaration(var_offset16le, offset_ty_old.clone());
+        context.insert_declaration(var_offset32le, offset_ty_old.clone());
+        context.insert_declaration(var_offset64le, offset_ty_old.clone());
+        context.insert_declaration(var_offset16be, offset_ty_old.clone());
+        context.insert_declaration(var_offset32be, offset_ty_old.clone());
+        context.insert_declaration(var_offset64be, offset_ty_old.clone());
 
-        tc_env.insert_declaration(var_array, array_ty);
-        tc_env.insert_declaration(var_reserved, reserved_ty);
-        tc_env.insert_declaration(var_offset_pos, offset_pos_ty);
+        context.insert_declaration(var_array, array_ty);
+        context.insert_declaration(var_reserved, reserved_ty);
+        context.insert_declaration(var_offset_pos, offset_pos_ty);
 
-        tc_env.insert_declaration(var_unit_ty.clone(), universe0.clone());
-        tc_env.insert_definition(var_unit_ty, ty_unit_def);
-        tc_env.insert_declaration(var_unit.clone(), ty_unit.clone());
-        tc_env.insert_definition(var_unit, unit_def);
+        context.insert_declaration(var_unit_ty.clone(), universe0.clone());
+        context.insert_definition(var_unit_ty, ty_unit_def);
+        context.insert_declaration(var_unit.clone(), ty_unit.clone());
+        context.insert_definition(var_unit, unit_def);
 
-        tc_env
+        context
     }
 }
 
@@ -560,7 +560,7 @@ fn offset_app<'a>(free_var: &FreeVar<String>, ty: &'a RcType) -> Option<(u64, &'
     })
 }
 
-impl TcEnv {
+impl Context {
     pub fn resugar_env(&self) -> &ResugarEnv {
         &self.resugar_env
     }

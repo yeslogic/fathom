@@ -14,8 +14,8 @@ fn label(name: &str) -> Label {
 #[test]
 fn silly_root() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
         module silly;
@@ -43,10 +43,10 @@ fn silly_root() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&tc_env, &label("Silly"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(&context, &label("Silly"), &module, &mut given_bytes).unwrap(),
         hashmap!{
             0 => Value::Struct(vec![
                 (label("len"), Value::U16(3)),
@@ -62,8 +62,8 @@ fn silly_root() {
 #[test]
 fn missing_root() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
         module silly;
@@ -75,12 +75,12 @@ fn missing_root() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     let mut given_bytes = Cursor::new(vec![]);
 
     let parsed_value = parser::parse_module(
-        &tc_env,
+        &context,
         &Label("Silly".to_owned()),
         &module,
         &mut given_bytes,
@@ -96,8 +96,8 @@ fn missing_root() {
 #[test]
 fn pos() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
         module pos_test;
@@ -127,10 +127,10 @@ fn pos() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
         hashmap!{
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(0)),
@@ -160,8 +160,8 @@ fn pos() {
 #[test]
 fn offset() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
         module offset_test;
@@ -191,10 +191,10 @@ fn offset() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
         hashmap!{
             0 => Value::Struct(vec![
                 (label("magic"), Value::U32(0x123)),
@@ -221,8 +221,8 @@ fn offset() {
 #[test]
 fn offset_same_pos() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
         module offset_test;
@@ -248,10 +248,10 @@ fn offset_same_pos() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
         hashmap!{
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(0)),
@@ -266,8 +266,8 @@ fn offset_same_pos() {
 #[test]
 fn offset_same_pos_different_tys() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
         module offset_test;
@@ -293,9 +293,9 @@ fn offset_same_pos_different_tys() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
-    let parsed_value = parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes);
+    let parsed_value = parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes);
     match parsed_value {
         Ok(_) => panic!("expected error"),
         Err(ParseError::OffsetPointedToDifferentTypes(_, _)) => {},
@@ -306,8 +306,8 @@ fn offset_same_pos_different_tys() {
 #[test]
 fn offset_pos() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
         module offset_test;
@@ -353,10 +353,10 @@ fn offset_pos() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
         hashmap!{
             0 => Value::Struct(vec![
                 (label("magic"), Value::U32(0x123)),
@@ -380,8 +380,8 @@ fn offset_pos() {
 #[test]
 fn offset_pos_same_pos() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
         module offset_test;
@@ -415,10 +415,10 @@ fn offset_pos_same_pos() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
         hashmap!{
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(start)),
@@ -435,8 +435,8 @@ fn offset_pos_same_pos() {
 #[test]
 fn offset_pos_same_pos_different_tys() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
         module offset_test;
@@ -467,9 +467,9 @@ fn offset_pos_same_pos_different_tys() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
-    let parsed_value = parser::parse_module(&tc_env, &label("PosTest"), &module, &mut given_bytes);
+    let parsed_value = parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes);
     match parsed_value {
         Ok(_) => panic!("expected error"),
         Err(ParseError::OffsetPointedToDifferentTypes(_, _)) => {},
@@ -480,8 +480,8 @@ fn offset_pos_same_pos_different_tys() {
 #[test]
 fn reserved() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
         module reserved_test;
@@ -503,10 +503,10 @@ fn reserved() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&tc_env, &label("Test"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
         hashmap!{
             0 => Value::Struct(vec![
                 (label("reserved"), Value::Struct(Vec::new())),
@@ -518,8 +518,8 @@ fn reserved() {
 #[test]
 fn parse_bitmap_nested() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = include_str!("./fixtures/bitmap_nested.ddl");
 
@@ -553,10 +553,10 @@ fn parse_bitmap_nested() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&tc_env, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(&context, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
         hashmap!{
             0 => Value::Struct(vec![
                 (
@@ -613,8 +613,8 @@ fn parse_bitmap_nested() {
 #[test]
 fn parse_bitmap_flat() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = include_str!("./fixtures/bitmap_flat.ddl");
 
@@ -648,10 +648,10 @@ fn parse_bitmap_flat() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&tc_env, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(&context, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
         hashmap!{
             0 => Value::Struct(vec![
                 (
@@ -704,8 +704,8 @@ fn parse_bitmap_flat() {
 #[test]
 fn gif() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = include_str!("./fixtures/gif.ddl");
 
@@ -726,10 +726,10 @@ fn gif() {
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&tc_env, &raw_module).unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&tc_env, &label("Gif"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(&context, &label("Gif"), &module, &mut given_bytes).unwrap(),
         hashmap!{
             0 => Value::Struct(vec![
                 (
@@ -763,15 +763,15 @@ fn gif() {
 #[test]
 fn opentype() {
     let mut codemap = CodeMap::new();
-    let tc_env = TcEnv::default();
-    let desugar_env = DesugarEnv::new(tc_env.mappings());
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = include_str!("./fixtures/opentype.ddl");
 
     let raw_module = parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    match check_module(&tc_env, &raw_module) {
+    match check_module(&context, &raw_module) {
         Ok(_module) => {},
         Err(error) => {
             let writer = StandardStream::stdout(ColorChoice::Always);

@@ -3,16 +3,16 @@ use super::*;
 macro_rules! assert_subtype {
     ($sub_ty_src:expr, $super_ty_src:expr) => {{
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let super_ty = $super_ty_src;
         let sub_ty = $sub_ty_src;
 
-        let super_ty = parse_nf_term(&mut codemap, &tc_env, &super_ty);
-        let sub_ty = parse_nf_term(&mut codemap, &tc_env, &sub_ty);
+        let super_ty = parse_nf_term(&mut codemap, &context, &super_ty);
+        let sub_ty = parse_nf_term(&mut codemap, &context, &sub_ty);
 
         assert!(
-            is_subtype(&tc_env, &sub_ty, &super_ty),
+            is_subtype(&context, &sub_ty, &super_ty),
             "{} <: {}",
             $sub_ty_src,
             $super_ty_src
@@ -23,16 +23,16 @@ macro_rules! assert_subtype {
 macro_rules! assert_not_subtype {
     ($sub_ty_src:expr, $super_ty_src:expr) => {{
         let mut codemap = CodeMap::new();
-        let tc_env = TcEnv::default();
+        let context = Context::default();
 
         let super_ty = $super_ty_src;
         let sub_ty = $sub_ty_src;
 
-        let super_ty = parse_nf_term(&mut codemap, &tc_env, &super_ty);
-        let sub_ty = parse_nf_term(&mut codemap, &tc_env, &sub_ty);
+        let super_ty = parse_nf_term(&mut codemap, &context, &super_ty);
+        let sub_ty = parse_nf_term(&mut codemap, &context, &sub_ty);
 
         assert!(
-            !is_subtype(&tc_env, &sub_ty, &super_ty),
+            !is_subtype(&context, &sub_ty, &super_ty),
             "{} </: {}",
             $sub_ty_src,
             $super_ty_src
