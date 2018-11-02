@@ -3,13 +3,10 @@ use moniker::{Binder, Embed, FreeVar, Scope, Var};
 use syntax::core::{Head, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcValue, Term, Value};
 
 use semantics::errors::InternalError;
-use semantics::{Definition, DefinitionEnv};
+use semantics::{Definition, TcEnv};
 
 /// Reduce a term to its normal form
-pub fn nf_term<Env>(env: &Env, term: &RcTerm) -> Result<RcValue, InternalError>
-where
-    Env: DefinitionEnv,
-{
+pub fn nf_term(env: &TcEnv, term: &RcTerm) -> Result<RcValue, InternalError> {
     match *term.inner {
         // E-ANN
         Term::Ann(ref expr, _) => nf_term(env, expr),
@@ -194,14 +191,11 @@ where
 
 /// If the pattern matches the value, this function returns the substitutions
 /// needed to apply the pattern to some body expression
-pub fn match_value<Env>(
-    env: &Env,
+pub fn match_value(
+    env: &TcEnv,
     pattern: &RcPattern,
     value: &RcValue,
-) -> Result<Option<Vec<(FreeVar<String>, RcValue)>>, InternalError>
-where
-    Env: DefinitionEnv,
-{
+) -> Result<Option<Vec<(FreeVar<String>, RcValue)>>, InternalError> {
     match (&*pattern.inner, &*value.inner) {
         (&Pattern::Binder(Binder(ref free_var)), _) => {
             Ok(Some(vec![(free_var.clone(), value.clone())]))

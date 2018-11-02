@@ -2,7 +2,7 @@ use im;
 use moniker::{Binder, Embed, FreeVar, Var};
 use std::io;
 
-use semantics::{nf_term, Definition, DefinitionEnv, InternalError};
+use semantics::{nf_term, Definition, InternalError, TcEnv};
 use syntax::core;
 use syntax::Label;
 
@@ -87,14 +87,13 @@ impl<'a> From<&'a Value> for core::Term {
     }
 }
 
-pub fn parse_module<Env, T>(
-    env: &Env,
+pub fn parse_module<T>(
+    env: &TcEnv,
     root: &Label,
     module: &core::Module,
     bytes: &mut io::Cursor<T>,
 ) -> Result<im::HashMap<u64, Value>, ParseError>
 where
-    Env: DefinitionEnv,
     io::Cursor<T>: io::Read + io::Seek,
 {
     let mut env = env.clone();
@@ -173,15 +172,14 @@ where
     Err(ParseError::MissingRoot(root.clone()))
 }
 
-fn parse_struct<Env, T>(
-    env: &Env,
+fn parse_struct<T>(
+    env: &TcEnv,
     pending: &mut PendingOffsets,
     fields: Vec<(Label, Binder<String>, Embed<core::RcTerm>)>,
     mut mappings: Vec<(FreeVar<String>, core::RcTerm)>,
     bytes: &mut io::Cursor<T>,
 ) -> Result<Value, ParseError>
 where
-    Env: DefinitionEnv,
     io::Cursor<T>: io::Read + io::Seek,
 {
     let fields = fields
@@ -210,14 +208,13 @@ fn queue_offset(
     Ok(Value::Pos(offset_pos))
 }
 
-fn parse_term<Env, T>(
-    env: &Env,
+fn parse_term<T>(
+    env: &TcEnv,
     pending: &mut PendingOffsets,
     ty: &core::RcType,
     bytes: &mut io::Cursor<T>,
 ) -> Result<Value, ParseError>
 where
-    Env: DefinitionEnv,
     io::Cursor<T>: io::Read + io::Seek,
 {
     use byteorder::{BigEndian as Be, LittleEndian as Le, ReadBytesExt};

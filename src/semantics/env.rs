@@ -265,81 +265,10 @@ pub struct Globals {
     var_offset_pos: FreeVar<String>,
 }
 
-pub trait GlobalEnv: Clone {
-    fn resugar_env(&self) -> &ResugarEnv;
-
-    // Not the happiest with this stuff, but eh...
-    fn bool(&self) -> &RcType;
-    fn string(&self) -> &RcType;
-    fn char(&self) -> &RcType;
-    fn unit(&self) -> &RcType;
-    fn pos(&self) -> &RcType;
-
-    fn u8(&self) -> &RcType;
-    fn u16(&self) -> &RcType;
-    fn u32(&self) -> &RcType;
-    fn u64(&self) -> &RcType;
-    fn u16le(&self) -> &RcType;
-    fn u32le(&self) -> &RcType;
-    fn u64le(&self) -> &RcType;
-    fn u16be(&self) -> &RcType;
-    fn u32be(&self) -> &RcType;
-    fn u64be(&self) -> &RcType;
-
-    fn s8(&self) -> &RcType;
-    fn s16(&self) -> &RcType;
-    fn s32(&self) -> &RcType;
-    fn s64(&self) -> &RcType;
-    fn s16le(&self) -> &RcType;
-    fn s32le(&self) -> &RcType;
-    fn s64le(&self) -> &RcType;
-    fn s16be(&self) -> &RcType;
-    fn s32be(&self) -> &RcType;
-    fn s64be(&self) -> &RcType;
-
-    fn f32(&self) -> &RcType;
-    fn f64(&self) -> &RcType;
-    fn f32le(&self) -> &RcType;
-    fn f64le(&self) -> &RcType;
-    fn f32be(&self) -> &RcType;
-    fn f64be(&self) -> &RcType;
-
-    fn offset8<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
-    fn offset16le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
-    fn offset32le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
-    fn offset64le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
-    fn offset16be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
-    fn offset32be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
-    fn offset64be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)>;
-
-    fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)>;
-    fn reserved<'a>(&self, ty: &'a RcType) -> Option<&'a RcValue>;
-    fn offset_pos<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a BigInt, &'a RcType)>;
-}
-
-/// An environment that contains declarations
-pub trait DeclarationEnv: GlobalEnv {
-    fn get_declaration(&self, free_var: &FreeVar<String>) -> Option<&RcType>;
-    fn insert_declaration(&mut self, free_var: FreeVar<String>, ty: RcType);
-    fn extend_declarations<T>(&mut self, iter: T)
-    where
-        T: IntoIterator<Item = (FreeVar<String>, RcType)>;
-}
-
 #[derive(Debug, Clone, PartialEq, BoundTerm)]
 pub enum Definition {
     Alias(core::RcTerm),
     StructType(core::StructType),
-}
-
-/// An environment that contains definitions
-pub trait DefinitionEnv: GlobalEnv {
-    fn get_extern_definition(&self, name: &str) -> Option<&Extern>;
-    fn get_definition(&self, free_var: &FreeVar<String>) -> Option<&Definition>;
-    fn insert_definition(&mut self, free_var: FreeVar<String>, Definition);
-    fn extend_definitions<T>(&mut self, iter: T)
-    where
-        T: IntoIterator<Item = (FreeVar<String>, Definition)>;
 }
 
 /// The type checking environment
@@ -365,18 +294,6 @@ pub struct TcEnv {
     declarations: HashMap<FreeVar<String>, RcType>,
     /// Any definitions we have passed over
     definitions: HashMap<FreeVar<String>, Definition>,
-}
-
-impl TcEnv {
-    pub fn mappings(&self) -> HashMap<String, FreeVar<String>> {
-        self.declarations
-            .iter()
-            .filter_map(|(free_var, _)| {
-                let pretty_name = free_var.pretty_name.as_ref()?;
-                Some((pretty_name.clone(), free_var.clone()))
-            })
-            .collect()
-    }
 }
 
 impl Default for TcEnv {
@@ -643,164 +560,174 @@ fn offset_app<'a>(free_var: &FreeVar<String>, ty: &'a RcType) -> Option<(u64, &'
     })
 }
 
-impl GlobalEnv for TcEnv {
-    fn resugar_env(&self) -> &ResugarEnv {
+impl TcEnv {
+    pub fn resugar_env(&self) -> &ResugarEnv {
         &self.resugar_env
     }
 
-    fn bool(&self) -> &RcType {
+    pub fn mappings(&self) -> HashMap<String, FreeVar<String>> {
+        self.declarations
+            .iter()
+            .filter_map(|(free_var, _)| {
+                let pretty_name = free_var.pretty_name.as_ref()?;
+                Some((pretty_name.clone(), free_var.clone()))
+            })
+            .collect()
+    }
+
+    pub fn bool(&self) -> &RcType {
         &self.globals.ty_bool
     }
 
-    fn string(&self) -> &RcType {
+    pub fn string(&self) -> &RcType {
         &self.globals.ty_string
     }
 
-    fn char(&self) -> &RcType {
+    pub fn char(&self) -> &RcType {
         &self.globals.ty_char
     }
 
-    fn unit(&self) -> &RcType {
+    pub fn unit(&self) -> &RcType {
         &self.globals.ty_unit
     }
 
-    fn pos(&self) -> &RcType {
+    pub fn pos(&self) -> &RcType {
         &self.globals.ty_pos
     }
 
-    fn u8(&self) -> &RcType {
+    pub fn u8(&self) -> &RcType {
         &self.globals.ty_u8
     }
 
-    fn u16(&self) -> &RcType {
+    pub fn u16(&self) -> &RcType {
         &self.globals.ty_u16
     }
 
-    fn u32(&self) -> &RcType {
+    pub fn u32(&self) -> &RcType {
         &self.globals.ty_u32
     }
 
-    fn u64(&self) -> &RcType {
+    pub fn u64(&self) -> &RcType {
         &self.globals.ty_u64
     }
 
-    fn u16le(&self) -> &RcType {
+    pub fn u16le(&self) -> &RcType {
         &self.globals.ty_u16le
     }
 
-    fn u32le(&self) -> &RcType {
+    pub fn u32le(&self) -> &RcType {
         &self.globals.ty_u32le
     }
 
-    fn u64le(&self) -> &RcType {
+    pub fn u64le(&self) -> &RcType {
         &self.globals.ty_u64le
     }
 
-    fn u16be(&self) -> &RcType {
+    pub fn u16be(&self) -> &RcType {
         &self.globals.ty_u16be
     }
 
-    fn u32be(&self) -> &RcType {
+    pub fn u32be(&self) -> &RcType {
         &self.globals.ty_u32be
     }
 
-    fn u64be(&self) -> &RcType {
+    pub fn u64be(&self) -> &RcType {
         &self.globals.ty_u64be
     }
 
-    fn s8(&self) -> &RcType {
+    pub fn s8(&self) -> &RcType {
         &self.globals.ty_s8
     }
 
-    fn s16(&self) -> &RcType {
+    pub fn s16(&self) -> &RcType {
         &self.globals.ty_s16
     }
 
-    fn s32(&self) -> &RcType {
+    pub fn s32(&self) -> &RcType {
         &self.globals.ty_s32
     }
 
-    fn s64(&self) -> &RcType {
+    pub fn s64(&self) -> &RcType {
         &self.globals.ty_s64
     }
 
-    fn s16le(&self) -> &RcType {
+    pub fn s16le(&self) -> &RcType {
         &self.globals.ty_s16le
     }
 
-    fn s32le(&self) -> &RcType {
+    pub fn s32le(&self) -> &RcType {
         &self.globals.ty_s32le
     }
 
-    fn s64le(&self) -> &RcType {
+    pub fn s64le(&self) -> &RcType {
         &self.globals.ty_s64le
     }
 
-    fn s16be(&self) -> &RcType {
+    pub fn s16be(&self) -> &RcType {
         &self.globals.ty_s16be
     }
 
-    fn s32be(&self) -> &RcType {
+    pub fn s32be(&self) -> &RcType {
         &self.globals.ty_s32be
     }
 
-    fn s64be(&self) -> &RcType {
+    pub fn s64be(&self) -> &RcType {
         &self.globals.ty_s64be
     }
 
-    fn f32(&self) -> &RcType {
+    pub fn f32(&self) -> &RcType {
         &self.globals.ty_f32
     }
 
-    fn f64(&self) -> &RcType {
+    pub fn f64(&self) -> &RcType {
         &self.globals.ty_f64
     }
 
-    fn f32le(&self) -> &RcType {
+    pub fn f32le(&self) -> &RcType {
         &self.globals.ty_f32le
     }
 
-    fn f64le(&self) -> &RcType {
+    pub fn f64le(&self) -> &RcType {
         &self.globals.ty_f64le
     }
 
-    fn f32be(&self) -> &RcType {
+    pub fn f32be(&self) -> &RcType {
         &self.globals.ty_f32be
     }
 
-    fn f64be(&self) -> &RcType {
+    pub fn f64be(&self) -> &RcType {
         &self.globals.ty_f64be
     }
 
-    fn offset8<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset8<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
         offset_app(&self.globals.var_offset8, ty)
     }
 
-    fn offset16le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset16le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
         offset_app(&self.globals.var_offset16le, ty)
     }
 
-    fn offset32le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset32le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
         offset_app(&self.globals.var_offset32le, ty)
     }
 
-    fn offset64le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset64le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
         offset_app(&self.globals.var_offset64le, ty)
     }
 
-    fn offset16be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset16be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
         offset_app(&self.globals.var_offset16be, ty)
     }
 
-    fn offset32be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset32be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
         offset_app(&self.globals.var_offset32be, ty)
     }
 
-    fn offset64be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset64be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
         offset_app(&self.globals.var_offset64be, ty)
     }
 
-    fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)> {
+    pub fn array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType)> {
         free_var_app(&self.globals.var_array, ty).and_then(|spine| match spine {
             &[ref len, ref elem_ty] => match **len {
                 Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty)),
@@ -810,14 +737,14 @@ impl GlobalEnv for TcEnv {
         })
     }
 
-    fn reserved<'a>(&self, ty: &'a RcType) -> Option<&'a RcValue> {
+    pub fn reserved<'a>(&self, ty: &'a RcType) -> Option<&'a RcValue> {
         free_var_app(&self.globals.var_reserved, ty).and_then(|spine| match spine {
             &[ref elem_ty] => Some(elem_ty),
             _ => None,
         })
     }
 
-    fn offset_pos<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a BigInt, &'a RcType)> {
+    pub fn offset_pos<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a BigInt, &'a RcType)> {
         free_var_app(&self.globals.var_offset_pos, ty).and_then(|spine| match spine {
             &[ref pos, ref len, ref elem_ty] => match (&**pos, &**len) {
                 (&Value::Literal(Literal::Pos(pos)), &Value::Literal(Literal::Int(ref len, _))) => {
@@ -828,41 +755,37 @@ impl GlobalEnv for TcEnv {
             _ => None,
         })
     }
-}
 
-impl DeclarationEnv for TcEnv {
-    fn get_declaration(&self, free_var: &FreeVar<String>) -> Option<&RcType> {
+    pub fn get_declaration(&self, free_var: &FreeVar<String>) -> Option<&RcType> {
         self.declarations.get(free_var)
     }
 
-    fn insert_declaration(&mut self, free_var: FreeVar<String>, ty: RcType) {
+    pub fn insert_declaration(&mut self, free_var: FreeVar<String>, ty: RcType) {
         self.resugar_env.on_binder(&Binder(free_var.clone()));
         self.declarations.insert(free_var, ty);
     }
 
-    fn extend_declarations<T>(&mut self, iter: T)
+    pub fn extend_declarations<T>(&mut self, iter: T)
     where
         T: IntoIterator<Item = (FreeVar<String>, RcType)>,
     {
         self.declarations.extend(iter)
     }
-}
 
-impl DefinitionEnv for TcEnv {
-    fn get_extern_definition(&self, name: &str) -> Option<&Extern> {
+    pub fn get_extern_definition(&self, name: &str) -> Option<&Extern> {
         self.extern_definitions.get(name)
     }
 
-    fn get_definition(&self, free_var: &FreeVar<String>) -> Option<&Definition> {
+    pub fn get_definition(&self, free_var: &FreeVar<String>) -> Option<&Definition> {
         self.definitions.get(free_var)
     }
 
-    fn insert_definition(&mut self, free_var: FreeVar<String>, term: Definition) {
+    pub fn insert_definition(&mut self, free_var: FreeVar<String>, term: Definition) {
         self.resugar_env.on_binder(&Binder(free_var.clone()));
         self.definitions.insert(free_var, term);
     }
 
-    fn extend_definitions<T>(&mut self, iter: T)
+    pub fn extend_definitions<T>(&mut self, iter: T)
     where
         T: IntoIterator<Item = (FreeVar<String>, Definition)>,
     {
