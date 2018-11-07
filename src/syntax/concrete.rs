@@ -192,6 +192,17 @@ pub enum Definition {
         params: Vec<(String, Term)>,
         fields: Vec<StructTypeField>,
     },
+    /// Union type definition
+    ///
+    /// ```text
+    /// union Foo (A : Type) { t1, .. }
+    /// ```
+    UnionType {
+        span: ByteSpan,
+        name: (ByteIndex, String),
+        params: Vec<(String, Term)>,
+        variants: Vec<Term>,
+    },
 }
 
 impl Definition {
@@ -203,7 +214,7 @@ impl Definition {
                 ref term,
                 ..
             } => ByteSpan::new(start, term.span().end()),
-            Definition::StructType { span, .. } => span,
+            Definition::StructType { span, .. } | Definition::UnionType { span, .. } => span,
         }
     }
 }

@@ -148,6 +148,7 @@ pub enum Token<S> {
     Module, // module
     Struct, // struct
     Type,   // Type
+    Union,  // union
 
     // Symbols
     BSlash,    // \
@@ -183,6 +184,7 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::DecIntLiteral(ref value) => write!(f, "{}", value),
             Token::HexIntLiteral(ref value) => write!(f, "{:x}", value),
             Token::DecFloatLiteral(ref value) => write!(f, "{}", value),
+
             Token::As => write!(f, "as"),
             Token::Match => write!(f, "match"),
             Token::Else => write!(f, "else"),
@@ -193,6 +195,8 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::Module => write!(f, "module"),
             Token::Struct => write!(f, "struct"),
             Token::Type => write!(f, "Type"),
+            Token::Union => write!(f, "union"),
+
             Token::BSlash => write!(f, "\\"),
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
@@ -203,6 +207,7 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::LFatArrow => write!(f, "=>"),
             Token::Pipe => write!(f, "|"),
             Token::Semi => write!(f, ";"),
+
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBrace => write!(f, "{{"),
@@ -226,6 +231,7 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::DecIntLiteral(value) => Token::DecIntLiteral(value),
             Token::HexIntLiteral(value) => Token::HexIntLiteral(value),
             Token::DecFloatLiteral(value) => Token::DecFloatLiteral(value),
+
             Token::As => Token::As,
             Token::Match => Token::Match,
             Token::Else => Token::Else,
@@ -236,6 +242,8 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::Module => Token::Module,
             Token::Struct => Token::Struct,
             Token::Type => Token::Type,
+            Token::Union => Token::Union,
+
             Token::BSlash => Token::BSlash,
             Token::Colon => Token::Colon,
             Token::Comma => Token::Comma,
@@ -246,6 +254,7 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::LFatArrow => Token::LFatArrow,
             Token::Pipe => Token::Pipe,
             Token::Semi => Token::Semi,
+
             Token::LParen => Token::LParen,
             Token::RParen => Token::RParen,
             Token::LBrace => Token::LBrace,
@@ -381,6 +390,7 @@ impl<'input> Lexer<'input> {
             "module" => Token::Module,
             "struct" => Token::Struct,
             "Type" => Token::Type,
+            "union" => Token::Union,
             ident => Token::Ident(ident),
         };
 
@@ -683,17 +693,18 @@ mod tests {
     #[test]
     fn keywords() {
         test! {
-            "  as else extern if import int match module struct Type  ",
-            "  ~~                                                     " => Token::As,
-            "     ~~~~                                                " => Token::Else,
-            "          ~~~~~~                                         " => Token::Extern,
-            "                 ~~                                      " => Token::If,
-            "                    ~~~~~~                               " => Token::Import,
-            "                           ~~~                           " => Token::Int,
-            "                               ~~~~~                     " => Token::Match,
-            "                                     ~~~~~~              " => Token::Module,
-            "                                            ~~~~~~       " => Token::Struct,
-            "                                                   ~~~~  " => Token::Type,
+            "  as else extern if import int match module struct Type union  ",
+            "  ~~                                                           " => Token::As,
+            "     ~~~~                                                      " => Token::Else,
+            "          ~~~~~~                                               " => Token::Extern,
+            "                 ~~                                            " => Token::If,
+            "                    ~~~~~~                                     " => Token::Import,
+            "                           ~~~                                 " => Token::Int,
+            "                               ~~~~~                           " => Token::Match,
+            "                                     ~~~~~~                    " => Token::Module,
+            "                                            ~~~~~~             " => Token::Struct,
+            "                                                   ~~~~        " => Token::Type,
+            "                                                        ~~~~~  " => Token::Union,
         };
     }
 

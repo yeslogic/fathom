@@ -41,6 +41,7 @@ extern {
         "import" => Token::Import,
         "struct" => Token::Struct,
         "Type" => Token::Type,
+        "union" => Token::Union,
 
         // Symbols
         "\\" => Token::BSlash,
@@ -124,6 +125,14 @@ Item: Item = {
         let mut fields = fields;
         fields.extend(last);
         Item::Definition(Definition::StructType { span, name, params, fields })
+    },
+     <_comment: "doc comment"*> <start: @L> "union" <name: IndexedIdent> <params: ("(" <Ident> ":" <Term> ")")*>
+        "{" <variants: (<Term> ",")*> <last: Term?> "}" <end: @R> ";" =>
+    {
+        let span = ByteSpan::new(start, end);
+        let mut variants = variants;
+        variants.extend(last);
+        Item::Definition(Definition::UnionType { span, name, params, variants })
     },
     <start: @L> <recovered: !> <end: @R> ";" => {
         errors.push(super::errors::from_lalrpop(filemap, recovered.error));

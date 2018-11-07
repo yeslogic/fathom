@@ -84,15 +84,13 @@ struct Tag {
 
 struct File {
     start : Pos,
-    // TODO: top : OpenType start,
-    top : OffsetTable start,
+    open_type : OpenType start,
 };
 
-// TODO:
-// union OpenType (file_start : Pos) {
-//     OffsetTable file_start,
-//     TtcHeader file_start,
-// };
+union OpenType (file_start : Pos) {
+    OffsetTable file_start,
+    TtcHeader file_start,
+};
 
 
 // -----------------------------------------------------------------------------
@@ -140,12 +138,11 @@ struct OffsetTableRecord (file_start : Pos) {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font>
 // -----------------------------------------------------------------------------
 
-// TODO:
-// /// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header>
-// union TtcHeader (file_start : Pos) {
-//     TtcHeader1 file_start,
-//     TtcHeader2 file_start,
-// };
+/// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header>
+union TtcHeader (file_start : Pos) {
+    TtcHeader1 file_start,
+    TtcHeader2 file_start,
+};
 
 struct TtcHeader1 (file_start : Pos) {
     /// Font Collection ID
@@ -194,8 +191,8 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "head" => FontHeader,                   // Font header
     "hhea" => HorizontalHeader,             // Horizontal header
     "hmtx" => Unknown,                      // Horizontal metrics // TODO: Depends on `num_glyphs` and `number_of_h_metrics` from "hhea"
-    "maxp" => Unknown,                      // Maximum profile // TODO: unions
-    "name" => Unknown,                      // Naming table // TODO: unions
+    "maxp" => MaximumProfile,               // Maximum profile
+    "name" => Naming,                       // Naming table
     "OS/2" => Os2,                          // OS/2 and Windows specific metrics
     "post" => PostScript,                   // PostScript information
 
@@ -329,7 +326,6 @@ struct LangSysRecord (script_start : Pos) {
 struct Script {
     start : Pos,
     /// Offset to default LangSys table, from beginning of Script table — may be NULL
-    // FIXME: default_lang_sys : Offset16Be start LangSys,
     default_lang_sys : Offset16Be start LangSys,
     /// Number of LangSysRecords for this script — excluding the default LangSys
     lang_sys_count : U16Be,
@@ -448,14 +444,13 @@ struct Lookup {
     mark_filtering_set : U16Be,
 };
 
-// TODO:
-// /// Coverage Table
-// ///
-// /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverage-table>
-// union Coverage {
-//     CoverageFormat1,
-//     CoverageFormat2,
-// };
+/// Coverage Table
+///
+/// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#coverage-table>
+union Coverage {
+    CoverageFormat1,
+    CoverageFormat2,
+};
 
 /// Coverage Format 1 table: Individual glyph indices
 struct CoverageFormat1 {
@@ -578,8 +573,7 @@ struct ConditionSet {
     /// Number of conditions for this condition set.
     condition_count : U16Be,
     /// Array of offsets to condition tables, from beginning of the ConditionSet table.
-    // TODO: conditions : Array condition_count (Offset32Be start ConditionTableFormat),
-    conditions : Array condition_count (Offset32Be start Unknown),
+    conditions : Array condition_count (Offset32Be start ConditionTableFormat),
 };
 
 
@@ -589,10 +583,9 @@ struct ConditionSet {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#condition-table>
 // -----------------------------------------------------------------------------
 
-// TODO:
-// union ConditionTableFormat {
-//     ConditionTableFormat1,
-// };
+union ConditionTableFormat {
+    ConditionTableFormat1,
+};
 
 struct ConditionTableFormat1 {
     /// Format, = 1
@@ -684,23 +677,21 @@ struct EncodingRecord (cmap_start : Pos) {
     /// Platform-specific encoding ID.
     encoding_id : U16Be,
     /// Byte offset from beginning of table to the subtable for this encoding.
-    // TODO: subtable_offset : Offset32Be cmap_start CharMapSubtable,
-    subtable_offset : Offset32Be cmap_start Unknown,
+    subtable_offset : Offset32Be cmap_start CharMapSubtable,
 };
 
-// TODO:
-// /// CharMap Subtable
-// union CharMapSubtable {
-//     CharMapSubtable0,
-//     CharMapSubtable2,
-//     CharMapSubtable4,
-//     CharMapSubtable6,
-//     CharMapSubtable8,
-//     CharMapSubtable10,
-//     CharMapSubtable12,
-//     CharMapSubtable13,
-//     CharMapSubtable14,
-// };
+/// CharMap Subtable
+union CharMapSubtable {
+    CharMapSubtable0,
+    CharMapSubtable2,
+    CharMapSubtable4,
+    CharMapSubtable6,
+    CharMapSubtable8,
+    CharMapSubtable10,
+    CharMapSubtable12,
+    CharMapSubtable13,
+    CharMapSubtable14,
+};
 
 
 // -----------------------------------------------------------------------------
@@ -1181,16 +1172,15 @@ struct LongHorMetric {
 //
 // =============================================================================
 
-// TODO:
-// /// Maximum Profile
-// ///
-// /// <https://www.microsoft.com/typography/otspec/maxp.htm>
-// ///
-// /// Establishes the memory requirements for this font.
-// union MaximumProfile {
-//     MaximumProfileVersion_0_5,
-//     MaximumProfileVersion_1_0,
-// };
+/// Maximum Profile
+///
+/// <https://www.microsoft.com/typography/otspec/maxp.htm>
+///
+/// Establishes the memory requirements for this font.
+union MaximumProfile {
+    MaximumProfileVersion_0_5,
+    MaximumProfileVersion_1_0,
+};
 
 /// Version 0.5
 ///
@@ -1252,11 +1242,10 @@ struct MaximumProfileVersion_1_0 {
 //
 // =============================================================================
 
-// TODO
-// union Naming {
-//     NamingFormat0,
-//     NamingFormat1,
-// };
+union Naming {
+    NamingFormat0,
+    NamingFormat1,
+};
 
 // -----------------------------------------------------------------------------
 // Naming table format 0
@@ -2239,14 +2228,13 @@ struct IndexSubHeader (embedded_bitmap_data_start : Pos) {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/eblc#indexsubtables>
 // -----------------------------------------------------------------------------
 
-// TODO:
-// union IndexSubTable {
-//     IndexSubTable1,
-//     IndexSubTable2,
-//     IndexSubTable3,
-//     IndexSubTable4,
-//     IndexSubTable5,
-// };
+union IndexSubTable (embedded_bitmap_data_start : Pos) {
+    IndexSubTable1 embedded_bitmap_data_start,
+    IndexSubTable2 embedded_bitmap_data_start,
+    IndexSubTable3 embedded_bitmap_data_start,
+    IndexSubTable4 embedded_bitmap_data_start,
+    IndexSubTable5 embedded_bitmap_data_start,
+};
 
 /// IndexSubTable1: variable-metrics glyphs with 4-byte offsets
 struct IndexSubTable1 (embedded_bitmap_data_start : Pos) {
@@ -2564,16 +2552,11 @@ struct FeatMinMaxRecord (min_max_start : Pos) {
 //
 // -----------------------------------------------------------------------------
 
-struct BaseCoord {
-    // TODO: unions
+union BaseCoord {
+    BaseCoordFormat1,
+    BaseCoordFormat2,
+    BaseCoordFormat3,
 };
-
-// TODO
-// union BaseCoord {
-//     BaseCoordFormat1,
-//     BaseCoordFormat2,
-//     BaseCoordFormat3,
-// };
 
 struct BaseCoordFormat1 {
     /// Format identifier — format = 1
@@ -2683,8 +2666,7 @@ struct GlyphDefinitionData {
 struct AttachList {
     start : Pos,
     /// Offset to Coverage table - from beginning of AttachList table
-    // TODO: coverage_offset : Offset16Be start Coverage,
-    coverage_offset : Offset16Be start Unknown,
+    coverage_offset : Offset16Be start Coverage,
     /// Number of glyphs with attachment points
     glyph_count : U16Be,
     /// Array of offsets to AttachPoint tables-from beginning of AttachList
@@ -2715,8 +2697,7 @@ struct AttachPoint {
 struct LigCaretList {
     start : Pos,
     /// Offset to Coverage table - from beginning of LigCaretList table
-    // TODO: coverage_offset : Offset16Be start Coverage,
-    coverage_offset : Offset16Be start Unknown,
+    coverage_offset : Offset16Be start Coverage,
     /// Number of ligature glyphs
     lig_glyph_count : U16Be,
     /// Array of offsets to LigGlyph tables, from beginning of LigCaretList
@@ -2733,19 +2714,17 @@ struct LigGlyph {
     caret_count : U16Be,
     /// Array of offsets to CaretValue tables, from beginning of LigGlyph
     /// table — in increasing coordinate order
-    // TODO: caret_value_offsets : Array caret_count (Offset16Be start CaretValue),
-    caret_value_offsets : Array caret_count (Offset16Be start Unknown),
+    caret_value_offsets : Array caret_count (Offset16Be start CaretValue),
 };
 
-// TODO:
-// /// Caret Value Tables
-// ///
-// /// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbls>
-// union CaretValue {
-//     CaretValueFormat1,
-//     CaretValueFormat2,
-//     CaretValueFormat3,
-// };
+/// Caret Value Tables
+///
+/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbls>
+union CaretValue {
+    CaretValueFormat1,
+    CaretValueFormat2,
+    CaretValueFormat3,
+};
 
 /// CaretValue Format 1: Design units only
 ///
@@ -3247,7 +3226,7 @@ struct MathGlyphInfo {
 struct MathItalicsCorrectionInfo {
     start : Pos,
     /// Offset to Coverage table - from the beginning of MathItalicsCorrectionInfo table.
-    italics_correction_coverage_offset : Offset16Be start Unknown, // TODO: Coverage table
+    italics_correction_coverage_offset : Offset16Be start Coverage,
     /// Number of italics correction values. Should coincide with the number of covered glyphs.
     italics_correction_count : U16Be,
     /// Array of MathValueRecords defining italics correction values for each covered glyph.
@@ -3258,7 +3237,7 @@ struct MathTopAccentAttachment {
     start : Pos,
     /// Offset to Coverage table, from the beginning of the
     /// MathTopAccentAttachment table.
-    top_accent_coverage_offset : Offset16Be start Unknown, // TODO: Coverage table
+    top_accent_coverage_offset : Offset16Be start Coverage,
     /// Number of top accent attachment point values. Must be the same as the
     /// number of glyph IDs referenced in the Coverage table.
     top_accent_attachment_count : U16Be,
@@ -3270,7 +3249,7 @@ struct MathTopAccentAttachment {
 struct MathKernInfo {
     start : Pos,
     /// Offset to Coverage table, from the beginning of the MathKernInfo table.
-    math_kern_coverage_offset : Offset16Be start Unknown, // TODO: Coverage table
+    math_kern_coverage_offset : Offset16Be start Coverage,
     /// Number of MathKernInfoRecords. Must be the same as the number of glyph
     /// IDs referenced in the Coverage table.
     math_kern_count : U16Be,
@@ -3311,9 +3290,9 @@ struct MathVariants {
     /// design units.
     min_connector_overlap : U16Be,
     /// Offset to Coverage table, from the beginning of the MathVariants table.
-    vertical_glyph_coverage_offset : Offset16Be start Unknown, // TODO: Coverage table
+    vertical_glyph_coverage_offset : Offset16Be start Coverage,
     /// Offset to Coverage table, from the beginning of the MathVariants table.
-    horizontal_glyph_coverage_offset : Offset16Be start Unknown, // TODO: Coverage table
+    horizontal_glyph_coverage_offset : Offset16Be start Coverage,
     /// Number of glyphs for which information is provided for vertically
     /// growing variants. Must be the same as the number of glyph IDs referenced
     /// in the vertical Coverage table.
@@ -3646,14 +3625,12 @@ struct SignatureRecord (digital_signature_start : Pos) {
     /// Length of signature in bytes
     length : U32Be,
     /// Offset to the signature block from the beginning of the table
-    // TODO: offset : Offset32Be digital_signature_start SignatureBlock,
-    offset : Offset32Be digital_signature_start Unknown,
+    offset : Offset32Be digital_signature_start SignatureBlock,
 };
 
-// TODO:
-// union SignatureBlock {
-//     SignatureBlockFormat1,
-// }
+union SignatureBlock {
+    SignatureBlockFormat1,
+};
 
 struct SignatureBlockFormat1 {
     /// Reserved for future use; set to zero.
@@ -3829,7 +3806,7 @@ struct StyleAttributes {
     /// Offset in bytes from the beginning of the STAT table to the start of the
     /// design axes value offsets array. If axisValueCount is zero, set to zero;
     /// if axisValueCount is greater than zero, must be greater than zero.
-    offset_to_axis_value_offsets : Offset32Be start (Array axis_value_count Unknown),
+    offset_to_axis_value_offsets : Offset32Be start (Array axis_value_count (AxisValueFormat major_version minor_version)),
 
     // Version 1.1
 
@@ -3862,13 +3839,12 @@ struct AxisRecord {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/stat#axis-value-tables>
 // -----------------------------------------------------------------------------
 
-// TODO:
-// union AxisValueFormat (major_version : U16Be) (minor_version : U16Be) {
-//     AxisValueFormat1,
-//     AxisValueFormat2,
-//     AxisValueFormat3,
-//     AxisValueFormat4, // TODO: If Version 1.2
-// }
+union AxisValueFormat (major_version : U16) (minor_version : U16) {
+    AxisValueFormat1,
+    AxisValueFormat2,
+    AxisValueFormat3,
+    AxisValueFormat4, // TODO: If Version 1.2
+};
 
 struct AxisValueFormat1 {
     /// Format identifier — set to 1.

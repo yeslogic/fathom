@@ -270,6 +270,7 @@ pub struct Globals {
 pub enum Definition {
     Alias(core::RcTerm),
     StructType(core::StructType),
+    UnionType(core::UnionType),
 }
 
 /// The type checking environment
