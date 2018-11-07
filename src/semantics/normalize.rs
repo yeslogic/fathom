@@ -112,10 +112,10 @@ pub fn nf_term(context: &Context, term: &RcTerm) -> Result<RcValue, InternalErro
             }
         },
 
-        Term::CondType(ref scope) => {
+        Term::Refinement(ref scope) => {
             let ((name, Embed(ann)), body) = scope.clone().unbind();
 
-            Ok(RcValue::from(Value::CondType(Scope::new(
+            Ok(RcValue::from(Value::Refinement(Scope::new(
                 (name, Embed(nf_term(context, &ann)?)),
                 nf_term(context, &body)?,
             ))))

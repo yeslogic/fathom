@@ -516,7 +516,7 @@ fn reserved() {
 }
 
 #[test]
-fn cond_ok() {
+fn refinement_ok() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
     let desugar_env = DesugarEnv::new(context.mappings());
@@ -559,7 +559,7 @@ fn cond_ok() {
 }
 
 #[test]
-fn cond_fail() {
+fn refinement_fail() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
     let desugar_env = DesugarEnv::new(context.mappings());

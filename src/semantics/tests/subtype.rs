@@ -244,7 +244,7 @@ mod f64be {
     }
 }
 
-mod cond_ty {
+mod refinement {
     use super::*;
 
     #[test]

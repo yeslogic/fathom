@@ -521,7 +521,7 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
                 vec![resugar_term(env, arg, Prec::NO_WRAP)], // TODO
             ),
         ),
-        core::Term::CondType(ref scope) => {
+        core::Term::Refinement(ref scope) => {
             let ((binder, Embed(mut ann)), mut body) = scope.clone().unbind();
 
             let mut env = env.clone();
@@ -529,7 +529,7 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
 
             parens_if(
                 Prec::LAM < prec,
-                concrete::Term::CondType(
+                concrete::Term::Refinement(
                     ByteSpan::default(),
                     ByteIndex::default(),
                     name,

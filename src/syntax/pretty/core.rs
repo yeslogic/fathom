@@ -82,9 +82,9 @@ where
     )
 }
 
-fn pretty_cond_ty(binder: &Binder<String>, ann: &impl ToDoc, body: &impl ToDoc) -> StaticDoc {
+fn pretty_refinement(binder: &Binder<String>, ann: &impl ToDoc, body: &impl ToDoc) -> StaticDoc {
     sexpr(
-        "cond",
+        "refinement",
         Doc::group(parens(
             pretty_binder(binder)
                 .append(Doc::space())
@@ -174,7 +174,7 @@ impl ToDoc for raw::Term {
                 &scope.unsafe_body.inner,
             ),
             raw::Term::App(ref head, ref arg) => pretty_app(head.to_doc(), iter::once(&arg.inner)),
-            raw::Term::CondType(_, ref scope) => pretty_cond_ty(
+            raw::Term::Refinement(_, ref scope) => pretty_refinement(
                 &scope.unsafe_pattern.0,
                 &(scope.unsafe_pattern.1).0.inner,
                 &scope.unsafe_body.inner,
@@ -268,7 +268,7 @@ impl ToDoc for Term {
                 &scope.unsafe_body.inner,
             ),
             Term::App(ref head, ref arg) => pretty_app(head.to_doc(), iter::once(&arg.inner)),
-            Term::CondType(ref scope) => pretty_cond_ty(
+            Term::Refinement(ref scope) => pretty_refinement(
                 &scope.unsafe_pattern.0,
                 &(scope.unsafe_pattern.1).0.inner,
                 &scope.unsafe_body.inner,
@@ -319,7 +319,7 @@ impl ToDoc for Value {
                 &(scope.unsafe_pattern.1).0.inner,
                 &scope.unsafe_body.inner,
             ),
-            Value::CondType(ref scope) => pretty_cond_ty(
+            Value::Refinement(ref scope) => pretty_refinement(
                 &scope.unsafe_pattern.0,
                 &(scope.unsafe_pattern.1).0.inner,
                 &scope.unsafe_body.inner,

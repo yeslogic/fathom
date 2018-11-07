@@ -415,12 +415,12 @@ pub enum Term {
     /// if t1 then t2 else t3
     /// ```
     If(ByteSpan, Box<Term>, Box<Term>, Box<Term>),
-    /// Conditional types
+    /// Refinement types
     ///
     /// ```text
     /// { x : t1 | pred x }
     /// ```
-    CondType(ByteSpan, ByteIndex, String, Box<Term>, Box<Term>),
+    Refinement(ByteSpan, ByteIndex, String, Box<Term>, Box<Term>),
     /// Match expression
     ///
     /// ```text
@@ -459,7 +459,7 @@ impl Term {
             | Term::Hole(span)
             | Term::If(span, _, _, _)
             | Term::Match(span, _, _)
-            | Term::CondType(span, _, _, _, _)
+            | Term::Refinement(span, _, _, _, _)
             | Term::Struct(span, _)
             | Term::Error(span) => span,
             Term::Name(start, ref name) => ByteSpan::from_offset(start, ByteOffset::from_str(name)),

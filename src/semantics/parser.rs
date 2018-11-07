@@ -244,7 +244,7 @@ where
         _ if core::RcValue::term_eq(ty, context.f64le()) => Ok(Value::F64(bytes.read_f64::<Le>()?)),
         _ if core::RcValue::term_eq(ty, context.f64be()) => Ok(Value::F64(bytes.read_f64::<Be>()?)),
 
-        core::Value::CondType(ref scope) => {
+        core::Value::Refinement(ref scope) => {
             let ((Binder(free_var), Embed(ann)), pred) = scope.clone().unbind();
             let ann_value = parse_term(context, pending, &ann, bytes)?;
             let pred_value = {

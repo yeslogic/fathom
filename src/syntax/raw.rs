@@ -140,8 +140,8 @@ pub enum Term {
     Lam(ByteSpan, Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Term application
     App(RcTerm, RcTerm),
-    /// Conditional type
-    CondType(ByteSpan, Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
+    /// Refinement type
+    Refinement(ByteSpan, Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Dependent struct
     Struct(ByteSpan, Vec<(Label, RcTerm)>),
     /// Field projection
@@ -162,7 +162,7 @@ impl Term {
             | Term::Extern(span, _, _)
             | Term::Pi(span, _)
             | Term::Lam(span, _)
-            | Term::CondType(span, _)
+            | Term::Refinement(span, _)
             | Term::Struct(span, _)
             | Term::Proj(span, _, _, _)
             | Term::Match(span, _, _)

@@ -204,7 +204,7 @@ LamTerm: Term = {
         Term::Match(ByteSpan::new(start, end), Box::new(head), arms)
     },
     <start: @L> "{" <ident : IndexedIdent> ":" <ty: AppTerm> "|" <pred: AppTerm> "}" <end: @R> => {
-        Term::CondType(ByteSpan::new(start, end), ident.0, ident.1, Box::new(ty), Box::new(pred))
+        Term::Refinement(ByteSpan::new(start, end), ident.0, ident.1, Box::new(ty), Box::new(pred))
     },
 };
 

@@ -164,7 +164,7 @@ pub fn is_subtype(context: &Context, ty1: &RcType, ty2: &RcType) -> bool {
             in_min_bound && in_max_bound
         },
 
-        (&Value::CondType(ref scope), _) => {
+        (&Value::Refinement(ref scope), _) => {
             // NOTE: It's safe to access the pattern without binding the body.
             // TODO: Should this be reflected in the API of Moniker?
             is_subtype(context, &(scope.unsafe_pattern.1).0, ty2)
@@ -746,7 +746,7 @@ pub fn infer_term(
             }
         },
 
-        raw::Term::CondType(_, ref raw_scope) => {
+        raw::Term::Refinement(_, ref raw_scope) => {
             let ((Binder(free_var), Embed(raw_ann)), raw_body) = raw_scope.clone().unbind();
             let (ann, level) = infer_universe(context, &raw_ann)?;
             let ann_value = nf_term(context, &ann)?;
@@ -758,10 +758,10 @@ pub fn infer_term(
                 check_term(&body_context, &raw_body, body_context.bool())?
             };
 
-            let cond_param = (Binder(free_var), Embed(ann));
+            let param = (Binder(free_var), Embed(ann));
 
             Ok((
-                RcTerm::from(Term::CondType(Scope::new(cond_param, body))),
+                RcTerm::from(Term::Refinement(Scope::new(param, body))),
                 RcValue::from(Value::Universe(level)),
             ))
         },

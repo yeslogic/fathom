@@ -286,7 +286,7 @@ impl ToDoc for Term {
                     .nest(INDENT_WIDTH),
                 )
                 .append("}"),
-            Term::CondType(_, _, ref name, ref ann, ref pred) => Doc::text("{")
+            Term::Refinement(_, _, ref name, ref ann, ref pred) => Doc::text("{")
                 .append(Doc::space())
                 .append(Doc::as_string(name))
                 .append(Doc::space())
