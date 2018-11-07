@@ -131,6 +131,8 @@ pub enum Term {
     Lam(Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Term application
     App(RcTerm, RcTerm),
+    /// Refinement type
+    Refinement(Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Dependent struct
     Struct(Vec<(Label, RcTerm)>),
     /// Field projection
@@ -191,6 +193,13 @@ impl RcTerm {
             },
             Term::App(ref head, ref arg) => {
                 RcTerm::from(Term::App(head.substs(mappings), arg.substs(mappings)))
+            },
+            Term::Refinement(ref scope) => {
+                let (ref name, Embed(ref ann)) = scope.unsafe_pattern;
+                RcTerm::from(Term::Refinement(Scope {
+                    unsafe_pattern: (name.clone(), Embed(ann.substs(mappings))),
+                    unsafe_body: scope.unsafe_body.substs(mappings),
+                }))
             },
             Term::Struct(ref fields) => RcTerm::from(Term::Struct(
                 fields
@@ -257,6 +266,8 @@ pub enum Value {
     Pi(Scope<(Binder<String>, Embed<RcValue>), RcValue>),
     /// A lambda abstraction
     Lam(Scope<(Binder<String>, Embed<RcValue>), RcValue>),
+    /// A refinement type
+    Refinement(Scope<(Binder<String>, Embed<RcValue>), RcValue>),
     /// Dependent struct
     Struct(Vec<(Label, RcValue)>),
     /// Array literals
@@ -290,6 +301,7 @@ impl Value {
             | Value::IntType(_, _)
             | Value::Pi(_)
             | Value::Lam(_)
+            | Value::Refinement(_)
             | Value::Struct(_)
             | Value::Array(_) => true,
             Value::Neutral(_, _) => false,
@@ -303,7 +315,7 @@ impl Value {
             Value::IntType(ref min, ref max) => {
                 min.as_ref().map_or(true, |x| x.is_nf()) && max.as_ref().map_or(true, |x| x.is_nf())
             },
-            Value::Pi(ref scope) | Value::Lam(ref scope) => {
+            Value::Pi(ref scope) | Value::Lam(ref scope) | Value::Refinement(ref scope) => {
                 (scope.unsafe_pattern.1).0.is_nf() && scope.unsafe_body.is_nf()
             },
             Value::Struct(ref fields) => fields.iter().all(|&(_, ref term)| term.is_nf()),
@@ -486,6 +498,13 @@ impl<'a> From<&'a Value> for Term {
             Value::Lam(ref scope) => {
                 let (ref name, Embed(ref ann)) = scope.unsafe_pattern;
                 Term::Lam(Scope {
+                    unsafe_pattern: (name.clone(), Embed(RcTerm::from(&**ann))),
+                    unsafe_body: RcTerm::from(&*scope.unsafe_body),
+                })
+            },
+            Value::Refinement(ref scope) => {
+                let (ref name, Embed(ref ann)) = scope.unsafe_pattern;
+                Term::Refinement(Scope {
                     unsafe_pattern: (name.clone(), Embed(RcTerm::from(&**ann))),
                     unsafe_body: RcTerm::from(&*scope.unsafe_body),
                 })

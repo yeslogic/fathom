@@ -151,6 +151,7 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
         "string-eq" => prim!(fn(x: String, y: String) -> bool { x == y }),
         "bool-eq" => prim!(fn(x: bool, y: bool) -> bool { x == y }),
         "char-eq" => prim!(fn(x: char, y: char) -> bool { x == y }),
+        "int-eq" => prim!(fn(x: BigInt, y: BigInt) -> bool { x == y }),
         "f32-eq" => prim!(fn(x: f32, y: f32) -> bool { f32::eq(x, y) }),
         "f64-eq" => prim!(fn(x: f64, y: f64) -> bool { f64::eq(x, y) }),
 

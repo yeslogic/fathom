@@ -18,7 +18,7 @@ fn silly_root() {
     let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
-        module silly;
+        module test;
 
         Data : U32 -> Type;
 
@@ -66,7 +66,7 @@ fn missing_root() {
     let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
-        module silly;
+        module test;
 
         Data : U32 -> Type;
         Data len = Array len U32Be;
@@ -100,7 +100,7 @@ fn pos() {
     let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
-        module pos_test;
+        module test;
 
         struct PosEntry {
             pad : U32Be,
@@ -164,7 +164,7 @@ fn offset() {
     let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
-        module offset_test;
+        module test;
 
         struct PosTest {
             magic : U32Be,
@@ -225,7 +225,7 @@ fn offset_same_pos() {
     let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
-        module offset_test;
+        module test;
 
         struct PosTest {
             start : Pos,
@@ -270,7 +270,7 @@ fn offset_same_pos_different_tys() {
     let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
-        module offset_test;
+        module test;
 
         struct PosTest {
             start : Pos,
@@ -310,7 +310,7 @@ fn offset_pos() {
     let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
-        module offset_test;
+        module test;
 
         struct PosTest {
             magic : U32Be,
@@ -384,7 +384,7 @@ fn offset_pos_same_pos() {
     let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
-        module offset_test;
+        module test;
 
         struct PosTest {
             start : Pos,
@@ -439,7 +439,7 @@ fn offset_pos_same_pos_different_tys() {
     let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
-        module offset_test;
+        module test;
 
         struct PosTest {
             start : Pos,
@@ -484,7 +484,7 @@ fn reserved() {
     let desugar_env = DesugarEnv::new(context.mappings());
 
     let given_format = r#"
-        module reserved_test;
+        module test;
 
         struct Test {
             reserved : Reserved U32Be,
@@ -513,6 +513,84 @@ fn reserved() {
             ]),
         },
     );
+}
+
+#[test]
+fn refinement_ok() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r#"
+        module test;
+
+        nat_eq : int {0 ..} -> int {0 ..} -> Bool;
+        nat_eq = extern "int-eq";
+
+        struct Test {
+            value : { value : U32Be | nat_eq value 0 },
+            data : Array value U8, // test subtyping
+        };
+    "#;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(0).unwrap(); // reserved
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (label("value"), Value::U32(0)),
+                (label("data"), Value::Array(vec![])),
+            ]),
+        },
+    );
+}
+
+#[test]
+fn refinement_fail() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r#"
+        module test;
+
+        nat_eq : int {0 ..} -> int {0 ..} -> Bool;
+        nat_eq = extern "int-eq";
+
+        struct Test {
+            value : { value : U32Be | nat_eq value 0 },
+            data : Array value U8, // test subtyping
+        };
+    "#;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(1).unwrap(); // reserved
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
+
+    assert!(parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).is_err());
 }
 
 #[test]

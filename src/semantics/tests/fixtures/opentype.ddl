@@ -12,6 +12,10 @@ struct U24Be {
 };
 
 // FIXME: A tad hacky - add operators and proper bounds handling?
+nat_eq : int {0 ..} -> int {0 ..} -> Bool;
+nat_eq = extern "int-eq";
+
+// FIXME: A tad hacky - add operators and proper bounds handling?
 nat_add : int {0 ..} -> int {0 ..} -> int {0 ..};
 nat_add = extern "int-add";
 
@@ -101,12 +105,12 @@ struct OffsetTable (file_start : Pos) {
     /// 0x00010000 or 0x4F54544F ('OTTO')
     ///
     /// Apple allows 'true' and 'typ1' ?
-    sfnt_version : U32Be,
+    sfnt_version : U32Be, // TODO: constrain version
     /// Number of tables
     num_tables : U16Be,
-    /// (Maximum power of 2 <= numTables) x 16
+    /// (Maximum power of 2 <= num_tables) x 16
     search_range : U16Be,
-    /// Log2(maximum power of 2 <= numTables)
+    /// Log2(maximum power of 2 <= num_tables)
     entry_selector : U16Be,
     /// NumTables x 16-searchRange
     range_shift : U16Be,
@@ -147,9 +151,9 @@ struct TtcHeader1 (file_start : Pos) {
     /// Font Collection ID
     ttc_tag : Tag,
     /// Major version of the TTC Header, = 1
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the TTC Header, = 0
-    minor_version : U16Be,
+    minor_version : { version : U16Be | nat_eq version 0 },
     /// Number of fonts in TTC
     num_fonts : U32Be,
     /// Array of offsets to the OffsetTable for each font from the beginning of the file
@@ -160,9 +164,9 @@ struct TtcHeader2 (file_start : Pos) {
     /// Font Collection ID
     ttc_tag : Tag,
     /// Major version of the TTC Header, = 2
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 2 },
     /// Minor version of the TTC Header, = 0
-    minor_version : U16Be,
+    minor_version : { version : U16Be | nat_eq version 0 },
     /// Number of fonts in TTC
     num_fonts : U32Be,
     /// Array of offsets to the OffsetTable for each font from the beginning of the file
@@ -456,7 +460,7 @@ struct Lookup {
 /// Coverage Format 1 table: Individual glyph indices
 struct CoverageFormat1 {
     /// Format identifier — format = 1
-    coverage_format : U16Be,
+    coverage_format : { format : U16Be | nat_eq format 1 },
     /// Number of glyphs in the glyph array
     glyph_count : U16Be,
     /// Array of glyph IDs — in numerical order
@@ -466,7 +470,7 @@ struct CoverageFormat1 {
 /// Coverage Format 2 table: Range of glyphs
 struct CoverageFormat2 {
     /// Format identifier — format = 2
-    coverage_format : U16Be,
+    coverage_format : { format : U16Be | nat_eq format 2 },
     /// Number of RangeRecords
     range_count : U16Be,
     /// Array of glyph ranges — ordered by startGlyphID.
@@ -546,9 +550,9 @@ struct VariationIndex {
 struct FeatureVariations {
     start : Pos,
     /// Major version of the FeatureVariations table — set to 1.
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the FeatureVariations table — set to 0.
-    minor_version : U16Be,
+    minor_version : { version : U16Be | nat_eq version 0 },
     /// Number of feature variation records.
     feature_variation_record_count : U32Be,
     /// Array of feature variation records.
@@ -592,7 +596,7 @@ struct ConditionSet {
 
 struct ConditionTableFormat1 {
     /// Format, = 1
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 1 },
     /// Index (zero-based) for the variation axis within the 'fvar' table.
     axis_index : U16Be,
     /// Minimum value of the font variation instances that satisfy this condition.
@@ -611,9 +615,9 @@ struct ConditionTableFormat1 {
 struct FeatureTableSubstitution {
     start : Pos,
     /// Major version of the feature table substitution table — set to 1
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the feature table substitution table — set to 0.
-    minor_version : U16Be,
+    minor_version : { version : U16Be | nat_eq version 0 },
     /// Number of feature table substitution records.
     substitution_count : U16Be,
     /// Array of feature table substitution records.
@@ -664,7 +668,7 @@ struct FeatureTableSubstitutionRecord (feature_table_substitution_start : Pos) {
 struct CharMap {
     start : Pos,
     /// Table version number (0)
-    version : U16Be,
+    version : { version : U16Be | nat_eq version 0 },
     /// Number of encoding records that follow
     num_tables : U16Be,
     /// A list of encoding records
@@ -708,7 +712,7 @@ struct EncodingRecord (cmap_start : Pos) {
 /// Format 0: Byte encoding table
 struct CharMapSubtable0 {
     /// Format number is set to 0
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 0 },
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -728,16 +732,16 @@ struct CharMapSubtable0 {
 /// Format 2: High-byte mapping through table
 struct CharMapSubtable2 {
     /// Format number is set to 2
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 2 },
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
     /// (https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#language)".
     language : U16Be,
-    /// Array that maps high bytes to subHeaders: value is subHeader index * 8.
+    /// Array that maps high bytes to sub_headers: value is sub_header index * 8.
     sub_header_keys : Array 256 U16Be,
     /// Variable-length array of `CharMapSubtable2SubHeader` records.
-    subHeaders : VArray CharMapSubtable2SubHeader, // TODO
+    sub_headers : VArray CharMapSubtable2SubHeader, // TODO
     /// Variable-length array containing subarrays used for mapping the low byte
     /// of 2-byte characters.
     glyphIndexArray : VArray U16Be, // TODO
@@ -764,7 +768,7 @@ struct CharMapSubtable2SubHeader {
 /// Format 4: Segment mapping to delta values
 struct CharMapSubtable4 {
     /// Format number is set to 4
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 4 },
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -803,7 +807,7 @@ struct CharMapSubtable4 {
 /// Format 6: Trimmed table mapping
 struct CharMapSubtable6 {
     /// Format number is set to 6
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 6 },
     /// This is the length in bytes of the subtable.
     length : U16Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -827,7 +831,7 @@ struct CharMapSubtable6 {
 /// Format 8: mixed 16-bit and 32-bit coverage
 struct CharMapSubtable8 {
     /// Format number is set to 8
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 8 },
     /// Reserved; set to 0
     // TODO: reserved : Reserved U16Be 0,
     reserved : Reserved U16Be,
@@ -867,7 +871,7 @@ struct CharMapSubtable8SequentialMapGroup {
 /// Format 10: Trimmed array
 struct CharMapSubtable10 {
     /// Format number is set to 10
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 10 },
     /// Reserved; set to 0
     // TODO: reserved : Reserved U16Be 0,
     reserved : Reserved U16Be,
@@ -894,7 +898,7 @@ struct CharMapSubtable10 {
 /// Format 12: Segmented coverage
 struct CharMapSubtable12 {
     /// Format number is set to 12
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 12 },
     /// Reserved; set to 0
     // TODO: reserved : Reserved U16Be 0,
     reserved : Reserved U16Be,
@@ -928,7 +932,7 @@ struct CharMapSubtable12SequentialMapGroup {
 /// Format 13: Many-to-one range mappings
 struct CharMapSubtable13 {
     /// Format number is set to 13
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 13 },
     /// Reserved; set to 0
     // TODO: reserved : Reserved U16Be 0,
     reserved : Reserved U16Be,
@@ -963,7 +967,7 @@ struct CharMapSubtable13ConstantMapGroup {
 struct CharMapSubtable14 {
     start : Pos,
     /// Format number is set to 14
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 14 },
     /// Byte length of this subtable (including this header)
     length : U32Be,
     /// Number of variation Selector Records
@@ -1027,9 +1031,9 @@ struct UvsMapping {
 /// <https://www.microsoft.com/typography/otspec/head.htm>
 struct FontHeader {
     /// Major version number of the font header table — set to `1`.
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version number of the font header table — set to `0`.
-    minor_version : U16Be,
+    minor_version : { version : U16Be | nat_eq version 0 },
     /// Set by font manufacturer.
     font_revision : Fixed,
     /// To compute: set it to `0`, sum the entire font as `U32Be`, then store
@@ -1038,7 +1042,7 @@ struct FontHeader {
     /// to the file structure and font table directory, and must be ignored.
     check_sum_adjustment : U32Be,
     /// Set to `0x5F0F3CF5`.
-    magic_number : U32Be,
+    magic_number : { magic : U32Be | nat_eq magic 0x5F0F3CF5 },
     // TODO: Docs
     flags : U16Be,
     /// Set to a value from `16` to `16384`. Any value in this range is valid.
@@ -1092,10 +1096,10 @@ struct FontHeader {
 ///
 /// <https://www.microsoft.com/typography/otspec/hhea.htm>
 struct HorizontalHeader {
-    /// Minor version number of the horizontal header table — set to 0.
-    minor_version : U16Be,
     /// Major version number of the horizontal header table — set to 1.
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 1 },
+    /// Minor version number of the horizontal header table — set to 0.
+    minor_version : { version : U16Be | nat_eq version 0 },
     /// Typographic ascent (Distance from baseline of highest ascender).
     ascender : FWord,
     /// Typographic descent (Distance from baseline of lowest descender).
@@ -1194,7 +1198,7 @@ struct LongHorMetric {
 /// `num_glyphs` field
 struct MaximumProfileVersion_0_5 {
     /// 0x00005000 for version 0.5
-    version : Fixed,
+    version : { version : Fixed | nat_eq version.value 0x00005000 },
     /// The number of glyphs in the font
     num_glyphs : U16Be,
 };
@@ -1205,7 +1209,7 @@ struct MaximumProfileVersion_0_5 {
 /// data is required
 struct MaximumProfileVersion_1_0 {
     /// 0x00010000 for version 1.0.
-    version : Fixed,
+    version : { version : Fixed | nat_eq version.value 0x00010000 },
     /// The number of glyphs in the font
     num_glyphs : U16Be,
     /// Maximum points in a non-composite glyph.
@@ -1263,7 +1267,7 @@ struct MaximumProfileVersion_1_0 {
 struct NamingFormat0 {
     start : Pos,
     /// Format selector (=0).
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 0 },
     /// Number of name records.
     count : U16Be,
     /// Offset to start of string storage (from start of table).
@@ -1285,7 +1289,7 @@ struct NamingFormat0 {
 struct NamingFormat1 {
     start : Pos,
     /// Format selector (=1).
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 1 },
     /// Number of name records.
     count : U16Be,
     /// Offset to start of string storage (from start of table).
@@ -1363,7 +1367,7 @@ struct NameRecord (naming_start : Pos) (storage_offset : U16) {
 ///
 /// <https://www.microsoft.com/typography/otspec/os2.htm>
 struct Os2 {
-    version : U16Be,
+    version : U16Be, // TODO: constrain version!
 
     // FIXME: Proper version switching
     // TODO: Documentation
@@ -1452,7 +1456,7 @@ struct PostScript {
     /// * `0x00020000` - for version 2.0
     /// * `0x00025000` - for version 2.5 (deprecated)
     /// * `0x00030000` - for version 3.0
-    version : Fixed,
+    version : Fixed,  // TODO: constrain version!
     /// Italic angle in counter-clockwise degrees from the vertical. Zero for
     /// upright text, negative for text that leans to the right (forward).
     italic_angle : Fixed,
@@ -1747,7 +1751,7 @@ struct ControlValueProgram (length : U32) {
 
 struct GridFittingScanConversion {
     /// Version number (set to 1)
-    version : U16Be, // TODO
+    version : { version : U16Be | nat_eq version 1 },
     /// Number of records to follow
     num_ranges : U16Be,
     /// Sorted by ppem
@@ -1833,7 +1837,7 @@ struct GridFittingScanConversionRange {
 struct Svg {
     start : Pos,
     /// Table version (starting at 0). Set to 0.
-    version : U16Be,
+    version : { version : U16Be | nat_eq version 0 },
     /// Offset to the SVG Document List, from the start of the SVG table. Must be non-zero.
     offset_to_svg_document_list : Offset32Be start SvgDocumentList,
     /// Set to 0.
@@ -1879,9 +1883,9 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
 
 struct EmbeddedBitmapData {
     /// Major version of the EBDT table, = 2.
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 2 },
     /// Minor version of the EBDT table, = 0.
-    minor_version : U16Be,
+    minor_version : { version : U16Be | nat_eq version 0 },
     // TODO: array of GlyphBitmapDataFormat[1-9], based off "EBLC" table
 };
 
@@ -2055,9 +2059,9 @@ struct GlyphBitmapDataFormat9 {
 struct EmbeddedBitmapLocationData {
     start : Pos,
     /// Major version of the EBLC table, = 2.
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 2 },
     /// Minor version of the EBLC table, = 0.
-    minor_version : U16Be,
+    minor_version : { version : U16Be | nat_eq version 0 },
     /// Number of `BitmapSize` tables.
     num_sizes : U32Be,
     /// Array of `BitmapSize` tables.
@@ -2314,9 +2318,9 @@ struct IndexSubTable5 (embedded_bitmap_data_start : Pos) {
 
 struct EmbeddedBitmapScalingData {
     /// Major version of the EBSC table, = 2.
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 2 },
     /// Minor version of the EBSC table, = 0.
-    minor_version : U16Be,
+    minor_version : { version : U16Be | nat_eq version 0 },
     /// Number of `BitmapScale` tables
     num_sizes : U32Be,
     /// `BitmapScale` table array
@@ -2395,9 +2399,9 @@ struct BitmapScale {
 struct BaselineData {
     start : Pos,
     /// Major version of the BASE table, = 1
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the BASE table, = 0
-    minor_version : U16Be,
+    minor_version : { version : U16Be | nat_eq version 0 },
 
     // FIXME: Proper version switching
 
@@ -2573,14 +2577,14 @@ struct BaseCoord {
 
 struct BaseCoordFormat1 {
     /// Format identifier — format = 1
-    base_coord_format : U16Be,
+    base_coord_format : { format : U16Be | nat_eq format 1 },
     /// X or Y value, in design units
     coordinate : S16Be,
 };
 
 struct BaseCoordFormat2 {
     /// Format identifier — format = 2
-    base_coord_format : U16Be,
+    base_coord_format : { format : U16Be | nat_eq format 2 },
     /// X or Y value, in design units
     coordinate : S16Be,
     /// Glyph ID of control glyph
@@ -2592,7 +2596,7 @@ struct BaseCoordFormat2 {
 struct BaseCoordFormat3 {
     start : Pos,
     /// Format identifier — format = 3
-    base_coord_format : U16Be,
+    base_coord_format : { format : U16Be | nat_eq format 3 },
     /// X or Y value, in design units
     coordinate : S16Be,
     /// Offset to Device table (non-variable font) / Variation Index table
@@ -2626,9 +2630,9 @@ struct BaseCoordFormat3 {
 struct GlyphDefinitionData {
     start : Pos,
     /// Major version of the GDEF table, = 1
-    major_version : U16Be,
+    major_version : U16Be, // TODO: constrain version
     /// Minor version of the GDEF table, = 3
-    minor_version : U16Be,
+    minor_version : U16Be, // TODO: constrain version
 
     // FIXME: Proper version switching
 
@@ -2748,7 +2752,7 @@ struct LigGlyph {
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbl1>
 struct CaretValueFormat1 {
     /// Format identifier: format = 1
-    caret_value_format : U16Be,
+    caret_value_format : { format : U16Be | nat_eq format 1 },
     /// X or Y value, in design units
     coordinate : S16Be,
 };
@@ -2758,7 +2762,7 @@ struct CaretValueFormat1 {
 /// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbl2>
 struct CaretValueFormat2 {
     /// Format identifier: format = 2
-    caret_value_format : U16Be,
+    caret_value_format : { format : U16Be | nat_eq format 2 },
     /// Contour point index on glyph
     caret_value_point_index : U16Be,
 };
@@ -2769,7 +2773,7 @@ struct CaretValueFormat2 {
 struct CaretValueFormat3 {
     start : Pos,
     /// Format identifier: format = 3
-    caret_value_format : U16Be,
+    caret_value_format : { format : U16Be | nat_eq format 3 },
     /// X or Y value, in design units
     coordinate : S16Be,
     /// Offset to Device table (non-variable font) / Variation Index table
@@ -2811,9 +2815,9 @@ struct CaretValueFormat3 {
 struct GlyphPositioningData {
     start : Pos,
     /// Major version of the GPOS table
-    major_version : U16Be,
+    major_version : U16Be, // TODO: constrain version
     /// Minor version of the GPOS table
-    minor_version : U16Be,
+    minor_version : U16Be, // TODO: constrain version
 
     // FIXME: Proper version switching
 
@@ -2850,9 +2854,9 @@ struct GlyphPositioningData {
 struct GlyphSubstitutionData {
     start : Pos,
     /// Major version of the GSUB table
-    major_version : U16Be,
+    major_version : U16Be, // TODO: constrain version
     /// Minor version of the GSUB table
-    minor_version : U16Be,
+    minor_version : U16Be, // TODO: constrain version
 
     // FIXME: Proper version switching
 
@@ -2888,9 +2892,9 @@ struct GlyphSubstitutionData {
 struct JustificationData {
     start : Pos,
     /// Major version of the JSTF table, = 1
-    major_version : U16Be,
+    major_version : U16Be, // TODO: constrain version
     /// Minor version of the JSTF table, = 0
-    minor_version : U16Be,
+    minor_version : U16Be, // TODO: constrain version
     /// Number of JstfScriptRecords in this table
     justification_script_count : U16Be,
     /// Array of JustificationScriptRecords, in alphabetical order by
@@ -3016,9 +3020,9 @@ struct JustificationMax {
 struct MathLayoutData {
     start : Pos,
     /// Major version of the MATH table, = 1.
-    major_version : U16Be,
+    major_version : U16Be, // TODO: constrain version
     /// Minor version of the MATH table, = 0.
-    minor_version : U16Be,
+    minor_version : U16Be, // TODO: constrain version
     /// Offset to MathConstants table - from the beginning of MATH table.
     math_constants_offset : Offset16Be start MathConstants,
     /// Offset to MathGlyphInfo table - from the beginning of MATH table.
@@ -3393,9 +3397,9 @@ struct GlyphPartRecord {
 
 struct AxisVariations {
     /// Major version number of the axis variations table — set to 1.
-    major_version : U16Be,
+    major_version : U16Be, // TODO: constrain version
     /// Minor version number of the axis variations table — set to 0.
-    minor_version : U16Be,
+    minor_version : U16Be, // TODO: constrain version
     /// Permanently reserved; set to zero.
     reserved : Reserved U16Be,
     /// The number of variation axes for this font. This must be the same number
@@ -3434,9 +3438,9 @@ struct AxisValueMap {
 struct ControlValueVariations {
     start : Pos,
     /// Major version number of the CVT variations table — set to 1.
-    major_version : U16Be,
+    major_version : U16Be, // TODO: constrain version
     /// Minor version number of the CVT variations table — set to 0.
-    minor_version : U16Be,
+    minor_version : U16Be, // TODO: constrain version
     /// A packed field. The high 4 bits are flags, and the low 12 bits are the number of tuple-variation data tables. The count can be any number between 1 and 4095.
     tuple_variation_count : U16Be,
     /// Offset from the start of the 'cvar' table to the serialized data.
@@ -3459,9 +3463,9 @@ struct ControlValueVariations {
 struct FontVariations {
     start : Pos,
     /// Major version number of the font variations table — set to 1.
-    major_version : U16Be,
+    major_version : U16Be, // TODO: constrain version
     /// Minor version number of the font variations table — set to 0.
-    minor_version : U16Be,
+    minor_version : U16Be, // TODO: constrain version
     /// Offset in bytes from the beginning of the table to the start of the
     /// VariationAxisRecord array.
     axes_array_offset : Offset16Be start VariationAxisRecord, // TODO: avoid reparsing?
@@ -3519,7 +3523,7 @@ struct InstanceRecord (axis_count : U16) {
     /// for this instance.
     subfamily_name_id : U16Be,
     /// Reserved for future use — set to 0.
-    flags : U16Be,
+    flags : Reserved U16Be,
     /// The coordinates array for this instance.
     coordinates : InstanceTuple axis_count,
     /// Optional. The name ID for entries in the 'name' table that provide
@@ -3677,7 +3681,7 @@ struct SignatureBlockFormat1 {
 /// Horizontal Device Metrics Table
 struct HorizontalDeviceMetrics (num_glyphs : U16) {
     /// Table version number (0)
-    version : U16Be,
+    version : U16Be, // TODO: constrain version
     /// Number of device records.
     num_records : S16Be,
     /// Size of a device record, 32-bit aligned.
@@ -3750,7 +3754,7 @@ struct DeviceRecord (num_glyphs : U16) {
 struct Metadata {
     start : Pos,
     /// Version number of the metadata table — set to 1.
-    version : U32Be,
+    version : U32Be, // TODO: constrain version
     /// Flags — currently unused; set to 0.
     // TODO: flags : Reserved U32Be 0,
     flags : Reserved U32Be,
@@ -3801,9 +3805,9 @@ MetadataInfo (tag : Tag) (length : U32) = match tag.value {
 struct StyleAttributes {
     start : Pos,
     /// Major version number of the style attributes table — set to 1.
-    major_version: U16Be,
+    major_version: U16Be, // TODO: constrain version
     /// Minor version number of the style attributes table — set to 2.
-    minor_version: U16Be,
+    minor_version: U16Be, // TODO: constrain version
 
     // FIXME: Proper version switching
 
@@ -3868,7 +3872,7 @@ struct AxisRecord {
 
 struct AxisValueFormat1 {
     /// Format identifier — set to 1.
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 1 },
     /// Zero-base index into the axis record array identifying the axis of design variation to which the axis value record applies. Must be less than designAxisCount.
     axis_index : U16Be,
     /// Flags — see below for details.
@@ -3881,7 +3885,7 @@ struct AxisValueFormat1 {
 
 struct AxisValueFormat2 {
     /// Format identifier — set to 2.
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 2 },
     /// Zero-base index into the axis record array identifying the axis of design variation to which the axis value record applies. Must be less than designAxisCount.
     axis_index : U16Be,
     /// Flags — see below for details.
@@ -3898,7 +3902,7 @@ struct AxisValueFormat2 {
 
 struct AxisValueFormat3 {
     /// Format identifier — set to 3.
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 3 },
     /// Zero-base index into the axis record array identifying the axis of design variation to which the axis value record applies. Must be less than designAxisCount.
     axis_index : U16Be,
     /// Flags — see below for details.
@@ -3913,7 +3917,7 @@ struct AxisValueFormat3 {
 
 struct AxisValueFormat4 {
     /// Format identifier — set to 4.
-    format : U16Be,
+    format : { format : U16Be | nat_eq format 4 },
     /// The total number of axes contributing to this axis-values combination.
     axis_count : U16Be,
     /// Flags — see below for details.

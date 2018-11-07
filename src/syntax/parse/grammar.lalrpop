@@ -51,6 +51,7 @@ extern {
         "=" => Token::Equal,
         "->" => Token::LArrow,
         "=>" => Token::LFatArrow,
+        "|" => Token::Pipe,
         ";" => Token::Semi,
 
         // Delimiters
@@ -201,6 +202,9 @@ LamTerm: Term = {
         let mut arms = arms;
         arms.extend(last);
         Term::Match(ByteSpan::new(start, end), Box::new(head), arms)
+    },
+    <start: @L> "{" <ident : IndexedIdent> ":" <ty: AppTerm> "|" <pred: AppTerm> "}" <end: @R> => {
+        Term::Refinement(ByteSpan::new(start, end), ident.0, ident.1, Box::new(ty), Box::new(pred))
     },
 };
 

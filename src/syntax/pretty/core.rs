@@ -82,6 +82,19 @@ where
     )
 }
 
+fn pretty_refinement(binder: &Binder<String>, ann: &impl ToDoc, body: &impl ToDoc) -> StaticDoc {
+    sexpr(
+        "refinement",
+        Doc::group(parens(
+            pretty_binder(binder)
+                .append(Doc::space())
+                .append(ann.to_doc().group()),
+        ))
+        .append(Doc::space())
+        .append(body.to_doc()),
+    )
+}
+
 fn pretty_struct(inner: StaticDoc) -> StaticDoc {
     sexpr("struct", inner)
 }
@@ -161,6 +174,11 @@ impl ToDoc for raw::Term {
                 &scope.unsafe_body.inner,
             ),
             raw::Term::App(ref head, ref arg) => pretty_app(head.to_doc(), iter::once(&arg.inner)),
+            raw::Term::Refinement(_, ref scope) => pretty_refinement(
+                &scope.unsafe_pattern.0,
+                &(scope.unsafe_pattern.1).0.inner,
+                &scope.unsafe_body.inner,
+            ),
             raw::Term::Struct(_, ref fields) => {
                 pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
                     parens(
@@ -250,6 +268,11 @@ impl ToDoc for Term {
                 &scope.unsafe_body.inner,
             ),
             Term::App(ref head, ref arg) => pretty_app(head.to_doc(), iter::once(&arg.inner)),
+            Term::Refinement(ref scope) => pretty_refinement(
+                &scope.unsafe_pattern.0,
+                &(scope.unsafe_pattern.1).0.inner,
+                &scope.unsafe_body.inner,
+            ),
             Term::Struct(ref fields) => {
                 pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
                     parens(
@@ -292,6 +315,11 @@ impl ToDoc for Value {
                 &scope.unsafe_body.inner,
             ),
             Value::Pi(ref scope) => pretty_pi(
+                &scope.unsafe_pattern.0,
+                &(scope.unsafe_pattern.1).0.inner,
+                &scope.unsafe_body.inner,
+            ),
+            Value::Refinement(ref scope) => pretty_refinement(
                 &scope.unsafe_pattern.0,
                 &(scope.unsafe_pattern.1).0.inner,
                 &scope.unsafe_body.inner,

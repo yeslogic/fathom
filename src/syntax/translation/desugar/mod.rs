@@ -621,6 +621,17 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                     },
                 )))
             },
+            concrete::Term::Refinement(_, _, ref name, ref ann, ref pred) => {
+                let mut env = env.clone();
+                let free_var = env.on_binding(name);
+                Ok(raw::RcTerm::from(raw::Term::Refinement(
+                    span,
+                    Scope::new(
+                        (Binder(free_var), Embed(ann.desugar_globals(&env, globals)?)),
+                        pred.desugar_globals(&env, globals)?,
+                    ),
+                )))
+            },
             concrete::Term::Extern(_, name_span, ref name) => Ok(raw::RcTerm::from(
                 raw::Term::Extern(span, name_span, name.clone()),
             )),

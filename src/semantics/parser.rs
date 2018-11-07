@@ -13,6 +13,7 @@ pub enum ParseError {
     BadArrayIndex(core::RcValue),
     OffsetPointedToDifferentTypes(core::RcType, core::RcType),
     ParametrizedStructType,
+    FailedPredicate(core::RcValue),
     MissingRoot(Label),
     Io(io::Error),
 }
@@ -242,6 +243,23 @@ where
         _ if core::RcValue::term_eq(ty, context.f32be()) => Ok(Value::F32(bytes.read_f32::<Be>()?)),
         _ if core::RcValue::term_eq(ty, context.f64le()) => Ok(Value::F64(bytes.read_f64::<Le>()?)),
         _ if core::RcValue::term_eq(ty, context.f64be()) => Ok(Value::F64(bytes.read_f64::<Be>()?)),
+
+        core::Value::Refinement(ref scope) => {
+            let ((Binder(free_var), Embed(ann)), pred) = scope.clone().unbind();
+            let ann_value = parse_term(context, pending, &ann, bytes)?;
+            let pred_value = {
+                let ann_value = core::RcTerm::from(core::Term::from(&ann_value));
+                nf_term(context, &pred.substs(&[(free_var, ann_value)]))?
+            };
+
+            match *pred_value.inner {
+                core::Value::Literal(core::Literal::Bool(true)) => Ok(ann_value),
+                core::Value::Literal(core::Literal::Bool(false)) => {
+                    Err(ParseError::FailedPredicate(pred.clone()))
+                },
+                _ => unimplemented!("unexpected value: {}", pred_value),
+            }
+        },
 
         // Invalid parse types
         core::Value::Universe(_)

@@ -22,7 +22,7 @@ impl ToDoc for Module {
                 Doc::text("module")
                     .append(Doc::space())
                     .append(Doc::as_string(&name.1))
-                    .append(Doc::text(";")),
+                    .append(";"),
             )
             .append(Doc::newline())
             .append(Doc::newline())
@@ -48,7 +48,7 @@ impl ToDoc for Item {
                 .append(Doc::as_string(name))
                 .append(rename.as_ref().map_or(Doc::nil(), |&(_, ref rename)| {
                     Doc::space()
-                        .append(Doc::text("as"))
+                        .append("as")
                         .append(Doc::space())
                         .append(Doc::as_string(rename))
                 }))
@@ -96,15 +96,11 @@ impl ToDoc for Definition {
                 name: (_, ref name),
                 ref fields,
                 ..
-            }
-                if fields.is_empty() =>
-            {
-                Doc::text("struct")
-                    .append(Doc::space())
-                    .append(Doc::as_string(name))
-                    .append(Doc::space())
-                    .append("{}")
-            },
+            } if fields.is_empty() => Doc::text("struct")
+                .append(Doc::space())
+                .append(Doc::as_string(name))
+                .append(Doc::space())
+                .append("{}"),
             Definition::StructType {
                 name: (_, ref name),
                 ref fields,
@@ -151,7 +147,7 @@ impl ToDoc for Exposing {
                         Doc::nil(),
                         |&(_, ref rename)| {
                             Doc::space()
-                                .append(Doc::text("as"))
+                                .append("as")
                                 .append(Doc::space())
                                 .append(Doc::as_string(rename))
                         },
@@ -213,20 +209,20 @@ impl ToDoc for Term {
             Term::IntTypeSingleton(_, ref value) => Doc::text("{=")
                 .append(Doc::space())
                 .append(value.to_doc())
-                .append(Doc::text("}")),
+                .append("}"),
             Term::IntType(_, ref min, ref max) => Doc::text("int")
                 .append(Doc::space())
-                .append(Doc::text("{"))
+                .append("{")
                 .append(
                     min.as_ref()
                         .map_or(Doc::nil(), |x| x.to_doc().append(Doc::space())),
                 )
-                .append(Doc::text(".."))
+                .append("..")
                 .append(
                     max.as_ref()
                         .map_or(Doc::nil(), |x| Doc::space().append(x.to_doc())),
                 )
-                .append(Doc::text("}")),
+                .append("}"),
             Term::Literal(ref literal) => literal.to_doc(),
             Term::Array(_, ref elems) => Doc::text("[")
                 .append(Doc::intersperse(
@@ -289,6 +285,19 @@ impl ToDoc for Term {
                     }))
                     .nest(INDENT_WIDTH),
                 )
+                .append("}"),
+            Term::Refinement(_, _, ref name, ref ann, ref pred) => Doc::text("{")
+                .append(Doc::space())
+                .append(Doc::as_string(name))
+                .append(Doc::space())
+                .append(":")
+                .append(Doc::space())
+                .append(ann.to_doc())
+                .append(Doc::space())
+                .append("|")
+                .append(Doc::space())
+                .append(pred.to_doc())
+                .append(Doc::space())
                 .append("}"),
             Term::Struct(_, ref fields) if fields.is_empty() => Doc::text("struct {}"),
             Term::Struct(_, ref fields) => Doc::text("struct {")

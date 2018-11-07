@@ -158,6 +158,7 @@ pub enum Token<S> {
     Equal,     // =
     LArrow,    // ->
     LFatArrow, // =>
+    Pipe,      // |
     Semi,      // ;
 
     // Delimiters
@@ -198,8 +199,9 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::Dot => write!(f, "."),
             Token::DotDot => write!(f, ".."),
             Token::Equal => write!(f, "="),
-            Token::LFatArrow => write!(f, "=>"),
             Token::LArrow => write!(f, "->"),
+            Token::LFatArrow => write!(f, "=>"),
+            Token::Pipe => write!(f, "|"),
             Token::Semi => write!(f, ";"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
@@ -240,8 +242,9 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::Dot => Token::Dot,
             Token::DotDot => Token::DotDot,
             Token::Equal => Token::Equal,
-            Token::LFatArrow => Token::LFatArrow,
             Token::LArrow => Token::LArrow,
+            Token::LFatArrow => Token::LFatArrow,
+            Token::Pipe => Token::Pipe,
             Token::Semi => Token::Semi,
             Token::LParen => Token::LParen,
             Token::RParen => Token::RParen,
@@ -537,6 +540,7 @@ impl<'input> Iterator for Lexer<'input> {
                         "=" => Ok((start, Token::Equal, end)),
                         "->" => Ok((start, Token::LArrow, end)),
                         "=>" => Ok((start, Token::LFatArrow, end)),
+                        "|" => Ok((start, Token::Pipe, end)),
                         ";" => Ok((start, Token::Semi, end)),
                         symbol if symbol.starts_with("///") => Ok(self.doc_comment(start)),
                         symbol if symbol.starts_with("//") => {
@@ -696,15 +700,16 @@ mod tests {
     #[test]
     fn symbols() {
         test! {
-            r" \ : , .. = -> => ; ",
-            r" ~                  " => Token::BSlash,
-            r"   ~                " => Token::Colon,
-            r"     ~              " => Token::Comma,
-            r"       ~~           " => Token::DotDot,
-            r"          ~         " => Token::Equal,
-            r"            ~~      " => Token::LArrow,
-            r"               ~~   " => Token::LFatArrow,
-            r"                  ~ " => Token::Semi,
+            r" \ : , .. = -> => | ; ",
+            r" ~                    " => Token::BSlash,
+            r"   ~                  " => Token::Colon,
+            r"     ~                " => Token::Comma,
+            r"       ~~             " => Token::DotDot,
+            r"          ~           " => Token::Equal,
+            r"            ~~        " => Token::LArrow,
+            r"               ~~     " => Token::LFatArrow,
+            r"                  ~   " => Token::Pipe,
+            r"                    ~ " => Token::Semi,
         }
     }
 
