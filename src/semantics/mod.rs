@@ -75,20 +75,21 @@ pub fn check_module(context: &Context, raw_module: &raw::Module) -> Result<Modul
                     let (raw_fields, ()) = raw_fields_scope.unbind();
                     let raw_params = raw_params.unnest();
 
-                    let mut struct_params = Vec::with_capacity(raw_params.len());
+                    let mut params = Vec::with_capacity(raw_params.len());
                     let mut pi_params = Vec::with_capacity(raw_params.len());
 
+                    // FIXME: Duplicated code!
                     for (Binder(free_var), Embed(raw_ann)) in raw_params {
                         let (ann, _) = infer_universe(&context, &raw_ann)?;
                         let nf_ann = nf_term(&context, &ann)?;
 
                         context.insert_declaration(free_var.clone(), nf_ann.clone());
 
-                        struct_params.push((Binder(free_var.clone()), Embed(ann)));
+                        params.push((Binder(free_var.clone()), Embed(ann)));
                         pi_params.push((Binder(free_var), Embed(nf_ann)));
                     }
 
-                    // FIXME: Check that struct is well-formed?
+                    // FIXME: Check that the struct is well-formed?
                     let fields = raw_fields
                         .unnest()
                         .into_iter()
@@ -103,8 +104,7 @@ pub fn check_module(context: &Context, raw_module: &raw::Module) -> Result<Modul
                         })
                         .collect::<Result<_, TypeError>>()?;
 
-                    let scope =
-                        Scope::new(Nest::new(struct_params), Scope::new(Nest::new(fields), ()));
+                    let scope = Scope::new(Nest::new(params), Scope::new(Nest::new(fields), ()));
 
                     let ty = pi_params
                         .into_iter()
@@ -117,6 +117,60 @@ pub fn check_module(context: &Context, raw_module: &raw::Module) -> Result<Modul
                         ty,
                         Definition::StructType(scope.clone()),
                         core::Definition::StructType { scope },
+                    )
+                },
+                raw::Definition::UnionType {
+                    scope: ref raw_scope,
+                    ..
+                } => {
+                    use std::cmp;
+
+                    let mut context = context.clone();
+                    let mut max_level = Level(0);
+
+                    let (raw_params, raw_variants) = raw_scope.clone().unbind();
+                    let raw_params = raw_params.unnest();
+
+                    let mut params = Vec::with_capacity(raw_params.len());
+                    let mut pi_params = Vec::with_capacity(raw_params.len());
+
+                    // FIXME: Duplicated code!
+                    for (Binder(free_var), Embed(raw_ann)) in raw_params {
+                        let (ann, _) = infer_universe(&context, &raw_ann)?;
+                        let nf_ann = nf_term(&context, &ann)?;
+
+                        context.insert_declaration(free_var.clone(), nf_ann.clone());
+
+                        params.push((Binder(free_var.clone()), Embed(ann)));
+                        pi_params.push((Binder(free_var), Embed(nf_ann)));
+                    }
+
+                    // FIXME: Check that the union is well-formed?
+                    let variants = raw_variants
+                        .iter()
+                        .map(|raw_ann| {
+                            let (ann, ann_level) = infer_universe(&context, &raw_ann)?;
+                            let nf_ann = nf_term(&context, &ann)?;
+
+                            max_level = cmp::max(max_level, ann_level);
+
+                            Ok(ann)
+                        })
+                        .collect::<Result<_, TypeError>>()?;
+
+                    let scope = Scope::new(Nest::new(params), variants);
+
+                    let ty = pi_params
+                        .into_iter()
+                        .rev()
+                        .fold(RcValue::from(Value::Universe(max_level)), |acc, param| {
+                            RcValue::from(Value::Pi(Scope::new(param, acc)))
+                        });
+
+                    (
+                        ty,
+                        Definition::UnionType(scope.clone()),
+                        core::Definition::UnionType { scope },
                     )
                 },
             };
@@ -404,6 +458,7 @@ pub fn expect_struct(
         (Head::Var(Var::Free(ref free_var)), spine) => {
             match *context.get_definition(free_var)? {
                 Definition::Alias(_) => None, // FIXME: follow alias?
+                Definition::UnionType(_) => None,
                 Definition::StructType(ref scope) => {
                     let (params, fields_scope) = scope.clone().unbind();
                     let (fields, ()) = fields_scope.unbind();

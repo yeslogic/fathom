@@ -17,7 +17,7 @@ pub struct ResugarEnv {
 }
 
 const KEYWORDS: &[&str] = &[
-    "as", "match", "else", "extern", "if", "in", "int", "let", "struct", "then", "Type",
+    "as", "match", "else", "extern", "if", "in", "int", "let", "struct", "then", "Type", "union",
 ];
 
 impl ResugarEnv {
@@ -190,6 +190,7 @@ impl Resugar<concrete::Module> for core::Module {
                         },
                     ));
                 },
+                core::Definition::UnionType { ref scope } => unimplemented!("desugar union"),
             };
         }
 

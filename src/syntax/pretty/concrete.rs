@@ -103,6 +103,7 @@ impl ToDoc for Definition {
                 .append("{}"),
             Definition::StructType {
                 name: (_, ref name),
+                ref params,
                 ref fields,
                 ..
             } => Doc::text("struct")
@@ -133,6 +134,13 @@ impl ToDoc for Definition {
                 )
                 .append(Doc::space())
                 .append("}"),
+
+            Definition::UnionType {
+                name: (_, ref name),
+                ref params,
+                ref variants,
+                ..
+            } => unimplemented!(),
         }
     }
 }

@@ -13,7 +13,9 @@ pub enum ParseError {
     BadArrayIndex(core::RcValue),
     OffsetPointedToDifferentTypes(core::RcType, core::RcType),
     ParametrizedStructType,
+    ParametrizedUnionType,
     FailedPredicate(core::RcValue),
+    NoVariantMatched,
     MissingRoot(Label),
     Io(io::Error),
 }
@@ -95,7 +97,7 @@ pub fn parse_module<T>(
     bytes: &mut io::Cursor<T>,
 ) -> Result<im::HashMap<u64, Value>, ParseError>
 where
-    io::Cursor<T>: io::Read + io::Seek,
+    io::Cursor<T>: io::Read + io::Seek + Clone,
 {
     let mut context = context.clone();
     let mut pending = PendingOffsets::new();
@@ -120,6 +122,16 @@ where
                     let mappings = Vec::with_capacity(fields.len());
 
                     parse_struct(&context, &mut pending, fields, mappings, bytes)?
+                },
+                core::Definition::UnionType { ref scope } => {
+                    let (params, variants) = scope.clone().unbind();
+
+                    if !params.unsafe_patterns.is_empty() {
+                        // TODO: more error info?
+                        return Err(ParseError::ParametrizedUnionType);
+                    }
+
+                    parse_union(&context, &mut pending, variants, vec![], bytes)?
                 },
             };
 
@@ -165,6 +177,9 @@ where
                     core::Definition::StructType { ref scope } => {
                         Definition::StructType(scope.clone())
                     },
+                    core::Definition::UnionType { ref scope } => {
+                        Definition::UnionType(scope.clone())
+                    },
                 },
             );
         }
@@ -181,7 +196,7 @@ fn parse_struct<T>(
     bytes: &mut io::Cursor<T>,
 ) -> Result<Value, ParseError>
 where
-    io::Cursor<T>: io::Read + io::Seek,
+    io::Cursor<T>: io::Read + io::Seek + Clone,
 {
     let fields = fields
         .into_iter()
@@ -200,6 +215,32 @@ where
     Ok(Value::Struct(fields))
 }
 
+fn parse_union<T>(
+    context: &Context,
+    pending: &mut PendingOffsets,
+    variants: Vec<core::RcTerm>,
+    mappings: Vec<(FreeVar<String>, core::RcTerm)>,
+    bytes: &mut io::Cursor<T>,
+) -> Result<Value, ParseError>
+where
+    io::Cursor<T>: io::Read + io::Seek + Clone,
+{
+    for ann in variants {
+        let mut inner_bytes = bytes.clone();
+        let mut inner_pending = pending.clone();
+
+        let ann = nf_term(context, &ann.substs(&mappings))?;
+
+        if let Ok(value) = parse_term(context, &mut inner_pending, &ann, &mut inner_bytes) {
+            *bytes = inner_bytes;
+            *pending = inner_pending;
+            return Ok(value);
+        }
+    }
+
+    Err(ParseError::NoVariantMatched)
+}
+
 fn queue_offset(
     pending: &mut PendingOffsets,
     offset_pos: u64,
@@ -216,7 +257,7 @@ fn parse_term<T>(
     bytes: &mut io::Cursor<T>,
 ) -> Result<Value, ParseError>
 where
-    io::Cursor<T>: io::Read + io::Seek,
+    io::Cursor<T>: io::Read + io::Seek + Clone,
 {
     use byteorder::{BigEndian as Be, LittleEndian as Le, ReadBytesExt};
     use moniker::BoundTerm;
@@ -305,6 +346,8 @@ where
                 core::Neutral::Head(core::Head::Var(Var::Free(ref free_var))) => {
                     // Follow definitions
                     match context.get_definition(free_var) {
+                        // FIXME: follow alias?
+                        Some(&Definition::Alias(_)) => Err(ParseError::InvalidType(ty.clone())),
                         Some(&Definition::StructType(ref scope)) => {
                             let (params, fields_scope) = scope.clone().unbind();
                             let (fields, ()) = fields_scope.unbind();
@@ -326,8 +369,25 @@ where
 
                             parse_struct(context, pending, fields, mappings, bytes)
                         },
-                        // FIXME: follow alias?
-                        Some(&Definition::Alias(_)) => Err(ParseError::InvalidType(ty.clone())),
+                        Some(&Definition::UnionType(ref scope)) => {
+                            let (params, variants) = scope.clone().unbind();
+                            let params = params.unnest();
+
+                            if params.len() != spine.len() {
+                                unimplemented!();
+                            }
+
+                            let mut mappings = Vec::with_capacity(params.len());
+
+                            for (&(Binder(ref free_var), _), arg) in
+                                Iterator::zip(params.iter(), spine.iter())
+                            {
+                                let arg = arg.substs(&mappings);
+                                mappings.push((free_var.clone(), arg));
+                            }
+
+                            parse_union(context, pending, variants, mappings, bytes)
+                        },
                         // Definition not found
                         None => Err(ParseError::InvalidType(ty.clone())),
                     }

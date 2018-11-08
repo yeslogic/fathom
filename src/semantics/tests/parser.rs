@@ -537,7 +537,7 @@ fn refinement_ok() {
     let mut given_bytes = {
         let mut given_bytes = Vec::new();
 
-        given_bytes.write_u32::<BigEndian>(0).unwrap(); // reserved
+        given_bytes.write_u32::<BigEndian>(0).unwrap(); // value
 
         Cursor::new(given_bytes)
     };
@@ -580,7 +580,112 @@ fn refinement_fail() {
     let mut given_bytes = {
         let mut given_bytes = Vec::new();
 
-        given_bytes.write_u32::<BigEndian>(1).unwrap(); // reserved
+        given_bytes.write_u32::<BigEndian>(1).unwrap(); // value
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
+
+    assert!(parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).is_err());
+}
+
+#[test]
+fn union_ok() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r#"
+        module test;
+
+        nat_eq : int {0 ..} -> int {0 ..} -> Bool;
+        nat_eq = extern "int-eq";
+
+        union Test {
+            Test1,
+            Test2,
+        };
+
+        struct Test1 {
+            format : { format : U32Be | nat_eq format 1 },
+            data : F32Be,
+        };
+
+        struct Test2 {
+            format : { format : U32Be | nat_eq format 2 },
+            data1 : U32Be,
+            data2 : U32Be,
+        };
+    "#;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(2).unwrap(); // format
+        given_bytes.write_u32::<BigEndian>(42).unwrap(); // data1
+        given_bytes.write_u32::<BigEndian>(43).unwrap(); // data2
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = check_module(&context, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (label("format"), Value::U32(2)),
+                (label("data1"), Value::U32(42)),
+                (label("data2"), Value::U32(43)),
+            ]),
+        },
+    );
+}
+
+#[test]
+fn union_fail() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r#"
+        module test;
+
+        nat_eq : int {0 ..} -> int {0 ..} -> Bool;
+        nat_eq = extern "int-eq";
+
+        union Test {
+            Test1,
+            Test2,
+        };
+
+        struct Test1 {
+            format : { format : U32Be | nat_eq format 1 },
+            data : F32Be,
+        };
+
+        struct Test2 {
+            format : { format : U32Be | nat_eq format 2 },
+            data1 : U32Be,
+            data2 : U32Be,
+        };
+    "#;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(3).unwrap(); // format
+        given_bytes.write_u32::<BigEndian>(42).unwrap(); // data1
+        given_bytes.write_u32::<BigEndian>(43).unwrap(); // data2
 
         Cursor::new(given_bytes)
     };
