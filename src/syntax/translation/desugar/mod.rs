@@ -168,6 +168,23 @@ pub trait Desugar<T> {
     ) -> Result<T, DesugarError>;
 }
 
+fn desugar_params(
+    env: &mut DesugarEnv,
+    params: &[(String, concrete::Term)],
+    globals: &mut DesugarGlobals,
+) -> Result<raw::Telescope, DesugarError> {
+    Ok(Nest::new(
+        params
+            .iter()
+            .map(|&(ref name, ref ann)| {
+                let ann = ann.desugar_globals(&env, globals)?;
+                let binder = env.on_binding(name);
+                Ok((Binder(binder), Embed(ann)))
+            })
+            .collect::<Result<_, _>>()?,
+    ))
+}
+
 /// Convert a sugary pi type from something like:
 ///
 /// ```text
@@ -413,15 +430,7 @@ fn desugar_items(
                 let scope = {
                     let mut env = env.clone();
 
-                    let params = params
-                        .iter()
-                        .map(|&(ref name, ref ann)| {
-                            let ann = ann.desugar_globals(&env, globals)?;
-                            let binder = env.on_binding(name);
-                            Ok((Binder(binder), Embed(ann)))
-                        })
-                        .collect::<Result<_, _>>()?;
-
+                    let params = desugar_params(&mut env, params, globals)?;
                     let fields = fields
                         .iter()
                         .map(|field| {
@@ -432,7 +441,7 @@ fn desugar_items(
                         })
                         .collect::<Result<_, _>>()?;
 
-                    Scope::new(Nest::new(params), Scope::new(Nest::new(fields), ()))
+                    Scope::new(params, Scope::new(Nest::new(fields), ()))
                 };
 
                 // FIXME: Repeated code
@@ -481,21 +490,13 @@ fn desugar_items(
                 let scope = {
                     let mut env = env.clone();
 
-                    let params = params
-                        .iter()
-                        .map(|&(ref name, ref ann)| {
-                            let ann = ann.desugar_globals(&env, globals)?;
-                            let binder = env.on_binding(name);
-                            Ok((Binder(binder), Embed(ann)))
-                        })
-                        .collect::<Result<_, _>>()?;
-
+                    let params = desugar_params(&mut env, params, globals)?;
                     let variants = variants
                         .iter()
                         .map(|variant| variant.desugar_globals(&env, globals))
                         .collect::<Result<_, _>>()?;
 
-                    Scope::new(Nest::new(params), variants)
+                    Scope::new(params, variants)
                 };
 
                 // FIXME: Repeated code
