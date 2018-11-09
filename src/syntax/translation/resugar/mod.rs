@@ -85,6 +85,18 @@ impl ResugarEnv {
         })
     }
 
+    pub fn on_params(&mut self, params: core::Telescope) -> Vec<(String, concrete::Term)> {
+        params
+            .unnest()
+            .into_iter()
+            .map(|(binder, Embed(ann))| {
+                let term = resugar_term(&self, &ann, Prec::NO_WRAP);
+                let name = self.on_binder(&binder);
+                (name, term)
+            })
+            .collect()
+    }
+
     pub fn on_free_var(&self, free_var: &FreeVar<String>) -> String {
         self.renames.get(free_var).cloned().unwrap_or_else(|| {
             panic!(
@@ -150,16 +162,7 @@ impl Resugar<concrete::Module> for core::Module {
                     let (params, fields) = {
                         let mut env = env.clone();
 
-                        let params = params
-                            .unnest()
-                            .into_iter()
-                            .map(|(binder, Embed(ann))| {
-                                let term = resugar_term(&env, &ann, Prec::NO_WRAP);
-                                let name = env.on_binder(&binder);
-                                (name, term)
-                            })
-                            .collect();
-
+                        let params = env.on_params(params);
                         let fields = fields
                             .unnest()
                             .into_iter()
@@ -190,7 +193,36 @@ impl Resugar<concrete::Module> for core::Module {
                         },
                     ));
                 },
-                core::Definition::UnionType { ref scope } => unimplemented!("desugar union"),
+                core::Definition::UnionType { ref scope } => {
+                    let name = local_decls.get(&binder).cloned().unwrap_or_else(|| {
+                        let name = env.on_item(&label, &binder);
+                        local_decls.insert(binder, name.clone());
+                        name
+                    });
+
+                    let (params, variants) = scope.clone().unbind();
+
+                    let (params, variants) = {
+                        let mut env = env.clone();
+
+                        let params = env.on_params(params);
+                        let variants = variants
+                            .into_iter()
+                            .map(|ann| resugar_term(&env, &ann, Prec::NO_WRAP))
+                            .collect();
+
+                        (params, variants)
+                    };
+
+                    concrete_items.push(concrete::Item::Definition(
+                        concrete::Definition::UnionType {
+                            span: ByteSpan::default(),
+                            name: (ByteIndex::default(), name),
+                            params,
+                            variants,
+                        },
+                    ));
+                },
             };
         }
 
