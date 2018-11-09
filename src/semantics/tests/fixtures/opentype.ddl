@@ -263,7 +263,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "MERG" => Unknown,                      // Merge
     "meta" => Metadata,                     // Metadata
     "STAT" => StyleAttributes,              // Style attributes
-    "PCLT" => Unknown,                      // PCL 5 data
+    "PCLT" => Pcl5,                         // PCL 5 data
     "VDMX" => Unknown,                      // Vertical device metrics
     "vhea" => Unknown,                      // Vertical Metrics header
     "vmtx" => Unknown,                      // Vertical Metrics
@@ -3917,11 +3917,39 @@ struct AxisValue {
 //
 // PCLT - PCL 5 Table
 //
-// <https://www.microsoft.com/typography/otspec/pclt.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/pclt>
 //
 // =============================================================================
 
-// TODO
+struct Pcl5 {
+    major_version : U16Be, // TODO: 1
+    minor_version : U16Be, // TODO: 0
+    font_number : U32Be, // TODO: Enumeration
+    /// The width of the space in FUnits (FUnits are described by the
+    /// `units_per_em` field of the 'head' table). Monospace fonts derive the
+    /// width of all characters from this field.
+    pitch : U16Be,
+    /// The height of the optical line describing the height of the lowercase x
+    /// in FUnits. This might not be the same as the measured height of the
+    /// lowercase x.
+    x_height : U16Be,
+    style : U16Be, // TODO: Enumeration
+    type_family : U16Be, // TODO: Enumeration
+    /// The height of the optical line describing the top of the uppercase H in
+    /// FUnits. This might not be the same as the measured height of the
+    /// uppercase H.
+    cap_height : U16Be,
+    symbol_set : U16Be, // TODO: Enumeration
+    typeface : Array 16 S8, // TODO: Enumeration
+    character_complement : Array 8 S8, // TODO: Enumeration
+    file_name : Array 6 S8,
+    stroke_weight : S8, // TODO: Enumeration
+    width_type : S8, // TODO: Enumeration
+    serif_style : U8, // TODO: Enumeration
+    padding : Reserved U8,
+};
+
+// TODO: Enumerations
 
 
 
