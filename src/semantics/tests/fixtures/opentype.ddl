@@ -260,7 +260,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "hdmx" => Unknown,                      // Horizontal device metrics // TODO: Depends on `num_glyphs` from "maxp"
     "kern" => Kerning,                      // Kerning
     "LTSH" => LinearThreshold,              // Linear threshold data // TODO: Depends on `num_glyphs` from "maxp"
-    "MERG" => Unknown,                      // Merge
+    "MERG" => Merge,                        // Merge
     "meta" => Metadata,                     // Metadata
     "STAT" => StyleAttributes,              // Style attributes
     "PCLT" => Pcl5,                         // PCL 5 data
@@ -3818,11 +3818,33 @@ struct LinearThreshold {
 //
 // MERG — Merge Table
 //
-// <https://www.microsoft.com/typography/otspec/merg.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/merg>
 //
 // =============================================================================
 
-// TODO
+struct Merge {
+    start : Pos,
+    /// Version number of the merge table — set to 0.
+    version : U16Be,
+    /// The number of merge classes.
+    merge_class_count : U16Be,
+    /// Offset to the array of merge-entry data.
+    merge_data_offset : Offset16Be start (MergeEntry merge_class_count),
+    /// The number of class definition tables.
+    class_def_count : U16Be,
+    /// Offset to an array of offsets to class definition tables — in bytes from the start of the MERG table.
+    offset_to_class_def_offsets : Offset16Be start (Array class_def_count Unknown),
+};
+
+struct MergeEntry (merge_class_count : U16) {
+    /// Array of merge-entry rows.
+    merge_entry_rows : Array merge_class_count (MergeEntryRow merge_class_count),
+};
+
+struct MergeEntryRow (merge_class_count : U16) {
+    /// Array of merge entries.
+    merge_entries : Array merge_class_count U8, // TODO: enumerations
+};
 
 
 
