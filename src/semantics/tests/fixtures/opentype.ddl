@@ -258,7 +258,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
     "DSIG" => DigitalSignature length,      // Digital signature
     "hdmx" => Unknown,                      // Horizontal device metrics // TODO: Depends on `num_glyphs` from "maxp"
-    "kern" => Unknown,                      // Kerning
+    "kern" => Kerning,                      // Kerning
     "LTSH" => Unknown,                      // Linear threshold data
     "MERG" => Unknown,                      // Merge
     "meta" => Metadata,                     // Metadata
@@ -3706,12 +3706,92 @@ struct DeviceRecord (num_glyphs : U16) {
 //
 // kern - Kerning
 //
-// <https://www.microsoft.com/typography/otspec/kern.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/kern>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6kern.html>
 //
 // =============================================================================
 
-// TODO
+struct Kerning {
+    /// Table version number (0)
+    version : U16Be,
+    /// Number of subtables in the kerning table.
+    n_tables : U16Be,
+};
+
+union KerningSubtable {
+    KerningSubtableFormat0,
+    KerningSubtableFormat2,
+};
+
+struct KerningSubtableFormat0 {
+    /// Kern subtable version number
+    version : { version : U16Be | nat_eq version 0 },
+    /// Length of the subtable, in bytes (including this header).
+    length : U16Be,
+    /// What type of information is contained in this table.
+    coverage : U16Be, // TODO: Coverage
+
+    /// This gives the number of kerning pairs in the table.
+    n_pairs : U16Be,
+    /// The largest power of two less than or equal to the value of `n_pairs`,
+    /// multiplied by the size in bytes of an entry in the table.
+    search_range : U16Be,
+    /// This is calculated as log2 of the largest power of two less than or
+    /// equal to the value of `n_pairs`. This value indicates how many
+    /// iterations of the search loop will have to be made. (For example, in a
+    /// list of eight items, there would have to be three iterations of the
+    /// loop).
+    entry_selector : U16Be,
+    /// The value of `n_pairs` minus the largest power of two less than or equal
+    /// to `n_pairs`, and then multiplied by the size in bytes of an entry in
+    /// the table.
+    range_shift : U16Be,
+    /// Sorted list of kerning pairs and values
+    kerning_pair_values : Array n_pairs KerningPair, // TODO: Sorted
+};
+
+struct KerningPair {
+    /// The glyph index for the left-hand glyph in the kerning pair.
+    left : U16Be,
+    /// The glyph index for the right-hand glyph in the kerning pair.
+    right : U16Be,
+    /// The kerning value for the above pair, in FUnits. If this value is
+    /// greater than zero, the characters will be moved apart. If this value is
+    /// less than zero, the character will be moved closer together.
+    value : FWord,
+};
+
+struct KerningSubtableFormat2 {
+    start : Pos,
+    /// Kern subtable version number
+    version : { version : U16Be | nat_eq version 2 },
+    /// Length of the subtable, in bytes (including this header).
+    length : U16Be,
+    /// What type of information is contained in this table.
+    coverage : U16Be, // TODO: Coverage
+
+    /// The width, in bytes, of a row in the table.
+    row_width : U16Be,
+    /// Offset from beginning of this subtable to left-hand class table.
+    left_class_table : Offset16Be start KerningClassTable,
+    /// Offset from beginning of this subtable to right-hand class table.
+    right_class_table : Offset16Be start KerningClassTable,
+    /// Offset from beginning of this subtable to the start of the kerning array.
+    array : Offset16Be start KerningClassTable,
+};
+
+struct KerningClassTable {
+    /// First glyph in class range.
+    first_glyph : U16Be,
+    /// Number of glyph in class range.
+    n_glyphs : U16Be,
+    /// Class values
+    ///
+    /// A left by right array of kerning values, which are FWords, where left is
+    /// the number of left-hand classes and R is the number of right-hand
+    /// classes. The array is stored by row.
+    values : Array n_glyphs FWord,
+};
 
 
 
