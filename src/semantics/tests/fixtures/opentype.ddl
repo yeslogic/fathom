@@ -259,7 +259,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "DSIG" => DigitalSignature length,      // Digital signature
     "hdmx" => Unknown,                      // Horizontal device metrics // TODO: Depends on `num_glyphs` from "maxp"
     "kern" => Kerning,                      // Kerning
-    "LTSH" => Unknown,                      // Linear threshold data
+    "LTSH" => LinearThreshold,              // Linear threshold data // TODO: Depends on `num_glyphs` from "maxp"
     "MERG" => Unknown,                      // Merge
     "meta" => Metadata,                     // Metadata
     "STAT" => StyleAttributes,              // Style attributes
@@ -3799,11 +3799,18 @@ struct KerningClassTable {
 //
 // LTSH - Linear Threshold
 //
-// <https://www.microsoft.com/typography/otspec/ltsh.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ltsh>
 //
 // =============================================================================
 
-// TODO
+struct LinearThreshold {
+    /// Version number (starts at 0).
+    version : U16Be,
+    /// Number of glyphs (from `num_glyphs` in 'maxp' table).
+    num_glyphs : U16Be, // TODO: constrained by `num_glyphs` in `maxp` table
+    /// The vertical pel height at which the glyph can be assumed to scale linearly. On a per glyph basis.
+    y_pels : Array num_glyphs U8, // TODO: Sorted
+};
 
 
 
