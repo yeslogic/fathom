@@ -210,7 +210,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
     "CFF " => Unknown,                      // Compact Font Format 1.0
     "CFF2" => Unknown,                      // Compact Font Format 2.0
-    "VORG" => Unknown,                      // Vertical Origin (optional table)
+    "VORG" => VerticalOrigin,               // Vertical Origin (optional table)
 
     // Table Related to SVG Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
@@ -1804,7 +1804,28 @@ struct GridFittingScanConversionRange {
 //
 // =============================================================================
 
-// TODO
+struct VerticalOrigin {
+    /// Major version (starting at 1). Set to 1.
+    major_version : U16Be,
+    /// Minor version (starting at 0). Set to 0.
+    minor_version : U16Be,
+    /// The y coordinate of a glyph’s vertical origin, in the font’s design
+    /// coordinate system, to be used if no entry is present for the glyph in
+    /// the `vert_origin_y_metrics` array.
+    default_vert_origin_y : S16Be,
+    /// Number of elements in the `vert_origin_y_metrics` array.
+    num_vert_origin_y_metrics : U16Be,
+    /// Vertical origin Y mertics data
+    vert_origin_y_metrics : Array num_vert_origin_y_metrics VerticalOriginYMetric,
+};
+
+struct VerticalOriginYMetric {
+    /// Glyph index.
+    glyph_index : U16Be,
+    /// Y coordinate, in the font’s design coordinate system, of the vertical
+    /// origin of glyph with index glyph_index.
+    vert_origin_y : S16Be,
+};
 
 
 
