@@ -264,7 +264,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "meta" => Metadata,                     // Metadata
     "STAT" => StyleAttributes,              // Style attributes
     "PCLT" => Pcl5,                         // PCL 5 data
-    "VDMX" => Unknown,                      // Vertical device metrics
+    "VDMX" => VerticalDeviceMetrics,        // Vertical device metrics
     "vhea" => Unknown,                      // Vertical Metrics header
     "vmtx" => Unknown,                      // Vertical Metrics
 
@@ -3957,11 +3957,56 @@ struct Pcl5 {
 //
 // VDMX - Vertical Device Metrics
 //
-// <https://www.microsoft.com/typography/otspec/vdmx.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/vdmx>
 //
 // =============================================================================
 
-// TODO
+struct VerticalDeviceMetrics {
+    start : Pos,
+    /// Version number (0 or 1).
+    version : U16Be, // TODO: Constrain value
+    /// Number of VDMX groups present
+    num_recs : U16Be, // FIXME: not used?
+    /// Number of aspect ratio groupings
+    num_ratios : U16Be,
+    /// Ratio record array.
+    rat_range : Array num_ratios (RatioRange version),
+    /// Offset from start of this table to the `VerticalDeviceMetricsGroup`
+    /// table for a corresponding RatioRange record.
+    groups : Array num_ratios (Offset16Be start VerticalDeviceMetricsGroup),
+    // groups : repeat num_recs VerticalDeviceMetricsGroup,
+};
+
+struct RatioRange (version : U16) {
+    /// Character set (see below).
+    b_char_set : U8, // TODO: Enumeration (depends on `version`)
+    /// Value to use for x-Ratio
+    x_ratio : U8,
+    /// Starting y-Ratio value.
+    y_start_ratio : U8,
+    /// Ending y-Ratio value.
+    y_end_ratio : U8,
+};
+
+struct VerticalDeviceMetricsGroup {
+    /// Number of height records in this group
+    recs : U16Be,
+    /// Starting `y_pel_height`
+    startsz : U8,
+    /// Ending `y_pel_height`
+    endsz : U8,
+    /// The VDMX records
+    entry : Array recs VerticalDeviceMetricsRecord, // TODO: sorted by `y_pel_height`
+};
+
+struct VerticalDeviceMetricsRecord {
+    /// `y_pel_height` to which values apply.
+    y_pel_height : U16Be,
+    /// Maximum value (in pels) for this `y_pel_height`.
+    y_max : S16Be,
+    /// Minimum value (in pels) for this `y_pel_height`.
+    y_min : S16Be,
+};
 
 
 
