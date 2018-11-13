@@ -1,7 +1,19 @@
-use super::*;
+extern crate codespan;
+extern crate codespan_reporting;
+extern crate ddl;
+#[macro_use]
+extern crate moniker;
+
+use codespan::CodeMap;
+use moniker::{Binder, Embed, FreeVar, Scope, Var};
+
+use ddl::semantics::{self, Context};
+use ddl::syntax::core::{RcTerm, RcValue, Term, Value};
+
+mod support;
 
 mod nf_term {
-    use syntax::core::{Head, Neutral, RcNeutral};
+    use ddl::syntax::core::{Head, Neutral, RcNeutral};
 
     use super::*;
 
@@ -13,7 +25,7 @@ mod nf_term {
         let var = RcTerm::from(Term::Var(Var::Free(x.clone())));
 
         assert_eq!(
-            nf_term(&context, &var).unwrap(),
+            semantics::nf_term(&context, &var).unwrap(),
             RcValue::from(Value::from(Var::Free(x))),
         );
     }
@@ -24,7 +36,7 @@ mod nf_term {
         let context = Context::default();
 
         assert_eq!(
-            parse_nf_term(&mut codemap, &context, r"Type"),
+            support::parse_nf_term(&mut codemap, &context, r"Type"),
             RcValue::from(Value::universe(0)),
         );
     }
@@ -37,7 +49,7 @@ mod nf_term {
         let x = FreeVar::fresh_named("x");
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, r"\x : Type => x"),
+            support::parse_nf_term(&mut codemap, &context, r"\x : Type => x"),
             RcValue::from(Value::Lam(Scope::new(
                 (Binder(x.clone()), Embed(RcValue::from(Value::universe(0)))),
                 RcValue::from(Value::from(Var::Free(x))),
@@ -53,7 +65,7 @@ mod nf_term {
         let x = FreeVar::fresh_named("x");
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, r"(x : Type) -> x"),
+            support::parse_nf_term(&mut codemap, &context, r"(x : Type) -> x"),
             RcValue::from(Value::Pi(Scope::new(
                 (Binder(x.clone()), Embed(RcValue::from(Value::universe(0)))),
                 RcValue::from(Value::from(Var::Free(x))),
@@ -79,7 +91,7 @@ mod nf_term {
         )));
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr,),
+            support::parse_nf_term(&mut codemap, &context, given_expr,),
             RcValue::from(Value::Lam(Scope::new(
                 (Binder(x.clone()), Embed(ty_arr)),
                 RcValue::from(Value::Lam(Scope::new(
@@ -111,7 +123,7 @@ mod nf_term {
         )));
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
             RcValue::from(Value::Pi(Scope::new(
                 (Binder(x.clone()), Embed(ty_arr)),
                 RcValue::from(Value::Pi(Scope::new(
@@ -136,8 +148,8 @@ mod nf_term {
         let expected_expr = r"\x : Type => x";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -151,8 +163,8 @@ mod nf_term {
         let expected_expr = r"Type";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -167,8 +179,8 @@ mod nf_term {
         let expected_expr = r"Type -> Type";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -186,8 +198,8 @@ mod nf_term {
         let expected_expr = r"\(a : Type) (x : a) => x";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -208,8 +220,8 @@ mod nf_term {
         let expected_expr = r"\(a : Type) (x : a) => x";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -222,8 +234,8 @@ mod nf_term {
         let expected_expr = r"String";
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -236,8 +248,8 @@ mod nf_term {
         let expected_expr = r#"\(f : String -> String) => f "hello""#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -254,8 +266,8 @@ mod nf_term {
         "#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -272,8 +284,8 @@ mod nf_term {
         "#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -293,8 +305,8 @@ mod nf_term {
         "#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -314,8 +326,8 @@ mod nf_term {
         "#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 
@@ -335,8 +347,8 @@ mod nf_term {
         "#;
 
         assert_term_eq!(
-            parse_nf_term(&mut codemap, &context, given_expr),
-            parse_nf_term(&mut codemap, &context, expected_expr),
+            support::parse_nf_term(&mut codemap, &context, given_expr),
+            support::parse_nf_term(&mut codemap, &context, expected_expr),
         );
     }
 }

@@ -19,8 +19,6 @@ mod context;
 mod errors;
 mod normalize;
 pub mod parser;
-#[cfg(test)]
-mod tests;
 
 pub use self::context::{Context, Definition, Extern, Globals};
 pub use self::errors::{InternalError, TypeError};

@@ -1,6 +1,12 @@
-use moniker::{FreeVar, Nest};
+extern crate codespan;
+extern crate ddl;
+extern crate moniker;
 
-use super::*;
+use codespan::{ByteIndex, ByteSpan};
+use moniker::{Binder, Embed, FreeVar, Nest, Scope, Var};
+
+use ddl::syntax::translation::ResugarEnv;
+use ddl::syntax::{concrete, core, Label};
 
 fn span() -> ByteSpan {
     ByteSpan::default()
@@ -11,6 +17,8 @@ fn index() -> ByteIndex {
 }
 
 mod module {
+    use ddl::syntax::translation::Resugar;
+
     use super::*;
 
     #[test]
@@ -169,6 +177,8 @@ mod module {
 }
 
 mod term {
+    use ddl::syntax::translation::Resugar;
+
     use super::*;
 
     #[test]

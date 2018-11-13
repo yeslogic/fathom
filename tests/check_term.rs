@@ -1,4 +1,14 @@
-use super::*;
+extern crate codespan;
+extern crate codespan_reporting;
+extern crate ddl;
+extern crate moniker;
+
+use codespan::CodeMap;
+
+use ddl::semantics::{self, Context, TypeError};
+use ddl::syntax::translation::{Desugar, DesugarEnv};
+
+mod support;
 
 #[test]
 fn range_full() {
@@ -8,8 +18,8 @@ fn range_full() {
     let expected_ty = r"int {..}";
     let given_expr = r#"5"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -20,8 +30,8 @@ fn range_from() {
     let expected_ty = r"int {0 ..}";
     let given_expr = r#"0"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -32,8 +42,8 @@ fn range_to() {
     let expected_ty = r"int {.. 10}";
     let given_expr = r#"10"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -44,14 +54,14 @@ fn range_from_to() {
     let expected_ty = r"int {0 .. 10}";
     let given_expr = r#"0"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 
     let expected_ty = r"int {0 .. 10}";
     let given_expr = r#"10"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -66,8 +76,8 @@ fn match_expr() {
         greeting => (extern "string-append" : String -> String -> String) greeting "!!",
     }"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -82,12 +92,12 @@ fn match_expr_bad_literal() {
         1 => "byee",
     }"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    let raw_term = parse_term(&mut codemap, given_expr)
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    let raw_term = support::parse_term(&mut codemap, given_expr)
         .desugar(&desugar_env)
         .unwrap();
 
-    match check_term(&context, &raw_term, &expected_ty) {
+    match semantics::check_term(&context, &raw_term, &expected_ty) {
         Err(TypeError::LiteralMismatch { .. }) => {},
         Err(err) => panic!("unexpected error: {:?}", err),
         Ok(term) => panic!("expected error but found: {}", term),
@@ -104,8 +114,8 @@ fn match_expr_wildcard() {
         _ => 123,
     }"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -116,8 +126,8 @@ fn match_expr_empty() {
     let expected_ty = r"String";
     let given_expr = r#"match "helloo" : String {}"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -133,8 +143,8 @@ fn match_int() {
         _ => unit,
     }"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -150,8 +160,8 @@ fn match_binary() {
         _ => unit,
     }"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -167,8 +177,8 @@ fn match_binary_hex() {
         _ => unit,
     }"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -179,8 +189,8 @@ fn array_0_string() {
     let expected_ty = r"Array 0 String";
     let given_expr = r#"[]"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -191,8 +201,8 @@ fn array_3_string() {
     let expected_ty = r"Array 3 String";
     let given_expr = r#"["hello", "hi", "byee"]"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    support::parse_check_term(&mut codemap, &context, given_expr, &expected_ty);
 }
 
 #[test]
@@ -204,12 +214,12 @@ fn array_len_mismatch() {
     let expected_ty = r"Array 3 String";
     let given_expr = r#"["hello", "hi"]"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    let raw_term = parse_term(&mut codemap, given_expr)
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    let raw_term = support::parse_term(&mut codemap, given_expr)
         .desugar(&desugar_env)
         .unwrap();
 
-    match check_term(&context, &raw_term, &expected_ty) {
+    match semantics::check_term(&context, &raw_term, &expected_ty) {
         Err(TypeError::ArrayLengthMismatch { .. }) => {},
         Err(err) => panic!("unexpected error: {:?}", err),
         Ok(term) => panic!("expected error but found: {}", term),
@@ -225,12 +235,12 @@ fn array_elem_ty_mismatch() {
     let expected_ty = r"Array 3 String";
     let given_expr = r#"["hello", "hi", 4]"#;
 
-    let expected_ty = parse_nf_term(&mut codemap, &context, expected_ty);
-    let raw_term = parse_term(&mut codemap, given_expr)
+    let expected_ty = support::parse_nf_term(&mut codemap, &context, expected_ty);
+    let raw_term = support::parse_term(&mut codemap, given_expr)
         .desugar(&desugar_env)
         .unwrap();
 
-    match check_term(&context, &raw_term, &expected_ty) {
+    match semantics::check_term(&context, &raw_term, &expected_ty) {
         Err(_) => {},
         Ok(term) => panic!("expected error but found: {}", term),
     }
