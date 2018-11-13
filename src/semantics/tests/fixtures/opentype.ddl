@@ -210,7 +210,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-cff-outlines
     "CFF " => Unknown,                      // Compact Font Format 1.0
     "CFF2" => Unknown,                      // Compact Font Format 2.0
-    "VORG" => Unknown,                      // Vertical Origin (optional table)
+    "VORG" => VerticalOrigin,               // Vertical Origin (optional table)
 
     // Table Related to SVG Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-related-to-svg-outlines
@@ -258,13 +258,13 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
     "DSIG" => DigitalSignature length,      // Digital signature
     "hdmx" => Unknown,                      // Horizontal device metrics // TODO: Depends on `num_glyphs` from "maxp"
-    "kern" => Unknown,                      // Kerning
-    "LTSH" => Unknown,                      // Linear threshold data
-    "MERG" => Unknown,                      // Merge
+    "kern" => Kerning,                      // Kerning
+    "LTSH" => LinearThreshold,              // Linear threshold data // TODO: Depends on `num_glyphs` from "maxp"
+    "MERG" => Merge,                        // Merge
     "meta" => Metadata,                     // Metadata
     "STAT" => StyleAttributes,              // Style attributes
-    "PCLT" => Unknown,                      // PCL 5 data
-    "VDMX" => Unknown,                      // Vertical device metrics
+    "PCLT" => Pcl5,                         // PCL 5 data
+    "VDMX" => VerticalDeviceMetrics,        // Vertical device metrics
     "vhea" => Unknown,                      // Vertical Metrics header
     "vmtx" => Unknown,                      // Vertical Metrics
 
@@ -489,7 +489,43 @@ struct RangeRecord {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#class-definition-table>
 // -----------------------------------------------------------------------------
 
-// TODO
+// FIXME: Class type must be U16Be ???
+
+union ClassDef (Class : Type) {
+    ClassDefFormat1 Class,
+    ClassDefFormat2 Class,
+};
+
+/// ClassDefFormat1 table: Class array
+struct ClassDefFormat1 (Class : Type) {
+    /// Format identifier — format = 1
+    class_format : { format : U16Be | nat_eq format 1 },
+    /// First glyph ID of the `class_value_array`
+    start_glyph_id : U16Be,
+    /// Size of the `class_value_array`
+    glyph_count : U16Be,
+    /// Array of Class Values — one per glyph ID
+    class_value_array : Array glyph_count Class,
+};
+
+/// ClassDefFormat2 table: Class ranges
+struct ClassDefFormat2 (Class : Type) {
+    /// Format identifier — format = 2
+    class_format : { format : U16Be | nat_eq format 2 },
+    /// Number of ClassRangeRecords
+    class_range_count : U16Be,
+    /// Array of ClassRangeRecords — ordered by `start_glyph_id`
+    class_range_records : Array class_range_count (ClassRangeRecord Class),
+};
+
+struct ClassRangeRecord (Class : Type) {
+    /// First glyph ID in the range
+    start_glyph_id : U16Be,
+    /// Last glyph ID in the range
+    end_glyph_id : U16Be,
+    /// Applied to all glyphs in the range
+    class : Class,
+};
 
 
 
@@ -1804,7 +1840,28 @@ struct GridFittingScanConversionRange {
 //
 // =============================================================================
 
-// TODO
+struct VerticalOrigin {
+    /// Major version (starting at 1). Set to 1.
+    major_version : U16Be,
+    /// Minor version (starting at 0). Set to 0.
+    minor_version : U16Be,
+    /// The y coordinate of a glyph’s vertical origin, in the font’s design
+    /// coordinate system, to be used if no entry is present for the glyph in
+    /// the `vert_origin_y_metrics` array.
+    default_vert_origin_y : S16Be,
+    /// Number of elements in the `vert_origin_y_metrics` array.
+    num_vert_origin_y_metrics : U16Be,
+    /// Vertical origin Y mertics data
+    vert_origin_y_metrics : Array num_vert_origin_y_metrics VerticalOriginYMetric,
+};
+
+struct VerticalOriginYMetric {
+    /// Glyph index.
+    glyph_index : U16Be,
+    /// Y coordinate, in the font’s design coordinate system, of the vertical
+    /// origin of glyph with index glyph_index.
+    vert_origin_y : S16Be,
+};
 
 
 
@@ -2594,7 +2651,7 @@ struct BaseCoordFormat3 {
 //
 // GDEF — Glyph Definition Table
 //
-// <https://www.microsoft.com/typography/otspec/gdef.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef>
 //
 // =============================================================================
 
@@ -2603,13 +2660,13 @@ struct BaseCoordFormat3 {
 //
 // GDEF Header
 //
-// <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#gdef-header>
 //
 // -----------------------------------------------------------------------------
 
 /// GDEF Header
 ///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader>
+/// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#gdef-header>
 struct GlyphDefinitionData {
     start : Pos,
     /// Major version of the GDEF table, = 1
@@ -2623,19 +2680,19 @@ struct GlyphDefinitionData {
     // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_10>
 
     /// Offset to class definition table for glyph type, from beginning of GDEF header (may be NULL)
-    glyph_class_def_offset : Offset16Be start Unknown, // TODO
+    glyph_class_def_offset : Offset16Be start GlyphClassDef,
     /// Offset to attachment point list table, from beginning of GDEF header (may be NULL)
-    attach_list_offset : Offset16Be start Unknown, // TODO
+    attach_list_offset : Offset16Be start AttachList,
     /// Offset to ligature caret list table, from beginning of GDEF header (may be NULL)
     lig_caret_list_offset : Offset16Be start LigCaretList,
     /// Offset to class definition table for mark attachment type, from beginning of GDEF header (may be NULL)
-    mark_attach_class_def_offset : Offset16Be start Unknown, // TODO
+    mark_attach_class_def_offset : Offset16Be start MarkAttachClassDef,
 
     // GDEF Header, Version 1.2
     // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_12>
 
     /// Offset to the table of mark glyph set definitions, from beginning of GDEF header (may be NULL)
-    mark_glyph_sets_def_offset : Offset16Be start Unknown, // TODO
+    mark_glyph_sets_def_offset : Offset16Be start MarkGlyphSets,
 
     // GDEF Header, Version 1.3
     // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_12>
@@ -2648,21 +2705,31 @@ struct GlyphDefinitionData {
 // -----------------------------------------------------------------------------
 // Glyph Class Definition Table
 //
-// <https://www.microsoft.com/typography/otspec/gsub.htm#glyphClassDefTbl>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#glyph-class-definition-table>
 // -----------------------------------------------------------------------------
 
-// TODO: GlyphClassDef = ClassDef(GlyphClassDefEnum);
+GlyphClassDefEnum = U16Be; // TODO: Enumerations
+
+// enum GlyphClassDefEnum : U16Be {
+//     /// Base glyph (single character, spacing glyph)
+//     BASE_GLYPH = 1,
+//     /// Ligature glyph (multiple character, spacing glyph)
+//     LIGATURE_GLYPH = 2,
+//     /// Mark glyph (non-spacing combining glyph)
+//     MARK_GLYPH = 3,
+//     /// Component glyph (part of single character, spacing glyph)
+//     COMPONENT_GLYPH = 4,
+// };
+
+GlyphClassDef = ClassDef GlyphClassDefEnum;
 
 
 // -----------------------------------------------------------------------------
 // Attachment Point List Table
 //
-// <https://www.microsoft.com/typography/otspec/gsub.htm#attachmentPointListTbl>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#attachment-point-list-table>
 // -----------------------------------------------------------------------------
 
-/// AttachList table
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#attachListTable>
 struct AttachList {
     start : Pos,
     /// Offset to Coverage table - from beginning of AttachList table
@@ -2674,9 +2741,6 @@ struct AttachList {
     attach_point_offsets : Array glyph_count (Offset16Be start AttachPoint),
 };
 
-/// AttachPoint table
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#attachPointTable>
 struct AttachPoint {
     /// Number of attachment points on this glyph
     point_count : U16Be,
@@ -2688,12 +2752,9 @@ struct AttachPoint {
 // -----------------------------------------------------------------------------
 // Ligature Caret List Table
 //
-// <https://www.microsoft.com/typography/otspec/gsub.htm#ligatureCaretListTbl>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#ligature-caret-list-table>
 // -----------------------------------------------------------------------------
 
-/// Ligature Caret List Table
-///
-/// <https://www.microsoft.com/typography/otspec/gsub.htm#ligatureCaretListTbl>
 struct LigCaretList {
     start : Pos,
     /// Offset to Coverage table - from beginning of LigCaretList table
@@ -2705,9 +2766,6 @@ struct LigCaretList {
     lig_glyph_offsets : Array lig_glyph_count (Offset16Be start LigGlyph),
 };
 
-/// LigGlyph table
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#ligGlyphTable>
 struct LigGlyph {
     start : Pos,
     /// Number of CaretValue tables for this ligature (components - 1)
@@ -2718,8 +2776,6 @@ struct LigGlyph {
 };
 
 /// Caret Value Tables
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbls>
 union CaretValue {
     CaretValueFormat1,
     CaretValueFormat2,
@@ -2727,8 +2783,6 @@ union CaretValue {
 };
 
 /// CaretValue Format 1: Design units only
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbl1>
 struct CaretValueFormat1 {
     /// Format identifier: format = 1
     caret_value_format : { format : U16Be | nat_eq format 1 },
@@ -2737,8 +2791,6 @@ struct CaretValueFormat1 {
 };
 
 /// CaretValue Format 2: Contour point
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbl2>
 struct CaretValueFormat2 {
     /// Format identifier: format = 2
     caret_value_format : { format : U16Be | nat_eq format 2 },
@@ -2747,8 +2799,6 @@ struct CaretValueFormat2 {
 };
 
 /// Caret Value Format 3: Design units plus Device or VariationIndex table
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTable_3>
 struct CaretValueFormat3 {
     start : Pos,
     /// Format identifier: format = 3
@@ -2764,7 +2814,38 @@ struct CaretValueFormat3 {
 // -----------------------------------------------------------------------------
 // Mark Attachment Class Definition Table
 //
-// <https://www.microsoft.com/typography/otspec/gsub.htm#ligatureCaretListTbl>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#mark-attachment-class-definition-table>
+// -----------------------------------------------------------------------------
+
+MarkAttachClassDef = ClassDef U16Be; // TODO: Figure out what the class format is
+
+
+// -----------------------------------------------------------------------------
+// Mark Glyph Sets Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#mark-glyph-sets-table>
+// -----------------------------------------------------------------------------
+
+union MarkGlyphSets {
+    MarkGlyphSetsFormat1,
+};
+
+struct MarkGlyphSetsFormat1 {
+    start : Pos,
+    /// Format identifier == 1
+    mark_glyph_set_table_format : { format : U16Be | nat_eq format 1 },
+    /// Number of mark glyph sets defined
+    mark_glyph_set_count : U16Be,
+    /// Array of offsets to mark glyph set coverage tables.
+    // FIXME: offset start is not defined in the spec, guessing here!
+    coverage_offsets : Array mark_glyph_set_count (Offset32Be start Coverage),
+};
+
+
+// -----------------------------------------------------------------------------
+// Item Variation Store Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#item-variation-store-table>
 // -----------------------------------------------------------------------------
 
 // TODO
@@ -3685,12 +3766,92 @@ struct DeviceRecord (num_glyphs : U16) {
 //
 // kern - Kerning
 //
-// <https://www.microsoft.com/typography/otspec/kern.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/kern>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6kern.html>
 //
 // =============================================================================
 
-// TODO
+struct Kerning {
+    /// Table version number (0)
+    version : U16Be,
+    /// Number of subtables in the kerning table.
+    n_tables : U16Be,
+};
+
+union KerningSubtable {
+    KerningSubtableFormat0,
+    KerningSubtableFormat2,
+};
+
+struct KerningSubtableFormat0 {
+    /// Kern subtable version number
+    version : { version : U16Be | nat_eq version 0 },
+    /// Length of the subtable, in bytes (including this header).
+    length : U16Be,
+    /// What type of information is contained in this table.
+    coverage : U16Be, // TODO: Coverage
+
+    /// This gives the number of kerning pairs in the table.
+    n_pairs : U16Be,
+    /// The largest power of two less than or equal to the value of `n_pairs`,
+    /// multiplied by the size in bytes of an entry in the table.
+    search_range : U16Be,
+    /// This is calculated as log2 of the largest power of two less than or
+    /// equal to the value of `n_pairs`. This value indicates how many
+    /// iterations of the search loop will have to be made. (For example, in a
+    /// list of eight items, there would have to be three iterations of the
+    /// loop).
+    entry_selector : U16Be,
+    /// The value of `n_pairs` minus the largest power of two less than or equal
+    /// to `n_pairs`, and then multiplied by the size in bytes of an entry in
+    /// the table.
+    range_shift : U16Be,
+    /// Sorted list of kerning pairs and values
+    kerning_pair_values : Array n_pairs KerningPair, // TODO: Sorted
+};
+
+struct KerningPair {
+    /// The glyph index for the left-hand glyph in the kerning pair.
+    left : U16Be,
+    /// The glyph index for the right-hand glyph in the kerning pair.
+    right : U16Be,
+    /// The kerning value for the above pair, in FUnits. If this value is
+    /// greater than zero, the characters will be moved apart. If this value is
+    /// less than zero, the character will be moved closer together.
+    value : FWord,
+};
+
+struct KerningSubtableFormat2 {
+    start : Pos,
+    /// Kern subtable version number
+    version : { version : U16Be | nat_eq version 2 },
+    /// Length of the subtable, in bytes (including this header).
+    length : U16Be,
+    /// What type of information is contained in this table.
+    coverage : U16Be, // TODO: Coverage
+
+    /// The width, in bytes, of a row in the table.
+    row_width : U16Be,
+    /// Offset from beginning of this subtable to left-hand class table.
+    left_class_table : Offset16Be start KerningClassTable,
+    /// Offset from beginning of this subtable to right-hand class table.
+    right_class_table : Offset16Be start KerningClassTable,
+    /// Offset from beginning of this subtable to the start of the kerning array.
+    array : Offset16Be start KerningClassTable,
+};
+
+struct KerningClassTable {
+    /// First glyph in class range.
+    first_glyph : U16Be,
+    /// Number of glyph in class range.
+    n_glyphs : U16Be,
+    /// Class values
+    ///
+    /// A left by right array of kerning values, which are FWords, where left is
+    /// the number of left-hand classes and R is the number of right-hand
+    /// classes. The array is stored by row.
+    values : Array n_glyphs FWord,
+};
 
 
 
@@ -3698,11 +3859,18 @@ struct DeviceRecord (num_glyphs : U16) {
 //
 // LTSH - Linear Threshold
 //
-// <https://www.microsoft.com/typography/otspec/ltsh.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/ltsh>
 //
 // =============================================================================
 
-// TODO
+struct LinearThreshold {
+    /// Version number (starts at 0).
+    version : U16Be,
+    /// Number of glyphs (from `num_glyphs` in 'maxp' table).
+    num_glyphs : U16Be, // TODO: constrained by `num_glyphs` in `maxp` table
+    /// The vertical pel height at which the glyph can be assumed to scale linearly. On a per glyph basis.
+    y_pels : Array num_glyphs U8, // TODO: Sorted
+};
 
 
 
@@ -3710,11 +3878,33 @@ struct DeviceRecord (num_glyphs : U16) {
 //
 // MERG — Merge Table
 //
-// <https://www.microsoft.com/typography/otspec/merg.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/merg>
 //
 // =============================================================================
 
-// TODO
+struct Merge {
+    start : Pos,
+    /// Version number of the merge table — set to 0.
+    version : U16Be,
+    /// The number of merge classes.
+    merge_class_count : U16Be,
+    /// Offset to the array of merge-entry data.
+    merge_data_offset : Offset16Be start (MergeEntry merge_class_count),
+    /// The number of class definition tables.
+    class_def_count : U16Be,
+    /// Offset to an array of offsets to class definition tables — in bytes from the start of the MERG table.
+    offset_to_class_def_offsets : Offset16Be start (Array class_def_count Unknown),
+};
+
+struct MergeEntry (merge_class_count : U16) {
+    /// Array of merge-entry rows.
+    merge_entry_rows : Array merge_class_count (MergeEntryRow merge_class_count),
+};
+
+struct MergeEntryRow (merge_class_count : U16) {
+    /// Array of merge entries.
+    merge_entries : Array merge_class_count U8, // TODO: enumerations
+};
 
 
 
@@ -3917,11 +4107,39 @@ struct AxisValue {
 //
 // PCLT - PCL 5 Table
 //
-// <https://www.microsoft.com/typography/otspec/pclt.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/pclt>
 //
 // =============================================================================
 
-// TODO
+struct Pcl5 {
+    major_version : U16Be, // TODO: 1
+    minor_version : U16Be, // TODO: 0
+    font_number : U32Be, // TODO: Enumeration
+    /// The width of the space in FUnits (FUnits are described by the
+    /// `units_per_em` field of the 'head' table). Monospace fonts derive the
+    /// width of all characters from this field.
+    pitch : U16Be,
+    /// The height of the optical line describing the height of the lowercase x
+    /// in FUnits. This might not be the same as the measured height of the
+    /// lowercase x.
+    x_height : U16Be,
+    style : U16Be, // TODO: Enumeration
+    type_family : U16Be, // TODO: Enumeration
+    /// The height of the optical line describing the top of the uppercase H in
+    /// FUnits. This might not be the same as the measured height of the
+    /// uppercase H.
+    cap_height : U16Be,
+    symbol_set : U16Be, // TODO: Enumeration
+    typeface : Array 16 S8, // TODO: Enumeration
+    character_complement : Array 8 S8, // TODO: Enumeration
+    file_name : Array 6 S8,
+    stroke_weight : S8, // TODO: Enumeration
+    width_type : S8, // TODO: Enumeration
+    serif_style : U8, // TODO: Enumeration
+    padding : Reserved U8,
+};
+
+// TODO: Enumerations
 
 
 
@@ -3929,11 +4147,56 @@ struct AxisValue {
 //
 // VDMX - Vertical Device Metrics
 //
-// <https://www.microsoft.com/typography/otspec/vdmx.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/vdmx>
 //
 // =============================================================================
 
-// TODO
+struct VerticalDeviceMetrics {
+    start : Pos,
+    /// Version number (0 or 1).
+    version : U16Be, // TODO: Constrain value
+    /// Number of VDMX groups present
+    num_recs : U16Be, // FIXME: not used?
+    /// Number of aspect ratio groupings
+    num_ratios : U16Be,
+    /// Ratio record array.
+    rat_range : Array num_ratios (RatioRange version),
+    /// Offset from start of this table to the `VerticalDeviceMetricsGroup`
+    /// table for a corresponding RatioRange record.
+    groups : Array num_ratios (Offset16Be start VerticalDeviceMetricsGroup),
+    // groups : repeat num_recs VerticalDeviceMetricsGroup,
+};
+
+struct RatioRange (version : U16) {
+    /// Character set (see below).
+    b_char_set : U8, // TODO: Enumeration (depends on `version`)
+    /// Value to use for x-Ratio
+    x_ratio : U8,
+    /// Starting y-Ratio value.
+    y_start_ratio : U8,
+    /// Ending y-Ratio value.
+    y_end_ratio : U8,
+};
+
+struct VerticalDeviceMetricsGroup {
+    /// Number of height records in this group
+    recs : U16Be,
+    /// Starting `y_pel_height`
+    startsz : U8,
+    /// Ending `y_pel_height`
+    endsz : U8,
+    /// The VDMX records
+    entry : Array recs VerticalDeviceMetricsRecord, // TODO: sorted by `y_pel_height`
+};
+
+struct VerticalDeviceMetricsRecord {
+    /// `y_pel_height` to which values apply.
+    y_pel_height : U16Be,
+    /// Maximum value (in pels) for this `y_pel_height`.
+    y_max : S16Be,
+    /// Minimum value (in pels) for this `y_pel_height`.
+    y_min : S16Be,
+};
 
 
 
