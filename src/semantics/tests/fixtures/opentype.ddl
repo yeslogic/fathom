@@ -489,7 +489,43 @@ struct RangeRecord {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#class-definition-table>
 // -----------------------------------------------------------------------------
 
-// TODO
+// FIXME: Class type must be U16Be ???
+
+union ClassDef (Class : Type) {
+    ClassDefFormat1 Class,
+    ClassDefFormat2 Class,
+};
+
+/// ClassDefFormat1 table: Class array
+struct ClassDefFormat1 (Class : Type) {
+    /// Format identifier — format = 1
+    class_format : { format : U16Be | nat_eq format 1 },
+    /// First glyph ID of the `class_value_array`
+    start_glyph_id : U16Be,
+    /// Size of the `class_value_array`
+    glyph_count : U16Be,
+    /// Array of Class Values — one per glyph ID
+    class_value_array : Array glyph_count Class,
+};
+
+/// ClassDefFormat2 table: Class ranges
+struct ClassDefFormat2 (Class : Type) {
+    /// Format identifier — format = 2
+    class_format : { format : U16Be | nat_eq format 2 },
+    /// Number of ClassRangeRecords
+    class_range_count : U16Be,
+    /// Array of ClassRangeRecords — ordered by `start_glyph_id`
+    class_range_records : Array class_range_count (ClassRangeRecord Class),
+};
+
+struct ClassRangeRecord (Class : Type) {
+    /// First glyph ID in the range
+    start_glyph_id : U16Be,
+    /// Last glyph ID in the range
+    end_glyph_id : U16Be,
+    /// Applied to all glyphs in the range
+    class : Class,
+};
 
 
 
@@ -2615,7 +2651,7 @@ struct BaseCoordFormat3 {
 //
 // GDEF — Glyph Definition Table
 //
-// <https://www.microsoft.com/typography/otspec/gdef.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef>
 //
 // =============================================================================
 
@@ -2624,13 +2660,13 @@ struct BaseCoordFormat3 {
 //
 // GDEF Header
 //
-// <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#gdef-header>
 //
 // -----------------------------------------------------------------------------
 
 /// GDEF Header
 ///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader>
+/// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#gdef-header>
 struct GlyphDefinitionData {
     start : Pos,
     /// Major version of the GDEF table, = 1
@@ -2644,19 +2680,19 @@ struct GlyphDefinitionData {
     // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_10>
 
     /// Offset to class definition table for glyph type, from beginning of GDEF header (may be NULL)
-    glyph_class_def_offset : Offset16Be start Unknown, // TODO
+    glyph_class_def_offset : Offset16Be start GlyphClassDef,
     /// Offset to attachment point list table, from beginning of GDEF header (may be NULL)
-    attach_list_offset : Offset16Be start Unknown, // TODO
+    attach_list_offset : Offset16Be start AttachList,
     /// Offset to ligature caret list table, from beginning of GDEF header (may be NULL)
     lig_caret_list_offset : Offset16Be start LigCaretList,
     /// Offset to class definition table for mark attachment type, from beginning of GDEF header (may be NULL)
-    mark_attach_class_def_offset : Offset16Be start Unknown, // TODO
+    mark_attach_class_def_offset : Offset16Be start MarkAttachClassDef,
 
     // GDEF Header, Version 1.2
     // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_12>
 
     /// Offset to the table of mark glyph set definitions, from beginning of GDEF header (may be NULL)
-    mark_glyph_sets_def_offset : Offset16Be start Unknown, // TODO
+    mark_glyph_sets_def_offset : Offset16Be start MarkGlyphSets,
 
     // GDEF Header, Version 1.3
     // <https://www.microsoft.com/typography/otspec/gdef.htm#gdefHeader_12>
@@ -2669,21 +2705,31 @@ struct GlyphDefinitionData {
 // -----------------------------------------------------------------------------
 // Glyph Class Definition Table
 //
-// <https://www.microsoft.com/typography/otspec/gsub.htm#glyphClassDefTbl>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#glyph-class-definition-table>
 // -----------------------------------------------------------------------------
 
-// TODO: GlyphClassDef = ClassDef(GlyphClassDefEnum);
+GlyphClassDefEnum = U16Be; // TODO: Enumerations
+
+// enum GlyphClassDefEnum : U16Be {
+//     /// Base glyph (single character, spacing glyph)
+//     BASE_GLYPH = 1,
+//     /// Ligature glyph (multiple character, spacing glyph)
+//     LIGATURE_GLYPH = 2,
+//     /// Mark glyph (non-spacing combining glyph)
+//     MARK_GLYPH = 3,
+//     /// Component glyph (part of single character, spacing glyph)
+//     COMPONENT_GLYPH = 4,
+// };
+
+GlyphClassDef = ClassDef GlyphClassDefEnum;
 
 
 // -----------------------------------------------------------------------------
 // Attachment Point List Table
 //
-// <https://www.microsoft.com/typography/otspec/gsub.htm#attachmentPointListTbl>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#attachment-point-list-table>
 // -----------------------------------------------------------------------------
 
-/// AttachList table
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#attachListTable>
 struct AttachList {
     start : Pos,
     /// Offset to Coverage table - from beginning of AttachList table
@@ -2695,9 +2741,6 @@ struct AttachList {
     attach_point_offsets : Array glyph_count (Offset16Be start AttachPoint),
 };
 
-/// AttachPoint table
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#attachPointTable>
 struct AttachPoint {
     /// Number of attachment points on this glyph
     point_count : U16Be,
@@ -2709,12 +2752,9 @@ struct AttachPoint {
 // -----------------------------------------------------------------------------
 // Ligature Caret List Table
 //
-// <https://www.microsoft.com/typography/otspec/gsub.htm#ligatureCaretListTbl>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#ligature-caret-list-table>
 // -----------------------------------------------------------------------------
 
-/// Ligature Caret List Table
-///
-/// <https://www.microsoft.com/typography/otspec/gsub.htm#ligatureCaretListTbl>
 struct LigCaretList {
     start : Pos,
     /// Offset to Coverage table - from beginning of LigCaretList table
@@ -2726,9 +2766,6 @@ struct LigCaretList {
     lig_glyph_offsets : Array lig_glyph_count (Offset16Be start LigGlyph),
 };
 
-/// LigGlyph table
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#ligGlyphTable>
 struct LigGlyph {
     start : Pos,
     /// Number of CaretValue tables for this ligature (components - 1)
@@ -2739,8 +2776,6 @@ struct LigGlyph {
 };
 
 /// Caret Value Tables
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbls>
 union CaretValue {
     CaretValueFormat1,
     CaretValueFormat2,
@@ -2748,8 +2783,6 @@ union CaretValue {
 };
 
 /// CaretValue Format 1: Design units only
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbl1>
 struct CaretValueFormat1 {
     /// Format identifier: format = 1
     caret_value_format : { format : U16Be | nat_eq format 1 },
@@ -2758,8 +2791,6 @@ struct CaretValueFormat1 {
 };
 
 /// CaretValue Format 2: Contour point
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTbl2>
 struct CaretValueFormat2 {
     /// Format identifier: format = 2
     caret_value_format : { format : U16Be | nat_eq format 2 },
@@ -2768,8 +2799,6 @@ struct CaretValueFormat2 {
 };
 
 /// Caret Value Format 3: Design units plus Device or VariationIndex table
-///
-/// <https://www.microsoft.com/typography/otspec/gdef.htm#caretValueTable_3>
 struct CaretValueFormat3 {
     start : Pos,
     /// Format identifier: format = 3
@@ -2785,7 +2814,38 @@ struct CaretValueFormat3 {
 // -----------------------------------------------------------------------------
 // Mark Attachment Class Definition Table
 //
-// <https://www.microsoft.com/typography/otspec/gsub.htm#ligatureCaretListTbl>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#mark-attachment-class-definition-table>
+// -----------------------------------------------------------------------------
+
+MarkAttachClassDef = ClassDef U16Be; // TODO: Figure out what the class format is
+
+
+// -----------------------------------------------------------------------------
+// Mark Glyph Sets Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#mark-glyph-sets-table>
+// -----------------------------------------------------------------------------
+
+union MarkGlyphSets {
+    MarkGlyphSetsFormat1,
+};
+
+struct MarkGlyphSetsFormat1 {
+    start : Pos,
+    /// Format identifier == 1
+    mark_glyph_set_table_format : { format : U16Be | nat_eq format 1 },
+    /// Number of mark glyph sets defined
+    mark_glyph_set_count : U16Be,
+    /// Array of offsets to mark glyph set coverage tables.
+    // FIXME: offset start is not defined in the spec, guessing here!
+    coverage_offsets : Array mark_glyph_set_count (Offset32Be start Coverage),
+};
+
+
+// -----------------------------------------------------------------------------
+// Item Variation Store Table
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#item-variation-store-table>
 // -----------------------------------------------------------------------------
 
 // TODO
