@@ -1,4 +1,13 @@
-use super::*;
+extern crate codespan;
+extern crate codespan_reporting;
+extern crate ddl;
+extern crate moniker;
+
+use codespan::CodeMap;
+
+use ddl::semantics::{self, Context};
+
+mod support;
 
 macro_rules! assert_subtype {
     ($sub_ty_src:expr, $super_ty_src:expr) => {{
@@ -8,11 +17,11 @@ macro_rules! assert_subtype {
         let super_ty = $super_ty_src;
         let sub_ty = $sub_ty_src;
 
-        let super_ty = parse_nf_term(&mut codemap, &context, &super_ty);
-        let sub_ty = parse_nf_term(&mut codemap, &context, &sub_ty);
+        let super_ty = support::parse_nf_term(&mut codemap, &context, &super_ty);
+        let sub_ty = support::parse_nf_term(&mut codemap, &context, &sub_ty);
 
         assert!(
-            is_subtype(&context, &sub_ty, &super_ty),
+            semantics::is_subtype(&context, &sub_ty, &super_ty),
             "{} <: {}",
             $sub_ty_src,
             $super_ty_src
@@ -28,11 +37,11 @@ macro_rules! assert_not_subtype {
         let super_ty = $super_ty_src;
         let sub_ty = $sub_ty_src;
 
-        let super_ty = parse_nf_term(&mut codemap, &context, &super_ty);
-        let sub_ty = parse_nf_term(&mut codemap, &context, &sub_ty);
+        let super_ty = support::parse_nf_term(&mut codemap, &context, &super_ty);
+        let sub_ty = support::parse_nf_term(&mut codemap, &context, &sub_ty);
 
         assert!(
-            !is_subtype(&context, &sub_ty, &super_ty),
+            !semantics::is_subtype(&context, &sub_ty, &super_ty),
             "{} </: {}",
             $sub_ty_src,
             $super_ty_src

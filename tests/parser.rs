@@ -1,11 +1,23 @@
+extern crate byteorder;
+extern crate codespan;
+extern crate codespan_reporting;
+extern crate ddl;
+#[macro_use]
+extern crate im;
+extern crate moniker;
+
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
+use codespan::CodeMap;
+use codespan_reporting::termcolor::{ColorChoice, StandardStream};
 use std::io::{Cursor, Write};
 use std::mem;
 
-use semantics::parser::{self, ParseError, Value};
-use syntax::Label;
+use ddl::semantics::parser::{self, ParseError, Value};
+use ddl::semantics::{self, Context};
+use ddl::syntax::translation::{Desugar, DesugarEnv};
+use ddl::syntax::Label;
 
-use super::*;
+mod support;
 
 fn label(name: &str) -> Label {
     Label(name.to_owned())
@@ -40,10 +52,10 @@ fn silly_root() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("Silly"), &module, &mut given_bytes).unwrap(),
@@ -72,10 +84,10 @@ fn missing_root() {
         Data len = Array len U32Be;
     "#;
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     let mut given_bytes = Cursor::new(vec![]);
 
@@ -124,10 +136,10 @@ fn pos() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
@@ -188,10 +200,10 @@ fn offset() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
@@ -245,10 +257,10 @@ fn offset_same_pos() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
@@ -290,10 +302,10 @@ fn offset_same_pos_different_tys() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     let parsed_value = parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes);
     match parsed_value {
@@ -350,10 +362,10 @@ fn offset_pos() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
@@ -412,10 +424,10 @@ fn offset_pos_same_pos() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
@@ -464,10 +476,10 @@ fn offset_pos_same_pos_different_tys() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     let parsed_value = parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes);
     match parsed_value {
@@ -500,10 +512,10 @@ fn reserved() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
@@ -542,10 +554,10 @@ fn refinement_ok() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
@@ -585,10 +597,10 @@ fn refinement_fail() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert!(parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).is_err());
 }
@@ -633,10 +645,10 @@ fn union_ok() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
@@ -690,10 +702,10 @@ fn union_fail() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert!(parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).is_err());
 }
@@ -733,10 +745,10 @@ fn parse_bitmap_nested() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
@@ -828,10 +840,10 @@ fn parse_bitmap_flat() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
@@ -906,10 +918,10 @@ fn gif() {
         Cursor::new(given_bytes)
     };
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    let module = check_module(&context, &raw_module).unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
         parser::parse_module(&context, &label("Gif"), &module, &mut given_bytes).unwrap(),
@@ -951,10 +963,10 @@ fn opentype() {
 
     let given_format = include_str!("./fixtures/opentype.ddl");
 
-    let raw_module = parse_module(&mut codemap, given_format)
+    let raw_module = support::parse_module(&mut codemap, given_format)
         .desugar(&desugar_env)
         .unwrap();
-    match check_module(&context, &raw_module) {
+    match semantics::check_module(&context, &raw_module) {
         Ok(_module) => {},
         Err(error) => {
             let writer = StandardStream::stdout(ColorChoice::Always);

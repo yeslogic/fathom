@@ -1,14 +1,16 @@
-use codespan::{ByteIndex, CodeMap, FileName};
+#![allow(dead_code)]
+
+use codespan::{CodeMap, FileName};
 use codespan_reporting;
 use codespan_reporting::termcolor::{ColorChoice, StandardStream};
 
-use syntax::concrete;
-use syntax::parse;
-use syntax::translation::{Desugar, DesugarEnv};
+use ddl::semantics::{self, Context};
+use ddl::syntax::concrete;
+use ddl::syntax::core::{RcTerm, RcType, RcValue};
+use ddl::syntax::parse;
+use ddl::syntax::translation::{Desugar, DesugarEnv};
 
-use super::*;
-
-fn parse_module(codemap: &mut CodeMap, src: &str) -> concrete::Module {
+pub fn parse_module(codemap: &mut CodeMap, src: &str) -> concrete::Module {
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
     let (concrete_module, errors) = parse::module(&filemap);
 
@@ -23,7 +25,7 @@ fn parse_module(codemap: &mut CodeMap, src: &str) -> concrete::Module {
     concrete_module
 }
 
-fn parse_term(codemap: &mut CodeMap, src: &str) -> concrete::Term {
+pub fn parse_term(codemap: &mut CodeMap, src: &str) -> concrete::Term {
     let filemap = codemap.add_filemap(FileName::virtual_("test"), src.into());
     let (concrete_term, errors) = parse::term(&filemap);
 
@@ -38,11 +40,11 @@ fn parse_term(codemap: &mut CodeMap, src: &str) -> concrete::Term {
     concrete_term
 }
 
-fn parse_infer_term(codemap: &mut CodeMap, context: &Context, src: &str) -> (RcTerm, RcType) {
+pub fn parse_infer_term(codemap: &mut CodeMap, context: &Context, src: &str) -> (RcTerm, RcType) {
     let raw_term = parse_term(codemap, src)
         .desugar(&DesugarEnv::new(context.mappings()))
         .unwrap();
-    match infer_term(context, &raw_term) {
+    match semantics::infer_term(context, &raw_term) {
         Ok((term, ty)) => (term, ty),
         Err(error) => {
             let writer = StandardStream::stdout(ColorChoice::Always);
@@ -52,9 +54,9 @@ fn parse_infer_term(codemap: &mut CodeMap, context: &Context, src: &str) -> (RcT
     }
 }
 
-fn parse_nf_term(codemap: &mut CodeMap, context: &Context, src: &str) -> RcValue {
+pub fn parse_nf_term(codemap: &mut CodeMap, context: &Context, src: &str) -> RcValue {
     let (term, _) = parse_infer_term(codemap, context, src);
-    match nf_term(context, &term) {
+    match semantics::nf_term(context, &term) {
         Ok(value) => value,
         Err(error) => {
             let writer = StandardStream::stdout(ColorChoice::Always);
@@ -64,11 +66,11 @@ fn parse_nf_term(codemap: &mut CodeMap, context: &Context, src: &str) -> RcValue
     }
 }
 
-fn parse_check_term(codemap: &mut CodeMap, context: &Context, src: &str, expected: &RcType) {
+pub fn parse_check_term(codemap: &mut CodeMap, context: &Context, src: &str, expected: &RcType) {
     let raw_term = parse_term(codemap, src)
         .desugar(&DesugarEnv::new(context.mappings()))
         .unwrap();
-    match check_term(context, &raw_term, expected) {
+    match semantics::check_term(context, &raw_term, expected) {
         Ok(_) => {},
         Err(error) => {
             let writer = StandardStream::stdout(ColorChoice::Always);
@@ -77,10 +79,3 @@ fn parse_check_term(codemap: &mut CodeMap, context: &Context, src: &str, expecte
         },
     }
 }
-
-mod check_module;
-mod check_term;
-mod infer_term;
-mod normalize;
-mod parser;
-mod subtype;

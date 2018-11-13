@@ -1,4 +1,15 @@
-use super::*;
+extern crate codespan;
+extern crate codespan_reporting;
+extern crate ddl;
+extern crate moniker;
+
+use codespan::CodeMap;
+use codespan_reporting::termcolor::{ColorChoice, StandardStream};
+
+use ddl::semantics::{self, Context, TypeError};
+use ddl::syntax::translation::{Desugar, DesugarEnv};
+
+mod support;
 
 #[test]
 fn infer_bare_definition() {
@@ -12,10 +23,10 @@ fn infer_bare_definition() {
         foo = true;
     ";
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -37,10 +48,10 @@ fn forward_declarations() {
         foo = false;
     ";
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -62,10 +73,10 @@ fn forward_declarations_forward_ref() {
         foo = false;
     ";
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -85,10 +96,10 @@ fn forward_struct_definitions() {
         struct Foo {};
     ";
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -110,10 +121,10 @@ fn empty_struct() {
         test = struct {};
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -141,10 +152,10 @@ fn simple_struct() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -172,10 +183,10 @@ fn dependent_struct() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -203,10 +214,10 @@ fn dependent_struct_propagate_types() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -236,10 +247,10 @@ fn simple_struct_proj() {
         test_x : String = test.x;
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -267,10 +278,10 @@ fn simple_struct_proj_missing() {
         test_bloop = test.bloop;
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    match check_module(&context, &raw_module) {
+    match semantics::check_module(&context, &raw_module) {
         Ok(_) => panic!("expected error"),
         Err(TypeError::NoFieldInType { .. }) => {},
         Err(err) => panic!("unexpected error: {}", err),
@@ -298,10 +309,10 @@ fn dependent_struct_proj_weird1() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -332,10 +343,10 @@ fn dependent_struct_proj_weird2() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -357,10 +368,10 @@ fn dependent_struct_with_integer() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
@@ -386,10 +397,10 @@ fn struct_field_mismatch_lt() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    match check_module(&context, &raw_module) {
+    match semantics::check_module(&context, &raw_module) {
         Ok(_) => panic!("expected error"),
         Err(TypeError::StructSizeMismatch { .. }) => {},
         Err(err) => panic!("unexpected error: {}", err),
@@ -415,10 +426,10 @@ fn struct_field_mismatch_gt() {
         };
     "#;
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    match check_module(&context, &raw_module) {
+    match semantics::check_module(&context, &raw_module) {
         Ok(_) => panic!("expected error"),
         Err(TypeError::StructSizeMismatch { .. }) => {},
         Err(err) => panic!("unexpected error: {}", err),
@@ -449,10 +460,10 @@ fn struct_parameterised() {
         data = foo.data : Array 3 U32;
     ";
 
-    let raw_module = parse_module(&mut codemap, src)
+    let raw_module = support::parse_module(&mut codemap, src)
         .desugar(&desugar_env)
         .unwrap();
-    if let Err(err) = check_module(&context, &raw_module) {
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
         let writer = StandardStream::stdout(ColorChoice::Always);
         codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
         panic!("type error!")
