@@ -247,7 +247,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
 
     // Tables Related to Color Fonts
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
-    "COLR" => Unknown,                      // Color table
+    "COLR" => Color,                        // Color table
     "CPAL" => Unknown,                      // Color palette table
     // "CBDT" => Unknown,                      // Color bitmap data
     // "CBLC" => Unknown,                      // Color bitmap location data
@@ -3730,11 +3730,55 @@ struct InstanceRecord (axis_count : U16) {
 //
 // COLR - Color Table
 //
-// <https://www.microsoft.com/typography/otspec/colr.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/colr>
 //
 // =============================================================================
 
-// TODO
+union Color {
+    Color0,
+};
+
+struct Color0 {
+    start : Pos,
+
+    /// Table version number (starts at 0).
+    version : U16Be,
+    /// Number of Base Glyph Records.
+    num_base_glyph_records : U16Be,
+    /// Offset (from beginning of COLR table) to Base Glyph records.
+    base_glyph_records_offset : U32Be,
+    /// Offset (from beginning of COLR table) to Layer Records.
+    layer_records_offset : U32Be,
+    /// Number of Layer Records.
+    num_layer_records : U16Be,
+
+    /// The base glyph records
+    base_glyph_records : OffsetPos start base_glyph_records_offset (Array num_base_glyph_records BaseGlyphRecord),
+    /// The layer records
+    layer_records : OffsetPos start layer_records_offset (Array num_layer_records LayerRecord),
+};
+
+struct BaseGlyphRecord {
+    /// Glyph ID of reference glyph. This glyph is for reference only and is not
+    /// rendered for color.
+    g_id : U16Be,
+    /// Index (from beginning of the Layer Records) to the layer record. There
+    /// will be numLayers consecutive entries for this base glyph.
+    first_layer_index : U16Be,
+    /// Number of color layers associated with this glyph.
+    num_layers : U16Be,
+};
+
+struct LayerRecord {
+    /// Glyph ID of layer glyph (must be in z-order from bottom to top).
+    g_id : U16Be,
+    /// Index value to use with a selected color palette. This value must be
+    /// less than numPaletteEntries in the CPAL table. A palette entry index
+    /// value of 0xFFFF is a special case indicating that the text foreground
+    /// color (defined by a higher-level client) should be used and shall not be
+    /// treated as actual index into CPAL ColorRecord array.
+    palette_index : U16Be,
+};
 
 
 
