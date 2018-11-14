@@ -248,7 +248,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     // Tables Related to Color Fonts
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
     "COLR" => Color,                        // Color table
-    "CPAL" => Unknown,                      // Color palette table
+    "CPAL" => ColorPalette,                 // Color palette table
     // "CBDT" => Unknown,                      // Color bitmap data
     // "CBLC" => Unknown,                      // Color bitmap location data
     // "sbix" => Unknown,                      // Standard bitmap graphics
@@ -3786,11 +3786,101 @@ struct LayerRecord {
 //
 // CPAL - Color Palette Table
 //
-// <https://www.microsoft.com/typography/otspec/cpal.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cpal>
 //
 // =============================================================================
 
-// TODO
+union ColorPalette {
+    ColorPalette0,
+    ColorPalette1,
+};
+
+struct ColorPalette0 {
+    start : Pos,
+
+    /// Table version number (=0).
+    version : { version : U16Be | nat_eq version 0 },
+    /// Number of palette entries in each palette.
+    num_palette_entries : U16Be,
+    /// Number of palettes in the table.
+    num_palettes : U16Be,
+    /// Total number of color records, combined for all palettes.
+    num_color_records : U16Be,
+    /// Offset from the beginning of CPAL table to the first ColorRecord.
+    offset_first_color_record : U32Be,
+    /// Index of each palette’s first color record in the combined color record
+    /// array.
+    color_record_indices : Array num_palettes U16Be,
+
+    /// Color records for all palettes
+    color_records : OffsetPos start offset_first_color_record (Array num_color_records ColorRecord),
+};
+
+struct ColorPalette1 {
+    start : Pos,
+
+    /// Table version number (=1).
+    version : { version : U16Be | nat_eq version 1 },
+    /// Number of palette entries in each palette.
+    num_palette_entries : U16Be,
+    /// Number of palettes in the table.
+    num_palettes : U16Be,
+    /// Total number of color records, combined for all palettes.
+    num_color_records : U16Be,
+    /// Offset from the beginning of CPAL table to the first ColorRecord.
+    offset_first_color_record : U32Be,
+    /// Index of each palette’s first color record in the combined color record
+    /// array.
+    color_record_indices : Array num_palettes U16Be,
+    /// Offset from the beginning of CPAL table to the Palette Type Array. Set
+    /// to 0 if no array is provided.
+    offset_palette_type_array : U32Be,
+    /// Offset from the beginning of CPAL table to the Palette Labels Array.
+    /// Set to 0 if no array is provided.
+    offset_palette_label_array : U32Be,
+    /// Offset from the beginning of CPAL table to the Palette Entry Label
+    /// Array. Set to 0 if no array is provided.
+    offset_palette_entry_label_array : U32Be,
+
+    /// Color records for all palettes
+    color_records : OffsetPos start offset_first_color_record (Array num_color_records ColorRecord),
+    /// Array of 32-bit flag fields that describe properties of each palette.
+    /// See below for details.
+    palette_types : OffsetPos start offset_palette_type_array (Array num_palettes U32Be), // TODO: enumerations
+    /// Array of 'name' table IDs (typically in the font-specific name ID range)
+    /// that specify user interface strings associated with each palette. Use
+    /// 0xFFFF if no name ID is provided for a particular palette.
+    palette_labels : OffsetPos start offset_palette_label_array (Array num_palettes U16Be),
+    /// Array of 'name' table IDs (typically in the font-specific name ID range)
+    /// that specify user interface strings associated with each palette entry,
+    /// e.g. “Outline”, “Fill”. This set of palette entry labels applies to all
+    /// palettes in the font. Use 0xFFFF if no name ID is provided for a
+    /// particular palette entry.
+    palette_entry_labels : OffsetPos start offset_palette_entry_label_array (Array num_palette_entries U16Be),
+};
+
+struct ColorRecord {
+    /// Blue value (B0).
+    blue : U8,
+    /// Green value (B1).
+    green : U8,
+    /// Red value (B2).
+    red : U8,
+    /// Alpha value (B3).
+    alpha : U8,
+};
+
+// TODO: enumerations
+// enum PaletteType : U32Be {
+//     /// Bit 0: palette is appropriate to use when displaying the font on a light
+//     /// background such as white.
+//     USABLE_WITH_LIGHT_BACKGROUND = 0x0001,
+//     /// Bit 1: palette is appropriate to use when displaying the font on a dark
+//     /// background such as black.
+//     USABLE_WITH_DARK_BACKGROUND = 0x0002,
+//     /// Reserved for future use — set to 0.
+//     Reserved = 0xFFFC,
+// };
 
 
 
