@@ -150,7 +150,7 @@ struct TtcHeader1 (file_start : Pos) {
     /// Major version of the TTC Header, = 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the TTC Header, = 0
-    minor_version : { version : U16Be | nat_eq version 0 },
+    minor_version : U16Be, // TODO: constrain version
     /// Number of fonts in TTC
     num_fonts : U32Be,
     /// Array of offsets to the OffsetTable for each font from the beginning of the file
@@ -163,7 +163,7 @@ struct TtcHeader2 (file_start : Pos) {
     /// Major version of the TTC Header, = 2
     major_version : { version : U16Be | nat_eq version 2 },
     /// Minor version of the TTC Header, = 0
-    minor_version : { version : U16Be | nat_eq version 0 },
+    minor_version : U16Be, // TODO: constrain version
     /// Number of fonts in TTC
     num_fonts : U32Be,
     /// Array of offsets to the OffsetTable for each font from the beginning of the file
@@ -578,12 +578,16 @@ struct VariationIndex {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#featurevariations-table>
 // -----------------------------------------------------------------------------
 
-struct FeatureVariations {
+union FeatureVariations {
+    FeatureVariations1,
+};
+
+struct FeatureVariations1 {
     start : Pos,
     /// Major version of the FeatureVariations table — set to 1.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the FeatureVariations table — set to 0.
-    minor_version : { version : U16Be | nat_eq version 0 },
+    minor_version : U16Be, // TODO: constrain version
     /// Number of feature variation records.
     feature_variation_record_count : U32Be,
     /// Array of feature variation records.
@@ -641,12 +645,16 @@ struct ConditionTableFormat1 {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#featuretablesubstitution-table>
 // -----------------------------------------------------------------------------
 
-struct FeatureTableSubstitution {
+union FeatureTableSubstitution {
+    FeatureTableSubstitution1,
+};
+
+struct FeatureTableSubstitution1 {
     start : Pos,
     /// Major version of the feature table substitution table — set to 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the feature table substitution table — set to 0.
-    minor_version : { version : U16Be | nat_eq version 0 },
+    minor_version : U16Be, // TODO: constrain version
     /// Number of feature table substitution records.
     substitution_count : U16Be,
     /// Array of feature table substitution records.
@@ -1056,11 +1064,15 @@ struct UvsMapping {
 /// Font header table
 ///
 /// <https://www.microsoft.com/typography/otspec/head.htm>
-struct FontHeader {
+union FontHeader {
+    FontHeader1,
+};
+
+struct FontHeader1 {
     /// Major version number of the font header table — set to `1`.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version number of the font header table — set to `0`.
-    minor_version : { version : U16Be | nat_eq version 0 },
+    minor_version : U16Be, // TODO: constrain version
     /// Set by font manufacturer.
     font_revision : Fixed,
     /// To compute: set it to `0`, sum the entire font as `U32Be`, then store
@@ -1122,11 +1134,15 @@ struct FontHeader {
 /// Horizontal Header Table
 ///
 /// <https://www.microsoft.com/typography/otspec/hhea.htm>
-struct HorizontalHeader {
+union HorizontalHeader {
+    HorizontalHeader1,
+};
+
+struct HorizontalHeader1 {
     /// Major version number of the horizontal header table — set to 1.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version number of the horizontal header table — set to 0.
-    minor_version : { version : U16Be | nat_eq version 0 },
+    minor_version : U16Be, // TODO: constrain version
     /// Typographic ascent (Distance from baseline of highest ascender).
     ascender : FWord,
     /// Typographic descent (Distance from baseline of lowest descender).
@@ -1214,8 +1230,8 @@ struct LongHorMetric {
 ///
 /// Establishes the memory requirements for this font.
 union MaximumProfile {
-    MaximumProfileVersion_0_5,
-    MaximumProfileVersion_1_0,
+    MaximumProfileVersion_0_5, // TODO: Don't fix to 0.5?
+    MaximumProfileVersion_1_0, // TODO: Don't fix to 1.0?
 };
 
 /// Version 0.5
@@ -1840,11 +1856,15 @@ struct GridFittingScanConversionRange {
 //
 // =============================================================================
 
-struct VerticalOrigin {
+union VerticalOrigin {
+    VerticalOrigin1,
+};
+
+struct VerticalOrigin1 {
     /// Major version (starting at 1). Set to 1.
-    major_version : U16Be,
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version (starting at 0). Set to 0.
-    minor_version : U16Be,
+    minor_version : U16Be, // TODO: constrain version
     /// The y coordinate of a glyph’s vertical origin, in the font’s design
     /// coordinate system, to be used if no entry is present for the glyph in
     /// the `vert_origin_y_metrics` array.
@@ -1880,7 +1900,11 @@ struct VerticalOriginYMetric {
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/svg#svg-table-header>
 // -----------------------------------------------------------------------------
 
-struct Svg {
+union Svg {
+    Svg0,
+};
+
+struct Svg0 {
     start : Pos,
     /// Table version (starting at 0). Set to 0.
     version : { version : U16Be | nat_eq version 0 },
@@ -1927,11 +1951,15 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
 //
 // =============================================================================
 
-struct EmbeddedBitmapData {
+union EmbeddedBitmapData {
+    EmbeddedBitmapData2,
+};
+
+struct EmbeddedBitmapData2 {
     /// Major version of the EBDT table, = 2.
     major_version : { version : U16Be | nat_eq version 2 },
     /// Minor version of the EBDT table, = 0.
-    minor_version : { version : U16Be | nat_eq version 0 },
+    minor_version : U16Be, // TODO: constrain version
     // TODO: array of GlyphBitmapDataFormat[1-9], based off "EBLC" table
 };
 
@@ -2102,12 +2130,16 @@ struct GlyphBitmapDataFormat9 {
 //
 // =============================================================================
 
-struct EmbeddedBitmapLocationData {
+union EmbeddedBitmapLocationData {
+    EmbeddedBitmapLocationData2,
+};
+
+struct EmbeddedBitmapLocationData2 {
     start : Pos,
     /// Major version of the EBLC table, = 2.
     major_version : { version : U16Be | nat_eq version 2 },
     /// Minor version of the EBLC table, = 0.
-    minor_version : { version : U16Be | nat_eq version 0 },
+    minor_version : U16Be, // TODO: constrain version
     /// Number of `BitmapSize` tables.
     num_sizes : U32Be,
     /// Array of `BitmapSize` tables.
@@ -2361,11 +2393,15 @@ struct IndexSubTable5 (embedded_bitmap_data_start : Pos) {
 //
 // =============================================================================
 
-struct EmbeddedBitmapScalingData {
+union EmbeddedBitmapScalingData {
+    EmbeddedBitmapScalingData2,
+};
+
+struct EmbeddedBitmapScalingData2 {
     /// Major version of the EBSC table, = 2.
     major_version : { version : U16Be | nat_eq version 2 },
     /// Minor version of the EBSC table, = 0.
-    minor_version : { version : U16Be | nat_eq version 0 },
+    minor_version : U16Be, // TODO: constrain version
     /// Number of `BitmapScale` tables
     num_sizes : U32Be,
     /// `BitmapScale` table array
@@ -2441,12 +2477,16 @@ struct BitmapScale {
 //
 // =============================================================================
 
-struct BaselineData {
+union BaselineData {
+    BaselineData1,
+};
+
+struct BaselineData1 {
     start : Pos,
     /// Major version of the BASE table, = 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the BASE table, = 0
-    minor_version : { version : U16Be | nat_eq version 0 },
+    minor_version : U16Be, // TODO: constrain version
 
     // FIXME: Proper version switching
 
@@ -2667,10 +2707,14 @@ struct BaseCoordFormat3 {
 /// GDEF Header
 ///
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/gdef#gdef-header>
-struct GlyphDefinitionData {
+union GlyphDefinitionData {
+    GlyphDefinitionData1,
+};
+
+struct GlyphDefinitionData1 {
     start : Pos,
     /// Major version of the GDEF table, = 1
-    major_version : U16Be, // TODO: constrain version
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the GDEF table, = 3
     minor_version : U16Be, // TODO: constrain version
 
@@ -2872,10 +2916,14 @@ struct MarkGlyphSetsFormat1 {
 /// GPOS Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gpos.htm#header>
-struct GlyphPositioningData {
+union GlyphPositioningData {
+    GlyphPositioningData1,
+};
+
+struct GlyphPositioningData1 {
     start : Pos,
     /// Major version of the GPOS table
-    major_version : U16Be, // TODO: constrain version
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the GPOS table
     minor_version : U16Be, // TODO: constrain version
 
@@ -2911,10 +2959,14 @@ struct GlyphPositioningData {
 /// GSUB Header
 ///
 /// <https://www.microsoft.com/typography/otspec/gsub.htm#header>
-struct GlyphSubstitutionData {
+union GlyphSubstitutionData {
+    GlyphSubstitutionData1,
+};
+
+struct GlyphSubstitutionData1 {
     start : Pos,
     /// Major version of the GSUB table
-    major_version : U16Be, // TODO: constrain version
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the GSUB table
     minor_version : U16Be, // TODO: constrain version
 
@@ -2949,10 +3001,14 @@ struct GlyphSubstitutionData {
 //
 // =============================================================================
 
-struct JustificationData {
+union JustificationData {
+    JustificationData1,
+};
+
+struct JustificationData1 {
     start : Pos,
     /// Major version of the JSTF table, = 1
-    major_version : U16Be, // TODO: constrain version
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the JSTF table, = 0
     minor_version : U16Be, // TODO: constrain version
     /// Number of JstfScriptRecords in this table
@@ -3077,10 +3133,14 @@ struct JustificationMax {
 //
 // =============================================================================
 
-struct MathLayoutData {
+union MathLayoutData {
+    MathLayoutData1,
+};
+
+struct MathLayoutData1 {
     start : Pos,
     /// Major version of the MATH table, = 1.
-    major_version : U16Be, // TODO: constrain version
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the MATH table, = 0.
     minor_version : U16Be, // TODO: constrain version
     /// Offset to MathConstants table - from the beginning of MATH table.
@@ -3455,9 +3515,13 @@ struct GlyphPartRecord {
 //
 // =============================================================================
 
-struct AxisVariations {
+union AxisVariations {
+    AxisVariations1,
+};
+
+struct AxisVariations1 {
     /// Major version number of the axis variations table — set to 1.
-    major_version : U16Be, // TODO: constrain version
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version number of the axis variations table — set to 0.
     minor_version : U16Be, // TODO: constrain version
     /// Permanently reserved; set to zero.
@@ -3495,10 +3559,14 @@ struct AxisValueMap {
 //
 // =============================================================================
 
-struct ControlValueVariations {
+union ControlValueVariations {
+    ControlValueVariations1,
+};
+
+struct ControlValueVariations1 {
     start : Pos,
     /// Major version number of the CVT variations table — set to 1.
-    major_version : U16Be, // TODO: constrain version
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version number of the CVT variations table — set to 0.
     minor_version : U16Be, // TODO: constrain version
     /// A packed field. The high 4 bits are flags, and the low 12 bits are the number of tuple-variation data tables. The count can be any number between 1 and 4095.
@@ -3520,10 +3588,14 @@ struct ControlValueVariations {
 //
 // =============================================================================
 
-struct FontVariations {
+union FontVariations {
+    FontVariations1,
+};
+
+struct FontVariations1 {
     start : Pos,
     /// Major version number of the font variations table — set to 1.
-    major_version : U16Be, // TODO: constrain version
+    major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version number of the font variations table — set to 0.
     minor_version : U16Be, // TODO: constrain version
     /// Offset in bytes from the beginning of the table to the start of the
@@ -3690,7 +3762,7 @@ struct InstanceRecord (axis_count : U16) {
 struct DigitalSignature (length : U32) {
     start : Pos,
     /// Version number of the DSIG table (0x00000001)
-    version : U32Be,
+    version : U32Be, // TODO: constrain version
     /// Number of signatures in the table
     num_signatures : U16Be,
     /// permission flags Bit 0: cannot be resigned Bits 1-7: Reserved (Set to 0)
@@ -3737,9 +3809,13 @@ struct SignatureBlockFormat1 {
 // =============================================================================
 
 /// Horizontal Device Metrics Table
-struct HorizontalDeviceMetrics (num_glyphs : U16) {
+union HorizontalDeviceMetrics (num_glyphs : U16) {
+    HorizontalDeviceMetrics0 num_glyphs,
+};
+
+struct HorizontalDeviceMetrics0 (num_glyphs : U16) {
     /// Table version number (0)
-    version : U16Be, // TODO: constrain version
+    version : { version : U16Be | nat_eq version 0 },
     /// Number of device records.
     num_records : S16Be,
     /// Size of a device record, 32-bit aligned.
@@ -3771,9 +3847,13 @@ struct DeviceRecord (num_glyphs : U16) {
 //
 // =============================================================================
 
-struct Kerning {
+union Kerning {
+    Kerning0,
+};
+
+struct Kerning0 {
     /// Table version number (0)
-    version : U16Be,
+    version : { version : U16Be | nat_eq version 0 },
     /// Number of subtables in the kerning table.
     n_tables : U16Be,
 };
@@ -3863,9 +3943,13 @@ struct KerningClassTable {
 //
 // =============================================================================
 
-struct LinearThreshold {
+union LinearThreshold {
+    LinearThreshold0,
+};
+
+struct LinearThreshold0 {
     /// Version number (starts at 0).
-    version : U16Be,
+    version : { version : U16Be | nat_eq version 0 },
     /// Number of glyphs (from `num_glyphs` in 'maxp' table).
     num_glyphs : U16Be, // TODO: constrained by `num_glyphs` in `maxp` table
     /// The vertical pel height at which the glyph can be assumed to scale linearly. On a per glyph basis.
@@ -3882,10 +3966,14 @@ struct LinearThreshold {
 //
 // =============================================================================
 
-struct Merge {
+union Merge {
+    Merge0,
+};
+
+struct Merge0 {
     start : Pos,
     /// Version number of the merge table — set to 0.
-    version : U16Be,
+    version : { version : U16Be | nat_eq version 0 },
     /// The number of merge classes.
     merge_class_count : U16Be,
     /// Offset to the array of merge-entry data.
@@ -3918,10 +4006,14 @@ struct MergeEntryRow (merge_class_count : U16) {
 // =============================================================================
 
 /// Metadata Table
-struct Metadata {
+union Metadata {
+    Metadata1,
+};
+
+struct Metadata1 {
     start : Pos,
     /// Version number of the metadata table — set to 1.
-    version : U32Be, // TODO: constrain version
+    version : { version : U32Be | nat_eq version 1 },
     /// Flags — currently unused; set to 0.
     // TODO: flags : Reserved U32Be 0,
     flags : Reserved U32Be,
@@ -4111,9 +4203,15 @@ struct AxisValue {
 //
 // =============================================================================
 
-struct Pcl5 {
-    major_version : U16Be, // TODO: 1
-    minor_version : U16Be, // TODO: 0
+union Pcl5 {
+    Pcl5_1,
+};
+
+struct Pcl5_1 {
+    /// Major version of this table
+    major_version : { version : U16Be | nat_eq version 1 },
+    /// Minor version of this table (set to 0)
+    minor_version : U16Be, // TODO: constrain version
     font_number : U32Be, // TODO: Enumeration
     /// The width of the space in FUnits (FUnits are described by the
     /// `units_per_em` field of the 'head' table). Monospace fonts derive the
