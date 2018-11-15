@@ -169,11 +169,11 @@ struct TtcHeader2 (file_start : Pos) {
     /// Array of offsets to the OffsetTable for each font from the beginning of the file
     offset_tables : Array num_fonts (Offset32Be file_start (OffsetTable file_start)),
     /// Tag indicating that a DSIG table exists, 0x44534947 ('DSIG') (null if no signature)
-    dsig_tag : U32Be, // FIXME: Tag?
+    digital_signature_tag : U32Be, // FIXME: Tag?
     /// The length (in bytes) of the DSIG table (null if no signature)
-    dsig_length : U32Be,
+    digital_signature_length : U32Be,
     /// The offset (in bytes) of the DSIG table from the beginning of the TTC file (null if no signature)
-    dsig_offset : Offset32Be file_start (DigitalSignature dsig_length),
+    digital_signature_offset : Offset32Be file_start (DigitalSignature digital_signature_length),
 };
 
 
@@ -247,8 +247,8 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
 
     // Tables Related to Color Fonts
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
-    "COLR" => Unknown,                      // Color table
-    "CPAL" => Unknown,                      // Color palette table
+    "COLR" => Color,                        // Color table
+    "CPAL" => ColorPalette,                 // Color palette table
     // "CBDT" => Unknown,                      // Color bitmap data
     // "CBLC" => Unknown,                      // Color bitmap location data
     // "sbix" => Unknown,                      // Standard bitmap graphics
@@ -265,8 +265,8 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "STAT" => StyleAttributes,              // Style attributes
     "PCLT" => Pcl5,                         // PCL 5 data
     "VDMX" => VerticalDeviceMetrics,        // Vertical device metrics
-    "vhea" => Unknown,                      // Vertical Metrics header
-    "vmtx" => Unknown,                      // Vertical Metrics
+    "vhea" => VerticalHeader,               // Vertical Metrics header
+    "vmtx" => Unknown,                      // Vertical Metrics // TODO: Depends on `num_glyphs` from "maxp" and `num_of_long_vertical_metrics` from "vhea"
 
     _ => Unknown,
 };
@@ -303,6 +303,7 @@ struct ScriptRecord (script_list_start : Pos) {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#slTbl_sRec>
 struct ScriptList {
     start : Pos,
+
     /// Number of ScriptRecords
     script_count : U16Be,
     /// Array of ScriptRecords, listed alphabetically by script tag
@@ -325,6 +326,7 @@ struct LangSysRecord (script_start : Pos) {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-table-and-language-system-record>
 struct Script {
     start : Pos,
+
     /// Offset to default LangSys table, from beginning of Script table — may be NULL
     default_lang_sys : Offset16Be start LangSys,
     /// Number of LangSysRecords for this script — excluding the default LangSys
@@ -371,6 +373,7 @@ struct FeatureRecord (feature_list_start : Pos) {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#flTbl>
 struct FeatureList {
     start : Pos,
+
     /// Number of FeatureRecords in this table
     feature_count : U16Be,
     /// Array of FeatureRecords — zero-based (first feature has FeatureIndex = 0), listed alphabetically by feature tag
@@ -397,6 +400,7 @@ struct Feature {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookup-list-table>
 struct LookupList {
     start : Pos,
+
     /// Number of lookups in this table
     lookup_count : U16Be,
     /// Array of offsets to Lookup tables, from beginning of LookupList — zero based (first lookup is Lookup index = 0)
@@ -431,6 +435,7 @@ struct LookupList {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookupTbl>
 struct Lookup {
     start : Pos,
+
     /// Different enumerations for GSUB and GPOS
     lookup_type : U16Be,
     /// Lookup qualifiers
@@ -584,6 +589,7 @@ union FeatureVariations {
 
 struct FeatureVariations1 {
     start : Pos,
+
     /// Major version of the FeatureVariations table — set to 1.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the FeatureVariations table — set to 0.
@@ -610,6 +616,7 @@ struct FeatureVariationRecord (feature_variations_start : Pos) {
 
 struct ConditionSet {
     start : Pos,
+
     /// Number of conditions for this condition set.
     condition_count : U16Be,
     /// Array of offsets to condition tables, from beginning of the ConditionSet table.
@@ -651,6 +658,7 @@ union FeatureTableSubstitution {
 
 struct FeatureTableSubstitution1 {
     start : Pos,
+
     /// Major version of the feature table substitution table — set to 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the feature table substitution table — set to 0.
@@ -704,6 +712,7 @@ struct FeatureTableSubstitutionRecord (feature_table_substitution_start : Pos) {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#cmap-header>
 struct CharMap {
     start : Pos,
+
     /// Table version number (0)
     version : { version : U16Be | nat_eq version 0 },
     /// Number of encoding records that follow
@@ -1001,6 +1010,7 @@ struct CharMapSubtable13ConstantMapGroup {
 /// Format 14: Unicode Variation Sequences
 struct CharMapSubtable14 {
     start : Pos,
+
     /// Format number is set to 14
     format : { format : U16Be | nat_eq format 14 },
     /// Byte length of this subtable (including this header)
@@ -1210,7 +1220,7 @@ struct LongHorMetric {
     /// Advance width, in font design units.
     advance_width : U16Be,
     /// Glyph left side bearing, in font design units.
-    lsb : S16Be,
+    left_side_bearing : S16Be,
 };
 
 
@@ -1307,6 +1317,7 @@ union Naming {
 
 struct NamingFormat0 {
     start : Pos,
+
     /// Format selector (=0).
     format : { format : U16Be | nat_eq format 0 },
     /// Number of name records.
@@ -1329,6 +1340,7 @@ struct NamingFormat0 {
 
 struct NamingFormat1 {
     start : Pos,
+
     /// Format selector (=1).
     format : { format : U16Be | nat_eq format 1 },
     /// Number of name records.
@@ -1616,7 +1628,7 @@ struct Glyph {
 struct SimpleGlyph (number_of_contours : U16) {
     /// Array of point indices for the last point of each contour, in increasing
     /// numeric order.
-    end_pts_of_contours : Array number_of_contours U16Be,
+    end_points_of_contours : Array number_of_contours U16Be,
     /// Total number of bytes for instructions. If instruction_length is zero, no
     /// instructions are present for this glyph, and this field is followed
     /// directly by the flags field.
@@ -1867,12 +1879,12 @@ struct VerticalOrigin1 {
     minor_version : U16Be, // TODO: constrain version
     /// The y coordinate of a glyph’s vertical origin, in the font’s design
     /// coordinate system, to be used if no entry is present for the glyph in
-    /// the `vert_origin_y_metrics` array.
-    default_vert_origin_y : S16Be,
-    /// Number of elements in the `vert_origin_y_metrics` array.
-    num_vert_origin_y_metrics : U16Be,
+    /// the `vertical_origin_y_metrics` array.
+    default_vertical_origin_y : S16Be,
+    /// Number of elements in the `vertical_origin_y_metrics` array.
+    num_vertical_origin_y_metrics : U16Be,
     /// Vertical origin Y mertics data
-    vert_origin_y_metrics : Array num_vert_origin_y_metrics VerticalOriginYMetric,
+    vertical_origin_y_metrics : Array num_vertical_origin_y_metrics VerticalOriginYMetric,
 };
 
 struct VerticalOriginYMetric {
@@ -1880,7 +1892,7 @@ struct VerticalOriginYMetric {
     glyph_index : U16Be,
     /// Y coordinate, in the font’s design coordinate system, of the vertical
     /// origin of glyph with index glyph_index.
-    vert_origin_y : S16Be,
+    vertical_origin_y : S16Be,
 };
 
 
@@ -1906,6 +1918,7 @@ union Svg {
 
 struct Svg0 {
     start : Pos,
+
     /// Table version (starting at 0). Set to 0.
     version : { version : U16Be | nat_eq version 0 },
     /// Offset to the SVG Document List, from the start of the SVG table. Must be non-zero.
@@ -1924,6 +1937,7 @@ struct Svg0 {
 
 struct SvgDocumentList {
     start : Pos,
+
     /// Number of SVG document records. Must be non-zero.
     num_entries : U16Be,
     /// Array of SVG document records.
@@ -1935,10 +1949,13 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
     start_glyph_id : U16Be,
     /// The last glyph ID for the range covered by this record.
     end_glyph_id : U16Be,
-    /// Offset from the beginning of the SVGDocumentList to an SVG document. Must be non-zero.
-    svg_doc_offset : Offset32Be svg_document_list_start Unknown, // TODO
+    /// Offset from the beginning of the `SvgDocumentList` to an SVG document. Must be non-zero.
+    svg_doc_offset : U32Be,
     /// Length of the SVG document data. Must be non-zero.
     svg_doc_length : U32Be,
+
+    /// The SVG document
+    svg_doc : OffsetPos svg_document_list_start svg_doc_offset (Array svg_doc_length U8),
 };
 
 
@@ -2136,6 +2153,7 @@ union EmbeddedBitmapLocationData {
 
 struct EmbeddedBitmapLocationData2 {
     start : Pos,
+
     /// Major version of the EBLC table, = 2.
     major_version : { version : U16Be | nat_eq version 2 },
     /// Minor version of the EBLC table, = 0.
@@ -2155,6 +2173,7 @@ struct EmbeddedBitmapLocationData2 {
 
 struct BitmapSize (embedded_bitmap_location_start : Pos) {
     start : Pos,
+
     /// Offset to IndexSubtableArray, from beginning of EBLC.
     index_sub_table_array_offset : Offset32Be embedded_bitmap_location_start (IndexSubtableArray start),
     /// Number of bytes in corresponding index subtables and array.
@@ -2164,9 +2183,9 @@ struct BitmapSize (embedded_bitmap_location_start : Pos) {
     /// Not used; set to 0.
     color_ref : U32Be,
     /// Line metrics for text rendered horizontally.
-    hori : ScalarBitmapLineMetrics,
+    horizontal : ScalarBitmapLineMetrics,
     /// Line metrics for text rendered vertically.
-    vert : ScalarBitmapLineMetrics,
+    vertical : ScalarBitmapLineMetrics,
     /// Lowest glyph index for this size.
     start_glyph_index : U16Be,
     /// Highest glyph index for this size.
@@ -2483,6 +2502,7 @@ union BaselineData {
 
 struct BaselineData1 {
     start : Pos,
+
     /// Major version of the BASE table, = 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the BASE table, = 0
@@ -2514,6 +2534,7 @@ struct BaselineData1 {
 
 struct Axis {
     start : Pos,
+
     /// Offset to BaseTagList table, from beginning of Axis table (may be NULL)
     base_tag_list_offset : Offset16Be start BaseTagList,
     /// Offset to BaseScriptList table, from beginning of Axis table
@@ -2543,6 +2564,7 @@ struct BaseTagList {
 
 struct BaseScriptList {
     start : Pos,
+
     /// 4-byte script identification tag
     base_script_tag : Tag,
     /// Offset to BaseScript table, from beginning of BaseScriptList
@@ -2558,6 +2580,7 @@ struct BaseScriptList {
 
 struct BaseScript {
     start : Pos,
+
     /// Offset to BaseValues table, from beginning of BaseScript table (may be NULL)
     base_values_offset : Offset16Be start BaseValues,
     /// Offset to MinMax table, from beginning of BaseScript table (may be NULL)
@@ -2591,6 +2614,7 @@ struct BaseLangSysRecord (base_script_start : Pos) {
 
 struct BaseValues {
     start : Pos,
+
     /// Index number of default baseline for this script — equals index position
     /// of baseline tag in baselineTags array of the BaseTagList
     default_baseline_index : U16Be,
@@ -2610,6 +2634,7 @@ struct BaseValues {
 
 struct MinMax {
     start : Pos,
+
     /// Offset to BaseCoord table that defines the minimum extent value, from
     /// the beginning of MinMax table (may be NULL)
     min_coord : Offset16Be start BaseCoord,
@@ -2675,6 +2700,7 @@ struct BaseCoordFormat2 {
 
 struct BaseCoordFormat3 {
     start : Pos,
+
     /// Format identifier — format = 3
     base_coord_format : { format : U16Be | nat_eq format 3 },
     /// X or Y value, in design units
@@ -2713,6 +2739,7 @@ union GlyphDefinitionData {
 
 struct GlyphDefinitionData1 {
     start : Pos,
+
     /// Major version of the GDEF table, = 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the GDEF table, = 3
@@ -2776,6 +2803,7 @@ GlyphClassDef = ClassDef GlyphClassDefEnum;
 
 struct AttachList {
     start : Pos,
+
     /// Offset to Coverage table - from beginning of AttachList table
     coverage_offset : Offset16Be start Coverage,
     /// Number of glyphs with attachment points
@@ -2801,6 +2829,7 @@ struct AttachPoint {
 
 struct LigCaretList {
     start : Pos,
+
     /// Offset to Coverage table - from beginning of LigCaretList table
     coverage_offset : Offset16Be start Coverage,
     /// Number of ligature glyphs
@@ -2812,6 +2841,7 @@ struct LigCaretList {
 
 struct LigGlyph {
     start : Pos,
+
     /// Number of CaretValue tables for this ligature (components - 1)
     caret_count : U16Be,
     /// Array of offsets to CaretValue tables, from beginning of LigGlyph
@@ -2845,6 +2875,7 @@ struct CaretValueFormat2 {
 /// Caret Value Format 3: Design units plus Device or VariationIndex table
 struct CaretValueFormat3 {
     start : Pos,
+
     /// Format identifier: format = 3
     caret_value_format : { format : U16Be | nat_eq format 3 },
     /// X or Y value, in design units
@@ -2876,6 +2907,7 @@ union MarkGlyphSets {
 
 struct MarkGlyphSetsFormat1 {
     start : Pos,
+
     /// Format identifier == 1
     mark_glyph_set_table_format : { format : U16Be | nat_eq format 1 },
     /// Number of mark glyph sets defined
@@ -2922,6 +2954,7 @@ union GlyphPositioningData {
 
 struct GlyphPositioningData1 {
     start : Pos,
+
     /// Major version of the GPOS table
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the GPOS table
@@ -2965,6 +2998,7 @@ union GlyphSubstitutionData {
 
 struct GlyphSubstitutionData1 {
     start : Pos,
+
     /// Major version of the GSUB table
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the GSUB table
@@ -3007,6 +3041,7 @@ union JustificationData {
 
 struct JustificationData1 {
     start : Pos,
+
     /// Major version of the JSTF table, = 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the JSTF table, = 0
@@ -3027,6 +3062,7 @@ struct JustificationScriptRecord (justification_data_start : Pos) {
 
 struct JustificationScript {
     start : Pos,
+
     /// Offset to ExtenderGlyph table, from beginning of JustificationScript
     /// table (may be NULL)
     extender_glyph_offset : Offset16Be start ExtenderGlyph,
@@ -3057,6 +3093,7 @@ struct ExtenderGlyph {
 
 struct JustificationLangSys {
     start : Pos,
+
     /// Number of JustificationPriority tables
     justification_priority_count : U16Be,
     /// Array of offsets to JustificationPriority tables, from beginning of
@@ -3066,6 +3103,7 @@ struct JustificationLangSys {
 
 struct JustificationPriority {
     start : Pos,
+
     /// Offset to shrinkage-enable JustificationGlyphPositionModList table,
     /// from beginning of JustificationPriority table (may be NULL)
     shrinkage_enable_gsub : Offset16Be start JustificationGlyphPositionModList,
@@ -3116,6 +3154,7 @@ struct JustificationGlyphPositionModList {
 
 struct JustificationMax {
     start : Pos,
+
     /// Number of lookup Indices for this modification
     lookup_count : U16Be,
     /// Array of offsets to GPOS-type lookup tables, from beginning of
@@ -3139,6 +3178,7 @@ union MathLayoutData {
 
 struct MathLayoutData1 {
     start : Pos,
+
     /// Major version of the MATH table, = 1.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the MATH table, = 0.
@@ -3161,6 +3201,7 @@ struct MathValueRecord (parent_start : Pos) {
 
 struct MathConstants {
     start : Pos,
+
     /// Percentage of scaling down for level 1 superscripts and subscripts.
     /// Suggested value: 80%.
     script_percent_scale_down : S16Be,
@@ -3347,6 +3388,7 @@ struct MathConstants {
 
 struct MathGlyphInfo {
     start : Pos,
+
     /// Offset to MathItalicsCorrectionInfo table, from the beginning of the
     /// MathGlyphInfo table.
     math_italics_correction_info_offset : Offset16Be start MathItalicsCorrectionInfo,
@@ -3366,6 +3408,7 @@ struct MathGlyphInfo {
 
 struct MathItalicsCorrectionInfo {
     start : Pos,
+
     /// Offset to Coverage table - from the beginning of MathItalicsCorrectionInfo table.
     italics_correction_coverage_offset : Offset16Be start Coverage,
     /// Number of italics correction values. Should coincide with the number of covered glyphs.
@@ -3376,6 +3419,7 @@ struct MathItalicsCorrectionInfo {
 
 struct MathTopAccentAttachment {
     start : Pos,
+
     /// Offset to Coverage table, from the beginning of the
     /// MathTopAccentAttachment table.
     top_accent_coverage_offset : Offset16Be start Coverage,
@@ -3389,6 +3433,7 @@ struct MathTopAccentAttachment {
 
 struct MathKernInfo {
     start : Pos,
+
     /// Offset to Coverage table, from the beginning of the MathKernInfo table.
     math_kern_coverage_offset : Offset16Be start Coverage,
     /// Number of MathKernInfoRecords. Must be the same as the number of glyph
@@ -3415,6 +3460,7 @@ struct MathKernInfoRecord (math_kern_info_start : Pos) {
 
 struct MathKern {
     start : Pos,
+
     /// Number of heights at which the kern value changes.
     height_count : U16Be,
     /// Array of correction heights, in design units, sorted from lowest to
@@ -3427,6 +3473,7 @@ struct MathKern {
 
 struct MathVariants {
     start : Pos,
+
     /// Minimum overlap of connecting glyphs during glyph construction, in
     /// design units.
     min_connector_overlap : U16Be,
@@ -3452,6 +3499,7 @@ struct MathVariants {
 
 struct MathGlyphConstruction {
     start : Pos,
+
     /// Offset to the GlyphAssembly table for this shape, from the beginning of
     /// the MathGlyphConstruction table. May be NULL.
     glyph_assembly_offset : Offset16Be start GlyphAssembly,
@@ -3471,6 +3519,7 @@ struct MathGlyphVariantRecord {
 
 struct GlyphAssembly {
     start : Pos,
+
     /// Italics correction of this GlyphAssembly. Should not depend on the
     /// assembly size.
     italics_correction : MathValueRecord start,
@@ -3565,6 +3614,7 @@ union ControlValueVariations {
 
 struct ControlValueVariations1 {
     start : Pos,
+
     /// Major version number of the CVT variations table — set to 1.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version number of the CVT variations table — set to 0.
@@ -3594,6 +3644,7 @@ union FontVariations {
 
 struct FontVariations1 {
     start : Pos,
+
     /// Major version number of the font variations table — set to 1.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version number of the font variations table — set to 0.
@@ -3730,11 +3781,55 @@ struct InstanceRecord (axis_count : U16) {
 //
 // COLR - Color Table
 //
-// <https://www.microsoft.com/typography/otspec/colr.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/colr>
 //
 // =============================================================================
 
-// TODO
+union Color {
+    Color0,
+};
+
+struct Color0 {
+    start : Pos,
+
+    /// Table version number (starts at 0).
+    version : U16Be,
+    /// Number of Base Glyph Records.
+    num_base_glyph_records : U16Be,
+    /// Offset (from beginning of COLR table) to Base Glyph records.
+    base_glyph_records_offset : U32Be,
+    /// Offset (from beginning of COLR table) to Layer Records.
+    layer_records_offset : U32Be,
+    /// Number of Layer Records.
+    num_layer_records : U16Be,
+
+    /// The base glyph records
+    base_glyph_records : OffsetPos start base_glyph_records_offset (Array num_base_glyph_records BaseGlyphRecord),
+    /// The layer records
+    layer_records : OffsetPos start layer_records_offset (Array num_layer_records LayerRecord),
+};
+
+struct BaseGlyphRecord {
+    /// Glyph ID of reference glyph. This glyph is for reference only and is not
+    /// rendered for color.
+    glyph_id : U16Be,
+    /// Index (from beginning of the Layer Records) to the layer record. There
+    /// will be numLayers consecutive entries for this base glyph.
+    first_layer_index : U16Be,
+    /// Number of color layers associated with this glyph.
+    num_layers : U16Be,
+};
+
+struct LayerRecord {
+    /// Glyph ID of layer glyph (must be in z-order from bottom to top).
+    glyph_id : U16Be,
+    /// Index value to use with a selected color palette. This value must be
+    /// less than numPaletteEntries in the CPAL table. A palette entry index
+    /// value of 0xFFFF is a special case indicating that the text foreground
+    /// color (defined by a higher-level client) should be used and shall not be
+    /// treated as actual index into CPAL ColorRecord array.
+    palette_index : U16Be,
+};
 
 
 
@@ -3742,11 +3837,101 @@ struct InstanceRecord (axis_count : U16) {
 //
 // CPAL - Color Palette Table
 //
-// <https://www.microsoft.com/typography/otspec/cpal.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cpal>
 //
 // =============================================================================
 
-// TODO
+union ColorPalette {
+    ColorPalette0,
+    ColorPalette1,
+};
+
+struct ColorPalette0 {
+    start : Pos,
+
+    /// Table version number (=0).
+    version : { version : U16Be | nat_eq version 0 },
+    /// Number of palette entries in each palette.
+    num_palette_entries : U16Be,
+    /// Number of palettes in the table.
+    num_palettes : U16Be,
+    /// Total number of color records, combined for all palettes.
+    num_color_records : U16Be,
+    /// Offset from the beginning of CPAL table to the first ColorRecord.
+    offset_first_color_record : U32Be,
+    /// Index of each palette’s first color record in the combined color record
+    /// array.
+    color_record_indices : Array num_palettes U16Be,
+
+    /// Color records for all palettes
+    color_records : OffsetPos start offset_first_color_record (Array num_color_records ColorRecord),
+};
+
+struct ColorPalette1 {
+    start : Pos,
+
+    /// Table version number (=1).
+    version : { version : U16Be | nat_eq version 1 },
+    /// Number of palette entries in each palette.
+    num_palette_entries : U16Be,
+    /// Number of palettes in the table.
+    num_palettes : U16Be,
+    /// Total number of color records, combined for all palettes.
+    num_color_records : U16Be,
+    /// Offset from the beginning of CPAL table to the first ColorRecord.
+    offset_first_color_record : U32Be,
+    /// Index of each palette’s first color record in the combined color record
+    /// array.
+    color_record_indices : Array num_palettes U16Be,
+    /// Offset from the beginning of CPAL table to the Palette Type Array. Set
+    /// to 0 if no array is provided.
+    offset_palette_type_array : U32Be,
+    /// Offset from the beginning of CPAL table to the Palette Labels Array.
+    /// Set to 0 if no array is provided.
+    offset_palette_label_array : U32Be,
+    /// Offset from the beginning of CPAL table to the Palette Entry Label
+    /// Array. Set to 0 if no array is provided.
+    offset_palette_entry_label_array : U32Be,
+
+    /// Color records for all palettes
+    color_records : OffsetPos start offset_first_color_record (Array num_color_records ColorRecord),
+    /// Array of 32-bit flag fields that describe properties of each palette.
+    /// See below for details.
+    palette_types : OffsetPos start offset_palette_type_array (Array num_palettes U32Be), // TODO: enumerations
+    /// Array of 'name' table IDs (typically in the font-specific name ID range)
+    /// that specify user interface strings associated with each palette. Use
+    /// 0xFFFF if no name ID is provided for a particular palette.
+    palette_labels : OffsetPos start offset_palette_label_array (Array num_palettes U16Be),
+    /// Array of 'name' table IDs (typically in the font-specific name ID range)
+    /// that specify user interface strings associated with each palette entry,
+    /// e.g. “Outline”, “Fill”. This set of palette entry labels applies to all
+    /// palettes in the font. Use 0xFFFF if no name ID is provided for a
+    /// particular palette entry.
+    palette_entry_labels : OffsetPos start offset_palette_entry_label_array (Array num_palette_entries U16Be),
+};
+
+struct ColorRecord {
+    /// Blue value (B0).
+    blue : U8,
+    /// Green value (B1).
+    green : U8,
+    /// Red value (B2).
+    red : U8,
+    /// Alpha value (B3).
+    alpha : U8,
+};
+
+// TODO: enumerations
+// enum PaletteType : U32Be {
+//     /// Bit 0: palette is appropriate to use when displaying the font on a light
+//     /// background such as white.
+//     USABLE_WITH_LIGHT_BACKGROUND = 0x0001,
+//     /// Bit 1: palette is appropriate to use when displaying the font on a dark
+//     /// background such as black.
+//     USABLE_WITH_DARK_BACKGROUND = 0x0002,
+//     /// Reserved for future use — set to 0.
+//     Reserved = 0xFFFC,
+// };
 
 
 
@@ -3761,6 +3946,7 @@ struct InstanceRecord (axis_count : U16) {
 /// DSIG — Digital Signature Table
 struct DigitalSignature (length : U32) {
     start : Pos,
+
     /// Version number of the DSIG table (0x00000001)
     version : U32Be, // TODO: constrain version
     /// Number of signatures in the table
@@ -3858,6 +4044,38 @@ struct Kerning0 {
     n_tables : U16Be,
 };
 
+// TODO: Bitfields
+// struct KerningCoverage {
+//     /// Bit 0: 1 if table has horizontal data, 0 if vertical.
+//     horizontal : U1,
+//     /// Bit 1: If this bit is set to 1, the table has minimum values. If set to
+//     /// 0, the table has kerning values.
+//     minimum : U1,
+//     /// Bit 2: If set to 1, kerning is perpendicular to the flow of the text.
+//     ///
+//     /// If the text is normally written horizontally, kerning will be done in
+//     /// the up and down directions. If kerning values are positive, the text
+//     /// will be kerned upwards; if they are negative, the text will be kerned
+//     /// downwards.
+//     ///
+//     /// If the text is normally written vertically, kerning will be done in the
+//     /// left and right directions. If kerning values are positive, the text will
+//     /// be kerned to the right; if they are negative, the text will be kerned to
+//     /// the left.
+//     ///
+//     /// The value 0x8000 in the kerning data resets the cross-stream kerning
+//     /// back to 0.
+//     cross_stream : U1,
+//     /// Bit 3: If this bit is set to 1 the value in this table should replace
+//     /// the value currently being accumulated.
+//     override : U1,
+//     /// Bit 4-7: Reserved. This should be set to zero.
+//     reserved1 : U4,
+//     /// Bit 8-15: Format of the subtable. Only formats 0 and 2 have been
+//     /// defined. Formats 1 and 3 through 255 are reserved for future use.
+//     format : U8,
+// };
+
 union KerningSubtable {
     KerningSubtableFormat0,
     KerningSubtableFormat2,
@@ -3903,6 +4121,7 @@ struct KerningPair {
 
 struct KerningSubtableFormat2 {
     start : Pos,
+
     /// Kern subtable version number
     version : { version : U16Be | nat_eq version 2 },
     /// Length of the subtable, in bytes (including this header).
@@ -3972,6 +4191,7 @@ union Merge {
 
 struct Merge0 {
     start : Pos,
+
     /// Version number of the merge table — set to 0.
     version : { version : U16Be | nat_eq version 0 },
     /// The number of merge classes.
@@ -4012,6 +4232,7 @@ union Metadata {
 
 struct Metadata1 {
     start : Pos,
+
     /// Version number of the metadata table — set to 1.
     version : { version : U32Be | nat_eq version 1 },
     /// Flags — currently unused; set to 0.
@@ -4063,6 +4284,7 @@ MetadataInfo (tag : Tag) (length : U32) = match tag.value {
 
 struct StyleAttributes {
     start : Pos,
+
     /// Major version number of the style attributes table — set to 1.
     major_version: U16Be, // TODO: constrain version
     /// Minor version number of the style attributes table — set to 2.
@@ -4251,6 +4473,7 @@ struct Pcl5_1 {
 
 struct VerticalDeviceMetrics {
     start : Pos,
+
     /// Version number (0 or 1).
     version : U16Be, // TODO: Constrain value
     /// Number of VDMX groups present
@@ -4302,12 +4525,133 @@ struct VerticalDeviceMetricsRecord {
 //
 // vhea — Vertical Header Table
 //
-// <https://www.microsoft.com/typography/otspec/vhea.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/vhea>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6vhea.html>
 //
 // =============================================================================
 
-// TODO
+union VerticalHeader {
+    VerticalHeader_1_0,  // TODO: Don't fix to 1.0?
+    VerticalHeader_1_1,  // TODO: Don't fix to 1.1?
+};
+
+struct VerticalHeader_1_0 {
+    /// Version number of the vertical header table; 0x00010000 for version 1.0
+    version : { version : Fixed | nat_eq version.value 0x00010000 },
+    /// Distance in FUnits from the centerline to the previous line’s descent.
+    ascent : S16Be,
+    /// Distance in FUnits from the centerline to the next line’s ascent.
+    descent : S16Be,
+    /// Reserved; set to 0
+    line_gap : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// The maximum advance height measurement -in FUnits found in the font.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    advance_height_max : S16Be,
+    /// The minimum top sidebearing measurement found in the font, in FUnits.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    min_top_side_bearing : S16Be,
+    /// The minimum bottom sidebearing measurement found in the font, in FUnits.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    min_bottom_side_bearing : S16Be,
+    /// Defined as yMaxExtent = max(tsb + (yMax - yMin)).
+    y_max_extent : S16Be,
+    /// The value of the `caret_slope_rise` field divided by the value of the
+    /// `caret_slope_run` Field determines the slope of the caret. A value of 0
+    /// for the rise and a value of 1 for the run specifies a horizontal caret.
+    /// A value of 1 for the rise and a value of 0 for the run specifies a
+    /// vertical caret. Intermediate values are desirable for fonts whose glyphs
+    /// are oblique or italic. For a vertical font, a horizontal caret is best.
+    caret_slope_rise : S16Be,
+    /// See the `caret_slope_rise` field. Value=1 for nonslanted vertical fonts.
+    caret_slope_run : S16Be,
+    /// The amount by which the highlight on a slanted glyph needs to be shifted
+    /// away from the glyph in order to produce the best appearance. Set value
+    /// equal to 0 for nonslanted fonts.
+    caret_offset : S16Be,
+    /// Set to 0.
+    reserved0 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved1 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved2 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved3 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    metric_data_format : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Number of advance heights in the vertical metrics table.
+    num_of_long_vertical_metrics : U16Be,
+};
+
+struct VerticalHeader_1_1 {
+    /// Version number of the vertical header table; 0x00011000 for version 1.1
+    ///
+    /// Note the representation of a non-zero fractional part, in Fixed numbers.
+    version : { version : Fixed | nat_eq version.value 0x00011000 },
+    /// The vertical typographic ascender for this font. It is the distance in
+    /// FUnits from the ideographic em-box center baseline for the vertical
+    /// axis to the right edge of the ideographic em-box.
+    ///
+    /// It is usually set to (head.unitsPerEm)/2. For example, a font with an em
+    /// of 1000 fUnits will set this field to 500. See the Baseline tags section
+    /// of the OpenType Layout Tag Registry for a description of the ideographic
+    /// em-box.
+    vertical_typo_ascender : S16Be,
+    /// The vertical typographic descender for this font. It is the distance in
+    /// FUnits from the ideographic em-box center baseline for the vertical
+    /// axis to the left edge of the ideographic em-box.
+    ///
+    /// It is usually set to (head.unitsPerEm)/2. For example, a font with an em
+    /// of 1000 fUnits will set this field to -500.
+    vertical_typo_descender : S16Be,
+    /// The vertical typographic gap for this font. An application can determine
+    /// the recommended line spacing for single spaced vertical text for an
+    /// OpenType font by the following expression:
+    ///
+    /// ideo embox width + vhea.vertTypoLineGap
+    vertical_typo_line_gap : S16Be,
+    /// The maximum advance height measurement -in FUnits found in the font.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    advance_height_max : S16Be,
+    /// The minimum top sidebearing measurement found in the font, in FUnits.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    min_top_side_bearing : S16Be,
+    /// The minimum bottom sidebearing measurement found in the font, in FUnits.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    min_bottom_side_bearing : S16Be,
+    /// Defined as yMaxExtent = max(tsb + (yMax - yMin)).
+    y_max_extent : S16Be,
+    /// The value of the `caret_slope_rise` field divided by the value of the
+    /// `caret_slope_run` Field determines the slope of the caret. A value of 0
+    /// for the rise and a value of 1 for the run specifies a horizontal caret.
+    /// A value of 1 for the rise and a value of 0 for the run specifies a
+    /// vertical caret. Intermediate values are desirable for fonts whose glyphs
+    /// are oblique or italic. For a vertical font, a horizontal caret is best.
+    caret_slope_rise : S16Be,
+    /// See the `caret_slope_rise` field. Value=1 for nonslanted vertical fonts.
+    caret_slope_run : S16Be,
+    /// The amount by which the highlight on a slanted glyph needs to be shifted
+    /// away from the glyph in order to produce the best appearance. Set value
+    /// equal to 0 for nonslanted fonts.
+    caret_offset : S16Be,
+    /// Set to 0.
+    reserved0 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved1 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved2 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved3 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    metric_data_format : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Number of advance heights in the vertical metrics table.
+    num_of_long_vertical_metrics : U16Be,
+};
 
 
 
@@ -4315,9 +4659,22 @@ struct VerticalDeviceMetricsRecord {
 //
 // vmtx - Vertical Metrics Table
 //
-// <https://www.microsoft.com/typography/otspec/vmtx.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/vmtx>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6vmtx.html>
 //
 // =============================================================================
+
+struct VerticalMetrics (num_glyphs : U16) (num_of_long_vertical_metrics : U16) {
+    entries : Array num_of_long_vertical_metrics VerticalMetricsEntry,
+    /// The top sidebearing of the glyph. Signed integer in FUnits.
+    top_side_bearing : Array (nat_sub num_glyphs num_of_long_vertical_metrics) S16Be,
+};
+
+struct VerticalMetricsEntry {
+    /// The advance height of the glyph. Unsigned integer in FUnits
+    advance_height : U16Be,
+    /// The top sidebearing of the glyph. Signed integer in FUnits.
+    top_side_bearing : S16Be,
+};
 
 // TODO
