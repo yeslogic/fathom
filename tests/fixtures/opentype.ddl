@@ -303,6 +303,7 @@ struct ScriptRecord (script_list_start : Pos) {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#slTbl_sRec>
 struct ScriptList {
     start : Pos,
+
     /// Number of ScriptRecords
     script_count : U16Be,
     /// Array of ScriptRecords, listed alphabetically by script tag
@@ -325,6 +326,7 @@ struct LangSysRecord (script_start : Pos) {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#script-table-and-language-system-record>
 struct Script {
     start : Pos,
+
     /// Offset to default LangSys table, from beginning of Script table — may be NULL
     default_lang_sys : Offset16Be start LangSys,
     /// Number of LangSysRecords for this script — excluding the default LangSys
@@ -371,6 +373,7 @@ struct FeatureRecord (feature_list_start : Pos) {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#flTbl>
 struct FeatureList {
     start : Pos,
+
     /// Number of FeatureRecords in this table
     feature_count : U16Be,
     /// Array of FeatureRecords — zero-based (first feature has FeatureIndex = 0), listed alphabetically by feature tag
@@ -397,6 +400,7 @@ struct Feature {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookup-list-table>
 struct LookupList {
     start : Pos,
+
     /// Number of lookups in this table
     lookup_count : U16Be,
     /// Array of offsets to Lookup tables, from beginning of LookupList — zero based (first lookup is Lookup index = 0)
@@ -431,6 +435,7 @@ struct LookupList {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#lookupTbl>
 struct Lookup {
     start : Pos,
+
     /// Different enumerations for GSUB and GPOS
     lookup_type : U16Be,
     /// Lookup qualifiers
@@ -584,6 +589,7 @@ union FeatureVariations {
 
 struct FeatureVariations1 {
     start : Pos,
+
     /// Major version of the FeatureVariations table — set to 1.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the FeatureVariations table — set to 0.
@@ -610,6 +616,7 @@ struct FeatureVariationRecord (feature_variations_start : Pos) {
 
 struct ConditionSet {
     start : Pos,
+
     /// Number of conditions for this condition set.
     condition_count : U16Be,
     /// Array of offsets to condition tables, from beginning of the ConditionSet table.
@@ -651,6 +658,7 @@ union FeatureTableSubstitution {
 
 struct FeatureTableSubstitution1 {
     start : Pos,
+
     /// Major version of the feature table substitution table — set to 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the feature table substitution table — set to 0.
@@ -704,6 +712,7 @@ struct FeatureTableSubstitutionRecord (feature_table_substitution_start : Pos) {
 /// <https://docs.microsoft.com/en-us/typography/opentype/spec/cmap#cmap-header>
 struct CharMap {
     start : Pos,
+
     /// Table version number (0)
     version : { version : U16Be | nat_eq version 0 },
     /// Number of encoding records that follow
@@ -1001,6 +1010,7 @@ struct CharMapSubtable13ConstantMapGroup {
 /// Format 14: Unicode Variation Sequences
 struct CharMapSubtable14 {
     start : Pos,
+
     /// Format number is set to 14
     format : { format : U16Be | nat_eq format 14 },
     /// Byte length of this subtable (including this header)
@@ -1307,6 +1317,7 @@ union Naming {
 
 struct NamingFormat0 {
     start : Pos,
+
     /// Format selector (=0).
     format : { format : U16Be | nat_eq format 0 },
     /// Number of name records.
@@ -1329,6 +1340,7 @@ struct NamingFormat0 {
 
 struct NamingFormat1 {
     start : Pos,
+
     /// Format selector (=1).
     format : { format : U16Be | nat_eq format 1 },
     /// Number of name records.
@@ -1906,6 +1918,7 @@ union Svg {
 
 struct Svg0 {
     start : Pos,
+
     /// Table version (starting at 0). Set to 0.
     version : { version : U16Be | nat_eq version 0 },
     /// Offset to the SVG Document List, from the start of the SVG table. Must be non-zero.
@@ -1924,6 +1937,7 @@ struct Svg0 {
 
 struct SvgDocumentList {
     start : Pos,
+
     /// Number of SVG document records. Must be non-zero.
     num_entries : U16Be,
     /// Array of SVG document records.
@@ -2136,6 +2150,7 @@ union EmbeddedBitmapLocationData {
 
 struct EmbeddedBitmapLocationData2 {
     start : Pos,
+
     /// Major version of the EBLC table, = 2.
     major_version : { version : U16Be | nat_eq version 2 },
     /// Minor version of the EBLC table, = 0.
@@ -2155,6 +2170,7 @@ struct EmbeddedBitmapLocationData2 {
 
 struct BitmapSize (embedded_bitmap_location_start : Pos) {
     start : Pos,
+
     /// Offset to IndexSubtableArray, from beginning of EBLC.
     index_sub_table_array_offset : Offset32Be embedded_bitmap_location_start (IndexSubtableArray start),
     /// Number of bytes in corresponding index subtables and array.
@@ -2483,6 +2499,7 @@ union BaselineData {
 
 struct BaselineData1 {
     start : Pos,
+
     /// Major version of the BASE table, = 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the BASE table, = 0
@@ -2514,6 +2531,7 @@ struct BaselineData1 {
 
 struct Axis {
     start : Pos,
+
     /// Offset to BaseTagList table, from beginning of Axis table (may be NULL)
     base_tag_list_offset : Offset16Be start BaseTagList,
     /// Offset to BaseScriptList table, from beginning of Axis table
@@ -2543,6 +2561,7 @@ struct BaseTagList {
 
 struct BaseScriptList {
     start : Pos,
+
     /// 4-byte script identification tag
     base_script_tag : Tag,
     /// Offset to BaseScript table, from beginning of BaseScriptList
@@ -2558,6 +2577,7 @@ struct BaseScriptList {
 
 struct BaseScript {
     start : Pos,
+
     /// Offset to BaseValues table, from beginning of BaseScript table (may be NULL)
     base_values_offset : Offset16Be start BaseValues,
     /// Offset to MinMax table, from beginning of BaseScript table (may be NULL)
@@ -2591,6 +2611,7 @@ struct BaseLangSysRecord (base_script_start : Pos) {
 
 struct BaseValues {
     start : Pos,
+
     /// Index number of default baseline for this script — equals index position
     /// of baseline tag in baselineTags array of the BaseTagList
     default_baseline_index : U16Be,
@@ -2610,6 +2631,7 @@ struct BaseValues {
 
 struct MinMax {
     start : Pos,
+
     /// Offset to BaseCoord table that defines the minimum extent value, from
     /// the beginning of MinMax table (may be NULL)
     min_coord : Offset16Be start BaseCoord,
@@ -2675,6 +2697,7 @@ struct BaseCoordFormat2 {
 
 struct BaseCoordFormat3 {
     start : Pos,
+
     /// Format identifier — format = 3
     base_coord_format : { format : U16Be | nat_eq format 3 },
     /// X or Y value, in design units
@@ -2713,6 +2736,7 @@ union GlyphDefinitionData {
 
 struct GlyphDefinitionData1 {
     start : Pos,
+
     /// Major version of the GDEF table, = 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the GDEF table, = 3
@@ -2776,6 +2800,7 @@ GlyphClassDef = ClassDef GlyphClassDefEnum;
 
 struct AttachList {
     start : Pos,
+
     /// Offset to Coverage table - from beginning of AttachList table
     coverage_offset : Offset16Be start Coverage,
     /// Number of glyphs with attachment points
@@ -2801,6 +2826,7 @@ struct AttachPoint {
 
 struct LigCaretList {
     start : Pos,
+
     /// Offset to Coverage table - from beginning of LigCaretList table
     coverage_offset : Offset16Be start Coverage,
     /// Number of ligature glyphs
@@ -2812,6 +2838,7 @@ struct LigCaretList {
 
 struct LigGlyph {
     start : Pos,
+
     /// Number of CaretValue tables for this ligature (components - 1)
     caret_count : U16Be,
     /// Array of offsets to CaretValue tables, from beginning of LigGlyph
@@ -2845,6 +2872,7 @@ struct CaretValueFormat2 {
 /// Caret Value Format 3: Design units plus Device or VariationIndex table
 struct CaretValueFormat3 {
     start : Pos,
+
     /// Format identifier: format = 3
     caret_value_format : { format : U16Be | nat_eq format 3 },
     /// X or Y value, in design units
@@ -2876,6 +2904,7 @@ union MarkGlyphSets {
 
 struct MarkGlyphSetsFormat1 {
     start : Pos,
+
     /// Format identifier == 1
     mark_glyph_set_table_format : { format : U16Be | nat_eq format 1 },
     /// Number of mark glyph sets defined
@@ -2922,6 +2951,7 @@ union GlyphPositioningData {
 
 struct GlyphPositioningData1 {
     start : Pos,
+
     /// Major version of the GPOS table
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the GPOS table
@@ -2965,6 +2995,7 @@ union GlyphSubstitutionData {
 
 struct GlyphSubstitutionData1 {
     start : Pos,
+
     /// Major version of the GSUB table
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the GSUB table
@@ -3007,6 +3038,7 @@ union JustificationData {
 
 struct JustificationData1 {
     start : Pos,
+
     /// Major version of the JSTF table, = 1
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the JSTF table, = 0
@@ -3027,6 +3059,7 @@ struct JustificationScriptRecord (justification_data_start : Pos) {
 
 struct JustificationScript {
     start : Pos,
+
     /// Offset to ExtenderGlyph table, from beginning of JustificationScript
     /// table (may be NULL)
     extender_glyph_offset : Offset16Be start ExtenderGlyph,
@@ -3057,6 +3090,7 @@ struct ExtenderGlyph {
 
 struct JustificationLangSys {
     start : Pos,
+
     /// Number of JustificationPriority tables
     justification_priority_count : U16Be,
     /// Array of offsets to JustificationPriority tables, from beginning of
@@ -3066,6 +3100,7 @@ struct JustificationLangSys {
 
 struct JustificationPriority {
     start : Pos,
+
     /// Offset to shrinkage-enable JustificationGlyphPositionModList table,
     /// from beginning of JustificationPriority table (may be NULL)
     shrinkage_enable_gsub : Offset16Be start JustificationGlyphPositionModList,
@@ -3116,6 +3151,7 @@ struct JustificationGlyphPositionModList {
 
 struct JustificationMax {
     start : Pos,
+
     /// Number of lookup Indices for this modification
     lookup_count : U16Be,
     /// Array of offsets to GPOS-type lookup tables, from beginning of
@@ -3139,6 +3175,7 @@ union MathLayoutData {
 
 struct MathLayoutData1 {
     start : Pos,
+
     /// Major version of the MATH table, = 1.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version of the MATH table, = 0.
@@ -3161,6 +3198,7 @@ struct MathValueRecord (parent_start : Pos) {
 
 struct MathConstants {
     start : Pos,
+
     /// Percentage of scaling down for level 1 superscripts and subscripts.
     /// Suggested value: 80%.
     script_percent_scale_down : S16Be,
@@ -3347,6 +3385,7 @@ struct MathConstants {
 
 struct MathGlyphInfo {
     start : Pos,
+
     /// Offset to MathItalicsCorrectionInfo table, from the beginning of the
     /// MathGlyphInfo table.
     math_italics_correction_info_offset : Offset16Be start MathItalicsCorrectionInfo,
@@ -3366,6 +3405,7 @@ struct MathGlyphInfo {
 
 struct MathItalicsCorrectionInfo {
     start : Pos,
+
     /// Offset to Coverage table - from the beginning of MathItalicsCorrectionInfo table.
     italics_correction_coverage_offset : Offset16Be start Coverage,
     /// Number of italics correction values. Should coincide with the number of covered glyphs.
@@ -3376,6 +3416,7 @@ struct MathItalicsCorrectionInfo {
 
 struct MathTopAccentAttachment {
     start : Pos,
+
     /// Offset to Coverage table, from the beginning of the
     /// MathTopAccentAttachment table.
     top_accent_coverage_offset : Offset16Be start Coverage,
@@ -3389,6 +3430,7 @@ struct MathTopAccentAttachment {
 
 struct MathKernInfo {
     start : Pos,
+
     /// Offset to Coverage table, from the beginning of the MathKernInfo table.
     math_kern_coverage_offset : Offset16Be start Coverage,
     /// Number of MathKernInfoRecords. Must be the same as the number of glyph
@@ -3415,6 +3457,7 @@ struct MathKernInfoRecord (math_kern_info_start : Pos) {
 
 struct MathKern {
     start : Pos,
+
     /// Number of heights at which the kern value changes.
     height_count : U16Be,
     /// Array of correction heights, in design units, sorted from lowest to
@@ -3427,6 +3470,7 @@ struct MathKern {
 
 struct MathVariants {
     start : Pos,
+
     /// Minimum overlap of connecting glyphs during glyph construction, in
     /// design units.
     min_connector_overlap : U16Be,
@@ -3452,6 +3496,7 @@ struct MathVariants {
 
 struct MathGlyphConstruction {
     start : Pos,
+
     /// Offset to the GlyphAssembly table for this shape, from the beginning of
     /// the MathGlyphConstruction table. May be NULL.
     glyph_assembly_offset : Offset16Be start GlyphAssembly,
@@ -3471,6 +3516,7 @@ struct MathGlyphVariantRecord {
 
 struct GlyphAssembly {
     start : Pos,
+
     /// Italics correction of this GlyphAssembly. Should not depend on the
     /// assembly size.
     italics_correction : MathValueRecord start,
@@ -3565,6 +3611,7 @@ union ControlValueVariations {
 
 struct ControlValueVariations1 {
     start : Pos,
+
     /// Major version number of the CVT variations table — set to 1.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version number of the CVT variations table — set to 0.
@@ -3594,6 +3641,7 @@ union FontVariations {
 
 struct FontVariations1 {
     start : Pos,
+
     /// Major version number of the font variations table — set to 1.
     major_version : { version : U16Be | nat_eq version 1 },
     /// Minor version number of the font variations table — set to 0.
@@ -3895,6 +3943,7 @@ struct ColorRecord {
 /// DSIG — Digital Signature Table
 struct DigitalSignature (length : U32) {
     start : Pos,
+
     /// Version number of the DSIG table (0x00000001)
     version : U32Be, // TODO: constrain version
     /// Number of signatures in the table
@@ -4037,6 +4086,7 @@ struct KerningPair {
 
 struct KerningSubtableFormat2 {
     start : Pos,
+
     /// Kern subtable version number
     version : { version : U16Be | nat_eq version 2 },
     /// Length of the subtable, in bytes (including this header).
@@ -4106,6 +4156,7 @@ union Merge {
 
 struct Merge0 {
     start : Pos,
+
     /// Version number of the merge table — set to 0.
     version : { version : U16Be | nat_eq version 0 },
     /// The number of merge classes.
@@ -4146,6 +4197,7 @@ union Metadata {
 
 struct Metadata1 {
     start : Pos,
+
     /// Version number of the metadata table — set to 1.
     version : { version : U32Be | nat_eq version 1 },
     /// Flags — currently unused; set to 0.
@@ -4197,6 +4249,7 @@ MetadataInfo (tag : Tag) (length : U32) = match tag.value {
 
 struct StyleAttributes {
     start : Pos,
+
     /// Major version number of the style attributes table — set to 1.
     major_version: U16Be, // TODO: constrain version
     /// Minor version number of the style attributes table — set to 2.
@@ -4385,6 +4438,7 @@ struct Pcl5_1 {
 
 struct VerticalDeviceMetrics {
     start : Pos,
+
     /// Version number (0 or 1).
     version : U16Be, // TODO: Constrain value
     /// Number of VDMX groups present
