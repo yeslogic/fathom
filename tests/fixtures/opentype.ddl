@@ -265,7 +265,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "STAT" => StyleAttributes,              // Style attributes
     "PCLT" => Pcl5,                         // PCL 5 data
     "VDMX" => VerticalDeviceMetrics,        // Vertical device metrics
-    "vhea" => Unknown,                      // Vertical Metrics header
+    "vhea" => VerticalHeader,               // Vertical Metrics header
     "vmtx" => Unknown,                      // Vertical Metrics
 
     _ => Unknown,
@@ -1879,12 +1879,12 @@ struct VerticalOrigin1 {
     minor_version : U16Be, // TODO: constrain version
     /// The y coordinate of a glyph’s vertical origin, in the font’s design
     /// coordinate system, to be used if no entry is present for the glyph in
-    /// the `vert_origin_y_metrics` array.
-    default_vert_origin_y : S16Be,
-    /// Number of elements in the `vert_origin_y_metrics` array.
-    num_vert_origin_y_metrics : U16Be,
+    /// the `vertical_origin_y_metrics` array.
+    default_vertical_origin_y : S16Be,
+    /// Number of elements in the `vertical_origin_y_metrics` array.
+    num_vertical_origin_y_metrics : U16Be,
     /// Vertical origin Y mertics data
-    vert_origin_y_metrics : Array num_vert_origin_y_metrics VerticalOriginYMetric,
+    vertical_origin_y_metrics : Array num_vertical_origin_y_metrics VerticalOriginYMetric,
 };
 
 struct VerticalOriginYMetric {
@@ -1892,7 +1892,7 @@ struct VerticalOriginYMetric {
     glyph_index : U16Be,
     /// Y coordinate, in the font’s design coordinate system, of the vertical
     /// origin of glyph with index glyph_index.
-    vert_origin_y : S16Be,
+    vertical_origin_y : S16Be,
 };
 
 
@@ -2183,9 +2183,9 @@ struct BitmapSize (embedded_bitmap_location_start : Pos) {
     /// Not used; set to 0.
     color_ref : U32Be,
     /// Line metrics for text rendered horizontally.
-    hori : ScalarBitmapLineMetrics,
+    horizontal : ScalarBitmapLineMetrics,
     /// Line metrics for text rendered vertically.
-    vert : ScalarBitmapLineMetrics,
+    vertical : ScalarBitmapLineMetrics,
     /// Lowest glyph index for this size.
     start_glyph_index : U16Be,
     /// Highest glyph index for this size.
@@ -4525,12 +4525,133 @@ struct VerticalDeviceMetricsRecord {
 //
 // vhea — Vertical Header Table
 //
-// <https://www.microsoft.com/typography/otspec/vhea.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/vhea>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6vhea.html>
 //
 // =============================================================================
 
-// TODO
+union VerticalHeader {
+    VerticalHeader_1_0,  // TODO: Don't fix to 1.0?
+    VerticalHeader_1_1,  // TODO: Don't fix to 1.1?
+};
+
+struct VerticalHeader_1_0 {
+    /// Version number of the vertical header table; 0x00010000 for version 1.0
+    version : { version : Fixed | nat_eq version.value 0x00010000 },
+    /// Distance in FUnits from the centerline to the previous line’s descent.
+    ascent : S16Be,
+    /// Distance in FUnits from the centerline to the next line’s ascent.
+    descent : S16Be,
+    /// Reserved; set to 0
+    line_gap : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// The maximum advance height measurement -in FUnits found in the font.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    advance_height_max : S16Be,
+    /// The minimum top sidebearing measurement found in the font, in FUnits.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    min_top_side_bearing : S16Be,
+    /// The minimum bottom sidebearing measurement found in the font, in FUnits.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    min_bottom_side_bearing : S16Be,
+    /// Defined as yMaxExtent = max(tsb + (yMax - yMin)).
+    y_max_extent : S16Be,
+    /// The value of the `caret_slope_rise` field divided by the value of the
+    /// `caret_slope_run` Field determines the slope of the caret. A value of 0
+    /// for the rise and a value of 1 for the run specifies a horizontal caret.
+    /// A value of 1 for the rise and a value of 0 for the run specifies a
+    /// vertical caret. Intermediate values are desirable for fonts whose glyphs
+    /// are oblique or italic. For a vertical font, a horizontal caret is best.
+    caret_slope_rise : S16Be,
+    /// See the `caret_slope_rise` field. Value=1 for nonslanted vertical fonts.
+    caret_slope_run : S16Be,
+    /// The amount by which the highlight on a slanted glyph needs to be shifted
+    /// away from the glyph in order to produce the best appearance. Set value
+    /// equal to 0 for nonslanted fonts.
+    caret_offset : S16Be,
+    /// Set to 0.
+    reserved0 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved1 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved2 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved3 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    metric_data_format : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Number of advance heights in the vertical metrics table.
+    num_of_long_vertical_metrics : U16Be,
+};
+
+struct VerticalHeader_1_1 {
+    /// Version number of the vertical header table; 0x00011000 for version 1.1
+    ///
+    /// Note the representation of a non-zero fractional part, in Fixed numbers.
+    version : { version : Fixed | nat_eq version.value 0x00011000 },
+    /// The vertical typographic ascender for this font. It is the distance in
+    /// FUnits from the ideographic em-box center baseline for the vertical
+    /// axis to the right edge of the ideographic em-box.
+    ///
+    /// It is usually set to (head.unitsPerEm)/2. For example, a font with an em
+    /// of 1000 fUnits will set this field to 500. See the Baseline tags section
+    /// of the OpenType Layout Tag Registry for a description of the ideographic
+    /// em-box.
+    vertical_typo_ascender : S16Be,
+    /// The vertical typographic descender for this font. It is the distance in
+    /// FUnits from the ideographic em-box center baseline for the vertical
+    /// axis to the left edge of the ideographic em-box.
+    ///
+    /// It is usually set to (head.unitsPerEm)/2. For example, a font with an em
+    /// of 1000 fUnits will set this field to -500.
+    vertical_typo_descender : S16Be,
+    /// The vertical typographic gap for this font. An application can determine
+    /// the recommended line spacing for single spaced vertical text for an
+    /// OpenType font by the following expression:
+    ///
+    /// ideo embox width + vhea.vertTypoLineGap
+    vertical_typo_line_gap : S16Be,
+    /// The maximum advance height measurement -in FUnits found in the font.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    advance_height_max : S16Be,
+    /// The minimum top sidebearing measurement found in the font, in FUnits.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    min_top_side_bearing : S16Be,
+    /// The minimum bottom sidebearing measurement found in the font, in FUnits.
+    /// This value must be consistent with the entries in the vertical metrics
+    /// table.
+    min_bottom_side_bearing : S16Be,
+    /// Defined as yMaxExtent = max(tsb + (yMax - yMin)).
+    y_max_extent : S16Be,
+    /// The value of the `caret_slope_rise` field divided by the value of the
+    /// `caret_slope_run` Field determines the slope of the caret. A value of 0
+    /// for the rise and a value of 1 for the run specifies a horizontal caret.
+    /// A value of 1 for the rise and a value of 0 for the run specifies a
+    /// vertical caret. Intermediate values are desirable for fonts whose glyphs
+    /// are oblique or italic. For a vertical font, a horizontal caret is best.
+    caret_slope_rise : S16Be,
+    /// See the `caret_slope_rise` field. Value=1 for nonslanted vertical fonts.
+    caret_slope_run : S16Be,
+    /// The amount by which the highlight on a slanted glyph needs to be shifted
+    /// away from the glyph in order to produce the best appearance. Set value
+    /// equal to 0 for nonslanted fonts.
+    caret_offset : S16Be,
+    /// Set to 0.
+    reserved0 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved1 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved2 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    reserved3 : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Set to 0.
+    metric_data_format : Reserved S16Be, // TODO: Reserved S16Be 0,
+    /// Number of advance heights in the vertical metrics table.
+    num_of_long_vertical_metrics : U16Be,
+};
 
 
 
