@@ -266,7 +266,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "PCLT" => Pcl5,                         // PCL 5 data
     "VDMX" => VerticalDeviceMetrics,        // Vertical device metrics
     "vhea" => VerticalHeader,               // Vertical Metrics header
-    "vmtx" => Unknown,                      // Vertical Metrics
+    "vmtx" => Unknown,                      // Vertical Metrics // TODO: Depends on `num_glyphs` from "maxp" and `num_of_long_vertical_metrics` from "vhea"
 
     _ => Unknown,
 };
@@ -4659,9 +4659,22 @@ struct VerticalHeader_1_1 {
 //
 // vmtx - Vertical Metrics Table
 //
-// <https://www.microsoft.com/typography/otspec/vmtx.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/vmtx>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6vmtx.html>
 //
 // =============================================================================
+
+struct VerticalMetrics (num_glyphs : U16) (num_of_long_vertical_metrics : U16) {
+    entries : Array num_of_long_vertical_metrics VerticalMetricsEntry,
+    /// The top sidebearing of the glyph. Signed integer in FUnits.
+    top_side_bearing : Array (nat_sub num_glyphs num_of_long_vertical_metrics) S16Be,
+};
+
+struct VerticalMetricsEntry {
+    /// The advance height of the glyph. Unsigned integer in FUnits
+    advance_height : U16Be,
+    /// The top sidebearing of the glyph. Signed integer in FUnits.
+    top_side_bearing : S16Be,
+};
 
 // TODO
