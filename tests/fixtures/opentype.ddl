@@ -4044,6 +4044,38 @@ struct Kerning0 {
     n_tables : U16Be,
 };
 
+// TODO: Bitfields
+// struct KerningCoverage {
+//     /// Bit 0: 1 if table has horizontal data, 0 if vertical.
+//     horizontal : U1,
+//     /// Bit 1: If this bit is set to 1, the table has minimum values. If set to
+//     /// 0, the table has kerning values.
+//     minimum : U1,
+//     /// Bit 2: If set to 1, kerning is perpendicular to the flow of the text.
+//     ///
+//     /// If the text is normally written horizontally, kerning will be done in
+//     /// the up and down directions. If kerning values are positive, the text
+//     /// will be kerned upwards; if they are negative, the text will be kerned
+//     /// downwards.
+//     ///
+//     /// If the text is normally written vertically, kerning will be done in the
+//     /// left and right directions. If kerning values are positive, the text will
+//     /// be kerned to the right; if they are negative, the text will be kerned to
+//     /// the left.
+//     ///
+//     /// The value 0x8000 in the kerning data resets the cross-stream kerning
+//     /// back to 0.
+//     cross_stream : U1,
+//     /// Bit 3: If this bit is set to 1 the value in this table should replace
+//     /// the value currently being accumulated.
+//     override : U1,
+//     /// Bit 4-7: Reserved. This should be set to zero.
+//     reserved1 : U4,
+//     /// Bit 8-15: Format of the subtable. Only formats 0 and 2 have been
+//     /// defined. Formats 1 and 3 through 255 are reserved for future use.
+//     format : U8,
+// };
+
 union KerningSubtable {
     KerningSubtableFormat0,
     KerningSubtableFormat2,
