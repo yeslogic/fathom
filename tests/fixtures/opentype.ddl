@@ -169,11 +169,11 @@ struct TtcHeader2 (file_start : Pos) {
     /// Array of offsets to the OffsetTable for each font from the beginning of the file
     offset_tables : Array num_fonts (Offset32Be file_start (OffsetTable file_start)),
     /// Tag indicating that a DSIG table exists, 0x44534947 ('DSIG') (null if no signature)
-    dsig_tag : U32Be, // FIXME: Tag?
+    digital_signature_tag : U32Be, // FIXME: Tag?
     /// The length (in bytes) of the DSIG table (null if no signature)
-    dsig_length : U32Be,
+    digital_signature_length : U32Be,
     /// The offset (in bytes) of the DSIG table from the beginning of the TTC file (null if no signature)
-    dsig_offset : Offset32Be file_start (DigitalSignature dsig_length),
+    digital_signature_offset : Offset32Be file_start (DigitalSignature digital_signature_length),
 };
 
 
@@ -1220,7 +1220,7 @@ struct LongHorMetric {
     /// Advance width, in font design units.
     advance_width : U16Be,
     /// Glyph left side bearing, in font design units.
-    lsb : S16Be,
+    left_side_bearing : S16Be,
 };
 
 
@@ -1628,7 +1628,7 @@ struct Glyph {
 struct SimpleGlyph (number_of_contours : U16) {
     /// Array of point indices for the last point of each contour, in increasing
     /// numeric order.
-    end_pts_of_contours : Array number_of_contours U16Be,
+    end_points_of_contours : Array number_of_contours U16Be,
     /// Total number of bytes for instructions. If instruction_length is zero, no
     /// instructions are present for this glyph, and this field is followed
     /// directly by the flags field.
@@ -3809,7 +3809,7 @@ struct Color0 {
 struct BaseGlyphRecord {
     /// Glyph ID of reference glyph. This glyph is for reference only and is not
     /// rendered for color.
-    g_id : U16Be,
+    glyph_id : U16Be,
     /// Index (from beginning of the Layer Records) to the layer record. There
     /// will be numLayers consecutive entries for this base glyph.
     first_layer_index : U16Be,
@@ -3819,7 +3819,7 @@ struct BaseGlyphRecord {
 
 struct LayerRecord {
     /// Glyph ID of layer glyph (must be in z-order from bottom to top).
-    g_id : U16Be,
+    glyph_id : U16Be,
     /// Index value to use with a selected color palette. This value must be
     /// less than numPaletteEntries in the CPAL table. A palette entry index
     /// value of 0xFFFF is a special case indicating that the text foreground
