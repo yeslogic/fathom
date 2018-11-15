@@ -1949,10 +1949,13 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
     start_glyph_id : U16Be,
     /// The last glyph ID for the range covered by this record.
     end_glyph_id : U16Be,
-    /// Offset from the beginning of the SVGDocumentList to an SVG document. Must be non-zero.
-    svg_doc_offset : Offset32Be svg_document_list_start Unknown, // TODO
+    /// Offset from the beginning of the `SvgDocumentList` to an SVG document. Must be non-zero.
+    svg_doc_offset : U32Be,
     /// Length of the SVG document data. Must be non-zero.
     svg_doc_length : U32Be,
+
+    /// The SVG document
+    svg_doc : OffsetPos svg_document_list_start svg_doc_offset (Array svg_doc_length U8),
 };
 
 
