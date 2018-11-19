@@ -469,3 +469,31 @@ fn struct_parameterised() {
         panic!("type error!")
     }
 }
+
+#[test]
+fn array_index() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let src = r#"
+        module test;
+
+        index : (len : int {0 ..}) (A : Type) -> int {0 ..} -> Array len A -> A;
+        index _ _ = extern "array-index";
+
+        struct Test {
+            lengths : Array 1 U32Be,
+            data : Array (index 1 U32Be 0 lengths) U8,
+        };
+    "#;
+
+    let raw_module = support::parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
+        let writer = StandardStream::stdout(ColorChoice::Always);
+        codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
+        panic!("type error!")
+    }
+}
