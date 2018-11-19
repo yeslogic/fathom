@@ -316,7 +316,7 @@ fn offset_same_pos_different_tys() {
 }
 
 #[test]
-fn offset_pos() {
+fn link() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
     let desugar_env = DesugarEnv::new(context.mappings());
@@ -332,9 +332,9 @@ fn offset_pos() {
             offset1 : U16Be,
             offset2 : U16Be,
 
-            pos0 : OffsetPos start offset0 U8,
-            pos1 : OffsetPos start offset1 U8,
-            pos2 : OffsetPos start offset2 U8,
+            pos0 : Link start offset0 U8,
+            pos1 : Link start offset1 U8,
+            pos2 : Link start offset2 U8,
         };
     "#;
 
@@ -390,7 +390,7 @@ fn offset_pos() {
 }
 
 #[test]
-fn offset_pos_same_pos() {
+fn link_same_pos() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
     let desugar_env = DesugarEnv::new(context.mappings());
@@ -402,8 +402,8 @@ fn offset_pos_same_pos() {
             start : Pos,
             offset0 : U16Be,
             offset1 : U16Be,
-            pos0 : OffsetPos start offset0 U8,
-            pos1 : OffsetPos start offset1 U8,
+            pos0 : Link start offset0 U8,
+            pos1 : Link start offset1 U8,
         };
     "#;
 
@@ -445,7 +445,7 @@ fn offset_pos_same_pos() {
 }
 
 #[test]
-fn offset_pos_same_pos_different_tys() {
+fn link_same_pos_different_tys() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
     let desugar_env = DesugarEnv::new(context.mappings());
@@ -457,8 +457,8 @@ fn offset_pos_same_pos_different_tys() {
             start : Pos,
             offset0 : U16Be,
             offset1 : U16Be,
-            pos0 : OffsetPos start offset0 U8,
-            pos1 : OffsetPos start offset1 S8,
+            pos0 : Link start offset0 U8,
+            pos1 : Link start offset1 S8,
         };
     "#;
 

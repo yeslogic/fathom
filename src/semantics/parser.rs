@@ -243,11 +243,11 @@ where
 
 fn queue_offset(
     pending: &mut PendingOffsets,
-    offset_pos: u64,
+    offset: u64,
     ty: &core::RcType,
 ) -> Result<Value, ParseError> {
-    pending.push((offset_pos, ty.clone()));
-    Ok(Value::Pos(offset_pos))
+    pending.push((offset, ty.clone()));
+    Ok(Value::Pos(offset))
 }
 
 fn parse_term<T>(
@@ -321,7 +321,7 @@ where
             if let Some((pos, ty)) = context.offset32be(ty) { return queue_offset(pending, pos + bytes.read_u32::<Be>()? as u64, ty); }
             if let Some((pos, ty)) = context.offset64le(ty) { return queue_offset(pending, pos + bytes.read_u64::<Le>()? as u64, ty); }
             if let Some((pos, ty)) = context.offset64be(ty) { return queue_offset(pending, pos + bytes.read_u64::<Be>()? as u64, ty); }
-            if let Some((pos, offset, ty)) = context.offset_pos(ty) { return queue_offset(pending, pos + offset.to_u64().unwrap(), ty); }
+            if let Some((pos, offset, ty)) = context.link(ty) { return queue_offset(pending, pos + offset.to_u64().unwrap(), ty); }
 
             // Reserved things
             if let Some(elem_ty) = context.reserved(ty) {

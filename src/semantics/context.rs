@@ -284,7 +284,7 @@ pub struct Globals {
 
     var_array: FreeVar<String>,
     var_reserved: FreeVar<String>,
-    var_offset_pos: FreeVar<String>,
+    var_link: FreeVar<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, BoundTerm)]
@@ -375,7 +375,7 @@ impl Default for Context {
 
         let var_array = FreeVar::fresh_named("Array");
         let var_reserved = FreeVar::fresh_named("Reserved");
-        let var_offset_pos = FreeVar::fresh_named("OffsetPos");
+        let var_link = FreeVar::fresh_named("Link");
 
         fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcType {
             RcValue::from(Value::IntType(
@@ -438,7 +438,7 @@ impl Default for Context {
 
                 var_array: var_array.clone(),
                 var_reserved: var_reserved.clone(),
-                var_offset_pos: var_offset_pos.clone(),
+                var_link: var_link.clone(),
             }),
             extern_definitions: default_extern_definitions(),
             declarations: HashMap::new(),
@@ -470,7 +470,7 @@ impl Default for Context {
         let ty_s16 = RcTerm::from(Term::from(&*context.globals.ty_s16.clone()));
         let ty_s32 = RcTerm::from(Term::from(&*context.globals.ty_s32.clone()));
         let ty_s64 = RcTerm::from(Term::from(&*context.globals.ty_s64.clone()));
-        let offset_ty_old = RcValue::from(Value::Pi(Scope::new(
+        let offset_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(pos_ty.clone())),
             RcValue::from(Value::Pi(Scope::new(
                 (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
@@ -488,7 +488,7 @@ impl Default for Context {
             (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
             universe0.clone(),
         )));
-        let offset_pos_ty = RcValue::from(Value::Pi(Scope::new(
+        let link_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(pos_ty.clone())),
             RcValue::from(Value::Pi(Scope::new(
                 (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty.clone())),
@@ -545,17 +545,17 @@ impl Default for Context {
         context.insert_declaration(var_f32be, universe0.clone());
         context.insert_declaration(var_f64be, universe0.clone());
 
-        context.insert_declaration(var_offset8, offset_ty_old.clone());
-        context.insert_declaration(var_offset16le, offset_ty_old.clone());
-        context.insert_declaration(var_offset32le, offset_ty_old.clone());
-        context.insert_declaration(var_offset64le, offset_ty_old.clone());
-        context.insert_declaration(var_offset16be, offset_ty_old.clone());
-        context.insert_declaration(var_offset32be, offset_ty_old.clone());
-        context.insert_declaration(var_offset64be, offset_ty_old.clone());
+        context.insert_declaration(var_offset8, offset_ty.clone());
+        context.insert_declaration(var_offset16le, offset_ty.clone());
+        context.insert_declaration(var_offset32le, offset_ty.clone());
+        context.insert_declaration(var_offset64le, offset_ty.clone());
+        context.insert_declaration(var_offset16be, offset_ty.clone());
+        context.insert_declaration(var_offset32be, offset_ty.clone());
+        context.insert_declaration(var_offset64be, offset_ty.clone());
 
         context.insert_declaration(var_array, array_ty);
         context.insert_declaration(var_reserved, reserved_ty);
-        context.insert_declaration(var_offset_pos, offset_pos_ty);
+        context.insert_declaration(var_link, link_ty);
 
         context.insert_declaration(var_unit_ty.clone(), universe0.clone());
         context.insert_definition(var_unit_ty, ty_unit_def);
@@ -767,8 +767,8 @@ impl Context {
         })
     }
 
-    pub fn offset_pos<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a BigInt, &'a RcType)> {
-        free_var_app(&self.globals.var_offset_pos, ty).and_then(|spine| match spine {
+    pub fn link<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a BigInt, &'a RcType)> {
+        free_var_app(&self.globals.var_link, ty).and_then(|spine| match spine {
             &[ref pos, ref len, ref elem_ty] => match (&**pos, &**len) {
                 (&Value::Literal(Literal::Pos(pos)), &Value::Literal(Literal::Int(ref len, _))) => {
                     Some((pos, len, elem_ty))
