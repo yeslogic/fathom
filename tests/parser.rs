@@ -33,8 +33,8 @@ fn silly_root() {
         module test;
 
         Data : U32 -> Type;
-
         Data len = Array len U32Be;
+
         struct Silly {
             len : U16Be,
             data : Data len,
@@ -732,7 +732,7 @@ fn array_index() {
     let mut given_bytes = {
         let mut given_bytes = Vec::new();
 
-        given_bytes.write_u32::<BigEndian>(3).unwrap(); // format
+        given_bytes.write_u32::<BigEndian>(3).unwrap(); // lengths
         given_bytes.write_u8(42).unwrap(); // data[0]
         given_bytes.write_u8(43).unwrap(); // data[1]
         given_bytes.write_u8(44).unwrap(); // data[2]
