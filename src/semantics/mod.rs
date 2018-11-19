@@ -148,10 +148,7 @@ pub fn check_module(context: &Context, raw_module: &raw::Module) -> Result<Modul
                         .iter()
                         .map(|raw_ann| {
                             let (ann, ann_level) = infer_universe(&context, &raw_ann)?;
-                            let nf_ann = nf_term(&context, &ann)?;
-
                             max_level = cmp::max(max_level, ann_level);
-
                             Ok(ann)
                         })
                         .collect::<Result<_, TypeError>>()?;

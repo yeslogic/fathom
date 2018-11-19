@@ -94,12 +94,23 @@ impl ToDoc for Definition {
                 .append(term.to_doc().nest(INDENT_WIDTH)),
             Definition::StructType {
                 name: (_, ref name),
+                ref params,
                 ref fields,
                 ..
             } if fields.is_empty() => Doc::text("struct")
                 .append(Doc::space())
                 .append(Doc::as_string(name))
                 .append(Doc::space())
+                .append(Doc::concat(params.iter().map(|&(ref name, ref ann)| {
+                    Doc::text("(")
+                        .append(Doc::as_string(name))
+                        .append(Doc::space())
+                        .append(":")
+                        .append(Doc::space())
+                        .append(ann.to_doc())
+                        .append(")")
+                        .append(Doc::space())
+                })))
                 .append("{}"),
             Definition::StructType {
                 name: (_, ref name),
@@ -110,6 +121,16 @@ impl ToDoc for Definition {
                 .append(Doc::space())
                 .append(Doc::as_string(name))
                 .append(Doc::space())
+                .append(Doc::concat(params.iter().map(|&(ref name, ref ann)| {
+                    Doc::text("(")
+                        .append(Doc::as_string(name))
+                        .append(Doc::space())
+                        .append(":")
+                        .append(Doc::space())
+                        .append(ann.to_doc())
+                        .append(")")
+                        .append(Doc::space())
+                })))
                 .append("{")
                 .append(Doc::space())
                 .append(
@@ -140,7 +161,31 @@ impl ToDoc for Definition {
                 ref params,
                 ref variants,
                 ..
-            } => unimplemented!(),
+            } => Doc::text("struct")
+                .append(Doc::space())
+                .append(Doc::as_string(name))
+                .append(Doc::space())
+                .append(Doc::concat(params.iter().map(|&(ref name, ref ann)| {
+                    Doc::text("(")
+                        .append(Doc::as_string(name))
+                        .append(Doc::space())
+                        .append(":")
+                        .append(Doc::space())
+                        .append(ann.to_doc())
+                        .append(")")
+                        .append(Doc::space())
+                })))
+                .append("{")
+                .append(Doc::space())
+                .append(
+                    Doc::intersperse(
+                        variants.iter().map(|variant| variant.to_doc()),
+                        Doc::text(",").append(Doc::space()),
+                    )
+                    .nest(INDENT_WIDTH),
+                )
+                .append(Doc::space())
+                .append("}"),
         }
     }
 }
