@@ -321,11 +321,7 @@ where
             if let Some((pos, ty)) = context.offset32be(ty) { return queue_offset(pending, pos + bytes.read_u32::<Be>()? as u64, ty); }
             if let Some((pos, ty)) = context.offset64le(ty) { return queue_offset(pending, pos + bytes.read_u64::<Le>()? as u64, ty); }
             if let Some((pos, ty)) = context.offset64be(ty) { return queue_offset(pending, pos + bytes.read_u64::<Be>()? as u64, ty); }
-            if let Some((pos, offset, ty)) = context.offset_pos(ty) {
-                let offset_pos = pos + offset.to_u64().unwrap(); // FIXME
-                pending.push((offset_pos, ty.clone()));
-                return Ok(Value::Pos(offset_pos));
-            }
+            if let Some((pos, offset, ty)) = context.offset_pos(ty) { return queue_offset(pending, pos + offset.to_u64().unwrap(), ty); }
 
             // Reserved things
             if let Some(elem_ty) = context.reserved(ty) {
