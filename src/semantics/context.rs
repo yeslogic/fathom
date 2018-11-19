@@ -1,6 +1,7 @@
 use im::HashMap;
 use moniker::{Binder, FreeVar, Var};
 use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 use std::fmt;
 use std::rc::Rc;
 
@@ -213,6 +214,26 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
         "f64-to-string" => prim!(fn(val: f64) -> String { val.to_string() }),
 
         "string-append" => prim!(fn(x: String, y: String) -> String { x.clone() + y }), // FIXME: Clone
+
+        "array-index" => {
+            fn interpretation(params: Spine) -> Result<RcValue, ()> {
+                match params.as_slice() {
+                    [ref index, ref elems] if elems.is_nf() && index.is_nf() => {
+                        let index = BigInt::try_from_value_ref(index)?;
+                        match *elems.inner {
+                            Value::Array(ref elems) => Ok(elems[index.to_usize().unwrap()].clone()),
+                            _ => Err(()),
+                        }
+                    }
+                    _ => Err(()),
+                }
+            }
+
+            Extern {
+                arity: 2,
+                interpretation,
+            }
+        }
     }
 }
 

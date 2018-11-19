@@ -711,6 +711,52 @@ fn union_fail() {
 }
 
 #[test]
+fn array_index() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r#"
+        module test;
+
+        index : (len : int {0 ..}) (A : Type) -> int {0 ..} -> Array len A -> A;
+        index _ _ = extern "array-index";
+
+        struct Test {
+            lengths : Array 1 U32Be,
+            data : Array (index 1 U32Be 0 lengths) U8,
+        };
+    "#;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(3).unwrap(); // format
+        given_bytes.write_u8(42).unwrap(); // data[0]
+        given_bytes.write_u8(43).unwrap(); // data[1]
+        given_bytes.write_u8(44).unwrap(); // data[2]
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = support::parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        hashmap!{
+            0 => Value::Struct(vec![
+                (label("lengths"), Value::Array(vec![Value::U32(3)])),
+                (label("data"), Value::Array(vec![Value::U8(42), Value::U8(43), Value::U8(44)])),
+            ]),
+        },
+    );
+}
+
+#[test]
 fn parse_bitmap_nested() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
