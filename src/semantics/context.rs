@@ -470,6 +470,8 @@ impl Default for Context {
         let ty_s16 = RcTerm::from(Term::from(&*context.globals.ty_s16.clone()));
         let ty_s32 = RcTerm::from(Term::from(&*context.globals.ty_s32.clone()));
         let ty_s64 = RcTerm::from(Term::from(&*context.globals.ty_s64.clone()));
+
+        // OffsetX : Pos -> Type
         let offset_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(pos_ty.clone())),
             RcValue::from(Value::Pi(Scope::new(
@@ -477,6 +479,8 @@ impl Default for Context {
                 universe0.clone(),
             ))),
         )));
+
+        // Array : int {0 ..} -> Type -> Type
         let array_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty.clone())),
             RcValue::from(Value::Pi(Scope::new(
@@ -484,10 +488,14 @@ impl Default for Context {
                 universe0.clone(),
             ))),
         )));
+
+        // Reserved : Type -> Type
         let reserved_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
             universe0.clone(),
         )));
+
+        // Link : Pos -> int {0 ..} -> Type -> Type
         let link_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(pos_ty.clone())),
             RcValue::from(Value::Pi(Scope::new(
