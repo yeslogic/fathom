@@ -148,7 +148,7 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
         }};
     }
 
-    hashmap!{
+    hashmap! {
         "string-eq" => prim!(fn(x: String, y: String) -> bool { x == y }),
         "bool-eq" => prim!(fn(x: bool, y: bool) -> bool { x == y }),
         "char-eq" => prim!(fn(x: char, y: char) -> bool { x == y }),
@@ -283,6 +283,7 @@ pub struct Globals {
     var_offset64be: FreeVar<String>,
 
     var_array: FreeVar<String>,
+    var_compute_array: FreeVar<String>,
     var_reserved: FreeVar<String>,
     var_link: FreeVar<String>,
 }
@@ -374,6 +375,7 @@ impl Default for Context {
         let var_offset64be = FreeVar::fresh_named("Offset64Be");
 
         let var_array = FreeVar::fresh_named("Array");
+        let var_compute_array = FreeVar::fresh_named("ComputeArray");
         let var_reserved = FreeVar::fresh_named("Reserved");
         let var_link = FreeVar::fresh_named("Link");
 
@@ -437,6 +439,7 @@ impl Default for Context {
                 var_offset64be: var_offset64be.clone(),
 
                 var_array: var_array.clone(),
+                var_compute_array: var_compute_array.clone(),
                 var_reserved: var_reserved.clone(),
                 var_link: var_link.clone(),
             }),
@@ -507,6 +510,30 @@ impl Default for Context {
             ))),
         )));
 
+        // TODO: compute_array : (len : int {0 ..}) (A : Type) -> (int {0 .. len} -> A) -> Array len A
+
+        // GenArray : int {0 ..} -> (A : Type) -> (int {0 ..} -> A) -> Type
+        let compute_array_ty = {
+            let var_a = FreeVar::fresh_named("A");
+
+            // int {0 .. len} -> A
+            let gen_ty = RcValue::from(Value::Pi(Scope::new(
+                (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty.clone())),
+                RcValue::from(Value::var(Var::Free(var_a.clone()))),
+            )));
+
+            RcValue::from(Value::Pi(Scope::new(
+                (Binder(var_a.clone()), Embed(nat_ty.clone())),
+                RcValue::from(Value::Pi(Scope::new(
+                    (Binder(var_a.clone()), Embed(universe0.clone())),
+                    RcValue::from(Value::Pi(Scope::new(
+                        (Binder(FreeVar::fresh_unnamed()), Embed(gen_ty)),
+                        universe0.clone(),
+                    ))),
+                ))),
+            )))
+        };
+
         context.insert_declaration(var_true.clone(), bool_ty.clone());
         context.insert_declaration(var_false.clone(), bool_ty.clone());
         context.insert_definition(var_true, Definition::Alias(bool_lit(true)));
@@ -562,6 +589,7 @@ impl Default for Context {
         context.insert_declaration(var_offset64be, offset_ty.clone());
 
         context.insert_declaration(var_array, array_ty);
+        context.insert_declaration(var_compute_array, compute_array_ty);
         context.insert_declaration(var_reserved, reserved_ty);
         context.insert_declaration(var_link, link_ty);
 
@@ -762,6 +790,16 @@ impl Context {
         free_var_app(&self.globals.var_array, ty).and_then(|spine| match spine {
             &[ref len, ref elem_ty] => match **len {
                 Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty)),
+                _ => None,
+            },
+            _ => None,
+        })
+    }
+
+    pub fn compute_array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType, &'a RcValue)> {
+        free_var_app(&self.globals.var_compute_array, ty).and_then(|spine| match spine {
+            &[ref len, ref elem_ty, ref fun] => match **len {
+                Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty, fun)),
                 _ => None,
             },
             _ => None,

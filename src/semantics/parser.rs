@@ -1,5 +1,6 @@
 use im;
 use moniker::{Binder, Embed, FreeVar, Var};
+use num_bigint::BigInt;
 use std::io;
 
 use semantics::{nf_term, Context, Definition, InternalError};
@@ -9,6 +10,7 @@ use syntax::Label;
 #[derive(Debug)]
 pub enum ParseError {
     InvalidType(core::RcType),
+    InvalidValue(core::RcValue),
     Internal(InternalError),
     BadArrayIndex(core::RcValue),
     OffsetPointedToDifferentTypes(core::RcType, core::RcType),
@@ -39,18 +41,44 @@ type PendingOffsets = Vec<(u64, core::RcType)>;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Pos(u64),
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    S8(i8),
-    S16(i16),
-    S32(i32),
-    S64(i64),
+    Int(BigInt),
     F32(f32),
     F64(f64),
     Struct(Vec<(Label, Value)>),
     Array(Vec<Value>),
+}
+
+impl Value {
+    pub fn int(value: impl Into<BigInt>) -> Value {
+        Value::Int(value.into())
+    }
+
+    pub fn try_from_core_value(term: &core::RcValue) -> Result<Value, ParseError> {
+        match *term.inner {
+            core::Value::Literal(core::Literal::Int(ref value, _)) => Ok(Value::Int(value.clone())),
+            core::Value::Literal(core::Literal::F32(value, _)) => Ok(Value::F32(value)),
+            core::Value::Literal(core::Literal::F64(value, _)) => Ok(Value::F64(value)),
+            core::Value::Struct(ref fields) => {
+                let fields = fields
+                    .iter()
+                    .map(|&(ref label, ref value)| {
+                        Ok((label.clone(), Value::try_from_core_value(value)?))
+                    })
+                    .collect::<Result<_, ParseError>>()?;
+
+                Ok(Value::Struct(fields))
+            },
+            core::Value::Array(ref elems) => {
+                let elems = elems
+                    .iter()
+                    .map(|elem| Value::try_from_core_value(elem))
+                    .collect::<Result<_, _>>()?;
+
+                Ok(Value::Array(elems))
+            },
+            _ => Err(ParseError::InvalidValue(term.clone())),
+        }
+    }
 }
 
 impl<'a> From<&'a Value> for core::Term {
@@ -60,14 +88,7 @@ impl<'a> From<&'a Value> for core::Term {
 
         match *src {
             Value::Pos(value) => Term::Literal(Literal::Pos(value)),
-            Value::U8(value) => Term::Literal(Literal::Int(value.into(), IntFormat::Dec)),
-            Value::U16(value) => Term::Literal(Literal::Int(value.into(), IntFormat::Dec)),
-            Value::U32(value) => Term::Literal(Literal::Int(value.into(), IntFormat::Dec)),
-            Value::U64(value) => Term::Literal(Literal::Int(value.into(), IntFormat::Dec)),
-            Value::S8(value) => Term::Literal(Literal::Int(value.into(), IntFormat::Dec)),
-            Value::S16(value) => Term::Literal(Literal::Int(value.into(), IntFormat::Dec)),
-            Value::S32(value) => Term::Literal(Literal::Int(value.into(), IntFormat::Dec)),
-            Value::S64(value) => Term::Literal(Literal::Int(value.into(), IntFormat::Dec)),
+            Value::Int(ref value) => Term::Literal(Literal::Int(value.clone(), IntFormat::Dec)),
             Value::F32(value) => Term::Literal(Literal::F32(value.into(), FloatFormat::Dec)),
             Value::F64(value) => Term::Literal(Literal::F64(value.into(), FloatFormat::Dec)),
             Value::Struct(ref fields) => {
@@ -263,23 +284,25 @@ where
     use moniker::BoundTerm;
     use num_traits::ToPrimitive;
 
+    use syntax::IntFormat;
+
     match **ty {
         // Parse builtin types
         _ if core::RcValue::term_eq(ty, context.pos()) => Ok(Value::Pos(bytes.position())),
-        _ if core::RcValue::term_eq(ty, context.u8()) => Ok(Value::U8(bytes.read_u8()?)),
-        _ if core::RcValue::term_eq(ty, context.u16le()) => Ok(Value::U16(bytes.read_u16::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, context.u16be()) => Ok(Value::U16(bytes.read_u16::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, context.u32le()) => Ok(Value::U32(bytes.read_u32::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, context.u32be()) => Ok(Value::U32(bytes.read_u32::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, context.u64le()) => Ok(Value::U64(bytes.read_u64::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, context.u64be()) => Ok(Value::U64(bytes.read_u64::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, context.s8()) => Ok(Value::S8(bytes.read_i8()?)),
-        _ if core::RcValue::term_eq(ty, context.s16le()) => Ok(Value::S16(bytes.read_i16::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, context.s16be()) => Ok(Value::S16(bytes.read_i16::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, context.s32le()) => Ok(Value::S32(bytes.read_i32::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, context.s32be()) => Ok(Value::S32(bytes.read_i32::<Be>()?)),
-        _ if core::RcValue::term_eq(ty, context.s64le()) => Ok(Value::S64(bytes.read_i64::<Le>()?)),
-        _ if core::RcValue::term_eq(ty, context.s64be()) => Ok(Value::S64(bytes.read_i64::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.u8()) => Ok(Value::int(bytes.read_u8()?)),
+        _ if core::RcValue::term_eq(ty, context.u16le()) => Ok(Value::int(bytes.read_u16::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.u16be()) => Ok(Value::int(bytes.read_u16::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.u32le()) => Ok(Value::int(bytes.read_u32::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.u32be()) => Ok(Value::int(bytes.read_u32::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.u64le()) => Ok(Value::int(bytes.read_u64::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.u64be()) => Ok(Value::int(bytes.read_u64::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.s8()) => Ok(Value::int(bytes.read_i8()?)),
+        _ if core::RcValue::term_eq(ty, context.s16le()) => Ok(Value::int(bytes.read_i16::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.s16be()) => Ok(Value::int(bytes.read_i16::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.s32le()) => Ok(Value::int(bytes.read_i32::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.s32be()) => Ok(Value::int(bytes.read_i32::<Be>()?)),
+        _ if core::RcValue::term_eq(ty, context.s64le()) => Ok(Value::int(bytes.read_i64::<Le>()?)),
+        _ if core::RcValue::term_eq(ty, context.s64be()) => Ok(Value::int(bytes.read_i64::<Be>()?)),
         _ if core::RcValue::term_eq(ty, context.f32le()) => Ok(Value::F32(bytes.read_f32::<Le>()?)),
         _ if core::RcValue::term_eq(ty, context.f32be()) => Ok(Value::F32(bytes.read_f32::<Be>()?)),
         _ if core::RcValue::term_eq(ty, context.f64le()) => Ok(Value::F64(bytes.read_f64::<Le>()?)),
@@ -334,6 +357,18 @@ where
                 return Ok(Value::Array(
                     (0..len.to_usize().unwrap()) // FIXME
                         .map(|_| parse_term(context, pending, elem_ty, bytes))
+                        .collect::<Result<_, _>>()?,
+                ));
+            }
+
+            // Make arrays
+            if let Some((len, _elem_ty, fun)) = context.compute_array(ty) {
+                return Ok(Value::Array(
+                    (0..len.to_usize().unwrap()) // FIXME
+                        .map(|i| Value::try_from_core_value(&nf_term(context, &core::RcTerm::from(core::Term::App(
+                            core::RcTerm::from(core::Term::from(&**fun)),
+                            core::RcTerm::from(core::Term::Literal(core::Literal::Int(i.into(), IntFormat::Dec))),
+                        )))?))
                         .collect::<Result<_, _>>()?,
                 ));
             }
