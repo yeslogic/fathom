@@ -59,12 +59,12 @@ fn silly_root() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Silly"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
-                (label("len"), Value::U16(3)),
+                (label("len"), Value::int(3)),
                 (
                     label("data"),
-                    Value::Array(vec![Value::U32(1), Value::U32(3), Value::U32(6)]),
+                    Value::Array(vec![Value::int(1), Value::int(3), Value::int(6)]),
                 ),
             ]),
         },
@@ -143,22 +143,22 @@ fn pos() {
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(0)),
                 (
                     label("data"),
                     Value::Array(vec![
                         Value::Struct(vec![
-                            (label("pad"), Value::U32(0)),
+                            (label("pad"), Value::int(0)),
                             (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 1)),
                         ]),
                         Value::Struct(vec![
-                            (label("pad"), Value::U32(0)),
+                            (label("pad"), Value::int(0)),
                             (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 2)),
                         ]),
                         Value::Struct(vec![
-                            (label("pad"), Value::U32(0)),
+                            (label("pad"), Value::int(0)),
                             (label("end"), Value::Pos(mem::size_of::<u32>() as u64 * 3)),
                         ]),
                     ]),
@@ -207,9 +207,9 @@ fn offset() {
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
-                (label("magic"), Value::U32(0x123)),
+                (label("magic"), Value::int(0x123)),
                 (
                     label("data_start"),
                     Value::Pos(mem::size_of::<u32>() as u64)
@@ -223,9 +223,9 @@ fn offset() {
                     ]),
                 ),
             ]),
-            (mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 0 => Value::U8(25),
-            (mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 1 => Value::U8(30),
-            (mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 2 => Value::U8(35),
+            (mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 0 => Value::int(25),
+            (mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 1 => Value::int(30),
+            (mem::size_of::<u32>() + mem::size_of::<[u16; 3]>()) as u64 + 2 => Value::int(35),
         },
     );
 }
@@ -264,13 +264,13 @@ fn offset_same_pos() {
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(0)),
                 (label("offset1"), Value::Pos(mem::size_of::<[u16; 2]>() as u64)),
                 (label("offset2"), Value::Pos(mem::size_of::<[u16; 2]>() as u64)),
             ]),
-            mem::size_of::<[u16; 2]>() as u64 => Value::U8(25),
+            mem::size_of::<[u16; 2]>() as u64 => Value::int(25),
         },
     );
 }
@@ -316,7 +316,7 @@ fn offset_same_pos_different_tys() {
 }
 
 #[test]
-fn offset_pos() {
+fn link() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
     let desugar_env = DesugarEnv::new(context.mappings());
@@ -332,9 +332,9 @@ fn offset_pos() {
             offset1 : U16Be,
             offset2 : U16Be,
 
-            pos0 : OffsetPos start offset0 U8,
-            pos1 : OffsetPos start offset1 U8,
-            pos2 : OffsetPos start offset2 U8,
+            pos0 : Link start offset0 U8,
+            pos1 : Link start offset1 U8,
+            pos2 : Link start offset2 U8,
         };
     "#;
 
@@ -369,28 +369,28 @@ fn offset_pos() {
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
-                (label("magic"), Value::U32(0x123)),
+                (label("magic"), Value::int(0x123)),
 
                 (label("start"), Value::Pos(start)),
-                (label("offset0"), Value::U16(offset0)),
-                (label("offset1"), Value::U16(offset1)),
-                (label("offset2"), Value::U16(offset2)),
+                (label("offset0"), Value::int(offset0)),
+                (label("offset1"), Value::int(offset1)),
+                (label("offset2"), Value::int(offset2)),
 
                 (label("pos0"), Value::Pos(pos0)),
                 (label("pos1"), Value::Pos(pos1)),
                 (label("pos2"), Value::Pos(pos2)),
             ]),
-            pos2 => Value::U8(25),
-            pos1 => Value::U8(30),
-            pos0 => Value::U8(35),
+            pos2 => Value::int(25),
+            pos1 => Value::int(30),
+            pos0 => Value::int(35),
         },
     );
 }
 
 #[test]
-fn offset_pos_same_pos() {
+fn link_same_pos() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
     let desugar_env = DesugarEnv::new(context.mappings());
@@ -402,8 +402,8 @@ fn offset_pos_same_pos() {
             start : Pos,
             offset0 : U16Be,
             offset1 : U16Be,
-            pos0 : OffsetPos start offset0 U8,
-            pos1 : OffsetPos start offset1 U8,
+            pos0 : Link start offset0 U8,
+            pos1 : Link start offset1 U8,
         };
     "#;
 
@@ -431,21 +431,21 @@ fn offset_pos_same_pos() {
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(start)),
-                (label("offset0"), Value::U16(offset0)),
-                (label("offset1"), Value::U16(offset1)),
+                (label("offset0"), Value::int(offset0)),
+                (label("offset1"), Value::int(offset1)),
                 (label("pos0"), Value::Pos(pos0)),
                 (label("pos1"), Value::Pos(pos1)),
             ]),
-            pos0 => Value::U8(25),
+            pos0 => Value::int(25),
         },
     );
 }
 
 #[test]
-fn offset_pos_same_pos_different_tys() {
+fn link_same_pos_different_tys() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
     let desugar_env = DesugarEnv::new(context.mappings());
@@ -457,8 +457,8 @@ fn offset_pos_same_pos_different_tys() {
             start : Pos,
             offset0 : U16Be,
             offset1 : U16Be,
-            pos0 : OffsetPos start offset0 U8,
-            pos1 : OffsetPos start offset1 S8,
+            pos0 : Link start offset0 U8,
+            pos1 : Link start offset1 S8,
         };
     "#;
 
@@ -490,6 +490,61 @@ fn offset_pos_same_pos_different_tys() {
 }
 
 #[test]
+fn compute_array() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r#"
+        module test;
+
+        u32_mul : U32 -> U32 -> U32;
+        u32_mul = extern "int-mul";
+
+        index : (len : int {0 ..}) (A : Type) -> int {0 ..} -> Array len A -> A;
+        index _ _ = extern "array-index";
+
+        struct Test {
+            len : U32Be,
+            data : Array len U32Be,
+            data2 : ComputeArray len U32 (\i => u32_mul (index len U32Be i data) 2),
+        };
+    "#;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(2).unwrap(); // len
+        given_bytes.write_u32::<BigEndian>(42).unwrap(); // data[0]
+        given_bytes.write_u32::<BigEndian>(48).unwrap(); // data[1]
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = support::parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        hashmap! {
+            0 => Value::Struct(vec![
+                (label("len"), Value::int(2)),
+                (label("data"), Value::Array(vec![
+                    Value::int(42),
+                    Value::int(48),
+                ])),
+                (label("data2"), Value::Array(vec![
+                    Value::int(42 * 2),
+                    Value::int(48 * 2),
+                ])),
+            ]),
+        },
+    );
+}
+#[test]
 fn reserved() {
     let mut codemap = CodeMap::new();
     let context = Context::default();
@@ -519,7 +574,7 @@ fn reserved() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
                 (label("reserved"), Value::Struct(Vec::new())),
             ]),
@@ -561,9 +616,9 @@ fn refinement_ok() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
-                (label("value"), Value::U32(0)),
+                (label("value"), Value::int(0)),
                 (label("data"), Value::Array(vec![])),
             ]),
         },
@@ -652,11 +707,11 @@ fn union_ok() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
-                (label("format"), Value::U32(2)),
-                (label("data1"), Value::U32(42)),
-                (label("data2"), Value::U32(43)),
+                (label("format"), Value::int(2)),
+                (label("data1"), Value::int(42)),
+                (label("data2"), Value::int(43)),
             ]),
         },
     );
@@ -747,10 +802,10 @@ fn array_index() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
-                (label("lengths"), Value::Array(vec![Value::U32(3)])),
-                (label("data"), Value::Array(vec![Value::U8(42), Value::U8(43), Value::U8(44)])),
+                (label("lengths"), Value::Array(vec![Value::int(3)])),
+                (label("data"), Value::Array(vec![Value::int(42), Value::int(43), Value::int(44)])),
             ]),
         },
     );
@@ -798,13 +853,13 @@ fn parse_bitmap_nested() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
                 (
                     label("header"),
                     Value::Struct(vec![
-                        (label("width"), Value::U32(3)),
-                        (label("height"), Value::U32(2)),
+                        (label("width"), Value::int(3)),
+                        (label("height"), Value::int(2)),
                     ]),
                 ),
                 (
@@ -893,13 +948,13 @@ fn parse_bitmap_flat() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
                 (
                     label("header"),
                     Value::Struct(vec![
-                        (label("width"), Value::U32(3)),
-                        (label("height"), Value::U32(2)),
+                        (label("width"), Value::int(3)),
+                        (label("height"), Value::int(2)),
                     ]),
                 ),
                 (
@@ -971,29 +1026,29 @@ fn gif() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Gif"), &module, &mut given_bytes).unwrap(),
-        hashmap!{
+        hashmap! {
             0 => Value::Struct(vec![
                 (
                     label("header"),
                     Value::Struct(vec![
                         (
                             label("magic"),
-                            Value::Array(vec![Value::U8(71), Value::U8(73), Value::U8(70)]), // "GIF"
+                            Value::Array(vec![Value::int(71), Value::int(73), Value::int(70)]), // "GIF"
                         ),
                         (
                             label("version"),
-                            Value::Array(vec![Value::U8(56), Value::U8(55), Value::U8(97)]), // "87a"
+                            Value::Array(vec![Value::int(56), Value::int(55), Value::int(97)]), // "87a"
                         ),
                     ]),
                 ),
                 (
                     label("logical_screen"),
                     Value::Struct(vec![
-                        (label("image_width"), Value::U16(200)),
-                        (label("image_height"), Value::U16(300)),
-                        (label("flags"), Value::U8(0)),
-                        (label("bg_color_index"), Value::U8(0)),
-                        (label("pixel_aspect_ratio"), Value::U8(0)),
+                        (label("image_width"), Value::int(200)),
+                        (label("image_height"), Value::int(300)),
+                        (label("flags"), Value::int(0)),
+                        (label("bg_color_index"), Value::int(0)),
+                        (label("pixel_aspect_ratio"), Value::int(0)),
                     ]),
                 ),
             ]),

@@ -148,7 +148,7 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
         }};
     }
 
-    hashmap!{
+    hashmap! {
         "string-eq" => prim!(fn(x: String, y: String) -> bool { x == y }),
         "bool-eq" => prim!(fn(x: bool, y: bool) -> bool { x == y }),
         "char-eq" => prim!(fn(x: char, y: char) -> bool { x == y }),
@@ -283,8 +283,9 @@ pub struct Globals {
     var_offset64be: FreeVar<String>,
 
     var_array: FreeVar<String>,
+    var_compute_array: FreeVar<String>,
     var_reserved: FreeVar<String>,
-    var_offset_pos: FreeVar<String>,
+    var_link: FreeVar<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, BoundTerm)]
@@ -374,8 +375,9 @@ impl Default for Context {
         let var_offset64be = FreeVar::fresh_named("Offset64Be");
 
         let var_array = FreeVar::fresh_named("Array");
+        let var_compute_array = FreeVar::fresh_named("ComputeArray");
         let var_reserved = FreeVar::fresh_named("Reserved");
-        let var_offset_pos = FreeVar::fresh_named("OffsetPos");
+        let var_link = FreeVar::fresh_named("Link");
 
         fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcType {
             RcValue::from(Value::IntType(
@@ -437,8 +439,9 @@ impl Default for Context {
                 var_offset64be: var_offset64be.clone(),
 
                 var_array: var_array.clone(),
+                var_compute_array: var_compute_array.clone(),
                 var_reserved: var_reserved.clone(),
-                var_offset_pos: var_offset_pos.clone(),
+                var_link: var_link.clone(),
             }),
             extern_definitions: default_extern_definitions(),
             declarations: HashMap::new(),
@@ -470,13 +473,17 @@ impl Default for Context {
         let ty_s16 = RcTerm::from(Term::from(&*context.globals.ty_s16.clone()));
         let ty_s32 = RcTerm::from(Term::from(&*context.globals.ty_s32.clone()));
         let ty_s64 = RcTerm::from(Term::from(&*context.globals.ty_s64.clone()));
-        let offset_ty_old = RcValue::from(Value::Pi(Scope::new(
+
+        // OffsetX : Pos -> Type
+        let offset_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(pos_ty.clone())),
             RcValue::from(Value::Pi(Scope::new(
                 (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
                 universe0.clone(),
             ))),
         )));
+
+        // Array : int {0 ..} -> Type -> Type
         let array_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty.clone())),
             RcValue::from(Value::Pi(Scope::new(
@@ -484,11 +491,15 @@ impl Default for Context {
                 universe0.clone(),
             ))),
         )));
+
+        // Reserved : Type -> Type
         let reserved_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
             universe0.clone(),
         )));
-        let offset_pos_ty = RcValue::from(Value::Pi(Scope::new(
+
+        // Link : Pos -> int {0 ..} -> Type -> Type
+        let link_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(pos_ty.clone())),
             RcValue::from(Value::Pi(Scope::new(
                 (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty.clone())),
@@ -498,6 +509,30 @@ impl Default for Context {
                 ))),
             ))),
         )));
+
+        // TODO: compute_array : (len : int {0 ..}) (A : Type) -> (int {0 .. len} -> A) -> Array len A
+
+        // GenArray : int {0 ..} -> (A : Type) -> (int {0 ..} -> A) -> Type
+        let compute_array_ty = {
+            let var_a = FreeVar::fresh_named("A");
+
+            // int {0 .. len} -> A
+            let gen_ty = RcValue::from(Value::Pi(Scope::new(
+                (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty.clone())),
+                RcValue::from(Value::var(Var::Free(var_a.clone()))),
+            )));
+
+            RcValue::from(Value::Pi(Scope::new(
+                (Binder(var_a.clone()), Embed(nat_ty.clone())),
+                RcValue::from(Value::Pi(Scope::new(
+                    (Binder(var_a.clone()), Embed(universe0.clone())),
+                    RcValue::from(Value::Pi(Scope::new(
+                        (Binder(FreeVar::fresh_unnamed()), Embed(gen_ty)),
+                        universe0.clone(),
+                    ))),
+                ))),
+            )))
+        };
 
         context.insert_declaration(var_true.clone(), bool_ty.clone());
         context.insert_declaration(var_false.clone(), bool_ty.clone());
@@ -545,17 +580,18 @@ impl Default for Context {
         context.insert_declaration(var_f32be, universe0.clone());
         context.insert_declaration(var_f64be, universe0.clone());
 
-        context.insert_declaration(var_offset8, offset_ty_old.clone());
-        context.insert_declaration(var_offset16le, offset_ty_old.clone());
-        context.insert_declaration(var_offset32le, offset_ty_old.clone());
-        context.insert_declaration(var_offset64le, offset_ty_old.clone());
-        context.insert_declaration(var_offset16be, offset_ty_old.clone());
-        context.insert_declaration(var_offset32be, offset_ty_old.clone());
-        context.insert_declaration(var_offset64be, offset_ty_old.clone());
+        context.insert_declaration(var_offset8, offset_ty.clone());
+        context.insert_declaration(var_offset16le, offset_ty.clone());
+        context.insert_declaration(var_offset32le, offset_ty.clone());
+        context.insert_declaration(var_offset64le, offset_ty.clone());
+        context.insert_declaration(var_offset16be, offset_ty.clone());
+        context.insert_declaration(var_offset32be, offset_ty.clone());
+        context.insert_declaration(var_offset64be, offset_ty.clone());
 
         context.insert_declaration(var_array, array_ty);
+        context.insert_declaration(var_compute_array, compute_array_ty);
         context.insert_declaration(var_reserved, reserved_ty);
-        context.insert_declaration(var_offset_pos, offset_pos_ty);
+        context.insert_declaration(var_link, link_ty);
 
         context.insert_declaration(var_unit_ty.clone(), universe0.clone());
         context.insert_definition(var_unit_ty, ty_unit_def);
@@ -760,6 +796,16 @@ impl Context {
         })
     }
 
+    pub fn compute_array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType, &'a RcValue)> {
+        free_var_app(&self.globals.var_compute_array, ty).and_then(|spine| match spine {
+            &[ref len, ref elem_ty, ref fun] => match **len {
+                Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty, fun)),
+                _ => None,
+            },
+            _ => None,
+        })
+    }
+
     pub fn reserved<'a>(&self, ty: &'a RcType) -> Option<&'a RcValue> {
         free_var_app(&self.globals.var_reserved, ty).and_then(|spine| match spine {
             &[ref elem_ty] => Some(elem_ty),
@@ -767,8 +813,8 @@ impl Context {
         })
     }
 
-    pub fn offset_pos<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a BigInt, &'a RcType)> {
-        free_var_app(&self.globals.var_offset_pos, ty).and_then(|spine| match spine {
+    pub fn link<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a BigInt, &'a RcType)> {
+        free_var_app(&self.globals.var_link, ty).and_then(|spine| match spine {
             &[ref pos, ref len, ref elem_ty] => match (&**pos, &**len) {
                 (&Value::Literal(Literal::Pos(pos)), &Value::Literal(Literal::Int(ref len, _))) => {
                     Some((pos, len, elem_ty))

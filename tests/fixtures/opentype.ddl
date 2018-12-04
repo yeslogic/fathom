@@ -128,7 +128,7 @@ struct OffsetTableRecord (file_start : Pos) {
     /// Length of this table
     length : U32Be,
     /// The computed position of this table
-    pos : OffsetPos file_start offset (FontTable tag length)
+    pos : Link file_start offset (FontTable tag length)
 };
 
 
@@ -1367,7 +1367,7 @@ struct LangTagRecord (naming_start : Pos) (storage_offset : U16) {
     /// Language-tag string
     // TODO: Array->String
     // TODO: Operators
-    name_pos : OffsetPos naming_start (nat_add storage_offset offset) (Array length U8),
+    name_pos : Link naming_start (nat_add storage_offset offset) (Array length U8),
 };
 
 
@@ -1393,7 +1393,7 @@ struct NameRecord (naming_start : Pos) (storage_offset : U16) {
     /// The computed position of the name
     // TODO: Array->String
     // TODO: Operators
-    name_pos : OffsetPos naming_start (nat_add storage_offset offset) (Array length U8),
+    name_pos : Link naming_start (nat_add storage_offset offset) (Array length U8),
 };
 
 
@@ -1955,7 +1955,7 @@ struct SvgDocumentRecord (svg_document_list_start : Pos) {
     svg_doc_length : U32Be,
 
     /// The SVG document
-    svg_doc : OffsetPos svg_document_list_start svg_doc_offset (Array svg_doc_length U8),
+    svg_doc : Link svg_document_list_start svg_doc_offset (Array svg_doc_length U8),
 };
 
 
@@ -3804,9 +3804,9 @@ struct Color0 {
     num_layer_records : U16Be,
 
     /// The base glyph records
-    base_glyph_records : OffsetPos start base_glyph_records_offset (Array num_base_glyph_records BaseGlyphRecord),
+    base_glyph_records : Link start base_glyph_records_offset (Array num_base_glyph_records BaseGlyphRecord),
     /// The layer records
-    layer_records : OffsetPos start layer_records_offset (Array num_layer_records LayerRecord),
+    layer_records : Link start layer_records_offset (Array num_layer_records LayerRecord),
 };
 
 struct BaseGlyphRecord {
@@ -3864,7 +3864,7 @@ struct ColorPalette0 {
     color_record_indices : Array num_palettes U16Be,
 
     /// Color records for all palettes
-    color_records : OffsetPos start offset_first_color_record (Array num_color_records ColorRecord),
+    color_records : Link start offset_first_color_record (Array num_color_records ColorRecord),
 };
 
 struct ColorPalette1 {
@@ -3894,20 +3894,20 @@ struct ColorPalette1 {
     offset_palette_entry_label_array : U32Be,
 
     /// Color records for all palettes
-    color_records : OffsetPos start offset_first_color_record (Array num_color_records ColorRecord),
+    color_records : Link start offset_first_color_record (Array num_color_records ColorRecord),
     /// Array of 32-bit flag fields that describe properties of each palette.
     /// See below for details.
-    palette_types : OffsetPos start offset_palette_type_array (Array num_palettes U32Be), // TODO: enumerations
+    palette_types : Link start offset_palette_type_array (Array num_palettes U32Be), // TODO: enumerations
     /// Array of 'name' table IDs (typically in the font-specific name ID range)
     /// that specify user interface strings associated with each palette. Use
     /// 0xFFFF if no name ID is provided for a particular palette.
-    palette_labels : OffsetPos start offset_palette_label_array (Array num_palettes U16Be),
+    palette_labels : Link start offset_palette_label_array (Array num_palettes U16Be),
     /// Array of 'name' table IDs (typically in the font-specific name ID range)
     /// that specify user interface strings associated with each palette entry,
     /// e.g. “Outline”, “Fill”. This set of palette entry labels applies to all
     /// palettes in the font. Use 0xFFFF if no name ID is provided for a
     /// particular palette entry.
-    palette_entry_labels : OffsetPos start offset_palette_entry_label_array (Array num_palette_entries U16Be),
+    palette_entry_labels : Link start offset_palette_entry_label_array (Array num_palette_entries U16Be),
 };
 
 struct ColorRecord {
@@ -4256,7 +4256,7 @@ struct DataMap (metadata_start : Pos) {
     /// Length of the data, in bytes. The data is not required to be padded to any byte boundary.
     data_length : U32Be,
     /// The metadata information for this tag
-    data_pos : OffsetPos metadata_start data_offset (MetadataInfo tag data_length),
+    data_pos : Link metadata_start data_offset (MetadataInfo tag data_length),
 };
 
 /// Metadata information
