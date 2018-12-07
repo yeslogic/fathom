@@ -1,11 +1,12 @@
 use im::HashMap;
-use moniker::{Binder, FreeVar, Var};
+use moniker::{Binder, FreeVar};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use std::fmt;
 use std::rc::Rc;
 
-use syntax::core::{self, Literal, RcType, RcValue, Spine, Value};
+use semantics::InternalError;
+use syntax::core::{self, Literal, RcTerm, RcType, RcValue, Term, Value};
 use syntax::translation::ResugarEnv;
 use syntax::{FloatFormat, IntFormat};
 
@@ -42,59 +43,59 @@ impl_into_value!(f32, F32, FloatFormat::Dec);
 impl_into_value!(f64, F64, FloatFormat::Dec);
 
 trait TryFromValueRef {
-    fn try_from_value_ref(src: &Value) -> Result<&Self, ()>;
+    fn try_from_value_ref(src: &Value) -> Result<&Self, InternalError>;
 }
 
 impl TryFromValueRef for String {
-    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, InternalError> {
         match *src {
             Value::Literal(Literal::String(ref val)) => Ok(val),
-            _ => Err(()),
+            _ => unimplemented!("type error"), // TODO
         }
     }
 }
 
 impl TryFromValueRef for char {
-    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, InternalError> {
         match *src {
             Value::Literal(Literal::Char(ref val)) => Ok(val),
-            _ => Err(()),
+            _ => unimplemented!("type error"), // TODO
         }
     }
 }
 
 impl TryFromValueRef for bool {
-    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, InternalError> {
         match *src {
             Value::Literal(Literal::Bool(ref val)) => Ok(val),
-            _ => Err(()),
+            _ => unimplemented!("type error"), // TODO
         }
     }
 }
 
 impl TryFromValueRef for BigInt {
-    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, InternalError> {
         match *src {
             Value::Literal(Literal::Int(ref val, _)) => Ok(val),
-            _ => Err(()),
+            _ => unimplemented!("type error"), // TODO
         }
     }
 }
 
 impl TryFromValueRef for f32 {
-    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, InternalError> {
         match *src {
             Value::Literal(Literal::F32(ref val, _)) => Ok(val),
-            _ => Err(()),
+            _ => unimplemented!("type error"), // TODO
         }
     }
 }
 
 impl TryFromValueRef for f64 {
-    fn try_from_value_ref(src: &Value) -> Result<&Self, ()> {
+    fn try_from_value_ref(src: &Value) -> Result<&Self, InternalError> {
         match *src {
             Value::Literal(Literal::F64(ref val, _)) => Ok(val),
-            _ => Err(()),
+            _ => unimplemented!("type error"), // TODO
         }
     }
 }
@@ -102,50 +103,142 @@ impl TryFromValueRef for f64 {
 /// External functions
 #[derive(Clone)]
 pub struct Extern {
-    /// The number of arguments to pass to the primitive during normalization
-    pub arity: usize,
     /// The primitive definition to be used during normalization
-    // TODO: Return a `Result` with better errors
-    pub interpretation: fn(Spine) -> Result<RcValue, ()>,
+    // FIXME: Closures should capture an environment, rather than us passing in a context here
+    pub interpretation:
+        for<'a> fn(&'a Context, &'a [RcValue]) -> Result<Option<RcValue>, InternalError>,
 }
 
 impl fmt::Debug for Extern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Extern")
-            .field("arity", &self.arity)
-            .field("interpretation", &"|params| { .. }")
+            .field("interpretation", &"|context, params| { .. }")
             .finish()
     }
 }
 
 fn default_extern_definitions() -> HashMap<&'static str, Extern> {
-    /// Boilerplate macro for counting the number of supplied token trees
-    macro_rules! count {
-        () => (0_usize);
-        ( $x:tt $($xs:tt)* ) => (1_usize + count!($($xs)*));
-    }
-
     /// Define a primitive function
     macro_rules! prim {
         (fn($($param_name:ident : $PType:ty),*) -> $RType:ty $body:block) => {{
-            fn interpretation(params: Spine) -> Result<RcValue, ()> {
-                if params.len() == count!($($param_name)*) {
-                    let mut arg_index = 0;
-                    $(
-                        arg_index += 1;
-                        let $param_name = <$PType>::try_from_value_ref(&params[arg_index - 1])?;
-                    )*
-                    Ok(<$RType>::into_value($body))
-                } else {
-                    Err(()) // TODO: Better errors
+            fn interpretation(_: &Context, params: &[RcValue]) -> Result<Option<RcValue>, InternalError> {
+                match params {
+                    [$(ref $param_name),*] if $($param_name.is_nf())&&* => {
+                        $(let $param_name = <$PType>::try_from_value_ref($param_name)?;)*
+                        Ok(Some(<$RType>::into_value($body)))
+                    }
+                    _ => Ok(None),
                 }
             }
 
             Extern {
-                arity: count!($($param_name)*),
                 interpretation,
             }
         }};
+    }
+
+    fn array_index(_: &Context, params: &[RcValue]) -> Result<Option<RcValue>, InternalError> {
+        match params {
+            [ref index, ref elems] if index.is_nf() && elems.is_nf() => match *elems.inner {
+                Value::Array(ref elems) => {
+                    let index = BigInt::try_from_value_ref(index)?;
+                    Ok(Some(elems[index.to_usize().unwrap()].clone()))
+                },
+                _ => unimplemented!("type error"), // TODO
+            },
+            _ => Ok(None),
+        }
+    }
+
+    fn array_map(context: &Context, params: &[RcValue]) -> Result<Option<RcValue>, InternalError> {
+        match params {
+            [ref f, ref elems] if elems.is_nf() => match *elems.inner {
+                Value::Array(ref elems) => {
+                    let elems = elems
+                        .iter()
+                        .map(|elem| {
+                            super::nf_term(
+                                context,
+                                &RcTerm::from(Term::App(
+                                    RcTerm::from(Term::from(&**f)),
+                                    RcTerm::from(Term::from(&**elem)),
+                                )),
+                            )
+                        })
+                        .collect::<Result<_, InternalError>>()?;
+
+                    Ok(Some(RcValue::from(Value::Array(elems))))
+                },
+                _ => unimplemented!("type error"), // TODO
+            },
+            _ => Ok(None),
+        }
+    }
+
+    fn array_find_map(
+        context: &Context,
+        params: &[RcValue],
+    ) -> Result<Option<RcValue>, InternalError> {
+        match params {
+            [ref f, ref elems] if elems.is_nf() => match *elems.inner {
+                Value::Array(ref elems) => {
+                    for elem in elems {
+                        let result = super::nf_term(
+                            context,
+                            &RcTerm::from(Term::App(
+                                RcTerm::from(Term::from(&**f)),
+                                RcTerm::from(Term::from(&**elem)),
+                            )),
+                        )?;
+
+                        if let Some((_, value)) = context.some(&result) {
+                            return Ok(Some(value.clone()));
+                        }
+                    }
+
+                    unimplemented!("no match found"); // TODO
+                },
+                _ => unimplemented!("type error"), // TODO
+            },
+            _ => Ok(None),
+        }
+    }
+
+    fn array_eq(context: &Context, params: &[RcValue]) -> Result<Option<RcValue>, InternalError> {
+        match params {
+            [ref pred, ref elems1, ref elems2] if elems1.is_nf() && elems2.is_nf() => {
+                match (&*elems1.inner, &*elems2.inner) {
+                    (&Value::Array(ref elems1), &Value::Array(ref elems2)) => {
+                        if elems1.len() != elems2.len() {
+                            return Ok(Some(RcValue::from(Value::Literal(Literal::Bool(false)))));
+                        }
+
+                        for (elem1, elem2) in Iterator::zip(elems1.iter(), elems2.iter()) {
+                            let value = super::nf_term(
+                                context,
+                                &RcTerm::from(Term::App(
+                                    RcTerm::from(Term::App(
+                                        RcTerm::from(Term::from(&**pred)),
+                                        RcTerm::from(Term::from(&**elem1)),
+                                    )),
+                                    RcTerm::from(Term::from(&**elem2)),
+                                )),
+                            )?;
+
+                            match *value.inner {
+                                Value::Literal(Literal::Bool(true)) => {},
+                                Value::Literal(Literal::Bool(false)) => return Ok(Some(value)),
+                                _ => unimplemented!("type error"), // TODO
+                            }
+                        }
+
+                        Ok(Some(RcValue::from(Value::Literal(Literal::Bool(true)))))
+                    },
+                    _ => unimplemented!("type error"), // TODO
+                }
+            },
+            _ => Ok(None),
+        }
     }
 
     hashmap! {
@@ -215,25 +308,10 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
 
         "string-append" => prim!(fn(x: String, y: String) -> String { x.clone() + y }), // FIXME: Clone
 
-        "array-index" => {
-            fn interpretation(params: Spine) -> Result<RcValue, ()> {
-                match params.as_slice() {
-                    [ref index, ref elems] if elems.is_nf() && index.is_nf() => {
-                        let index = BigInt::try_from_value_ref(index)?;
-                        match *elems.inner {
-                            Value::Array(ref elems) => Ok(elems[index.to_usize().unwrap()].clone()),
-                            _ => Err(()),
-                        }
-                    }
-                    _ => Err(()),
-                }
-            }
-
-            Extern {
-                arity: 2,
-                interpretation,
-            }
-        }
+        "array-index" => Extern { interpretation: array_index },
+        "array-map" => Extern { interpretation: array_map },
+        "array-find-map" => Extern { interpretation: array_find_map },
+        "array-eq" => Extern { interpretation: array_eq },
     }
 }
 
@@ -283,9 +361,13 @@ pub struct Globals {
     var_offset64be: FreeVar<String>,
 
     var_array: FreeVar<String>,
+    var_compute: FreeVar<String>,
     var_compute_array: FreeVar<String>,
     var_reserved: FreeVar<String>,
     var_link: FreeVar<String>,
+    var_option: FreeVar<String>,
+    var_some: FreeVar<String>,
+    var_none: FreeVar<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, BoundTerm)]
@@ -322,11 +404,11 @@ pub struct Context {
 
 impl Default for Context {
     fn default() -> Context {
-        use moniker::{Embed, Nest, Scope};
+        use moniker::{Embed, Nest, Scope, Var};
         use num_bigint::BigInt;
         use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
-        use syntax::core::{RcTerm, Term};
+        use syntax::core::{Head, Neutral, RcNeutral, RcTerm, Term};
 
         let var_bool = FreeVar::fresh_named("Bool");
         let var_true = FreeVar::fresh_named("true");
@@ -375,9 +457,13 @@ impl Default for Context {
         let var_offset64be = FreeVar::fresh_named("Offset64Be");
 
         let var_array = FreeVar::fresh_named("Array");
+        let var_compute = FreeVar::fresh_named("Compute");
         let var_compute_array = FreeVar::fresh_named("ComputeArray");
         let var_reserved = FreeVar::fresh_named("Reserved");
         let var_link = FreeVar::fresh_named("Link");
+        let var_option = FreeVar::fresh_named("Option");
+        let var_some = FreeVar::fresh_named("some");
+        let var_none = FreeVar::fresh_named("none");
 
         fn int_ty<T: Into<BigInt>>(min: T, max: T) -> RcType {
             RcValue::from(Value::IntType(
@@ -439,9 +525,13 @@ impl Default for Context {
                 var_offset64be: var_offset64be.clone(),
 
                 var_array: var_array.clone(),
+                var_compute: var_compute.clone(),
                 var_compute_array: var_compute_array.clone(),
                 var_reserved: var_reserved.clone(),
                 var_link: var_link.clone(),
+                var_option: var_option.clone(),
+                var_some: var_some.clone(),
+                var_none: var_none.clone(),
             }),
             extern_definitions: default_extern_definitions(),
             declarations: HashMap::new(),
@@ -510,9 +600,28 @@ impl Default for Context {
             ))),
         )));
 
-        // TODO: compute_array : (len : int {0 ..}) (A : Type) -> (int {0 .. len} -> A) -> Array len A
+        // Compute : (A : Type) -> (Unit -> A) -> Type
+        let compute_ty = {
+            let var_a = FreeVar::fresh_named("A");
 
-        // GenArray : int {0 ..} -> (A : Type) -> (int {0 ..} -> A) -> Type
+            // Unit -> A
+            let fun_ty = RcValue::from(Value::Pi(Scope::new(
+                (Binder(FreeVar::fresh_unnamed()), Embed(ty_unit.clone())),
+                RcValue::from(Value::var(Var::Free(var_a.clone()))),
+            )));
+
+            RcValue::from(Value::Pi(Scope::new(
+                (Binder(var_a.clone()), Embed(universe0.clone())),
+                RcValue::from(Value::Pi(Scope::new(
+                    (Binder(FreeVar::fresh_unnamed()), Embed(fun_ty)),
+                    universe0.clone(),
+                ))),
+            )))
+        };
+
+        // TODO: gen_array : (len : int {0 ..}) (A : Type) -> (int {0 .. len} -> A) -> Array len A
+
+        // ComputeArray : int {0 ..} -> (A : Type) -> (int {0 ..} -> A) -> Type
         let compute_array_ty = {
             let var_a = FreeVar::fresh_named("A");
 
@@ -523,7 +632,7 @@ impl Default for Context {
             )));
 
             RcValue::from(Value::Pi(Scope::new(
-                (Binder(var_a.clone()), Embed(nat_ty.clone())),
+                (Binder(FreeVar::fresh_unnamed()), Embed(nat_ty.clone())),
                 RcValue::from(Value::Pi(Scope::new(
                     (Binder(var_a.clone()), Embed(universe0.clone())),
                     RcValue::from(Value::Pi(Scope::new(
@@ -531,6 +640,49 @@ impl Default for Context {
                         universe0.clone(),
                     ))),
                 ))),
+            )))
+        };
+
+        // Option : Type -> Type
+        let option_ty = RcValue::from(Value::Pi(Scope::new(
+            (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
+            universe0.clone(),
+        )));
+
+        // some : (A : Type) -> A -> Option A
+        let some_ty = {
+            let var_a = FreeVar::fresh_named("A");
+            let a_ty = RcValue::from(Value::var(Var::Free(var_a.clone())));
+
+            // Option A
+            let option_a_ty = RcValue::from(Value::Neutral(RcNeutral::from(Neutral::Head(
+                Head::Var(Var::Free(var_option.clone())),
+                vec![a_ty.clone()],
+            ))));
+
+            RcValue::from(Value::Pi(Scope::new(
+                (Binder(var_a.clone()), Embed(universe0.clone())),
+                RcValue::from(Value::Pi(Scope::new(
+                    (Binder(FreeVar::fresh_unnamed()), Embed(a_ty)),
+                    option_a_ty,
+                ))),
+            )))
+        };
+
+        // none : (A : Type) -> Option A
+        let none_ty = {
+            let var_a = FreeVar::fresh_named("A");
+            let a_ty = RcValue::from(Value::var(Var::Free(var_a.clone())));
+
+            // Option A
+            let option_a_ty = RcValue::from(Value::Neutral(RcNeutral::from(Neutral::Head(
+                Head::Var(Var::Free(var_option.clone())),
+                vec![a_ty.clone()],
+            ))));
+
+            RcValue::from(Value::Pi(Scope::new(
+                (Binder(var_a.clone()), Embed(universe0.clone())),
+                option_a_ty,
             )))
         };
 
@@ -589,6 +741,7 @@ impl Default for Context {
         context.insert_declaration(var_offset64be, offset_ty.clone());
 
         context.insert_declaration(var_array, array_ty);
+        context.insert_declaration(var_compute, compute_ty);
         context.insert_declaration(var_compute_array, compute_array_ty);
         context.insert_declaration(var_reserved, reserved_ty);
         context.insert_declaration(var_link, link_ty);
@@ -597,6 +750,9 @@ impl Default for Context {
         context.insert_definition(var_unit_ty, ty_unit_def);
         context.insert_declaration(var_unit.clone(), ty_unit.clone());
         context.insert_definition(var_unit, unit_def);
+        context.insert_declaration(var_option, option_ty);
+        context.insert_declaration(var_some, some_ty);
+        context.insert_declaration(var_none, none_ty);
 
         context
     }
@@ -796,6 +952,13 @@ impl Context {
         })
     }
 
+    pub fn compute<'a>(&self, ty: &'a RcType) -> Option<(&'a RcType, &'a RcValue)> {
+        free_var_app(&self.globals.var_compute, ty).and_then(|spine| match spine {
+            &[ref elem_ty, ref fun] => Some((elem_ty, fun)),
+            _ => None,
+        })
+    }
+
     pub fn compute_array<'a>(
         &self,
         ty: &'a RcType,
@@ -824,6 +987,20 @@ impl Context {
                 },
                 _ => None,
             },
+            _ => None,
+        })
+    }
+
+    pub fn some<'a>(&self, value: &'a RcValue) -> Option<(&'a RcType, &'a RcValue)> {
+        free_var_app(&self.globals.var_some, value).and_then(|spine| match spine {
+            &[ref elem_ty, ref elem] => Some((elem_ty, elem)),
+            _ => None,
+        })
+    }
+
+    pub fn none<'a>(&self, value: &'a RcValue) -> Option<&'a RcType> {
+        free_var_app(&self.globals.var_none, value).and_then(|spine| match spine {
+            &[ref elem_ty] => Some(elem_ty),
             _ => None,
         })
     }

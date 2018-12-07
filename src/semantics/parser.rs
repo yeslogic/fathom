@@ -44,6 +44,8 @@ pub enum Value {
     Int(BigInt),
     F32(f32),
     F64(f64),
+    Bool(bool),
+    String(String),
     Struct(Vec<(Label, Value)>),
     Array(Vec<Value>),
 }
@@ -58,6 +60,10 @@ impl Value {
             core::Value::Literal(core::Literal::Int(ref value, _)) => Ok(Value::Int(value.clone())),
             core::Value::Literal(core::Literal::F32(value, _)) => Ok(Value::F32(value)),
             core::Value::Literal(core::Literal::F64(value, _)) => Ok(Value::F64(value)),
+            core::Value::Literal(core::Literal::Bool(value)) => Ok(Value::Bool(value)),
+            core::Value::Literal(core::Literal::String(ref value)) => {
+                Ok(Value::String(value.clone()))
+            },
             core::Value::Struct(ref fields) => {
                 let fields = fields
                     .iter()
@@ -91,6 +97,8 @@ impl<'a> From<&'a Value> for core::Term {
             Value::Int(ref value) => Term::Literal(Literal::Int(value.clone(), IntFormat::Dec)),
             Value::F32(value) => Term::Literal(Literal::F32(value.into(), FloatFormat::Dec)),
             Value::F64(value) => Term::Literal(Literal::F64(value.into(), FloatFormat::Dec)),
+            Value::Bool(value) => Term::Literal(Literal::Bool(value)),
+            Value::String(ref value) => Term::Literal(Literal::String(value.clone())),
             Value::Struct(ref fields) => {
                 let fields = fields
                     .iter()
@@ -361,14 +369,30 @@ where
                 ));
             }
 
+            // Computed things
+            if let Some((_elem_ty, fun)) = context.compute(ty) {
+                return Value::try_from_core_value(&nf_term(
+                    context,
+                    &core::RcTerm::from(core::Term::App(
+                        core::RcTerm::from(core::Term::from(&**fun)),
+                        core::RcTerm::from(core::Term::Struct(vec![])),
+                    )),
+                )?);
+            }
+
             // Make arrays
             if let Some((len, _elem_ty, fun)) = context.compute_array(ty) {
                 return Ok(Value::Array(
                     (0..len.to_usize().unwrap()) // FIXME
-                        .map(|i| Value::try_from_core_value(&nf_term(context, &core::RcTerm::from(core::Term::App(
-                            core::RcTerm::from(core::Term::from(&**fun)),
-                            core::RcTerm::from(core::Term::Literal(core::Literal::Int(i.into(), IntFormat::Dec))),
-                        )))?))
+                        .map(|i| Value::try_from_core_value(&nf_term(
+                            context,
+                            &core::RcTerm::from(core::Term::App(
+                                core::RcTerm::from(core::Term::from(&**fun)),
+                                core::RcTerm::from(core::Term::Literal(
+                                    core::Literal::Int(i.into(), IntFormat::Dec),
+                                )),
+                            )),
+                        )?))
                         .collect::<Result<_, _>>()?,
                 ));
             }
