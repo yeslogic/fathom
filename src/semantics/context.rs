@@ -796,7 +796,10 @@ impl Context {
         })
     }
 
-    pub fn compute_array<'a>(&self, ty: &'a RcType) -> Option<(&'a BigInt, &'a RcType, &'a RcValue)> {
+    pub fn compute_array<'a>(
+        &self,
+        ty: &'a RcType,
+    ) -> Option<(&'a BigInt, &'a RcType, &'a RcValue)> {
         free_var_app(&self.globals.var_compute_array, ty).and_then(|spine| match spine {
             &[ref len, ref elem_ty, ref fun] => match **len {
                 Value::Literal(Literal::Int(ref len, _)) => Some((len, elem_ty, fun)),

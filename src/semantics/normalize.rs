@@ -1,6 +1,8 @@
 use moniker::{Binder, Embed, FreeVar, Scope, Var};
 
-use syntax::core::{Head, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcValue, Term, Value};
+use syntax::core::{
+    Head, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcValue, Spine, Term, Value,
+};
 
 use semantics::errors::InternalError;
 use semantics::{Context, Definition};
@@ -48,9 +50,10 @@ pub fn nf_term(context: &Context, term: &RcTerm) -> Result<RcValue, InternalErro
             }),
         },
 
-        Term::Extern(ref name) => Ok(RcValue::from(Value::from(Neutral::Head(Head::Extern(
-            name.clone(),
-        ))))),
+        Term::Extern(ref name) => Ok(RcValue::from(Value::from(Neutral::Head(
+            Head::Extern(name.clone()),
+            Spine::new(),
+        )))),
 
         // E-PI
         Term::Pi(ref scope) => {
@@ -80,33 +83,51 @@ pub fn nf_term(context: &Context, term: &RcTerm) -> Result<RcValue, InternalErro
                     let ((Binder(free_var), Embed(_)), body) = scope.clone().unbind();
                     nf_term(context, &body.substs(&[(free_var, arg.clone())]))
                 },
-                Value::Neutral(ref neutral, ref spine) => {
+                Value::Neutral(ref neutral) => {
                     let arg = nf_term(context, arg)?;
-                    let mut spine = spine.clone();
 
-                    match *neutral.inner {
-                        Neutral::Head(Head::Extern(ref name)) => {
-                            spine.push(arg);
+                    Ok(RcValue::from(Value::Neutral(RcNeutral::from(
+                        match *neutral.inner {
+                            Neutral::Head(Head::Extern(ref name), ref spine) => {
+                                let mut spine = spine.clone();
+                                spine.push(arg);
 
-                            // Apply the arguments to primitive definitions if the number of
-                            // arguments matches the arity of the primitive, all aof the arguments
-                            // are fully nfd
-                            if let Some(prim) = context.get_extern_definition(name) {
-                                if prim.arity == spine.len() && spine.iter().all(|arg| arg.is_nf())
-                                {
-                                    match (prim.interpretation)(spine) {
-                                        Ok(value) => return Ok(value),
-                                        Err(()) => unimplemented!("proper error"),
+                                // Apply the arguments to primitive definitions if the number of
+                                // arguments matches the arity of the primitive, all aof the
+                                // arguments are fully nfd
+                                if let Some(prim) = context.get_extern_definition(name) {
+                                    if prim.arity == spine.len()
+                                        && spine.iter().all(|arg| arg.is_nf())
+                                    {
+                                        match (prim.interpretation)(spine) {
+                                            Ok(value) => return Ok(value),
+                                            Err(()) => unimplemented!("proper error"),
+                                        }
                                     }
                                 }
-                            }
-                        },
-                        Neutral::Head(Head::Var(_))
-                        | Neutral::Proj(_, _)
-                        | Neutral::Match(_, _) => spine.push(arg),
-                    }
 
-                    Ok(RcValue::from(Value::Neutral(neutral.clone(), spine)))
+                                Neutral::Head(Head::Extern(name.clone()), spine)
+                            },
+                            Neutral::Head(ref head, ref spine) => {
+                                let mut spine = spine.clone();
+                                spine.push(arg);
+
+                                Neutral::Head(head.clone(), spine)
+                            },
+                            Neutral::Proj(ref head, ref label, ref spine) => {
+                                let mut spine = spine.clone();
+                                spine.push(arg);
+
+                                Neutral::Proj(head.clone(), label.clone(), spine)
+                            },
+                            Neutral::Match(ref head, ref clauses, ref spine) => {
+                                let mut spine = spine.clone();
+                                spine.push(arg);
+
+                                Neutral::Match(head.clone(), clauses.clone(), spine)
+                            },
+                        },
+                    ))))
                 },
                 _ => Err(InternalError::ArgumentAppliedToNonFunction),
             }
@@ -134,11 +155,10 @@ pub fn nf_term(context: &Context, term: &RcTerm) -> Result<RcValue, InternalErro
         // E-PROJ
         Term::Proj(ref expr, ref label) => {
             match *nf_term(context, expr)? {
-                Value::Neutral(ref neutral, ref spine) => {
-                    return Ok(RcValue::from(Value::Neutral(
-                        RcNeutral::from(Neutral::Proj(neutral.clone(), label.clone())),
-                        spine.clone(),
-                    )));
+                Value::Neutral(ref neutral) => {
+                    return Ok(RcValue::from(Value::Neutral(RcNeutral::from(
+                        Neutral::Proj(neutral.clone(), label.clone(), Spine::new()),
+                    ))));
                 },
                 Value::Struct(ref fields) => {
                     for &(ref current_label, ref current_expr) in fields {
@@ -159,9 +179,9 @@ pub fn nf_term(context: &Context, term: &RcTerm) -> Result<RcValue, InternalErro
         Term::Match(ref head, ref clauses) => {
             let head = nf_term(context, head)?;
 
-            if let Value::Neutral(ref neutral, ref spine) = *head {
-                Ok(RcValue::from(Value::Neutral(
-                    RcNeutral::from(Neutral::Match(
+            if let Value::Neutral(ref neutral) = *head {
+                Ok(RcValue::from(Value::Neutral(RcNeutral::from(
+                    Neutral::Match(
                         neutral.clone(),
                         clauses
                             .iter()
@@ -170,9 +190,9 @@ pub fn nf_term(context: &Context, term: &RcTerm) -> Result<RcValue, InternalErro
                                 Ok(Scope::new(pattern, nf_term(context, &body)?))
                             })
                             .collect::<Result<_, _>>()?,
-                    )),
-                    spine.clone(),
-                )))
+                        Spine::new(),
+                    ),
+                ))))
             } else {
                 for clause in clauses {
                     let (pattern, body) = clause.clone().unbind();
