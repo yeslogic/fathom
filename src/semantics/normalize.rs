@@ -92,17 +92,10 @@ pub fn nf_term(context: &Context, term: &RcTerm) -> Result<RcValue, InternalErro
                                 let mut spine = spine.clone();
                                 spine.push(arg);
 
-                                // Apply the arguments to primitive definitions if the number of
-                                // arguments matches the arity of the primitive, all aof the
-                                // arguments are fully nfd
                                 if let Some(prim) = context.get_extern_definition(name) {
-                                    if prim.arity == spine.len()
-                                        && spine.iter().all(|arg| arg.is_nf())
-                                    {
-                                        match (prim.interpretation)(spine) {
-                                            Ok(value) => return Ok(value),
-                                            Err(()) => unimplemented!("proper error"),
-                                        }
+                                    match (prim.interpretation)(context, &spine)? {
+                                        Some(value) => return Ok(value),
+                                        None => {},
                                     }
                                 }
 

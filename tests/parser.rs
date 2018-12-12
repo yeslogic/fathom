@@ -544,6 +544,114 @@ fn compute_array() {
         },
     );
 }
+
+#[test]
+fn compute() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r"
+        module test;
+
+        struct Test {
+            test : Compute (int {0 ..}) (\_ => 1),
+        };
+    ";
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = support::parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        hashmap! {
+            0 => Value::Struct(vec![
+                (label("test"), Value::int(1)),
+            ]),
+        },
+    );
+}
+
+#[test]
+fn array_operations() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r#"
+        module test;
+
+        Nat : Type;
+        Nat = int {0 ..};
+
+        nat_eq : Nat -> Nat -> Bool;
+        nat_eq = extern "int-eq";
+
+        nat_mul : Nat -> Nat -> Nat;
+        nat_mul = extern "int-mul";
+
+        nat_to_string : Nat -> String;
+        nat_to_string = extern "int-to-string";
+
+        array_map : (len : Nat) (A B : Type) -> (A -> B) -> Array len A -> Array len B;
+        array_map _ _ _ = extern "array-map";
+
+        array_find_map : (len : Nat) (A B : Type) -> (A -> Option B) -> Array len A -> B;
+        array_find_map _ _ _ = extern "array-find-map";
+
+        array_eq : (len : Nat) (A : Type) -> (A -> A -> Bool) -> Array len A -> Array len A -> Bool;
+        array_eq _ _ = extern "array-eq";
+
+        struct Test {
+            test_map1 : Compute (Array 3 Nat) (\_ => array_map 3 Nat Nat (nat_mul 2) [1, 2, 3]),
+            test_map2 : Compute (Array 3 String) (\_ => array_map 3 Nat String nat_to_string [1, 2, 3]),
+            test_find_map1 : Compute String (\_ => array_find_map 3 Nat String (\x => if nat_eq x 3 { some String "three" } else { none String }) [1, 2, 3]),
+            test_eq1 : Compute Bool (\_ => array_eq 3 Nat nat_eq [1, 2, 3] [1, 2, 3]),
+            test_eq2 : Compute Bool (\_ => array_eq 3 Nat nat_eq [1, 2, 3] [1, 5, 3]),
+        };
+    "#;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = support::parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        hashmap! {
+            0 => Value::Struct(vec![
+                (label("test_map1"), Value::Array(vec![
+                    Value::int(2),
+                    Value::int(4),
+                    Value::int(6),
+                ])),
+                (label("test_map2"), Value::Array(vec![
+                    Value::String("1".to_owned()),
+                    Value::String("2".to_owned()),
+                    Value::String("3".to_owned()),
+                ])),
+                (label("test_find_map1"), Value::String("three".to_owned())),
+                (label("test_eq1"), Value::Bool(true)),
+                (label("test_eq2"), Value::Bool(false)),
+            ]),
+        },
+    );
+}
+
 #[test]
 fn reserved() {
     let mut codemap = CodeMap::new();
