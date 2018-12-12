@@ -280,7 +280,7 @@ pub enum Value {
     ///
     /// A term whose computation has stopped because of an attempt to compute an
     /// application `Head`.
-    Neutral(RcNeutral, Spine),
+    Neutral(RcNeutral),
 }
 
 impl Value {
@@ -289,7 +289,7 @@ impl Value {
     }
 
     pub fn var(var: impl Into<Var<String>>) -> Value {
-        Value::Neutral(RcNeutral::from(Neutral::var(var)), Spine::new())
+        Value::Neutral(RcNeutral::from(Neutral::var(var)))
     }
 
     pub fn substs(&self, mappings: &[(FreeVar<String>, RcTerm)]) -> RcTerm {
@@ -308,7 +308,7 @@ impl Value {
             | Value::Refinement(_)
             | Value::Struct(_)
             | Value::Array(_) => true,
-            Value::Neutral(_, _) => false,
+            Value::Neutral(_) => false,
         }
     }
 
@@ -324,7 +324,7 @@ impl Value {
             },
             Value::Struct(ref fields) => fields.iter().all(|&(_, ref term)| term.is_nf()),
             Value::Array(ref elems) => elems.iter().all(|elem| elem.is_nf()),
-            Value::Neutral(_, _) => false,
+            Value::Neutral(_) => false,
         }
     }
 
@@ -335,16 +335,16 @@ impl Value {
         }
     }
 
-    pub fn try_neutral(&self) -> Option<(&RcNeutral, &Spine)> {
+    pub fn try_neutral(&self) -> Option<&RcNeutral> {
         match *self {
-            Value::Neutral(ref neutral, ref spine) => Some((neutral, spine)),
+            Value::Neutral(ref neutral) => Some(neutral),
             _ => None,
         }
     }
 
     pub fn head_app(&self) -> Option<(&Head, &Spine)> {
-        if let Value::Neutral(ref neutral, ref spine) = *self {
-            if let Neutral::Head(ref head) = **neutral {
+        if let Value::Neutral(ref neutral) = *self {
+            if let Neutral::Head(ref head, ref spine) = **neutral {
                 return Some((head, spine));
             }
         }
@@ -415,16 +415,16 @@ pub type Spine = Vec<RcValue>;
 #[derive(Debug, Clone, PartialEq, BoundTerm)]
 pub enum Neutral {
     /// Head of an application
-    Head(Head),
+    Head(Head, Spine),
     /// Field projection
-    Proj(RcNeutral, Label),
+    Proj(RcNeutral, Label, Spine),
     /// Match expressions
-    Match(RcNeutral, Vec<Scope<RcPattern, RcValue>>),
+    Match(RcNeutral, Vec<Scope<RcPattern, RcValue>>, Spine),
 }
 
 impl Neutral {
     pub fn var(var: impl Into<Var<String>>) -> Neutral {
-        Neutral::Head(Head::Var(var.into()))
+        Neutral::Head(Head::Var(var.into()), Spine::new())
     }
 }
 
@@ -464,7 +464,7 @@ pub type RcType = RcValue;
 
 impl From<Var<String>> for Neutral {
     fn from(src: Var<String>) -> Neutral {
-        Neutral::Head(Head::Var(src))
+        Neutral::Head(Head::Var(src), Spine::new())
     }
 }
 
@@ -476,7 +476,7 @@ impl From<Var<String>> for Value {
 
 impl From<Neutral> for Value {
     fn from(src: Neutral) -> Value {
-        Value::Neutral(RcNeutral::from(src), Spine::new())
+        Value::Neutral(RcNeutral::from(src))
     }
 }
 
@@ -522,11 +522,7 @@ impl<'a> From<&'a Value> for Term {
             Value::Array(ref elems) => {
                 Term::Array(elems.iter().map(|elem| RcTerm::from(&**elem)).collect())
             },
-            Value::Neutral(ref neutral, ref spine) => {
-                spine.iter().fold(Term::from(&*neutral.inner), |acc, arg| {
-                    Term::App(RcTerm::from(acc), RcTerm::from(&**arg))
-                })
-            },
+            Value::Neutral(ref neutral) => Term::from(&*neutral.inner),
         }
     }
 }
@@ -539,20 +535,27 @@ impl<'a> From<&'a Value> for RcTerm {
 
 impl<'a> From<&'a Neutral> for Term {
     fn from(src: &'a Neutral) -> Term {
-        match *src {
-            Neutral::Head(ref head) => Term::from(head),
-            Neutral::Proj(ref expr, ref name) => Term::Proj(RcTerm::from(&**expr), name.clone()),
-            Neutral::Match(ref head, ref clauses) => Term::Match(
-                RcTerm::from(&**head),
-                clauses
+        let (head, spine) = match *src {
+            Neutral::Head(ref head, ref spine) => (Term::from(head), spine),
+            Neutral::Proj(ref expr, ref name, ref spine) => {
+                (Term::Proj(RcTerm::from(&**expr), name.clone()), spine)
+            },
+            Neutral::Match(ref head, ref clauses, ref spine) => {
+                let clauses = clauses
                     .iter()
                     .map(|clause| Scope {
                         unsafe_pattern: clause.unsafe_pattern.clone(),
                         unsafe_body: RcTerm::from(&*clause.unsafe_body),
                     })
-                    .collect(),
-            ),
-        }
+                    .collect();
+
+                (Term::Match(RcTerm::from(&**head), clauses), spine)
+            },
+        };
+
+        spine.iter().fold(head, |acc, arg| {
+            Term::App(RcTerm::from(acc), RcTerm::from(&**arg))
+        })
     }
 }
 

@@ -335,7 +335,7 @@ where
         | core::Value::Array(_) => Err(ParseError::InvalidType(ty.clone())),
 
         #[cfg_attr(rustfmt, rustfmt_skip)]
-        core::Value::Neutral(ref neutral, ref spine) => {
+        core::Value::Neutral(ref neutral) => {
             // Parse offsets
             if let Some((pos, ty)) = context.offset8(ty) { return queue_offset(pending, pos + bytes.read_u8()? as u64, ty); }
             if let Some((pos, ty)) = context.offset16le(ty) { return queue_offset(pending, pos + bytes.read_u16::<Le>()? as u64, ty); }
@@ -374,7 +374,7 @@ where
             }
 
             match **neutral {
-                core::Neutral::Head(core::Head::Var(Var::Free(ref free_var))) => {
+                core::Neutral::Head(core::Head::Var(Var::Free(ref free_var)), ref spine) => {
                     // Follow definitions
                     match context.get_definition(free_var) {
                         // FIXME: follow alias?
@@ -424,7 +424,7 @@ where
                     }
                 },
                 // Invalid parse types
-                core::Neutral::Head(_) | core::Neutral::Proj(_, _) | core::Neutral::Match(_, _) => {
+                core::Neutral::Head(..) | core::Neutral::Proj(..) | core::Neutral::Match(..) => {
                     Err(ParseError::InvalidType(ty.clone()))
                 },
             }

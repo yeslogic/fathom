@@ -96,10 +96,10 @@ mod nf_term {
                 (Binder(x.clone()), Embed(ty_arr)),
                 RcValue::from(Value::Lam(Scope::new(
                     (Binder(y.clone()), Embed(RcValue::from(Value::universe(0)))),
-                    RcValue::from(Value::Neutral(
-                        RcNeutral::from(Neutral::Head(Head::Var(Var::Free(x)))),
-                        vec![RcValue::from(Value::from(Var::Free(y)))],
-                    )),
+                    RcValue::from(Value::Neutral(RcNeutral::from(Neutral::Head(
+                        Head::Var(Var::Free(x)),
+                        vec![RcValue::from(Value::from(Var::Free(y)))]
+                    )),)),
                 ))),
             ))),
         );
@@ -128,10 +128,10 @@ mod nf_term {
                 (Binder(x.clone()), Embed(ty_arr)),
                 RcValue::from(Value::Pi(Scope::new(
                     (Binder(y.clone()), Embed(RcValue::from(Value::universe(0)))),
-                    RcValue::from(Value::Neutral(
-                        RcNeutral::from(Neutral::Head(Head::Var(Var::Free(x)))),
+                    RcValue::from(Value::Neutral(RcNeutral::from(Neutral::Head(
+                        Head::Var(Var::Free(x)),
                         vec![RcValue::from(Value::from(Var::Free(y)))],
-                    )),
+                    )),)),
                 ))),
             ))),
         );

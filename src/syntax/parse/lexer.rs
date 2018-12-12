@@ -439,7 +439,7 @@ impl<'input> Lexer<'input> {
             Some((next, '\'')) => {
                 return Err(LexerError::EmptyCharLiteral {
                     span: ByteSpan::new(start, next + ByteOffset::from_char_utf8('\'')),
-                })
+                });
             },
             Some((_, ch)) => ch,
             None => return Err(LexerError::UnexpectedE { end: start }),

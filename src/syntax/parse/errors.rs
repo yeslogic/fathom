@@ -27,8 +27,7 @@ pub enum ParseError {
     },
     #[fail(
         display = "Unexpected token {}, found, expected one of: {}.",
-        token,
-        expected
+        token, expected
     )]
     UnexpectedToken {
         span: ByteSpan,
