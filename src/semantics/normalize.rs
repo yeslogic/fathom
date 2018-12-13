@@ -36,9 +36,10 @@ pub fn nf_term(context: &Context, term: &RcTerm) -> Result<RcValue, InternalErro
         Term::Var(ref var) => match *var {
             Var::Free(ref name) => match context.get_definition(name) {
                 Some(&Definition::Alias(ref term)) => nf_term(context, term),
-                Some(&Definition::StructType(_)) | Some(&Definition::UnionType(_)) | None => {
-                    Ok(RcValue::from(Value::from(var.clone())))
-                },
+                Some(&Definition::IntersectionType(_))
+                | Some(&Definition::StructType(_))
+                | Some(&Definition::UnionType(_))
+                | None => Ok(RcValue::from(Value::from(var.clone()))),
             },
 
             // We should always be substituting bound variables with fresh
@@ -226,7 +227,9 @@ pub fn match_value(
             .get_definition(free_var)
             .and_then(|definition| match definition {
                 Definition::Alias(ref term) => Some(nf_term(context, term)),
-                Definition::StructType(_) | Definition::UnionType(_) => None,
+                Definition::IntersectionType(_)
+                | Definition::StructType(_)
+                | Definition::UnionType(_) => None,
             }) {
             Some(Ok(ref term)) if term == value => Ok(Some(vec![])),
             Some(Ok(_)) | None => Ok(None),

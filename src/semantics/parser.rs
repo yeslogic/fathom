@@ -14,6 +14,7 @@ pub enum ParseError {
     Internal(InternalError),
     BadArrayIndex(core::RcValue),
     OffsetPointedToDifferentTypes(core::RcType, core::RcType),
+    MismatchedIntersectionSize(u64, u64),
     ParametrizedStructType,
     ParametrizedUnionType,
     FailedPredicate(core::RcValue),
@@ -138,6 +139,20 @@ where
                     let term = nf_term(&context, term)?;
                     parse_term(&context, &mut pending, &term, bytes)?
                 },
+                core::Definition::IntersectionType { ref scope } => {
+                    let (params, fields_scope) = scope.clone().unbind();
+
+                    if !params.unsafe_patterns.is_empty() {
+                        // TODO: more error info?
+                        return Err(ParseError::ParametrizedStructType);
+                    }
+
+                    let (fields, ()) = fields_scope.unbind();
+                    let fields = fields.clone().unnest();
+                    let mappings = Vec::with_capacity(fields.len());
+
+                    parse_intersection(&context, &mut pending, fields, mappings, bytes)?
+                },
                 core::Definition::StructType { ref scope } => {
                     let (params, fields_scope) = scope.clone().unbind();
 
@@ -203,6 +218,9 @@ where
                 free_var.clone(),
                 match definition {
                     core::Definition::Alias { ref term, .. } => Definition::Alias(term.clone()),
+                    core::Definition::IntersectionType { ref scope, .. } => {
+                        Definition::IntersectionType(scope.clone())
+                    },
                     core::Definition::StructType { ref scope } => {
                         Definition::StructType(scope.clone())
                     },
@@ -215,6 +233,52 @@ where
     }
 
     Err(ParseError::MissingRoot(root.clone()))
+}
+
+fn parse_intersection<T>(
+    context: &Context,
+    pending: &mut PendingOffsets,
+    fields: Vec<(Label, Binder<String>, Embed<core::RcTerm>)>,
+    mut mappings: Vec<(FreeVar<String>, core::RcTerm)>,
+    bytes: &mut io::Cursor<T>,
+) -> Result<Value, ParseError>
+where
+    io::Cursor<T>: io::Read + io::Seek + Clone,
+{
+    let mut parsed_fields = Vec::with_capacity(fields.len());
+    let init_position = bytes.position();
+    let mut final_bytes = None;
+
+    for (label, binder, Embed(ann)) in fields {
+        let mut inner_bytes = bytes.clone();
+
+        let ann = nf_term(context, &ann.substs(&mappings))?;
+        let ann_value = parse_term(context, pending, &ann, &mut inner_bytes)?;
+        mappings.push((
+            binder.0.clone(),
+            core::RcTerm::from(core::Term::from(&ann_value)),
+        ));
+
+        parsed_fields.push((label, ann_value));
+
+        // FIXME: check this statically
+        let current_size = inner_bytes.position() - init_position;
+        match final_bytes {
+            None => final_bytes = Some(inner_bytes),
+            Some(ref final_bytes) => {
+                let expected_size = final_bytes.position() - init_position;
+                if expected_size != current_size {
+                    return Err(ParseError::MismatchedIntersectionSize(expected_size, current_size));
+                }
+            }
+        }
+    }
+
+    if let Some(final_bytes) = final_bytes {
+        *bytes = final_bytes;
+    }
+
+    Ok(Value::Struct(parsed_fields))
 }
 
 fn parse_struct<T>(
@@ -403,6 +467,27 @@ where
                     match context.get_definition(free_var) {
                         // FIXME: follow alias?
                         Some(&Definition::Alias(_)) => Err(ParseError::InvalidType(ty.clone())),
+                        Some(&Definition::IntersectionType(ref scope)) => {
+                            let (params, fields_scope) = scope.clone().unbind();
+                            let (fields, ()) = fields_scope.unbind();
+                            let params = params.unnest();
+                            let fields = fields.unnest();
+
+                            if params.len() != spine.len() {
+                                unimplemented!();
+                            }
+
+                            let mut mappings = Vec::with_capacity(params.len() + fields.len());
+
+                            for (&(Binder(ref free_var), _), arg) in
+                                Iterator::zip(params.iter(), spine.iter())
+                            {
+                                let arg = arg.substs(&mappings);
+                                mappings.push((free_var.clone(), arg));
+                            }
+
+                            parse_intersection(context, pending, fields, mappings, bytes)
+                        }
                         Some(&Definition::StructType(ref scope)) => {
                             let (params, fields_scope) = scope.clone().unbind();
                             let (fields, ()) = fields_scope.unbind();

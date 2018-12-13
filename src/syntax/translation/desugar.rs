@@ -415,6 +415,66 @@ fn desugar_items(
                 free_vars_to_definitions.insert(free_var, (label, definition));
             },
 
+            concrete::Item::Definition(concrete::Definition::IntersectionType {
+                span,
+                name: (start, ref name),
+                ref params,
+                ref variants,
+            }) => {
+                let binder = env.on_definition(name, globals);
+                let name_span = ByteSpan::from_offset(start, ByteOffset::from_str(name));
+
+                let scope = {
+                    let mut env = env.clone();
+
+                    let params = desugar_params(&mut env, params, globals)?;
+                    let variants = variants
+                        .iter()
+                        .map(|variant| {
+                            let (_, ref label) = variant.label;
+                            let ann = variant.ann.desugar_globals(&env, globals)?;
+                            let free_var = env.on_binding(label);
+                            Ok((Label(label.clone()), Binder(free_var), Embed(ann)))
+                        })
+                        .collect::<Result<_, _>>()?;
+
+                    Scope::new(params, Scope::new(Nest::new(variants), ()))
+                };
+
+                // FIXME: Repeated code
+                match forward_declarations.get(&name).cloned() {
+                    // This declaration was already given a definition, so this
+                    // is an error!
+                    Some(ForwardDecl::Defined(original_span)) => {
+                        return Err(DesugarError::DuplicateDefinitions {
+                            original_span,
+                            duplicate_span: name_span,
+                            name: name.clone(),
+                        });
+                    },
+                    // We found a prior declaration, so we'll use it as a basis
+                    // for checking the definition
+                    Some(ForwardDecl::Pending(_, _)) => {
+                        unimplemented!("forward struct definitions")
+                    },
+                    // No prior declaration was found
+                    None => {},
+                };
+
+                // We must not remove this from the list of pending
+                // declarations, lest we encounter another declaration or
+                // definition of the same name later on!
+                forward_declarations.insert(name, ForwardDecl::Defined(name_span));
+
+                let Binder(free_var) = binder;
+                let node = definition_graph.add_node(free_var.clone());
+                free_vars_to_nodes.insert(free_var.clone(), node);
+
+                let label = Label(name.clone());
+                let definition = raw::Definition::IntersectionType { span, scope };
+                free_vars_to_definitions.insert(free_var, (label, definition));
+            },
+
             concrete::Item::Definition(concrete::Definition::StructType {
                 span,
                 name: (start, ref name),
