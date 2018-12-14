@@ -8,8 +8,8 @@ use std::fmt;
 use std::ops;
 use std::rc::Rc;
 
-use syntax::pretty::{self, ToDoc};
-use syntax::{FloatFormat, IntFormat, Label, Level};
+use crate::syntax::pretty::{self, ToDoc};
+use crate::syntax::{FloatFormat, IntFormat, Label, Level};
 
 /// A module definition
 pub struct Module {
@@ -25,7 +25,7 @@ pub type StructType = Scope<Telescope, Scope<Nest<(Label, Binder<String>, Embed<
 
 pub type UnionType = Scope<Telescope, Vec<RcTerm>>;
 
-#[derive(Debug, Clone, PartialEq, BoundTerm)]
+#[derive(Debug, Clone, PartialEq, moniker::BoundTerm)]
 pub enum Definition {
     /// Alias definitions
     Alias { term: RcTerm, ty: RcTerm },
@@ -36,7 +36,7 @@ pub enum Definition {
 }
 
 /// Literals
-#[derive(Debug, Clone, PartialEq, PartialOrd, BoundTerm, BoundPattern)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, moniker::BoundTerm, moniker::BoundPattern)]
 pub enum Literal {
     String(ByteSpan, String),
     Char(ByteSpan, char),
@@ -61,7 +61,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, BoundPattern)]
+#[derive(Debug, Clone, PartialEq, moniker::BoundPattern)]
 pub enum Pattern {
     /// Patterns annotated with types
     Ann(RcPattern, Embed<RcTerm>),
@@ -91,7 +91,7 @@ impl fmt::Display for Pattern {
 }
 
 /// Reference counted patterns
-#[derive(Debug, Clone, PartialEq, BoundPattern)]
+#[derive(Debug, Clone, PartialEq, moniker::BoundPattern)]
 pub struct RcPattern {
     pub inner: Rc<Pattern>,
 }
@@ -122,7 +122,7 @@ impl fmt::Display for RcPattern {
 ///
 /// For now the only implicit syntax we have is holes and lambdas that lack a
 /// type annotation.
-#[derive(Debug, Clone, PartialEq, BoundTerm)]
+#[derive(Debug, Clone, PartialEq, moniker::BoundTerm)]
 pub enum Term {
     /// A term annotated with a type
     Ann(RcTerm, RcTerm),
@@ -185,7 +185,7 @@ impl fmt::Display for Term {
 }
 
 /// Reference counted terms
-#[derive(Debug, Clone, PartialEq, BoundTerm)]
+#[derive(Debug, Clone, PartialEq, moniker::BoundTerm)]
 pub struct RcTerm {
     pub inner: Rc<Term>,
 }

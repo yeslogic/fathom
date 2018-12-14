@@ -1,10 +1,10 @@
 use codespan::{ByteIndex, ByteSpan};
 use im::HashMap;
-use moniker::{Binder, BoundTerm, Embed, FreeVar, Scope, Var};
+use moniker::{BoundTerm, Binder, Embed, FreeVar, Scope, Var};
 
-use syntax::concrete;
-use syntax::core;
-use syntax::{Label, Level};
+use crate::syntax::concrete;
+use crate::syntax::core;
+use crate::syntax::{Label, Level};
 
 /// The environment used when resugaring from the core to the concrete syntax
 #[derive(Debug, Clone)]
@@ -283,9 +283,9 @@ fn resugar_pattern(
             panic!("Tried to convert a term that was not locally closed");
         },
         core::Pattern::Literal(ref literal) => {
-            use syntax::concrete::Literal::*;
-            use syntax::concrete::Pattern;
-            use syntax::concrete::Pattern::Literal;
+            use crate::syntax::concrete::Literal::*;
+            use crate::syntax::concrete::Pattern;
+            use crate::syntax::concrete::Pattern::Literal;
 
             let span = ByteSpan::default();
 
@@ -506,9 +506,9 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
             concrete::Term::IntType(ByteSpan::default(), min.map(Box::new), max.map(Box::new))
         },
         core::Term::Literal(ref literal) => {
-            use syntax::concrete::Literal::*;
-            use syntax::concrete::Term;
-            use syntax::concrete::Term::Literal;
+            use crate::syntax::concrete::Literal::*;
+            use crate::syntax::concrete::Term;
+            use crate::syntax::concrete::Term::Literal;
 
             let span = ByteSpan::default();
 
@@ -552,7 +552,7 @@ fn resugar_term(env: &ResugarEnv, term: &core::Term, prec: Prec) -> concrete::Te
             ),
         ),
         core::Term::Refinement(ref scope) => {
-            let ((binder, Embed(mut ann)), mut body) = scope.clone().unbind();
+            let ((binder, Embed(ann)), body) = scope.clone().unbind();
 
             let mut env = env.clone();
             let name = env.on_binder(&binder);

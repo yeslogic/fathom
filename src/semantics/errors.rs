@@ -5,12 +5,12 @@ use codespan_reporting::{Diagnostic, Label};
 use moniker::{Binder, FreeVar, Var};
 use num_bigint::BigInt;
 
-use syntax;
-use syntax::concrete;
-use syntax::raw;
+use crate::syntax;
+use crate::syntax::concrete;
+use crate::syntax::raw;
 
 /// An internal error. These are bugs!
-#[derive(Debug, Fail, Clone, PartialEq)]
+#[derive(Debug, failure::Fail, Clone, PartialEq)]
 pub enum InternalError {
     #[fail(display = "Unexpected bound variable: `{}`.", var)]
     UnexpectedBoundVar {
@@ -69,7 +69,7 @@ impl InternalError {
 }
 
 /// An error produced during type checking
-#[derive(Debug, Fail, Clone, PartialEq)]
+#[derive(Debug, failure::Fail, Clone, PartialEq)]
 pub enum TypeError {
     #[fail(display = "Applied an argument to a non-function type `{}`", found)]
     ArgAppliedToNonFunction {

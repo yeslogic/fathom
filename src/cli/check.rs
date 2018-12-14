@@ -3,7 +3,7 @@ use failure::Error;
 use std::path::PathBuf;
 
 /// Options for the `check` subcommand
-#[derive(Debug, StructOpt)]
+#[derive(Debug, structopt::StructOpt)]
 pub struct Opts {
     /// Files to check
     #[structopt(name = "FILE", parse(from_os_str))]
@@ -15,9 +15,9 @@ pub fn run(color: ColorChoice, opts: Opts) -> Result<(), Error> {
     use codespan::CodeMap;
     use codespan_reporting;
 
-    use semantics::{self, Context};
-    use syntax::parse;
-    use syntax::translation::{Desugar, DesugarEnv};
+    use crate::semantics::{self, Context};
+    use crate::syntax::parse;
+    use crate::syntax::translation::{Desugar, DesugarEnv};
 
     let mut codemap = CodeMap::new();
     let context = Context::default();
@@ -57,7 +57,7 @@ pub fn run(color: ColorChoice, opts: Opts) -> Result<(), Error> {
         }
     }
     if is_error {
-        Err(format_err!("encountered an error!"))
+        Err(failure::format_err!("encountered an error!"))
     } else {
         Ok(())
     }

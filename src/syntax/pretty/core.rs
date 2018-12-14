@@ -4,9 +4,9 @@ use moniker::{Binder, Embed, Var};
 use pretty::Doc;
 use std::iter;
 
-use syntax::core::{Head, Literal, Neutral, Pattern, Term, Value};
-use syntax::raw;
-use syntax::{FloatFormat, IntFormat, Label, Level};
+use crate::syntax::core::{Head, Literal, Neutral, Pattern, Term, Value};
+use crate::syntax::raw;
+use crate::syntax::{FloatFormat, IntFormat, Label, Level};
 
 use super::{parens, sexpr, StaticDoc, ToDoc};
 

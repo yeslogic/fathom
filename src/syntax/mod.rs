@@ -1,6 +1,6 @@
 //! The syntax of the language
 
-use moniker::{Binder, BoundPattern, BoundTerm, OnBoundFn, OnFreeFn, ScopeState, Var};
+use moniker::{BoundTerm, Binder, BoundPattern, OnBoundFn, OnFreeFn, ScopeState, Var};
 use std::fmt;
 
 pub mod concrete;
@@ -11,7 +11,7 @@ pub mod raw;
 pub mod translation;
 
 /// A universe level
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, BoundTerm)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, moniker::BoundTerm)]
 pub struct Level(pub u32);
 
 impl Level {
@@ -97,7 +97,7 @@ impl<N: Clone + PartialEq> BoundPattern<N> for FloatFormat {
 /// A label that describes the name of a field in a record
 ///
 /// Labels are significant when comparing for alpha-equality
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, BoundPattern, BoundTerm)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, BoundPattern, moniker::BoundTerm)]
 pub struct Label(pub String);
 
 impl From<String> for Label {

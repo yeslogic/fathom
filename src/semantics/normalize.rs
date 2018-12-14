@@ -1,11 +1,11 @@
 use moniker::{Binder, Embed, FreeVar, Scope, Var};
 
-use syntax::core::{
+use crate::syntax::core::{
     Head, Neutral, Pattern, RcNeutral, RcPattern, RcTerm, RcValue, Spine, Term, Value,
 };
 
-use semantics::errors::InternalError;
-use semantics::{Context, Definition};
+use crate::semantics::errors::InternalError;
+use crate::semantics::{Context, Definition};
 
 /// Reduce a term to its normal form
 pub fn nf_term(context: &Context, term: &RcTerm) -> Result<RcValue, InternalError> {

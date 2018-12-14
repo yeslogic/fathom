@@ -3,9 +3,9 @@ use moniker::{Binder, Embed, FreeVar, Var};
 use num_bigint::BigInt;
 use std::io;
 
-use semantics::{nf_term, Context, Definition, InternalError};
-use syntax::core;
-use syntax::Label;
+use crate::semantics::{nf_term, Context, Definition, InternalError};
+use crate::syntax::core;
+use crate::syntax::Label;
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -89,8 +89,8 @@ impl Value {
 
 impl<'a> From<&'a Value> for core::Term {
     fn from(src: &'a Value) -> core::Term {
-        use syntax::core::{Literal, RcTerm, Term};
-        use syntax::{FloatFormat, IntFormat};
+        use crate::syntax::core::{Literal, RcTerm, Term};
+        use crate::syntax::{FloatFormat, IntFormat};
 
         match *src {
             Value::Pos(value) => Term::Literal(Literal::Pos(value)),
@@ -292,7 +292,7 @@ where
     use moniker::BoundTerm;
     use num_traits::ToPrimitive;
 
-    use syntax::IntFormat;
+    use crate::syntax::IntFormat;
 
     match **ty {
         // Parse builtin types

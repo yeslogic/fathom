@@ -1,11 +1,5 @@
-extern crate codespan;
-extern crate codespan_reporting;
-extern crate ddl;
-#[macro_use]
-extern crate moniker;
-
 use codespan::CodeMap;
-use moniker::{Binder, Embed, FreeVar, Scope, Var};
+use moniker::{assert_term_eq, Binder, Embed, FreeVar, Scope, Var};
 
 use ddl::semantics::{self, Context};
 use ddl::syntax::core::{RcTerm, RcValue, Term, Value};
@@ -13,6 +7,8 @@ use ddl::syntax::core::{RcTerm, RcValue, Term, Value};
 mod support;
 
 mod nf_term {
+    use pretty_assertions::assert_eq;
+
     use ddl::syntax::core::{Head, Neutral, RcNeutral};
 
     use super::*;

@@ -4,8 +4,8 @@ use codespan::{ByteIndex, ByteOffset, ByteSpan};
 use num_bigint::BigInt;
 use std::fmt;
 
-use syntax::pretty::{self, ToDoc};
-use syntax::{FloatFormat, IntFormat};
+use crate::syntax::pretty::{self, ToDoc};
+use crate::syntax::{FloatFormat, IntFormat};
 
 /// Commands entered in the REPL
 #[derive(Debug, Clone)]

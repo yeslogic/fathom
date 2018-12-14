@@ -1,7 +1,3 @@
-extern crate codespan;
-extern crate ddl;
-extern crate moniker;
-
 use codespan::{ByteIndex, ByteSpan};
 use moniker::{Binder, Embed, FreeVar, Nest, Scope, Var};
 
@@ -17,6 +13,8 @@ fn index() -> ByteIndex {
 }
 
 mod module {
+    use pretty_assertions::assert_eq;
+
     use ddl::syntax::translation::Resugar;
 
     use super::*;
@@ -177,6 +175,8 @@ mod module {
 }
 
 mod term {
+    use pretty_assertions::assert_eq;
+
     use ddl::syntax::translation::Resugar;
 
     use super::*;

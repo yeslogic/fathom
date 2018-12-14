@@ -1,11 +1,6 @@
-extern crate codespan;
-extern crate codespan_reporting;
-extern crate ddl;
-#[macro_use]
-extern crate moniker;
-
 use codespan::{ByteIndex, ByteSpan, CodeMap};
-use moniker::{FreeVar, Var};
+use moniker::{assert_term_eq, FreeVar, Var};
+use pretty_assertions::assert_eq;
 
 use ddl::semantics::{self, Context, TypeError};
 use ddl::syntax::concrete;

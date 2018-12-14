@@ -8,12 +8,12 @@ use linefeed::{Interface, ReadResult, Signal};
 use std::path::PathBuf;
 use term_size;
 
-use semantics::{self, Context};
-use syntax::parse;
-use syntax::translation::{self, DesugarEnv};
+use crate::semantics::{self, Context};
+use crate::syntax::parse;
+use crate::syntax::translation::{self, DesugarEnv};
 
 /// Options for the `repl` subcommand
-#[derive(Debug, StructOpt)]
+#[derive(Debug, structopt::StructOpt)]
 pub struct Opts {
     /// The prompt to display before expressions
     #[structopt(long = "prompt", default_value = "DDL> ")]
@@ -157,10 +157,10 @@ fn eval_print(
 ) -> Result<ControlFlow, EvalPrintError> {
     use codespan::ByteIndex;
 
-    use semantics::Definition;
-    use syntax::concrete::{ReplCommand, Term};
-    use syntax::pretty::{self, ToDoc};
-    use syntax::translation::{Desugar, Resugar};
+    use crate::semantics::Definition;
+    use crate::syntax::concrete::{ReplCommand, Term};
+    use crate::syntax::pretty::{self, ToDoc};
+    use crate::syntax::translation::{Desugar, Resugar};
 
     fn term_width() -> usize {
         term_size::dimensions()
@@ -189,7 +189,7 @@ fn eval_print(
             println!("{}", ann_term.to_doc().group().pretty(term_width()));
         },
         ReplCommand::Core(parse_term) => {
-            use syntax::core::{RcTerm, Term};
+            use crate::syntax::core::{RcTerm, Term};
 
             let raw_term = parse_term.desugar(desugar_env)?;
             let (term, inferred) = semantics::infer_term(context, &raw_term)?;
@@ -242,7 +242,7 @@ enum ControlFlow {
     Continue,
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, failure::Fail)]
 enum EvalPrintError {
     #[fail(display = "Parse error")]
     Parse(Vec<parse::ParseError>),

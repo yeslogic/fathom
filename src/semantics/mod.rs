@@ -8,12 +8,12 @@ use codespan::ByteSpan;
 use moniker::{Binder, BoundTerm, Embed, FreeVar, Nest, Scope, Var};
 use num_traits::ToPrimitive;
 
-use syntax::core::{
+use crate::syntax::core::{
     self, Head, Literal, Module, Pattern, RcPattern, RcTerm, RcType, RcValue, Term, Type, Value,
 };
-use syntax::raw;
-use syntax::translation::Resugar;
-use syntax::{FloatFormat, IntFormat, Label, Level};
+use crate::syntax::raw;
+use crate::syntax::translation::Resugar;
+use crate::syntax::{FloatFormat, IntFormat, Label, Level};
 
 mod context;
 mod errors;
@@ -185,8 +185,8 @@ pub fn check_module(context: &Context, raw_module: &raw::Module) -> Result<Modul
 
 /// Check that `ty1` is a subtype of `ty2`
 pub fn is_subtype(context: &Context, ty1: &RcType, ty2: &RcType) -> bool {
-    use syntax::core::Literal::Int;
-    use syntax::core::Value::Literal;
+    use crate::syntax::core::Literal::Int;
+    use crate::syntax::core::Value::Literal;
 
     match (&*ty1.inner, &*ty2.inner) {
         (&Value::IntType(ref min1, ref max1), &Value::IntType(ref min2, ref max2)) => {
