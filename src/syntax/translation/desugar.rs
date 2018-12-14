@@ -3,9 +3,9 @@ use codespan_reporting::{Diagnostic, Label as DiagnosticLabel};
 use im::HashMap;
 use moniker::{Binder, Embed, FreeVar, Nest, Scope, Var};
 
-use syntax::concrete;
-use syntax::raw;
-use syntax::{Label, Level};
+use crate::syntax::concrete;
+use crate::syntax::raw;
+use crate::syntax::{Label, Level};
 
 /// The environment used when desugaring from the concrete to raw syntax
 #[derive(Debug, Clone)]
@@ -63,7 +63,7 @@ impl DesugarEnv {
 }
 
 /// An error produced during resugaring
-#[derive(Debug, Fail, Clone, PartialEq)]
+#[derive(Debug, failure::Fail, Clone, PartialEq)]
 pub enum DesugarError {
     #[fail(
         display = "Name had more than one declaration associated with it: `{}`",
@@ -279,7 +279,7 @@ fn desugar_struct(
     fields: &[concrete::StructField],
     globals: &mut DesugarGlobals,
 ) -> Result<raw::RcTerm, DesugarError> {
-    use syntax::concrete::StructField;
+    use crate::syntax::concrete::StructField;
 
     let fields = fields
         .iter()

@@ -1,9 +1,6 @@
-extern crate codespan;
-extern crate ddl;
-extern crate num_bigint;
-
 use codespan::{ByteIndex, ByteSpan};
 use codespan::{CodeMap, FileName};
+use pretty_assertions::assert_eq;
 
 use ddl::syntax::concrete;
 use ddl::syntax::parse::{self, ParseError};

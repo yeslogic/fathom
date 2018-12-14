@@ -7,6 +7,7 @@ authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
 description = "A binary data definition language"
 homepage = "https://github.com/yeslogic/ddl"
 repository = "https://github.com/yeslogic/ddl"
+edition = "2018"
 publish = false
 
 [features]

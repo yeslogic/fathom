@@ -1,16 +1,7 @@
-extern crate codespan;
-extern crate codespan_reporting;
-extern crate ddl;
-#[macro_use]
-extern crate im;
-#[macro_use]
-extern crate moniker;
-extern crate goldenfile;
-
 use codespan::{ByteSpan, CodeMap, FileName};
 use codespan_reporting::termcolor::{ColorChoice, StandardStream};
 use goldenfile::Mint;
-use moniker::{Binder, Embed, FreeVar, Scope, Var};
+use moniker::{assert_term_eq, Binder, Embed, FreeVar, Scope, Var};
 use std::io::Write;
 
 use ddl::syntax::raw::{RcTerm, Term};
@@ -78,7 +69,7 @@ mod module {
     #[test]
     fn infer_bare_definition() {
         let mut codemap = CodeMap::new();
-        let desugar_env = DesugarEnv::new(hashmap! {
+        let desugar_env = DesugarEnv::new(im::hashmap! {
             "true".to_owned() => FreeVar::fresh_named("true"),
         });
 
@@ -98,7 +89,7 @@ mod module {
     #[test]
     fn forward_declarations() {
         let mut codemap = CodeMap::new();
-        let desugar_env = DesugarEnv::new(hashmap! {
+        let desugar_env = DesugarEnv::new(im::hashmap! {
             "Bool".to_owned() => FreeVar::fresh_named("Bool"),
             "true".to_owned() => FreeVar::fresh_named("true"),
             "false".to_owned() => FreeVar::fresh_named("false"),
@@ -161,7 +152,7 @@ mod module {
     #[test]
     fn declaration_after_definition() {
         let mut codemap = CodeMap::new();
-        let desugar_env = DesugarEnv::new(hashmap! {
+        let desugar_env = DesugarEnv::new(im::hashmap! {
             "Bool".to_owned() => FreeVar::fresh_named("Bool"),
             "true".to_owned() => FreeVar::fresh_named("true"),
         });
@@ -183,7 +174,7 @@ mod module {
     #[test]
     fn duplicate_declarations() {
         let mut codemap = CodeMap::new();
-        let desugar_env = DesugarEnv::new(hashmap! {
+        let desugar_env = DesugarEnv::new(im::hashmap! {
             "Bool".to_owned() => FreeVar::fresh_named("Bool"),
             "I32".to_owned() => FreeVar::fresh_named("I32"),
         });
@@ -205,7 +196,7 @@ mod module {
     #[test]
     fn duplicate_definitions() {
         let mut codemap = CodeMap::new();
-        let desugar_env = DesugarEnv::new(hashmap! {
+        let desugar_env = DesugarEnv::new(im::hashmap! {
             "Bool".to_owned() => FreeVar::fresh_named("Bool"),
             "I32".to_owned() => FreeVar::fresh_named("I32"),
         });
@@ -227,6 +218,8 @@ mod module {
 }
 
 mod term {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     #[test]
@@ -576,7 +569,7 @@ mod term {
 
         #[test]
         fn if_then_else() {
-            let env = DesugarEnv::new(hashmap! {
+            let env = DesugarEnv::new(im::hashmap! {
                 "true".to_owned() => FreeVar::fresh_named("true"),
                 "false".to_owned() => FreeVar::fresh_named("false"),
             });
@@ -589,7 +582,7 @@ mod term {
 
         #[test]
         fn struct_field_puns() {
-            let env = DesugarEnv::new(hashmap! {
+            let env = DesugarEnv::new(im::hashmap! {
                 "x".to_owned() => FreeVar::fresh_named("x"),
                 "y".to_owned() => FreeVar::fresh_named("y"),
             });

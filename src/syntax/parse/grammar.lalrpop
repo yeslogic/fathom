@@ -3,12 +3,12 @@ use codespan::{ByteIndex, ByteSpan};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 
-use syntax::concrete::{
+use crate::syntax::concrete::{
     Definition, Exposing, Item, Literal, Module, Pattern, StructTypeField, StructField, Term,
     ReplCommand,
 };
-use syntax::parse::{LalrpopError, ParseError, Token};
-use syntax::{FloatFormat, IntFormat};
+use crate::syntax::parse::{LalrpopError, ParseError, Token};
+use crate::syntax::{FloatFormat, IntFormat};
 
 #[LALR]
 grammar<'err, 'input>(errors: &'err mut Vec<ParseError>, filemap: &'input FileMap);

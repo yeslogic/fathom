@@ -125,37 +125,8 @@
 //! - [Queries: demand-driven compilation (Rustc Book)](https://rust-lang-nursery.github.io/rustc-guide/query.html)
 //! - [Anders Hejlsberg on Modern Compiler Construction (YouTube)](https://www.youtube.com/watch?v=wSdV1M7n4gQ)
 
-extern crate byteorder;
-extern crate codespan;
-extern crate codespan_reporting;
-#[macro_use]
-extern crate failure;
-#[cfg(test)]
-extern crate goldenfile;
-#[macro_use]
-extern crate im;
-extern crate lalrpop_util;
-#[macro_use]
-extern crate moniker;
-extern crate num_bigint;
-extern crate num_traits;
-extern crate pretty;
-#[cfg(test)]
-#[macro_use]
-extern crate pretty_assertions;
-extern crate petgraph;
-extern crate unicode_xid;
-
 pub mod semantics;
 pub mod syntax;
-
-#[cfg(feature = "cli")]
-extern crate linefeed;
-#[cfg(feature = "cli")]
-#[macro_use]
-extern crate structopt;
-#[cfg(feature = "cli")]
-extern crate term_size;
 
 #[cfg(feature = "cli")]
 pub mod cli;
@@ -163,11 +134,11 @@ pub mod cli;
 use codespan::FileMap;
 use codespan_reporting::Diagnostic;
 
-use syntax::core;
+use crate::syntax::core;
 
 pub fn load_file(file: &FileMap) -> Result<core::Module, Vec<Diagnostic>> {
-    use semantics::Context;
-    use syntax::translation::{Desugar, DesugarEnv};
+    use crate::semantics::Context;
+    use crate::syntax::translation::{Desugar, DesugarEnv};
 
     let (concrete_module, errors) = syntax::parse::module(&file);
     let mut diagnostics = errors

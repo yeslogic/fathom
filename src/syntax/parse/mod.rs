@@ -3,8 +3,8 @@
 use codespan::{ByteIndex, ByteSpan, FileMap};
 use lalrpop_util::ParseError as LalrpopError;
 
-use syntax::concrete;
-use syntax::parse::lexer::Lexer;
+use crate::syntax::concrete;
+use crate::syntax::parse::lexer::Lexer;
 
 mod errors;
 mod lexer;
@@ -48,7 +48,7 @@ fn reparse_pi_type_hack<L, T>(
     binder: concrete::Term,
     body: concrete::Term,
 ) -> Result<concrete::Term, LalrpopError<L, T, ParseError>> {
-    use syntax::concrete::Term;
+    use crate::syntax::concrete::Term;
 
     fn pi_binder<L, T>(
         binder: &Term,

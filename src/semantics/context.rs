@@ -5,10 +5,10 @@ use num_traits::ToPrimitive;
 use std::fmt;
 use std::rc::Rc;
 
-use semantics::InternalError;
-use syntax::core::{self, Literal, RcTerm, RcType, RcValue, Term, Value};
-use syntax::translation::ResugarEnv;
-use syntax::{FloatFormat, IntFormat};
+use crate::semantics::InternalError;
+use crate::syntax::core::{self, Literal, RcTerm, RcType, RcValue, Term, Value};
+use crate::syntax::translation::ResugarEnv;
+use crate::syntax::{FloatFormat, IntFormat};
 
 // Some helper traits for marshalling between Rust and Pikelet values
 //
@@ -241,7 +241,7 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
         }
     }
 
-    hashmap! {
+    im::hashmap! {
         "string-eq" => prim!(fn(x: String, y: String) -> bool { x == y }),
         "bool-eq" => prim!(fn(x: bool, y: bool) -> bool { x == y }),
         "char-eq" => prim!(fn(x: char, y: char) -> bool { x == y }),
@@ -370,7 +370,7 @@ pub struct Globals {
     var_none: FreeVar<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, BoundTerm)]
+#[derive(Debug, Clone, PartialEq, moniker::BoundTerm)]
 pub enum Definition {
     Alias(core::RcTerm),
     StructType(core::StructType),
@@ -408,7 +408,7 @@ impl Default for Context {
         use num_bigint::BigInt;
         use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
-        use syntax::core::{Head, Neutral, RcNeutral, RcTerm, Term};
+        use crate::syntax::core::{Head, Neutral, RcNeutral, RcTerm, Term};
 
         let var_bool = FreeVar::fresh_named("Bool");
         let var_true = FreeVar::fresh_named("true");

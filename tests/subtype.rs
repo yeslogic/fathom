@@ -1,8 +1,3 @@
-extern crate codespan;
-extern crate codespan_reporting;
-extern crate ddl;
-extern crate moniker;
-
 use codespan::CodeMap;
 
 use ddl::semantics::{self, Context};

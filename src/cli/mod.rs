@@ -8,7 +8,7 @@ pub mod repl;
 
 // TODO: test using https://github.com/killercup/assert_cli
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, structopt::StructOpt)]
 #[structopt(name = "ddl")]
 pub struct Opts {
     /// Configure coloring of output
@@ -25,7 +25,7 @@ pub struct Opts {
     pub command: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, structopt::StructOpt)]
 pub enum Command {
     /// Check the that the given files type check
     #[structopt(name = "check")]

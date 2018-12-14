@@ -40,7 +40,7 @@ fn is_hex_digit(ch: char) -> bool {
 }
 
 /// An error that occurred while lexing the source file
-#[derive(Fail, Debug, Clone, PartialEq, Eq)]
+#[derive(failure::Fail, Debug, Clone, PartialEq, Eq)]
 pub enum LexerError {
     #[fail(display = "An unexpected character {:?} was found.", found)]
     UnexpectedCharacter { start: ByteIndex, found: char },
@@ -587,6 +587,7 @@ impl<'input> Iterator for Lexer<'input> {
 mod tests {
     use codespan::RawIndex;
     use codespan::{CodeMap, FileName};
+    use pretty_assertions::assert_eq;
 
     use super::*;
 

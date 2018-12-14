@@ -1,16 +1,9 @@
-extern crate byteorder;
-extern crate codespan;
-extern crate codespan_reporting;
-extern crate ddl;
-#[macro_use]
-extern crate im;
-extern crate moniker;
-
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use codespan::CodeMap;
 use codespan_reporting::termcolor::{ColorChoice, StandardStream};
 use std::io::{Cursor, Write};
 use std::mem;
+use pretty_assertions::assert_eq;
 
 use ddl::semantics::parser::{self, ParseError, Value};
 use ddl::semantics::{self, Context};
@@ -59,7 +52,7 @@ fn silly_root() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Silly"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("len"), Value::int(3)),
                 (
@@ -143,7 +136,7 @@ fn pos() {
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(0)),
                 (
@@ -207,7 +200,7 @@ fn offset() {
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("magic"), Value::int(0x123)),
                 (
@@ -264,7 +257,7 @@ fn offset_same_pos() {
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(0)),
                 (label("offset1"), Value::Pos(mem::size_of::<[u16; 2]>() as u64)),
@@ -369,7 +362,7 @@ fn link() {
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("magic"), Value::int(0x123)),
 
@@ -431,7 +424,7 @@ fn link_same_pos() {
 
     assert_eq!(
         parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(start)),
                 (label("offset0"), Value::int(offset0)),
@@ -529,7 +522,7 @@ fn compute_array() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("len"), Value::int(2)),
                 (label("data"), Value::Array(vec![
@@ -561,7 +554,7 @@ fn compute() {
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
     let mut given_bytes = {
-        let mut given_bytes = Vec::new();
+        let given_bytes = Vec::new();
         Cursor::new(given_bytes)
     };
 
@@ -572,7 +565,7 @@ fn compute() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("test"), Value::int(1)),
             ]),
@@ -621,7 +614,7 @@ fn array_operations() {
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
     let mut given_bytes = {
-        let mut given_bytes = Vec::new();
+        let given_bytes = Vec::new();
         Cursor::new(given_bytes)
     };
 
@@ -632,7 +625,7 @@ fn array_operations() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("test_map1"), Value::Array(vec![
                     Value::int(2),
@@ -682,7 +675,7 @@ fn reserved() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("reserved"), Value::Struct(Vec::new())),
             ]),
@@ -724,7 +717,7 @@ fn refinement_ok() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("value"), Value::int(0)),
                 (label("data"), Value::Array(vec![])),
@@ -815,7 +808,7 @@ fn union_ok() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("format"), Value::int(2)),
                 (label("data1"), Value::int(42)),
@@ -910,7 +903,7 @@ fn array_index() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (label("lengths"), Value::Array(vec![Value::int(3)])),
                 (label("data"), Value::Array(vec![Value::int(42), Value::int(43), Value::int(44)])),
@@ -961,7 +954,7 @@ fn parse_bitmap_nested() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (
                     label("header"),
@@ -1056,7 +1049,7 @@ fn parse_bitmap_flat() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (
                     label("header"),
@@ -1134,7 +1127,7 @@ fn gif() {
 
     assert_eq!(
         parser::parse_module(&context, &label("Gif"), &module, &mut given_bytes).unwrap(),
-        hashmap! {
+        im::hashmap! {
             0 => Value::Struct(vec![
                 (
                     label("header"),

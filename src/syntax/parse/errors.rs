@@ -5,9 +5,9 @@ use lalrpop_util::ParseError as LalrpopError;
 use num_bigint::BigInt;
 use std::fmt;
 
-use syntax::parse::{LexerError, Token};
+use crate::syntax::parse::{LexerError, Token};
 
-#[derive(Fail, Debug, Clone, PartialEq)]
+#[derive(failure::Fail, Debug, Clone, PartialEq)]
 pub enum ParseError {
     #[fail(display = "{}", _0)]
     Lexer(#[cause] LexerError),

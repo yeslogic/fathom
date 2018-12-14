@@ -2,11 +2,11 @@
 
 use pretty::Doc;
 
-use syntax::concrete::{
+use crate::syntax::concrete::{
     Definition, Exposing, Item, LamParamGroup, Literal, Module, Pattern, PiParamGroup, StructField,
     Term,
 };
-use syntax::{FloatFormat, IntFormat};
+use crate::syntax::{FloatFormat, IntFormat};
 
 use super::{StaticDoc, ToDoc};
 
