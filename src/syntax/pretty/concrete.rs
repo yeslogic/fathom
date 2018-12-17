@@ -92,6 +92,69 @@ impl ToDoc for Definition {
                 .append("=")
                 .append(Doc::space())
                 .append(term.to_doc().nest(INDENT_WIDTH)),
+            Definition::IntersectionType {
+                name: (_, ref name),
+                ref params,
+                ref variants,
+                ..
+            } if variants.is_empty() => Doc::text("intersection")
+                .append(Doc::space())
+                .append(Doc::as_string(name))
+                .append(Doc::space())
+                .append(Doc::concat(params.iter().map(|&(ref name, ref ann)| {
+                    Doc::text("(")
+                        .append(Doc::as_string(name))
+                        .append(Doc::space())
+                        .append(":")
+                        .append(Doc::space())
+                        .append(ann.to_doc())
+                        .append(")")
+                        .append(Doc::space())
+                })))
+                .append("{}"),
+            Definition::IntersectionType {
+                name: (_, ref name),
+                ref params,
+                ref variants,
+                ..
+            } => Doc::text("intersection")
+                .append(Doc::space())
+                .append(Doc::as_string(name))
+                .append(Doc::space())
+                .append(Doc::concat(params.iter().map(|&(ref name, ref ann)| {
+                    Doc::text("(")
+                        .append(Doc::as_string(name))
+                        .append(Doc::space())
+                        .append(":")
+                        .append(Doc::space())
+                        .append(ann.to_doc())
+                        .append(")")
+                        .append(Doc::space())
+                })))
+                .append("{")
+                .append(Doc::space())
+                .append(
+                    Doc::intersperse(
+                        variants.iter().map(|field| {
+                            Doc::as_string(&field.label.1)
+                                .append(match field.binder {
+                                    Some((_, ref binder)) => Doc::space()
+                                        .append("as")
+                                        .append(Doc::space())
+                                        .append(Doc::as_string(binder)),
+                                    None => Doc::nil(),
+                                })
+                                .append(Doc::space())
+                                .append(":")
+                                .append(Doc::space())
+                                .append(field.ann.to_doc())
+                        }),
+                        Doc::text(",").append(Doc::space()),
+                    )
+                    .nest(INDENT_WIDTH),
+                )
+                .append(Doc::space())
+                .append("}"),
             Definition::StructType {
                 name: (_, ref name),
                 ref params,

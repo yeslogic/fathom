@@ -21,6 +21,9 @@ pub struct Module {
 
 pub type Telescope = Nest<(Binder<String>, Embed<RcTerm>)>;
 
+pub type IntersectionType =
+    Scope<Telescope, Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>>;
+
 pub type StructType = Scope<Telescope, Scope<Nest<(Label, Binder<String>, Embed<RcTerm>)>, ()>>;
 
 pub type UnionType = Scope<Telescope, Vec<RcTerm>>;
@@ -29,6 +32,11 @@ pub type UnionType = Scope<Telescope, Vec<RcTerm>>;
 pub enum Definition {
     /// Alias definitions
     Alias { term: RcTerm, ty: RcTerm },
+    /// Dependent intersection types
+    IntersectionType {
+        span: ByteSpan,
+        scope: IntersectionType,
+    },
     /// Dependent struct types
     StructType { span: ByteSpan, scope: StructType },
     /// Union types

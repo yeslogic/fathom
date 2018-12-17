@@ -1,6 +1,6 @@
 //! The syntax of the language
 
-use moniker::{BoundTerm, Binder, BoundPattern, OnBoundFn, OnFreeFn, ScopeState, Var};
+use moniker::{Binder, BoundPattern, BoundTerm, OnBoundFn, OnFreeFn, ScopeState, Var};
 use std::fmt;
 
 pub mod concrete;

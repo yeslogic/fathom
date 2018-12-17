@@ -1,9 +1,9 @@
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use codespan::CodeMap;
 use codespan_reporting::termcolor::{ColorChoice, StandardStream};
+use pretty_assertions::assert_eq;
 use std::io::{Cursor, Write};
 use std::mem;
-use pretty_assertions::assert_eq;
 
 use ddl::semantics::parser::{self, ParseError, Value};
 use ddl::semantics::{self, Context};
@@ -910,6 +910,125 @@ fn array_index() {
             ]),
         },
     );
+}
+
+#[test]
+fn intersection_ok() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r#"
+        module test;
+
+        intersection Test {
+            init_data : InitData,
+            computed_data : ComputedData init_data.tag,
+        };
+
+        struct InitData {
+            len : U16Be,
+            offset : U16Be,
+            tag: U16Be,
+        };
+
+        struct ComputedData (tag : U16) {
+            start : Pos,
+            len : U16Be,
+            offset : Offset16Be start (Array len (Elem tag)),
+            tag: U16Be,
+        };
+
+        Elem : U16 -> Type;
+        Elem tag = match tag {
+            0 => U8,
+            1 => U16Be,
+            2 => U32Be,
+            3 => U64Be,
+        };
+    "#;
+
+    let start = 0;
+    let offset = mem::size_of::<[u16; 3]>() as u16;
+    let pos = start + offset as u64;
+
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u16::<BigEndian>(3).unwrap(); // len
+        given_bytes.write_u16::<BigEndian>(offset).unwrap(); // offset
+        given_bytes.write_u16::<BigEndian>(2).unwrap(); // tag
+        given_bytes.write_u32::<BigEndian>(25).unwrap(); // *offset[0]
+        given_bytes.write_u32::<BigEndian>(123456789).unwrap(); // *offset[1]
+        given_bytes.write_u32::<BigEndian>(42).unwrap(); // *offset[2]
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = support::parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        im::hashmap! {
+            0 => Value::Struct(vec![
+                (label("init_data"), Value::Struct(vec![
+                    (label("len"), Value::int(3)),
+                    (label("offset"), Value::int(offset)),
+                    (label("tag"), Value::int(2)),
+                ])),
+                (label("computed_data"), Value::Struct(vec![
+                    (label("start"), Value::Pos(start)),
+                    (label("len"), Value::int(3)),
+                    (label("offset"), Value::Pos(pos)),
+                    (label("tag"), Value::int(2)),
+                ])),
+            ]),
+            pos => Value::Array(vec![
+                Value::int(25),
+                Value::int(123456789),
+                Value::int(42),
+            ]),
+        },
+    );
+}
+
+#[test]
+fn intersection_mismatched_sizes() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r#"
+        module test;
+
+        intersection Test {
+            u16 : U16Be,
+            f32 : F32Be,
+        };
+    "#;
+
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_f32::<BigEndian>(256.256).unwrap(); // f32
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = support::parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
+
+    let parsed_value = parser::parse_module(&context, &label("Test"), &module, &mut given_bytes);
+    match parsed_value {
+        Ok(_) => panic!("expected error"),
+        Err(ParseError::MismatchedIntersectionSize(2, 4)) => {},
+        Err(err) => panic!("unexpected error: {:?}", err),
+    }
 }
 
 #[test]

@@ -373,6 +373,7 @@ pub struct Globals {
 #[derive(Debug, Clone, PartialEq, moniker::BoundTerm)]
 pub enum Definition {
     Alias(core::RcTerm),
+    IntersectionType(core::IntersectionType),
     StructType(core::StructType),
     UnionType(core::UnionType),
 }

@@ -138,17 +138,18 @@ pub enum Token<S> {
     DecFloatLiteral(f64),
 
     // Keywords
-    As,     // as
-    Match,  // match
-    Else,   // else
-    Extern, // extern
-    If,     // if
-    Import, // import
-    Int,    // int
-    Module, // module
-    Struct, // struct
-    Type,   // Type
-    Union,  // union
+    As,           // as
+    Match,        // match
+    Else,         // else
+    Extern,       // extern
+    If,           // if
+    Import,       // import
+    Int,          // int
+    Intersection, // intersection
+    Module,       // module
+    Struct,       // struct
+    Type,         // Type
+    Union,        // union
 
     // Symbols
     BSlash,    // \
@@ -192,6 +193,7 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::If => write!(f, "if"),
             Token::Import => write!(f, "import"),
             Token::Int => write!(f, "int"),
+            Token::Intersection => write!(f, "intersection"),
             Token::Module => write!(f, "module"),
             Token::Struct => write!(f, "struct"),
             Token::Type => write!(f, "Type"),
@@ -239,6 +241,7 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::If => Token::If,
             Token::Import => Token::Import,
             Token::Int => Token::Int,
+            Token::Intersection => Token::Intersection,
             Token::Module => Token::Module,
             Token::Struct => Token::Struct,
             Token::Type => Token::Type,
@@ -387,6 +390,7 @@ impl<'input> Lexer<'input> {
             "if" => Token::If,
             "import" => Token::Import,
             "int" => Token::Int,
+            "intersection" => Token::Intersection,
             "module" => Token::Module,
             "struct" => Token::Struct,
             "Type" => Token::Type,

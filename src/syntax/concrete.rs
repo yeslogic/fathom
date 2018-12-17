@@ -181,7 +181,18 @@ pub enum Definition {
         return_ann: Option<Box<Term>>,
         term: Term,
     },
-    /// Struct type definition
+    /// Dependent intersection type definition
+    ///
+    /// ```text
+    /// intersection Foo (A : Type) { x : t1, .. }
+    /// ```
+    IntersectionType {
+        span: ByteSpan,
+        name: (ByteIndex, String),
+        params: Vec<(String, Term)>,
+        variants: Vec<StructTypeField>,
+    },
+    /// Dependent struct type definition
     ///
     /// ```text
     /// struct Foo (A : Type) { x : t1, .. }
@@ -214,7 +225,9 @@ impl Definition {
                 ref term,
                 ..
             } => ByteSpan::new(start, term.span().end()),
-            Definition::StructType { span, .. } | Definition::UnionType { span, .. } => span,
+            Definition::IntersectionType { span, .. }
+            | Definition::StructType { span, .. }
+            | Definition::UnionType { span, .. } => span,
         }
     }
 }

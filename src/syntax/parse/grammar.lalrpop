@@ -36,9 +36,10 @@ extern {
         "else" => Token::Else,
         "extern" => Token::Extern,
         "if" => Token::If,
-        "int" => Token::Int,
-        "module" => Token::Module,
         "import" => Token::Import,
+        "int" => Token::Int,
+        "intersection" => Token::Intersection,
+        "module" => Token::Module,
         "struct" => Token::Struct,
         "Type" => Token::Type,
         "union" => Token::Union,
@@ -117,6 +118,14 @@ Item: Item = {
     {
         let return_ann = return_ann.map(Box::new);
         Item::Definition(Definition::Alias { name, params, return_ann, term })
+    },
+    <_comment: "doc comment"*> <start: @L> "intersection" <name: IndexedIdent> <params: ("(" <Ident> ":" <Term> ")")*>
+        "{" <variants: (<StructTypeField> ",")*> <last: StructTypeField?> "}" <end: @R> ";" =>
+    {
+        let span = ByteSpan::new(start, end);
+        let mut variants = variants;
+        variants.extend(last);
+        Item::Definition(Definition::IntersectionType { span, name, params, variants })
     },
     <_comment: "doc comment"*> <start: @L> "struct" <name: IndexedIdent> <params: ("(" <Ident> ":" <Term> ")")*>
         "{" <fields: (<StructTypeField> ",")*> <last: StructTypeField?> "}" <end: @R> ";" =>

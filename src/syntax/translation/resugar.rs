@@ -1,6 +1,6 @@
 use codespan::{ByteIndex, ByteSpan};
 use im::HashMap;
-use moniker::{BoundTerm, Binder, Embed, FreeVar, Scope, Var};
+use moniker::{Binder, BoundTerm, Embed, FreeVar, Scope, Var};
 
 use crate::syntax::concrete;
 use crate::syntax::core;
@@ -145,6 +145,50 @@ impl Resugar<concrete::Module> for core::Module {
                         return_ann: None,
                         term: body,
                     }));
+                },
+                core::Definition::IntersectionType { ref scope } => {
+                    let name = local_decls.get(&binder).cloned().unwrap_or_else(|| {
+                        let name = env.on_item(&label, &binder);
+                        local_decls.insert(binder, name.clone());
+                        name
+                    });
+
+                    let (params, variants_scope) = scope.clone().unbind();
+                    let (variants, ()) = variants_scope.unbind();
+
+                    let (params, variants) = {
+                        let mut env = env.clone();
+
+                        let params = env.on_params(params);
+                        let variants = variants
+                            .unnest()
+                            .into_iter()
+                            .map(|(label, binder, Embed(ann))| {
+                                let ann = resugar_term(&env, &ann, Prec::NO_WRAP);
+                                let name = env.on_item(&label, &binder);
+
+                                concrete::StructTypeField {
+                                    label: (ByteIndex::default(), label.0.clone()),
+                                    binder: match binder.0.pretty_name {
+                                        Some(ref pretty_name) if *pretty_name == name => None,
+                                        None | Some(_) => Some((ByteIndex::default(), name)),
+                                    },
+                                    ann,
+                                }
+                            })
+                            .collect();
+
+                        (params, variants)
+                    };
+
+                    concrete_items.push(concrete::Item::Definition(
+                        concrete::Definition::IntersectionType {
+                            span: ByteSpan::default(),
+                            name: (ByteIndex::default(), name),
+                            params,
+                            variants,
+                        },
+                    ));
                 },
                 core::Definition::StructType { ref scope } => {
                     let name = local_decls.get(&binder).cloned().unwrap_or_else(|| {
