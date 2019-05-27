@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "crates/ddl-cli",
+    "crates/ddl-concrete",
+    "crates/ddl-parse",
+    "crates/ddl-test",
+]
