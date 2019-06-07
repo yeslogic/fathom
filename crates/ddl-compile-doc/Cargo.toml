@@ -1,5 +1,5 @@
 [package]
-name = "ddl-concrete"
+name = "ddl-compile-doc"
 version = "0.1.0"
 authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
 license = "Apache-2.0"
@@ -9,3 +9,4 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ddl-concrete = { path = "../ddl-concrete" }

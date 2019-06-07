@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "crates/ddl-cli",
+    "crates/ddl-compile-doc",
+    "crates/ddl-compile-rust",
     "crates/ddl-concrete",
     "crates/ddl-parse",
     "crates/ddl-test",

@@ -9,7 +9,7 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-assert_cmd = "0.11"
-assert_fs = "0.11"
-ddl-cli = { path = "../ddl-cli" }
-predicates = "1.0"
+ddl-parse = { path = "../ddl-parse" }
+ddl-compile-doc = { path = "../ddl-compile-doc" }
+ddl-compile-rust = { path = "../ddl-compile-rust" }
+lazy_static = "1.3"
