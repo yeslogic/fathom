@@ -1,3 +1,3 @@
-//~ PARSE: success
-//~ COMPILE/RUST: success
-//~ COMPILE/DOC: success
+//~ PARSE: ok
+//~ COMPILE/RUST: ok
+//~ COMPILE/DOC: ok
