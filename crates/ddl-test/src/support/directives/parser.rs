@@ -1,7 +1,7 @@
 use codespan::{FileId, Files, Span};
 use codespan_reporting::{Diagnostic, Label, Severity};
 
-use super::{Directives, ExpectedDiagnostic, StageStatus, Token};
+use super::{Directives, ExpectedDiagnostic, Status, Token};
 
 pub struct Parser<'a> {
     files: &'a Files,
@@ -107,10 +107,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expect_stage_status(&mut self, span: Span, status: Option<String>) -> Option<StageStatus> {
+    fn expect_stage_status(&mut self, span: Span, status: Option<String>) -> Option<Status> {
         match status.as_ref().map(String::as_ref) {
-            Some("ok") => return Some(StageStatus::Ok),
-            Some("fail") => return Some(StageStatus::Fail),
+            Some("ok") => return Some(Status::Ok),
+            Some("fail") => return Some(Status::Fail),
             Some(status) => self.diagnostics.push(
                 Diagnostic::new_error(
                     format!("unknown expected status `{}`", status),
@@ -141,32 +141,27 @@ impl<'a> Parser<'a> {
         None
     }
 
-    fn expect_bug(&mut self, span: Span, message_pattern: Option<String>) {
-        self.expect_diagnostic(span, Severity::Bug, message_pattern);
+    fn expect_bug(&mut self, span: Span, pattern: Option<String>) {
+        self.expect_diagnostic(span, Severity::Bug, pattern);
     }
 
-    fn expect_error(&mut self, span: Span, message_pattern: Option<String>) {
-        self.expect_diagnostic(span, Severity::Error, message_pattern);
+    fn expect_error(&mut self, span: Span, pattern: Option<String>) {
+        self.expect_diagnostic(span, Severity::Error, pattern);
     }
 
-    fn expect_warning(&mut self, span: Span, message_pattern: Option<String>) {
-        self.expect_diagnostic(span, Severity::Warning, message_pattern);
+    fn expect_warning(&mut self, span: Span, pattern: Option<String>) {
+        self.expect_diagnostic(span, Severity::Warning, pattern);
     }
 
-    fn expect_note(&mut self, span: Span, message_pattern: Option<String>) {
-        self.expect_diagnostic(span, Severity::Note, message_pattern);
+    fn expect_note(&mut self, span: Span, pattern: Option<String>) {
+        self.expect_diagnostic(span, Severity::Note, pattern);
     }
 
-    fn expect_help(&mut self, span: Span, message_pattern: Option<String>) {
-        self.expect_diagnostic(span, Severity::Help, message_pattern);
+    fn expect_help(&mut self, span: Span, pattern: Option<String>) {
+        self.expect_diagnostic(span, Severity::Help, pattern);
     }
 
-    fn expect_diagnostic(
-        &mut self,
-        span: Span,
-        severity: Severity,
-        message_pattern: Option<String>,
-    ) {
+    fn expect_diagnostic(&mut self, span: Span, severity: Severity, pattern: Option<String>) {
         use regex::Regex;
         use std::str::FromStr;
 
@@ -175,19 +170,19 @@ impl<'a> Parser<'a> {
             .location(self.file_id, span.start())
             .expect("diagnostic_location");
 
-        let message_pattern = match message_pattern {
+        let pattern = match pattern {
             None => Regex::from_str(".*"),
             Some(pattern) => Regex::from_str(&pattern),
         };
 
-        match message_pattern {
-            Ok(message_pattern) => {
+        match pattern {
+            Ok(pattern) => {
                 self.directives
                     .expected_diagnostics
                     .push(ExpectedDiagnostic {
                         line: location.line,
                         severity,
-                        message_pattern,
+                        pattern,
                     });
             }
             Err(error) => {
