@@ -12,11 +12,11 @@ pub type Token = (Span, String, Option<String>);
 ///
 /// line        :: (not "\\")* (comment | directive)? eol
 ///
-/// comment     ::= "//" (not "~" | not "\n")? (not "\n")*
+/// comment     ::= "//" (not "~" | not eol)? (not eol)*
 /// directive   ::= "//~" key (":" value)?
 ///
 /// key         ::= not ":"
-/// value       ::= not "\n"
+/// value       ::= not eol
 /// eol         ::= "\n"
 /// ```
 pub struct Lexer<'input> {
@@ -38,14 +38,14 @@ impl<'input> Lexer<'input> {
         Label::new(self.file_id, span, message)
     }
 
-    fn unexpected_eol(&self, eol: ByteIndex, expected: &str) -> Option<Result<Token, Diagnostic>> {
+    fn unexpected_eol<T>(&self, eol: ByteIndex, expected: &str) -> Option<Result<T, Diagnostic>> {
         Some(Err(Diagnostic::new_error(
             "unexpected end of line",
             self.label(eol..eol, format!("{} expected here", expected)),
         )))
     }
 
-    fn unexpected_eof(&self, expected: &str) -> Option<Result<Token, Diagnostic>> {
+    fn unexpected_eof<T>(&self, expected: &str) -> Option<Result<T, Diagnostic>> {
         Some(Err(Diagnostic::new_error(
             "unexpected end of file",
             self.label(self.eof..self.eof, format!("{} expected here", expected)),

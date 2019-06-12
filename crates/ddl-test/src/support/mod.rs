@@ -113,10 +113,10 @@ pub fn run_test(_test_name: &str, test_path: &str) {
             };
 
             eprintln!(
-                "{}: {}:{}: {}",
-                severity,
+                "{}:{}: {}: {}",
                 test_path.display(),
                 expected.line.number(),
+                severity,
                 expected.pattern,
             );
         }
@@ -155,7 +155,7 @@ pub fn validate_pass(
             found_match = expected.line == start.line
                 && expected.severity == diagnostic.severity
                 && expected.pattern.is_match(&diagnostic.primary_label.message);
-            found_match
+            !found_match
         });
 
         !found_match
