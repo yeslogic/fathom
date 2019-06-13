@@ -16,3 +16,4 @@ macro_rules! test {
 
 test!(empty, "empty.ddl");
 test!(unexpected_token, "unexpected_token.ddl");
+test!(unexpected_character, "unexpected_character.ddl");
