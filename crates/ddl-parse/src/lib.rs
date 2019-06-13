@@ -24,7 +24,7 @@ pub fn parse_module(files: &Files, file_id: FileId) -> (Module, Vec<Diagnostic>)
         .parse(&mut diagnostics, lexer)
         .unwrap_or_else(|error| {
             diagnostics.push(parse_error_to_diagnostic(file_id, error));
-            Module {}
+            Module { items: Vec::new() }
         });
 
     (module, diagnostics)

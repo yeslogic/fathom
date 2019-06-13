@@ -1,6 +1,6 @@
-use codespan::ByteIndex;
+use codespan::{ByteIndex, Span};
 use codespan_reporting::Diagnostic;
-use ddl_concrete::Module;
+use ddl_concrete::{Module, Item};
 
 use crate::lexer::Token;
 
@@ -12,9 +12,18 @@ extern {
 
     enum Token {
         "identifier" => Token::Identifier(<String>),
+        "struct" => Token::Struct,
+        "{" => Token::OpenBrace,
+        "}" => Token::CloseBrace,
     }
 }
 
 pub Module: Module = {
-    => Module {},
+    <items: Item*> => Module { items },
+};
+
+Item: Item = {
+    <start: @L> "struct" <name: "identifier"> "{" "}" <end: @R> => {
+        Item::Struct(Span::from(start..end), name)
+    },
 };

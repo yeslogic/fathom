@@ -7,12 +7,23 @@ use std::fmt;
 pub enum Token {
     /// Identifiers
     Identifier(String),
+
+    /// `struct`
+    Struct,
+
+    /// `{`
+    OpenBrace,
+    /// `}`
+    CloseBrace,
 }
 
 impl<'a> fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Token::Identifier(name) => write!(f, "{}", name),
+            Token::Struct => write!(f, "struct"),
+            Token::OpenBrace => write!(f, "{{"),
+            Token::CloseBrace => write!(f, "}}"),
         }
     }
 }
@@ -130,6 +141,8 @@ impl<'input> Iterator for Lexer<'input> {
                         None => return self.unexpected_eof(expected),
                     }
                 }
+                '{' => return Some(Ok(self.emit(Token::OpenBrace))),
+                '}' => return Some(Ok(self.emit(Token::CloseBrace))),
                 ch if is_identifier_start(ch) => {
                     let mut ident = String::new();
                     ident.push(ch);
@@ -139,7 +152,12 @@ impl<'input> Iterator for Lexer<'input> {
                                 ident.push(ch);
                                 self.advance();
                             }
-                            None | Some(_) => return Some(Ok(self.emit(Token::Identifier(ident)))),
+                            None | Some(_) => {
+                                return Some(Ok(self.emit(match ident.as_str() {
+                                    "struct" => Token::Struct,
+                                    _ => Token::Identifier(ident),
+                                })))
+                            }
                         }
                     }
                 }
