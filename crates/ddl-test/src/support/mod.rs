@@ -149,7 +149,7 @@ pub fn validate_pass(
         directives.expected_diagnostics.retain(|expected| {
             found_match = expected.line == start.line
                 && expected.severity == diagnostic.severity
-                && expected.pattern.is_match(&diagnostic.primary_label.message);
+                && expected.pattern.is_match(&diagnostic.message);
             !found_match
         });
 
