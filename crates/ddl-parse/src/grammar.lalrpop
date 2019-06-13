@@ -1,0 +1,20 @@
+use codespan::ByteIndex;
+use codespan_reporting::Diagnostic;
+use ddl_concrete::Module;
+
+use crate::lexer::Token;
+
+grammar(diagnostics: &mut Vec<Diagnostic>);
+
+extern {
+    type Location = ByteIndex;
+    type Error = Diagnostic;
+
+    enum Token {
+        "identifier" => Token::Identifier(<String>),
+    }
+}
+
+pub Module: Module = {
+    => Module {},
+};

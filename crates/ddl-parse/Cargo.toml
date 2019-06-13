@@ -12,3 +12,7 @@ publish = false
 codespan = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
 codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
 ddl-concrete = { path = "../ddl-concrete" }
+lalrpop-util = "0.17"
+
+[build-dependencies]
+lalrpop = "0.17"

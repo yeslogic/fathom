@@ -2,8 +2,10 @@ use codespan::{ByteIndex, ByteOffset, FileId, Files, Span};
 use codespan_reporting::{Diagnostic, Label};
 use std::fmt;
 
+/// Tokens that will be produces during lexing.
 #[derive(Debug, Clone)]
 pub enum Token {
+    /// Identifiers
     Identifier(String),
 }
 
@@ -85,7 +87,10 @@ impl<'input> Lexer<'input> {
             format!("unexpected character `{}`", found),
             self.label(start..end, "unexpected character"),
         )
-        .with_notes(vec![ExpectedNote(expected).to_string()])))
+        .with_notes(vec![format!(
+            "expected one of {}",
+            super::display_expected(&expected),
+        )])))
     }
 
     fn unexpected_eof<T>(&self, expected: &[&str]) -> Option<Result<T, Diagnostic>> {
@@ -93,7 +98,10 @@ impl<'input> Lexer<'input> {
             "unexpected end of file",
             self.label(self.token_end..self.token_end, "unexpected end of file"),
         )
-        .with_notes(vec![ExpectedNote(expected).to_string()])))
+        .with_notes(vec![format!(
+            "expected one of {}",
+            super::display_expected(&expected),
+        )])))
     }
 }
 
@@ -177,21 +185,5 @@ fn is_identifier_continue(ch: char) -> bool {
     match ch {
         '0'..='9' | 'a'..='z' | 'A'..='Z' | '_' => true,
         _ => false,
-    }
-}
-
-struct ExpectedNote<'a>(&'a [&'a str]);
-
-impl<'a> fmt::Display for ExpectedNote<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, token) in self.0.iter().enumerate() {
-            match i {
-                0 => write!(f, "expected one of {}", token)?,
-                i if i >= self.0.len() => write!(f, ", or {} here", token)?,
-                _ => write!(f, ", {}", token)?,
-            }
-        }
-
-        Ok(())
     }
 }
