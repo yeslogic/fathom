@@ -1,5 +1,5 @@
 use codespan::{FileId, Files};
-use codespan_reporting::termcolor::{ColorChoice, StandardStream};
+use codespan_reporting::termcolor::{BufferWriter, ColorChoice, StandardStream};
 use codespan_reporting::{self, Diagnostic, Severity};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,8 +19,7 @@ pub fn run_test(_test_name: &str, test_path: &str) {
     // Set up output streams
 
     let reporting_config = codespan_reporting::Config::default();
-    let stdout = StandardStream::stdout(ColorChoice::Always);
-    let stderr = StandardStream::stderr(ColorChoice::Always);
+    let stdout = StandardStream::stdout(ColorChoice::Auto);
 
     // Set up files
 
@@ -92,10 +91,15 @@ pub fn run_test(_test_name: &str, test_path: &str) {
         eprintln!("Unexpected diagnostics found:");
         eprintln!();
 
-        let writer = &mut stderr.lock();
+        // Use a buffer so that this doesn't get printed interleaved with the
+        // test status output.
+
+        let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
         for diagnostic in &unexpected_diagnostics {
-            codespan_reporting::emit(writer, &reporting_config, &files, diagnostic).unwrap();
+            codespan_reporting::emit(&mut buffer, &reporting_config, &files, diagnostic).unwrap();
         }
+
+        eprintln!("{}", String::from_utf8_lossy(buffer.as_slice()));
     }
 
     if !directives.expected_diagnostics.is_empty() {
