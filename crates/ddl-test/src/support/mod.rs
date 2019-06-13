@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 mod directives;
 
-use self::directives::{Directives, Status};
+use self::directives::Directives;
 
 lazy_static::lazy_static! {
     static ref TESTS_DIR: PathBuf =
@@ -63,23 +63,25 @@ pub fn run_test(_test_name: &str, test_path: &str) {
         return;
     }
 
+    // FIXME: We should check these `_status` things somehow
+
     // PARSE
-    if let Some(status) = directives.parse {
+    if let Some(_status) = directives.parse {
         let (module, mut diagnostics) = ddl_parse::parse_module(&files, file_id);
-        validate_pass(&files, file_id, status, &mut directives, &mut diagnostics);
+        validate_pass(&files, file_id, &mut directives, &mut diagnostics);
         unexpected_diagnostics.extend(diagnostics);
 
         // COMPILE/RUST
-        if let Some(status) = directives.compile_rust {
+        if let Some(_status) = directives.compile_rust {
             let ((), mut diagnostics) = ddl_compile_rust::compile_module(&module);
-            validate_pass(&files, file_id, status, &mut directives, &mut diagnostics);
+            validate_pass(&files, file_id, &mut directives, &mut diagnostics);
             unexpected_diagnostics.extend(diagnostics);
         }
 
         // COMPILE/DOC
-        if let Some(status) = directives.compile_doc {
+        if let Some(_status) = directives.compile_doc {
             let ((), mut diagnostics) = ddl_compile_doc::compile_module(&module);
-            validate_pass(&files, file_id, status, &mut directives, &mut diagnostics);
+            validate_pass(&files, file_id, &mut directives, &mut diagnostics);
             unexpected_diagnostics.extend(diagnostics);
         }
     }
@@ -134,20 +136,9 @@ pub fn run_test(_test_name: &str, test_path: &str) {
 pub fn validate_pass(
     files: &Files,
     file_id: FileId,
-    status: Status,
     directives: &mut Directives,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let has_error = diagnostics.iter().any(|d| d.severity <= Severity::Error);
-
-    // TODO: Defer this check till later, and provide a better error message?
-    match status {
-        Status::Ok if has_error => panic!("unexpected error"),
-        Status::Fail if !has_error => panic!("expected error"),
-        Status::Ok => {}
-        Status::Fail => {}
-    }
-
     diagnostics.retain(|diagnostic| {
         let start = files
             .location(file_id, diagnostic.primary_label.span.start())
