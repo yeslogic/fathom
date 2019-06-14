@@ -26,7 +26,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
     let mut files = Files::new();
     let test_path = TESTS_DIR.join(test_path);
     let source = fs::read_to_string(&test_path)
-        .unwrap_or_else(|err| panic!("error reading `{}`: {}", test_path.display(), err));
+        .unwrap_or_else(|error| panic!("error reading `{}`: {}", test_path.display(), error));
     let file_id = files.add(test_path.display().to_string(), source);
 
     // Extract the directives from the source code
@@ -55,6 +55,8 @@ pub fn run_test(test_name: &str, test_path: &str) {
 
     // Run stages
 
+    eprintln!();
+
     let mut failed_checks = Vec::new();
     let mut unexpected_diagnostics = Vec::new();
 
@@ -74,14 +76,28 @@ pub fn run_test(test_name: &str, test_path: &str) {
 
         // COMPILE/RUST
         if let Some(_status) = directives.compile_rust {
-            let ((), mut diagnostics) = ddl_compile_rust::compile_module(&module);
+            let mut output = Vec::new();
+            let mut diagnostics = ddl_compile_rust::compile_module(&mut output, &module).unwrap();
+
+            if !compare_snapshot(&test_path, "rs", &output) {
+                failed_checks.push("compile_rust: snapshot");
+                eprintln!();
+            }
+
             validate_pass(&files, file_id, &mut directives, &mut diagnostics);
             unexpected_diagnostics.extend(diagnostics);
         }
 
         // COMPILE/DOC
         if let Some(_status) = directives.compile_doc {
-            let ((), mut diagnostics) = ddl_compile_doc::compile_module(&module);
+            let mut output = Vec::new();
+            let mut diagnostics = ddl_compile_doc::compile_module(&mut output, &module).unwrap();
+
+            if !compare_snapshot(&test_path, "md", &output) {
+                failed_checks.push("compile_doc: snapshot");
+                eprintln!();
+            }
+
             validate_pass(&files, file_id, &mut directives, &mut diagnostics);
             unexpected_diagnostics.extend(diagnostics);
         }
@@ -92,7 +108,6 @@ pub fn run_test(test_name: &str, test_path: &str) {
     if !unexpected_diagnostics.is_empty() {
         failed_checks.push("unexpected_diagnostics");
 
-        eprintln!();
         eprintln!("Unexpected diagnostics found:");
         eprintln!();
 
@@ -110,7 +125,6 @@ pub fn run_test(test_name: &str, test_path: &str) {
     if !directives.expected_diagnostics.is_empty() {
         failed_checks.push("expected_diagnostics");
 
-        eprintln!();
         eprintln!("Expected diagnostics not found:");
         eprintln!();
 
@@ -136,19 +150,89 @@ pub fn run_test(test_name: &str, test_path: &str) {
     }
 
     if !failed_checks.is_empty() {
-        eprintln!();
         eprintln!("failed {} checks:", failed_checks.len());
-        eprintln!();
         for check in failed_checks {
-            eprintln!("  - {}", check);
+            eprintln!("    {}", check);
         }
         eprintln!();
 
-        panic!("failed test {} of {}", test_name, test_path.display());
+        panic!("failed {}", test_name);
     }
 }
 
-pub fn validate_pass(
+fn compare_snapshot(path: &Path, extension: &str, found_bytes: &[u8]) -> bool {
+    use std::env;
+
+    let out_path = path.with_extension(extension);
+    let found_str = match std::str::from_utf8(found_bytes) {
+        Ok(found_str) => found_str,
+        Err(error) => {
+            eprintln!("actual output not utf8: {}", error);
+            return false;
+        }
+    };
+
+    let is_bless = env::var("DDL_BLESS").is_ok();
+
+    if out_path.exists() {
+        use difference::{Changeset, Difference};
+
+        let expected_string = match fs::read_to_string(&out_path) {
+            Ok(expected_string) => expected_string,
+            Err(error) => {
+                eprintln!("error reading snapshot `{}`: {}", out_path.display(), error);
+                return false;
+            }
+        };
+
+        let changeset = Changeset::new(&expected_string, found_str, "\n");
+
+        if changeset.diffs.is_empty() {
+            true
+        } else {
+            if is_bless {
+                bless_snapshot(&out_path, found_str)
+            } else {
+                eprintln!("changes found in snapshot `{}`: ", out_path.display());
+                eprintln!();
+                for diff in &changeset.diffs {
+                    match diff {
+                        // TODO: Colored diffs
+                        Difference::Same(data) => eprintln!("      {}", data.replace('\n', "¶")),
+                        Difference::Add(data) => eprintln!("    + {}", data.replace('\n', "¶")),
+                        Difference::Rem(data) => eprintln!("    - {}", data.replace('\n', "¶")),
+                    }
+                }
+                eprintln!();
+                eprintln!("note: Run with `DDL_BLESS=1` environment variable to regenerate.");
+                eprintln!();
+                false
+            }
+        }
+    } else {
+        if is_bless {
+            bless_snapshot(&out_path, found_str)
+        } else {
+            eprintln!("existing snapshot `{}` not found", out_path.display());
+            eprintln!();
+            eprintln!("note: Run with `DDL_BLESS=1` environment variable to regenerate.");
+            eprintln!();
+            false
+        }
+    }
+}
+
+fn bless_snapshot(out_path: &Path, found_str: &str) -> bool {
+    match fs::write(out_path, found_str) {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("error writing snapshot `{}`: {}", out_path.display(), error);
+            false
+        }
+    }
+}
+
+fn validate_pass(
     files: &Files,
     file_id: FileId,
     directives: &mut Directives,

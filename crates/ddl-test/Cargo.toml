@@ -14,6 +14,7 @@ codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "ea
 ddl-parse = { path = "../ddl-parse" }
 ddl-compile-doc = { path = "../ddl-compile-doc" }
 ddl-compile-rust = { path = "../ddl-compile-rust" }
+difference = "2.0"
 lazy_static = "1.3"
 regex = "1.1"
 unindent = "0.1"
