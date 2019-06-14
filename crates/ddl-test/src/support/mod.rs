@@ -76,6 +76,10 @@ pub fn run_test(test_name: &str, test_path: &str) {
 
         // COMPILE/RUST
         if let Some(_status) = directives.compile_rust {
+            use assert_cmd::prelude::*;
+            use predicates::prelude::*;
+            use std::process::Command;
+
             let mut output = Vec::new();
             let mut diagnostics = ddl_compile_rust::compile_module(&mut output, &module).unwrap();
 
@@ -86,6 +90,21 @@ pub fn run_test(test_name: &str, test_path: &str) {
 
             validate_pass(&files, file_id, &mut directives, &mut diagnostics);
             unexpected_diagnostics.extend(diagnostics);
+
+            // Test compiled output against rustc
+            let temp_dir = assert_fs::TempDir::new().unwrap();
+            Command::new("rustc")
+                .arg(format!("--out-dir={}", temp_dir.path().display()))
+                // just do type checking, skipping codegen
+                .arg("--emit=dep-info,metadata")
+                .arg("--crate-type=rlib")
+                .arg(test_path.with_extension("rs"))
+                // FIXME: don't panic on this!
+                .assert()
+                .code(0)
+                .stdout(predicate::str::is_empty())
+                .stderr(predicate::str::is_empty())
+                .success();
         }
 
         // COMPILE/DOC
