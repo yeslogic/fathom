@@ -15,7 +15,7 @@ lazy_static::lazy_static! {
             .unwrap();
 }
 
-pub fn run_test(_test_name: &str, test_path: &str) {
+pub fn run_test(test_name: &str, test_path: &str) {
     // Set up output streams
 
     let reporting_config = codespan_reporting::Config::default();
@@ -55,6 +55,7 @@ pub fn run_test(_test_name: &str, test_path: &str) {
 
     // Run stages
 
+    let mut failed_checks = Vec::new();
     let mut unexpected_diagnostics = Vec::new();
 
     // SKIP
@@ -89,6 +90,8 @@ pub fn run_test(_test_name: &str, test_path: &str) {
     // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
     if !unexpected_diagnostics.is_empty() {
+        failed_checks.push("unexpected_diagnostics");
+
         eprintln!();
         eprintln!("Unexpected diagnostics found:");
         eprintln!();
@@ -105,6 +108,8 @@ pub fn run_test(_test_name: &str, test_path: &str) {
     }
 
     if !directives.expected_diagnostics.is_empty() {
+        failed_checks.push("expected_diagnostics");
+
         eprintln!();
         eprintln!("Expected diagnostics not found:");
         eprintln!();
@@ -130,7 +135,17 @@ pub fn run_test(_test_name: &str, test_path: &str) {
         eprintln!();
     }
 
-    assert!(unexpected_diagnostics.is_empty() && directives.expected_diagnostics.is_empty());
+    if !failed_checks.is_empty() {
+        eprintln!();
+        eprintln!("failed {} checks:", failed_checks.len());
+        eprintln!();
+        for check in failed_checks {
+            eprintln!("  - {}", check);
+        }
+        eprintln!();
+
+        panic!("failed test {} of {}", test_name, test_path.display());
+    }
 }
 
 pub fn validate_pass(
