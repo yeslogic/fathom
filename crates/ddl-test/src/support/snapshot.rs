@@ -14,7 +14,7 @@ pub fn compare(path: &Path, extension: &str, found_bytes: &[u8]) -> Result<(), S
         let expected_string = read_snapshot(&out_path)?;
         let changeset = Changeset::new(&expected_string, found_str, "\n");
 
-        if !changeset.diffs.is_empty() {
+        if !changeset.diffs.iter().all(is_same_diff) {
             if is_bless {
                 bless_snapshot(out_path, found_str)?;
             } else {
@@ -30,6 +30,13 @@ pub fn compare(path: &Path, extension: &str, found_bytes: &[u8]) -> Result<(), S
     }
 
     Ok(())
+}
+
+fn is_same_diff(diff: &Diff) -> bool {
+    match diff {
+        Diff::Same(_) => true,
+        _ => false,
+    }
 }
 
 fn read_snapshot(out_path: &Path) -> Result<String, SnapshotError> {
