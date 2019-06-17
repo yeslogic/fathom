@@ -77,8 +77,6 @@ pub fn run_test(test_name: &str, test_path: &str) {
 
         // COMPILE/RUST
         if let Some(_status) = directives.compile_rust {
-            use assert_cmd::prelude::*;
-            use predicates::prelude::*;
             use std::process::Command;
 
             let mut output = Vec::new();
@@ -87,7 +85,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
             if let Err(error) = snapshot::compare(&test_path, "rs", &output) {
                 failed_checks.push("compile_rust: snapshot");
 
-                eprintln!("Failed COMPILE/RUST snapshot test:");
+                eprintln!("Failed COMPILE/RUST: snapshot test");
                 eprintln!();
                 eprintln!("{}", error);
             }
@@ -97,18 +95,56 @@ pub fn run_test(test_name: &str, test_path: &str) {
 
             // Test compiled output against rustc
             let temp_dir = assert_fs::TempDir::new().unwrap();
-            Command::new("rustc")
+
+            let output = Command::new("rustc")
                 .arg(format!("--out-dir={}", temp_dir.path().display()))
                 // just do type checking, skipping codegen
                 .arg("--emit=dep-info,metadata")
                 .arg("--crate-type=rlib")
                 .arg(test_path.with_extension("rs"))
-                // FIXME: don't panic on this!
-                .assert()
-                .code(0)
-                .stdout(predicate::str::is_empty())
-                .stderr(predicate::str::is_empty())
-                .success();
+                .output();
+
+            match output {
+                Ok(output) => {
+                    if !output.status.success() {
+                        failed_checks.push("compile_rust: rustc status");
+
+                        eprintln!("Failed COMPILE/RUST: rustc status");
+                        eprintln!();
+                        eprintln!(
+                            "Unexpected exist status received from rustc: {}",
+                            output.status,
+                        );
+                        eprintln!();
+                    }
+
+                    if !output.stdout.is_empty() {
+                        failed_checks.push("compile_rust: rustc stdout");
+
+                        eprintln!("Failed COMPILE/RUST: rustc stdout");
+                        eprintln!();
+                        eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+                        eprintln!();
+                    }
+
+                    if !output.stderr.is_empty() {
+                        failed_checks.push("compile_rust: rustc stderr");
+
+                        eprintln!("Failed COMPILE/RUST: rustc stderr");
+                        eprintln!();
+                        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                        eprintln!();
+                    }
+                }
+                Err(error) => {
+                    failed_checks.push("compile_rust: execute rustc");
+
+                    eprintln!("Failed COMPILE/RUST:");
+                    eprintln!();
+                    eprintln!("{}", error);
+                    eprintln!();
+                }
+            }
         }
 
         // COMPILE/DOC
@@ -119,7 +155,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
             if let Err(error) = snapshot::compare(&test_path, "md", &output) {
                 failed_checks.push("compile_doc: snapshot");
 
-                eprintln!("Failed COMPILE/DOC snapshot test:");
+                eprintln!("Failed COMPILE/DOC: snapshot test");
                 eprintln!();
                 eprintln!("{}", error);
             }
