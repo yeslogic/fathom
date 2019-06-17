@@ -1,4 +1,4 @@
-use difference::Changeset;
+use difference::{Changeset, Difference as Diff};
 use std::path::{Path, PathBuf};
 use std::{fmt, fs, io, str};
 
@@ -69,15 +69,14 @@ impl fmt::Display for SnapshotError {
                 writeln!(f)?;
             }
             SnapshotError::UnexpectedChangesFound(path, changeset) => {
-                use difference::Difference as Diff;
                 writeln!(f, "changes found in snapshot `{}`: ", path.display())?;
                 writeln!(f)?;
                 for diff in &changeset.diffs {
                     match diff {
                         // TODO: Colored diffs
-                        Diff::Same(data) => writeln!(f, "      {}", data.replace('\n', "¶"))?,
-                        Diff::Add(data) => writeln!(f, "    + {}", data.replace('\n', "¶"))?,
-                        Diff::Rem(data) => writeln!(f, "    - {}", data.replace('\n', "¶"))?,
+                        Diff::Same(data) => write_lines(f, "      ", data)?,
+                        Diff::Add(data) =>  write_lines(f, "    + ", data)?,
+                        Diff::Rem(data) =>  write_lines(f, "    - ", data)?,
                     }
                 }
                 writeln!(f)?;
@@ -90,4 +89,14 @@ impl fmt::Display for SnapshotError {
         }
         Ok(())
     }
+}
+
+fn write_lines(writer: &mut impl fmt::Write, prefix: &str, data: &str) -> fmt::Result {
+    let mut last = 0;
+    for (index, space) in data.match_indices('\n') {
+        write!(writer, "{}{}{}", prefix, &data[last..index], space)?;
+        last = index + space.len();
+    }
+    writeln!(writer, "{}{}", prefix, &data[last..])?;
+    Ok(())
 }
