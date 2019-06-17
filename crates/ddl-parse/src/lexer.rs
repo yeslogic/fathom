@@ -2,15 +2,31 @@ use codespan::{ByteIndex, ByteOffset, FileId, Files, Span};
 use codespan_reporting::{Diagnostic, Label};
 use std::fmt;
 
+/// Tokens that will be produces during lexing.
 #[derive(Debug, Clone)]
 pub enum Token {
+    /// Identifiers
     Identifier(String),
+    /// Doc comments,
+    DocComment(String),
+
+    /// `struct`
+    Struct,
+
+    /// `{`
+    OpenBrace,
+    /// `}`
+    CloseBrace,
 }
 
 impl<'a> fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Token::Identifier(name) => write!(f, "{}", name),
+            Token::DocComment(name) => write!(f, "///{}", name),
+            Token::Struct => write!(f, "struct"),
+            Token::OpenBrace => write!(f, "{{"),
+            Token::CloseBrace => write!(f, "}}"),
         }
     }
 }
@@ -85,7 +101,10 @@ impl<'input> Lexer<'input> {
             format!("unexpected character `{}`", found),
             self.label(start..end, "unexpected character"),
         )
-        .with_notes(vec![ExpectedNote(expected).to_string()])))
+        .with_notes(vec![format!(
+            "expected one of {}",
+            super::display_expected(&expected),
+        )])))
     }
 
     fn unexpected_eof<T>(&self, expected: &[&str]) -> Option<Result<T, Diagnostic>> {
@@ -93,7 +112,10 @@ impl<'input> Lexer<'input> {
             "unexpected end of file",
             self.label(self.token_end..self.token_end, "unexpected end of file"),
         )
-        .with_notes(vec![ExpectedNote(expected).to_string()])))
+        .with_notes(vec![format!(
+            "expected one of {}",
+            super::display_expected(&expected),
+        )])))
     }
 }
 
@@ -108,6 +130,21 @@ impl<'input> Iterator for Lexer<'input> {
                     let expected = &["`/`"];
                     let start = self.token_end;
                     match self.advance() {
+                        Some('/') if self.peek() == Some('/') => {
+                            let mut doc = String::new();
+                            self.advance();
+                            'doc_comment: loop {
+                                match self.advance() {
+                                    Some('\n') | None => {
+                                        return Some(Ok(self.emit(Token::DocComment(doc))))
+                                    }
+                                    Some(ch) => {
+                                        doc.push(ch);
+                                        continue 'doc_comment;
+                                    }
+                                }
+                            }
+                        }
                         Some('/') => 'comment: loop {
                             match self.advance() {
                                 Some('\n') => {
@@ -122,6 +159,8 @@ impl<'input> Iterator for Lexer<'input> {
                         None => return self.unexpected_eof(expected),
                     }
                 }
+                '{' => return Some(Ok(self.emit(Token::OpenBrace))),
+                '}' => return Some(Ok(self.emit(Token::CloseBrace))),
                 ch if is_identifier_start(ch) => {
                     let mut ident = String::new();
                     ident.push(ch);
@@ -131,7 +170,12 @@ impl<'input> Iterator for Lexer<'input> {
                                 ident.push(ch);
                                 self.advance();
                             }
-                            None | Some(_) => return Some(Ok(self.emit(Token::Identifier(ident)))),
+                            None | Some(_) => {
+                                return Some(Ok(self.emit(match ident.as_str() {
+                                    "struct" => Token::Struct,
+                                    _ => Token::Identifier(ident),
+                                })))
+                            }
                         }
                     }
                 }
@@ -177,21 +221,5 @@ fn is_identifier_continue(ch: char) -> bool {
     match ch {
         '0'..='9' | 'a'..='z' | 'A'..='Z' | '_' => true,
         _ => false,
-    }
-}
-
-struct ExpectedNote<'a>(&'a [&'a str]);
-
-impl<'a> fmt::Display for ExpectedNote<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, token) in self.0.iter().enumerate() {
-            match i {
-                0 => write!(f, "expected one of {}", token)?,
-                i if i >= self.0.len() => write!(f, ", or {} here", token)?,
-                _ => write!(f, ", {}", token)?,
-            }
-        }
-
-        Ok(())
     }
 }
