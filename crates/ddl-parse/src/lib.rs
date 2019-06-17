@@ -16,8 +16,8 @@ pub fn parse_module(files: &Files, file_id: FileId) -> (Module, Vec<Diagnostic>)
 
     for token in lexer {
         match token {
-            Ok((start, _, end)) => diagnostics.push(Diagnostic::new_error(
-                "unexpected token",
+            Ok((start, token, end)) => diagnostics.push(Diagnostic::new_error(
+                format!("unexpected token `{}`", token),
                 Label::new(file_id, start..end, "unexpected token"),
             )),
             Err(diagnostic) => diagnostics.push(diagnostic),

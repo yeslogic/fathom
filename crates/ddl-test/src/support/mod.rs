@@ -5,6 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 mod directives;
+mod snapshot;
 
 use self::directives::Directives;
 
@@ -15,7 +16,7 @@ lazy_static::lazy_static! {
             .unwrap();
 }
 
-pub fn run_test(_test_name: &str, test_path: &str) {
+pub fn run_test(test_name: &str, test_path: &str) {
     // Set up output streams
 
     let reporting_config = codespan_reporting::Config::default();
@@ -26,7 +27,7 @@ pub fn run_test(_test_name: &str, test_path: &str) {
     let mut files = Files::new();
     let test_path = TESTS_DIR.join(test_path);
     let source = fs::read_to_string(&test_path)
-        .unwrap_or_else(|err| panic!("error reading `{}`: {}", test_path.display(), err));
+        .unwrap_or_else(|error| panic!("error reading `{}`: {}", test_path.display(), error));
     let file_id = files.add(test_path.display().to_string(), source);
 
     // Extract the directives from the source code
@@ -55,6 +56,9 @@ pub fn run_test(_test_name: &str, test_path: &str) {
 
     // Run stages
 
+    eprintln!();
+
+    let mut failed_checks = Vec::new();
     let mut unexpected_diagnostics = Vec::new();
 
     // SKIP
@@ -73,14 +77,89 @@ pub fn run_test(_test_name: &str, test_path: &str) {
 
         // COMPILE/RUST
         if let Some(_status) = directives.compile_rust {
-            let ((), mut diagnostics) = ddl_compile_rust::compile_module(&module);
+            use std::process::Command;
+
+            let mut output = Vec::new();
+            let mut diagnostics = ddl_compile_rust::compile_module(&mut output, &module).unwrap();
+
+            if let Err(error) = snapshot::compare(&test_path, "rs", &output) {
+                failed_checks.push("compile_rust: snapshot");
+
+                eprintln!("Failed COMPILE/RUST: snapshot test");
+                eprintln!();
+                eprintln!("{}", error);
+            }
+
             validate_pass(&files, file_id, &mut directives, &mut diagnostics);
             unexpected_diagnostics.extend(diagnostics);
+
+            // Test compiled output against rustc
+            let temp_dir = assert_fs::TempDir::new().unwrap();
+
+            let output = Command::new("rustc")
+                .arg(format!("--out-dir={}", temp_dir.path().display()))
+                // just do type checking, skipping codegen
+                .arg("--emit=dep-info,metadata")
+                .arg("--crate-type=rlib")
+                .arg(test_path.with_extension("rs"))
+                .output();
+
+            match output {
+                Ok(output) => {
+                    if !output.status.success() {
+                        failed_checks.push("compile_rust: rustc status");
+
+                        eprintln!("Failed COMPILE/RUST: rustc status");
+                        eprintln!();
+                        eprintln!(
+                            "Unexpected exist status received from rustc: {}",
+                            output.status,
+                        );
+                        eprintln!();
+                    }
+
+                    if !output.stdout.is_empty() {
+                        failed_checks.push("compile_rust: rustc stdout");
+
+                        eprintln!("Failed COMPILE/RUST: rustc stdout");
+                        eprintln!();
+                        eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+                        eprintln!();
+                    }
+
+                    if !output.stderr.is_empty() {
+                        failed_checks.push("compile_rust: rustc stderr");
+
+                        eprintln!("Failed COMPILE/RUST: rustc stderr");
+                        eprintln!();
+                        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                        eprintln!();
+                    }
+                }
+                Err(error) => {
+                    failed_checks.push("compile_rust: execute rustc");
+
+                    eprintln!("Failed COMPILE/RUST:");
+                    eprintln!();
+                    eprintln!("{}", error);
+                    eprintln!();
+                }
+            }
         }
 
         // COMPILE/DOC
         if let Some(_status) = directives.compile_doc {
-            let ((), mut diagnostics) = ddl_compile_doc::compile_module(&module);
+            let mut output = Vec::new();
+            let mut diagnostics = ddl_compile_doc::compile_module(&mut output, &module).unwrap();
+
+            if let Err(error) = snapshot::compare(&test_path, "md", &output) {
+                failed_checks.push("compile_doc: snapshot");
+
+                eprintln!("Failed COMPILE/DOC: snapshot test");
+                eprintln!();
+                eprintln!("{}", error);
+            }
+
             validate_pass(&files, file_id, &mut directives, &mut diagnostics);
             unexpected_diagnostics.extend(diagnostics);
         }
@@ -89,7 +168,8 @@ pub fn run_test(_test_name: &str, test_path: &str) {
     // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
     if !unexpected_diagnostics.is_empty() {
-        eprintln!();
+        failed_checks.push("unexpected_diagnostics");
+
         eprintln!("Unexpected diagnostics found:");
         eprintln!();
 
@@ -105,7 +185,8 @@ pub fn run_test(_test_name: &str, test_path: &str) {
     }
 
     if !directives.expected_diagnostics.is_empty() {
-        eprintln!();
+        failed_checks.push("expected_diagnostics");
+
         eprintln!("Expected diagnostics not found:");
         eprintln!();
 
@@ -130,10 +211,18 @@ pub fn run_test(_test_name: &str, test_path: &str) {
         eprintln!();
     }
 
-    assert!(unexpected_diagnostics.is_empty() && directives.expected_diagnostics.is_empty());
+    if !failed_checks.is_empty() {
+        eprintln!("failed {} checks:", failed_checks.len());
+        for check in failed_checks {
+            eprintln!("    {}", check);
+        }
+        eprintln!();
+
+        panic!("failed {}", test_name);
+    }
 }
 
-pub fn validate_pass(
+fn validate_pass(
     files: &Files,
     file_id: FileId,
     directives: &mut Directives,
@@ -149,7 +238,7 @@ pub fn validate_pass(
         directives.expected_diagnostics.retain(|expected| {
             found_match = expected.line == start.line
                 && expected.severity == diagnostic.severity
-                && expected.pattern.is_match(&diagnostic.primary_label.message);
+                && expected.pattern.is_match(&diagnostic.message);
             !found_match
         });
 

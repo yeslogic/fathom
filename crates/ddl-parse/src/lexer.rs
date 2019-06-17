@@ -7,6 +7,14 @@ pub enum Token {
     Identifier(String),
 }
 
+impl<'a> fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Token::Identifier(name) => write!(f, "{}", name),
+        }
+    }
+}
+
 pub type SpannedToken = (ByteIndex, Token, ByteIndex);
 
 /// A lexer for the DDL.
