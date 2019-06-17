@@ -7,6 +7,8 @@ use std::fmt;
 pub enum Token {
     /// Identifiers
     Identifier(String),
+    /// Doc comments,
+    DocComment(String),
 
     /// `struct`
     Struct,
@@ -21,6 +23,7 @@ impl<'a> fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Token::Identifier(name) => write!(f, "{}", name),
+            Token::DocComment(name) => write!(f, "///{}", name),
             Token::Struct => write!(f, "struct"),
             Token::OpenBrace => write!(f, "{{"),
             Token::CloseBrace => write!(f, "}}"),
@@ -127,6 +130,21 @@ impl<'input> Iterator for Lexer<'input> {
                     let expected = &["`/`"];
                     let start = self.token_end;
                     match self.advance() {
+                        Some('/') if self.peek() == Some('/') => {
+                            let mut doc = String::new();
+                            self.advance();
+                            'doc_comment: loop {
+                                match self.advance() {
+                                    Some('\n') | None => {
+                                        return Some(Ok(self.emit(Token::DocComment(doc))))
+                                    }
+                                    Some(ch) => {
+                                        doc.push(ch);
+                                        continue 'doc_comment;
+                                    }
+                                }
+                            }
+                        }
                         Some('/') => 'comment: loop {
                             match self.advance() {
                                 Some('\n') => {

@@ -12,6 +12,7 @@ extern {
 
     enum Token {
         "identifier" => Token::Identifier(<String>),
+        "doc comment" => Token::DocComment(<String>),
         "struct" => Token::Struct,
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
@@ -23,7 +24,7 @@ pub Module: Module = {
 };
 
 Item: Item = {
-    <start: @L> "struct" <name: "identifier"> "{" "}" <end: @R> => {
-        Item::Struct(Span::from(start..end), name)
+    <docs: "doc comment"*> <start: @L> "struct" <name: "identifier"> "{" "}" <end: @R> => {
+        Item::Struct(Span::from(start..end), super::concat_docs(docs), name)
     },
 };

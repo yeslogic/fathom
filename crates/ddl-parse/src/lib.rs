@@ -51,7 +51,7 @@ fn parse_error_to_diagnostic(
             token: (start, token, end),
             expected,
         } => Diagnostic::new_error(
-            format!("unexpected token {}", token),
+            format!("unexpected token \"{}\"", token),
             Label::new(file_id, start..end, "unexpected token"),
         )
         .with_notes(vec![format!(
@@ -62,7 +62,7 @@ fn parse_error_to_diagnostic(
         ParseError::ExtraToken {
             token: (start, token, end),
         } => Diagnostic::new_error(
-            format!("extra token {}", token),
+            format!("extra token \"{}\"", token),
             Label::new(file_id, start..end, "extra token"),
         ),
 
@@ -88,4 +88,16 @@ fn display_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt:
     }
 
     DisplayExpected(items)
+}
+
+fn concat_docs(lines: Vec<String>) -> String {
+    use itertools::Itertools;
+
+    lines
+        .iter()
+        .map(|line| match line {
+            line if line.starts_with(" ") => &line[" ".len()..],
+            line => &line[..],
+        })
+        .join("\n")
 }

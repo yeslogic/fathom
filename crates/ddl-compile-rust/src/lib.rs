@@ -13,7 +13,13 @@ pub fn compile_module(
 
     for item in &module.items {
         match item {
-            concrete::Item::Struct(_, name) => {
+            concrete::Item::Struct(_, doc, name) => {
+                for doc_line in doc.lines() {
+                    match doc_line {
+                        line if line.trim().is_empty() => writeln!(writer, "///")?,
+                        line => writeln!(writer, "/// {}", line)?,
+                    }
+                }
                 writeln!(writer, "pub struct {} {{}}", name)?;
             }
         }

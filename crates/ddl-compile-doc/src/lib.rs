@@ -13,8 +13,13 @@ pub fn compile_module(
 
     for item in &module.items {
         match item {
-            concrete::Item::Struct(_, name) => {
+            concrete::Item::Struct(_, doc, name) => {
                 writeln!(writer, "## {}", name)?;
+
+                if !doc.is_empty() {
+                    writeln!(writer)?;
+                    writeln!(writer, "{}", doc)?;
+                }
             }
         }
     }

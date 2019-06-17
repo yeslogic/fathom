@@ -18,5 +18,5 @@ pub enum Item {
     /// ```text
     /// struct <name> {}
     /// ```
-    Struct(Span, String),
+    Struct(Span, String, String),
 }

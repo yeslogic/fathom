@@ -20,6 +20,7 @@ test!(unexpected_character, "unexpected_character.ddl");
 
 mod struct_ {
     test!(empty, "struct/empty.ddl");
+    test!(empty_doc, "struct/empty_doc.ddl");
     test!(missing_closing_brace, "struct/missing_closing_brace.ddl");
     test!(missing_fields, "struct/missing_fields.ddl");
     test!(missing_name, "struct/missing_name.ddl");
