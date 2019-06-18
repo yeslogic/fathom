@@ -180,6 +180,7 @@ impl<'a> Parser<'a> {
                 self.directives
                     .expected_diagnostics
                     .push(ExpectedDiagnostic {
+                        file_id: self.file_id,
                         line: location.line,
                         severity,
                         pattern,

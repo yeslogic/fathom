@@ -1,4 +1,4 @@
-use codespan::LineIndex;
+use codespan::{FileId, LineIndex};
 use codespan_reporting::Severity;
 use regex::Regex;
 use std::fmt;
@@ -74,6 +74,7 @@ impl fmt::Display for Status {
 
 #[derive(Clone, Debug)]
 pub struct ExpectedDiagnostic {
+    pub file_id: FileId,
     pub line: LineIndex,
     pub severity: Severity,
     pub pattern: Regex,

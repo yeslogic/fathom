@@ -1,4 +1,4 @@
-use codespan::{FileId, Files};
+use codespan::Files;
 use codespan_reporting::termcolor::{BufferWriter, ColorChoice, StandardStream};
 use codespan_reporting::{self, Diagnostic, Severity};
 use std::fs;
@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 mod directives;
 mod snapshot;
 
-use self::directives::Directives;
+use self::directives::ExpectedDiagnostic;
 
 lazy_static::lazy_static! {
     static ref TESTS_DIR: PathBuf =
@@ -59,7 +59,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
     eprintln!();
 
     let mut failed_checks = Vec::new();
-    let mut unexpected_diagnostics = Vec::new();
+    let mut found_diagnostics = Vec::new();
 
     // SKIP
     if let Some(reason) = &directives.skip {
@@ -71,16 +71,16 @@ pub fn run_test(test_name: &str, test_path: &str) {
 
     // PARSE
     if let Some(_status) = directives.parse {
-        let (module, mut diagnostics) = ddl_parse::parse_module(&files, file_id);
-        validate_pass(&files, file_id, &mut directives, &mut diagnostics);
-        unexpected_diagnostics.extend(diagnostics);
+        let (module, diagnostics) = ddl_parse::parse_module(&files, file_id);
+        found_diagnostics.extend(diagnostics);
 
         // COMPILE/RUST
         if let Some(_status) = directives.compile_rust {
             use std::process::Command;
 
             let mut output = Vec::new();
-            let mut diagnostics = ddl_compile_rust::compile_module(&mut output, &module).unwrap();
+            let diagnostics = ddl_compile_rust::compile_module(&mut output, &module).unwrap();
+            found_diagnostics.extend(diagnostics);
 
             if let Err(error) = snapshot::compare(&test_path, "rs", &output) {
                 failed_checks.push("compile_rust: snapshot");
@@ -89,9 +89,6 @@ pub fn run_test(test_name: &str, test_path: &str) {
                 eprintln!();
                 eprintln!("{}", error);
             }
-
-            validate_pass(&files, file_id, &mut directives, &mut diagnostics);
-            unexpected_diagnostics.extend(diagnostics);
 
             // Test compiled output against rustc
             let temp_dir = assert_fs::TempDir::new().unwrap();
@@ -150,7 +147,8 @@ pub fn run_test(test_name: &str, test_path: &str) {
         // COMPILE/DOC
         if let Some(_status) = directives.compile_doc {
             let mut output = Vec::new();
-            let mut diagnostics = ddl_compile_doc::compile_module(&mut output, &module).unwrap();
+            let diagnostics = ddl_compile_doc::compile_module(&mut output, &module).unwrap();
+            found_diagnostics.extend(diagnostics);
 
             if let Err(error) = snapshot::compare(&test_path, "md", &output) {
                 failed_checks.push("compile_doc: snapshot");
@@ -159,15 +157,18 @@ pub fn run_test(test_name: &str, test_path: &str) {
                 eprintln!();
                 eprintln!("{}", error);
             }
-
-            validate_pass(&files, file_id, &mut directives, &mut diagnostics);
-            unexpected_diagnostics.extend(diagnostics);
         }
     }
 
     // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
-    if !unexpected_diagnostics.is_empty() {
+    retain_unexpected(
+        &files,
+        &mut found_diagnostics,
+        &mut directives.expected_diagnostics,
+    );
+
+    if !found_diagnostics.is_empty() {
         failed_checks.push("unexpected_diagnostics");
 
         eprintln!("Unexpected diagnostics found:");
@@ -177,7 +178,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
         // test status output.
 
         let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
-        for diagnostic in &unexpected_diagnostics {
+        for diagnostic in &found_diagnostics {
             codespan_reporting::emit(&mut buffer, &reporting_config, &files, diagnostic).unwrap();
         }
 
@@ -222,26 +223,46 @@ pub fn run_test(test_name: &str, test_path: &str) {
     }
 }
 
-fn validate_pass(
+fn retain_unexpected(
     files: &Files,
-    file_id: FileId,
-    directives: &mut Directives,
-    diagnostics: &mut Vec<Diagnostic>,
+    found_diagnostics: &mut Vec<Diagnostic>,
+    expected_diagnostics: &mut Vec<ExpectedDiagnostic>,
 ) {
-    diagnostics.retain(|diagnostic| {
-        let start = files
-            .location(file_id, diagnostic.primary_label.span.start())
-            .unwrap();
+    use std::collections::BTreeSet;
 
-        let mut found_match = false;
+    let mut found_removals = BTreeSet::new();
+    let mut expected_removals = BTreeSet::new();
 
-        directives.expected_diagnostics.retain(|expected| {
-            found_match = expected.line == start.line
-                && expected.severity == diagnostic.severity
-                && expected.pattern.is_match(&diagnostic.message);
-            !found_match
-        });
+    for (found_index, found_diagnostic) in found_diagnostics.iter().enumerate() {
+        for (expected_index, expected_diagnostic) in expected_diagnostics.iter().enumerate() {
+            if is_expected(files, found_diagnostic, expected_diagnostic) {
+                found_removals.insert(found_index);
+                expected_removals.insert(expected_index);
+            }
+        }
+    }
 
-        !found_match
-    });
+    for index in found_removals.into_iter().rev() {
+        found_diagnostics.remove(index);
+    }
+
+    for index in expected_removals.into_iter().rev() {
+        expected_diagnostics.remove(index);
+    }
+}
+
+fn is_expected(
+    files: &Files,
+    found_diagnostic: &Diagnostic,
+    expected_diagnostic: &ExpectedDiagnostic,
+) -> bool {
+    found_diagnostic.primary_label.file_id == expected_diagnostic.file_id && {
+        let start = found_diagnostic.primary_label.span.start();
+        let found_location = files.location(expected_diagnostic.file_id, start).unwrap();
+        let found_message = &found_diagnostic.message;
+
+        found_location.line == expected_diagnostic.line
+            && found_diagnostic.severity == expected_diagnostic.severity
+            && expected_diagnostic.pattern.is_match(found_message)
+    }
 }
