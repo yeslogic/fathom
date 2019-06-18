@@ -24,6 +24,11 @@ pub struct Directives {
     /// ```
     pub parse: Option<Status>,
     /// ```text
+    /// //~ ELABORATE: ok
+    /// //~ ELABORATE: fail
+    /// ```
+    pub elaborate: Option<Status>,
+    /// ```text
     /// //~ COMPILE/RUST: ok
     /// //~ COMPILE/RUST: fail
     /// ```
@@ -50,6 +55,7 @@ impl Default for Directives {
         Directives {
             skip: None,
             parse: None,
+            elaborate: None,
             compile_rust: None,
             compile_doc: None,
             expected_diagnostics: Vec::new(),

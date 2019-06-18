@@ -1,11 +1,11 @@
 [package]
-name = "ddl-compile-rust"
+name = "ddl-elaborate"
 version = "0.1.0"
 authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
 edition = "2018"
 publish = false
 
-description = "Rust backend for the DDL"
+description = "Elaborator from the concrete syntax of the DDL to the core syntax"
 readme = "README.md"
 license = "Apache-2.0"
 
@@ -13,4 +13,6 @@ license = "Apache-2.0"
 
 [dependencies]
 codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
+ddl-concrete = { path = "../ddl-concrete" }
 ddl-core = { path = "../ddl-core" }
+itertools = "0.8.0"

@@ -1,10 +1,10 @@
-use codespan::{ByteIndex, Span};
+use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::Diagnostic;
 use ddl_concrete::{Module, Item};
 
 use crate::lexer::Token;
 
-grammar(diagnostics: &mut Vec<Diagnostic>);
+grammar(file_id: FileId, diagnostics: &mut Vec<Diagnostic>);
 
 extern {
     type Location = ByteIndex;
@@ -20,11 +20,14 @@ extern {
 }
 
 pub Module: Module = {
-    <items: Item*> => Module { items },
+    <items: Item*> => Module { file_id, items },
 };
 
 Item: Item = {
     <docs: "doc comment"*> <start: @L> "struct" <name: "identifier"> "{" "}" <end: @R> => {
-        Item::Struct(Span::from(start..end), super::concat_docs(docs), name)
+        let span = Span::from(start..end);
+        let doc = super::concat_docs(docs);
+
+        Item::Struct { span, doc, name }
     },
 };

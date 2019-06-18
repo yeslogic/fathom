@@ -35,6 +35,7 @@ impl<'a> Parser<'a> {
                         Some(reason) => self.directives.skip = Some(reason),
                     },
                     ("PARSE", status) => self.expect_parse_stage(span, status),
+                    ("ELABORATE", status) => self.expect_elaborate_stage(span, status),
                     ("COMPILE/RUST", status) => self.expect_compile_rust_stage(span, status),
                     ("COMPILE/DOC", status) => self.expect_compile_doc_stage(span, status),
                     ("bug", pattern) => self.expect_bug(span, pattern),
@@ -52,6 +53,7 @@ impl<'a> Parser<'a> {
                                 perhaps you meant:
                                     - SKIP:         <reason>
                                     - PARSE:        (ok|fail)
+                                    - ELABORATE:    (ok|fail)
                                     - COMPILE/RUST: (ok|fail)
                                     - COMPILE/DOC:  (ok|fail)
                                     - bug:          <regex>
@@ -88,6 +90,14 @@ impl<'a> Parser<'a> {
             self.duplicate_directive(span, "PARSE");
         } else if let Some(status) = self.expect_stage_status(span, status) {
             self.directives.parse = Some(status);
+        }
+    }
+
+    fn expect_elaborate_stage(&mut self, span: Span, status: Option<String>) {
+        if self.directives.elaborate.is_some() {
+            self.duplicate_directive(span, "ELABORATE");
+        } else if let Some(status) = self.expect_stage_status(span, status) {
+            self.directives.elaborate = Some(status);
         }
     }
 

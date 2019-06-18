@@ -14,6 +14,7 @@ macro_rules! test {
     };
 }
 
+test!(duplicate_definitions, "duplicate_definitions.ddl");
 test!(empty, "empty.ddl");
 test!(unexpected_token, "unexpected_token.ddl");
 test!(unexpected_character, "unexpected_character.ddl");

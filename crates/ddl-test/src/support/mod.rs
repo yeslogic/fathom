@@ -70,93 +70,115 @@ pub fn run_test(test_name: &str, test_path: &str) {
     // FIXME: We should check these `_status` things somehow
 
     // PARSE
-    if let Some(_status) = directives.parse {
-        let (module, diagnostics) = ddl_parse::parse_module(&files, file_id);
+    let concrete_module = directives.parse.map(|_status| {
+        let (concrete_module, diagnostics) = ddl_parse::parse_module(&files, file_id);
+        found_diagnostics.extend(diagnostics);
+        concrete_module
+    });
+
+    // ELABORATE
+    let core_module = directives.elaborate.map(|_status| {
+        let concrete_module = concrete_module.as_ref().unwrap();
+        let (core_module, diagnostics) = ddl_elaborate::elaborate_module(concrete_module);
         found_diagnostics.extend(diagnostics);
 
-        // COMPILE/RUST
-        if let Some(_status) = directives.compile_rust {
-            use std::process::Command;
+        // The core syntax from the elaborator should always be well-formed!
+        let validation_diagnostics = ddl_core::validate::validate_module(&core_module);
+        if !validation_diagnostics.is_empty() {
+            failed_checks.push("elaborate: validate");
 
-            let mut output = Vec::new();
-            let diagnostics = ddl_compile_rust::compile_module(&mut output, &module).unwrap();
-            found_diagnostics.extend(diagnostics);
-
-            if let Err(error) = snapshot::compare(&test_path, "rs", &output) {
-                failed_checks.push("compile_rust: snapshot");
-
-                eprintln!("Failed COMPILE/RUST: snapshot test");
-                eprintln!();
-                eprintln!("{}", error);
-            }
-
-            // Test compiled output against rustc
-            let temp_dir = assert_fs::TempDir::new().unwrap();
-
-            let output = Command::new("rustc")
-                .arg(format!("--out-dir={}", temp_dir.path().display()))
-                // just do type checking, skipping codegen
-                .arg("--emit=dep-info,metadata")
-                .arg("--crate-type=rlib")
-                .arg(snapshot::out_path(&test_path, "rs").unwrap())
-                .output();
-
-            match output {
-                Ok(output) => {
-                    if !output.status.success() {
-                        failed_checks.push("compile_rust: rustc status");
-
-                        eprintln!("Failed COMPILE/RUST: rustc status");
-                        eprintln!();
-                        eprintln!(
-                            "Unexpected exist status received from rustc: {}",
-                            output.status,
-                        );
-                        eprintln!();
-                    }
-
-                    if !output.stdout.is_empty() {
-                        failed_checks.push("compile_rust: rustc stdout");
-
-                        eprintln!("Failed COMPILE/RUST: rustc stdout");
-                        eprintln!();
-                        eprintln!("{}", String::from_utf8_lossy(&output.stdout));
-                        eprintln!();
-                    }
-
-                    if !output.stderr.is_empty() {
-                        failed_checks.push("compile_rust: rustc stderr");
-
-                        eprintln!("Failed COMPILE/RUST: rustc stderr");
-                        eprintln!();
-                        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-                        eprintln!();
-                    }
-                }
-                Err(error) => {
-                    failed_checks.push("compile_rust: execute rustc");
-
-                    eprintln!("Failed COMPILE/RUST:");
-                    eprintln!();
-                    eprintln!("{}", error);
-                    eprintln!();
-                }
+            eprintln!("Failed ELABORATE: validate");
+            eprintln!();
+            let writer = &mut stdout.lock();
+            for diagnostic in validation_diagnostics {
+                codespan_reporting::emit(writer, &reporting_config, &files, &diagnostic).unwrap();
             }
         }
 
-        // COMPILE/DOC
-        if let Some(_status) = directives.compile_doc {
-            let mut output = Vec::new();
-            let diagnostics = ddl_compile_doc::compile_module(&mut output, &module).unwrap();
-            found_diagnostics.extend(diagnostics);
+        core_module
+    });
 
-            if let Err(error) = snapshot::compare(&test_path, "md", &output) {
-                failed_checks.push("compile_doc: snapshot");
+    // COMPILE/RUST
+    if let Some(_status) = directives.compile_rust {
+        use std::process::Command;
 
-                eprintln!("Failed COMPILE/DOC: snapshot test");
+        let mut output = Vec::new();
+        let core_module = core_module.as_ref().unwrap();
+        let diagnostics = ddl_compile_rust::compile_module(&mut output, core_module).unwrap();
+        found_diagnostics.extend(diagnostics);
+
+        if let Err(error) = snapshot::compare(&test_path, "rs", &output) {
+            failed_checks.push("compile_rust: snapshot");
+
+            eprintln!("Failed COMPILE/RUST: snapshot test");
+            eprintln!();
+            eprintln!("{}", error);
+        }
+
+        // Test compiled output against rustc
+        let temp_dir = assert_fs::TempDir::new().unwrap();
+
+        let output = Command::new("rustc")
+            .arg(format!("--out-dir={}", temp_dir.path().display()))
+            // just do type checking, skipping codegen
+            .arg("--emit=dep-info,metadata")
+            .arg("--crate-type=rlib")
+            .arg(snapshot::out_path(&test_path, "rs").unwrap())
+            .output();
+
+        match output {
+            Ok(output) => {
+                if !output.status.success() {
+                    failed_checks.push("compile_rust: rustc status");
+
+                    eprintln!("Failed COMPILE/RUST: rustc status");
+                    eprintln!();
+                    eprintln!("Unexpected exist status: {}", output.status);
+                    eprintln!();
+                }
+
+                if !output.stdout.is_empty() {
+                    failed_checks.push("compile_rust: rustc stdout");
+
+                    eprintln!("Failed COMPILE/RUST: rustc stdout");
+                    eprintln!();
+                    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+                    eprintln!();
+                }
+
+                if !output.stderr.is_empty() {
+                    failed_checks.push("compile_rust: rustc stderr");
+
+                    eprintln!("Failed COMPILE/RUST: rustc stderr");
+                    eprintln!();
+                    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                    eprintln!();
+                }
+            }
+            Err(error) => {
+                failed_checks.push("compile_rust: execute rustc");
+
+                eprintln!("Failed COMPILE/RUST:");
                 eprintln!();
                 eprintln!("{}", error);
+                eprintln!();
             }
+        }
+    }
+
+    // COMPILE/DOC
+    if let Some(_status) = directives.compile_doc {
+        let mut output = Vec::new();
+        let core_module = core_module.as_ref().unwrap();
+        let diagnostics = ddl_compile_doc::compile_module(&mut output, core_module).unwrap();
+        found_diagnostics.extend(diagnostics);
+
+        if let Err(error) = snapshot::compare(&test_path, "md", &output) {
+            failed_checks.push("compile_doc: snapshot");
+
+            eprintln!("Failed COMPILE/DOC: snapshot test");
+            eprintln!();
+            eprintln!("{}", error);
         }
     }
 
