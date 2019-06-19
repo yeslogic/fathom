@@ -111,55 +111,55 @@ pub fn run_integration_test(test_name: &str, test_path: &str) {
             eprintln!("Failed COMPILE/RUST: snapshot test");
             eprintln!();
             eprintln!("{}", error);
-        }
+        } else {
+            // Test compiled output against rustc
+            let temp_dir = assert_fs::TempDir::new().unwrap();
 
-        // Test compiled output against rustc
-        let temp_dir = assert_fs::TempDir::new().unwrap();
+            let output = Command::new("rustc")
+                .arg(format!("--out-dir={}", temp_dir.path().display()))
+                // just do type checking, skipping codegen
+                .arg("--emit=dep-info,metadata")
+                .arg("--crate-type=rlib")
+                .arg(snapshot::out_path(&test_path, "rs").unwrap())
+                .output();
 
-        let output = Command::new("rustc")
-            .arg(format!("--out-dir={}", temp_dir.path().display()))
-            // just do type checking, skipping codegen
-            .arg("--emit=dep-info,metadata")
-            .arg("--crate-type=rlib")
-            .arg(snapshot::out_path(&test_path, "rs").unwrap())
-            .output();
+            match output {
+                Ok(output) => {
+                    if !output.status.success() {
+                        failed_checks.push("compile_rust: rustc status");
 
-        match output {
-            Ok(output) => {
-                if !output.status.success() {
-                    failed_checks.push("compile_rust: rustc status");
+                        eprintln!("Failed COMPILE/RUST: rustc status");
+                        eprintln!();
+                        eprintln!("Unexpected exist status: {}", output.status);
+                        eprintln!();
+                    }
 
-                    eprintln!("Failed COMPILE/RUST: rustc status");
+                    if !output.stdout.is_empty() {
+                        failed_checks.push("compile_rust: rustc stdout");
+
+                        eprintln!("Failed COMPILE/RUST: rustc stdout");
+                        eprintln!();
+                        eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+                        eprintln!();
+                    }
+
+                    if !output.stderr.is_empty() {
+                        failed_checks.push("compile_rust: rustc stderr");
+
+                        eprintln!("Failed COMPILE/RUST: rustc stderr");
+                        eprintln!();
+                        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                        eprintln!();
+                    }
+                }
+                Err(error) => {
+                    failed_checks.push("compile_rust: execute rustc");
+
+                    eprintln!("Failed COMPILE/RUST:");
                     eprintln!();
-                    eprintln!("Unexpected exist status: {}", output.status);
+                    eprintln!("{}", error);
                     eprintln!();
                 }
-
-                if !output.stdout.is_empty() {
-                    failed_checks.push("compile_rust: rustc stdout");
-
-                    eprintln!("Failed COMPILE/RUST: rustc stdout");
-                    eprintln!();
-                    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
-                    eprintln!();
-                }
-
-                if !output.stderr.is_empty() {
-                    failed_checks.push("compile_rust: rustc stderr");
-
-                    eprintln!("Failed COMPILE/RUST: rustc stderr");
-                    eprintln!();
-                    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-                    eprintln!();
-                }
-            }
-            Err(error) => {
-                failed_checks.push("compile_rust: execute rustc");
-
-                eprintln!("Failed COMPILE/RUST:");
-                eprintln!();
-                eprintln!("{}", error);
-                eprintln!();
             }
         }
     }
