@@ -6,7 +6,7 @@
 use codespan_reporting::{Diagnostic, Label as DiagnosticLabel};
 use std::collections::HashMap;
 
-use crate::{Item, Module};
+use crate::core::{Item, Module};
 
 pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
     let file_id = module.file_id;
