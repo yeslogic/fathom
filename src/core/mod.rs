@@ -1,4 +1,4 @@
-//! The concrete syntax for the data description language.
+//! The core type theory of the data description language.
 
 use codespan::{FileId, Span};
 use std::rc::Rc;
