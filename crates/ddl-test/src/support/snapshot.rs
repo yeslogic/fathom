@@ -5,7 +5,7 @@ use std::{fmt, fs, io, str};
 pub fn compare(path: &Path, extension: &str, found_bytes: &[u8]) -> Result<(), SnapshotError> {
     use std::env;
 
-    let out_path = path.with_extension(extension);
+    let out_path = out_path(path, extension).unwrap();
     let found_str = std::str::from_utf8(found_bytes).map_err(SnapshotError::OutputUtf8)?;
 
     let is_bless = env::var("DDL_BLESS").is_ok();
@@ -30,6 +30,15 @@ pub fn compare(path: &Path, extension: &str, found_bytes: &[u8]) -> Result<(), S
     }
 
     Ok(())
+}
+
+pub fn out_path(path: &Path, extension: &str) -> Option<PathBuf> {
+    Some(
+        path.parent()?
+            .join("snapshots")
+            .join(path.file_stem()?)
+            .with_extension(extension),
+    )
 }
 
 fn is_same_diff(diff: &Diff) -> bool {
@@ -82,8 +91,8 @@ impl fmt::Display for SnapshotError {
                     match diff {
                         // TODO: Colored diffs
                         Diff::Same(data) => write_lines(f, "      ", data)?,
-                        Diff::Add(data) =>  write_lines(f, "    + ", data)?,
-                        Diff::Rem(data) =>  write_lines(f, "    - ", data)?,
+                        Diff::Add(data) => write_lines(f, "    + ", data)?,
+                        Diff::Rem(data) => write_lines(f, "    - ", data)?,
                     }
                 }
                 writeln!(f)?;

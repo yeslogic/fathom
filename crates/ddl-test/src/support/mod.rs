@@ -101,7 +101,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
                 // just do type checking, skipping codegen
                 .arg("--emit=dep-info,metadata")
                 .arg("--crate-type=rlib")
-                .arg(test_path.with_extension("rs"))
+                .arg(snapshot::out_path(&test_path, "rs").unwrap())
                 .output();
 
             match output {
