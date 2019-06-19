@@ -1,4 +1,12 @@
-//! Parser for the data description language.
+//! Elaboration from the concrete syntax into the core syntax.
+//!
+//! Performs the following:
+//!
+//! - name resolution
+//! - desugaring
+//! - pattern compilation (TODO)
+//! - bidirectional type checking (TODO)
+//! - unification (TODO)
 
 use codespan_reporting::{Diagnostic, Label};
 use std::collections::HashMap;
