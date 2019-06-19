@@ -1,4 +1,4 @@
-use codespan::{FileId, Files};
+use codespan::Files;
 use codespan_reporting::termcolor::{BufferWriter, ColorChoice, StandardStream};
 use codespan_reporting::{self, Diagnostic, Severity};
 use std::fs;
@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 mod directives;
 mod snapshot;
 
-use self::directives::Directives;
+use self::directives::ExpectedDiagnostic;
 
 lazy_static::lazy_static! {
     static ref TESTS_DIR: PathBuf =
@@ -59,7 +59,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
     eprintln!();
 
     let mut failed_checks = Vec::new();
-    let mut unexpected_diagnostics = Vec::new();
+    let mut found_diagnostics = Vec::new();
 
     // SKIP
     if let Some(reason) = &directives.skip {
@@ -70,104 +70,127 @@ pub fn run_test(test_name: &str, test_path: &str) {
     // FIXME: We should check these `_status` things somehow
 
     // PARSE
-    if let Some(_status) = directives.parse {
-        let (module, mut diagnostics) = ddl_parse::parse_module(&files, file_id);
-        validate_pass(&files, file_id, &mut directives, &mut diagnostics);
-        unexpected_diagnostics.extend(diagnostics);
+    let concrete_module = directives.parse.map(|_status| {
+        let (concrete_module, diagnostics) = ddl_parse::parse_module(&files, file_id);
+        found_diagnostics.extend(diagnostics);
+        concrete_module
+    });
 
-        // COMPILE/RUST
-        if let Some(_status) = directives.compile_rust {
-            use std::process::Command;
+    // ELABORATE
+    let core_module = directives.elaborate.map(|_status| {
+        let concrete_module = concrete_module.as_ref().unwrap();
+        let (core_module, diagnostics) = ddl_elaborate::elaborate_module(concrete_module);
+        found_diagnostics.extend(diagnostics);
 
-            let mut output = Vec::new();
-            let mut diagnostics = ddl_compile_rust::compile_module(&mut output, &module).unwrap();
+        // The core syntax from the elaborator should always be well-formed!
+        let validation_diagnostics = ddl_core::validate::validate_module(&core_module);
+        if !validation_diagnostics.is_empty() {
+            failed_checks.push("elaborate: validate");
 
-            if let Err(error) = snapshot::compare(&test_path, "rs", &output) {
-                failed_checks.push("compile_rust: snapshot");
-
-                eprintln!("Failed COMPILE/RUST: snapshot test");
-                eprintln!();
-                eprintln!("{}", error);
-            }
-
-            validate_pass(&files, file_id, &mut directives, &mut diagnostics);
-            unexpected_diagnostics.extend(diagnostics);
-
-            // Test compiled output against rustc
-            let temp_dir = assert_fs::TempDir::new().unwrap();
-
-            let output = Command::new("rustc")
-                .arg(format!("--out-dir={}", temp_dir.path().display()))
-                // just do type checking, skipping codegen
-                .arg("--emit=dep-info,metadata")
-                .arg("--crate-type=rlib")
-                .arg(snapshot::out_path(&test_path, "rs").unwrap())
-                .output();
-
-            match output {
-                Ok(output) => {
-                    if !output.status.success() {
-                        failed_checks.push("compile_rust: rustc status");
-
-                        eprintln!("Failed COMPILE/RUST: rustc status");
-                        eprintln!();
-                        eprintln!(
-                            "Unexpected exist status received from rustc: {}",
-                            output.status,
-                        );
-                        eprintln!();
-                    }
-
-                    if !output.stdout.is_empty() {
-                        failed_checks.push("compile_rust: rustc stdout");
-
-                        eprintln!("Failed COMPILE/RUST: rustc stdout");
-                        eprintln!();
-                        eprintln!("{}", String::from_utf8_lossy(&output.stdout));
-                        eprintln!();
-                    }
-
-                    if !output.stderr.is_empty() {
-                        failed_checks.push("compile_rust: rustc stderr");
-
-                        eprintln!("Failed COMPILE/RUST: rustc stderr");
-                        eprintln!();
-                        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-                        eprintln!();
-                    }
-                }
-                Err(error) => {
-                    failed_checks.push("compile_rust: execute rustc");
-
-                    eprintln!("Failed COMPILE/RUST:");
-                    eprintln!();
-                    eprintln!("{}", error);
-                    eprintln!();
-                }
+            eprintln!("Failed ELABORATE: validate");
+            eprintln!();
+            let writer = &mut stdout.lock();
+            for diagnostic in validation_diagnostics {
+                codespan_reporting::emit(writer, &reporting_config, &files, &diagnostic).unwrap();
             }
         }
 
-        // COMPILE/DOC
-        if let Some(_status) = directives.compile_doc {
-            let mut output = Vec::new();
-            let mut diagnostics = ddl_compile_doc::compile_module(&mut output, &module).unwrap();
+        core_module
+    });
 
-            if let Err(error) = snapshot::compare(&test_path, "md", &output) {
-                failed_checks.push("compile_doc: snapshot");
+    // COMPILE/RUST
+    if let Some(_status) = directives.compile_rust {
+        use std::process::Command;
 
-                eprintln!("Failed COMPILE/DOC: snapshot test");
+        let mut output = Vec::new();
+        let core_module = core_module.as_ref().unwrap();
+        let diagnostics = ddl_compile_rust::compile_module(&mut output, core_module).unwrap();
+        found_diagnostics.extend(diagnostics);
+
+        if let Err(error) = snapshot::compare(&test_path, "rs", &output) {
+            failed_checks.push("compile_rust: snapshot");
+
+            eprintln!("Failed COMPILE/RUST: snapshot test");
+            eprintln!();
+            eprintln!("{}", error);
+        }
+
+        // Test compiled output against rustc
+        let temp_dir = assert_fs::TempDir::new().unwrap();
+
+        let output = Command::new("rustc")
+            .arg(format!("--out-dir={}", temp_dir.path().display()))
+            // just do type checking, skipping codegen
+            .arg("--emit=dep-info,metadata")
+            .arg("--crate-type=rlib")
+            .arg(snapshot::out_path(&test_path, "rs").unwrap())
+            .output();
+
+        match output {
+            Ok(output) => {
+                if !output.status.success() {
+                    failed_checks.push("compile_rust: rustc status");
+
+                    eprintln!("Failed COMPILE/RUST: rustc status");
+                    eprintln!();
+                    eprintln!("Unexpected exist status: {}", output.status);
+                    eprintln!();
+                }
+
+                if !output.stdout.is_empty() {
+                    failed_checks.push("compile_rust: rustc stdout");
+
+                    eprintln!("Failed COMPILE/RUST: rustc stdout");
+                    eprintln!();
+                    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+                    eprintln!();
+                }
+
+                if !output.stderr.is_empty() {
+                    failed_checks.push("compile_rust: rustc stderr");
+
+                    eprintln!("Failed COMPILE/RUST: rustc stderr");
+                    eprintln!();
+                    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                    eprintln!();
+                }
+            }
+            Err(error) => {
+                failed_checks.push("compile_rust: execute rustc");
+
+                eprintln!("Failed COMPILE/RUST:");
                 eprintln!();
                 eprintln!("{}", error);
+                eprintln!();
             }
+        }
+    }
 
-            validate_pass(&files, file_id, &mut directives, &mut diagnostics);
-            unexpected_diagnostics.extend(diagnostics);
+    // COMPILE/DOC
+    if let Some(_status) = directives.compile_doc {
+        let mut output = Vec::new();
+        let core_module = core_module.as_ref().unwrap();
+        let diagnostics = ddl_compile_doc::compile_module(&mut output, core_module).unwrap();
+        found_diagnostics.extend(diagnostics);
+
+        if let Err(error) = snapshot::compare(&test_path, "md", &output) {
+            failed_checks.push("compile_doc: snapshot");
+
+            eprintln!("Failed COMPILE/DOC: snapshot test");
+            eprintln!();
+            eprintln!("{}", error);
         }
     }
 
     // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
-    if !unexpected_diagnostics.is_empty() {
+    retain_unexpected(
+        &files,
+        &mut found_diagnostics,
+        &mut directives.expected_diagnostics,
+    );
+
+    if !found_diagnostics.is_empty() {
         failed_checks.push("unexpected_diagnostics");
 
         eprintln!("Unexpected diagnostics found:");
@@ -177,7 +200,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
         // test status output.
 
         let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
-        for diagnostic in &unexpected_diagnostics {
+        for diagnostic in &found_diagnostics {
             codespan_reporting::emit(&mut buffer, &reporting_config, &files, diagnostic).unwrap();
         }
 
@@ -222,26 +245,46 @@ pub fn run_test(test_name: &str, test_path: &str) {
     }
 }
 
-fn validate_pass(
+fn retain_unexpected(
     files: &Files,
-    file_id: FileId,
-    directives: &mut Directives,
-    diagnostics: &mut Vec<Diagnostic>,
+    found_diagnostics: &mut Vec<Diagnostic>,
+    expected_diagnostics: &mut Vec<ExpectedDiagnostic>,
 ) {
-    diagnostics.retain(|diagnostic| {
-        let start = files
-            .location(file_id, diagnostic.primary_label.span.start())
-            .unwrap();
+    use std::collections::BTreeSet;
 
-        let mut found_match = false;
+    let mut found_removals = BTreeSet::new();
+    let mut expected_removals = BTreeSet::new();
 
-        directives.expected_diagnostics.retain(|expected| {
-            found_match = expected.line == start.line
-                && expected.severity == diagnostic.severity
-                && expected.pattern.is_match(&diagnostic.message);
-            !found_match
-        });
+    for (found_index, found_diagnostic) in found_diagnostics.iter().enumerate() {
+        for (expected_index, expected_diagnostic) in expected_diagnostics.iter().enumerate() {
+            if is_expected(files, found_diagnostic, expected_diagnostic) {
+                found_removals.insert(found_index);
+                expected_removals.insert(expected_index);
+            }
+        }
+    }
 
-        !found_match
-    });
+    for index in found_removals.into_iter().rev() {
+        found_diagnostics.remove(index);
+    }
+
+    for index in expected_removals.into_iter().rev() {
+        expected_diagnostics.remove(index);
+    }
+}
+
+fn is_expected(
+    files: &Files,
+    found_diagnostic: &Diagnostic,
+    expected_diagnostic: &ExpectedDiagnostic,
+) -> bool {
+    found_diagnostic.primary_label.file_id == expected_diagnostic.file_id && {
+        let start = found_diagnostic.primary_label.span.start();
+        let found_location = files.location(expected_diagnostic.file_id, start).unwrap();
+        let found_message = &found_diagnostic.message;
+
+        found_location.line == expected_diagnostic.line
+            && found_diagnostic.severity == expected_diagnostic.severity
+            && expected_diagnostic.pattern.is_match(found_message)
+    }
 }

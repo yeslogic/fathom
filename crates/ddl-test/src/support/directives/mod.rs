@@ -1,4 +1,4 @@
-use codespan::LineIndex;
+use codespan::{FileId, LineIndex};
 use codespan_reporting::Severity;
 use regex::Regex;
 use std::fmt;
@@ -23,6 +23,11 @@ pub struct Directives {
     /// //~ PARSE: fail
     /// ```
     pub parse: Option<Status>,
+    /// ```text
+    /// //~ ELABORATE: ok
+    /// //~ ELABORATE: fail
+    /// ```
+    pub elaborate: Option<Status>,
     /// ```text
     /// //~ COMPILE/RUST: ok
     /// //~ COMPILE/RUST: fail
@@ -50,6 +55,7 @@ impl Default for Directives {
         Directives {
             skip: None,
             parse: None,
+            elaborate: None,
             compile_rust: None,
             compile_doc: None,
             expected_diagnostics: Vec::new(),
@@ -74,6 +80,7 @@ impl fmt::Display for Status {
 
 #[derive(Clone, Debug)]
 pub struct ExpectedDiagnostic {
+    pub file_id: FileId,
     pub line: LineIndex,
     pub severity: Severity,
     pub pattern: Regex,

@@ -7,6 +7,7 @@ use codespan_reporting::{Diagnostic, Label};
 use ddl_concrete::Module;
 use lalrpop_util::ParseError;
 use std::fmt;
+use std::rc::Rc;
 
 mod lexer;
 
@@ -21,10 +22,13 @@ pub fn parse_module(files: &Files, file_id: FileId) -> (Module, Vec<Diagnostic>)
     let lexer = Lexer::new(files, file_id);
 
     let module = grammar::ModuleParser::new()
-        .parse(&mut diagnostics, lexer)
+        .parse(file_id, &mut diagnostics, lexer)
         .unwrap_or_else(|error| {
             diagnostics.push(parse_error_to_diagnostic(file_id, error));
-            Module { items: Vec::new() }
+            Module {
+                file_id,
+                items: Vec::new(),
+            }
         });
 
     (module, diagnostics)
@@ -90,14 +94,16 @@ fn display_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt:
     DisplayExpected(items)
 }
 
-fn concat_docs(lines: Vec<String>) -> String {
+fn concat_docs(lines: Vec<String>) -> Rc<str> {
     use itertools::Itertools;
 
-    lines
+    let doc = lines
         .iter()
         .map(|line| match line {
             line if line.starts_with(" ") => &line[" ".len()..],
             line => &line[..],
         })
-        .join("\n")
+        .join("\n");
+
+    Rc::from(doc)
 }

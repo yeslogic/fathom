@@ -3,6 +3,8 @@ members = [
     "crates/ddl-compile-doc",
     "crates/ddl-compile-rust",
     "crates/ddl-concrete",
+    "crates/ddl-core",
+    "crates/ddl-elaborate",
     "crates/ddl-parse",
     "crates/ddl-test",
 ]

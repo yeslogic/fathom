@@ -5,6 +5,12 @@
 use codespan::{FileId, Span};
 use std::rc::Rc;
 
+pub mod validate;
+
+/// A label.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, derive_more::Display)]
+pub struct Label(pub String);
+
 /// A module of items.
 #[derive(Debug, Clone)]
 pub struct Module {
@@ -18,16 +24,20 @@ pub struct Module {
 #[derive(Debug, Clone)]
 pub enum Item {
     /// Struct definitions.
-    ///
-    /// ```text
-    /// struct <name> {}
-    /// ```
     Struct {
         /// The full span of this definition.
         span: Span,
         /// Doc comment.
         doc: Rc<str>,
         /// Name of this definition.
-        name: String,
+        name: Label,
     },
+}
+
+impl Item {
+    pub fn span(&self) -> Span {
+        match self {
+            Item::Struct { span, .. } => *span,
+        }
+    }
 }
