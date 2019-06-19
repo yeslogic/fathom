@@ -1,8 +1,8 @@
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::Diagnostic;
-use ddl_concrete::{Module, Item};
 
-use crate::lexer::Token;
+use crate::concrete::{Module, Item};
+use crate::parse::lexer::Token;
 
 grammar(file_id: FileId, diagnostics: &mut Vec<Diagnostic>);
 

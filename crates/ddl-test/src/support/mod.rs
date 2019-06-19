@@ -71,7 +71,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
 
     // PARSE
     let concrete_module = directives.parse.map(|_status| {
-        let (concrete_module, diagnostics) = ddl_parse::parse_module(&files, file_id);
+        let (concrete_module, diagnostics) = ddl::parse::parse_module(&files, file_id);
         found_diagnostics.extend(diagnostics);
         concrete_module
     });
@@ -79,11 +79,11 @@ pub fn run_test(test_name: &str, test_path: &str) {
     // ELABORATE
     let core_module = directives.elaborate.map(|_status| {
         let concrete_module = concrete_module.as_ref().unwrap();
-        let (core_module, diagnostics) = ddl_elaborate::elaborate_module(concrete_module);
+        let (core_module, diagnostics) = ddl::elaborate::elaborate_module(concrete_module);
         found_diagnostics.extend(diagnostics);
 
         // The core syntax from the elaborator should always be well-formed!
-        let validation_diagnostics = ddl_core::validate::validate_module(&core_module);
+        let validation_diagnostics = ddl::core::validate::validate_module(&core_module);
         if !validation_diagnostics.is_empty() {
             failed_checks.push("elaborate: validate");
 
@@ -104,7 +104,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
 
         let mut output = Vec::new();
         let core_module = core_module.as_ref().unwrap();
-        let diagnostics = ddl_compile_rust::compile_module(&mut output, core_module).unwrap();
+        let diagnostics = ddl::compile::rust::compile_module(&mut output, core_module).unwrap();
         found_diagnostics.extend(diagnostics);
 
         if let Err(error) = snapshot::compare(&test_path, "rs", &output) {
@@ -170,7 +170,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
     if let Some(_status) = directives.compile_doc {
         let mut output = Vec::new();
         let core_module = core_module.as_ref().unwrap();
-        let diagnostics = ddl_compile_doc::compile_module(&mut output, core_module).unwrap();
+        let diagnostics = ddl::compile::doc::compile_module(&mut output, core_module).unwrap();
         found_diagnostics.extend(diagnostics);
 
         if let Err(error) = snapshot::compare(&test_path, "md", &output) {

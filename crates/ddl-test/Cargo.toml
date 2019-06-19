@@ -15,11 +15,7 @@ license = "Apache-2.0"
 assert_fs = "0.11"
 codespan = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
 codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
-ddl-compile-doc = { path = "../ddl-compile-doc" }
-ddl-compile-rust = { path = "../ddl-compile-rust" }
-ddl-core = { path = "../ddl-core" }
-ddl-elaborate = { path = "../ddl-elaborate" }
-ddl-parse = { path = "../ddl-parse" }
+ddl = { path = "../ddl" }
 difference = "2.0"
 lazy_static = "1.3"
 regex = "1.1"

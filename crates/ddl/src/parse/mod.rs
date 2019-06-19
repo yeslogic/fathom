@@ -1,20 +1,19 @@
 //! Parser for the data description language.
 
-#![warn(rust_2018_idioms)]
-
 use codespan::{ByteIndex, FileId, Files};
 use codespan_reporting::{Diagnostic, Label};
-use ddl_concrete::Module;
 use lalrpop_util::ParseError;
 use std::fmt;
 use std::rc::Rc;
+
+use crate::concrete::Module;
 
 mod lexer;
 
 use self::lexer::{Lexer, Token};
 
 mod grammar {
-    include!(concat!(env!("OUT_DIR"), "/grammar.rs"));
+    include!(concat!(env!("OUT_DIR"), "/parse/grammar.rs"));
 }
 
 pub fn parse_module(files: &Files, file_id: FileId) -> (Module, Vec<Diagnostic>) {

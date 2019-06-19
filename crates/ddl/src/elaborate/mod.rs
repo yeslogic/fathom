@@ -1,13 +1,11 @@
 //! Parser for the data description language.
 
-#![warn(rust_2018_idioms)]
-
 use codespan_reporting::{Diagnostic, Label};
-use ddl_concrete as concrete;
-use ddl_core as core;
 use std::collections::HashMap;
 
-pub fn elaborate_module(concrete_module: &concrete::Module) -> (ddl_core::Module, Vec<Diagnostic>) {
+use crate::{concrete, core};
+
+pub fn elaborate_module(concrete_module: &concrete::Module) -> (core::Module, Vec<Diagnostic>) {
     let file_id = concrete_module.file_id;
     let mut used_names = HashMap::new();
     let mut diagnostics = Vec::new();
