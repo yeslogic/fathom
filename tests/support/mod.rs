@@ -2,7 +2,7 @@ use codespan::Files;
 use codespan_reporting::termcolor::{BufferWriter, ColorChoice, StandardStream};
 use codespan_reporting::{self, Diagnostic, Severity};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 mod directives;
 mod snapshot;
@@ -10,13 +10,11 @@ mod snapshot;
 use self::directives::ExpectedDiagnostic;
 
 lazy_static::lazy_static! {
-    static ref TESTS_DIR: PathBuf =
-        Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests"))
-            .canonicalize()
-            .unwrap();
+    static ref INTEGRATION_DIR: PathBuf =
+        PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/integration"));
 }
 
-pub fn run_test(test_name: &str, test_path: &str) {
+pub fn run_integration_test(test_name: &str, test_path: &str) {
     // Set up output streams
 
     let reporting_config = codespan_reporting::Config::default();
@@ -25,7 +23,7 @@ pub fn run_test(test_name: &str, test_path: &str) {
     // Set up files
 
     let mut files = Files::new();
-    let test_path = TESTS_DIR.join(test_path);
+    let test_path = INTEGRATION_DIR.join(test_path);
     let source = fs::read_to_string(&test_path)
         .unwrap_or_else(|error| panic!("error reading `{}`: {}", test_path.display(), error));
     let file_id = files.add(test_path.display().to_string(), source);
