@@ -1,7 +1,7 @@
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::Diagnostic;
 
-use crate::concrete::{Module, Item};
+use crate::concrete::{Module, Item, SpannedString};
 use crate::parse::lexer::Token;
 
 grammar(file_id: FileId, diagnostics: &mut Vec<Diagnostic>);
@@ -24,10 +24,16 @@ pub Module: Module = {
 };
 
 Item: Item = {
-    <docs: "doc comment"*> <start: @L> "struct" <name: "identifier"> "{" "}" <end: @R> => {
+    <docs: "doc comment"*> <start: @L> "struct" <name: Identifier> "{" "}" <end: @R> => {
         let span = Span::from(start..end);
         let doc = super::concat_docs(docs);
 
         Item::Struct { span, doc, name }
+    },
+};
+
+Identifier: SpannedString = {
+    <start: @L> <name: "identifier"> => {
+        SpannedString::new(start, name)
     },
 };

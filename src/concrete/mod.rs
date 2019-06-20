@@ -1,6 +1,6 @@
 //! The concrete syntax for the data description language.
 
-use codespan::{FileId, Span};
+use codespan::{ByteIndex, ByteOffset, FileId, Span};
 use std::rc::Rc;
 
 /// A module of items.
@@ -26,6 +26,31 @@ pub enum Item {
         /// Doc comment.
         doc: Rc<str>,
         /// Name of this definition.
-        name: String,
+        name: SpannedString,
     },
+}
+
+/// A string that is located in a source file.
+#[derive(Debug, Clone, derive_more::Display)]
+#[display(fmt = "{}", inner)]
+pub struct SpannedString {
+    pub start: ByteIndex,
+    pub inner: String,
+}
+
+impl SpannedString {
+    pub fn new(start: ByteIndex, inner: String) -> SpannedString {
+        SpannedString { start, inner }
+    }
+
+    pub fn span(&self) -> Span {
+        Span::new(
+            self.start,
+            self.start + ByteOffset::from_str_len(&self.inner),
+        )
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.inner
+    }
 }
