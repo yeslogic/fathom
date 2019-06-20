@@ -1,7 +1,8 @@
 use codespan::{ByteIndex, FileId, Files, Span};
 use codespan_reporting::{Diagnostic, Label};
+use ddl::concrete::SpannedString;
 
-pub type Token = (Span, String, Option<String>);
+pub type Token = (Span, SpannedString, Option<SpannedString>);
 
 /// An iterator over the test directives in a file.
 ///
@@ -64,13 +65,15 @@ impl<'input> Iterator for Lexer<'input> {
     fn next(&mut self) -> Option<Result<Token, Diagnostic>> {
         fn emit(
             span: impl Into<Span>,
-            key: String,
-            value: Option<String>,
+            (key_start, key): (ByteIndex, String),
+            value: Option<(ByteIndex, String)>,
         ) -> Option<Result<Token, Diagnostic>> {
             Some(Ok((
                 span.into(),
-                key.trim().to_string(),
-                value.map(|value| value.trim().to_string()),
+                SpannedString::new(key_start, key.trim().to_string()),
+                value.map(|(value_start, value)| {
+                    SpannedString::new(value_start, value.trim().to_string())
+                }),
             )))
         }
 
@@ -91,43 +94,42 @@ impl<'input> Iterator for Lexer<'input> {
             match self.next_char()? {
                 // in comment directive
                 (_, '~') => loop {
-                    let mut key = String::new();
-                    let mut value = String::new();
-
                     // skip space
-                    'space0: loop {
+                    let (key_start, mut key) = 'space0: loop {
                         match self.next_char() {
                             None => return self.unexpected_eof("key"),
                             Some((i, '\n')) => return self.unexpected_eol(i, "key"),
                             Some((_, ' ')) => {}
-                            Some((_, ch)) => {
+                            Some((key_start, ch)) => {
+                                let mut key = String::new();
                                 key.push(ch);
-                                break 'space0;
+                                break 'space0 (key_start, key);
                             }
                         }
-                    }
+                    };
 
                     // in key
                     'key: loop {
                         match self.next_char()? {
                             (_, ':') => break 'key,
-                            (end, '\n') => return emit(start..end, key, None),
+                            (end, '\n') => return emit(start..end, (key_start, key), None),
                             (_, ch) => key.push(ch),
                         }
                     }
 
                     // skip space
-                    'space1: loop {
+                    let (value_start, mut value) = 'space1: loop {
                         match self.next_char() {
                             None => return self.unexpected_eof("value"),
                             Some((i, '\n')) => return self.unexpected_eol(i, "value"),
                             Some((_, ' ')) => {}
-                            Some((_, ch)) => {
+                            Some((value_start, ch)) => {
+                                let mut value = String::new();
                                 value.push(ch);
-                                break 'space1;
+                                break 'space1 (value_start, value);
                             }
                         }
-                    }
+                    };
 
                     // in key
                     let end = 'value: loop {
@@ -138,7 +140,7 @@ impl<'input> Iterator for Lexer<'input> {
                         }
                     };
 
-                    return emit(start..end, key, Some(value));
+                    return emit(start..end, (key_start, key), Some((value_start, value)));
                 },
                 // in comment
                 _ => 'comment: loop {

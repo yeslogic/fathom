@@ -27,7 +27,7 @@ pub fn elaborate_module(concrete_module: &concrete::Module) -> (core::Module, Ve
 
         match item {
             concrete::Item::Struct { span, doc, name } => {
-                let label = core::Label(name.clone());
+                let label = core::Label(name.to_string());
 
                 match used_names.entry(label) {
                     Entry::Vacant(entry) => {

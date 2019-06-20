@@ -2,6 +2,7 @@
 
 #![warn(rust_2018_idioms)]
 
+#[path = "support/mod.rs"]
 mod support;
 
 macro_rules! test {
