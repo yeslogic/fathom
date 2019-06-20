@@ -39,8 +39,11 @@ pub struct SpannedString {
 }
 
 impl SpannedString {
-    pub fn new(start: ByteIndex, inner: String) -> SpannedString {
-        SpannedString { start, inner }
+    pub fn new(start: impl Into<ByteIndex>, inner: impl Into<String>) -> SpannedString {
+        SpannedString {
+            start: start.into(),
+            inner: inner.into(),
+        }
     }
 
     pub fn span(&self) -> Span {
