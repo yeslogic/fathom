@@ -17,6 +17,11 @@ pub enum Token {
     OpenBrace,
     /// `}`
     CloseBrace,
+
+    // `:`
+    Colon,
+    // `,`
+    Comma,
 }
 
 impl<'a> fmt::Display for Token {
@@ -24,9 +29,14 @@ impl<'a> fmt::Display for Token {
         match self {
             Token::Identifier(name) => write!(f, "{}", name),
             Token::DocComment(name) => write!(f, "///{}", name),
+
             Token::Struct => write!(f, "struct"),
+
             Token::OpenBrace => write!(f, "{{"),
             Token::CloseBrace => write!(f, "}}"),
+
+            Token::Colon => write!(f, ":"),
+            Token::Comma => write!(f, ","),
         }
     }
 }
@@ -161,6 +171,8 @@ impl<'input> Iterator for Lexer<'input> {
                 }
                 '{' => return Some(Ok(self.emit(Token::OpenBrace))),
                 '}' => return Some(Ok(self.emit(Token::CloseBrace))),
+                ':' => return Some(Ok(self.emit(Token::Colon))),
+                ',' => return Some(Ok(self.emit(Token::Comma))),
                 ch if is_identifier_start(ch) => {
                     let mut ident = String::new();
                     ident.push(ch);

@@ -27,7 +27,28 @@ pub enum Item {
         doc: Rc<str>,
         /// Name of this definition.
         name: SpannedString,
+        /// Fields in the struct.
+        fields: Vec<(Rc<str>, SpannedString, Term)>,
     },
+}
+
+/// Terms.
+#[derive(Debug, Clone)]
+pub enum Term {
+    /// Variables.
+    Var(SpannedString),
+
+    /// Error sentinel terms.
+    Error(Span),
+}
+
+impl Term {
+    pub fn span(&self) -> Span {
+        match self {
+            Term::Var(name) => name.span(),
+            Term::Error(span) => *span,
+        }
+    }
 }
 
 /// A string that is located in a source file.

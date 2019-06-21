@@ -14,15 +14,22 @@ macro_rules! test {
     };
 }
 
-test!(duplicate_definitions, "duplicate_definitions.ddl");
+// ok
 test!(empty, "empty.ddl");
+// fail
+test!(duplicate_definitions, "duplicate_definitions.ddl");
 test!(unexpected_token, "unexpected_token.ddl");
 test!(unexpected_character, "unexpected_character.ddl");
 
 mod struct_ {
+    // ok
     test!(empty, "struct/empty.ddl");
     test!(empty_doc, "struct/empty_doc.ddl");
+    test!(pair, "struct/pair.ddl");
+    // fail
+    test!(duplicate_fields, "struct/duplicate_fields.ddl");
     test!(missing_closing_brace, "struct/missing_closing_brace.ddl");
     test!(missing_fields, "struct/missing_fields.ddl");
     test!(missing_name, "struct/missing_name.ddl");
+    test!(undefined_field, "struct/undefined_field.ddl");
 }
