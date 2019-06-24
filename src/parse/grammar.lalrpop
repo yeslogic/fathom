@@ -1,7 +1,8 @@
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::Diagnostic;
+use std::rc::Rc;
 
-use crate::concrete::{Module, Item, SpannedString};
+use crate::concrete::{Module, Item, SpannedString, Term};
 use crate::parse::lexer::Token;
 
 grammar(file_id: FileId, diagnostics: &mut Vec<Diagnostic>);
@@ -13,9 +14,14 @@ extern {
     enum Token {
         "identifier" => Token::Identifier(<String>),
         "doc comment" => Token::DocComment(<String>),
+
         "struct" => Token::Struct,
+
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
+
+        ":" => Token::Colon,
+        "," => Token::Comma,
     }
 }
 
@@ -24,12 +30,29 @@ pub Module: Module = {
 };
 
 Item: Item = {
-    <docs: "doc comment"*> <start: @L> "struct" <name: Identifier> "{" "}" <end: @R> => {
+    <docs: "doc comment"*>
+    <start: @L> "struct" <name: Identifier> "{"
+        <fields: (<Field> ",")*>
+        <last: Field?>
+    "}" <end: @R> => {
         let span = Span::from(start..end);
         let doc = super::concat_docs(docs);
+        let mut fields = fields;
+        fields.extend(last);
 
-        Item::Struct { span, doc, name }
+        Item::Struct { span, doc, name, fields }
     },
+};
+
+Field: (Rc<str>, SpannedString, Term) = {
+    <docs: "doc comment"*>
+    <name: Identifier> ":" <term: Term> => {
+        (super::concat_docs(docs), name, term)
+    },
+};
+
+Term: Term = {
+    <name: Identifier> => Term::Var(name),
 };
 
 Identifier: SpannedString = {
