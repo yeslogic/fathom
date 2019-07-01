@@ -54,7 +54,9 @@ fn read_snapshot(out_path: &Path) -> Result<String, SnapshotError> {
 }
 
 fn bless_snapshot(out_path: PathBuf, found_str: &str) -> Result<(), SnapshotError> {
-    fs::write(&out_path, found_str).map_err(|error| SnapshotError::WriteSnapshot(out_path, error))
+    fs::create_dir_all(out_path.parent().unwrap())
+        .and_then(|()| fs::write(&out_path, found_str))
+        .map_err(|error| SnapshotError::WriteSnapshot(out_path, error))
 }
 
 pub enum SnapshotError {
