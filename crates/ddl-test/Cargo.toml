@@ -5,7 +5,7 @@ authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
 edition = "2018"
 publish = false
 
-description = "Test harness for the binary data description language."
+description = "Integration tests for the binary data description language"
 license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

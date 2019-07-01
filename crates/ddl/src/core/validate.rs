@@ -3,7 +3,7 @@
 //! This is used to verify that the core syntax is correctly formed, for
 //! debugging purposes.
 
-use codespan::{FileId, Span};
+use codespan::FileId;
 use codespan_reporting::{Diagnostic, Severity};
 
 use crate::core::{Item, Module, Term};
@@ -21,39 +21,36 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
         use std::collections::hash_map::Entry;
 
         match item {
-            Item::Struct {
-                span, name, fields, ..
-            } => {
+            Item::Struct(struct_ty) => {
                 let mut used_field_names = HashMap::new();
 
-                for (_, start, field_name, field_ty) in fields {
-                    let field_span = Span::new(*start, field_ty.span().end());
-                    match used_field_names.entry(field_name) {
+                for field in &struct_ty.fields {
+                    match used_field_names.entry(&field.name) {
                         Entry::Vacant(entry) => {
-                            entry.insert(field_span);
-                            synth_term_ty(file_id, field_ty, &mut diagnostics)
+                            entry.insert(field.span());
+                            synth_term_ty(file_id, &field.term, &mut diagnostics)
                         }
                         Entry::Occupied(entry) => {
                             diagnostics.push(diagnostics::field_redeclaration(
                                 Severity::Bug,
                                 file_id,
-                                &field_name.0,
-                                field_span,
+                                &field.name.0,
+                                field.span(),
                                 *entry.get(),
                             ));
                         }
                     }
                 }
 
-                match used_names.entry(name) {
+                match used_names.entry(&struct_ty.name) {
                     Entry::Vacant(entry) => {
-                        entry.insert(*span);
+                        entry.insert(struct_ty.span);
                     }
                     Entry::Occupied(entry) => diagnostics.push(diagnostics::item_redefinition(
                         Severity::Bug,
                         file_id,
-                        &name.0,
-                        *span,
+                        &struct_ty.name.0,
+                        struct_ty.span,
                         *entry.get(),
                     )),
                 }
@@ -67,6 +64,24 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
 /// Check that a term is a type.
 pub fn synth_term_ty(_file_id: FileId, term: &Term, _diagnostics: &mut Vec<Diagnostic>) {
     match term {
-        Term::U8(_) | Term::Error(_) => {}
+        Term::U8(_)
+        | Term::U16Le(_)
+        | Term::U16Be(_)
+        | Term::U32Le(_)
+        | Term::U32Be(_)
+        | Term::U64Le(_)
+        | Term::U64Be(_)
+        | Term::S8(_)
+        | Term::S16Le(_)
+        | Term::S16Be(_)
+        | Term::S32Le(_)
+        | Term::S32Be(_)
+        | Term::S64Le(_)
+        | Term::S64Be(_)
+        | Term::F32Le(_)
+        | Term::F32Be(_)
+        | Term::F64Le(_)
+        | Term::F64Be(_)
+        | Term::Error(_) => {}
     }
 }

@@ -9,7 +9,7 @@ A pair of bytes.
 
 ### Fields
 
-| Name | Type |
-| ---- | ---- |
-| first | U8 |
-| second | U8 |
+| Name | Type | Description |
+| ---- | ---- | ------------|
+| first | U8 | The first field |
+| second | S8 | The second field |

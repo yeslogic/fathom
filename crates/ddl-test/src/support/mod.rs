@@ -117,6 +117,8 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
 
     // COMPILE/RUST
     compile_rust(
+        &test_name,
+        &input_ddl_path,
         &snapshot_filename,
         &mut failed_checks,
         &mut found_diagnostics,
@@ -195,6 +197,8 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
 }
 
 fn compile_rust(
+    test_name: &str,
+    input_ddl_path: &Path,
     snapshot_filename: &Path,
     failed_checks: &mut Vec<&str>,
     found_diagnostics: &mut Vec<Diagnostic>,
@@ -203,8 +207,9 @@ fn compile_rust(
     let mut output = Vec::new();
     let diagnostics = ddl::compile::rust::compile_module(&mut output, core_module).unwrap();
     found_diagnostics.extend(diagnostics);
+    let snapshot_rs_path = snapshot_filename.with_extension("rs");
 
-    if let Err(error) = snapshot::compare(&snapshot_filename.with_extension("rs"), &output) {
+    if let Err(error) = snapshot::compare(&snapshot_rs_path, &output) {
         failed_checks.push("compile_rust: snapshot");
 
         eprintln!("Failed COMPILE/RUST: snapshot test");
@@ -220,11 +225,15 @@ fn compile_rust(
             .output()
             .unwrap();
 
+        let rs_path = match &input_ddl_path.with_extension("rs") {
+            input_rs_path if input_rs_path.exists() => input_rs_path.clone(),
+            _ => snapshot_rs_path,
+        };
+
         let output = Command::new("rustc")
             .arg(format!("--out-dir={}", temp_dir.path().display()))
-            // just do type checking, skipping codegen
-            .arg("--emit=dep-info,metadata")
-            .arg("--crate-type=rlib")
+            .arg(format!("--crate-name={}", test_name))
+            .arg("--test")
             .arg("--edition=2018")
             .arg("-C")
             .arg(format!("incremental={}", CARGO_INCREMENTAL_DIR.display()))
@@ -232,7 +241,7 @@ fn compile_rust(
             .arg(format!("dependency={}", CARGO_DEPS_DIR.display()))
             .arg("--extern")
             .arg(format!("ddl_rt={}", CARGO_DDL_RT_RLIB.display()))
-            .arg(snapshot_filename.with_extension("rs"))
+            .arg(&rs_path)
             .output();
 
         match output {
@@ -266,6 +275,34 @@ fn compile_rust(
             }
             Err(error) => {
                 failed_checks.push("compile_rust: execute rustc");
+
+                eprintln!("Failed COMPILE/RUST:");
+                eprintln!();
+                eprintln!("{}", error);
+                eprintln!();
+            }
+        }
+
+        // Run tests
+        match Command::new(temp_dir.path().join(test_name)).output() {
+            Ok(output) => {
+                if !output.status.success() {
+                    failed_checks.push("compile_rust: rust tests");
+
+                    eprintln!("Failed COMPILE/RUST: test status");
+                    eprintln!();
+                    eprintln!("stdout:");
+                    eprintln!();
+                    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+                    eprintln!();
+                    eprintln!("stderr:");
+                    eprintln!();
+                    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                    eprintln!();
+                }
+            }
+            Err(error) => {
+                failed_checks.push("compile_rust: execute test");
 
                 eprintln!("Failed COMPILE/RUST:");
                 eprintln!();

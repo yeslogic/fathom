@@ -22,39 +22,9 @@ pub fn compile_module(
 
     for item in &module.items {
         match item {
-            core::Item::Struct {
-                span: _,
-                doc,
-                name,
-                fields,
-            } => {
+            core::Item::Struct(struct_ty) => {
                 writeln!(writer)?;
-
-                for doc_line in doc.lines() {
-                    match doc_line {
-                        line if line.trim().is_empty() => writeln!(writer, "///")?,
-                        line => writeln!(writer, "/// {}", line)?,
-                    }
-                }
-
-                if fields.is_empty() {
-                    writeln!(writer, "pub struct {} {{}}", name)?;
-                } else {
-                    writeln!(writer, "pub struct {} {{", name)?;
-                    for (field_doc, _, field_name, field_ty) in fields {
-                        for doc_line in field_doc.lines() {
-                            match doc_line {
-                                line if line.trim().is_empty() => writeln!(writer, "    ///")?,
-                                line => writeln!(writer, "    /// {}", line)?,
-                            }
-                        }
-
-                        write!(writer, "    pub {}: ", field_name)?;
-                        compile_ty(writer, field_ty, &mut diagnostics)?;
-                        writeln!(writer, ",")?;
-                    }
-                    writeln!(writer, "}}")?;
-                }
+                compile_struct_item(writer, struct_ty, &mut diagnostics)?;
             }
         }
     }
@@ -62,13 +32,138 @@ pub fn compile_module(
     Ok(diagnostics)
 }
 
-fn compile_ty(
+fn compile_struct_item(
     writer: &mut impl Write,
-    term: &core::Term,
-    _diagnostics: &mut Vec<Diagnostic>,
+    struct_ty: &core::StructType,
+    diagnostics: &mut Vec<Diagnostic>,
 ) -> io::Result<()> {
+    // Struct definition
+
+    for doc_line in struct_ty.doc.lines() {
+        match doc_line {
+            line if line.trim().is_empty() => writeln!(writer, "///")?,
+            line => writeln!(writer, "/// {}", line)?,
+        }
+    }
+
+    if struct_ty.fields.is_empty() {
+        writeln!(writer, "pub struct {} {{}}", struct_ty.name)?;
+    } else {
+        writeln!(writer, "pub struct {} {{", struct_ty.name)?;
+        for field in &struct_ty.fields {
+            for doc_line in field.doc.lines() {
+                match doc_line {
+                    line if line.trim().is_empty() => writeln!(writer, "    ///")?,
+                    line => writeln!(writer, "    /// {}", line)?,
+                }
+            }
+
+            write!(
+                writer,
+                "    pub {}: {},",
+                field.name,
+                compile_host_ty(&field.term, diagnostics),
+            )?;
+            writeln!(writer)?;
+        }
+        writeln!(writer, "}}")?;
+    }
+    writeln!(writer)?;
+
+    // Binary impl
+
+    writeln!(writer, "impl ddl_rt::Binary for {} {{", struct_ty.name,)?;
+    writeln!(writer, "    type Host = {};", struct_ty.name)?;
+    writeln!(writer, "}}")?;
+    writeln!(writer)?;
+
+    // ReadBinary impl
+
+    writeln!(
+        writer,
+        "impl<'data> ddl_rt::ReadBinary<'data> for {} {{",
+        struct_ty.name,
+    )?;
+    if struct_ty.fields.is_empty() {
+        writeln!(
+            writer,
+            "    fn read(_: &mut ddl_rt::ReadCtxt<'data>) -> Result<{}, ddl_rt::ReadError> {{",
+            struct_ty.name,
+        )?;
+        writeln!(writer, "        Ok({} {{}})", struct_ty.name)?;
+        writeln!(writer, "    }}")?;
+    } else {
+        writeln!(
+            writer,
+            "    fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<{}, ddl_rt::ReadError> {{",
+            struct_ty.name,
+        )?;
+        for field in &struct_ty.fields {
+            write!(
+                writer,
+                "        let {} = ctxt.read::<{}>()?;",
+                field.name,
+                compile_ty(&field.term, diagnostics),
+            )?;
+            writeln!(writer)?;
+        }
+        writeln!(writer)?;
+        writeln!(writer, "        Ok({} {{", struct_ty.name)?;
+        for field in &struct_ty.fields {
+            writeln!(writer, "            {},", field.name)?;
+        }
+        writeln!(writer, "        }})")?;
+        writeln!(writer, "    }}")?;
+    }
+    writeln!(writer, "}}")?;
+
+    Ok(())
+}
+
+fn compile_ty(term: &core::Term, _diagnostics: &mut Vec<Diagnostic>) -> String {
     match term {
-        core::Term::U8(_) => write!(writer, "u8"),
-        core::Term::Error(_) => write!(writer, "ddl_rt::InvalidDataDescription"),
+        core::Term::U8(_) => "ddl_rt::U8".to_owned(),
+        core::Term::U16Le(_) => "ddl_rt::U16Le".to_owned(),
+        core::Term::U16Be(_) => "ddl_rt::U16Be".to_owned(),
+        core::Term::U32Le(_) => "ddl_rt::U32Le".to_owned(),
+        core::Term::U32Be(_) => "ddl_rt::U32Be".to_owned(),
+        core::Term::U64Le(_) => "ddl_rt::U64Le".to_owned(),
+        core::Term::U64Be(_) => "ddl_rt::U64Be".to_owned(),
+        core::Term::S8(_) => "ddl_rt::I8".to_owned(),
+        core::Term::S16Le(_) => "ddl_rt::I16Le".to_owned(),
+        core::Term::S16Be(_) => "ddl_rt::I16Be".to_owned(),
+        core::Term::S32Le(_) => "ddl_rt::I32Le".to_owned(),
+        core::Term::S32Be(_) => "ddl_rt::I32Be".to_owned(),
+        core::Term::S64Le(_) => "ddl_rt::I64Le".to_owned(),
+        core::Term::S64Be(_) => "ddl_rt::I64Be".to_owned(),
+        core::Term::F32Le(_) => "ddl_rt::F32Le".to_owned(),
+        core::Term::F32Be(_) => "ddl_rt::F32Be".to_owned(),
+        core::Term::F64Le(_) => "ddl_rt::F64Le".to_owned(),
+        core::Term::F64Be(_) => "ddl_rt::F64Be".to_owned(),
+        core::Term::Error(_) => "ddl_rt::InvalidDataDescription".to_owned(),
+    }
+}
+
+fn compile_host_ty(term: &core::Term, _diagnostics: &mut Vec<Diagnostic>) -> String {
+    match term {
+        core::Term::U8(_) => "u8".to_owned(),
+        core::Term::U16Le(_) => "u16".to_owned(),
+        core::Term::U16Be(_) => "u16".to_owned(),
+        core::Term::U32Le(_) => "u32".to_owned(),
+        core::Term::U32Be(_) => "u32".to_owned(),
+        core::Term::U64Le(_) => "u64".to_owned(),
+        core::Term::U64Be(_) => "u64".to_owned(),
+        core::Term::S8(_) => "i8".to_owned(),
+        core::Term::S16Le(_) => "i16".to_owned(),
+        core::Term::S16Be(_) => "i16".to_owned(),
+        core::Term::S32Le(_) => "i32".to_owned(),
+        core::Term::S32Be(_) => "i32".to_owned(),
+        core::Term::S64Le(_) => "i64".to_owned(),
+        core::Term::S64Be(_) => "i64".to_owned(),
+        core::Term::F32Le(_) => "f32".to_owned(),
+        core::Term::F32Be(_) => "f32".to_owned(),
+        core::Term::F64Le(_) => "f64".to_owned(),
+        core::Term::F64Be(_) => "f64".to_owned(),
+        core::Term::Error(_) => "ddl_rt::InvalidDataDescription".to_owned(),
     }
 }

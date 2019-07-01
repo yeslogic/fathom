@@ -3,5 +3,5 @@ struct Pair {
     /// The first field.
     first: U8,
     /// The second field.
-    second: U8,
+    second: S8,
 }

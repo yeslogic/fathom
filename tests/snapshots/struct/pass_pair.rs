@@ -6,5 +6,21 @@ pub struct Pair {
     /// The first field.
     pub first: u8,
     /// The second field.
-    pub second: u8,
+    pub second: i8,
+}
+
+impl ddl_rt::Binary for Pair {
+    type Host = Pair;
+}
+
+impl<'data> ddl_rt::ReadBinary<'data> for Pair {
+    fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<Pair, ddl_rt::ReadError> {
+        let first = ctxt.read::<ddl_rt::U8>()?;
+        let second = ctxt.read::<ddl_rt::I8>()?;
+
+        Ok(Pair {
+            first,
+            second,
+        })
+    }
 }
