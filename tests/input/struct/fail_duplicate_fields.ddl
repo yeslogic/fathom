@@ -1,6 +1,3 @@
-//~ PARSE: ok
-//~ ELABORATE: fail
-
 struct Pair {
     first: U8,
     second: U8,

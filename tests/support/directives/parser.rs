@@ -2,7 +2,7 @@ use codespan::{FileId, Files, Span};
 use codespan_reporting::{Diagnostic, Label, Severity};
 use ddl::concrete::SpannedString;
 
-use super::{Directives, ExpectedDiagnostic, Status, Token};
+use super::{Directives, ExpectedDiagnostic, Token};
 
 pub struct Parser<'a> {
     files: &'a Files,
@@ -35,10 +35,6 @@ impl<'a> Parser<'a> {
                         }
                         Some(reason) => self.directives.skip = Some(reason.to_string()),
                     },
-                    ("PARSE", status) => self.expect_parse_stage(&key, status),
-                    ("ELABORATE", status) => self.expect_elaborate_stage(&key, status),
-                    ("COMPILE/RUST", status) => self.expect_compile_rust_stage(&key, status),
-                    ("COMPILE/DOC", status) => self.expect_compile_doc_stage(&key, status),
                     ("bug", pattern) => self.expect_bug(span, pattern),
                     ("error", pattern) => self.expect_error(span, pattern),
                     ("warning", pattern) => self.expect_warning(span, pattern),
@@ -53,10 +49,6 @@ impl<'a> Parser<'a> {
                             "
                                 perhaps you meant:
                                     - SKIP:         <reason>
-                                    - PARSE:        (ok|fail)
-                                    - ELABORATE:    (ok|fail)
-                                    - COMPILE/RUST: (ok|fail)
-                                    - COMPILE/DOC:  (ok|fail)
                                     - bug:          <regex>
                                     - error:        <regex>
                                     - warning:      <regex>
@@ -84,74 +76,6 @@ impl<'a> Parser<'a> {
             format!("`{}` directive already set", directive),
             self.label(directive.span(), "duplicate directive"),
         ));
-    }
-
-    fn expect_parse_stage(&mut self, key: &SpannedString, status: Option<SpannedString>) {
-        if self.directives.parse.is_some() {
-            self.duplicate_directive(key);
-        } else if let Some(status) = self.expect_stage_status(key.span(), status) {
-            self.directives.parse = Some(status);
-        }
-    }
-
-    fn expect_elaborate_stage(&mut self, key: &SpannedString, status: Option<SpannedString>) {
-        if self.directives.elaborate.is_some() {
-            self.duplicate_directive(key);
-        } else if let Some(status) = self.expect_stage_status(key.span(), status) {
-            self.directives.elaborate = Some(status);
-        }
-    }
-
-    fn expect_compile_rust_stage(&mut self, key: &SpannedString, status: Option<SpannedString>) {
-        if self.directives.compile_rust.is_some() {
-            self.duplicate_directive(key);
-        } else if let Some(status) = self.expect_stage_status(key.span(), status) {
-            self.directives.compile_rust = Some(status);
-        }
-    }
-
-    fn expect_compile_doc_stage(&mut self, key: &SpannedString, status: Option<SpannedString>) {
-        if self.directives.compile_doc.is_some() {
-            self.duplicate_directive(key);
-        } else if let Some(status) = self.expect_stage_status(key.span(), status) {
-            self.directives.compile_doc = Some(status);
-        }
-    }
-
-    fn expect_stage_status(&mut self, span: Span, status: Option<SpannedString>) -> Option<Status> {
-        match status {
-            Some(status) => match status.as_str() {
-                "ok" => return Some(Status::Ok),
-                "fail" => return Some(Status::Fail),
-                _ => self.diagnostics.push(
-                    Diagnostic::new_error(
-                        format!("unknown expected status `{}`", status),
-                        self.label(status.span(), "unknown expected status"),
-                    )
-                    .with_notes(vec![unindent::unindent(
-                        "
-                                perhaps you meant:
-                                    - ok
-                                    - fail
-                            ",
-                    )]),
-                ),
-            },
-            None => self.diagnostics.push(
-                Diagnostic::new_error(
-                    "stage directive must have an expected status",
-                    self.label(span, "missing stage status"),
-                )
-                .with_notes(vec![unindent::unindent(
-                    "
-                        perhaps you meant:
-                            - ok
-                            - fail
-                    ",
-                )]),
-            ),
-        }
-        None
     }
 
     fn expect_bug(&mut self, span: Span, pattern: Option<SpannedString>) {

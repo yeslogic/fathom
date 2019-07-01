@@ -69,7 +69,6 @@ fn compile_ty(
 ) -> io::Result<()> {
     match term {
         core::Term::U8(_) => write!(writer, "u8"),
-        // TODO: figure out what to do here!
-        core::Term::Error(_) => unimplemented!("compile error"),
+        core::Term::Error(_) => write!(writer, "ddl_rt::InvalidDataDescription"),
     }
 }

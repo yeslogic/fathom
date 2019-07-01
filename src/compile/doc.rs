@@ -67,6 +67,6 @@ fn compile_ty(
 ) -> io::Result<()> {
     match term {
         core::Term::U8(_) => write!(writer, "U8"),
-        core::Term::Error(_) => write!(writer, "<error>"),
+        core::Term::Error(_) => write!(writer, "**invalid data description**"),
     }
 }
