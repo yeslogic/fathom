@@ -10,8 +10,8 @@ mod snapshot;
 use self::directives::ExpectedDiagnostic;
 
 lazy_static::lazy_static! {
-    static ref INTEGRATION_DIR: PathBuf =
-        PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/integration"));
+    static ref CARGO_MANIFEST_DIR: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    static ref INPUT_DIR: PathBuf = CARGO_MANIFEST_DIR.join("tests").join("input");
 }
 
 pub fn run_integration_test(test_name: &str, test_path: &str) {
@@ -23,7 +23,7 @@ pub fn run_integration_test(test_name: &str, test_path: &str) {
     // Set up files
 
     let mut files = Files::new();
-    let test_path = INTEGRATION_DIR.join(test_path);
+    let test_path = INPUT_DIR.join(test_path);
     let source = fs::read_to_string(&test_path)
         .unwrap_or_else(|error| panic!("error reading `{}`: {}", test_path.display(), error));
     let file_id = files.add(test_path.display().to_string(), source);
