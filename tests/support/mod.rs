@@ -13,6 +13,26 @@ use self::directives::ExpectedDiagnostic;
 lazy_static::lazy_static! {
     static ref CARGO_MANIFEST_DIR: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     static ref INPUT_DIR: PathBuf = CARGO_MANIFEST_DIR.join("tests").join("input");
+
+    static ref CARGO_TARGET_DIR: PathBuf = {
+        let output = Command::new(env!("CARGO"))
+            .arg("metadata")
+            .arg("--no-deps")
+            .arg("--format-version=1")
+            .output();
+
+        match output {
+            Err(error) => panic!("error executing `cargo metadata`: {}", error),
+            Ok(output) => match json::parse(&String::from_utf8_lossy(&output.stdout)) {
+                Err(error) => panic!("error parsing `cargo metadata`: {}", error),
+                Ok(metadata) => PathBuf::from(metadata["target_directory"].as_str().unwrap()),
+            }
+        }
+    };
+
+    static ref CARGO_DEPS_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("deps");
+    static ref CARGO_INCREMENTAL_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("incremental");
+    static ref CARGO_DDL_RT_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libddl_rt.rlib");
 }
 
 pub fn run_integration_test(test_name: &str, test_ddl_path: &str) {
@@ -48,8 +68,6 @@ pub fn run_integration_test(test_name: &str, test_ddl_path: &str) {
             panic!("failed to parse diagnostics");
         }
 
-        // TODO: Check stage topology?
-
         directives
     };
 
@@ -66,19 +84,16 @@ pub fn run_integration_test(test_name: &str, test_ddl_path: &str) {
         return;
     }
 
-    // FIXME: We should check these `_status` things somehow
-
     // PARSE
-    let concrete_module = directives.parse.map(|_status| {
+    let concrete_module = {
         let (concrete_module, diagnostics) = ddl::parse::parse_module(&files, file_id);
         found_diagnostics.extend(diagnostics);
         concrete_module
-    });
+    };
 
     // ELABORATE
-    let core_module = directives.elaborate.map(|_status| {
-        let concrete_module = concrete_module.as_ref().unwrap();
-        let (core_module, diagnostics) = ddl::elaborate::elaborate_module(concrete_module);
+    let core_module = {
+        let (core_module, diagnostics) = ddl::elaborate::elaborate_module(&concrete_module);
         found_diagnostics.extend(diagnostics);
 
         // The core syntax from the elaborator should always be well-formed!
@@ -95,27 +110,23 @@ pub fn run_integration_test(test_name: &str, test_ddl_path: &str) {
         }
 
         core_module
-    });
+    };
 
     // COMPILE/RUST
-    if let Some(_status) = directives.compile_rust {
-        compile_rust(
-            &test_ddl_path,
-            &mut failed_checks,
-            &mut found_diagnostics,
-            core_module.as_ref().unwrap(),
-        );
-    }
+    compile_rust(
+        &test_ddl_path,
+        &mut failed_checks,
+        &mut found_diagnostics,
+        &core_module,
+    );
 
     // COMPILE/DOC
-    if let Some(_status) = directives.compile_doc {
-        compile_doc(
-            &test_ddl_path,
-            &mut failed_checks,
-            &mut found_diagnostics,
-            core_module.as_ref().unwrap(),
-        );
-    }
+    compile_doc(
+        &test_ddl_path,
+        &mut failed_checks,
+        &mut found_diagnostics,
+        &core_module,
+    );
 
     // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
@@ -200,12 +211,24 @@ fn compile_rust(
         // Test compiled output against rustc
         let temp_dir = assert_fs::TempDir::new().unwrap();
 
+        Command::new(env!("CARGO"))
+            .arg("build")
+            .arg("--package=ddl-rt")
+            .output()
+            .unwrap();
+
         let output = Command::new("rustc")
             .arg(format!("--out-dir={}", temp_dir.path().display()))
             // just do type checking, skipping codegen
             .arg("--emit=dep-info,metadata")
             .arg("--crate-type=rlib")
             .arg("--edition=2018")
+            .arg("-C")
+            .arg(format!("incremental={}", CARGO_INCREMENTAL_DIR.display()))
+            .arg("-L")
+            .arg(format!("dependency={}", CARGO_DEPS_DIR.display()))
+            .arg("--extern")
+            .arg(format!("ddl_rt={}", CARGO_DDL_RT_RLIB.display()))
             .arg(snapshot::out_path(test_ddl_path, "rs").unwrap())
             .output();
 

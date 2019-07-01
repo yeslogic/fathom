@@ -1,8 +1,3 @@
-//~ PARSE: ok
-//~ ELABORATE: ok
-//~ COMPILE/RUST: ok
-//~ COMPILE/DOC: ok
-
 /// A pair of bytes.
 struct Pair {
     /// The first field.
