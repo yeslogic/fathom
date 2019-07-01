@@ -21,7 +21,7 @@ test!(duplicate_definitions, "duplicate_definitions.ddl");
 test!(unexpected_token, "unexpected_token.ddl");
 test!(unexpected_character, "unexpected_character.ddl");
 
-mod struct_ {
+mod r#struct {
     // ok
     test!(empty, "struct/empty.ddl");
     test!(empty_doc, "struct/empty_doc.ddl");
