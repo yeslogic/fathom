@@ -13,6 +13,7 @@ use self::directives::ExpectedDiagnostic;
 lazy_static::lazy_static! {
     static ref CARGO_MANIFEST_DIR: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     static ref INPUT_DIR: PathBuf = CARGO_MANIFEST_DIR.join("tests").join("input");
+    static ref SNAPSHOTS_DIR: PathBuf = CARGO_MANIFEST_DIR.join("tests").join("snapshots");
 
     static ref CARGO_TARGET_DIR: PathBuf = {
         let output = Command::new(env!("CARGO"))
@@ -35,7 +36,7 @@ lazy_static::lazy_static! {
     static ref CARGO_DDL_RT_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libddl_rt.rlib");
 }
 
-pub fn run_integration_test(test_name: &str, test_ddl_path: &str) {
+pub fn run_integration_test(test_name: &str, ddl_path: &str) {
     // Set up output streams
 
     let reporting_config = codespan_reporting::Config::default();
@@ -44,10 +45,11 @@ pub fn run_integration_test(test_name: &str, test_ddl_path: &str) {
     // Set up files
 
     let mut files = Files::new();
-    let test_ddl_path = INPUT_DIR.join(test_ddl_path);
-    let source = fs::read_to_string(&test_ddl_path)
-        .unwrap_or_else(|error| panic!("error reading `{}`: {}", test_ddl_path.display(), error));
-    let file_id = files.add(test_ddl_path.display().to_string(), source);
+    let input_ddl_path = INPUT_DIR.join(ddl_path);
+    let snapshot_filename = SNAPSHOTS_DIR.join(ddl_path).with_extension("");
+    let source = fs::read_to_string(&input_ddl_path)
+        .unwrap_or_else(|error| panic!("error reading `{}`: {}", input_ddl_path.display(), error));
+    let file_id = files.add(input_ddl_path.display().to_string(), source);
 
     // Extract the directives from the source code
 
@@ -114,7 +116,7 @@ pub fn run_integration_test(test_name: &str, test_ddl_path: &str) {
 
     // COMPILE/RUST
     compile_rust(
-        &test_ddl_path,
+        &snapshot_filename,
         &mut failed_checks,
         &mut found_diagnostics,
         &core_module,
@@ -122,7 +124,7 @@ pub fn run_integration_test(test_name: &str, test_ddl_path: &str) {
 
     // COMPILE/DOC
     compile_doc(
-        &test_ddl_path,
+        &snapshot_filename,
         &mut failed_checks,
         &mut found_diagnostics,
         &core_module,
@@ -170,7 +172,7 @@ pub fn run_integration_test(test_name: &str, test_ddl_path: &str) {
 
             eprintln!(
                 "{}:{}: {}: {}",
-                test_ddl_path.display(),
+                input_ddl_path.display(),
                 expected.line.number(),
                 severity,
                 expected.pattern,
@@ -192,7 +194,7 @@ pub fn run_integration_test(test_name: &str, test_ddl_path: &str) {
 }
 
 fn compile_rust(
-    test_ddl_path: &Path,
+    snapshot_filename: &Path,
     failed_checks: &mut Vec<&str>,
     found_diagnostics: &mut Vec<Diagnostic>,
     core_module: &ddl::core::Module,
@@ -201,7 +203,7 @@ fn compile_rust(
     let diagnostics = ddl::compile::rust::compile_module(&mut output, core_module).unwrap();
     found_diagnostics.extend(diagnostics);
 
-    if let Err(error) = snapshot::compare(test_ddl_path, "rs", &output) {
+    if let Err(error) = snapshot::compare(&snapshot_filename.with_extension("rs"), &output) {
         failed_checks.push("compile_rust: snapshot");
 
         eprintln!("Failed COMPILE/RUST: snapshot test");
@@ -229,7 +231,7 @@ fn compile_rust(
             .arg(format!("dependency={}", CARGO_DEPS_DIR.display()))
             .arg("--extern")
             .arg(format!("ddl_rt={}", CARGO_DDL_RT_RLIB.display()))
-            .arg(snapshot::out_path(test_ddl_path, "rs").unwrap())
+            .arg(snapshot_filename.with_extension("rs"))
             .output();
 
         match output {
@@ -274,7 +276,7 @@ fn compile_rust(
 }
 
 fn compile_doc(
-    test_ddl_path: &Path,
+    snapshot_filename: &Path,
     failed_checks: &mut Vec<&str>,
     found_diagnostics: &mut Vec<Diagnostic>,
     core_module: &ddl::core::Module,
@@ -283,7 +285,7 @@ fn compile_doc(
     let diagnostics = ddl::compile::doc::compile_module(&mut output, core_module).unwrap();
     found_diagnostics.extend(diagnostics);
 
-    if let Err(error) = snapshot::compare(test_ddl_path, "md", &output) {
+    if let Err(error) = snapshot::compare(&snapshot_filename.with_extension("md"), &output) {
         failed_checks.push("compile_doc: snapshot");
 
         eprintln!("Failed COMPILE/DOC: snapshot test");
