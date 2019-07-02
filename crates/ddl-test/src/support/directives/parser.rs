@@ -1,5 +1,5 @@
 use codespan::{FileId, Files, Span};
-use codespan_reporting::{Diagnostic, Label, Severity};
+use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use ddl::concrete::SpannedString;
 
 use super::{Directives, ExpectedDiagnostic, Token};

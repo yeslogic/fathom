@@ -1,4 +1,4 @@
-use codespan_reporting::Diagnostic;
+use codespan_reporting::diagnostic::Diagnostic;
 use std::io;
 use std::io::prelude::*;
 

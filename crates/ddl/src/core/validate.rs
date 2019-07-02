@@ -4,7 +4,7 @@
 //! debugging purposes.
 
 use codespan::FileId;
-use codespan_reporting::{Diagnostic, Severity};
+use codespan_reporting::diagnostic::{Diagnostic, Severity};
 
 use crate::core::{Item, Module, Term};
 use crate::diagnostics;

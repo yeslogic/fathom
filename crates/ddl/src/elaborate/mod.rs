@@ -9,7 +9,7 @@
 //! - unification (TODO)
 
 use codespan::{FileId, Span};
-use codespan_reporting::{Diagnostic, Severity};
+use codespan_reporting::diagnostic::{Diagnostic, Severity};
 
 use crate::{concrete, core, diagnostics};
 

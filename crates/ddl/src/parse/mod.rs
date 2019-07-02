@@ -1,7 +1,7 @@
 //! Parser for the data description language.
 
 use codespan::{ByteIndex, FileId, Files};
-use codespan_reporting::{Diagnostic, Label};
+use codespan_reporting::diagnostic::{Diagnostic, Label};
 use lalrpop_util::ParseError;
 use std::fmt;
 use std::rc::Rc;

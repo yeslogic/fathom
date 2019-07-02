@@ -1,5 +1,5 @@
 use codespan::{ByteIndex, ByteOffset, FileId, Files, Span};
-use codespan_reporting::{Diagnostic, Label};
+use codespan_reporting::diagnostic::{Diagnostic, Label};
 use std::fmt;
 
 /// Tokens that will be produces during lexing.

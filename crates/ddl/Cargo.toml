@@ -12,8 +12,8 @@ license = "Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-codespan = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
-codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
+codespan = { git = "https://github.com/brendanzab/codespan", rev = "0a5d9a0daa1baf3142b119df56c19a82b7c2a46a" }
+codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "0a5d9a0daa1baf3142b119df56c19a82b7c2a46a" }
 derive_more = "0.15"
 itertools = "0.8.0"
 lalrpop-util = "0.17"

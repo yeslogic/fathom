@@ -1,6 +1,7 @@
 use codespan::Files;
-use codespan_reporting::termcolor::{BufferWriter, ColorChoice, StandardStream};
-use codespan_reporting::{self, Diagnostic, Severity};
+use codespan_reporting::diagnostic::{Diagnostic, Severity};
+use codespan_reporting::term;
+use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -40,7 +41,7 @@ lazy_static::lazy_static! {
 pub fn run_integration_test(test_name: &str, ddl_path: &str) {
     // Set up output streams
 
-    let reporting_config = codespan_reporting::Config::default();
+    let reporting_config = term::Config::default();
     let stdout = StandardStream::stdout(ColorChoice::Auto);
 
     // Set up files
@@ -65,7 +66,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
         if !diagnostics.is_empty() {
             let writer = &mut stdout.lock();
             for diagnostic in diagnostics {
-                codespan_reporting::emit(writer, &reporting_config, &files, &diagnostic).unwrap();
+                term::emit(writer, &reporting_config, &files, &diagnostic).unwrap();
             }
 
             panic!("failed to parse diagnostics");
@@ -108,7 +109,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
             eprintln!();
             let writer = &mut stdout.lock();
             for diagnostic in validation_diagnostics {
-                codespan_reporting::emit(writer, &reporting_config, &files, &diagnostic).unwrap();
+                term::emit(writer, &reporting_config, &files, &diagnostic).unwrap();
             }
         }
 
@@ -152,10 +153,11 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
 
         let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
         for diagnostic in &found_diagnostics {
-            codespan_reporting::emit(&mut buffer, &reporting_config, &files, diagnostic).unwrap();
+            term::emit(&mut buffer, &reporting_config, &files, diagnostic).unwrap();
         }
 
-        eprintln!("{}", String::from_utf8_lossy(buffer.as_slice()));
+        eprintln!("    ---- found diagnostics ----");
+        eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
     }
 
     if !directives.expected_diagnostics.is_empty() {
@@ -164,6 +166,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
         eprintln!("Expected diagnostics not found:");
         eprintln!();
 
+        eprintln!("    ---- expected diagnostics ----");
         for expected in &directives.expected_diagnostics {
             let severity = match expected.severity {
                 Severity::Bug => "bug",
@@ -174,7 +177,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
             };
 
             eprintln!(
-                "{}:{}: {}: {}",
+                "    | {}:{}: {}: {}",
                 input_ddl_path.display(),
                 expected.line.number(),
                 severity,
@@ -214,7 +217,9 @@ fn compile_rust(
 
         eprintln!("Failed COMPILE/RUST: snapshot test");
         eprintln!();
-        eprintln!("{}", error);
+        eprintln!();
+        eprintln!("    ---- snapshot error ----");
+        eprintln_indented(4, "", &error.to_string());
     } else {
         // Test compiled output against rustc
         let temp_dir = assert_fs::TempDir::new().unwrap();
@@ -234,6 +239,7 @@ fn compile_rust(
             .arg(format!("--out-dir={}", temp_dir.path().display()))
             .arg(format!("--crate-name={}", test_name))
             .arg("--test")
+            .arg("--color=always")
             .arg("--edition=2018")
             .arg("-C")
             .arg(format!("incremental={}", CARGO_INCREMENTAL_DIR.display()))
@@ -251,62 +257,66 @@ fn compile_rust(
 
                     eprintln!("Failed COMPILE/RUST: rustc status");
                     eprintln!();
-                    eprintln!("Unexpected exist status: {}", output.status);
+                    eprintln!("    ---- rustc status ----");
+                    eprintln_indented(4, "| ", &output.status.to_string());
                     eprintln!();
                 }
 
                 if !output.stdout.is_empty() {
                     failed_checks.push("compile_rust: rustc stdout");
 
-                    eprintln!("Failed COMPILE/RUST: rustc stdout");
-                    eprintln!();
-                    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+                    eprintln!("    ---- rustc stdout ----");
+                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
                     eprintln!();
                 }
 
                 if !output.stderr.is_empty() {
                     failed_checks.push("compile_rust: rustc stderr");
 
-                    eprintln!("Failed COMPILE/RUST: rustc stderr");
-                    eprintln!();
-                    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                    eprintln!("    ---- rustc stderr ----");
+                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
                     eprintln!();
                 }
             }
             Err(error) => {
                 failed_checks.push("compile_rust: execute rustc");
 
-                eprintln!("Failed COMPILE/RUST:");
+                eprintln!("Failed COMPILE/RUST: execute rustc");
                 eprintln!();
+                eprintln!("    ---- rustc error ----");
                 eprintln!("{}", error);
                 eprintln!();
             }
         }
 
         // Run tests
-        match Command::new(temp_dir.path().join(test_name)).output() {
+
+        let test_path = temp_dir.path().join(test_name);
+        match Command::new(&test_path).arg("--color=always").output() {
             Ok(output) => {
                 if !output.status.success() {
                     failed_checks.push("compile_rust: rust tests");
 
                     eprintln!("Failed COMPILE/RUST: test status");
                     eprintln!();
-                    eprintln!("stdout:");
+                    eprintln!("    ---- {} status ----", test_path.display());
+                    eprintln_indented(4, "| ", &output.status.to_string());
                     eprintln!();
-                    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+                    eprintln!("    ---- {} stdout ----", test_path.display());
+                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
                     eprintln!();
-                    eprintln!("stderr:");
-                    eprintln!();
-                    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                    eprintln!("    ---- {} stderr ----", test_path.display());
+                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
                     eprintln!();
                 }
             }
             Err(error) => {
                 failed_checks.push("compile_rust: execute test");
 
-                eprintln!("Failed COMPILE/RUST:");
+                eprintln!("Failed COMPILE/RUST: execute test");
                 eprintln!();
-                eprintln!("{}", error);
+                eprintln!("    ---- {} error ----", test_path.display());
+                eprintln_indented(4, "| ", &error.to_string());
                 eprintln!();
             }
         }
@@ -328,7 +338,8 @@ fn compile_doc(
 
         eprintln!("Failed COMPILE/DOC: snapshot test");
         eprintln!();
-        eprintln!("{}", error);
+        eprintln!("    ---- snapshot error ----");
+        eprintln_indented(4, "", &error.to_string());
     }
 }
 
@@ -373,5 +384,17 @@ fn is_expected(
         found_location.line == expected_diagnostic.line
             && found_diagnostic.severity == expected_diagnostic.severity
             && expected_diagnostic.pattern.is_match(found_message)
+    }
+}
+
+fn eprintln_indented(indent: usize, prefix: &str, output: &str) {
+    for line in output.lines() {
+        eprintln!(
+            "{space: >indent$}{prefix}{line}",
+            space = "",
+            indent = indent,
+            prefix = prefix,
+            line = line,
+        );
     }
 }
