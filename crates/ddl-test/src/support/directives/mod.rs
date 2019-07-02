@@ -1,5 +1,5 @@
 use codespan::{FileId, LineIndex};
-use codespan_reporting::Severity;
+use codespan_reporting::diagnostic::Severity;
 use regex::Regex;
 
 mod lexer;

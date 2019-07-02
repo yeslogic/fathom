@@ -1,5 +1,5 @@
 use codespan::{ByteIndex, FileId, Span};
-use codespan_reporting::Diagnostic;
+use codespan_reporting::diagnostic::Diagnostic;
 use std::rc::Rc;
 
 use crate::concrete::{Module, Item, SpannedString, Term};

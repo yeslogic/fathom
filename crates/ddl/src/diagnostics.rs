@@ -1,7 +1,7 @@
 //! Diagnostics.
 
 use codespan::{FileId, Span};
-use codespan_reporting::{Diagnostic, Label, Severity};
+use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 
 pub fn field_redeclaration(
     severity: Severity,

@@ -5,15 +5,15 @@ authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
 edition = "2018"
 publish = false
 
-description = "Test harness for the binary data description language."
+description = "Integration tests for the binary data description language"
 license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dev-dependencies]
 assert_fs = "0.11"
-codespan = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
-codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
+codespan = { git = "https://github.com/brendanzab/codespan", rev = "0a5d9a0daa1baf3142b119df56c19a82b7c2a46a" }
+codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "0a5d9a0daa1baf3142b119df56c19a82b7c2a46a" }
 ddl = { version = "0.1.0", path="../ddl" }
 ddl-rt = { version = "0.1.0", path="../ddl-rt" }
 difference = "2.0"

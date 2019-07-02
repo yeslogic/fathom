@@ -16,7 +16,10 @@ pub fn compare(out_path: &Path, found_bytes: &[u8]) -> Result<(), SnapshotError>
             if is_bless {
                 bless_snapshot(out_path, found_str)?;
             } else {
-                return Err(SnapshotError::UnexpectedChangesFound(out_path.to_owned(), changeset));
+                return Err(SnapshotError::UnexpectedChangesFound(
+                    out_path.to_owned(),
+                    changeset,
+                ));
             }
         }
     } else {
