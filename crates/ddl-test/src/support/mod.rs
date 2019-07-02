@@ -11,11 +11,7 @@ mod snapshot;
 use self::directives::ExpectedDiagnostic;
 
 lazy_static::lazy_static! {
-    static ref CARGO_MANIFEST_DIR: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    static ref INPUT_DIR: PathBuf = CARGO_MANIFEST_DIR.join("tests").join("input");
-    static ref SNAPSHOTS_DIR: PathBuf = CARGO_MANIFEST_DIR.join("tests").join("snapshots");
-
-    static ref CARGO_TARGET_DIR: PathBuf = {
+    static ref CARGO_METADATA: json::JsonValue = {
         let output = Command::new(env!("CARGO"))
             .arg("metadata")
             .arg("--no-deps")
@@ -26,14 +22,19 @@ lazy_static::lazy_static! {
             Err(error) => panic!("error executing `cargo metadata`: {}", error),
             Ok(output) => match json::parse(&String::from_utf8_lossy(&output.stdout)) {
                 Err(error) => panic!("error parsing `cargo metadata`: {}", error),
-                Ok(metadata) => PathBuf::from(metadata["target_directory"].as_str().unwrap()),
+                Ok(metadata) => metadata,
             }
         }
     };
 
+    static ref CARGO_TARGET_DIR: PathBuf = PathBuf::from(CARGO_METADATA["target_directory"].as_str().unwrap());
+    static ref CARGO_WORKSPACE_ROOT: PathBuf = PathBuf::from(CARGO_METADATA["workspace_root"].as_str().unwrap());
     static ref CARGO_DEPS_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("deps");
     static ref CARGO_INCREMENTAL_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("incremental");
     static ref CARGO_DDL_RT_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libddl_rt.rlib");
+
+    static ref INPUT_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("input");
+    static ref SNAPSHOTS_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("snapshots");
 }
 
 pub fn run_integration_test(test_name: &str, ddl_path: &str) {

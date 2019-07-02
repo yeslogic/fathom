@@ -1,0 +1,22 @@
+[package]
+name = "ddl"
+version = "0.1.0"
+authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
+edition = "2018"
+publish = false
+
+description = "A language for declaratively specifying binary data formats."
+readme = "../../README.md"
+license = "Apache-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codespan = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
+codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "ea8a4014a7034a0d6839400b02cdf7c731af53c1" }
+derive_more = "0.15"
+itertools = "0.8.0"
+lalrpop-util = "0.17"
+
+[build-dependencies]
+lalrpop = "0.17"
