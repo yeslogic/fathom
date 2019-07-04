@@ -1,8 +1,7 @@
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
-use std::rc::Rc;
 
-use crate::concrete::{Module, Item, SpannedString, Term};
+use crate::concrete::{Module, Item, SpannedString, StructType, Term, TypeField};
 use crate::parse::lexer::Token;
 
 grammar(file_id: FileId, diagnostics: &mut Vec<Diagnostic>);
@@ -40,14 +39,14 @@ Item: Item = {
         let mut fields = fields;
         fields.extend(last);
 
-        Item::Struct { span, doc, name, fields }
+        Item::Struct(StructType { span, doc, name, fields })
     },
 };
 
-Field: (Rc<str>, SpannedString, Term) = {
+Field: TypeField= {
     <docs: "doc comment"*>
     <name: Identifier> ":" <term: Term> => {
-        (super::concat_docs(docs), name, term)
+        TypeField { doc: super::concat_docs(docs), name, term }
     },
 };
 

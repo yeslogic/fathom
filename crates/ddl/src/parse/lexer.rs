@@ -145,7 +145,7 @@ impl<'input> Iterator for Lexer<'input> {
                             self.advance();
                             'doc_comment: loop {
                                 match self.advance() {
-                                    Some('\n') | None => {
+                                    Some('\n') | Some('\r') | None => {
                                         return Some(Ok(self.emit(Token::DocComment(doc))))
                                     }
                                     Some(ch) => {
@@ -157,7 +157,7 @@ impl<'input> Iterator for Lexer<'input> {
                         }
                         Some('/') => 'comment: loop {
                             match self.advance() {
-                                Some('\n') => {
+                                Some('\n') | Some('\r') => {
                                     self.reset_start();
                                     continue 'top;
                                 }

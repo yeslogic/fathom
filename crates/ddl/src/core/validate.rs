@@ -5,14 +5,13 @@
 
 use codespan::FileId;
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
+use std::collections::HashMap;
 
-use crate::core::{Item, Module, Term};
+use crate::core::{Item, Module, Term, TypeField};
 use crate::diagnostics;
 
 /// Validate a module.
 pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
-    use std::collections::HashMap;
-
     let file_id = module.file_id;
     let mut used_names = HashMap::new();
     let mut diagnostics = Vec::new();
@@ -22,25 +21,7 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
 
         match item {
             Item::Struct(struct_ty) => {
-                let mut used_field_names = HashMap::new();
-
-                for field in &struct_ty.fields {
-                    match used_field_names.entry(&field.name) {
-                        Entry::Vacant(entry) => {
-                            entry.insert(field.span());
-                            synth_term_ty(file_id, &field.term, &mut diagnostics)
-                        }
-                        Entry::Occupied(entry) => {
-                            diagnostics.push(diagnostics::field_redeclaration(
-                                Severity::Bug,
-                                file_id,
-                                &field.name.0,
-                                field.span(),
-                                *entry.get(),
-                            ));
-                        }
-                    }
-                }
+                validate_struct_ty_fields(file_id, &struct_ty.fields, &mut diagnostics);
 
                 match used_names.entry(&struct_ty.name) {
                     Entry::Vacant(entry) => {
@@ -59,6 +40,34 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
     }
 
     diagnostics
+}
+
+pub fn validate_struct_ty_fields(
+    file_id: FileId,
+    fields: &[TypeField],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let mut used_field_names = HashMap::new();
+
+    for field in fields {
+        use std::collections::hash_map::Entry;
+
+        match used_field_names.entry(&field.name) {
+            Entry::Vacant(entry) => {
+                entry.insert(field.span());
+                synth_term_ty(file_id, &field.term, diagnostics)
+            }
+            Entry::Occupied(entry) => {
+                diagnostics.push(diagnostics::field_redeclaration(
+                    Severity::Bug,
+                    file_id,
+                    &field.name.0,
+                    field.span(),
+                    *entry.get(),
+                ));
+            }
+        }
+    }
 }
 
 /// Check that a term is a type.

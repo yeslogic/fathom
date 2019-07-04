@@ -20,16 +20,28 @@ pub enum Item {
     /// ```text
     /// struct <name> {}
     /// ```
-    Struct {
-        /// The full span of this definition.
-        span: Span,
-        /// Doc comment.
-        doc: Rc<str>,
-        /// Name of this definition.
-        name: SpannedString,
-        /// Fields in the struct.
-        fields: Vec<(Rc<str>, SpannedString, Term)>,
-    },
+    Struct(StructType),
+}
+
+/// A struct type definition.
+#[derive(Debug, Clone)]
+pub struct StructType {
+    /// The full span of this definition.
+    pub span: Span,
+    /// Doc comment.
+    pub doc: Rc<str>,
+    /// Name of this definition.
+    pub name: SpannedString,
+    /// Fields in the struct.
+    pub fields: Vec<TypeField>,
+}
+
+/// A field in a struct type definition.
+#[derive(Debug, Clone)]
+pub struct TypeField {
+    pub doc: Rc<str>,
+    pub name: SpannedString,
+    pub term: Term,
 }
 
 /// Terms.
