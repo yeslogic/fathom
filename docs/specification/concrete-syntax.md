@@ -7,7 +7,7 @@ description language. This how most users will interact with data descriptions.
 
 ### Whitespace and comments
 
-> <sub>Grammar:<sub>
+> <sub>Grammar:</sub>
 >
 > _horizontal-tab_ ::=\
 > &emsp;|&ensp;U+0009
@@ -67,7 +67,7 @@ description language. This how most users will interact with data descriptions.
 
 ### Keywords and identifiers
 
-> <sub>Grammar:<sub>
+> <sub>Grammar:</sub>
 >
 > _keyword_ ::=\
 > &emsp;|&ensp; `struct`
@@ -80,7 +80,7 @@ description language. This how most users will interact with data descriptions.
 
 ### Punctuation
 
-> <sub>Grammar:<sub>
+> <sub>Grammar:</sub>
 >
 > _punctuation_ ::=\
 > &emsp;|&ensp;`{`\
@@ -90,7 +90,7 @@ description language. This how most users will interact with data descriptions.
 
 ### Tokens
 
-> <sub>Grammar:<sub>
+> <sub>Grammar:</sub>
 >
 > _token_ ::=\
 > &emsp;|&ensp;_white-space_\
@@ -106,7 +106,7 @@ process.
 
 ### Terms
 
-> <sub>Grammar:<sub>
+> <sub>Grammar:</sub>
 >
 > _term_ ::=\
 > &emsp;|&ensp;_ident_
@@ -129,7 +129,7 @@ struct Point3 {
 Structures are composite types that are have a name and a list of fields. The
 fields within a structure must have unique names.
 
-> <sub>Grammar:<sub>
+> <sub>Grammar:</sub>
 >
 > _struct-type-field_ ::=\
 > &emsp;|&ensp;_doc-comment_<sup>?</sup> _ident_ `:` _term_
@@ -144,7 +144,7 @@ fields within a structure must have unique names.
 
 Modules are lists of zero-or-more definitions. Definitions within a module must have unique names.
 
-> <sub>Grammar:<sub>
+> <sub>Grammar:</sub>
 >
 > _item_ ::=\
 > &emsp;|&ensp;_struct-type-definition_

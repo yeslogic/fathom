@@ -78,7 +78,7 @@ Productions are written as:
 
 _Forms of judgement_ are declared in the following way:
 
-> <sub>Judgement form:<sub>
+> <sub>Judgement form:</sub>
 >
 >  _item-context_ `⊢` _module_ `module`
 
@@ -86,7 +86,7 @@ _Forms of judgement_ are declared in the following way:
 
 An _inference rule_ is described using the following notation:
 
-> <sub>Inference rule:<sub>
+> <sub>Inference rule:</sub>
 >
 > - premise<sub>0</sub>
 > - ...
