@@ -95,13 +95,13 @@ _TODO: Well-formedness rules for contexts_
 
 Validates that a term is a well-formed type.
 
-> <sub>Judgement form:<sub>
+> <sub>Judgement form:</sub>
 >
 > `⊢` _term_ `type`
 
 -   All primitive types are well-formed types.
 
-    > <sub>Inference rule:<sub>
+    > <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
     > - `⊢` _primitive-type_ `type`
@@ -110,13 +110,13 @@ Validates that a term is a well-formed type.
 
 Validates that a sequence of type field declarations is well-formed.
 
-> <sub>Judgement form:<sub>
+> <sub>Judgement form:</sub>
 >
 > _field-context_ `⊢` _struct-type-fields_ `struct`
 
 -   An empty sequence of fields can always be used to create a well-formed struct.
 
-    > <sub>Inference rule:<sub>
+    > <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
     > - _field-context_ `⊢` ε `struct`
@@ -127,7 +127,7 @@ Validates that a sequence of type field declarations is well-formed.
     -   the _term_ is a well-formed type
     -   the rest of the _struct-type-fields_ are well-formed when checked with the _label_ added to _field-context_.`labels`
 
-    > <sub>Inference rule:<sub>
+    > <sub>Inference rule:</sub>
     >
     > - _label_ ∉ _field-context_.`labels`
     > - `⊢` _term_ `type`
@@ -140,13 +140,13 @@ Validates that a sequence of type field declarations is well-formed.
 
 Validates that a module a well-formed.
 
-> <sub>Judgement form:<sub>
+> <sub>Judgement form:</sub>
 >
 > _item-context_ `⊢` _module_ `module`
 
 -   An empty sequence of items is always a well-formed module.
 
-    > <sub>Inference rule:<sub>
+    > <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
     > - _item-context_ `⊢` ε `module`
@@ -157,7 +157,7 @@ Validates that a module a well-formed.
     -   the _struct-type-fields_ are well-formed in an empty field context
     -   the rest of the _items_ are well-formed when checked with the _label_ added to _item-context_.`labels`
 
-    > <sub>Inference rule:<sub>
+    > <sub>Inference rule:</sub>
     >
     > - _label_ ∉ _item-context_.`labels`
     > - `{` `labels` ε `}` `⊢` _struct-type-fields_ `struct`
