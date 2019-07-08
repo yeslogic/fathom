@@ -294,9 +294,9 @@ fn compile_rust(
             .output()
             .unwrap();
 
-        let rs_path = match &input_ddl_path.with_extension("rs") {
-            input_rs_path if input_rs_path.exists() => input_rs_path.clone(),
-            _ => snapshot_rs_path,
+        let (rs_path, is_binary_parse_test) = match &input_ddl_path.with_extension("rs") {
+            input_rs_path if input_rs_path.exists() => (input_rs_path.clone(), true),
+            _ => (snapshot_rs_path, false),
         };
 
         let output = Command::new("rustc")
@@ -357,30 +357,33 @@ fn compile_rust(
 
         // Run tests
 
-        let test_path = temp_dir.path().join(test_name);
-        match Command::new(&test_path).arg("--color=always").output() {
-            Ok(output) => {
-                if !output.status.success() {
-                    failed_checks.push("compile_rust: rust test output");
+        if is_binary_parse_test {
+            let test_path = temp_dir.path().join(test_name);
+            let display_path = test_path.display();
+            match Command::new(&test_path).arg("--color=always").output() {
+                Ok(output) => {
+                    if !output.status.success() {
+                        failed_checks.push("compile_rust: rust test output");
 
-                    eprintln!("  • compile_rust: rust test output");
+                        eprintln!("  • compile_rust: rust test output");
+                        eprintln!();
+                        eprintln_indented(4, "", &format!("---- {} stdout ----", display_path));
+                        eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
+                        eprintln!();
+                        eprintln_indented(4, "", &format!("---- {} stderr ----", display_path));
+                        eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
+                        eprintln!();
+                    }
+                }
+                Err(error) => {
+                    failed_checks.push("compile_rust: execute test");
+
+                    eprintln!("  • compile_rust: execute test");
                     eprintln!();
-                    eprintln_indented(4, "", &format!("---- {} stdout ----", test_path.display()));
-                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
-                    eprintln!();
-                    eprintln_indented(4, "", &format!("---- {} stderr ----", test_path.display()));
-                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
+                    eprintln_indented(4, "", &format!("---- {} error ----", display_path));
+                    eprintln_indented(4, "| ", &error.to_string());
                     eprintln!();
                 }
-            }
-            Err(error) => {
-                failed_checks.push("compile_rust: execute test");
-
-                eprintln!("  • compile_rust: execute test");
-                eprintln!();
-                eprintln_indented(4, "", &format!("---- {} error ----", test_path.display()));
-                eprintln_indented(4, "| ", &error.to_string());
-                eprintln!();
             }
         }
     }
