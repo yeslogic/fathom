@@ -1,16 +1,20 @@
 #![cfg(test)]
 
+use ddl_test_util::ddl;
 use ddl_rt::{ReadError, ReadScope, WriteCtxt, U8};
+use std::collections::BTreeMap;
+use std::iter::FromIterator;
 
 #[path = "../../snapshots/struct/pass_singleton.rs"]
-mod singleton;
+mod fixture;
+ddl_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_singleton.core.ddl");
 
 #[test]
 fn eof_inner() {
     let ctxt = WriteCtxt::new(vec![]);
 
     let mut scope = ReadScope::new(ctxt.buffer());
-    let singleton = scope.read::<singleton::Byte>();
+    let singleton = scope.read::<fixture::Byte>();
 
     match singleton {
         Err(ReadError::Eof(_)) => {},
@@ -27,9 +31,18 @@ fn valid_singleton() {
     ctxt.write::<U8>(31); // Byte::inner
 
     let mut scope = ReadScope::new(ctxt.buffer());
-    let singleton = scope.read::<singleton::Byte>().unwrap();
+    let singleton = scope.read::<fixture::Byte>().unwrap();
 
     assert_eq!(singleton.inner, 31);
+
+    match ddl::binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.ctxt()).unwrap() {
+        ddl::binary::Term::Struct(fields) => {
+            assert_eq!(fields, BTreeMap::from_iter(vec![
+                ("inner".to_owned(), ddl::binary::Term::U8(singleton.inner)),
+            ]));
+        }
+        _ => panic!("struct expected"),
+    }
 
     // TODO: Check remaining
 }
@@ -41,9 +54,18 @@ fn valid_singleton_trailing() {
     ctxt.write::<U8>(42);
 
     let mut scope = ReadScope::new(ctxt.buffer());
-    let singleton = scope.read::<singleton::Byte>().unwrap();
+    let singleton = scope.read::<fixture::Byte>().unwrap();
 
     assert_eq!(singleton.inner, 255);
+
+    match ddl::binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.ctxt()).unwrap() {
+        ddl::binary::Term::Struct(fields) => {
+            assert_eq!(fields, BTreeMap::from_iter(vec![
+                ("inner".to_owned(), ddl::binary::Term::U8(singleton.inner)),
+            ]));
+        }
+        _ => panic!("struct expected"),
+    }
 
     // TODO: Check remaining
 }

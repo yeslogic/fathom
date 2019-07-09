@@ -1,6 +1,6 @@
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::concrete::{Item, Module, SpannedString, StructType, Term, TypeField};
 use crate::lexer::Token;
@@ -37,7 +37,7 @@ Item: Item = {
         <last: Field?>
     "}" <end: @R> => {
         let span = Span::from(start..end);
-        let doc = Rc::from(docs);
+        let doc = Arc::from(docs);
         let mut fields = fields;
         fields.extend(last);
 
@@ -48,7 +48,7 @@ Item: Item = {
 Field: TypeField= {
     <docs: "doc comment"*>
     <name: Identifier> ":" <term: Term> => {
-        TypeField { doc: Rc::from(docs), name, term }
+        TypeField { doc: Arc::from(docs), name, term }
     },
 };
 

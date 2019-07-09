@@ -16,7 +16,7 @@ typed language. We describe this here.
 
 > <sub>Grammar:</sub>
 >
-> _primitive-unsigned_ ::=\
+> _primitive-type-unsigned_ ::=\
 > &emsp;|&ensp;`U8`\
 > &emsp;|&ensp;`U16Le`\
 > &emsp;|&ensp;`U16Be`\
@@ -25,7 +25,7 @@ typed language. We describe this here.
 > &emsp;|&ensp;`U64Le`\
 > &emsp;|&ensp;`U64Be`
 >
-> _primitive-signed_ ::=\
+> _primitive-type-signed_ ::=\
 > &emsp;|&ensp;`S8`\
 > &emsp;|&ensp;`S16Le`\
 > &emsp;|&ensp;`S16Be`\
@@ -34,16 +34,16 @@ typed language. We describe this here.
 > &emsp;|&ensp;`S64Le`\
 > &emsp;|&ensp;`S64Be`
 >
-> _primitive-float_ ::=\
+> _primitive-type-float_ ::=\
 > &emsp;|&ensp;`F32Le`\
 > &emsp;|&ensp;`F32Be`\
 > &emsp;|&ensp;`F64Le`\
 > &emsp;|&ensp;`F64Be`
 >
 > _primitive-type_ ::=\
-> &emsp;|&ensp;_primitive-unsigned_\
-> &emsp;|&ensp;_primitive-signed_\
-> &emsp;|&ensp;_primitive-float_
+> &emsp;|&ensp;_primitive-type-unsigned_\
+> &emsp;|&ensp;_primitive-type-signed_\
+> &emsp;|&ensp;_primitive-type-float_
 
 ### Terms
 

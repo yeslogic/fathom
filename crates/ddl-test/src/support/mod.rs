@@ -33,6 +33,7 @@ lazy_static::lazy_static! {
     static ref CARGO_DEPS_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("deps");
     static ref CARGO_INCREMENTAL_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("incremental");
     static ref CARGO_DDL_RT_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libddl_rt.rlib");
+    static ref CARGO_DDL_TEST_UTIL_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libddl_test_util.rlib");
 
     static ref INPUT_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("input");
     static ref SNAPSHOTS_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("snapshots");
@@ -227,6 +228,12 @@ impl Test {
                 .output()
                 .unwrap();
 
+            Command::new(env!("CARGO"))
+                .arg("build")
+                .arg("--package=ddl-test-util")
+                .output()
+                .unwrap();
+
             let (rs_path, is_binary_parse_test) = match &self.input_ddl_path.with_extension("rs") {
                 input_rs_path if input_rs_path.exists() => (input_rs_path.clone(), true),
                 _ => (snapshot_rs_path, false),
@@ -244,6 +251,11 @@ impl Test {
                 .arg(format!("dependency={}", CARGO_DEPS_DIR.display()))
                 .arg("--extern")
                 .arg(format!("ddl_rt={}", CARGO_DDL_RT_RLIB.display()))
+                .arg("--extern")
+                .arg(format!(
+                    "ddl_test_util={}",
+                    CARGO_DDL_TEST_UTIL_RLIB.display()
+                ))
                 .arg(&rs_path)
                 .output();
 
