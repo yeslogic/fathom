@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::concrete::{Module, Item, SpannedString, StructType, Term, TypeField};
 use crate::parse::lexer::Token;
 
-grammar(file_id: FileId, diagnostics: &mut Vec<Diagnostic>);
+grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));
 
 extern {
     type Location = ByteIndex;

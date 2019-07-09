@@ -15,21 +15,20 @@ mod grammar {
     include!(concat!(env!("OUT_DIR"), "/parse/grammar.rs"));
 }
 
-pub fn parse_module(files: &Files, file_id: FileId) -> (Module, Vec<Diagnostic>) {
-    let mut diagnostics = Vec::new();
+pub fn parse_module(files: &Files, file_id: FileId, report: &mut dyn FnMut(Diagnostic)) -> Module {
     let lexer = Lexer::new(files, file_id);
 
     let module = grammar::ModuleParser::new()
-        .parse(file_id, &mut diagnostics, lexer)
+        .parse(file_id, report, lexer)
         .unwrap_or_else(|error| {
-            diagnostics.push(parse_error_to_diagnostic(file_id, error));
+            report(parse_error_to_diagnostic(file_id, error));
             Module {
                 file_id,
                 items: Vec::new(),
             }
         });
 
-    (module, diagnostics)
+    module
 }
 
 /// Convert an LALRPOP error to a codespan-reporting diagnostic.

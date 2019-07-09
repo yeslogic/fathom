@@ -89,11 +89,8 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
     }
 
     // PARSE
-    let concrete_module = {
-        let (concrete_module, diagnostics) = ddl::parse::parse_module(&files, file_id);
-        found_diagnostics.extend(diagnostics);
-        concrete_module
-    };
+    let concrete_module =
+        ddl::parse::parse_module(&files, file_id, &mut |d| found_diagnostics.push(d));
 
     // ELABORATE
     let core_module = elaborate(
@@ -111,17 +108,11 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
         &input_ddl_path,
         &snapshot_filename,
         &mut failed_checks,
-        &mut found_diagnostics,
         &core_module,
     );
 
     // COMPILE/DOC
-    compile_doc(
-        &snapshot_filename,
-        &mut failed_checks,
-        &mut found_diagnostics,
-        &core_module,
-    );
+    compile_doc(&snapshot_filename, &mut failed_checks, &core_module);
 
     // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
@@ -196,11 +187,12 @@ fn elaborate(
     found_diagnostics: &mut Vec<Diagnostic>,
     concrete_module: &ddl::concrete::Module,
 ) -> ddl::core::Module {
-    let (core_module, diagnostics) = ddl::elaborate::elaborate_module(&concrete_module);
-    found_diagnostics.extend(diagnostics);
+    let core_module =
+        ddl::elaborate::elaborate_module(&concrete_module, &mut |d| found_diagnostics.push(d));
 
     // The core syntax from the elaborator should always be well-formed!
-    let validation_diagnostics = ddl::core::validate::validate_module(&core_module);
+    let mut validation_diagnostics = Vec::new();
+    ddl::core::validate::validate_module(&core_module, &mut |d| validation_diagnostics.push(d));
     if !validation_diagnostics.is_empty() {
         failed_checks.push("elaborate: validate");
 
@@ -240,12 +232,10 @@ fn compile_rust(
     input_ddl_path: &Path,
     snapshot_filename: &Path,
     failed_checks: &mut Vec<&str>,
-    found_diagnostics: &mut Vec<Diagnostic>,
     core_module: &ddl::core::Module,
 ) {
     let mut output = Vec::new();
-    let diagnostics = ddl::compile::rust::compile_module(&mut output, core_module).unwrap();
-    found_diagnostics.extend(diagnostics);
+    ddl::compile::rust::compile_module(&mut output, core_module).unwrap();
     let snapshot_rs_path = snapshot_filename.with_extension("rs");
 
     if let Err(error) = snapshot::compare(&snapshot_rs_path, &output) {
@@ -362,12 +352,10 @@ fn compile_rust(
 fn compile_doc(
     snapshot_filename: &Path,
     failed_checks: &mut Vec<&str>,
-    found_diagnostics: &mut Vec<Diagnostic>,
     core_module: &ddl::core::Module,
 ) {
     let mut output = Vec::new();
-    let diagnostics = ddl::compile::doc::compile_module(&mut output, core_module).unwrap();
-    found_diagnostics.extend(diagnostics);
+    ddl::compile::doc::compile_module(&mut output, core_module).unwrap();
 
     if let Err(error) = snapshot::compare(&snapshot_filename.with_extension("md"), &output) {
         failed_checks.push("compile_doc: snapshot");
