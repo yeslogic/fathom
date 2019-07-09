@@ -19,6 +19,8 @@ formally verified specification in the future.
     elaboration of the concrete syntax into the core type theory
 -   [Binary interpretation](./binary-interpretation):
     describes a how to interpret binary types as binary encoders and decoders
+-   [References](./binary-interpretation):
+    list of references that proved useful when designing the data description language
 
 ## How to read the specification
 
