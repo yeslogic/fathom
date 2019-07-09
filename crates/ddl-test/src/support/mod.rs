@@ -89,8 +89,10 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
     }
 
     // PARSE
-    let concrete_module =
-        ddl::parse::parse_module(&files, file_id, &mut |d| found_diagnostics.push(d));
+    let concrete_module = {
+        let lexer = ddl::lexer::Lexer::new(&files, file_id);
+        ddl::parse::parse_module(file_id, lexer, &mut |d| found_diagnostics.push(d))
+    };
 
     // ELABORATE
     let core_module = elaborate(

@@ -113,7 +113,7 @@ impl<'input> Lexer<'input> {
         )
         .with_notes(vec![format!(
             "expected one of {}",
-            super::display_expected(&expected),
+            display_expected(&expected),
         )])))
     }
 
@@ -124,9 +124,29 @@ impl<'input> Lexer<'input> {
         )
         .with_notes(vec![format!(
             "expected one of {}",
-            super::display_expected(&expected),
+            display_expected(&expected),
         )])))
     }
+}
+
+fn display_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt::Display {
+    struct DisplayExpected<'a, Item>(&'a [Item]);
+
+    impl<'a, Item: fmt::Display> fmt::Display for DisplayExpected<'a, Item> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            for (i, item) in self.0.iter().enumerate() {
+                match i {
+                    0 => write!(f, "{}", item)?,
+                    i if i >= self.0.len() => write!(f, ", or {}", item)?,
+                    _ => write!(f, ", {}", item)?,
+                }
+            }
+
+            Ok(())
+        }
+    }
+
+    DisplayExpected(items)
 }
 
 impl<'input> Iterator for Lexer<'input> {

@@ -1,23 +1,22 @@
 //! Parser for the data description language.
 
-use codespan::{ByteIndex, FileId, Files};
+use codespan::{ByteIndex, FileId};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use lalrpop_util::ParseError;
 use std::fmt;
 
 use crate::concrete::Module;
-
-mod lexer;
-
-use self::lexer::{Lexer, Token};
+use crate::lexer::{Lexer, Token};
 
 mod grammar {
     include!(concat!(env!("OUT_DIR"), "/parse/grammar.rs"));
 }
 
-pub fn parse_module(files: &Files, file_id: FileId, report: &mut dyn FnMut(Diagnostic)) -> Module {
-    let lexer = Lexer::new(files, file_id);
-
+pub fn parse_module(
+    file_id: FileId,
+    lexer: Lexer<'_>,
+    report: &mut dyn FnMut(Diagnostic),
+) -> Module {
     let module = grammar::ModuleParser::new()
         .parse(file_id, report, lexer)
         .unwrap_or_else(|error| {
