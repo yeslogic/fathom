@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::rc::Rc;
 
-use crate::concrete::{Module, Item, SpannedString, StructType, Term, TypeField};
+use crate::concrete::{Item, Module, SpannedString, StructType, Term, TypeField};
 use crate::lexer::Token;
 
 grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));

@@ -1,7 +1,15 @@
 //! The concrete syntax for the data description language.
 
 use codespan::{ByteIndex, ByteOffset, FileId, Span};
+use codespan_reporting::diagnostic::Diagnostic;
 use std::rc::Rc;
+
+use crate::diagnostics;
+use crate::lexer::SpannedToken;
+
+mod grammar {
+    include!(concat!(env!("OUT_DIR"), "/concrete/grammar.rs"));
+}
 
 /// A module of items.
 #[derive(Debug, Clone)]
@@ -10,6 +18,26 @@ pub struct Module {
     pub file_id: FileId,
     /// The items in this module.
     pub items: Vec<Item>,
+}
+
+impl Module {
+    pub fn parse(
+        file_id: FileId,
+        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic>>,
+        report: &mut dyn FnMut(Diagnostic),
+    ) -> Module {
+        let module = grammar::ModuleParser::new()
+            .parse(file_id, report, tokens)
+            .unwrap_or_else(|error| {
+                report(diagnostics::parse_error(file_id, error));
+                Module {
+                    file_id,
+                    items: Vec::new(),
+                }
+            });
+
+        module
+    }
 }
 
 /// Items in a module.
