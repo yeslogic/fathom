@@ -5,7 +5,7 @@ Binary formats exist in many forms in computing. Examples of these include:
 - Image formats: JPEG, GIF, TIFF, etc.
 - Archive formats: ZIP, RAR, GZIP, etc.
 - Fonts: OTF, TTF
-- ...and many more!
+- &hellip;and many more!
 
 The DDL (data description language) is a domain-specific language that can be used to
 describe these various binary data types in a declarative way that is both
