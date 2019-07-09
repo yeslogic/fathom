@@ -29,7 +29,7 @@ pub struct StructType {
     /// The full span of this definition.
     pub span: Span,
     /// Doc comment.
-    pub doc: Rc<str>,
+    pub doc: Rc<[String]>,
     /// Name of this definition.
     pub name: SpannedString,
     /// Fields in the struct.
@@ -39,7 +39,7 @@ pub struct StructType {
 /// A field in a struct type definition.
 #[derive(Debug, Clone)]
 pub struct TypeField {
-    pub doc: Rc<str>,
+    pub doc: Rc<[String]>,
     pub name: SpannedString,
     pub term: Term,
 }

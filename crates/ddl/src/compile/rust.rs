@@ -39,11 +39,8 @@ fn compile_struct_item(
 ) -> io::Result<()> {
     // Struct definition
 
-    for doc_line in struct_ty.doc.lines() {
-        match doc_line {
-            line if line.trim().is_empty() => writeln!(writer, "///")?,
-            line => writeln!(writer, "/// {}", line)?,
-        }
+    for doc_line in struct_ty.doc.iter() {
+        writeln!(writer, "///{}", doc_line)?;
     }
 
     if struct_ty.fields.is_empty() {
@@ -51,11 +48,8 @@ fn compile_struct_item(
     } else {
         writeln!(writer, "pub struct {} {{", struct_ty.name)?;
         for field in &struct_ty.fields {
-            for doc_line in field.doc.lines() {
-                match doc_line {
-                    line if line.trim().is_empty() => writeln!(writer, "    ///")?,
-                    line => writeln!(writer, "    /// {}", line)?,
-                }
+            for doc_line in field.doc.iter() {
+                writeln!(writer, "    ///{}", doc_line)?;
             }
 
             write!(

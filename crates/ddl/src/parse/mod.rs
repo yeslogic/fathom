@@ -4,7 +4,6 @@ use codespan::{ByteIndex, FileId, Files};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use lalrpop_util::ParseError;
 use std::fmt;
-use std::rc::Rc;
 
 use crate::concrete::Module;
 
@@ -91,18 +90,4 @@ fn display_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt:
     }
 
     DisplayExpected(items)
-}
-
-fn concat_docs(lines: Vec<String>) -> Rc<str> {
-    use itertools::Itertools;
-
-    let doc = lines
-        .iter()
-        .map(|line| match line {
-            line if line.starts_with(" ") => &line[" ".len()..],
-            line => &line[..],
-        })
-        .join("\n");
-
-    Rc::from(doc)
 }
