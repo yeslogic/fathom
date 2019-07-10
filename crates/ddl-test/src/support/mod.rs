@@ -112,7 +112,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
 
             eprintln!("Failed ELABORATE: validate");
             eprintln!();
-            eprintln!("    ---- found diagnostics ----");
+            eprintln_indented(4, "", "---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
         }
 
@@ -129,7 +129,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
             eprintln!("Failed ELABORATE: snapshot test");
             eprintln!();
             eprintln!();
-            eprintln!("    ---- snapshot error ----");
+            eprintln_indented(4, "", "---- snapshot error ----");
             eprintln_indented(4, "", &error.to_string());
         }
 
@@ -176,7 +176,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
             term::emit(&mut buffer, &reporting_config, &files, diagnostic).unwrap();
         }
 
-        eprintln!("    ---- found diagnostics ----");
+        eprintln_indented(4, "", "---- found diagnostics ----");
         eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
     }
 
@@ -186,7 +186,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
         eprintln!("Expected diagnostics not found:");
         eprintln!();
 
-        eprintln!("    ---- expected diagnostics ----");
+        eprintln_indented(4, "", "---- expected diagnostics ----");
         for expected in &directives.expected_diagnostics {
             let severity = match expected.severity {
                 Severity::Bug => "bug",
@@ -238,7 +238,7 @@ fn compile_rust(
         eprintln!("Failed COMPILE/RUST: snapshot test");
         eprintln!();
         eprintln!();
-        eprintln!("    ---- snapshot error ----");
+        eprintln_indented(4, "", "---- snapshot error ----");
         eprintln_indented(4, "", &error.to_string());
     } else {
         // Test compiled output against rustc
@@ -277,7 +277,7 @@ fn compile_rust(
 
                     eprintln!("Failed COMPILE/RUST: rustc status");
                     eprintln!();
-                    eprintln!("    ---- rustc status ----");
+                    eprintln_indented(4, "", "---- rustc status ----");
                     eprintln_indented(4, "| ", &output.status.to_string());
                     eprintln!();
                 }
@@ -285,7 +285,7 @@ fn compile_rust(
                 if !output.stdout.is_empty() {
                     failed_checks.push("compile_rust: rustc stdout");
 
-                    eprintln!("    ---- rustc stdout ----");
+                    eprintln_indented(4, "", "---- rustc stdout ----");
                     eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
                     eprintln!();
                 }
@@ -293,7 +293,7 @@ fn compile_rust(
                 if !output.stderr.is_empty() {
                     failed_checks.push("compile_rust: rustc stderr");
 
-                    eprintln!("    ---- rustc stderr ----");
+                    eprintln_indented(4, "", "---- rustc stderr ----");
                     eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
                     eprintln!();
                 }
@@ -303,8 +303,8 @@ fn compile_rust(
 
                 eprintln!("Failed COMPILE/RUST: execute rustc");
                 eprintln!();
-                eprintln!("    ---- rustc error ----");
-                eprintln!("{}", error);
+                eprintln_indented(4, "", "---- rustc error ----");
+                eprintln_indented(4, "", &error.to_string());
                 eprintln!();
             }
         }
@@ -319,13 +319,13 @@ fn compile_rust(
 
                     eprintln!("Failed COMPILE/RUST: test status");
                     eprintln!();
-                    eprintln!("    ---- {} status ----", test_path.display());
+                    eprintln_indented(4, "", &format!("---- {} status ----", test_path.display()));
                     eprintln_indented(4, "| ", &output.status.to_string());
                     eprintln!();
-                    eprintln!("    ---- {} stdout ----", test_path.display());
+                    eprintln_indented(4, "", &format!("---- {} stdout ----", test_path.display()));
                     eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
                     eprintln!();
-                    eprintln!("    ---- {} stderr ----", test_path.display());
+                    eprintln_indented(4, "", &format!("---- {} stderr ----", test_path.display()));
                     eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
                     eprintln!();
                 }
@@ -335,7 +335,7 @@ fn compile_rust(
 
                 eprintln!("Failed COMPILE/RUST: execute test");
                 eprintln!();
-                eprintln!("    ---- {} error ----", test_path.display());
+                eprintln_indented(4, "", &format!("---- {} error ----", test_path.display()));
                 eprintln_indented(4, "| ", &error.to_string());
                 eprintln!();
             }
@@ -358,7 +358,7 @@ fn compile_doc(
 
         eprintln!("Failed COMPILE/DOC: snapshot test");
         eprintln!();
-        eprintln!("    ---- snapshot error ----");
+        eprintln_indented(4, "", "---- snapshot error ----");
         eprintln_indented(4, "", &error.to_string());
     }
 }
