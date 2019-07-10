@@ -1,8 +1,16 @@
 //! The core type theory of the data description language.
 
 use codespan::{ByteIndex, FileId, Span};
+use codespan_reporting::diagnostic::Diagnostic;
 use pretty::{DocAllocator, DocBuilder};
 use std::rc::Rc;
+
+use crate::diagnostics;
+use crate::lexer::SpannedToken;
+
+mod grammar {
+    include!(concat!(env!("OUT_DIR"), "/core/grammar.rs"));
+}
 
 pub mod validate;
 
@@ -30,6 +38,24 @@ pub struct Module {
 }
 
 impl Module {
+    pub fn parse(
+        file_id: FileId,
+        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic>>,
+        report: &mut dyn FnMut(Diagnostic),
+    ) -> Module {
+        let module = grammar::ModuleParser::new()
+            .parse(file_id, report, tokens)
+            .unwrap_or_else(|error| {
+                report(diagnostics::parse_error(file_id, error));
+                Module {
+                    file_id,
+                    items: Vec::new(),
+                }
+            });
+
+        module
+    }
+
     pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
     where
         D: DocAllocator<'core>,
@@ -261,7 +287,7 @@ impl Term {
             Term::F32Be(_) => alloc.text("F32Be"),
             Term::F64Le(_) => alloc.text("F64Le"),
             Term::F64Be(_) => alloc.text("F64Be"),
-            Term::Error(_) => alloc.text("?error"),
+            Term::Error(_) => alloc.text("!"),
         }
     }
 }

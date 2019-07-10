@@ -1,4 +1,4 @@
 struct Pair {
-    first : ?error,
-    second : ?error,
+    first : !,
+    second : !,
 }

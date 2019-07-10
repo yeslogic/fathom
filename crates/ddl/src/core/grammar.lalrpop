@@ -1,0 +1,84 @@
+use codespan::{ByteIndex, FileId, Span};
+use codespan_reporting::diagnostic::{Diagnostic, Severity};
+use std::rc::Rc;
+
+use crate::core::{Item, Label, Module, StructType, Term, TypeField};
+use crate::diagnostics;
+use crate::lexer::Token;
+
+grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));
+
+extern {
+    type Location = ByteIndex;
+    type Error = Diagnostic;
+
+    enum Token {
+        "identifier" => Token::Identifier(<String>),
+        "doc comment" => Token::DocComment(<String>),
+
+        "struct" => Token::Struct,
+
+        "{" => Token::OpenBrace,
+        "}" => Token::CloseBrace,
+
+        "!" => Token::Bang,
+        ":" => Token::Colon,
+        "," => Token::Comma,
+    }
+}
+
+pub Module: Module = {
+    <items: Item*> => Module { file_id, items },
+};
+
+Item: Item = {
+    <docs: "doc comment"*>
+    <start: @L> "struct" <name: "identifier"> "{"
+        <fields: (<Field> ",")*>
+        <last: Field?>
+    "}" <end: @R> => {
+        let span = Span::from(start..end);
+        let doc = Rc::from(docs);
+        let name = Label(name);
+        let mut fields = fields;
+        fields.extend(last);
+
+        Item::Struct(StructType { span, doc, name, fields })
+    },
+};
+
+Field: TypeField= {
+    <docs: "doc comment"*>
+    <start: @L> <name: "identifier"> ":" <term: Term> => {
+        let name = Label(name);
+        TypeField { doc: Rc::from(docs), start, name, term }
+    },
+};
+
+Term: Term = {
+    <start: @L> "!" <end: @R> => Term::Error(Span::new(start, end)),
+    <start: @L> <name: "identifier"> <end: @R> => {
+        let span = Span::new(start, end);
+
+        match name.as_ref() {
+            "U8" => Term::U8(span),
+            "U16Le" => Term::U16Le(span),
+            "U16Be" => Term::U16Be(span),
+            "U32Le" => Term::U32Le(span),
+            "U32Be" => Term::U32Be(span),
+            "U64Le" => Term::U64Le(span),
+            "U64Be" => Term::U64Be(span),
+            "S8" => Term::S8(span),
+            "S16Le" => Term::S16Le(span),
+            "S16Be" => Term::S16Be(span),
+            "S32Le" => Term::S32Le(span),
+            "S32Be" => Term::S32Be(span),
+            "S64Le" => Term::S64Le(span),
+            "S64Be" => Term::S64Be(span),
+            _ => {
+                report(diagnostics::var_name_not_found(Severity::Error, file_id, &name, span));
+                Term::Error(span)
+            },
+        }
+    },
+};

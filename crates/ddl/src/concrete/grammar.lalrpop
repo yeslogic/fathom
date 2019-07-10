@@ -20,6 +20,7 @@ extern {
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
 
+        "!" => Token::Bang,
         ":" => Token::Colon,
         "," => Token::Comma,
     }

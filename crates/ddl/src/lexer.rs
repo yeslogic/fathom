@@ -18,6 +18,8 @@ pub enum Token {
     /// `}`
     CloseBrace,
 
+    // `!`
+    Bang,
     // `:`
     Colon,
     // `,`
@@ -35,6 +37,7 @@ impl<'a> fmt::Display for Token {
             Token::OpenBrace => write!(f, "{{"),
             Token::CloseBrace => write!(f, "}}"),
 
+            Token::Bang => write!(f, "!"),
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
         }
@@ -191,6 +194,7 @@ impl<'input> Iterator for Lexer<'input> {
                 }
                 '{' => return Some(Ok(self.emit(Token::OpenBrace))),
                 '}' => return Some(Ok(self.emit(Token::CloseBrace))),
+                '!' => return Some(Ok(self.emit(Token::Bang))),
                 ':' => return Some(Ok(self.emit(Token::Colon))),
                 ',' => return Some(Ok(self.emit(Token::Comma))),
                 ch if is_identifier_start(ch) => {
