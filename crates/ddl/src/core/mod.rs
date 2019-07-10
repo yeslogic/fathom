@@ -1,6 +1,7 @@
 //! The core type theory of the data description language.
 
 use codespan::{ByteIndex, FileId, Span};
+use pretty::{DocAllocator, DocBuilder};
 use std::rc::Rc;
 
 pub mod validate;
@@ -9,6 +10,16 @@ pub mod validate;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, derive_more::Display)]
 pub struct Label(pub String);
 
+impl Label {
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        alloc.text(&self.0)
+    }
+}
+
 /// A module of items.
 #[derive(Debug, Clone)]
 pub struct Module {
@@ -16,6 +27,21 @@ pub struct Module {
     pub file_id: FileId,
     /// The items in this module.
     pub items: Vec<Item>,
+}
+
+impl Module {
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        let items = alloc.intersperse(
+            self.items.iter().map(|item| item.doc(alloc)),
+            alloc.newline(),
+        );
+
+        items.append(alloc.newline())
+    }
 }
 
 /// Items in a module.
@@ -29,6 +55,16 @@ impl Item {
     pub fn span(&self) -> Span {
         match self {
             Item::Struct(struct_ty) => struct_ty.span,
+        }
+    }
+
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        match self {
+            Item::Struct(struct_ty) => struct_ty.doc(alloc),
         }
     }
 }
@@ -46,6 +82,48 @@ pub struct StructType {
     pub fields: Vec<TypeField>,
 }
 
+impl StructType {
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        let docs = alloc.concat(self.doc.iter().map(|line| {
+            (alloc.nil())
+                .append("///")
+                .append(line)
+                .group()
+                .append(alloc.newline())
+        }));
+
+        let struct_prefix = (alloc.nil())
+            .append("struct")
+            .append(alloc.space())
+            .append(self.name.doc(alloc))
+            .append(alloc.space());
+
+        let struct_ty = if self.fields.is_empty() {
+            (alloc.nil()).append(struct_prefix).append("{}").group()
+        } else {
+            (alloc.nil())
+                .append(struct_prefix)
+                .append("{")
+                .group()
+                .append(alloc.concat(self.fields.iter().map(|field| {
+                    (alloc.nil())
+                        .append(alloc.newline())
+                        .append(field.doc(alloc))
+                        .nest(4)
+                        .group()
+                })))
+                .append(alloc.newline())
+                .append("}")
+        };
+
+        (alloc.nil()).append(docs).append(struct_ty)
+    }
+}
+
 /// A field in a struct type definition.
 #[derive(Debug, Clone)]
 pub struct TypeField {
@@ -58,6 +136,36 @@ pub struct TypeField {
 impl TypeField {
     pub fn span(&self) -> Span {
         Span::new(self.start, self.term.span().end())
+    }
+
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        let docs = alloc.concat(self.doc.iter().map(|line| {
+            (alloc.nil())
+                .append("///")
+                .append(line)
+                .group()
+                .append(alloc.newline())
+        }));
+
+        (alloc.nil())
+            .append(docs)
+            .append(
+                (alloc.nil())
+                    .append(self.name.doc(alloc))
+                    .append(alloc.space())
+                    .append(":")
+                    .group(),
+            )
+            .append(
+                (alloc.nil())
+                    .append(alloc.space())
+                    .append(self.term.doc(alloc))
+                    .append(","),
+            )
     }
 }
 
@@ -126,6 +234,34 @@ impl Term {
             | Term::F64Le(span)
             | Term::F64Be(span)
             | Term::Error(span) => *span,
+        }
+    }
+
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        match self {
+            Term::U8(_) => alloc.text("U8"),
+            Term::U16Le(_) => alloc.text("U16Le"),
+            Term::U16Be(_) => alloc.text("U16Be"),
+            Term::U32Le(_) => alloc.text("U32Le"),
+            Term::U32Be(_) => alloc.text("U32Be"),
+            Term::U64Le(_) => alloc.text("U64Le"),
+            Term::U64Be(_) => alloc.text("U64Be"),
+            Term::S8(_) => alloc.text("S8"),
+            Term::S16Le(_) => alloc.text("S16Le"),
+            Term::S16Be(_) => alloc.text("S16Be"),
+            Term::S32Le(_) => alloc.text("S32Le"),
+            Term::S32Be(_) => alloc.text("S32Be"),
+            Term::S64Le(_) => alloc.text("S64Le"),
+            Term::S64Be(_) => alloc.text("S64Be"),
+            Term::F32Le(_) => alloc.text("F32Le"),
+            Term::F32Be(_) => alloc.text("F32Be"),
+            Term::F64Le(_) => alloc.text("F64Le"),
+            Term::F64Be(_) => alloc.text("F64Be"),
+            Term::Error(_) => alloc.text("?error"),
         }
     }
 }

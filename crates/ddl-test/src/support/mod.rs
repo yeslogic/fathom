@@ -113,6 +113,23 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
             }
         }
 
+        let pretty_core = {
+            let arena = pretty::Arena::new();
+            let pretty::DocBuilder(_, doc) = core_module.doc(&arena);
+            doc.pretty(100).to_string()
+        };
+
+        let snapshot_rs_path = snapshot_filename.with_extension("core.ddl");
+        if let Err(error) = snapshot::compare(&snapshot_rs_path, &pretty_core.as_bytes()) {
+            failed_checks.push("elaborate: snapshot");
+
+            eprintln!("Failed ELABORATE: snapshot test");
+            eprintln!();
+            eprintln!();
+            eprintln!("    ---- snapshot error ----");
+            eprintln_indented(4, "", &error.to_string());
+        }
+
         core_module
     };
 
