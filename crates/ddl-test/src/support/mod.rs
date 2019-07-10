@@ -105,12 +105,15 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
         if !validation_diagnostics.is_empty() {
             failed_checks.push("elaborate: validate");
 
+            let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
+            for diagnostic in &validation_diagnostics {
+                term::emit(&mut buffer, &reporting_config, &files, diagnostic).unwrap();
+            }
+
             eprintln!("Failed ELABORATE: validate");
             eprintln!();
-            let writer = &mut stdout.lock();
-            for diagnostic in validation_diagnostics {
-                term::emit(writer, &reporting_config, &files, &diagnostic).unwrap();
-            }
+            eprintln!("    ---- found diagnostics ----");
+            eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
         }
 
         let pretty_core = {
