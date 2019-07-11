@@ -70,6 +70,12 @@ impl Module {
     }
 }
 
+impl PartialEq for Module {
+    fn eq(&self, other: &Module) -> bool {
+        self.items == other.items
+    }
+}
+
 /// Items in a module.
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -91,6 +97,14 @@ impl Item {
     {
         match self {
             Item::Struct(struct_ty) => struct_ty.doc(alloc),
+        }
+    }
+}
+
+impl PartialEq for Item {
+    fn eq(&self, other: &Item) -> bool {
+        match (self, other) {
+            (Item::Struct(struct_ty0), Item::Struct(struct_ty1)) => *struct_ty0 == *struct_ty1,
         }
     }
 }
@@ -150,6 +164,12 @@ impl StructType {
     }
 }
 
+impl PartialEq for StructType {
+    fn eq(&self, other: &StructType) -> bool {
+        self.name == other.name && self.fields == other.fields
+    }
+}
+
 /// A field in a struct type definition.
 #[derive(Debug, Clone)]
 pub struct TypeField {
@@ -195,8 +215,14 @@ impl TypeField {
     }
 }
 
+impl PartialEq for TypeField {
+    fn eq(&self, other: &TypeField) -> bool {
+        self.name == other.name && self.term == other.term
+    }
+}
+
 /// Terms.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub enum Term {
     /// Unsigned 8-bit integers.
     U8(Span),
@@ -288,6 +314,33 @@ impl Term {
             Term::F64Le(_) => alloc.text("F64Le"),
             Term::F64Be(_) => alloc.text("F64Be"),
             Term::Error(_) => alloc.text("!"),
+        }
+    }
+}
+
+impl PartialEq for Term {
+    fn eq(&self, other: &Term) -> bool {
+        match (self, other) {
+            (Term::U8(_), Term::U8(_))
+            | (Term::U16Le(_), Term::U16Le(_))
+            | (Term::U16Be(_), Term::U16Be(_))
+            | (Term::U32Le(_), Term::U32Le(_))
+            | (Term::U32Be(_), Term::U32Be(_))
+            | (Term::U64Le(_), Term::U64Le(_))
+            | (Term::U64Be(_), Term::U64Be(_))
+            | (Term::S8(_), Term::S8(_))
+            | (Term::S16Le(_), Term::S16Le(_))
+            | (Term::S16Be(_), Term::S16Be(_))
+            | (Term::S32Le(_), Term::S32Le(_))
+            | (Term::S32Be(_), Term::S32Be(_))
+            | (Term::S64Le(_), Term::S64Le(_))
+            | (Term::S64Be(_), Term::S64Be(_))
+            | (Term::F32Le(_), Term::F32Le(_))
+            | (Term::F32Be(_), Term::F32Be(_))
+            | (Term::F64Le(_), Term::F64Le(_))
+            | (Term::F64Be(_), Term::F64Be(_))
+            | (Term::Error(_), Term::Error(_)) => true,
+            (_, _) => false,
         }
     }
 }

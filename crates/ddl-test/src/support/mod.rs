@@ -240,7 +240,7 @@ fn core_roundtrip(
 
     let mut core_parse_diagnostics = Vec::new();
     let core_file_id = files.add(snapshot_core_ddl_path.display().to_string(), pretty_core);
-    let _parsed_core_module = {
+    let parsed_core_module = {
         let lexer = ddl::lexer::Lexer::new(&files, core_file_id);
         ddl::core::Module::parse(core_file_id, lexer, &mut |d| core_parse_diagnostics.push(d))
     };
@@ -258,7 +258,11 @@ fn core_roundtrip(
         eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
     }
 
-    // TODO: check that `core_module` is alpha equivalent to `parsed_core_module`
+    if *core_module != parsed_core_module {
+        failed_checks.push("core_roundtrip: core != parse(pretty(core))");
+
+        eprintln!("  • core_roundtrip: core != parse(pretty(core))");
+    }
 }
 
 fn compile_rust(
