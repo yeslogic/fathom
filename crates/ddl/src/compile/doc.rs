@@ -43,8 +43,14 @@ fn compile_struct_item(
 
     if !struct_ty.doc.is_empty() {
         writeln!(writer)?;
-        // TODO: Bump inner heading levels
-        writeln!(writer, "{}", struct_ty.doc)?;
+        for doc_line in struct_ty.doc.iter() {
+            // TODO: Bump inner heading levels
+            let doc_line = match doc_line {
+                line if line.starts_with(" ") => &line[" ".len()..],
+                line => &line[..],
+            };
+            writeln!(writer, "{}", doc_line)?;
+        }
     }
 
     if !struct_ty.fields.is_empty() {
@@ -77,14 +83,14 @@ fn compile_struct_item(
     Ok(())
 }
 
-fn compile_field_description(doc: &str) -> String {
-    let mut lines = doc.lines();
-    match lines.next() {
+fn compile_field_description(doc_lines: &[String]) -> String {
+    let mut lines = doc_lines.iter();
+    match lines.next().map(|l| l.trim().trim_end_matches('.')) {
         None => "".to_owned(),
         Some(first_line) => match lines.next() {
-            None => first_line.trim_end_matches('.').to_owned(),
+            None => first_line.to_owned(),
             // TODO: link ellipsis to long-form field docs
-            Some(_) => format!("{}...", first_line.trim_end_matches('.')),
+            Some(_) => format!("{}...", first_line),
         },
     }
 }

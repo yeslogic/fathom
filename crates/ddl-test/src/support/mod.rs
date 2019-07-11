@@ -41,7 +41,7 @@ lazy_static::lazy_static! {
 pub fn run_integration_test(test_name: &str, ddl_path: &str) {
     // Set up output streams
 
-    let reporting_config = term::Config::default();
+    let term_config = term::Config::default();
     let stdout = StandardStream::stdout(ColorChoice::Auto);
 
     // Set up files
@@ -66,7 +66,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
         if !diagnostics.is_empty() {
             let writer = &mut stdout.lock();
             for diagnostic in diagnostics {
-                term::emit(writer, &reporting_config, &files, &diagnostic).unwrap();
+                term::emit(writer, &term_config, &files, &diagnostic).unwrap();
             }
 
             panic!("failed to parse diagnostics");
@@ -96,25 +96,14 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
     };
 
     // ELABORATE
-    let core_module = {
-        let (core_module, diagnostics) = ddl::elaborate::elaborate_module(&concrete_module);
-        found_diagnostics.extend(diagnostics);
-
-        // The core syntax from the elaborator should always be well-formed!
-        let validation_diagnostics = ddl::core::validate::validate_module(&core_module);
-        if !validation_diagnostics.is_empty() {
-            failed_checks.push("elaborate: validate");
-
-            eprintln!("Failed ELABORATE: validate");
-            eprintln!();
-            let writer = &mut stdout.lock();
-            for diagnostic in validation_diagnostics {
-                term::emit(writer, &reporting_config, &files, &diagnostic).unwrap();
-            }
-        }
-
-        core_module
-    };
+    let core_module = elaborate(
+        &files,
+        &term_config,
+        &snapshot_filename,
+        &mut failed_checks,
+        &mut found_diagnostics,
+        &concrete_module,
+    );
 
     // COMPILE/RUST
     compile_rust(
@@ -153,10 +142,10 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
 
         let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
         for diagnostic in &found_diagnostics {
-            term::emit(&mut buffer, &reporting_config, &files, diagnostic).unwrap();
+            term::emit(&mut buffer, &term_config, &files, diagnostic).unwrap();
         }
 
-        eprintln!("    ---- found diagnostics ----");
+        eprintln_indented(4, "", "---- found diagnostics ----");
         eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
     }
 
@@ -166,7 +155,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
         eprintln!("Expected diagnostics not found:");
         eprintln!();
 
-        eprintln!("    ---- expected diagnostics ----");
+        eprintln_indented(4, "", "---- expected diagnostics ----");
         for expected in &directives.expected_diagnostics {
             let severity = match expected.severity {
                 Severity::Bug => "bug",
@@ -199,6 +188,53 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
     }
 }
 
+fn elaborate(
+    files: &Files,
+    term_config: &codespan_reporting::term::Config,
+    snapshot_filename: &Path,
+    failed_checks: &mut Vec<&str>,
+    found_diagnostics: &mut Vec<Diagnostic>,
+    concrete_module: &ddl::concrete::Module,
+) -> ddl::core::Module {
+    let (core_module, diagnostics) = ddl::elaborate::elaborate_module(&concrete_module);
+    found_diagnostics.extend(diagnostics);
+
+    // The core syntax from the elaborator should always be well-formed!
+    let validation_diagnostics = ddl::core::validate::validate_module(&core_module);
+    if !validation_diagnostics.is_empty() {
+        failed_checks.push("elaborate: validate");
+
+        let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
+        for diagnostic in &validation_diagnostics {
+            term::emit(&mut buffer, &term_config, &files, diagnostic).unwrap();
+        }
+
+        eprintln!("Failed ELABORATE: validate");
+        eprintln!();
+        eprintln_indented(4, "", "---- found diagnostics ----");
+        eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
+    }
+
+    let pretty_core = {
+        let arena = pretty::Arena::new();
+        let pretty::DocBuilder(_, doc) = core_module.doc(&arena);
+        doc.pretty(100).to_string()
+    };
+
+    let snapshot_rs_path = snapshot_filename.with_extension("core.ddl");
+    if let Err(error) = snapshot::compare(&snapshot_rs_path, &pretty_core.as_bytes()) {
+        failed_checks.push("elaborate: snapshot");
+
+        eprintln!("Failed ELABORATE: snapshot test");
+        eprintln!();
+        eprintln!();
+        eprintln_indented(4, "", "---- snapshot error ----");
+        eprintln_indented(4, "", &error.to_string());
+    }
+
+    core_module
+}
+
 fn compile_rust(
     test_name: &str,
     input_ddl_path: &Path,
@@ -218,7 +254,7 @@ fn compile_rust(
         eprintln!("Failed COMPILE/RUST: snapshot test");
         eprintln!();
         eprintln!();
-        eprintln!("    ---- snapshot error ----");
+        eprintln_indented(4, "", "---- snapshot error ----");
         eprintln_indented(4, "", &error.to_string());
     } else {
         // Test compiled output against rustc
@@ -257,7 +293,7 @@ fn compile_rust(
 
                     eprintln!("Failed COMPILE/RUST: rustc status");
                     eprintln!();
-                    eprintln!("    ---- rustc status ----");
+                    eprintln_indented(4, "", "---- rustc status ----");
                     eprintln_indented(4, "| ", &output.status.to_string());
                     eprintln!();
                 }
@@ -265,7 +301,7 @@ fn compile_rust(
                 if !output.stdout.is_empty() {
                     failed_checks.push("compile_rust: rustc stdout");
 
-                    eprintln!("    ---- rustc stdout ----");
+                    eprintln_indented(4, "", "---- rustc stdout ----");
                     eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
                     eprintln!();
                 }
@@ -273,7 +309,7 @@ fn compile_rust(
                 if !output.stderr.is_empty() {
                     failed_checks.push("compile_rust: rustc stderr");
 
-                    eprintln!("    ---- rustc stderr ----");
+                    eprintln_indented(4, "", "---- rustc stderr ----");
                     eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
                     eprintln!();
                 }
@@ -283,8 +319,8 @@ fn compile_rust(
 
                 eprintln!("Failed COMPILE/RUST: execute rustc");
                 eprintln!();
-                eprintln!("    ---- rustc error ----");
-                eprintln!("{}", error);
+                eprintln_indented(4, "", "---- rustc error ----");
+                eprintln_indented(4, "", &error.to_string());
                 eprintln!();
             }
         }
@@ -299,13 +335,13 @@ fn compile_rust(
 
                     eprintln!("Failed COMPILE/RUST: test status");
                     eprintln!();
-                    eprintln!("    ---- {} status ----", test_path.display());
+                    eprintln_indented(4, "", &format!("---- {} status ----", test_path.display()));
                     eprintln_indented(4, "| ", &output.status.to_string());
                     eprintln!();
-                    eprintln!("    ---- {} stdout ----", test_path.display());
+                    eprintln_indented(4, "", &format!("---- {} stdout ----", test_path.display()));
                     eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
                     eprintln!();
-                    eprintln!("    ---- {} stderr ----", test_path.display());
+                    eprintln_indented(4, "", &format!("---- {} stderr ----", test_path.display()));
                     eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
                     eprintln!();
                 }
@@ -315,7 +351,7 @@ fn compile_rust(
 
                 eprintln!("Failed COMPILE/RUST: execute test");
                 eprintln!();
-                eprintln!("    ---- {} error ----", test_path.display());
+                eprintln_indented(4, "", &format!("---- {} error ----", test_path.display()));
                 eprintln_indented(4, "| ", &error.to_string());
                 eprintln!();
             }
@@ -338,7 +374,7 @@ fn compile_doc(
 
         eprintln!("Failed COMPILE/DOC: snapshot test");
         eprintln!();
-        eprintln!("    ---- snapshot error ----");
+        eprintln_indented(4, "", "---- snapshot error ----");
         eprintln_indented(4, "", &error.to_string());
     }
 }
