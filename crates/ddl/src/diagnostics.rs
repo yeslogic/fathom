@@ -1,6 +1,6 @@
 //! Diagnostics.
 
-use codespan::{FileId, Span, ByteIndex};
+use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use lalrpop_util::ParseError;
 use std::fmt;
@@ -65,10 +65,7 @@ pub fn var_name_not_found(
     }
 }
 
-pub fn parse_error(
-    file_id: FileId,
-    error: ParseError<ByteIndex, Token, Diagnostic>,
-) -> Diagnostic {
+pub fn parse_error(file_id: FileId, error: ParseError<ByteIndex, Token, Diagnostic>) -> Diagnostic {
     match error {
         ParseError::InvalidToken { location: _ } => unreachable!(),
 

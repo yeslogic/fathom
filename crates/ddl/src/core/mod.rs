@@ -43,7 +43,7 @@ impl Module {
         tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic>>,
         report: &mut dyn FnMut(Diagnostic),
     ) -> Module {
-        let module = grammar::ModuleParser::new()
+        grammar::ModuleParser::new()
             .parse(file_id, report, tokens)
             .unwrap_or_else(|error| {
                 report(diagnostics::parse_error(file_id, error));
@@ -51,9 +51,7 @@ impl Module {
                     file_id,
                     items: Vec::new(),
                 }
-            });
-
-        module
+            })
     }
 
     pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
