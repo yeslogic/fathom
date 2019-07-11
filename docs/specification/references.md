@@ -42,3 +42,34 @@ inspiration when writing the specification of the data description language:
 - [Dhall Semantics](https://github.com/dhall-lang/dhall-lang/tree/master/standard)
 - [Swift Language Reference](https://docs.swift.org/swift-book/ReferenceManual/AboutTheLanguageReference.html)
 - [The Rust Reference](https://doc.rust-lang.org/reference/index.html)
+
+## Existing Binary data description languages:
+
+[dloss/binary-parsing](https://github.com/dloss/binary-parsing):
+This is a a comprehensive list of tools for and links about parsing binary data
+structures, such as file formats, network protocols or bitstreams.
+
+- [Kaitai Struct](http://kaitai.io):
+  Uses YAML as a way of marking up the data definitions. Lots of nice
+  examples, a nice graphvis output, and a nice web-based IDE. It lacks a
+  formal foundation however, and YAML can be hard to read.
+- [IPADS/DDC](https://www.cs.princeton.edu/~dpw/papers/700popl06.pdf):
+  We like the IPADS/DDC approach, but it is geard more towards log files and
+  misses things like pointer offsets which are needed to support many
+  binary formats.
+- [Restructure](https://github.com/devongovett/restructure):
+  A library for declaratively encode and decode binary data using a JavaScript
+  EDSL. Used in [fontkit](https://github.com/devongovett/fontkit) for describing
+  the Open Type Font specification. Shows promise as nice way to describe
+  binary formats, but JS is not the most flexible host language.
+- [Harfbuzz](https://github.com/behdad/harfbuzz) defines [a handy set of types
+  and macros](https://github.com/behdad/harfbuzz/blob/master/src/hb-open-type-private.hh)
+  that allows binary data to be cast in-place into declaratively descibed Open
+  Type Font tables. Alas, it is in C++, and the API seems extremely prone to
+  human-error. A Rust API would be much more robust in regards to upholding
+  claimed invariants.
+- [Nom](https://github.com/Geal/nom):
+  A Rust parser combinator library geared towards describing binary
+  formats. It is fast and zero copy, but we belive that the combinator
+  approach has drawbacks to do with being to tied to a specific programming
+  language for specifications, and a specific operational semantics.
