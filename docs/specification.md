@@ -11,15 +11,15 @@ formally verified specification in the future.
 
 ## Sections
 
--   [Core theory](./specification/core-theory):
+-   [Core theory](./specification/core-theory.md):
     the core type theory of the language
--   [Concrete syntax](./specification/concrete-syntax):
+-   [Concrete syntax](./specification/concrete-syntax.md):
     the concrete syntax of the language
--   [Elaboration](./specification/elaboration):
+-   [Elaboration](./specification/elaboration.md):
     elaboration of the concrete syntax into the core type theory
--   [Binary interpretation](./binary-interpretation):
+-   [Binary interpretation](./binary-interpretation.md):
     describes a how to interpret binary types as binary encoders and decoders
--   [References](./binary-interpretation):
+-   [References](./binary-interpretation.md):
     list of references that proved useful when designing the data description language
 
 ## How to read the specification
