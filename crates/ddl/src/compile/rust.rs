@@ -1,15 +1,9 @@
-use codespan_reporting::diagnostic::Diagnostic;
 use std::io;
 use std::io::prelude::*;
 
 use crate::core;
 
-pub fn compile_module(
-    writer: &mut impl Write,
-    module: &core::Module,
-) -> io::Result<Vec<Diagnostic>> {
-    let mut diagnostics = Vec::new();
-
+pub fn compile_module(writer: &mut impl Write, module: &core::Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
     let pkg_version = env!("CARGO_PKG_VERSION");
 
@@ -24,19 +18,15 @@ pub fn compile_module(
         match item {
             core::Item::Struct(struct_ty) => {
                 writeln!(writer)?;
-                compile_struct_item(writer, struct_ty, &mut diagnostics)?;
+                compile_struct_item(writer, struct_ty)?;
             }
         }
     }
 
-    Ok(diagnostics)
+    Ok(())
 }
 
-fn compile_struct_item(
-    writer: &mut impl Write,
-    struct_ty: &core::StructType,
-    diagnostics: &mut Vec<Diagnostic>,
-) -> io::Result<()> {
+fn compile_struct_item(writer: &mut impl Write, struct_ty: &core::StructType) -> io::Result<()> {
     // Struct definition
 
     for doc_line in struct_ty.doc.iter() {
@@ -56,7 +46,7 @@ fn compile_struct_item(
                 writer,
                 "    pub {}: {},",
                 field.name,
-                compile_host_ty(&field.term, diagnostics),
+                compile_host_ty(&field.term),
             )?;
             writeln!(writer)?;
         }
@@ -97,7 +87,7 @@ fn compile_struct_item(
                 writer,
                 "        let {} = ctxt.read::<{}>()?;",
                 field.name,
-                compile_ty(&field.term, diagnostics),
+                compile_ty(&field.term),
             )?;
             writeln!(writer)?;
         }
@@ -114,7 +104,7 @@ fn compile_struct_item(
     Ok(())
 }
 
-fn compile_ty(term: &core::Term, _diagnostics: &mut Vec<Diagnostic>) -> String {
+fn compile_ty(term: &core::Term) -> String {
     match term {
         core::Term::U8(_) => "ddl_rt::U8".to_owned(),
         core::Term::U16Le(_) => "ddl_rt::U16Le".to_owned(),
@@ -138,7 +128,7 @@ fn compile_ty(term: &core::Term, _diagnostics: &mut Vec<Diagnostic>) -> String {
     }
 }
 
-fn compile_host_ty(term: &core::Term, _diagnostics: &mut Vec<Diagnostic>) -> String {
+fn compile_host_ty(term: &core::Term) -> String {
     match term {
         core::Term::U8(_) => "u8".to_owned(),
         core::Term::U16Le(_) => "u16".to_owned(),

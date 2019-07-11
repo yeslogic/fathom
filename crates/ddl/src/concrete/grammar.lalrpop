@@ -2,10 +2,10 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::rc::Rc;
 
-use crate::concrete::{Module, Item, SpannedString, StructType, Term, TypeField};
-use crate::parse::lexer::Token;
+use crate::concrete::{Item, Module, SpannedString, StructType, Term, TypeField};
+use crate::lexer::Token;
 
-grammar(file_id: FileId, diagnostics: &mut Vec<Diagnostic>);
+grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));
 
 extern {
     type Location = ByteIndex;
@@ -20,6 +20,7 @@ extern {
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
 
+        "!" => Token::Bang,
         ":" => Token::Colon,
         "," => Token::Comma,
     }

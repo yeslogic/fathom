@@ -1,8 +1,16 @@
 //! The core type theory of the data description language.
 
 use codespan::{ByteIndex, FileId, Span};
+use codespan_reporting::diagnostic::Diagnostic;
 use pretty::{DocAllocator, DocBuilder};
 use std::rc::Rc;
+
+use crate::diagnostics;
+use crate::lexer::SpannedToken;
+
+mod grammar {
+    include!(concat!(env!("OUT_DIR"), "/core/grammar.rs"));
+}
 
 pub mod validate;
 
@@ -30,6 +38,22 @@ pub struct Module {
 }
 
 impl Module {
+    pub fn parse(
+        file_id: FileId,
+        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic>>,
+        report: &mut dyn FnMut(Diagnostic),
+    ) -> Module {
+        grammar::ModuleParser::new()
+            .parse(file_id, report, tokens)
+            .unwrap_or_else(|error| {
+                report(diagnostics::parse_error(file_id, error));
+                Module {
+                    file_id,
+                    items: Vec::new(),
+                }
+            })
+    }
+
     pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
     where
         D: DocAllocator<'core>,
@@ -41,6 +65,12 @@ impl Module {
         );
 
         items.append(alloc.newline())
+    }
+}
+
+impl PartialEq for Module {
+    fn eq(&self, other: &Module) -> bool {
+        self.items == other.items
     }
 }
 
@@ -65,6 +95,14 @@ impl Item {
     {
         match self {
             Item::Struct(struct_ty) => struct_ty.doc(alloc),
+        }
+    }
+}
+
+impl PartialEq for Item {
+    fn eq(&self, other: &Item) -> bool {
+        match (self, other) {
+            (Item::Struct(struct_ty0), Item::Struct(struct_ty1)) => *struct_ty0 == *struct_ty1,
         }
     }
 }
@@ -124,6 +162,12 @@ impl StructType {
     }
 }
 
+impl PartialEq for StructType {
+    fn eq(&self, other: &StructType) -> bool {
+        self.name == other.name && self.fields == other.fields
+    }
+}
+
 /// A field in a struct type definition.
 #[derive(Debug, Clone)]
 pub struct TypeField {
@@ -169,8 +213,14 @@ impl TypeField {
     }
 }
 
+impl PartialEq for TypeField {
+    fn eq(&self, other: &TypeField) -> bool {
+        self.name == other.name && self.term == other.term
+    }
+}
+
 /// Terms.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub enum Term {
     /// Unsigned 8-bit integers.
     U8(Span),
@@ -261,7 +311,34 @@ impl Term {
             Term::F32Be(_) => alloc.text("F32Be"),
             Term::F64Le(_) => alloc.text("F64Le"),
             Term::F64Be(_) => alloc.text("F64Be"),
-            Term::Error(_) => alloc.text("?error"),
+            Term::Error(_) => alloc.text("!"),
+        }
+    }
+}
+
+impl PartialEq for Term {
+    fn eq(&self, other: &Term) -> bool {
+        match (self, other) {
+            (Term::U8(_), Term::U8(_))
+            | (Term::U16Le(_), Term::U16Le(_))
+            | (Term::U16Be(_), Term::U16Be(_))
+            | (Term::U32Le(_), Term::U32Le(_))
+            | (Term::U32Be(_), Term::U32Be(_))
+            | (Term::U64Le(_), Term::U64Le(_))
+            | (Term::U64Be(_), Term::U64Be(_))
+            | (Term::S8(_), Term::S8(_))
+            | (Term::S16Le(_), Term::S16Le(_))
+            | (Term::S16Be(_), Term::S16Be(_))
+            | (Term::S32Le(_), Term::S32Le(_))
+            | (Term::S32Be(_), Term::S32Be(_))
+            | (Term::S64Le(_), Term::S64Le(_))
+            | (Term::S64Be(_), Term::S64Be(_))
+            | (Term::F32Le(_), Term::F32Le(_))
+            | (Term::F32Be(_), Term::F32Be(_))
+            | (Term::F64Le(_), Term::F64Le(_))
+            | (Term::F64Be(_), Term::F64Be(_))
+            | (Term::Error(_), Term::Error(_)) => true,
+            (_, _) => false,
         }
     }
 }

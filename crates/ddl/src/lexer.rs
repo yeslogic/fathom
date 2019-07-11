@@ -18,6 +18,8 @@ pub enum Token {
     /// `}`
     CloseBrace,
 
+    // `!`
+    Bang,
     // `:`
     Colon,
     // `,`
@@ -35,6 +37,7 @@ impl<'a> fmt::Display for Token {
             Token::OpenBrace => write!(f, "{{"),
             Token::CloseBrace => write!(f, "}}"),
 
+            Token::Bang => write!(f, "!"),
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
         }
@@ -113,7 +116,7 @@ impl<'input> Lexer<'input> {
         )
         .with_notes(vec![format!(
             "expected one of {}",
-            super::display_expected(&expected),
+            display_expected(&expected),
         )])))
     }
 
@@ -124,9 +127,29 @@ impl<'input> Lexer<'input> {
         )
         .with_notes(vec![format!(
             "expected one of {}",
-            super::display_expected(&expected),
+            display_expected(&expected),
         )])))
     }
+}
+
+fn display_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt::Display {
+    struct DisplayExpected<'a, Item>(&'a [Item]);
+
+    impl<'a, Item: fmt::Display> fmt::Display for DisplayExpected<'a, Item> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            for (i, item) in self.0.iter().enumerate() {
+                match i {
+                    0 => write!(f, "{}", item)?,
+                    i if i >= self.0.len() => write!(f, ", or {}", item)?,
+                    _ => write!(f, ", {}", item)?,
+                }
+            }
+
+            Ok(())
+        }
+    }
+
+    DisplayExpected(items)
 }
 
 impl<'input> Iterator for Lexer<'input> {
@@ -171,6 +194,7 @@ impl<'input> Iterator for Lexer<'input> {
                 }
                 '{' => return Some(Ok(self.emit(Token::OpenBrace))),
                 '}' => return Some(Ok(self.emit(Token::CloseBrace))),
+                '!' => return Some(Ok(self.emit(Token::Bang))),
                 ':' => return Some(Ok(self.emit(Token::Colon))),
                 ',' => return Some(Ok(self.emit(Token::Comma))),
                 ch if is_identifier_start(ch) => {

@@ -5,4 +5,4 @@ pub mod concrete;
 pub mod core;
 pub mod diagnostics;
 pub mod elaborate;
-pub mod parse;
+pub mod lexer;

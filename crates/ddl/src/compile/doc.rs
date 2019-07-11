@@ -1,15 +1,9 @@
-use codespan_reporting::diagnostic::Diagnostic;
 use std::io;
 use std::io::prelude::*;
 
 use crate::core;
 
-pub fn compile_module(
-    writer: &mut impl Write,
-    module: &core::Module,
-) -> io::Result<Vec<Diagnostic>> {
-    let mut diagnostics = Vec::new();
-
+pub fn compile_module(writer: &mut impl Write, module: &core::Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
     let pkg_version = env!("CARGO_PKG_VERSION");
 
@@ -26,19 +20,15 @@ pub fn compile_module(
         match item {
             core::Item::Struct(struct_ty) => {
                 writeln!(writer)?;
-                compile_struct_item(writer, struct_ty, &mut diagnostics)?;
+                compile_struct_item(writer, struct_ty)?;
             }
         }
     }
 
-    Ok(diagnostics)
+    Ok(())
 }
 
-fn compile_struct_item(
-    writer: &mut impl Write,
-    struct_ty: &core::StructType,
-    diagnostics: &mut Vec<Diagnostic>,
-) -> io::Result<()> {
+fn compile_struct_item(writer: &mut impl Write, struct_ty: &core::StructType) -> io::Result<()> {
     writeln!(writer, "## {}", struct_ty.name)?;
 
     if !struct_ty.doc.is_empty() {
@@ -63,7 +53,7 @@ fn compile_struct_item(
             writeln!(writer, "| ---- | ---- |")?;
 
             for field in &struct_ty.fields {
-                let ty = compile_ty(&field.term, diagnostics);
+                let ty = compile_ty(&field.term);
                 writeln!(writer, "| {} | {} |", field.name, ty)?;
             }
         } else {
@@ -72,7 +62,7 @@ fn compile_struct_item(
 
             for field in &struct_ty.fields {
                 let desc = compile_field_description(&field.doc);
-                let ty = compile_ty(&field.term, diagnostics);
+                let ty = compile_ty(&field.term);
                 writeln!(writer, "| {} | {} | {} |", field.name, ty, desc)?;
             }
 
@@ -95,7 +85,7 @@ fn compile_field_description(doc_lines: &[String]) -> String {
     }
 }
 
-fn compile_ty(term: &core::Term, _diagnostics: &mut Vec<Diagnostic>) -> String {
+fn compile_ty(term: &core::Term) -> String {
     match term {
         core::Term::U8(_) => "U8".to_owned(),
         core::Term::U16Le(_) => "U16Le".to_owned(),

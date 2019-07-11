@@ -15,9 +15,11 @@ use std::collections::HashMap;
 use crate::{concrete, core, diagnostics};
 
 /// Elaborate a module in the concrete syntax into the core syntax.
-pub fn elaborate_module(concrete_module: &concrete::Module) -> (core::Module, Vec<Diagnostic>) {
+pub fn elaborate_module(
+    concrete_module: &concrete::Module,
+    report: &mut dyn FnMut(Diagnostic),
+) -> core::Module {
     let file_id = concrete_module.file_id;
-    let mut diagnostics = Vec::new();
 
     let mut used_names = HashMap::new();
     let mut core_module = core::Module {
@@ -30,8 +32,7 @@ pub fn elaborate_module(concrete_module: &concrete::Module) -> (core::Module, Ve
 
         match item {
             concrete::Item::Struct(struct_ty) => {
-                let core_fields =
-                    elaborate_struct_ty_fields(file_id, &struct_ty.fields, &mut diagnostics);
+                let core_fields = elaborate_struct_ty_fields(file_id, &struct_ty.fields, report);
 
                 match used_names.entry(struct_ty.name.as_str()) {
                     Entry::Vacant(entry) => {
@@ -45,7 +46,7 @@ pub fn elaborate_module(concrete_module: &concrete::Module) -> (core::Module, Ve
                         core_module.items.push(core::Item::Struct(item));
                         entry.insert(struct_ty.span);
                     }
-                    Entry::Occupied(entry) => diagnostics.push(diagnostics::item_redefinition(
+                    Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
                         file_id,
                         struct_ty.name.as_str(),
@@ -57,13 +58,13 @@ pub fn elaborate_module(concrete_module: &concrete::Module) -> (core::Module, Ve
         }
     }
 
-    (core_module, diagnostics)
+    core_module
 }
 
 pub fn elaborate_struct_ty_fields(
     file_id: FileId,
     concrete_fields: &[concrete::TypeField],
-    diagnostics: &mut Vec<Diagnostic>,
+    report: &mut dyn FnMut(Diagnostic),
 ) -> Vec<core::TypeField> {
     let mut used_field_names = HashMap::new();
     let mut core_fields = Vec::with_capacity(concrete_fields.len());
@@ -79,11 +80,11 @@ pub fn elaborate_struct_ty_fields(
                     doc: field.doc.clone(),
                     start: field_span.start(),
                     name: core::Label(field.name.to_string()),
-                    term: check_term_ty(file_id, &field.term, diagnostics),
+                    term: check_term_ty(file_id, &field.term, report),
                 });
             }
             Entry::Occupied(entry) => {
-                diagnostics.push(diagnostics::field_redeclaration(
+                report(diagnostics::field_redeclaration(
                     Severity::Error,
                     file_id,
                     field.name.as_str(),
@@ -101,7 +102,7 @@ pub fn elaborate_struct_ty_fields(
 pub fn check_term_ty(
     file_id: FileId,
     concrete_term: &concrete::Term,
-    diagnostics: &mut Vec<Diagnostic>,
+    report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
     match concrete_term {
         concrete::Term::Var(name) => match name.as_str() {
@@ -120,7 +121,7 @@ pub fn check_term_ty(
             "S64Le" => core::Term::S64Le(name.span()),
             "S64Be" => core::Term::S64Be(name.span()),
             _ => {
-                diagnostics.push(diagnostics::var_name_not_found(
+                report(diagnostics::var_name_not_found(
                     Severity::Error,
                     file_id,
                     name.as_str(),

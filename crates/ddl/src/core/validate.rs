@@ -11,23 +11,22 @@ use crate::core::{Item, Module, Term, TypeField};
 use crate::diagnostics;
 
 /// Validate a module.
-pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
+pub fn validate_module(module: &Module, report: &mut dyn FnMut(Diagnostic)) {
     let file_id = module.file_id;
     let mut used_names = HashMap::new();
-    let mut diagnostics = Vec::new();
 
     for item in module.items.iter() {
         use std::collections::hash_map::Entry;
 
         match item {
             Item::Struct(struct_ty) => {
-                validate_struct_ty_fields(file_id, &struct_ty.fields, &mut diagnostics);
+                validate_struct_ty_fields(file_id, &struct_ty.fields, report);
 
                 match used_names.entry(&struct_ty.name) {
                     Entry::Vacant(entry) => {
                         entry.insert(struct_ty.span);
                     }
-                    Entry::Occupied(entry) => diagnostics.push(diagnostics::item_redefinition(
+                    Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
                         file_id,
                         &struct_ty.name.0,
@@ -38,14 +37,12 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
             }
         }
     }
-
-    diagnostics
 }
 
 pub fn validate_struct_ty_fields(
     file_id: FileId,
     fields: &[TypeField],
-    diagnostics: &mut Vec<Diagnostic>,
+    report: &mut dyn FnMut(Diagnostic),
 ) {
     let mut used_field_names = HashMap::new();
 
@@ -55,10 +52,10 @@ pub fn validate_struct_ty_fields(
         match used_field_names.entry(&field.name) {
             Entry::Vacant(entry) => {
                 entry.insert(field.span());
-                synth_term_ty(file_id, &field.term, diagnostics)
+                synth_term_ty(file_id, &field.term)
             }
             Entry::Occupied(entry) => {
-                diagnostics.push(diagnostics::field_redeclaration(
+                report(diagnostics::field_redeclaration(
                     Severity::Bug,
                     file_id,
                     &field.name.0,
@@ -71,7 +68,7 @@ pub fn validate_struct_ty_fields(
 }
 
 /// Check that a term is a type.
-pub fn synth_term_ty(_file_id: FileId, term: &Term, _diagnostics: &mut Vec<Diagnostic>) {
+pub fn synth_term_ty(_file_id: FileId, term: &Term) {
     match term {
         Term::U8(_)
         | Term::U16Le(_)
