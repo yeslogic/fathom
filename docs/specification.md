@@ -11,14 +11,16 @@ formally verified specification in the future.
 
 ## Sections
 
--   [Core theory](./specification/core-theory):
+-   [Core theory](./specification/core-theory.md):
     the core type theory of the language
--   [Concrete syntax](./specification/concrete-syntax):
+-   [Concrete syntax](./specification/concrete-syntax.md):
     the concrete syntax of the language
--   [Elaboration](./specification/elaboration):
+-   [Elaboration](./specification/elaboration.md):
     elaboration of the concrete syntax into the core type theory
--   [Binary interpretation](./binary-interpretation):
+-   [Binary interpretation](./binary-interpretation.md):
     describes a how to interpret binary types as binary encoders and decoders
+-   [References](./binary-interpretation.md):
+    list of references that proved useful when designing the data description language
 
 ## How to read the specification
 
@@ -49,7 +51,7 @@ We can distinguish between multiple non-terminals using subscripts:
 
 -   _term_<sub>0</sub>
 -   _term_<sub>1</sub>
--   ...
+-   &hellip;
 -   _term_<sub>_n_</sub>
 
 ### Sequences
@@ -71,7 +73,7 @@ Productions are written as:
 >
 > _symbol_ ::=\
 > &emsp;|&ensp;_A_<sub>0</sub>\
-> &emsp;|&ensp;...\
+> &emsp;|&ensp;&hellip;\
 > &emsp;|&ensp;_A_<sub>_n_</sub>
 
 ### Judgment forms
@@ -89,7 +91,7 @@ An _inference rule_ is described using the following notation:
 > <sub>Inference rule:</sub>
 >
 > - premise<sub>0</sub>
-> - ...
+> - &hellip;
 > - premise<sub>_n_</sub>
 > ----------------------------------------------------------------------------------------------
 > - conclusion
@@ -107,7 +109,7 @@ Records are productions in the form:
 > _record_ ::=\
 > &emsp;|&ensp;`{` _label_<sub>0</sub> _elem_<sub>0</sub>\
 > &emsp;&emsp;`,` _label_<sub>1</sub> _elem_<sub>1</sub>\
-> &emsp;&emsp;`,` ...\
+> &emsp;&emsp;`,` &hellip;\
 > &emsp;&emsp;`,` _label_<sub>_n_</sub> _elem_<sub>_n_</sub> \
 > &emsp;&emsp;`}`
 
