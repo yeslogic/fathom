@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-use ddl_test_util::ddl;
-use ddl_rt::{I8, ReadError, ReadScope, WriteCtxt, U8};
+use ddl_test_util::ddl::binary;
+use ddl_test_util::ddl_rt::{I8, ReadError, ReadScope, WriteCtxt, U8};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
@@ -13,7 +13,7 @@ ddl_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_pair.core.ddl"
 fn eof_first() {
     let ctxt = WriteCtxt::new(vec![]);
 
-    let mut scope = ReadScope::new(ctxt.buffer());
+    let scope = ReadScope::new(ctxt.buffer());
     let pair = scope.read::<fixture::Pair>();
 
     match pair {
@@ -30,7 +30,7 @@ fn eof_second() {
     let mut ctxt = WriteCtxt::new(vec![]);
     ctxt.write::<U8>(255); // Pair::first
 
-    let mut scope = ReadScope::new(ctxt.buffer());
+    let scope = ReadScope::new(ctxt.buffer());
     let pair = scope.read::<fixture::Pair>();
 
     match pair {
@@ -48,17 +48,19 @@ fn valid_pair() {
     ctxt.write::<U8>(31); // Pair::first
     ctxt.write::<I8>(-30); // Pair::second
 
-    let mut scope = ReadScope::new(ctxt.buffer());
-    let pair = scope.read::<fixture::Pair>().unwrap();
+    let scope = ReadScope::new(ctxt.buffer());
 
-    assert_eq!(pair.first, 31);
-    assert_eq!(pair.second, -30);
+    match (
+        scope.read::<fixture::Pair>().unwrap(),
+        binary::read::read_module_item(&FIXTURE, &"Pair", &mut scope.ctxt()).unwrap(),
+    ) {
+        (fixture::Pair { first, second }, binary::Term::Struct(fields)) => {
+            assert_eq!(first, 31);
+            assert_eq!(second, -30);
 
-    match ddl::binary::read::read_module_item(&FIXTURE, &"Pair", &mut scope.ctxt()).unwrap() {
-        ddl::binary::Term::Struct(fields) => {
             assert_eq!(fields, BTreeMap::from_iter(vec![
-                ("first".to_owned(), ddl::binary::Term::U8(pair.first)),
-                ("second".to_owned(), ddl::binary::Term::S8(pair.second)),
+                ("first".to_owned(), binary::Term::U8(first)),
+                ("second".to_owned(), binary::Term::S8(second)),
             ]));
         },
         _ => panic!("struct expected"),
@@ -74,17 +76,19 @@ fn valid_pair_trailing() {
     ctxt.write::<I8>(-30); // Pair::second
     ctxt.write::<U8>(42);
 
-    let mut scope = ReadScope::new(ctxt.buffer());
-    let pair = scope.read::<fixture::Pair>().unwrap();
+    let scope = ReadScope::new(ctxt.buffer());
 
-    assert_eq!(pair.first, 255);
-    assert_eq!(pair.second, -30);
+    match (
+        scope.read::<fixture::Pair>().unwrap(),
+        binary::read::read_module_item(&FIXTURE, &"Pair", &mut scope.ctxt()).unwrap(),
+    ) {
+        (fixture::Pair { first, second }, binary::Term::Struct(fields)) => {
+            assert_eq!(first, 255);
+            assert_eq!(second, -30);
 
-    match ddl::binary::read::read_module_item(&FIXTURE, &"Pair", &mut scope.ctxt()).unwrap() {
-        ddl::binary::Term::Struct(fields) => {
             assert_eq!(fields, BTreeMap::from_iter(vec![
-                ("first".to_owned(), ddl::binary::Term::U8(pair.first)),
-                ("second".to_owned(), ddl::binary::Term::S8(pair.second)),
+                ("first".to_owned(), binary::Term::U8(first)),
+                ("second".to_owned(), binary::Term::S8(second)),
             ]));
         },
         _ => panic!("struct expected"),
