@@ -5,8 +5,11 @@ use ddl_test_util::ddl_rt::{I8, ReadError, ReadScope, WriteCtxt, U8};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
-#[path = "../../snapshots/struct/pass_pair.rs"]
-mod fixture;
+mod fixture {
+    use ddl_test_util::ddl_rt;
+    include!("../../snapshots/struct/pass_pair.rs");
+}
+
 ddl_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_pair.core.ddl");
 
 #[test]

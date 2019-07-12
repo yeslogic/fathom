@@ -222,24 +222,14 @@ impl Test {
             // Test compiled output against rustc
             let temp_dir = assert_fs::TempDir::new().unwrap();
 
-            Command::new(env!("CARGO"))
-                .arg("build")
-                .arg("--package=ddl-rt")
-                .output()
-                .unwrap();
-
-            Command::new(env!("CARGO"))
-                .arg("build")
-                .arg("--package=ddl-test-util")
-                .output()
-                .unwrap();
-
             let (rs_path, is_binary_parse_test) = match &self.input_ddl_path.with_extension("rs") {
                 input_rs_path if input_rs_path.exists() => (input_rs_path.clone(), true),
                 _ => (snapshot_rs_path, false),
             };
 
-            let output = Command::new("rustc")
+            let mut rustc_command = Command::new("rustc");
+
+            rustc_command
                 .arg(format!("--out-dir={}", temp_dir.path().display()))
                 .arg(format!("--crate-name={}", self.test_name))
                 .arg("--test")
@@ -248,18 +238,36 @@ impl Test {
                 .arg("-C")
                 .arg(format!("incremental={}", CARGO_INCREMENTAL_DIR.display()))
                 .arg("-L")
-                .arg(format!("dependency={}", CARGO_DEPS_DIR.display()))
-                .arg("--extern")
-                .arg(format!("ddl_rt={}", CARGO_DDL_RT_RLIB.display()))
-                .arg("--extern")
-                .arg(format!(
+                .arg(format!("dependency={}", CARGO_DEPS_DIR.display()));
+
+            if is_binary_parse_test {
+                // Ensure that ddl-test-util is present at `CARGO_DDL_TEST_UTIL_RLIB`
+                Command::new(env!("CARGO"))
+                    .arg("build")
+                    .arg("--package=ddl-test-util")
+                    .output()
+                    .unwrap();
+
+                // Add `ddl-test-util` to the dependencies
+                rustc_command.arg("--extern").arg(format!(
                     "ddl_test_util={}",
                     CARGO_DDL_TEST_UTIL_RLIB.display()
-                ))
-                .arg(&rs_path)
-                .output();
+                ));
+            } else {
+                // Ensure that ddl-rt is present at `CARGO_DDL_RT_RLIB`
+                Command::new(env!("CARGO"))
+                    .arg("build")
+                    .arg("--package=ddl-rt")
+                    .output()
+                    .unwrap();
 
-            match output {
+                // Add `ddl-rt` to the dependencies
+                rustc_command
+                    .arg("--extern")
+                    .arg(format!("ddl_rt={}", CARGO_DDL_RT_RLIB.display()));
+            }
+
+            match rustc_command.arg(&rs_path).output() {
                 Ok(output) => {
                     if !output.status.success()
                         || !output.stdout.is_empty()
@@ -300,8 +308,7 @@ impl Test {
                 }
             }
 
-            // Run tests
-
+            // Run binary parse tests
             if is_binary_parse_test {
                 let test_path = temp_dir.path().join(&self.test_name);
                 let display_path = test_path.display();

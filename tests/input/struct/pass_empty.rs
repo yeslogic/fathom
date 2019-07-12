@@ -5,8 +5,11 @@ use ddl_test_util::ddl_rt::{ReadScope, WriteCtxt, U8};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
-#[path = "../../snapshots/struct/pass_empty.rs"]
-mod fixture;
+mod fixture {
+    use ddl_test_util::ddl_rt;
+    include!("../../snapshots/struct/pass_empty.rs");
+}
+
 ddl_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_empty.core.ddl");
 
 #[test]
