@@ -57,7 +57,7 @@ A stream of bits can be made up of sequences of bytes:
 
 > <sub>Judgement form:</sub>
 >
-> `⊢` _bits_<sub>0</sub> `:` _core.term_ `~>` _term_ `,` _bits_<sub>1</sub>
+> ⊢ _bits_<sub>0</sub> : _core.term_ ↝ _term_, _bits_<sub>1</sub>
 
 -   We can parse a `U8` if there is a _byte1_ available at the beginning of the
     input stream.
@@ -65,7 +65,7 @@ A stream of bits can be made up of sequences of bytes:
     >  <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
-    > `⊢` _byte1_ _bits_ `:` `U8` `~>` ??? `,` _bits_
+    > ⊢ _byte1_ _bits_ : `U8` ↝ ??? , _bits_
 
 -   We can parse a `S8` if there is a _byte1_ available at the beginning of the
     input stream.
@@ -73,7 +73,7 @@ A stream of bits can be made up of sequences of bytes:
     >  <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
-    > `⊢` _byte1_ _bits_ `:` `S8` `~>` ??? `,` _bits_
+    > ⊢ _byte1_ _bits_ : `S8` ↝ ??? , _bits_
 
 -   TODO: rules for remaining primitives:
     - `U16Le`, `U16Be`, `U32Le`, `U32Be`, `U64Le`, `U64Be`
@@ -84,25 +84,25 @@ A stream of bits can be made up of sequences of bytes:
 
 > <sub>Judgement form:</sub>
 >
-> `⊢` _bits_<sub>0</sub> `:` _core.struct-type-fields_ `~>` _struct-fields_ `,` _bits_<sub>1</sub>
+> ⊢ _bits_<sub>0</sub> : _core.struct-type-fields_ ↝ _struct-fields_, _bits_<sub>1</sub>
 
 -   Empty structures do not consume any input.
 
     >  <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
-    > - `⊢` _bits_ `:` ε `~>` ε `,` _bits_
+    > - ⊢ _bits_ : ε ↝ ε , _bits_
 
 -   If we see a field on top, parse the top field, then parse the rest of the
     fields.
 
     >  <sub>Inference rule:</sub>
     >
-    > - `⊢` _bits_<sub>0</sub> `:` _core.term_ `~>` _term_ `,` _bits_<sub>1</sub>
-    > - `⊢` _bits_<sub>1</sub> `:` _core.struct-type-fields_ `~>` _struct-fields_ `,` _bits_<sub>2</sub>
+    > - ⊢ _bits_<sub>0</sub> : _core.term_ ↝ _term_, _bits_<sub>1</sub>
+    > - ⊢ _bits_<sub>1</sub> : _core.struct-type-fields_ ↝ _struct-fields_, _bits_<sub>2</sub>
     > ----------------------------------------------------------------------------------------------
-    > - `⊢` _bits_<sub>0</sub> `:` (_core.label_ `:` _core.term_) _core.struct-type-fields_
-    >   `~>` (_core.label_ `:` _term_) _struct-fields_ `,` _bits_<sub>2</sub>
+    > - ⊢ _bits_<sub>0</sub> : (_core.label_ `:` _core.term_) _core.struct-type-fields_
+    >   ↝ (_core.label_ `:` _term_) _struct-fields_, _bits_<sub>2</sub>
 
 ### Decoding module-level items
 
@@ -110,7 +110,7 @@ This shows how we can decode an item in a module, given the _core.label_.
 
 > <sub>Judgement form:</sub>
 >
-> `⊢` _bits_<sub>0</sub> `:` _core.module_ `.` _core.label_ `~>` _term_ `,` _bits_<sub>1</sub>
+> ⊢ _bits_<sub>0</sub> : _core.module_ . _core.label_ ↝ _term_, _bits_<sub>1</sub>
 
 -   If we see a structure at the top of a module with a label that does not
     match the one we are looking for, then we should look in the rest of the
@@ -118,10 +118,10 @@ This shows how we can decode an item in a module, given the _core.label_.
 
     >  <sub>Inference rule:</sub>
     >
-    > - `⊢` _bits_<sub>0</sub> `:` _core.items_ `.` _core.label_<sub>1</sub> `~>` _term_ `,` _bits_<sub>1</sub>
+    > - ⊢ _bits_<sub>0</sub> : _core.items_ . _core.label_<sub>1</sub> ↝ _term_, _bits_<sub>1</sub>
     > ----------------------------------------------------------------------------------------------
-    > - `⊢` _bits_<sub>0</sub> `:` (`struct` _core.label_<sub>0</sub> `{` _core.struct-type-fields_ `}`)
-    >   _core.items_ `.` _core.label_<sub>1</sub> `~>` _term_ `,` _bits_<sub>1</sub>
+    > - ⊢ _bits_<sub>0</sub> : (`struct` _core.label_<sub>0</sub> `{` _core.struct-type-fields_ `}`)
+    >   _core.items_ . _core.label_<sub>1</sub> ↝ _term_, _bits_<sub>1</sub>
 
 -   If we see a structure at the top of a module with a label that matches the
     one we are looking for, then we parse the bits using the fie specified in
@@ -129,10 +129,10 @@ This shows how we can decode an item in a module, given the _core.label_.
 
     >  <sub>Inference rule:</sub>
     >
-    > - `⊢` _bits_<sub>0</sub> `:` _core.struct-type-fields_ `~>` _struct-fields_ `,` _bits_<sub>1</sub>
+    > - ⊢ _bits_<sub>0</sub> : _core.struct-type-fields_ ↝ _struct-fields_, _bits_<sub>1</sub>
     > ----------------------------------------------------------------------------------------------
-    > - `⊢` _bits_<sub>0</sub> `:` (`struct` _core.label_ `{` _core.struct-type-fields_ `}`) _core.items_ `.` _core.label_\
-    >   `~>` `struct` `{` _struct-fields_ `}` `,` _bits_<sub>1</sub>
+    > - ⊢ _bits_<sub>0</sub> : (`struct` _core.label_ `{` _core.struct-type-fields_ `}`) _core.items_ . _core.label_\
+    >   ↝ `struct` `{` _struct-fields_ `}` , _bits_<sub>1</sub>
 
 ## Binary encoder interpretation
 

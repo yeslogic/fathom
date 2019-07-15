@@ -97,14 +97,14 @@ Validates that a term is a well-formed type.
 
 > <sub>Judgement form:</sub>
 >
-> `⊢` _term_ `type`
+> ⊢ _term_ type
 
 -   All primitive types are well-formed types.
 
     > <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
-    > - `⊢` _primitive-type_ `type`
+    > - ⊢ _primitive-type_ type
 
 ### Structure type fields
 
@@ -112,14 +112,14 @@ Validates that a sequence of type field declarations is well-formed.
 
 > <sub>Judgement form:</sub>
 >
-> _field-context_ `⊢` _struct-type-fields_ `struct`
+> _field-context_ ⊢ _struct-type-fields_ struct
 
 -   An empty sequence of fields can always be used to create a well-formed struct.
 
     > <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
-    > - _field-context_ `⊢` ε `struct`
+    > - _field-context_ ⊢ ε struct
 
 -   A sequence of struct fields can be used to define a well-formed struct if:
 
@@ -130,10 +130,10 @@ Validates that a sequence of type field declarations is well-formed.
     > <sub>Inference rule:</sub>
     >
     > - _label_ ∉ _field-context_.`labels`
-    > - `⊢` _term_ `type`
-    > - _field-context_, `labels` _label_ `⊢` _struct-type-fields_ `struct`
+    > - ⊢ _term_ type
+    > - _field-context_, `labels` _label_ ⊢ _struct-type-fields_ struct
     > ----------------------------------------------------------------------------------------------
-    > - _field-context_  `⊢` (_label_ `:` _term_) _struct-type-fields_ `struct`
+    > - _field-context_  ⊢ (_label_ `:` _term_) _struct-type-fields_ struct
 
 
 ### Modules
@@ -142,14 +142,14 @@ Validates that a module a well-formed.
 
 > <sub>Judgement form:</sub>
 >
-> _item-context_ `⊢` _module_ `module`
+> _item-context_ ⊢ _module_ module
 
 -   An empty sequence of items is always a well-formed module.
 
     > <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
-    > - _item-context_ `⊢` ε `module`
+    > - _item-context_ ⊢ ε module
 
 -   A sequence of items with a struct type definition on top is well formed if:
 
@@ -160,7 +160,7 @@ Validates that a module a well-formed.
     > <sub>Inference rule:</sub>
     >
     > - _label_ ∉ _item-context_.`labels`
-    > - `{` `labels` ε `}` `⊢` _struct-type-fields_ `struct`
-    > - _item-context_, `labels` _label_ `⊢` _items_ `module`
+    > - `{` `labels` ε `}` ⊢ _struct-type-fields_ struct
+    > - _item-context_, `labels` _label_ ⊢ _items_ module
     > ----------------------------------------------------------------------------------------------
-    > - _item-context_ `⊢` (`struct` _label_ `{` _struct-type-fields_ `}`) _items_ `module`
+    > - _item-context_ ⊢ (`struct` _label_ `{` _struct-type-fields_ `}`) _items_ module
