@@ -2,6 +2,7 @@
 
 use codespan::{ByteIndex, ByteOffset, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
+use std::fmt;
 use std::sync::Arc;
 
 use crate::diagnostics;
@@ -90,8 +91,7 @@ impl Term {
 }
 
 /// A string that is located in a source file.
-#[derive(Debug, Clone, derive_more::Display)]
-#[display(fmt = "{}", inner)]
+#[derive(Debug, Clone)]
 pub struct SpannedString {
     pub start: ByteIndex,
     pub inner: String,
@@ -114,5 +114,11 @@ impl SpannedString {
 
     pub fn as_str(&self) -> &str {
         &self.inner
+    }
+}
+
+impl fmt::Display for SpannedString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.inner.fmt(f)
     }
 }

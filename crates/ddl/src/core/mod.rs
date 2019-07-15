@@ -3,6 +3,7 @@
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use pretty::{DocAllocator, DocBuilder};
+use std::fmt;
 use std::sync::Arc;
 
 use crate::diagnostics;
@@ -15,7 +16,7 @@ mod grammar {
 pub mod validate;
 
 /// A label.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, derive_more::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label(pub String);
 
 impl Label {
@@ -25,6 +26,12 @@ impl Label {
         D::Doc: Clone,
     {
         alloc.text(&self.0)
+    }
+}
+
+impl fmt::Display for Label {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
