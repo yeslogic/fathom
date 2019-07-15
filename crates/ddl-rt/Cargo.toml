@@ -3,7 +3,7 @@ name = "ddl-rt"
 version = "0.1.0"
 authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
 edition = "2018"
-publish = false
+publish = false # TODO: Remove this when we are ready to publish to crates.io
 
 description = "Runtime support for the binary data description language."
 license = "Apache-2.0"
