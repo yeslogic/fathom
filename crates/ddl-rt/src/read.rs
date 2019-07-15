@@ -94,7 +94,7 @@ impl<'data> ReadScope<'data> {
 
     /// Read some binary data in the context.
     #[inline]
-    pub fn read<T: ReadBinary<'data>>(&mut self) -> Result<T::Host, ReadError> {
+    pub fn read<T: ReadBinary<'data>>(&self) -> Result<T::Host, ReadError> {
         self.ctxt().read::<T>()
     }
 

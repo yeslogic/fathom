@@ -370,7 +370,7 @@ mod tests {
         value: T::Host,
     ) -> T::Host {
         ctxt.write::<T>(value);
-        let mut ctxt = ReadScope::new(ctxt.buffer());
+        let ctxt = ReadScope::new(ctxt.buffer());
         ctxt.read::<T>().unwrap()
     }
 

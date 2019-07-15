@@ -11,6 +11,8 @@ formally verified specification in the future.
 
 ## Sections
 
+-   [Primitives](./specification/primitives.md):
+    primitive constants in the host language
 -   [Core theory](./specification/core-theory.md):
     the core type theory of the language
 -   [Concrete syntax](./specification/concrete-syntax.md):
@@ -59,9 +61,12 @@ We can distinguish between multiple non-terminals using subscripts:
 Sequences are ordered lists of elements
 
 -   ε is the empty sequence
--   _elem_<sup>\*</sup> is a possibly empty sequence of _elem_
--   _elem_<sup>\+</sup> is a possibly non-empty sequence of _elem_
--   _elem_<sup>?</sup> is an optional occurrence of of _elem_
+-   _elem_<sup>_n_</sup> is a sequence of _n_ iterations of _elem_
+-   _elem_<sup>_n_&hellip;</sup> is a sequence of _n_ ≤ ∞ iterations of _elem_
+-   _elem_<sup>&hellip;_n_</sup> is a sequence of 0 ≤ _n_ iterations of _elem_
+-   _elem_<sup>\*</sup> is a possibly empty sequence of iterations of _elem_ (short for _elem_<sup>0&hellip;</sup>)
+-   _elem_<sup>\+</sup> is a possibly non-empty sequence of iterations of _elem_ (short for _elem_<sup>1&hellip;</sup>)
+-   _elem_<sup>?</sup> is an optional occurrence of of _elem_ (short for _elem_<sup>&hellip;1</sup>)
 -   _elem_ ∈ _elems_ can be believed if _elem_ can be found within the sequence _elems_
 -   _elem_ ∉ _elems_ can be believed if _elem_ cannot be found within the sequence _elems_
 
@@ -75,6 +80,18 @@ Productions are written as:
 > &emsp;|&ensp;_A_<sub>0</sub>\
 > &emsp;|&ensp;&hellip;\
 > &emsp;|&ensp;_A_<sub>_n_</sub>
+
+Macro productions are in the form:
+
+> <sub>Grammar:</sub>
+>
+> symbol(_param_<sup>_n_</sup>) ::=\
+> &emsp;|&ensp;_A_<sub>0</sub>\
+> &emsp;|&ensp;&hellip;\
+> &emsp;|&ensp;_A_<sub>_m_</sub>
+
+Where the each of the symbols in _A_<sup>_m_</sup> may mention any parameter in
+_param_<sup>_n_</sup>.
 
 ### Judgment forms
 

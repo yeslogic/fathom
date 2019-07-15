@@ -2,7 +2,7 @@
 
 use codespan::{ByteIndex, ByteOffset, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::diagnostics;
 use crate::lexer::SpannedToken;
@@ -55,7 +55,7 @@ pub struct StructType {
     /// The full span of this definition.
     pub span: Span,
     /// Doc comment.
-    pub doc: Rc<[String]>,
+    pub doc: Arc<[String]>,
     /// Name of this definition.
     pub name: SpannedString,
     /// Fields in the struct.
@@ -65,7 +65,7 @@ pub struct StructType {
 /// A field in a struct type definition.
 #[derive(Debug, Clone)]
 pub struct TypeField {
-    pub doc: Rc<[String]>,
+    pub doc: Arc<[String]>,
     pub name: SpannedString,
     pub term: Term,
 }

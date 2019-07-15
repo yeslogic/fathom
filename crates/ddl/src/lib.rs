@@ -1,5 +1,6 @@
 #![warn(rust_2018_idioms)]
 
+pub mod binary;
 pub mod compile;
 pub mod concrete;
 pub mod core;
