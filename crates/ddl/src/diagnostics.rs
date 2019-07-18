@@ -5,12 +5,13 @@ use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use lalrpop_util::ParseError;
 use std::fmt;
 
+use crate::core;
 use crate::lexer::Token;
 
 pub fn field_redeclaration(
     severity: Severity,
     file_id: FileId,
-    name: &str,
+    name: &core::Label,
     found: Span,
     original: Span,
 ) -> Diagnostic {
@@ -31,7 +32,7 @@ pub fn field_redeclaration(
 pub fn item_redefinition(
     severity: Severity,
     file_id: FileId,
-    name: &str,
+    name: &core::Label,
     found: Span,
     original: Span,
 ) -> Diagnostic {
