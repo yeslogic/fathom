@@ -17,21 +17,49 @@ pub fn compile_module(writer: &mut impl Write, module: &core::Module) -> io::Res
     writeln!(writer, "-->")?;
 
     for item in &module.items {
+        writeln!(writer)?;
         match item {
-            core::Item::Struct(struct_ty) => {
-                writeln!(writer)?;
-                compile_struct_item(writer, struct_ty)?;
-            }
+            core::Item::Alias(alias) => compile_alias(writer, alias)?,
+            core::Item::Struct(struct_ty) => compile_struct_ty(writer, struct_ty)?,
         }
     }
 
     Ok(())
 }
 
-fn compile_struct_item(writer: &mut impl Write, struct_ty: &core::StructType) -> io::Result<()> {
+fn compile_alias(writer: &mut impl Write, alias: &core::Alias) -> io::Result<()> {
+    writeln!(writer, "## {}", alias.name)?;
+
+    if !alias.doc.is_empty() {
+        writeln!(writer)?;
+        writeln!(writer, "### Description")?;
+        writeln!(writer)?;
+        for doc_line in alias.doc.iter() {
+            // TODO: Bump inner heading levels
+            let doc_line = match doc_line {
+                line if line.starts_with(" ") => &line[" ".len()..],
+                line => &line[..],
+            };
+            writeln!(writer, "{}", doc_line)?;
+        }
+    }
+
+    writeln!(writer)?;
+    writeln!(writer, "### Definition")?;
+    writeln!(writer)?;
+    writeln!(writer, "```")?;
+    writeln!(writer, "{}", compile_ty(&alias.term))?;
+    writeln!(writer, "```")?;
+
+    Ok(())
+}
+
+fn compile_struct_ty(writer: &mut impl Write, struct_ty: &core::StructType) -> io::Result<()> {
     writeln!(writer, "## {}", struct_ty.name)?;
 
     if !struct_ty.doc.is_empty() {
+        writeln!(writer)?;
+        writeln!(writer, "### Description")?;
         writeln!(writer)?;
         for doc_line in struct_ty.doc.iter() {
             // TODO: Bump inner heading levels
@@ -45,7 +73,7 @@ fn compile_struct_item(writer: &mut impl Write, struct_ty: &core::StructType) ->
 
     if !struct_ty.fields.is_empty() {
         writeln!(writer)?;
-        writeln!(writer, "### Fields")?;
+        writeln!(writer, "### Definition")?;
         writeln!(writer)?;
 
         if struct_ty.fields.iter().all(|field| field.doc.is_empty()) {
@@ -85,26 +113,26 @@ fn compile_field_description(doc_lines: &[String]) -> String {
     }
 }
 
-fn compile_ty(term: &core::Term) -> String {
+fn compile_ty(term: &core::Term) -> &str {
     match term {
-        core::Term::U8(_) => "U8".to_owned(),
-        core::Term::U16Le(_) => "U16Le".to_owned(),
-        core::Term::U16Be(_) => "U16Be".to_owned(),
-        core::Term::U32Le(_) => "U32Le".to_owned(),
-        core::Term::U32Be(_) => "U32Be".to_owned(),
-        core::Term::U64Le(_) => "U64Le".to_owned(),
-        core::Term::U64Be(_) => "U64Be".to_owned(),
-        core::Term::S8(_) => "S8".to_owned(),
-        core::Term::S16Le(_) => "S16Le".to_owned(),
-        core::Term::S16Be(_) => "S16Be".to_owned(),
-        core::Term::S32Le(_) => "S32Le".to_owned(),
-        core::Term::S32Be(_) => "S32Be".to_owned(),
-        core::Term::S64Le(_) => "S64Le".to_owned(),
-        core::Term::S64Be(_) => "S64Be".to_owned(),
-        core::Term::F32Le(_) => "F32Le".to_owned(),
-        core::Term::F32Be(_) => "F32Be".to_owned(),
-        core::Term::F64Le(_) => "F64Le".to_owned(),
-        core::Term::F64Be(_) => "F64Be".to_owned(),
-        core::Term::Error(_) => "**invalid data description**".to_owned(),
+        core::Term::U8(_) => "U8",
+        core::Term::U16Le(_) => "U16Le",
+        core::Term::U16Be(_) => "U16Be",
+        core::Term::U32Le(_) => "U32Le",
+        core::Term::U32Be(_) => "U32Be",
+        core::Term::U64Le(_) => "U64Le",
+        core::Term::U64Be(_) => "U64Be",
+        core::Term::S8(_) => "S8",
+        core::Term::S16Le(_) => "S16Le",
+        core::Term::S16Be(_) => "S16Be",
+        core::Term::S32Le(_) => "S32Le",
+        core::Term::S32Be(_) => "S32Be",
+        core::Term::S64Le(_) => "S64Le",
+        core::Term::S64Be(_) => "S64Be",
+        core::Term::F32Le(_) => "F32Le",
+        core::Term::F32Be(_) => "F32Be",
+        core::Term::F64Le(_) => "F64Le",
+        core::Term::F64Be(_) => "F64Be",
+        core::Term::Error(_) => "**invalid data description**",
     }
 }

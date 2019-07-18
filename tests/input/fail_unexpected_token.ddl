@@ -1,1 +1,1 @@
-hullo //~ error: unexpected token "hullo"
+; //~ error: unexpected token ";"

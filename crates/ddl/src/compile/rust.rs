@@ -15,18 +15,28 @@ pub fn compile_module(writer: &mut impl Write, module: &core::Module) -> io::Res
     writeln!(writer, "// It is not intended for manual editing.")?;
 
     for item in &module.items {
+        writeln!(writer)?;
         match item {
-            core::Item::Struct(struct_ty) => {
-                writeln!(writer)?;
-                compile_struct_item(writer, struct_ty)?;
-            }
+            core::Item::Alias(alias) => compile_alias(writer, alias)?,
+            core::Item::Struct(struct_ty) => compile_struct_ty(writer, struct_ty)?,
         }
     }
 
     Ok(())
 }
 
-fn compile_struct_item(writer: &mut impl Write, struct_ty: &core::StructType) -> io::Result<()> {
+fn compile_alias(writer: &mut impl Write, alias: &core::Alias) -> io::Result<()> {
+    for doc_line in alias.doc.iter() {
+        writeln!(writer, "///{}", doc_line)?;
+    }
+
+    let ty = compile_ty(&alias.term);
+    writeln!(writer, "pub type {} = {};", alias.name, ty)?;
+
+    Ok(())
+}
+
+fn compile_struct_ty(writer: &mut impl Write, struct_ty: &core::StructType) -> io::Result<()> {
     // Struct definition
 
     for doc_line in struct_ty.doc.iter() {
@@ -42,12 +52,8 @@ fn compile_struct_item(writer: &mut impl Write, struct_ty: &core::StructType) ->
                 writeln!(writer, "    ///{}", doc_line)?;
             }
 
-            write!(
-                writer,
-                "    pub {}: {},",
-                field.name,
-                compile_host_ty(&field.term),
-            )?;
+            let ty = compile_host_ty(&field.term);
+            write!(writer, "    pub {}: {},", field.name, ty,)?;
             writeln!(writer)?;
         }
         writeln!(writer, "}}")?;
@@ -104,50 +110,50 @@ fn compile_struct_item(writer: &mut impl Write, struct_ty: &core::StructType) ->
     Ok(())
 }
 
-fn compile_ty(term: &core::Term) -> String {
+fn compile_ty(term: &core::Term) -> &str {
     match term {
-        core::Term::U8(_) => "ddl_rt::U8".to_owned(),
-        core::Term::U16Le(_) => "ddl_rt::U16Le".to_owned(),
-        core::Term::U16Be(_) => "ddl_rt::U16Be".to_owned(),
-        core::Term::U32Le(_) => "ddl_rt::U32Le".to_owned(),
-        core::Term::U32Be(_) => "ddl_rt::U32Be".to_owned(),
-        core::Term::U64Le(_) => "ddl_rt::U64Le".to_owned(),
-        core::Term::U64Be(_) => "ddl_rt::U64Be".to_owned(),
-        core::Term::S8(_) => "ddl_rt::I8".to_owned(),
-        core::Term::S16Le(_) => "ddl_rt::I16Le".to_owned(),
-        core::Term::S16Be(_) => "ddl_rt::I16Be".to_owned(),
-        core::Term::S32Le(_) => "ddl_rt::I32Le".to_owned(),
-        core::Term::S32Be(_) => "ddl_rt::I32Be".to_owned(),
-        core::Term::S64Le(_) => "ddl_rt::I64Le".to_owned(),
-        core::Term::S64Be(_) => "ddl_rt::I64Be".to_owned(),
-        core::Term::F32Le(_) => "ddl_rt::F32Le".to_owned(),
-        core::Term::F32Be(_) => "ddl_rt::F32Be".to_owned(),
-        core::Term::F64Le(_) => "ddl_rt::F64Le".to_owned(),
-        core::Term::F64Be(_) => "ddl_rt::F64Be".to_owned(),
-        core::Term::Error(_) => "ddl_rt::InvalidDataDescription".to_owned(),
+        core::Term::U8(_) => "ddl_rt::U8",
+        core::Term::U16Le(_) => "ddl_rt::U16Le",
+        core::Term::U16Be(_) => "ddl_rt::U16Be",
+        core::Term::U32Le(_) => "ddl_rt::U32Le",
+        core::Term::U32Be(_) => "ddl_rt::U32Be",
+        core::Term::U64Le(_) => "ddl_rt::U64Le",
+        core::Term::U64Be(_) => "ddl_rt::U64Be",
+        core::Term::S8(_) => "ddl_rt::I8",
+        core::Term::S16Le(_) => "ddl_rt::I16Le",
+        core::Term::S16Be(_) => "ddl_rt::I16Be",
+        core::Term::S32Le(_) => "ddl_rt::I32Le",
+        core::Term::S32Be(_) => "ddl_rt::I32Be",
+        core::Term::S64Le(_) => "ddl_rt::I64Le",
+        core::Term::S64Be(_) => "ddl_rt::I64Be",
+        core::Term::F32Le(_) => "ddl_rt::F32Le",
+        core::Term::F32Be(_) => "ddl_rt::F32Be",
+        core::Term::F64Le(_) => "ddl_rt::F64Le",
+        core::Term::F64Be(_) => "ddl_rt::F64Be",
+        core::Term::Error(_) => "ddl_rt::InvalidDataDescription",
     }
 }
 
-fn compile_host_ty(term: &core::Term) -> String {
+fn compile_host_ty(term: &core::Term) -> &str {
     match term {
-        core::Term::U8(_) => "u8".to_owned(),
-        core::Term::U16Le(_) => "u16".to_owned(),
-        core::Term::U16Be(_) => "u16".to_owned(),
-        core::Term::U32Le(_) => "u32".to_owned(),
-        core::Term::U32Be(_) => "u32".to_owned(),
-        core::Term::U64Le(_) => "u64".to_owned(),
-        core::Term::U64Be(_) => "u64".to_owned(),
-        core::Term::S8(_) => "i8".to_owned(),
-        core::Term::S16Le(_) => "i16".to_owned(),
-        core::Term::S16Be(_) => "i16".to_owned(),
-        core::Term::S32Le(_) => "i32".to_owned(),
-        core::Term::S32Be(_) => "i32".to_owned(),
-        core::Term::S64Le(_) => "i64".to_owned(),
-        core::Term::S64Be(_) => "i64".to_owned(),
-        core::Term::F32Le(_) => "f32".to_owned(),
-        core::Term::F32Be(_) => "f32".to_owned(),
-        core::Term::F64Le(_) => "f64".to_owned(),
-        core::Term::F64Be(_) => "f64".to_owned(),
-        core::Term::Error(_) => "ddl_rt::InvalidDataDescription".to_owned(),
+        core::Term::U8(_) => "u8",
+        core::Term::U16Le(_) => "u16",
+        core::Term::U16Be(_) => "u16",
+        core::Term::U32Le(_) => "u32",
+        core::Term::U32Be(_) => "u32",
+        core::Term::U64Le(_) => "u64",
+        core::Term::U64Be(_) => "u64",
+        core::Term::S8(_) => "i8",
+        core::Term::S16Le(_) => "i16",
+        core::Term::S16Be(_) => "i16",
+        core::Term::S32Le(_) => "i32",
+        core::Term::S32Be(_) => "i32",
+        core::Term::S64Le(_) => "i64",
+        core::Term::S64Be(_) => "i64",
+        core::Term::F32Le(_) => "f32",
+        core::Term::F32Be(_) => "f32",
+        core::Term::F64Le(_) => "f64",
+        core::Term::F64Be(_) => "f64",
+        core::Term::Error(_) => "ddl_rt::InvalidDataDescription",
     }
 }

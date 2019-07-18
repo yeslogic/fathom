@@ -8,10 +8,13 @@ pub fn read_module_item(
 ) -> Result<Term, ddl_rt::ReadError> {
     for item in &module.items {
         match item {
+            core::Item::Alias(alias) if alias.name.0 == name => {
+                return read_ty(&alias.term, ctxt);
+            }
             core::Item::Struct(struct_ty) if struct_ty.name.0 == name => {
                 return read_struct_ty(struct_ty, ctxt);
             }
-            core::Item::Struct(_) => {}
+            core::Item::Alias(_) | core::Item::Struct(_) => {}
         }
     }
 

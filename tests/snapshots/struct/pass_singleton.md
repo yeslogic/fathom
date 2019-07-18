@@ -5,7 +5,7 @@
 
 ## Byte
 
-### Fields
+### Definition
 
 | Name | Type |
 | ---- | ---- |

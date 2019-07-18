@@ -48,6 +48,12 @@ pub enum Item {
     /// struct <name> {}
     /// ```
     Struct(StructType),
+    /// Alias definitions.
+    ///
+    /// ```text
+    /// alias <name> = <term>;
+    /// ```
+    Alias(Alias),
 }
 
 /// A struct type definition.
@@ -61,6 +67,19 @@ pub struct StructType {
     pub name: SpannedString,
     /// Fields in the struct.
     pub fields: Vec<TypeField>,
+}
+
+/// Alias definition.
+#[derive(Debug, Clone)]
+pub struct Alias {
+    /// The full span of this definition.
+    pub span: Span,
+    /// Doc comment.
+    pub doc: Arc<[String]>,
+    /// Name of this definition.
+    pub name: SpannedString,
+    /// Fields in the struct.
+    pub term: Term,
 }
 
 /// A field in a struct type definition.

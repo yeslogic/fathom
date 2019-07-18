@@ -48,6 +48,11 @@ impl ItemContext {
     pub fn field_context(&self) -> FieldContext {
         FieldContext::new(self.file_id)
     }
+
+    /// Create a term context based on this item context.
+    pub fn term_context(&self) -> TermContext {
+        TermContext::new(self.file_id)
+    }
 }
 
 /// Elaborate items in the concrete syntax into items in the core syntax.
@@ -62,6 +67,31 @@ pub fn elaborate_items(
         use std::collections::hash_map::Entry;
 
         match item {
+            concrete::Item::Alias(alias) => {
+                let label = core::Label(alias.name.to_string());
+                let core_term = elaborate_ty(context.term_context(), &alias.term, report);
+
+                match context.labels.entry(label) {
+                    Entry::Vacant(entry) => {
+                        let item = core::Alias {
+                            span: alias.span,
+                            doc: alias.doc.clone(),
+                            name: entry.key().clone(),
+                            term: core_term,
+                        };
+
+                        core_items.push(core::Item::Alias(item));
+                        entry.insert(alias.span);
+                    },
+                    Entry::Occupied(entry) => report(diagnostics::item_redefinition(
+                        Severity::Error,
+                        context.file_id,
+                        entry.key(),
+                        alias.span,
+                        *entry.get(),
+                    )),
+                }
+            }
             concrete::Item::Struct(struct_ty) => {
                 let label = core::Label(struct_ty.name.to_string());
                 let field_context = context.field_context();

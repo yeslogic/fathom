@@ -42,7 +42,7 @@ _TODO: Description of term elaboration for primitive types_
     > ----------------------------------------------------------------------------------------------
     > - _field-context_ ⊢ ε struct ↝ ε
 
--   _TODO: Description of struct item elaboration_
+-   _TODO: Description of structure type field elaboration_
 
     > <sub>Inference rule:</sub>
     >
@@ -68,7 +68,20 @@ _TODO: Description of term elaboration for primitive types_
     > ---
     > - _item-context_ ⊢ ε module ↝ ε
 
--   _TODO: Description of module elaboration_
+-   _TODO: Description of alias elaboration_
+
+    > <sub>Inference rule:</sub>
+    >
+    > - _concrete.ident_ ∉ _item-context_.`labels`
+    > - ⊢ _concrete.term_ type ↝ _core.struct-type-fields_
+    > - _item-context_, `labels` _concrete.ident_ ⊢ _concrete.items_ module ↝ _core.items_
+    > - _concrete.ident_ = _core.label_
+    > ----------------------------------------------------------------------------------------------
+    > - _item-context_ ⊢ (_concrete.ident_ `=` _concrete.term_ `;`) _concrete.items_ module\
+    >   ↝ (_core.label_ `=` _concrete.term_ `;`) _core.items_
+
+
+-   _TODO: Description of structure type elaboration_
 
     > <sub>Inference rule:</sub>
     >

@@ -5,9 +5,11 @@
 
 ## Pair
 
+### Description
+
 A pair of bytes.
 
-### Fields
+### Definition
 
 | Name | Type | Description |
 | ---- | ---- | ------------|

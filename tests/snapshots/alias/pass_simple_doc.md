@@ -3,10 +3,14 @@
   It is not intended for manual editing.
 -->
 
-## Empty
+## Byte
 
 ### Description
 
-This is an empty struct.
+A 8-bit long unit of information.
 
-It will not consume any input.
+### Definition
+
+```
+U8
+```

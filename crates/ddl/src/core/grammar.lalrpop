@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::sync::Arc;
 
-use crate::core::{Item, Label, Module, StructType, Term, TypeField};
+use crate::core::{Alias, Item, Label, Module, StructType, Term, TypeField};
 use crate::diagnostics;
 use crate::lexer::Token;
 
@@ -24,6 +24,8 @@ extern {
         "!" => Token::Bang,
         ":" => Token::Colon,
         "," => Token::Comma,
+        "=" => Token::Equals,
+        ";" => Token::Semi,
     }
 }
 
@@ -32,6 +34,14 @@ pub Module: Module = {
 };
 
 Item: Item = {
+    <doc: "doc comment"*>
+    <start: @L> <name: "identifier"> "=" <term: Term> ";" <end: @R> => {
+        let span = Span::from(start..end);
+        let doc = Arc::from(doc);
+        let name = Label(name);
+
+        Item::Alias(Alias { span, doc, name, term })
+    },
     <docs: "doc comment"*>
     <start: @L> "struct" <name: "identifier"> "{"
         <fields: (<Field> ",")*>

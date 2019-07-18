@@ -3,10 +3,10 @@
   It is not intended for manual editing.
 -->
 
-## Empty
+## Byte
 
-### Description
+### Definition
 
-This is an empty struct.
-
-It will not consume any input.
+```
+U8
+```
