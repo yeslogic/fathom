@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::concrete::{Item, Module, SpannedString, StructType, Term, TypeField};
+use crate::concrete::{Alias, Item, Module, SpannedString, StructType, Term, TypeField};
 use crate::lexer::Token;
 
 grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));
@@ -23,6 +23,8 @@ extern {
         "!" => Token::Bang,
         ":" => Token::Colon,
         "," => Token::Comma,
+        "=" => Token::Equals,
+        ";" => Token::Semi,
     }
 }
 
@@ -31,13 +33,20 @@ pub Module: Module = {
 };
 
 Item: Item = {
-    <docs: "doc comment"*>
+    <doc: "doc comment"*>
+    <start: @L> <name: Identifier> "=" <term: Term> ";" <end: @R> => {
+        let span = Span::from(start..end);
+        let doc = Arc::from(doc);
+
+        Item::Alias(Alias { span, doc, name, term })
+    },
+    <doc: "doc comment"*>
     <start: @L> "struct" <name: Identifier> "{"
         <fields: (<Field> ",")*>
         <last: Field?>
     "}" <end: @R> => {
         let span = Span::from(start..end);
-        let doc = Arc::from(docs);
+        let doc = Arc::from(doc);
         let mut fields = fields;
         fields.extend(last);
 

@@ -84,6 +84,8 @@ impl PartialEq for Module {
 /// Items in a module.
 #[derive(Debug, Clone)]
 pub enum Item {
+    /// Alias definitions
+    Alias(Alias),
     /// Struct definitions.
     Struct(StructType),
 }
@@ -92,6 +94,7 @@ impl Item {
     pub fn span(&self) -> Span {
         match self {
             Item::Struct(struct_ty) => struct_ty.span,
+            Item::Alias(alias) => alias.span,
         }
     }
 
@@ -101,6 +104,7 @@ impl Item {
         D::Doc: Clone,
     {
         match self {
+            Item::Alias(alias) => alias.doc(alloc),
             Item::Struct(struct_ty) => struct_ty.doc(alloc),
         }
     }
@@ -109,8 +113,60 @@ impl Item {
 impl PartialEq for Item {
     fn eq(&self, other: &Item) -> bool {
         match (self, other) {
+            (Item::Alias(alias0), Item::Alias(alias1)) => *alias0 == *alias1,
             (Item::Struct(struct_ty0), Item::Struct(struct_ty1)) => *struct_ty0 == *struct_ty1,
+            (_, _) => false,
         }
+    }
+}
+
+/// A struct type definition.
+#[derive(Debug, Clone)]
+pub struct Alias {
+    /// The full span of this definition.
+    pub span: Span,
+    /// Doc comment.
+    pub doc: Arc<[String]>,
+    /// Name of this definition.
+    pub name: Label,
+    /// The term that is aliased.
+    pub term: Term,
+}
+
+impl Alias {
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        let docs = alloc.concat(self.doc.iter().map(|line| {
+            (alloc.nil())
+                .append("///")
+                .append(line)
+                .group()
+                .append(alloc.newline())
+        }));
+
+        (alloc.nil())
+            .append(docs)
+            .append(self.name.doc(alloc))
+            .append(alloc.space())
+            .append("=")
+            .group()
+            .append(
+                (alloc.nil())
+                    .append(alloc.space())
+                    .append(self.term.doc(alloc))
+                    .group()
+                    .append(";")
+                    .nest(4),
+            )
+    }
+}
+
+impl PartialEq for Alias {
+    fn eq(&self, other: &Alias) -> bool {
+        self.name == other.name && self.term == other.term
     }
 }
 

@@ -13,17 +13,21 @@ pub enum Token {
     /// `struct`
     Struct,
 
-    /// `{`
+    /// Open curly brace: `{`
     OpenBrace,
-    /// `}`
+    /// Close curly brace:  `}`
     CloseBrace,
 
-    // `!`
+    /// Bang: `!`
     Bang,
-    // `:`
+    /// Colon: `:`
     Colon,
-    // `,`
+    /// Comma: `,`
     Comma,
+    /// Equals: `=`
+    Equals,
+    /// Semicolon: `;`
+    Semi,
 }
 
 impl<'a> fmt::Display for Token {
@@ -40,6 +44,8 @@ impl<'a> fmt::Display for Token {
             Token::Bang => write!(f, "!"),
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
+            Token::Equals => write!(f, "="),
+            Token::Semi => write!(f, ";"),
         }
     }
 }
@@ -197,6 +203,8 @@ impl<'input> Iterator for Lexer<'input> {
                 '!' => return Some(Ok(self.emit(Token::Bang))),
                 ':' => return Some(Ok(self.emit(Token::Colon))),
                 ',' => return Some(Ok(self.emit(Token::Comma))),
+                '=' => return Some(Ok(self.emit(Token::Equals))),
+                ';' => return Some(Ok(self.emit(Token::Semi))),
                 ch if is_identifier_start(ch) => {
                     let mut ident = String::new();
                     ident.push(ch);

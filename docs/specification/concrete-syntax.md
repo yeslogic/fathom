@@ -86,7 +86,9 @@ description language. This how most users will interact with data descriptions.
 > &emsp;|&ensp;`{`\
 > &emsp;|&ensp;`}`\
 > &emsp;|&ensp;`:`\
-> &emsp;|&ensp;`,`
+> &emsp;|&ensp;`,`\
+> &emsp;|&ensp;`=`\
+> &emsp;|&ensp;`;`
 
 ### Tokens
 
@@ -113,6 +115,23 @@ process.
 
 ### Items
 
+#### Alias definitions
+
+Alias definitions are used to give names to terms that can be later used in
+other places in the binary description. For example:
+
+```
+Byte = U8;
+```
+
+Aliases are made up of an identifier and the term that they are assigned to,
+followed by a semicolon:
+
+> <sub>Grammar:</sub>
+>
+> _alias-definition_ ::=\
+> &emsp;|&ensp;_doc-comment_<sup>?</sup> _ident_ `=` _term_ `;`
+
 #### Structure type definitions
 
 Structure types are used to describe ordered sequences of binary data.
@@ -138,7 +157,7 @@ fields within a structure must have unique names.
 > &emsp;|&ensp;(_struct-type-field_ `,`)<sup>\*</sup> _struct-type-field_<sup>?</sup>
 >
 > _struct-type-definition_ ::=\
-> &emsp;|&ensp;`struct` _ident_ `{` _struct-type-fields_ `}`
+> &emsp;|&ensp;_doc-comment_<sup>?</sup> `struct` _ident_ `{` _struct-type-fields_ `}`
 
 ### Modules
 
@@ -147,6 +166,7 @@ Modules are lists of zero-or-more definitions. Definitions within a module must 
 > <sub>Grammar:</sub>
 >
 > _item_ ::=\
+> &emsp;|&ensp;_alias-type-definition_\
 > &emsp;|&ensp;_struct-type-definition_
 >
 > _module_ ::=\

@@ -20,6 +20,11 @@ test!(fail_duplicate_definitions, "fail_duplicate_definitions.ddl");
 test!(fail_unexpected_token, "fail_unexpected_token.ddl");
 test!(fail_unexpected_character, "fail_unexpected_character.ddl");
 
+mod alias {
+    test!(pass_simple, "alias/pass_simple.ddl");
+    test!(pass_simple_doc, "alias/pass_simple_doc.ddl");
+}
+
 #[rustfmt::skip]
 mod r#struct {
     test!(pass_empty, "struct/pass_empty.ddl");

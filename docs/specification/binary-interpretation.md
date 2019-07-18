@@ -112,9 +112,38 @@ This shows how we can decode an item in a module, given the _core.label_.
 >
 > ⊢ _bits_<sub>0</sub> : _core.module_ . _core.label_ ↝ _term_, _bits_<sub>1</sub>
 
--   If we see a structure at the top of a module with a label that does not
-    match the one we are looking for, then we should look in the rest of the
-    module.
+-   If we see an alias at the top of a module with a label that matches the
+    one we are looking for, then we parse the bits using the fie specified in
+    the structure definition.
+
+    >  <sub>Inference rule:</sub>
+    >
+    > - ⊢ _bits_<sub>0</sub> : _core.term_ ↝ _term_, _bits_<sub>1</sub>
+    > ----------------------------------------------------------------------------------------------
+    > - ⊢ _bits_<sub>0</sub> : (_core.label_ `=` _core.term_ `;`) _core.items_ . _core.label_
+    >   ↝ _term_, _bits_<sub>1</sub>
+
+-   If we see a structure type at the top of a module with a label that matches
+    the one we are looking for, then we parse the bits using the fie specified
+    in the structure definition.
+
+    >  <sub>Inference rule:</sub>
+    >
+    > - ⊢ _bits_<sub>0</sub> : _core.struct-type-fields_ ↝ _struct-fields_, _bits_<sub>1</sub>
+    > ----------------------------------------------------------------------------------------------
+    > - ⊢ _bits_<sub>0</sub> : (`struct` _core.label_ `{` _core.struct-type-fields_ `}`) _core.items_ . _core.label_\
+    >   ↝ `struct` `{` _struct-fields_ `}`, _bits_<sub>1</sub>
+
+-   If we see an item at the top of a module with a label that does not match
+    the one we are looking for, then we should look for the item in the rest
+    of the module.
+
+    >  <sub>Inference rule:</sub>
+    >
+    > - ⊢ _bits_<sub>0</sub> : _core.items_ . _core.label_<sub>1</sub> ↝ _term_, _bits_<sub>1</sub>
+    > ----------------------------------------------------------------------------------------------
+    > - ⊢ _bits_<sub>0</sub> : (_core.label_<sub>0</sub> `=` _core.term_ `;`)
+    >   _core.items_ . _core.label_<sub>1</sub> ↝ _term_, _bits_<sub>1</sub>
 
     >  <sub>Inference rule:</sub>
     >
@@ -122,17 +151,6 @@ This shows how we can decode an item in a module, given the _core.label_.
     > ----------------------------------------------------------------------------------------------
     > - ⊢ _bits_<sub>0</sub> : (`struct` _core.label_<sub>0</sub> `{` _core.struct-type-fields_ `}`)
     >   _core.items_ . _core.label_<sub>1</sub> ↝ _term_, _bits_<sub>1</sub>
-
--   If we see a structure at the top of a module with a label that matches the
-    one we are looking for, then we parse the bits using the fie specified in
-    the structure definition.
-
-    >  <sub>Inference rule:</sub>
-    >
-    > - ⊢ _bits_<sub>0</sub> : _core.struct-type-fields_ ↝ _struct-fields_, _bits_<sub>1</sub>
-    > ----------------------------------------------------------------------------------------------
-    > - ⊢ _bits_<sub>0</sub> : (`struct` _core.label_ `{` _core.struct-type-fields_ `}`) _core.items_ . _core.label_\
-    >   ↝ `struct` `{` _struct-fields_ `}` , _bits_<sub>1</sub>
 
 ## Binary encoder interpretation
 

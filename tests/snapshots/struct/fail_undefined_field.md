@@ -5,7 +5,7 @@
 
 ## Pair
 
-### Fields
+### Definition
 
 | Name | Type |
 | ---- | ---- |

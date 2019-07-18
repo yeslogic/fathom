@@ -37,6 +37,11 @@ impl ItemContext {
     pub fn field_context(&self) -> FieldContext {
         FieldContext::new(self.file_id)
     }
+
+    /// Create a term context based on this item context.
+    pub fn term_context(&self) -> TermContext {
+        TermContext::new(self.file_id)
+    }
 }
 
 /// Validate items.
@@ -49,6 +54,22 @@ pub fn validate_items(
         use std::collections::hash_map::Entry;
 
         match item {
+            Item::Alias(alias) => {
+                validate_ty(context.term_context(), &alias.term, report);
+
+                match context.labels.entry(alias.name.clone()) {
+                    Entry::Vacant(entry) => {
+                        entry.insert(alias.span);
+                    }
+                    Entry::Occupied(entry) => report(diagnostics::item_redefinition(
+                        Severity::Bug,
+                        context.file_id,
+                        &alias.name,
+                        alias.span,
+                        *entry.get(),
+                    )),
+                }
+            }
             Item::Struct(struct_ty) => {
                 validate_struct_ty_fields(context.field_context(), &struct_ty.fields, report);
 

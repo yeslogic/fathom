@@ -63,6 +63,7 @@ typed language. We describe this here.
 > &emsp;|&ensp;_struct-type-field_<sup>\*</sup>
 >
 > _item_ ::=\
+> &emsp;|&ensp;_label_ `=` _term_ `;`\
 > &emsp;|&ensp;`struct` _label_ `{` _struct-type-fields_ `}`
 >
 > _items_ ::=\
@@ -150,6 +151,20 @@ Validates that a module a well-formed.
     >
     > ----------------------------------------------------------------------------------------------
     > - _item-context_ ⊢ ε module
+
+-   A sequence of items with an alias definition on top is well formed if:
+
+    -   the _label_ of the alias is not an element of _item-context_.`labels`
+    -   the _term_ is a well-formed type
+    -   the rest of the _items_ are well-formed when checked with the _label_ added to _item-context_.`labels`
+
+    > <sub>Inference rule:</sub>
+    >
+    > - _label_ ∉ _item-context_.`labels`
+    > - ⊢ _term_ type
+    > - _item-context_, `labels` _label_ ⊢ _items_ module
+    > ----------------------------------------------------------------------------------------------
+    > - _item-context_ ⊢ (_label_ `=` _term_ `;`) _items_ module
 
 -   A sequence of items with a struct type definition on top is well formed if:
 
