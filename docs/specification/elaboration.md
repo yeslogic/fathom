@@ -13,11 +13,16 @@ sequences of syntactic elements during elaboration.
 
 > <sub>Grammar:</sub>
 >
+> _term-context_ ::=\
+> &emsp;|&ensp;`{` `items` _concrete.ident_<sup>\*</sup> `}`
+>
 > _field-context_ ::=\
-> &emsp;|&ensp;`{` `labels` _concrete.ident_<sup>\*</sup> `}`
+> &emsp;|&ensp;`{` `items` _concrete.ident_<sup>\*</sup>\
+> &emsp;&emsp;`,` `fields` _concrete.ident_<sup>\*</sup>\
+> &emsp;&emsp;`}`
 >
 > _item-context_ ::=\
-> &emsp;|&ensp;`{` `labels` _concrete.ident_<sup>\*</sup> `}`
+> &emsp;|&ensp;`{` `items` _concrete.ident_<sup>\*</sup> `}`
 
 _TODO: Well-formedness rules for contexts_
 
@@ -25,7 +30,17 @@ _TODO: Well-formedness rules for contexts_
 
 > <sub>Judgement form:</sub>
 >
-> ⊢ _concrete.term_ type ↝ _core.term_
+> _term-context_ ⊢ _concrete.term_ type ↝ _core.term_
+
+-   Variables elaborate to item references if:
+
+    -   _concrete.ident_ is an element of _term-context_.`items`
+
+    > <sub>Inference rule:</sub>
+    >
+    > - _concrete.ident_ ∈ _term-context_.`items`
+    > ----------------------------------------------------------------------------------------------
+    > - _term-context_ ⊢ _concrete.ident_ type ↝ `item` _concrete.ident_
 
 _TODO: Description of term elaboration for primitive types_
 
@@ -46,9 +61,9 @@ _TODO: Description of term elaboration for primitive types_
 
     > <sub>Inference rule:</sub>
     >
-    > - _concrete.ident_ ∉ _field-context_.`labels`
-    > - ⊢ _concrete.term_ type ↝ _core.term_
-    > - _field-context_, `labels` _concrete.ident_ ⊢ _concrete.struct-type-fields_ struct
+    > - _concrete.ident_ ∉ _field-context_.`fields`
+    > - `{` `items` _field-context_.`items` `}` ⊢ _concrete.term_ type ↝ _core.term_
+    > - _field-context_, `fields` _concrete.ident_ ⊢ _concrete.struct-type-fields_ struct
     >   ↝ _core.struct-type-fields_
     > - _concrete.ident_ = _core.label_
     > ----------------------------------------------------------------------------------------------
@@ -85,9 +100,10 @@ _TODO: Description of term elaboration for primitive types_
 
     > <sub>Inference rule:</sub>
     >
-    > - _concrete.ident_ ∉ _item-context_.`labels`
-    > - `{` `labels` ε `}` ⊢ _concrete.struct-type-fields_ struct ↝ _core.struct-type-fields_
-    > - _item-context_, `labels` _concrete.ident_ ⊢ _concrete.items_ module ↝ _core.items_
+    > - _concrete.ident_ ∉ _item-context_.`items`
+    > - `{` `items` _item-context_.`items` `,` `fields` ε `}` ⊢ _concrete.struct-type-fields_ struct
+    >   ↝ _core.struct-type-fields_
+    > - _item-context_, `items` _concrete.ident_ ⊢ _concrete.items_ module ↝ _core.items_
     > - _concrete.ident_ = _core.label_
     > ----------------------------------------------------------------------------------------------
     > - _item-context_ ⊢ (`struct` _concrete.ident_ `{` _concrete.struct-type-fields_ `}`) _concrete.items_ module\

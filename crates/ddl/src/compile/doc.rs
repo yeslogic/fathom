@@ -115,6 +115,9 @@ fn compile_field_description(doc_lines: &[String]) -> String {
 
 fn compile_ty(term: &core::Term) -> &str {
     match term {
+        // TODO: Link to specific docs
+        core::Term::Item(_, name) => &name.0,
+        // TODO: Link to global docs
         core::Term::U8(_) => "U8",
         core::Term::U16Le(_) => "U16Le",
         core::Term::U16Be(_) => "U16Be",

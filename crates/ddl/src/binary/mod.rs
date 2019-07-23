@@ -3,8 +3,8 @@
 //! This is only a naive implementation, and intended for getting a better idea
 //! of whether our compiled back-ends actually meet the specification.
 
-use std::collections::BTreeMap;
 use num_bigint::BigInt;
+use std::collections::BTreeMap;
 
 pub mod read;
 
