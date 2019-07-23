@@ -5,41 +5,23 @@ host language.
 
 ## Integers
 
-Signed or unsigned numbers.
+### Big integers
+
+We use abstract integers in the host language:
 
 > <sub>Grammar:</sub>
 >
-> unsigned(_bits_) ::=\
-> &emsp;|&ensp;0\
-> &emsp;|&ensp;1\
-> &emsp;|&ensp;&hellip;\
-> &emsp;|&ensp;2<sup>_bits_</sup> - 1
->
-> signed(_bits_) ::=\
-> &emsp;|&ensp;-2<sup>_bits_ - 1</sup>\
+> _int_ ::=\
 > &emsp;|&ensp;&hellip;\
 > &emsp;|&ensp;-1\
 > &emsp;|&ensp;0\
 > &emsp;|&ensp;1\
-> &emsp;|&ensp;&hellip;\
-> &emsp;|&ensp;2<sup>_bits_</sup> - 1
+> &emsp;|&ensp;&hellip;
 
-Unsigned and signed integers in the host language can be 8, 16, 32, or 64 bits
-in width:
-
-> <sub>Grammar:</sub>
->
-> _unsigned_ ::=\
-> &emsp;|&ensp;unsigned(8)\
-> &emsp;|&ensp;unsigned(16)\
-> &emsp;|&ensp;unsigned(32)\
-> &emsp;|&ensp;unsigned(64)
->
-> _signed_ ::=\
-> &emsp;|&ensp;signed(8)\
-> &emsp;|&ensp;signed(16)\
-> &emsp;|&ensp;signed(32)\
-> &emsp;|&ensp;signed(64)
+Note: these integers may not map exactly to a host language's natively supported primitive types,
+for example `i8` &hellip; `i128` and `u8` &hellip; `u128` in the case of Rust.
+Binary data descriptions will be expected to constrain these to reasonable ranges
+in order to ensure that they can be compiled to an efficient parser in the target language.
 
 ## Floating-point
 

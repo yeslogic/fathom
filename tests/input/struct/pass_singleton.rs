@@ -43,7 +43,7 @@ fn valid_singleton() {
             assert_eq!(inner, 31);
 
             assert_eq!(fields, BTreeMap::from_iter(vec![
-                ("inner".to_owned(), binary::Term::U8(inner)),
+                ("inner".to_owned(), binary::Term::Int(inner.into())),
             ]));
         }
         _ => panic!("struct expected"),
@@ -68,7 +68,7 @@ fn valid_singleton_trailing() {
             assert_eq!(inner, 255);
 
             assert_eq!(fields, BTreeMap::from_iter(vec![
-                ("inner".to_owned(), binary::Term::U8(inner)),
+                ("inner".to_owned(), binary::Term::Int(inner.into())),
             ]));
         }
         _ => panic!("struct expected"),

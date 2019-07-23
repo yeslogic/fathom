@@ -46,8 +46,7 @@ A stream of bits can be made up of sequences of bytes:
 > &emsp;|&ensp;_struct-field_<sup>\*</sup>
 >
 > _term_ ::=\
-> &emsp;|&ensp;_primitive.unsigned_\
-> &emsp;|&ensp;_primitive.signed_\
+> &emsp;|&ensp;_primitive.int_\
 > &emsp;|&ensp;_primitive.float_\
 > &emsp;|&ensp;`struct` `{` _struct-fields_ `}`
 
