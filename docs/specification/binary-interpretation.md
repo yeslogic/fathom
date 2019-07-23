@@ -8,7 +8,7 @@ evaluate this (presumably by hand) into an efficient compiler implementation.
 
 ### Bits
 
-A stream of bits is a sequence of `1`s and `0`s:
+A stream of [bits](https://en.wikipedia.org/wiki/Bit) is a sequence of `1`s and `0`s:
 
 > <sub>Grammar:</sub>
 >
@@ -19,20 +19,20 @@ A stream of bits is a sequence of `1`s and `0`s:
 > _bits_ ::=\
 > &emsp;|&ensp;_bit_<sup>\*</sup>
 
-A stream of bits can be made up of sequences of bytes:
+A stream of bits can be made up of [binary words](https://en.wikipedia.org/wiki/Word_(computer_architecture)):
 
 > <sub>Grammar:</sub>
 >
-> _byte1_ ::=\
+> _word8_ ::=\
 > &emsp;|&ensp;_bit_<sup>8</sup>
 >
-> _byte2_ ::=\
+> _word16_ ::=\
 > &emsp;|&ensp;_bit_<sup>16</sup>
 >
-> _byte4_ ::=\
+> _word32_ ::=\
 > &emsp;|&ensp;_bit_<sup>32</sup>
 >
-> _byte8_ ::=\
+> _word64_ ::=\
 > &emsp;|&ensp;_bit_<sup>64</sup>
 
 ### Terms
@@ -58,21 +58,21 @@ A stream of bits can be made up of sequences of bytes:
 >
 > ⊢ _bits_<sub>0</sub> : _core.term_ ↝ _term_, _bits_<sub>1</sub>
 
--   We can parse a `U8` if there is a _byte1_ available at the beginning of the
+-   We can parse a `U8` if there is a _word8_ available at the beginning of the
     input stream.
 
     >  <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
-    > ⊢ _byte1_ _bits_ : `U8` ↝ ??? , _bits_
+    > ⊢ _word8_ _bits_ : `U8` ↝ TODO , _bits_
 
--   We can parse a `S8` if there is a _byte1_ available at the beginning of the
+-   We can parse a `S8` if there is a _word8_ available at the beginning of the
     input stream.
 
     >  <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
-    > ⊢ _byte1_ _bits_ : `S8` ↝ ??? , _bits_
+    > ⊢ _word8_ _bits_ : `S8` ↝ TODO , _bits_
 
 -   TODO: rules for remaining primitives:
     - `U16Le`, `U16Be`, `U32Le`, `U32Be`, `U64Le`, `U64Be`
