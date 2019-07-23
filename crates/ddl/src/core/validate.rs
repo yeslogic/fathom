@@ -21,7 +21,7 @@ pub struct ItemContext {
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    labels: HashMap<Label, Span>,
+    items: HashMap<Label, Span>,
 }
 
 impl ItemContext {
@@ -29,18 +29,18 @@ impl ItemContext {
     pub fn new(file_id: FileId) -> ItemContext {
         ItemContext {
             file_id,
-            labels: HashMap::new(),
+            items: HashMap::new(),
         }
     }
 
     /// Create a field context based on this item context.
-    pub fn field_context(&self) -> FieldContext {
-        FieldContext::new(self.file_id)
+    pub fn field_context(&self) -> FieldContext<'_> {
+        FieldContext::new(self.file_id, &self.items)
     }
 
     /// Create a term context based on this item context.
-    pub fn term_context(&self) -> TermContext {
-        TermContext::new(self.file_id)
+    pub fn term_context(&self) -> TermContext<'_> {
+        TermContext::new(self.file_id, &self.items)
     }
 }
 
@@ -57,7 +57,7 @@ pub fn validate_items(
             Item::Alias(alias) => {
                 validate_ty(context.term_context(), &alias.term, report);
 
-                match context.labels.entry(alias.name.clone()) {
+                match context.items.entry(alias.name.clone()) {
                     Entry::Vacant(entry) => {
                         entry.insert(alias.span);
                     }
@@ -73,7 +73,7 @@ pub fn validate_items(
             Item::Struct(struct_ty) => {
                 validate_struct_ty_fields(context.field_context(), &struct_ty.fields, report);
 
-                match context.labels.entry(struct_ty.name.clone()) {
+                match context.items.entry(struct_ty.name.clone()) {
                     Entry::Vacant(entry) => {
                         entry.insert(struct_ty.span);
                     }
@@ -91,32 +91,35 @@ pub fn validate_items(
 }
 
 /// Contextual information to be used when validating structure type fields.
-pub struct FieldContext {
+pub struct FieldContext<'items> {
     /// The file where these fields are defined (for error reporting).
     file_id: FileId,
+    /// Previously validated items.
+    items: &'items HashMap<Label, Span>,
     /// Labels that have previously been used for fields, along with the span
     /// where they were introduced (for error reporting).
-    labels: HashMap<Label, Span>,
+    fields: HashMap<Label, Span>,
 }
 
-impl FieldContext {
+impl<'items> FieldContext<'items> {
     /// Create a new field context.
-    pub fn new(file_id: FileId) -> FieldContext {
+    pub fn new(file_id: FileId, items: &'items HashMap<Label, Span>) -> FieldContext<'items> {
         FieldContext {
             file_id,
-            labels: HashMap::new(),
+            items,
+            fields: HashMap::new(),
         }
     }
 
     /// Create a term context based on this field context.
-    pub fn term_context(&self) -> TermContext {
-        TermContext::new(self.file_id)
+    pub fn term_context(&self) -> TermContext<'_> {
+        TermContext::new(self.file_id, self.items)
     }
 }
 
 /// Validate structure type fields.
 pub fn validate_struct_ty_fields(
-    mut context: FieldContext,
+    mut context: FieldContext<'_>,
     fields: &[TypeField],
     report: &mut dyn FnMut(Diagnostic),
 ) {
@@ -125,7 +128,7 @@ pub fn validate_struct_ty_fields(
 
         validate_ty(context.term_context(), &field.term, report);
 
-        match context.labels.entry(field.name.clone()) {
+        match context.fields.entry(field.name.clone()) {
             Entry::Vacant(entry) => {
                 entry.insert(field.span());
             }
@@ -141,19 +144,28 @@ pub fn validate_struct_ty_fields(
 }
 
 /// Contextual information to be used when validating terms.
-pub struct TermContext {}
+pub struct TermContext<'items> {
+    /// The file where the term is defined (for error reporting).
+    file_id: FileId,
+    /// Previously validated items.
+    items: &'items HashMap<Label, Span>,
+}
 
-impl TermContext {
+impl<'items> TermContext<'items> {
     /// Create a new term context.
-    pub fn new(_file_id: FileId) -> TermContext {
-        TermContext {}
+    pub fn new(file_id: FileId, items: &'items HashMap<Label, Span>) -> TermContext<'items> {
+        TermContext { file_id, items }
     }
 }
 
 /// Validate that a term is a type.
-pub fn validate_ty(_context: TermContext, term: &Term, _report: &mut dyn FnMut(Diagnostic)) {
+pub fn validate_ty(context: TermContext<'_>, term: &Term, report: &mut dyn FnMut(Diagnostic)) {
     match term {
-        Term::U8(_)
+        Term::Item(span, label) if !context.items.contains_key(label) => {
+            report(diagnostics::var_name_not_found(Severity::Bug, context.file_id, &label.0, *span))
+        }
+        Term::Item(_, _)
+        | Term::U8(_)
         | Term::U16Le(_)
         | Term::U16Be(_)
         | Term::U32Le(_)

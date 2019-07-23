@@ -54,7 +54,7 @@ Item: Item = {
     },
 };
 
-Field: TypeField= {
+Field: TypeField = {
     <docs: "doc comment"*>
     <name: Identifier> ":" <term: Term> => {
         TypeField { doc: Arc::from(docs), name, term }

@@ -3,6 +3,7 @@
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use pretty::{DocAllocator, DocBuilder};
+use std::borrow::Borrow;
 use std::fmt;
 use std::sync::Arc;
 
@@ -35,6 +36,12 @@ impl fmt::Display for Label {
     }
 }
 
+impl Borrow<str> for Label {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
 /// A module of items.
 #[derive(Debug, Clone)]
 pub struct Module {
@@ -50,8 +57,11 @@ impl Module {
         tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic>>,
         report: &mut dyn FnMut(Diagnostic),
     ) -> Module {
+        use std::collections::HashSet;
+
+        let mut item_names = HashSet::new();
         grammar::ModuleParser::new()
-            .parse(file_id, report, tokens)
+            .parse(file_id, &mut item_names, report, tokens)
             .unwrap_or_else(|error| {
                 report(diagnostics::parse_error(file_id, error));
                 Module {
@@ -285,6 +295,9 @@ impl PartialEq for TypeField {
 /// Terms.
 #[derive(Debug, Clone, Eq)]
 pub enum Term {
+    /// Item references
+    Item(Span, Label),
+
     /// Unsigned 8-bit integers.
     U8(Span),
     /// Unsigned 16-bit integers (little endian).
@@ -328,7 +341,8 @@ pub enum Term {
 impl Term {
     pub fn span(&self) -> Span {
         match self {
-            Term::U8(span)
+            Term::Item(span, _)
+            | Term::U8(span)
             | Term::U16Le(span)
             | Term::U16Be(span)
             | Term::U32Le(span)
@@ -356,6 +370,7 @@ impl Term {
         D::Doc: Clone,
     {
         match self {
+            Term::Item(_, label) => alloc.as_string(label),
             Term::U8(_) => alloc.text("U8"),
             Term::U16Le(_) => alloc.text("U16Le"),
             Term::U16Be(_) => alloc.text("U16Be"),
@@ -382,6 +397,7 @@ impl Term {
 impl PartialEq for Term {
     fn eq(&self, other: &Term) -> bool {
         match (self, other) {
+            (Term::Item(_, label0), Term::Item(_, label1)) => label0 == label1,
             (Term::U8(_), Term::U8(_))
             | (Term::U16Le(_), Term::U16Le(_))
             | (Term::U16Be(_), Term::U16Be(_))

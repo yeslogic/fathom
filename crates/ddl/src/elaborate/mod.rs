@@ -32,7 +32,7 @@ pub struct ItemContext {
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    labels: HashMap<core::Label, Span>,
+    items: HashMap<core::Label, Span>,
 }
 
 impl ItemContext {
@@ -40,18 +40,18 @@ impl ItemContext {
     pub fn new(file_id: FileId) -> ItemContext {
         ItemContext {
             file_id,
-            labels: HashMap::new(),
+            items: HashMap::new(),
         }
     }
 
     /// Create a field context based on this item context.
-    pub fn field_context(&self) -> FieldContext {
-        FieldContext::new(self.file_id)
+    pub fn field_context(&self) -> FieldContext<'_> {
+        FieldContext::new(self.file_id, &self.items)
     }
 
     /// Create a term context based on this item context.
-    pub fn term_context(&self) -> TermContext {
-        TermContext::new(self.file_id)
+    pub fn term_context(&self) -> TermContext<'_> {
+        TermContext::new(self.file_id, &self.items)
     }
 }
 
@@ -71,7 +71,7 @@ pub fn elaborate_items(
                 let label = core::Label(alias.name.to_string());
                 let core_term = elaborate_ty(context.term_context(), &alias.term, report);
 
-                match context.labels.entry(label) {
+                match context.items.entry(label) {
                     Entry::Vacant(entry) => {
                         let item = core::Alias {
                             span: alias.span,
@@ -82,7 +82,7 @@ pub fn elaborate_items(
 
                         core_items.push(core::Item::Alias(item));
                         entry.insert(alias.span);
-                    },
+                    }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
                         context.file_id,
@@ -98,7 +98,7 @@ pub fn elaborate_items(
                 let core_fields =
                     elaborate_struct_ty_fields(field_context, &struct_ty.fields, report);
 
-                match context.labels.entry(label) {
+                match context.items.entry(label) {
                     Entry::Vacant(entry) => {
                         let item = core::StructType {
                             span: struct_ty.span,
@@ -126,33 +126,36 @@ pub fn elaborate_items(
 }
 
 /// Contextual information to be used when elaborating structure type fields.
-pub struct FieldContext {
+pub struct FieldContext<'items> {
     /// The file where these fields are defined (for error reporting).
     file_id: FileId,
+    /// Previously elaborated items.
+    items: &'items HashMap<core::Label, Span>,
     /// Labels that have previously been used for fields, along with the span
     /// where they were introduced (for error reporting).
-    labels: HashMap<core::Label, Span>,
+    fields: HashMap<core::Label, Span>,
 }
 
-impl FieldContext {
+impl<'items> FieldContext<'items> {
     /// Create a new field context.
-    pub fn new(file_id: FileId) -> FieldContext {
+    pub fn new(file_id: FileId, items: &'items HashMap<core::Label, Span>) -> FieldContext<'items> {
         FieldContext {
             file_id,
-            labels: HashMap::new(),
+            fields: HashMap::new(),
+            items,
         }
     }
 
     /// Create a term context based on this field context.
-    pub fn term_context(&self) -> TermContext {
-        TermContext::new(self.file_id)
+    pub fn term_context(&self) -> TermContext<'_> {
+        TermContext::new(self.file_id, self.items)
     }
 }
 
 /// Elaborate structure type fields in the concrete syntax into structure type
 /// fields in the core syntax.
 pub fn elaborate_struct_ty_fields(
-    mut context: FieldContext,
+    mut context: FieldContext<'_>,
     concrete_fields: &[concrete::TypeField],
     report: &mut dyn FnMut(Diagnostic),
 ) -> Vec<core::TypeField> {
@@ -165,7 +168,7 @@ pub fn elaborate_struct_ty_fields(
         let field_span = Span::merge(field.name.span(), field.term.span());
         let ty = elaborate_ty(context.term_context(), &field.term, report);
 
-        match context.labels.entry(label) {
+        match context.fields.entry(label) {
             Entry::Vacant(entry) => {
                 core_fields.push(core::TypeField {
                     doc: field.doc.clone(),
@@ -190,25 +193,30 @@ pub fn elaborate_struct_ty_fields(
 }
 
 /// Contextual information to be used when elaborating terms.
-pub struct TermContext {
+pub struct TermContext<'items> {
     /// The file where this term is located (for error reporting).
     file_id: FileId,
+    /// Previously elaborated items.
+    items: &'items HashMap<core::Label, Span>,
 }
 
-impl TermContext {
+impl<'items> TermContext<'items> {
     /// Create a new term context.
-    pub fn new(file_id: FileId) -> TermContext {
-        TermContext { file_id }
+    pub fn new(file_id: FileId, items: &'items HashMap<core::Label, Span>) -> TermContext<'items> {
+        TermContext { file_id, items }
     }
 }
 
 /// Check that a concrete term is a type, and elaborate it into the core syntax.
 pub fn elaborate_ty(
-    context: TermContext,
+    context: TermContext<'_>,
     concrete_term: &concrete::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
     match concrete_term {
+        concrete::Term::Var(name) if context.items.contains_key(name.as_str()) => {
+            core::Term::Item(name.span(), core::Label(name.to_string()))
+        }
         concrete::Term::Var(name) => match name.as_str() {
             "U8" => core::Term::U8(name.span()),
             "U16Le" => core::Term::U16Le(name.span()),

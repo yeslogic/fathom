@@ -9,8 +9,12 @@ typed language. We describe this here.
 
 > <sub>Grammar:</sub>
 >
-> _label_ ::=\
+> _name_ ::=\
 > &emsp;|&ensp;(Any Unicode scalar value)<sup>+</sup>
+>
+> _label_ ::=\
+> &emsp;|&ensp;_name_
+
 
 ### Primitive types
 
@@ -50,6 +54,7 @@ typed language. We describe this here.
 > <sub>Grammar:</sub>
 >
 > _term_ ::=\
+> &emsp;|&ensp;`item` _name_\
 > &emsp;|&ensp;_primitive-type_
 
 ### Modules
@@ -84,11 +89,16 @@ sequences of syntactic elements during validation.
 
 > <sub>Grammar:</sub>
 >
+> _term-context_ ::=\
+> &emsp;|&ensp;`{` `items` _label_<sup>\*</sup> `}`
+>
 > _field-context_ ::=\
-> &emsp;|&ensp;`{` `labels` _label_<sup>\*</sup> `}`
+> &emsp;|&ensp;`{` `items` _label_<sup>\*</sup>\
+> &emsp;&emsp;`,` `fields` _label_<sup>\*</sup>\
+> &emsp;&emsp;`}`
 >
 > _item-context_ ::=\
-> &emsp;|&ensp;`{` `labels` _label_<sup>\*</sup> `}`
+> &emsp;|&ensp;`{` `items` _label_<sup>\*</sup> `}`
 
 _TODO: Well-formedness rules for contexts_
 
@@ -98,14 +108,24 @@ Validates that a term is a well-formed type.
 
 > <sub>Judgement form:</sub>
 >
-> ⊢ _term_ type
+> _term-context_ ⊢ _term_ type
+
+-   Item references are well-formed types if:
+
+    -   _label_ is an element of _term-context_.`items`
+
+    > <sub>Inference rule:</sub>
+    >
+    > - _label_ ∈ _term-context_.`items`
+    > ----------------------------------------------------------------------------------------------
+    > - _term-context_ ⊢ `item` _label_ type
 
 -   All primitive types are well-formed types.
 
     > <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
-    > - ⊢ _primitive-type_ type
+    > - _term-context_ ⊢ _primitive-type_ type
 
 ### Structure type fields
 
@@ -124,15 +144,15 @@ Validates that a sequence of type field declarations is well-formed.
 
 -   A sequence of struct fields can be used to define a well-formed struct if:
 
-    -   the _label_ of the field is not an element of _field-context_.`labels`
+    -   the _label_ of the field is not an element of _field-context_.`fields`
     -   the _term_ is a well-formed type
-    -   the rest of the _struct-type-fields_ are well-formed when checked with the _label_ added to _field-context_.`labels`
+    -   the rest of the _struct-type-fields_ are well-formed when checked with the _label_ added to _field-context_.`fields`
 
     > <sub>Inference rule:</sub>
     >
-    > - _label_ ∉ _field-context_.`labels`
-    > - ⊢ _term_ type
-    > - _field-context_, `labels` _label_ ⊢ _struct-type-fields_ struct
+    > - _label_ ∉ _field-context_.`fields`
+    > - `{` `items` _item-context_.`items` `}` ⊢ _term_ type
+    > - _field-context_, `fields` _label_ ⊢ _struct-type-fields_ struct
     > ----------------------------------------------------------------------------------------------
     > - _field-context_  ⊢ (_label_ `:` _term_) _struct-type-fields_ struct
 
@@ -168,14 +188,14 @@ Validates that a module a well-formed.
 
 -   A sequence of items with a struct type definition on top is well formed if:
 
-    -   the _label_ of the struct is not an element of _item-context_.`labels`
+    -   the _label_ of the struct is not an element of _item-context_.`items`
     -   the _struct-type-fields_ are well-formed in an empty field context
-    -   the rest of the _items_ are well-formed when checked with the _label_ added to _item-context_.`labels`
+    -   the rest of the _items_ are well-formed when checked with the _label_ added to _item-context_.`items`
 
     > <sub>Inference rule:</sub>
     >
-    > - _label_ ∉ _item-context_.`labels`
-    > - `{` `labels` ε `}` ⊢ _struct-type-fields_ struct
-    > - _item-context_, `labels` _label_ ⊢ _items_ module
+    > - _label_ ∉ _item-context_.`items`
+    > - `{` `items` _item-context_.`items` `,` `fields` ε `}` ⊢ _struct-type-fields_ struct
+    > - _item-context_, `items` _label_ ⊢ _items_ module
     > ----------------------------------------------------------------------------------------------
     > - _item-context_ ⊢ (`struct` _label_ `{` _struct-type-fields_ `}`) _items_ module

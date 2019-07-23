@@ -31,6 +31,7 @@ mod r#struct {
     test!(pass_empty_doc, "struct/pass_empty_doc.ddl");
     test!(pass_pair, "struct/pass_pair.ddl");
     test!(pass_singleton, "struct/pass_singleton.ddl");
+    test!(pass_var, "struct/pass_var.ddl");
 
     test!(fail_duplicate_fields, "struct/fail_duplicate_fields.ddl");
     test!(fail_missing_closing_brace, "struct/fail_missing_closing_brace.ddl");

@@ -113,6 +113,7 @@ fn compile_struct_ty(writer: &mut impl Write, struct_ty: &core::StructType) -> i
 
 fn compile_ty(term: &core::Term) -> &str {
     match term {
+        core::Term::Item(_, label) => &label.0, // TODO: check if in scope, warn if not
         core::Term::U8(_) => "ddl_rt::U8",
         core::Term::U16Le(_) => "ddl_rt::U16Le",
         core::Term::U16Be(_) => "ddl_rt::U16Be",
@@ -137,6 +138,7 @@ fn compile_ty(term: &core::Term) -> &str {
 
 fn compile_host_ty(term: &core::Term) -> &str {
     match term {
+        core::Term::Item(_, label) => &label.0, // TODO: check if in scope, warn if not
         core::Term::U8(_) => "u8",
         core::Term::U16Le(_) => "u16",
         core::Term::U16Be(_) => "u16",
