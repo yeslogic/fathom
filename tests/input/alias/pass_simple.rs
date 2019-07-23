@@ -37,7 +37,7 @@ fn valid_singleton() {
     let byte = binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.ctxt()).unwrap();
 
     assert_eq!(inner, 31);
-    assert_eq!(byte, binary::Term::U8(inner));
+    assert_eq!(byte, binary::Term::Int(inner.into()));
 
     // TODO: Check remaining
 }
@@ -54,7 +54,7 @@ fn valid_singleton_trailing() {
     let byte = binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.ctxt()).unwrap();
 
     assert_eq!(inner, 255);
-    assert_eq!(byte, binary::Term::U8(inner));
+    assert_eq!(byte, binary::Term::Int(inner.into()));
 
     // TODO: Check remaining
 }

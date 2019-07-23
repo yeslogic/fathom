@@ -62,8 +62,8 @@ fn valid_pair() {
             assert_eq!(second, -30);
 
             assert_eq!(fields, BTreeMap::from_iter(vec![
-                ("first".to_owned(), binary::Term::U8(first)),
-                ("second".to_owned(), binary::Term::S8(second)),
+                ("first".to_owned(), binary::Term::Int(first.into())),
+                ("second".to_owned(), binary::Term::Int(second.into())),
             ]));
         },
         _ => panic!("struct expected"),
@@ -90,8 +90,8 @@ fn valid_pair_trailing() {
             assert_eq!(second, -30);
 
             assert_eq!(fields, BTreeMap::from_iter(vec![
-                ("first".to_owned(), binary::Term::U8(first)),
-                ("second".to_owned(), binary::Term::S8(second)),
+                ("first".to_owned(), binary::Term::Int(first.into())),
+                ("second".to_owned(), binary::Term::Int(second.into())),
             ]));
         },
         _ => panic!("struct expected"),

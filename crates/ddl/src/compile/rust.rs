@@ -1,3 +1,4 @@
+use num_bigint::BigInt;
 use std::io;
 use std::io::prelude::*;
 
@@ -155,5 +156,23 @@ fn compile_host_ty(term: &core::Term) -> &str {
         core::Term::F64Le(_) => "f64",
         core::Term::F64Be(_) => "f64",
         core::Term::Error(_) => "ddl_rt::InvalidDataDescription",
+    }
+}
+
+#[allow(dead_code)]
+fn host_int(min: &BigInt, max: &BigInt) -> Option<&'static str> {
+    use std::{i16, i32, i64, i8, u16, u32, u64, u8};
+
+    match () {
+        () if *min >= u8::MIN.into() && *max <= u8::MAX.into() => Some("u8"),
+        () if *min >= u16::MIN.into() && *max <= u16::MAX.into() => Some("u16"),
+        () if *min >= u32::MIN.into() && *max <= u32::MAX.into() => Some("u32"),
+        () if *min >= u64::MIN.into() && *max <= u64::MAX.into() => Some("u64"),
+        () if *min >= i8::MIN.into() && *max <= i8::MAX.into() => Some("i8"),
+        () if *min >= i16::MIN.into() && *max <= i16::MAX.into() => Some("i16"),
+        () if *min >= i32::MIN.into() && *max <= i32::MAX.into() => Some("i32"),
+        () if *min >= i64::MIN.into() && *max <= i64::MAX.into() => Some("i64"),
+        () if min > max => None, // Impossible range
+        _ => None,               // TODO: use bigint if outside bounds
     }
 }
