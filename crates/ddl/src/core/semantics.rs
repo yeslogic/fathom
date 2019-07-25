@@ -11,24 +11,24 @@ pub fn eval(term: &Term) -> Value {
         Term::Ann(term, _) => eval(term),
         Term::Kind(_) => Value::Kind,
         Term::Type(_) => Value::Type,
-        Term::U8(_) => Value::U8,
-        Term::U16Le(_) => Value::U16Le,
-        Term::U16Be(_) => Value::U16Be,
-        Term::U32Le(_) => Value::U32Le,
-        Term::U32Be(_) => Value::U32Be,
-        Term::U64Le(_) => Value::U64Le,
-        Term::U64Be(_) => Value::U64Be,
-        Term::S8(_) => Value::S8,
-        Term::S16Le(_) => Value::S16Le,
-        Term::S16Be(_) => Value::S16Be,
-        Term::S32Le(_) => Value::S32Le,
-        Term::S32Be(_) => Value::S32Be,
-        Term::S64Le(_) => Value::S64Le,
-        Term::S64Be(_) => Value::S64Be,
-        Term::F32Le(_) => Value::F32Le,
-        Term::F32Be(_) => Value::F32Be,
-        Term::F64Le(_) => Value::F64Le,
-        Term::F64Be(_) => Value::F64Be,
+        Term::U8Type(_) => Value::U8Type,
+        Term::U16LeType(_) => Value::U16LeType,
+        Term::U16BeType(_) => Value::U16BeType,
+        Term::U32LeType(_) => Value::U32LeType,
+        Term::U32BeType(_) => Value::U32BeType,
+        Term::U64LeType(_) => Value::U64LeType,
+        Term::U64BeType(_) => Value::U64BeType,
+        Term::S8Type(_) => Value::S8Type,
+        Term::S16LeType(_) => Value::S16LeType,
+        Term::S16BeType(_) => Value::S16BeType,
+        Term::S32LeType(_) => Value::S32LeType,
+        Term::S32BeType(_) => Value::S32BeType,
+        Term::S64LeType(_) => Value::S64LeType,
+        Term::S64BeType(_) => Value::S64BeType,
+        Term::F32LeType(_) => Value::F32LeType,
+        Term::F32BeType(_) => Value::F32BeType,
+        Term::F64LeType(_) => Value::F64LeType,
+        Term::F64BeType(_) => Value::F64BeType,
         Term::Error(_) => Value::Error,
     }
 }
@@ -39,24 +39,24 @@ pub fn readback(value: &Value) -> Term {
         Value::Item(label) => Term::Item(Span::initial(), label.clone()),
         Value::Kind => Term::Kind(Span::initial()),
         Value::Type => Term::Type(Span::initial()),
-        Value::U8 => Term::U8(Span::initial()),
-        Value::U16Le => Term::U16Le(Span::initial()),
-        Value::U16Be => Term::U16Be(Span::initial()),
-        Value::U32Le => Term::U32Le(Span::initial()),
-        Value::U32Be => Term::U32Be(Span::initial()),
-        Value::U64Le => Term::U64Le(Span::initial()),
-        Value::U64Be => Term::U64Be(Span::initial()),
-        Value::S8 => Term::S8(Span::initial()),
-        Value::S16Le => Term::S16Le(Span::initial()),
-        Value::S16Be => Term::S16Be(Span::initial()),
-        Value::S32Le => Term::S32Le(Span::initial()),
-        Value::S32Be => Term::S32Be(Span::initial()),
-        Value::S64Le => Term::S64Le(Span::initial()),
-        Value::S64Be => Term::S64Be(Span::initial()),
-        Value::F32Le => Term::F32Le(Span::initial()),
-        Value::F32Be => Term::F32Be(Span::initial()),
-        Value::F64Le => Term::F64Le(Span::initial()),
-        Value::F64Be => Term::F64Be(Span::initial()),
+        Value::U8Type => Term::U8Type(Span::initial()),
+        Value::U16LeType => Term::U16LeType(Span::initial()),
+        Value::U16BeType => Term::U16BeType(Span::initial()),
+        Value::U32LeType => Term::U32LeType(Span::initial()),
+        Value::U32BeType => Term::U32BeType(Span::initial()),
+        Value::U64LeType => Term::U64LeType(Span::initial()),
+        Value::U64BeType => Term::U64BeType(Span::initial()),
+        Value::S8Type => Term::S8Type(Span::initial()),
+        Value::S16LeType => Term::S16LeType(Span::initial()),
+        Value::S16BeType => Term::S16BeType(Span::initial()),
+        Value::S32LeType => Term::S32LeType(Span::initial()),
+        Value::S32BeType => Term::S32BeType(Span::initial()),
+        Value::S64LeType => Term::S64LeType(Span::initial()),
+        Value::S64BeType => Term::S64BeType(Span::initial()),
+        Value::F32LeType => Term::F32LeType(Span::initial()),
+        Value::F32BeType => Term::F32BeType(Span::initial()),
+        Value::F64LeType => Term::F64LeType(Span::initial()),
+        Value::F64BeType => Term::F64BeType(Span::initial()),
         Value::Error => Term::Error(Span::initial()),
     }
 }
@@ -66,24 +66,24 @@ pub fn equal(val1: &Value, val2: &Value) -> bool {
         (Value::Item(label0), Value::Item(label1)) => label0 == label1,
         (Value::Kind, Value::Kind)
         | (Value::Type, Value::Type)
-        | (Value::U8, Value::U8)
-        | (Value::U16Le, Value::U16Le)
-        | (Value::U16Be, Value::U16Be)
-        | (Value::U32Le, Value::U32Le)
-        | (Value::U32Be, Value::U32Be)
-        | (Value::U64Le, Value::U64Le)
-        | (Value::U64Be, Value::U64Be)
-        | (Value::S8, Value::S8)
-        | (Value::S16Le, Value::S16Le)
-        | (Value::S16Be, Value::S16Be)
-        | (Value::S32Le, Value::S32Le)
-        | (Value::S32Be, Value::S32Be)
-        | (Value::S64Le, Value::S64Le)
-        | (Value::S64Be, Value::S64Be)
-        | (Value::F32Le, Value::F32Le)
-        | (Value::F32Be, Value::F32Be)
-        | (Value::F64Le, Value::F64Le)
-        | (Value::F64Be, Value::F64Be) => true,
+        | (Value::U8Type, Value::U8Type)
+        | (Value::U16LeType, Value::U16LeType)
+        | (Value::U16BeType, Value::U16BeType)
+        | (Value::U32LeType, Value::U32LeType)
+        | (Value::U32BeType, Value::U32BeType)
+        | (Value::U64LeType, Value::U64LeType)
+        | (Value::U64BeType, Value::U64BeType)
+        | (Value::S8Type, Value::S8Type)
+        | (Value::S16LeType, Value::S16LeType)
+        | (Value::S16BeType, Value::S16BeType)
+        | (Value::S32LeType, Value::S32LeType)
+        | (Value::S32BeType, Value::S32BeType)
+        | (Value::S64LeType, Value::S64LeType)
+        | (Value::S64BeType, Value::S64BeType)
+        | (Value::F32LeType, Value::F32LeType)
+        | (Value::F32BeType, Value::F32BeType)
+        | (Value::F64LeType, Value::F64LeType)
+        | (Value::F64BeType, Value::F64BeType) => true,
         // Errors are always treated as equal
         (Value::Error, _) | (_, Value::Error) => true,
         // Anything else is not equal!

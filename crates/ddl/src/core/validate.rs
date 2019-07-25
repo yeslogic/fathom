@@ -239,24 +239,24 @@ pub fn synth_term(
             Value::Error
         }
         Term::Type(_) => Value::Kind,
-        Term::U8(_)
-        | Term::U16Le(_)
-        | Term::U16Be(_)
-        | Term::U32Le(_)
-        | Term::U32Be(_)
-        | Term::U64Le(_)
-        | Term::U64Be(_)
-        | Term::S8(_)
-        | Term::S16Le(_)
-        | Term::S16Be(_)
-        | Term::S32Le(_)
-        | Term::S32Be(_)
-        | Term::S64Le(_)
-        | Term::S64Be(_)
-        | Term::F32Le(_)
-        | Term::F32Be(_)
-        | Term::F64Le(_)
-        | Term::F64Be(_) => Value::Type,
+        Term::U8Type(_)
+        | Term::U16LeType(_)
+        | Term::U16BeType(_)
+        | Term::U32LeType(_)
+        | Term::U32BeType(_)
+        | Term::U64LeType(_)
+        | Term::U64BeType(_)
+        | Term::S8Type(_)
+        | Term::S16LeType(_)
+        | Term::S16BeType(_)
+        | Term::S32LeType(_)
+        | Term::S32BeType(_)
+        | Term::S64LeType(_)
+        | Term::S64BeType(_)
+        | Term::F32LeType(_)
+        | Term::F32BeType(_)
+        | Term::F64LeType(_)
+        | Term::F64BeType(_) => Value::Type,
         Term::Error(_) => Value::Error,
     }
 }

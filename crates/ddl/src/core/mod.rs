@@ -304,42 +304,42 @@ pub enum Term {
     /// The kind of types.
     Type(Span),
 
-    /// Unsigned 8-bit integers.
-    U8(Span),
-    /// Unsigned 16-bit integers (little endian).
-    U16Le(Span),
-    /// Unsigned 16-bit integers (big endian).
-    U16Be(Span),
-    /// Unsigned 32-bit integers (little endian).
-    U32Le(Span),
-    /// Unsigned 32-bit integers (big endian).
-    U32Be(Span),
-    /// Unsigned 64-bit integers (little endian).
-    U64Le(Span),
-    /// Unsigned 64-bit integers (big endian).
-    U64Be(Span),
-    /// Signed, two's complement 8-bit integers.
-    S8(Span),
-    /// Signed, two's complement 16-bit integers (little endian).
-    S16Le(Span),
-    /// Signed, two's complement 16-bit integers (big endian).
-    S16Be(Span),
-    /// Signed, two's complement 32-bit integers (little endian).
-    S32Le(Span),
-    /// Signed, two's complement 32-bit integers (big endian).
-    S32Be(Span),
-    /// Signed, two's complement 64-bit integers (little endian).
-    S64Le(Span),
-    /// Signed, two's complement 64-bit integers (big endian).
-    S64Be(Span),
-    /// IEEE754 single-precision floating point numbers (little endian).
-    F32Le(Span),
-    /// IEEE754 single-precision floating point numbers (big endian).
-    F32Be(Span),
-    /// IEEE754 double-precision floating point numbers (little endian).
-    F64Le(Span),
-    /// IEEE754 double-precision floating point numbers (big endian).
-    F64Be(Span),
+    /// Unsigned 8-bit integer type.
+    U8Type(Span),
+    /// Unsigned 16-bit integer type (little endian).
+    U16LeType(Span),
+    /// Unsigned 16-bit integer type (big endian).
+    U16BeType(Span),
+    /// Unsigned 32-bit integer type (little endian).
+    U32LeType(Span),
+    /// Unsigned 32-bit integer type (big endian).
+    U32BeType(Span),
+    /// Unsigned 64-bit integer type (little endian).
+    U64LeType(Span),
+    /// Unsigned 64-bit integer type (big endian).
+    U64BeType(Span),
+    /// Signed, two's complement 8-bit integer type.
+    S8Type(Span),
+    /// Signed, two's complement 16-bit integer type (little endian).
+    S16LeType(Span),
+    /// Signed, two's complement 16-bit integer type (big endian).
+    S16BeType(Span),
+    /// Signed, two's complement 32-bit integer type (little endian).
+    S32LeType(Span),
+    /// Signed, two's complement 32-bit integer type (big endian).
+    S32BeType(Span),
+    /// Signed, two's complement 64-bit integer type (little endian).
+    S64LeType(Span),
+    /// Signed, two's complement 64-bit integer type (big endian).
+    S64BeType(Span),
+    /// IEEE754 single-precision floating point number type (little endian).
+    F32LeType(Span),
+    /// IEEE754 single-precision floating point number type (big endian).
+    F32BeType(Span),
+    /// IEEE754 double-precision floating point number type (little endian).
+    F64LeType(Span),
+    /// IEEE754 double-precision floating point number type (big endian).
+    F64BeType(Span),
 
     /// Error sentinel.
     Error(Span),
@@ -351,24 +351,24 @@ impl Term {
             Term::Item(span, _)
             | Term::Kind(span)
             | Term::Type(span)
-            | Term::U8(span)
-            | Term::U16Le(span)
-            | Term::U16Be(span)
-            | Term::U32Le(span)
-            | Term::U32Be(span)
-            | Term::U64Le(span)
-            | Term::U64Be(span)
-            | Term::S8(span)
-            | Term::S16Le(span)
-            | Term::S16Be(span)
-            | Term::S32Le(span)
-            | Term::S32Be(span)
-            | Term::S64Le(span)
-            | Term::S64Be(span)
-            | Term::F32Le(span)
-            | Term::F32Be(span)
-            | Term::F64Le(span)
-            | Term::F64Be(span)
+            | Term::U8Type(span)
+            | Term::U16LeType(span)
+            | Term::U16BeType(span)
+            | Term::U32LeType(span)
+            | Term::U32BeType(span)
+            | Term::U64LeType(span)
+            | Term::U64BeType(span)
+            | Term::S8Type(span)
+            | Term::S16LeType(span)
+            | Term::S16BeType(span)
+            | Term::S32LeType(span)
+            | Term::S32BeType(span)
+            | Term::S64LeType(span)
+            | Term::S64BeType(span)
+            | Term::F32LeType(span)
+            | Term::F32BeType(span)
+            | Term::F64LeType(span)
+            | Term::F64BeType(span)
             | Term::Error(span) => *span,
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
         }
@@ -413,24 +413,24 @@ impl Term {
             ),
             Term::Kind(_) => alloc.text("Kind"),
             Term::Type(_) => alloc.text("Type"),
-            Term::U8(_) => alloc.text("U8"),
-            Term::U16Le(_) => alloc.text("U16Le"),
-            Term::U16Be(_) => alloc.text("U16Be"),
-            Term::U32Le(_) => alloc.text("U32Le"),
-            Term::U32Be(_) => alloc.text("U32Be"),
-            Term::U64Le(_) => alloc.text("U64Le"),
-            Term::U64Be(_) => alloc.text("U64Be"),
-            Term::S8(_) => alloc.text("S8"),
-            Term::S16Le(_) => alloc.text("S16Le"),
-            Term::S16Be(_) => alloc.text("S16Be"),
-            Term::S32Le(_) => alloc.text("S32Le"),
-            Term::S32Be(_) => alloc.text("S32Be"),
-            Term::S64Le(_) => alloc.text("S64Le"),
-            Term::S64Be(_) => alloc.text("S64Be"),
-            Term::F32Le(_) => alloc.text("F32Le"),
-            Term::F32Be(_) => alloc.text("F32Be"),
-            Term::F64Le(_) => alloc.text("F64Le"),
-            Term::F64Be(_) => alloc.text("F64Be"),
+            Term::U8Type(_) => alloc.text("U8"),
+            Term::U16LeType(_) => alloc.text("U16Le"),
+            Term::U16BeType(_) => alloc.text("U16Be"),
+            Term::U32LeType(_) => alloc.text("U32Le"),
+            Term::U32BeType(_) => alloc.text("U32Be"),
+            Term::U64LeType(_) => alloc.text("U64Le"),
+            Term::U64BeType(_) => alloc.text("U64Be"),
+            Term::S8Type(_) => alloc.text("S8"),
+            Term::S16LeType(_) => alloc.text("S16Le"),
+            Term::S16BeType(_) => alloc.text("S16Be"),
+            Term::S32LeType(_) => alloc.text("S32Le"),
+            Term::S32BeType(_) => alloc.text("S32Be"),
+            Term::S64LeType(_) => alloc.text("S64Le"),
+            Term::S64BeType(_) => alloc.text("S64Be"),
+            Term::F32LeType(_) => alloc.text("F32Le"),
+            Term::F32BeType(_) => alloc.text("F32Be"),
+            Term::F64LeType(_) => alloc.text("F64Le"),
+            Term::F64BeType(_) => alloc.text("F64Be"),
             Term::Error(_) => alloc.text("!"),
         }
     }
@@ -443,24 +443,24 @@ impl PartialEq for Term {
             (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
             (Term::Kind(_), Term::Kind(_))
             | (Term::Type(_), Term::Type(_))
-            | (Term::U8(_), Term::U8(_))
-            | (Term::U16Le(_), Term::U16Le(_))
-            | (Term::U16Be(_), Term::U16Be(_))
-            | (Term::U32Le(_), Term::U32Le(_))
-            | (Term::U32Be(_), Term::U32Be(_))
-            | (Term::U64Le(_), Term::U64Le(_))
-            | (Term::U64Be(_), Term::U64Be(_))
-            | (Term::S8(_), Term::S8(_))
-            | (Term::S16Le(_), Term::S16Le(_))
-            | (Term::S16Be(_), Term::S16Be(_))
-            | (Term::S32Le(_), Term::S32Le(_))
-            | (Term::S32Be(_), Term::S32Be(_))
-            | (Term::S64Le(_), Term::S64Le(_))
-            | (Term::S64Be(_), Term::S64Be(_))
-            | (Term::F32Le(_), Term::F32Le(_))
-            | (Term::F32Be(_), Term::F32Be(_))
-            | (Term::F64Le(_), Term::F64Le(_))
-            | (Term::F64Be(_), Term::F64Be(_))
+            | (Term::U8Type(_), Term::U8Type(_))
+            | (Term::U16LeType(_), Term::U16LeType(_))
+            | (Term::U16BeType(_), Term::U16BeType(_))
+            | (Term::U32LeType(_), Term::U32LeType(_))
+            | (Term::U32BeType(_), Term::U32BeType(_))
+            | (Term::U64LeType(_), Term::U64LeType(_))
+            | (Term::U64BeType(_), Term::U64BeType(_))
+            | (Term::S8Type(_), Term::S8Type(_))
+            | (Term::S16LeType(_), Term::S16LeType(_))
+            | (Term::S16BeType(_), Term::S16BeType(_))
+            | (Term::S32LeType(_), Term::S32LeType(_))
+            | (Term::S32BeType(_), Term::S32BeType(_))
+            | (Term::S64LeType(_), Term::S64LeType(_))
+            | (Term::S64BeType(_), Term::S64BeType(_))
+            | (Term::F32LeType(_), Term::F32LeType(_))
+            | (Term::F32BeType(_), Term::F32BeType(_))
+            | (Term::F64LeType(_), Term::F64LeType(_))
+            | (Term::F64BeType(_), Term::F64BeType(_))
             | (Term::Error(_), Term::Error(_)) => true,
             (_, _) => false,
         }
@@ -478,42 +478,42 @@ pub enum Value {
     /// The kind of types.
     Type,
 
-    /// Unsigned 8-bit integers.
-    U8,
-    /// Unsigned 16-bit integers (little endian).
-    U16Le,
-    /// Unsigned 16-bit integers (big endian).
-    U16Be,
-    /// Unsigned 32-bit integers (little endian).
-    U32Le,
-    /// Unsigned 32-bit integers (big endian).
-    U32Be,
-    /// Unsigned 64-bit integers (little endian).
-    U64Le,
-    /// Unsigned 64-bit integers (big endian).
-    U64Be,
-    /// Signed, two's complement 8-bit integers.
-    S8,
-    /// Signed, two's complement 16-bit integers (little endian).
-    S16Le,
-    /// Signed, two's complement 16-bit integers (big endian).
-    S16Be,
-    /// Signed, two's complement 32-bit integers (little endian).
-    S32Le,
-    /// Signed, two's complement 32-bit integers (big endian).
-    S32Be,
-    /// Signed, two's complement 64-bit integers (little endian).
-    S64Le,
-    /// Signed, two's complement 64-bit integers (big endian).
-    S64Be,
-    /// IEEE754 single-precision floating point numbers (little endian).
-    F32Le,
-    /// IEEE754 single-precision floating point numbers (big endian).
-    F32Be,
-    /// IEEE754 double-precision floating point numbers (little endian).
-    F64Le,
-    /// IEEE754 double-precision floating point numbers (big endian).
-    F64Be,
+    /// Unsigned 8-bit integer type.
+    U8Type,
+    /// Unsigned 16-bit integer type (little endian).
+    U16LeType,
+    /// Unsigned 16-bit integer type (big endian).
+    U16BeType,
+    /// Unsigned 32-bit integer type (little endian).
+    U32LeType,
+    /// Unsigned 32-bit integer type (big endian).
+    U32BeType,
+    /// Unsigned 64-bit integer type (little endian).
+    U64LeType,
+    /// Unsigned 64-bit integer type (big endian).
+    U64BeType,
+    /// Signed, two's complement 8-bit integer type.
+    S8Type,
+    /// Signed, two's complement 16-bit integer type (little endian).
+    S16LeType,
+    /// Signed, two's complement 16-bit integer type (big endian).
+    S16BeType,
+    /// Signed, two's complement 32-bit integer type (little endian).
+    S32LeType,
+    /// Signed, two's complement 32-bit integer type (big endian).
+    S32BeType,
+    /// Signed, two's complement 64-bit integer type (little endian).
+    S64LeType,
+    /// Signed, two's complement 64-bit integer type (big endian).
+    S64BeType,
+    /// IEEE754 single-precision floating point number type (little endian).
+    F32LeType,
+    /// IEEE754 single-precision floating point number type (big endian).
+    F32BeType,
+    /// IEEE754 double-precision floating point number type (little endian).
+    F64LeType,
+    /// IEEE754 double-precision floating point number type (big endian).
+    F64BeType,
 
     /// Error sentinel.
     Error,
