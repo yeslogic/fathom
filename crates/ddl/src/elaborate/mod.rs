@@ -231,6 +231,10 @@ pub fn elaborate_ty(
                 "S32Be" => core::Term::S32Be(name.span()),
                 "S64Le" => core::Term::S64Le(name.span()),
                 "S64Be" => core::Term::S64Be(name.span()),
+                "F32Le" => core::Term::F32Le(name.span()),
+                "F32Be" => core::Term::F32Be(name.span()),
+                "F64Le" => core::Term::F64Le(name.span()),
+                "F64Be" => core::Term::F64Be(name.span()),
                 _ => {
                     report(diagnostics::var_name_not_found(
                         Severity::Error,
