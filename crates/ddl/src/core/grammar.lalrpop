@@ -96,6 +96,10 @@ Term: Term = {
                 "S32Be" => Term::S32Be(span),
                 "S64Le" => Term::S64Le(span),
                 "S64Be" => Term::S64Be(span),
+                "F32Le" => Term::F32Le(span),
+                "F32Be" => Term::F32Be(span),
+                "F64Le" => Term::F64Le(span),
+                "F64Be" => Term::F64Be(span),
                 _ => {
                     report(diagnostics::var_name_not_found(Severity::Error, file_id, &name, span));
                     Term::Error(span)

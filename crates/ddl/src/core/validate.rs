@@ -161,11 +161,16 @@ impl<'items> TermContext<'items> {
 /// Validate that a term is a type.
 pub fn validate_ty(context: TermContext<'_>, term: &Term, report: &mut dyn FnMut(Diagnostic)) {
     match term {
-        Term::Item(span, label) if !context.items.contains_key(label) => {
-            report(diagnostics::var_name_not_found(Severity::Bug, context.file_id, &label.0, *span))
-        }
-        Term::Item(_, _)
-        | Term::U8(_)
+        Term::Item(span, label) => match context.items.get(label) {
+            Some(_) => {}
+            None => report(diagnostics::var_name_not_found(
+                Severity::Bug,
+                context.file_id,
+                &label.0,
+                *span,
+            )),
+        },
+        Term::U8(_)
         | Term::U16Le(_)
         | Term::U16Be(_)
         | Term::U32Le(_)
