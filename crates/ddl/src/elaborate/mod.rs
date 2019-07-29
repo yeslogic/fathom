@@ -214,34 +214,34 @@ pub fn elaborate_ty(
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
     match concrete_term {
-        concrete::Term::Var(name) if context.items.contains_key(name.as_str()) => {
-            core::Term::Item(name.span(), core::Label(name.to_string()))
-        }
-        concrete::Term::Var(name) => match name.as_str() {
-            "U8" => core::Term::U8(name.span()),
-            "U16Le" => core::Term::U16Le(name.span()),
-            "U16Be" => core::Term::U16Be(name.span()),
-            "U32Le" => core::Term::U32Le(name.span()),
-            "U32Be" => core::Term::U32Be(name.span()),
-            "U64Le" => core::Term::U64Le(name.span()),
-            "U64Be" => core::Term::U64Be(name.span()),
-            "S8" => core::Term::S8(name.span()),
-            "S16Le" => core::Term::S16Le(name.span()),
-            "S16Be" => core::Term::S16Be(name.span()),
-            "S32Le" => core::Term::S32Le(name.span()),
-            "S32Be" => core::Term::S32Be(name.span()),
-            "S64Le" => core::Term::S64Le(name.span()),
-            "S64Be" => core::Term::S64Be(name.span()),
-            _ => {
-                report(diagnostics::var_name_not_found(
-                    Severity::Error,
-                    context.file_id,
-                    name.as_str(),
-                    name.span(),
-                ));
+        concrete::Term::Var(name) => match context.items.get(name.as_str()) {
+            Some(_) => core::Term::Item(name.span(), core::Label(name.to_string())),
+            None => match name.as_str() {
+                "U8" => core::Term::U8(name.span()),
+                "U16Le" => core::Term::U16Le(name.span()),
+                "U16Be" => core::Term::U16Be(name.span()),
+                "U32Le" => core::Term::U32Le(name.span()),
+                "U32Be" => core::Term::U32Be(name.span()),
+                "U64Le" => core::Term::U64Le(name.span()),
+                "U64Be" => core::Term::U64Be(name.span()),
+                "S8" => core::Term::S8(name.span()),
+                "S16Le" => core::Term::S16Le(name.span()),
+                "S16Be" => core::Term::S16Be(name.span()),
+                "S32Le" => core::Term::S32Le(name.span()),
+                "S32Be" => core::Term::S32Be(name.span()),
+                "S64Le" => core::Term::S64Le(name.span()),
+                "S64Be" => core::Term::S64Be(name.span()),
+                _ => {
+                    report(diagnostics::var_name_not_found(
+                        Severity::Error,
+                        context.file_id,
+                        name.as_str(),
+                        name.span(),
+                    ));
 
-                core::Term::Error(name.span())
-            }
+                    core::Term::Error(name.span())
+                }
+            },
         },
         concrete::Term::Error(span) => core::Term::Error(*span),
     }
