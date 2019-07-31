@@ -4,6 +4,21 @@ This section describes how binary data descriptions can be naively interpreted
 as binary encoders or decoders. In an actual implementation we would partially
 evaluate this (presumably by hand) into an efficient compiler implementation.
 
+## Contents
+
+- [Syntax](#syntax)
+    - [Bits](#bits)
+    - [Words](#words)
+    - [Terms](#terms)
+    - [Contexts](#contexts)
+- [Rules](#rules)
+    - [Decoding Terms](#decoding-terms)
+    - [Decoding structure fields](#decoding-structure-fields)
+    - [Decoding module-level items](#decoding-module-level-items)
+    - [Encoding Terms](#decoding-terms)
+    - [Encoding structure fields](#decoding-structure-fields)
+    - [Encoding module-level items](#decoding-module-level-items)
+
 ## Syntax
 
 ### Bits
@@ -18,6 +33,8 @@ A stream of [bits](https://en.wikipedia.org/wiki/Bit) is a sequence of `1`s and 
 >
 > _bits_ ::=\
 > &emsp;|&ensp;_bit_<sup>\*</sup>
+
+### Words
 
 A stream of bits can be made up of [binary words](https://en.wikipedia.org/wiki/Word_(computer_architecture)):
 
@@ -60,7 +77,7 @@ sequences of syntactic elements during encoding and decoding.
 > _item-context_ ::=\
 > &emsp;|&ensp;`{` `items` _core.item_<sup>\*</sup> `}`
 
-## Binary decoder interpretation
+## Rules
 
 ### Decoding Terms
 
@@ -185,6 +202,14 @@ This shows how we can decode an item in a module, given the _core.label_.
     > - _item-context_ ⊢ _bits_<sub>0</sub> : (`struct` _core.label_<sub>0</sub> `{` _core.struct-type-fields_ `}`)
     >   _core.items_ . _core.label_<sub>1</sub> ↝ _term_, _bits_<sub>1</sub>
 
-## Binary encoder interpretation
+### Encoding Terms
 
-TODO
+- _TODO_
+
+### Encoding structure fields
+
+- _TODO_
+
+### Encoding module-level items
+
+- _TODO_

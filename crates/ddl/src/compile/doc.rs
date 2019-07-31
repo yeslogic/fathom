@@ -1,9 +1,19 @@
+use codespan::FileId;
+use codespan_reporting::diagnostic::Diagnostic;
 use std::io;
 use std::io::prelude::*;
 
 use crate::core;
 
-pub fn compile_module(writer: &mut impl Write, module: &core::Module) -> io::Result<()> {
+pub fn compile_module(
+    writer: &mut impl Write,
+    module: &core::Module,
+    report: &mut dyn FnMut(Diagnostic),
+) -> io::Result<()> {
+    let context = ModuleContext {
+        _file_id: module.file_id,
+    };
+
     let pkg_name = env!("CARGO_PKG_NAME");
     let pkg_version = env!("CARGO_PKG_VERSION");
 
@@ -19,15 +29,26 @@ pub fn compile_module(writer: &mut impl Write, module: &core::Module) -> io::Res
     for item in &module.items {
         writeln!(writer)?;
         match item {
-            core::Item::Alias(alias) => compile_alias(writer, alias)?,
-            core::Item::Struct(struct_ty) => compile_struct_ty(writer, struct_ty)?,
+            core::Item::Alias(alias) => compile_alias(&context, writer, alias, report)?,
+            core::Item::Struct(struct_ty) => {
+                compile_struct_ty(&context, writer, struct_ty, report)?
+            }
         }
     }
 
     Ok(())
 }
 
-fn compile_alias(writer: &mut impl Write, alias: &core::Alias) -> io::Result<()> {
+struct ModuleContext {
+    _file_id: FileId,
+}
+
+fn compile_alias(
+    context: &ModuleContext,
+    writer: &mut impl Write,
+    alias: &core::Alias,
+    report: &mut dyn FnMut(Diagnostic),
+) -> io::Result<()> {
     writeln!(writer, "## {}", alias.name)?;
 
     if !alias.doc.is_empty() {
@@ -48,13 +69,18 @@ fn compile_alias(writer: &mut impl Write, alias: &core::Alias) -> io::Result<()>
     writeln!(writer, "### Definition")?;
     writeln!(writer)?;
     writeln!(writer, "```")?;
-    writeln!(writer, "{}", compile_ty(&alias.term))?;
+    writeln!(writer, "{}", compile_ty(context, &alias.term, report))?;
     writeln!(writer, "```")?;
 
     Ok(())
 }
 
-fn compile_struct_ty(writer: &mut impl Write, struct_ty: &core::StructType) -> io::Result<()> {
+fn compile_struct_ty(
+    context: &ModuleContext,
+    writer: &mut impl Write,
+    struct_ty: &core::StructType,
+    report: &mut dyn FnMut(Diagnostic),
+) -> io::Result<()> {
     writeln!(writer, "## {}", struct_ty.name)?;
 
     if !struct_ty.doc.is_empty() {
@@ -81,7 +107,7 @@ fn compile_struct_ty(writer: &mut impl Write, struct_ty: &core::StructType) -> i
             writeln!(writer, "| ---- | ---- |")?;
 
             for field in &struct_ty.fields {
-                let ty = compile_ty(&field.term);
+                let ty = compile_ty(context, &field.term, report);
                 writeln!(writer, "| {} | {} |", field.name, ty)?;
             }
         } else {
@@ -90,7 +116,7 @@ fn compile_struct_ty(writer: &mut impl Write, struct_ty: &core::StructType) -> i
 
             for field in &struct_ty.fields {
                 let desc = compile_field_description(&field.doc);
-                let ty = compile_ty(&field.term);
+                let ty = compile_ty(context, &field.term, report);
                 writeln!(writer, "| {} | {} | {} |", field.name, ty, desc)?;
             }
 
@@ -113,10 +139,15 @@ fn compile_field_description(doc_lines: &[String]) -> String {
     }
 }
 
-fn compile_ty(term: &core::Term) -> &str {
+fn compile_ty<'term>(
+    context: &ModuleContext,
+    term: &'term core::Term,
+    report: &mut dyn FnMut(Diagnostic),
+) -> &'term str {
     match term {
         // TODO: Link to specific docs
         core::Term::Item(_, name) => &name.0,
+        core::Term::Ann(term, _) => compile_ty(context, term, report),
         // TODO: Link to global docs
         core::Term::U8(_) => "U8",
         core::Term::U16Le(_) => "U16Le",
@@ -136,6 +167,8 @@ fn compile_ty(term: &core::Term) -> &str {
         core::Term::F32Be(_) => "F32Be",
         core::Term::F64Le(_) => "F64Le",
         core::Term::F64Be(_) => "F64Be",
+        core::Term::Kind(_) => "Kind",
+        core::Term::Type(_) => "Type",
         core::Term::Error(_) => "**invalid data description**",
     }
 }

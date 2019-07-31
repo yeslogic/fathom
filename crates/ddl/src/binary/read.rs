@@ -70,6 +70,7 @@ pub fn read_ty(
             Some(core::Item::Struct(struct_ty)) => read_struct_ty(&context, struct_ty, ctxt),
             None => Err(ddl_rt::ReadError::InvalidDataDescription),
         },
+        core::Term::Ann(term, _) => read_ty(context, term, ctxt),
         core::Term::U8(_) => Ok(Term::Int(BigInt::from(ctxt.read::<ddl_rt::U8>()?))),
         core::Term::U16Le(_) => Ok(Term::Int(BigInt::from(ctxt.read::<ddl_rt::U16Le>()?))),
         core::Term::U16Be(_) => Ok(Term::Int(BigInt::from(ctxt.read::<ddl_rt::U16Be>()?))),
@@ -88,6 +89,8 @@ pub fn read_ty(
         core::Term::F32Be(_) => Ok(Term::F32(ctxt.read::<ddl_rt::F32Be>()?)),
         core::Term::F64Le(_) => Ok(Term::F64(ctxt.read::<ddl_rt::F64Le>()?)),
         core::Term::F64Be(_) => Ok(Term::F64(ctxt.read::<ddl_rt::F64Be>()?)),
-        core::Term::Error(_) => Err(ddl_rt::ReadError::InvalidDataDescription),
+        core::Term::Kind(_) | core::Term::Type(_) | core::Term::Error(_) => {
+            Err(ddl_rt::ReadError::InvalidDataDescription)
+        }
     }
 }

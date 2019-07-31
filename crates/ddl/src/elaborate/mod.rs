@@ -11,6 +11,7 @@
 use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::{concrete, core, diagnostics};
 
@@ -32,7 +33,7 @@ pub struct ItemContext {
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    items: HashMap<core::Label, Span>,
+    items: HashMap<core::Label, (Span, core::Value)>,
 }
 
 impl ItemContext {
@@ -69,7 +70,16 @@ pub fn elaborate_items(
         match item {
             concrete::Item::Alias(alias) => {
                 let label = core::Label(alias.name.to_string());
-                let core_term = elaborate_ty(context.term_context(), &alias.term, report);
+                let (core_term, ty) = match &alias.ty {
+                    Some(concrete_ty) => {
+                        let context = context.term_context();
+                        let core_ty = elaborate_universe(&context, concrete_ty, report);
+                        let ty = core::semantics::eval(&core_ty);
+                        let core_term = check_term(&context, &alias.term, &ty, report);
+                        (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
+                    }
+                    None => synth_term(&context.term_context(), &alias.term, report),
+                };
 
                 match context.items.entry(label) {
                     Entry::Vacant(entry) => {
@@ -81,14 +91,14 @@ pub fn elaborate_items(
                         };
 
                         core_items.push(core::Item::Alias(item));
-                        entry.insert(alias.span);
+                        entry.insert((alias.span, ty));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
                         context.file_id,
                         entry.key(),
                         alias.span,
-                        *entry.get(),
+                        entry.get().0,
                     )),
                 }
             }
@@ -108,14 +118,14 @@ pub fn elaborate_items(
                         };
 
                         core_items.push(core::Item::Struct(item));
-                        entry.insert(struct_ty.span);
+                        entry.insert((struct_ty.span, core::Value::Type));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
                         context.file_id,
                         entry.key(),
                         struct_ty.span,
-                        *entry.get(),
+                        entry.get().0,
                     )),
                 }
             }
@@ -130,7 +140,7 @@ pub struct FieldContext<'items> {
     /// The file where these fields are defined (for error reporting).
     file_id: FileId,
     /// Previously elaborated items.
-    items: &'items HashMap<core::Label, Span>,
+    items: &'items HashMap<core::Label, (Span, core::Value)>,
     /// Labels that have previously been used for fields, along with the span
     /// where they were introduced (for error reporting).
     fields: HashMap<core::Label, Span>,
@@ -138,7 +148,10 @@ pub struct FieldContext<'items> {
 
 impl<'items> FieldContext<'items> {
     /// Create a new field context.
-    pub fn new(file_id: FileId, items: &'items HashMap<core::Label, Span>) -> FieldContext<'items> {
+    pub fn new(
+        file_id: FileId,
+        items: &'items HashMap<core::Label, (Span, core::Value)>,
+    ) -> FieldContext<'items> {
         FieldContext {
             file_id,
             fields: HashMap::new(),
@@ -166,7 +179,12 @@ pub fn elaborate_struct_ty_fields(
 
         let label = core::Label(field.name.to_string());
         let field_span = Span::merge(field.name.span(), field.term.span());
-        let ty = elaborate_ty(context.term_context(), &field.term, report);
+        let ty = check_term(
+            &context.term_context(),
+            &field.term,
+            &core::Value::Type,
+            report,
+        );
 
         match context.fields.entry(label) {
             Entry::Vacant(entry) => {
@@ -197,44 +215,122 @@ pub struct TermContext<'items> {
     /// The file where this term is located (for error reporting).
     file_id: FileId,
     /// Previously elaborated items.
-    items: &'items HashMap<core::Label, Span>,
+    items: &'items HashMap<core::Label, (Span, core::Value)>,
 }
 
 impl<'items> TermContext<'items> {
     /// Create a new term context.
-    pub fn new(file_id: FileId, items: &'items HashMap<core::Label, Span>) -> TermContext<'items> {
+    pub fn new(
+        file_id: FileId,
+        items: &'items HashMap<core::Label, (Span, core::Value)>,
+    ) -> TermContext<'items> {
         TermContext { file_id, items }
     }
 }
 
-/// Check that a concrete term is a type, and elaborate it into the core syntax.
-pub fn elaborate_ty(
-    context: TermContext<'_>,
+/// Check that a concrete term is a type or kind, and elaborate it into the core syntax.
+pub fn elaborate_universe(
+    context: &TermContext<'_>,
     concrete_term: &concrete::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
+    let (core_term, ty) = synth_term(context, concrete_term, report);
+    match ty {
+        core::Value::Kind => core_term,
+        core::Value::Type => core_term,
+        core::Value::Error => core::Term::Error(concrete_term.span()),
+        ty => {
+            report(diagnostics::universe_mismatch(
+                Severity::Error,
+                context.file_id,
+                concrete_term.span(),
+                &ty,
+            ));
+            core::Term::Error(concrete_term.span())
+        }
+    }
+}
+
+/// Check a concrete term against the given type, and elaborate it into the core syntax.
+pub fn check_term(
+    context: &TermContext<'_>,
+    concrete_term: &concrete::Term,
+    expected_ty: &core::Value,
+    report: &mut dyn FnMut(Diagnostic),
+) -> core::Term {
+    match (concrete_term, expected_ty) {
+        (concrete::Term::Error(span), _) => core::Term::Error(*span),
+        (concrete_term, core::Value::Error) => core::Term::Error(concrete_term.span()),
+        (concrete::Term::Paren(_, concrete_term), expected_ty) => {
+            check_term(context, concrete_term, expected_ty, report)
+        }
+        (concrete_term, expected_ty) => {
+            let (core_term, synth_ty) = synth_term(context, concrete_term, report);
+
+            if core::semantics::equal(&synth_ty, expected_ty) {
+                core_term
+            } else {
+                report(diagnostics::type_mismatch(
+                    Severity::Error,
+                    context.file_id,
+                    concrete_term.span(),
+                    expected_ty,
+                    &synth_ty,
+                ));
+                core::Term::Error(concrete_term.span())
+            }
+        }
+    }
+}
+
+/// Synthesize the type of a concrete term, and elaborate it into the core syntax.
+pub fn synth_term(
+    context: &TermContext<'_>,
+    concrete_term: &concrete::Term,
+    report: &mut dyn FnMut(Diagnostic),
+) -> (core::Term, core::Value) {
     match concrete_term {
+        concrete::Term::Paren(_, concrete_term) => synth_term(context, concrete_term, report),
+        concrete::Term::Ann(concrete_term, concrete_ty) => {
+            let core_ty = elaborate_universe(context, concrete_ty, report);
+            let ty = core::semantics::eval(&core_ty);
+            let core_term = check_term(context, concrete_term, &ty, report);
+            (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
+        }
         concrete::Term::Var(name) => match context.items.get(name.as_str()) {
-            Some(_) => core::Term::Item(name.span(), core::Label(name.to_string())),
+            Some((_, ty)) => (
+                core::Term::Item(name.span(), core::Label(name.to_string())),
+                ty.clone(),
+            ),
             None => match name.as_str() {
-                "U8" => core::Term::U8(name.span()),
-                "U16Le" => core::Term::U16Le(name.span()),
-                "U16Be" => core::Term::U16Be(name.span()),
-                "U32Le" => core::Term::U32Le(name.span()),
-                "U32Be" => core::Term::U32Be(name.span()),
-                "U64Le" => core::Term::U64Le(name.span()),
-                "U64Be" => core::Term::U64Be(name.span()),
-                "S8" => core::Term::S8(name.span()),
-                "S16Le" => core::Term::S16Le(name.span()),
-                "S16Be" => core::Term::S16Be(name.span()),
-                "S32Le" => core::Term::S32Le(name.span()),
-                "S32Be" => core::Term::S32Be(name.span()),
-                "S64Le" => core::Term::S64Le(name.span()),
-                "S64Be" => core::Term::S64Be(name.span()),
-                "F32Le" => core::Term::F32Le(name.span()),
-                "F32Be" => core::Term::F32Be(name.span()),
-                "F64Le" => core::Term::F64Le(name.span()),
-                "F64Be" => core::Term::F64Be(name.span()),
+                "Kind" => {
+                    report(diagnostics::kind_has_no_type(
+                        Severity::Error,
+                        context.file_id,
+                        name.span(),
+                    ));
+
+                    (core::Term::Error(name.span()), core::Value::Error)
+                }
+                "Type" => (core::Term::Type(name.span()), core::Value::Kind),
+                "U8" => (core::Term::U8(name.span()), core::Value::Type),
+                "U16Le" => (core::Term::U16Le(name.span()), core::Value::Type),
+                "U16Be" => (core::Term::U16Be(name.span()), core::Value::Type),
+                "U32Le" => (core::Term::U32Le(name.span()), core::Value::Type),
+                "U32Be" => (core::Term::U32Be(name.span()), core::Value::Type),
+                "U64Le" => (core::Term::U64Le(name.span()), core::Value::Type),
+                "U64Be" => (core::Term::U64Be(name.span()), core::Value::Type),
+                "S8" => (core::Term::S8(name.span()), core::Value::Type),
+                "S16Le" => (core::Term::S16Le(name.span()), core::Value::Type),
+                "S16Be" => (core::Term::S16Be(name.span()), core::Value::Type),
+                "S32Le" => (core::Term::S32Le(name.span()), core::Value::Type),
+                "S32Be" => (core::Term::S32Be(name.span()), core::Value::Type),
+                "S64Le" => (core::Term::S64Le(name.span()), core::Value::Type),
+                "S64Be" => (core::Term::S64Be(name.span()), core::Value::Type),
+                "F32Le" => (core::Term::F32Le(name.span()), core::Value::Type),
+                "F32Be" => (core::Term::F32Be(name.span()), core::Value::Type),
+                "F64Le" => (core::Term::F64Le(name.span()), core::Value::Type),
+                "F64Be" => (core::Term::F64Be(name.span()), core::Value::Type),
                 _ => {
                     report(diagnostics::var_name_not_found(
                         Severity::Error,
@@ -243,10 +339,10 @@ pub fn elaborate_ty(
                         name.span(),
                     ));
 
-                    core::Term::Error(name.span())
+                    (core::Term::Error(name.span()), core::Value::Error)
                 }
             },
         },
-        concrete::Term::Error(span) => core::Term::Error(*span),
+        concrete::Term::Error(span) => (core::Term::Error(*span), core::Value::Error),
     }
 }

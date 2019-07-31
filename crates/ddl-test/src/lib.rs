@@ -20,10 +20,17 @@ test!(fail_duplicate_definitions, "fail_duplicate_definitions.ddl");
 test!(fail_unexpected_token, "fail_unexpected_token.ddl");
 test!(fail_unexpected_character, "fail_unexpected_character.ddl");
 
+#[rustfmt::skip]
 mod alias {
     test!(pass_globals, "alias/pass_globals.ddl");
+    test!(pass_ann, "alias/pass_ann.ddl");
+    test!(pass_ann_ann, "alias/pass_ann_ann.ddl");
+    test!(pass_ann_sugar, "alias/pass_ann_sugar.ddl");
     test!(pass_simple, "alias/pass_simple.ddl");
     test!(pass_simple_doc, "alias/pass_simple_doc.ddl");
+
+    test!(fail_ann_mismatch, "alias/fail_ann_mismatch.ddl");
+    test!(fail_kind_has_no_type, "alias/fail_kind_has_no_type.ddl");
 }
 
 #[rustfmt::skip]
@@ -35,6 +42,7 @@ mod r#struct {
     test!(pass_var, "struct/pass_var.ddl");
 
     test!(fail_duplicate_fields, "struct/fail_duplicate_fields.ddl");
+    test!(fail_field_type_mismatch, "struct/fail_field_type_mismatch.ddl");
     test!(fail_missing_closing_brace, "struct/fail_missing_closing_brace.ddl");
     test!(fail_missing_fields, "struct/fail_missing_fields.ddl");
     test!(fail_missing_name, "struct/fail_missing_name.ddl");

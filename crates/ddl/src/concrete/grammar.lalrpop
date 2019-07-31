@@ -19,6 +19,8 @@ extern {
 
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
+        "(" => Token::OpenParen,
+        ")" => Token::CloseParen,
 
         "!" => Token::Bang,
         ":" => Token::Colon,
@@ -34,11 +36,11 @@ pub Module: Module = {
 
 Item: Item = {
     <doc: "doc comment"*>
-    <start: @L> <name: Identifier> "=" <term: Term> ";" <end: @R> => {
+    <start: @L> <name: Identifier> <ty: (":" <Term>)?> "=" <term: Term> ";" <end: @R> => {
         let span = Span::from(start..end);
         let doc = Arc::from(doc);
 
-        Item::Alias(Alias { span, doc, name, term })
+        Item::Alias(Alias { span, doc, name, ty, term })
     },
     <doc: "doc comment"*>
     <start: @L> "struct" <name: Identifier> "{"
@@ -62,6 +64,14 @@ Field: TypeField = {
 };
 
 Term: Term = {
+    TermAtomic,
+    <term: TermAtomic> ":" <ty: Term> => Term::Ann(Box::new(term), Box::new(ty)),
+};
+
+TermAtomic: Term = {
+    <start: @L> "(" <term: Term> ")" <end: @R> => {
+        Term::Paren(Span::new(start, end), Box::new(term))
+    },
     <name: Identifier> => Term::Var(name),
 };
 

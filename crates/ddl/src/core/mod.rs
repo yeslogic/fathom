@@ -14,6 +14,7 @@ mod grammar {
     include!(concat!(env!("OUT_DIR"), "/core/grammar.rs"));
 }
 
+pub mod semantics;
 pub mod validate;
 
 /// A label.
@@ -63,7 +64,7 @@ impl Module {
         grammar::ModuleParser::new()
             .parse(file_id, &mut item_names, report, tokens)
             .unwrap_or_else(|error| {
-                report(diagnostics::parse_error(file_id, error));
+                report(diagnostics::error::parse(file_id, error));
                 Module {
                     file_id,
                     items: Vec::new(),
@@ -298,6 +299,14 @@ pub enum Term {
     /// Item references
     Item(Span, Label),
 
+    /// Terms annotated with types.
+    Ann(Arc<Term>, Arc<Term>),
+
+    /// The sort of kinds.
+    Kind(Span),
+    /// The kind of types.
+    Type(Span),
+
     /// Unsigned 8-bit integers.
     U8(Span),
     /// Unsigned 16-bit integers (little endian).
@@ -334,6 +343,7 @@ pub enum Term {
     F64Le(Span),
     /// IEEE754 double-precision floating point numbers (big endian).
     F64Be(Span),
+
     /// Error sentinel.
     Error(Span),
 }
@@ -342,6 +352,8 @@ impl Term {
     pub fn span(&self) -> Span {
         match self {
             Term::Item(span, _)
+            | Term::Kind(span)
+            | Term::Type(span)
             | Term::U8(span)
             | Term::U16Le(span)
             | Term::U16Be(span)
@@ -361,6 +373,7 @@ impl Term {
             | Term::F64Le(span)
             | Term::F64Be(span)
             | Term::Error(span) => *span,
+            Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
         }
     }
 
@@ -369,8 +382,37 @@ impl Term {
         D: DocAllocator<'core>,
         D::Doc: Clone,
     {
+        self.doc_prec(alloc, 0)
+    }
+
+    pub fn doc_prec<'core, D>(&'core self, alloc: &'core D, prec: u8) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        let show_paren = |cond, doc| match cond {
+            true => alloc.text("(").append(doc).append(")"),
+            false => doc,
+        };
+
         match self {
             Term::Item(_, label) => alloc.as_string(label),
+            Term::Ann(term, ty) => show_paren(
+                prec > 0,
+                (alloc.nil())
+                    .append(term.doc_prec(alloc, prec + 1))
+                    .append(alloc.space())
+                    .append(":")
+                    .group()
+                    .append(
+                        (alloc.space())
+                            .append(ty.doc_prec(alloc, prec + 1))
+                            .group()
+                            .nest(4),
+                    ),
+            ),
+            Term::Kind(_) => alloc.text("Kind"),
+            Term::Type(_) => alloc.text("Type"),
             Term::U8(_) => alloc.text("U8"),
             Term::U16Le(_) => alloc.text("U16Le"),
             Term::U16Be(_) => alloc.text("U16Be"),
@@ -398,7 +440,10 @@ impl PartialEq for Term {
     fn eq(&self, other: &Term) -> bool {
         match (self, other) {
             (Term::Item(_, label0), Term::Item(_, label1)) => label0 == label1,
-            (Term::U8(_), Term::U8(_))
+            (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
+            (Term::Kind(_), Term::Kind(_))
+            | (Term::Type(_), Term::Type(_))
+            | (Term::U8(_), Term::U8(_))
             | (Term::U16Le(_), Term::U16Le(_))
             | (Term::U16Be(_), Term::U16Be(_))
             | (Term::U32Le(_), Term::U32Le(_))
@@ -420,4 +465,56 @@ impl PartialEq for Term {
             (_, _) => false,
         }
     }
+}
+
+/// Values.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Value {
+    /// Item references.
+    Item(Label),
+
+    /// The sort of kinds.
+    Kind,
+    /// The kind of types.
+    Type,
+
+    /// Unsigned 8-bit integers.
+    U8,
+    /// Unsigned 16-bit integers (little endian).
+    U16Le,
+    /// Unsigned 16-bit integers (big endian).
+    U16Be,
+    /// Unsigned 32-bit integers (little endian).
+    U32Le,
+    /// Unsigned 32-bit integers (big endian).
+    U32Be,
+    /// Unsigned 64-bit integers (little endian).
+    U64Le,
+    /// Unsigned 64-bit integers (big endian).
+    U64Be,
+    /// Signed, two's complement 8-bit integers.
+    S8,
+    /// Signed, two's complement 16-bit integers (little endian).
+    S16Le,
+    /// Signed, two's complement 16-bit integers (big endian).
+    S16Be,
+    /// Signed, two's complement 32-bit integers (little endian).
+    S32Le,
+    /// Signed, two's complement 32-bit integers (big endian).
+    S32Be,
+    /// Signed, two's complement 64-bit integers (little endian).
+    S64Le,
+    /// Signed, two's complement 64-bit integers (big endian).
+    S64Be,
+    /// IEEE754 single-precision floating point numbers (little endian).
+    F32Le,
+    /// IEEE754 single-precision floating point numbers (big endian).
+    F32Be,
+    /// IEEE754 double-precision floating point numbers (little endian).
+    F64Le,
+    /// IEEE754 double-precision floating point numbers (big endian).
+    F64Be,
+
+    /// Error sentinel.
+    Error,
 }
