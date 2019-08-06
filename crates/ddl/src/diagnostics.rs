@@ -70,33 +70,37 @@ pub fn parse_error(file_id: FileId, error: ParseError<ByteIndex, Token, Diagnost
     match error {
         ParseError::InvalidToken { location: _ } => unreachable!(),
 
-        ParseError::UnrecognizedEOF { location, expected } => Diagnostic::new_error(
-            "unexpected end of file",
-            Label::new(file_id, location..location, "unexpected end of file"),
-        )
-        .with_notes(vec![format!(
-            "expected one of {}",
-            display_expected(&expected),
-        )]),
+        ParseError::UnrecognizedEOF { location, expected } => Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: "unexpected end of file".to_owned(),
+            primary_label: Label::new(file_id, location..location, "unexpected end of file"),
+            secondary_labels: vec![],
+            notes: vec![format!("expected one of {}", display_expected(&expected),)],
+        },
 
         ParseError::UnrecognizedToken {
             token: (start, token, end),
             expected,
-        } => Diagnostic::new_error(
-            format!("unexpected token \"{}\"", token),
-            Label::new(file_id, start..end, "unexpected token"),
-        )
-        .with_notes(vec![format!(
-            "expected one of {}",
-            display_expected(&expected),
-        )]),
+        } => Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: format!("unexpected token \"{}\"", token),
+            primary_label: Label::new(file_id, start..end, "unexpected token"),
+            secondary_labels: vec![],
+            notes: vec![format!("expected one of {}", display_expected(&expected),)],
+        },
 
         ParseError::ExtraToken {
             token: (start, token, end),
-        } => Diagnostic::new_error(
-            format!("extra token \"{}\"", token),
-            Label::new(file_id, start..end, "extra token"),
-        ),
+        } => Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: format!("extra token \"{}\"", token),
+            primary_label: Label::new(file_id, start..end, "extra token"),
+            secondary_labels: vec![],
+            notes: vec![],
+        },
 
         ParseError::User { error } => error,
     }
