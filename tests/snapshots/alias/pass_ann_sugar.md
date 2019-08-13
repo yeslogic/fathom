@@ -3,14 +3,6 @@
   It is not intended for manual editing.
 -->
 
-## TestType
-
-### Definition
-
-```
-Type
-```
-
 ## TestU8
 
 ### Definition

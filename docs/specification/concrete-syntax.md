@@ -3,6 +3,20 @@
 This section describes the concrete, textual representation of the data
 description language. This how most users will interact with data descriptions.
 
+## Contents
+
+-   [Lexical syntax](#lexical-syntax)
+    -   [Whitespace and comments](#whitespace-and-comments)
+    -   [Keywords and identifiers](#keywords-and-identifiers)
+    -   [Punctuation](#punctuation)
+    -   [Tokens](#tokens)
+-   [Syntax](#syntax)
+    -   [Terms](#terms)
+    -   [Items](#items)
+        -   [Alias definitions](#alias-definitions)
+        -   [Structure type definitions](#structure-type-definitions)
+    -   [Modules](#modules)
+
 ## Lexical syntax
 
 ### Whitespace and comments
@@ -85,6 +99,8 @@ description language. This how most users will interact with data descriptions.
 > _punctuation_ ::=\
 > &emsp;|&ensp;`{`\
 > &emsp;|&ensp;`}`\
+> &emsp;|&ensp;`(`\
+> &emsp;|&ensp;`)`\
 > &emsp;|&ensp;`:`\
 > &emsp;|&ensp;`,`\
 > &emsp;|&ensp;`=`\
@@ -111,6 +127,11 @@ process.
 > <sub>Grammar:</sub>
 >
 > _term_ ::=\
+> &emsp;|&ensp;_term-atomic_\
+> &emsp;|&ensp;_term-atomic_ `:` _term_
+>
+> _term-atomic_ ::=\
+> &emsp;|&ensp;`(` _term_ `)`\
 > &emsp;|&ensp;_ident_
 
 ### Items

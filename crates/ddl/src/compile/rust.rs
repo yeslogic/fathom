@@ -1,10 +1,20 @@
+use codespan::FileId;
+use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
 use std::io;
 use std::io::prelude::*;
 
 use crate::core;
 
-pub fn compile_module(writer: &mut impl Write, module: &core::Module) -> io::Result<()> {
+pub fn compile_module(
+    writer: &mut impl Write,
+    module: &core::Module,
+    report: &mut dyn FnMut(Diagnostic),
+) -> io::Result<()> {
+    let context = ModuleContext {
+        _file_id: module.file_id,
+    };
+
     let pkg_name = env!("CARGO_PKG_NAME");
     let pkg_version = env!("CARGO_PKG_VERSION");
 
@@ -18,26 +28,42 @@ pub fn compile_module(writer: &mut impl Write, module: &core::Module) -> io::Res
     for item in &module.items {
         writeln!(writer)?;
         match item {
-            core::Item::Alias(alias) => compile_alias(writer, alias)?,
-            core::Item::Struct(struct_ty) => compile_struct_ty(writer, struct_ty)?,
+            core::Item::Alias(alias) => compile_alias(&context, writer, alias, report)?,
+            core::Item::Struct(struct_ty) => {
+                compile_struct_ty(&context, writer, struct_ty, report)?
+            }
         }
     }
 
     Ok(())
 }
 
-fn compile_alias(writer: &mut impl Write, alias: &core::Alias) -> io::Result<()> {
+struct ModuleContext {
+    _file_id: FileId,
+}
+
+fn compile_alias(
+    context: &ModuleContext,
+    writer: &mut impl Write,
+    alias: &core::Alias,
+    report: &mut dyn FnMut(Diagnostic),
+) -> io::Result<()> {
     for doc_line in alias.doc.iter() {
         writeln!(writer, "///{}", doc_line)?;
     }
 
-    let ty = compile_ty(&alias.term);
+    let ty = compile_ty(context, &alias.term, report);
     writeln!(writer, "pub type {} = {};", alias.name, ty)?;
 
     Ok(())
 }
 
-fn compile_struct_ty(writer: &mut impl Write, struct_ty: &core::StructType) -> io::Result<()> {
+fn compile_struct_ty(
+    context: &ModuleContext,
+    writer: &mut impl Write,
+    struct_ty: &core::StructType,
+    report: &mut dyn FnMut(Diagnostic),
+) -> io::Result<()> {
     // Struct definition
 
     for doc_line in struct_ty.doc.iter() {
@@ -53,7 +79,7 @@ fn compile_struct_ty(writer: &mut impl Write, struct_ty: &core::StructType) -> i
                 writeln!(writer, "    ///{}", doc_line)?;
             }
 
-            let ty = compile_host_ty(&field.term);
+            let ty = compile_host_ty(context, &field.term, report);
             write!(writer, "    pub {}: {},", field.name, ty,)?;
             writeln!(writer)?;
         }
@@ -94,7 +120,7 @@ fn compile_struct_ty(writer: &mut impl Write, struct_ty: &core::StructType) -> i
                 writer,
                 "        let {} = ctxt.read::<{}>()?;",
                 field.name,
-                compile_ty(&field.term),
+                compile_ty(context, &field.term, report),
             )?;
             writeln!(writer)?;
         }
@@ -111,9 +137,14 @@ fn compile_struct_ty(writer: &mut impl Write, struct_ty: &core::StructType) -> i
     Ok(())
 }
 
-fn compile_ty(term: &core::Term) -> &str {
+fn compile_ty<'term>(
+    context: &ModuleContext,
+    term: &'term core::Term,
+    report: &mut dyn FnMut(Diagnostic),
+) -> &'term str {
     match term {
         core::Term::Item(_, label) => &label.0, // TODO: check if in scope, warn if not
+        core::Term::Ann(term, _) => compile_ty(context, term, report),
         core::Term::U8(_) => "ddl_rt::U8",
         core::Term::U16Le(_) => "ddl_rt::U16Le",
         core::Term::U16Be(_) => "ddl_rt::U16Be",
@@ -132,13 +163,19 @@ fn compile_ty(term: &core::Term) -> &str {
         core::Term::F32Be(_) => "ddl_rt::F32Be",
         core::Term::F64Le(_) => "ddl_rt::F64Le",
         core::Term::F64Be(_) => "ddl_rt::F64Be",
+        core::Term::Kind(_) | core::Term::Type(_) => "ddl_rt::InvalidDataDescription", // TODO: skip
         core::Term::Error(_) => "ddl_rt::InvalidDataDescription",
     }
 }
 
-fn compile_host_ty(term: &core::Term) -> &str {
+fn compile_host_ty<'term>(
+    context: &ModuleContext,
+    term: &'term core::Term,
+    report: &mut dyn FnMut(Diagnostic),
+) -> &'term str {
     match term {
         core::Term::Item(_, label) => &label.0, // TODO: check if in scope, warn if not
+        core::Term::Ann(term, _) => compile_host_ty(context, term, report),
         core::Term::U8(_) => "u8",
         core::Term::U16Le(_) => "u16",
         core::Term::U16Be(_) => "u16",
@@ -157,6 +194,7 @@ fn compile_host_ty(term: &core::Term) -> &str {
         core::Term::F32Be(_) => "f32",
         core::Term::F64Le(_) => "f64",
         core::Term::F64Be(_) => "f64",
+        core::Term::Kind(_) | core::Term::Type(_) => "ddl_rt::InvalidDataDescription", // TODO: skip
         core::Term::Error(_) => "ddl_rt::InvalidDataDescription",
     }
 }

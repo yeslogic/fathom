@@ -30,7 +30,7 @@ impl Module {
         grammar::ModuleParser::new()
             .parse(file_id, report, tokens)
             .unwrap_or_else(|error| {
-                report(diagnostics::parse_error(file_id, error));
+                report(diagnostics::error::parse(file_id, error));
                 Module {
                     file_id,
                     items: Vec::new(),
@@ -78,6 +78,8 @@ pub struct Alias {
     pub doc: Arc<[String]>,
     /// Name of this definition.
     pub name: SpannedString,
+    /// Optional type annotation
+    pub ty: Option<Term>,
     /// Fields in the struct.
     pub term: Term,
 }
@@ -93,6 +95,10 @@ pub struct TypeField {
 /// Terms.
 #[derive(Debug, Clone)]
 pub enum Term {
+    /// Parenthesised expressions.
+    Paren(Span, Box<Term>),
+    /// Annotated terms.
+    Ann(Box<Term>, Box<Term>),
     /// Variables.
     Var(SpannedString),
 
@@ -103,8 +109,9 @@ pub enum Term {
 impl Term {
     pub fn span(&self) -> Span {
         match self {
+            Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
             Term::Var(name) => name.span(),
-            Term::Error(span) => *span,
+            Term::Paren(span, _) | Term::Error(span) => *span,
         }
     }
 }

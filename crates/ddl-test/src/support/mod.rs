@@ -154,35 +154,47 @@ impl Test {
             eprintln!();
             eprintln_indented(4, "", "---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
+            eprintln!();
         }
 
         core_module
     }
 
     fn roundtrip_core(&mut self, files: &mut Files, core_module: &ddl::core::Module) {
-        let pretty_core = {
-            let arena = pretty::Arena::new();
+        let arena = pretty::Arena::new();
+
+        let pretty_core_module = {
             let pretty::DocBuilder(_, doc) = core_module.doc(&arena);
             doc.pretty(100).to_string()
         };
 
         let snapshot_core_ddl_path = self.snapshot_filename.with_extension("core.ddl");
-        if let Err(error) = snapshot::compare(&snapshot_core_ddl_path, &pretty_core.as_bytes()) {
+        if let Err(error) =
+            snapshot::compare(&snapshot_core_ddl_path, &pretty_core_module.as_bytes())
+        {
             self.failed_checks.push("roundtrip_core: snapshot");
 
             eprintln!("  • roundtrip_core: snapshot");
             eprintln!();
-            eprintln!();
             eprintln_indented(4, "", "---- snapshot error ----");
             eprintln_indented(4, "", &error.to_string());
+            eprintln!();
         }
 
         let mut core_parse_diagnostics = Vec::new();
-        let core_file_id = files.add(snapshot_core_ddl_path.display().to_string(), pretty_core);
+        let core_file_id = files.add(
+            snapshot_core_ddl_path.display().to_string(),
+            pretty_core_module.clone(),
+        );
         let parsed_core_module = {
             let lexer = ddl::lexer::Lexer::new(files, core_file_id);
             ddl::core::Module::parse(core_file_id, lexer, &mut |d| core_parse_diagnostics.push(d))
         };
+        let pretty_parsed_core_module = {
+            let pretty::DocBuilder(_, doc) = parsed_core_module.doc(&arena);
+            doc.pretty(100).to_string()
+        };
+
         if !core_parse_diagnostics.is_empty() {
             self.failed_checks.push("roundtrip_core: parse core");
 
@@ -195,6 +207,7 @@ impl Test {
             eprintln!();
             eprintln_indented(4, "", "---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
+            eprintln!();
         }
 
         if *core_module != parsed_core_module {
@@ -202,12 +215,26 @@ impl Test {
                 .push("roundtrip_core: core != parse(pretty(core))");
 
             eprintln!("  • roundtrip_core: core != parse(pretty(core))");
+            eprintln!();
+            eprintln_indented(4, "", "---- core ----");
+            for line in pretty_core_module.lines() {
+                eprintln_indented(4, "| ", line);
+            }
+            eprintln!();
+            eprintln_indented(4, "", "---- parse(pretty(core)) ----");
+            for line in pretty_parsed_core_module.lines() {
+                eprintln_indented(4, "| ", line);
+            }
+            eprintln!();
         }
     }
 
     fn compile_rust(&mut self, core_module: &ddl::core::Module) {
         let mut output = Vec::new();
-        ddl::compile::rust::compile_module(&mut output, core_module).unwrap();
+        ddl::compile::rust::compile_module(&mut output, core_module, &mut |d| {
+            self.found_diagnostics.push(d)
+        })
+        .unwrap();
         let snapshot_rs_path = self.snapshot_filename.with_extension("rs");
 
         if let Err(error) = snapshot::compare(&snapshot_rs_path, &output) {
@@ -215,9 +242,9 @@ impl Test {
 
             eprintln!("  • compile_rust: snapshot");
             eprintln!();
-            eprintln!();
             eprintln_indented(4, "", "---- snapshot error ----");
             eprintln_indented(4, "", &error.to_string());
+            eprintln!();
         } else {
             // Test compiled output against rustc
             let temp_dir = assert_fs::TempDir::new().unwrap();
@@ -343,7 +370,10 @@ impl Test {
 
     fn compile_doc(&mut self, core_module: &ddl::core::Module) {
         let mut output = Vec::new();
-        ddl::compile::doc::compile_module(&mut output, core_module).unwrap();
+        ddl::compile::doc::compile_module(&mut output, core_module, &mut |d| {
+            self.found_diagnostics.push(d)
+        })
+        .unwrap();
 
         if let Err(error) = snapshot::compare(&self.snapshot_filename.with_extension("md"), &output)
         {
@@ -353,6 +383,7 @@ impl Test {
             eprintln!();
             eprintln_indented(4, "", "---- snapshot error ----");
             eprintln_indented(4, "", &error.to_string());
+            eprintln!();
         }
     }
 
@@ -381,6 +412,7 @@ impl Test {
 
             eprintln_indented(4, "", "---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
+            eprintln!();
         }
 
         if !self.directives.expected_diagnostics.is_empty() {

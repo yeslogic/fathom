@@ -3,6 +3,26 @@
 The binary data description language can be represented in a small dependently
 typed language. We describe this here.
 
+## Contents
+
+- [Syntax](#syntax)
+    - [Labels](#labels)
+    - [Primitive types](#primitive-types)
+    - [Sorts](#sorts)
+    - [Terms](#terms)
+    - [Values](#values)
+    - [Modules](#modules)
+    - [Contexts](#contexts)
+- [Rules](#rules)
+    - [Operational semantics](#operational-semantics)
+        - [Evaluation](#evaluation)
+        - [Readback](#readback)
+    - [Typing](#typing)
+        - [Checking](#checking)
+        - [Synthesis](#synthesis)
+        - [Structure type fields](#structure-type-fields)
+        - [Modules](#modules)
+
 ## Syntax
 
 ### Labels
@@ -49,12 +69,31 @@ typed language. We describe this here.
 > &emsp;|&ensp;_primitive-type-signed_\
 > &emsp;|&ensp;_primitive-type-float_
 
+### Sorts
+
+> <sub>Grammar:</sub>
+>
+> _sort_ ::=\
+> &emsp;|&ensp;`Kind`\
+> &emsp;|&ensp;`Type`
+
 ### Terms
 
 > <sub>Grammar:</sub>
 >
 > _term_ ::=\
 > &emsp;|&ensp;`item` _name_\
+> &emsp;|&ensp;_term_ `:` _term_\
+> &emsp;|&ensp;_sort_\
+> &emsp;|&ensp;_primitive-type_
+
+### Values
+
+> <sub>Grammar:</sub>
+>
+> _value_ ::=\
+> &emsp;|&ensp;`item` _label_\
+> &emsp;|&ensp;_sort_\
 > &emsp;|&ensp;_primitive-type_
 
 ### Modules
@@ -77,11 +116,6 @@ typed language. We describe this here.
 > _module_ ::=\
 > &emsp;|&ensp;_items_
 
-## Validation
-
-The validation rules are a simpler form of the elaboration rules.
-Here we are only interested in checking the validity of an existing core module.
-
 ### Contexts
 
 Contexts are records that allow us to accumulate contextual information across
@@ -90,44 +124,109 @@ sequences of syntactic elements during validation.
 > <sub>Grammar:</sub>
 >
 > _term-context_ ::=\
-> &emsp;|&ensp;`{` `items` _label_<sup>\*</sup> `}`
+> &emsp;|&ensp;`{` `items` (_label_ : _value_)<sup>\*</sup> `}`
 >
 > _field-context_ ::=\
-> &emsp;|&ensp;`{` `items` _label_<sup>\*</sup>\
+> &emsp;|&ensp;`{` `items` (_label_ : _value_)<sup>\*</sup>\
 > &emsp;&emsp;`,` `fields` _label_<sup>\*</sup>\
 > &emsp;&emsp;`}`
 >
 > _item-context_ ::=\
-> &emsp;|&ensp;`{` `items` _label_<sup>\*</sup> `}`
+> &emsp;|&ensp;`{` `items` (_label_ : _value_)<sup>\*</sup> `}`
 
 _TODO: Well-formedness rules for contexts_
 
-### Types
+## Rules
 
-Validates that a term is a well-formed type.
+### Operational Semantics
+
+#### Evaluation
+
+| eval( _term_ ) | _value_ |
+| - | - |
+| eval( `item` _label_ ) | `item` _label_ <!-- TODO: Lookup entry --> |
+| eval( _term_<sub>0</sub> `:` _term_<sub>1</sub> ) | eval( _term_<sub>0</sub> ) |
+| eval( _sort_ ) | _sort_ |
+| eval( _primitive-type_ ) | _primitive-type_ |
+
+#### Readback
+
+| readback( _value_ ) | _term_ |
+| - | - |
+| readback( `item` _label_ ) | `item` _label_ |
+| readback( _sort_ ) | _sort_ |
+| readback( _primitive-type_ ) | _primitive-type_ |
+
+### Typing
+
+The typing rules are a simpler form of the elaboration rules.
+Here we are only interested in checking the validity of an existing core module.
+
+#### Checking
+
+Checks the type of a term.
 
 > <sub>Judgement form:</sub>
 >
-> _term-context_ ⊢ _term_ type
+> _term-context_ ⊢ _term_ : _value_ check
 
--   Item references are well-formed types if:
-
-    -   _label_ is an element of _term-context_.`items`
+-   ...
 
     > <sub>Inference rule:</sub>
     >
-    > - _label_ ∈ _term-context_.`items`
+    > (if other rules are not applicable)
+    >
+    > - _term-context_ ⊢ _term_ synth ↝ _value_<sub>0</sub>
+    > - readback( _value_<sub>0</sub> ) = readback( _value_<sub>1</sub> )
     > ----------------------------------------------------------------------------------------------
-    > - _term-context_ ⊢ `item` _label_ type
+    > - _term-context_ ⊢ _term_ : _value_<sub>1</sub> check
 
--   All primitive types are well-formed types.
+#### Synthesis
+
+Synthesizes the type of a term.
+
+> <sub>Judgement form:</sub>
+>
+> _term-context_ ⊢ _term_ synth ↝ _value_
+
+-   Item references can be synthesized to _value_ if:
+
+    -   (_label_ `:` _value_) is an element of _term-context_.`items`
+
+    > <sub>Inference rule:</sub>
+    >
+    > - (_label_ `:` _value) ∈ _term-context_.`items`
+    > ----------------------------------------------------------------------------------------------
+    > - _term-context_ ⊢ `item` synth ↝ _value_
+
+-   `Type` synthesizes to `Kind`.
 
     > <sub>Inference rule:</sub>
     >
     > ----------------------------------------------------------------------------------------------
-    > - _term-context_ ⊢ _primitive-type_ type
+    > - _term-context_ ⊢ `Type` synth ↝ `Kind`
 
-### Structure type fields
+-   Annotated terms can be synthesized if:
+
+    - _term_<sub>1</sub> synthesizes to a _sort_
+    - _term_<sub>0</sub> checks against the evaluation result of _term_<sub>1</sub>
+
+    > <sub>Inference rule:</sub>
+    >
+    > - _term-context_ ⊢ _term_<sub>1</sub> synth ↝ _sort_
+    > - eval( _term_<sub>1</sub> ) = _value_
+    > - _term-context_ ⊢ _term_<sub>0</sub> : _value_ check
+    > ----------------------------------------------------------------------------------------------
+    > - _term-context_ ⊢ _term_<sub>0</sub> `:` _term_<sub>1</sub> synth ↝ _value_
+
+-   All primitive types synthesize to `Type`.
+
+    > <sub>Inference rule:</sub>
+    >
+    > ----------------------------------------------------------------------------------------------
+    > - _term-context_ ⊢ _primitive-type_ synth ↝ `Type`
+
+#### Structure type fields
 
 Validates that a sequence of type field declarations is well-formed.
 
@@ -151,13 +250,13 @@ Validates that a sequence of type field declarations is well-formed.
     > <sub>Inference rule:</sub>
     >
     > - _label_ ∉ _field-context_.`fields`
-    > - `{` `items` _item-context_.`items` `}` ⊢ _term_ type
+    > - `{` `items` _item-context_.`items` `}` ⊢ _term_ : `Type` check
     > - _field-context_, `fields` _label_ ⊢ _struct-type-fields_ struct
     > ----------------------------------------------------------------------------------------------
     > - _field-context_  ⊢ (_label_ `:` _term_) _struct-type-fields_ struct
 
 
-### Modules
+#### Modules
 
 Validates that a module a well-formed.
 
@@ -180,9 +279,9 @@ Validates that a module a well-formed.
 
     > <sub>Inference rule:</sub>
     >
-    > - _label_ ∉ _item-context_.`labels`
-    > - ⊢ _term_ type
-    > - _item-context_, `labels` _label_ ⊢ _items_ module
+    > - (_label_ `:` \_) ∉ _item-context_.`items`
+    > - `{` `items` _item-context_.`items` `}` ⊢ _term_ synth ↝ _value_
+    > - _item-context_, `items` (_label_ `:` _value_) ⊢ _items_ module
     > ----------------------------------------------------------------------------------------------
     > - _item-context_ ⊢ (_label_ `=` _term_ `;`) _items_ module
 
@@ -194,8 +293,8 @@ Validates that a module a well-formed.
 
     > <sub>Inference rule:</sub>
     >
-    > - _label_ ∉ _item-context_.`items`
+    > - (_label_ `:` \_) ∉ _item-context_.`items`
     > - `{` `items` _item-context_.`items` `,` `fields` ε `}` ⊢ _struct-type-fields_ struct
-    > - _item-context_, `items` _label_ ⊢ _items_ module
+    > - _item-context_, `items` (_label_ `:` `Type`) ⊢ _items_ module
     > ----------------------------------------------------------------------------------------------
     > - _item-context_ ⊢ (`struct` _label_ `{` _struct-type-fields_ `}`) _items_ module
