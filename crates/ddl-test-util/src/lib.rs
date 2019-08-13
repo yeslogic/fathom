@@ -18,7 +18,8 @@ macro_rules! core_module {
                 const SOURCE: &str = include_str!($path);
                 let file_id = files.add($path.to_string(), SOURCE);
 
-                let lexer = $crate::ddl::lexer::Lexer::new(&files, file_id);
+                let keywords = &$crate::ddl::lexer::CORE_KEYWORDS;
+                let lexer = $crate::ddl::lexer::Lexer::new(&files, file_id, keywords);
                 $crate::ddl::core::Module::parse(file_id, lexer, &mut |_| {}) // FIXME: Log syntax errors?
             };
         }

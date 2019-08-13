@@ -1,13 +1,12 @@
 use codespan::{ByteIndex, FileId, Span};
-use codespan_reporting::diagnostic::{Diagnostic, Severity};
+use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
-use std::collections::HashSet;
 
 use crate::core::{Alias, Item, Label, Module, StructType, Term, TypeField};
 use crate::diagnostics;
 use crate::lexer::Token;
 
-grammar(file_id: FileId, item_names: &mut HashSet<String>, report: &mut dyn FnMut(Diagnostic));
+grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));
 
 extern {
     type Location = ByteIndex;
@@ -17,6 +16,7 @@ extern {
         "identifier" => Token::Identifier(<String>),
         "doc comment" => Token::DocComment(<String>),
 
+        "item" => Token::Item,
         "struct" => Token::Struct,
 
         "{" => Token::OpenBrace,
@@ -41,8 +41,6 @@ Item: Item = {
     <start: @L> <name: "identifier"> "=" <term: Term> ";" <end: @R> => {
         let span = Span::new(start, end);
         let doc = Arc::from(doc);
-
-        item_names.insert(name.clone());
         let name = Label(name);
 
         Item::Alias(Alias { span, doc, name, term })
@@ -56,8 +54,6 @@ Item: Item = {
         let doc = Arc::from(docs);
         let mut fields = fields;
         fields.extend(last);
-
-        item_names.insert(name.clone());
         let name = Label(name);
 
         Item::Struct(StructType { span, doc, name, fields })
@@ -82,38 +78,33 @@ Term: Term = {
 TermAtomic: Term = {
     "(" <term: Term> ")" => term,
     <start: @L> "!" <end: @R> => Term::Error(Span::new(start, end)),
+    <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(Span::new(start, end), Label(name)),
     <start: @L> <name: "identifier"> <end: @R> => {
         let span = Span::new(start, end);
-
-        if item_names.contains(&name) {
-            Term::Item(Span::new(start, end), Label(name))
-        } else {
-            // TODO: Name binding
-            match name.as_ref() {
-                "Type" => Term::Type(span),
-                "U8" => Term::U8(span),
-                "U16Le" => Term::U16Le(span),
-                "U16Be" => Term::U16Be(span),
-                "U32Le" => Term::U32Le(span),
-                "U32Be" => Term::U32Be(span),
-                "U64Le" => Term::U64Le(span),
-                "U64Be" => Term::U64Be(span),
-                "S8" => Term::S8(span),
-                "S16Le" => Term::S16Le(span),
-                "S16Be" => Term::S16Be(span),
-                "S32Le" => Term::S32Le(span),
-                "S32Be" => Term::S32Be(span),
-                "S64Le" => Term::S64Le(span),
-                "S64Be" => Term::S64Be(span),
-                "F32Le" => Term::F32Le(span),
-                "F32Be" => Term::F32Be(span),
-                "F64Le" => Term::F64Le(span),
-                "F64Be" => Term::F64Be(span),
-                _ => {
-                    report(diagnostics::var_name_not_found(Severity::Error, file_id, &name, span));
-                    Term::Error(span)
-                },
-            }
+        match name.as_ref() {
+            "Type" => Term::Type(span),
+            "U8" => Term::U8(span),
+            "U16Le" => Term::U16Le(span),
+            "U16Be" => Term::U16Be(span),
+            "U32Le" => Term::U32Le(span),
+            "U32Be" => Term::U32Be(span),
+            "U64Le" => Term::U64Le(span),
+            "U64Be" => Term::U64Be(span),
+            "S8" => Term::S8(span),
+            "S16Le" => Term::S16Le(span),
+            "S16Be" => Term::S16Be(span),
+            "S32Le" => Term::S32Le(span),
+            "S32Be" => Term::S32Be(span),
+            "S64Le" => Term::S64Le(span),
+            "S64Be" => Term::S64Be(span),
+            "F32Le" => Term::F32Le(span),
+            "F32Be" => Term::F32Be(span),
+            "F64Le" => Term::F64Le(span),
+            "F64Be" => Term::F64Be(span),
+            _ => {
+                report(diagnostics::bug::unknown_global(file_id, &name, span));
+                Term::Error(span)
+            },
         }
     },
 };

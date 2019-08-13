@@ -17,6 +17,8 @@ codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "0a
 ddl-rt = { version = "0.1.0", path="../ddl-rt" }
 itertools = "0.8"
 lalrpop-util = "0.17"
+lazy_static = "1.3"
+maplit = "1"
 num-bigint = "0.2"
 pretty = "0.5"
 

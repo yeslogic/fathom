@@ -1,6 +1,21 @@
 use codespan::{ByteIndex, ByteOffset, FileId, Files, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
+use maplit::hashmap;
+use std::collections::HashMap;
 use std::fmt;
+
+type Keywords = HashMap<String, Token>;
+
+lazy_static::lazy_static! {
+    pub static ref CONCRETE_KEYWORDS: Keywords = hashmap! {
+        "struct".to_owned() => Token::Struct,
+    };
+
+    pub static ref CORE_KEYWORDS: Keywords = hashmap! {
+        "item".to_owned() => Token::Item,
+        "struct".to_owned() => Token::Struct,
+    };
+}
 
 /// Tokens that will be produces during lexing.
 #[derive(Debug, Clone)]
@@ -10,7 +25,9 @@ pub enum Token {
     /// Doc comments,
     DocComment(String),
 
-    /// `struct`
+    /// Keyword `item`
+    Item,
+    /// Keyword `struct`
     Struct,
 
     /// Open curly brace: `{`
@@ -40,6 +57,7 @@ impl<'a> fmt::Display for Token {
             Token::Identifier(name) => write!(f, "{}", name),
             Token::DocComment(name) => write!(f, "///{}", name),
 
+            Token::Item => write!(f, "item"),
             Token::Struct => write!(f, "struct"),
 
             Token::OpenBrace => write!(f, "{{"),
@@ -59,8 +77,9 @@ impl<'a> fmt::Display for Token {
 pub type SpannedToken = (ByteIndex, Token, ByteIndex);
 
 /// A lexer for the DDL.
-pub struct Lexer<'input> {
+pub struct Lexer<'input, 'keywords> {
     file_id: FileId,
+    keywords: &'keywords Keywords,
     /// An iterator of unicode characters to consume.
     chars: std::str::Chars<'input>,
     /// One character of lookahead, making this lexer LR(1).
@@ -71,14 +90,19 @@ pub struct Lexer<'input> {
     token_end: ByteIndex,
 }
 
-impl<'input> Lexer<'input> {
+impl<'input, 'keywords> Lexer<'input, 'keywords> {
     /// Create a new lexer with the given file.
-    pub fn new(files: &'input Files, file_id: FileId) -> Lexer<'input> {
+    pub fn new(
+        files: &'input Files,
+        file_id: FileId,
+        keywords: &'keywords Keywords,
+    ) -> Lexer<'input, 'keywords> {
         let mut chars = files.source(file_id).chars();
         let peeked = chars.next();
 
         Lexer {
             file_id,
+            keywords,
             chars,
             peeked,
             token_start: ByteIndex::from(0),
@@ -164,7 +188,7 @@ fn display_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt:
     DisplayExpected(items)
 }
 
-impl<'input> Iterator for Lexer<'input> {
+impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
     type Item = Result<SpannedToken, Diagnostic>;
 
     fn next(&mut self) -> Option<Result<SpannedToken, Diagnostic>> {
@@ -223,10 +247,10 @@ impl<'input> Iterator for Lexer<'input> {
                                 self.advance();
                             }
                             None | Some(_) => {
-                                return Some(Ok(self.emit(match ident.as_str() {
-                                    "struct" => Token::Struct,
-                                    _ => Token::Identifier(ident),
-                                })))
+                                return Some(Ok(self.emit(match self.keywords.get(&ident) {
+                                    Some(token) => token.clone(),
+                                    None => Token::Identifier(ident),
+                                })));
                             }
                         }
                     }

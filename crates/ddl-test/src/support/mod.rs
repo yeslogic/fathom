@@ -124,7 +124,8 @@ impl Test {
     }
 
     fn parse_concrete(&mut self, files: &Files) -> ddl::concrete::Module {
-        let lexer = ddl::lexer::Lexer::new(files, self.input_ddl_file_id);
+        let keywords = &ddl::lexer::CONCRETE_KEYWORDS;
+        let lexer = ddl::lexer::Lexer::new(files, self.input_ddl_file_id, keywords);
         ddl::concrete::Module::parse(self.input_ddl_file_id, lexer, &mut |d| {
             self.found_diagnostics.push(d)
         })
@@ -187,7 +188,8 @@ impl Test {
             pretty_core_module.clone(),
         );
         let parsed_core_module = {
-            let lexer = ddl::lexer::Lexer::new(files, core_file_id);
+            let keywords = &ddl::lexer::CORE_KEYWORDS;
+            let lexer = ddl::lexer::Lexer::new(files, core_file_id, keywords);
             ddl::core::Module::parse(core_file_id, lexer, &mut |d| core_parse_diagnostics.push(d))
         };
         let pretty_parsed_core_module = {

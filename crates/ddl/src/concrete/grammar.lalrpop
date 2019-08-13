@@ -15,6 +15,7 @@ extern {
         "identifier" => Token::Identifier(<String>),
         "doc comment" => Token::DocComment(<String>),
 
+        "item" => Token::Item,
         "struct" => Token::Struct,
 
         "{" => Token::OpenBrace,

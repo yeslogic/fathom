@@ -216,8 +216,7 @@ pub fn synth_term(
         Term::Item(span, label) => match context.items.get(label) {
             Some((_, ty)) => ty.clone(),
             None => {
-                report(diagnostics::var_name_not_found(
-                    Severity::Bug,
+                report(diagnostics::bug::item_name_not_found(
                     context.file_id,
                     &label.0,
                     *span,
