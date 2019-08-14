@@ -3,9 +3,12 @@ use std::sync::Arc;
 
 pub mod emit;
 
-/// Compiled types.
+/// A module of items.
 #[derive(Debug, Clone)]
-pub struct Type(pub Cow<'static, str>);
+pub struct Module {
+    /// The items in this module.
+    pub items: Vec<Item>,
+}
 
 /// Compiled items.
 #[derive(Debug, Clone)]
@@ -38,3 +41,7 @@ pub struct TypeField {
     format_ty: Type,
     host_ty: Type,
 }
+
+/// Compiled types.
+#[derive(Debug, Clone)]
+pub struct Type(pub Cow<'static, str>);

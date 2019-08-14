@@ -4,18 +4,10 @@ use num_bigint::BigInt;
 use std::io;
 use std::io::prelude::*;
 
-use crate::compile::rust::{Item, StructType, Type, TypeAlias, TypeField};
+use crate::compile::rust::{Item, Module, StructType, Type, TypeAlias, TypeField};
 use crate::core;
 
-pub fn emit_module(
-    writer: &mut impl Write,
-    module: &core::Module,
-    report: &mut dyn FnMut(Diagnostic),
-) -> io::Result<()> {
-    let context = ModuleContext {
-        _file_id: module.file_id,
-    };
-
+pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
     let pkg_version = env!("CARGO_PKG_VERSION");
 
@@ -27,9 +19,7 @@ pub fn emit_module(
     writeln!(writer, "// It is not intended for manual editing.")?;
 
     for item in &module.items {
-        if let Some(item) = compile_item(&context, item, report) {
-            emit_item(writer, &item)?;
-        }
+        emit_item(writer, &item)?;
     }
 
     Ok(())
@@ -126,6 +116,18 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
     Ok(())
 }
 
+pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic)) -> Module {
+    let context = ModuleContext {
+        _file_id: module.file_id,
+    };
+
+    Module {
+        items: (module.items.iter())
+            .filter_map(|item| compile_item(&context, item, report))
+            .collect(),
+    }
+}
+
 struct ModuleContext {
     _file_id: FileId,
 }
@@ -148,9 +150,7 @@ fn compile_item<'item>(
         core::Item::Struct(struct_ty) => Some(Item::Struct(StructType {
             doc: struct_ty.doc.clone(),
             name: struct_ty.name.0.clone(),
-            fields: struct_ty
-                .fields
-                .iter()
+            fields: (struct_ty.fields.iter())
                 .map(|field| compile_field_ty(context, field, report))
                 .collect::<Vec<_>>(),
         })),
