@@ -4,6 +4,7 @@ use num_bigint::BigInt;
 use std::io;
 use std::io::prelude::*;
 
+use crate::compile::rust::Type;
 use crate::core;
 
 pub fn emit_module(
@@ -51,7 +52,7 @@ fn emit_alias(
     }
 
     let ty = compile_ty(context, &alias.term, report);
-    writeln!(writer, "pub type {} = {};", alias.name, ty)?;
+    writeln!(writer, "pub type {} = {};", alias.name, ty.0)?;
 
     Ok(())
 }
@@ -78,7 +79,7 @@ fn emit_struct_ty(
             }
 
             let ty = compile_host_ty(context, &field.term, report);
-            write!(writer, "    pub {}: {},", field.name, ty,)?;
+            write!(writer, "    pub {}: {},", field.name, ty.0)?;
             writeln!(writer)?;
         }
         writeln!(writer, "}}")?;
@@ -118,7 +119,7 @@ fn emit_struct_ty(
                 writer,
                 "        let {} = ctxt.read::<{}>()?;",
                 field.name,
-                compile_ty(context, &field.term, report),
+                compile_ty(context, &field.term, report).0,
             )?;
             writeln!(writer)?;
         }
@@ -139,30 +140,30 @@ fn compile_ty<'term>(
     context: &ModuleContext,
     term: &'term core::Term,
     report: &mut dyn FnMut(Diagnostic),
-) -> &'term str {
+) -> Type {
     match term {
-        core::Term::Item(_, label) => &label.0, // TODO: check if in scope, warn if not
+        core::Term::Item(_, label) => Type(label.0.clone().into()), // TODO: check if in scope, warn if not
         core::Term::Ann(term, _) => compile_ty(context, term, report),
-        core::Term::U8(_) => "ddl_rt::U8",
-        core::Term::U16Le(_) => "ddl_rt::U16Le",
-        core::Term::U16Be(_) => "ddl_rt::U16Be",
-        core::Term::U32Le(_) => "ddl_rt::U32Le",
-        core::Term::U32Be(_) => "ddl_rt::U32Be",
-        core::Term::U64Le(_) => "ddl_rt::U64Le",
-        core::Term::U64Be(_) => "ddl_rt::U64Be",
-        core::Term::S8(_) => "ddl_rt::I8",
-        core::Term::S16Le(_) => "ddl_rt::I16Le",
-        core::Term::S16Be(_) => "ddl_rt::I16Be",
-        core::Term::S32Le(_) => "ddl_rt::I32Le",
-        core::Term::S32Be(_) => "ddl_rt::I32Be",
-        core::Term::S64Le(_) => "ddl_rt::I64Le",
-        core::Term::S64Be(_) => "ddl_rt::I64Be",
-        core::Term::F32Le(_) => "ddl_rt::F32Le",
-        core::Term::F32Be(_) => "ddl_rt::F32Be",
-        core::Term::F64Le(_) => "ddl_rt::F64Le",
-        core::Term::F64Be(_) => "ddl_rt::F64Be",
-        core::Term::Kind(_) | core::Term::Type(_) => "ddl_rt::InvalidDataDescription", // TODO: skip
-        core::Term::Error(_) => "ddl_rt::InvalidDataDescription",
+        core::Term::U8(_) => Type("ddl_rt::U8".into()),
+        core::Term::U16Le(_) => Type("ddl_rt::U16Le".into()),
+        core::Term::U16Be(_) => Type("ddl_rt::U16Be".into()),
+        core::Term::U32Le(_) => Type("ddl_rt::U32Le".into()),
+        core::Term::U32Be(_) => Type("ddl_rt::U32Be".into()),
+        core::Term::U64Le(_) => Type("ddl_rt::U64Le".into()),
+        core::Term::U64Be(_) => Type("ddl_rt::U64Be".into()),
+        core::Term::S8(_) => Type("ddl_rt::I8".into()),
+        core::Term::S16Le(_) => Type("ddl_rt::I16Le".into()),
+        core::Term::S16Be(_) => Type("ddl_rt::I16Be".into()),
+        core::Term::S32Le(_) => Type("ddl_rt::I32Le".into()),
+        core::Term::S32Be(_) => Type("ddl_rt::I32Be".into()),
+        core::Term::S64Le(_) => Type("ddl_rt::I64Le".into()),
+        core::Term::S64Be(_) => Type("ddl_rt::I64Be".into()),
+        core::Term::F32Le(_) => Type("ddl_rt::F32Le".into()),
+        core::Term::F32Be(_) => Type("ddl_rt::F32Be".into()),
+        core::Term::F64Le(_) => Type("ddl_rt::F64Le".into()),
+        core::Term::F64Be(_) => Type("ddl_rt::F64Be".into()),
+        core::Term::Kind(_) | core::Term::Type(_) => Type("ddl_rt::InvalidDataDescription".into()), // TODO: skip
+        core::Term::Error(_) => Type("ddl_rt::InvalidDataDescription".into()),
     }
 }
 
@@ -170,46 +171,46 @@ fn compile_host_ty<'term>(
     context: &ModuleContext,
     term: &'term core::Term,
     report: &mut dyn FnMut(Diagnostic),
-) -> &'term str {
+) -> Type {
     match term {
-        core::Term::Item(_, label) => &label.0, // TODO: check if in scope, warn if not
+        core::Term::Item(_, label) => Type(label.0.clone().into()), // TODO: check if in scope, warn if not
         core::Term::Ann(term, _) => compile_host_ty(context, term, report),
-        core::Term::U8(_) => "u8",
-        core::Term::U16Le(_) => "u16",
-        core::Term::U16Be(_) => "u16",
-        core::Term::U32Le(_) => "u32",
-        core::Term::U32Be(_) => "u32",
-        core::Term::U64Le(_) => "u64",
-        core::Term::U64Be(_) => "u64",
-        core::Term::S8(_) => "i8",
-        core::Term::S16Le(_) => "i16",
-        core::Term::S16Be(_) => "i16",
-        core::Term::S32Le(_) => "i32",
-        core::Term::S32Be(_) => "i32",
-        core::Term::S64Le(_) => "i64",
-        core::Term::S64Be(_) => "i64",
-        core::Term::F32Le(_) => "f32",
-        core::Term::F32Be(_) => "f32",
-        core::Term::F64Le(_) => "f64",
-        core::Term::F64Be(_) => "f64",
-        core::Term::Kind(_) | core::Term::Type(_) => "ddl_rt::InvalidDataDescription", // TODO: skip
-        core::Term::Error(_) => "ddl_rt::InvalidDataDescription",
+        core::Term::U8(_) => Type("u8".into()),
+        core::Term::U16Le(_) => Type("u16".into()),
+        core::Term::U16Be(_) => Type("u16".into()),
+        core::Term::U32Le(_) => Type("u32".into()),
+        core::Term::U32Be(_) => Type("u32".into()),
+        core::Term::U64Le(_) => Type("u64".into()),
+        core::Term::U64Be(_) => Type("u64".into()),
+        core::Term::S8(_) => Type("i8".into()),
+        core::Term::S16Le(_) => Type("i16".into()),
+        core::Term::S16Be(_) => Type("i16".into()),
+        core::Term::S32Le(_) => Type("i32".into()),
+        core::Term::S32Be(_) => Type("i32".into()),
+        core::Term::S64Le(_) => Type("i64".into()),
+        core::Term::S64Be(_) => Type("i64".into()),
+        core::Term::F32Le(_) => Type("f32".into()),
+        core::Term::F32Be(_) => Type("f32".into()),
+        core::Term::F64Le(_) => Type("f64".into()),
+        core::Term::F64Be(_) => Type("f64".into()),
+        core::Term::Kind(_) | core::Term::Type(_) => Type("ddl_rt::InvalidDataDescription".into()), // TODO: skip
+        core::Term::Error(_) => Type("ddl_rt::InvalidDataDescription".into()),
     }
 }
 
 #[allow(dead_code)]
-fn host_int(min: &BigInt, max: &BigInt) -> Option<&'static str> {
+fn host_int(min: &BigInt, max: &BigInt) -> Option<Type> {
     use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
     match () {
-        () if *min >= u8::MIN.into() && *max <= u8::MAX.into() => Some("u8"),
-        () if *min >= u16::MIN.into() && *max <= u16::MAX.into() => Some("u16"),
-        () if *min >= u32::MIN.into() && *max <= u32::MAX.into() => Some("u32"),
-        () if *min >= u64::MIN.into() && *max <= u64::MAX.into() => Some("u64"),
-        () if *min >= i8::MIN.into() && *max <= i8::MAX.into() => Some("i8"),
-        () if *min >= i16::MIN.into() && *max <= i16::MAX.into() => Some("i16"),
-        () if *min >= i32::MIN.into() && *max <= i32::MAX.into() => Some("i32"),
-        () if *min >= i64::MIN.into() && *max <= i64::MAX.into() => Some("i64"),
+        () if *min >= u8::MIN.into() && *max <= u8::MAX.into() => Some(Type("u8".into())),
+        () if *min >= u16::MIN.into() && *max <= u16::MAX.into() => Some(Type("u16".into())),
+        () if *min >= u32::MIN.into() && *max <= u32::MAX.into() => Some(Type("u32".into())),
+        () if *min >= u64::MIN.into() && *max <= u64::MAX.into() => Some(Type("u64".into())),
+        () if *min >= i8::MIN.into() && *max <= i8::MAX.into() => Some(Type("i8".into())),
+        () if *min >= i16::MIN.into() && *max <= i16::MAX.into() => Some(Type("i16".into())),
+        () if *min >= i32::MIN.into() && *max <= i32::MAX.into() => Some(Type("i32".into())),
+        () if *min >= i64::MIN.into() && *max <= i64::MAX.into() => Some(Type("i64".into())),
         () if min > max => None, // Impossible range
         _ => None,               // TODO: use bigint if outside bounds
     }
