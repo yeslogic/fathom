@@ -4,7 +4,7 @@ use num_bigint::BigInt;
 use std::io;
 use std::io::prelude::*;
 
-use crate::compile::rust::Type;
+use crate::compile::rust::{Type, TypeField};
 use crate::core;
 
 pub fn emit_module(
@@ -27,7 +27,6 @@ pub fn emit_module(
     writeln!(writer, "// It is not intended for manual editing.")?;
 
     for item in &module.items {
-        writeln!(writer)?;
         match item {
             core::Item::Alias(alias) => emit_alias(&context, writer, alias, report)?,
             core::Item::Struct(struct_ty) => emit_struct_ty(&context, writer, struct_ty, report)?,
@@ -47,12 +46,15 @@ fn emit_alias(
     alias: &core::Alias,
     report: &mut dyn FnMut(Diagnostic),
 ) -> io::Result<()> {
-    for doc_line in alias.doc.iter() {
-        writeln!(writer, "///{}", doc_line)?;
-    }
+    if let Some(ty) = compile_term_as_format_ty(context, &alias.term, report) {
+        writeln!(writer)?;
 
-    let ty = compile_term_as_format_ty(context, &alias.term, report);
-    writeln!(writer, "pub type {} = {};", alias.name, ty.0)?;
+        for doc_line in alias.doc.iter() {
+            writeln!(writer, "///{}", doc_line)?;
+        }
+
+        writeln!(writer, "pub type {} = {};", alias.name, ty.0)?;
+    }
 
     Ok(())
 }
@@ -63,23 +65,28 @@ fn emit_struct_ty(
     struct_ty: &core::StructType,
     report: &mut dyn FnMut(Diagnostic),
 ) -> io::Result<()> {
-    // Struct definition
+    writeln!(writer)?;
 
     for doc_line in struct_ty.doc.iter() {
         writeln!(writer, "///{}", doc_line)?;
     }
 
-    if struct_ty.fields.is_empty() {
+    let fields = struct_ty
+        .fields
+        .iter()
+        .map(|field| compile_field_ty(context, field, report))
+        .collect::<Vec<_>>();
+
+    if fields.is_empty() {
         writeln!(writer, "pub struct {} {{}}", struct_ty.name)?;
     } else {
         writeln!(writer, "pub struct {} {{", struct_ty.name)?;
-        for field in &struct_ty.fields {
+        for field in &fields {
             for doc_line in field.doc.iter() {
                 writeln!(writer, "    ///{}", doc_line)?;
             }
 
-            let ty = compile_term_as_host_ty(context, &field.term, report);
-            write!(writer, "    pub {}: {},", field.name, ty.0)?;
+            write!(writer, "    pub {}: {},", field.name, field.host_ty.0)?;
             writeln!(writer)?;
         }
         writeln!(writer, "}}")?;
@@ -100,7 +107,7 @@ fn emit_struct_ty(
         "impl<'data> ddl_rt::ReadBinary<'data> for {} {{",
         struct_ty.name,
     )?;
-    if struct_ty.fields.is_empty() {
+    if fields.is_empty() {
         writeln!(
             writer,
             "    fn read(_: &mut ddl_rt::ReadCtxt<'data>) -> Result<{}, ddl_rt::ReadError> {{",
@@ -114,18 +121,17 @@ fn emit_struct_ty(
             "    fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<{}, ddl_rt::ReadError> {{",
             struct_ty.name,
         )?;
-        for field in &struct_ty.fields {
+        for field in &fields {
             write!(
                 writer,
                 "        let {} = ctxt.read::<{}>()?;",
-                field.name,
-                compile_term_as_format_ty(context, &field.term, report).0,
+                field.name, field.format_ty.0,
             )?;
             writeln!(writer)?;
         }
         writeln!(writer)?;
         writeln!(writer, "        Ok({} {{", struct_ty.name)?;
-        for field in &struct_ty.fields {
+        for field in &fields {
             writeln!(writer, "            {},", field.name)?;
         }
         writeln!(writer, "        }})")?;
@@ -136,34 +142,49 @@ fn emit_struct_ty(
     Ok(())
 }
 
+fn compile_field_ty<'field>(
+    context: &ModuleContext,
+    field: &'field core::TypeField,
+    report: &mut dyn FnMut(Diagnostic),
+) -> TypeField {
+    TypeField {
+        doc: field.doc.clone(),
+        name: field.name.0.clone(),
+        format_ty: compile_term_as_format_ty(context, &field.term, report)
+            .unwrap_or_else(|| Type("ddl_rt::InvalidDataDescription".into())),
+        host_ty: compile_term_as_host_ty(context, &field.term, report)
+            .unwrap_or_else(|| Type("ddl_rt::InvalidDataDescription".into())),
+    }
+}
+
 fn compile_term_as_format_ty<'term>(
     context: &ModuleContext,
     term: &'term core::Term,
     report: &mut dyn FnMut(Diagnostic),
-) -> Type {
+) -> Option<Type> {
     match term {
-        core::Term::Item(_, label) => Type(label.0.clone().into()), // TODO: check if in scope, warn if not
+        core::Term::Item(_, label) => Some(Type(label.0.clone().into())), // TODO: check if in scope, and if format type, warn if not
         core::Term::Ann(term, _) => compile_term_as_format_ty(context, term, report),
-        core::Term::U8(_) => Type("ddl_rt::U8".into()),
-        core::Term::U16Le(_) => Type("ddl_rt::U16Le".into()),
-        core::Term::U16Be(_) => Type("ddl_rt::U16Be".into()),
-        core::Term::U32Le(_) => Type("ddl_rt::U32Le".into()),
-        core::Term::U32Be(_) => Type("ddl_rt::U32Be".into()),
-        core::Term::U64Le(_) => Type("ddl_rt::U64Le".into()),
-        core::Term::U64Be(_) => Type("ddl_rt::U64Be".into()),
-        core::Term::S8(_) => Type("ddl_rt::I8".into()),
-        core::Term::S16Le(_) => Type("ddl_rt::I16Le".into()),
-        core::Term::S16Be(_) => Type("ddl_rt::I16Be".into()),
-        core::Term::S32Le(_) => Type("ddl_rt::I32Le".into()),
-        core::Term::S32Be(_) => Type("ddl_rt::I32Be".into()),
-        core::Term::S64Le(_) => Type("ddl_rt::I64Le".into()),
-        core::Term::S64Be(_) => Type("ddl_rt::I64Be".into()),
-        core::Term::F32Le(_) => Type("ddl_rt::F32Le".into()),
-        core::Term::F32Be(_) => Type("ddl_rt::F32Be".into()),
-        core::Term::F64Le(_) => Type("ddl_rt::F64Le".into()),
-        core::Term::F64Be(_) => Type("ddl_rt::F64Be".into()),
-        core::Term::Kind(_) | core::Term::Type(_) => Type("ddl_rt::InvalidDataDescription".into()), // TODO: skip
-        core::Term::Error(_) => Type("ddl_rt::InvalidDataDescription".into()),
+        core::Term::U8(_) => Some(Type("ddl_rt::U8".into())),
+        core::Term::U16Le(_) => Some(Type("ddl_rt::U16Le".into())),
+        core::Term::U16Be(_) => Some(Type("ddl_rt::U16Be".into())),
+        core::Term::U32Le(_) => Some(Type("ddl_rt::U32Le".into())),
+        core::Term::U32Be(_) => Some(Type("ddl_rt::U32Be".into())),
+        core::Term::U64Le(_) => Some(Type("ddl_rt::U64Le".into())),
+        core::Term::U64Be(_) => Some(Type("ddl_rt::U64Be".into())),
+        core::Term::S8(_) => Some(Type("ddl_rt::I8".into())),
+        core::Term::S16Le(_) => Some(Type("ddl_rt::I16Le".into())),
+        core::Term::S16Be(_) => Some(Type("ddl_rt::I16Be".into())),
+        core::Term::S32Le(_) => Some(Type("ddl_rt::I32Le".into())),
+        core::Term::S32Be(_) => Some(Type("ddl_rt::I32Be".into())),
+        core::Term::S64Le(_) => Some(Type("ddl_rt::I64Le".into())),
+        core::Term::S64Be(_) => Some(Type("ddl_rt::I64Be".into())),
+        core::Term::F32Le(_) => Some(Type("ddl_rt::F32Le".into())),
+        core::Term::F32Be(_) => Some(Type("ddl_rt::F32Be".into())),
+        core::Term::F64Le(_) => Some(Type("ddl_rt::F64Le".into())),
+        core::Term::F64Be(_) => Some(Type("ddl_rt::F64Be".into())),
+        core::Term::Kind(_) | core::Term::Type(_) => None, // TODO: skip
+        core::Term::Error(_) => Some(Type("ddl_rt::InvalidDataDescription".into())),
     }
 }
 
@@ -171,30 +192,30 @@ fn compile_term_as_host_ty<'term>(
     context: &ModuleContext,
     term: &'term core::Term,
     report: &mut dyn FnMut(Diagnostic),
-) -> Type {
+) -> Option<Type> {
     match term {
-        core::Term::Item(_, label) => Type(label.0.clone().into()), // TODO: check if in scope, warn if not
+        core::Term::Item(_, label) => Some(Type(label.0.clone().into())), // TODO: check if in scope, and if host type, warn if not
         core::Term::Ann(term, _) => compile_term_as_host_ty(context, term, report),
-        core::Term::U8(_) => Type("u8".into()),
-        core::Term::U16Le(_) => Type("u16".into()),
-        core::Term::U16Be(_) => Type("u16".into()),
-        core::Term::U32Le(_) => Type("u32".into()),
-        core::Term::U32Be(_) => Type("u32".into()),
-        core::Term::U64Le(_) => Type("u64".into()),
-        core::Term::U64Be(_) => Type("u64".into()),
-        core::Term::S8(_) => Type("i8".into()),
-        core::Term::S16Le(_) => Type("i16".into()),
-        core::Term::S16Be(_) => Type("i16".into()),
-        core::Term::S32Le(_) => Type("i32".into()),
-        core::Term::S32Be(_) => Type("i32".into()),
-        core::Term::S64Le(_) => Type("i64".into()),
-        core::Term::S64Be(_) => Type("i64".into()),
-        core::Term::F32Le(_) => Type("f32".into()),
-        core::Term::F32Be(_) => Type("f32".into()),
-        core::Term::F64Le(_) => Type("f64".into()),
-        core::Term::F64Be(_) => Type("f64".into()),
-        core::Term::Kind(_) | core::Term::Type(_) => Type("ddl_rt::InvalidDataDescription".into()), // TODO: skip
-        core::Term::Error(_) => Type("ddl_rt::InvalidDataDescription".into()),
+        core::Term::U8(_) => Some(Type("u8".into())),
+        core::Term::U16Le(_) => Some(Type("u16".into())),
+        core::Term::U16Be(_) => Some(Type("u16".into())),
+        core::Term::U32Le(_) => Some(Type("u32".into())),
+        core::Term::U32Be(_) => Some(Type("u32".into())),
+        core::Term::U64Le(_) => Some(Type("u64".into())),
+        core::Term::U64Be(_) => Some(Type("u64".into())),
+        core::Term::S8(_) => Some(Type("i8".into())),
+        core::Term::S16Le(_) => Some(Type("i16".into())),
+        core::Term::S16Be(_) => Some(Type("i16".into())),
+        core::Term::S32Le(_) => Some(Type("i32".into())),
+        core::Term::S32Be(_) => Some(Type("i32".into())),
+        core::Term::S64Le(_) => Some(Type("i64".into())),
+        core::Term::S64Be(_) => Some(Type("i64".into())),
+        core::Term::F32Le(_) => Some(Type("f32".into())),
+        core::Term::F32Be(_) => Some(Type("f32".into())),
+        core::Term::F64Le(_) => Some(Type("f64".into())),
+        core::Term::F64Be(_) => Some(Type("f64".into())),
+        core::Term::Kind(_) | core::Term::Type(_) => None,
+        core::Term::Error(_) => Some(Type("ddl_rt::InvalidDataDescription".into())),
     }
 }
 
