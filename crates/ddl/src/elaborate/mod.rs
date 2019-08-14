@@ -332,8 +332,7 @@ pub fn synth_term(
                 "F64Le" => (core::Term::F64Le(name.span()), core::Value::Type),
                 "F64Be" => (core::Term::F64Be(name.span()), core::Value::Type),
                 _ => {
-                    report(diagnostics::var_name_not_found(
-                        Severity::Error,
+                    report(diagnostics::error::var_name_not_found(
                         context.file_id,
                         name.as_str(),
                         name.span(),

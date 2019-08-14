@@ -58,11 +58,8 @@ impl Module {
         tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic>>,
         report: &mut dyn FnMut(Diagnostic),
     ) -> Module {
-        use std::collections::HashSet;
-
-        let mut item_names = HashSet::new();
         grammar::ModuleParser::new()
-            .parse(file_id, &mut item_names, report, tokens)
+            .parse(file_id, report, tokens)
             .unwrap_or_else(|error| {
                 report(diagnostics::error::parse(file_id, error));
                 Module {
@@ -396,7 +393,10 @@ impl Term {
         };
 
         match self {
-            Term::Item(_, label) => alloc.as_string(label),
+            Term::Item(_, label) => (alloc.nil())
+                .append("item")
+                .append(alloc.space())
+                .append(alloc.as_string(label)),
             Term::Ann(term, ty) => show_paren(
                 prec > 0,
                 (alloc.nil())

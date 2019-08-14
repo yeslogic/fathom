@@ -3,6 +3,6 @@ struct Pair {
     second : U8,
 }
 struct PairPair {
-    first : Pair,
-    second : Pair,
+    first : item Pair,
+    second : item Pair,
 }

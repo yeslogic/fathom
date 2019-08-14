@@ -46,23 +46,6 @@ pub fn item_redefinition(
     }
 }
 
-pub fn var_name_not_found(
-    severity: Severity,
-    file_id: FileId,
-    name: &str,
-    span: Span,
-) -> Diagnostic {
-    Diagnostic {
-        severity,
-        code: None,
-        message: format!("cannot find `{}` in this scope", name),
-        primary_label: Label::new(file_id, span, "not found in this scope"),
-        secondary_labels: vec![],
-        // TODO: provide suggestions
-        notes: vec![],
-    }
-}
-
 pub fn type_mismatch(
     severity: Severity,
     file_id: FileId,
@@ -205,5 +188,45 @@ pub mod error {
         }
 
         DisplayExpected(items)
+    }
+
+    pub fn var_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: format!("cannot find `{}` in this scope", name),
+            primary_label: Label::new(file_id, span, "not found in this scope"),
+            secondary_labels: vec![],
+            // TODO: provide suggestions
+            notes: vec![],
+        }
+    }
+}
+
+pub mod bug {
+    pub use super::*;
+
+    pub fn item_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Bug,
+            code: None,
+            message: format!("cannot find item `{}` in this scope", name),
+            primary_label: Label::new(file_id, span, "item not found in this scope"),
+            secondary_labels: vec![],
+            // TODO: provide suggestions
+            notes: vec![],
+        }
+    }
+
+    pub fn unknown_global(file_id: FileId, name: &str, span: Span) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Bug,
+            code: None,
+            message: format!("unknown global `{}`", name),
+            primary_label: Label::new(file_id, span, "unknown global"),
+            secondary_labels: vec![],
+            // TODO: provide suggestions
+            notes: vec![],
+        }
     }
 }
