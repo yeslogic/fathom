@@ -233,7 +233,7 @@ impl Test {
 
     fn compile_rust(&mut self, core_module: &ddl::core::Module) {
         let mut output = Vec::new();
-        ddl::compile::rust::compile_module(&mut output, core_module, &mut |d| {
+        ddl::compile::rust::emit::emit_module(&mut output, core_module, &mut |d| {
             self.found_diagnostics.push(d)
         })
         .unwrap();

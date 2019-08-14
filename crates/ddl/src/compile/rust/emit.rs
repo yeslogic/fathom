@@ -6,7 +6,7 @@ use std::io::prelude::*;
 
 use crate::core;
 
-pub fn compile_module(
+pub fn emit_module(
     writer: &mut impl Write,
     module: &core::Module,
     report: &mut dyn FnMut(Diagnostic),
@@ -28,10 +28,8 @@ pub fn compile_module(
     for item in &module.items {
         writeln!(writer)?;
         match item {
-            core::Item::Alias(alias) => compile_alias(&context, writer, alias, report)?,
-            core::Item::Struct(struct_ty) => {
-                compile_struct_ty(&context, writer, struct_ty, report)?
-            }
+            core::Item::Alias(alias) => emit_alias(&context, writer, alias, report)?,
+            core::Item::Struct(struct_ty) => emit_struct_ty(&context, writer, struct_ty, report)?,
         }
     }
 
@@ -42,7 +40,7 @@ struct ModuleContext {
     _file_id: FileId,
 }
 
-fn compile_alias(
+fn emit_alias(
     context: &ModuleContext,
     writer: &mut impl Write,
     alias: &core::Alias,
@@ -58,7 +56,7 @@ fn compile_alias(
     Ok(())
 }
 
-fn compile_struct_ty(
+fn emit_struct_ty(
     context: &ModuleContext,
     writer: &mut impl Write,
     struct_ty: &core::StructType,
