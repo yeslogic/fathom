@@ -45,4 +45,6 @@ pub struct TypeField {
 
 /// Compiled types.
 #[derive(Debug, Clone)]
-pub struct Type(pub Cow<'static, str>);
+pub enum Type {
+    Ident(Cow<'static, str>),
+}

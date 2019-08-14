@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::compile::rust::{Item, Module, StructType, TypeAlias};
+use crate::compile::rust::{Item, Module, StructType, Type, TypeAlias};
 
 pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
@@ -35,7 +35,9 @@ fn emit_ty_alias(writer: &mut impl Write, ty_alias: &TypeAlias) -> io::Result<()
         writeln!(writer, "///{}", doc_line)?;
     }
 
-    writeln!(writer, "pub type {} = {};", ty_alias.name, ty_alias.ty.0)?;
+    write!(writer, "pub type {} = ", ty_alias.name)?;
+    emit_ty(writer, &ty_alias.ty)?;
+    writeln!(writer, ";")?;
 
     Ok(())
 }
@@ -56,7 +58,9 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
                 writeln!(writer, "    ///{}", doc_line)?;
             }
 
-            write!(writer, "    pub {}: {},", field.name, field.host_ty.0)?;
+            write!(writer, "    pub {}: ", field.name)?;
+            emit_ty(writer, &field.host_ty)?;
+            write!(writer, ",")?;
             writeln!(writer)?;
         }
         writeln!(writer, "}}")?;
@@ -92,11 +96,9 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
             struct_ty.name,
         )?;
         for field in &struct_ty.fields {
-            write!(
-                writer,
-                "        let {} = ctxt.read::<{}>()?;",
-                field.name, field.format_ty.0,
-            )?;
+            write!(writer, "        let {} = ctxt.read::<", field.name)?;
+            emit_ty(writer, &field.format_ty)?;
+            write!(writer, ">()?;")?;
             writeln!(writer)?;
         }
         writeln!(writer)?;
@@ -110,4 +112,10 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
     writeln!(writer, "}}")?;
 
     Ok(())
+}
+
+fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
+    match ty {
+        Type::Ident(name) => write!(writer, "{}", name),
+    }
 }
