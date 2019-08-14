@@ -4,7 +4,7 @@ use num_bigint::BigInt;
 use std::io;
 use std::io::prelude::*;
 
-use crate::compile::rust::{Type, TypeField};
+use crate::compile::rust::{Item, StructType, Type, TypeAlias, TypeField};
 use crate::core;
 
 pub fn emit_module(
@@ -27,61 +27,45 @@ pub fn emit_module(
     writeln!(writer, "// It is not intended for manual editing.")?;
 
     for item in &module.items {
-        match item {
-            core::Item::Alias(alias) => emit_alias(&context, writer, alias, report)?,
-            core::Item::Struct(struct_ty) => emit_struct_ty(&context, writer, struct_ty, report)?,
+        if let Some(item) = compile_item(&context, item, report) {
+            emit_item(writer, &item)?;
         }
     }
 
     Ok(())
 }
 
-struct ModuleContext {
-    _file_id: FileId,
+fn emit_item(writer: &mut impl Write, item: &Item) -> io::Result<()> {
+    match item {
+        Item::TypeAlias(ty_alias) => emit_ty_alias(writer, ty_alias),
+        Item::Struct(struct_ty) => emit_struct_ty(writer, struct_ty),
+    }
 }
 
-fn emit_alias(
-    context: &ModuleContext,
-    writer: &mut impl Write,
-    alias: &core::Alias,
-    report: &mut dyn FnMut(Diagnostic),
-) -> io::Result<()> {
-    if let Some(ty) = compile_term_as_format_ty(context, &alias.term, report) {
-        writeln!(writer)?;
+fn emit_ty_alias(writer: &mut impl Write, ty_alias: &TypeAlias) -> io::Result<()> {
+    writeln!(writer)?;
 
-        for doc_line in alias.doc.iter() {
-            writeln!(writer, "///{}", doc_line)?;
-        }
-
-        writeln!(writer, "pub type {} = {};", alias.name, ty.0)?;
+    for doc_line in ty_alias.doc.iter() {
+        writeln!(writer, "///{}", doc_line)?;
     }
+
+    writeln!(writer, "pub type {} = {};", ty_alias.name, ty_alias.ty.0)?;
 
     Ok(())
 }
 
-fn emit_struct_ty(
-    context: &ModuleContext,
-    writer: &mut impl Write,
-    struct_ty: &core::StructType,
-    report: &mut dyn FnMut(Diagnostic),
-) -> io::Result<()> {
+fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result<()> {
     writeln!(writer)?;
 
     for doc_line in struct_ty.doc.iter() {
         writeln!(writer, "///{}", doc_line)?;
     }
 
-    let fields = struct_ty
-        .fields
-        .iter()
-        .map(|field| compile_field_ty(context, field, report))
-        .collect::<Vec<_>>();
-
-    if fields.is_empty() {
+    if struct_ty.fields.is_empty() {
         writeln!(writer, "pub struct {} {{}}", struct_ty.name)?;
     } else {
         writeln!(writer, "pub struct {} {{", struct_ty.name)?;
-        for field in &fields {
+        for field in &struct_ty.fields {
             for doc_line in field.doc.iter() {
                 writeln!(writer, "    ///{}", doc_line)?;
             }
@@ -107,7 +91,7 @@ fn emit_struct_ty(
         "impl<'data> ddl_rt::ReadBinary<'data> for {} {{",
         struct_ty.name,
     )?;
-    if fields.is_empty() {
+    if struct_ty.fields.is_empty() {
         writeln!(
             writer,
             "    fn read(_: &mut ddl_rt::ReadCtxt<'data>) -> Result<{}, ddl_rt::ReadError> {{",
@@ -121,7 +105,7 @@ fn emit_struct_ty(
             "    fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<{}, ddl_rt::ReadError> {{",
             struct_ty.name,
         )?;
-        for field in &fields {
+        for field in &struct_ty.fields {
             write!(
                 writer,
                 "        let {} = ctxt.read::<{}>()?;",
@@ -131,7 +115,7 @@ fn emit_struct_ty(
         }
         writeln!(writer)?;
         writeln!(writer, "        Ok({} {{", struct_ty.name)?;
-        for field in &fields {
+        for field in &struct_ty.fields {
             writeln!(writer, "            {},", field.name)?;
         }
         writeln!(writer, "        }})")?;
@@ -140,6 +124,37 @@ fn emit_struct_ty(
     writeln!(writer, "}}")?;
 
     Ok(())
+}
+
+struct ModuleContext {
+    _file_id: FileId,
+}
+
+fn compile_item<'item>(
+    context: &ModuleContext,
+    item: &'item core::Item,
+    report: &mut dyn FnMut(Diagnostic),
+) -> Option<Item> {
+    match item {
+        core::Item::Alias(alias) => {
+            compile_term_as_format_ty(context, &alias.term, report).map(|ty| {
+                Item::TypeAlias(TypeAlias {
+                    doc: alias.doc.clone(),
+                    name: alias.name.0.clone(),
+                    ty,
+                })
+            })
+        }
+        core::Item::Struct(struct_ty) => Some(Item::Struct(StructType {
+            doc: struct_ty.doc.clone(),
+            name: struct_ty.name.0.clone(),
+            fields: struct_ty
+                .fields
+                .iter()
+                .map(|field| compile_field_ty(context, field, report))
+                .collect::<Vec<_>>(),
+        })),
+    }
 }
 
 fn compile_field_ty<'field>(
