@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+pub mod compile;
 pub mod emit;
 
 /// A module of items.
