@@ -51,7 +51,7 @@ fn emit_alias(
         writeln!(writer, "///{}", doc_line)?;
     }
 
-    let ty = compile_ty(context, &alias.term, report);
+    let ty = compile_term_as_format_ty(context, &alias.term, report);
     writeln!(writer, "pub type {} = {};", alias.name, ty.0)?;
 
     Ok(())
@@ -78,7 +78,7 @@ fn emit_struct_ty(
                 writeln!(writer, "    ///{}", doc_line)?;
             }
 
-            let ty = compile_host_ty(context, &field.term, report);
+            let ty = compile_term_as_host_ty(context, &field.term, report);
             write!(writer, "    pub {}: {},", field.name, ty.0)?;
             writeln!(writer)?;
         }
@@ -119,7 +119,7 @@ fn emit_struct_ty(
                 writer,
                 "        let {} = ctxt.read::<{}>()?;",
                 field.name,
-                compile_ty(context, &field.term, report).0,
+                compile_term_as_format_ty(context, &field.term, report).0,
             )?;
             writeln!(writer)?;
         }
@@ -136,14 +136,14 @@ fn emit_struct_ty(
     Ok(())
 }
 
-fn compile_ty<'term>(
+fn compile_term_as_format_ty<'term>(
     context: &ModuleContext,
     term: &'term core::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> Type {
     match term {
         core::Term::Item(_, label) => Type(label.0.clone().into()), // TODO: check if in scope, warn if not
-        core::Term::Ann(term, _) => compile_ty(context, term, report),
+        core::Term::Ann(term, _) => compile_term_as_format_ty(context, term, report),
         core::Term::U8(_) => Type("ddl_rt::U8".into()),
         core::Term::U16Le(_) => Type("ddl_rt::U16Le".into()),
         core::Term::U16Be(_) => Type("ddl_rt::U16Be".into()),
@@ -167,14 +167,14 @@ fn compile_ty<'term>(
     }
 }
 
-fn compile_host_ty<'term>(
+fn compile_term_as_host_ty<'term>(
     context: &ModuleContext,
     term: &'term core::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> Type {
     match term {
         core::Term::Item(_, label) => Type(label.0.clone().into()), // TODO: check if in scope, warn if not
-        core::Term::Ann(term, _) => compile_host_ty(context, term, report),
+        core::Term::Ann(term, _) => compile_term_as_host_ty(context, term, report),
         core::Term::U8(_) => Type("u8".into()),
         core::Term::U16Le(_) => Type("u16".into()),
         core::Term::U16Be(_) => Type("u16".into()),
