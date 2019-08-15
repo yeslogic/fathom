@@ -1,48 +1,71 @@
 use codespan::FileId;
 use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
+use std::collections::HashMap;
 
 use crate::compile::rust::{Item, Module, StructType, Type, TypeAlias, TypeField};
 use crate::core;
 
 pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic)) -> Module {
-    let context = ModuleContext {
+    let mut context = ModuleContext {
         _file_id: module.file_id,
+        items: HashMap::default(),
     };
 
     Module {
         items: (module.items.iter())
-            .filter_map(|item| compile_item(&context, item, report))
+            .filter_map(|item| {
+                let (name, universe, item) = compile_item(&context, item, report);
+                context.items.insert(name, universe); // Check overwriting?
+                item
+            })
             .collect(),
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+enum Universe {
+    Kind,
+    Format,
+}
+
 struct ModuleContext {
     _file_id: FileId,
+    items: HashMap<String, Universe>,
 }
 
 fn compile_item<'item>(
     context: &ModuleContext,
     item: &'item core::Item,
     report: &mut dyn FnMut(Diagnostic),
-) -> Option<Item> {
+) -> (String, Universe, Option<Item>) {
     match item {
         core::Item::Alias(alias) => {
-            compile_term_as_format_ty(context, &alias.term, report).map(|ty| {
-                Item::TypeAlias(TypeAlias {
-                    doc: alias.doc.clone(),
-                    name: alias.name.0.clone(),
-                    ty,
-                })
-            })
+            let (universe, item) = match compile_term_as_format_ty(context, &alias.term, report) {
+                None => (Universe::Kind, None),
+                Some(ty) => (
+                    Universe::Format,
+                    Some(Item::TypeAlias(TypeAlias {
+                        doc: alias.doc.clone(),
+                        name: alias.name.0.clone(),
+                        ty,
+                    })),
+                ),
+            };
+
+            (alias.name.0.clone(), universe, item)
         }
-        core::Item::Struct(struct_ty) => Some(Item::Struct(StructType {
-            doc: struct_ty.doc.clone(),
-            name: struct_ty.name.0.clone(),
-            fields: (struct_ty.fields.iter())
-                .map(|field| compile_field_ty(context, field, report))
-                .collect::<Vec<_>>(),
-        })),
+        core::Item::Struct(struct_ty) => (
+            struct_ty.name.0.clone(),
+            Universe::Format,
+            Some(Item::Struct(StructType {
+                doc: struct_ty.doc.clone(),
+                name: struct_ty.name.0.clone(),
+                fields: (struct_ty.fields.iter())
+                    .map(|field| compile_field_ty(context, field, report))
+                    .collect::<Vec<_>>(),
+            })),
+        ),
     }
 }
 
@@ -67,7 +90,14 @@ fn compile_term_as_format_ty<'term>(
     report: &mut dyn FnMut(Diagnostic),
 ) -> Option<Type> {
     match term {
-        core::Term::Item(_, label) => Some(Type::Ident(label.0.clone().into())), // TODO: check if in scope, and if format type, warn if not
+        core::Term::Item(_, label) => {
+            match context.items.get(&label.0) {
+                Some(Universe::Format) => Some(Type::Ident(label.0.clone().into())),
+                Some(Universe::Kind) => None,
+                // TODO: report a bug!
+                None => Some(Type::Ident("ddl_rt::InvalidDataDescription".into())),
+            }
+        }
         core::Term::Ann(term, _) => compile_term_as_format_ty(context, term, report),
         core::Term::U8(_) => Some(Type::Ident("ddl_rt::U8".into())),
         core::Term::U16Le(_) => Some(Type::Ident("ddl_rt::U16Le".into())),
@@ -87,7 +117,7 @@ fn compile_term_as_format_ty<'term>(
         core::Term::F32Be(_) => Some(Type::Ident("ddl_rt::F32Be".into())),
         core::Term::F64Le(_) => Some(Type::Ident("ddl_rt::F64Le".into())),
         core::Term::F64Be(_) => Some(Type::Ident("ddl_rt::F64Be".into())),
-        core::Term::Kind(_) | core::Term::Type(_) => None, // TODO: skip
+        core::Term::Kind(_) | core::Term::Type(_) => None,
         core::Term::Error(_) => Some(Type::Ident("ddl_rt::InvalidDataDescription".into())),
     }
 }
@@ -98,7 +128,15 @@ fn compile_term_as_host_ty<'term>(
     report: &mut dyn FnMut(Diagnostic),
 ) -> Option<Type> {
     match term {
-        core::Term::Item(_, label) => Some(Type::Ident(label.0.clone().into())), // TODO: check if in scope, and if host type, warn if not
+        core::Term::Item(_, label) => {
+            match context.items.get(&label.0) {
+                // Format types are reused as host types, so this is ok!
+                Some(Universe::Format) => Some(Type::Ident(label.0.clone().into())),
+                Some(Universe::Kind) => None,
+                // TODO: report a bug!
+                None => Some(Type::Ident("ddl_rt::InvalidDataDescription".into())),
+            }
+        }
         core::Term::Ann(term, _) => compile_term_as_host_ty(context, term, report),
         core::Term::U8(_) => Some(Type::Ident("u8".into())),
         core::Term::U16Le(_) => Some(Type::Ident("u16".into())),

@@ -1,0 +1,2 @@
+Foo = Type;
+Bar = Foo;
