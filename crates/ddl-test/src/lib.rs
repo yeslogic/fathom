@@ -32,12 +32,14 @@ mod alias {
 
     test!(fail_ann_mismatch, "alias/fail_ann_mismatch.ddl");
     test!(fail_kind_has_no_type, "alias/fail_kind_has_no_type.ddl");
+    test!(fail_unconstrained_int_type, "alias/fail_unconstrained_int_type.ddl");
 }
 
 #[rustfmt::skip]
 mod r#struct {
     test!(pass_empty, "struct/pass_empty.ddl");
     test!(pass_empty_doc, "struct/pass_empty_doc.ddl");
+    test!(pass_mixed_format_host, "struct/pass_mixed_format_host.ddl");
     test!(pass_pair, "struct/pass_pair.ddl");
     test!(pass_singleton, "struct/pass_singleton.ddl");
     test!(pass_var, "struct/pass_var.ddl");

@@ -3,7 +3,9 @@ struct Pair {
     second: U8,
 }
 
+MyPair = Pair;
+
 struct PairPair {
     first: Pair,
-    second: Pair,
+    second: MyPair,
 }

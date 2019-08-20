@@ -291,7 +291,7 @@ impl PartialEq for TypeField {
 }
 
 /// Terms.
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone)]
 pub enum Term {
     /// Item references
     Item(Span, Label),
@@ -341,6 +341,15 @@ pub enum Term {
     /// IEEE754 double-precision floating point number type (big endian).
     F64BeType(Span),
 
+    /// Host boolean type.
+    BoolType(Span),
+    /// Host integer type.
+    IntType(Span),
+    /// Host IEEE754 single-precision floating point type.
+    F32Type(Span),
+    /// Host IEEE754 double-precision floating point type.
+    F64Type(Span),
+
     /// Error sentinel.
     Error(Span),
 }
@@ -369,6 +378,10 @@ impl Term {
             | Term::F32BeType(span)
             | Term::F64LeType(span)
             | Term::F64BeType(span)
+            | Term::BoolType(span)
+            | Term::IntType(span)
+            | Term::F32Type(span)
+            | Term::F64Type(span)
             | Term::Error(span) => *span,
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
         }
@@ -431,6 +444,10 @@ impl Term {
             Term::F32BeType(_) => alloc.text("F32Be"),
             Term::F64LeType(_) => alloc.text("F64Le"),
             Term::F64BeType(_) => alloc.text("F64Be"),
+            Term::BoolType(_) => alloc.text("Bool"),
+            Term::IntType(_) => alloc.text("Int"),
+            Term::F32Type(_) => alloc.text("F32"),
+            Term::F64Type(_) => alloc.text("F64"),
             Term::Error(_) => alloc.text("!"),
         }
     }
@@ -461,6 +478,10 @@ impl PartialEq for Term {
             | (Term::F32BeType(_), Term::F32BeType(_))
             | (Term::F64LeType(_), Term::F64LeType(_))
             | (Term::F64BeType(_), Term::F64BeType(_))
+            | (Term::BoolType(_), Term::BoolType(_))
+            | (Term::IntType(_), Term::IntType(_))
+            | (Term::F64Type(_), Term::F64Type(_))
+            | (Term::F32Type(_), Term::F32Type(_))
             | (Term::Error(_), Term::Error(_)) => true,
             (_, _) => false,
         }
@@ -514,6 +535,15 @@ pub enum Value {
     F64LeType,
     /// IEEE754 double-precision floating point number type (big endian).
     F64BeType,
+
+    /// Host boolean type.
+    BoolType,
+    /// Host integer type.
+    IntType,
+    /// Host IEEE754 single-precision floating point type.
+    F32Type,
+    /// Host IEEE754 double-precision floating point type.
+    F64Type,
 
     /// Error sentinel.
     Error,

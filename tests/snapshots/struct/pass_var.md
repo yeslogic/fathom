@@ -12,6 +12,14 @@
 | first | U8 |
 | second | U8 |
 
+## MyPair
+
+### Definition
+
+```
+Pair
+```
+
 ## PairPair
 
 ### Definition
@@ -19,4 +27,4 @@
 | Name | Type |
 | ---- | ---- |
 | first | Pair |
-| second | Pair |
+| second | MyPair |

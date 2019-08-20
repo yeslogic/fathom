@@ -40,34 +40,29 @@ typed language. We describe this here.
 
 > <sub>Grammar:</sub>
 >
-> _primitive-type-unsigned_ ::=\
+> _primitive-type_ ::=\
+> &emsp;|&ensp;`Bool`\
+> &emsp;|&ensp;`Int`\
+> &emsp;|&ensp;`F32`\
+> &emsp;|&ensp;`F64`\
 > &emsp;|&ensp;`U8`\
 > &emsp;|&ensp;`U16Le`\
 > &emsp;|&ensp;`U16Be`\
 > &emsp;|&ensp;`U32Le`\
 > &emsp;|&ensp;`U32Be`\
 > &emsp;|&ensp;`U64Le`\
-> &emsp;|&ensp;`U64Be`
->
-> _primitive-type-signed_ ::=\
+> &emsp;|&ensp;`U64Be`\
 > &emsp;|&ensp;`S8`\
 > &emsp;|&ensp;`S16Le`\
 > &emsp;|&ensp;`S16Be`\
 > &emsp;|&ensp;`S32Le`\
 > &emsp;|&ensp;`S32Be`\
 > &emsp;|&ensp;`S64Le`\
-> &emsp;|&ensp;`S64Be`
->
-> _primitive-type-float_ ::=\
+> &emsp;|&ensp;`S64Be`\
 > &emsp;|&ensp;`F32Le`\
 > &emsp;|&ensp;`F32Be`\
 > &emsp;|&ensp;`F64Le`\
 > &emsp;|&ensp;`F64Be`
->
-> _primitive-type_ ::=\
-> &emsp;|&ensp;_primitive-type-unsigned_\
-> &emsp;|&ensp;_primitive-type-signed_\
-> &emsp;|&ensp;_primitive-type-float_
 
 ### Sorts
 

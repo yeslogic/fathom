@@ -89,8 +89,12 @@ pub fn read_ty(
         core::Term::F32BeType(_) => Ok(Term::F32(ctxt.read::<ddl_rt::F32Be>()?)),
         core::Term::F64LeType(_) => Ok(Term::F64(ctxt.read::<ddl_rt::F64Le>()?)),
         core::Term::F64BeType(_) => Ok(Term::F64(ctxt.read::<ddl_rt::F64Be>()?)),
-        core::Term::Kind(_) | core::Term::Type(_) | core::Term::Error(_) => {
-            Err(ddl_rt::ReadError::InvalidDataDescription)
-        }
+        core::Term::Kind(_)
+        | core::Term::Type(_)
+        | core::Term::BoolType(_)
+        | core::Term::IntType(_)
+        | core::Term::F32Type(_)
+        | core::Term::F64Type(_)
+        | core::Term::Error(_) => Err(ddl_rt::ReadError::InvalidDataDescription),
     }
 }

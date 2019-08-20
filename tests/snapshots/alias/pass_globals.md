@@ -154,3 +154,27 @@ F64Le
 ```
 F64Be
 ```
+
+## TestBool
+
+### Definition
+
+```
+Bool
+```
+
+## TestF32
+
+### Definition
+
+```
+F32
+```
+
+## TestF64
+
+### Definition
+
+```
+F64
+```

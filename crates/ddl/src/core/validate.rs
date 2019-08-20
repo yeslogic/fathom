@@ -256,7 +256,11 @@ pub fn synth_term(
         | Term::F32LeType(_)
         | Term::F32BeType(_)
         | Term::F64LeType(_)
-        | Term::F64BeType(_) => Value::Type,
+        | Term::F64BeType(_)
+        | Term::BoolType(_)
+        | Term::IntType(_)
+        | Term::F32Type(_)
+        | Term::F64Type(_) => Value::Type,
         Term::Error(_) => Value::Error,
     }
 }

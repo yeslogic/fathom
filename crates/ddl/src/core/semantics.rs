@@ -29,6 +29,10 @@ pub fn eval(term: &Term) -> Value {
         Term::F32BeType(_) => Value::F32BeType,
         Term::F64LeType(_) => Value::F64LeType,
         Term::F64BeType(_) => Value::F64BeType,
+        Term::BoolType(_) => Value::BoolType,
+        Term::IntType(_) => Value::IntType,
+        Term::F32Type(_) => Value::F32Type,
+        Term::F64Type(_) => Value::F64Type,
         Term::Error(_) => Value::Error,
     }
 }
@@ -57,6 +61,10 @@ pub fn readback(value: &Value) -> Term {
         Value::F32BeType => Term::F32BeType(Span::initial()),
         Value::F64LeType => Term::F64LeType(Span::initial()),
         Value::F64BeType => Term::F64BeType(Span::initial()),
+        Value::BoolType => Term::BoolType(Span::initial()),
+        Value::IntType => Term::IntType(Span::initial()),
+        Value::F32Type => Term::F32Type(Span::initial()),
+        Value::F64Type => Term::F64Type(Span::initial()),
         Value::Error => Term::Error(Span::initial()),
     }
 }
@@ -83,7 +91,11 @@ pub fn equal(val1: &Value, val2: &Value) -> bool {
         | (Value::F32LeType, Value::F32LeType)
         | (Value::F32BeType, Value::F32BeType)
         | (Value::F64LeType, Value::F64LeType)
-        | (Value::F64BeType, Value::F64BeType) => true,
+        | (Value::F64BeType, Value::F64BeType)
+        | (Value::BoolType, Value::BoolType)
+        | (Value::IntType, Value::IntType)
+        | (Value::F32Type, Value::F32Type)
+        | (Value::F64Type, Value::F64Type) => true,
         // Errors are always treated as equal
         (Value::Error, _) | (_, Value::Error) => true,
         // Anything else is not equal!

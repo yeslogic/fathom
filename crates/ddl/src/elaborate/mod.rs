@@ -297,51 +297,58 @@ pub fn synth_term(
             let core_term = check_term(context, concrete_term, &ty, report);
             (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
         }
-        concrete::Term::Var(name) => match context.items.get(name.as_str()) {
-            Some((_, ty)) => (
-                core::Term::Item(name.span(), core::Label(name.to_string())),
-                ty.clone(),
-            ),
-            None => match name.as_str() {
-                "Kind" => {
-                    report(diagnostics::kind_has_no_type(
-                        Severity::Error,
-                        context.file_id,
-                        name.span(),
-                    ));
+        concrete::Term::Var(name) => {
+            let span = name.span();
+            match context.items.get(name.as_str()) {
+                Some((_, ty)) => (
+                    core::Term::Item(span, core::Label(name.to_string())),
+                    ty.clone(),
+                ),
+                None => match name.as_str() {
+                    "Kind" => {
+                        report(diagnostics::kind_has_no_type(
+                            Severity::Error,
+                            context.file_id,
+                            span,
+                        ));
 
-                    (core::Term::Error(name.span()), core::Value::Error)
-                }
-                "Type" => (core::Term::Type(name.span()), core::Value::Kind),
-                "U8" => (core::Term::U8Type(name.span()), core::Value::Type),
-                "U16Le" => (core::Term::U16LeType(name.span()), core::Value::Type),
-                "U16Be" => (core::Term::U16BeType(name.span()), core::Value::Type),
-                "U32Le" => (core::Term::U32LeType(name.span()), core::Value::Type),
-                "U32Be" => (core::Term::U32BeType(name.span()), core::Value::Type),
-                "U64Le" => (core::Term::U64LeType(name.span()), core::Value::Type),
-                "U64Be" => (core::Term::U64BeType(name.span()), core::Value::Type),
-                "S8" => (core::Term::S8Type(name.span()), core::Value::Type),
-                "S16Le" => (core::Term::S16LeType(name.span()), core::Value::Type),
-                "S16Be" => (core::Term::S16BeType(name.span()), core::Value::Type),
-                "S32Le" => (core::Term::S32LeType(name.span()), core::Value::Type),
-                "S32Be" => (core::Term::S32BeType(name.span()), core::Value::Type),
-                "S64Le" => (core::Term::S64LeType(name.span()), core::Value::Type),
-                "S64Be" => (core::Term::S64BeType(name.span()), core::Value::Type),
-                "F32Le" => (core::Term::F32LeType(name.span()), core::Value::Type),
-                "F32Be" => (core::Term::F32BeType(name.span()), core::Value::Type),
-                "F64Le" => (core::Term::F64LeType(name.span()), core::Value::Type),
-                "F64Be" => (core::Term::F64BeType(name.span()), core::Value::Type),
-                _ => {
-                    report(diagnostics::error::var_name_not_found(
-                        context.file_id,
-                        name.as_str(),
-                        name.span(),
-                    ));
+                        (core::Term::Error(span), core::Value::Error)
+                    }
+                    "Type" => (core::Term::Type(span), core::Value::Kind),
+                    "U8" => (core::Term::U8Type(span), core::Value::Type),
+                    "U16Le" => (core::Term::U16LeType(span), core::Value::Type),
+                    "U16Be" => (core::Term::U16BeType(span), core::Value::Type),
+                    "U32Le" => (core::Term::U32LeType(span), core::Value::Type),
+                    "U32Be" => (core::Term::U32BeType(span), core::Value::Type),
+                    "U64Le" => (core::Term::U64LeType(span), core::Value::Type),
+                    "U64Be" => (core::Term::U64BeType(span), core::Value::Type),
+                    "S8" => (core::Term::S8Type(span), core::Value::Type),
+                    "S16Le" => (core::Term::S16LeType(span), core::Value::Type),
+                    "S16Be" => (core::Term::S16BeType(span), core::Value::Type),
+                    "S32Le" => (core::Term::S32LeType(span), core::Value::Type),
+                    "S32Be" => (core::Term::S32BeType(span), core::Value::Type),
+                    "S64Le" => (core::Term::S64LeType(span), core::Value::Type),
+                    "S64Be" => (core::Term::S64BeType(span), core::Value::Type),
+                    "F32Le" => (core::Term::F32LeType(span), core::Value::Type),
+                    "F32Be" => (core::Term::F32BeType(span), core::Value::Type),
+                    "F64Le" => (core::Term::F64LeType(span), core::Value::Type),
+                    "F64Be" => (core::Term::F64BeType(span), core::Value::Type),
+                    "Bool" => (core::Term::BoolType(span), core::Value::Type),
+                    "Int" => (core::Term::IntType(span), core::Value::Type),
+                    "F32" => (core::Term::F32Type(span), core::Value::Type),
+                    "F64" => (core::Term::F64Type(span), core::Value::Type),
+                    _ => {
+                        report(diagnostics::error::var_name_not_found(
+                            context.file_id,
+                            name.as_str(),
+                            span,
+                        ));
 
-                    (core::Term::Error(name.span()), core::Value::Error)
-                }
-            },
-        },
+                        (core::Term::Error(span), core::Value::Error)
+                    }
+                },
+            }
+        }
         concrete::Term::Error(span) => (core::Term::Error(*span), core::Value::Error),
     }
 }

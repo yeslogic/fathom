@@ -169,6 +169,10 @@ fn compile_ty<'term>(
         core::Term::F32BeType(_) => "F32Be",
         core::Term::F64LeType(_) => "F64Le",
         core::Term::F64BeType(_) => "F64Be",
+        core::Term::BoolType(_) => "Bool", // NOTE: Invalid if in struct
+        core::Term::IntType(_) => "Int",   // NOTE: Invalid if in struct
+        core::Term::F32Type(_) => "F32",   // NOTE: Invalid if in struct
+        core::Term::F64Type(_) => "F64",   // NOTE: Invalid if in struct
         core::Term::Error(_) => "**invalid data description**",
     }
 }
