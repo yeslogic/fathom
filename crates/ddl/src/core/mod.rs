@@ -76,7 +76,7 @@ impl Module {
     {
         let items = alloc.intersperse(
             self.items.iter().map(|item| item.doc(alloc)),
-            alloc.newline(),
+            alloc.newline().append(alloc.newline()),
         );
 
         items.append(alloc.newline())
