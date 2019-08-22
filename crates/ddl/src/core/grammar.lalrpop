@@ -47,12 +47,11 @@ Item: Item = {
     },
     <docs: "doc comment"*>
     <start: @L> "struct" <name: "identifier">  "{"
-        <fields: (<Field> ",")*>
+        <mut fields: (<Field> ",")*>
         <last: Field?>
     "}" <end: @R> => {
         let span = Span::new(start, end);
         let doc = Arc::from(docs);
-        let mut fields = fields;
         fields.extend(last);
         let name = Label(name);
 
