@@ -45,12 +45,11 @@ Item: Item = {
     },
     <doc: "doc comment"*>
     <start: @L> "struct" <name: Identifier> "{"
-        <fields: (<Field> ",")*>
+        <mut fields: (<Field> ",")*>
         <last: Field?>
     "}" <end: @R> => {
         let span = Span::from(start..end);
         let doc = Arc::from(doc);
-        let mut fields = fields;
         fields.extend(last);
 
         Item::Struct(StructType { span, doc, name, fields })

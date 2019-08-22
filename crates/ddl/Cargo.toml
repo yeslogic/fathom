@@ -16,11 +16,11 @@ codespan = { git = "https://github.com/brendanzab/codespan", rev = "0a5d9a0daa1b
 codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "0a5d9a0daa1baf3142b119df56c19a82b7c2a46a" }
 ddl-rt = { version = "0.1.0", path="../ddl-rt" }
 itertools = "0.8"
-lalrpop-util = "0.17"
+lalrpop-util = "0.17.2"
 lazy_static = "1.3"
 maplit = "1"
 num-bigint = "0.2"
 pretty = "0.5"
 
 [build-dependencies]
-lalrpop = "0.17"
+lalrpop = "0.17.2"
