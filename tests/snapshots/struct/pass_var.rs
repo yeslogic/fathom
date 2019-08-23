@@ -22,9 +22,11 @@ impl<'data> ddl_rt::ReadBinary<'data> for Pair {
     }
 }
 
+pub type MyPair = Pair;
+
 pub struct PairPair {
     pub first: Pair,
-    pub second: Pair,
+    pub second: MyPair,
 }
 
 impl ddl_rt::Binary for PairPair {
@@ -34,7 +36,7 @@ impl ddl_rt::Binary for PairPair {
 impl<'data> ddl_rt::ReadBinary<'data> for PairPair {
     fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<PairPair, ddl_rt::ReadError> {
         let first = ctxt.read::<Pair>()?;
-        let second = ctxt.read::<Pair>()?;
+        let second = ctxt.read::<MyPair>()?;
 
         Ok(PairPair {
             first,

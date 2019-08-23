@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::compile::rust::{Item, Module, StructType, Type, TypeAlias};
+use crate::compile::rust::{Item, Module, RtType, StructType, Type, TypeAlias};
 
 pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
@@ -116,6 +116,46 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
 
 fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     match ty {
-        Type::Ident(name) => write!(writer, "{}", name),
+        Type::Var(name) => write!(writer, "{}", name),
+        Type::U8 => write!(writer, "u8"),
+        Type::U16 => write!(writer, "u16"),
+        Type::U32 => write!(writer, "u32"),
+        Type::U64 => write!(writer, "u64"),
+        Type::I8 => write!(writer, "i8"),
+        Type::I16 => write!(writer, "i16"),
+        Type::I32 => write!(writer, "i32"),
+        Type::I64 => write!(writer, "i64"),
+        Type::F32 => write!(writer, "f32"),
+        Type::F64 => write!(writer, "f64"),
+        Type::Bool => write!(writer, "bool"),
+        Type::Rt(rt_ty) => {
+            // TODO: Make this configurable
+            write!(writer, "ddl_rt::")?;
+            emit_rt_ty(writer, rt_ty)
+        }
+    }
+}
+
+fn emit_rt_ty(writer: &mut impl Write, ty: &RtType) -> io::Result<()> {
+    match ty {
+        RtType::U8 => write!(writer, "U8"),
+        RtType::U16Le => write!(writer, "U16Le"),
+        RtType::U16Be => write!(writer, "U16Be"),
+        RtType::U32Le => write!(writer, "U32Le"),
+        RtType::U32Be => write!(writer, "U32Be"),
+        RtType::U64Le => write!(writer, "U64Le"),
+        RtType::U64Be => write!(writer, "U64Be"),
+        RtType::I8 => write!(writer, "I8"),
+        RtType::I16Le => write!(writer, "I16Le"),
+        RtType::I16Be => write!(writer, "I16Be"),
+        RtType::I32Le => write!(writer, "I32Le"),
+        RtType::I32Be => write!(writer, "I32Be"),
+        RtType::I64Le => write!(writer, "I64Le"),
+        RtType::I64Be => write!(writer, "I64Be"),
+        RtType::F32Le => write!(writer, "F32Le"),
+        RtType::F32Be => write!(writer, "F32Be"),
+        RtType::F64Le => write!(writer, "F64Le"),
+        RtType::F64Be => write!(writer, "F64Be"),
+        RtType::InvalidDataDescription => write!(writer, "InvalidDataDescription"),
     }
 }

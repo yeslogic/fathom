@@ -35,3 +35,9 @@ TestF32Be = F32Be;
 TestF64Le = F64Le;
 
 TestF64Be = F64Be;
+
+TestBool = Bool;
+
+TestF32 = F32;
+
+TestF64 = F64;

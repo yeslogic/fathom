@@ -36,3 +36,9 @@ pub type TestF32Be = ddl_rt::F32Be;
 pub type TestF64Le = ddl_rt::F64Le;
 
 pub type TestF64Be = ddl_rt::F64Be;
+
+pub type TestBool = bool;
+
+pub type TestF32 = f32;
+
+pub type TestF64 = f64;

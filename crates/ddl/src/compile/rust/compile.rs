@@ -1,163 +1,194 @@
-use codespan::FileId;
+use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
 use std::collections::HashMap;
 
-use crate::compile::rust::{Item, Module, StructType, Type, TypeAlias, TypeField};
+use crate::compile::diagnostics;
+use crate::compile::rust::{Item, Module, RtType, StructType, Type, TypeAlias, TypeField};
 use crate::core;
 
 pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic)) -> Module {
     let mut context = ModuleContext {
-        _file_id: module.file_id,
-        items: HashMap::default(),
+        file_id: module.file_id,
+        items: HashMap::new(),
     };
 
-    Module {
-        items: (module.items.iter())
-            .filter_map(|item| {
-                let (name, universe, item) = compile_item(&context, item, report);
-                context.items.insert(name, universe); // Check overwriting?
+    let items = module.items.iter().filter_map(|core_item| {
+        use std::collections::hash_map::Entry;
+
+        let (label, universe, item) = compile_item(&context, core_item, report);
+        match context.items.entry(label) {
+            Entry::Occupied(entry) => {
+                report(diagnostics::bug::item_name_reused(
+                    context.file_id,
+                    entry.key(),
+                    core_item.span(),
+                    entry.get().0,
+                ));
+                None
+            }
+            Entry::Vacant(entry) => {
+                entry.insert((core_item.span(), universe));
                 item
-            })
-            .collect(),
+            }
+        }
+    });
+
+    Module {
+        items: items.collect(),
     }
 }
 
 #[derive(Debug, Copy, Clone)]
 enum Universe {
-    Kind,
-    Format,
+    FormatType,
+    HostType,
+    Erased,
+    Error,
 }
 
 struct ModuleContext {
-    _file_id: FileId,
-    items: HashMap<String, Universe>,
+    file_id: FileId,
+    items: HashMap<core::Label, (Span, Universe)>,
 }
 
-fn compile_item<'item>(
+fn compile_item(
     context: &ModuleContext,
-    item: &'item core::Item,
+    core_item: &core::Item,
     report: &mut dyn FnMut(Diagnostic),
-) -> (String, Universe, Option<Item>) {
-    match item {
-        core::Item::Alias(alias) => {
-            let (universe, item) = match compile_term_as_format_ty(context, &alias.term, report) {
-                None => (Universe::Kind, None),
-                Some(ty) => (
-                    Universe::Format,
-                    Some(Item::TypeAlias(TypeAlias {
-                        doc: alias.doc.clone(),
-                        name: alias.name.0.clone(),
-                        ty,
-                    })),
-                ),
-            };
-
-            (alias.name.0.clone(), universe, item)
-        }
-        core::Item::Struct(struct_ty) => (
-            struct_ty.name.0.clone(),
-            Universe::Format,
-            Some(Item::Struct(StructType {
-                doc: struct_ty.doc.clone(),
-                name: struct_ty.name.0.clone(),
-                fields: (struct_ty.fields.iter())
-                    .map(|field| compile_field_ty(context, field, report))
-                    .collect::<Vec<_>>(),
-            })),
-        ),
+) -> (core::Label, Universe, Option<Item>) {
+    match core_item {
+        core::Item::Alias(core_alias) => compile_alias(context, core_alias, report),
+        core::Item::Struct(core_struct_ty) => compile_struct_ty(context, core_struct_ty, report),
     }
 }
 
-fn compile_field_ty<'field>(
+fn compile_alias(
     context: &ModuleContext,
-    field: &'field core::TypeField,
+    core_alias: &core::Alias,
     report: &mut dyn FnMut(Diagnostic),
-) -> TypeField {
-    TypeField {
-        doc: field.doc.clone(),
-        name: field.name.0.clone(),
-        format_ty: compile_term_as_format_ty(context, &field.term, report)
-            .unwrap_or_else(|| Type::Ident("ddl_rt::InvalidDataDescription".into())),
-        host_ty: compile_term_as_host_ty(context, &field.term, report)
-            .unwrap_or_else(|| Type::Ident("ddl_rt::InvalidDataDescription".into())),
+) -> (core::Label, Universe, Option<Item>) {
+    let name = core_alias.name.clone();
+    let ty_alias = |ty| {
+        Item::TypeAlias(TypeAlias {
+            doc: core_alias.doc.clone(),
+            name: core_alias.name.0.clone(),
+            ty,
+        })
+    };
+
+    match compile_term(context, &core_alias.term, report) {
+        CompiledTerm::Erased => (name, Universe::Erased, None),
+        CompiledTerm::Error => (name, Universe::Error, None),
+        CompiledTerm::FormatType(ty, _) => (name, Universe::FormatType, Some(ty_alias(ty))),
+        CompiledTerm::HostType(ty) => (name, Universe::HostType, Some(ty_alias(ty))),
     }
 }
 
-fn compile_term_as_format_ty<'term>(
+fn compile_struct_ty(
     context: &ModuleContext,
-    term: &'term core::Term,
+    core_struct_ty: &core::StructType,
     report: &mut dyn FnMut(Diagnostic),
-) -> Option<Type> {
-    match term {
-        core::Term::Item(_, label) => {
-            match context.items.get(&label.0) {
-                Some(Universe::Format) => Some(Type::Ident(label.0.clone().into())),
-                Some(Universe::Kind) => None,
-                // TODO: report a bug!
-                None => Some(Type::Ident("ddl_rt::InvalidDataDescription".into())),
+) -> (core::Label, Universe, Option<Item>) {
+    const INVALID_TYPE: Type = Type::Rt(RtType::InvalidDataDescription);
+
+    let mut fields = Vec::with_capacity(core_struct_ty.fields.len());
+
+    for field in &core_struct_ty.fields {
+        let (format_ty, host_ty) = match compile_term(context, &field.term, report) {
+            CompiledTerm::FormatType(format_ty, host_ty) => (format_ty, host_ty),
+            CompiledTerm::HostType(_) => {
+                report(diagnostics::warning::host_type_found_in_field(
+                    context.file_id,
+                    core_struct_ty.span,
+                    field.term.span(),
+                ));
+                return (core_struct_ty.name.clone(), Universe::Error, None);
             }
-        }
-        core::Term::Ann(term, _) => compile_term_as_format_ty(context, term, report),
-        core::Term::U8(_) => Some(Type::Ident("ddl_rt::U8".into())),
-        core::Term::U16Le(_) => Some(Type::Ident("ddl_rt::U16Le".into())),
-        core::Term::U16Be(_) => Some(Type::Ident("ddl_rt::U16Be".into())),
-        core::Term::U32Le(_) => Some(Type::Ident("ddl_rt::U32Le".into())),
-        core::Term::U32Be(_) => Some(Type::Ident("ddl_rt::U32Be".into())),
-        core::Term::U64Le(_) => Some(Type::Ident("ddl_rt::U64Le".into())),
-        core::Term::U64Be(_) => Some(Type::Ident("ddl_rt::U64Be".into())),
-        core::Term::S8(_) => Some(Type::Ident("ddl_rt::I8".into())),
-        core::Term::S16Le(_) => Some(Type::Ident("ddl_rt::I16Le".into())),
-        core::Term::S16Be(_) => Some(Type::Ident("ddl_rt::I16Be".into())),
-        core::Term::S32Le(_) => Some(Type::Ident("ddl_rt::I32Le".into())),
-        core::Term::S32Be(_) => Some(Type::Ident("ddl_rt::I32Be".into())),
-        core::Term::S64Le(_) => Some(Type::Ident("ddl_rt::I64Le".into())),
-        core::Term::S64Be(_) => Some(Type::Ident("ddl_rt::I64Be".into())),
-        core::Term::F32Le(_) => Some(Type::Ident("ddl_rt::F32Le".into())),
-        core::Term::F32Be(_) => Some(Type::Ident("ddl_rt::F32Be".into())),
-        core::Term::F64Le(_) => Some(Type::Ident("ddl_rt::F64Le".into())),
-        core::Term::F64Be(_) => Some(Type::Ident("ddl_rt::F64Be".into())),
-        core::Term::Kind(_) | core::Term::Type(_) => None,
-        core::Term::Error(_) => Some(Type::Ident("ddl_rt::InvalidDataDescription".into())),
+            CompiledTerm::Erased => {
+                report(diagnostics::bug::non_format_type_as_host_type(
+                    context.file_id,
+                    field.term.span(),
+                ));
+                (INVALID_TYPE, INVALID_TYPE)
+            }
+            CompiledTerm::Error => (INVALID_TYPE, INVALID_TYPE),
+        };
+
+        fields.push(TypeField {
+            doc: field.doc.clone(),
+            name: field.name.0.clone(),
+            format_ty,
+            host_ty,
+        })
     }
+
+    (
+        core_struct_ty.name.clone(),
+        Universe::FormatType,
+        Some(Item::Struct(StructType {
+            doc: core_struct_ty.doc.clone(),
+            name: core_struct_ty.name.0.clone(),
+            fields,
+        })),
+    )
 }
 
-fn compile_term_as_host_ty<'term>(
+enum CompiledTerm {
+    FormatType(Type, Type),
+    HostType(Type),
+    Erased,
+    Error,
+}
+
+fn compile_term(
     context: &ModuleContext,
-    term: &'term core::Term,
+    core_term: &core::Term,
     report: &mut dyn FnMut(Diagnostic),
-) -> Option<Type> {
-    match term {
-        core::Term::Item(_, label) => {
-            match context.items.get(&label.0) {
-                // Format types are reused as host types, so this is ok!
-                Some(Universe::Format) => Some(Type::Ident(label.0.clone().into())),
-                Some(Universe::Kind) => None,
-                // TODO: report a bug!
-                None => Some(Type::Ident("ddl_rt::InvalidDataDescription".into())),
+) -> CompiledTerm {
+    let file_id = context.file_id;
+
+    match core_term {
+        core::Term::Item(span, label) => match context.items.get(label) {
+            Some((_, Universe::FormatType)) => {
+                CompiledTerm::FormatType(Type::Var(label.0.clone()), Type::Var(label.0.clone()))
             }
+            Some((_, Universe::HostType)) => CompiledTerm::HostType(Type::Var(label.0.clone())),
+            Some((_, Universe::Erased)) => CompiledTerm::Erased,
+            Some((_, Universe::Error)) => CompiledTerm::Error,
+            None => {
+                report(diagnostics::bug::unbound_item(file_id, label, *span));
+                CompiledTerm::Error
+            }
+        },
+        core::Term::Ann(term, _) => compile_term(context, term, report),
+        core::Term::U8Type(_) => CompiledTerm::FormatType(Type::Rt(RtType::U8), Type::U8),
+        core::Term::U16LeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::U16Le), Type::U16),
+        core::Term::U16BeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::U16Be), Type::U16),
+        core::Term::U32LeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::U32Le), Type::U32),
+        core::Term::U32BeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::U32Be), Type::U32),
+        core::Term::U64LeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::U64Le), Type::U64),
+        core::Term::U64BeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::U64Be), Type::U64),
+        core::Term::S8Type(_) => CompiledTerm::FormatType(Type::Rt(RtType::I8), Type::I8),
+        core::Term::S16LeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::I16Le), Type::I16),
+        core::Term::S16BeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::I16Be), Type::I16),
+        core::Term::S32LeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::I32Le), Type::I32),
+        core::Term::S32BeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::I32Be), Type::I32),
+        core::Term::S64LeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::I64Le), Type::I64),
+        core::Term::S64BeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::I64Be), Type::I64),
+        core::Term::F32LeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::F32Le), Type::F32),
+        core::Term::F32BeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::F32Be), Type::F32),
+        core::Term::F64LeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::F64Le), Type::F64),
+        core::Term::F64BeType(_) => CompiledTerm::FormatType(Type::Rt(RtType::F64Be), Type::F64),
+        core::Term::BoolType(_) => CompiledTerm::HostType(Type::Bool),
+        core::Term::IntType(span) => {
+            report(diagnostics::error::unconstrained_int(file_id, *span));
+            CompiledTerm::HostType(Type::Rt(RtType::InvalidDataDescription))
         }
-        core::Term::Ann(term, _) => compile_term_as_host_ty(context, term, report),
-        core::Term::U8(_) => Some(Type::Ident("u8".into())),
-        core::Term::U16Le(_) => Some(Type::Ident("u16".into())),
-        core::Term::U16Be(_) => Some(Type::Ident("u16".into())),
-        core::Term::U32Le(_) => Some(Type::Ident("u32".into())),
-        core::Term::U32Be(_) => Some(Type::Ident("u32".into())),
-        core::Term::U64Le(_) => Some(Type::Ident("u64".into())),
-        core::Term::U64Be(_) => Some(Type::Ident("u64".into())),
-        core::Term::S8(_) => Some(Type::Ident("i8".into())),
-        core::Term::S16Le(_) => Some(Type::Ident("i16".into())),
-        core::Term::S16Be(_) => Some(Type::Ident("i16".into())),
-        core::Term::S32Le(_) => Some(Type::Ident("i32".into())),
-        core::Term::S32Be(_) => Some(Type::Ident("i32".into())),
-        core::Term::S64Le(_) => Some(Type::Ident("i64".into())),
-        core::Term::S64Be(_) => Some(Type::Ident("i64".into())),
-        core::Term::F32Le(_) => Some(Type::Ident("f32".into())),
-        core::Term::F32Be(_) => Some(Type::Ident("f32".into())),
-        core::Term::F64Le(_) => Some(Type::Ident("f64".into())),
-        core::Term::F64Be(_) => Some(Type::Ident("f64".into())),
-        core::Term::Kind(_) | core::Term::Type(_) => None,
-        core::Term::Error(_) => Some(Type::Ident("ddl_rt::InvalidDataDescription".into())),
+        core::Term::F32Type(_) => CompiledTerm::HostType(Type::F32),
+        core::Term::F64Type(_) => CompiledTerm::HostType(Type::F64),
+        core::Term::Kind(_) | core::Term::Type(_) => CompiledTerm::Erased,
+        core::Term::Error(_) => CompiledTerm::Error,
     }
 }
 
@@ -166,14 +197,14 @@ fn host_int(min: &BigInt, max: &BigInt) -> Option<Type> {
     use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
     match () {
-        () if *min >= u8::MIN.into() && *max <= u8::MAX.into() => Some(Type::Ident("u8".into())),
-        () if *min >= u16::MIN.into() && *max <= u16::MAX.into() => Some(Type::Ident("u16".into())),
-        () if *min >= u32::MIN.into() && *max <= u32::MAX.into() => Some(Type::Ident("u32".into())),
-        () if *min >= u64::MIN.into() && *max <= u64::MAX.into() => Some(Type::Ident("u64".into())),
-        () if *min >= i8::MIN.into() && *max <= i8::MAX.into() => Some(Type::Ident("i8".into())),
-        () if *min >= i16::MIN.into() && *max <= i16::MAX.into() => Some(Type::Ident("i16".into())),
-        () if *min >= i32::MIN.into() && *max <= i32::MAX.into() => Some(Type::Ident("i32".into())),
-        () if *min >= i64::MIN.into() && *max <= i64::MAX.into() => Some(Type::Ident("i64".into())),
+        () if *min >= u8::MIN.into() && *max <= u8::MAX.into() => Some(Type::U8),
+        () if *min >= u16::MIN.into() && *max <= u16::MAX.into() => Some(Type::U16),
+        () if *min >= u32::MIN.into() && *max <= u32::MAX.into() => Some(Type::U32),
+        () if *min >= u64::MIN.into() && *max <= u64::MAX.into() => Some(Type::U64),
+        () if *min >= i8::MIN.into() && *max <= i8::MAX.into() => Some(Type::I8),
+        () if *min >= i16::MIN.into() && *max <= i16::MAX.into() => Some(Type::I16),
+        () if *min >= i32::MIN.into() && *max <= i32::MAX.into() => Some(Type::I32),
+        () if *min >= i64::MIN.into() && *max <= i64::MAX.into() => Some(Type::I64),
         () if min > max => None, // Impossible range
         _ => None,               // TODO: use bigint if outside bounds
     }
