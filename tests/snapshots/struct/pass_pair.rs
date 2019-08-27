@@ -6,10 +6,20 @@
 /// A pair of bytes.
 #[derive(Copy, Clone)]
 pub struct Pair {
+    first: u8,
+    second: i8,
+}
+
+impl Pair {
     /// The first field.
-    pub first: u8,
+    pub fn first(&self) -> u8 {
+        self.first
+    }
+
     /// The second field.
-    pub second: i8,
+    pub fn second(&self) -> i8 {
+        self.second
+    }
 }
 
 impl ddl_rt::Binary for Pair {

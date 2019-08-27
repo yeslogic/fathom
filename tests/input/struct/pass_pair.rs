@@ -50,18 +50,16 @@ fn valid_pair() {
     ctxt.write::<I8>(-30); // Pair::second
 
     let scope = ReadScope::new(ctxt.buffer());
+    let pair = scope.read::<fixture::Pair>().unwrap();
 
-    match (
-        scope.read::<fixture::Pair>().unwrap(),
-        binary::read::read_module_item(&FIXTURE, &"Pair", &mut scope.ctxt()).unwrap(),
-    ) {
-        (fixture::Pair { first, second }, binary::Term::Struct(fields)) => {
-            assert_eq!(first, 31);
-            assert_eq!(second, -30);
+    match binary::read::read_module_item(&FIXTURE, &"Pair", &mut scope.ctxt()).unwrap() {
+        binary::Term::Struct(fields) => {
+            assert_eq!(pair.first(), 31);
+            assert_eq!(pair.second(), -30);
 
             assert_eq!(fields, BTreeMap::from_iter(vec![
-                ("first".to_owned(), binary::Term::Int(first.into())),
-                ("second".to_owned(), binary::Term::Int(second.into())),
+                ("first".to_owned(), binary::Term::Int(pair.first().into())),
+                ("second".to_owned(), binary::Term::Int(pair.second().into())),
             ]));
         },
         _ => panic!("struct expected"),
@@ -78,18 +76,16 @@ fn valid_pair_trailing() {
     ctxt.write::<U8>(42);
 
     let scope = ReadScope::new(ctxt.buffer());
+    let pair = scope.read::<fixture::Pair>().unwrap();
 
-    match (
-        scope.read::<fixture::Pair>().unwrap(),
-        binary::read::read_module_item(&FIXTURE, &"Pair", &mut scope.ctxt()).unwrap(),
-    ) {
-        (fixture::Pair { first, second }, binary::Term::Struct(fields)) => {
-            assert_eq!(first, 255);
-            assert_eq!(second, -30);
+    match binary::read::read_module_item(&FIXTURE, &"Pair", &mut scope.ctxt()).unwrap() {
+        binary::Term::Struct(fields) => {
+            assert_eq!(pair.first(), 255);
+            assert_eq!(pair.second(), -30);
 
             assert_eq!(fields, BTreeMap::from_iter(vec![
-                ("first".to_owned(), binary::Term::Int(first.into())),
-                ("second".to_owned(), binary::Term::Int(second.into())),
+                ("first".to_owned(), binary::Term::Int(pair.first().into())),
+                ("second".to_owned(), binary::Term::Int(pair.second().into())),
             ]));
         },
         _ => panic!("struct expected"),

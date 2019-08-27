@@ -110,11 +110,7 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
     } else {
         writeln!(writer, "pub struct {} {{", struct_ty.name)?;
         for field in &struct_ty.fields {
-            for doc_line in field.doc.iter() {
-                writeln!(writer, "    ///{}", doc_line)?;
-            }
-
-            write!(writer, "    pub {}: ", field.name)?;
+            write!(writer, "    {}: ", field.name)?;
             emit_ty(writer, &field.host_ty)?;
             write!(writer, ",")?;
             writeln!(writer)?;
@@ -122,6 +118,33 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
         writeln!(writer, "}}")?;
     }
     writeln!(writer)?;
+
+    // Field accessors
+
+    if !struct_ty.fields.is_empty() {
+        writeln!(writer, "impl {} {{", struct_ty.name,)?;
+        for (i, field) in struct_ty.fields.iter().enumerate() {
+            let sigil = match field.by_ref {
+                true => "&",
+                false => "",
+            };
+
+            if i != 0 {
+                writeln!(writer)?;
+            }
+
+            for doc_line in field.doc.iter() {
+                writeln!(writer, "    ///{}", doc_line)?;
+            }
+            write!(writer, "    pub fn {}(&self) -> {}", field.name, sigil)?;
+            emit_ty(writer, &field.host_ty)?;
+            writeln!(writer, " {{")?;
+            writeln!(writer, "        {}self.{}", sigil, field.name)?;
+            writeln!(writer, "    }}")?;
+        }
+        writeln!(writer, "}}")?;
+        writeln!(writer)?;
+    }
 
     // Binary impl
 

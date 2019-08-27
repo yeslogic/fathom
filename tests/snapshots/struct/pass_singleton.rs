@@ -5,7 +5,13 @@
 
 #[derive(Copy, Clone)]
 pub struct Byte {
-    pub inner: u8,
+    inner: u8,
+}
+
+impl Byte {
+    pub fn inner(&self) -> u8 {
+        self.inner
+    }
 }
 
 impl ddl_rt::Binary for Byte {

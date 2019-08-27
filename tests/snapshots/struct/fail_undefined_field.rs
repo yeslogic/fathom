@@ -2,8 +2,18 @@
 // It is not intended for manual editing.
 
 pub struct Pair {
-    pub first: ddl_rt::InvalidDataDescription,
-    pub second: ddl_rt::InvalidDataDescription,
+    first: ddl_rt::InvalidDataDescription,
+    second: ddl_rt::InvalidDataDescription,
+}
+
+impl Pair {
+    pub fn first(&self) -> &ddl_rt::InvalidDataDescription {
+        &self.first
+    }
+
+    pub fn second(&self) -> &ddl_rt::InvalidDataDescription {
+        &self.second
+    }
 }
 
 impl ddl_rt::Binary for Pair {

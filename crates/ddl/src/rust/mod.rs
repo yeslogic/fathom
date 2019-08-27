@@ -63,6 +63,7 @@ pub struct TypeField {
     pub name: String,
     pub format_ty: Type,
     pub host_ty: Type,
+    pub by_ref: bool,
 }
 
 /// Compiled types.

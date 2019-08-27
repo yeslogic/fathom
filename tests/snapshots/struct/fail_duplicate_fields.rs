@@ -3,8 +3,18 @@
 
 #[derive(Copy, Clone)]
 pub struct Pair {
-    pub first: u8,
-    pub second: u8,
+    first: u8,
+    second: u8,
+}
+
+impl Pair {
+    pub fn first(&self) -> u8 {
+        self.first
+    }
+
+    pub fn second(&self) -> u8 {
+        self.second
+    }
 }
 
 impl ddl_rt::Binary for Pair {

@@ -217,6 +217,7 @@ fn compile_struct_ty(
             name: field.name.0.clone(),
             format_ty,
             host_ty,
+            by_ref: field_copy.is_none(),
         })
     }
 
