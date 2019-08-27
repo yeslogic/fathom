@@ -26,7 +26,7 @@ pub type MyPair = Pair;
 
 pub struct PairPair {
     pub first: Pair,
-    pub second: MyPair,
+    pub second: Pair,
 }
 
 impl ddl_rt::Binary for PairPair {
