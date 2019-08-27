@@ -43,12 +43,21 @@ fn emit_ty_alias(writer: &mut impl Write, ty_alias: &TypeAlias) -> io::Result<()
 }
 
 fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result<()> {
+    use itertools::Itertools;
+
     writeln!(writer)?;
 
     for doc_line in struct_ty.doc.iter() {
         writeln!(writer, "///{}", doc_line)?;
     }
 
+    if !struct_ty.derives.is_empty() {
+        writeln!(
+            writer,
+            "#[derive({})]",
+            struct_ty.derives.iter().format(", "),
+        )?;
+    }
     if struct_ty.fields.is_empty() {
         writeln!(writer, "pub struct {} {{}}", struct_ty.name)?;
     } else {

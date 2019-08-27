@@ -157,6 +157,11 @@ fn compile_struct_ty(
 
     let doc = core_struct_ty.doc.clone();
     let name = core_struct_ty.name.0.clone(); // TODO: PascalCase and name avoidance
+    let mut derives = Vec::new();
+    if copy.is_some() {
+        derives.push("Copy".to_owned());
+        derives.push("Clone".to_owned());
+    }
     let binary = Some(BinaryTrait {
         host_ty: Type::Var(name.clone()),
     });
@@ -164,7 +169,12 @@ fn compile_struct_ty(
     (
         core_struct_ty.name.clone(),
         CompiledItem::Type(core_struct_ty.span, name.clone(), Traits { copy, binary }),
-        Some(Item::Struct(StructType { doc, name, fields })),
+        Some(Item::Struct(StructType {
+            derives,
+            doc,
+            name,
+            fields,
+        })),
     )
 }
 

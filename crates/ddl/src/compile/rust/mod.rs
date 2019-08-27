@@ -28,6 +28,7 @@ pub struct TypeAlias {
 /// Compiled structure types.
 #[derive(Debug, Clone)]
 pub struct StructType {
+    pub derives: Vec<String>,
     pub doc: Arc<[String]>,
     pub name: String,
     pub fields: Vec<TypeField>,

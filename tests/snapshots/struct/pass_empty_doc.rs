@@ -4,6 +4,7 @@
 /// This is an empty struct.
 ///
 /// It will not consume any input.
+#[derive(Copy, Clone)]
 pub struct Empty {}
 
 impl ddl_rt::Binary for Empty {
