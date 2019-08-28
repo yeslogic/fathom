@@ -2,6 +2,7 @@
 // It is not intended for manual editing.
 
 /// A pair of bytes.
+#[derive(Copy, Clone)]
 pub struct Pair {
     /// The first field.
     pub first: u8,
