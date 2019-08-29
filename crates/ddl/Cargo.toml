@@ -17,7 +17,7 @@ codespan-reporting = "0.4"
 ddl-rt = { version = "0.1.0", path="../ddl-rt" }
 itertools = "0.8"
 lalrpop-util = "0.17.2"
-lazy_static = "1.3"
+lazy_static = "1.4"
 maplit = "1"
 num-bigint = "0.2"
 pretty = "0.5"
