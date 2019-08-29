@@ -1,8 +1,10 @@
-use codespan::{ByteIndex, ByteOffset, FileId, Files, Span};
-use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan::{ByteIndex, ByteOffset, FileId, Files};
+use codespan_reporting::diagnostic::Diagnostic;
 use maplit::hashmap;
 use std::collections::HashMap;
 use std::fmt;
+
+use crate::diagnostics;
 
 type Keywords = HashMap<String, Token>;
 
@@ -134,58 +136,27 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
         self.token_start = self.token_end;
     }
 
-    /// Create a label for a diagnostic.
-    fn label(&self, span: impl Into<Span>, message: impl Into<String>) -> Label {
-        Label::new(self.file_id, span, message)
-    }
-
     fn unexpected_char<T>(
         &self,
         start: ByteIndex,
         found: char,
         expected: &[&str],
     ) -> Option<Result<T, Diagnostic>> {
-        let end = start + ByteOffset::from_char_len(found);
-        Some(Err(Diagnostic::new_error(
-            format!("unexpected character `{}`", found),
-            self.label(start..end, "unexpected character"),
-        )
-        .with_notes(vec![format!(
-            "expected one of {}",
-            display_expected(&expected),
-        )])))
+        Some(Err(diagnostics::error::unexpected_char(
+            self.file_id,
+            start,
+            found,
+            expected,
+        )))
     }
 
     fn unexpected_eof<T>(&self, expected: &[&str]) -> Option<Result<T, Diagnostic>> {
-        Some(Err(Diagnostic::new_error(
-            "unexpected end of file",
-            self.label(self.token_end..self.token_end, "unexpected end of file"),
-        )
-        .with_notes(vec![format!(
-            "expected one of {}",
-            display_expected(&expected),
-        )])))
+        Some(Err(diagnostics::error::unexpected_eof(
+            self.file_id,
+            self.token_end,
+            expected,
+        )))
     }
-}
-
-fn display_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt::Display {
-    struct DisplayExpected<'a, Item>(&'a [Item]);
-
-    impl<'a, Item: fmt::Display> fmt::Display for DisplayExpected<'a, Item> {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            for (i, item) in self.0.iter().enumerate() {
-                match i {
-                    0 => write!(f, "{}", item)?,
-                    i if i >= self.0.len() => write!(f, ", or {}", item)?,
-                    _ => write!(f, ", {}", item)?,
-                }
-            }
-
-            Ok(())
-        }
-    }
-
-    DisplayExpected(items)
 }
 
 impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {

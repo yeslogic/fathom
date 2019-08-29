@@ -123,12 +123,41 @@ pub fn kind_has_no_type(severity: Severity, file_id: FileId, span: Span) -> Diag
 }
 
 pub mod error {
+    use codespan::ByteOffset;
     use lalrpop_util::ParseError;
     use std::fmt;
 
     use crate::lexer::Token;
 
     use super::*;
+
+    pub fn unexpected_char(
+        file_id: FileId,
+        start: ByteIndex,
+        found: char,
+        expected: &[&str],
+    ) -> Diagnostic {
+        let end = start + ByteOffset::from_char_len(found);
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: format!("unexpected character `{}`", found),
+            primary_label: Label::new(file_id, start..end, "unexpected character"),
+            secondary_labels: vec![],
+            notes: vec![format!("expected one of {}", format_expected(&expected))],
+        }
+    }
+
+    pub fn unexpected_eof(file_id: FileId, eof: ByteIndex, expected: &[&str]) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: "unexpected end of file".to_owned(),
+            primary_label: Label::new(file_id, eof..eof, "unexpected end of file"),
+            secondary_labels: vec![],
+            notes: vec![format!("expected one of {}", format_expected(&expected))],
+        }
+    }
 
     pub fn parse(file_id: FileId, error: ParseError<ByteIndex, Token, Diagnostic>) -> Diagnostic {
         match error {
@@ -140,7 +169,7 @@ pub mod error {
                 message: "unexpected end of file".to_owned(),
                 primary_label: Label::new(file_id, location..location, "unexpected end of file"),
                 secondary_labels: vec![],
-                notes: vec![format!("expected one of {}", display_expected(&expected),)],
+                notes: vec![format!("expected one of {}", format_expected(&expected))],
             },
 
             ParseError::UnrecognizedToken {
@@ -152,7 +181,7 @@ pub mod error {
                 message: format!("unexpected token \"{}\"", token),
                 primary_label: Label::new(file_id, start..end, "unexpected token"),
                 secondary_labels: vec![],
-                notes: vec![format!("expected one of {}", display_expected(&expected),)],
+                notes: vec![format!("expected one of {}", format_expected(&expected))],
             },
 
             ParseError::ExtraToken {
@@ -170,20 +199,17 @@ pub mod error {
         }
     }
 
-    fn display_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt::Display {
+    fn format_expected<'a>(items: &'a [impl fmt::Display]) -> impl 'a + fmt::Display {
+        use itertools::Itertools;
+
         struct DisplayExpected<'a, Item>(&'a [Item]);
 
         impl<'a, Item: fmt::Display> fmt::Display for DisplayExpected<'a, Item> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                for (i, item) in self.0.iter().enumerate() {
-                    match i {
-                        0 => write!(f, "{}", item)?,
-                        i if i >= self.0.len() => write!(f, ", or {}", item)?,
-                        _ => write!(f, ", {}", item)?,
-                    }
-                }
-
-                Ok(())
+                self.0.split_last().map_or(Ok(()), |items| match items {
+                    (last, []) => write!(f, "{}", last),
+                    (last, items) => write!(f, "{}, or {}", items.iter().format(", "), last),
+                })
             }
         }
 
