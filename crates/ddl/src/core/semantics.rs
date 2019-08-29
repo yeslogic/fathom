@@ -33,6 +33,7 @@ pub fn eval(term: &Term) -> Value {
         Term::IntType(_) => Value::IntType,
         Term::F32Type(_) => Value::F32Type,
         Term::F64Type(_) => Value::F64Type,
+        Term::BoolConst(_, value) => Value::BoolConst(*value),
         Term::Error(_) => Value::Error,
     }
 }
@@ -65,6 +66,7 @@ pub fn readback(value: &Value) -> Term {
         Value::IntType => Term::IntType(Span::initial()),
         Value::F32Type => Term::F32Type(Span::initial()),
         Value::F64Type => Term::F64Type(Span::initial()),
+        Value::BoolConst(value) => Term::BoolConst(Span::initial(), *value),
         Value::Error => Term::Error(Span::initial()),
     }
 }
@@ -72,6 +74,7 @@ pub fn readback(value: &Value) -> Term {
 pub fn equal(val1: &Value, val2: &Value) -> bool {
     match (val1, val2) {
         (Value::Item(label0), Value::Item(label1)) => label0 == label1,
+        (Value::BoolConst(value0), Value::BoolConst(value1)) => value0 == value1,
         (Value::Kind, Value::Kind)
         | (Value::Type, Value::Type)
         | (Value::U8Type, Value::U8Type)

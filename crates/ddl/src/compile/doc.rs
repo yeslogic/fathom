@@ -69,7 +69,7 @@ fn compile_alias(
     writeln!(writer, "### Definition")?;
     writeln!(writer)?;
     writeln!(writer, "```")?;
-    writeln!(writer, "{}", compile_ty(context, &alias.term, report))?;
+    writeln!(writer, "{}", compile_term(context, &alias.term, report))?;
     writeln!(writer, "```")?;
 
     Ok(())
@@ -107,7 +107,7 @@ fn compile_struct_ty(
             writeln!(writer, "| ---- | ---- |")?;
 
             for field in &struct_ty.fields {
-                let ty = compile_ty(context, &field.term, report);
+                let ty = compile_term(context, &field.term, report);
                 writeln!(writer, "| {} | {} |", field.name, ty)?;
             }
         } else {
@@ -116,7 +116,7 @@ fn compile_struct_ty(
 
             for field in &struct_ty.fields {
                 let desc = compile_field_description(&field.doc);
-                let ty = compile_ty(context, &field.term, report);
+                let ty = compile_term(context, &field.term, report);
                 writeln!(writer, "| {} | {} | {} |", field.name, ty, desc)?;
             }
 
@@ -139,7 +139,7 @@ fn compile_field_description(doc_lines: &[String]) -> String {
     }
 }
 
-fn compile_ty<'term>(
+fn compile_term<'term>(
     context: &ModuleContext,
     term: &'term core::Term,
     report: &mut dyn FnMut(Diagnostic),
@@ -147,7 +147,7 @@ fn compile_ty<'term>(
     match term {
         // TODO: Link to specific docs
         core::Term::Item(_, name) => &name.0,
-        core::Term::Ann(term, _) => compile_ty(context, term, report),
+        core::Term::Ann(term, _) => compile_term(context, term, report),
         // TODO: Link to global docs
         core::Term::Kind(_) => "Kind",
         core::Term::Type(_) => "Type",
@@ -173,6 +173,8 @@ fn compile_ty<'term>(
         core::Term::IntType(_) => "Int",   // NOTE: Invalid if in struct
         core::Term::F32Type(_) => "F32",   // NOTE: Invalid if in struct
         core::Term::F64Type(_) => "F64",   // NOTE: Invalid if in struct
+        core::Term::BoolConst(_, true) => "true", // TODO: Invalid if in type
+        core::Term::BoolConst(_, false) => "false", // TODO: Invalid if in type
         core::Term::Error(_) => "**invalid data description**",
     }
 }

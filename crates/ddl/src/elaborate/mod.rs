@@ -337,6 +337,8 @@ pub fn synth_term(
                     "Int" => (core::Term::IntType(span), core::Value::Type),
                     "F32" => (core::Term::F32Type(span), core::Value::Type),
                     "F64" => (core::Term::F64Type(span), core::Value::Type),
+                    "true" => (core::Term::BoolConst(span, true), core::Value::BoolType),
+                    "false" => (core::Term::BoolConst(span, false), core::Value::BoolType),
                     _ => {
                         report(diagnostics::error::var_name_not_found(
                             context.file_id,

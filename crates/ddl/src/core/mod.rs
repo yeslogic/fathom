@@ -350,6 +350,9 @@ pub enum Term {
     /// Host IEEE754 double-precision floating point type.
     F64Type(Span),
 
+    /// Host boolean constant.
+    BoolConst(Span, bool),
+
     /// Error sentinel.
     Error(Span),
 }
@@ -382,6 +385,7 @@ impl Term {
             | Term::IntType(span)
             | Term::F32Type(span)
             | Term::F64Type(span)
+            | Term::BoolConst(span, _)
             | Term::Error(span) => *span,
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
         }
@@ -448,6 +452,8 @@ impl Term {
             Term::IntType(_) => alloc.text("Int"),
             Term::F32Type(_) => alloc.text("F32"),
             Term::F64Type(_) => alloc.text("F64"),
+            Term::BoolConst(_, true) => alloc.text("true"),
+            Term::BoolConst(_, false) => alloc.text("false"),
             Term::Error(_) => alloc.text("!"),
         }
     }
@@ -458,6 +464,7 @@ impl PartialEq for Term {
         match (self, other) {
             (Term::Item(_, label0), Term::Item(_, label1)) => label0 == label1,
             (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
+            (Term::BoolConst(_, val0), Term::BoolConst(_, val1)) => val0 == val1,
             (Term::Kind(_), Term::Kind(_))
             | (Term::Type(_), Term::Type(_))
             | (Term::U8Type(_), Term::U8Type(_))
@@ -544,6 +551,9 @@ pub enum Value {
     F32Type,
     /// Host IEEE754 double-precision floating point type.
     F64Type,
+
+    /// Host boolean constant.
+    BoolConst(bool),
 
     /// Error sentinel.
     Error,

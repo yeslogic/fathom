@@ -15,6 +15,7 @@ license = "Apache-2.0"
 codespan = { git = "https://github.com/brendanzab/codespan", rev = "0a5d9a0daa1baf3142b119df56c19a82b7c2a46a" }
 codespan-reporting = { git = "https://github.com/brendanzab/codespan", rev = "0a5d9a0daa1baf3142b119df56c19a82b7c2a46a" }
 ddl-rt = { version = "0.1.0", path="../ddl-rt" }
+Inflector = "0.11"
 itertools = "0.8"
 lalrpop-util = "0.17.2"
 lazy_static = "1.3"

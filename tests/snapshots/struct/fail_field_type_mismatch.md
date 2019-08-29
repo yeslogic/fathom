@@ -9,4 +9,6 @@
 
 | Name | Type |
 | ---- | ---- |
-| field | **invalid data description** |
+| field_type | **invalid data description** |
+| field_true | **invalid data description** |
+| field_false | **invalid data description** |

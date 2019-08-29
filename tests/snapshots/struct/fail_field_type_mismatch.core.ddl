@@ -1,3 +1,5 @@
 struct Foo {
-    field : !,
+    field_type : !,
+    field_true : !,
+    field_false : !,
 }

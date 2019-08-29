@@ -104,6 +104,8 @@ TermAtomic: Term = {
             "Int" => Term::IntType(span),
             "F32" => Term::F32Type(span),
             "F64" => Term::F64Type(span),
+            "true" => Term::BoolConst(span, true),
+            "false" => Term::BoolConst(span, false),
             _ => {
                 report(diagnostics::bug::unknown_global(file_id, &name, span));
                 Term::Error(span)
