@@ -123,13 +123,41 @@ pub fn kind_has_no_type(severity: Severity, file_id: FileId, span: Span) -> Diag
 }
 
 pub mod error {
-    use itertools::Itertools;
+    use codespan::ByteOffset;
     use lalrpop_util::ParseError;
     use std::fmt;
 
     use crate::lexer::Token;
 
     use super::*;
+
+    pub fn unexpected_char(
+        file_id: FileId,
+        start: ByteIndex,
+        found: char,
+        expected: &[&str],
+    ) -> Diagnostic {
+        let end = start + ByteOffset::from_char_len(found);
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: format!("unexpected character `{}`", found),
+            primary_label: Label::new(file_id, start..end, "unexpected character"),
+            secondary_labels: vec![],
+            notes: vec![format!("expected one of {}", format_expected(&expected))],
+        }
+    }
+
+    pub fn unexpected_eof(file_id: FileId, eof: ByteIndex, expected: &[&str]) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: "unexpected end of file".to_owned(),
+            primary_label: Label::new(file_id, eof..eof, "unexpected end of file"),
+            secondary_labels: vec![],
+            notes: vec![format!("expected one of {}", format_expected(&expected))],
+        }
+    }
 
     pub fn parse(file_id: FileId, error: ParseError<ByteIndex, Token, Diagnostic>) -> Diagnostic {
         match error {
@@ -171,7 +199,9 @@ pub mod error {
         }
     }
 
-    fn format_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt::Display {
+    fn format_expected<'a>(items: &'a [impl fmt::Display]) -> impl 'a + fmt::Display {
+        use itertools::Itertools;
+
         struct DisplayExpected<'a, Item>(&'a [Item]);
 
         impl<'a, Item: fmt::Display> fmt::Display for DisplayExpected<'a, Item> {
