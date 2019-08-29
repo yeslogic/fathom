@@ -123,6 +123,7 @@ pub fn kind_has_no_type(severity: Severity, file_id: FileId, span: Span) -> Diag
 }
 
 pub mod error {
+    use itertools::Itertools;
     use lalrpop_util::ParseError;
     use std::fmt;
 
@@ -140,7 +141,7 @@ pub mod error {
                 message: "unexpected end of file".to_owned(),
                 primary_label: Label::new(file_id, location..location, "unexpected end of file"),
                 secondary_labels: vec![],
-                notes: vec![format!("expected one of {}", display_expected(&expected),)],
+                notes: vec![format!("expected one of {}", format_expected(&expected))],
             },
 
             ParseError::UnrecognizedToken {
@@ -152,7 +153,7 @@ pub mod error {
                 message: format!("unexpected token \"{}\"", token),
                 primary_label: Label::new(file_id, start..end, "unexpected token"),
                 secondary_labels: vec![],
-                notes: vec![format!("expected one of {}", display_expected(&expected),)],
+                notes: vec![format!("expected one of {}", format_expected(&expected))],
             },
 
             ParseError::ExtraToken {
@@ -170,20 +171,15 @@ pub mod error {
         }
     }
 
-    fn display_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt::Display {
+    fn format_expected<'a, Item: fmt::Display>(items: &'a [Item]) -> impl 'a + fmt::Display {
         struct DisplayExpected<'a, Item>(&'a [Item]);
 
         impl<'a, Item: fmt::Display> fmt::Display for DisplayExpected<'a, Item> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                for (i, item) in self.0.iter().enumerate() {
-                    match i {
-                        0 => write!(f, "{}", item)?,
-                        i if i >= self.0.len() => write!(f, ", or {}", item)?,
-                        _ => write!(f, ", {}", item)?,
-                    }
-                }
-
-                Ok(())
+                self.0.split_last().map_or(Ok(()), |items| match items {
+                    (last, []) => write!(f, "{}", last),
+                    (last, items) => write!(f, "{}, or {}", items.iter().format(", "), last),
+                })
             }
         }
 
