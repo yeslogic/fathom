@@ -1,10 +1,13 @@
 use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
+use inflector::Inflector;
 use num_bigint::BigInt;
 use std::collections::HashMap;
 
 use crate::compile::diagnostics;
-use crate::compile::rust::{Item, Module, RtType, StructType, Type, TypeAlias, TypeField};
+use crate::compile::rust::{
+    Const, Item, Module, RtType, StructType, Term, Type, TypeAlias, TypeField,
+};
 use crate::core;
 
 pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic)) -> Module {
@@ -55,7 +58,7 @@ struct Traits {
 
 #[derive(Debug, Clone)]
 enum CompiledItem {
-    // TODO: Term(Span, String, Type),
+    Term(Span, String, Type),
     Type(Span, String, Traits),
     Erased(Span),
     Error(Span),
@@ -64,7 +67,8 @@ enum CompiledItem {
 impl CompiledItem {
     fn span(&self) -> Span {
         match self {
-            CompiledItem::Type(span, _, _)
+            CompiledItem::Term(span, _, _)
+            | CompiledItem::Type(span, _, _)
             | CompiledItem::Erased(span)
             | CompiledItem::Error(span) => *span,
         }
@@ -94,11 +98,26 @@ fn compile_alias(
 ) -> (core::Label, CompiledItem, Option<Item>) {
     let span = core_alias.span;
     match compile_term(context, &core_alias.term, report) {
+        CompiledTerm::Term(term, ty) => {
+            let doc = core_alias.doc.clone();
+            let name = core_alias.name.0.to_screaming_snake_case(); // TODO: name avoidance
+
+            (
+                core_alias.name.clone(),
+                CompiledItem::Term(span, name.clone(), ty.clone()),
+                Some(Item::Const(Const {
+                    doc,
+                    name,
+                    ty,
+                    term,
+                })),
+            )
+        }
         CompiledTerm::Erased => (core_alias.name.clone(), CompiledItem::Erased(span), None),
         CompiledTerm::Error => (core_alias.name.clone(), CompiledItem::Error(span), None),
         CompiledTerm::Type(ty, traits) => {
             let doc = core_alias.doc.clone();
-            let name = core_alias.name.0.clone(); // TODO: PascalCase and name avoidance
+            let name = core_alias.name.0.to_pascal_case(); // TODO: name avoidance
 
             (
                 core_alias.name.clone(),
@@ -115,12 +134,23 @@ fn compile_struct_ty(
     report: &mut dyn FnMut(Diagnostic),
 ) -> (core::Label, CompiledItem, Option<Item>) {
     const INVALID_TYPE: Type = Type::Rt(RtType::InvalidDataDescription);
+    let error = |field: &core::TypeField| {
+        (
+            core_struct_ty.name.clone(),
+            CompiledItem::Error(field.span()),
+            None,
+        )
+    };
 
     let mut copy = Some(CopyTrait);
     let mut fields = Vec::with_capacity(core_struct_ty.fields.len());
 
     for field in &core_struct_ty.fields {
         let (format_ty, host_ty, field_copy) = match compile_term(context, &field.term, report) {
+            CompiledTerm::Term(_, _) => {
+                // TODO: Bug!
+                return error(field);
+            }
             CompiledTerm::Type(ty, traits) => match &traits.binary {
                 Some(binary) => (ty, binary.host_ty.clone(), traits.copy),
                 None => {
@@ -129,11 +159,7 @@ fn compile_struct_ty(
                         core_struct_ty.span,
                         field.term.span(),
                     ));
-                    return (
-                        core_struct_ty.name.clone(),
-                        CompiledItem::Error(field.span()),
-                        None,
-                    );
+                    return error(field);
                 }
             },
             CompiledTerm::Erased => {
@@ -156,7 +182,7 @@ fn compile_struct_ty(
     }
 
     let doc = core_struct_ty.doc.clone();
-    let name = core_struct_ty.name.0.clone(); // TODO: PascalCase and name avoidance
+    let name = core_struct_ty.name.0.to_pascal_case(); // TODO: name avoidance
     let mut derives = Vec::new();
     if copy.is_some() {
         derives.push("Copy".to_owned());
@@ -179,6 +205,7 @@ fn compile_struct_ty(
 }
 
 enum CompiledTerm {
+    Term(Term, Type),
     Type(Type, Traits),
     Erased,
     Error,
@@ -200,6 +227,9 @@ fn compile_term(
 
     match core_term {
         core::Term::Item(span, label) => match context.items.get(label) {
+            Some(CompiledItem::Term(_, name, ty)) => {
+                CompiledTerm::Term(Term::Var(name.clone()), ty.clone())
+            }
             Some(CompiledItem::Type(_, ty_name, traits)) => {
                 CompiledTerm::Type(Type::Var(ty_name.clone()), traits.clone())
             }
@@ -236,6 +266,7 @@ fn compile_term(
         }
         core::Term::F32Type(_) => host_ty(Type::F32, Some(CopyTrait)),
         core::Term::F64Type(_) => host_ty(Type::F64, Some(CopyTrait)),
+        core::Term::BoolConst(_, value) => CompiledTerm::Term(Term::Bool(*value), Type::Bool),
         core::Term::Kind(_) | core::Term::Type(_) => CompiledTerm::Erased,
         core::Term::Error(_) => CompiledTerm::Error,
     }

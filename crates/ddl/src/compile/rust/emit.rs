@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::compile::rust::{Item, Module, RtType, StructType, Type, TypeAlias};
+use crate::compile::rust::{Const, Item, Module, RtType, StructType, Term, Type, TypeAlias};
 
 pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
@@ -23,9 +23,26 @@ pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
 
 fn emit_item(writer: &mut impl Write, item: &Item) -> io::Result<()> {
     match item {
+        Item::Const(const_) => emit_const(writer, const_),
         Item::TypeAlias(ty_alias) => emit_ty_alias(writer, ty_alias),
         Item::Struct(struct_ty) => emit_struct_ty(writer, struct_ty),
     }
+}
+
+fn emit_const(writer: &mut impl Write, const_: &Const) -> io::Result<()> {
+    writeln!(writer)?;
+
+    for doc_line in const_.doc.iter() {
+        writeln!(writer, "///{}", doc_line)?;
+    }
+
+    write!(writer, "pub const {}: ", const_.name)?;
+    emit_ty(writer, &const_.ty)?;
+    write!(writer, " = ")?;
+    emit_term(writer, &const_.term)?;
+    writeln!(writer, ";")?;
+
+    Ok(())
 }
 
 fn emit_ty_alias(writer: &mut impl Write, ty_alias: &TypeAlias) -> io::Result<()> {
@@ -166,5 +183,12 @@ fn emit_rt_ty(writer: &mut impl Write, ty: &RtType) -> io::Result<()> {
         RtType::F64Le => write!(writer, "F64Le"),
         RtType::F64Be => write!(writer, "F64Be"),
         RtType::InvalidDataDescription => write!(writer, "InvalidDataDescription"),
+    }
+}
+
+fn emit_term(writer: &mut impl Write, ty: &Term) -> io::Result<()> {
+    match ty {
+        Term::Var(name) => write!(writer, "{}", name),
+        Term::Bool(value) => write!(writer, "{}", value),
     }
 }

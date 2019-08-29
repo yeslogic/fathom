@@ -13,8 +13,18 @@ pub struct Module {
 /// Compiled items.
 #[derive(Debug, Clone)]
 pub enum Item {
+    Const(Const),
     TypeAlias(TypeAlias),
     Struct(StructType),
+}
+
+/// Compiled constants.
+#[derive(Debug, Clone)]
+pub struct Const {
+    pub doc: Arc<[String]>,
+    pub name: String,
+    pub ty: Type,
+    pub term: Term,
 }
 
 /// Compiled type aliases.
@@ -84,4 +94,10 @@ pub enum RtType {
     F64Le,
     F64Be,
     InvalidDataDescription,
+}
+
+#[derive(Debug, Clone)]
+pub enum Term {
+    Var(String),
+    Bool(bool),
 }

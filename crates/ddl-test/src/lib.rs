@@ -22,6 +22,7 @@ test!(fail_unexpected_character, "fail_unexpected_character.ddl");
 
 #[rustfmt::skip]
 mod alias {
+    test!(pass_constants, "alias/pass_constants.ddl");
     test!(pass_globals, "alias/pass_globals.ddl");
     test!(pass_ann, "alias/pass_ann.ddl");
     test!(pass_alias_type, "alias/pass_alias_type.ddl");

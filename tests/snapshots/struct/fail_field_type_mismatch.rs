@@ -2,7 +2,9 @@
 // It is not intended for manual editing.
 
 pub struct Foo {
-    pub field: ddl_rt::InvalidDataDescription,
+    pub field_type: ddl_rt::InvalidDataDescription,
+    pub field_true: ddl_rt::InvalidDataDescription,
+    pub field_false: ddl_rt::InvalidDataDescription,
 }
 
 impl ddl_rt::Binary for Foo {
@@ -11,10 +13,14 @@ impl ddl_rt::Binary for Foo {
 
 impl<'data> ddl_rt::ReadBinary<'data> for Foo {
     fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<Foo, ddl_rt::ReadError> {
-        let field = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
+        let field_type = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
+        let field_true = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
+        let field_false = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
 
         Ok(Foo {
-            field,
+            field_type,
+            field_true,
+            field_false,
         })
     }
 }

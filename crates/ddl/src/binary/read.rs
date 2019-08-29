@@ -95,6 +95,7 @@ pub fn read_ty(
         | core::Term::IntType(_)
         | core::Term::F32Type(_)
         | core::Term::F64Type(_)
+        | core::Term::BoolConst(_, _)
         | core::Term::Error(_) => Err(ddl_rt::ReadError::InvalidDataDescription),
     }
 }
