@@ -1,0 +1,18 @@
+[package]
+name = "ddl-test-util"
+version = "0.1.0"
+authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
+edition = "2018"
+publish = false # NOTE: This crate is only needed for testing
+
+description = "Integration tests for the binary data description language"
+license = "Apache-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+codespan = "0.4"
+codespan-reporting =  "0.4"
+ddl = { version = "0.1.0", path = "../ddl" }
+ddl-rt = { version = "0.1.0", path = "../ddl-rt" }
+lazy_static = "1.4"

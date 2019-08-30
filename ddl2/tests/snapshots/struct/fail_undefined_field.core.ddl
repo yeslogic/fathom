@@ -1,0 +1,4 @@
+struct Pair {
+    first : !,
+    second : !,
+}

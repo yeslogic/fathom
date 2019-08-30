@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    './crates/ddl',
+    './crates/ddl-rt',
+    './crates/ddl-test',
+    './crates/ddl-test-util',
+]

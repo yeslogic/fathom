@@ -1,0 +1,82 @@
+use codespan::{ByteIndex, FileId, Span};
+use codespan_reporting::diagnostic::Diagnostic;
+use std::sync::Arc;
+
+use crate::concrete::{Alias, Item, Module, SpannedString, StructType, Term, TypeField};
+use crate::lexer::Token;
+
+grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));
+
+extern {
+    type Location = ByteIndex;
+    type Error = Diagnostic;
+
+    enum Token {
+        "identifier" => Token::Identifier(<String>),
+        "doc comment" => Token::DocComment(<String>),
+
+        "item" => Token::Item,
+        "struct" => Token::Struct,
+
+        "{" => Token::OpenBrace,
+        "}" => Token::CloseBrace,
+        "(" => Token::OpenParen,
+        ")" => Token::CloseParen,
+
+        "!" => Token::Bang,
+        ":" => Token::Colon,
+        "," => Token::Comma,
+        "=" => Token::Equals,
+        ";" => Token::Semi,
+    }
+}
+
+pub Module: Module = {
+    <items: Item*> => Module { file_id, items },
+};
+
+Item: Item = {
+    <doc: "doc comment"*>
+    <start: @L> <name: Identifier> <ty: (":" <Term>)?> "=" <term: Term> ";" <end: @R> => {
+        let span = Span::from(start..end);
+        let doc = Arc::from(doc);
+
+        Item::Alias(Alias { span, doc, name, ty, term })
+    },
+    <doc: "doc comment"*>
+    <start: @L> "struct" <name: Identifier> "{"
+        <mut fields: (<Field> ",")*>
+        <last: Field?>
+    "}" <end: @R> => {
+        let span = Span::from(start..end);
+        let doc = Arc::from(doc);
+        fields.extend(last);
+
+        Item::Struct(StructType { span, doc, name, fields })
+    },
+};
+
+Field: TypeField = {
+    <docs: "doc comment"*>
+    <name: Identifier> ":" <term: Term> => {
+        TypeField { doc: Arc::from(docs), name, term }
+    },
+};
+
+Term: Term = {
+    TermAtomic,
+    <term: TermAtomic> ":" <ty: Term> => Term::Ann(Box::new(term), Box::new(ty)),
+};
+
+TermAtomic: Term = {
+    <start: @L> "(" <term: Term> ")" <end: @R> => {
+        Term::Paren(Span::new(start, end), Box::new(term))
+    },
+    <name: Identifier> => Term::Var(name),
+};
+
+Identifier: SpannedString = {
+    <start: @L> <name: "identifier"> => {
+        SpannedString::new(start, name)
+    },
+};
