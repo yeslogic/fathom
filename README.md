@@ -1,4 +1,4 @@
-# ddl2
+# DDL (placeholder name)
 
 A declarative data definition language for formally specifying binary
 data formats.
