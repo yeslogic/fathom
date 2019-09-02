@@ -21,7 +21,7 @@ formally verified specification in the future.
     the concrete syntax of the language
 -   [Elaboration](./specification/elaboration.md):
     elaboration of the concrete syntax into the core type theory
--   [Binary interpretation](./binary-interpretation.md):
-    describes a how to interpret binary types as binary encoders and decoders
--   [References](./binary-interpretation.md):
+-   [Binary interpretation](./specification/binary-interpretation.md):
+    describes how to interpret binary types as binary encoders and decoders
+-   [References](./specification/references.md):
     list of references that proved useful when designing the data description language
