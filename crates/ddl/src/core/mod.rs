@@ -332,22 +332,22 @@ pub enum Term {
     S64LeType(Span),
     /// Signed, two's complement 64-bit integer type (big endian).
     S64BeType(Span),
-    /// IEEE754 single-precision floating point number type (little endian).
+    /// IEEE-754 single-precision floating point number type (little endian).
     F32LeType(Span),
-    /// IEEE754 single-precision floating point number type (big endian).
+    /// IEEE-754 single-precision floating point number type (big endian).
     F32BeType(Span),
-    /// IEEE754 double-precision floating point number type (little endian).
+    /// IEEE-754 double-precision floating point number type (little endian).
     F64LeType(Span),
-    /// IEEE754 double-precision floating point number type (big endian).
+    /// IEEE-754 double-precision floating point number type (big endian).
     F64BeType(Span),
 
     /// Host boolean type.
     BoolType(Span),
     /// Host integer type.
     IntType(Span),
-    /// Host IEEE754 single-precision floating point type.
+    /// Host IEEE-754 single-precision floating point type.
     F32Type(Span),
-    /// Host IEEE754 double-precision floating point type.
+    /// Host IEEE-754 double-precision floating point type.
     F64Type(Span),
 
     /// Host boolean constant.
@@ -534,22 +534,22 @@ pub enum Value {
     S64LeType,
     /// Signed, two's complement 64-bit integer type (big endian).
     S64BeType,
-    /// IEEE754 single-precision floating point number type (little endian).
+    /// IEEE-754 single-precision floating point number type (little endian).
     F32LeType,
-    /// IEEE754 single-precision floating point number type (big endian).
+    /// IEEE-754 single-precision floating point number type (big endian).
     F32BeType,
-    /// IEEE754 double-precision floating point number type (little endian).
+    /// IEEE-754 double-precision floating point number type (little endian).
     F64LeType,
-    /// IEEE754 double-precision floating point number type (big endian).
+    /// IEEE-754 double-precision floating point number type (big endian).
     F64BeType,
 
     /// Host boolean type.
     BoolType,
     /// Host integer type.
     IntType,
-    /// Host IEEE754 single-precision floating point type.
+    /// Host IEEE-754 single-precision floating point type.
     F32Type,
-    /// Host IEEE754 double-precision floating point type.
+    /// Host IEEE-754 double-precision floating point type.
     F64Type,
 
     /// Host boolean constant.

@@ -306,19 +306,19 @@ impl_int_marker!(I32Be, U32Be, i32);
 impl_int_marker!(I64Le, U64Le, i64);
 impl_int_marker!(I64Be, U64Be, i64);
 
-/// Marker type for IEEE754 single-precision floating point numbers (little endian).
+/// Marker type for IEEE-754 single-precision floating point numbers (little endian).
 #[derive(Copy, Clone)]
 pub enum F32Le {}
 
-/// Marker type for IEEE754 single-precision floating point numbers (big endian).
+/// Marker type for IEEE-754 single-precision floating point numbers (big endian).
 #[derive(Copy, Clone)]
 pub enum F32Be {}
 
-/// Marker type for IEEE754 double-precision floating point numbers (little endian).
+/// Marker type for IEEE-754 double-precision floating point numbers (little endian).
 #[derive(Copy, Clone)]
 pub enum F64Le {}
 
-/// Marker type for IEEE754 double-precision floating point numbers (big endian).
+/// Marker type for IEEE-754 double-precision floating point numbers (big endian).
 #[derive(Copy, Clone)]
 pub enum F64Be {}
 
