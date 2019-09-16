@@ -1,6 +1,7 @@
 use codespan::{ByteIndex, FileId, Files, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
-use ddl::concrete::SpannedString;
+
+use super::SpannedString;
 
 pub type Token = (Span, SpannedString, Option<SpannedString>);
 

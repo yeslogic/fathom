@@ -1,8 +1,7 @@
 //! The concrete syntax for the data description language.
 
-use codespan::{ByteIndex, ByteOffset, FileId, Span};
+use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
-use std::fmt;
 use std::sync::Arc;
 
 use crate::diagnostics;
@@ -64,7 +63,7 @@ pub struct StructType {
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
-    pub name: SpannedString,
+    pub name: (Span, String),
     /// Fields in the struct.
     pub fields: Vec<TypeField>,
 }
@@ -77,7 +76,7 @@ pub struct Alias {
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
-    pub name: SpannedString,
+    pub name: (Span, String),
     /// Optional type annotation
     pub ty: Option<Term>,
     /// Fields in the struct.
@@ -88,7 +87,7 @@ pub struct Alias {
 #[derive(Debug, Clone)]
 pub struct TypeField {
     pub doc: Arc<[String]>,
-    pub name: SpannedString,
+    pub name: (Span, String),
     pub term: Term,
 }
 
@@ -100,7 +99,7 @@ pub enum Term {
     /// Annotated terms.
     Ann(Box<Term>, Box<Term>),
     /// Variables.
-    Var(SpannedString),
+    Var(Span, String),
 
     /// Error sentinel terms.
     Error(Span),
@@ -110,41 +109,7 @@ impl Term {
     pub fn span(&self) -> Span {
         match self {
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
-            Term::Var(name) => name.span(),
-            Term::Paren(span, _) | Term::Error(span) => *span,
+            Term::Paren(span, _) | Term::Var(span, _) | Term::Error(span) => *span,
         }
-    }
-}
-
-/// A string that is located in a source file.
-#[derive(Debug, Clone)]
-pub struct SpannedString {
-    pub start: ByteIndex,
-    pub inner: String,
-}
-
-impl SpannedString {
-    pub fn new(start: impl Into<ByteIndex>, inner: impl Into<String>) -> SpannedString {
-        SpannedString {
-            start: start.into(),
-            inner: inner.into(),
-        }
-    }
-
-    pub fn span(&self) -> Span {
-        Span::new(
-            self.start,
-            self.start + ByteOffset::from_str_len(&self.inner),
-        )
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.inner
-    }
-}
-
-impl fmt::Display for SpannedString {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.inner.fmt(f)
     }
 }
