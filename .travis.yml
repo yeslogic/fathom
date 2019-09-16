@@ -3,6 +3,7 @@ cache: cargo
 
 rust:
   - 1.32.0
+  - 1.36.0 # FIXME: version regression https://github.com/SimonSapin/rust-typed-arena/issues/31
   - stable
   - beta
   - nightly
@@ -10,4 +11,5 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
+    - rust: 1.32.0 # FIXME: version regression https://github.com/SimonSapin/rust-typed-arena/issues/31
   fast_finish: true
