@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::concrete::{Alias, Item, Module, SpannedString, StructType, Term, TypeField};
+use crate::concrete::{Alias, Item, Module, StructType, Term, TypeField};
 use crate::lexer::Token;
 
 grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));
@@ -38,7 +38,7 @@ pub Module: Module = {
 Item: Item = {
     <doc: "doc comment"*>
     <start: @L> <name: Identifier> <ty: (":" <Term>)?> "=" <term: Term> ";" <end: @R> => {
-        let span = Span::from(start..end);
+        let span = Span::new(start, end);
         let doc = Arc::from(doc);
 
         Item::Alias(Alias { span, doc, name, ty, term })
@@ -72,11 +72,11 @@ TermAtomic: Term = {
     <start: @L> "(" <term: Term> ")" <end: @R> => {
         Term::Paren(Span::new(start, end), Box::new(term))
     },
-    <name: Identifier> => Term::Var(name),
+    <name: Identifier> => Term::Var(name.0, name.1),
 };
 
-Identifier: SpannedString = {
-    <start: @L> <name: "identifier"> => {
-        SpannedString::new(start, name)
+Identifier: (Span, String) = {
+    <start: @L> <name: "identifier"> <end: @R> => {
+        (Span::new(start, end), name)
     },
 };
