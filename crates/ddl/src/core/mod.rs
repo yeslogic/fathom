@@ -128,7 +128,7 @@ impl PartialEq for Item {
     }
 }
 
-/// A struct type definition.
+/// An alias definition.
 #[derive(Debug, Clone)]
 pub struct Alias {
     /// The full span of this definition.

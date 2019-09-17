@@ -2,6 +2,7 @@
 
 use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
+use pretty::{DocAllocator, DocBuilder};
 use std::sync::Arc;
 
 use crate::diagnostics;
@@ -36,36 +37,49 @@ impl Module {
                 }
             })
     }
+
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        let items = alloc.intersperse(
+            self.items.iter().map(|item| item.doc(alloc)),
+            alloc.newline().append(alloc.newline()),
+        );
+
+        items.append(alloc.newline())
+    }
 }
 
 /// Items in a module.
 #[derive(Debug, Clone)]
 pub enum Item {
-    /// Struct definitions.
-    ///
-    /// ```text
-    /// struct <name> {}
-    /// ```
-    Struct(StructType),
     /// Alias definitions.
     ///
     /// ```text
     /// alias <name> = <term>;
     /// ```
     Alias(Alias),
+    /// Struct definitions.
+    ///
+    /// ```text
+    /// struct <name> {}
+    /// ```
+    Struct(StructType),
 }
 
-/// A struct type definition.
-#[derive(Debug, Clone)]
-pub struct StructType {
-    /// The full span of this definition.
-    pub span: Span,
-    /// Doc comment.
-    pub doc: Arc<[String]>,
-    /// Name of this definition.
-    pub name: (Span, String),
-    /// Fields in the struct.
-    pub fields: Vec<TypeField>,
+impl Item {
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        match self {
+            Item::Alias(alias) => alias.doc(alloc),
+            Item::Struct(struct_ty) => struct_ty.doc(alloc),
+        }
+    }
 }
 
 /// Alias definition.
@@ -83,12 +97,130 @@ pub struct Alias {
     pub term: Term,
 }
 
+impl Alias {
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        let docs = alloc.concat(self.doc.iter().map(|line| {
+            (alloc.nil())
+                .append("///")
+                .append(line)
+                .group()
+                .append(alloc.newline())
+        }));
+
+        (alloc.nil())
+            .append(docs)
+            .append(&self.name.1)
+            .append(alloc.space())
+            .append("=")
+            .group()
+            .append(
+                (alloc.nil())
+                    .append(alloc.space())
+                    .append(self.term.doc(alloc))
+                    .group()
+                    .append(";")
+                    .nest(4),
+            )
+    }
+}
+
+/// A struct type definition.
+#[derive(Debug, Clone)]
+pub struct StructType {
+    /// The full span of this definition.
+    pub span: Span,
+    /// Doc comment.
+    pub doc: Arc<[String]>,
+    /// Name of this definition.
+    pub name: (Span, String),
+    /// Fields in the struct.
+    pub fields: Vec<TypeField>,
+}
+
+impl StructType {
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        let docs = alloc.concat(self.doc.iter().map(|line| {
+            (alloc.nil())
+                .append("///")
+                .append(line)
+                .group()
+                .append(alloc.newline())
+        }));
+
+        let struct_prefix = (alloc.nil())
+            .append("struct")
+            .append(alloc.space())
+            .append(&self.name.1)
+            .append(alloc.space());
+
+        let struct_ty = if self.fields.is_empty() {
+            (alloc.nil()).append(struct_prefix).append("{}").group()
+        } else {
+            (alloc.nil())
+                .append(struct_prefix)
+                .append("{")
+                .group()
+                .append(alloc.concat(self.fields.iter().map(|field| {
+                    (alloc.nil())
+                        .append(alloc.newline())
+                        .append(field.doc(alloc))
+                        .nest(4)
+                        .group()
+                })))
+                .append(alloc.newline())
+                .append("}")
+        };
+
+        (alloc.nil()).append(docs).append(struct_ty)
+    }
+}
+
 /// A field in a struct type definition.
 #[derive(Debug, Clone)]
 pub struct TypeField {
     pub doc: Arc<[String]>,
     pub name: (Span, String),
     pub term: Term,
+}
+
+impl TypeField {
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        let docs = alloc.concat(self.doc.iter().map(|line| {
+            (alloc.nil())
+                .append("///")
+                .append(line)
+                .group()
+                .append(alloc.newline())
+        }));
+
+        (alloc.nil())
+            .append(docs)
+            .append(
+                (alloc.nil())
+                    .append(&self.name.1)
+                    .append(alloc.space())
+                    .append(":")
+                    .group(),
+            )
+            .append(
+                (alloc.nil())
+                    .append(alloc.space())
+                    .append(self.term.doc(alloc))
+                    .append(","),
+            )
+    }
 }
 
 /// Terms.
@@ -110,6 +242,24 @@ impl Term {
         match self {
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
             Term::Paren(span, _) | Term::Var(span, _) | Term::Error(span) => *span,
+        }
+    }
+
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        match self {
+            Term::Var(_, name) => alloc.text(name),
+            Term::Paren(_, term) => alloc.text("(").append(term.doc(alloc)).append(")"),
+            Term::Ann(term, ty) => (alloc.nil())
+                .append(term.doc(alloc))
+                .append(alloc.space())
+                .append(":")
+                .group()
+                .append((alloc.space()).append(ty.doc(alloc)).group().nest(4)),
+            Term::Error(_) => alloc.text("!"),
         }
     }
 }

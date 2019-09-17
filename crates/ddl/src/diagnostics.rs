@@ -3,7 +3,7 @@
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 
-use crate::core;
+use crate::{core, delaborate};
 
 pub fn field_redeclaration(
     severity: Severity,
@@ -55,8 +55,8 @@ pub fn type_mismatch(
 ) -> Diagnostic {
     let arena = pretty::Arena::new();
 
-    let expected_ty = core::semantics::readback(expected_ty);
-    let found_ty = core::semantics::readback(found_ty);
+    let expected_ty = delaborate::delaborate_term(&core::semantics::readback(expected_ty));
+    let found_ty = delaborate::delaborate_term(&core::semantics::readback(found_ty));
     let pretty::DocBuilder(_, expected_ty) = expected_ty.doc(&arena);
     let pretty::DocBuilder(_, found_ty) = found_ty.doc(&arena);
     let expected_ty = expected_ty.pretty(100);
@@ -88,7 +88,7 @@ pub fn universe_mismatch(
 ) -> Diagnostic {
     let arena = pretty::Arena::new();
 
-    let found_ty = core::semantics::readback(found_ty);
+    let found_ty = delaborate::delaborate_term(&core::semantics::readback(found_ty));
     let pretty::DocBuilder(_, found_ty) = found_ty.doc(&arena);
     let found_ty = found_ty.pretty(100);
 
