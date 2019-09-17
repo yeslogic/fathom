@@ -2,13 +2,14 @@
 
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
+use num_bigint::BigInt;
 use pretty::{DocAllocator, DocBuilder};
 use std::borrow::Borrow;
 use std::fmt;
 use std::sync::Arc;
 
-use crate::diagnostics;
 use crate::lexer::SpannedToken;
+use crate::{diagnostics, ieee754};
 
 mod grammar {
     include!(concat!(env!("OUT_DIR"), "/core/grammar.rs"));
@@ -352,6 +353,12 @@ pub enum Term {
 
     /// Host boolean constant.
     BoolConst(Span, bool),
+    /// Host integer constants.
+    IntConst(Span, BigInt),
+    /// Host IEEE-754 single-precision floating point constants.
+    F32Const(Span, f32),
+    /// Host IEEE-754 double-precision floating point constants.
+    F64Const(Span, f64),
 
     /// Error sentinel.
     Error(Span),
@@ -386,6 +393,9 @@ impl Term {
             | Term::F32Type(span)
             | Term::F64Type(span)
             | Term::BoolConst(span, _)
+            | Term::IntConst(span, _)
+            | Term::F32Const(span, _)
+            | Term::F64Const(span, _)
             | Term::Error(span) => *span,
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
         }
@@ -404,29 +414,44 @@ impl Term {
         D: DocAllocator<'core>,
         D::Doc: Clone,
     {
+        use num_traits::Float;
+        use std::borrow::Cow;
+
         let show_paren = |cond, doc| match cond {
             true => alloc.text("(").append(doc).append(")"),
             false => doc,
         };
+
+        let ann = |prec, term, ty| {
+            show_paren(
+                prec > 0,
+                (alloc.nil())
+                    .append(term)
+                    .append(alloc.space())
+                    .append(":")
+                    .group()
+                    .append((alloc.space()).append(ty).group().nest(4)),
+            )
+        };
+
+        // Workaround -0.0 ridiculousness
+        fn format_float<T: Float + From<u8> + fmt::Display>(value: T) -> Cow<'static, str> {
+            if value == <T as From<u8>>::from(0) && value.is_sign_negative() {
+                "-0".into()
+            } else {
+                value.to_string().into()
+            }
+        }
 
         match self {
             Term::Item(_, label) => (alloc.nil())
                 .append("item")
                 .append(alloc.space())
                 .append(alloc.as_string(label)),
-            Term::Ann(term, ty) => show_paren(
-                prec > 0,
-                (alloc.nil())
-                    .append(term.doc_prec(alloc, prec + 1))
-                    .append(alloc.space())
-                    .append(":")
-                    .group()
-                    .append(
-                        (alloc.space())
-                            .append(ty.doc_prec(alloc, prec + 1))
-                            .group()
-                            .nest(4),
-                    ),
+            Term::Ann(term, ty) => ann(
+                prec,
+                term.doc_prec(alloc, prec + 1),
+                ty.doc_prec(alloc, prec + 1),
             ),
             Term::Kind(_) => alloc.text("Kind"),
             Term::Type(_) => alloc.text("Type"),
@@ -454,6 +479,17 @@ impl Term {
             Term::F64Type(_) => alloc.text("F64"),
             Term::BoolConst(_, true) => alloc.text("true"),
             Term::BoolConst(_, false) => alloc.text("false"),
+            Term::IntConst(_, value) => ann(prec, alloc.as_string(value), alloc.text("Int")),
+            Term::F32Const(_, value) => ann(
+                prec,
+                alloc.as_string(format_float(*value)),
+                alloc.text("F32"),
+            ),
+            Term::F64Const(_, value) => ann(
+                prec,
+                alloc.as_string(format_float(*value)),
+                alloc.text("F64"),
+            ),
             Term::Error(_) => alloc.text("!"),
         }
     }
@@ -465,6 +501,9 @@ impl PartialEq for Term {
             (Term::Item(_, label0), Term::Item(_, label1)) => label0 == label1,
             (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
             (Term::BoolConst(_, val0), Term::BoolConst(_, val1)) => val0 == val1,
+            (Term::IntConst(_, val0), Term::IntConst(_, val1)) => val0 == val1,
+            (Term::F32Const(_, val0), Term::F32Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
+            (Term::F64Const(_, val0), Term::F64Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
             (Term::Kind(_), Term::Kind(_))
             | (Term::Type(_), Term::Type(_))
             | (Term::U8Type(_), Term::U8Type(_))
@@ -554,6 +593,12 @@ pub enum Value {
 
     /// Host boolean constant.
     BoolConst(bool),
+    /// Host integer constants.
+    IntConst(BigInt),
+    /// Host IEEE-754 single-precision floating point constants.
+    F32Const(f32),
+    /// Host IEEE-754 double-precision floating point constants.
+    F64Const(f64),
 
     /// Error sentinel.
     Error,

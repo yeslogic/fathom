@@ -3,6 +3,7 @@
 use codespan::Span;
 
 use crate::core::{Term, Value};
+use crate::ieee754;
 
 /// Evaluate a term into a semantic value.
 pub fn eval(term: &Term) -> Value {
@@ -34,6 +35,9 @@ pub fn eval(term: &Term) -> Value {
         Term::F32Type(_) => Value::F32Type,
         Term::F64Type(_) => Value::F64Type,
         Term::BoolConst(_, value) => Value::BoolConst(*value),
+        Term::IntConst(_, value) => Value::IntConst(value.clone()),
+        Term::F32Const(_, value) => Value::F32Const(*value),
+        Term::F64Const(_, value) => Value::F64Const(*value),
         Term::Error(_) => Value::Error,
     }
 }
@@ -67,6 +71,9 @@ pub fn readback(value: &Value) -> Term {
         Value::F32Type => Term::F32Type(Span::initial()),
         Value::F64Type => Term::F64Type(Span::initial()),
         Value::BoolConst(value) => Term::BoolConst(Span::initial(), *value),
+        Value::IntConst(value) => Term::IntConst(Span::initial(), value.clone()),
+        Value::F32Const(value) => Term::F32Const(Span::initial(), *value),
+        Value::F64Const(value) => Term::F64Const(Span::initial(), *value),
         Value::Error => Term::Error(Span::initial()),
     }
 }
@@ -75,6 +82,9 @@ pub fn equal(val1: &Value, val2: &Value) -> bool {
     match (val1, val2) {
         (Value::Item(label0), Value::Item(label1)) => label0 == label1,
         (Value::BoolConst(value0), Value::BoolConst(value1)) => value0 == value1,
+        (Value::IntConst(value0), Value::IntConst(value1)) => value0 == value1,
+        (Value::F32Const(value0), Value::F32Const(value1)) => ieee754::logical_eq(*value0, *value1),
+        (Value::F64Const(value0), Value::F64Const(value1)) => ieee754::logical_eq(*value0, *value1),
         (Value::Kind, Value::Kind)
         | (Value::Type, Value::Type)
         | (Value::U8Type, Value::U8Type)

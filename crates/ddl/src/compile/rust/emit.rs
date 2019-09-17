@@ -190,5 +190,15 @@ fn emit_term(writer: &mut impl Write, ty: &Term) -> io::Result<()> {
     match ty {
         Term::Var(name) => write!(writer, "{}", name),
         Term::Bool(value) => write!(writer, "{}", value),
+        Term::U8(value) => write!(writer, "{}u8", value),
+        Term::U16(value) => write!(writer, "{}u16", value),
+        Term::U32(value) => write!(writer, "{}u32", value),
+        Term::U64(value) => write!(writer, "{}u64", value),
+        Term::I8(value) => write!(writer, "{}i8", value),
+        Term::I16(value) => write!(writer, "{}i16", value),
+        Term::I32(value) => write!(writer, "{}i32", value),
+        Term::I64(value) => write!(writer, "{}i64", value),
+        Term::F32(value) => write!(writer, "{}f32", value),
+        Term::F64(value) => write!(writer, "{}f64", value),
     }
 }

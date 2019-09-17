@@ -1,5 +1,6 @@
 use codespan::FileId;
 use codespan_reporting::diagnostic::Diagnostic;
+use std::borrow::Cow;
 use std::io;
 use std::io::prelude::*;
 
@@ -143,38 +144,41 @@ fn compile_term<'term>(
     context: &ModuleContext,
     term: &'term core::Term,
     report: &mut dyn FnMut(Diagnostic),
-) -> &'term str {
+) -> Cow<'term, str> {
     match term {
         // TODO: Link to specific docs
-        core::Term::Item(_, name) => &name.0,
+        core::Term::Item(_, name) => name.0.as_str().into(),
         core::Term::Ann(term, _) => compile_term(context, term, report),
         // TODO: Link to global docs
-        core::Term::Kind(_) => "Kind",
-        core::Term::Type(_) => "Type",
-        core::Term::U8Type(_) => "U8",
-        core::Term::U16LeType(_) => "U16Le",
-        core::Term::U16BeType(_) => "U16Be",
-        core::Term::U32LeType(_) => "U32Le",
-        core::Term::U32BeType(_) => "U32Be",
-        core::Term::U64LeType(_) => "U64Le",
-        core::Term::U64BeType(_) => "U64Be",
-        core::Term::S8Type(_) => "S8",
-        core::Term::S16LeType(_) => "S16Le",
-        core::Term::S16BeType(_) => "S16Be",
-        core::Term::S32LeType(_) => "S32Le",
-        core::Term::S32BeType(_) => "S32Be",
-        core::Term::S64LeType(_) => "S64Le",
-        core::Term::S64BeType(_) => "S64Be",
-        core::Term::F32LeType(_) => "F32Le",
-        core::Term::F32BeType(_) => "F32Be",
-        core::Term::F64LeType(_) => "F64Le",
-        core::Term::F64BeType(_) => "F64Be",
-        core::Term::BoolType(_) => "Bool", // NOTE: Invalid if in struct
-        core::Term::IntType(_) => "Int",   // NOTE: Invalid if in struct
-        core::Term::F32Type(_) => "F32",   // NOTE: Invalid if in struct
-        core::Term::F64Type(_) => "F64",   // NOTE: Invalid if in struct
-        core::Term::BoolConst(_, true) => "true", // TODO: Invalid if in type
-        core::Term::BoolConst(_, false) => "false", // TODO: Invalid if in type
-        core::Term::Error(_) => "**invalid data description**",
+        core::Term::Kind(_) => "Kind".into(),
+        core::Term::Type(_) => "Type".into(),
+        core::Term::U8Type(_) => "U8".into(),
+        core::Term::U16LeType(_) => "U16Le".into(),
+        core::Term::U16BeType(_) => "U16Be".into(),
+        core::Term::U32LeType(_) => "U32Le".into(),
+        core::Term::U32BeType(_) => "U32Be".into(),
+        core::Term::U64LeType(_) => "U64Le".into(),
+        core::Term::U64BeType(_) => "U64Be".into(),
+        core::Term::S8Type(_) => "S8".into(),
+        core::Term::S16LeType(_) => "S16Le".into(),
+        core::Term::S16BeType(_) => "S16Be".into(),
+        core::Term::S32LeType(_) => "S32Le".into(),
+        core::Term::S32BeType(_) => "S32Be".into(),
+        core::Term::S64LeType(_) => "S64Le".into(),
+        core::Term::S64BeType(_) => "S64Be".into(),
+        core::Term::F32LeType(_) => "F32Le".into(),
+        core::Term::F32BeType(_) => "F32Be".into(),
+        core::Term::F64LeType(_) => "F64Le".into(),
+        core::Term::F64BeType(_) => "F64Be".into(),
+        core::Term::BoolType(_) => "Bool".into(), // NOTE: Invalid if in struct
+        core::Term::IntType(_) => "Int".into(),   // NOTE: Invalid if in struct
+        core::Term::F32Type(_) => "F32".into(),   // NOTE: Invalid if in struct
+        core::Term::F64Type(_) => "F64".into(),   // NOTE: Invalid if in struct
+        core::Term::BoolConst(_, true) => "true".into(), // TODO: Invalid if in type
+        core::Term::BoolConst(_, false) => "false".into(), // TODO: Invalid if in type
+        core::Term::F32Const(_, value) => format!("{}", value).into(), // TODO: Invalid if in type
+        core::Term::F64Const(_, value) => format!("{}", value).into(), // TODO: Invalid if in type
+        core::Term::IntConst(_, value) => format!("{}", value).into(), // TODO: Invalid if in type
+        core::Term::Error(_) => "**invalid data description**".into(),
     }
 }

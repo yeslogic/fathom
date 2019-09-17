@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::core::{Alias, Item, Label, Module, StructType, Term, TypeField};
 use crate::diagnostics;
 use crate::lexer::Token;
+use crate::literal;
 
 grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));
 
@@ -13,8 +14,11 @@ extern {
     type Error = Diagnostic;
 
     enum Token {
-        "identifier" => Token::Identifier(<String>),
         "doc comment" => Token::DocComment(<String>),
+        "identifier" => Token::Identifier(<String>),
+        "numeric literal" => Token::NumberLiteral(<literal::Number>),
+        "string literal" => Token::StringLiteral(<literal::String>),
+        "character literal" => Token::CharLiteral(<literal::Char>),
 
         "item" => Token::Item,
         "struct" => Token::Struct,
@@ -108,6 +112,27 @@ TermAtomic: Term = {
             "false" => Term::BoolConst(span, false),
             _ => {
                 report(diagnostics::bug::unknown_global(file_id, &name, span));
+                Term::Error(span)
+            },
+        }
+    },
+    <start: @L> <literal: "numeric literal"> ":" <name: "identifier"> <end: @R> => {
+        let span = Span::new(start, end);
+        match name.as_ref() {
+            "Int" => match literal.parse_big_int(file_id, report) {
+                Some(value) => Term::IntConst(span, value),
+                None => Term::Error(span),
+            },
+            "F32" => match literal.parse_float(file_id, report) {
+                Some(value) => Term::F32Const(span, value),
+                None => Term::Error(span),
+            },
+            "F64" => match literal.parse_float(file_id, report) {
+                Some(value) => Term::F64Const(span, value),
+                None => Term::Error(span),
+            },
+            _ => {
+                report(diagnostics::bug::not_yet_implemented(file_id, span, "unknown numeric literal error"));
                 Term::Error(span)
             },
         }

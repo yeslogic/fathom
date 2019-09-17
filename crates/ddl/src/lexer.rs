@@ -1,10 +1,11 @@
-use codespan::{ByteIndex, ByteOffset, FileId, Files};
+use codespan::{ByteIndex, ByteOffset, FileId, Files, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use maplit::hashmap;
 use std::collections::HashMap;
 use std::fmt;
 
 use crate::diagnostics;
+use crate::literal::{self, Sign};
 
 type Keywords = HashMap<String, Token>;
 
@@ -22,10 +23,16 @@ lazy_static::lazy_static! {
 /// Tokens that will be produces during lexing.
 #[derive(Debug, Clone)]
 pub enum Token {
-    /// Identifiers
-    Identifier(String),
     /// Doc comments,
     DocComment(String),
+    /// Identifiers.
+    Identifier(String),
+    /// Numeric literals.
+    NumberLiteral(literal::Number),
+    /// String literals.
+    StringLiteral(literal::String),
+    /// Character literals.
+    CharLiteral(literal::Char),
 
     /// Keyword `item`
     Item,
@@ -56,8 +63,11 @@ pub enum Token {
 impl<'a> fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Token::Identifier(name) => write!(f, "{}", name),
             Token::DocComment(name) => write!(f, "///{}", name),
+            Token::Identifier(name) => write!(f, "{}", name),
+            Token::NumberLiteral(literal) => write!(f, "{}", literal),
+            Token::StringLiteral(literal) => write!(f, "{}", literal),
+            Token::CharLiteral(literal) => write!(f, "{}", literal),
 
             Token::Item => write!(f, "item"),
             Token::Struct => write!(f, "struct"),
@@ -113,11 +123,11 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
     }
 
     /// Emit a token and reset the start position, ready for the next token.
-    fn emit(&mut self, token: Token) -> SpannedToken {
+    fn emit(&mut self, token: Token) -> Option<Result<SpannedToken, Diagnostic>> {
         let start = self.token_start;
         let end = self.token_end;
         self.token_start = self.token_end;
-        (start, token, end)
+        Some(Ok((start, token, end)))
     }
 
     /// Peek at the current lookahead character.
@@ -157,6 +167,48 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
             expected,
         )))
     }
+
+    fn consume_number(
+        &mut self,
+        start: ByteIndex,
+        sign: Option<Sign>,
+        first_digit: char,
+    ) -> Option<Result<SpannedToken, Diagnostic>> {
+        let mut number = String::new();
+        number.push(first_digit);
+
+        while let Some(ch) = self.peek() {
+            if is_identifier_continue(ch) || ch == '.' {
+                number.push(ch);
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        let number_span = Span::new(start, self.token_end);
+        let literal = literal::Number::new(sign, (number_span, number));
+        self.emit(Token::NumberLiteral(literal))
+    }
+
+    fn consume_identifier(&mut self, start_ch: char) -> Option<Result<SpannedToken, Diagnostic>> {
+        let mut ident = String::new();
+        ident.push(start_ch);
+
+        while let Some(ch) = self.peek() {
+            if is_identifier_continue(ch) {
+                ident.push(ch);
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        match self.keywords.get(&ident) {
+            Some(token) => self.emit(token.clone()),
+            None => self.emit(Token::Identifier(ident)),
+        }
+    }
 }
 
 impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
@@ -165,76 +217,78 @@ impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
     fn next(&mut self) -> Option<Result<SpannedToken, Diagnostic>> {
         'top: loop {
             let start = self.token_end;
-            match self.advance()? {
-                '/' => {
-                    let expected = &["`/`"];
-                    let start = self.token_end;
-                    match self.advance() {
-                        Some('/') if self.peek() == Some('/') => {
-                            let mut doc = String::new();
-                            self.advance();
-                            'doc_comment: loop {
-                                match self.advance() {
-                                    Some('\n') | Some('\r') | None => {
-                                        return Some(Ok(self.emit(Token::DocComment(doc))))
-                                    }
-                                    Some(ch) => {
-                                        doc.push(ch);
-                                        continue 'doc_comment;
-                                    }
-                                }
-                            }
-                        }
-                        Some('/') => 'comment: loop {
+            return match self.advance()? {
+                '/' => match self.advance() {
+                    Some('/') if self.peek() == Some('/') => {
+                        let mut doc = String::new();
+                        self.advance();
+                        'doc_comment: loop {
                             match self.advance() {
-                                Some('\n') | Some('\r') => {
-                                    self.reset_start();
-                                    continue 'top;
+                                Some('\n') | Some('\r') | None => {
+                                    return self.emit(Token::DocComment(doc));
                                 }
-                                Some(_) => continue 'comment,
-                                None => return None,
-                            }
-                        },
-                        Some(ch) => return self.unexpected_char(start, ch, expected),
-                        None => return self.unexpected_eof(expected),
-                    }
-                }
-                '{' => return Some(Ok(self.emit(Token::OpenBrace))),
-                '}' => return Some(Ok(self.emit(Token::CloseBrace))),
-                '(' => return Some(Ok(self.emit(Token::OpenParen))),
-                ')' => return Some(Ok(self.emit(Token::CloseParen))),
-                '!' => return Some(Ok(self.emit(Token::Bang))),
-                ':' => return Some(Ok(self.emit(Token::Colon))),
-                ',' => return Some(Ok(self.emit(Token::Comma))),
-                '=' => return Some(Ok(self.emit(Token::Equals))),
-                ';' => return Some(Ok(self.emit(Token::Semi))),
-                ch if is_identifier_start(ch) => {
-                    let mut ident = String::new();
-                    ident.push(ch);
-                    'ident: loop {
-                        match self.peek() {
-                            Some(ch) if is_identifier_continue(ch) => {
-                                ident.push(ch);
-                                self.advance();
-                            }
-                            None | Some(_) => {
-                                return Some(Ok(self.emit(match self.keywords.get(&ident) {
-                                    Some(token) => token.clone(),
-                                    None => Token::Identifier(ident),
-                                })));
+                                Some(ch) => {
+                                    doc.push(ch);
+                                    continue 'doc_comment;
+                                }
                             }
                         }
                     }
-                }
+                    Some('/') => 'comment: loop {
+                        match self.advance() {
+                            Some('\n') | Some('\r') => {
+                                self.reset_start();
+                                continue 'top;
+                            }
+                            Some(_) => continue 'comment,
+                            None => return None,
+                        }
+                    },
+                    Some(ch) => self.unexpected_char(self.token_end, ch, &["`/`"]),
+                    None => self.unexpected_eof(&["`/`"]),
+                },
+                '{' => self.emit(Token::OpenBrace),
+                '}' => self.emit(Token::CloseBrace),
+                '(' => self.emit(Token::OpenParen),
+                ')' => self.emit(Token::CloseParen),
+                '!' => self.emit(Token::Bang),
+                ':' => self.emit(Token::Colon),
+                ',' => self.emit(Token::Comma),
+                '=' => self.emit(Token::Equals),
+                ';' => self.emit(Token::Semi),
+                '+' => match self.advance()? {
+                    ch if is_dec_digit(ch) => self.consume_number(start, Some(Sign::Positive), ch),
+                    ch => self.unexpected_char(start, ch, &["decimal digit"]),
+                },
+                '-' => match self.advance()? {
+                    ch if is_dec_digit(ch) => self.consume_number(start, Some(Sign::Negative), ch),
+                    ch => self.unexpected_char(start, ch, &["decimal digit"]),
+                },
+                ch if is_dec_digit(ch) => self.consume_number(start, None, ch),
+                ch if is_identifier_start(ch) => self.consume_identifier(ch),
                 ch if is_whitespace(ch) => {
                     self.reset_start();
                     continue 'top;
                 }
                 ch => {
-                    let expected = &["comment", "identifier", "whitespace"];
-                    return self.unexpected_char(start, ch, expected);
+                    let expected = &[
+                        "{",
+                        "}",
+                        "(",
+                        ")",
+                        "!",
+                        ":",
+                        ",",
+                        "=",
+                        ";",
+                        "comment",    // `/`
+                        "number",     // '+' | '-' | dec-digit
+                        "identifier", // identifier-start
+                        "whitespace", // whitespace
+                    ];
+                    self.unexpected_char(start, ch, expected)
                 }
-            }
+            };
         }
     }
 }
@@ -267,6 +321,13 @@ fn is_identifier_start(ch: char) -> bool {
 fn is_identifier_continue(ch: char) -> bool {
     match ch {
         '0'..='9' | 'a'..='z' | 'A'..='Z' | '_' => true,
+        _ => false,
+    }
+}
+
+fn is_dec_digit(ch: char) -> bool {
+    match ch {
+        '0'..='9' => true,
         _ => false,
     }
 }
