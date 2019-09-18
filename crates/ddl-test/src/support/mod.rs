@@ -55,7 +55,8 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
 
     let concrete_module = test.parse_concrete(&files);
     let core_module = test.elaborate(&files, &concrete_module);
-    test.roundtrip_core(&mut files, &core_module);
+    test.roundtrip_delaborate_core(&files, &core_module);
+    test.roundtrip_pretty_core(&mut files, &core_module);
     test.compile_rust(&core_module);
     test.compile_doc(&core_module);
 
@@ -161,7 +162,60 @@ impl Test {
         core_module
     }
 
-    fn roundtrip_core(&mut self, files: &mut Files, core_module: &ddl::core::Module) {
+    fn roundtrip_delaborate_core(&mut self, files: &Files, core_module: &ddl::core::Module) {
+        let mut elaboration_diagnostics = Vec::new();
+        let delaborated_core_module = ddl::elaborate::elaborate_module(
+            &ddl::delaborate::delaborate_module(core_module),
+            &mut |d| elaboration_diagnostics.push(d),
+        );
+
+        if !elaboration_diagnostics.is_empty() {
+            self.failed_checks
+                .push("roundtrip_delaborate_core: elaborate concrete");
+
+            let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
+            for diagnostic in &elaboration_diagnostics {
+                term::emit(&mut buffer, &self.term_config, files, diagnostic).unwrap();
+            }
+
+            eprintln!("  • roundtrip_delaborate_core: elaborate concrete");
+            eprintln!();
+            eprintln_indented(4, "", "---- found diagnostics ----");
+            eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
+            eprintln!();
+        }
+
+        if delaborated_core_module != *core_module {
+            let arena = pretty::Arena::new();
+
+            let pretty_core_module = {
+                let pretty::DocBuilder(_, doc) = core_module.doc(&arena);
+                doc.pretty(100).to_string()
+            };
+            let pretty_delaborated_core_module = {
+                let pretty::DocBuilder(_, doc) = delaborated_core_module.doc(&arena);
+                doc.pretty(100).to_string()
+            };
+
+            self.failed_checks
+                .push("roundtrip_delaborate_core: core != elaborate(delaborate(core))");
+
+            eprintln!("  • roundtrip_delaborate_core: core != elaborate(delaborate(core))");
+            eprintln!();
+            eprintln_indented(4, "", "---- core ----");
+            for line in pretty_core_module.lines() {
+                eprintln_indented(4, "| ", line);
+            }
+            eprintln!();
+            eprintln_indented(4, "", "---- elaborate(delaborate(core)) ----");
+            for line in pretty_delaborated_core_module.lines() {
+                eprintln_indented(4, "| ", line);
+            }
+            eprintln!();
+        }
+    }
+
+    fn roundtrip_pretty_core(&mut self, files: &mut Files, core_module: &ddl::core::Module) {
         let arena = pretty::Arena::new();
 
         let pretty_core_module = {
@@ -173,9 +227,9 @@ impl Test {
         if let Err(error) =
             snapshot::compare(&snapshot_core_ddl_path, &pretty_core_module.as_bytes())
         {
-            self.failed_checks.push("roundtrip_core: snapshot");
+            self.failed_checks.push("roundtrip_pretty_core: snapshot");
 
-            eprintln!("  • roundtrip_core: snapshot");
+            eprintln!("  • roundtrip_pretty_core: snapshot");
             eprintln!();
             eprintln_indented(4, "", "---- snapshot error ----");
             eprintln_indented(4, "", &error.to_string());
@@ -198,14 +252,14 @@ impl Test {
         };
 
         if !core_parse_diagnostics.is_empty() {
-            self.failed_checks.push("roundtrip_core: parse core");
+            self.failed_checks.push("roundtrip_pretty_core: parse core");
 
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
             for diagnostic in &core_parse_diagnostics {
                 term::emit(&mut buffer, &self.term_config, files, diagnostic).unwrap();
             }
 
-            eprintln!("  • roundtrip_core: parse core");
+            eprintln!("  • roundtrip_pretty_core: parse core");
             eprintln!();
             eprintln_indented(4, "", "---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
@@ -214,9 +268,9 @@ impl Test {
 
         if *core_module != parsed_core_module {
             self.failed_checks
-                .push("roundtrip_core: core != parse(pretty(core))");
+                .push("roundtrip_pretty_core: core != parse(pretty(core))");
 
-            eprintln!("  • roundtrip_core: core != parse(pretty(core))");
+            eprintln!("  • roundtrip_pretty_core: core != parse(pretty(core))");
             eprintln!();
             eprintln_indented(4, "", "---- core ----");
             for line in pretty_core_module.lines() {
