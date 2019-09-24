@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use crate::diagnostics;
 use crate::lexer::SpannedToken;
+use crate::literal;
 
 mod grammar {
     include!(concat!(env!("OUT_DIR"), "/concrete/grammar.rs"));
@@ -232,6 +233,8 @@ pub enum Term {
     Ann(Box<Term>, Box<Term>),
     /// Variables.
     Var(Span, String),
+    /// Numeric literals.
+    NumberLiteral(Span, literal::Number),
 
     /// Error sentinel terms.
     Error(Span),
@@ -241,7 +244,10 @@ impl Term {
     pub fn span(&self) -> Span {
         match self {
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
-            Term::Paren(span, _) | Term::Var(span, _) | Term::Error(span) => *span,
+            Term::Paren(span, _)
+            | Term::Var(span, _)
+            | Term::NumberLiteral(span, _)
+            | Term::Error(span) => *span,
         }
     }
 
@@ -251,7 +257,6 @@ impl Term {
         D::Doc: Clone,
     {
         match self {
-            Term::Var(_, name) => alloc.text(name),
             Term::Paren(_, term) => alloc.text("(").append(term.doc(alloc)).append(")"),
             Term::Ann(term, ty) => (alloc.nil())
                 .append(term.doc(alloc))
@@ -259,6 +264,8 @@ impl Term {
                 .append(":")
                 .group()
                 .append((alloc.space()).append(ty.doc(alloc)).group().nest(4)),
+            Term::Var(_, name) => alloc.text(name),
+            Term::NumberLiteral(_, literal) => alloc.as_string(literal),
             Term::Error(_) => alloc.text("!"),
         }
     }

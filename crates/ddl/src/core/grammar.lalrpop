@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::core::{Alias, Item, Label, Module, StructType, Term, TypeField};
 use crate::diagnostics;
 use crate::lexer::Token;
+use crate::literal;
 
 grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));
 
@@ -13,9 +14,15 @@ extern {
     type Error = Diagnostic;
 
     enum Token {
-        "identifier" => Token::Identifier(<String>),
         "doc comment" => Token::DocComment(<String>),
+        "identifier" => Token::Identifier(<String>),
+        "numeric literal" => Token::NumberLiteral(<literal::Number>),
+        "string literal" => Token::StringLiteral(<literal::String>),
+        "character literal" => Token::CharLiteral(<literal::Char>),
 
+        "f32" => Token::F32,
+        "f64" => Token::F64,
+        "int" => Token::Int,
         "item" => Token::Item,
         "struct" => Token::Struct,
 
@@ -110,6 +117,27 @@ TermAtomic: Term = {
                 report(diagnostics::bug::unknown_global(file_id, &name, span));
                 Term::Error(span)
             },
+        }
+    },
+    <start: @L> "int" <literal: "numeric literal"> <end: @R> => {
+        let span = Span::new(start, end);
+        match literal.parse_big_int(file_id, report) {
+            Some(value) => Term::IntConst(span, value),
+            None => Term::Error(span),
+        }
+    },
+    <start: @L> "f32" <literal: "numeric literal"> <end: @R> => {
+        let span = Span::new(start, end);
+        match literal.parse_float(file_id, report) {
+            Some(value) => Term::F32Const(span, value),
+            None => Term::Error(span),
+        }
+    },
+    <start: @L> "f64" <literal: "numeric literal"> <end: @R> => {
+        let span = Span::new(start, end);
+        match literal.parse_float(file_id, report) {
+            Some(value) => Term::F64Const(span, value),
+            None => Term::Error(span),
         }
     },
 };

@@ -2,13 +2,14 @@
 
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
+use num_bigint::BigInt;
 use pretty::{DocAllocator, DocBuilder};
 use std::borrow::Borrow;
 use std::fmt;
 use std::sync::Arc;
 
-use crate::diagnostics;
 use crate::lexer::SpannedToken;
+use crate::{diagnostics, ieee754};
 
 mod grammar {
     include!(concat!(env!("OUT_DIR"), "/core/grammar.rs"));
@@ -332,26 +333,32 @@ pub enum Term {
     S64LeType(Span),
     /// Signed, two's complement 64-bit integer type (big endian).
     S64BeType(Span),
-    /// IEEE754 single-precision floating point number type (little endian).
+    /// IEEE-754 single-precision floating point number type (little endian).
     F32LeType(Span),
-    /// IEEE754 single-precision floating point number type (big endian).
+    /// IEEE-754 single-precision floating point number type (big endian).
     F32BeType(Span),
-    /// IEEE754 double-precision floating point number type (little endian).
+    /// IEEE-754 double-precision floating point number type (little endian).
     F64LeType(Span),
-    /// IEEE754 double-precision floating point number type (big endian).
+    /// IEEE-754 double-precision floating point number type (big endian).
     F64BeType(Span),
 
     /// Host boolean type.
     BoolType(Span),
     /// Host integer type.
     IntType(Span),
-    /// Host IEEE754 single-precision floating point type.
+    /// Host IEEE-754 single-precision floating point type.
     F32Type(Span),
-    /// Host IEEE754 double-precision floating point type.
+    /// Host IEEE-754 double-precision floating point type.
     F64Type(Span),
 
     /// Host boolean constant.
     BoolConst(Span, bool),
+    /// Host integer constants.
+    IntConst(Span, BigInt),
+    /// Host IEEE-754 single-precision floating point constants.
+    F32Const(Span, f32),
+    /// Host IEEE-754 double-precision floating point constants.
+    F64Const(Span, f64),
 
     /// Error sentinel.
     Error(Span),
@@ -386,6 +393,9 @@ impl Term {
             | Term::F32Type(span)
             | Term::F64Type(span)
             | Term::BoolConst(span, _)
+            | Term::IntConst(span, _)
+            | Term::F32Const(span, _)
+            | Term::F64Const(span, _)
             | Term::Error(span) => *span,
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
         }
@@ -404,10 +414,22 @@ impl Term {
         D: DocAllocator<'core>,
         D::Doc: Clone,
     {
+        use num_traits::Float;
+        use std::borrow::Cow;
+
         let show_paren = |cond, doc| match cond {
             true => alloc.text("(").append(doc).append(")"),
             false => doc,
         };
+
+        // Workaround -0.0 ridiculousness
+        fn format_float<T: Float + From<u8> + fmt::Display>(value: T) -> Cow<'static, str> {
+            if value == <T as From<u8>>::from(0) && value.is_sign_negative() {
+                "-0".into()
+            } else {
+                value.to_string().into()
+            }
+        }
 
         match self {
             Term::Item(_, label) => (alloc.nil())
@@ -454,6 +476,18 @@ impl Term {
             Term::F64Type(_) => alloc.text("F64"),
             Term::BoolConst(_, true) => alloc.text("true"),
             Term::BoolConst(_, false) => alloc.text("false"),
+            Term::IntConst(_, value) => (alloc.nil())
+                .append("f64")
+                .append(alloc.space())
+                .append(alloc.as_string(value)),
+            Term::F32Const(_, value) => (alloc.nil())
+                .append("f32")
+                .append(alloc.space())
+                .append(format_float(*value)),
+            Term::F64Const(_, value) => (alloc.nil())
+                .append("f64")
+                .append(alloc.space())
+                .append(format_float(*value)),
             Term::Error(_) => alloc.text("!"),
         }
     }
@@ -465,6 +499,9 @@ impl PartialEq for Term {
             (Term::Item(_, label0), Term::Item(_, label1)) => label0 == label1,
             (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
             (Term::BoolConst(_, val0), Term::BoolConst(_, val1)) => val0 == val1,
+            (Term::IntConst(_, val0), Term::IntConst(_, val1)) => val0 == val1,
+            (Term::F32Const(_, val0), Term::F32Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
+            (Term::F64Const(_, val0), Term::F64Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
             (Term::Kind(_), Term::Kind(_))
             | (Term::Type(_), Term::Type(_))
             | (Term::U8Type(_), Term::U8Type(_))
@@ -534,26 +571,32 @@ pub enum Value {
     S64LeType,
     /// Signed, two's complement 64-bit integer type (big endian).
     S64BeType,
-    /// IEEE754 single-precision floating point number type (little endian).
+    /// IEEE-754 single-precision floating point number type (little endian).
     F32LeType,
-    /// IEEE754 single-precision floating point number type (big endian).
+    /// IEEE-754 single-precision floating point number type (big endian).
     F32BeType,
-    /// IEEE754 double-precision floating point number type (little endian).
+    /// IEEE-754 double-precision floating point number type (little endian).
     F64LeType,
-    /// IEEE754 double-precision floating point number type (big endian).
+    /// IEEE-754 double-precision floating point number type (big endian).
     F64BeType,
 
     /// Host boolean type.
     BoolType,
     /// Host integer type.
     IntType,
-    /// Host IEEE754 single-precision floating point type.
+    /// Host IEEE-754 single-precision floating point type.
     F32Type,
-    /// Host IEEE754 double-precision floating point type.
+    /// Host IEEE-754 double-precision floating point type.
     F64Type,
 
     /// Host boolean constant.
     BoolConst(bool),
+    /// Host integer constants.
+    IntConst(BigInt),
+    /// Host IEEE-754 single-precision floating point constants.
+    F32Const(f32),
+    /// Host IEEE-754 double-precision floating point constants.
+    F64Const(f64),
 
     /// Error sentinel.
     Error,

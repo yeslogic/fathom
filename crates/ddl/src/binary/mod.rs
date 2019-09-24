@@ -14,9 +14,9 @@ pub mod read;
 pub enum Term {
     /// Integers.
     Int(BigInt),
-    /// IEEE754 single-precision floating point numbers.
+    /// IEEE-754 single-precision floating point numbers.
     F32(f32),
-    /// IEEE754 double-precision floating point numbers.
+    /// IEEE-754 double-precision floating point numbers.
     F64(f64),
     /// Structure values
     Struct(BTreeMap<String, Term>),

@@ -267,6 +267,16 @@ fn compile_term(
         core::Term::F32Type(_) => host_ty(Type::F32, Some(CopyTrait)),
         core::Term::F64Type(_) => host_ty(Type::F64, Some(CopyTrait)),
         core::Term::BoolConst(_, value) => CompiledTerm::Term(Term::Bool(*value), Type::Bool),
+        core::Term::IntConst(span, _) => {
+            report(crate::diagnostics::bug::not_yet_implemented(
+                context.file_id,
+                *span,
+                "compile int literals",
+            ));
+            CompiledTerm::Error
+        }
+        core::Term::F32Const(_, value) => CompiledTerm::Term(Term::F32(*value), Type::F32),
+        core::Term::F64Const(_, value) => CompiledTerm::Term(Term::F64(*value), Type::F64),
         core::Term::Kind(_) | core::Term::Type(_) => CompiledTerm::Erased,
         core::Term::Error(_) => CompiledTerm::Error,
     }

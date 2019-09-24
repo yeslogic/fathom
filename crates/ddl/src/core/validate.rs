@@ -262,6 +262,9 @@ pub fn synth_term(
         | Term::F32Type(_)
         | Term::F64Type(_) => Value::Type,
         Term::BoolConst(_, _) => Value::BoolType,
+        Term::IntConst(_, _) => Value::IntType,
+        Term::F32Const(_, _) => Value::F32Type,
+        Term::F64Const(_, _) => Value::F64Type,
         Term::Error(_) => Value::Error,
     }
 }

@@ -264,6 +264,28 @@ pub fn check_term(
         (concrete::Term::Paren(_, concrete_term), expected_ty) => {
             check_term(context, concrete_term, expected_ty, report)
         }
+        (concrete::Term::NumberLiteral(span, literal), _) => match expected_ty {
+            core::Value::IntType => match literal.parse_big_int(context.file_id, report) {
+                Some(value) => core::Term::IntConst(*span, value),
+                None => core::Term::Error(*span),
+            },
+            core::Value::F32Type => match literal.parse_float(context.file_id, report) {
+                Some(value) => core::Term::F32Const(*span, value),
+                None => core::Term::Error(*span),
+            },
+            core::Value::F64Type => match literal.parse_float(context.file_id, report) {
+                Some(value) => core::Term::F64Const(*span, value),
+                None => core::Term::Error(*span),
+            },
+            _ => {
+                report(diagnostics::bug::not_yet_implemented(
+                    context.file_id,
+                    *span,
+                    "numeric literasl not suppprted for type",
+                ));
+                core::Term::Error(concrete_term.span())
+            }
+        },
         (concrete_term, expected_ty) => {
             let (core_term, synth_ty) = synth_term(context, concrete_term, report);
 
@@ -348,6 +370,7 @@ pub fn synth_term(
                 }
             },
         },
+        concrete::Term::NumberLiteral(_, _) => unimplemented!(),
         concrete::Term::Error(span) => (core::Term::Error(*span), core::Value::Error),
     }
 }

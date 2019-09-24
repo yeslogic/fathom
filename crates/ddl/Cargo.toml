@@ -15,13 +15,17 @@ license = "Apache-2.0"
 codespan = "0.4"
 codespan-reporting = "0.4"
 ddl-rt = { version = "0.1.0", path="../ddl-rt" }
-Inflector = "0.11"
+inflector = { package = "Inflector", version = "0.11" }
 itertools = "0.8"
 lalrpop-util = "0.17.2"
 lazy_static = "1.4"
 maplit = "1"
 num-bigint = "0.2"
+num-traits = "0.2"
 pretty = "0.5"
+
+[dev-dependencies]
+proptest = "0.9"
 
 [build-dependencies]
 lalrpop = "0.17.2"

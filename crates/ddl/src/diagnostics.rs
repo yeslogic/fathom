@@ -232,6 +232,17 @@ pub mod error {
 pub mod bug {
     pub use super::*;
 
+    pub fn not_yet_implemented(file_id: FileId, span: Span, feature_name: &str) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: format!("not yet implemented: {}", feature_name),
+            primary_label: Label::new(file_id, span, "relies on an unimplemented language feature"),
+            secondary_labels: vec![],
+            notes: vec![],
+        }
+    }
+
     pub fn item_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic {
         Diagnostic {
             severity: Severity::Bug,

@@ -6,7 +6,7 @@
 
 use codespan::Span;
 
-use crate::{concrete, core};
+use crate::{concrete, core, literal};
 
 // TODO: name/keyword avoidance!
 
@@ -98,6 +98,15 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> concrete::Term {
         core::Term::F64Type(span) => concrete::Term::Var(*span, "F64".to_owned()),
         core::Term::BoolConst(span, true) => concrete::Term::Var(*span, "true".to_owned()),
         core::Term::BoolConst(span, false) => concrete::Term::Var(*span, "false".to_owned()),
+        core::Term::IntConst(span, value) => {
+            concrete::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
+        }
+        core::Term::F32Const(span, value) => {
+            concrete::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
+        }
+        core::Term::F64Const(span, value) => {
+            concrete::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
+        }
         core::Term::Error(span) => concrete::Term::Error(*span),
     }
 }
