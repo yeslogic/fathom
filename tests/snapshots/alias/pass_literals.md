@@ -27,6 +27,78 @@
 9
 ```
 
+## test_f32_00
+
+### Definition
+
+```
+0
+```
+
+## test_f32_01
+
+### Definition
+
+```
+1
+```
+
+## test_f32_09
+
+### Definition
+
+```
+9
+```
+
+## test_f32_0u0
+
+### Definition
+
+```
+0
+```
+
+## test_f32_0u1
+
+### Definition
+
+```
+1
+```
+
+## test_f32_0u9
+
+### Definition
+
+```
+9
+```
+
+## test_f32_00u
+
+### Definition
+
+```
+0
+```
+
+## test_f32_01u
+
+### Definition
+
+```
+1
+```
+
+## test_f32_09u
+
+### Definition
+
+```
+9
+```
+
 ## test_f32_pos_0
 
 ### Definition
@@ -75,6 +147,54 @@
 -9
 ```
 
+## test_f32_0_p_0
+
+### Definition
+
+```
+0
+```
+
+## test_f32_pos_0_p_0
+
+### Definition
+
+```
+0
+```
+
+## test_f32_neg_0_p_0
+
+### Definition
+
+```
+0
+```
+
+## test_f32_1_p_1
+
+### Definition
+
+```
+1.1
+```
+
+## test_f32_pos_1_p_1
+
+### Definition
+
+```
+1.1
+```
+
+## test_f32_neg_1_p_1
+
+### Definition
+
+```
+-1.1
+```
+
 ## test_f64_0
 
 ### Definition
@@ -92,6 +212,78 @@
 ```
 
 ## test_f64_9
+
+### Definition
+
+```
+9
+```
+
+## test_f64_00
+
+### Definition
+
+```
+0
+```
+
+## test_f64_01
+
+### Definition
+
+```
+1
+```
+
+## test_f64_09
+
+### Definition
+
+```
+9
+```
+
+## test_f64_0u0
+
+### Definition
+
+```
+0
+```
+
+## test_f64_0u1
+
+### Definition
+
+```
+1
+```
+
+## test_f64_0u9
+
+### Definition
+
+```
+9
+```
+
+## test_f64_00u
+
+### Definition
+
+```
+0
+```
+
+## test_f64_01u
+
+### Definition
+
+```
+1
+```
+
+## test_f64_09u
 
 ### Definition
 
@@ -145,4 +337,52 @@
 
 ```
 -9
+```
+
+## test_f64_0_p_0
+
+### Definition
+
+```
+0
+```
+
+## test_f64_pos_0_p_0
+
+### Definition
+
+```
+0
+```
+
+## test_f64_neg_0_p_0
+
+### Definition
+
+```
+0
+```
+
+## test_f64_1_p_1
+
+### Definition
+
+```
+1.1
+```
+
+## test_f64_pos_1_p_1
+
+### Definition
+
+```
+1.1
+```
+
+## test_f64_neg_1_p_1
+
+### Definition
+
+```
+-1.1
 ```

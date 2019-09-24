@@ -178,7 +178,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
         number.push(first_digit);
 
         while let Some(ch) = self.peek() {
-            if is_identifier_continue(ch) || ch == '.' {
+            if is_identifier_continue(ch) || ['.', '-', '+'].contains(&ch) {
                 number.push(ch);
                 self.advance();
             } else {

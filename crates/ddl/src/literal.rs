@@ -5,7 +5,7 @@
 //!
 //! [literal-wikipedia]: https://en.wikipedia.org/wiki/Literal_%28computer_programming%29
 
-use codespan::{FileId, Span};
+use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
 use num_traits::{Float, Signed};
@@ -64,6 +64,251 @@ impl fmt::Display for Base {
     }
 }
 
+/// An action to take after advancing a state machine
+enum Action<State, Output> {
+    Yield(State),
+    Return(Output),
+}
+
+/// The state of an integer literal lexer.
+enum IntegerLexerState {
+    Top,
+    ZeroOrBase,
+    IntegerPart(Base, BigInt, u16),
+}
+
+impl IntegerLexerState {
+    fn on_char(
+        self,
+        file_id: FileId,
+        ch: Option<(ByteIndex, char)>,
+        report: &mut dyn FnMut(Diagnostic),
+    ) -> Action<IntegerLexerState, Option<BigInt>> {
+        use self::Action::{Return, Yield};
+        use self::Base::*;
+        use self::IntegerLexerState::*;
+
+        match (self, ch) {
+            (Top, Some((start, ch))) => match ch {
+                '0' => Yield(ZeroOrBase),
+                '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8).into(), 0)),
+                _ => {
+                    // TODO: bug?
+                    report(diagnostics::error::unexpected_char(
+                        file_id,
+                        start,
+                        ch,
+                        &["decimal digit"],
+                    ));
+                    Return(None)
+                }
+            },
+            (Top, None) => unimplemented!("bug: no characters in literal"),
+
+            (ZeroOrBase, Some((start, ch))) => match ch {
+                'b' => Yield(IntegerPart(Binary, 0.into(), 0)),
+                'o' => Yield(IntegerPart(Octal, 0.into(), 0)),
+                'x' => Yield(IntegerPart(Hexadecimal, 0.into(), 0)),
+                '_' => Yield(IntegerPart(Decimal, 0.into(), 0)),
+                '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - '0' as u8).into(), 2)),
+                _ => {
+                    report(diagnostics::error::unexpected_char(
+                        file_id,
+                        start,
+                        ch,
+                        &["digit", "base character"],
+                    ));
+                    Return(None)
+                }
+            },
+            (ZeroOrBase, None) => Return(Some(0.into())),
+
+            (IntegerPart(base, mut value, digits), Some((start, ch))) => {
+                let digit = match (base, ch) {
+                    (base, '_') => return Yield(IntegerPart(base, value, digits)),
+                    (Binary, '0'..='1') => ch as u8 - '0' as u8,
+                    (Octal, '0'..='7') => ch as u8 - '0' as u8,
+                    (Decimal, '0'..='9') => ch as u8 - '0' as u8,
+                    (Hexadecimal, '0'..='9') => ch as u8 - '0' as u8,
+                    (Hexadecimal, 'a'..='f') => ch as u8 - 'a' as u8 + 10,
+                    (Hexadecimal, 'A'..='F') => ch as u8 - 'A' as u8 + 10,
+                    (_, _) => {
+                        report(diagnostics::error::unexpected_char(
+                            file_id,
+                            start,
+                            ch,
+                            &["digit", "digit separator", "point", "exponent"],
+                        ));
+                        return Return(None);
+                    }
+                };
+
+                value *= base.to_u8();
+                value += digit;
+                Yield(IntegerPart(base, value, digits + 1))
+            }
+            (IntegerPart(_, value, _), None) => Return(Some(value)), // TODO: Check num digits
+        }
+    }
+}
+
+/// The state of an floating point literal lexer.
+enum FloatLexerState<T> {
+    Top,
+    ZeroOrBase,
+    IntegerPart(Base, T, u16),
+    FractionalPart(Base, T, T, u16),
+    Exponent(T, u16, u16),
+}
+
+impl<T> FloatLexerState<T>
+where
+    T: Float + From<u8> + std::ops::MulAssign + std::ops::AddAssign + std::ops::SubAssign,
+{
+    fn on_char(
+        self,
+        file_id: FileId,
+        ch: Option<(ByteIndex, char)>,
+        report: &mut dyn FnMut(Diagnostic),
+    ) -> Action<FloatLexerState<T>, Option<T>> {
+        use self::Action::{Return, Yield};
+        use self::Base::*;
+        use self::FloatLexerState::*;
+
+        match (self, ch) {
+            (Top, Some((start, ch))) => match ch {
+                '0' => Yield(ZeroOrBase),
+                '0'..='9' => Yield(IntegerPart(Base::Decimal, (ch as u8 - '0' as u8).into(), 1)),
+                _ => {
+                    // TODO: bug?
+                    report(diagnostics::error::unexpected_char(
+                        file_id,
+                        start,
+                        ch,
+                        &["decimal digit"],
+                    ));
+                    Return(None)
+                }
+            },
+            (Top, None) => unimplemented!("bug: no characters in literal"),
+
+            (ZeroOrBase, Some((start, ch))) => match ch {
+                'b' => Yield(IntegerPart(Binary, 0.into(), 0)),
+                'o' => Yield(IntegerPart(Octal, 0.into(), 0)),
+                'x' => Yield(IntegerPart(Hexadecimal, 0.into(), 0)),
+                '_' => Yield(IntegerPart(Decimal, 0.into(), 0)),
+                '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - '0' as u8).into(), 2)),
+                '.' => Yield(FractionalPart(Decimal, 0.into(), 0.into(), 0)),
+                ch if ['e', 'E'].contains(&ch) => return Yield(Exponent(0.into(), 0, 0)),
+                ch if ['p', 'P'].contains(&ch) => return Yield(Exponent(0.into(), 0, 0)),
+                _ => {
+                    report(diagnostics::error::unexpected_char(
+                        file_id,
+                        start,
+                        ch,
+                        &["digit", "base character"],
+                    ));
+                    Return(None)
+                }
+            },
+            (ZeroOrBase, None) => Return(Some(0.into())),
+
+            (IntegerPart(base, mut value, digits), Some((start, ch))) => {
+                let digit = match (base, ch) {
+                    (base, '_') => return Yield(IntegerPart(base, value, digits)),
+                    (Binary, '0'..='1') => ch as u8 - '0' as u8,
+                    (Octal, '0'..='7') => ch as u8 - '0' as u8,
+                    (Decimal, '0'..='9') => ch as u8 - '0' as u8,
+                    (Hexadecimal, '0'..='9') => ch as u8 - '0' as u8,
+                    (Hexadecimal, 'a'..='f') => ch as u8 - 'a' as u8 + 10,
+                    (Hexadecimal, 'A'..='F') => ch as u8 - 'A' as u8 + 10,
+                    (base, '.') => return Yield(FractionalPart(base, value, 0.into(), 0)), // TODO: Check num digits
+                    (Decimal, ch) if ['e', 'E'].contains(&ch) => {
+                        // TODO: Check num digits
+                        return Yield(Exponent(value, 0, 0));
+                    }
+                    (Binary, ch) | (Octal, ch) | (Hexadecimal, ch) if ['p', 'P'].contains(&ch) => {
+                        // TODO: Check num digits
+                        return Yield(Exponent(value, 0, 0));
+                    }
+                    (_, _) => {
+                        report(diagnostics::error::unexpected_char(
+                            file_id,
+                            start,
+                            ch,
+                            &["digit", "digit separator", "point", "exponent"],
+                        ));
+                        return Return(None);
+                    }
+                };
+
+                value *= base.to_u8().into();
+                value += digit.into();
+                Yield(IntegerPart(base, value, digits + 1))
+            }
+            (IntegerPart(_, value, _), None) => Return(Some(value)), // TODO: Check num digits
+
+            (FractionalPart(base, value, mut frac, digits), Some((start, ch))) => {
+                let digit = match (base, ch) {
+                    (base, '_') => return Yield(FractionalPart(base, value, frac, digits)),
+                    (Binary, '0'..='1') => ch as u8 - '0' as u8,
+                    (Octal, '0'..='7') => ch as u8 - '0' as u8,
+                    (Decimal, '0'..='9') => ch as u8 - '0' as u8,
+                    (Hexadecimal, '0'..='9') => ch as u8 - '0' as u8,
+                    (Hexadecimal, 'a'..='f') => ch as u8 - 'a' as u8 + 10,
+                    (Hexadecimal, 'A'..='F') => ch as u8 - 'A' as u8 + 10,
+                    (Decimal, ch) if ['e', 'E'].contains(&ch) => {
+                        // TODO: Check num digits
+                        let frac = frac / T::powi(base.to_u8().into(), digits.into());
+                        return Yield(Exponent(value + frac, 0, 0));
+                    }
+                    (Binary, ch) | (Octal, ch) | (Hexadecimal, ch) if ['p', 'P'].contains(&ch) => {
+                        // TODO: Check num digits
+                        let frac = frac / T::powi(base.to_u8().into(), digits.into());
+                        return Yield(Exponent(value + frac, 0, 0));
+                    }
+                    (_, _) => {
+                        report(diagnostics::error::unexpected_char(
+                            file_id,
+                            start,
+                            ch,
+                            &["digit", "digit separator", "exponent"],
+                        ));
+                        return Return(None);
+                    }
+                };
+
+                frac *= base.to_u8().into();
+                frac += digit.into();
+                Yield(FractionalPart(base, value, frac, digits + 1))
+            }
+            (FractionalPart(base, value, frac, digits), None) => {
+                // TODO: Check num digits
+                let frac = frac / T::powi(base.to_u8().into(), digits.into());
+                Return(Some(value + frac))
+            }
+            (Exponent(value, exp, digits), Some((start, ch))) => match ch {
+                // TODO: + or -
+                '_' => Yield(Exponent(value, exp, digits)),
+                '0'..='9' => {
+                    let exp = exp + (ch as u8 - '0' as u8) as u16;
+                    Yield(Exponent(value, exp, digits + 1))
+                }
+                _ => {
+                    report(diagnostics::error::unexpected_char(
+                        file_id,
+                        start,
+                        ch,
+                        &["decimal digit"],
+                    ));
+                    Return(None)
+                }
+            },
+            (Exponent(value, exp, _), None) => Return(Some(value * T::powi(10.into(), exp as i32))), // TODO: Check num digits
+        }
+    }
+}
+
 /// Numeric literals.
 #[derive(Debug, Clone)]
 pub struct Number {
@@ -90,73 +335,14 @@ impl Number {
         self.sign.unwrap_or(Sign::Positive)
     }
 
-    fn char_spans<'a>(&'a self) -> impl Iterator<Item = (Span, char)> + 'a {
+    fn chars<'a>(&'a self) -> impl Iterator<Item = (ByteIndex, char)> + 'a {
         use codespan::ByteOffset;
 
-        (self.number.1.chars()).scan(self.number.0.start(), |current_byte, ch| {
-            let start_byte = *current_byte;
-            *current_byte += ByteOffset::from_char_len(ch);
-            let span = Span::new(start_byte, *current_byte);
-            Some((span, ch))
+        (self.number.1.chars()).scan(self.number.0.start(), |current, ch| {
+            let start = *current;
+            *current += ByteOffset::from_char_len(ch);
+            Some((start, ch))
         })
-    }
-
-    fn parse_base_or_digit(
-        &self,
-        file_id: FileId,
-        chars: &mut impl Iterator<Item = (Span, char)>,
-        report: &mut dyn FnMut(Diagnostic),
-    ) -> (Base, Option<u8>) {
-        match chars.next() {
-            Some((_, '0')) => match chars.next() {
-                Some((_, 'b')) => (Base::Binary, Some(0)),
-                Some((_, 'o')) => (Base::Octal, Some(0)),
-                Some((_, 'x')) => (Base::Hexadecimal, Some(0)),
-                Some((span, ch @ 'A'..='F')) => (
-                    Base::Decimal,
-                    Number::parse_digit(file_id, Base::Decimal, span, ch, report),
-                ),
-                Some((span, ch)) => {
-                    report(diagnostics::bug::not_yet_implemented(
-                        file_id,
-                        span,
-                        "invalid literal base error",
-                    ));
-                    (Base::Decimal, None)
-                }
-                None => (Base::Decimal, Some(0)),
-            },
-            Some((span, ch)) => (
-                Base::Decimal,
-                Number::parse_digit(file_id, Base::Decimal, span, ch, report),
-            ),
-            None => (Base::Decimal, None),
-        }
-    }
-
-    fn parse_digit(
-        file_id: FileId,
-        base: Base,
-        ch_span: Span,
-        ch: char,
-        report: &mut dyn FnMut(Diagnostic),
-    ) -> Option<u8> {
-        match (base, ch) {
-            (Base::Binary, '0'..='1') => Some(ch as u8 - '0' as u8),
-            (Base::Octal, '0'..='7') => Some(ch as u8 - '0' as u8),
-            (Base::Decimal, '0'..='9') => Some(ch as u8 - '0' as u8),
-            (Base::Hexadecimal, '0'..='9') => Some(ch as u8 - '0' as u8),
-            (Base::Hexadecimal, 'a'..='f') => Some(ch as u8 - 'a' as u8 + 10),
-            (Base::Hexadecimal, 'A'..='F') => Some(ch as u8 - 'A' as u8 + 10),
-            (_, _) => {
-                report(diagnostics::bug::not_yet_implemented(
-                    file_id,
-                    ch_span,
-                    "invalid literal digit error",
-                ));
-                None
-            }
-        }
     }
 
     pub fn parse_big_int(
@@ -164,79 +350,36 @@ impl Number {
         file_id: FileId,
         report: &mut dyn FnMut(Diagnostic),
     ) -> Option<BigInt> {
-        let mut chars = self.char_spans();
+        let mut chars = self.chars();
+        let mut state = IntegerLexerState::Top;
 
-        let (base, initial_value) = self.parse_base_or_digit(file_id, &mut chars, report);
-        let mut value = initial_value.map(|v| match self.sign() {
-            Sign::Positive => BigInt::from(v),
-            Sign::Negative => -BigInt::from(v),
-        });
-
-        while let Some((span, ch)) = chars.next() {
-            let digit = match ch {
-                '_' => continue,
-                ch => match Number::parse_digit(file_id, base, span, ch, report) {
-                    Some(digit) => digit,
-                    None => continue,
+        loop {
+            state = match state.on_char(file_id, chars.next(), report) {
+                Action::Yield(next) => next,
+                Action::Return(value) => match self.sign() {
+                    Sign::Positive => return value,
+                    Sign::Negative => return value.map(|v| -v),
                 },
-            };
-
-            if let Some(value) = &mut value {
-                *value *= base.to_u8();
-                match self.sign() {
-                    Sign::Positive => *value += digit,
-                    Sign::Negative => *value -= digit,
-                }
             }
         }
-
-        value
     }
 
     pub fn parse_float<T>(&self, file_id: FileId, report: &mut dyn FnMut(Diagnostic)) -> Option<T>
     where
         T: Float + From<u8> + std::ops::MulAssign + std::ops::AddAssign + std::ops::SubAssign,
     {
-        let mut chars = self.char_spans();
+        let mut chars = self.chars();
+        let mut state = FloatLexerState::Top;
 
-        let (base, initial_value) = self.parse_base_or_digit(file_id, &mut chars, report);
-        let mut value = initial_value.map(|v| match self.sign() {
-            Sign::Positive => <T as From<u8>>::from(v),
-            Sign::Negative => -<T as From<u8>>::from(v),
-        });
-
-        while let Some((span, ch)) = chars.next() {
-            let digit = match ch {
-                '_' => continue,
-                '.' => panic!("fractional part"),
-                ch => match Number::parse_digit(file_id, base, span, ch, report) {
-                    Some(digit) => digit,
-                    None => continue,
+        loop {
+            state = match state.on_char(file_id, chars.next(), report) {
+                Action::Yield(next) => next,
+                // TODO: Check infinity
+                Action::Return(value) => match self.sign() {
+                    Sign::Positive => return value,
+                    Sign::Negative => return value.map(|v| -v),
                 },
-            };
-
-            if let Some(value) = &mut value {
-                *value *= base.to_u8().into();
-                match self.sign() {
-                    Sign::Positive => *value += digit.into(),
-                    Sign::Negative => *value -= digit.into(),
-                }
             }
-        }
-
-        // TODO: parse fractional part
-        // TODO: parse exponent
-
-        match value? {
-            value if value.is_infinite() => {
-                report(diagnostics::bug::not_yet_implemented(
-                    file_id,
-                    self.number.0,
-                    "overflow error",
-                ));
-                None
-            }
-            value => Some(value),
         }
     }
 }

@@ -7,6 +7,24 @@ pub const TEST_F_32_1: f32 = 1f32;
 
 pub const TEST_F_32_9: f32 = 9f32;
 
+pub const TEST_F_32_00: f32 = 0f32;
+
+pub const TEST_F_32_01: f32 = 1f32;
+
+pub const TEST_F_32_09: f32 = 9f32;
+
+pub const TEST_F_32_0U_0: f32 = 0f32;
+
+pub const TEST_F_32_0U_1: f32 = 1f32;
+
+pub const TEST_F_32_0U_9: f32 = 9f32;
+
+pub const TEST_F_32_0_0U: f32 = 0f32;
+
+pub const TEST_F_32_0_1U: f32 = 1f32;
+
+pub const TEST_F_32_0_9U: f32 = 9f32;
+
 pub const TEST_F_32_POS_0: f32 = 0f32;
 
 pub const TEST_F_32_NEG_0: f32 = 0f32;
@@ -19,11 +37,41 @@ pub const TEST_F_32_POS_9: f32 = 9f32;
 
 pub const TEST_F_32_NEG_9: f32 = -9f32;
 
+pub const TEST_F_32_0_P_0: f32 = 0f32;
+
+pub const TEST_F_32_POS_0_P_0: f32 = 0f32;
+
+pub const TEST_F_32_NEG_0_P_0: f32 = 0f32;
+
+pub const TEST_F_32_1_P_1: f32 = 1.1f32;
+
+pub const TEST_F_32_POS_1_P_1: f32 = 1.1f32;
+
+pub const TEST_F_32_NEG_1_P_1: f32 = -1.1f32;
+
 pub const TEST_F_64_0: f64 = 0f64;
 
 pub const TEST_F_64_1: f64 = 1f64;
 
 pub const TEST_F_64_9: f64 = 9f64;
+
+pub const TEST_F_64_00: f64 = 0f64;
+
+pub const TEST_F_64_01: f64 = 1f64;
+
+pub const TEST_F_64_09: f64 = 9f64;
+
+pub const TEST_F_64_0U_0: f64 = 0f64;
+
+pub const TEST_F_64_0U_1: f64 = 1f64;
+
+pub const TEST_F_64_0U_9: f64 = 9f64;
+
+pub const TEST_F_64_0_0U: f64 = 0f64;
+
+pub const TEST_F_64_0_1U: f64 = 1f64;
+
+pub const TEST_F_64_0_9U: f64 = 9f64;
 
 pub const TEST_F_64_POS_0: f64 = 0f64;
 
@@ -36,3 +84,15 @@ pub const TEST_F_64_NEG_1: f64 = -1f64;
 pub const TEST_F_64_POS_9: f64 = 9f64;
 
 pub const TEST_F_64_NEG_9: f64 = -9f64;
+
+pub const TEST_F_64_0_P_0: f64 = 0f64;
+
+pub const TEST_F_64_POS_0_P_0: f64 = 0f64;
+
+pub const TEST_F_64_NEG_0_P_0: f64 = 0f64;
+
+pub const TEST_F_64_1_P_1: f64 = 1.1f64;
+
+pub const TEST_F_64_POS_1_P_1: f64 = 1.1f64;
+
+pub const TEST_F_64_NEG_1_P_1: f64 = -1.1f64;
