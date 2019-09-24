@@ -422,18 +422,6 @@ impl Term {
             false => doc,
         };
 
-        let ann = |prec, term, ty| {
-            show_paren(
-                prec > 0,
-                (alloc.nil())
-                    .append(term)
-                    .append(alloc.space())
-                    .append(":")
-                    .group()
-                    .append((alloc.space()).append(ty).group().nest(4)),
-            )
-        };
-
         // Workaround -0.0 ridiculousness
         fn format_float<T: Float + From<u8> + fmt::Display>(value: T) -> Cow<'static, str> {
             if value == <T as From<u8>>::from(0) && value.is_sign_negative() {
@@ -448,10 +436,19 @@ impl Term {
                 .append("item")
                 .append(alloc.space())
                 .append(alloc.as_string(label)),
-            Term::Ann(term, ty) => ann(
-                prec,
-                term.doc_prec(alloc, prec + 1),
-                ty.doc_prec(alloc, prec + 1),
+            Term::Ann(term, ty) => show_paren(
+                prec > 0,
+                (alloc.nil())
+                    .append(term.doc_prec(alloc, prec + 1))
+                    .append(alloc.space())
+                    .append(":")
+                    .group()
+                    .append(
+                        (alloc.space())
+                            .append(ty.doc_prec(alloc, prec + 1))
+                            .group()
+                            .nest(4),
+                    ),
             ),
             Term::Kind(_) => alloc.text("Kind"),
             Term::Type(_) => alloc.text("Type"),
@@ -479,17 +476,18 @@ impl Term {
             Term::F64Type(_) => alloc.text("F64"),
             Term::BoolConst(_, true) => alloc.text("true"),
             Term::BoolConst(_, false) => alloc.text("false"),
-            Term::IntConst(_, value) => ann(prec, alloc.as_string(value), alloc.text("Int")),
-            Term::F32Const(_, value) => ann(
-                prec,
-                alloc.as_string(format_float(*value)),
-                alloc.text("F32"),
-            ),
-            Term::F64Const(_, value) => ann(
-                prec,
-                alloc.as_string(format_float(*value)),
-                alloc.text("F64"),
-            ),
+            Term::IntConst(_, value) => (alloc.nil())
+                .append("f64")
+                .append(alloc.space())
+                .append(alloc.as_string(value)),
+            Term::F32Const(_, value) => (alloc.nil())
+                .append("f32")
+                .append(alloc.space())
+                .append(format_float(*value)),
+            Term::F64Const(_, value) => (alloc.nil())
+                .append("f64")
+                .append(alloc.space())
+                .append(format_float(*value)),
             Term::Error(_) => alloc.text("!"),
         }
     }

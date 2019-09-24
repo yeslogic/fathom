@@ -19,6 +19,9 @@ extern {
         "string literal" => Token::StringLiteral(<literal::String>),
         "character literal" => Token::CharLiteral(<literal::Char>),
 
+        "f32" => Token::F32,
+        "f64" => Token::F64,
+        "int" => Token::Int,
         "item" => Token::Item,
         "struct" => Token::Struct,
 

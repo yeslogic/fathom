@@ -20,6 +20,9 @@ extern {
         "string literal" => Token::StringLiteral(<literal::String>),
         "character literal" => Token::CharLiteral(<literal::Char>),
 
+        "f32" => Token::F32,
+        "f64" => Token::F64,
+        "int" => Token::Int,
         "item" => Token::Item,
         "struct" => Token::Struct,
 
@@ -116,25 +119,25 @@ TermAtomic: Term = {
             },
         }
     },
-    <start: @L> <literal: "numeric literal"> ":" <name: "identifier"> <end: @R> => {
+    <start: @L> "int" <literal: "numeric literal"> <end: @R> => {
         let span = Span::new(start, end);
-        match name.as_ref() {
-            "Int" => match literal.parse_big_int(file_id, report) {
-                Some(value) => Term::IntConst(span, value),
-                None => Term::Error(span),
-            },
-            "F32" => match literal.parse_float(file_id, report) {
-                Some(value) => Term::F32Const(span, value),
-                None => Term::Error(span),
-            },
-            "F64" => match literal.parse_float(file_id, report) {
-                Some(value) => Term::F64Const(span, value),
-                None => Term::Error(span),
-            },
-            _ => {
-                report(diagnostics::bug::not_yet_implemented(file_id, span, "unknown numeric literal error"));
-                Term::Error(span)
-            },
+        match literal.parse_big_int(file_id, report) {
+            Some(value) => Term::IntConst(span, value),
+            None => Term::Error(span),
+        }
+    },
+    <start: @L> "f32" <literal: "numeric literal"> <end: @R> => {
+        let span = Span::new(start, end);
+        match literal.parse_float(file_id, report) {
+            Some(value) => Term::F32Const(span, value),
+            None => Term::Error(span),
+        }
+    },
+    <start: @L> "f64" <literal: "numeric literal"> <end: @R> => {
+        let span = Span::new(start, end);
+        match literal.parse_float(file_id, report) {
+            Some(value) => Term::F64Const(span, value),
+            None => Term::Error(span),
         }
     },
 };

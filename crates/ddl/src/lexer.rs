@@ -15,6 +15,9 @@ lazy_static::lazy_static! {
     };
 
     pub static ref CORE_KEYWORDS: Keywords = hashmap! {
+        "f32".to_owned() => Token::F32,
+        "f64".to_owned() => Token::F64,
+        "int".to_owned() => Token::Int,
         "item".to_owned() => Token::Item,
         "struct".to_owned() => Token::Struct,
     };
@@ -34,6 +37,12 @@ pub enum Token {
     /// Character literals.
     CharLiteral(literal::Char),
 
+    /// Keyword `f32`
+    F32,
+    /// Keyword `f64`
+    F64,
+    /// Keyword `int`
+    Int,
     /// Keyword `item`
     Item,
     /// Keyword `struct`
@@ -69,6 +78,9 @@ impl<'a> fmt::Display for Token {
             Token::StringLiteral(literal) => write!(f, "{}", literal),
             Token::CharLiteral(literal) => write!(f, "{}", literal),
 
+            Token::F32 => write!(f, "f32"),
+            Token::F64 => write!(f, "f64"),
+            Token::Int => write!(f, "int"),
             Token::Item => write!(f, "item"),
             Token::Struct => write!(f, "struct"),
 
