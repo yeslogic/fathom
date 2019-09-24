@@ -118,6 +118,14 @@ impl Alias {
             .append(alloc.space())
             .append("=")
             .group()
+            .append(match &self.ty {
+                None => alloc.nil(),
+                Some(ty) => (alloc.nil())
+                    .append(alloc.space())
+                    .append(ty.doc(alloc))
+                    .group()
+                    .nest(4),
+            })
             .append(
                 (alloc.nil())
                     .append(alloc.space())
