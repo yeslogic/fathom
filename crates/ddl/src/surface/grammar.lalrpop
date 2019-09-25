@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::concrete::{Alias, Item, Module, StructType, Term, TypeField};
+use crate::surface::{Alias, Item, Module, StructType, Term, TypeField};
 use crate::lexer::Token;
 use crate::literal;
 

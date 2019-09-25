@@ -10,7 +10,7 @@ use crate::literal::{self, Sign};
 type Keywords = HashMap<String, Token>;
 
 lazy_static::lazy_static! {
-    pub static ref CONCRETE_KEYWORDS: Keywords = hashmap! {
+    pub static ref SURFACE_KEYWORDS: Keywords = hashmap! {
         "struct".to_owned() => Token::Struct,
     };
 

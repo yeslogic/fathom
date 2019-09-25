@@ -181,7 +181,7 @@ pub fn validate_universe(
     }
 }
 
-/// Check a concrete term against the given type.
+/// Check a surface term against the given type.
 pub fn check_term(
     context: &TermContext<'_>,
     term: &Term,
@@ -206,7 +206,7 @@ pub fn check_term(
     }
 }
 
-/// Synthesize the type of a concrete term.
+/// Synthesize the type of a surface term.
 pub fn synth_term(
     context: &TermContext<'_>,
     term: &Term,

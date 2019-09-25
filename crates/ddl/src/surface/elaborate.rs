@@ -1,4 +1,4 @@
-//! Elaboration from the concrete syntax into the core syntax.
+//! Elaboration from the surface syntax into the core syntax.
 //!
 //! Performs the following:
 //!
@@ -13,17 +13,17 @@ use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::{concrete, core, diagnostics};
+use crate::{core, diagnostics, surface};
 
-/// Elaborate a module in the concrete syntax into the core syntax.
+/// Elaborate a module in the surface syntax into the core syntax.
 pub fn elaborate_module(
-    concrete_module: &concrete::Module,
+    surface_module: &surface::Module,
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Module {
-    let item_context = ItemContext::new(concrete_module.file_id);
+    let item_context = ItemContext::new(surface_module.file_id);
     core::Module {
-        file_id: concrete_module.file_id,
-        items: elaborate_items(item_context, &concrete_module.items, report),
+        file_id: surface_module.file_id,
+        items: elaborate_items(item_context, &surface_module.items, report),
     }
 }
 
@@ -56,24 +56,24 @@ impl ItemContext {
     }
 }
 
-/// Elaborate items in the concrete syntax into items in the core syntax.
+/// Elaborate items in the surface syntax into items in the core syntax.
 pub fn elaborate_items(
     mut context: ItemContext,
-    concrete_items: &[concrete::Item],
+    surface_items: &[surface::Item],
     report: &mut dyn FnMut(Diagnostic),
 ) -> Vec<core::Item> {
     let mut core_items = Vec::new();
 
-    for item in concrete_items.iter() {
+    for item in surface_items.iter() {
         use std::collections::hash_map::Entry;
 
         match item {
-            concrete::Item::Alias(alias) => {
+            surface::Item::Alias(alias) => {
                 let label = core::Label(alias.name.1.clone());
                 let (core_term, ty) = match &alias.ty {
-                    Some(concrete_ty) => {
+                    Some(surface_ty) => {
                         let context = context.term_context();
-                        let core_ty = elaborate_universe(&context, concrete_ty, report);
+                        let core_ty = elaborate_universe(&context, surface_ty, report);
                         let ty = core::semantics::eval(&core_ty);
                         let core_term = check_term(&context, &alias.term, &ty, report);
                         (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
@@ -102,7 +102,7 @@ pub fn elaborate_items(
                     )),
                 }
             }
-            concrete::Item::Struct(struct_ty) => {
+            surface::Item::Struct(struct_ty) => {
                 let label = core::Label(struct_ty.name.1.clone());
                 let field_context = context.field_context();
                 let core_fields =
@@ -165,16 +165,16 @@ impl<'items> FieldContext<'items> {
     }
 }
 
-/// Elaborate structure type fields in the concrete syntax into structure type
+/// Elaborate structure type fields in the surface syntax into structure type
 /// fields in the core syntax.
 pub fn elaborate_struct_ty_fields(
     mut context: FieldContext<'_>,
-    concrete_fields: &[concrete::TypeField],
+    surface_fields: &[surface::TypeField],
     report: &mut dyn FnMut(Diagnostic),
 ) -> Vec<core::TypeField> {
-    let mut core_fields = Vec::with_capacity(concrete_fields.len());
+    let mut core_fields = Vec::with_capacity(surface_fields.len());
 
-    for field in concrete_fields {
+    for field in surface_fields {
         use std::collections::hash_map::Entry;
 
         let label = core::Label(field.name.1.clone());
@@ -228,43 +228,43 @@ impl<'items> TermContext<'items> {
     }
 }
 
-/// Check that a concrete term is a type or kind, and elaborate it into the core syntax.
+/// Check that a surface term is a type or kind, and elaborate it into the core syntax.
 pub fn elaborate_universe(
     context: &TermContext<'_>,
-    concrete_term: &concrete::Term,
+    surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
-    let (core_term, ty) = synth_term(context, concrete_term, report);
+    let (core_term, ty) = synth_term(context, surface_term, report);
     match ty {
         core::Value::Kind => core_term,
         core::Value::Type => core_term,
-        core::Value::Error => core::Term::Error(concrete_term.span()),
+        core::Value::Error => core::Term::Error(surface_term.span()),
         ty => {
             report(diagnostics::universe_mismatch(
                 Severity::Error,
                 context.file_id,
-                concrete_term.span(),
+                surface_term.span(),
                 &ty,
             ));
-            core::Term::Error(concrete_term.span())
+            core::Term::Error(surface_term.span())
         }
     }
 }
 
-/// Check a concrete term against the given type, and elaborate it into the core syntax.
+/// Check a surface term against the given type, and elaborate it into the core syntax.
 pub fn check_term(
     context: &TermContext<'_>,
-    concrete_term: &concrete::Term,
+    surface_term: &surface::Term,
     expected_ty: &core::Value,
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
-    match (concrete_term, expected_ty) {
-        (concrete::Term::Error(span), _) => core::Term::Error(*span),
-        (concrete_term, core::Value::Error) => core::Term::Error(concrete_term.span()),
-        (concrete::Term::Paren(_, concrete_term), expected_ty) => {
-            check_term(context, concrete_term, expected_ty, report)
+    match (surface_term, expected_ty) {
+        (surface::Term::Error(span), _) => core::Term::Error(*span),
+        (surface_term, core::Value::Error) => core::Term::Error(surface_term.span()),
+        (surface::Term::Paren(_, surface_term), expected_ty) => {
+            check_term(context, surface_term, expected_ty, report)
         }
-        (concrete::Term::NumberLiteral(span, literal), _) => match expected_ty {
+        (surface::Term::NumberLiteral(span, literal), _) => match expected_ty {
             core::Value::IntType => match literal.parse_big_int(context.file_id, report) {
                 Some(value) => core::Term::IntConst(*span, value),
                 None => core::Term::Error(*span),
@@ -283,11 +283,11 @@ pub fn check_term(
                     *span,
                     "numeric literasl not suppprted for type",
                 ));
-                core::Term::Error(concrete_term.span())
+                core::Term::Error(surface_term.span())
             }
         },
-        (concrete_term, expected_ty) => {
-            let (core_term, synth_ty) = synth_term(context, concrete_term, report);
+        (surface_term, expected_ty) => {
+            let (core_term, synth_ty) = synth_term(context, surface_term, report);
 
             if core::semantics::equal(&synth_ty, expected_ty) {
                 core_term
@@ -295,31 +295,31 @@ pub fn check_term(
                 report(diagnostics::type_mismatch(
                     Severity::Error,
                     context.file_id,
-                    concrete_term.span(),
+                    surface_term.span(),
                     expected_ty,
                     &synth_ty,
                 ));
-                core::Term::Error(concrete_term.span())
+                core::Term::Error(surface_term.span())
             }
         }
     }
 }
 
-/// Synthesize the type of a concrete term, and elaborate it into the core syntax.
+/// Synthesize the type of a surface term, and elaborate it into the core syntax.
 pub fn synth_term(
     context: &TermContext<'_>,
-    concrete_term: &concrete::Term,
+    surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> (core::Term, core::Value) {
-    match concrete_term {
-        concrete::Term::Paren(_, concrete_term) => synth_term(context, concrete_term, report),
-        concrete::Term::Ann(concrete_term, concrete_ty) => {
-            let core_ty = elaborate_universe(context, concrete_ty, report);
+    match surface_term {
+        surface::Term::Paren(_, surface_term) => synth_term(context, surface_term, report),
+        surface::Term::Ann(surface_term, surface_ty) => {
+            let core_ty = elaborate_universe(context, surface_ty, report);
             let ty = core::semantics::eval(&core_ty);
-            let core_term = check_term(context, concrete_term, &ty, report);
+            let core_term = check_term(context, surface_term, &ty, report);
             (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
         }
-        concrete::Term::Var(span, name) => match context.items.get(name.as_str()) {
+        surface::Term::Var(span, name) => match context.items.get(name.as_str()) {
             Some((_, ty)) => (
                 core::Term::Item(*span, core::Label(name.to_string())),
                 ty.clone(),
@@ -370,7 +370,7 @@ pub fn synth_term(
                 }
             },
         },
-        concrete::Term::NumberLiteral(_, _) => unimplemented!(),
-        concrete::Term::Error(span) => (core::Term::Error(*span), core::Value::Error),
+        surface::Term::NumberLiteral(_, _) => unimplemented!(),
+        surface::Term::Error(span) => (core::Term::Error(*span), core::Value::Error),
     }
 }

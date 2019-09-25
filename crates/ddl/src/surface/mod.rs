@@ -1,4 +1,4 @@
-//! The concrete syntax for the data description language.
+//! The surface syntax for the data description language.
 
 use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
@@ -9,8 +9,11 @@ use crate::diagnostics;
 use crate::lexer::SpannedToken;
 use crate::literal;
 
+pub mod delaborate;
+pub mod elaborate;
+
 mod grammar {
-    include!(concat!(env!("OUT_DIR"), "/concrete/grammar.rs"));
+    include!(concat!(env!("OUT_DIR"), "/surface/grammar.rs"));
 }
 
 /// A module of items.

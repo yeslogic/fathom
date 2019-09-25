@@ -1,6 +1,6 @@
-# Concrete syntax
+# Surface syntax
 
-This section describes the concrete, textual representation of the data
+This section describes the surface, textual representation of the data
 description language. This how most users will interact with data descriptions.
 
 ## Contents
@@ -119,7 +119,7 @@ description language. This how most users will interact with data descriptions.
 
 ## Syntax
 
-The concrete syntax matches on any _token_, filtering out _white-space_ in the
+The surface syntax matches on any _token_, filtering out _white-space_ in the
 process.
 
 ### Terms
