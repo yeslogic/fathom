@@ -137,7 +137,7 @@ impl Test {
         files: &Files,
         surface_module: &ddl::surface::Module,
     ) -> ddl::core::Module {
-        let core_module = ddl::elaborate::elaborate_module(&surface_module, &mut |d| {
+        let core_module = ddl::surface::elaborate::elaborate_module(&surface_module, &mut |d| {
             self.found_diagnostics.push(d)
         });
 
@@ -164,8 +164,8 @@ impl Test {
 
     fn roundtrip_delaborate_core(&mut self, files: &Files, core_module: &ddl::core::Module) {
         let mut elaboration_diagnostics = Vec::new();
-        let delaborated_core_module = ddl::elaborate::elaborate_module(
-            &ddl::delaborate::delaborate_module(core_module),
+        let delaborated_core_module = ddl::surface::elaborate::elaborate_module(
+            &ddl::surface::delaborate::delaborate_module(core_module),
             &mut |d| elaboration_diagnostics.push(d),
         );
 

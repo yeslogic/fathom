@@ -9,6 +9,9 @@ use crate::diagnostics;
 use crate::lexer::SpannedToken;
 use crate::literal;
 
+pub mod delaborate;
+pub mod elaborate;
+
 mod grammar {
     include!(concat!(env!("OUT_DIR"), "/surface/grammar.rs"));
 }

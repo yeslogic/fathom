@@ -13,7 +13,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::{surface, core, diagnostics};
+use crate::{core, diagnostics, surface};
 
 /// Elaborate a module in the surface syntax into the core syntax.
 pub fn elaborate_module(

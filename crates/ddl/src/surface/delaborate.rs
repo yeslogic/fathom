@@ -6,7 +6,7 @@
 
 use codespan::Span;
 
-use crate::{surface, core, literal};
+use crate::{core, literal, surface};
 
 // TODO: name/keyword avoidance!
 

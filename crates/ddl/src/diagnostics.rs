@@ -3,7 +3,8 @@
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 
-use crate::{core, delaborate};
+use crate::core;
+use crate::surface::delaborate;
 
 pub fn field_redeclaration(
     severity: Severity,
