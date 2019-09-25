@@ -53,8 +53,8 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
         return;
     }
 
-    let concrete_module = test.parse_concrete(&files);
-    let core_module = test.elaborate(&files, &concrete_module);
+    let surface_module = test.parse_surface(&files);
+    let core_module = test.elaborate(&files, &surface_module);
     test.roundtrip_delaborate_core(&files, &core_module);
     test.roundtrip_pretty_core(&mut files, &core_module);
     test.compile_rust(&core_module);
@@ -124,10 +124,10 @@ impl Test {
         }
     }
 
-    fn parse_concrete(&mut self, files: &Files) -> ddl::concrete::Module {
-        let keywords = &ddl::lexer::CONCRETE_KEYWORDS;
+    fn parse_surface(&mut self, files: &Files) -> ddl::surface::Module {
+        let keywords = &ddl::lexer::SURFACE_KEYWORDS;
         let lexer = ddl::lexer::Lexer::new(files, self.input_ddl_file_id, keywords);
-        ddl::concrete::Module::parse(self.input_ddl_file_id, lexer, &mut |d| {
+        ddl::surface::Module::parse(self.input_ddl_file_id, lexer, &mut |d| {
             self.found_diagnostics.push(d)
         })
     }
@@ -135,9 +135,9 @@ impl Test {
     fn elaborate(
         &mut self,
         files: &Files,
-        concrete_module: &ddl::concrete::Module,
+        surface_module: &ddl::surface::Module,
     ) -> ddl::core::Module {
-        let core_module = ddl::elaborate::elaborate_module(&concrete_module, &mut |d| {
+        let core_module = ddl::elaborate::elaborate_module(&surface_module, &mut |d| {
             self.found_diagnostics.push(d)
         });
 
@@ -171,14 +171,14 @@ impl Test {
 
         if !elaboration_diagnostics.is_empty() {
             self.failed_checks
-                .push("roundtrip_delaborate_core: elaborate concrete");
+                .push("roundtrip_delaborate_core: elaborate surface");
 
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
             for diagnostic in &elaboration_diagnostics {
                 term::emit(&mut buffer, &self.term_config, files, diagnostic).unwrap();
             }
 
-            eprintln!("  • roundtrip_delaborate_core: elaborate concrete");
+            eprintln!("  • roundtrip_delaborate_core: elaborate surface");
             eprintln!();
             eprintln_indented(4, "", "---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
