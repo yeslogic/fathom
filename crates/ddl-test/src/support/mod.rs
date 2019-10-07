@@ -287,10 +287,10 @@ impl Test {
 
     fn compile_rust(&mut self, core_module: &ddl::core::Module) {
         let mut output = Vec::new();
-        let rust_module = ddl::compile::rust::compile::compile_module(core_module, &mut |d| {
+        let rust_module = ddl::core::compile::rust::compile_module(core_module, &mut |d| {
             self.found_diagnostics.push(d);
         });
-        ddl::compile::rust::emit::emit_module(&mut output, &rust_module).unwrap();
+        ddl::rust::emit::emit_module(&mut output, &rust_module).unwrap();
         let snapshot_rs_path = self.snapshot_filename.with_extension("rs");
 
         if let Err(error) = snapshot::compare(&snapshot_rs_path, &output) {
@@ -426,7 +426,7 @@ impl Test {
 
     fn compile_doc(&mut self, core_module: &ddl::core::Module) {
         let mut output = Vec::new();
-        ddl::compile::doc::compile_module(&mut output, core_module, &mut |d| {
+        ddl::core::compile::doc::compile_module(&mut output, core_module, &mut |d| {
             self.found_diagnostics.push(d)
         })
         .unwrap();

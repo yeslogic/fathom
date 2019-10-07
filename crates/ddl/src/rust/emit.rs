@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::compile::rust::{Const, Item, Module, RtType, StructType, Term, Type, TypeAlias};
+use crate::rust::{Const, Item, Module, RtType, StructType, Term, Type, TypeAlias};
 
 pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-pub mod compile;
 pub mod emit;
 
 /// A module of items.
@@ -47,10 +46,10 @@ pub struct StructType {
 /// Compiled type fields types.
 #[derive(Debug, Clone)]
 pub struct TypeField {
-    doc: Arc<[String]>,
-    name: String,
-    format_ty: Type,
-    host_ty: Type,
+    pub doc: Arc<[String]>,
+    pub name: String,
+    pub format_ty: Type,
+    pub host_ty: Type,
 }
 
 /// Compiled types.
