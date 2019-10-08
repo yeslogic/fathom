@@ -66,6 +66,7 @@ pub fn compile_module(
         "\
   </dl>
 </body>
+</html>
 "
     )?;
 
