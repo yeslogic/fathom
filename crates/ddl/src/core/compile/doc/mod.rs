@@ -15,6 +15,9 @@ pub fn compile_module(
         _file_id: module.file_id,
     };
 
+    const MINIRESET: &str = include_str!("./minireset.min.css");
+    const STYLE: &str = include_str!("./style.css");
+
     let pkg_name = env!("CARGO_PKG_NAME");
     let pkg_version = env!("CARGO_PKG_VERSION");
 
@@ -33,11 +36,18 @@ pub fn compile_module(
   <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
   <meta http-equiv=\"X-UA-Compatible\" content=\"ie=edge\">
   <title>{module_name}</title>
+  <style>
+{minireset}
+
+{style}
+  </style>
 </head>
 <body>
   <dl class=\"module\">
 ",
         module_name = "", // TODO: module name
+        minireset = MINIRESET.trim(),
+        style = STYLE.trim(),
         pkg_name = pkg_name,
         pkg_version = pkg_version,
     )?;
@@ -78,14 +88,16 @@ fn compile_alias(
     writeln!(writer, "    <dd class=\"item alias\">")?;
 
     if !alias.doc.is_empty() {
-        compile_doc_lines(writer, "      ", &alias.doc)?;
+        writeln!(writer, "      <section class=\"doc\">")?;
+        compile_doc_lines(writer, "        ", &alias.doc)?;
+        writeln!(writer, "      </section>")?;
     }
 
     let term = compile_term(context, &alias.term, report);
 
-    writeln!(writer, "      <div>")?;
+    writeln!(writer, "      <section class=\"term\">")?;
     writeln!(writer, "        {}", term)?;
-    writeln!(writer, "      </div>")?;
+    writeln!(writer, "      </section>")?;
     writeln!(writer, "    </dd>")?;
 
     Ok(())
@@ -103,7 +115,9 @@ fn compile_struct_ty(
     writeln!(writer, "    <dd class=\"item struct\">")?;
 
     if !struct_ty.doc.is_empty() {
-        compile_doc_lines(writer, "      ", &struct_ty.doc)?;
+        writeln!(writer, "      <section class=\"doc\">")?;
+        compile_doc_lines(writer, "        ", &struct_ty.doc)?;
+        writeln!(writer, "      </section>")?;
     }
 
     if !struct_ty.fields.is_empty() {
@@ -115,7 +129,9 @@ fn compile_struct_ty(
             writeln!(writer, "        <a href=\"#\">{}</a> : {}", field.name, ty)?;
             writeln!(writer, "      </dt>")?;
             writeln!(writer, "      <dd class=\"field\">")?;
-            compile_doc_lines(writer, "        ", &field.doc)?;
+            writeln!(writer, "        <section class=\"doc\">")?;
+            compile_doc_lines(writer, "          ", &field.doc)?;
+            writeln!(writer, "        </section>")?;
             writeln!(writer, "      </dd>")?;
         }
         writeln!(writer, "    </dl>")?;
