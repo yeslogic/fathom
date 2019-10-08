@@ -431,7 +431,8 @@ impl Test {
         })
         .unwrap();
 
-        if let Err(error) = snapshot::compare(&self.snapshot_filename.with_extension("md"), &output)
+        if let Err(error) =
+            snapshot::compare(&self.snapshot_filename.with_extension("html"), &output)
         {
             self.failed_checks.push("compile_doc: snapshot");
 
