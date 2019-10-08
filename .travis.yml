@@ -1,5 +1,11 @@
 language: rust
-cache: cargo
+cache:
+  directories:
+    - $HOME/.cargo
+
+    # Don't cache the target directory. It gets rather large, and the
+    # unpacking of this ends up taking a rather long time!
+    # - $TRAVIS_BUILD_DIR/target
 
 rust:
   - 1.36.0
