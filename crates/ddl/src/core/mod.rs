@@ -15,6 +15,7 @@ mod grammar {
     include!(concat!(env!("OUT_DIR"), "/core/grammar.rs"));
 }
 
+pub mod compile;
 pub mod semantics;
 pub mod validate;
 
