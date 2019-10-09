@@ -1,6 +1,7 @@
 use codespan::FileId;
 use codespan_reporting::diagnostic::Diagnostic;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::io;
 use std::io::prelude::*;
 
@@ -11,8 +12,9 @@ pub fn compile_module(
     module: &core::Module,
     report: &mut dyn FnMut(Diagnostic),
 ) -> io::Result<()> {
-    let context = ModuleContext {
+    let mut context = ModuleContext {
         _file_id: module.file_id,
+        items: HashMap::new(),
     };
 
     const MINIRESET: &str = include_str!("./minireset.min.css");
@@ -53,12 +55,14 @@ pub fn compile_module(
     )?;
 
     for item in &module.items {
-        match item {
+        let (label, item) = match item {
             core::Item::Alias(alias) => compile_alias(&context, writer, alias, report)?,
             core::Item::Struct(struct_ty) => {
                 compile_struct_ty(&context, writer, struct_ty, report)?
             }
-        }
+        };
+
+        context.items.insert(label, item);
     }
 
     write!(
@@ -75,6 +79,11 @@ pub fn compile_module(
 
 struct ModuleContext {
     _file_id: FileId,
+    items: HashMap<core::Label, Item>,
+}
+
+struct Item {
+    id: String,
 }
 
 fn compile_alias(
@@ -82,11 +91,20 @@ fn compile_alias(
     writer: &mut impl Write,
     alias: &core::Alias,
     report: &mut dyn FnMut(Diagnostic),
-) -> io::Result<()> {
-    writeln!(writer, "    <dt class=\"item alias\">")?;
-    writeln!(writer, "      <a href=\"#\">{}</a>", alias.name)?;
-    writeln!(writer, "    </dt>")?;
-    writeln!(writer, "    <dd class=\"item alias\">")?;
+) -> io::Result<(core::Label, Item)> {
+    let id = format!("items[{}]", alias.name);
+
+    write!(
+        writer,
+        "\
+    <dt id=\"{id}\" class=\"item alias\">
+      <a href=\"#{id}\">{name}</a>
+    </dt>
+   <dd class=\"item alias\">
+",
+        id = id,
+        name = alias.name
+    )?;
 
     if !alias.doc.is_empty() {
         writeln!(writer, "      <section class=\"doc\">")?;
@@ -96,12 +114,18 @@ fn compile_alias(
 
     let term = compile_term(context, &alias.term, report);
 
-    writeln!(writer, "      <section class=\"term\">")?;
-    writeln!(writer, "        {}", term)?;
-    writeln!(writer, "      </section>")?;
-    writeln!(writer, "    </dd>")?;
+    writeln!(
+        writer,
+        "\
+      <section class=\"term\">
+        {}
+      </section>
+    </dd>
+",
+        term
+    )?;
 
-    Ok(())
+    Ok((alias.name.clone(), Item { id }))
 }
 
 fn compile_struct_ty(
@@ -109,11 +133,20 @@ fn compile_struct_ty(
     writer: &mut impl Write,
     struct_ty: &core::StructType,
     report: &mut dyn FnMut(Diagnostic),
-) -> io::Result<()> {
-    writeln!(writer, "    <dt class=\"item struct\">")?;
-    writeln!(writer, "      struct <a href=\"#\">{}</a>", struct_ty.name)?;
-    writeln!(writer, "    </dt>")?;
-    writeln!(writer, "    <dd class=\"item struct\">")?;
+) -> io::Result<(core::Label, Item)> {
+    let id = format!("items[{}]", struct_ty.name);
+
+    write!(
+        writer,
+        "
+    <dt id=\"{id}\" class=\"item struct\">
+      struct <a href=\"#{id}\">{name}</a>
+    </dt>
+    <dd class=\"item struct\">
+",
+        id = id,
+        name = struct_ty.name
+    )?;
 
     if !struct_ty.doc.is_empty() {
         writeln!(writer, "      <section class=\"doc\">")?;
@@ -124,23 +157,37 @@ fn compile_struct_ty(
     if !struct_ty.fields.is_empty() {
         writeln!(writer, "    <dl class=\"fields\">")?;
         for field in &struct_ty.fields {
+            let field_id = format!("{}.fields[{}]", id, field.name);
             let ty = compile_term(context, &field.term, report);
 
-            writeln!(writer, "      <dt class=\"field\">")?;
-            writeln!(writer, "        <a href=\"#\">{}</a> : {}", field.name, ty)?;
-            writeln!(writer, "      </dt>")?;
-            writeln!(writer, "      <dd class=\"field\">")?;
-            writeln!(writer, "        <section class=\"doc\">")?;
+            write!(
+                writer,
+                "\
+      <dt id=\"{id}\" class=\"field\">
+        <a href=\"#{id}\">{name}</a> : {ty}
+      </dt>
+      <dd class=\"field\">
+        <section class=\"doc\">
+",
+                id = field_id,
+                name = field.name,
+                ty = ty,
+            )?;
             compile_doc_lines(writer, "          ", &field.doc)?;
-            writeln!(writer, "        </section>")?;
-            writeln!(writer, "      </dd>")?;
+            write!(
+                writer,
+                "\
+        </section>
+      </dd>
+"
+            )?;
         }
         writeln!(writer, "    </dl>")?;
     }
 
     writeln!(writer, "    </dd>")?;
 
-    Ok(())
+    Ok((struct_ty.name.clone(), Item { id }))
 }
 
 fn compile_term<'term>(
@@ -150,7 +197,14 @@ fn compile_term<'term>(
 ) -> Cow<'term, str> {
     match term {
         // TODO: Link to specific docs
-        core::Term::Item(_, name) => format!("<var><a href=\"#\">{}</a></var>", name).into(),
+        core::Term::Item(_, name) => {
+            let id = match context.items.get(name) {
+                Some(item) => item.id.as_str(),
+                None => "",
+            };
+
+            format!("<var><a href=\"#{}\">{}</a></var>", id, name).into()
+        }
         core::Term::Ann(term, ty) => {
             let term = compile_term(context, term, report);
             let ty = compile_term(context, ty, report);
