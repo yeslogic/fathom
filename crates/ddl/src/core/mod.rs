@@ -478,7 +478,7 @@ impl Term {
             Term::BoolConst(_, true) => alloc.text("true"),
             Term::BoolConst(_, false) => alloc.text("false"),
             Term::IntConst(_, value) => (alloc.nil())
-                .append("f64")
+                .append("int")
                 .append(alloc.space())
                 .append(alloc.as_string(value)),
             Term::F32Const(_, value) => (alloc.nil())

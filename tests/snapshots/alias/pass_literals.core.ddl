@@ -1,3 +1,39 @@
+test_int_0 = int 0 : Int;
+
+test_int_1 = int 1 : Int;
+
+test_int_9 = int 9 : Int;
+
+test_int_00 = int 0 : Int;
+
+test_int_01 = int 1 : Int;
+
+test_int_09 = int 9 : Int;
+
+test_int_0u0 = int 0 : Int;
+
+test_int_0u1 = int 1 : Int;
+
+test_int_0u9 = int 9 : Int;
+
+test_int_00u = int 0 : Int;
+
+test_int_01u = int 1 : Int;
+
+test_int_09u = int 9 : Int;
+
+test_int_pos_0 = int 0 : Int;
+
+test_int_neg_0 = int 0 : Int;
+
+test_int_pos_1 = int 1 : Int;
+
+test_int_neg_1 = int -1 : Int;
+
+test_int_pos_9 = int 9 : Int;
+
+test_int_neg_9 = int -9 : Int;
+
 test_f32_0 = f32 0 : F32;
 
 test_f32_1 = f32 1 : F32;

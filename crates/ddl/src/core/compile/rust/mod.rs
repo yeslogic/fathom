@@ -267,13 +267,21 @@ fn compile_term(
         core::Term::BoolConst(_, value) => {
             CompiledTerm::Term(rust::Term::Bool(*value), rust::Type::Bool)
         }
-        core::Term::IntConst(span, _) => {
-            report(crate::diagnostics::bug::not_yet_implemented(
-                context.file_id,
-                *span,
-                "compile int literals",
-            ));
-            CompiledTerm::Error
+        core::Term::IntConst(span, value) => {
+            use num_traits::cast::ToPrimitive;
+
+            match value.to_i64() {
+                // TODO: don't default to I64.
+                Some(value) => CompiledTerm::Term(rust::Term::I64(value), rust::Type::I64),
+                None => {
+                    report(crate::diagnostics::bug::not_yet_implemented(
+                        context.file_id,
+                        *span,
+                        "non-i64 types",
+                    ));
+                    CompiledTerm::Error
+                }
+            }
         }
         core::Term::F32Const(_, value) => {
             CompiledTerm::Term(rust::Term::F32(*value), rust::Type::F32)
