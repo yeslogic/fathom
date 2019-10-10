@@ -151,9 +151,7 @@ impl Alias {
     {
         let docs = alloc.concat(self.doc.iter().map(|line| {
             (alloc.nil())
-                .append("///")
-                .append(line)
-                .group()
+                .append(format!("///{}", line))
                 .append(alloc.newline())
         }));
 
@@ -201,9 +199,7 @@ impl StructType {
     {
         let docs = alloc.concat(self.doc.iter().map(|line| {
             (alloc.nil())
-                .append("///")
-                .append(line)
-                .group()
+                .append(format!("///{}", line))
                 .append(alloc.newline())
         }));
 
@@ -262,9 +258,7 @@ impl TypeField {
     {
         let docs = alloc.concat(self.doc.iter().map(|line| {
             (alloc.nil())
-                .append("///")
-                .append(line)
-                .group()
+                .append(format!("///{}", line))
                 .append(alloc.newline())
         }));
 
