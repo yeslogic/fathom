@@ -28,14 +28,14 @@ a:hover {
     text-decoration: underline;
 }
 
-dl.module > dt.item,
+dl.items > dt.item,
 dl.fields > dt.field,
 dd.alias > section.term {
     border-top: 1px solid #eee;
     padding: 0.5em 0 0.5em 0;
 }
 
-dl.module > dd.item,
+dl.items > dd.item,
 dl.fields > dd.field {
     margin-left: 2em;
     margin-bottom: 1em;
@@ -47,16 +47,17 @@ section.doc {
     </style>
   </head>
   <body>
-    <dl class="module">
-      <dt id="items[TestType]" class="item alias">
+    <section class="module">
+      <dl class="items">
+        <dt id="items[TestType]" class="item alias">
           <a href="#items[TestType]">TestType</a>
-      </dt>
-     <dd class="item alias">
-        <section class="term">
-        <strong>(invalid data description)</strong>
-        </section>
-      </dd>
-
-    </dl>
+        </dt>
+        <dd class="item alias">
+          <section class="term">
+            <strong>(invalid data description)</strong>
+          </section>
+        </dd>
+      </dl>
+    </section>
   </body>
 </html>

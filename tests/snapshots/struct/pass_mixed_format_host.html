@@ -28,14 +28,14 @@ a:hover {
     text-decoration: underline;
 }
 
-dl.module > dt.item,
+dl.items > dt.item,
 dl.fields > dt.field,
 dd.alias > section.term {
     border-top: 1px solid #eee;
     padding: 0.5em 0 0.5em 0;
 }
 
-dl.module > dd.item,
+dl.items > dd.item,
 dl.fields > dd.field {
     margin-left: 2em;
     margin-bottom: 1em;
@@ -47,28 +47,30 @@ section.doc {
     </style>
   </head>
   <body>
-    <dl class="module">
-      <dt id="items[Test]" class="item struct">
-        struct <a href="#items[Test]">Test</a>
-      </dt>
-      <dd class="item struct">
-      <dl class="fields">
-        <dt id="items[Test].fields[format]" class="field">
-          <a href="#items[Test].fields[format]">format</a> : <var><a href="#">U32Be</a></var>
+    <section class="module">
+      <dl class="items">
+        <dt id="items[Test]" class="item struct">
+          struct <a href="#items[Test]">Test</a>
         </dt>
-        <dd class="field">
-          <section class="doc">
-          </section>
-        </dd>
-        <dt id="items[Test].fields[host]" class="field">
-          <a href="#items[Test].fields[host]">host</a> : <var><a href="#">Bool</a></var>
-        </dt>
-        <dd class="field">
-          <section class="doc">
-          </section>
+        <dd class="item struct">
+          <dl class="fields">
+            <dt id="items[Test].fields[format]" class="field">
+              <a href="#items[Test].fields[format]">format</a> : <var><a href="#">U32Be</a></var>
+            </dt>
+            <dd class="field">
+              <section class="doc">
+              </section>
+            </dd>
+            <dt id="items[Test].fields[host]" class="field">
+              <a href="#items[Test].fields[host]">host</a> : <var><a href="#">Bool</a></var>
+            </dt>
+            <dd class="field">
+              <section class="doc">
+              </section>
+            </dd>
+          </dl>
         </dd>
       </dl>
-      </dd>
-    </dl>
+    </section>
   </body>
 </html>
