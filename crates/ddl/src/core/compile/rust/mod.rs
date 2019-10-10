@@ -36,6 +36,7 @@ pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic))
     });
 
     rust::Module {
+        doc: module.doc.clone(),
         items: items.collect(),
     }
 }

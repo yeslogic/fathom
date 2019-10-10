@@ -1,3 +1,5 @@
+//! Test literals.
+
 test_int_0 = int 0 : Int;
 
 test_int_1 = int 1 : Int;

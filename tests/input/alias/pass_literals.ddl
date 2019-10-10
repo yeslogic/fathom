@@ -1,3 +1,5 @@
+//! Test literals.
+
 // TODO: ranged integers
 
 test_int_0 : Int = 0;

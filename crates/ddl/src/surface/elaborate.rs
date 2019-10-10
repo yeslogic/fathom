@@ -23,6 +23,7 @@ pub fn elaborate_module(
     let item_context = ItemContext::new(surface_module.file_id);
     core::Module {
         file_id: surface_module.file_id,
+        doc: surface_module.doc.clone(),
         items: elaborate_items(item_context, &surface_module.items, report),
     }
 }

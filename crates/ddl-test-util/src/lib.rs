@@ -4,7 +4,6 @@
 
 pub use codespan;
 pub use ddl;
-pub use ddl_rt;
 pub use lazy_static;
 
 #[macro_export]

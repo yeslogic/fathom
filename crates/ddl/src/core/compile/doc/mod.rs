@@ -39,7 +39,6 @@ pub fn compile_module(
   </head>
   <body>
     <section class="module">
-      <dl class="items">
 "##,
         pkg_name = env!("CARGO_PKG_NAME"),
         pkg_version = env!("CARGO_PKG_VERSION"),
@@ -47,6 +46,14 @@ pub fn compile_module(
         minireset = include_str!("./minireset.min.css").trim(),
         style = include_str!("./style.css").trim(),
     )?;
+
+    if !module.doc.is_empty() {
+        writeln!(writer, r##"      <section class="doc">"##)?;
+        compile_doc_lines(writer, "        ", &module.doc)?;
+        writeln!(writer, r##"      </section>"##)?;
+    }
+
+    writeln!(writer, r##"      <dl class="items">"##)?;
 
     for item in &module.items {
         let (label, item) = match item {

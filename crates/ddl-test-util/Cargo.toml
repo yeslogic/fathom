@@ -14,5 +14,4 @@ license = "Apache-2.0"
 codespan = "0.4"
 codespan-reporting =  "0.4"
 ddl = { version = "0.1.0", path = "../ddl" }
-ddl-rt = { version = "0.1.0", path = "../ddl-rt" }
 lazy_static = "1.4"

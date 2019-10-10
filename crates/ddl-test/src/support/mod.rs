@@ -318,10 +318,21 @@ impl Test {
                 .arg("--test")
                 .arg("--color=always")
                 .arg("--edition=2018")
+                // Manually pass shared cargo directories
                 .arg("-C")
                 .arg(format!("incremental={}", CARGO_INCREMENTAL_DIR.display()))
                 .arg("-L")
-                .arg(format!("dependency={}", CARGO_DEPS_DIR.display()));
+                .arg(format!("dependency={}", CARGO_DEPS_DIR.display()))
+                // Add `ddl-rt` to the dependencies
+                .arg("--extern")
+                .arg(format!("ddl_rt={}", CARGO_DDL_RT_RLIB.display()));
+
+            // Ensure that ddl-rt is present at `CARGO_DDL_RT_RLIB`
+            Command::new(env!("CARGO"))
+                .arg("build")
+                .arg("--package=ddl-rt")
+                .output()
+                .unwrap();
 
             if is_binary_parse_test {
                 // Ensure that ddl-test-util is present at `CARGO_DDL_TEST_UTIL_RLIB`
@@ -334,20 +345,8 @@ impl Test {
                 // Add `ddl-test-util` to the dependencies
                 rustc_command.arg("--extern").arg(format!(
                     "ddl_test_util={}",
-                    CARGO_DDL_TEST_UTIL_RLIB.display()
+                    CARGO_DDL_TEST_UTIL_RLIB.display(),
                 ));
-            } else {
-                // Ensure that ddl-rt is present at `CARGO_DDL_RT_RLIB`
-                Command::new(env!("CARGO"))
-                    .arg("build")
-                    .arg("--package=ddl-rt")
-                    .output()
-                    .unwrap();
-
-                // Add `ddl-rt` to the dependencies
-                rustc_command
-                    .arg("--extern")
-                    .arg(format!("ddl_rt={}", CARGO_DDL_RT_RLIB.display()));
             }
 
             match rustc_command.arg(&rs_path).output() {

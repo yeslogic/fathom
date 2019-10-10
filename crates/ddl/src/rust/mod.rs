@@ -5,6 +5,8 @@ pub mod emit;
 /// A module of items.
 #[derive(Debug, Clone)]
 pub struct Module {
+    /// Doc comment.
+    pub doc: Arc<[String]>,
     /// The items in this module.
     pub items: Vec<Item>,
 }

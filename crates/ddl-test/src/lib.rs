@@ -15,6 +15,7 @@ macro_rules! test {
 }
 
 test!(pass_empty, "pass_empty.ddl");
+test!(pass_empty_doc, "pass_empty_doc.ddl");
 
 test!(fail_duplicate_definitions, "fail_duplicate_definitions.ddl");
 test!(fail_unexpected_token, "fail_unexpected_token.ddl");

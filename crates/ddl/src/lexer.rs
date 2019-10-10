@@ -28,6 +28,8 @@ lazy_static::lazy_static! {
 pub enum Token {
     /// Doc comments,
     DocComment(String),
+    /// Inner doc comment
+    InnerDocComment(String),
     /// Identifiers.
     Identifier(String),
     /// Numeric literals.
@@ -72,7 +74,8 @@ pub enum Token {
 impl<'a> fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Token::DocComment(name) => write!(f, "///{}", name),
+            Token::DocComment(comment) => write!(f, "///{}", comment),
+            Token::InnerDocComment(comment) => write!(f, "//!{}", comment),
             Token::Identifier(name) => write!(f, "{}", name),
             Token::NumberLiteral(literal) => write!(f, "{}", literal),
             Token::StringLiteral(literal) => write!(f, "{}", literal),
@@ -231,30 +234,47 @@ impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
             let start = self.token_end;
             return match self.advance()? {
                 '/' => match self.advance() {
-                    Some('/') if self.peek() == Some('/') => {
-                        let mut doc = String::new();
-                        self.advance();
-                        'doc_comment: loop {
+                    Some('/') => match self.peek() {
+                        Some('/') => {
+                            let mut doc = String::new();
+                            self.advance();
+                            'doc_comment: loop {
+                                match self.advance() {
+                                    Some('\n') | Some('\r') | None => {
+                                        return self.emit(Token::DocComment(doc));
+                                    }
+                                    Some(ch) => {
+                                        doc.push(ch);
+                                        continue 'doc_comment;
+                                    }
+                                }
+                            }
+                        }
+                        Some('!') => {
+                            let mut doc = String::new();
+                            self.advance();
+                            'inner_doc_comment: loop {
+                                match self.advance() {
+                                    Some('\n') | Some('\r') | None => {
+                                        return self.emit(Token::InnerDocComment(doc));
+                                    }
+                                    Some(ch) => {
+                                        doc.push(ch);
+                                        continue 'inner_doc_comment;
+                                    }
+                                }
+                            }
+                        }
+                        Some(_) | None => 'comment: loop {
                             match self.advance() {
-                                Some('\n') | Some('\r') | None => {
-                                    return self.emit(Token::DocComment(doc));
+                                Some('\n') | Some('\r') => {
+                                    self.reset_start();
+                                    continue 'top;
                                 }
-                                Some(ch) => {
-                                    doc.push(ch);
-                                    continue 'doc_comment;
-                                }
+                                Some(_) => continue 'comment,
+                                None => return None,
                             }
-                        }
-                    }
-                    Some('/') => 'comment: loop {
-                        match self.advance() {
-                            Some('\n') | Some('\r') => {
-                                self.reset_start();
-                                continue 'top;
-                            }
-                            Some(_) => continue 'comment,
-                            None => return None,
-                        }
+                        },
                     },
                     Some(ch) => self.unexpected_char(self.token_end, ch, &["`/`"]),
                     None => self.unexpected_eof(&["`/`"]),

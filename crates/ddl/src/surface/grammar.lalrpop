@@ -14,6 +14,7 @@ extern {
 
     enum Token {
         "doc comment" => Token::DocComment(<String>),
+        "inner doc comment" => Token::InnerDocComment(<String>),
         "identifier" => Token::Identifier(<String>),
         "numeric literal" => Token::NumberLiteral(<literal::Number>),
         "string literal" => Token::StringLiteral(<literal::String>),
@@ -39,7 +40,12 @@ extern {
 }
 
 pub Module: Module = {
-    <items: Item*> => Module { file_id, items },
+    <doc: "inner doc comment"*>
+    <items: Item*> => {
+        let doc = Arc::from(doc);
+
+        Module { file_id, doc, items }
+    },
 };
 
 Item: Item = {

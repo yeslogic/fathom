@@ -1,3 +1,5 @@
+//! Test globals.
+
 TestType = Type;
 
 TestU8 = U8;

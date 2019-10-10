@@ -13,6 +13,7 @@ use crate::{core, literal, surface};
 pub fn delaborate_module(module: &core::Module) -> surface::Module {
     surface::Module {
         file_id: module.file_id,
+        doc: module.doc.clone(),
         items: module.items.iter().map(delaborate_item).collect(),
     }
 }
