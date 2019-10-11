@@ -15,6 +15,7 @@ macro_rules! test {
 }
 
 test!(pass_empty, "pass_empty.ddl");
+test!(pass_empty_doc, "pass_empty_doc.ddl");
 
 test!(fail_duplicate_definitions, "fail_duplicate_definitions.ddl");
 test!(fail_unexpected_token, "fail_unexpected_token.ddl");
@@ -22,7 +23,6 @@ test!(fail_unexpected_character, "fail_unexpected_character.ddl");
 
 #[rustfmt::skip]
 mod alias {
-    test!(pass_constants, "alias/pass_constants.ddl");
     test!(pass_globals, "alias/pass_globals.ddl");
     test!(pass_literals, "alias/pass_literals.ddl");
     test!(pass_ann, "alias/pass_ann.ddl");

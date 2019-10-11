@@ -1,14 +1,12 @@
 #![cfg(test)]
 
 use ddl_test_util::ddl::binary;
-use ddl_test_util::ddl_rt::{I8, ReadError, ReadScope, WriteCtxt, U8};
+use ddl_rt::{I8, ReadError, ReadScope, WriteCtxt, U8};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
-mod fixture {
-    use ddl_test_util::ddl_rt;
-    include!("../../snapshots/struct/pass_pair.rs");
-}
+#[path = "../../snapshots/struct/pass_pair.rs"]
+mod fixture;
 
 ddl_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_pair.core.ddl");
 

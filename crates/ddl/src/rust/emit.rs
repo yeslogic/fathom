@@ -14,6 +14,13 @@ pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     )?;
     writeln!(writer, "// It is not intended for manual editing.")?;
 
+    if !module.doc.is_empty() {
+        writeln!(writer)?;
+        for doc_line in module.doc.iter() {
+            writeln!(writer, "//!{}", doc_line)?;
+        }
+    }
+
     for item in &module.items {
         emit_item(writer, &item)?;
     }

@@ -28,14 +28,14 @@ a:hover {
     text-decoration: underline;
 }
 
-dl.module > dt.item,
+dl.items > dt.item,
 dl.fields > dt.field,
 dd.alias > section.term {
     border-top: 1px solid #eee;
     padding: 0.5em 0 0.5em 0;
 }
 
-dl.module > dd.item,
+dl.items > dd.item,
 dl.fields > dd.field {
     margin-left: 2em;
     margin-bottom: 1em;
@@ -47,33 +47,38 @@ section.doc {
     </style>
   </head>
   <body>
-    <dl class="module">
-      <dt id="items[Pair]" class="item struct">
-        struct <a href="#items[Pair]">Pair</a>
-      </dt>
-      <dd class="item struct">
-        <section class="doc">
-          A pair of bytes.
-        </section>
-      <dl class="fields">
-        <dt id="items[Pair].fields[first]" class="field">
-          <a href="#items[Pair].fields[first]">first</a> : <var><a href="#">U8</a></var>
+    <section class="module">
+      <section class="doc">
+        Test a pair struct.
+      </section>
+      <dl class="items">
+        <dt id="items[Pair]" class="item struct">
+          struct <a href="#items[Pair]">Pair</a>
         </dt>
-        <dd class="field">
+        <dd class="item struct">
           <section class="doc">
-            The first field.
+            A pair of bytes.
           </section>
-        </dd>
-        <dt id="items[Pair].fields[second]" class="field">
-          <a href="#items[Pair].fields[second]">second</a> : <var><a href="#">S8</a></var>
-        </dt>
-        <dd class="field">
-          <section class="doc">
-            The second field.
-          </section>
+          <dl class="fields">
+            <dt id="items[Pair].fields[first]" class="field">
+              <a href="#items[Pair].fields[first]">first</a> : <var><a href="#">U8</a></var>
+            </dt>
+            <dd class="field">
+              <section class="doc">
+                The first field.
+              </section>
+            </dd>
+            <dt id="items[Pair].fields[second]" class="field">
+              <a href="#items[Pair].fields[second]">second</a> : <var><a href="#">S8</a></var>
+            </dt>
+            <dd class="field">
+              <section class="doc">
+                The second field.
+              </section>
+            </dd>
+          </dl>
         </dd>
       </dl>
-      </dd>
-    </dl>
+    </section>
   </body>
 </html>

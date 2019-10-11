@@ -1,12 +1,10 @@
 #![cfg(test)]
 
 use ddl_test_util::ddl::binary;
-use ddl_test_util::ddl_rt::{ReadError, ReadScope, WriteCtxt, U8};
+use ddl_rt::{ReadError, ReadScope, WriteCtxt, U8};
 
-mod fixture {
-    use ddl_test_util::ddl_rt;
-    include!("../../snapshots/alias/pass_simple.rs");
-}
+#[path = "../../snapshots/alias/pass_simple.rs"]
+mod fixture;
 
 ddl_test_util::core_module!(FIXTURE, "../../snapshots/alias/pass_simple.core.ddl");
 

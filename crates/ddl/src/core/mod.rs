@@ -50,6 +50,8 @@ impl Borrow<str> for Label {
 pub struct Module {
     /// The file in which this module was defined.
     pub file_id: FileId,
+    /// Doc comment.
+    pub doc: Arc<[String]>,
     /// The items in this module.
     pub items: Vec<Item>,
 }
@@ -66,6 +68,7 @@ impl Module {
                 report(diagnostics::error::parse(file_id, error));
                 Module {
                     file_id,
+                    doc: Arc::new([]),
                     items: Vec::new(),
                 }
             })
@@ -76,12 +79,21 @@ impl Module {
         D: DocAllocator<'core>,
         D::Doc: Clone,
     {
-        let items = alloc.intersperse(
-            self.items.iter().map(|item| item.doc(alloc)),
-            alloc.newline().append(alloc.newline()),
-        );
+        let docs = match self.doc.as_ref() {
+            [] => None,
+            doc => Some(alloc.intersperse(
+                doc.iter().map(|line| format!("//!{}", line)),
+                alloc.newline(),
+            )),
+        };
+        let items = self.items.iter().map(|item| item.doc(alloc));
 
-        items.append(alloc.newline())
+        (alloc.nil())
+            .append(alloc.intersperse(
+                docs.into_iter().chain(items),
+                alloc.newline().append(alloc.newline()),
+            ))
+            .append(alloc.newline())
     }
 }
 
@@ -151,9 +163,7 @@ impl Alias {
     {
         let docs = alloc.concat(self.doc.iter().map(|line| {
             (alloc.nil())
-                .append("///")
-                .append(line)
-                .group()
+                .append(format!("///{}", line))
                 .append(alloc.newline())
         }));
 
@@ -201,9 +211,7 @@ impl StructType {
     {
         let docs = alloc.concat(self.doc.iter().map(|line| {
             (alloc.nil())
-                .append("///")
-                .append(line)
-                .group()
+                .append(format!("///{}", line))
                 .append(alloc.newline())
         }));
 
@@ -262,9 +270,7 @@ impl TypeField {
     {
         let docs = alloc.concat(self.doc.iter().map(|line| {
             (alloc.nil())
-                .append("///")
-                .append(line)
-                .group()
+                .append(format!("///{}", line))
                 .append(alloc.newline())
         }));
 

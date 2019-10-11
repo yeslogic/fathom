@@ -1,3 +1,5 @@
+//! Test globals.
+
 TestType = Type;
 
 TestU8 = U8;
@@ -41,3 +43,7 @@ TestBool = Bool;
 TestF32 = F32;
 
 TestF64 = F64;
+
+test_true = true;
+
+test_false = false;

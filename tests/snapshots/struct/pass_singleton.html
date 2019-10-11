@@ -28,14 +28,14 @@ a:hover {
     text-decoration: underline;
 }
 
-dl.module > dt.item,
+dl.items > dt.item,
 dl.fields > dt.field,
 dd.alias > section.term {
     border-top: 1px solid #eee;
     padding: 0.5em 0 0.5em 0;
 }
 
-dl.module > dd.item,
+dl.items > dd.item,
 dl.fields > dd.field {
     margin-left: 2em;
     margin-bottom: 1em;
@@ -47,21 +47,26 @@ section.doc {
     </style>
   </head>
   <body>
-    <dl class="module">
-      <dt id="items[Byte]" class="item struct">
-        struct <a href="#items[Byte]">Byte</a>
-      </dt>
-      <dd class="item struct">
-      <dl class="fields">
-        <dt id="items[Byte].fields[inner]" class="field">
-          <a href="#items[Byte].fields[inner]">inner</a> : <var><a href="#">U8</a></var>
+    <section class="module">
+      <section class="doc">
+        Test a singleton struct.
+      </section>
+      <dl class="items">
+        <dt id="items[Byte]" class="item struct">
+          struct <a href="#items[Byte]">Byte</a>
         </dt>
-        <dd class="field">
-          <section class="doc">
-          </section>
+        <dd class="item struct">
+          <dl class="fields">
+            <dt id="items[Byte].fields[inner]" class="field">
+              <a href="#items[Byte].fields[inner]">inner</a> : <var><a href="#">U8</a></var>
+            </dt>
+            <dd class="field">
+              <section class="doc">
+              </section>
+            </dd>
+          </dl>
         </dd>
       </dl>
-      </dd>
-    </dl>
+    </section>
   </body>
 </html>

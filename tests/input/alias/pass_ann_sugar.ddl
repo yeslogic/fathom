@@ -1,3 +1,5 @@
+//! Test sugared annotation style.
+
 TestU8 : Type = U8;
 TestU16Le : Type = U16Le;
 TestU16Be : Type = U16Be;

@@ -28,14 +28,14 @@ a:hover {
     text-decoration: underline;
 }
 
-dl.module > dt.item,
+dl.items > dt.item,
 dl.fields > dt.field,
 dd.alias > section.term {
     border-top: 1px solid #eee;
     padding: 0.5em 0 0.5em 0;
 }
 
-dl.module > dd.item,
+dl.items > dd.item,
 dl.fields > dd.field {
     margin-left: 2em;
     margin-bottom: 1em;
@@ -47,17 +47,22 @@ section.doc {
     </style>
   </head>
   <body>
-    <dl class="module">
-      <dt id="items[Empty]" class="item struct">
-        struct <a href="#items[Empty]">Empty</a>
-      </dt>
-      <dd class="item struct">
-        <section class="doc">
-          This is an empty struct.
-          
-          It will not consume any input.
-        </section>
-      </dd>
-    </dl>
+    <section class="module">
+      <section class="doc">
+        Test an empty struct with documentation.
+      </section>
+      <dl class="items">
+        <dt id="items[Empty]" class="item struct">
+          struct <a href="#items[Empty]">Empty</a>
+        </dt>
+        <dd class="item struct">
+          <section class="doc">
+            This is an empty struct.
+            
+            It will not consume any input.
+          </section>
+        </dd>
+      </dl>
+    </section>
   </body>
 </html>

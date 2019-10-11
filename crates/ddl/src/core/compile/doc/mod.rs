@@ -17,12 +17,6 @@ pub fn compile_module(
         items: HashMap::new(),
     };
 
-    const MINIRESET: &str = include_str!("./minireset.min.css");
-    const STYLE: &str = include_str!("./style.css");
-
-    let pkg_name = env!("CARGO_PKG_NAME");
-    let pkg_version = env!("CARGO_PKG_VERSION");
-
     write!(
         writer,
         r##"<!--
@@ -44,14 +38,22 @@ pub fn compile_module(
     </style>
   </head>
   <body>
-    <dl class="module">
+    <section class="module">
 "##,
+        pkg_name = env!("CARGO_PKG_NAME"),
+        pkg_version = env!("CARGO_PKG_VERSION"),
         module_name = "", // TODO: module name
-        minireset = MINIRESET.trim(),
-        style = STYLE.trim(),
-        pkg_name = pkg_name,
-        pkg_version = pkg_version,
+        minireset = include_str!("./minireset.min.css").trim(),
+        style = include_str!("./style.css").trim(),
     )?;
+
+    if !module.doc.is_empty() {
+        writeln!(writer, r##"      <section class="doc">"##)?;
+        compile_doc_lines(writer, "        ", &module.doc)?;
+        writeln!(writer, r##"      </section>"##)?;
+    }
+
+    writeln!(writer, r##"      <dl class="items">"##)?;
 
     for item in &module.items {
         let (label, item) = match item {
@@ -66,7 +68,8 @@ pub fn compile_module(
 
     write!(
         writer,
-        r##"    </dl>
+        r##"      </dl>
+    </section>
   </body>
 </html>
 "##
@@ -94,29 +97,29 @@ fn compile_alias(
 
     write!(
         writer,
-        r##"      <dt id="{id}" class="item alias">
+        r##"        <dt id="{id}" class="item alias">
           <a href="#{id}">{name}</a>
-      </dt>
-     <dd class="item alias">
+        </dt>
+        <dd class="item alias">
 "##,
         id = id,
         name = alias.name
     )?;
 
     if !alias.doc.is_empty() {
-        writeln!(writer, r##"        <section class="doc">"##)?;
-        compile_doc_lines(writer, "          ", &alias.doc)?;
-        writeln!(writer, r##"        </section>"##)?;
+        writeln!(writer, r##"          <section class="doc">"##)?;
+        compile_doc_lines(writer, "            ", &alias.doc)?;
+        writeln!(writer, r##"          </section>"##)?;
     }
 
     let term = compile_term(context, &alias.term, report);
 
-    writeln!(
+    write!(
         writer,
-        r##"        <section class="term">
-        {}
-        </section>
-      </dd>
+        r##"          <section class="term">
+            {}
+          </section>
+        </dd>
 "##,
         term
     )?;
@@ -134,51 +137,51 @@ fn compile_struct_ty(
 
     write!(
         writer,
-        r##"      <dt id="{id}" class="item struct">
-        struct <a href="#{id}">{name}</a>
-      </dt>
-      <dd class="item struct">
+        r##"        <dt id="{id}" class="item struct">
+          struct <a href="#{id}">{name}</a>
+        </dt>
+        <dd class="item struct">
 "##,
         id = id,
         name = struct_ty.name
     )?;
 
     if !struct_ty.doc.is_empty() {
-        writeln!(writer, r##"        <section class="doc">"##)?;
-        compile_doc_lines(writer, "          ", &struct_ty.doc)?;
-        writeln!(writer, r##"        </section>"##)?;
+        writeln!(writer, r##"          <section class="doc">"##)?;
+        compile_doc_lines(writer, "            ", &struct_ty.doc)?;
+        writeln!(writer, r##"          </section>"##)?;
     }
 
     if !struct_ty.fields.is_empty() {
-        writeln!(writer, r##"      <dl class="fields">"##)?;
+        writeln!(writer, r##"          <dl class="fields">"##)?;
         for field in &struct_ty.fields {
             let field_id = format!("{}.fields[{}]", id, field.name);
             let ty = compile_term(context, &field.term, report);
 
             write!(
                 writer,
-                r##"        <dt id="{id}" class="field">
-          <a href="#{id}">{name}</a> : {ty}
-        </dt>
-        <dd class="field">
-          <section class="doc">
+                r##"            <dt id="{id}" class="field">
+              <a href="#{id}">{name}</a> : {ty}
+            </dt>
+            <dd class="field">
+              <section class="doc">
 "##,
                 id = field_id,
                 name = field.name,
                 ty = ty,
             )?;
-            compile_doc_lines(writer, "            ", &field.doc)?;
+            compile_doc_lines(writer, "                ", &field.doc)?;
             write!(
                 writer,
-                r##"          </section>
-        </dd>
+                r##"              </section>
+            </dd>
 "##
             )?;
         }
-        writeln!(writer, r##"      </dl>"##)?;
+        writeln!(writer, r##"          </dl>"##)?;
     }
 
-    writeln!(writer, r##"      </dd>"##)?;
+    writeln!(writer, r##"        </dd>"##)?;
 
     Ok((struct_ty.name.clone(), Item { id }))
 }

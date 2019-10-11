@@ -1,3 +1,5 @@
+//! Test annotated terms.
+
 TestU8 = U8 : Type;
 TestU16Le = U16Le : Type;
 TestU16Be = U16Be : Type;
