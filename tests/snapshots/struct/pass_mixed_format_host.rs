@@ -2,3 +2,24 @@
 // It is not intended for manual editing.
 
 //! Test that a struct with a host type field produces a warning.
+
+pub struct Test {
+    pub format: u32,
+    pub host: ddl_rt::InvalidDataDescription,
+}
+
+impl ddl_rt::Binary for Test {
+    type Host = Test;
+}
+
+impl<'data> ddl_rt::ReadBinary<'data> for Test {
+    fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<Test, ddl_rt::ReadError> {
+        let format = ctxt.read::<ddl_rt::U32Be>()?;
+        let host = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
+
+        Ok(Test {
+            format,
+            host,
+        })
+    }
+}

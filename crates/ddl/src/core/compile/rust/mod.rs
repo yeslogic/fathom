@@ -290,7 +290,7 @@ fn compile_term(
         core::Term::F64Const(_, value) => {
             CompiledTerm::Term(rust::Term::F64(*value), rust::Type::F64)
         }
-        core::Term::Type(_) => CompiledTerm::Erased,
+        core::Term::Sort(_, _) => CompiledTerm::Erased,
         core::Term::Error(_) => CompiledTerm::Error,
     }
 }

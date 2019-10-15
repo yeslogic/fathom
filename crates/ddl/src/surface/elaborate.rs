@@ -119,7 +119,7 @@ pub fn elaborate_items(
                         };
 
                         core_items.push(core::Item::Struct(item));
-                        entry.insert((struct_ty.span, core::Value::Type));
+                        entry.insert((struct_ty.span, core::Value::Sort(core::Sort::Format)));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
@@ -183,7 +183,7 @@ pub fn elaborate_struct_ty_fields(
         let ty = check_term(
             &context.term_context(),
             &field.term,
-            &core::Value::Type,
+            &core::Value::Sort(core::Sort::Format),
             report,
         );
 
@@ -239,9 +239,31 @@ pub fn elaborate_universe(
         surface::Term::Var(span, name)
             if !context.items.contains_key("Type") && name.as_str() == "Type" =>
         {
-            core::Term::Type(*span)
+            core::Term::Sort(*span, core::Sort::Type)
         }
-        surface_term => check_term(context, surface_term, &core::Value::Type, report),
+        surface::Term::Var(span, name)
+            if !context.items.contains_key("Format") && name.as_str() == "Format" =>
+        {
+            core::Term::Sort(*span, core::Sort::Format)
+        }
+        surface::Term::Var(span, name)
+            if !context.items.contains_key("Kind") && name.as_str() == "Kind" =>
+        {
+            core::Term::Sort(*span, core::Sort::Kind)
+        }
+        surface_term => match synth_term(context, surface_term, report) {
+            (core_term, core::Value::Sort(_)) | (core_term, core::Value::Error) => core_term,
+            (_, ty) => {
+                let span = surface_term.span();
+                report(diagnostics::sort_mismatch(
+                    Severity::Error,
+                    context.file_id,
+                    span,
+                    &ty,
+                ));
+                core::Term::Error(span)
+            }
+        },
     }
 }
 
@@ -305,6 +327,8 @@ pub fn synth_term(
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> (core::Term, core::Value) {
+    use crate::core::Sort::{Format, Kind, Type};
+
     match surface_term {
         surface::Term::Paren(_, surface_term) => synth_term(context, surface_term, report),
         surface::Term::Ann(surface_term, surface_ty) => {
@@ -319,36 +343,38 @@ pub fn synth_term(
                 ty.clone(),
             ),
             None => match name.as_str() {
-                "Type" => {
-                    report(diagnostics::type_has_no_type(
+                "Kind" => {
+                    report(diagnostics::kind_has_no_type(
                         Severity::Error,
                         context.file_id,
                         *span,
                     ));
                     (core::Term::Error(*span), core::Value::Error)
                 }
-                "U8" => (core::Term::U8Type(*span), core::Value::Type),
-                "U16Le" => (core::Term::U16LeType(*span), core::Value::Type),
-                "U16Be" => (core::Term::U16BeType(*span), core::Value::Type),
-                "U32Le" => (core::Term::U32LeType(*span), core::Value::Type),
-                "U32Be" => (core::Term::U32BeType(*span), core::Value::Type),
-                "U64Le" => (core::Term::U64LeType(*span), core::Value::Type),
-                "U64Be" => (core::Term::U64BeType(*span), core::Value::Type),
-                "S8" => (core::Term::S8Type(*span), core::Value::Type),
-                "S16Le" => (core::Term::S16LeType(*span), core::Value::Type),
-                "S16Be" => (core::Term::S16BeType(*span), core::Value::Type),
-                "S32Le" => (core::Term::S32LeType(*span), core::Value::Type),
-                "S32Be" => (core::Term::S32BeType(*span), core::Value::Type),
-                "S64Le" => (core::Term::S64LeType(*span), core::Value::Type),
-                "S64Be" => (core::Term::S64BeType(*span), core::Value::Type),
-                "F32Le" => (core::Term::F32LeType(*span), core::Value::Type),
-                "F32Be" => (core::Term::F32BeType(*span), core::Value::Type),
-                "F64Le" => (core::Term::F64LeType(*span), core::Value::Type),
-                "F64Be" => (core::Term::F64BeType(*span), core::Value::Type),
-                "Bool" => (core::Term::BoolType(*span), core::Value::Type),
-                "Int" => (core::Term::IntType(*span), core::Value::Type),
-                "F32" => (core::Term::F32Type(*span), core::Value::Type),
-                "F64" => (core::Term::F64Type(*span), core::Value::Type),
+                "Type" => (core::Term::Sort(*span, Type), core::Value::Sort(Kind)),
+                "Format" => (core::Term::Sort(*span, Format), core::Value::Sort(Kind)),
+                "U8" => (core::Term::U8Type(*span), core::Value::Sort(Format)),
+                "U16Le" => (core::Term::U16LeType(*span), core::Value::Sort(Format)),
+                "U16Be" => (core::Term::U16BeType(*span), core::Value::Sort(Format)),
+                "U32Le" => (core::Term::U32LeType(*span), core::Value::Sort(Format)),
+                "U32Be" => (core::Term::U32BeType(*span), core::Value::Sort(Format)),
+                "U64Le" => (core::Term::U64LeType(*span), core::Value::Sort(Format)),
+                "U64Be" => (core::Term::U64BeType(*span), core::Value::Sort(Format)),
+                "S8" => (core::Term::S8Type(*span), core::Value::Sort(Format)),
+                "S16Le" => (core::Term::S16LeType(*span), core::Value::Sort(Format)),
+                "S16Be" => (core::Term::S16BeType(*span), core::Value::Sort(Format)),
+                "S32Le" => (core::Term::S32LeType(*span), core::Value::Sort(Format)),
+                "S32Be" => (core::Term::S32BeType(*span), core::Value::Sort(Format)),
+                "S64Le" => (core::Term::S64LeType(*span), core::Value::Sort(Format)),
+                "S64Be" => (core::Term::S64BeType(*span), core::Value::Sort(Format)),
+                "F32Le" => (core::Term::F32LeType(*span), core::Value::Sort(Format)),
+                "F32Be" => (core::Term::F32BeType(*span), core::Value::Sort(Format)),
+                "F64Le" => (core::Term::F64LeType(*span), core::Value::Sort(Format)),
+                "F64Be" => (core::Term::F64BeType(*span), core::Value::Sort(Format)),
+                "Bool" => (core::Term::BoolType(*span), core::Value::Sort(Type)),
+                "Int" => (core::Term::IntType(*span), core::Value::Sort(Type)),
+                "F32" => (core::Term::F32Type(*span), core::Value::Sort(Type)),
+                "F64" => (core::Term::F64Type(*span), core::Value::Sort(Type)),
                 "true" => (core::Term::BoolConst(*span, true), core::Value::BoolType),
                 "false" => (core::Term::BoolConst(*span, false), core::Value::BoolType),
                 _ => {

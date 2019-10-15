@@ -7,7 +7,7 @@ use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 
-use crate::core::{semantics, Item, Label, Module, Term, TypeField, Value};
+use crate::core::{semantics, Item, Label, Module, Sort, Term, TypeField, Value};
 use crate::diagnostics;
 
 /// Validate a module.
@@ -75,7 +75,7 @@ pub fn validate_items(
 
                 match context.items.entry(struct_ty.name.clone()) {
                     Entry::Vacant(entry) => {
-                        entry.insert((struct_ty.span, Value::Type));
+                        entry.insert((struct_ty.span, Value::Sort(Sort::Format)));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
@@ -129,7 +129,12 @@ pub fn validate_struct_ty_fields(
     for field in fields {
         use std::collections::hash_map::Entry;
 
-        check_term(&context.term_context(), &field.term, &Value::Type, report);
+        check_term(
+            &context.term_context(),
+            &field.term,
+            &Value::Sort(Sort::Format),
+            report,
+        );
 
         match context.fields.entry(field.name.clone()) {
             Entry::Vacant(entry) => {
@@ -171,8 +176,16 @@ pub fn validate_universe(
     report: &mut dyn FnMut(Diagnostic),
 ) {
     match term {
-        Term::Type(_) => {}
-        term => check_term(context, term, &Value::Type, report),
+        Term::Sort(_, _) => {}
+        term => match synth_term(context, term, report) {
+            Value::Sort(_) | Value::Error => {}
+            ty => report(diagnostics::sort_mismatch(
+                Severity::Bug,
+                context.file_id,
+                term.span(),
+                &ty,
+            )),
+        },
     }
 }
 
@@ -225,14 +238,17 @@ pub fn synth_term(
             check_term(context, term, &ty, report);
             ty
         }
-        Term::Type(span) => {
-            report(diagnostics::type_has_no_type(
-                Severity::Bug,
-                context.file_id,
-                *span,
-            ));
-            Value::Error
-        }
+        Term::Sort(span, sort) => match sort {
+            Sort::Type | Sort::Format => Value::Sort(Sort::Kind),
+            Sort::Kind => {
+                report(diagnostics::kind_has_no_type(
+                    Severity::Bug,
+                    context.file_id,
+                    *span,
+                ));
+                Value::Error
+            }
+        },
         Term::U8Type(_)
         | Term::U16LeType(_)
         | Term::U16BeType(_)
@@ -250,11 +266,10 @@ pub fn synth_term(
         | Term::F32LeType(_)
         | Term::F32BeType(_)
         | Term::F64LeType(_)
-        | Term::F64BeType(_)
-        | Term::BoolType(_)
-        | Term::IntType(_)
-        | Term::F32Type(_)
-        | Term::F64Type(_) => Value::Type,
+        | Term::F64BeType(_) => Value::Sort(Sort::Format),
+        Term::BoolType(_) | Term::IntType(_) | Term::F32Type(_) | Term::F64Type(_) => {
+            Value::Sort(Sort::Type)
+        }
         Term::BoolConst(_, _) => Value::BoolType,
         Term::IntConst(_, _) => Value::IntType,
         Term::F32Const(_, _) => Value::F32Type,

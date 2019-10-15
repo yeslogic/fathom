@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::core::{Alias, Item, Label, Module, StructType, Term, TypeField};
+use crate::core::{Alias, Item, Label, Module, Sort, StructType, Term, TypeField};
 use crate::diagnostics;
 use crate::lexer::Token;
 use crate::literal;
@@ -94,7 +94,9 @@ TermAtomic: Term = {
     <start: @L> <name: "identifier"> <end: @R> => {
         let span = Span::new(start, end);
         match name.as_ref() {
-            "Type" => Term::Type(span),
+            "Type" => Term::Sort(span, Sort::Type),
+            "Format" => Term::Sort(span, Sort::Format),
+            "Kind" => Term::Sort(span, Sort::Kind),
             "U8" => Term::U8Type(span),
             "U16Le" => Term::U16LeType(span),
             "U16Be" => Term::U16BeType(span),

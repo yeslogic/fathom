@@ -1,37 +1,41 @@
 //! Test annotated terms.
 
-TestU8 = U8 : Type;
+TestType = Type : Kind;
 
-TestU16Le = U16Le : Type;
+TestFormat = Format : Kind;
 
-TestU16Be = U16Be : Type;
+TestU8 = U8 : Format;
 
-TestU32Le = U32Le : Type;
+TestU16Le = U16Le : Format;
 
-TestU32Be = U32Be : Type;
+TestU16Be = U16Be : Format;
 
-TestU64Le = U64Le : Type;
+TestU32Le = U32Le : Format;
 
-TestU64Be = U64Be : Type;
+TestU32Be = U32Be : Format;
 
-TestS8 = S8 : Type;
+TestU64Le = U64Le : Format;
 
-TestS16Le = S16Le : Type;
+TestU64Be = U64Be : Format;
 
-TestS16Be = S16Be : Type;
+TestS8 = S8 : Format;
 
-TestS32Le = S32Le : Type;
+TestS16Le = S16Le : Format;
 
-TestS32Be = S32Be : Type;
+TestS16Be = S16Be : Format;
 
-TestS64Le = S64Le : Type;
+TestS32Le = S32Le : Format;
 
-TestS64Be = S64Be : Type;
+TestS32Be = S32Be : Format;
 
-TestF32Le = F32Le : Type;
+TestS64Le = S64Le : Format;
 
-TestF32Be = F32Be : Type;
+TestS64Be = S64Be : Format;
 
-TestF64Le = F64Le : Type;
+TestF32Le = F32Le : Format;
 
-TestF64Be = F64Be : Type;
+TestF32Be = F32Be : Format;
+
+TestF64Le = F64Le : Format;
+
+TestF64Be = F64Be : Format;
