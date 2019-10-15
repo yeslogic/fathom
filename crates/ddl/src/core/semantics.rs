@@ -10,7 +10,6 @@ pub fn eval(term: &Term) -> Value {
     match term {
         Term::Item(_, label) => Value::Item(label.clone()), // TODO: Evaluate to value in environment
         Term::Ann(term, _) => eval(term),
-        Term::Kind(_) => Value::Kind,
         Term::Type(_) => Value::Type,
         Term::U8Type(_) => Value::U8Type,
         Term::U16LeType(_) => Value::U16LeType,
@@ -46,7 +45,6 @@ pub fn eval(term: &Term) -> Value {
 pub fn readback(value: &Value) -> Term {
     match value {
         Value::Item(label) => Term::Item(Span::initial(), label.clone()),
-        Value::Kind => Term::Kind(Span::initial()),
         Value::Type => Term::Type(Span::initial()),
         Value::U8Type => Term::U8Type(Span::initial()),
         Value::U16LeType => Term::U16LeType(Span::initial()),
@@ -85,8 +83,7 @@ pub fn equal(val1: &Value, val2: &Value) -> bool {
         (Value::IntConst(value0), Value::IntConst(value1)) => value0 == value1,
         (Value::F32Const(value0), Value::F32Const(value1)) => ieee754::logical_eq(*value0, *value1),
         (Value::F64Const(value0), Value::F64Const(value1)) => ieee754::logical_eq(*value0, *value1),
-        (Value::Kind, Value::Kind)
-        | (Value::Type, Value::Type)
+        (Value::Type, Value::Type)
         | (Value::U8Type, Value::U8Type)
         | (Value::U16LeType, Value::U16LeType)
         | (Value::U16BeType, Value::U16BeType)

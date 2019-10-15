@@ -1,7 +1,5 @@
 //! Test globals.
 
-TestType = Type;
-
 TestU8 = U8;
 
 TestU16Le = U16Le;

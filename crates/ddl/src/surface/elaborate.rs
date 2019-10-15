@@ -235,20 +235,13 @@ pub fn elaborate_universe(
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
-    let (core_term, ty) = synth_term(context, surface_term, report);
-    match ty {
-        core::Value::Kind => core_term,
-        core::Value::Type => core_term,
-        core::Value::Error => core::Term::Error(surface_term.span()),
-        ty => {
-            report(diagnostics::universe_mismatch(
-                Severity::Error,
-                context.file_id,
-                surface_term.span(),
-                &ty,
-            ));
-            core::Term::Error(surface_term.span())
+    match surface_term {
+        surface::Term::Var(span, name)
+            if !context.items.contains_key("Type") && name.as_str() == "Type" =>
+        {
+            core::Term::Type(*span)
         }
+        surface_term => check_term(context, surface_term, &core::Value::Type, report),
     }
 }
 
@@ -326,16 +319,14 @@ pub fn synth_term(
                 ty.clone(),
             ),
             None => match name.as_str() {
-                "Kind" => {
-                    report(diagnostics::kind_has_no_type(
+                "Type" => {
+                    report(diagnostics::type_has_no_type(
                         Severity::Error,
                         context.file_id,
                         *span,
                     ));
-
                     (core::Term::Error(*span), core::Value::Error)
                 }
-                "Type" => (core::Term::Type(*span), core::Value::Kind),
                 "U8" => (core::Term::U8Type(*span), core::Value::Type),
                 "U16Le" => (core::Term::U16LeType(*span), core::Value::Type),
                 "U16Be" => (core::Term::U16BeType(*span), core::Value::Type),

@@ -1,1 +1,0 @@
-TestType = Type;

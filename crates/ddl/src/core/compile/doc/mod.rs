@@ -208,7 +208,6 @@ fn compile_term<'term>(
             format!("{} : {}", term, ty).into()
         }
         // TODO: Link to global docs
-        core::Term::Kind(_) => r##"<var><a href="#">Kind</a></var>"##.into(),
         core::Term::Type(_) => r##"<var><a href="#">Type</a></var>"##.into(),
         core::Term::U8Type(_) => r##"<var><a href="#">U8</a></var>"##.into(),
         core::Term::U16LeType(_) => r##"<var><a href="#">U16Le</a></var>"##.into(),
