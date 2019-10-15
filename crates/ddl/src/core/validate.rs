@@ -170,14 +170,9 @@ pub fn validate_universe(
     term: &Term,
     report: &mut dyn FnMut(Diagnostic),
 ) {
-    match synth_term(context, term, report) {
-        Value::Kind | Value::Type | Value::Error => {}
-        ty => report(diagnostics::universe_mismatch(
-            Severity::Error,
-            context.file_id,
-            term.span(),
-            &ty,
-        )),
+    match term {
+        Term::Type(_) => {}
+        term => check_term(context, term, &Value::Type, report),
     }
 }
 
@@ -230,15 +225,14 @@ pub fn synth_term(
             check_term(context, term, &ty, report);
             ty
         }
-        Term::Kind(span) => {
-            report(diagnostics::kind_has_no_type(
+        Term::Type(span) => {
+            report(diagnostics::type_has_no_type(
                 Severity::Bug,
                 context.file_id,
                 *span,
             ));
             Value::Error
         }
-        Term::Type(_) => Value::Kind,
         Term::U8Type(_)
         | Term::U16LeType(_)
         | Term::U16BeType(_)

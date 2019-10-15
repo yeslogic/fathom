@@ -307,8 +307,6 @@ pub enum Term {
     /// Terms annotated with types.
     Ann(Arc<Term>, Arc<Term>),
 
-    /// The sort of kinds.
-    Kind(Span),
     /// The kind of types.
     Type(Span),
 
@@ -375,7 +373,6 @@ impl Term {
     pub fn span(&self) -> Span {
         match self {
             Term::Item(span, _)
-            | Term::Kind(span)
             | Term::Type(span)
             | Term::U8Type(span)
             | Term::U16LeType(span)
@@ -457,7 +454,6 @@ impl Term {
                             .nest(4),
                     ),
             ),
-            Term::Kind(_) => alloc.text("Kind"),
             Term::Type(_) => alloc.text("Type"),
             Term::U8Type(_) => alloc.text("U8"),
             Term::U16LeType(_) => alloc.text("U16Le"),
@@ -509,8 +505,7 @@ impl PartialEq for Term {
             (Term::IntConst(_, val0), Term::IntConst(_, val1)) => val0 == val1,
             (Term::F32Const(_, val0), Term::F32Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
             (Term::F64Const(_, val0), Term::F64Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
-            (Term::Kind(_), Term::Kind(_))
-            | (Term::Type(_), Term::Type(_))
+            (Term::Type(_), Term::Type(_))
             | (Term::U8Type(_), Term::U8Type(_))
             | (Term::U16LeType(_), Term::U16LeType(_))
             | (Term::U16BeType(_), Term::U16BeType(_))
@@ -545,8 +540,6 @@ pub enum Value {
     /// Item references.
     Item(Label),
 
-    /// The sort of kinds.
-    Kind,
     /// The kind of types.
     Type,
 

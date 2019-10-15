@@ -73,7 +73,6 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
                 Box::new(delaborate_term_prec(ty, prec + 1)),
             ),
         ),
-        core::Term::Kind(span) => surface::Term::Var(*span, "Kind".to_owned()),
         core::Term::Type(span) => surface::Term::Var(*span, "Type".to_owned()),
         core::Term::U8Type(span) => surface::Term::Var(*span, "U8".to_owned()),
         core::Term::U16LeType(span) => surface::Term::Var(*span, "U16Le".to_owned()),
