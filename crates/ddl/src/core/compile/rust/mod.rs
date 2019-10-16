@@ -153,7 +153,7 @@ fn compile_struct_ty(
             CompiledTerm::Type(ty, traits) => match &traits.binary {
                 Some(binary) => (ty, binary.host_ty.clone(), traits.copy),
                 None => {
-                    report(diagnostics::warning::host_type_found_in_field(
+                    report(diagnostics::bug::host_type_found_in_field(
                         context.file_id,
                         core_struct_ty.span,
                         field.term.span(),
