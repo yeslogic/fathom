@@ -298,24 +298,24 @@ impl PartialEq for TypeField {
     }
 }
 
-/// Sorts.
+/// Universes.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Sort {
+pub enum Universe {
     Type,
     Format,
     Kind,
 }
 
-impl Sort {
+impl Universe {
     pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
     where
         D: DocAllocator<'core>,
         D::Doc: Clone,
     {
         match self {
-            Sort::Type => alloc.text("Type"),
-            Sort::Format => alloc.text("Format"),
-            Sort::Kind => alloc.text("Kind"),
+            Universe::Type => alloc.text("Type"),
+            Universe::Format => alloc.text("Format"),
+            Universe::Kind => alloc.text("Kind"),
         }
     }
 }
@@ -329,8 +329,8 @@ pub enum Term {
     /// Terms annotated with types.
     Ann(Arc<Term>, Arc<Term>),
 
-    /// Sorts.
-    Sort(Span, Sort),
+    /// Universes.
+    Universe(Span, Universe),
 
     /// Unsigned 8-bit integer type.
     U8Type(Span),
@@ -395,7 +395,7 @@ impl Term {
     pub fn span(&self) -> Span {
         match self {
             Term::Item(span, _)
-            | Term::Sort(span, _)
+            | Term::Universe(span, _)
             | Term::U8Type(span)
             | Term::U16LeType(span)
             | Term::U16BeType(span)
@@ -476,7 +476,7 @@ impl Term {
                             .nest(4),
                     ),
             ),
-            Term::Sort(_, sort) => sort.doc(alloc),
+            Term::Universe(_, universe) => universe.doc(alloc),
             Term::U8Type(_) => alloc.text("U8"),
             Term::U16LeType(_) => alloc.text("U16Le"),
             Term::U16BeType(_) => alloc.text("U16Be"),
@@ -527,7 +527,7 @@ impl PartialEq for Term {
             (Term::IntConst(_, val0), Term::IntConst(_, val1)) => val0 == val1,
             (Term::F32Const(_, val0), Term::F32Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
             (Term::F64Const(_, val0), Term::F64Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
-            (Term::Sort(_, sort0), Term::Sort(_, sort1)) => sort0 == sort1,
+            (Term::Universe(_, universe0), Term::Universe(_, universe1)) => universe0 == universe1,
             (Term::U8Type(_), Term::U8Type(_))
             | (Term::U16LeType(_), Term::U16LeType(_))
             | (Term::U16BeType(_), Term::U16BeType(_))
@@ -562,8 +562,8 @@ pub enum Value {
     /// Item references.
     Item(Label),
 
-    /// Sorts.
-    Sort(Sort),
+    /// Universes.
+    Universe(Universe),
 
     /// Unsigned 8-bit integer type.
     U8Type,

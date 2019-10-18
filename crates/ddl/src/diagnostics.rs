@@ -81,7 +81,7 @@ pub fn type_mismatch(
     }
 }
 
-pub fn sort_mismatch(
+pub fn universe_mismatch(
     severity: Severity,
     file_id: FileId,
     term_span: Span,
@@ -96,15 +96,15 @@ pub fn sort_mismatch(
     Diagnostic {
         severity,
         code: None,
-        message: "sort mismatch".to_owned(),
+        message: "universe mismatch".to_owned(),
         primary_label: Label::new(
             file_id,
             term_span,
-            format!("expected a sort, found `{}`", found_ty),
+            format!("expected a universe, found `{}`", found_ty),
         ),
         secondary_labels: vec![],
         notes: vec![[
-            format!("expected a sort"),
+            format!("expected a universe"),
             format!("   found `{}`", found_ty),
         ]
         .join("\n")],

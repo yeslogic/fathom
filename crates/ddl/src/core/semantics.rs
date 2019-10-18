@@ -10,7 +10,7 @@ pub fn eval(term: &Term) -> Value {
     match term {
         Term::Item(_, label) => Value::Item(label.clone()), // TODO: Evaluate to value in environment
         Term::Ann(term, _) => eval(term),
-        Term::Sort(_, sort) => Value::Sort(*sort),
+        Term::Universe(_, universe) => Value::Universe(*universe),
         Term::U8Type(_) => Value::U8Type,
         Term::U16LeType(_) => Value::U16LeType,
         Term::U16BeType(_) => Value::U16BeType,
@@ -45,7 +45,7 @@ pub fn eval(term: &Term) -> Value {
 pub fn readback(value: &Value) -> Term {
     match value {
         Value::Item(label) => Term::Item(Span::initial(), label.clone()),
-        Value::Sort(sort) => Term::Sort(Span::initial(), *sort),
+        Value::Universe(universe) => Term::Universe(Span::initial(), *universe),
         Value::U8Type => Term::U8Type(Span::initial()),
         Value::U16LeType => Term::U16LeType(Span::initial()),
         Value::U16BeType => Term::U16BeType(Span::initial()),
@@ -83,7 +83,7 @@ pub fn equal(val1: &Value, val2: &Value) -> bool {
         (Value::IntConst(value0), Value::IntConst(value1)) => value0 == value1,
         (Value::F32Const(value0), Value::F32Const(value1)) => ieee754::logical_eq(*value0, *value1),
         (Value::F64Const(value0), Value::F64Const(value1)) => ieee754::logical_eq(*value0, *value1),
-        (Value::Sort(sort0), Value::Sort(sort1)) => sort0 == sort1,
+        (Value::Universe(universe0), Value::Universe(universe1)) => universe0 == universe1,
         (Value::U8Type, Value::U8Type)
         | (Value::U16LeType, Value::U16LeType)
         | (Value::U16BeType, Value::U16BeType)

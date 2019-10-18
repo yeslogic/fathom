@@ -7,7 +7,7 @@ use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 
-use crate::core::{semantics, Item, Label, Module, Sort, Term, TypeField, Value};
+use crate::core::{semantics, Item, Label, Module, Term, TypeField, Universe, Value};
 use crate::diagnostics;
 
 /// Validate a module.
@@ -75,7 +75,7 @@ pub fn validate_items(
 
                 match context.items.entry(struct_ty.name.clone()) {
                     Entry::Vacant(entry) => {
-                        entry.insert((struct_ty.span, Value::Sort(Sort::Format)));
+                        entry.insert((struct_ty.span, Value::Universe(Universe::Format)));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
@@ -132,7 +132,7 @@ pub fn validate_struct_ty_fields(
         check_term(
             &context.term_context(),
             &field.term,
-            &Value::Sort(Sort::Format),
+            &Value::Universe(Universe::Format),
             report,
         );
 
@@ -176,10 +176,10 @@ pub fn validate_universe(
     report: &mut dyn FnMut(Diagnostic),
 ) {
     match term {
-        Term::Sort(_, _) => {}
+        Term::Universe(_, _) => {}
         term => match synth_term(context, term, report) {
-            Value::Sort(_) | Value::Error => {}
-            ty => report(diagnostics::sort_mismatch(
+            Value::Universe(_) | Value::Error => {}
+            ty => report(diagnostics::universe_mismatch(
                 Severity::Bug,
                 context.file_id,
                 term.span(),
@@ -238,9 +238,9 @@ pub fn synth_term(
             check_term(context, term, &ty, report);
             ty
         }
-        Term::Sort(span, sort) => match sort {
-            Sort::Type | Sort::Format => Value::Sort(Sort::Kind),
-            Sort::Kind => {
+        Term::Universe(span, universe) => match universe {
+            Universe::Type | Universe::Format => Value::Universe(Universe::Kind),
+            Universe::Kind => {
                 report(diagnostics::kind_has_no_type(
                     Severity::Bug,
                     context.file_id,
@@ -266,9 +266,9 @@ pub fn synth_term(
         | Term::F32LeType(_)
         | Term::F32BeType(_)
         | Term::F64LeType(_)
-        | Term::F64BeType(_) => Value::Sort(Sort::Format),
+        | Term::F64BeType(_) => Value::Universe(Universe::Format),
         Term::BoolType(_) | Term::IntType(_) | Term::F32Type(_) | Term::F64Type(_) => {
-            Value::Sort(Sort::Type)
+            Value::Universe(Universe::Type)
         }
         Term::BoolConst(_, _) => Value::BoolType,
         Term::IntConst(_, _) => Value::IntType,
