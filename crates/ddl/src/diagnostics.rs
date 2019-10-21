@@ -100,26 +100,26 @@ pub fn universe_mismatch(
         primary_label: Label::new(
             file_id,
             term_span,
-            format!("expected a type, found `{}`", found_ty),
+            format!("expected a universe, found `{}`", found_ty),
         ),
         secondary_labels: vec![],
         notes: vec![[
-            format!("expected a type"),
+            format!("expected a universe"),
             format!("   found `{}`", found_ty),
         ]
         .join("\n")],
     }
 }
 
-pub fn type_has_no_type(severity: Severity, file_id: FileId, span: Span) -> Diagnostic {
+pub fn kind_has_no_type(severity: Severity, file_id: FileId, span: Span) -> Diagnostic {
     Diagnostic {
         severity,
         code: None,
-        message: "cannot synthesize the type of `Type`".to_owned(),
-        primary_label: Label::new(file_id, span, "not a type"),
+        message: "cannot synthesize the type of `Kind`".to_owned(),
+        primary_label: Label::new(file_id, span, "cannot synthesize type"),
         secondary_labels: vec![],
         // TODO: provide suggestions
-        notes: vec![],
+        notes: vec![format!("`Kind` has no corresponding type")],
     }
 }
 

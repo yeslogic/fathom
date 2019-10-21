@@ -153,7 +153,7 @@ fn compile_struct_ty(
             CompiledTerm::Type(ty, traits) => match &traits.binary {
                 Some(binary) => (ty, binary.host_ty.clone(), traits.copy),
                 None => {
-                    report(diagnostics::warning::host_type_found_in_field(
+                    report(diagnostics::bug::host_type_found_in_field(
                         context.file_id,
                         core_struct_ty.span,
                         field.term.span(),
@@ -290,7 +290,7 @@ fn compile_term(
         core::Term::F64Const(_, value) => {
             CompiledTerm::Term(rust::Term::F64(*value), rust::Type::F64)
         }
-        core::Term::Type(_) => CompiledTerm::Erased,
+        core::Term::Universe(_, _) => CompiledTerm::Erased,
         core::Term::Error(_) => CompiledTerm::Error,
     }
 }

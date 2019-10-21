@@ -5,32 +5,6 @@ use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 
 use crate::core;
 
-pub mod warning {
-    use super::*;
-
-    pub fn host_type_found_in_field(
-        file_id: FileId,
-        struct_span: Span,
-        host_ty_span: Span,
-    ) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Warning,
-            code: None,
-            message: "host type encountered in `struct` field".to_owned(),
-            primary_label: Label::new(file_id, host_ty_span, "host type"),
-            secondary_labels: vec![Label::new(
-                file_id,
-                struct_span,
-                "`struct` contains non-format types",
-            )],
-            notes: vec![
-                "only format types can appear in `struct` fields".to_owned(),
-                "this `struct` will not appear in the compiled parser".to_owned(),
-            ],
-        }
-    }
-}
-
 pub mod error {
     use super::*;
 
@@ -94,6 +68,25 @@ pub mod bug {
             primary_label: Label::new(file_id, span, "not a format type"),
             secondary_labels: vec![],
             notes: vec![],
+        }
+    }
+
+    pub fn host_type_found_in_field(
+        file_id: FileId,
+        struct_span: Span,
+        host_ty_span: Span,
+    ) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Bug,
+            code: None,
+            message: "host type encountered in `struct` field".to_owned(),
+            primary_label: Label::new(file_id, host_ty_span, "host type"),
+            secondary_labels: vec![Label::new(
+                file_id,
+                struct_span,
+                "`struct` contains non-format types",
+            )],
+            notes: vec!["only format types can appear in `struct` fields".to_owned()],
         }
     }
 }

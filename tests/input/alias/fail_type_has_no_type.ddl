@@ -1,1 +1,1 @@
-TestType = Type; //~ error: cannot synthesize the type of `Type`
+TestType = Kind; //~ error: cannot synthesize the type of `Kind`
