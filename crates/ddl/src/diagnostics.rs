@@ -228,6 +228,17 @@ pub mod error {
             notes: vec![],
         }
     }
+
+    pub fn ambiguous_numeric_literal(file_id: FileId, span: Span) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: "ambiguous numeric literal".to_owned(),
+            primary_label: Label::new(file_id, span, "type annotation required"),
+            secondary_labels: vec![],
+            notes: vec![],
+        }
+    }
 }
 
 pub mod bug {

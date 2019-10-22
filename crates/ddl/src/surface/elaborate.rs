@@ -351,8 +351,14 @@ pub fn synth_term(
                     ));
                     (core::Term::Error(*span), core::Value::Error)
                 }
-                "Type" => (core::Term::Universe(*span, Type), core::Value::Universe(Kind)),
-                "Format" => (core::Term::Universe(*span, Format), core::Value::Universe(Kind)),
+                "Type" => (
+                    core::Term::Universe(*span, Type),
+                    core::Value::Universe(Kind),
+                ),
+                "Format" => (
+                    core::Term::Universe(*span, Format),
+                    core::Value::Universe(Kind),
+                ),
                 "U8" => (core::Term::U8Type(*span), core::Value::Universe(Format)),
                 "U16Le" => (core::Term::U16LeType(*span), core::Value::Universe(Format)),
                 "U16Be" => (core::Term::U16BeType(*span), core::Value::Universe(Format)),
@@ -388,7 +394,14 @@ pub fn synth_term(
                 }
             },
         },
-        surface::Term::NumberLiteral(_, _) => unimplemented!(),
+        surface::Term::NumberLiteral(span, _) => {
+            report(diagnostics::error::ambiguous_numeric_literal(
+                context.file_id,
+                *span,
+            ));
+
+            (core::Term::Error(*span), core::Value::Error)
+        }
         surface::Term::Error(span) => (core::Term::Error(*span), core::Value::Error),
     }
 }

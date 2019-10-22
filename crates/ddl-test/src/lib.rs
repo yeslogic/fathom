@@ -33,6 +33,7 @@ mod alias {
     test!(pass_simple, "alias/pass_simple.ddl");
     test!(pass_simple_doc, "alias/pass_simple_doc.ddl");
 
+    test!(fail_ambiguous_numeric_literal, "alias/fail_ambiguous_numeric_literal.ddl");
     test!(fail_ann_mismatch, "alias/fail_ann_mismatch.ddl");
     test!(fail_type_has_no_type, "alias/fail_type_has_no_type.ddl");
     test!(fail_unconstrained_int_type, "alias/fail_unconstrained_int_type.ddl");
