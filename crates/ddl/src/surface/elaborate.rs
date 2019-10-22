@@ -119,7 +119,10 @@ pub fn elaborate_items(
                         };
 
                         core_items.push(core::Item::Struct(item));
-                        entry.insert((struct_ty.span, core::Value::Universe(core::Universe::Format)));
+                        entry.insert((
+                            struct_ty.span,
+                            core::Value::Universe(core::Universe::Format),
+                        ));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
@@ -294,10 +297,10 @@ pub fn check_term(
                 None => core::Term::Error(*span),
             },
             _ => {
-                report(diagnostics::bug::not_yet_implemented(
+                report(diagnostics::error::numeric_literal_not_supported(
                     context.file_id,
                     *span,
-                    "numeric literasl not suppprted for type",
+                    expected_ty,
                 ));
                 core::Term::Error(surface_term.span())
             }
@@ -351,8 +354,14 @@ pub fn synth_term(
                     ));
                     (core::Term::Error(*span), core::Value::Error)
                 }
-                "Type" => (core::Term::Universe(*span, Type), core::Value::Universe(Kind)),
-                "Format" => (core::Term::Universe(*span, Format), core::Value::Universe(Kind)),
+                "Type" => (
+                    core::Term::Universe(*span, Type),
+                    core::Value::Universe(Kind),
+                ),
+                "Format" => (
+                    core::Term::Universe(*span, Format),
+                    core::Value::Universe(Kind),
+                ),
                 "U8" => (core::Term::U8Type(*span), core::Value::Universe(Format)),
                 "U16Le" => (core::Term::U16LeType(*span), core::Value::Universe(Format)),
                 "U16Be" => (core::Term::U16BeType(*span), core::Value::Universe(Format)),
@@ -388,7 +397,14 @@ pub fn synth_term(
                 }
             },
         },
-        surface::Term::NumberLiteral(_, _) => unimplemented!(),
+        surface::Term::NumberLiteral(span, _) => {
+            report(diagnostics::error::ambiguous_numeric_literal(
+                context.file_id,
+                *span,
+            ));
+
+            (core::Term::Error(*span), core::Value::Error)
+        }
         surface::Term::Error(span) => (core::Term::Error(*span), core::Value::Error),
     }
 }
