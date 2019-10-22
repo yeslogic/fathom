@@ -35,6 +35,7 @@ mod alias {
 
     test!(fail_ambiguous_numeric_literal, "alias/fail_ambiguous_numeric_literal.ddl");
     test!(fail_ann_mismatch, "alias/fail_ann_mismatch.ddl");
+    test!(fail_numeric_literal_not_supported, "alias/fail_numeric_literal_not_supported.ddl");
     test!(fail_type_has_no_type, "alias/fail_type_has_no_type.ddl");
     test!(fail_unconstrained_int_type, "alias/fail_unconstrained_int_type.ddl");
 }

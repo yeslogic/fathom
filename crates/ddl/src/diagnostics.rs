@@ -229,6 +229,31 @@ pub mod error {
         }
     }
 
+    pub fn numeric_literal_not_supported(
+        file_id: FileId,
+        span: Span,
+        found_ty: &core::Value,
+    ) -> Diagnostic {
+        let arena = pretty::Arena::new();
+
+        let found_ty = delaborate::delaborate_term(&core::semantics::readback(found_ty));
+        let pretty::DocBuilder(_, found_ty) = found_ty.doc(&arena);
+        let found_ty = found_ty.pretty(100);
+
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: format!("cannot construct a `{}` from a numeric literal", found_ty),
+            primary_label: Label::new(
+                file_id,
+                span,
+                format!("numeric literals not supported for type `{}`", found_ty),
+            ),
+            secondary_labels: vec![],
+            notes: vec![],
+        }
+    }
+
     pub fn ambiguous_numeric_literal(file_id: FileId, span: Span) -> Diagnostic {
         Diagnostic {
             severity: Severity::Error,

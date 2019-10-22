@@ -119,7 +119,10 @@ pub fn elaborate_items(
                         };
 
                         core_items.push(core::Item::Struct(item));
-                        entry.insert((struct_ty.span, core::Value::Universe(core::Universe::Format)));
+                        entry.insert((
+                            struct_ty.span,
+                            core::Value::Universe(core::Universe::Format),
+                        ));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
@@ -294,10 +297,10 @@ pub fn check_term(
                 None => core::Term::Error(*span),
             },
             _ => {
-                report(diagnostics::bug::not_yet_implemented(
+                report(diagnostics::error::numeric_literal_not_supported(
                     context.file_id,
                     *span,
-                    "numeric literasl not suppprted for type",
+                    expected_ty,
                 ));
                 core::Term::Error(surface_term.span())
             }
