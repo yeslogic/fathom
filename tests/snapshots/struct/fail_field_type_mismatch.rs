@@ -2,9 +2,23 @@
 // It is not intended for manual editing.
 
 pub struct Foo {
-    pub field_type: ddl_rt::InvalidDataDescription,
-    pub field_true: ddl_rt::InvalidDataDescription,
-    pub field_false: ddl_rt::InvalidDataDescription,
+    field_type: ddl_rt::InvalidDataDescription,
+    field_true: ddl_rt::InvalidDataDescription,
+    field_false: ddl_rt::InvalidDataDescription,
+}
+
+impl Foo {
+    pub fn field_type(&self) -> &ddl_rt::InvalidDataDescription {
+        &self.field_type
+    }
+
+    pub fn field_true(&self) -> &ddl_rt::InvalidDataDescription {
+        &self.field_true
+    }
+
+    pub fn field_false(&self) -> &ddl_rt::InvalidDataDescription {
+        &self.field_false
+    }
 }
 
 impl ddl_rt::Binary for Foo {

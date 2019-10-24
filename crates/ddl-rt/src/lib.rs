@@ -17,6 +17,7 @@ pub trait Binary {
 /// Marks a section of data that was produced by an invalid data description.
 ///
 /// Attempting to read this will always result in read error.
+#[derive(Copy, Clone)]
 pub enum InvalidDataDescription {}
 
 impl Binary for InvalidDataDescription {

@@ -4,8 +4,18 @@
 //! Test that a struct with a host type field produces a warning.
 
 pub struct Test {
-    pub format: u32,
-    pub host: ddl_rt::InvalidDataDescription,
+    format: u32,
+    host: ddl_rt::InvalidDataDescription,
+}
+
+impl Test {
+    pub fn format(&self) -> u32 {
+        self.format
+    }
+
+    pub fn host(&self) -> &ddl_rt::InvalidDataDescription {
+        &self.host
+    }
 }
 
 impl ddl_rt::Binary for Test {
