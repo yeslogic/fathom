@@ -30,6 +30,11 @@ mod alias {
     test!(pass_alias_type, "alias/pass_alias_type.ddl");
     test!(pass_ann_ann, "alias/pass_ann_ann.ddl");
     test!(pass_ann_sugar, "alias/pass_ann_sugar.ddl");
+    test!(pass_if_else_ann_type, "alias/pass_if_else_ann_type.ddl");
+    test!(pass_if_else_term, "alias/pass_if_else_term.ddl");
+    test!(pass_if_else_term_item, "alias/pass_if_else_term_item.ddl");
+    test!(pass_if_else_type, "alias/pass_if_else_type.ddl");
+    test!(pass_if_else_type_item, "alias/pass_if_else_type_item.ddl");
     test!(pass_simple, "alias/pass_simple.ddl");
     test!(pass_simple_doc, "alias/pass_simple_doc.ddl");
 
@@ -37,6 +42,8 @@ mod alias {
     test!(fail_ann_mismatch, "alias/fail_ann_mismatch.ddl");
     test!(fail_numeric_literal_not_supported, "alias/fail_numeric_literal_not_supported.ddl");
     test!(fail_type_has_no_type, "alias/fail_type_has_no_type.ddl");
+    test!(fail_if_else_term_mismatched_arms, "alias/fail_if_else_term_mismatched_arms.ddl");
+    test!(fail_if_else_term_mismatched_condition, "alias/fail_if_else_term_mismatched_condition.ddl");
     test!(fail_unconstrained_int_type, "alias/fail_unconstrained_int_type.ddl");
 }
 

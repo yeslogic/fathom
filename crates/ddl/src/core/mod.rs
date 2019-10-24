@@ -387,6 +387,9 @@ pub enum Term {
     /// Host IEEE-754 double-precision floating point constants.
     F64Const(Span, f64),
 
+    /// A boolean elimination.
+    BoolElim(Span, Arc<Term>, Arc<Term>, Arc<Term>),
+
     /// Error sentinel.
     Error(Span),
 }
@@ -422,6 +425,7 @@ impl Term {
             | Term::IntConst(span, _)
             | Term::F32Const(span, _)
             | Term::F64Const(span, _)
+            | Term::BoolElim(span, _, _, _)
             | Term::Error(span) => *span,
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
         }
@@ -513,6 +517,19 @@ impl Term {
                 .append("f64")
                 .append(alloc.space())
                 .append(format_float(*value)),
+            Term::BoolElim(_, term, if_true, if_false) => (alloc.nil())
+                .append("bool_elim")
+                .append(alloc.space())
+                .append(term.doc(alloc))
+                .append(alloc.space())
+                .append("{")
+                .append(alloc.space())
+                .append(if_true.doc(alloc))
+                .append(",")
+                .append(alloc.space())
+                .append(if_false.doc(alloc))
+                .append(alloc.space())
+                .append("}"),
             Term::Error(_) => alloc.text("!"),
         }
     }
@@ -528,6 +545,10 @@ impl PartialEq for Term {
             (Term::F32Const(_, val0), Term::F32Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
             (Term::F64Const(_, val0), Term::F64Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
             (Term::Universe(_, universe0), Term::Universe(_, universe1)) => universe0 == universe1,
+            (
+                Term::BoolElim(_, head0, if_true0, if_false0),
+                Term::BoolElim(_, head1, if_true1, if_false1),
+            ) => head0 == head1 && if_true0 == if_true1 && if_false0 == if_false1,
             (Term::U8Type(_), Term::U8Type(_))
             | (Term::U16LeType(_), Term::U16LeType(_))
             | (Term::U16BeType(_), Term::U16BeType(_))
@@ -556,11 +577,27 @@ impl PartialEq for Term {
     }
 }
 
+/// The head of a neutral term.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Head {
+    /// Item references.
+    Item(Label),
+    /// Errors.
+    Error,
+}
+
+/// An eliminator that is 'stuck' on some head.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Elim {
+    // FIXME: environment?
+    Bool(Arc<Term>, Arc<Term>),
+}
+
 /// Values.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
-    /// Item references.
-    Item(Label),
+    /// Neutral terms
+    Neutral(Head, Vec<Elim>),
 
     /// Universes.
     Universe(Universe),

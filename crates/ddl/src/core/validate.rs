@@ -198,6 +198,11 @@ pub fn check_term(
 ) {
     match (term, expected_ty) {
         (Term::Error(_), _) | (_, Value::Error) => {}
+        (Term::BoolElim(_, term, if_true, if_false), expected_ty) => {
+            check_term(context, term, &Value::BoolType, report);
+            check_term(context, if_true, expected_ty, report);
+            check_term(context, if_false, expected_ty, report);
+        }
         (term, expected_ty) => {
             let synth_ty = synth_term(context, term, report);
 
@@ -274,6 +279,24 @@ pub fn synth_term(
         Term::IntConst(_, _) => Value::IntType,
         Term::F32Const(_, _) => Value::F32Type,
         Term::F64Const(_, _) => Value::F64Type,
+        Term::BoolElim(_, term, if_true, if_false) => {
+            check_term(context, term, &Value::BoolType, report);
+            let if_true_ty = synth_term(context, if_true, report);
+            let if_false_ty = synth_term(context, if_false, report);
+
+            if semantics::equal(&if_true_ty, &if_false_ty) {
+                if_true_ty
+            } else {
+                report(diagnostics::type_mismatch(
+                    Severity::Bug,
+                    context.file_id,
+                    if_false.span(),
+                    &if_true_ty,
+                    &if_false_ty,
+                ));
+                Value::Error
+            }
+        }
         Term::Error(_) => Value::Error,
     }
 }

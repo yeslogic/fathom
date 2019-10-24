@@ -15,7 +15,8 @@ pub struct Module {
 #[derive(Debug, Clone)]
 pub enum Item {
     Const(Const),
-    TypeAlias(TypeAlias),
+    Function(Function),
+    Alias(Alias),
     Struct(StructType),
 }
 
@@ -28,9 +29,19 @@ pub struct Const {
     pub term: Term,
 }
 
+/// Compiled constants.
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub doc: Arc<[String]>,
+    pub is_const: bool,
+    pub name: String,
+    pub ty: Type,
+    pub term: Term,
+}
+
 /// Compiled type aliases.
 #[derive(Debug, Clone)]
-pub struct TypeAlias {
+pub struct Alias {
     pub doc: Arc<[String]>,
     pub name: String,
     pub ty: Type,
@@ -55,7 +66,7 @@ pub struct TypeField {
 }
 
 /// Compiled types.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Var(String),
 
@@ -72,9 +83,11 @@ pub enum Type {
     Bool,
 
     Rt(RtType),
+    // TODO: this is an rt type
+    If(Box<Term>, Box<Type>, Box<Type>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RtType {
     U8,
     U16Le,
@@ -97,7 +110,7 @@ pub enum RtType {
     InvalidDataDescription,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Term {
     Var(String),
 
@@ -112,4 +125,7 @@ pub enum Term {
     I64(i64),
     F32(f32),
     F64(f64),
+
+    If(Box<Term>, Box<Term>, Box<Term>),
+    Call(Box<Term>),
 }

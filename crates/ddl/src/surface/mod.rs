@@ -253,6 +253,9 @@ pub enum Term {
     /// Numeric literals.
     NumberLiteral(Span, literal::Number),
 
+    /// If-else expressions.
+    If(Span, Box<Term>, Box<Term>, Box<Term>),
+
     /// Error sentinel terms.
     Error(Span),
 }
@@ -264,6 +267,7 @@ impl Term {
             Term::Paren(span, _)
             | Term::Var(span, _)
             | Term::NumberLiteral(span, _)
+            | Term::If(span, _, _, _)
             | Term::Error(span) => *span,
         }
     }
@@ -283,6 +287,27 @@ impl Term {
                 .append((alloc.space()).append(ty.doc(alloc)).group().nest(4)),
             Term::Var(_, name) => alloc.text(name),
             Term::NumberLiteral(_, literal) => alloc.as_string(literal),
+            Term::If(_, term, if_true, if_false) => (alloc.nil())
+                .append("if")
+                .append(alloc.space())
+                .append(term.doc(alloc))
+                .append(alloc.space())
+                .append("{")
+                .group()
+                .append(alloc.space().append(if_true.doc(alloc)).group().nest(4))
+                .append(alloc.space())
+                .append(
+                    (alloc.nil())
+                        .append("}")
+                        .append(alloc.space())
+                        .append("else")
+                        .append(alloc.space())
+                        .append("{")
+                        .nest(4),
+                )
+                .append(alloc.space().append(if_false.doc(alloc)).group().nest(4))
+                .append(alloc.space())
+                .append("}"),
             Term::Error(_) => alloc.text("!"),
         }
     }

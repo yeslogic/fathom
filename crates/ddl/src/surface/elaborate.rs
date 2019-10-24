@@ -305,6 +305,13 @@ pub fn check_term(
                 core::Term::Error(surface_term.span())
             }
         },
+        (surface::Term::If(span, surface_term, surface_if_true, surface_if_false), _) => {
+            let term = check_term(context, surface_term, &core::Value::BoolType, report);
+            let if_true = check_term(context, surface_if_true, expected_ty, report);
+            let if_false = check_term(context, surface_if_false, expected_ty, report);
+
+            core::Term::BoolElim(*span, Arc::new(term), Arc::new(if_true), Arc::new(if_false))
+        }
         (surface_term, expected_ty) => {
             let (core_term, synth_ty) = synth_term(context, surface_term, report);
 
@@ -404,6 +411,32 @@ pub fn synth_term(
             ));
 
             (core::Term::Error(*span), core::Value::Error)
+        }
+        surface::Term::If(span, surface_term, surface_if_true, surface_if_false) => {
+            let term = check_term(context, surface_term, &core::Value::BoolType, report);
+            let (if_true, if_true_ty) = synth_term(context, surface_if_true, report);
+            let (if_false, if_false_ty) = synth_term(context, surface_if_false, report);
+
+            if core::semantics::equal(&if_true_ty, &if_false_ty) {
+                (
+                    core::Term::BoolElim(
+                        *span,
+                        Arc::new(term),
+                        Arc::new(if_true),
+                        Arc::new(if_false),
+                    ),
+                    if_true_ty,
+                )
+            } else {
+                report(diagnostics::type_mismatch(
+                    Severity::Error,
+                    context.file_id,
+                    surface_if_false.span(),
+                    &if_true_ty,
+                    &if_false_ty,
+                ));
+                (core::Term::Error(*span), core::Value::Error)
+            }
         }
         surface::Term::Error(span) => (core::Term::Error(*span), core::Value::Error),
     }

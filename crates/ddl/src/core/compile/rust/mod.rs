@@ -57,8 +57,18 @@ struct Traits {
 
 #[derive(Debug, Clone)]
 enum CompiledItem {
-    Term(Span, String, rust::Type),
-    Type(Span, String, Traits),
+    Term {
+        span: Span,
+        name: String,
+        ty: rust::Type,
+        is_function: bool,
+        is_const: bool,
+    },
+    Type {
+        span: Span,
+        name: String,
+        traits: Traits,
+    },
     Erased(Span),
     Error(Span),
 }
@@ -66,8 +76,8 @@ enum CompiledItem {
 impl CompiledItem {
     fn span(&self) -> Span {
         match self {
-            CompiledItem::Term(span, _, _)
-            | CompiledItem::Type(span, _, _)
+            CompiledItem::Term { span, .. }
+            | CompiledItem::Type { span, .. }
             | CompiledItem::Erased(span)
             | CompiledItem::Error(span) => *span,
         }
@@ -97,31 +107,61 @@ fn compile_alias(
 ) -> (core::Label, CompiledItem, Option<rust::Item>) {
     let span = core_alias.span;
     match compile_term(context, &core_alias.term, report) {
-        CompiledTerm::Term(term, ty) => {
+        CompiledTerm::Term { term, ty, is_const } => {
             let doc = core_alias.doc.clone();
-            let name = core_alias.name.0.to_screaming_snake_case(); // TODO: name avoidance
-
-            (
-                core_alias.name.clone(),
-                CompiledItem::Term(span, name.clone(), ty.clone()),
-                Some(rust::Item::Const(rust::Const {
-                    doc,
-                    name,
-                    ty,
-                    term,
-                })),
-            )
+            if is_const {
+                let name = core_alias.name.0.to_screaming_snake_case(); // TODO: name avoidance
+                (
+                    core_alias.name.clone(),
+                    CompiledItem::Term {
+                        span,
+                        name: name.clone(),
+                        ty: ty.clone(),
+                        is_function: false,
+                        is_const,
+                    },
+                    Some(rust::Item::Const(rust::Const {
+                        doc,
+                        name,
+                        ty,
+                        term,
+                    })),
+                )
+            } else {
+                let name = core_alias.name.0.to_snake_case(); // TODO: name avoidance
+                (
+                    core_alias.name.clone(),
+                    CompiledItem::Term {
+                        span,
+                        name: name.clone(),
+                        ty: ty.clone(),
+                        is_function: true,
+                        is_const,
+                    },
+                    Some(rust::Item::Function(rust::Function {
+                        doc,
+                        name,
+                        is_const,
+                        ty,
+                        term,
+                    })),
+                )
+            }
         }
         CompiledTerm::Erased => (core_alias.name.clone(), CompiledItem::Erased(span), None),
         CompiledTerm::Error => (core_alias.name.clone(), CompiledItem::Error(span), None),
-        CompiledTerm::Type(ty, traits) => {
+        CompiledTerm::Type { ty, traits } => {
             let doc = core_alias.doc.clone();
             let name = core_alias.name.0.to_pascal_case(); // TODO: name avoidance
 
             (
                 core_alias.name.clone(),
-                CompiledItem::Type(span, name.clone(), traits),
-                Some(rust::Item::TypeAlias(rust::TypeAlias { doc, name, ty })),
+                CompiledItem::Type {
+                    span,
+                    name: name.clone(),
+                    traits,
+                },
+                Some(rust::Item::Alias(rust::Alias { doc, name, ty })),
             )
         }
     }
@@ -146,11 +186,11 @@ fn compile_struct_ty(
 
     for field in &core_struct_ty.fields {
         let (format_ty, host_ty, field_copy) = match compile_term(context, &field.term, report) {
-            CompiledTerm::Term(_, _) => {
+            CompiledTerm::Term { .. } => {
                 // TODO: Bug!
                 return error(field);
             }
-            CompiledTerm::Type(ty, traits) => match &traits.binary {
+            CompiledTerm::Type { ty, traits } => match &traits.binary {
                 Some(binary) => (ty, binary.host_ty.clone(), traits.copy),
                 None => {
                     report(diagnostics::bug::host_type_found_in_field(
@@ -193,7 +233,11 @@ fn compile_struct_ty(
 
     (
         core_struct_ty.name.clone(),
-        CompiledItem::Type(core_struct_ty.span, name.clone(), Traits { copy, binary }),
+        CompiledItem::Type {
+            span: core_struct_ty.span,
+            name: name.clone(),
+            traits: Traits { copy, binary },
+        },
         Some(rust::Item::Struct(rust::StructType {
             derives,
             doc,
@@ -204,8 +248,15 @@ fn compile_struct_ty(
 }
 
 enum CompiledTerm {
-    Term(rust::Term, rust::Type),
-    Type(rust::Type, Traits),
+    Term {
+        term: rust::Term,
+        ty: rust::Type,
+        is_const: bool,
+    },
+    Type {
+        ty: rust::Type,
+        traits: Traits,
+    },
     Erased,
     Error,
 }
@@ -217,21 +268,40 @@ fn compile_term(
 ) -> CompiledTerm {
     let file_id = context.file_id;
 
-    let host_ty = |ty, copy| CompiledTerm::Type(ty, Traits { copy, binary: None });
+    let host_ty = |ty, copy| CompiledTerm::Type {
+        ty,
+        traits: Traits { copy, binary: None },
+    };
     let format_ty = |ty, host_ty| {
-        let copy = Some(CopyTrait);
-        let binary = Some(BinaryTrait { host_ty });
-        CompiledTerm::Type(ty, Traits { copy, binary })
+        let traits = Traits {
+            copy: Some(CopyTrait),
+            binary: Some(BinaryTrait { host_ty }),
+        };
+
+        CompiledTerm::Type { ty, traits }
     };
 
     match core_term {
         core::Term::Item(span, label) => match context.items.get(label) {
-            Some(CompiledItem::Term(_, name, ty)) => {
-                CompiledTerm::Term(rust::Term::Var(name.clone()), ty.clone())
-            }
-            Some(CompiledItem::Type(_, ty_name, traits)) => {
-                CompiledTerm::Type(rust::Type::Var(ty_name.clone()), traits.clone())
-            }
+            Some(CompiledItem::Term {
+                name,
+                ty,
+                is_function,
+                is_const,
+                ..
+            }) => CompiledTerm::Term {
+                term: if *is_function {
+                    rust::Term::Call(Box::new(rust::Term::Var(name.clone())))
+                } else {
+                    rust::Term::Var(name.clone())
+                },
+                ty: ty.clone(),
+                is_const: *is_const,
+            },
+            Some(CompiledItem::Type { name, traits, .. }) => CompiledTerm::Type {
+                ty: rust::Type::Var(name.clone()),
+                traits: traits.clone(),
+            },
             Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
             Some(CompiledItem::Error(_)) => CompiledTerm::Error,
             None => {
@@ -265,15 +335,21 @@ fn compile_term(
         }
         core::Term::F32Type(_) => host_ty(rust::Type::F32, Some(CopyTrait)),
         core::Term::F64Type(_) => host_ty(rust::Type::F64, Some(CopyTrait)),
-        core::Term::BoolConst(_, value) => {
-            CompiledTerm::Term(rust::Term::Bool(*value), rust::Type::Bool)
-        }
+        core::Term::BoolConst(_, value) => CompiledTerm::Term {
+            term: rust::Term::Bool(*value),
+            ty: rust::Type::Bool,
+            is_const: true,
+        },
         core::Term::IntConst(span, value) => {
             use num_traits::cast::ToPrimitive;
 
             match value.to_i64() {
                 // TODO: don't default to I64.
-                Some(value) => CompiledTerm::Term(rust::Term::I64(value), rust::Type::I64),
+                Some(value) => CompiledTerm::Term {
+                    term: rust::Term::I64(value),
+                    ty: rust::Type::I64,
+                    is_const: true,
+                },
                 None => {
                     report(crate::diagnostics::bug::not_yet_implemented(
                         context.file_id,
@@ -284,11 +360,56 @@ fn compile_term(
                 }
             }
         }
-        core::Term::F32Const(_, value) => {
-            CompiledTerm::Term(rust::Term::F32(*value), rust::Type::F32)
-        }
-        core::Term::F64Const(_, value) => {
-            CompiledTerm::Term(rust::Term::F64(*value), rust::Type::F64)
+        core::Term::F32Const(_, value) => CompiledTerm::Term {
+            term: rust::Term::F32(*value),
+            ty: rust::Type::F32,
+            is_const: true,
+        },
+        core::Term::F64Const(_, value) => CompiledTerm::Term {
+            term: rust::Term::F64(*value),
+            ty: rust::Type::F64,
+            is_const: true,
+        },
+        core::Term::BoolElim(span, head, if_true, if_false) => {
+            match (
+                compile_term(context, head, report),
+                compile_term(context, if_true, report),
+                compile_term(context, if_false, report),
+            ) {
+                (
+                    CompiledTerm::Term { term: head, .. },
+                    CompiledTerm::Term {
+                        term: if_true,
+                        ty: if_true_ty,
+                        ..
+                    },
+                    CompiledTerm::Term { term: if_false, .. },
+                ) => CompiledTerm::Term {
+                    term: rust::Term::If(Box::new(head), Box::new(if_true), Box::new(if_false)),
+                    ty: if_true_ty, // TODO: check if arms match
+                    is_const: false,
+                },
+                (
+                    CompiledTerm::Term { .. },
+                    CompiledTerm::Type { .. },
+                    CompiledTerm::Type { .. },
+                ) => {
+                    report(crate::diagnostics::bug::not_yet_implemented(
+                        context.file_id,
+                        *span,
+                        "type-level if expressions",
+                    ));
+                    CompiledTerm::Error
+                }
+
+                (_, CompiledTerm::Erased, CompiledTerm::Erased) => CompiledTerm::Erased,
+                (CompiledTerm::Error, _, _)
+                | (_, CompiledTerm::Error, _)
+                | (_, _, CompiledTerm::Error) => CompiledTerm::Error,
+
+                // TODO: report bug: mismatched arms of if expression
+                (_, _, _) => unimplemented!(),
+            }
         }
         core::Term::Universe(_, _) => CompiledTerm::Erased,
         core::Term::Error(_) => CompiledTerm::Error,
