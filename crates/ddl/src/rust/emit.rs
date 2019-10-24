@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::rust::{Const, Item, Module, RtType, StructType, Term, Type, TypeAlias};
+use crate::rust::{Alias, Const, Function, Item, Module, RtType, StructType, Term, Type};
 
 pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
@@ -31,7 +31,8 @@ pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
 fn emit_item(writer: &mut impl Write, item: &Item) -> io::Result<()> {
     match item {
         Item::Const(const_) => emit_const(writer, const_),
-        Item::TypeAlias(ty_alias) => emit_ty_alias(writer, ty_alias),
+        Item::Function(function) => emit_function(writer, function),
+        Item::Alias(ty_alias) => emit_alias(writer, ty_alias),
         Item::Struct(struct_ty) => emit_struct_ty(writer, struct_ty),
     }
 }
@@ -52,7 +53,29 @@ fn emit_const(writer: &mut impl Write, const_: &Const) -> io::Result<()> {
     Ok(())
 }
 
-fn emit_ty_alias(writer: &mut impl Write, ty_alias: &TypeAlias) -> io::Result<()> {
+fn emit_function(writer: &mut impl Write, function: &Function) -> io::Result<()> {
+    writeln!(writer)?;
+
+    for doc_line in function.doc.iter() {
+        writeln!(writer, "///{}", doc_line)?;
+    }
+
+    write!(writer, "pub ")?;
+    if function.is_const {
+        write!(writer, "const ")?;
+    }
+    write!(writer, "fn {}() -> ", function.name)?;
+    emit_ty(writer, &function.ty)?;
+    writeln!(writer, " {{")?;
+    write!(writer, "    ")?;
+    emit_term(writer, &function.term)?;
+    writeln!(writer)?;
+    writeln!(writer, "}}")?;
+
+    Ok(())
+}
+
+fn emit_alias(writer: &mut impl Write, ty_alias: &Alias) -> io::Result<()> {
     writeln!(writer)?;
 
     for doc_line in ty_alias.doc.iter() {
@@ -129,9 +152,9 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
             struct_ty.name,
         )?;
         for field in &struct_ty.fields {
-            write!(writer, "        let {} = ctxt.read::<", field.name)?;
-            emit_ty(writer, &field.format_ty)?;
-            write!(writer, ">()?;")?;
+            write!(writer, "        let {} = ", field.name)?;
+            emit_ty_read(writer, &field.format_ty)?;
+            write!(writer, ";")?;
             writeln!(writer)?;
         }
         writeln!(writer)?;
@@ -162,10 +185,40 @@ fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
         Type::F64 => write!(writer, "f64"),
         Type::Bool => write!(writer, "bool"),
         Type::Rt(rt_ty) => {
-            // TODO: Make this configurable
+            // TODO: Make this path configurable
             write!(writer, "ddl_rt::")?;
             emit_rt_ty(writer, rt_ty)
         }
+        Type::If(_, lhs, rhs) => {
+            // TODO: Make this path configurable
+            write!(writer, "ddl_rt::If<")?;
+            emit_ty(writer, lhs)?;
+            write!(writer, ", ")?;
+            emit_ty(writer, rhs)?;
+            write!(writer, ">")
+        }
+    }
+}
+
+fn emit_ty_read(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
+    match ty {
+        Type::Var(name) => write!(writer, "ctxt.read::<{}>()?", name),
+        Type::Rt(rt_ty) => {
+            // TODO: Make this path configurable
+            write!(writer, "ctxt.read::<ddl_rt::")?;
+            emit_rt_ty(writer, rt_ty)?;
+            write!(writer, ">()?")
+        }
+        Type::If(cond, lhs, rhs) => {
+            write!(writer, "if ")?;
+            emit_term(writer, cond)?;
+            write!(writer, " {{")?;
+            emit_ty_read(writer, lhs)?;
+            write!(writer, "}} else {{")?;
+            emit_ty_read(writer, rhs)?;
+            write!(writer, "}}")
+        }
+        _ => unimplemented!("unexpected host type"),
     }
 }
 
@@ -193,8 +246,8 @@ fn emit_rt_ty(writer: &mut impl Write, ty: &RtType) -> io::Result<()> {
     }
 }
 
-fn emit_term(writer: &mut impl Write, ty: &Term) -> io::Result<()> {
-    match ty {
+fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
+    match term {
         Term::Var(name) => write!(writer, "{}", name),
         Term::Bool(value) => write!(writer, "{}", value),
         Term::U8(value) => write!(writer, "{}u8", value),
@@ -207,5 +260,18 @@ fn emit_term(writer: &mut impl Write, ty: &Term) -> io::Result<()> {
         Term::I64(value) => write!(writer, "{}i64", value),
         Term::F32(value) => write!(writer, "{}f32", value),
         Term::F64(value) => write!(writer, "{}f64", value),
+        Term::Call(term) => {
+            emit_term(writer, term)?;
+            write!(writer, "()")
+        }
+        Term::If(term0, term1, term2) => {
+            write!(writer, "if ")?;
+            emit_term(writer, term0)?;
+            write!(writer, " {{ ")?;
+            emit_term(writer, term1)?;
+            write!(writer, " }} else {{ ")?;
+            emit_term(writer, term2)?;
+            write!(writer, " }}")
+        }
     }
 }

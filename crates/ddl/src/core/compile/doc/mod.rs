@@ -240,6 +240,13 @@ fn compile_term<'term>(
         core::Term::F32Const(_, value) => format!("{}", value).into(), // TODO: Invalid if in type
         core::Term::F64Const(_, value) => format!("{}", value).into(), // TODO: Invalid if in type
         core::Term::IntConst(_, value) => format!("{}", value).into(), // TODO: Invalid if in type
+        core::Term::BoolElim(_, term, if_true, if_false) => format!(
+            "if {term} {{ {if_true} }} else {{ {if_false} }}",
+            term = compile_term(context, term, report),
+            if_true = compile_term(context, if_true, report),
+            if_false = compile_term(context, if_false, report),
+        )
+        .into(),
         core::Term::Error(_) => r##"<strong>(invalid data description)</strong>"##.into(),
     }
 }

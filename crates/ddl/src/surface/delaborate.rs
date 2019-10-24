@@ -111,6 +111,12 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
         core::Term::F64Const(span, value) => {
             surface::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
         }
+        core::Term::BoolElim(span, term, if_true, if_false) => surface::Term::If(
+            *span,
+            Box::new(delaborate_term(term)),
+            Box::new(delaborate_term(if_true)),
+            Box::new(delaborate_term(if_false)),
+        ),
         core::Term::Error(span) => surface::Term::Error(*span),
     }
 }
