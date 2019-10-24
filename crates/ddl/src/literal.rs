@@ -91,7 +91,7 @@ impl IntegerLexerState {
         match (self, ch) {
             (Top, Some((start, ch))) => match ch {
                 '0' => Yield(ZeroOrBase),
-                '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - '0' as u8).into(), 0)),
+                '1'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - '0' as u8).into(), 0)),
                 _ => {
                     // TODO: bug?
                     report(diagnostics::error::unexpected_char(
@@ -178,7 +178,7 @@ where
         match (self, ch) {
             (Top, Some((start, ch))) => match ch {
                 '0' => Yield(ZeroOrBase),
-                '0'..='9' => Yield(IntegerPart(Base::Decimal, (ch as u8 - '0' as u8).into(), 1)),
+                '1'..='9' => Yield(IntegerPart(Base::Decimal, (ch as u8 - '0' as u8).into(), 1)),
                 _ => {
                     // TODO: bug?
                     report(diagnostics::error::unexpected_char(
