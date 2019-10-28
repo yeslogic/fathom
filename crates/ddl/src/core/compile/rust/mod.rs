@@ -41,20 +41,6 @@ pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic))
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-struct CopyTrait;
-
-#[derive(Debug, Clone)]
-struct BinaryTrait {
-    host_ty: rust::Type,
-}
-
-#[derive(Debug, Clone)]
-struct Traits {
-    copy: Option<CopyTrait>,
-    binary: Option<BinaryTrait>,
-}
-
 #[derive(Debug, Clone)]
 enum CompiledItem {
     Term {
@@ -67,7 +53,8 @@ enum CompiledItem {
     Type {
         span: Span,
         name: String,
-        traits: Traits,
+        is_copy: bool,
+        host_ty: Option<rust::Type>,
     },
     Erased(Span),
     Error(Span),
@@ -150,7 +137,11 @@ fn compile_alias(
         }
         CompiledTerm::Erased => (core_alias.name.clone(), CompiledItem::Erased(span), None),
         CompiledTerm::Error => (core_alias.name.clone(), CompiledItem::Error(span), None),
-        CompiledTerm::Type { ty, traits } => {
+        CompiledTerm::Type {
+            ty,
+            is_copy,
+            host_ty,
+        } => {
             let doc = core_alias.doc.clone();
             let name = core_alias.name.0.to_pascal_case(); // TODO: name avoidance
 
@@ -159,7 +150,8 @@ fn compile_alias(
                 CompiledItem::Type {
                     span,
                     name: name.clone(),
-                    traits,
+                    is_copy,
+                    host_ty,
                 },
                 Some(rust::Item::Alias(rust::Alias { doc, name, ty })),
             )
@@ -181,17 +173,21 @@ fn compile_struct_ty(
         )
     };
 
-    let mut copy = Some(CopyTrait);
+    let mut is_copy = true;
     let mut fields = Vec::with_capacity(core_struct_ty.fields.len());
 
     for field in &core_struct_ty.fields {
-        let (format_ty, host_ty, field_copy) = match compile_term(context, &field.term, report) {
+        let (format_ty, host_ty, is_field_copy) = match compile_term(context, &field.term, report) {
             CompiledTerm::Term { .. } => {
                 // TODO: Bug!
                 return error(field);
             }
-            CompiledTerm::Type { ty, traits } => match &traits.binary {
-                Some(binary) => (ty, binary.host_ty.clone(), traits.copy),
+            CompiledTerm::Type {
+                ty,
+                is_copy,
+                host_ty,
+            } => match &host_ty {
+                Some(host_ty) => (ty, host_ty.clone(), is_copy),
                 None => {
                     report(diagnostics::bug::host_type_found_in_field(
                         context.file_id,
@@ -206,38 +202,36 @@ fn compile_struct_ty(
                     context.file_id,
                     field.term.span(),
                 ));
-                (INVALID_TYPE, INVALID_TYPE, None)
+                (INVALID_TYPE, INVALID_TYPE, true)
             }
-            CompiledTerm::Error => (INVALID_TYPE, INVALID_TYPE, None),
+            CompiledTerm::Error => (INVALID_TYPE, INVALID_TYPE, true),
         };
 
-        copy = Option::and(copy, field_copy);
+        is_copy &= is_field_copy;
         fields.push(rust::TypeField {
             doc: field.doc.clone(),
             name: field.name.0.clone(),
             format_ty,
             host_ty,
-            by_ref: field_copy.is_none(),
+            by_ref: !is_field_copy,
         })
     }
 
     let doc = core_struct_ty.doc.clone();
     let name = core_struct_ty.name.0.to_pascal_case(); // TODO: name avoidance
     let mut derives = Vec::new();
-    if copy.is_some() {
+    if is_copy {
         derives.push("Copy".to_owned());
         derives.push("Clone".to_owned());
     }
-    let binary = Some(BinaryTrait {
-        host_ty: rust::Type::Var(name.clone()),
-    });
 
     (
         core_struct_ty.name.clone(),
         CompiledItem::Type {
             span: core_struct_ty.span,
             name: name.clone(),
-            traits: Traits { copy, binary },
+            is_copy,
+            host_ty: Some(rust::Type::Var(name.clone())),
         },
         Some(rust::Item::Struct(rust::StructType {
             derives,
@@ -256,7 +250,8 @@ enum CompiledTerm {
     },
     Type {
         ty: rust::Type,
-        traits: Traits,
+        is_copy: bool,
+        host_ty: Option<rust::Type>,
     },
     Erased,
     Error,
@@ -269,17 +264,15 @@ fn compile_term(
 ) -> CompiledTerm {
     let file_id = context.file_id;
 
-    let host_ty = |ty, copy| CompiledTerm::Type {
+    let host_ty = |ty| CompiledTerm::Type {
         ty,
-        traits: Traits { copy, binary: None },
+        is_copy: true,
+        host_ty: None,
     };
-    let format_ty = |ty, host_ty| {
-        let traits = Traits {
-            copy: Some(CopyTrait),
-            binary: Some(BinaryTrait { host_ty }),
-        };
-
-        CompiledTerm::Type { ty, traits }
+    let format_ty = |ty, host_ty| CompiledTerm::Type {
+        ty,
+        is_copy: true,
+        host_ty: Some(host_ty),
     };
 
     match core_term {
@@ -299,9 +292,15 @@ fn compile_term(
                 ty: ty.clone(),
                 is_const: *is_const,
             },
-            Some(CompiledItem::Type { name, traits, .. }) => CompiledTerm::Type {
+            Some(CompiledItem::Type {
+                name,
+                is_copy,
+                host_ty,
+                ..
+            }) => CompiledTerm::Type {
                 ty: rust::Type::Var(name.clone()),
-                traits: traits.clone(),
+                is_copy: *is_copy,
+                host_ty: host_ty.clone(),
             },
             Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
             Some(CompiledItem::Error(_)) => CompiledTerm::Error,
@@ -329,13 +328,13 @@ fn compile_term(
         core::Term::F32BeType(_) => format_ty(rust::Type::Rt(rust::RtType::F32Be), rust::Type::F32),
         core::Term::F64LeType(_) => format_ty(rust::Type::Rt(rust::RtType::F64Le), rust::Type::F64),
         core::Term::F64BeType(_) => format_ty(rust::Type::Rt(rust::RtType::F64Be), rust::Type::F64),
-        core::Term::BoolType(_) => host_ty(rust::Type::Bool, Some(CopyTrait)),
+        core::Term::BoolType(_) => host_ty(rust::Type::Bool),
         core::Term::IntType(span) => {
             report(diagnostics::error::unconstrained_int(file_id, *span));
-            host_ty(rust::Type::Rt(rust::RtType::InvalidDataDescription), None)
+            host_ty(rust::Type::Rt(rust::RtType::InvalidDataDescription))
         }
-        core::Term::F32Type(_) => host_ty(rust::Type::F32, Some(CopyTrait)),
-        core::Term::F64Type(_) => host_ty(rust::Type::F64, Some(CopyTrait)),
+        core::Term::F32Type(_) => host_ty(rust::Type::F32),
+        core::Term::F64Type(_) => host_ty(rust::Type::F64),
         core::Term::BoolConst(_, value) => CompiledTerm::Term {
             term: rust::Term::Bool(*value),
             ty: rust::Type::Bool,

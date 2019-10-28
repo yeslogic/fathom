@@ -3,6 +3,7 @@
 
 //! Test that a struct with a host type field produces a warning.
 
+#[derive(Copy, Clone)]
 pub struct Test {
     format: u32,
     host: ddl_rt::InvalidDataDescription,
@@ -13,8 +14,8 @@ impl Test {
         self.format
     }
 
-    pub fn host(&self) -> &ddl_rt::InvalidDataDescription {
-        &self.host
+    pub fn host(&self) -> ddl_rt::InvalidDataDescription {
+        self.host
     }
 }
 
