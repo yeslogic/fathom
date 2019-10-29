@@ -19,11 +19,11 @@ impl Test {
     }
 }
 
-impl ddl_rt::Binary for Test {
+impl ddl_rt::Format for Test {
     type Host = Test;
 }
 
-impl<'data> ddl_rt::ReadBinary<'data> for Test {
+impl<'data> ddl_rt::ReadFormat<'data> for Test {
     fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<Test, ddl_rt::ReadError> {
         let format = ctxt.read::<ddl_rt::U32Be>()?;
         let host = ctxt.read::<ddl_rt::InvalidDataDescription>()?;

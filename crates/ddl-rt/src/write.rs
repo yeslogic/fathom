@@ -1,4 +1,4 @@
-use crate::Binary;
+use crate::Format;
 
 /// An in-memory buffer that can be written into.
 pub struct WriteCtxt {
@@ -26,13 +26,13 @@ impl WriteCtxt {
         self.buffer.push(value);
     }
 
-    pub fn write<T: WriteBinary>(&mut self, value: T::Host) {
+    pub fn write<T: WriteFormat>(&mut self, value: T::Host) {
         T::write(self, value)
     }
 }
 
-/// Binary types that can be written to a buffer from a host representation.
-pub trait WriteBinary: Binary {
+/// Binary format types that can be written to a buffer from a host representation.
+pub trait WriteFormat: Format {
     /// Write the binary representation of `Self::Host` to `ctxt`.
     fn write(ctxt: &mut WriteCtxt, value: Self::Host);
 }

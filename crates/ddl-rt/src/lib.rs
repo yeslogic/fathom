@@ -5,12 +5,12 @@
 mod read;
 mod write;
 
-pub use read::{ReadBinary, ReadBinaryUnchecked, ReadCtxt, ReadEofError, ReadError, ReadScope};
-pub use write::{WriteBinary, WriteCtxt};
+pub use read::{ReadCtxt, ReadEofError, ReadError, ReadFormat, ReadFormatUnchecked, ReadScope};
+pub use write::{WriteCtxt, WriteFormat};
 
-/// Markers for data in binary form.
-pub trait Binary {
-    /// The host representation of this binary type.
+/// Binary formats with a corresponding host representation.
+pub trait Format {
+    /// The host representation of this binary format.
     type Host;
 }
 
@@ -20,11 +20,11 @@ pub trait Binary {
 #[derive(Copy, Clone)]
 pub enum InvalidDataDescription {}
 
-impl Binary for InvalidDataDescription {
+impl Format for InvalidDataDescription {
     type Host = InvalidDataDescription;
 }
 
-impl<'data> ReadBinary<'data> for InvalidDataDescription {
+impl<'data> ReadFormat<'data> for InvalidDataDescription {
     #[inline]
     fn read(_: &mut ReadCtxt<'data>) -> Result<InvalidDataDescription, ReadError> {
         Err(ReadError::InvalidDataDescription)
@@ -35,7 +35,7 @@ impl<'data> ReadBinary<'data> for InvalidDataDescription {
 #[derive(Copy, Clone)]
 pub enum U8 {}
 
-impl<'data> ReadBinaryUnchecked<'data> for U8 {
+impl<'data> ReadFormatUnchecked<'data> for U8 {
     const SIZE: usize = std::mem::size_of::<u8>();
 
     #[inline]
@@ -44,7 +44,7 @@ impl<'data> ReadBinaryUnchecked<'data> for U8 {
     }
 }
 
-impl WriteBinary for U8 {
+impl WriteFormat for U8 {
     fn write(ctxt: &mut WriteCtxt, value: u8) {
         ctxt.write_u8(value);
     }
@@ -54,7 +54,7 @@ impl WriteBinary for U8 {
 #[derive(Copy, Clone)]
 pub enum U16Le {}
 
-impl<'data> ReadBinaryUnchecked<'data> for U16Le {
+impl<'data> ReadFormatUnchecked<'data> for U16Le {
     const SIZE: usize = std::mem::size_of::<u16>();
 
     #[inline]
@@ -65,7 +65,7 @@ impl<'data> ReadBinaryUnchecked<'data> for U16Le {
     }
 }
 
-impl WriteBinary for U16Le {
+impl WriteFormat for U16Le {
     fn write(ctxt: &mut WriteCtxt, value: u16) {
         ctxt.write_u8(value as u8);
         ctxt.write_u8((value >> 8) as u8);
@@ -76,7 +76,7 @@ impl WriteBinary for U16Le {
 #[derive(Copy, Clone)]
 pub enum U16Be {}
 
-impl<'data> ReadBinaryUnchecked<'data> for U16Be {
+impl<'data> ReadFormatUnchecked<'data> for U16Be {
     const SIZE: usize = std::mem::size_of::<u16>();
 
     #[inline]
@@ -87,7 +87,7 @@ impl<'data> ReadBinaryUnchecked<'data> for U16Be {
     }
 }
 
-impl WriteBinary for U16Be {
+impl WriteFormat for U16Be {
     fn write(ctxt: &mut WriteCtxt, value: u16) {
         ctxt.write_u8((value >> 8) as u8);
         ctxt.write_u8(value as u8);
@@ -98,7 +98,7 @@ impl WriteBinary for U16Be {
 #[derive(Copy, Clone)]
 pub enum U32Le {}
 
-impl<'data> ReadBinaryUnchecked<'data> for U32Le {
+impl<'data> ReadFormatUnchecked<'data> for U32Le {
     const SIZE: usize = std::mem::size_of::<u32>();
 
     #[inline]
@@ -111,7 +111,7 @@ impl<'data> ReadBinaryUnchecked<'data> for U32Le {
     }
 }
 
-impl WriteBinary for U32Le {
+impl WriteFormat for U32Le {
     fn write(ctxt: &mut WriteCtxt, value: u32) {
         ctxt.write_u8(value as u8);
         ctxt.write_u8((value >> 8) as u8);
@@ -124,7 +124,7 @@ impl WriteBinary for U32Le {
 #[derive(Copy, Clone)]
 pub enum U32Be {}
 
-impl<'data> ReadBinaryUnchecked<'data> for U32Be {
+impl<'data> ReadFormatUnchecked<'data> for U32Be {
     const SIZE: usize = std::mem::size_of::<u32>();
 
     #[inline]
@@ -137,7 +137,7 @@ impl<'data> ReadBinaryUnchecked<'data> for U32Be {
     }
 }
 
-impl WriteBinary for U32Be {
+impl WriteFormat for U32Be {
     fn write(ctxt: &mut WriteCtxt, value: u32) {
         ctxt.write_u8((value >> 24) as u8);
         ctxt.write_u8((value >> 16) as u8);
@@ -150,7 +150,7 @@ impl WriteBinary for U32Be {
 #[derive(Copy, Clone)]
 pub enum U64Le {}
 
-impl<'data> ReadBinaryUnchecked<'data> for U64Le {
+impl<'data> ReadFormatUnchecked<'data> for U64Le {
     const SIZE: usize = std::mem::size_of::<u64>();
 
     #[inline]
@@ -167,7 +167,7 @@ impl<'data> ReadBinaryUnchecked<'data> for U64Le {
     }
 }
 
-impl WriteBinary for U64Le {
+impl WriteFormat for U64Le {
     fn write(ctxt: &mut WriteCtxt, value: u64) {
         ctxt.write_u8(value as u8);
         ctxt.write_u8((value >> 8) as u8);
@@ -184,7 +184,7 @@ impl WriteBinary for U64Le {
 #[derive(Copy, Clone)]
 pub enum U64Be {}
 
-impl<'data> ReadBinaryUnchecked<'data> for U64Be {
+impl<'data> ReadFormatUnchecked<'data> for U64Be {
     const SIZE: usize = std::mem::size_of::<u64>();
 
     #[inline]
@@ -201,7 +201,7 @@ impl<'data> ReadBinaryUnchecked<'data> for U64Be {
     }
 }
 
-impl WriteBinary for U64Be {
+impl WriteFormat for U64Be {
     fn write(ctxt: &mut WriteCtxt, value: u64) {
         ctxt.write_u8((value >> 56) as u8);
         ctxt.write_u8((value >> 48) as u8);
@@ -216,13 +216,13 @@ impl WriteBinary for U64Be {
 
 macro_rules! impl_uint_marker {
     ($UInt:ident, $uint:ident) => {
-        // TODO: Generate ReadBinaryUnchecked implementations
+        // TODO: Generate ReadFormatUnchecked implementations
 
-        impl Binary for $UInt {
+        impl Format for $UInt {
             type Host = $uint;
         }
 
-        impl<'data> ReadBinary<'data> for $UInt {
+        impl<'data> ReadFormat<'data> for $UInt {
             #[inline]
             fn read(ctxt: &mut ReadCtxt<'data>) -> Result<$uint, ReadError> {
                 ctxt.check_available($UInt::SIZE)?;
@@ -270,11 +270,11 @@ pub enum I64Be {}
 
 macro_rules! impl_int_marker {
     ($Int:ident, $UInt:ident, $int:ident) => {
-        impl Binary for $Int {
+        impl Format for $Int {
             type Host = $int;
         }
 
-        impl<'data> ReadBinaryUnchecked<'data> for $Int {
+        impl<'data> ReadFormatUnchecked<'data> for $Int {
             const SIZE: usize = std::mem::size_of::<$int>();
 
             #[inline]
@@ -283,14 +283,14 @@ macro_rules! impl_int_marker {
             }
         }
 
-        impl<'data> ReadBinary<'data> for $Int {
+        impl<'data> ReadFormat<'data> for $Int {
             #[inline]
             fn read(ctxt: &mut ReadCtxt<'data>) -> Result<$int, ReadError> {
                 ctxt.read::<$UInt>().map(|value| value as $int)
             }
         }
 
-        impl WriteBinary for $Int {
+        impl WriteFormat for $Int {
             #[inline]
             fn write(ctxt: &mut WriteCtxt, value: $int) {
                 ctxt.write::<$UInt>(unsafe { std::mem::transmute::<$int, _>(value) });
@@ -325,11 +325,11 @@ pub enum F64Be {}
 
 macro_rules! impl_float_marker {
     ($Float:ident, $UInt:ident, $float:ident) => {
-        impl Binary for $Float {
+        impl Format for $Float {
             type Host = $float;
         }
 
-        impl<'data> ReadBinaryUnchecked<'data> for $Float {
+        impl<'data> ReadFormatUnchecked<'data> for $Float {
             const SIZE: usize = std::mem::size_of::<$float>();
 
             #[inline]
@@ -338,7 +338,7 @@ macro_rules! impl_float_marker {
             }
         }
 
-        impl<'data> ReadBinary<'data> for $Float {
+        impl<'data> ReadFormat<'data> for $Float {
             #[inline]
             fn read(ctxt: &mut ReadCtxt<'data>) -> Result<$float, ReadError> {
                 ctxt.read::<$UInt>()
@@ -346,7 +346,7 @@ macro_rules! impl_float_marker {
             }
         }
 
-        impl WriteBinary for $Float {
+        impl WriteFormat for $Float {
             #[inline]
             fn write(ctxt: &mut WriteCtxt, value: $float) {
                 ctxt.write::<$UInt>(unsafe { std::mem::transmute::<$float, _>(value) });
@@ -366,7 +366,7 @@ mod tests {
 
     use super::*;
 
-    fn round_trip<'data, T: WriteBinary + ReadBinary<'data>>(
+    fn round_trip<'data, T: WriteFormat + ReadFormat<'data>>(
         ctxt: &'data mut WriteCtxt,
         value: T::Host,
     ) -> T::Host {

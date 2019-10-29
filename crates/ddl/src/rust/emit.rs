@@ -146,18 +146,18 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
         writeln!(writer)?;
     }
 
-    // Binary impl
+    // Format impl
 
-    writeln!(writer, "impl ddl_rt::Binary for {} {{", struct_ty.name,)?;
+    writeln!(writer, "impl ddl_rt::Format for {} {{", struct_ty.name,)?;
     writeln!(writer, "    type Host = {};", struct_ty.name)?;
     writeln!(writer, "}}")?;
     writeln!(writer)?;
 
-    // ReadBinary impl
+    // ReadFormat impl
 
     writeln!(
         writer,
-        "impl<'data> ddl_rt::ReadBinary<'data> for {} {{",
+        "impl<'data> ddl_rt::ReadFormat<'data> for {} {{",
         struct_ty.name,
     )?;
     if struct_ty.fields.is_empty() {

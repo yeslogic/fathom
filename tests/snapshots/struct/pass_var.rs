@@ -19,11 +19,11 @@ impl Pair {
     }
 }
 
-impl ddl_rt::Binary for Pair {
+impl ddl_rt::Format for Pair {
     type Host = Pair;
 }
 
-impl<'data> ddl_rt::ReadBinary<'data> for Pair {
+impl<'data> ddl_rt::ReadFormat<'data> for Pair {
     fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<Pair, ddl_rt::ReadError> {
         let first = ctxt.read::<ddl_rt::U8>()?;
         let second = ctxt.read::<ddl_rt::U8>()?;
@@ -53,11 +53,11 @@ impl PairPair {
     }
 }
 
-impl ddl_rt::Binary for PairPair {
+impl ddl_rt::Format for PairPair {
     type Host = PairPair;
 }
 
-impl<'data> ddl_rt::ReadBinary<'data> for PairPair {
+impl<'data> ddl_rt::ReadFormat<'data> for PairPair {
     fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<PairPair, ddl_rt::ReadError> {
         let first = ctxt.read::<Pair>()?;
         let second = ctxt.read::<MyPair>()?;

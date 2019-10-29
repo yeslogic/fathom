@@ -3,7 +3,7 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::Binary;
+use crate::Format;
 
 /// An error produced while reading binary data.
 #[derive(Debug)]
@@ -94,13 +94,13 @@ impl<'data> ReadScope<'data> {
 
     /// Read some binary data in the context.
     #[inline]
-    pub fn read<T: ReadBinary<'data>>(&self) -> Result<T::Host, ReadError> {
+    pub fn read<T: ReadFormat<'data>>(&self) -> Result<T::Host, ReadError> {
         self.ctxt().read::<T>()
     }
 
     /// Read some binary data in the context without bounds checking.
     #[inline]
-    pub unsafe fn read_unchecked<T: ReadBinaryUnchecked<'data>>(&mut self) -> T::Host {
+    pub unsafe fn read_unchecked<T: ReadFormatUnchecked<'data>>(&mut self) -> T::Host {
         self.ctxt().read_unchecked::<T>()
     }
 }
@@ -121,13 +121,13 @@ impl<'data> ReadCtxt<'data> {
 
     /// Read some binary data in the context.
     #[inline]
-    pub fn read<T: ReadBinary<'data>>(&mut self) -> Result<T::Host, ReadError> {
+    pub fn read<T: ReadFormat<'data>>(&mut self) -> Result<T::Host, ReadError> {
         T::read(self)
     }
 
     /// Read some binary data in the context without bounds checking.
     #[inline]
-    pub unsafe fn read_unchecked<T: ReadBinaryUnchecked<'data>>(&mut self) -> T::Host {
+    pub unsafe fn read_unchecked<T: ReadFormatUnchecked<'data>>(&mut self) -> T::Host {
         T::read_unchecked(self)
     }
 
@@ -150,8 +150,8 @@ impl<'data> ReadCtxt<'data> {
     }
 }
 
-/// Binary types that can be read into host data structures without bounds checking.
-pub trait ReadBinaryUnchecked<'data>: Binary
+/// Binary format types that can be read into host data structures without bounds checking.
+pub trait ReadFormatUnchecked<'data>: Format
 where
     Self::Host: Sized,
 {
@@ -163,8 +163,8 @@ where
     unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> Self::Host;
 }
 
-/// Binary types that can be read into host data structures.
-pub trait ReadBinary<'data>: Binary
+/// Binary format types that can be read into host data structures.
+pub trait ReadFormat<'data>: Format
 where
     Self::Host: Sized,
 {
