@@ -146,24 +146,24 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
         writeln!(writer)?;
     }
 
-    // Binary impl
+    // Format impl
 
-    writeln!(writer, "impl ddl_rt::Binary for {} {{", struct_ty.name,)?;
+    writeln!(writer, "impl ddl_rt::Format for {} {{", struct_ty.name,)?;
     writeln!(writer, "    type Host = {};", struct_ty.name)?;
     writeln!(writer, "}}")?;
     writeln!(writer)?;
 
-    // ReadBinary impl
+    // ReadFormat impl
 
     writeln!(
         writer,
-        "impl<'data> ddl_rt::ReadBinary<'data> for {} {{",
+        "impl<'data> ddl_rt::ReadFormat<'data> for {} {{",
         struct_ty.name,
     )?;
     if struct_ty.fields.is_empty() {
         writeln!(
             writer,
-            "    fn read(_: &mut ddl_rt::ReadCtxt<'data>) -> Result<{}, ddl_rt::ReadError> {{",
+            "    fn read(_: &mut ddl_rt::FormatReader<'data>) -> Result<{}, ddl_rt::ReadError> {{",
             struct_ty.name,
         )?;
         writeln!(writer, "        Ok({} {{}})", struct_ty.name)?;
@@ -171,7 +171,7 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
     } else {
         writeln!(
             writer,
-            "    fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<{}, ddl_rt::ReadError> {{",
+            "    fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<{}, ddl_rt::ReadError> {{",
             struct_ty.name,
         )?;
         for field in &struct_ty.fields {
@@ -225,10 +225,10 @@ fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
 
 fn emit_ty_read(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     match ty {
-        Type::Var(name) => write!(writer, "ctxt.read::<{}>()?", name),
+        Type::Var(name) => write!(writer, "reader.read::<{}>()?", name),
         Type::Rt(rt_ty) => {
             // TODO: Make this path configurable
-            write!(writer, "ctxt.read::<ddl_rt::")?;
+            write!(writer, "reader.read::<ddl_rt::")?;
             emit_rt_ty(writer, rt_ty)?;
             write!(writer, ">()?")
         }

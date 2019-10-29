@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_test_util::ddl::binary;
-use ddl_rt::{ReadError, ReadScope, WriteCtxt, U8};
+use ddl_rt::{ReadError, ReadScope, FormatWriter, U8};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
@@ -12,9 +12,9 @@ ddl_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_singleton.core
 
 #[test]
 fn eof_inner() {
-    let ctxt = WriteCtxt::new(vec![]);
+    let writer = FormatWriter::new(vec![]);
 
-    let scope = ReadScope::new(ctxt.buffer());
+    let scope = ReadScope::new(writer.buffer());
     let singleton = scope.read::<fixture::Byte>();
 
     match singleton {
@@ -28,13 +28,13 @@ fn eof_inner() {
 
 #[test]
 fn valid_singleton() {
-    let mut ctxt = WriteCtxt::new(vec![]);
-    ctxt.write::<U8>(31); // Byte::inner
+    let mut writer = FormatWriter::new(vec![]);
+    writer.write::<U8>(31); // Byte::inner
 
-    let scope = ReadScope::new(ctxt.buffer());
+    let scope = ReadScope::new(writer.buffer());
     let singleton = scope.read::<fixture::Byte>().unwrap();
 
-    match binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.ctxt()).unwrap() {
+    match binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.reader()).unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(singleton.inner(), 31);
 
@@ -50,14 +50,14 @@ fn valid_singleton() {
 
 #[test]
 fn valid_singleton_trailing() {
-    let mut ctxt = WriteCtxt::new(vec![]);
-    ctxt.write::<U8>(255); // Byte::inner
-    ctxt.write::<U8>(42);
+    let mut writer = FormatWriter::new(vec![]);
+    writer.write::<U8>(255); // Byte::inner
+    writer.write::<U8>(42);
 
-    let scope = ReadScope::new(ctxt.buffer());
+    let scope = ReadScope::new(writer.buffer());
     let singleton = scope.read::<fixture::Byte>().unwrap();
 
-    match binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.ctxt()).unwrap() {
+    match binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.reader()).unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(singleton.inner(), 255);
 

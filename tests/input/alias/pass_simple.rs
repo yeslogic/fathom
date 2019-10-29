@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_test_util::ddl::binary;
-use ddl_rt::{ReadError, ReadScope, WriteCtxt, U8};
+use ddl_rt::{ReadError, ReadScope, FormatWriter, U8};
 
 #[path = "../../snapshots/alias/pass_simple.rs"]
 mod fixture;
@@ -10,9 +10,9 @@ ddl_test_util::core_module!(FIXTURE, "../../snapshots/alias/pass_simple.core.ddl
 
 #[test]
 fn eof_inner() {
-    let ctxt = WriteCtxt::new(vec![]);
+    let writer = FormatWriter::new(vec![]);
 
-    let scope = ReadScope::new(ctxt.buffer());
+    let scope = ReadScope::new(writer.buffer());
     let singleton = scope.read::<fixture::Byte>();
 
     match singleton {
@@ -26,13 +26,13 @@ fn eof_inner() {
 
 #[test]
 fn valid_singleton() {
-    let mut ctxt = WriteCtxt::new(vec![]);
-    ctxt.write::<U8>(31); // Byte
+    let mut writer = FormatWriter::new(vec![]);
+    writer.write::<U8>(31); // Byte
 
-    let scope = ReadScope::new(ctxt.buffer());
+    let scope = ReadScope::new(writer.buffer());
 
     let inner = scope.read::<fixture::Byte>().unwrap();
-    let byte = binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.ctxt()).unwrap();
+    let byte = binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.reader()).unwrap();
 
     assert_eq!(inner, 31);
     assert_eq!(byte, binary::Term::Int(inner.into()));
@@ -42,14 +42,14 @@ fn valid_singleton() {
 
 #[test]
 fn valid_singleton_trailing() {
-    let mut ctxt = WriteCtxt::new(vec![]);
-    ctxt.write::<U8>(255); // Byte
-    ctxt.write::<U8>(42);
+    let mut writer = FormatWriter::new(vec![]);
+    writer.write::<U8>(255); // Byte
+    writer.write::<U8>(42);
 
-    let scope = ReadScope::new(ctxt.buffer());
+    let scope = ReadScope::new(writer.buffer());
 
     let inner = scope.read::<fixture::Byte>().unwrap();
-    let byte = binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.ctxt()).unwrap();
+    let byte = binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.reader()).unwrap();
 
     assert_eq!(inner, 255);
     assert_eq!(byte, binary::Term::Int(inner.into()));

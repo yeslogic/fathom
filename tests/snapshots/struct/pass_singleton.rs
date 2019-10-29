@@ -14,13 +14,13 @@ impl Byte {
     }
 }
 
-impl ddl_rt::Binary for Byte {
+impl ddl_rt::Format for Byte {
     type Host = Byte;
 }
 
-impl<'data> ddl_rt::ReadBinary<'data> for Byte {
-    fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<Byte, ddl_rt::ReadError> {
-        let inner = ctxt.read::<ddl_rt::U8>()?;
+impl<'data> ddl_rt::ReadFormat<'data> for Byte {
+    fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Byte, ddl_rt::ReadError> {
+        let inner = reader.read::<ddl_rt::U8>()?;
 
         Ok(Byte {
             inner,

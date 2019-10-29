@@ -3,7 +3,7 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::Binary;
+use crate::Format;
 
 /// An error produced while reading binary data.
 #[derive(Debug)]
@@ -74,8 +74,8 @@ impl<'data> ReadScope<'data> {
 
     /// Construct a new read context in this scope.
     #[inline]
-    pub fn ctxt(&self) -> ReadCtxt<'data> {
-        ReadCtxt {
+    pub fn reader(&self) -> FormatReader<'data> {
+        FormatReader {
             scope: *self,
             offset: 0,
         }
@@ -94,25 +94,25 @@ impl<'data> ReadScope<'data> {
 
     /// Read some binary data in the context.
     #[inline]
-    pub fn read<T: ReadBinary<'data>>(&self) -> Result<T::Host, ReadError> {
-        self.ctxt().read::<T>()
+    pub fn read<T: ReadFormat<'data>>(&self) -> Result<T::Host, ReadError> {
+        self.reader().read::<T>()
     }
 
     /// Read some binary data in the context without bounds checking.
     #[inline]
-    pub unsafe fn read_unchecked<T: ReadBinaryUnchecked<'data>>(&mut self) -> T::Host {
-        self.ctxt().read_unchecked::<T>()
+    pub unsafe fn read_unchecked<T: ReadFormatUnchecked<'data>>(&mut self) -> T::Host {
+        self.reader().read_unchecked::<T>()
     }
 }
 
-/// These can be created by calling `ReadScope::ctxt`.
+/// These can be created by calling `ReadScope::reader`.
 #[derive(Clone)]
-pub struct ReadCtxt<'data> {
+pub struct FormatReader<'data> {
     scope: ReadScope<'data>,
     offset: usize,
 }
 
-impl<'data> ReadCtxt<'data> {
+impl<'data> FormatReader<'data> {
     /// Create a new scope at this context's offset.
     #[inline]
     pub fn scope(&self) -> ReadScope<'data> {
@@ -121,13 +121,13 @@ impl<'data> ReadCtxt<'data> {
 
     /// Read some binary data in the context.
     #[inline]
-    pub fn read<T: ReadBinary<'data>>(&mut self) -> Result<T::Host, ReadError> {
+    pub fn read<T: ReadFormat<'data>>(&mut self) -> Result<T::Host, ReadError> {
         T::read(self)
     }
 
     /// Read some binary data in the context without bounds checking.
     #[inline]
-    pub unsafe fn read_unchecked<T: ReadBinaryUnchecked<'data>>(&mut self) -> T::Host {
+    pub unsafe fn read_unchecked<T: ReadFormatUnchecked<'data>>(&mut self) -> T::Host {
         T::read_unchecked(self)
     }
 
@@ -150,8 +150,8 @@ impl<'data> ReadCtxt<'data> {
     }
 }
 
-/// Binary types that can be read into host data structures without bounds checking.
-pub trait ReadBinaryUnchecked<'data>: Binary
+/// Binary format types that can be read into host data structures without bounds checking.
+pub trait ReadFormatUnchecked<'data>: Format
 where
     Self::Host: Sized,
 {
@@ -160,14 +160,14 @@ where
 
     /// Must read exactly `SIZE` bytes.
     /// Unsafe as it avoids per-byte bounds checking.
-    unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> Self::Host;
+    unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> Self::Host;
 }
 
-/// Binary types that can be read into host data structures.
-pub trait ReadBinary<'data>: Binary
+/// Binary format types that can be read into host data structures.
+pub trait ReadFormat<'data>: Format
 where
     Self::Host: Sized,
 {
     /// Read a host value in the context.
-    fn read(ctxt: &mut ReadCtxt<'data>) -> Result<Self::Host, ReadError>;
+    fn read(reader: &mut FormatReader<'data>) -> Result<Self::Host, ReadError>;
 }
