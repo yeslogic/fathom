@@ -5,8 +5,8 @@
 mod read;
 mod write;
 
-pub use read::{ReadCtxt, ReadEofError, ReadError, ReadFormat, ReadFormatUnchecked, ReadScope};
-pub use write::{WriteCtxt, WriteFormat};
+pub use read::{FormatReader, ReadEofError, ReadError, ReadFormat, ReadFormatUnchecked, ReadScope};
+pub use write::{FormatWriter, WriteFormat};
 
 /// Binary formats with a corresponding host representation.
 pub trait Format {
@@ -26,7 +26,7 @@ impl Format for InvalidDataDescription {
 
 impl<'data> ReadFormat<'data> for InvalidDataDescription {
     #[inline]
-    fn read(_: &mut ReadCtxt<'data>) -> Result<InvalidDataDescription, ReadError> {
+    fn read(_: &mut FormatReader<'data>) -> Result<InvalidDataDescription, ReadError> {
         Err(ReadError::InvalidDataDescription)
     }
 }
@@ -39,14 +39,14 @@ impl<'data> ReadFormatUnchecked<'data> for U8 {
     const SIZE: usize = std::mem::size_of::<u8>();
 
     #[inline]
-    unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> u8 {
-        ctxt.read_unchecked_u8()
+    unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> u8 {
+        reader.read_unchecked_u8()
     }
 }
 
 impl WriteFormat for U8 {
-    fn write(ctxt: &mut WriteCtxt, value: u8) {
-        ctxt.write_u8(value);
+    fn write(writer: &mut FormatWriter, value: u8) {
+        writer.write_u8(value);
     }
 }
 
@@ -58,17 +58,17 @@ impl<'data> ReadFormatUnchecked<'data> for U16Le {
     const SIZE: usize = std::mem::size_of::<u16>();
 
     #[inline]
-    unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> u16 {
-        let b0 = u16::from(ctxt.read_unchecked::<U8>());
-        let b1 = u16::from(ctxt.read_unchecked::<U8>());
+    unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> u16 {
+        let b0 = u16::from(reader.read_unchecked::<U8>());
+        let b1 = u16::from(reader.read_unchecked::<U8>());
         b0 | (b1 << 8)
     }
 }
 
 impl WriteFormat for U16Le {
-    fn write(ctxt: &mut WriteCtxt, value: u16) {
-        ctxt.write_u8(value as u8);
-        ctxt.write_u8((value >> 8) as u8);
+    fn write(writer: &mut FormatWriter, value: u16) {
+        writer.write_u8(value as u8);
+        writer.write_u8((value >> 8) as u8);
     }
 }
 
@@ -80,17 +80,17 @@ impl<'data> ReadFormatUnchecked<'data> for U16Be {
     const SIZE: usize = std::mem::size_of::<u16>();
 
     #[inline]
-    unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> u16 {
-        let b0 = u16::from(ctxt.read_unchecked::<U8>());
-        let b1 = u16::from(ctxt.read_unchecked::<U8>());
+    unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> u16 {
+        let b0 = u16::from(reader.read_unchecked::<U8>());
+        let b1 = u16::from(reader.read_unchecked::<U8>());
         (b0 << 8) | b1
     }
 }
 
 impl WriteFormat for U16Be {
-    fn write(ctxt: &mut WriteCtxt, value: u16) {
-        ctxt.write_u8((value >> 8) as u8);
-        ctxt.write_u8(value as u8);
+    fn write(writer: &mut FormatWriter, value: u16) {
+        writer.write_u8((value >> 8) as u8);
+        writer.write_u8(value as u8);
     }
 }
 
@@ -102,21 +102,21 @@ impl<'data> ReadFormatUnchecked<'data> for U32Le {
     const SIZE: usize = std::mem::size_of::<u32>();
 
     #[inline]
-    unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> u32 {
-        let b0 = u32::from(ctxt.read_unchecked::<U8>());
-        let b1 = u32::from(ctxt.read_unchecked::<U8>());
-        let b2 = u32::from(ctxt.read_unchecked::<U8>());
-        let b3 = u32::from(ctxt.read_unchecked::<U8>());
+    unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> u32 {
+        let b0 = u32::from(reader.read_unchecked::<U8>());
+        let b1 = u32::from(reader.read_unchecked::<U8>());
+        let b2 = u32::from(reader.read_unchecked::<U8>());
+        let b3 = u32::from(reader.read_unchecked::<U8>());
         b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)
     }
 }
 
 impl WriteFormat for U32Le {
-    fn write(ctxt: &mut WriteCtxt, value: u32) {
-        ctxt.write_u8(value as u8);
-        ctxt.write_u8((value >> 8) as u8);
-        ctxt.write_u8((value >> 16) as u8);
-        ctxt.write_u8((value >> 24) as u8);
+    fn write(writer: &mut FormatWriter, value: u32) {
+        writer.write_u8(value as u8);
+        writer.write_u8((value >> 8) as u8);
+        writer.write_u8((value >> 16) as u8);
+        writer.write_u8((value >> 24) as u8);
     }
 }
 
@@ -128,21 +128,21 @@ impl<'data> ReadFormatUnchecked<'data> for U32Be {
     const SIZE: usize = std::mem::size_of::<u32>();
 
     #[inline]
-    unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> u32 {
-        let b0 = u32::from(ctxt.read_unchecked::<U8>());
-        let b1 = u32::from(ctxt.read_unchecked::<U8>());
-        let b2 = u32::from(ctxt.read_unchecked::<U8>());
-        let b3 = u32::from(ctxt.read_unchecked::<U8>());
+    unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> u32 {
+        let b0 = u32::from(reader.read_unchecked::<U8>());
+        let b1 = u32::from(reader.read_unchecked::<U8>());
+        let b2 = u32::from(reader.read_unchecked::<U8>());
+        let b3 = u32::from(reader.read_unchecked::<U8>());
         (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
     }
 }
 
 impl WriteFormat for U32Be {
-    fn write(ctxt: &mut WriteCtxt, value: u32) {
-        ctxt.write_u8((value >> 24) as u8);
-        ctxt.write_u8((value >> 16) as u8);
-        ctxt.write_u8((value >> 8) as u8);
-        ctxt.write_u8(value as u8);
+    fn write(writer: &mut FormatWriter, value: u32) {
+        writer.write_u8((value >> 24) as u8);
+        writer.write_u8((value >> 16) as u8);
+        writer.write_u8((value >> 8) as u8);
+        writer.write_u8(value as u8);
     }
 }
 
@@ -154,29 +154,29 @@ impl<'data> ReadFormatUnchecked<'data> for U64Le {
     const SIZE: usize = std::mem::size_of::<u64>();
 
     #[inline]
-    unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> u64 {
-        let b0 = u64::from(ctxt.read_unchecked::<U8>());
-        let b1 = u64::from(ctxt.read_unchecked::<U8>());
-        let b2 = u64::from(ctxt.read_unchecked::<U8>());
-        let b3 = u64::from(ctxt.read_unchecked::<U8>());
-        let b4 = u64::from(ctxt.read_unchecked::<U8>());
-        let b5 = u64::from(ctxt.read_unchecked::<U8>());
-        let b6 = u64::from(ctxt.read_unchecked::<U8>());
-        let b7 = u64::from(ctxt.read_unchecked::<U8>());
+    unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> u64 {
+        let b0 = u64::from(reader.read_unchecked::<U8>());
+        let b1 = u64::from(reader.read_unchecked::<U8>());
+        let b2 = u64::from(reader.read_unchecked::<U8>());
+        let b3 = u64::from(reader.read_unchecked::<U8>());
+        let b4 = u64::from(reader.read_unchecked::<U8>());
+        let b5 = u64::from(reader.read_unchecked::<U8>());
+        let b6 = u64::from(reader.read_unchecked::<U8>());
+        let b7 = u64::from(reader.read_unchecked::<U8>());
         b0 | (b1 << 8) | (b2 << 16) | (b3 << 24) | (b4 << 32) | (b5 << 40) | (b6 << 48) | (b7 << 56)
     }
 }
 
 impl WriteFormat for U64Le {
-    fn write(ctxt: &mut WriteCtxt, value: u64) {
-        ctxt.write_u8(value as u8);
-        ctxt.write_u8((value >> 8) as u8);
-        ctxt.write_u8((value >> 16) as u8);
-        ctxt.write_u8((value >> 24) as u8);
-        ctxt.write_u8((value >> 32) as u8);
-        ctxt.write_u8((value >> 40) as u8);
-        ctxt.write_u8((value >> 48) as u8);
-        ctxt.write_u8((value >> 56) as u8);
+    fn write(writer: &mut FormatWriter, value: u64) {
+        writer.write_u8(value as u8);
+        writer.write_u8((value >> 8) as u8);
+        writer.write_u8((value >> 16) as u8);
+        writer.write_u8((value >> 24) as u8);
+        writer.write_u8((value >> 32) as u8);
+        writer.write_u8((value >> 40) as u8);
+        writer.write_u8((value >> 48) as u8);
+        writer.write_u8((value >> 56) as u8);
     }
 }
 
@@ -188,29 +188,29 @@ impl<'data> ReadFormatUnchecked<'data> for U64Be {
     const SIZE: usize = std::mem::size_of::<u64>();
 
     #[inline]
-    unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> u64 {
-        let b0 = u64::from(ctxt.read_unchecked::<U8>());
-        let b1 = u64::from(ctxt.read_unchecked::<U8>());
-        let b2 = u64::from(ctxt.read_unchecked::<U8>());
-        let b3 = u64::from(ctxt.read_unchecked::<U8>());
-        let b4 = u64::from(ctxt.read_unchecked::<U8>());
-        let b5 = u64::from(ctxt.read_unchecked::<U8>());
-        let b6 = u64::from(ctxt.read_unchecked::<U8>());
-        let b7 = u64::from(ctxt.read_unchecked::<U8>());
+    unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> u64 {
+        let b0 = u64::from(reader.read_unchecked::<U8>());
+        let b1 = u64::from(reader.read_unchecked::<U8>());
+        let b2 = u64::from(reader.read_unchecked::<U8>());
+        let b3 = u64::from(reader.read_unchecked::<U8>());
+        let b4 = u64::from(reader.read_unchecked::<U8>());
+        let b5 = u64::from(reader.read_unchecked::<U8>());
+        let b6 = u64::from(reader.read_unchecked::<U8>());
+        let b7 = u64::from(reader.read_unchecked::<U8>());
         (b0 << 56) | (b1 << 48) | (b2 << 40) | (b3 << 32) | (b4 << 24) | (b5 << 16) | (b6 << 8) | b7
     }
 }
 
 impl WriteFormat for U64Be {
-    fn write(ctxt: &mut WriteCtxt, value: u64) {
-        ctxt.write_u8((value >> 56) as u8);
-        ctxt.write_u8((value >> 48) as u8);
-        ctxt.write_u8((value >> 40) as u8);
-        ctxt.write_u8((value >> 32) as u8);
-        ctxt.write_u8((value >> 24) as u8);
-        ctxt.write_u8((value >> 16) as u8);
-        ctxt.write_u8((value >> 8) as u8);
-        ctxt.write_u8(value as u8);
+    fn write(writer: &mut FormatWriter, value: u64) {
+        writer.write_u8((value >> 56) as u8);
+        writer.write_u8((value >> 48) as u8);
+        writer.write_u8((value >> 40) as u8);
+        writer.write_u8((value >> 32) as u8);
+        writer.write_u8((value >> 24) as u8);
+        writer.write_u8((value >> 16) as u8);
+        writer.write_u8((value >> 8) as u8);
+        writer.write_u8(value as u8);
     }
 }
 
@@ -224,9 +224,9 @@ macro_rules! impl_uint_marker {
 
         impl<'data> ReadFormat<'data> for $UInt {
             #[inline]
-            fn read(ctxt: &mut ReadCtxt<'data>) -> Result<$uint, ReadError> {
-                ctxt.check_available($UInt::SIZE)?;
-                Ok(unsafe { ctxt.read_unchecked::<$UInt>() })
+            fn read(reader: &mut FormatReader<'data>) -> Result<$uint, ReadError> {
+                reader.check_available($UInt::SIZE)?;
+                Ok(unsafe { reader.read_unchecked::<$UInt>() })
             }
         }
     };
@@ -278,22 +278,22 @@ macro_rules! impl_int_marker {
             const SIZE: usize = std::mem::size_of::<$int>();
 
             #[inline]
-            unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> $int {
-                ctxt.read_unchecked::<$UInt>() as $int
+            unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> $int {
+                reader.read_unchecked::<$UInt>() as $int
             }
         }
 
         impl<'data> ReadFormat<'data> for $Int {
             #[inline]
-            fn read(ctxt: &mut ReadCtxt<'data>) -> Result<$int, ReadError> {
-                ctxt.read::<$UInt>().map(|value| value as $int)
+            fn read(reader: &mut FormatReader<'data>) -> Result<$int, ReadError> {
+                reader.read::<$UInt>().map(|value| value as $int)
             }
         }
 
         impl WriteFormat for $Int {
             #[inline]
-            fn write(ctxt: &mut WriteCtxt, value: $int) {
-                ctxt.write::<$UInt>(unsafe { std::mem::transmute::<$int, _>(value) });
+            fn write(writer: &mut FormatWriter, value: $int) {
+                writer.write::<$UInt>(unsafe { std::mem::transmute::<$int, _>(value) });
             }
         }
     };
@@ -333,23 +333,24 @@ macro_rules! impl_float_marker {
             const SIZE: usize = std::mem::size_of::<$float>();
 
             #[inline]
-            unsafe fn read_unchecked(ctxt: &mut ReadCtxt<'data>) -> $float {
-                std::mem::transmute::<_, $float>(ctxt.read_unchecked::<$UInt>())
+            unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> $float {
+                std::mem::transmute::<_, $float>(reader.read_unchecked::<$UInt>())
             }
         }
 
         impl<'data> ReadFormat<'data> for $Float {
             #[inline]
-            fn read(ctxt: &mut ReadCtxt<'data>) -> Result<$float, ReadError> {
-                ctxt.read::<$UInt>()
+            fn read(reader: &mut FormatReader<'data>) -> Result<$float, ReadError> {
+                reader
+                    .read::<$UInt>()
                     .map(|value| unsafe { std::mem::transmute::<_, $float>(value) })
             }
         }
 
         impl WriteFormat for $Float {
             #[inline]
-            fn write(ctxt: &mut WriteCtxt, value: $float) {
-                ctxt.write::<$UInt>(unsafe { std::mem::transmute::<$float, _>(value) });
+            fn write(writer: &mut FormatWriter, value: $float) {
+                writer.write::<$UInt>(unsafe { std::mem::transmute::<$float, _>(value) });
             }
         }
     };
@@ -367,135 +368,135 @@ mod tests {
     use super::*;
 
     fn round_trip<'data, T: WriteFormat + ReadFormat<'data>>(
-        ctxt: &'data mut WriteCtxt,
+        writer: &'data mut FormatWriter,
         value: T::Host,
     ) -> T::Host {
-        ctxt.write::<T>(value);
-        let ctxt = ReadScope::new(ctxt.buffer());
-        ctxt.read::<T>().unwrap()
+        writer.write::<T>(value);
+        let reader = ReadScope::new(writer.buffer());
+        reader.read::<T>().unwrap()
     }
 
     proptest! {
         #[test]
         fn u8_round_trip(value: u8) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<U8>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<U8>(&mut writer, value), value);
         }
 
         #[test]
         fn u16le_round_trip(value: u16) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<U16Le>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<U16Le>(&mut writer, value), value);
         }
 
         #[test]
         fn u16be_round_trip(value: u16) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<U16Be>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<U16Be>(&mut writer, value), value);
         }
 
         #[test]
         fn u32le_round_trip(value: u32) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<U32Le>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<U32Le>(&mut writer, value), value);
         }
 
         #[test]
         fn u32be_round_trip(value: u32) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<U32Be>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<U32Be>(&mut writer, value), value);
         }
 
         #[test]
         fn u64le_round_trip(value: u64) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<U64Le>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<U64Le>(&mut writer, value), value);
         }
 
         #[test]
         fn u64be_round_trip(value: u64) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<U64Be>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<U64Be>(&mut writer, value), value);
         }
         #[test]
         fn i8_round_trip(value: i8) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<I8>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<I8>(&mut writer, value), value);
         }
 
         #[test]
         fn i16le_round_trip(value: i16) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<I16Le>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<I16Le>(&mut writer, value), value);
         }
 
         #[test]
         fn i16be_round_trip(value: i16) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<I16Be>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<I16Be>(&mut writer, value), value);
         }
 
         #[test]
         fn i32le_round_trip(value: i32) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<I32Le>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<I32Le>(&mut writer, value), value);
         }
 
         #[test]
         fn i32be_round_trip(value: i32) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<I32Be>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<I32Be>(&mut writer, value), value);
         }
 
         #[test]
         fn i64le_round_trip(value: i64) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<I64Le>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<I64Le>(&mut writer, value), value);
         }
 
         #[test]
         fn i64be_round_trip(value: i64) {
-            let mut ctxt = WriteCtxt::new(vec![]);
-            prop_assert_eq!(round_trip::<I64Be>(&mut ctxt, value), value);
+            let mut writer = FormatWriter::new(vec![]);
+            prop_assert_eq!(round_trip::<I64Be>(&mut writer, value), value);
         }
 
         #[test]
         fn f32le_round_trip(value in proptest::num::f32::ANY) {
-            let mut ctxt = WriteCtxt::new(vec![]);
+            let mut writer = FormatWriter::new(vec![]);
             if value.is_nan() {
-                prop_assert!(round_trip::<F32Le>(&mut ctxt, value).is_nan());
+                prop_assert!(round_trip::<F32Le>(&mut writer, value).is_nan());
             } else {
-                prop_assert_eq!(round_trip::<F32Le>(&mut ctxt, value), value);
+                prop_assert_eq!(round_trip::<F32Le>(&mut writer, value), value);
             }
         }
 
         #[test]
         fn f32be_round_trip(value in proptest::num::f32::ANY) {
-            let mut ctxt = WriteCtxt::new(vec![]);
+            let mut writer = FormatWriter::new(vec![]);
             if value.is_nan() {
-                prop_assert!(round_trip::<F32Be>(&mut ctxt, value).is_nan());
+                prop_assert!(round_trip::<F32Be>(&mut writer, value).is_nan());
             } else {
-                prop_assert_eq!(round_trip::<F32Be>(&mut ctxt, value), value);
+                prop_assert_eq!(round_trip::<F32Be>(&mut writer, value), value);
             }
         }
 
         #[test]
         fn f64le_round_trip(value in proptest::num::f64::ANY) {
-            let mut ctxt = WriteCtxt::new(vec![]);
+            let mut writer = FormatWriter::new(vec![]);
             if value.is_nan() {
-                prop_assert!(round_trip::<F64Le>(&mut ctxt, value).is_nan());
+                prop_assert!(round_trip::<F64Le>(&mut writer, value).is_nan());
             } else {
-                prop_assert_eq!(round_trip::<F64Le>(&mut ctxt, value), value);
+                prop_assert_eq!(round_trip::<F64Le>(&mut writer, value), value);
             }
         }
 
         #[test]
         fn f64be_round_trip(value in proptest::num::f64::ANY) {
-            let mut ctxt = WriteCtxt::new(vec![]);
+            let mut writer = FormatWriter::new(vec![]);
             if value.is_nan() {
-                prop_assert!(round_trip::<F64Be>(&mut ctxt, value).is_nan());
+                prop_assert!(round_trip::<F64Be>(&mut writer, value).is_nan());
             } else {
-                prop_assert_eq!(round_trip::<F64Be>(&mut ctxt, value), value);
+                prop_assert_eq!(round_trip::<F64Be>(&mut writer, value), value);
             }
         }
     }

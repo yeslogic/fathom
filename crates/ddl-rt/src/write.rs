@@ -1,14 +1,14 @@
 use crate::Format;
 
 /// An in-memory buffer that can be written into.
-pub struct WriteCtxt {
+pub struct FormatWriter {
     buffer: Vec<u8>,
 }
 
-impl WriteCtxt {
+impl FormatWriter {
     /// Create a new buffer from an existing set of bytes.
-    pub fn new(buffer: Vec<u8>) -> WriteCtxt {
-        WriteCtxt { buffer }
+    pub fn new(buffer: Vec<u8>) -> FormatWriter {
+        FormatWriter { buffer }
     }
 
     /// Get the buffer.
@@ -33,6 +33,6 @@ impl WriteCtxt {
 
 /// Binary format types that can be written to a buffer from a host representation.
 pub trait WriteFormat: Format {
-    /// Write the binary representation of `Self::Host` to `ctxt`.
-    fn write(ctxt: &mut WriteCtxt, value: Self::Host);
+    /// Write the binary representation of `Self::Host` to `writer`.
+    fn write(writer: &mut FormatWriter, value: Self::Host);
 }

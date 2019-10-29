@@ -14,7 +14,7 @@ impl ddl_rt::Format for Empty {
 }
 
 impl<'data> ddl_rt::ReadFormat<'data> for Empty {
-    fn read(_: &mut ddl_rt::ReadCtxt<'data>) -> Result<Empty, ddl_rt::ReadError> {
+    fn read(_: &mut ddl_rt::FormatReader<'data>) -> Result<Empty, ddl_rt::ReadError> {
         Ok(Empty {})
     }
 }

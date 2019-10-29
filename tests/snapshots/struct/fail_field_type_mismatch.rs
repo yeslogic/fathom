@@ -27,10 +27,10 @@ impl ddl_rt::Format for Foo {
 }
 
 impl<'data> ddl_rt::ReadFormat<'data> for Foo {
-    fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<Foo, ddl_rt::ReadError> {
-        let field_type = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
-        let field_true = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
-        let field_false = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
+    fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Foo, ddl_rt::ReadError> {
+        let field_type = reader.read::<ddl_rt::InvalidDataDescription>()?;
+        let field_true = reader.read::<ddl_rt::InvalidDataDescription>()?;
+        let field_false = reader.read::<ddl_rt::InvalidDataDescription>()?;
 
         Ok(Foo {
             field_type,

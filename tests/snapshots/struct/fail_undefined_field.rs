@@ -22,9 +22,9 @@ impl ddl_rt::Format for Pair {
 }
 
 impl<'data> ddl_rt::ReadFormat<'data> for Pair {
-    fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<Pair, ddl_rt::ReadError> {
-        let first = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
-        let second = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
+    fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Pair, ddl_rt::ReadError> {
+        let first = reader.read::<ddl_rt::InvalidDataDescription>()?;
+        let second = reader.read::<ddl_rt::InvalidDataDescription>()?;
 
         Ok(Pair {
             first,

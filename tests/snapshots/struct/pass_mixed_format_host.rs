@@ -24,9 +24,9 @@ impl ddl_rt::Format for Test {
 }
 
 impl<'data> ddl_rt::ReadFormat<'data> for Test {
-    fn read(ctxt: &mut ddl_rt::ReadCtxt<'data>) -> Result<Test, ddl_rt::ReadError> {
-        let format = ctxt.read::<ddl_rt::U32Be>()?;
-        let host = ctxt.read::<ddl_rt::InvalidDataDescription>()?;
+    fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Test, ddl_rt::ReadError> {
+        let format = reader.read::<ddl_rt::U32Be>()?;
+        let host = reader.read::<ddl_rt::InvalidDataDescription>()?;
 
         Ok(Test {
             format,
