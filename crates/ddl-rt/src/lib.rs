@@ -14,6 +14,12 @@ pub trait Format {
     type Host;
 }
 
+#[derive(Copy, Clone)]
+pub enum If<T, F> {
+    True(T),
+    False(F),
+}
+
 /// Marks a section of data that was produced by an invalid data description.
 ///
 /// Attempting to read this will always result in read error.
