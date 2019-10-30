@@ -3,6 +3,7 @@ use codespan_reporting::diagnostic::Diagnostic;
 use inflector::Inflector;
 use num_bigint::BigInt;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::{core, rust};
 
@@ -142,20 +143,50 @@ fn compile_alias(
             is_copy,
             host_ty,
         } => {
-            // FIXME: Generate unit struct and coercions if necessary!
-
             let doc = core_alias.doc.clone();
             let name = core_alias.name.0.to_pascal_case(); // TODO: name avoidance
-            (
-                core_alias.name.clone(),
-                CompiledItem::Type {
-                    span,
-                    name: name.clone(),
-                    is_copy,
-                    host_ty,
+            let mut derives = Vec::new();
+            if is_copy {
+                derives.push("Copy".to_owned());
+                derives.push("Clone".to_owned());
+            }
+
+            match ty {
+                ty @ rust::Type::If(_, _, _) => match host_ty {
+                    None => unreachable!("type level if for non-format type"),
+                    Some(host_ty) => (
+                        core_alias.name.clone(),
+                        CompiledItem::Type {
+                            span,
+                            name: name.clone(),
+                            is_copy,
+                            host_ty: Some(rust::Type::Var(name.clone())),
+                        },
+                        Some(rust::Item::Struct(rust::StructType {
+                            derives,
+                            doc,
+                            name,
+                            fields: vec![rust::TypeField {
+                                doc: Arc::new([]),
+                                name: "inner".to_owned(),
+                                format_ty: ty,
+                                host_ty,
+                                by_ref: !is_copy,
+                            }],
+                        })),
+                    ),
                 },
-                Some(rust::Item::Alias(rust::Alias { doc, name, ty })),
-            )
+                ty => (
+                    core_alias.name.clone(),
+                    CompiledItem::Type {
+                        span,
+                        name: name.clone(),
+                        is_copy,
+                        host_ty,
+                    },
+                    Some(rust::Item::Alias(rust::Alias { doc, name, ty })),
+                ),
+            }
         }
     }
 }
@@ -371,7 +402,7 @@ fn compile_term(
             ty: rust::Type::F64,
             is_const: true,
         },
-        core::Term::BoolElim(_, head, if_true, if_false) => {
+        core::Term::BoolElim(span, head, if_true, if_false) => {
             match (
                 compile_term(context, head, report),
                 compile_term(context, if_true, report),
@@ -402,15 +433,19 @@ fn compile_term(
                         is_copy: false_is_copy,
                         host_ty: false_host_ty,
                     },
-                ) => CompiledTerm::Type {
-                    ty: rust::Type::If(Box::new(term), Box::new(true_ty), Box::new(false_ty)),
-                    is_copy: true_is_copy && false_is_copy,
-                    host_ty: match (true_host_ty, false_host_ty) {
-                        (Some(true_host_ty), Some(false_host_ty)) => Some(rust::Type::Rt(
-                            rust::RtType::Either(Box::new(true_host_ty), Box::new(false_host_ty)),
-                        )),
-                        (_, _) => None,
+                ) => match (true_host_ty, false_host_ty) {
+                    (Some(true_host_ty), Some(false_host_ty)) => CompiledTerm::Type {
+                        ty: rust::Type::If(Box::new(term), Box::new(true_ty), Box::new(false_ty)),
+                        is_copy: true_is_copy && false_is_copy,
+                        host_ty: Some(rust::Type::Rt(rust::RtType::Either(
+                            Box::new(true_host_ty),
+                            Box::new(false_host_ty),
+                        ))),
                     },
+                    (_, _) => {
+                        report(diagnostics::error::type_level_if_expression(file_id, *span));
+                        CompiledTerm::Error
+                    }
                 },
 
                 (_, CompiledTerm::Erased, CompiledTerm::Erased) => CompiledTerm::Erased,

@@ -8,6 +8,19 @@ use crate::core;
 pub mod error {
     use super::*;
 
+    pub fn type_level_if_expression(file_id: FileId, span: Span) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: "cannot compile type level if expression for non-format types".to_owned(),
+            primary_label: Label::new(file_id, span, "type level if expression"),
+            secondary_labels: vec![],
+            notes: vec![
+                "The Rust compiler back-end does not support type-level expressions".to_owned(),
+            ],
+        }
+    }
+
     pub fn unconstrained_int(file_id: FileId, span: Span) -> Diagnostic {
         Diagnostic {
             severity: Severity::Error,
