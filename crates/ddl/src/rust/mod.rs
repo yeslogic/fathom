@@ -84,12 +84,13 @@ pub enum Type {
     Bool,
 
     Rt(RtType),
-    // TODO: this is an rt type
-    If(Box<Term>, Box<Type>, Box<Type>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RtType {
+    /// The condition is `Some` if this is a format description, and `None` if
+    /// it is a host type.
+    If(Option<Box<Term>>, Box<Type>, Box<Type>),
     U8,
     U16Le,
     U16Be,

@@ -1,5 +1,3 @@
-//~ SKIP: not yet implemented: type-level if expressions
-
 foo =
     true;
 

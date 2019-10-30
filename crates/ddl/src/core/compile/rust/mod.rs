@@ -142,9 +142,10 @@ fn compile_alias(
             is_copy,
             host_ty,
         } => {
+            // FIXME: Generate unit struct and coercions if necessary!
+
             let doc = core_alias.doc.clone();
             let name = core_alias.name.0.to_pascal_case(); // TODO: name avoidance
-
             (
                 core_alias.name.clone(),
                 CompiledItem::Type {
@@ -370,7 +371,7 @@ fn compile_term(
             ty: rust::Type::F64,
             is_const: true,
         },
-        core::Term::BoolElim(span, head, if_true, if_false) => {
+        core::Term::BoolElim(_, head, if_true, if_false) => {
             match (
                 compile_term(context, head, report),
                 compile_term(context, if_true, report),
@@ -390,17 +391,31 @@ fn compile_term(
                     is_const: false,
                 },
                 (
-                    CompiledTerm::Term { .. },
-                    CompiledTerm::Type { .. },
-                    CompiledTerm::Type { .. },
-                ) => {
-                    report(crate::diagnostics::bug::not_yet_implemented(
-                        context.file_id,
-                        *span,
-                        "type-level if expressions",
-                    ));
-                    CompiledTerm::Error
-                }
+                    CompiledTerm::Term { term, .. },
+                    CompiledTerm::Type {
+                        ty: true_ty,
+                        is_copy: true_is_copy,
+                        host_ty: true_host_ty,
+                    },
+                    CompiledTerm::Type {
+                        ty: false_ty,
+                        is_copy: false_is_copy,
+                        host_ty: false_host_ty,
+                    },
+                ) => CompiledTerm::Type {
+                    ty: rust::Type::Rt(rust::RtType::If(
+                        Some(Box::new(term)),
+                        Box::new(true_ty),
+                        Box::new(false_ty),
+                    )),
+                    is_copy: true_is_copy && false_is_copy,
+                    host_ty: match (true_host_ty, false_host_ty) {
+                        (Some(true_host_ty), Some(false_host_ty)) => Some(rust::Type::Rt(
+                            rust::RtType::If(None, Box::new(true_host_ty), Box::new(false_host_ty)),
+                        )),
+                        (_, _) => None,
+                    },
+                },
 
                 (_, CompiledTerm::Erased, CompiledTerm::Erased) => CompiledTerm::Erased,
                 (CompiledTerm::Error, _, _)
