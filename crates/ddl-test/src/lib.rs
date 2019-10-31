@@ -33,6 +33,7 @@ mod alias {
     test!(pass_if_else_ann_type, "alias/pass_if_else_ann_type.ddl");
     test!(pass_if_else_format_type, "alias/pass_if_else_format_type.ddl");
     test!(pass_if_else_format_type_item, "alias/pass_if_else_format_type_item.ddl");
+    test!(pass_if_else_if_else_format_type, "alias/pass_if_else_if_else_format_type.ddl");
     test!(pass_if_else_term, "alias/pass_if_else_term.ddl");
     test!(pass_if_else_term_item, "alias/pass_if_else_term_item.ddl");
     test!(pass_simple, "alias/pass_simple.ddl");
