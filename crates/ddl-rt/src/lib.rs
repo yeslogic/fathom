@@ -5,6 +5,7 @@
 mod read;
 mod write;
 
+pub use either::Either;
 pub use read::{FormatReader, ReadEofError, ReadError, ReadFormat, ReadFormatUnchecked, ReadScope};
 pub use write::{FormatWriter, WriteFormat};
 
@@ -12,12 +13,6 @@ pub use write::{FormatWriter, WriteFormat};
 pub trait Format {
     /// The host representation of this binary format.
     type Host;
-}
-
-#[derive(Copy, Clone)]
-pub enum If<T, F> {
-    True(T),
-    False(F),
 }
 
 /// Marks a section of data that was produced by an invalid data description.
