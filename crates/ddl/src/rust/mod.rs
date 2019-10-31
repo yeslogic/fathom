@@ -71,6 +71,8 @@ pub struct TypeField {
 pub enum Type {
     Var(String),
 
+    If(Box<Term>, Box<Type>, Box<Type>),
+
     U8,
     U16,
     U32,
@@ -88,9 +90,7 @@ pub enum Type {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RtType {
-    /// The condition is `Some` if this is a format description, and `None` if
-    /// it is a host type.
-    If(Option<Box<Term>>, Box<Type>, Box<Type>),
+    Either(Box<Type>, Box<Type>),
     U8,
     U16Le,
     U16Be,

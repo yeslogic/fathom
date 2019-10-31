@@ -5,11 +5,11 @@ pub const IS_BE: bool = true;
 
 #[derive(Copy, Clone)]
 pub struct Test {
-    bar: ddl_rt::If<f32, f32>,
+    bar: ddl_rt::Either<f32, f32>,
 }
 
 impl Test {
-    pub fn bar(&self) -> ddl_rt::If<f32, f32> {
+    pub fn bar(&self) -> ddl_rt::Either<f32, f32> {
         self.bar
     }
 }
@@ -20,7 +20,7 @@ impl ddl_rt::Format for Test {
 
 impl<'data> ddl_rt::ReadFormat<'data> for Test {
     fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Test, ddl_rt::ReadError> {
-        let bar = if IS_BE { ddl_rt::If::True(reader.read::<ddl_rt::F32Be>()?) } else { ddl_rt::If::True(reader.read::<ddl_rt::F32Le>()?) };
+        let bar = if IS_BE { ddl_rt::Either::Left(reader.read::<ddl_rt::F32Be>()?) } else { ddl_rt::Either::Right(reader.read::<ddl_rt::F32Le>()?) };
 
         Ok(Test {
             bar,

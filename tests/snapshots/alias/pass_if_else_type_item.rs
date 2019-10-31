@@ -3,4 +3,4 @@
 
 pub const FOO: bool = true;
 
-pub type Test = ddl_rt::If<f64, f32>;
+pub type Test = ddl_rt::InvalidDataDescription;

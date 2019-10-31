@@ -3,6 +3,9 @@ use std::io::prelude::*;
 
 use crate::rust::{Alias, Const, Function, Item, Module, RtType, StructType, Term, Type};
 
+// TODO: Make this path configurable
+const RT_NAME: &str = "ddl_rt";
+
 pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
     let pkg_version = env!("CARGO_PKG_VERSION");
@@ -148,7 +151,12 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
 
     // Format impl
 
-    writeln!(writer, "impl ddl_rt::Format for {} {{", struct_ty.name,)?;
+    writeln!(
+        writer,
+        "impl {rt}::Format for {struct_ty} {{",
+        rt = RT_NAME,
+        struct_ty = struct_ty.name,
+    )?;
     writeln!(writer, "    type Host = {};", struct_ty.name)?;
     writeln!(writer, "}}")?;
     writeln!(writer)?;
@@ -157,22 +165,25 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
 
     writeln!(
         writer,
-        "impl<'data> ddl_rt::ReadFormat<'data> for {} {{",
-        struct_ty.name,
+        "impl<'data> {rt}::ReadFormat<'data> for {struct_ty} {{",
+        rt = RT_NAME,
+        struct_ty = struct_ty.name,
     )?;
     if struct_ty.fields.is_empty() {
         writeln!(
             writer,
-            "    fn read(_: &mut ddl_rt::FormatReader<'data>) -> Result<{}, ddl_rt::ReadError> {{",
-            struct_ty.name,
+            "    fn read(_: &mut {rt}::FormatReader<'data>) -> Result<{struct_ty}, {rt}::ReadError> {{",
+            rt = RT_NAME,
+            struct_ty = struct_ty.name,
         )?;
         writeln!(writer, "        Ok({} {{}})", struct_ty.name)?;
         writeln!(writer, "    }}")?;
     } else {
         writeln!(
             writer,
-            "    fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<{}, ddl_rt::ReadError> {{",
-            struct_ty.name,
+            "    fn read(reader: &mut {rt}::FormatReader<'data>) -> Result<{struct_ty}, {rt}::ReadError> {{",
+            rt = RT_NAME,
+            struct_ty = struct_ty.name,
         )?;
         for field in &struct_ty.fields {
             write!(writer, "        let {} = ", field.name)?;
@@ -196,6 +207,7 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
 fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     match ty {
         Type::Var(name) => write!(writer, "{}", name),
+        Type::If(_, _, _) => write!(writer, "{rt}::InvalidDataDescription", rt = RT_NAME),
         Type::U8 => write!(writer, "u8"),
         Type::U16 => write!(writer, "u16"),
         Type::U32 => write!(writer, "u32"),
@@ -207,91 +219,81 @@ fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
         Type::F32 => write!(writer, "f32"),
         Type::F64 => write!(writer, "f64"),
         Type::Bool => write!(writer, "bool"),
-        Type::Rt(rt_ty) => {
-            // TODO: Make this path configurable
-            let ddl_rt = "ddl_rt";
-            match rt_ty {
-                RtType::If(_, lhs, rhs) => {
-                    write!(writer, "{}::If<", rt = ddl_rt)?;
-                    emit_ty(writer, lhs)?;
-                    write!(writer, ", ")?;
-                    emit_ty(writer, rhs)?;
-                    write!(writer, ">")
-                }
-                RtType::U8 => write!(writer, "{rt}::U8", rt = ddl_rt),
-                RtType::U16Le => write!(writer, "{rt}::U16Le", rt = ddl_rt),
-                RtType::U16Be => write!(writer, "{rt}::U16Be", rt = ddl_rt),
-                RtType::U32Le => write!(writer, "{rt}::U32Le", rt = ddl_rt),
-                RtType::U32Be => write!(writer, "{rt}::U32Be", rt = ddl_rt),
-                RtType::U64Le => write!(writer, "{rt}::U64Le", rt = ddl_rt),
-                RtType::U64Be => write!(writer, "{rt}::U64Be", rt = ddl_rt),
-                RtType::I8 => write!(writer, "{rt}::I8", rt = ddl_rt),
-                RtType::I16Le => write!(writer, "{rt}::I16Le", rt = ddl_rt),
-                RtType::I16Be => write!(writer, "{rt}::I16Be", rt = ddl_rt),
-                RtType::I32Le => write!(writer, "{rt}::I32Le", rt = ddl_rt),
-                RtType::I32Be => write!(writer, "{rt}::I32Be", rt = ddl_rt),
-                RtType::I64Le => write!(writer, "{rt}::I64Le", rt = ddl_rt),
-                RtType::I64Be => write!(writer, "{rt}::I64Be", rt = ddl_rt),
-                RtType::F32Le => write!(writer, "{rt}::F32Le", rt = ddl_rt),
-                RtType::F32Be => write!(writer, "{rt}::F32Be", rt = ddl_rt),
-                RtType::F64Le => write!(writer, "{rt}::F64Le", rt = ddl_rt),
-                RtType::F64Be => write!(writer, "{rt}::F64Be", rt = ddl_rt),
-                RtType::InvalidDataDescription => {
-                    write!(writer, "{rt}::InvalidDataDescription", rt = ddl_rt)
-                }
+        Type::Rt(rt_ty) => match rt_ty {
+            RtType::Either(lhs, rhs) => {
+                write!(writer, "{rt}::Either<", rt = RT_NAME)?;
+                emit_ty(writer, lhs)?;
+                write!(writer, ", ")?;
+                emit_ty(writer, rhs)?;
+                write!(writer, ">")
             }
-        }
+            RtType::U8 => write!(writer, "{rt}::U8", rt = RT_NAME),
+            RtType::U16Le => write!(writer, "{rt}::U16Le", rt = RT_NAME),
+            RtType::U16Be => write!(writer, "{rt}::U16Be", rt = RT_NAME),
+            RtType::U32Le => write!(writer, "{rt}::U32Le", rt = RT_NAME),
+            RtType::U32Be => write!(writer, "{rt}::U32Be", rt = RT_NAME),
+            RtType::U64Le => write!(writer, "{rt}::U64Le", rt = RT_NAME),
+            RtType::U64Be => write!(writer, "{rt}::U64Be", rt = RT_NAME),
+            RtType::I8 => write!(writer, "{rt}::I8", rt = RT_NAME),
+            RtType::I16Le => write!(writer, "{rt}::I16Le", rt = RT_NAME),
+            RtType::I16Be => write!(writer, "{rt}::I16Be", rt = RT_NAME),
+            RtType::I32Le => write!(writer, "{rt}::I32Le", rt = RT_NAME),
+            RtType::I32Be => write!(writer, "{rt}::I32Be", rt = RT_NAME),
+            RtType::I64Le => write!(writer, "{rt}::I64Le", rt = RT_NAME),
+            RtType::I64Be => write!(writer, "{rt}::I64Be", rt = RT_NAME),
+            RtType::F32Le => write!(writer, "{rt}::F32Le", rt = RT_NAME),
+            RtType::F32Be => write!(writer, "{rt}::F32Be", rt = RT_NAME),
+            RtType::F64Le => write!(writer, "{rt}::F64Le", rt = RT_NAME),
+            RtType::F64Be => write!(writer, "{rt}::F64Be", rt = RT_NAME),
+            RtType::InvalidDataDescription => {
+                write!(writer, "{rt}::InvalidDataDescription", rt = RT_NAME)
+            }
+        },
     }
 }
 
 fn emit_ty_read(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     match ty {
         Type::Var(name) => write!(writer, "reader.read::<{}>()?", name),
-        Type::Rt(rt_ty) => {
-            // TODO: Make this path configurable
-            let ddl_rt = "ddl_rt";
-            match rt_ty {
-                RtType::If(cond, lhs, rhs) => match cond {
-                    None => write!(
-                        writer,
-                        "reader.read::<{rt}::InvalidDataDescription>()?",
-                        rt = ddl_rt,
-                    ),
-                    Some(cond) => {
-                        write!(writer, "if ")?;
-                        emit_term(writer, cond)?;
-                        write!(writer, " {{ {rt}::If::True(", rt = ddl_rt)?;
-                        emit_ty_read(writer, lhs)?;
-                        write!(writer, ") }} else {{ {rt}::If::True(", rt = ddl_rt)?;
-                        emit_ty_read(writer, rhs)?;
-                        write!(writer, ") }}")
-                    }
-                },
-                RtType::U8 => write!(writer, "reader.read::<{rt}::U8>()?", rt = ddl_rt),
-                RtType::U16Le => write!(writer, "reader.read::<{rt}::U16Le>()?", rt = ddl_rt),
-                RtType::U16Be => write!(writer, "reader.read::<{rt}::U16Be>()?", rt = ddl_rt),
-                RtType::U32Le => write!(writer, "reader.read::<{rt}::U32Le>()?", rt = ddl_rt),
-                RtType::U32Be => write!(writer, "reader.read::<{rt}::U32Be>()?", rt = ddl_rt),
-                RtType::U64Le => write!(writer, "reader.read::<{rt}::U64Le>()?", rt = ddl_rt),
-                RtType::U64Be => write!(writer, "reader.read::<{rt}::U64Be>()?", rt = ddl_rt),
-                RtType::I8 => write!(writer, "reader.read::<{rt}::I8>()?", rt = ddl_rt),
-                RtType::I16Le => write!(writer, "reader.read::<{rt}::I16Le>()?", rt = ddl_rt),
-                RtType::I16Be => write!(writer, "reader.read::<{rt}::I16Be>()?", rt = ddl_rt),
-                RtType::I32Le => write!(writer, "reader.read::<{rt}::I32Le>()?", rt = ddl_rt),
-                RtType::I32Be => write!(writer, "reader.read::<{rt}::I32Be>()?", rt = ddl_rt),
-                RtType::I64Le => write!(writer, "reader.read::<{rt}::I64Le>()?", rt = ddl_rt),
-                RtType::I64Be => write!(writer, "reader.read::<{rt}::I64Be>()?", rt = ddl_rt),
-                RtType::F32Le => write!(writer, "reader.read::<{rt}::F32Le>()?", rt = ddl_rt),
-                RtType::F32Be => write!(writer, "reader.read::<{rt}::F32Be>()?", rt = ddl_rt),
-                RtType::F64Le => write!(writer, "reader.read::<{rt}::F64Le>()?", rt = ddl_rt),
-                RtType::F64Be => write!(writer, "reader.read::<{rt}::F64Be>()?", rt = ddl_rt),
-                RtType::InvalidDataDescription => write!(
-                    writer,
-                    "reader.read::<{rt}::InvalidDataDescription>()?",
-                    rt = ddl_rt,
-                ),
-            }
+        Type::If(cond, lhs, rhs) => {
+            write!(writer, "if ")?;
+            emit_term(writer, cond)?;
+            write!(writer, " {{ {rt}::Either::Left(", rt = RT_NAME)?;
+            emit_ty_read(writer, lhs)?;
+            write!(writer, ") }} else {{ {rt}::Either::Right(", rt = RT_NAME)?;
+            emit_ty_read(writer, rhs)?;
+            write!(writer, ") }}")
         }
+        Type::Rt(rt_ty) => match rt_ty {
+            RtType::Either(_, _) => write!(
+                writer,
+                "reader.read::<{rt}::InvalidDataDescription>()?",
+                rt = RT_NAME,
+            ),
+            RtType::U8 => write!(writer, "reader.read::<{rt}::U8>()?", rt = RT_NAME),
+            RtType::U16Le => write!(writer, "reader.read::<{rt}::U16Le>()?", rt = RT_NAME),
+            RtType::U16Be => write!(writer, "reader.read::<{rt}::U16Be>()?", rt = RT_NAME),
+            RtType::U32Le => write!(writer, "reader.read::<{rt}::U32Le>()?", rt = RT_NAME),
+            RtType::U32Be => write!(writer, "reader.read::<{rt}::U32Be>()?", rt = RT_NAME),
+            RtType::U64Le => write!(writer, "reader.read::<{rt}::U64Le>()?", rt = RT_NAME),
+            RtType::U64Be => write!(writer, "reader.read::<{rt}::U64Be>()?", rt = RT_NAME),
+            RtType::I8 => write!(writer, "reader.read::<{rt}::I8>()?", rt = RT_NAME),
+            RtType::I16Le => write!(writer, "reader.read::<{rt}::I16Le>()?", rt = RT_NAME),
+            RtType::I16Be => write!(writer, "reader.read::<{rt}::I16Be>()?", rt = RT_NAME),
+            RtType::I32Le => write!(writer, "reader.read::<{rt}::I32Le>()?", rt = RT_NAME),
+            RtType::I32Be => write!(writer, "reader.read::<{rt}::I32Be>()?", rt = RT_NAME),
+            RtType::I64Le => write!(writer, "reader.read::<{rt}::I64Le>()?", rt = RT_NAME),
+            RtType::I64Be => write!(writer, "reader.read::<{rt}::I64Be>()?", rt = RT_NAME),
+            RtType::F32Le => write!(writer, "reader.read::<{rt}::F32Le>()?", rt = RT_NAME),
+            RtType::F32Be => write!(writer, "reader.read::<{rt}::F32Be>()?", rt = RT_NAME),
+            RtType::F64Le => write!(writer, "reader.read::<{rt}::F64Le>()?", rt = RT_NAME),
+            RtType::F64Be => write!(writer, "reader.read::<{rt}::F64Be>()?", rt = RT_NAME),
+            RtType::InvalidDataDescription => write!(
+                writer,
+                "reader.read::<{rt}::InvalidDataDescription>()?",
+                rt = RT_NAME,
+            ),
+        },
         _ => unimplemented!("unexpected host type"),
     }
 }

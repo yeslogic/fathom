@@ -403,15 +403,11 @@ fn compile_term(
                         host_ty: false_host_ty,
                     },
                 ) => CompiledTerm::Type {
-                    ty: rust::Type::Rt(rust::RtType::If(
-                        Some(Box::new(term)),
-                        Box::new(true_ty),
-                        Box::new(false_ty),
-                    )),
+                    ty: rust::Type::If(Box::new(term), Box::new(true_ty), Box::new(false_ty)),
                     is_copy: true_is_copy && false_is_copy,
                     host_ty: match (true_host_ty, false_host_ty) {
                         (Some(true_host_ty), Some(false_host_ty)) => Some(rust::Type::Rt(
-                            rust::RtType::If(None, Box::new(true_host_ty), Box::new(false_host_ty)),
+                            rust::RtType::Either(Box::new(true_host_ty), Box::new(false_host_ty)),
                         )),
                         (_, _) => None,
                     },
