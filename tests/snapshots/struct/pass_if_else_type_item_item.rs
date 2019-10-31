@@ -3,15 +3,38 @@
 
 pub const IS_BE: bool = true;
 
-pub type Bar = ddl_rt::If<ddl_rt::F32Be, ddl_rt::F32Le>;
+#[derive(Copy, Clone)]
+pub struct Bar {
+    inner: ddl_rt::Either<f32, f32>,
+}
+
+impl Bar {
+    pub fn inner(&self) -> ddl_rt::Either<f32, f32> {
+        self.inner
+    }
+}
+
+impl ddl_rt::Format for Bar {
+    type Host = Bar;
+}
+
+impl<'data> ddl_rt::ReadFormat<'data> for Bar {
+    fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Bar, ddl_rt::ReadError> {
+        let inner = if IS_BE { ddl_rt::Either::Left(reader.read::<ddl_rt::F32Be>()?) } else { ddl_rt::Either::Right(reader.read::<ddl_rt::F32Le>()?) };
+
+        Ok(Bar {
+            inner,
+        })
+    }
+}
 
 #[derive(Copy, Clone)]
 pub struct Test {
-    bar: ddl_rt::If<f32, f32>,
+    bar: Bar,
 }
 
 impl Test {
-    pub fn bar(&self) -> ddl_rt::If<f32, f32> {
+    pub fn bar(&self) -> Bar {
         self.bar
     }
 }

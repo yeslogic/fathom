@@ -1,5 +1,3 @@
-//~ SKIP: compile non-trivial aliases to structure types
-
 is_be =
     true;
 
