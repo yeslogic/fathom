@@ -10,6 +10,8 @@
 
 use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
+use num_bigint::BigInt;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -305,12 +307,42 @@ pub fn check_term(
                 core::Term::Error(surface_term.span())
             }
         },
-        (surface::Term::If(span, surface_term, surface_if_true, surface_if_false), _) => {
-            let term = check_term(context, surface_term, &core::Value::BoolType, report);
+        (surface::Term::If(span, surface_head, surface_if_true, surface_if_false), _) => {
+            let head = check_term(context, surface_head, &core::Value::BoolType, report);
             let if_true = check_term(context, surface_if_true, expected_ty, report);
             let if_false = check_term(context, surface_if_false, expected_ty, report);
 
-            core::Term::BoolElim(*span, Arc::new(term), Arc::new(if_true), Arc::new(if_false))
+            core::Term::BoolElim(*span, Arc::new(head), Arc::new(if_true), Arc::new(if_false))
+        }
+        (surface::Term::Match(span, surface_head, surface_branches), _) => {
+            let (head, head_ty) = synth_term(context, surface_head, report);
+
+            match head_ty {
+                core::Value::BoolType => {
+                    let (if_true, if_false) =
+                        check_bool_branches(context, surface_branches, expected_ty, report);
+                    core::Term::BoolElim(*span, Arc::new(head), if_true, if_false)
+                }
+                core::Value::IntType => {
+                    let (branches, default) = check_int_branches(
+                        context,
+                        surface_head.span(),
+                        surface_branches,
+                        expected_ty,
+                        report,
+                    );
+                    core::Term::IntElim(*span, Arc::new(head), branches, default)
+                }
+                core::Value::Error => core::Term::Error(*span),
+                head_ty => {
+                    report(diagnostics::error::unsupported_pattern_ty(
+                        context.file_id,
+                        surface_head.span(),
+                        &head_ty,
+                    ));
+                    core::Term::Error(*span)
+                }
+            }
         }
         (surface_term, expected_ty) => {
             let (core_term, synth_ty) = synth_term(context, surface_term, report);
@@ -412,8 +444,8 @@ pub fn synth_term(
 
             (core::Term::Error(*span), core::Value::Error)
         }
-        surface::Term::If(span, surface_term, surface_if_true, surface_if_false) => {
-            let term = check_term(context, surface_term, &core::Value::BoolType, report);
+        surface::Term::If(span, surface_head, surface_if_true, surface_if_false) => {
+            let head = check_term(context, surface_head, &core::Value::BoolType, report);
             let (if_true, if_true_ty) = synth_term(context, surface_if_true, report);
             let (if_false, if_false_ty) = synth_term(context, surface_if_false, report);
 
@@ -421,7 +453,7 @@ pub fn synth_term(
                 (
                     core::Term::BoolElim(
                         *span,
-                        Arc::new(term),
+                        Arc::new(head),
                         Arc::new(if_true),
                         Arc::new(if_false),
                     ),
@@ -438,6 +470,82 @@ pub fn synth_term(
                 (core::Term::Error(*span), core::Value::Error)
             }
         }
+        surface::Term::Match(span, _, _) => {
+            report(diagnostics::ambiguous_match_expression(
+                Severity::Error,
+                context.file_id,
+                *span,
+            ));
+            (core::Term::Error(*span), core::Value::Error)
+        }
         surface::Term::Error(span) => (core::Term::Error(*span), core::Value::Error),
     }
+}
+
+#[allow(unused_variables)]
+fn check_bool_branches(
+    context: &TermContext<'_>,
+    surface_branches: &[(surface::Pattern, surface::Term)],
+    expected_ty: &core::Value,
+    report: &mut dyn FnMut(Diagnostic),
+) -> (Arc<core::Term>, Arc<core::Term>) {
+    unimplemented!("boolean eliminators")
+}
+
+fn check_int_branches(
+    context: &TermContext<'_>,
+    span: Span,
+    surface_branches: &[(surface::Pattern, surface::Term)],
+    expected_ty: &core::Value,
+    report: &mut dyn FnMut(Diagnostic),
+) -> (BTreeMap<BigInt, Arc<core::Term>>, Arc<core::Term>) {
+    use std::collections::btree_map::Entry;
+
+    let mut branches = BTreeMap::new();
+    let mut default = None;
+
+    for (pattern, surface_term) in surface_branches {
+        match pattern {
+            surface::Pattern::NumberLiteral(span, literal) => {
+                let core_term = check_term(context, surface_term, expected_ty, report);
+                if let Some(value) = literal.parse_big_int(context.file_id, report) {
+                    match &default {
+                        None => match branches.entry(value) {
+                            Entry::Occupied(_) => report(
+                                diagnostics::warning::unreachable_pattern(context.file_id, *span),
+                            ),
+                            Entry::Vacant(entry) => drop(entry.insert(Arc::new(core_term))),
+                        },
+                        Some(_) => report(diagnostics::warning::unreachable_pattern(
+                            context.file_id,
+                            *span,
+                        )),
+                    }
+                }
+            }
+            surface::Pattern::Name(span, _name) => {
+                // TODO: check if name is bound
+                // - if so compare for equality
+                // - otherwise bind local variable
+                let core_term = check_term(context, surface_term, expected_ty, report);
+                match &default {
+                    None => default = Some(Arc::new(core_term)),
+                    Some(_) => report(diagnostics::warning::unreachable_pattern(
+                        context.file_id,
+                        *span,
+                    )),
+                }
+            }
+        }
+    }
+
+    let default = default.unwrap_or_else(|| {
+        report(diagnostics::error::no_default_pattern(
+            context.file_id,
+            span,
+        ));
+        Arc::new(core::Term::Error(Span::initial()))
+    });
+
+    (branches, default)
 }

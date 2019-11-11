@@ -38,7 +38,7 @@ pub fn eval(term: &Term) -> Value {
         Term::IntConst(_, value) => Value::IntConst(value.clone()),
         Term::F32Const(_, value) => Value::F32Const(*value),
         Term::F64Const(_, value) => Value::F64Const(*value),
-        Term::BoolElim(_, term, if_true, if_false) => match eval(term) {
+        Term::BoolElim(_, head, if_true, if_false) => match eval(head) {
             Value::BoolConst(true) => eval(if_true),
             Value::BoolConst(false) => eval(if_false),
             Value::Neutral(head, mut elims) => {
@@ -48,6 +48,20 @@ pub fn eval(term: &Term) -> Value {
             _ => Value::Neutral(
                 Head::Error,
                 vec![Elim::Bool(if_true.clone(), if_false.clone())],
+            ),
+        },
+        Term::IntElim(_, head, branches, default) => match eval(head) {
+            Value::IntConst(value) => match branches.get(&value) {
+                Some(term) => eval(term),
+                None => eval(default),
+            },
+            Value::Neutral(head, mut elims) => {
+                elims.push(Elim::Int(branches.clone(), default.clone()));
+                Value::Neutral(head, elims)
+            }
+            _ => Value::Neutral(
+                Head::Error,
+                vec![Elim::Int(branches.clone(), default.clone())],
             ),
         },
         Term::Error(_) => Value::Error,
@@ -67,6 +81,12 @@ fn readback_neutral(head: &Head, elims: &[Elim]) -> Term {
                 Arc::new(acc),
                 if_true.clone(),
                 if_false.clone(),
+            ),
+            Elim::Int(branches, default) => Term::IntElim(
+                Span::initial(),
+                Arc::new(acc),
+                branches.clone(),
+                default.clone(),
             ),
         },
     )

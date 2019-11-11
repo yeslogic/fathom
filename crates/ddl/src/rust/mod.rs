@@ -115,6 +115,7 @@ pub enum RtType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Term {
     Var(String),
+    Panic(String),
 
     Bool(bool),
     U8(u8),
@@ -129,5 +130,19 @@ pub enum Term {
     F64(f64),
 
     If(Box<Term>, Box<Term>, Box<Term>),
+    Match(Box<Term>, Vec<(Pattern, Term)>),
     Call(Box<Term>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Pattern {
+    Name(String),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
 }

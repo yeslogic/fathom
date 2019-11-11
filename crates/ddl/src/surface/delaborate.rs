@@ -111,11 +111,30 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
         core::Term::F64Const(span, value) => {
             surface::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
         }
-        core::Term::BoolElim(span, term, if_true, if_false) => surface::Term::If(
+        core::Term::BoolElim(span, head, if_true, if_false) => surface::Term::If(
             *span,
-            Box::new(delaborate_term(term)),
+            Box::new(delaborate_term(head)),
             Box::new(delaborate_term(if_true)),
             Box::new(delaborate_term(if_false)),
+        ),
+        core::Term::IntElim(span, head, branches, default) => surface::Term::Match(
+            *span,
+            Box::new(delaborate_term(head)),
+            branches
+                .iter()
+                .map(|(value, term)| {
+                    let span = Span::default();
+                    let value = literal::Number::from_signed(span, value);
+                    (
+                        surface::Pattern::NumberLiteral(span, value),
+                        delaborate_term(term),
+                    )
+                })
+                .chain(std::iter::once((
+                    surface::Pattern::Name(Span::default(), "_".to_owned()),
+                    delaborate_term(default),
+                )))
+                .collect(),
         ),
         core::Term::Error(span) => surface::Term::Error(*span),
     }

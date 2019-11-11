@@ -89,9 +89,16 @@ pub fn read_ty(
         core::Term::F32BeType(_) => Ok(Term::F32(reader.read::<ddl_rt::F32Be>()?)),
         core::Term::F64LeType(_) => Ok(Term::F64(reader.read::<ddl_rt::F64Le>()?)),
         core::Term::F64BeType(_) => Ok(Term::F64(reader.read::<ddl_rt::F64Be>()?)),
-        core::Term::BoolElim(_, term, if_true, if_false) => match core::semantics::eval(term) {
+        core::Term::BoolElim(_, head, if_true, if_false) => match core::semantics::eval(head) {
             core::Value::BoolConst(true) => read_ty(context, if_true, reader),
             core::Value::BoolConst(false) => read_ty(context, if_false, reader),
+            _ => Err(ddl_rt::ReadError::InvalidDataDescription),
+        },
+        core::Term::IntElim(_, head, branches, default) => match core::semantics::eval(head) {
+            core::Value::IntConst(value) => match branches.get(&value) {
+                Some(term) => read_ty(context, term, reader),
+                None => read_ty(context, default, reader),
+            },
             _ => Err(ddl_rt::ReadError::InvalidDataDescription),
         },
         core::Term::Universe(_, _)

@@ -210,6 +210,8 @@ fn compile_term<'term>(
     term: &'term surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> Cow<'term, str> {
+    use itertools::Itertools;
+
     match term {
         surface::Term::Paren(_, term) => {
             format!("({})", compile_term(context, term, report)).into()
@@ -229,14 +231,39 @@ fn compile_term<'term>(
             format!("{} : {}", term, ty).into()
         }
         surface::Term::NumberLiteral(_, literal) => format!("{}", literal).into(),
-        surface::Term::If(_, term, if_true, if_false) => format!(
-            "if {term} {{ {if_true} }} else {{ {if_false} }}",
-            term = compile_term(context, term, report),
+        surface::Term::If(_, head, if_true, if_false) => format!(
+            // TODO: multiline formatting!
+            "if {head} {{ {if_true} }} else {{ {if_false} }}",
+            head = compile_term(context, head, report),
             if_true = compile_term(context, if_true, report),
             if_false = compile_term(context, if_false, report),
         )
         .into(),
+        surface::Term::Match(_, head, branches) => format!(
+            // TODO: multiline formatting!
+            "match {head} {{ {branches} }}",
+            head = compile_term(context, head, report),
+            branches = branches
+                .iter()
+                .map(|(pattern, term)| format!(
+                    "{pattern} => {term}",
+                    pattern = compile_pattern(context, pattern),
+                    term = compile_term(context, term, report),
+                ))
+                .format(","),
+        )
+        .into(),
         surface::Term::Error(_) => r##"<strong>(invalid data description)</strong>"##.into(),
+    }
+}
+
+fn compile_pattern<'term>(
+    _context: &ModuleContext,
+    pattern: &'term surface::Pattern,
+) -> Cow<'term, str> {
+    match pattern {
+        surface::Pattern::Name(_, name) => format!(r##"<a href="#">{}</a>"##, name).into(), // TODO: add local binding
+        surface::Pattern::NumberLiteral(_, literal) => format!("{}", literal).into(),
     }
 }
 
