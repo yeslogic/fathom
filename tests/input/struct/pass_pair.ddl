@@ -1,5 +1,8 @@
 //! Test a pair struct.
 
+extern U8 : Format;
+extern S8 : Format;
+
 /// A pair of bytes.
 struct Pair {
     /// The first field.

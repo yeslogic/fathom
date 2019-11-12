@@ -49,15 +49,25 @@ section.doc {
   <body>
     <section class="module">
       <dl class="items">
+        <dt id="items[Bool]" class="item extern">
+          extern <a href="#items[Bool]">Bool</a> : <var><a href="#">Type</a></var>
+        </dt>
+        <dd class="item struct">
+          <section class="doc">
+            Test that one can refer to local term aliases in aliases.
+          </section>
+        </dd>
+        <dt id="items[true]" class="item extern">
+          extern <a href="#items[true]">true</a> : <var><a href="#items[Bool]">Bool</a></var>
+        </dt>
+        <dd class="item struct">
+        </dd>
         <dt id="items[Foo]" class="item alias">
           <a href="#items[Foo]">Foo</a>
         </dt>
         <dd class="item alias">
-          <section class="doc">
-            Test that one can refer to local term aliases in aliases.
-          </section>
           <section class="term">
-            <var><a href="#">true</a></var>
+            <var><a href="#items[true]">true</a></var>
           </section>
         </dd>
         <dt id="items[Bar]" class="item alias">

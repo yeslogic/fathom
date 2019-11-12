@@ -1,3 +1,5 @@
+extern U8 : Format;
+
 struct Pair {
     first: U8,
     second: U8,

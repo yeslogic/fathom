@@ -24,7 +24,6 @@ test!(fail_unexpected_character, "fail_unexpected_character.ddl");
 
 #[rustfmt::skip]
 mod alias {
-    test!(pass_globals, "alias/pass_globals.ddl");
     test!(pass_literals, "alias/pass_literals.ddl");
     test!(pass_ann, "alias/pass_ann.ddl");
     test!(pass_alias_term, "alias/pass_alias_term.ddl");
@@ -49,6 +48,11 @@ mod alias {
     test!(fail_if_else_term_mismatched_arms, "alias/fail_if_else_term_mismatched_arms.ddl");
     test!(fail_if_else_term_mismatched_condition, "alias/fail_if_else_term_mismatched_condition.ddl");
     test!(fail_unconstrained_int_type, "alias/fail_unconstrained_int_type.ddl");
+}
+
+#[rustfmt::skip]
+mod r#extern {
+    test!(fail_unsuppoted_extern, "extern/fail_unsuppoted_extern.ddl");
 }
 
 #[rustfmt::skip]

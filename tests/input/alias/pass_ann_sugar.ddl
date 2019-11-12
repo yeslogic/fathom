@@ -1,22 +1,7 @@
 //! Test sugared annotation style.
 
+extern U8 : Format;
+
 TestType : Kind = Type;
 TestFormat : Kind = Format;
 TestU8 : Format = U8;
-TestU16Le : Format = U16Le;
-TestU16Be : Format = U16Be;
-TestU32Le : Format = U32Le;
-TestU32Be : Format = U32Be;
-TestU64Le : Format = U64Le;
-TestU64Be : Format = U64Be;
-TestS8 : Format = S8;
-TestS16Le : Format = S16Le;
-TestS16Be : Format = S16Be;
-TestS32Le : Format = S32Le;
-TestS32Be : Format = S32Be;
-TestS64Le : Format = S64Le;
-TestS64Be : Format = S64Be;
-TestF32Le : Format = F32Le;
-TestF32Be : Format = F32Be;
-TestF64Le : Format = F64Le;
-TestF64Be : Format = F64Be;

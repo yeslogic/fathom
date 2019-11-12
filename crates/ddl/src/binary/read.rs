@@ -105,35 +105,18 @@ pub fn read_ty(
             None => Err(ddl_rt::ReadError::InvalidDataDescription),
         },
         core::Term::Ann(term, _) => read_ty(context, term, reader),
-        core::Term::U8Type(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U8>()?))),
-        core::Term::U16LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U16Le>()?))),
-        core::Term::U16BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U16Be>()?))),
-        core::Term::U32LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U32Le>()?))),
-        core::Term::U32BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U32Be>()?))),
-        core::Term::U64LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U64Le>()?))),
-        core::Term::U64BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U64Be>()?))),
-        core::Term::S8Type(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I8>()?))),
-        core::Term::S16LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I16Le>()?))),
-        core::Term::S16BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I16Be>()?))),
-        core::Term::S32LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I32Le>()?))),
-        core::Term::S32BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I32Be>()?))),
-        core::Term::S64LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I64Le>()?))),
-        core::Term::S64BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I64Be>()?))),
-        core::Term::F32LeType(_) => Ok(Term::F32(reader.read::<ddl_rt::F32Le>()?)),
-        core::Term::F32BeType(_) => Ok(Term::F32(reader.read::<ddl_rt::F32Be>()?)),
-        core::Term::F64LeType(_) => Ok(Term::F64(reader.read::<ddl_rt::F64Le>()?)),
-        core::Term::F64BeType(_) => Ok(Term::F64(reader.read::<ddl_rt::F64Be>()?)),
         core::Term::BoolElim(_, term, if_true, if_false) => match core::semantics::eval(term) {
-            core::Value::BoolConst(true) => read_ty(context, if_true, reader),
-            core::Value::BoolConst(false) => read_ty(context, if_false, reader),
+            core::Value::Neutral(core::Head::Item(name), spine) if spine.is_empty() => {
+                match name.0.as_str() {
+                    // TODO: lookup in externs
+                    "true" => read_ty(context, if_true, reader),
+                    "false" => read_ty(context, if_false, reader),
+                    _ => Err(ddl_rt::ReadError::InvalidDataDescription),
+                }
+            }
             _ => Err(ddl_rt::ReadError::InvalidDataDescription),
         },
         core::Term::Universe(_, _)
-        | core::Term::BoolType(_)
-        | core::Term::IntType(_)
-        | core::Term::F32Type(_)
-        | core::Term::F64Type(_)
-        | core::Term::BoolConst(_, _)
         | core::Term::IntConst(_, _)
         | core::Term::F32Const(_, _)
         | core::Term::F64Const(_, _)

@@ -1,3 +1,5 @@
 //! Test annotated annotations.
 
-Test = (U8 : Format) : Format;
+extern U8 : Format;
+
+Test = (item U8 : Format) : Format;

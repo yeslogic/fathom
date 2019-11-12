@@ -243,30 +243,6 @@ fn compile_term<'term>(
             core::Universe::Format => r##"<var><a href="#">Format</a></var>"##.into(),
             core::Universe::Kind => r##"<var><a href="#">Kind</a></var>"##.into(),
         },
-        core::Term::U8Type(_) => r##"<var><a href="#">U8</a></var>"##.into(),
-        core::Term::U16LeType(_) => r##"<var><a href="#">U16Le</a></var>"##.into(),
-        core::Term::U16BeType(_) => r##"<var><a href="#">U16Be</a></var>"##.into(),
-        core::Term::U32LeType(_) => r##"<var><a href="#">U32Le</a></var>"##.into(),
-        core::Term::U32BeType(_) => r##"<var><a href="#">U32Be</a></var>"##.into(),
-        core::Term::U64LeType(_) => r##"<var><a href="#">U64Le</a></var>"##.into(),
-        core::Term::U64BeType(_) => r##"<var><a href="#">U64Be</a></var>"##.into(),
-        core::Term::S8Type(_) => r##"<var><a href="#">S8</a></var>"##.into(),
-        core::Term::S16LeType(_) => r##"<var><a href="#">S16Le</a></var>"##.into(),
-        core::Term::S16BeType(_) => r##"<var><a href="#">S16Be</a></var>"##.into(),
-        core::Term::S32LeType(_) => r##"<var><a href="#">S32Le</a></var>"##.into(),
-        core::Term::S32BeType(_) => r##"<var><a href="#">S32Be</a></var>"##.into(),
-        core::Term::S64LeType(_) => r##"<var><a href="#">S64Le</a></var>"##.into(),
-        core::Term::S64BeType(_) => r##"<var><a href="#">S64Be</a></var>"##.into(),
-        core::Term::F32LeType(_) => r##"<var><a href="#">F32Le</a></var>"##.into(),
-        core::Term::F32BeType(_) => r##"<var><a href="#">F32Be</a></var>"##.into(),
-        core::Term::F64LeType(_) => r##"<var><a href="#">F64Le</a></var>"##.into(),
-        core::Term::F64BeType(_) => r##"<var><a href="#">F64Be</a></var>"##.into(),
-        core::Term::BoolType(_) => r##"<var><a href="#">Bool</a></var>"##.into(), // NOTE: Invalid if in struct
-        core::Term::IntType(_) => r##"<var><a href="#">Int</a></var>"##.into(), // NOTE: Invalid if in struct
-        core::Term::F32Type(_) => r##"<var><a href="#">F32</a></var>"##.into(), // NOTE: Invalid if in struct
-        core::Term::F64Type(_) => r##"<var><a href="#">F64</a></var>"##.into(), // NOTE: Invalid if in struct
-        core::Term::BoolConst(_, true) => r##"<var><a href="#">true</a></var>"##.into(), // TODO: Invalid if in type
-        core::Term::BoolConst(_, false) => r##"<var><a href="#">false</a></var>"##.into(), // TODO: Invalid if in type
         core::Term::F32Const(_, value) => format!("{}", value).into(), // TODO: Invalid if in type
         core::Term::F64Const(_, value) => format!("{}", value).into(), // TODO: Invalid if in type
         core::Term::IntConst(_, value) => format!("{}", value).into(), // TODO: Invalid if in type

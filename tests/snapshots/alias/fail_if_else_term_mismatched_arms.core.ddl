@@ -1,3 +1,9 @@
-Foo = f32 33.4 : F32;
+extern Bool : Type;
 
-test = bool_elim true { true, ! } : Bool;
+extern true : item Bool;
+
+extern F32 : Type;
+
+Foo = f32 33.4 : item F32;
+
+test = bool_elim item true { item true, ! } : item Bool;

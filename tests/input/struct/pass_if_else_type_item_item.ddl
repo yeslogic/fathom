@@ -1,3 +1,8 @@
+extern Bool : Type;
+extern true : Bool;
+extern F32Be : Format;
+extern F32Le : Format;
+
 is_be =
     true;
 

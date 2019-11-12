@@ -2,6 +2,10 @@
 
 // TODO: ranged integers
 
+extern Int : Type;
+extern F32 : Type;
+extern F64 : Type;
+
 test_int_0 : Int = 0;
 test_int_1 : Int = 1;
 test_int_9 : Int = 9;

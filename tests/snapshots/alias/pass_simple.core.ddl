@@ -1,3 +1,5 @@
 //! Test simple aliases.
 
-Byte = U8;
+extern U8 : Format;
+
+Byte = item U8;

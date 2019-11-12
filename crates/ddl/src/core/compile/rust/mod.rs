@@ -140,18 +140,19 @@ fn compile_extern(
         "F64Le" => ty_item(rust::Type::Rt(rust::RtType::F64Le), Some(rust::Type::F64)),
         "F64Be" => ty_item(rust::Type::Rt(rust::RtType::F64Be), Some(rust::Type::F64)),
         "Bool" => ty_item(rust::Type::Bool, None),
-        "Int" => {
-            report(diagnostics::error::unconstrained_int(
-                context.file_id,
-                core_extern.span,
-            ));
-            ty_item(rust::Type::Rt(rust::RtType::InvalidDataDescription), None)
-        }
+        "Int" => ty_item(rust::Type::I64, None), // TODO: Refinement types
         "F32" => ty_item(rust::Type::F32, None),
         "F64" => ty_item(rust::Type::F64, None),
         "true" => bool_term_item(true),
         "false" => bool_term_item(false),
-        _ => unimplemented!("compile external items"), // TODO
+        _ => {
+            report(diagnostics::error::unsupported_extern_item(
+                context.file_id,
+                &core_extern.name,
+                core_extern.span,
+            ));
+            ty_item(rust::Type::Rt(rust::RtType::InvalidDataDescription), None)
+        }
     }
 }
 
@@ -363,17 +364,6 @@ fn compile_term(
 ) -> CompiledTerm {
     let file_id = context.file_id;
 
-    let host_ty = |ty| CompiledTerm::Type {
-        ty,
-        is_copy: true,
-        host_ty: None,
-    };
-    let format_ty = |ty, host_ty| CompiledTerm::Type {
-        ty,
-        is_copy: true,
-        host_ty: Some(host_ty),
-    };
-
     match core_term {
         core::Term::Item(span, label) => match context.items.get(label) {
             Some(CompiledItem::Term {
@@ -409,36 +399,6 @@ fn compile_term(
             }
         },
         core::Term::Ann(term, _) => compile_term(context, term, report),
-        core::Term::U8Type(_) => format_ty(rust::Type::Rt(rust::RtType::U8), rust::Type::U8),
-        core::Term::U16LeType(_) => format_ty(rust::Type::Rt(rust::RtType::U16Le), rust::Type::U16),
-        core::Term::U16BeType(_) => format_ty(rust::Type::Rt(rust::RtType::U16Be), rust::Type::U16),
-        core::Term::U32LeType(_) => format_ty(rust::Type::Rt(rust::RtType::U32Le), rust::Type::U32),
-        core::Term::U32BeType(_) => format_ty(rust::Type::Rt(rust::RtType::U32Be), rust::Type::U32),
-        core::Term::U64LeType(_) => format_ty(rust::Type::Rt(rust::RtType::U64Le), rust::Type::U64),
-        core::Term::U64BeType(_) => format_ty(rust::Type::Rt(rust::RtType::U64Be), rust::Type::U64),
-        core::Term::S8Type(_) => format_ty(rust::Type::Rt(rust::RtType::I8), rust::Type::I8),
-        core::Term::S16LeType(_) => format_ty(rust::Type::Rt(rust::RtType::I16Le), rust::Type::I16),
-        core::Term::S16BeType(_) => format_ty(rust::Type::Rt(rust::RtType::I16Be), rust::Type::I16),
-        core::Term::S32LeType(_) => format_ty(rust::Type::Rt(rust::RtType::I32Le), rust::Type::I32),
-        core::Term::S32BeType(_) => format_ty(rust::Type::Rt(rust::RtType::I32Be), rust::Type::I32),
-        core::Term::S64LeType(_) => format_ty(rust::Type::Rt(rust::RtType::I64Le), rust::Type::I64),
-        core::Term::S64BeType(_) => format_ty(rust::Type::Rt(rust::RtType::I64Be), rust::Type::I64),
-        core::Term::F32LeType(_) => format_ty(rust::Type::Rt(rust::RtType::F32Le), rust::Type::F32),
-        core::Term::F32BeType(_) => format_ty(rust::Type::Rt(rust::RtType::F32Be), rust::Type::F32),
-        core::Term::F64LeType(_) => format_ty(rust::Type::Rt(rust::RtType::F64Le), rust::Type::F64),
-        core::Term::F64BeType(_) => format_ty(rust::Type::Rt(rust::RtType::F64Be), rust::Type::F64),
-        core::Term::BoolType(_) => host_ty(rust::Type::Bool),
-        core::Term::IntType(span) => {
-            report(diagnostics::error::unconstrained_int(file_id, *span));
-            host_ty(rust::Type::Rt(rust::RtType::InvalidDataDescription))
-        }
-        core::Term::F32Type(_) => host_ty(rust::Type::F32),
-        core::Term::F64Type(_) => host_ty(rust::Type::F64),
-        core::Term::BoolConst(_, value) => CompiledTerm::Term {
-            term: rust::Term::Bool(*value),
-            ty: rust::Type::Bool,
-            is_const: true,
-        },
         core::Term::IntConst(span, value) => {
             use num_traits::cast::ToPrimitive;
 

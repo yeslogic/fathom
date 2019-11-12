@@ -1,3 +1,7 @@
+extern Bool : Type;
+extern true : Bool;
+extern false : Bool;
+
 foo =
     true;
 

@@ -387,54 +387,6 @@ pub enum Term {
     /// Universes.
     Universe(Span, Universe),
 
-    /// Unsigned 8-bit integer type.
-    U8Type(Span),
-    /// Unsigned 16-bit integer type (little endian).
-    U16LeType(Span),
-    /// Unsigned 16-bit integer type (big endian).
-    U16BeType(Span),
-    /// Unsigned 32-bit integer type (little endian).
-    U32LeType(Span),
-    /// Unsigned 32-bit integer type (big endian).
-    U32BeType(Span),
-    /// Unsigned 64-bit integer type (little endian).
-    U64LeType(Span),
-    /// Unsigned 64-bit integer type (big endian).
-    U64BeType(Span),
-    /// Signed, two's complement 8-bit integer type.
-    S8Type(Span),
-    /// Signed, two's complement 16-bit integer type (little endian).
-    S16LeType(Span),
-    /// Signed, two's complement 16-bit integer type (big endian).
-    S16BeType(Span),
-    /// Signed, two's complement 32-bit integer type (little endian).
-    S32LeType(Span),
-    /// Signed, two's complement 32-bit integer type (big endian).
-    S32BeType(Span),
-    /// Signed, two's complement 64-bit integer type (little endian).
-    S64LeType(Span),
-    /// Signed, two's complement 64-bit integer type (big endian).
-    S64BeType(Span),
-    /// IEEE-754 single-precision floating point number type (little endian).
-    F32LeType(Span),
-    /// IEEE-754 single-precision floating point number type (big endian).
-    F32BeType(Span),
-    /// IEEE-754 double-precision floating point number type (little endian).
-    F64LeType(Span),
-    /// IEEE-754 double-precision floating point number type (big endian).
-    F64BeType(Span),
-
-    /// Host boolean type.
-    BoolType(Span),
-    /// Host integer type.
-    IntType(Span),
-    /// Host IEEE-754 single-precision floating point type.
-    F32Type(Span),
-    /// Host IEEE-754 double-precision floating point type.
-    F64Type(Span),
-
-    /// Host boolean constant.
-    BoolConst(Span, bool),
     /// Host integer constants.
     IntConst(Span, BigInt),
     /// Host IEEE-754 single-precision floating point constants.
@@ -454,29 +406,6 @@ impl Term {
         match self {
             Term::Item(span, _)
             | Term::Universe(span, _)
-            | Term::U8Type(span)
-            | Term::U16LeType(span)
-            | Term::U16BeType(span)
-            | Term::U32LeType(span)
-            | Term::U32BeType(span)
-            | Term::U64LeType(span)
-            | Term::U64BeType(span)
-            | Term::S8Type(span)
-            | Term::S16LeType(span)
-            | Term::S16BeType(span)
-            | Term::S32LeType(span)
-            | Term::S32BeType(span)
-            | Term::S64LeType(span)
-            | Term::S64BeType(span)
-            | Term::F32LeType(span)
-            | Term::F32BeType(span)
-            | Term::F64LeType(span)
-            | Term::F64BeType(span)
-            | Term::BoolType(span)
-            | Term::IntType(span)
-            | Term::F32Type(span)
-            | Term::F64Type(span)
-            | Term::BoolConst(span, _)
             | Term::IntConst(span, _)
             | Term::F32Const(span, _)
             | Term::F64Const(span, _)
@@ -536,30 +465,6 @@ impl Term {
                     ),
             ),
             Term::Universe(_, universe) => universe.doc(alloc),
-            Term::U8Type(_) => alloc.text("U8"),
-            Term::U16LeType(_) => alloc.text("U16Le"),
-            Term::U16BeType(_) => alloc.text("U16Be"),
-            Term::U32LeType(_) => alloc.text("U32Le"),
-            Term::U32BeType(_) => alloc.text("U32Be"),
-            Term::U64LeType(_) => alloc.text("U64Le"),
-            Term::U64BeType(_) => alloc.text("U64Be"),
-            Term::S8Type(_) => alloc.text("S8"),
-            Term::S16LeType(_) => alloc.text("S16Le"),
-            Term::S16BeType(_) => alloc.text("S16Be"),
-            Term::S32LeType(_) => alloc.text("S32Le"),
-            Term::S32BeType(_) => alloc.text("S32Be"),
-            Term::S64LeType(_) => alloc.text("S64Le"),
-            Term::S64BeType(_) => alloc.text("S64Be"),
-            Term::F32LeType(_) => alloc.text("F32Le"),
-            Term::F32BeType(_) => alloc.text("F32Be"),
-            Term::F64LeType(_) => alloc.text("F64Le"),
-            Term::F64BeType(_) => alloc.text("F64Be"),
-            Term::BoolType(_) => alloc.text("Bool"),
-            Term::IntType(_) => alloc.text("Int"),
-            Term::F32Type(_) => alloc.text("F32"),
-            Term::F64Type(_) => alloc.text("F64"),
-            Term::BoolConst(_, true) => alloc.text("true"),
-            Term::BoolConst(_, false) => alloc.text("false"),
             Term::IntConst(_, value) => (alloc.nil())
                 .append("int")
                 .append(alloc.space())
@@ -595,7 +500,6 @@ impl PartialEq for Term {
         match (self, other) {
             (Term::Item(_, label0), Term::Item(_, label1)) => label0 == label1,
             (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
-            (Term::BoolConst(_, val0), Term::BoolConst(_, val1)) => val0 == val1,
             (Term::IntConst(_, val0), Term::IntConst(_, val1)) => val0 == val1,
             (Term::F32Const(_, val0), Term::F32Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
             (Term::F64Const(_, val0), Term::F64Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
@@ -604,29 +508,7 @@ impl PartialEq for Term {
                 Term::BoolElim(_, head0, if_true0, if_false0),
                 Term::BoolElim(_, head1, if_true1, if_false1),
             ) => head0 == head1 && if_true0 == if_true1 && if_false0 == if_false1,
-            (Term::U8Type(_), Term::U8Type(_))
-            | (Term::U16LeType(_), Term::U16LeType(_))
-            | (Term::U16BeType(_), Term::U16BeType(_))
-            | (Term::U32LeType(_), Term::U32LeType(_))
-            | (Term::U32BeType(_), Term::U32BeType(_))
-            | (Term::U64LeType(_), Term::U64LeType(_))
-            | (Term::U64BeType(_), Term::U64BeType(_))
-            | (Term::S8Type(_), Term::S8Type(_))
-            | (Term::S16LeType(_), Term::S16LeType(_))
-            | (Term::S16BeType(_), Term::S16BeType(_))
-            | (Term::S32LeType(_), Term::S32LeType(_))
-            | (Term::S32BeType(_), Term::S32BeType(_))
-            | (Term::S64LeType(_), Term::S64LeType(_))
-            | (Term::S64BeType(_), Term::S64BeType(_))
-            | (Term::F32LeType(_), Term::F32LeType(_))
-            | (Term::F32BeType(_), Term::F32BeType(_))
-            | (Term::F64LeType(_), Term::F64LeType(_))
-            | (Term::F64BeType(_), Term::F64BeType(_))
-            | (Term::BoolType(_), Term::BoolType(_))
-            | (Term::IntType(_), Term::IntType(_))
-            | (Term::F64Type(_), Term::F64Type(_))
-            | (Term::F32Type(_), Term::F32Type(_))
-            | (Term::Error(_), Term::Error(_)) => true,
+            (Term::Error(_), Term::Error(_)) => true,
             (_, _) => false,
         }
     }
@@ -657,54 +539,6 @@ pub enum Value {
     /// Universes.
     Universe(Universe),
 
-    /// Unsigned 8-bit integer type.
-    U8Type,
-    /// Unsigned 16-bit integer type (little endian).
-    U16LeType,
-    /// Unsigned 16-bit integer type (big endian).
-    U16BeType,
-    /// Unsigned 32-bit integer type (little endian).
-    U32LeType,
-    /// Unsigned 32-bit integer type (big endian).
-    U32BeType,
-    /// Unsigned 64-bit integer type (little endian).
-    U64LeType,
-    /// Unsigned 64-bit integer type (big endian).
-    U64BeType,
-    /// Signed, two's complement 8-bit integer type.
-    S8Type,
-    /// Signed, two's complement 16-bit integer type (little endian).
-    S16LeType,
-    /// Signed, two's complement 16-bit integer type (big endian).
-    S16BeType,
-    /// Signed, two's complement 32-bit integer type (little endian).
-    S32LeType,
-    /// Signed, two's complement 32-bit integer type (big endian).
-    S32BeType,
-    /// Signed, two's complement 64-bit integer type (little endian).
-    S64LeType,
-    /// Signed, two's complement 64-bit integer type (big endian).
-    S64BeType,
-    /// IEEE-754 single-precision floating point number type (little endian).
-    F32LeType,
-    /// IEEE-754 single-precision floating point number type (big endian).
-    F32BeType,
-    /// IEEE-754 double-precision floating point number type (little endian).
-    F64LeType,
-    /// IEEE-754 double-precision floating point number type (big endian).
-    F64BeType,
-
-    /// Host boolean type.
-    BoolType,
-    /// Host integer type.
-    IntType,
-    /// Host IEEE-754 single-precision floating point type.
-    F32Type,
-    /// Host IEEE-754 double-precision floating point type.
-    F64Type,
-
-    /// Host boolean constant.
-    BoolConst(bool),
     /// Host integer constants.
     IntConst(BigInt),
     /// Host IEEE-754 single-precision floating point constants.

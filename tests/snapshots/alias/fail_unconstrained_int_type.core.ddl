@@ -1,1 +1,3 @@
-TestInt = Int;
+extern Int : Type;
+
+TestInt = item Int;

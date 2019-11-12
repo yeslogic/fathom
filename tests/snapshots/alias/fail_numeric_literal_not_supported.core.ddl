@@ -1,1 +1,3 @@
-Test = ! : Bool;
+extern Bool : Type;
+
+Test = ! : item Bool;

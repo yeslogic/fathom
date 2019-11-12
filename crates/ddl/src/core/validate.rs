@@ -7,7 +7,7 @@ use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 
-use crate::core::{semantics, Item, Label, Module, Term, TypeField, Universe, Value};
+use crate::core::{semantics, Head, Item, Label, Module, Term, TypeField, Universe, Value};
 use crate::diagnostics;
 
 /// Validate a module.
@@ -216,7 +216,8 @@ pub fn check_term(
     match (term, expected_ty) {
         (Term::Error(_), _) | (_, Value::Error) => {}
         (Term::BoolElim(_, term, if_true, if_false), expected_ty) => {
-            check_term(context, term, &Value::BoolType, report);
+            let bool_ty = Value::Neutral(Head::Item(Label("Bool".to_owned())), vec![]);
+            check_term(context, term, &bool_ty, report);
             check_term(context, if_true, expected_ty, report);
             check_term(context, if_false, expected_ty, report);
         }
@@ -271,33 +272,13 @@ pub fn synth_term(
                 Value::Error
             }
         },
-        Term::U8Type(_)
-        | Term::U16LeType(_)
-        | Term::U16BeType(_)
-        | Term::U32LeType(_)
-        | Term::U32BeType(_)
-        | Term::U64LeType(_)
-        | Term::U64BeType(_)
-        | Term::S8Type(_)
-        | Term::S16LeType(_)
-        | Term::S16BeType(_)
-        | Term::S32LeType(_)
-        | Term::S32BeType(_)
-        | Term::S64LeType(_)
-        | Term::S64BeType(_)
-        | Term::F32LeType(_)
-        | Term::F32BeType(_)
-        | Term::F64LeType(_)
-        | Term::F64BeType(_) => Value::Universe(Universe::Format),
-        Term::BoolType(_) | Term::IntType(_) | Term::F32Type(_) | Term::F64Type(_) => {
-            Value::Universe(Universe::Type)
-        }
-        Term::BoolConst(_, _) => Value::BoolType,
-        Term::IntConst(_, _) => Value::IntType,
-        Term::F32Const(_, _) => Value::F32Type,
-        Term::F64Const(_, _) => Value::F64Type,
+        Term::IntConst(_, _) => Value::Neutral(Head::Item(Label("Int".to_owned())), vec![]), // TODO: lookup in externs
+        Term::F32Const(_, _) => Value::Neutral(Head::Item(Label("F32".to_owned())), vec![]), // TODO: lookup in externs
+        Term::F64Const(_, _) => Value::Neutral(Head::Item(Label("F64".to_owned())), vec![]), // TODO: lookup in externs
         Term::BoolElim(_, term, if_true, if_false) => {
-            check_term(context, term, &Value::BoolType, report);
+            // TODO: lookup in externs
+            let bool_ty = Value::Neutral(Head::Item(Label("Bool".to_owned())), vec![]);
+            check_term(context, term, &bool_ty, report);
             let if_true_ty = synth_term(context, if_true, report);
             let if_false_ty = synth_term(context, if_false, report);
 

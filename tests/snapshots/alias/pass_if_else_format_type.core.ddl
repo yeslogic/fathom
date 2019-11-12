@@ -1,1 +1,9 @@
-Test = bool_elim true { F64Be, F32Be } : Format;
+extern Bool : Type;
+
+extern true : item Bool;
+
+extern F32Be : Format;
+
+extern F64Be : Format;
+
+Test = bool_elim item true { item F64Be, item F32Be } : Format;

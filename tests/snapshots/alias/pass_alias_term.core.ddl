@@ -1,4 +1,8 @@
 /// Test that one can refer to local term aliases in aliases.
-Foo = true;
+extern Bool : Type;
+
+extern true : item Bool;
+
+Foo = item true;
 
 Bar = item Foo;

@@ -309,30 +309,40 @@ pub fn check_term(
         (surface::Term::Paren(_, surface_term), expected_ty) => {
             check_term(context, surface_term, expected_ty, report)
         }
-        (surface::Term::NumberLiteral(span, literal), _) => match expected_ty {
-            core::Value::IntType => match literal.parse_big_int(context.file_id, report) {
-                Some(value) => core::Term::IntConst(*span, value),
-                None => core::Term::Error(*span),
-            },
-            core::Value::F32Type => match literal.parse_float(context.file_id, report) {
-                Some(value) => core::Term::F32Const(*span, value),
-                None => core::Term::Error(*span),
-            },
-            core::Value::F64Type => match literal.parse_float(context.file_id, report) {
-                Some(value) => core::Term::F64Const(*span, value),
-                None => core::Term::Error(*span),
-            },
-            _ => {
-                report(diagnostics::error::numeric_literal_not_supported(
-                    context.file_id,
-                    *span,
-                    expected_ty,
-                ));
-                core::Term::Error(surface_term.span())
+        (surface::Term::NumberLiteral(span, literal), _) => {
+            match expected_ty {
+                core::Value::Neutral(core::Head::Item(name), spine) if spine.is_empty() => {
+                    match name.0.as_str() {
+                        "Int" => match literal.parse_big_int(context.file_id, report) {
+                            Some(value) => return core::Term::IntConst(*span, value),
+                            None => return core::Term::Error(*span),
+                        },
+                        "F32" => match literal.parse_float(context.file_id, report) {
+                            Some(value) => return core::Term::F32Const(*span, value),
+                            None => return core::Term::Error(*span),
+                        },
+                        "F64" => match literal.parse_float(context.file_id, report) {
+                            Some(value) => return core::Term::F64Const(*span, value),
+                            None => return core::Term::Error(*span),
+                        },
+                        _ => {}
+                    }
+                }
+                _ => {}
             }
-        },
+
+            report(diagnostics::error::numeric_literal_not_supported(
+                context.file_id,
+                *span,
+                expected_ty,
+            ));
+            core::Term::Error(surface_term.span())
+        }
         (surface::Term::If(span, surface_term, surface_if_true, surface_if_false), _) => {
-            let term = check_term(context, surface_term, &core::Value::BoolType, report);
+            // TODO: lookup in externs
+            let bool_label = core::Label("Bool".to_owned());
+            let bool_ty = core::Value::Neutral(core::Head::Item(bool_label), vec![]);
+            let term = check_term(context, surface_term, &bool_ty, report);
             let if_true = check_term(context, surface_if_true, expected_ty, report);
             let if_false = check_term(context, surface_if_false, expected_ty, report);
 
@@ -395,30 +405,6 @@ pub fn synth_term(
                     core::Term::Universe(*span, Format),
                     core::Value::Universe(Kind),
                 ),
-                "U8" => (core::Term::U8Type(*span), core::Value::Universe(Format)),
-                "U16Le" => (core::Term::U16LeType(*span), core::Value::Universe(Format)),
-                "U16Be" => (core::Term::U16BeType(*span), core::Value::Universe(Format)),
-                "U32Le" => (core::Term::U32LeType(*span), core::Value::Universe(Format)),
-                "U32Be" => (core::Term::U32BeType(*span), core::Value::Universe(Format)),
-                "U64Le" => (core::Term::U64LeType(*span), core::Value::Universe(Format)),
-                "U64Be" => (core::Term::U64BeType(*span), core::Value::Universe(Format)),
-                "S8" => (core::Term::S8Type(*span), core::Value::Universe(Format)),
-                "S16Le" => (core::Term::S16LeType(*span), core::Value::Universe(Format)),
-                "S16Be" => (core::Term::S16BeType(*span), core::Value::Universe(Format)),
-                "S32Le" => (core::Term::S32LeType(*span), core::Value::Universe(Format)),
-                "S32Be" => (core::Term::S32BeType(*span), core::Value::Universe(Format)),
-                "S64Le" => (core::Term::S64LeType(*span), core::Value::Universe(Format)),
-                "S64Be" => (core::Term::S64BeType(*span), core::Value::Universe(Format)),
-                "F32Le" => (core::Term::F32LeType(*span), core::Value::Universe(Format)),
-                "F32Be" => (core::Term::F32BeType(*span), core::Value::Universe(Format)),
-                "F64Le" => (core::Term::F64LeType(*span), core::Value::Universe(Format)),
-                "F64Be" => (core::Term::F64BeType(*span), core::Value::Universe(Format)),
-                "Bool" => (core::Term::BoolType(*span), core::Value::Universe(Type)),
-                "Int" => (core::Term::IntType(*span), core::Value::Universe(Type)),
-                "F32" => (core::Term::F32Type(*span), core::Value::Universe(Type)),
-                "F64" => (core::Term::F64Type(*span), core::Value::Universe(Type)),
-                "true" => (core::Term::BoolConst(*span, true), core::Value::BoolType),
-                "false" => (core::Term::BoolConst(*span, false), core::Value::BoolType),
                 _ => {
                     report(diagnostics::error::var_name_not_found(
                         context.file_id,
@@ -439,7 +425,10 @@ pub fn synth_term(
             (core::Term::Error(*span), core::Value::Error)
         }
         surface::Term::If(span, surface_term, surface_if_true, surface_if_false) => {
-            let term = check_term(context, surface_term, &core::Value::BoolType, report);
+            // TODO: lookup in externs
+            let bool_label = core::Label("Bool".to_owned());
+            let bool_ty = core::Value::Neutral(core::Head::Item(bool_label), vec![]);
+            let term = check_term(context, surface_term, &bool_ty, report);
             let (if_true, if_true_ty) = synth_term(context, surface_if_true, report);
             let (if_false, if_false_ty) = synth_term(context, surface_if_false, report);
 

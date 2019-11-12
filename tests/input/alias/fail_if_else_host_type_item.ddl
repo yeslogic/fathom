@@ -1,3 +1,8 @@
+extern Bool : Type;
+extern true : Bool;
+extern F64 : Type;
+extern F32 : Type;
+
 foo =
     true;
 

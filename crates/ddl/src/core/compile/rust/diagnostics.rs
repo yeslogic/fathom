@@ -21,6 +21,8 @@ pub mod error {
         }
     }
 
+    // TODO: Refinement types
+    #[allow(dead_code)]
     pub fn unconstrained_int(file_id: FileId, span: Span) -> Diagnostic {
         Diagnostic {
             severity: Severity::Error,
@@ -28,6 +30,21 @@ pub mod error {
             message: "cannot compile unconstrained integer types".to_owned(),
             primary_label: Label::new(file_id, span, "unconstrained integer type"),
             secondary_labels: vec![],
+            notes: vec![],
+        }
+    }
+
+    pub fn unsupported_extern_item(file_id: FileId, name: &core::Label, span: Span) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: format!(
+                "attempted to compile an extern item `{}` that was not supported",
+                name,
+            ),
+            primary_label: Label::new(file_id, span, "extern item not supported"),
+            secondary_labels: vec![],
+            // TODO: provide suggestions
             notes: vec![],
         }
     }
