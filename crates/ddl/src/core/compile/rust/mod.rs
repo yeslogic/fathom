@@ -46,14 +46,14 @@ pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic))
 enum CompiledItem {
     Term {
         span: Span,
-        name: String,
+        term: rust::Term,
         ty: rust::Type,
         is_function: bool,
         is_const: bool,
     },
     Type {
         span: Span,
-        name: String,
+        ty: rust::Type,
         is_copy: bool,
         host_ty: Option<rust::Type>,
     },
@@ -83,8 +83,75 @@ fn compile_item(
     report: &mut dyn FnMut(Diagnostic),
 ) -> (core::Label, CompiledItem, Option<rust::Item>) {
     match core_item {
+        core::Item::Extern(core_extern) => compile_extern(context, core_extern, report),
         core::Item::Alias(core_alias) => compile_alias(context, core_alias, report),
         core::Item::Struct(core_struct_ty) => compile_struct_ty(context, core_struct_ty, report),
+    }
+}
+
+fn compile_extern(
+    context: &ModuleContext,
+    core_extern: &core::Extern,
+    report: &mut dyn FnMut(Diagnostic),
+) -> (core::Label, CompiledItem, Option<rust::Item>) {
+    let bool_term_item = |value| {
+        (
+            core_extern.name.clone(),
+            CompiledItem::Term {
+                span: core_extern.span,
+                term: rust::Term::Bool(value),
+                ty: rust::Type::Bool,
+                is_function: false,
+                is_const: true,
+            },
+            None,
+        )
+    };
+    let ty_item = |ty, host_ty| {
+        (
+            core_extern.name.clone(),
+            CompiledItem::Type {
+                span: core_extern.span,
+                ty,
+                is_copy: true,
+                host_ty,
+            },
+            None,
+        )
+    };
+
+    match core_extern.name.0.as_str() {
+        "U8" => ty_item(rust::Type::Rt(rust::RtType::U8), Some(rust::Type::U8)),
+        "U16Le" => ty_item(rust::Type::Rt(rust::RtType::U16Le), Some(rust::Type::U16)),
+        "U16Be" => ty_item(rust::Type::Rt(rust::RtType::U16Be), Some(rust::Type::U16)),
+        "U32Le" => ty_item(rust::Type::Rt(rust::RtType::U32Le), Some(rust::Type::U32)),
+        "U32Be" => ty_item(rust::Type::Rt(rust::RtType::U32Be), Some(rust::Type::U32)),
+        "U64Le" => ty_item(rust::Type::Rt(rust::RtType::U64Le), Some(rust::Type::U64)),
+        "U64Be" => ty_item(rust::Type::Rt(rust::RtType::U64Be), Some(rust::Type::U64)),
+        "S8" => ty_item(rust::Type::Rt(rust::RtType::I8), Some(rust::Type::I8)),
+        "S16Le" => ty_item(rust::Type::Rt(rust::RtType::I16Le), Some(rust::Type::I16)),
+        "S16Be" => ty_item(rust::Type::Rt(rust::RtType::I16Be), Some(rust::Type::I16)),
+        "S32Le" => ty_item(rust::Type::Rt(rust::RtType::I32Le), Some(rust::Type::I32)),
+        "S32Be" => ty_item(rust::Type::Rt(rust::RtType::I32Be), Some(rust::Type::I32)),
+        "S64Le" => ty_item(rust::Type::Rt(rust::RtType::I64Le), Some(rust::Type::I64)),
+        "S64Be" => ty_item(rust::Type::Rt(rust::RtType::I64Be), Some(rust::Type::I64)),
+        "F32Le" => ty_item(rust::Type::Rt(rust::RtType::F32Le), Some(rust::Type::F32)),
+        "F32Be" => ty_item(rust::Type::Rt(rust::RtType::F32Be), Some(rust::Type::F32)),
+        "F64Le" => ty_item(rust::Type::Rt(rust::RtType::F64Le), Some(rust::Type::F64)),
+        "F64Be" => ty_item(rust::Type::Rt(rust::RtType::F64Be), Some(rust::Type::F64)),
+        "Bool" => ty_item(rust::Type::Bool, None),
+        "Int" => {
+            report(diagnostics::error::unconstrained_int(
+                context.file_id,
+                core_extern.span,
+            ));
+            ty_item(rust::Type::Rt(rust::RtType::InvalidDataDescription), None)
+        }
+        "F32" => ty_item(rust::Type::F32, None),
+        "F64" => ty_item(rust::Type::F64, None),
+        "true" => bool_term_item(true),
+        "false" => bool_term_item(false),
+        _ => unimplemented!("compile external items"), // TODO
     }
 }
 
@@ -103,7 +170,7 @@ fn compile_alias(
                     core_alias.name.clone(),
                     CompiledItem::Term {
                         span,
-                        name: name.clone(),
+                        term: rust::Term::Var(name.clone()),
                         ty: ty.clone(),
                         is_function: false,
                         is_const,
@@ -121,7 +188,7 @@ fn compile_alias(
                     core_alias.name.clone(),
                     CompiledItem::Term {
                         span,
-                        name: name.clone(),
+                        term: rust::Term::Var(name.clone()),
                         ty: ty.clone(),
                         is_function: true,
                         is_const,
@@ -158,7 +225,7 @@ fn compile_alias(
                         core_alias.name.clone(),
                         CompiledItem::Type {
                             span,
-                            name: name.clone(),
+                            ty: rust::Type::Var(name.clone()),
                             is_copy,
                             host_ty: Some(rust::Type::Var(name.clone())),
                         },
@@ -180,7 +247,7 @@ fn compile_alias(
                     core_alias.name.clone(),
                     CompiledItem::Type {
                         span,
-                        name: name.clone(),
+                        ty: rust::Type::Var(name.clone()),
                         is_copy,
                         host_ty,
                     },
@@ -261,7 +328,7 @@ fn compile_struct_ty(
         core_struct_ty.name.clone(),
         CompiledItem::Type {
             span: core_struct_ty.span,
-            name: name.clone(),
+            ty: rust::Type::Var(name.clone()),
             is_copy,
             host_ty: Some(rust::Type::Var(name.clone())),
         },
@@ -310,27 +377,27 @@ fn compile_term(
     match core_term {
         core::Term::Item(span, label) => match context.items.get(label) {
             Some(CompiledItem::Term {
-                name,
+                term,
                 ty,
                 is_function,
                 is_const,
                 ..
             }) => CompiledTerm::Term {
                 term: if *is_function {
-                    rust::Term::Call(Box::new(rust::Term::Var(name.clone())))
+                    rust::Term::Call(Box::new(term.clone()))
                 } else {
-                    rust::Term::Var(name.clone())
+                    term.clone()
                 },
                 ty: ty.clone(),
                 is_const: *is_const,
             },
             Some(CompiledItem::Type {
-                name,
+                ty,
                 is_copy,
                 host_ty,
                 ..
             }) => CompiledTerm::Type {
-                ty: rust::Type::Var(name.clone()),
+                ty: ty.clone(),
                 is_copy: *is_copy,
                 host_ty: host_ty.clone(),
             },

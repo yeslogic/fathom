@@ -69,6 +69,32 @@ pub fn elaborate_items(
         use std::collections::hash_map::Entry;
 
         match item {
+            surface::Item::Extern(r#extern) => {
+                let label = core::Label(r#extern.name.1.clone());
+                let core_ty = elaborate_universe(&context.term_context(), &r#extern.ty, report);
+                let ty = core::semantics::eval(&core_ty);
+
+                match context.items.entry(label) {
+                    Entry::Vacant(entry) => {
+                        let item = core::Extern {
+                            span: r#extern.span,
+                            doc: r#extern.doc.clone(),
+                            name: entry.key().clone(),
+                            ty: core_ty,
+                        };
+
+                        core_items.push(core::Item::Extern(item));
+                        entry.insert((r#extern.span, ty));
+                    }
+                    Entry::Occupied(entry) => report(diagnostics::item_redefinition(
+                        Severity::Error,
+                        context.file_id,
+                        entry.key(),
+                        r#extern.span,
+                        entry.get().0,
+                    )),
+                }
+            }
             surface::Item::Alias(alias) => {
                 let label = core::Label(alias.name.1.clone());
                 let (core_term, ty) = match &alias.ty {

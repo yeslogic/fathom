@@ -54,6 +54,23 @@ pub fn validate_items(
         use std::collections::hash_map::Entry;
 
         match item {
+            Item::Extern(r#extern) => {
+                validate_universe(&context.term_context(), &r#extern.ty, report);
+                let ty = semantics::eval(&r#extern.ty);
+
+                match context.items.entry(r#extern.name.clone()) {
+                    Entry::Vacant(entry) => {
+                        entry.insert((r#extern.span, ty));
+                    }
+                    Entry::Occupied(entry) => report(diagnostics::item_redefinition(
+                        Severity::Bug,
+                        context.file_id,
+                        &r#extern.name,
+                        r#extern.span,
+                        entry.get().0,
+                    )),
+                }
+            }
             Item::Alias(alias) => {
                 let ty = synth_term(&context.term_context(), &alias.term, report);
 

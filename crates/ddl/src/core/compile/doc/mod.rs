@@ -57,6 +57,7 @@ pub fn compile_module(
 
     for item in &module.items {
         let (label, item) = match item {
+            core::Item::Extern(r#extern) => compile_extern(&context, writer, r#extern, report)?,
             core::Item::Alias(alias) => compile_alias(&context, writer, alias, report)?,
             core::Item::Struct(struct_ty) => {
                 compile_struct_ty(&context, writer, struct_ty, report)?
@@ -87,6 +88,37 @@ struct Item {
     id: String,
 }
 
+fn compile_extern(
+    context: &ModuleContext,
+    writer: &mut impl Write,
+    r#extern: &core::Extern,
+    report: &mut dyn FnMut(Diagnostic),
+) -> io::Result<(core::Label, Item)> {
+    let id = format!("items[{}]", r#extern.name);
+
+    write!(
+        writer,
+        r##"        <dt id="{id}" class="item extern">
+          extern <a href="#{id}">{name}</a> : {ty}
+        </dt>
+        <dd class="item struct">
+"##,
+        id = id,
+        name = r#extern.name,
+        ty = compile_term(context, &r#extern.ty, report),
+    )?;
+
+    if !r#extern.doc.is_empty() {
+        writeln!(writer, r##"          <section class="doc">"##)?;
+        compile_doc_lines(writer, "            ", &r#extern.doc)?;
+        writeln!(writer, r##"          </section>"##)?;
+    }
+
+    writeln!(writer, r##"        </dd>"##)?;
+
+    Ok((r#extern.name.clone(), Item { id }))
+}
+
 fn compile_alias(
     context: &ModuleContext,
     writer: &mut impl Write,
@@ -103,7 +135,7 @@ fn compile_alias(
         <dd class="item alias">
 "##,
         id = id,
-        name = alias.name
+        name = alias.name,
     )?;
 
     if !alias.doc.is_empty() {
@@ -112,16 +144,14 @@ fn compile_alias(
         writeln!(writer, r##"          </section>"##)?;
     }
 
-    let term = compile_term(context, &alias.term, report);
-
     write!(
         writer,
         r##"          <section class="term">
-            {}
+            {term}
           </section>
         </dd>
 "##,
-        term
+        term = compile_term(context, &alias.term, report),
     )?;
 
     Ok((alias.name.clone(), Item { id }))

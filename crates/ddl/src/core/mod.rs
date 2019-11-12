@@ -106,6 +106,8 @@ impl PartialEq for Module {
 /// Items in a module.
 #[derive(Debug, Clone)]
 pub enum Item {
+    /// External definitions
+    Extern(Extern),
     /// Alias definitions
     Alias(Alias),
     /// Struct definitions.
@@ -115,6 +117,7 @@ pub enum Item {
 impl Item {
     pub fn span(&self) -> Span {
         match self {
+            Item::Extern(r#extern) => r#extern.span,
             Item::Struct(struct_ty) => struct_ty.span,
             Item::Alias(alias) => alias.span,
         }
@@ -126,6 +129,7 @@ impl Item {
         D::Doc: Clone,
     {
         match self {
+            Item::Extern(r#extern) => r#extern.doc(alloc),
             Item::Alias(alias) => alias.doc(alloc),
             Item::Struct(struct_ty) => struct_ty.doc(alloc),
         }
@@ -135,10 +139,61 @@ impl Item {
 impl PartialEq for Item {
     fn eq(&self, other: &Item) -> bool {
         match (self, other) {
+            (Item::Extern(extern0), Item::Extern(extern1)) => *extern0 == *extern1,
             (Item::Alias(alias0), Item::Alias(alias1)) => *alias0 == *alias1,
             (Item::Struct(struct_ty0), Item::Struct(struct_ty1)) => *struct_ty0 == *struct_ty1,
             (_, _) => false,
         }
+    }
+}
+
+/// An external definition.
+#[derive(Debug, Clone)]
+pub struct Extern {
+    /// The full span of this definition.
+    pub span: Span,
+    /// Doc comment.
+    pub doc: Arc<[String]>,
+    /// Name of this definition.
+    pub name: Label,
+    /// The type of this definition.
+    pub ty: Term,
+}
+
+impl Extern {
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        let docs = alloc.concat(self.doc.iter().map(|line| {
+            (alloc.nil())
+                .append(format!("///{}", line))
+                .append(alloc.newline())
+        }));
+
+        (alloc.nil())
+            .append(docs)
+            .append("extern")
+            .append(alloc.space())
+            .append(self.name.doc(alloc))
+            .append(alloc.space())
+            .append(":")
+            .group()
+            .append(
+                (alloc.nil())
+                    .append(alloc.space())
+                    .append(self.ty.doc(alloc))
+                    .group()
+                    .append(";")
+                    .nest(4),
+            )
+    }
+}
+
+impl PartialEq for Extern {
+    fn eq(&self, other: &Extern) -> bool {
+        self.name == other.name && self.ty == other.ty
     }
 }
 

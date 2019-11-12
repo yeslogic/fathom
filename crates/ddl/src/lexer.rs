@@ -11,13 +11,15 @@ type Keywords = HashMap<String, Token>;
 
 lazy_static::lazy_static! {
     pub static ref SURFACE_KEYWORDS: Keywords = hashmap! {
-        "struct".to_owned() => Token::Struct,
-        "if".to_owned() => Token::If,
         "else".to_owned() => Token::Else,
+        "extern".to_owned() => Token::Extern,
+        "if".to_owned() => Token::If,
+        "struct".to_owned() => Token::Struct,
     };
 
     pub static ref CORE_KEYWORDS: Keywords = hashmap! {
         "bool_elim".to_owned() => Token::BoolElim,
+        "extern".to_owned() => Token::Extern,
         "f32".to_owned() => Token::F32,
         "f64".to_owned() => Token::F64,
         "int".to_owned() => Token::Int,
@@ -46,6 +48,8 @@ pub enum Token {
     BoolElim,
     /// Keyword `else`
     Else,
+    /// Keyword `extern`
+    Extern,
     /// Keyword `f32`
     F32,
     /// Keyword `f64`
@@ -92,6 +96,7 @@ impl<'a> fmt::Display for Token {
 
             Token::BoolElim => write!(f, "bool_elim"),
             Token::Else => write!(f, "else"),
+            Token::Extern => write!(f, "extern"),
             Token::F32 => write!(f, "f32"),
             Token::F64 => write!(f, "f64"),
             Token::If => write!(f, "if"),

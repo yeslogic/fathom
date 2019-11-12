@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::core::{Alias, Item, Label, Module, Universe, StructType, Term, TypeField};
+use crate::core::{Alias, Extern, Item, Label, Module, Universe, StructType, Term, TypeField};
 use crate::diagnostics;
 use crate::lexer::Token;
 use crate::literal;
@@ -23,6 +23,7 @@ extern {
 
         "bool_elim" => Token::BoolElim,
         "else" => Token::Else,
+        "extern" => Token::Extern,
         "f32" => Token::F32,
         "f64" => Token::F64,
         "if" => Token::If,
@@ -53,6 +54,14 @@ pub Module: Module = {
 };
 
 Item: Item = {
+    <doc: "doc comment"*>
+    <start: @L> "extern" <name: "identifier"> ":" <ty: Term> ";" <end: @R> => {
+        let span = Span::new(start, end);
+        let doc = Arc::from(doc);
+        let name = Label(name);
+
+        Item::Extern(Extern { span, doc, name, ty })
+    },
     <doc: "doc comment"*>
     <start: @L> <name: "identifier"> "=" <term: Term> ";" <end: @R> => {
         let span = Span::new(start, end);

@@ -20,6 +20,12 @@ pub fn delaborate_module(module: &core::Module) -> surface::Module {
 
 pub fn delaborate_item(item: &core::Item) -> surface::Item {
     match item {
+        core::Item::Extern(r#extern) => surface::Item::Extern(surface::Extern {
+            span: r#extern.span,
+            doc: r#extern.doc.clone(),
+            name: (Span::initial(), r#extern.name.to_string()),
+            ty: delaborate_term(&r#extern.ty),
+        }),
         core::Item::Alias(alias) => {
             let (term, ty) = match &alias.term {
                 core::Term::Ann(term, ty) => (delaborate_term(term), Some(delaborate_term(ty))),
