@@ -91,7 +91,7 @@ TermAtomic: Term = {
     <start: @L> "(" <term: Term> ")" <end: @R> => {
         Term::Paren(Span::new(start, end), Box::new(term))
     },
-    <name: Identifier> => Term::Var(name.0, name.1),
+    <name: Identifier> => Term::Name(name.0, name.1),
     <start: @L> <literal: "numeric literal"> <end: @R> => {
         Term::NumberLiteral(Span::new(start, end), literal)
     },

@@ -9,6 +9,7 @@ use crate::diagnostics;
 use crate::lexer::SpannedToken;
 use crate::literal;
 
+pub mod compile;
 pub mod delaborate;
 pub mod elaborate;
 
@@ -248,8 +249,8 @@ pub enum Term {
     Paren(Span, Box<Term>),
     /// Annotated terms.
     Ann(Box<Term>, Box<Term>),
-    /// Variables.
-    Var(Span, String),
+    /// Names.
+    Name(Span, String),
     /// Numeric literals.
     NumberLiteral(Span, literal::Number),
 
@@ -265,7 +266,7 @@ impl Term {
         match self {
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
             Term::Paren(span, _)
-            | Term::Var(span, _)
+            | Term::Name(span, _)
             | Term::NumberLiteral(span, _)
             | Term::If(span, _, _, _)
             | Term::Error(span) => *span,
@@ -285,7 +286,7 @@ impl Term {
                 .append(":")
                 .group()
                 .append((alloc.space()).append(ty.doc(alloc)).group().nest(4)),
-            Term::Var(_, name) => alloc.text(name),
+            Term::Name(_, name) => alloc.text(name),
             Term::NumberLiteral(_, literal) => alloc.as_string(literal),
             Term::If(_, term, if_true, if_false) => (alloc.nil())
                 .append("if")

@@ -239,17 +239,17 @@ pub fn elaborate_universe(
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
     match surface_term {
-        surface::Term::Var(span, name)
+        surface::Term::Name(span, name)
             if !context.items.contains_key("Type") && name.as_str() == "Type" =>
         {
             core::Term::Universe(*span, core::Universe::Type)
         }
-        surface::Term::Var(span, name)
+        surface::Term::Name(span, name)
             if !context.items.contains_key("Format") && name.as_str() == "Format" =>
         {
             core::Term::Universe(*span, core::Universe::Format)
         }
-        surface::Term::Var(span, name)
+        surface::Term::Name(span, name)
             if !context.items.contains_key("Kind") && name.as_str() == "Kind" =>
         {
             core::Term::Universe(*span, core::Universe::Kind)
@@ -347,7 +347,7 @@ pub fn synth_term(
             let core_term = check_term(context, surface_term, &ty, report);
             (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
         }
-        surface::Term::Var(span, name) => match context.items.get(name.as_str()) {
+        surface::Term::Name(span, name) => match context.items.get(name.as_str()) {
             Some((_, ty)) => (
                 core::Term::Item(*span, core::Label(name.to_string())),
                 ty.clone(),
