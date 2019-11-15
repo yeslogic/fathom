@@ -1,4 +1,3 @@
-//! Compiler backends for the data description language.
+//! Compiler backends for the core language.
 
-pub mod doc;
 pub mod rust;

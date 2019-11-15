@@ -54,11 +54,11 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
     }
 
     let surface_module = test.parse_surface(&files);
+    test.compile_doc(&surface_module);
     let core_module = test.elaborate(&files, &surface_module);
     test.roundtrip_delaborate_core(&files, &core_module);
     test.roundtrip_pretty_core(&mut files, &core_module);
     test.compile_rust(&core_module);
-    test.compile_doc(&core_module);
 
     test.finish(&files);
 }
@@ -423,9 +423,9 @@ impl Test {
         }
     }
 
-    fn compile_doc(&mut self, core_module: &ddl::core::Module) {
+    fn compile_doc(&mut self, surface_module: &ddl::surface::Module) {
         let mut output = Vec::new();
-        ddl::core::compile::doc::compile_module(&mut output, core_module, &mut |d| {
+        ddl::surface::compile::doc::compile_module(&mut output, surface_module, &mut |d| {
             self.found_diagnostics.push(d)
         })
         .unwrap();
