@@ -81,7 +81,7 @@ structures, such as file formats, network protocols or bitstreams.
   the Open Type Font specification. Shows promise as nice way to describe
   binary formats, but JS is not the most flexible host language.
 - [HarfBuzz](https://github.com/harfbuzz/harfbuzz) defines [a handy set of types
-  and macros](https://github.com/harfbuzz/harfbuzz/blob/35218c488c3966aa6d459ec5a007a2b43208e97c/src/hb-machinery.hh#L40-L92)
+  and macros](https://github.com/harfbuzz/harfbuzz/blob/35218c488c3966aa6d459ec5a007a2b43208e97c/src/hb-machinery.hh)
   that allows binary data to be cast in-place into declaratively descibed Open
   Type Font tables. Alas, it is in C++, and the API seems extremely prone to
   human-error. A Rust API would be much more robust in regards to upholding
