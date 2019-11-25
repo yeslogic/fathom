@@ -5,6 +5,7 @@ use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
 use pretty::{DocAllocator, DocBuilder};
 use std::borrow::Borrow;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
 
@@ -389,6 +390,8 @@ pub enum Term {
 
     /// A boolean elimination.
     BoolElim(Span, Arc<Term>, Arc<Term>, Arc<Term>),
+    /// A integer elimination.
+    IntElim(Span, Arc<Term>, BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
 
     /// Error sentinel.
     Error(Span),
@@ -426,6 +429,7 @@ impl Term {
             | Term::F32Const(span, _)
             | Term::F64Const(span, _)
             | Term::BoolElim(span, _, _, _)
+            | Term::IntElim(span, _, _, _)
             | Term::Error(span) => *span,
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
         }
@@ -517,10 +521,10 @@ impl Term {
                 .append("f64")
                 .append(alloc.space())
                 .append(format_float(*value)),
-            Term::BoolElim(_, term, if_true, if_false) => (alloc.nil())
+            Term::BoolElim(_, head, if_true, if_false) => (alloc.nil())
                 .append("bool_elim")
                 .append(alloc.space())
-                .append(term.doc(alloc))
+                .append(head.doc(alloc))
                 .append(alloc.space())
                 .append("{")
                 .append(alloc.space())
@@ -528,6 +532,26 @@ impl Term {
                 .append(",")
                 .append(alloc.space())
                 .append(if_false.doc(alloc))
+                .append(alloc.space())
+                .append("}"),
+            Term::IntElim(_, head, branches, default) => (alloc.nil())
+                .append("int_elim")
+                .append(alloc.space())
+                .append(head.doc(alloc))
+                .append(alloc.space())
+                .append("{")
+                .append(alloc.concat(branches.iter().map(|(value, term)| {
+                    (alloc.nil())
+                        .append(alloc.space())
+                        .append(alloc.as_string(value))
+                        .append(alloc.space())
+                        .append("=>")
+                        .append(alloc.space())
+                        .append(term.doc(alloc))
+                        .append(",")
+                })))
+                .append(alloc.space())
+                .append(default.doc(alloc))
                 .append(alloc.space())
                 .append("}"),
             Term::Error(_) => alloc.text("!"),
@@ -549,6 +573,10 @@ impl PartialEq for Term {
                 Term::BoolElim(_, head0, if_true0, if_false0),
                 Term::BoolElim(_, head1, if_true1, if_false1),
             ) => head0 == head1 && if_true0 == if_true1 && if_false0 == if_false1,
+            (
+                Term::IntElim(_, head0, branches0, default0),
+                Term::IntElim(_, head1, branches1, default1),
+            ) => head0 == head1 && branches0 == branches1 && default0 == default1,
             (Term::U8Type(_), Term::U8Type(_))
             | (Term::U16LeType(_), Term::U16LeType(_))
             | (Term::U16BeType(_), Term::U16BeType(_))
@@ -591,6 +619,7 @@ pub enum Head {
 pub enum Elim {
     // FIXME: environment?
     Bool(Arc<Term>, Arc<Term>),
+    Int(BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
 }
 
 /// Values.

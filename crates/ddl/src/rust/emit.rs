@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::rust::{Alias, Const, Function, Item, Module, RtType, StructType, Term, Type};
+use crate::rust::{Alias, Const, Function, Item, Module, Pattern, RtType, StructType, Term, Type};
 
 // TODO: Make this path configurable
 const RT_NAME: &str = "ddl_rt";
@@ -301,6 +301,7 @@ fn emit_ty_read(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
 fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
     match term {
         Term::Var(name) => write!(writer, "{}", name),
+        Term::Panic(message) => write!(writer, "panic!({:?})", message),
         Term::Bool(value) => write!(writer, "{}", value),
         Term::U8(value) => write!(writer, "{}u8", value),
         Term::U16(value) => write!(writer, "{}u16", value),
@@ -316,14 +317,42 @@ fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
             emit_term(writer, term)?;
             write!(writer, "()")
         }
-        Term::If(term0, term1, term2) => {
+        Term::If(head, if_true, if_false) => {
             write!(writer, "if ")?;
-            emit_term(writer, term0)?;
+            emit_term(writer, head)?;
             write!(writer, " {{ ")?;
-            emit_term(writer, term1)?;
+            emit_term(writer, if_true)?;
             write!(writer, " }} else {{ ")?;
-            emit_term(writer, term2)?;
+            emit_term(writer, if_false)?;
             write!(writer, " }}")
         }
+        Term::Match(head, branches) => {
+            write!(writer, "match ")?;
+            emit_term(writer, head)?;
+            write!(writer, " {{ ")?;
+            for (i, (pattern, term)) in branches.iter().enumerate() {
+                if i != 0 {
+                    write!(writer, ", ")?;
+                }
+                emit_pattern(writer, pattern)?;
+                write!(writer, " => ")?;
+                emit_term(writer, term)?;
+            }
+            write!(writer, " }}")
+        }
+    }
+}
+
+fn emit_pattern(writer: &mut impl Write, pattern: &Pattern) -> io::Result<()> {
+    match pattern {
+        Pattern::Name(name) => write!(writer, "{}", name),
+        Pattern::U8(value) => write!(writer, "{}u8", value),
+        Pattern::U16(value) => write!(writer, "{}u16", value),
+        Pattern::U32(value) => write!(writer, "{}u32", value),
+        Pattern::U64(value) => write!(writer, "{}u64", value),
+        Pattern::I8(value) => write!(writer, "{}i8", value),
+        Pattern::I16(value) => write!(writer, "{}i16", value),
+        Pattern::I32(value) => write!(writer, "{}i32", value),
+        Pattern::I64(value) => write!(writer, "{}i64", value),
     }
 }

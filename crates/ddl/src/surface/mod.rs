@@ -242,6 +242,34 @@ impl TypeField {
     }
 }
 
+/// Patterns.
+#[derive(Debug, Clone)]
+pub enum Pattern {
+    /// Named patterns.
+    Name(Span, String),
+    /// Numeric literals.
+    NumberLiteral(Span, literal::Number),
+}
+
+impl Pattern {
+    pub fn span(&self) -> Span {
+        match self {
+            Pattern::Name(span, _) | Pattern::NumberLiteral(span, _) => *span,
+        }
+    }
+
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        match self {
+            Pattern::Name(_, name) => alloc.text(name),
+            Pattern::NumberLiteral(_, literal) => alloc.as_string(literal),
+        }
+    }
+}
+
 /// Terms.
 #[derive(Debug, Clone)]
 pub enum Term {
@@ -256,6 +284,8 @@ pub enum Term {
 
     /// If-else expressions.
     If(Span, Box<Term>, Box<Term>, Box<Term>),
+    /// Match expressions.
+    Match(Span, Box<Term>, Vec<(Pattern, Term)>),
 
     /// Error sentinel terms.
     Error(Span),
@@ -269,6 +299,7 @@ impl Term {
             | Term::Name(span, _)
             | Term::NumberLiteral(span, _)
             | Term::If(span, _, _, _)
+            | Term::Match(span, _, _)
             | Term::Error(span) => *span,
         }
     }
@@ -288,10 +319,10 @@ impl Term {
                 .append((alloc.space()).append(ty.doc(alloc)).group().nest(4)),
             Term::Name(_, name) => alloc.text(name),
             Term::NumberLiteral(_, literal) => alloc.as_string(literal),
-            Term::If(_, term, if_true, if_false) => (alloc.nil())
+            Term::If(_, head, if_true, if_false) => (alloc.nil())
                 .append("if")
                 .append(alloc.space())
-                .append(term.doc(alloc))
+                .append(head.doc(alloc))
                 .append(alloc.space())
                 .append("{")
                 .group()
@@ -308,6 +339,33 @@ impl Term {
                 )
                 .append(alloc.space().append(if_false.doc(alloc)).group().nest(4))
                 .append(alloc.space())
+                .append("}"),
+            Term::Match(_, head, branches) => (alloc.nil())
+                .append("match")
+                .append(alloc.space())
+                .append(head.doc(alloc))
+                .append(alloc.space())
+                .append("{")
+                .append(alloc.concat(branches.iter().map(|(pattern, term)| {
+                    (alloc.nil())
+                        .append(alloc.newline())
+                        .append(
+                            (alloc.nil())
+                                .append(pattern.doc(alloc))
+                                .append(alloc.space())
+                                .append("=>")
+                                .group(),
+                        )
+                        .append(
+                            (alloc.nil())
+                                .append(alloc.space())
+                                .append(term.doc(alloc))
+                                .append(","),
+                        )
+                        .nest(4)
+                        .group()
+                })))
+                .append(alloc.newline())
                 .append("}"),
             Term::Error(_) => alloc.text("!"),
         }

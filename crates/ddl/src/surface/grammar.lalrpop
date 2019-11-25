@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::surface::{Alias, Item, Module, StructType, Term, TypeField};
+use crate::surface::{Alias, Item, Module, Pattern, StructType, Term, TypeField};
 use crate::lexer::Token;
 use crate::literal;
 
@@ -21,12 +21,14 @@ extern {
         "character literal" => Token::CharLiteral(<literal::Char>),
 
         "bool_elim" => Token::BoolElim,
+        "int_elim" => Token::IntElim,
         "else" => Token::Else,
         "f32" => Token::F32,
         "f64" => Token::F64,
         "if" => Token::If,
         "int" => Token::Int,
         "item" => Token::Item,
+        "match" => Token::Match,
         "struct" => Token::Struct,
 
         "{" => Token::OpenBrace,
@@ -38,6 +40,7 @@ extern {
         ":" => Token::Colon,
         "," => Token::Comma,
         "=" => Token::Equals,
+        "=>" => Token::EqualsGreater,
         ";" => Token::Semi,
     }
 }
@@ -79,11 +82,22 @@ Field: TypeField = {
     },
 };
 
+Pattern: Pattern = {
+    <name: Identifier> => Pattern::Name(name.0, name.1),
+    <start: @L> <literal: "numeric literal"> <end: @R> => {
+        Pattern::NumberLiteral(Span::new(start, end), literal)
+    },
+};
+
 Term: Term = {
     TermAtomic,
     <term: TermAtomic> ":" <ty: Term> => Term::Ann(Box::new(term), Box::new(ty)),
-    <start: @L> "if" <term: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" <end: @R> => {
-        Term::If(Span::new(start, end), Box::new(term), Box::new(if_true), Box::new(if_false))
+    <start: @L> "if" <head: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" <end: @R> => {
+        Term::If(Span::new(start, end), Box::new(head), Box::new(if_true), Box::new(if_false))
+    },
+    <start: @L> "match" <head: Term> "{" <mut branches: (<Pattern> "=>" <Term> ",")*> <last: (<Pattern> "=>" <Term>)?>"}" <end: @R> => {
+        branches.extend(last);
+        Term::Match(Span::new(start, end), Box::new(head), branches)
     },
 };
 

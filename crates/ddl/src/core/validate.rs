@@ -203,6 +203,13 @@ pub fn check_term(
             check_term(context, if_true, expected_ty, report);
             check_term(context, if_false, expected_ty, report);
         }
+        (Term::IntElim(_, head, branches, default), expected_ty) => {
+            check_term(context, head, &Value::IntType, report);
+            for (_, term) in branches {
+                check_term(context, term, expected_ty, report);
+            }
+            check_term(context, default, expected_ty, report);
+        }
         (term, expected_ty) => {
             let synth_ty = synth_term(context, term, report);
 
@@ -279,8 +286,8 @@ pub fn synth_term(
         Term::IntConst(_, _) => Value::IntType,
         Term::F32Const(_, _) => Value::F32Type,
         Term::F64Const(_, _) => Value::F64Type,
-        Term::BoolElim(_, term, if_true, if_false) => {
-            check_term(context, term, &Value::BoolType, report);
+        Term::BoolElim(_, head, if_true, if_false) => {
+            check_term(context, head, &Value::BoolType, report);
             let if_true_ty = synth_term(context, if_true, report);
             let if_false_ty = synth_term(context, if_false, report);
 
@@ -296,6 +303,14 @@ pub fn synth_term(
                 ));
                 Value::Error
             }
+        }
+        Term::IntElim(span, _, _, _) => {
+            report(diagnostics::ambiguous_match_expression(
+                Severity::Bug,
+                context.file_id,
+                *span,
+            ));
+            Value::Error
         }
         Term::Error(_) => Value::Error,
     }

@@ -123,6 +123,17 @@ pub fn kind_has_no_type(severity: Severity, file_id: FileId, span: Span) -> Diag
     }
 }
 
+pub fn ambiguous_match_expression(severity: Severity, file_id: FileId, span: Span) -> Diagnostic {
+    Diagnostic {
+        severity,
+        code: None,
+        message: "ambiguous match expression".to_owned(),
+        primary_label: Label::new(file_id, span, "type annotation required"),
+        secondary_labels: vec![],
+        notes: vec![],
+    }
+}
+
 pub mod error {
     use codespan::ByteOffset;
     use lalrpop_util::ParseError;
@@ -264,6 +275,44 @@ pub mod error {
             notes: vec![],
         }
     }
+
+    pub fn unsupported_pattern_ty(
+        file_id: FileId,
+        span: Span,
+        found_ty: &core::Value,
+    ) -> Diagnostic {
+        let arena = pretty::Arena::new();
+
+        let found_ty = delaborate::delaborate_term(&core::semantics::readback(found_ty));
+        let pretty::DocBuilder(_, found_ty) = found_ty.doc(&arena);
+        let found_ty = found_ty.pretty(100);
+
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: format!("unsupported pattern type: `{}`", found_ty),
+            primary_label: Label::new(
+                file_id,
+                span,
+                format!("unsupported pattern type: `{}`", found_ty),
+            ),
+            secondary_labels: vec![],
+            notes: vec![
+                "can only currently match against terms of type `Bool` or `Int`".to_owned(),
+            ],
+        }
+    }
+
+    pub fn no_default_pattern(file_id: FileId, span: Span) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Error,
+            code: None,
+            message: "non-exhaustive patterns".to_owned(),
+            primary_label: Label::new(file_id, span, "missing default pattern"),
+            secondary_labels: vec![],
+            notes: vec![],
+        }
+    }
 }
 
 pub mod bug {
@@ -300,6 +349,21 @@ pub mod bug {
             primary_label: Label::new(file_id, span, "unknown global"),
             secondary_labels: vec![],
             // TODO: provide suggestions
+            notes: vec![],
+        }
+    }
+}
+
+pub mod warning {
+    pub use super::*;
+
+    pub fn unreachable_pattern(file_id: FileId, span: Span) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Warning,
+            code: None,
+            message: "unreachable pattern".to_owned(),
+            primary_label: Label::new(file_id, span, "unreachable pattern"),
+            secondary_labels: vec![],
             notes: vec![],
         }
     }

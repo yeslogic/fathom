@@ -11,9 +11,10 @@ type Keywords = HashMap<String, Token>;
 
 lazy_static::lazy_static! {
     pub static ref SURFACE_KEYWORDS: Keywords = hashmap! {
-        "struct".to_owned() => Token::Struct,
         "if".to_owned() => Token::If,
         "else".to_owned() => Token::Else,
+        "match".to_owned() => Token::Match,
+        "struct".to_owned() => Token::Struct,
     };
 
     pub static ref CORE_KEYWORDS: Keywords = hashmap! {
@@ -21,6 +22,7 @@ lazy_static::lazy_static! {
         "f32".to_owned() => Token::F32,
         "f64".to_owned() => Token::F64,
         "int".to_owned() => Token::Int,
+        "int_elim".to_owned() => Token::IntElim,
         "item".to_owned() => Token::Item,
         "struct".to_owned() => Token::Struct,
     };
@@ -42,41 +44,47 @@ pub enum Token {
     /// Character literals.
     CharLiteral(literal::Char),
 
-    /// Keyword `bool_elim`
+    /// Keyword: `bool_elim`.
     BoolElim,
-    /// Keyword `else`
+    /// Keyword: `int_elim`.
+    IntElim,
+    /// Keyword: `else`.
     Else,
-    /// Keyword `f32`
+    /// Keyword: `f32`.
     F32,
-    /// Keyword `f64`
+    /// Keyword: `f64`.
     F64,
-    /// Keyword `if`
+    /// Keyword: `if`.
     If,
-    /// Keyword `int`
+    /// Keyword: `int`.
     Int,
-    /// Keyword `item`
+    /// Keyword: `item`.
     Item,
-    /// Keyword `struct`
+    /// Keyword: `match`.
+    Match,
+    /// Keyword: `struct`.
     Struct,
 
-    /// Open curly brace: `{`
+    /// Open curly brace: `{`.
     OpenBrace,
-    /// Close curly brace:  `}`
+    /// Close curly brace: `}`.
     CloseBrace,
-    /// Open parenthesis: `(`
+    /// Open parenthesis: `(`.
     OpenParen,
-    /// Close parenthesis:  `)`
+    /// Close parenthesis: `)`.
     CloseParen,
 
-    /// Bang: `!`
+    /// Bang: `!`.
     Bang,
-    /// Colon: `:`
+    /// Colon: `:`.
     Colon,
-    /// Comma: `,`
+    /// Comma: `,`.
     Comma,
-    /// Equals: `=`
+    /// Equals: `=`.
     Equals,
-    /// Semicolon: `;`
+    /// Equals greater: `=>`.
+    EqualsGreater,
+    /// Semicolon: `;`.
     Semi,
 }
 
@@ -91,12 +99,14 @@ impl<'a> fmt::Display for Token {
             Token::CharLiteral(literal) => write!(f, "{}", literal),
 
             Token::BoolElim => write!(f, "bool_elim"),
+            Token::IntElim => write!(f, "int_elim"),
             Token::Else => write!(f, "else"),
             Token::F32 => write!(f, "f32"),
             Token::F64 => write!(f, "f64"),
             Token::If => write!(f, "if"),
             Token::Int => write!(f, "int"),
             Token::Item => write!(f, "item"),
+            Token::Match => write!(f, "match"),
             Token::Struct => write!(f, "struct"),
 
             Token::OpenBrace => write!(f, "{{"),
@@ -108,6 +118,7 @@ impl<'a> fmt::Display for Token {
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
             Token::Equals => write!(f, "="),
+            Token::EqualsGreater => write!(f, "=>"),
             Token::Semi => write!(f, ";"),
         }
     }
@@ -298,7 +309,13 @@ impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
                 '!' => self.emit(Token::Bang),
                 ':' => self.emit(Token::Colon),
                 ',' => self.emit(Token::Comma),
-                '=' => self.emit(Token::Equals),
+                '=' => match self.peek() {
+                    Some('>') => {
+                        self.advance();
+                        self.emit(Token::EqualsGreater)
+                    }
+                    Some(_) | None => self.emit(Token::Equals),
+                },
                 ';' => self.emit(Token::Semi),
                 '+' => match self.advance()? {
                     ch if is_dec_digit(ch) => self.consume_number(start, Some(Sign::Positive), ch),

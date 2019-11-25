@@ -2,6 +2,7 @@ use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use inflector::Inflector;
 use num_bigint::BigInt;
+use num_traits::cast::ToPrimitive;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -373,8 +374,6 @@ fn compile_term(
             is_const: true,
         },
         core::Term::IntConst(span, value) => {
-            use num_traits::cast::ToPrimitive;
-
             match value.to_i64() {
                 // TODO: don't default to I64.
                 Some(value) => CompiledTerm::Term {
@@ -403,13 +402,17 @@ fn compile_term(
             is_const: true,
         },
         core::Term::BoolElim(span, head, if_true, if_false) => {
+            let head = match compile_term(context, head, report) {
+                CompiledTerm::Term { term: head, .. } => head,
+                // TODO: Error
+                _ => return CompiledTerm::Error,
+            };
+
             match (
-                compile_term(context, head, report),
                 compile_term(context, if_true, report),
                 compile_term(context, if_false, report),
             ) {
                 (
-                    CompiledTerm::Term { term: head, .. },
                     CompiledTerm::Term {
                         term: if_true,
                         ty: if_true_ty,
@@ -422,7 +425,6 @@ fn compile_term(
                     is_const: false,
                 },
                 (
-                    CompiledTerm::Term { term, .. },
                     CompiledTerm::Type {
                         ty: true_ty,
                         is_copy: true_is_copy,
@@ -435,7 +437,7 @@ fn compile_term(
                     },
                 ) => match (true_host_ty, false_host_ty) {
                     (Some(true_host_ty), Some(false_host_ty)) => CompiledTerm::Type {
-                        ty: rust::Type::If(Box::new(term), Box::new(true_ty), Box::new(false_ty)),
+                        ty: rust::Type::If(Box::new(head), Box::new(true_ty), Box::new(false_ty)),
                         is_copy: true_is_copy && false_is_copy,
                         host_ty: Some(rust::Type::Rt(rust::RtType::Either(
                             Box::new(true_host_ty),
@@ -448,13 +450,73 @@ fn compile_term(
                     }
                 },
 
-                (_, CompiledTerm::Erased, CompiledTerm::Erased) => CompiledTerm::Erased,
-                (CompiledTerm::Error, _, _)
-                | (_, CompiledTerm::Error, _)
-                | (_, _, CompiledTerm::Error) => CompiledTerm::Error,
+                (CompiledTerm::Erased, CompiledTerm::Erased) => CompiledTerm::Erased,
+                (CompiledTerm::Error, _) | (_, CompiledTerm::Error) => CompiledTerm::Error,
 
                 // TODO: report bug: mismatched arms of if expression
-                (_, _, _) => unimplemented!(),
+                (_, _) => unimplemented!(),
+            }
+        }
+        core::Term::IntElim(span, head, branches, default) => {
+            let head = match compile_term(context, head, report) {
+                CompiledTerm::Term { term: head, .. } => head,
+                // TODO: Error
+                _ => return CompiledTerm::Error,
+            };
+
+            match compile_term(context, default, report) {
+                CompiledTerm::Term {
+                    term: default,
+                    ty: default_ty,
+                    ..
+                } => {
+                    let branches = branches
+                        .iter()
+                        .filter_map(|(value, term)| match value.to_i64() {
+                            Some(value) => Some((
+                                rust::Pattern::I64(value),
+                                match compile_term(context, term, report) {
+                                    CompiledTerm::Term { term, .. } => term,
+                                    // TODO: report bug: mismatched arms of match expression
+                                    _ => rust::Term::Panic("error term".to_owned()),
+                                },
+                            )),
+                            None => {
+                                report(crate::diagnostics::bug::not_yet_implemented(
+                                    context.file_id,
+                                    *span,
+                                    "non-i64 patterns",
+                                ));
+                                None
+                            }
+                        })
+                        .chain(std::iter::once((
+                            // TODO: Use pattern name
+                            rust::Pattern::Name("_".to_owned()),
+                            default,
+                        )))
+                        .collect();
+
+                    CompiledTerm::Term {
+                        term: rust::Term::Match(Box::new(head), branches),
+                        ty: default_ty,
+                        is_const: false,
+                    }
+                }
+                CompiledTerm::Type {
+                    ty: _default_ty,
+                    is_copy: _default_is_copy,
+                    host_ty: _default_host_ty,
+                } => {
+                    report(crate::diagnostics::bug::not_yet_implemented(
+                        context.file_id,
+                        *span,
+                        "type-level match expressions",
+                    ));
+                    CompiledTerm::Error
+                }
+                CompiledTerm::Erased => CompiledTerm::Erased,
+                CompiledTerm::Error => CompiledTerm::Error,
             }
         }
         core::Term::Universe(_, _) => CompiledTerm::Erased,
