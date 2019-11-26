@@ -13,33 +13,17 @@ mod diagnostics;
 pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic)) -> rust::Module {
     let mut context = ModuleContext {
         file_id: module.file_id,
-        items: HashMap::new(),
+        compiled_items: HashMap::new(),
+        items: Vec::new(),
     };
 
-    let items = module.items.iter().filter_map(|core_item| {
-        use std::collections::hash_map::Entry;
-
-        let (label, compiled_item, item) = compile_item(&context, core_item, report);
-        match context.items.entry(label) {
-            Entry::Occupied(entry) => {
-                report(diagnostics::bug::item_name_reused(
-                    context.file_id,
-                    entry.key(),
-                    core_item.span(),
-                    entry.get().span(),
-                ));
-                None
-            }
-            Entry::Vacant(entry) => {
-                entry.insert(compiled_item);
-                item
-            }
-        }
-    });
+    for core_item in &module.items {
+        compile_item(&mut context, core_item, report);
+    }
 
     rust::Module {
         doc: module.doc.clone(),
-        items: items.collect(),
+        items: context.items,
     }
 }
 
@@ -75,14 +59,15 @@ impl CompiledItem {
 
 struct ModuleContext {
     file_id: FileId,
-    items: HashMap<core::Label, CompiledItem>,
+    compiled_items: HashMap<core::Label, CompiledItem>,
+    items: Vec<rust::Item>,
 }
 
 fn compile_item(
-    context: &ModuleContext,
+    context: &mut ModuleContext,
     core_item: &core::Item,
     report: &mut dyn FnMut(Diagnostic),
-) -> (core::Label, CompiledItem, Option<rust::Item>) {
+) {
     match core_item {
         core::Item::Alias(core_alias) => compile_alias(context, core_alias, report),
         core::Item::Struct(core_struct_ty) => compile_struct_ty(context, core_struct_ty, report),
@@ -90,55 +75,52 @@ fn compile_item(
 }
 
 fn compile_alias(
-    context: &ModuleContext,
+    context: &mut ModuleContext,
     core_alias: &core::Alias,
     report: &mut dyn FnMut(Diagnostic),
-) -> (core::Label, CompiledItem, Option<rust::Item>) {
+) {
+    use std::collections::hash_map::Entry;
+
     let span = core_alias.span;
-    match compile_term(context, &core_alias.term, report) {
+
+    let compiled_item = match compile_term(context, &core_alias.term, report) {
         CompiledTerm::Term { term, ty, is_const } => {
             let doc = core_alias.doc.clone();
             if is_const {
                 let name = core_alias.name.0.to_screaming_snake_case(); // TODO: name avoidance
-                (
-                    core_alias.name.clone(),
-                    CompiledItem::Term {
-                        span,
-                        name: name.clone(),
-                        ty: ty.clone(),
-                        is_function: false,
-                        is_const,
-                    },
-                    Some(rust::Item::Const(rust::Const {
-                        doc,
-                        name,
-                        ty,
-                        term,
-                    })),
-                )
+                context.items.push(rust::Item::Const(rust::Const {
+                    doc,
+                    name: name.clone(),
+                    ty: ty.clone(),
+                    term,
+                }));
+                CompiledItem::Term {
+                    span,
+                    name,
+                    ty,
+                    is_function: false,
+                    is_const,
+                }
             } else {
                 let name = core_alias.name.0.to_snake_case(); // TODO: name avoidance
-                (
-                    core_alias.name.clone(),
-                    CompiledItem::Term {
-                        span,
-                        name: name.clone(),
-                        ty: ty.clone(),
-                        is_function: true,
-                        is_const,
-                    },
-                    Some(rust::Item::Function(rust::Function {
-                        doc,
-                        name,
-                        is_const,
-                        ty,
-                        term,
-                    })),
-                )
+                context.items.push(rust::Item::Function(rust::Function {
+                    doc,
+                    name: name.clone(),
+                    is_const,
+                    ty: ty.clone(),
+                    term,
+                }));
+                CompiledItem::Term {
+                    span,
+                    name,
+                    ty,
+                    is_function: true,
+                    is_const,
+                }
             }
         }
-        CompiledTerm::Erased => (core_alias.name.clone(), CompiledItem::Erased(span), None),
-        CompiledTerm::Error => (core_alias.name.clone(), CompiledItem::Error(span), None),
+        CompiledTerm::Erased => CompiledItem::Erased(span),
+        CompiledTerm::Error => CompiledItem::Error(span),
         CompiledTerm::Type {
             ty,
             is_copy,
@@ -155,18 +137,11 @@ fn compile_alias(
             match ty {
                 ty @ rust::Type::If(_, _, _) => match host_ty {
                     None => unreachable!("type level if for non-format type"),
-                    Some(host_ty) => (
-                        core_alias.name.clone(),
-                        CompiledItem::Type {
-                            span,
-                            name: name.clone(),
-                            is_copy,
-                            host_ty: Some(rust::Type::Var(name.clone())),
-                        },
-                        Some(rust::Item::Struct(rust::StructType {
+                    Some(host_ty) => {
+                        context.items.push(rust::Item::Struct(rust::StructType {
                             derives,
                             doc,
-                            name,
+                            name: name.clone(),
                             fields: vec![rust::TypeField {
                                 doc: Arc::new([]),
                                 name: "inner".to_owned(),
@@ -174,37 +149,55 @@ fn compile_alias(
                                 host_ty,
                                 by_ref: !is_copy,
                             }],
-                        })),
-                    ),
+                        }));
+                        CompiledItem::Type {
+                            span,
+                            name: name.clone(),
+                            is_copy,
+                            host_ty: Some(rust::Type::Var(name)),
+                        }
+                    }
                 },
-                ty => (
-                    core_alias.name.clone(),
+                ty => {
+                    context.items.push(rust::Item::Alias(rust::Alias {
+                        doc,
+                        name: name.clone(),
+                        ty,
+                    }));
                     CompiledItem::Type {
                         span,
-                        name: name.clone(),
+                        name,
                         is_copy,
                         host_ty,
-                    },
-                    Some(rust::Item::Alias(rust::Alias { doc, name, ty })),
-                ),
+                    }
+                }
             }
+        }
+    };
+
+    match context.compiled_items.entry(core_alias.name.clone()) {
+        Entry::Occupied(entry) => {
+            report(diagnostics::bug::item_name_reused(
+                context.file_id,
+                entry.key(),
+                span,
+                entry.get().span(),
+            ));
+        }
+        Entry::Vacant(entry) => {
+            entry.insert(compiled_item);
         }
     }
 }
 
 fn compile_struct_ty(
-    context: &ModuleContext,
+    context: &mut ModuleContext,
     core_struct_ty: &core::StructType,
     report: &mut dyn FnMut(Diagnostic),
-) -> (core::Label, CompiledItem, Option<rust::Item>) {
+) {
+    use std::collections::hash_map::Entry;
+
     const INVALID_TYPE: rust::Type = rust::Type::Rt(rust::RtType::InvalidDataDescription);
-    let error = |field: &core::TypeField| {
-        (
-            core_struct_ty.name.clone(),
-            CompiledItem::Error(field.span()),
-            None,
-        )
-    };
 
     let mut is_copy = true;
     let mut fields = Vec::with_capacity(core_struct_ty.fields.len());
@@ -212,8 +205,8 @@ fn compile_struct_ty(
     for field in &core_struct_ty.fields {
         let (format_ty, host_ty, is_field_copy) = match compile_term(context, &field.term, report) {
             CompiledTerm::Term { .. } => {
-                // TODO: Bug!
-                return error(field);
+                // TODO: error message!
+                (INVALID_TYPE, INVALID_TYPE, true)
             }
             CompiledTerm::Type {
                 ty,
@@ -227,7 +220,7 @@ fn compile_struct_ty(
                         core_struct_ty.span,
                         field.term.span(),
                     ));
-                    return error(field);
+                    (INVALID_TYPE, INVALID_TYPE, true)
                 }
             },
             CompiledTerm::Erased => {
@@ -250,7 +243,6 @@ fn compile_struct_ty(
         })
     }
 
-    let doc = core_struct_ty.doc.clone();
     let name = core_struct_ty.name.0.to_pascal_case(); // TODO: name avoidance
     let mut derives = Vec::new();
     if is_copy {
@@ -258,21 +250,31 @@ fn compile_struct_ty(
         derives.push("Clone".to_owned());
     }
 
-    (
-        core_struct_ty.name.clone(),
-        CompiledItem::Type {
-            span: core_struct_ty.span,
-            name: name.clone(),
-            is_copy,
-            host_ty: Some(rust::Type::Var(name.clone())),
-        },
-        Some(rust::Item::Struct(rust::StructType {
-            derives,
-            doc,
-            name,
-            fields,
-        })),
-    )
+    context.items.push(rust::Item::Struct(rust::StructType {
+        derives,
+        doc: core_struct_ty.doc.clone(),
+        name: name.clone(),
+        fields,
+    }));
+
+    match context.compiled_items.entry(core_struct_ty.name.clone()) {
+        Entry::Occupied(entry) => {
+            report(diagnostics::bug::item_name_reused(
+                context.file_id,
+                entry.key(),
+                core_struct_ty.span,
+                entry.get().span(),
+            ));
+        }
+        Entry::Vacant(entry) => {
+            entry.insert(CompiledItem::Type {
+                span: core_struct_ty.span,
+                name: name.clone(),
+                is_copy,
+                host_ty: Some(rust::Type::Var(name)),
+            });
+        }
+    }
 }
 
 enum CompiledTerm {
@@ -291,7 +293,7 @@ enum CompiledTerm {
 }
 
 fn compile_term(
-    context: &ModuleContext,
+    context: &mut ModuleContext,
     core_term: &core::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> CompiledTerm {
@@ -309,7 +311,7 @@ fn compile_term(
     };
 
     match core_term {
-        core::Term::Item(span, label) => match context.items.get(label) {
+        core::Term::Item(span, label) => match context.compiled_items.get(label) {
             Some(CompiledItem::Term {
                 name,
                 ty,
