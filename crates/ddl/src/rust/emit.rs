@@ -1,7 +1,9 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::rust::{Alias, Const, Function, Item, Module, Pattern, StructType, Term, Type};
+use crate::rust::{
+    Alias, Const, Constant, Function, Item, Module, Pattern, StructType, Term, Type,
+};
 
 // TODO: Make this path configurable
 const RT_NAME: &str = "ddl_rt";
@@ -252,21 +254,26 @@ fn emit_ty_read(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     }
 }
 
+fn emit_constant(writer: &mut impl Write, constant: &Constant) -> io::Result<()> {
+    match constant {
+        Constant::U8(value) => write!(writer, "{}u8", value),
+        Constant::U16(value) => write!(writer, "{}u16", value),
+        Constant::U32(value) => write!(writer, "{}u32", value),
+        Constant::U64(value) => write!(writer, "{}u64", value),
+        Constant::I8(value) => write!(writer, "{}i8", value),
+        Constant::I16(value) => write!(writer, "{}i16", value),
+        Constant::I32(value) => write!(writer, "{}i32", value),
+        Constant::I64(value) => write!(writer, "{}i64", value),
+        Constant::F32(value) => write!(writer, "{}f32", value),
+        Constant::F64(value) => write!(writer, "{}f64", value),
+    }
+}
+
 fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
     match term {
         Term::Name(name) => write!(writer, "{}", name),
         Term::Panic(message) => write!(writer, "panic!({:?})", message),
-        Term::Bool(value) => write!(writer, "{}", value),
-        Term::U8(value) => write!(writer, "{}u8", value),
-        Term::U16(value) => write!(writer, "{}u16", value),
-        Term::U32(value) => write!(writer, "{}u32", value),
-        Term::U64(value) => write!(writer, "{}u64", value),
-        Term::I8(value) => write!(writer, "{}i8", value),
-        Term::I16(value) => write!(writer, "{}i16", value),
-        Term::I32(value) => write!(writer, "{}i32", value),
-        Term::I64(value) => write!(writer, "{}i64", value),
-        Term::F32(value) => write!(writer, "{}f32", value),
-        Term::F64(value) => write!(writer, "{}f64", value),
+        Term::Constant(constant) => emit_constant(writer, constant),
         Term::Call(term) => {
             emit_term(writer, term)?;
             write!(writer, "()")
@@ -300,13 +307,6 @@ fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
 fn emit_pattern(writer: &mut impl Write, pattern: &Pattern) -> io::Result<()> {
     match pattern {
         Pattern::Name(name) => write!(writer, "{}", name),
-        Pattern::U8(value) => write!(writer, "{}u8", value),
-        Pattern::U16(value) => write!(writer, "{}u16", value),
-        Pattern::U32(value) => write!(writer, "{}u32", value),
-        Pattern::U64(value) => write!(writer, "{}u64", value),
-        Pattern::I8(value) => write!(writer, "{}i8", value),
-        Pattern::I16(value) => write!(writer, "{}i16", value),
-        Pattern::I32(value) => write!(writer, "{}i32", value),
-        Pattern::I64(value) => write!(writer, "{}i64", value),
+        Pattern::Constant(constant) => emit_constant(writer, constant),
     }
 }

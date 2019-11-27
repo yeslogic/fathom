@@ -373,7 +373,10 @@ fn compile_term(
         core::Term::F32Type(_) => host_ty(ty_name("f32")),
         core::Term::F64Type(_) => host_ty(ty_name("f64")),
         core::Term::BoolConst(_, value) => CompiledTerm::Term {
-            term: rust::Term::Bool(*value),
+            term: match value {
+                true => rust::Term::name("true"),
+                false => rust::Term::name("false"),
+            },
             ty: ty_name("bool"),
             is_const: true,
         },
@@ -381,7 +384,7 @@ fn compile_term(
             match value.to_i64() {
                 // TODO: don't default to I64.
                 Some(value) => CompiledTerm::Term {
-                    term: rust::Term::I64(value),
+                    term: rust::Term::Constant(rust::Constant::I64(value)),
                     ty: ty_name("i64"),
                     is_const: true,
                 },
@@ -396,12 +399,12 @@ fn compile_term(
             }
         }
         core::Term::F32Const(_, value) => CompiledTerm::Term {
-            term: rust::Term::F32(*value),
+            term: rust::Term::Constant(rust::Constant::F32(*value)),
             ty: ty_name("f32"),
             is_const: true,
         },
         core::Term::F64Const(_, value) => CompiledTerm::Term {
-            term: rust::Term::F64(*value),
+            term: rust::Term::Constant(rust::Constant::F64(*value)),
             ty: ty_name("f64"),
             is_const: true,
         },
@@ -478,7 +481,7 @@ fn compile_term(
                         .iter()
                         .filter_map(|(value, term)| match value.to_i64() {
                             Some(value) => Some((
-                                rust::Pattern::I64(value),
+                                rust::Pattern::Constant(rust::Constant::I64(value)),
                                 match compile_term(context, term, report) {
                                     CompiledTerm::Term { term, .. } => term,
                                     // TODO: report bug: mismatched arms of match expression

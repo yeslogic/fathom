@@ -81,11 +81,7 @@ impl Type {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Term {
-    Name(Cow<'static, str>),
-    Panic(Cow<'static, str>),
-
-    Bool(bool),
+pub enum Constant {
     U8(u8),
     U16(u16),
     U32(u32),
@@ -96,7 +92,13 @@ pub enum Term {
     I64(i64),
     F32(f32),
     F64(f64),
+}
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Term {
+    Name(Cow<'static, str>),
+    Panic(Cow<'static, str>),
+    Constant(Constant),
     If(Box<Term>, Box<Term>, Box<Term>),
     Match(Box<Term>, Vec<(Pattern, Term)>),
     Call(Box<Term>),
@@ -111,14 +113,7 @@ impl Term {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
     Name(Cow<'static, str>),
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
+    Constant(Constant),
 }
 
 impl Pattern {
