@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub mod emit;
@@ -69,7 +70,7 @@ pub struct TypeField {
 /// Compiled types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
-    Name(String),
+    Name(Cow<'static, str>),
 
     If(Box<Term>, Box<Type>, Box<Type>),
 
@@ -114,8 +115,8 @@ pub enum RtType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Term {
-    Name(String),
-    Panic(String),
+    Name(Cow<'static, str>),
+    Panic(Cow<'static, str>),
 
     Bool(bool),
     U8(u8),
@@ -136,7 +137,7 @@ pub enum Term {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
-    Name(String),
+    Name(Cow<'static, str>),
     U8(u8),
     U16(u16),
     U32(u32),

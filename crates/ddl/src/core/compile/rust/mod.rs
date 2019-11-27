@@ -154,7 +154,7 @@ fn compile_alias(
                             span,
                             name: name.clone(),
                             is_copy,
-                            host_ty: Some(rust::Type::Name(name)),
+                            host_ty: Some(rust::Type::Name(name.clone().into())),
                         }
                     }
                 },
@@ -271,7 +271,7 @@ fn compile_struct_ty(
                 span: core_struct_ty.span,
                 name: name.clone(),
                 is_copy,
-                host_ty: Some(rust::Type::Name(name)),
+                host_ty: Some(rust::Type::Name(name.clone().into())),
             });
         }
     }
@@ -320,9 +320,9 @@ fn compile_term(
                 ..
             }) => CompiledTerm::Term {
                 term: if *is_function {
-                    rust::Term::Call(Box::new(rust::Term::Name(name.clone())))
+                    rust::Term::Call(Box::new(rust::Term::Name(name.clone().into())))
                 } else {
-                    rust::Term::Name(name.clone())
+                    rust::Term::Name(name.clone().into())
                 },
                 ty: ty.clone(),
                 is_const: *is_const,
@@ -333,7 +333,7 @@ fn compile_term(
                 host_ty,
                 ..
             }) => CompiledTerm::Type {
-                ty: rust::Type::Name(name.clone()),
+                ty: rust::Type::Name(name.clone().into()),
                 is_copy: *is_copy,
                 host_ty: host_ty.clone(),
             },
@@ -480,7 +480,7 @@ fn compile_term(
                                 match compile_term(context, term, report) {
                                     CompiledTerm::Term { term, .. } => term,
                                     // TODO: report bug: mismatched arms of match expression
-                                    _ => rust::Term::Panic("error term".to_owned()),
+                                    _ => rust::Term::Panic("error term".into()),
                                 },
                             )),
                             None => {
@@ -494,7 +494,7 @@ fn compile_term(
                         })
                         .chain(std::iter::once((
                             // TODO: Use pattern name
-                            rust::Pattern::Name("_".to_owned()),
+                            rust::Pattern::Name("_".into()),
                             default,
                         )))
                         .collect();
