@@ -206,21 +206,25 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
     Ok(())
 }
 
+fn emit_ty_arguments(writer: &mut impl Write, arguments: &[Type]) -> io::Result<()> {
+    if !arguments.is_empty() {
+        write!(writer, "<")?;
+        for (i, argument) in arguments.iter().enumerate() {
+            if i != 0 {
+                write!(writer, ", ")?;
+            }
+            emit_ty(writer, argument)?;
+        }
+        write!(writer, ">")?;
+    }
+    Ok(())
+}
+
 fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     match ty {
         Type::Name(name, arguments) => {
             write!(writer, "{}", name)?;
-            if !arguments.is_empty() {
-                write!(writer, "<")?;
-                for (i, argument) in arguments.iter().enumerate() {
-                    if i != 0 {
-                        write!(writer, ", ")?;
-                    }
-                    emit_ty(writer, argument)?;
-                }
-                write!(writer, ">")?;
-            }
-            Ok(())
+            emit_ty_arguments(writer, arguments)
         }
         Type::If(_, _, _) => write!(writer, "{rt}::InvalidDataDescription", rt = RT_NAME),
     }
@@ -230,16 +234,7 @@ fn emit_ty_read(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     match ty {
         Type::Name(name, arguments) => {
             write!(writer, "reader.read::<{}", name)?;
-            if !arguments.is_empty() {
-                write!(writer, "<")?;
-                for (i, argument) in arguments.iter().enumerate() {
-                    if i != 0 {
-                        write!(writer, ", ")?;
-                    }
-                    emit_ty(writer, argument)?;
-                }
-                write!(writer, ">")?;
-            }
+            emit_ty_arguments(writer, arguments)?;
             write!(writer, ">()?")
         }
         Type::If(cond, lhs, rhs) => {
