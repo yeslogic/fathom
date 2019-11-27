@@ -203,6 +203,7 @@ fn compile_struct_ty(
     let mut fields = Vec::with_capacity(core_struct_ty.fields.len());
 
     for field in &core_struct_ty.fields {
+        let name = field.name.0.to_snake_case();
         let (format_ty, host_ty, is_field_copy) = match compile_term(context, &field.term, report) {
             CompiledTerm::Term { .. } => {
                 // TODO: error message!
@@ -236,7 +237,7 @@ fn compile_struct_ty(
         is_copy &= is_field_copy;
         fields.push(rust::TypeField {
             doc: field.doc.clone(),
-            name: field.name.0.clone(),
+            name,
             format_ty,
             host_ty,
             by_ref: !is_field_copy,
