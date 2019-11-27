@@ -154,7 +154,7 @@ fn compile_alias(
                             span,
                             name: name.clone(),
                             is_copy,
-                            host_ty: Some(rust::Type::Name(name.clone().into())),
+                            host_ty: Some(rust::Type::name(name.clone(), Vec::new())),
                         }
                     }
                 },
@@ -197,7 +197,7 @@ fn compile_struct_ty(
 ) {
     use std::collections::hash_map::Entry;
 
-    const INVALID_TYPE: rust::Type = rust::Type::Rt(rust::RtType::InvalidDataDescription);
+    let invalid_type = || rust::Type::name("ddl_rt::InvalidDataDescription", Vec::new());
 
     let mut is_copy = true;
     let mut fields = Vec::with_capacity(core_struct_ty.fields.len());
@@ -206,7 +206,7 @@ fn compile_struct_ty(
         let (format_ty, host_ty, is_field_copy) = match compile_term(context, &field.term, report) {
             CompiledTerm::Term { .. } => {
                 // TODO: error message!
-                (INVALID_TYPE, INVALID_TYPE, true)
+                (invalid_type(), invalid_type(), true)
             }
             CompiledTerm::Type {
                 ty,
@@ -220,7 +220,7 @@ fn compile_struct_ty(
                         core_struct_ty.span,
                         field.term.span(),
                     ));
-                    (INVALID_TYPE, INVALID_TYPE, true)
+                    (invalid_type(), invalid_type(), true)
                 }
             },
             CompiledTerm::Erased => {
@@ -228,9 +228,9 @@ fn compile_struct_ty(
                     context.file_id,
                     field.term.span(),
                 ));
-                (INVALID_TYPE, INVALID_TYPE, true)
+                (invalid_type(), invalid_type(), true)
             }
-            CompiledTerm::Error => (INVALID_TYPE, INVALID_TYPE, true),
+            CompiledTerm::Error => (invalid_type(), invalid_type(), true),
         };
 
         is_copy &= is_field_copy;
@@ -271,7 +271,7 @@ fn compile_struct_ty(
                 span: core_struct_ty.span,
                 name: name.clone(),
                 is_copy,
-                host_ty: Some(rust::Type::Name(name.clone().into())),
+                host_ty: Some(rust::Type::name(name.clone(), Vec::new())),
             });
         }
     }
@@ -299,6 +299,7 @@ fn compile_term(
 ) -> CompiledTerm {
     let file_id = context.file_id;
 
+    let ty_name = |name| rust::Type::name(name, Vec::new());
     let host_ty = |ty| CompiledTerm::Type {
         ty,
         is_copy: true,
@@ -333,7 +334,7 @@ fn compile_term(
                 host_ty,
                 ..
             }) => CompiledTerm::Type {
-                ty: rust::Type::Name(name.clone().into()),
+                ty: rust::Type::Name(name.clone().into(), Vec::new()),
                 is_copy: *is_copy,
                 host_ty: host_ty.clone(),
             },
@@ -345,34 +346,34 @@ fn compile_term(
             }
         },
         core::Term::Ann(term, _) => compile_term(context, term, report),
-        core::Term::U8Type(_) => format_ty(rust::Type::Rt(rust::RtType::U8), rust::Type::U8),
-        core::Term::U16LeType(_) => format_ty(rust::Type::Rt(rust::RtType::U16Le), rust::Type::U16),
-        core::Term::U16BeType(_) => format_ty(rust::Type::Rt(rust::RtType::U16Be), rust::Type::U16),
-        core::Term::U32LeType(_) => format_ty(rust::Type::Rt(rust::RtType::U32Le), rust::Type::U32),
-        core::Term::U32BeType(_) => format_ty(rust::Type::Rt(rust::RtType::U32Be), rust::Type::U32),
-        core::Term::U64LeType(_) => format_ty(rust::Type::Rt(rust::RtType::U64Le), rust::Type::U64),
-        core::Term::U64BeType(_) => format_ty(rust::Type::Rt(rust::RtType::U64Be), rust::Type::U64),
-        core::Term::S8Type(_) => format_ty(rust::Type::Rt(rust::RtType::I8), rust::Type::I8),
-        core::Term::S16LeType(_) => format_ty(rust::Type::Rt(rust::RtType::I16Le), rust::Type::I16),
-        core::Term::S16BeType(_) => format_ty(rust::Type::Rt(rust::RtType::I16Be), rust::Type::I16),
-        core::Term::S32LeType(_) => format_ty(rust::Type::Rt(rust::RtType::I32Le), rust::Type::I32),
-        core::Term::S32BeType(_) => format_ty(rust::Type::Rt(rust::RtType::I32Be), rust::Type::I32),
-        core::Term::S64LeType(_) => format_ty(rust::Type::Rt(rust::RtType::I64Le), rust::Type::I64),
-        core::Term::S64BeType(_) => format_ty(rust::Type::Rt(rust::RtType::I64Be), rust::Type::I64),
-        core::Term::F32LeType(_) => format_ty(rust::Type::Rt(rust::RtType::F32Le), rust::Type::F32),
-        core::Term::F32BeType(_) => format_ty(rust::Type::Rt(rust::RtType::F32Be), rust::Type::F32),
-        core::Term::F64LeType(_) => format_ty(rust::Type::Rt(rust::RtType::F64Le), rust::Type::F64),
-        core::Term::F64BeType(_) => format_ty(rust::Type::Rt(rust::RtType::F64Be), rust::Type::F64),
-        core::Term::BoolType(_) => host_ty(rust::Type::Bool),
+        core::Term::U8Type(_) => format_ty(ty_name("ddl_rt::U8"), ty_name("u8")),
+        core::Term::U16LeType(_) => format_ty(ty_name("ddl_rt::U16Le"), ty_name("u16")),
+        core::Term::U16BeType(_) => format_ty(ty_name("ddl_rt::U16Be"), ty_name("u16")),
+        core::Term::U32LeType(_) => format_ty(ty_name("ddl_rt::U32Le"), ty_name("u32")),
+        core::Term::U32BeType(_) => format_ty(ty_name("ddl_rt::U32Be"), ty_name("u32")),
+        core::Term::U64LeType(_) => format_ty(ty_name("ddl_rt::U64Le"), ty_name("u64")),
+        core::Term::U64BeType(_) => format_ty(ty_name("ddl_rt::U64Be"), ty_name("u64")),
+        core::Term::S8Type(_) => format_ty(ty_name("ddl_rt::I8"), ty_name("i8")),
+        core::Term::S16LeType(_) => format_ty(ty_name("ddl_rt::I16Le"), ty_name("i16")),
+        core::Term::S16BeType(_) => format_ty(ty_name("ddl_rt::I16Be"), ty_name("i16")),
+        core::Term::S32LeType(_) => format_ty(ty_name("ddl_rt::I32Le"), ty_name("i32")),
+        core::Term::S32BeType(_) => format_ty(ty_name("ddl_rt::I32Be"), ty_name("i32")),
+        core::Term::S64LeType(_) => format_ty(ty_name("ddl_rt::I64Le"), ty_name("i64")),
+        core::Term::S64BeType(_) => format_ty(ty_name("ddl_rt::I64Be"), ty_name("i64")),
+        core::Term::F32LeType(_) => format_ty(ty_name("ddl_rt::F32Le"), ty_name("f32")),
+        core::Term::F32BeType(_) => format_ty(ty_name("ddl_rt::F32Be"), ty_name("f32")),
+        core::Term::F64LeType(_) => format_ty(ty_name("ddl_rt::F64Le"), ty_name("f64")),
+        core::Term::F64BeType(_) => format_ty(ty_name("ddl_rt::F64Be"), ty_name("f64")),
+        core::Term::BoolType(_) => host_ty(ty_name("bool")),
         core::Term::IntType(span) => {
             report(diagnostics::error::unconstrained_int(file_id, *span));
-            host_ty(rust::Type::Rt(rust::RtType::InvalidDataDescription))
+            host_ty(ty_name("ddl_rt::InvalidDataDescription"))
         }
-        core::Term::F32Type(_) => host_ty(rust::Type::F32),
-        core::Term::F64Type(_) => host_ty(rust::Type::F64),
+        core::Term::F32Type(_) => host_ty(ty_name("f32")),
+        core::Term::F64Type(_) => host_ty(ty_name("f64")),
         core::Term::BoolConst(_, value) => CompiledTerm::Term {
             term: rust::Term::Bool(*value),
-            ty: rust::Type::Bool,
+            ty: ty_name("bool"),
             is_const: true,
         },
         core::Term::IntConst(span, value) => {
@@ -380,7 +381,7 @@ fn compile_term(
                 // TODO: don't default to I64.
                 Some(value) => CompiledTerm::Term {
                     term: rust::Term::I64(value),
-                    ty: rust::Type::I64,
+                    ty: ty_name("i64"),
                     is_const: true,
                 },
                 None => {
@@ -395,12 +396,12 @@ fn compile_term(
         }
         core::Term::F32Const(_, value) => CompiledTerm::Term {
             term: rust::Term::F32(*value),
-            ty: rust::Type::F32,
+            ty: ty_name("f32"),
             is_const: true,
         },
         core::Term::F64Const(_, value) => CompiledTerm::Term {
             term: rust::Term::F64(*value),
-            ty: rust::Type::F64,
+            ty: ty_name("f64"),
             is_const: true,
         },
         core::Term::BoolElim(span, head, if_true, if_false) => {
@@ -441,10 +442,10 @@ fn compile_term(
                     (Some(true_host_ty), Some(false_host_ty)) => CompiledTerm::Type {
                         ty: rust::Type::If(Box::new(head), Box::new(true_ty), Box::new(false_ty)),
                         is_copy: true_is_copy && false_is_copy,
-                        host_ty: Some(rust::Type::Rt(rust::RtType::Either(
-                            Box::new(true_host_ty),
-                            Box::new(false_host_ty),
-                        ))),
+                        host_ty: Some(rust::Type::name(
+                            "ddl_rt::Either",
+                            vec![true_host_ty, false_host_ty],
+                        )),
                     },
                     (_, _) => {
                         report(diagnostics::error::type_level_if_expression(file_id, *span));
@@ -492,11 +493,7 @@ fn compile_term(
                                 None
                             }
                         })
-                        .chain(std::iter::once((
-                            // TODO: Use pattern name
-                            rust::Pattern::Name("_".into()),
-                            default,
-                        )))
+                        .chain(std::iter::once((rust::Pattern::name("_"), default))) // TODO: Use pattern name
                         .collect();
 
                     CompiledTerm::Term {
@@ -530,15 +527,17 @@ fn compile_term(
 fn host_int(min: &BigInt, max: &BigInt) -> Option<rust::Type> {
     use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
+    use crate::rust::Type;
+
     match () {
-        () if *min >= u8::MIN.into() && *max <= u8::MAX.into() => Some(rust::Type::U8),
-        () if *min >= u16::MIN.into() && *max <= u16::MAX.into() => Some(rust::Type::U16),
-        () if *min >= u32::MIN.into() && *max <= u32::MAX.into() => Some(rust::Type::U32),
-        () if *min >= u64::MIN.into() && *max <= u64::MAX.into() => Some(rust::Type::U64),
-        () if *min >= i8::MIN.into() && *max <= i8::MAX.into() => Some(rust::Type::I8),
-        () if *min >= i16::MIN.into() && *max <= i16::MAX.into() => Some(rust::Type::I16),
-        () if *min >= i32::MIN.into() && *max <= i32::MAX.into() => Some(rust::Type::I32),
-        () if *min >= i64::MIN.into() && *max <= i64::MAX.into() => Some(rust::Type::I64),
+        () if *min >= u8::MIN.into() && *max <= u8::MAX.into() => Some(Type::name("u8", vec![])),
+        () if *min >= u16::MIN.into() && *max <= u16::MAX.into() => Some(Type::name("u16", vec![])),
+        () if *min >= u32::MIN.into() && *max <= u32::MAX.into() => Some(Type::name("u32", vec![])),
+        () if *min >= u64::MIN.into() && *max <= u64::MAX.into() => Some(Type::name("u64", vec![])),
+        () if *min >= i8::MIN.into() && *max <= i8::MAX.into() => Some(Type::name("i8", vec![])),
+        () if *min >= i16::MIN.into() && *max <= i16::MAX.into() => Some(Type::name("i16", vec![])),
+        () if *min >= i32::MIN.into() && *max <= i32::MAX.into() => Some(Type::name("i32", vec![])),
+        () if *min >= i64::MIN.into() && *max <= i64::MAX.into() => Some(Type::name("i64", vec![])),
         () if min > max => None, // Impossible range
         _ => None,               // TODO: use bigint if outside bounds
     }

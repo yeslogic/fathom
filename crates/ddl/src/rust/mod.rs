@@ -70,47 +70,14 @@ pub struct TypeField {
 /// Compiled types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
-    Name(Cow<'static, str>),
-
+    Name(Cow<'static, str>, Vec<Type>),
     If(Box<Term>, Box<Type>, Box<Type>),
-
-    U8,
-    U16,
-    U32,
-    U64,
-    I8,
-    I16,
-    I32,
-    I64,
-    F32,
-    F64,
-    Bool,
-
-    Rt(RtType),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum RtType {
-    Either(Box<Type>, Box<Type>),
-    U8,
-    U16Le,
-    U16Be,
-    U32Le,
-    U32Be,
-    U64Le,
-    U64Be,
-    I8,
-    I16Le,
-    I16Be,
-    I32Le,
-    I32Be,
-    I64Le,
-    I64Be,
-    F32Le,
-    F32Be,
-    F64Le,
-    F64Be,
-    InvalidDataDescription,
+impl Type {
+    pub fn name(name: impl Into<Cow<'static, str>>, arguments: Vec<Type>) -> Type {
+        Type::Name(name.into(), arguments)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -135,6 +102,12 @@ pub enum Term {
     Call(Box<Term>),
 }
 
+impl Term {
+    pub fn name(name: impl Into<Cow<'static, str>>) -> Term {
+        Term::Name(name.into())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
     Name(Cow<'static, str>),
@@ -146,4 +119,10 @@ pub enum Pattern {
     I16(i16),
     I32(i32),
     I64(i64),
+}
+
+impl Pattern {
+    pub fn name(name: impl Into<Cow<'static, str>>) -> Pattern {
+        Pattern::Name(name.into())
+    }
 }
