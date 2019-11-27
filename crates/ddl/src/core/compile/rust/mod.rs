@@ -154,7 +154,7 @@ fn compile_alias(
                             span,
                             name: name.clone(),
                             is_copy,
-                            host_ty: Some(rust::Type::Var(name)),
+                            host_ty: Some(rust::Type::Name(name)),
                         }
                     }
                 },
@@ -271,7 +271,7 @@ fn compile_struct_ty(
                 span: core_struct_ty.span,
                 name: name.clone(),
                 is_copy,
-                host_ty: Some(rust::Type::Var(name)),
+                host_ty: Some(rust::Type::Name(name)),
             });
         }
     }
@@ -320,9 +320,9 @@ fn compile_term(
                 ..
             }) => CompiledTerm::Term {
                 term: if *is_function {
-                    rust::Term::Call(Box::new(rust::Term::Var(name.clone())))
+                    rust::Term::Call(Box::new(rust::Term::Name(name.clone())))
                 } else {
-                    rust::Term::Var(name.clone())
+                    rust::Term::Name(name.clone())
                 },
                 ty: ty.clone(),
                 is_const: *is_const,
@@ -333,7 +333,7 @@ fn compile_term(
                 host_ty,
                 ..
             }) => CompiledTerm::Type {
-                ty: rust::Type::Var(name.clone()),
+                ty: rust::Type::Name(name.clone()),
                 is_copy: *is_copy,
                 host_ty: host_ty.clone(),
             },

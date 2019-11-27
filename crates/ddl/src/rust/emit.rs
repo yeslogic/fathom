@@ -206,7 +206,7 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
 
 fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     match ty {
-        Type::Var(name) => write!(writer, "{}", name),
+        Type::Name(name) => write!(writer, "{}", name),
         Type::If(_, _, _) => write!(writer, "{rt}::InvalidDataDescription", rt = RT_NAME),
         Type::U8 => write!(writer, "u8"),
         Type::U16 => write!(writer, "u16"),
@@ -254,7 +254,7 @@ fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
 
 fn emit_ty_read(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     match ty {
-        Type::Var(name) => write!(writer, "reader.read::<{}>()?", name),
+        Type::Name(name) => write!(writer, "reader.read::<{}>()?", name),
         Type::If(cond, lhs, rhs) => {
             write!(writer, "if ")?;
             emit_term(writer, cond)?;
@@ -300,7 +300,7 @@ fn emit_ty_read(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
 
 fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
     match term {
-        Term::Var(name) => write!(writer, "{}", name),
+        Term::Name(name) => write!(writer, "{}", name),
         Term::Panic(message) => write!(writer, "panic!({:?})", message),
         Term::Bool(value) => write!(writer, "{}", value),
         Term::U8(value) => write!(writer, "{}u8", value),

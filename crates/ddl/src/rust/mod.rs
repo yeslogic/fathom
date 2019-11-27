@@ -69,7 +69,7 @@ pub struct TypeField {
 /// Compiled types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
-    Var(String),
+    Name(String),
 
     If(Box<Term>, Box<Type>, Box<Type>),
 
@@ -114,7 +114,7 @@ pub enum RtType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Term {
-    Var(String),
+    Name(String),
     Panic(String),
 
     Bool(bool),
