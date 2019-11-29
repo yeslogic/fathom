@@ -33,9 +33,13 @@ fn valid_test() {
     let singleton = scope.read::<fixture::Test>().unwrap();
 
     let test = binary::read::read_module_item(&FIXTURE, &"Test", &mut scope.reader()).unwrap();
-    assert_eq!(singleton.inner(), ddl_rt::Either::Left(23.64e10));
-
-    assert_eq!(test, binary::Term::F64(singleton.inner().left().unwrap().into()));
+    match singleton.inner() {
+        fixture::Enum0::True(inner) => {
+            assert_eq!(inner, 23.64e10);
+            assert_eq!(test, binary::Term::F64(inner.into()));
+        },
+        _ => panic!("expected `Enum0::True(_)`"),
+    }
 
     // TODO: Check remaining
 }
@@ -50,9 +54,13 @@ fn valid_test_trailing() {
     let singleton = scope.read::<fixture::Test>().unwrap();
 
     let test = binary::read::read_module_item(&FIXTURE, &"Test", &mut scope.reader()).unwrap();
-    assert_eq!(singleton.inner(), ddl_rt::Either::Left(781.453298));
-
-    assert_eq!(test, binary::Term::F64(singleton.inner().left().unwrap().into()));
+    match singleton.inner() {
+        fixture::Enum0::True(inner) => {
+            assert_eq!(inner, 781.453298);
+            assert_eq!(test, binary::Term::F64(inner.into()));
+        },
+        _ => panic!("expected `Enum0::True(_)`"),
+    }
 
     // TODO: Check remaining
 }

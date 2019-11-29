@@ -2,12 +2,18 @@
 // It is not intended for manual editing.
 
 #[derive(Copy, Clone)]
+pub enum Enum0 {
+    True(f64),
+    False(f32),
+}
+
+#[derive(Copy, Clone)]
 pub struct Test {
-    inner: ddl_rt::Either<f64, f32>,
+    inner: Enum0,
 }
 
 impl Test {
-    pub fn inner(&self) -> ddl_rt::Either<f64, f32> {
+    pub fn inner(&self) -> Enum0 {
         self.inner
     }
 }
@@ -18,7 +24,7 @@ impl ddl_rt::Format for Test {
 
 impl<'data> ddl_rt::ReadFormat<'data> for Test {
     fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Test, ddl_rt::ReadError> {
-        let inner = if true { ddl_rt::Either::Left(reader.read::<ddl_rt::F64Be>()?) } else { ddl_rt::Either::Right(reader.read::<ddl_rt::F32Be>()?) };
+        let inner = if true { Enum0::True(reader.read::<ddl_rt::F64Be>()?) } else { Enum0::False(reader.read::<ddl_rt::F32Be>()?) };
 
         Ok(Test {
             inner,

@@ -2,8 +2,8 @@ use std::io;
 use std::io::prelude::*;
 
 use crate::rust::{
-    Alias, Block, Const, Constant, Function, Item, Module, Pattern, Statement, StructType, Term,
-    Type,
+    Alias, Block, Const, Constant, EnumType, Function, Item, Module, Pattern, Statement,
+    StructType, Term, Type,
 };
 
 // TODO: Make this path configurable
@@ -40,6 +40,7 @@ fn emit_item(writer: &mut impl Write, item: &Item) -> io::Result<()> {
         Item::Function(function) => emit_function(writer, function),
         Item::Alias(ty_alias) => emit_alias(writer, ty_alias),
         Item::Struct(struct_ty) => emit_struct_ty(writer, struct_ty),
+        Item::Enum(enum_ty) => emit_enum_ty(writer, enum_ty),
     }
 }
 
@@ -180,6 +181,34 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
         )?;
         emit_block(writer, read)?;
         writeln!(writer, "    }}")?;
+        writeln!(writer, "}}")?;
+    }
+
+    Ok(())
+}
+
+fn emit_enum_ty(writer: &mut impl Write, enum_ty: &EnumType) -> io::Result<()> {
+    use itertools::Itertools;
+
+    writeln!(writer)?;
+
+    for doc_line in enum_ty.doc.iter() {
+        writeln!(writer, "///{}", doc_line)?;
+    }
+
+    if !enum_ty.derives.is_empty() {
+        writeln!(writer, "#[derive({})]", enum_ty.derives.iter().format(", "))?;
+    }
+    if enum_ty.variants.is_empty() {
+        writeln!(writer, "pub enum {} {{}}", enum_ty.name)?;
+    } else {
+        writeln!(writer, "pub enum {} {{", enum_ty.name)?;
+        for variant in &enum_ty.variants {
+            write!(writer, "    {}(", variant.name)?;
+            emit_ty(writer, &variant.ty)?;
+            write!(writer, "),")?;
+            writeln!(writer)?;
+        }
         writeln!(writer, "}}")?;
     }
 

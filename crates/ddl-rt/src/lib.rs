@@ -5,7 +5,6 @@
 mod read;
 mod write;
 
-pub use either::Either;
 pub use read::{FormatReader, ReadEofError, ReadError, ReadFormat, ReadFormatUnchecked, ReadScope};
 pub use write::{FormatWriter, WriteFormat};
 

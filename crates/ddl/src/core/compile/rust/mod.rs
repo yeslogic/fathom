@@ -14,6 +14,7 @@ pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic))
     let mut context = ModuleContext {
         file_id: module.file_id,
         compiled_items: HashMap::new(),
+        enum_count: 0,
         items: Vec::new(),
     };
 
@@ -60,6 +61,7 @@ impl CompiledItem {
 struct ModuleContext {
     file_id: FileId,
     compiled_items: HashMap<core::Label, CompiledItem>,
+    enum_count: usize,
     items: Vec<rust::Item>,
 }
 
@@ -477,27 +479,56 @@ fn compile_term(
                         read: false_read,
                     },
                 ) => match (true_host_ty, false_host_ty) {
-                    (Some(true_host_ty), Some(false_host_ty)) => CompiledTerm::Type {
-                        ty: ty_name("ddl_rt::InvalidDataDescription"),
-                        is_copy: true_is_copy && false_is_copy,
-                        host_ty: Some(rust::Type::name(
-                            "ddl_rt::Either",
-                            vec![true_host_ty, false_host_ty],
-                        )),
-                        read: Some(rust::Term::If(
-                            Box::new(head),
-                            Box::new(rust::Term::Call(
-                                Box::new(rust::Term::name("ddl_rt::Either::Left")),
-                                vec![true_read
-                                    .unwrap_or_else(|| rust::Term::Read(Box::new(true_ty)))],
+                    (Some(true_host_ty), Some(false_host_ty)) => {
+                        // TODO: name avoidance
+                        // TODO: improve naming
+                        let name = format!("Enum{}", context.enum_count);
+                        context.enum_count += 1;
+
+                        let is_copy = true_is_copy && false_is_copy;
+                        let mut derives = Vec::new();
+                        if is_copy {
+                            derives.push("Copy".to_owned());
+                            derives.push("Clone".to_owned());
+                        }
+
+                        context.items.push(rust::Item::Enum(rust::EnumType {
+                            derives,
+                            doc: Arc::new([]),
+                            name: name.clone(),
+                            variants: vec![
+                                rust::Variant {
+                                    doc: Arc::new([]),
+                                    name: "True".to_owned(),
+                                    ty: true_host_ty,
+                                },
+                                rust::Variant {
+                                    doc: Arc::new([]),
+                                    name: "False".to_owned(),
+                                    ty: false_host_ty,
+                                },
+                            ],
+                        }));
+
+                        CompiledTerm::Type {
+                            ty: ty_name("ddl_rt::InvalidDataDescription"),
+                            is_copy: true_is_copy && false_is_copy,
+                            host_ty: Some(rust::Type::name(name.clone(), Vec::new())),
+                            read: Some(rust::Term::If(
+                                Box::new(head),
+                                Box::new(rust::Term::Call(
+                                    Box::new(rust::Term::name(format!("{}::True", name))),
+                                    vec![true_read
+                                        .unwrap_or_else(|| rust::Term::Read(Box::new(true_ty)))],
+                                )),
+                                Box::new(rust::Term::Call(
+                                    Box::new(rust::Term::name(format!("{}::False", name))),
+                                    vec![false_read
+                                        .unwrap_or_else(|| rust::Term::Read(Box::new(false_ty)))],
+                                )),
                             )),
-                            Box::new(rust::Term::Call(
-                                Box::new(rust::Term::name("ddl_rt::Either::Right")),
-                                vec![false_read
-                                    .unwrap_or_else(|| rust::Term::Read(Box::new(false_ty)))],
-                            )),
-                        )),
-                    },
+                        }
+                    }
                     (_, _) => {
                         report(diagnostics::error::type_level_if_expression(file_id, *span));
                         CompiledTerm::Error

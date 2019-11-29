@@ -19,6 +19,7 @@ pub enum Item {
     Function(Function),
     Alias(Alias),
     Struct(StructType),
+    Enum(EnumType),
 }
 
 /// Compiled constants.
@@ -65,6 +66,23 @@ pub struct TypeField {
     pub name: String,
     pub ty: Type,
     pub by_ref: bool,
+}
+
+/// Compiled enum types.
+#[derive(Debug, Clone)]
+pub struct EnumType {
+    pub derives: Vec<String>,
+    pub doc: Arc<[String]>,
+    pub name: String,
+    pub variants: Vec<Variant>,
+}
+
+/// Compiled variants.
+#[derive(Debug, Clone)]
+pub struct Variant {
+    pub doc: Arc<[String]>,
+    pub name: String,
+    pub ty: Type,
 }
 
 /// Compiled types.
