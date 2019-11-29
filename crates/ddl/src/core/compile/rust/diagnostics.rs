@@ -5,21 +5,19 @@ use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 
 use crate::core;
 
+pub fn non_format_type_as_host_type(severity: Severity, file_id: FileId, span: Span) -> Diagnostic {
+    Diagnostic {
+        severity,
+        code: None,
+        message: "attempted to compile a non-format type as a host type".to_owned(),
+        primary_label: Label::new(file_id, span, "not a format type"),
+        secondary_labels: vec![],
+        notes: vec![],
+    }
+}
+
 pub mod error {
     use super::*;
-
-    pub fn type_level_if_expression(file_id: FileId, span: Span) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Error,
-            code: None,
-            message: "cannot compile type level if expression for non-format types".to_owned(),
-            primary_label: Label::new(file_id, span, "type level if expression"),
-            secondary_labels: vec![],
-            notes: vec![
-                "The Rust compiler back-end does not support type-level expressions".to_owned(),
-            ],
-        }
-    }
 
     pub fn unconstrained_int(file_id: FileId, span: Span) -> Diagnostic {
         Diagnostic {
@@ -69,17 +67,6 @@ pub mod bug {
             primary_label: Label::new(file_id, span, "item not found in this scope"),
             secondary_labels: vec![],
             // TODO: provide suggestions
-            notes: vec![],
-        }
-    }
-
-    pub fn non_format_type_as_host_type(file_id: FileId, span: Span) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Bug,
-            code: None,
-            message: "attempted to compile a non-format type as a host type".to_owned(),
-            primary_label: Label::new(file_id, span, "not a format type"),
-            secondary_labels: vec![],
             notes: vec![],
         }
     }

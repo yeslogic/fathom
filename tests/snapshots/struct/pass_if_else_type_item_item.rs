@@ -26,7 +26,11 @@ impl ddl_rt::Format for Bar {
 
 impl<'data> ddl_rt::ReadFormat<'data> for Bar {
     fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Bar, ddl_rt::ReadError> {
-        let inner = if IS_BE { Enum0::True(reader.read::<ddl_rt::F32Be>()?) } else { Enum0::False(reader.read::<ddl_rt::F32Le>()?) };
+        let inner = if IS_BE { 
+            Enum0::True(reader.read::<ddl_rt::F32Be>()?)
+        } else { 
+            Enum0::False(reader.read::<ddl_rt::F32Le>()?)
+        };
 
         Ok(Bar {
             inner,

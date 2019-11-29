@@ -6,8 +6,7 @@ use crate::rust::{
     StructType, Term, Type,
 };
 
-// TODO: Make this path configurable
-const RT_NAME: &str = "ddl_rt";
+const INDENT: usize = 4;
 
 pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
@@ -54,7 +53,7 @@ fn emit_const(writer: &mut impl Write, const_: &Const) -> io::Result<()> {
     write!(writer, "pub const {}: ", const_.name)?;
     emit_ty(writer, &const_.ty)?;
     write!(writer, " = ")?;
-    emit_term(writer, &const_.term)?;
+    emit_term(writer, 0, &const_.term)?;
     writeln!(writer, ";")?;
 
     Ok(())
@@ -74,7 +73,7 @@ fn emit_function(writer: &mut impl Write, function: &Function) -> io::Result<()>
     write!(writer, "fn {}() -> ", function.name)?;
     emit_ty(writer, &function.ty)?;
     writeln!(writer, " {{")?;
-    emit_block(writer, &function.block)?;
+    emit_block(writer, INDENT, &function.block)?;
     writeln!(writer, "}}")?;
 
     Ok(())
@@ -151,6 +150,9 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
         writeln!(writer)?;
     }
 
+    // TODO: Move to rust compiler
+    const RT_NAME: &str = "ddl_rt";
+
     // Format impl
 
     writeln!(
@@ -179,7 +181,7 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
             reader = if struct_ty.fields.is_empty() { "_" } else { "reader" },
             struct_ty = struct_ty.name,
         )?;
-        emit_block(writer, read)?;
+        emit_block(writer, INDENT * 2, read)?;
         writeln!(writer, "    }}")?;
         writeln!(writer, "}}")?;
     }
@@ -238,31 +240,31 @@ fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     }
 }
 
-fn emit_block(writer: &mut impl Write, block: &Block) -> io::Result<()> {
+fn emit_block(writer: &mut impl Write, indent: usize, block: &Block) -> io::Result<()> {
     for statement in &block.statements {
-        emit_statement(writer, statement)?;
+        write!(writer, "{:indent$}", "", indent = indent)?;
+        emit_statement(writer, indent, statement)?;
         writeln!(writer, ";")?;
     }
     if let Some(term) = &block.term {
         if !block.statements.is_empty() {
             writeln!(writer, "")?;
         }
-        write!(writer, "        ")?;
-        emit_term(writer, term)?;
+        write!(writer, "{:indent$}", "", indent = indent)?;
+        emit_term(writer, indent, term)?;
         writeln!(writer)?;
     }
     Ok(())
 }
 
-fn emit_statement(writer: &mut impl Write, statement: &Statement) -> io::Result<()> {
+fn emit_statement(writer: &mut impl Write, indent: usize, statement: &Statement) -> io::Result<()> {
     match statement {
         Statement::Let(name, term) => {
-            write!(writer, "        let {} = ", name)?;
-            emit_term(writer, term)?;
+            write!(writer, "let {} = ", name)?;
+            emit_term(writer, indent, term)?;
         }
         Statement::Term(term) => {
-            write!(writer, "        ")?;
-            emit_term(writer, term)?;
+            emit_term(writer, indent, term)?;
         }
     }
 
@@ -284,44 +286,57 @@ fn emit_constant(writer: &mut impl Write, constant: &Constant) -> io::Result<()>
     }
 }
 
-fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
+fn emit_term(writer: &mut impl Write, indent: usize, term: &Term) -> io::Result<()> {
     match term {
         Term::Name(name) => write!(writer, "{}", name),
         Term::Panic(message) => write!(writer, "panic!({:?})", message),
         Term::Constant(constant) => emit_constant(writer, constant),
         Term::Call(term, arguments) => {
-            emit_term(writer, term)?;
+            emit_term(writer, indent, term)?;
             write!(writer, "(")?;
             for (i, argument) in arguments.iter().enumerate() {
                 if i != 0 {
                     write!(writer, ", ")?;
                 }
-                emit_term(writer, argument)?;
+                emit_term(writer, indent, argument)?;
             }
             write!(writer, ")")
         }
         Term::If(head, if_true, if_false) => {
             write!(writer, "if ")?;
-            emit_term(writer, head)?;
-            write!(writer, " {{ ")?;
-            emit_term(writer, if_true)?;
-            write!(writer, " }} else {{ ")?;
-            emit_term(writer, if_false)?;
-            write!(writer, " }}")
+            emit_term(writer, indent, head)?;
+            writeln!(writer, " {{ ")?;
+            {
+                let indent = indent + INDENT;
+                write!(writer, "{:indent$}", "", indent = indent)?;
+                emit_term(writer, indent, if_true)?;
+                writeln!(writer)?;
+            }
+            write!(writer, "{:indent$}", "", indent = indent)?;
+            writeln!(writer, "}} else {{ ")?;
+            {
+                let indent = indent + INDENT;
+                write!(writer, "{:indent$}", "", indent = indent)?;
+                emit_term(writer, indent, if_false)?;
+                writeln!(writer)?;
+            }
+            write!(writer, "{:indent$}", "", indent = indent)?;
+            write!(writer, "}}")
         }
         Term::Match(head, branches) => {
             write!(writer, "match ")?;
-            emit_term(writer, head)?;
-            write!(writer, " {{ ")?;
-            for (i, (pattern, term)) in branches.iter().enumerate() {
-                if i != 0 {
-                    write!(writer, ", ")?;
-                }
+            emit_term(writer, indent, head)?;
+            writeln!(writer, " {{ ")?;
+            for (pattern, term) in branches {
+                let indent = indent + INDENT;
+                write!(writer, "{:indent$}", "", indent = indent)?;
                 emit_pattern(writer, pattern)?;
                 write!(writer, " => ")?;
-                emit_term(writer, term)?;
+                emit_term(writer, indent, term)?;
+                writeln!(writer, ",")?;
             }
-            write!(writer, " }}")
+            write!(writer, "{:indent$}", "", indent = indent)?;
+            write!(writer, "}}")
         }
         Term::Read(ty) => {
             write!(writer, "reader.read::<")?;
@@ -332,17 +347,19 @@ fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
         Term::Struct(name, fields) => {
             writeln!(writer, "{} {{", name)?;
             for (name, term) in fields {
-                write!(writer, "            ")?;
+                let indent = indent + INDENT;
+                write!(writer, "{:indent$}", "", indent = indent)?;
                 match term {
                     Some(term) => {
                         write!(writer, "{} : ", name)?;
-                        emit_term(writer, term)?;
+                        emit_term(writer, indent, term)?;
                         writeln!(writer, ",")?;
                     }
                     None => writeln!(writer, "{},", name)?,
                 }
             }
-            write!(writer, "        }}")
+            write!(writer, "{:indent$}", "", indent = indent)?;
+            write!(writer, "}}")
         }
     }
 }

@@ -2,9 +2,9 @@
 // It is not intended for manual editing.
 
 pub fn test() -> bool {
-    if true { 
-        true
-    } else { 
-        false
+    match 33i64 { 
+        33i64 => true,
+        42i64 => false,
+        _ => false,
     }
 }
