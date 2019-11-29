@@ -2,5 +2,5 @@
 // It is not intended for manual editing.
 
 pub fn test() -> bool {
-    if true { true } else { false }
+        if true { true } else { false }
 }

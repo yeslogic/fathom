@@ -37,7 +37,7 @@ pub struct Function {
     pub is_const: bool,
     pub name: String,
     pub ty: Type,
-    pub term: Term,
+    pub block: Block,
 }
 
 /// Compiled type aliases.
@@ -54,6 +54,7 @@ pub struct StructType {
     pub derives: Vec<String>,
     pub doc: Arc<[String]>,
     pub name: String,
+    pub read: Option<Block>,
     pub fields: Vec<TypeField>,
 }
 
@@ -62,8 +63,7 @@ pub struct StructType {
 pub struct TypeField {
     pub doc: Arc<[String]>,
     pub name: String,
-    pub format_ty: Type,
-    pub host_ty: Type,
+    pub ty: Type,
     pub by_ref: bool,
 }
 
@@ -71,13 +71,33 @@ pub struct TypeField {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Name(Cow<'static, str>, Vec<Type>),
-    If(Box<Term>, Box<Type>, Box<Type>),
 }
 
 impl Type {
     pub fn name(name: impl Into<Cow<'static, str>>, arguments: Vec<Type>) -> Type {
         Type::Name(name.into(), arguments)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Block {
+    pub statements: Vec<Statement>,
+    pub term: Option<Term>,
+}
+
+impl Block {
+    pub fn new(statements: Vec<Statement>, term: impl Into<Option<Term>>) -> Block {
+        Block {
+            statements,
+            term: term.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Statement {
+    Let(String, Box<Term>),
+    Term(Box<Term>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -101,7 +121,9 @@ pub enum Term {
     Constant(Constant),
     If(Box<Term>, Box<Term>, Box<Term>),
     Match(Box<Term>, Vec<(Pattern, Term)>),
-    Call(Box<Term>),
+    Call(Box<Term>, Vec<Term>),
+    Read(Box<Type>),
+    Struct(String, Vec<(String, Option<Term>)>),
 }
 
 impl Term {

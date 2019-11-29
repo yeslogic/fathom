@@ -2,5 +2,5 @@
 // It is not intended for manual editing.
 
 pub fn test() -> bool {
-    match 33i64 { 33i64 => true, 42i64 => false, _ => false }
+        match 33i64 { 33i64 => true, 42i64 => false, _ => false }
 }

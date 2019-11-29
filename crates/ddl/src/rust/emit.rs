@@ -2,7 +2,8 @@ use std::io;
 use std::io::prelude::*;
 
 use crate::rust::{
-    Alias, Const, Constant, Function, Item, Module, Pattern, StructType, Term, Type,
+    Alias, Block, Const, Constant, Function, Item, Module, Pattern, Statement, StructType, Term,
+    Type,
 };
 
 // TODO: Make this path configurable
@@ -72,9 +73,7 @@ fn emit_function(writer: &mut impl Write, function: &Function) -> io::Result<()>
     write!(writer, "fn {}() -> ", function.name)?;
     emit_ty(writer, &function.ty)?;
     writeln!(writer, " {{")?;
-    write!(writer, "    ")?;
-    emit_term(writer, &function.term)?;
-    writeln!(writer)?;
+    emit_block(writer, &function.block)?;
     writeln!(writer, "}}")?;
 
     Ok(())
@@ -116,7 +115,7 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
         writeln!(writer, "pub struct {} {{", struct_ty.name)?;
         for field in &struct_ty.fields {
             write!(writer, "    {}: ", field.name)?;
-            emit_ty(writer, &field.host_ty)?;
+            emit_ty(writer, &field.ty)?;
             write!(writer, ",")?;
             writeln!(writer)?;
         }
@@ -142,7 +141,7 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
                 writeln!(writer, "    ///{}", doc_line)?;
             }
             write!(writer, "    pub fn {}(&self) -> {}", field.name, sigil)?;
-            emit_ty(writer, &field.host_ty)?;
+            emit_ty(writer, &field.ty)?;
             writeln!(writer, " {{")?;
             writeln!(writer, "        {}self.{}", sigil, field.name)?;
             writeln!(writer, "    }}")?;
@@ -165,43 +164,24 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
 
     // ReadFormat impl
 
-    writeln!(
-        writer,
-        "impl<'data> {rt}::ReadFormat<'data> for {struct_ty} {{",
-        rt = RT_NAME,
-        struct_ty = struct_ty.name,
-    )?;
-    if struct_ty.fields.is_empty() {
+    if let Some(read) = &struct_ty.read {
         writeln!(
             writer,
-            "    fn read(_: &mut {rt}::FormatReader<'data>) -> Result<{struct_ty}, {rt}::ReadError> {{",
+            "impl<'data> {rt}::ReadFormat<'data> for {struct_ty} {{",
             rt = RT_NAME,
             struct_ty = struct_ty.name,
         )?;
-        writeln!(writer, "        Ok({} {{}})", struct_ty.name)?;
-        writeln!(writer, "    }}")?;
-    } else {
         writeln!(
             writer,
-            "    fn read(reader: &mut {rt}::FormatReader<'data>) -> Result<{struct_ty}, {rt}::ReadError> {{",
+            "    fn read({reader}: &mut {rt}::FormatReader<'data>) -> Result<{struct_ty}, {rt}::ReadError> {{",
             rt = RT_NAME,
+            reader = if struct_ty.fields.is_empty() { "_" } else { "reader" },
             struct_ty = struct_ty.name,
         )?;
-        for field in &struct_ty.fields {
-            write!(writer, "        let {} = ", field.name)?;
-            emit_ty_read(writer, &field.format_ty)?;
-            write!(writer, ";")?;
-            writeln!(writer)?;
-        }
-        writeln!(writer)?;
-        writeln!(writer, "        Ok({} {{", struct_ty.name)?;
-        for field in &struct_ty.fields {
-            writeln!(writer, "            {},", field.name)?;
-        }
-        writeln!(writer, "        }})")?;
+        emit_block(writer, read)?;
         writeln!(writer, "    }}")?;
+        writeln!(writer, "}}")?;
     }
-    writeln!(writer, "}}")?;
 
     Ok(())
 }
@@ -226,27 +206,38 @@ fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
             write!(writer, "{}", name)?;
             emit_ty_arguments(writer, arguments)
         }
-        Type::If(_, _, _) => write!(writer, "{rt}::InvalidDataDescription", rt = RT_NAME),
     }
 }
 
-fn emit_ty_read(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
-    match ty {
-        Type::Name(name, arguments) => {
-            write!(writer, "reader.read::<{}", name)?;
-            emit_ty_arguments(writer, arguments)?;
-            write!(writer, ">()?")
+fn emit_block(writer: &mut impl Write, block: &Block) -> io::Result<()> {
+    for statement in &block.statements {
+        emit_statement(writer, statement)?;
+        writeln!(writer, ";")?;
+    }
+    if let Some(term) = &block.term {
+        if !block.statements.is_empty() {
+            writeln!(writer, "")?;
         }
-        Type::If(cond, lhs, rhs) => {
-            write!(writer, "if ")?;
-            emit_term(writer, cond)?;
-            write!(writer, " {{ {rt}::Either::Left(", rt = RT_NAME)?;
-            emit_ty_read(writer, lhs)?;
-            write!(writer, ") }} else {{ {rt}::Either::Right(", rt = RT_NAME)?;
-            emit_ty_read(writer, rhs)?;
-            write!(writer, ") }}")
+        write!(writer, "        ")?;
+        emit_term(writer, term)?;
+        writeln!(writer)?;
+    }
+    Ok(())
+}
+
+fn emit_statement(writer: &mut impl Write, statement: &Statement) -> io::Result<()> {
+    match statement {
+        Statement::Let(name, term) => {
+            write!(writer, "        let {} = ", name)?;
+            emit_term(writer, term)?;
+        }
+        Statement::Term(term) => {
+            write!(writer, "        ")?;
+            emit_term(writer, term)?;
         }
     }
+
+    Ok(())
 }
 
 fn emit_constant(writer: &mut impl Write, constant: &Constant) -> io::Result<()> {
@@ -269,9 +260,16 @@ fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
         Term::Name(name) => write!(writer, "{}", name),
         Term::Panic(message) => write!(writer, "panic!({:?})", message),
         Term::Constant(constant) => emit_constant(writer, constant),
-        Term::Call(term) => {
+        Term::Call(term, arguments) => {
             emit_term(writer, term)?;
-            write!(writer, "()")
+            write!(writer, "(")?;
+            for (i, argument) in arguments.iter().enumerate() {
+                if i != 0 {
+                    write!(writer, ", ")?;
+                }
+                emit_term(writer, argument)?;
+            }
+            write!(writer, ")")
         }
         Term::If(head, if_true, if_false) => {
             write!(writer, "if ")?;
@@ -295,6 +293,27 @@ fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
                 emit_term(writer, term)?;
             }
             write!(writer, " }}")
+        }
+        Term::Read(ty) => {
+            write!(writer, "reader.read::<")?;
+            emit_ty(writer, ty)?;
+            write!(writer, ">()?")
+        }
+        Term::Struct(name, fields) if fields.is_empty() => write!(writer, "{} {{}}", name),
+        Term::Struct(name, fields) => {
+            writeln!(writer, "{} {{", name)?;
+            for (name, term) in fields {
+                write!(writer, "            ")?;
+                match term {
+                    Some(term) => {
+                        write!(writer, "{} : ", name)?;
+                        emit_term(writer, term)?;
+                        writeln!(writer, ",")?;
+                    }
+                    None => writeln!(writer, "{},", name)?,
+                }
+            }
+            write!(writer, "        }}")
         }
     }
 }

@@ -108,7 +108,7 @@ fn compile_alias(
                     name: name.clone(),
                     is_const,
                     ty: ty.clone(),
-                    term,
+                    block: rust::Block::new(Vec::new(), term),
                 }));
                 CompiledItem::Term {
                     span,
@@ -125,6 +125,7 @@ fn compile_alias(
             ty,
             is_copy,
             host_ty,
+            read,
         } => {
             let doc = core_alias.doc.clone();
             let name = core_alias.name.0.to_pascal_case(); // TODO: name avoidance
@@ -134,19 +135,29 @@ fn compile_alias(
                 derives.push("Clone".to_owned());
             }
 
-            match ty {
-                ty @ rust::Type::If(_, _, _) => match host_ty {
+            match read {
+                Some(read) => match host_ty {
                     None => unreachable!("type level if for non-format type"),
                     Some(host_ty) => {
+                        // Should we be using `ty` somewhere here?
                         context.items.push(rust::Item::Struct(rust::StructType {
                             derives,
                             doc,
                             name: name.clone(),
+                            read: Some(rust::Block::new(
+                                vec![rust::Statement::Let("inner".to_owned(), Box::new(read))],
+                                rust::Term::Call(
+                                    Box::new(rust::Term::name("Ok")),
+                                    vec![rust::Term::Struct(
+                                        name.clone(),
+                                        vec![("inner".to_owned(), None)],
+                                    )],
+                                ),
+                            )),
                             fields: vec![rust::TypeField {
                                 doc: Arc::new([]),
                                 name: "inner".to_owned(),
-                                format_ty: ty,
-                                host_ty,
+                                ty: host_ty,
                                 by_ref: !is_copy,
                             }],
                         }));
@@ -158,7 +169,7 @@ fn compile_alias(
                         }
                     }
                 },
-                ty => {
+                None => {
                     context.items.push(rust::Item::Alias(rust::Alias {
                         doc,
                         name: name.clone(),
@@ -201,47 +212,51 @@ fn compile_struct_ty(
 
     let mut is_copy = true;
     let mut fields = Vec::with_capacity(core_struct_ty.fields.len());
+    let mut read_statements = Vec::with_capacity(core_struct_ty.fields.len());
 
     for field in &core_struct_ty.fields {
         let name = field.name.0.to_snake_case();
-        let (format_ty, host_ty, is_field_copy) = match compile_term(context, &field.term, report) {
-            CompiledTerm::Term { .. } => {
+        let (format_ty, host_ty, read, is_field_copy) =
+            match compile_term(context, &field.term, report) {
                 // TODO: error message!
-                (invalid_type(), invalid_type(), true)
-            }
-            CompiledTerm::Type {
-                ty,
-                is_copy,
-                host_ty,
-            } => match &host_ty {
-                Some(host_ty) => (ty, host_ty.clone(), is_copy),
-                None => {
-                    report(diagnostics::bug::host_type_found_in_field(
+                CompiledTerm::Term { .. } => (invalid_type(), invalid_type(), None, true),
+                CompiledTerm::Type {
+                    ty,
+                    is_copy,
+                    host_ty,
+                    read,
+                } => match &host_ty {
+                    Some(host_ty) => (ty, host_ty.clone(), read, is_copy),
+                    None => {
+                        report(diagnostics::bug::host_type_found_in_field(
+                            context.file_id,
+                            core_struct_ty.span,
+                            field.term.span(),
+                        ));
+                        (invalid_type(), invalid_type(), None, true)
+                    }
+                },
+                CompiledTerm::Erased => {
+                    report(diagnostics::bug::non_format_type_as_host_type(
                         context.file_id,
-                        core_struct_ty.span,
                         field.term.span(),
                     ));
-                    (invalid_type(), invalid_type(), true)
+                    (invalid_type(), invalid_type(), None, true)
                 }
-            },
-            CompiledTerm::Erased => {
-                report(diagnostics::bug::non_format_type_as_host_type(
-                    context.file_id,
-                    field.term.span(),
-                ));
-                (invalid_type(), invalid_type(), true)
-            }
-            CompiledTerm::Error => (invalid_type(), invalid_type(), true),
-        };
+                CompiledTerm::Error => (invalid_type(), invalid_type(), None, true),
+            };
 
         is_copy &= is_field_copy;
         fields.push(rust::TypeField {
             doc: field.doc.clone(),
             name,
-            format_ty,
-            host_ty,
+            ty: host_ty,
             by_ref: !is_field_copy,
-        })
+        });
+        read_statements.push(rust::Statement::Let(
+            field.name.0.clone(),
+            Box::new(read.unwrap_or_else(|| rust::Term::Read(Box::new(format_ty)))),
+        ));
     }
 
     let name = core_struct_ty.name.0.to_pascal_case(); // TODO: name avoidance
@@ -255,6 +270,19 @@ fn compile_struct_ty(
         derives,
         doc: core_struct_ty.doc.clone(),
         name: name.clone(),
+        read: Some(rust::Block::new(
+            read_statements,
+            rust::Term::Call(
+                Box::new(rust::Term::name("Ok")),
+                vec![rust::Term::Struct(
+                    name.clone(),
+                    fields
+                        .iter()
+                        .map(|field| (field.name.clone(), None))
+                        .collect(),
+                )],
+            ),
+        )),
         fields,
     }));
 
@@ -288,6 +316,7 @@ enum CompiledTerm {
         ty: rust::Type,
         is_copy: bool,
         host_ty: Option<rust::Type>,
+        read: Option<rust::Term>,
     },
     Erased,
     Error,
@@ -305,11 +334,13 @@ fn compile_term(
         ty,
         is_copy: true,
         host_ty: None,
+        read: None,
     };
     let format_ty = |ty, host_ty| CompiledTerm::Type {
         ty,
         is_copy: true,
         host_ty: Some(host_ty),
+        read: None,
     };
 
     match core_term {
@@ -322,7 +353,7 @@ fn compile_term(
                 ..
             }) => CompiledTerm::Term {
                 term: if *is_function {
-                    rust::Term::Call(Box::new(rust::Term::Name(name.clone().into())))
+                    rust::Term::Call(Box::new(rust::Term::Name(name.clone().into())), Vec::new())
                 } else {
                     rust::Term::Name(name.clone().into())
                 },
@@ -338,6 +369,7 @@ fn compile_term(
                 ty: rust::Type::Name(name.clone().into(), Vec::new()),
                 is_copy: *is_copy,
                 host_ty: host_ty.clone(),
+                read: None,
             },
             Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
             Some(CompiledItem::Error(_)) => CompiledTerm::Error,
@@ -436,19 +468,34 @@ fn compile_term(
                         ty: true_ty,
                         is_copy: true_is_copy,
                         host_ty: true_host_ty,
+                        read: true_read,
                     },
                     CompiledTerm::Type {
                         ty: false_ty,
                         is_copy: false_is_copy,
                         host_ty: false_host_ty,
+                        read: false_read,
                     },
                 ) => match (true_host_ty, false_host_ty) {
                     (Some(true_host_ty), Some(false_host_ty)) => CompiledTerm::Type {
-                        ty: rust::Type::If(Box::new(head), Box::new(true_ty), Box::new(false_ty)),
+                        ty: ty_name("ddl_rt::InvalidDataDescription"),
                         is_copy: true_is_copy && false_is_copy,
                         host_ty: Some(rust::Type::name(
                             "ddl_rt::Either",
                             vec![true_host_ty, false_host_ty],
+                        )),
+                        read: Some(rust::Term::If(
+                            Box::new(head),
+                            Box::new(rust::Term::Call(
+                                Box::new(rust::Term::name("ddl_rt::Either::Left")),
+                                vec![true_read
+                                    .unwrap_or_else(|| rust::Term::Read(Box::new(true_ty)))],
+                            )),
+                            Box::new(rust::Term::Call(
+                                Box::new(rust::Term::name("ddl_rt::Either::Right")),
+                                vec![false_read
+                                    .unwrap_or_else(|| rust::Term::Read(Box::new(false_ty)))],
+                            )),
                         )),
                     },
                     (_, _) => {
@@ -510,6 +557,7 @@ fn compile_term(
                     ty: _default_ty,
                     is_copy: _default_is_copy,
                     host_ty: _default_host_ty,
+                    ..
                 } => {
                     report(crate::diagnostics::bug::not_yet_implemented(
                         context.file_id,
