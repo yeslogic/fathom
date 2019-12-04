@@ -4,12 +4,18 @@
 pub const IS_BE: bool = true;
 
 #[derive(Copy, Clone)]
+pub enum Enum0 {
+    True(f32),
+    False(f32),
+}
+
+#[derive(Copy, Clone)]
 pub struct Bar {
-    inner: ddl_rt::Either<f32, f32>,
+    inner: Enum0,
 }
 
 impl Bar {
-    pub fn inner(&self) -> ddl_rt::Either<f32, f32> {
+    pub fn inner(&self) -> Enum0 {
         self.inner
     }
 }
@@ -20,7 +26,11 @@ impl ddl_rt::Format for Bar {
 
 impl<'data> ddl_rt::ReadFormat<'data> for Bar {
     fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Bar, ddl_rt::ReadError> {
-        let inner = if IS_BE { ddl_rt::Either::Left(reader.read::<ddl_rt::F32Be>()?) } else { ddl_rt::Either::Right(reader.read::<ddl_rt::F32Le>()?) };
+        let inner = if IS_BE { 
+            Enum0::True(reader.read::<ddl_rt::F32Be>()?)
+        } else { 
+            Enum0::False(reader.read::<ddl_rt::F32Le>()?)
+        };
 
         Ok(Bar {
             inner,

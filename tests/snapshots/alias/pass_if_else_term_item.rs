@@ -4,7 +4,11 @@
 pub const FOO: bool = true;
 
 pub fn bar() -> bool {
-    if FOO { true } else { false }
+    if FOO { 
+        true
+    } else { 
+        false
+    }
 }
 
 pub fn baz() -> bool {

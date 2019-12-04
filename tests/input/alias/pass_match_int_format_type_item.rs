@@ -1,12 +1,12 @@
 #![cfg(test)]
 
-use ddl_test_util::ddl::binary;
-use ddl_rt::{ReadError, ReadScope, FormatWriter, U8, F64Be};
+// use ddl_test_util::ddl::binary;
+use ddl_rt::{ReadError, ReadScope, FormatWriter, U8, F64Le};
 
-#[path = "../../snapshots/alias/pass_if_else_format_type.rs"]
+#[path = "../../snapshots/alias/pass_match_int_format_type_item.rs"]
 mod fixture;
 
-ddl_test_util::core_module!(FIXTURE, "../../snapshots/alias/pass_if_else_format_type.core.ddl");
+ddl_test_util::core_module!(FIXTURE, "../../snapshots/alias/pass_match_int_format_type_item.core.ddl");
 
 #[test]
 fn eof_inner() {
@@ -27,18 +27,20 @@ fn eof_inner() {
 #[test]
 fn valid_test() {
     let mut writer = FormatWriter::new(vec![]);
-    writer.write::<F64Be>(23.64e10); // Test::inner
+    writer.write::<F64Le>(23.64e10); // Test::inner
 
     let scope = ReadScope::new(writer.buffer());
     let singleton = scope.read::<fixture::Test>().unwrap();
 
-    let test = binary::read::read_module_item(&FIXTURE, &"Test", &mut scope.reader()).unwrap();
+    // FIXME(#162): Requires us to evaluate items!
+    // let test = binary::read::read_module_item(&FIXTURE, &"Test", &mut scope.reader()).unwrap();
+
     match singleton.inner() {
-        fixture::Enum0::True(inner) => {
+        fixture::Enum0::Variant0(inner) => {
             assert_eq!(inner, 23.64e10);
-            assert_eq!(test, binary::Term::F64(inner.into()));
+            // assert_eq!(test, binary::Term::F64(inner));
         },
-        _ => panic!("expected `Enum0::True(_)`"),
+        _ => panic!("expected `Enum0::Variant0(_)`"),
     }
 
     // TODO: Check remaining
@@ -47,19 +49,21 @@ fn valid_test() {
 #[test]
 fn valid_test_trailing() {
     let mut writer = FormatWriter::new(vec![]);
-    writer.write::<F64Be>(781.453298); // Test::inner
+    writer.write::<F64Le>(781.453298); // Test::inner
     writer.write::<U8>(42);
 
     let scope = ReadScope::new(writer.buffer());
     let singleton = scope.read::<fixture::Test>().unwrap();
 
-    let test = binary::read::read_module_item(&FIXTURE, &"Test", &mut scope.reader()).unwrap();
+    // FIXME(#162): Requires us to evaluate items!
+    // let test = binary::read::read_module_item(&FIXTURE, &"Test", &mut scope.reader()).unwrap();
+
     match singleton.inner() {
-        fixture::Enum0::True(inner) => {
+        fixture::Enum0::Variant0(inner) => {
             assert_eq!(inner, 781.453298);
-            assert_eq!(test, binary::Term::F64(inner.into()));
+            // assert_eq!(test, binary::Term::F64(inner));
         },
-        _ => panic!("expected `Enum0::True(_)`"),
+        _ => panic!("expected `Enum0::Variant0(_)`"),
     }
 
     // TODO: Check remaining

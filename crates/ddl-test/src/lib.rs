@@ -36,9 +36,12 @@ mod alias {
     test!(pass_if_else_term, "alias/pass_if_else_term.ddl");
     test!(pass_if_else_term_item, "alias/pass_if_else_term_item.ddl");
     test!(pass_literals, "alias/pass_literals.ddl");
-    test!(pass_match_term, "alias/pass_match_term.ddl");
-    test!(pass_match_term_item, "alias/pass_match_term_item.ddl");
-    test!(pass_match_term_unreachable, "alias/pass_match_term_unreachable.ddl");
+    test!(pass_match_int_ann_type, "alias/pass_match_int_ann_type.ddl");
+    test!(pass_match_int_format_type, "alias/pass_match_int_format_type.ddl");
+    test!(pass_match_int_format_type_item, "alias/pass_match_int_format_type_item.ddl");
+    test!(pass_match_int_term, "alias/pass_match_int_term.ddl");
+    test!(pass_match_int_term_item, "alias/pass_match_int_term_item.ddl");
+    test!(pass_match_int_term_unreachable, "alias/pass_match_int_term_unreachable.ddl");
     test!(pass_simple, "alias/pass_simple.ddl");
     test!(pass_simple_doc, "alias/pass_simple_doc.ddl");
 
@@ -48,8 +51,12 @@ mod alias {
     test!(fail_if_else_host_type_item, "alias/fail_if_else_host_type_item.ddl");
     test!(fail_if_else_term_mismatched_arms, "alias/fail_if_else_term_mismatched_arms.ddl");
     test!(fail_if_else_term_mismatched_condition, "alias/fail_if_else_term_mismatched_condition.ddl");
-    test!(fail_match_missing_default, "alias/fail_match_missing_default.ddl");
-    test!(fail_match_ambiguous, "alias/fail_match_ambiguous.ddl");
+    test!(fail_match_ambiguous_scrutinee, "alias/fail_match_ambiguous_scrutinee.ddl");
+    test!(fail_match_int_missing_default, "alias/fail_match_int_missing_default.ddl");
+    test!(fail_match_int_ambiguous, "alias/fail_match_int_ambiguous.ddl");
+    test!(fail_match_int_host_type, "alias/fail_match_int_host_type.ddl");
+    test!(fail_match_int_host_type_item, "alias/fail_match_int_host_type_item.ddl");
+    test!(fail_match_int_term_mismatched_arms, "alias/fail_match_int_term_mismatched_arms.ddl");
     test!(fail_numeric_literal_ambiguous, "alias/fail_numeric_literal_ambiguous.ddl");
     test!(fail_numeric_literal_not_supported, "alias/fail_numeric_literal_not_supported.ddl");
     test!(fail_unconstrained_int_type, "alias/fail_unconstrained_int_type.ddl");

@@ -2,4 +2,8 @@ foo =
     true;
 
 Test : Type =
-    if foo { F64 } else { F32 }; //~ error: cannot compile type level if expression for non-format types
+    if foo {
+        F64 //~ error: attempted to compile a non-format type as a host type
+    } else {
+        F32 //~ error: attempted to compile a non-format type as a host type
+    };

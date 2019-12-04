@@ -1,10 +1,12 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::rust::{Alias, Const, Function, Item, Module, Pattern, RtType, StructType, Term, Type};
+use crate::rust::{
+    Alias, Block, Const, Constant, EnumType, Function, Item, Module, Pattern, Statement,
+    StructType, Term, Type,
+};
 
-// TODO: Make this path configurable
-const RT_NAME: &str = "ddl_rt";
+const INDENT: usize = 4;
 
 pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
@@ -37,6 +39,7 @@ fn emit_item(writer: &mut impl Write, item: &Item) -> io::Result<()> {
         Item::Function(function) => emit_function(writer, function),
         Item::Alias(ty_alias) => emit_alias(writer, ty_alias),
         Item::Struct(struct_ty) => emit_struct_ty(writer, struct_ty),
+        Item::Enum(enum_ty) => emit_enum_ty(writer, enum_ty),
     }
 }
 
@@ -50,7 +53,7 @@ fn emit_const(writer: &mut impl Write, const_: &Const) -> io::Result<()> {
     write!(writer, "pub const {}: ", const_.name)?;
     emit_ty(writer, &const_.ty)?;
     write!(writer, " = ")?;
-    emit_term(writer, &const_.term)?;
+    emit_term(writer, 0, &const_.term)?;
     writeln!(writer, ";")?;
 
     Ok(())
@@ -70,9 +73,7 @@ fn emit_function(writer: &mut impl Write, function: &Function) -> io::Result<()>
     write!(writer, "fn {}() -> ", function.name)?;
     emit_ty(writer, &function.ty)?;
     writeln!(writer, " {{")?;
-    write!(writer, "    ")?;
-    emit_term(writer, &function.term)?;
-    writeln!(writer)?;
+    emit_block(writer, INDENT, &function.block)?;
     writeln!(writer, "}}")?;
 
     Ok(())
@@ -114,7 +115,7 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
         writeln!(writer, "pub struct {} {{", struct_ty.name)?;
         for field in &struct_ty.fields {
             write!(writer, "    {}: ", field.name)?;
-            emit_ty(writer, &field.host_ty)?;
+            emit_ty(writer, &field.ty)?;
             write!(writer, ",")?;
             writeln!(writer)?;
         }
@@ -140,7 +141,7 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
                 writeln!(writer, "    ///{}", doc_line)?;
             }
             write!(writer, "    pub fn {}(&self) -> {}", field.name, sigil)?;
-            emit_ty(writer, &field.host_ty)?;
+            emit_ty(writer, &field.ty)?;
             writeln!(writer, " {{")?;
             writeln!(writer, "        {}self.{}", sigil, field.name)?;
             writeln!(writer, "    }}")?;
@@ -148,6 +149,9 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
         writeln!(writer, "}}")?;
         writeln!(writer)?;
     }
+
+    // TODO: Move to rust compiler
+    const RT_NAME: &str = "ddl_rt";
 
     // Format impl
 
@@ -163,182 +167,199 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
 
     // ReadFormat impl
 
-    writeln!(
-        writer,
-        "impl<'data> {rt}::ReadFormat<'data> for {struct_ty} {{",
-        rt = RT_NAME,
-        struct_ty = struct_ty.name,
-    )?;
-    if struct_ty.fields.is_empty() {
+    if let Some(read) = &struct_ty.read {
         writeln!(
             writer,
-            "    fn read(_: &mut {rt}::FormatReader<'data>) -> Result<{struct_ty}, {rt}::ReadError> {{",
+            "impl<'data> {rt}::ReadFormat<'data> for {struct_ty} {{",
             rt = RT_NAME,
             struct_ty = struct_ty.name,
         )?;
-        writeln!(writer, "        Ok({} {{}})", struct_ty.name)?;
+        writeln!(
+            writer,
+            "    fn read({reader}: &mut {rt}::FormatReader<'data>) -> Result<{struct_ty}, {rt}::ReadError> {{",
+            rt = RT_NAME,
+            reader = if struct_ty.fields.is_empty() { "_" } else { "reader" },
+            struct_ty = struct_ty.name,
+        )?;
+        emit_block(writer, INDENT * 2, read)?;
         writeln!(writer, "    }}")?;
+        writeln!(writer, "}}")?;
+    }
+
+    Ok(())
+}
+
+fn emit_enum_ty(writer: &mut impl Write, enum_ty: &EnumType) -> io::Result<()> {
+    use itertools::Itertools;
+
+    writeln!(writer)?;
+
+    for doc_line in enum_ty.doc.iter() {
+        writeln!(writer, "///{}", doc_line)?;
+    }
+
+    if !enum_ty.derives.is_empty() {
+        writeln!(writer, "#[derive({})]", enum_ty.derives.iter().format(", "))?;
+    }
+    if enum_ty.variants.is_empty() {
+        writeln!(writer, "pub enum {} {{}}", enum_ty.name)?;
     } else {
-        writeln!(
-            writer,
-            "    fn read(reader: &mut {rt}::FormatReader<'data>) -> Result<{struct_ty}, {rt}::ReadError> {{",
-            rt = RT_NAME,
-            struct_ty = struct_ty.name,
-        )?;
-        for field in &struct_ty.fields {
-            write!(writer, "        let {} = ", field.name)?;
-            emit_ty_read(writer, &field.format_ty)?;
-            write!(writer, ";")?;
+        writeln!(writer, "pub enum {} {{", enum_ty.name)?;
+        for variant in &enum_ty.variants {
+            write!(writer, "    {}(", variant.name)?;
+            emit_ty(writer, &variant.ty)?;
+            write!(writer, "),")?;
             writeln!(writer)?;
         }
-        writeln!(writer)?;
-        writeln!(writer, "        Ok({} {{", struct_ty.name)?;
-        for field in &struct_ty.fields {
-            writeln!(writer, "            {},", field.name)?;
-        }
-        writeln!(writer, "        }})")?;
-        writeln!(writer, "    }}")?;
+        writeln!(writer, "}}")?;
     }
-    writeln!(writer, "}}")?;
 
+    Ok(())
+}
+
+fn emit_ty_arguments(writer: &mut impl Write, arguments: &[Type]) -> io::Result<()> {
+    if !arguments.is_empty() {
+        write!(writer, "<")?;
+        for (i, argument) in arguments.iter().enumerate() {
+            if i != 0 {
+                write!(writer, ", ")?;
+            }
+            emit_ty(writer, argument)?;
+        }
+        write!(writer, ">")?;
+    }
     Ok(())
 }
 
 fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
     match ty {
-        Type::Var(name) => write!(writer, "{}", name),
-        Type::If(_, _, _) => write!(writer, "{rt}::InvalidDataDescription", rt = RT_NAME),
-        Type::U8 => write!(writer, "u8"),
-        Type::U16 => write!(writer, "u16"),
-        Type::U32 => write!(writer, "u32"),
-        Type::U64 => write!(writer, "u64"),
-        Type::I8 => write!(writer, "i8"),
-        Type::I16 => write!(writer, "i16"),
-        Type::I32 => write!(writer, "i32"),
-        Type::I64 => write!(writer, "i64"),
-        Type::F32 => write!(writer, "f32"),
-        Type::F64 => write!(writer, "f64"),
-        Type::Bool => write!(writer, "bool"),
-        Type::Rt(rt_ty) => match rt_ty {
-            RtType::Either(lhs, rhs) => {
-                write!(writer, "{rt}::Either<", rt = RT_NAME)?;
-                emit_ty(writer, lhs)?;
-                write!(writer, ", ")?;
-                emit_ty(writer, rhs)?;
-                write!(writer, ">")
-            }
-            RtType::U8 => write!(writer, "{rt}::U8", rt = RT_NAME),
-            RtType::U16Le => write!(writer, "{rt}::U16Le", rt = RT_NAME),
-            RtType::U16Be => write!(writer, "{rt}::U16Be", rt = RT_NAME),
-            RtType::U32Le => write!(writer, "{rt}::U32Le", rt = RT_NAME),
-            RtType::U32Be => write!(writer, "{rt}::U32Be", rt = RT_NAME),
-            RtType::U64Le => write!(writer, "{rt}::U64Le", rt = RT_NAME),
-            RtType::U64Be => write!(writer, "{rt}::U64Be", rt = RT_NAME),
-            RtType::I8 => write!(writer, "{rt}::I8", rt = RT_NAME),
-            RtType::I16Le => write!(writer, "{rt}::I16Le", rt = RT_NAME),
-            RtType::I16Be => write!(writer, "{rt}::I16Be", rt = RT_NAME),
-            RtType::I32Le => write!(writer, "{rt}::I32Le", rt = RT_NAME),
-            RtType::I32Be => write!(writer, "{rt}::I32Be", rt = RT_NAME),
-            RtType::I64Le => write!(writer, "{rt}::I64Le", rt = RT_NAME),
-            RtType::I64Be => write!(writer, "{rt}::I64Be", rt = RT_NAME),
-            RtType::F32Le => write!(writer, "{rt}::F32Le", rt = RT_NAME),
-            RtType::F32Be => write!(writer, "{rt}::F32Be", rt = RT_NAME),
-            RtType::F64Le => write!(writer, "{rt}::F64Le", rt = RT_NAME),
-            RtType::F64Be => write!(writer, "{rt}::F64Be", rt = RT_NAME),
-            RtType::InvalidDataDescription => {
-                write!(writer, "{rt}::InvalidDataDescription", rt = RT_NAME)
-            }
-        },
-    }
-}
-
-fn emit_ty_read(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
-    match ty {
-        Type::Var(name) => write!(writer, "reader.read::<{}>()?", name),
-        Type::If(cond, lhs, rhs) => {
-            write!(writer, "if ")?;
-            emit_term(writer, cond)?;
-            write!(writer, " {{ {rt}::Either::Left(", rt = RT_NAME)?;
-            emit_ty_read(writer, lhs)?;
-            write!(writer, ") }} else {{ {rt}::Either::Right(", rt = RT_NAME)?;
-            emit_ty_read(writer, rhs)?;
-            write!(writer, ") }}")
+        Type::Name(name, arguments) => {
+            write!(writer, "{}", name)?;
+            emit_ty_arguments(writer, arguments)
         }
-        Type::Rt(rt_ty) => match rt_ty {
-            RtType::Either(_, _) => write!(
-                writer,
-                "reader.read::<{rt}::InvalidDataDescription>()?",
-                rt = RT_NAME,
-            ),
-            RtType::U8 => write!(writer, "reader.read::<{rt}::U8>()?", rt = RT_NAME),
-            RtType::U16Le => write!(writer, "reader.read::<{rt}::U16Le>()?", rt = RT_NAME),
-            RtType::U16Be => write!(writer, "reader.read::<{rt}::U16Be>()?", rt = RT_NAME),
-            RtType::U32Le => write!(writer, "reader.read::<{rt}::U32Le>()?", rt = RT_NAME),
-            RtType::U32Be => write!(writer, "reader.read::<{rt}::U32Be>()?", rt = RT_NAME),
-            RtType::U64Le => write!(writer, "reader.read::<{rt}::U64Le>()?", rt = RT_NAME),
-            RtType::U64Be => write!(writer, "reader.read::<{rt}::U64Be>()?", rt = RT_NAME),
-            RtType::I8 => write!(writer, "reader.read::<{rt}::I8>()?", rt = RT_NAME),
-            RtType::I16Le => write!(writer, "reader.read::<{rt}::I16Le>()?", rt = RT_NAME),
-            RtType::I16Be => write!(writer, "reader.read::<{rt}::I16Be>()?", rt = RT_NAME),
-            RtType::I32Le => write!(writer, "reader.read::<{rt}::I32Le>()?", rt = RT_NAME),
-            RtType::I32Be => write!(writer, "reader.read::<{rt}::I32Be>()?", rt = RT_NAME),
-            RtType::I64Le => write!(writer, "reader.read::<{rt}::I64Le>()?", rt = RT_NAME),
-            RtType::I64Be => write!(writer, "reader.read::<{rt}::I64Be>()?", rt = RT_NAME),
-            RtType::F32Le => write!(writer, "reader.read::<{rt}::F32Le>()?", rt = RT_NAME),
-            RtType::F32Be => write!(writer, "reader.read::<{rt}::F32Be>()?", rt = RT_NAME),
-            RtType::F64Le => write!(writer, "reader.read::<{rt}::F64Le>()?", rt = RT_NAME),
-            RtType::F64Be => write!(writer, "reader.read::<{rt}::F64Be>()?", rt = RT_NAME),
-            RtType::InvalidDataDescription => write!(
-                writer,
-                "reader.read::<{rt}::InvalidDataDescription>()?",
-                rt = RT_NAME,
-            ),
-        },
-        _ => unimplemented!("unexpected host type"),
     }
 }
 
-fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
+fn emit_block(writer: &mut impl Write, indent: usize, block: &Block) -> io::Result<()> {
+    for statement in &block.statements {
+        write!(writer, "{:indent$}", "", indent = indent)?;
+        emit_statement(writer, indent, statement)?;
+        writeln!(writer, ";")?;
+    }
+    if let Some(term) = &block.term {
+        if !block.statements.is_empty() {
+            writeln!(writer, "")?;
+        }
+        write!(writer, "{:indent$}", "", indent = indent)?;
+        emit_term(writer, indent, term)?;
+        writeln!(writer)?;
+    }
+    Ok(())
+}
+
+fn emit_statement(writer: &mut impl Write, indent: usize, statement: &Statement) -> io::Result<()> {
+    match statement {
+        Statement::Let(name, term) => {
+            write!(writer, "let {} = ", name)?;
+            emit_term(writer, indent, term)?;
+        }
+        Statement::Term(term) => {
+            emit_term(writer, indent, term)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn emit_constant(writer: &mut impl Write, constant: &Constant) -> io::Result<()> {
+    match constant {
+        Constant::U8(value) => write!(writer, "{}u8", value),
+        Constant::U16(value) => write!(writer, "{}u16", value),
+        Constant::U32(value) => write!(writer, "{}u32", value),
+        Constant::U64(value) => write!(writer, "{}u64", value),
+        Constant::I8(value) => write!(writer, "{}i8", value),
+        Constant::I16(value) => write!(writer, "{}i16", value),
+        Constant::I32(value) => write!(writer, "{}i32", value),
+        Constant::I64(value) => write!(writer, "{}i64", value),
+        Constant::F32(value) => write!(writer, "{}f32", value),
+        Constant::F64(value) => write!(writer, "{}f64", value),
+    }
+}
+
+fn emit_term(writer: &mut impl Write, indent: usize, term: &Term) -> io::Result<()> {
     match term {
-        Term::Var(name) => write!(writer, "{}", name),
+        Term::Name(name) => write!(writer, "{}", name),
         Term::Panic(message) => write!(writer, "panic!({:?})", message),
-        Term::Bool(value) => write!(writer, "{}", value),
-        Term::U8(value) => write!(writer, "{}u8", value),
-        Term::U16(value) => write!(writer, "{}u16", value),
-        Term::U32(value) => write!(writer, "{}u32", value),
-        Term::U64(value) => write!(writer, "{}u64", value),
-        Term::I8(value) => write!(writer, "{}i8", value),
-        Term::I16(value) => write!(writer, "{}i16", value),
-        Term::I32(value) => write!(writer, "{}i32", value),
-        Term::I64(value) => write!(writer, "{}i64", value),
-        Term::F32(value) => write!(writer, "{}f32", value),
-        Term::F64(value) => write!(writer, "{}f64", value),
-        Term::Call(term) => {
-            emit_term(writer, term)?;
-            write!(writer, "()")
-        }
-        Term::If(head, if_true, if_false) => {
-            write!(writer, "if ")?;
-            emit_term(writer, head)?;
-            write!(writer, " {{ ")?;
-            emit_term(writer, if_true)?;
-            write!(writer, " }} else {{ ")?;
-            emit_term(writer, if_false)?;
-            write!(writer, " }}")
-        }
-        Term::Match(head, branches) => {
-            write!(writer, "match ")?;
-            emit_term(writer, head)?;
-            write!(writer, " {{ ")?;
-            for (i, (pattern, term)) in branches.iter().enumerate() {
+        Term::Constant(constant) => emit_constant(writer, constant),
+        Term::Call(term, arguments) => {
+            emit_term(writer, indent, term)?;
+            write!(writer, "(")?;
+            for (i, argument) in arguments.iter().enumerate() {
                 if i != 0 {
                     write!(writer, ", ")?;
                 }
+                emit_term(writer, indent, argument)?;
+            }
+            write!(writer, ")")
+        }
+        Term::If(head, if_true, if_false) => {
+            write!(writer, "if ")?;
+            emit_term(writer, indent, head)?;
+            writeln!(writer, " {{ ")?;
+            {
+                let indent = indent + INDENT;
+                write!(writer, "{:indent$}", "", indent = indent)?;
+                emit_term(writer, indent, if_true)?;
+                writeln!(writer)?;
+            }
+            write!(writer, "{:indent$}", "", indent = indent)?;
+            writeln!(writer, "}} else {{ ")?;
+            {
+                let indent = indent + INDENT;
+                write!(writer, "{:indent$}", "", indent = indent)?;
+                emit_term(writer, indent, if_false)?;
+                writeln!(writer)?;
+            }
+            write!(writer, "{:indent$}", "", indent = indent)?;
+            write!(writer, "}}")
+        }
+        Term::Match(head, branches) => {
+            write!(writer, "match ")?;
+            emit_term(writer, indent, head)?;
+            writeln!(writer, " {{ ")?;
+            for (pattern, term) in branches {
+                let indent = indent + INDENT;
+                write!(writer, "{:indent$}", "", indent = indent)?;
                 emit_pattern(writer, pattern)?;
                 write!(writer, " => ")?;
-                emit_term(writer, term)?;
+                emit_term(writer, indent, term)?;
+                writeln!(writer, ",")?;
             }
-            write!(writer, " }}")
+            write!(writer, "{:indent$}", "", indent = indent)?;
+            write!(writer, "}}")
+        }
+        Term::Read(ty) => {
+            write!(writer, "reader.read::<")?;
+            emit_ty(writer, ty)?;
+            write!(writer, ">()?")
+        }
+        Term::Struct(name, fields) if fields.is_empty() => write!(writer, "{} {{}}", name),
+        Term::Struct(name, fields) => {
+            writeln!(writer, "{} {{", name)?;
+            for (name, term) in fields {
+                let indent = indent + INDENT;
+                write!(writer, "{:indent$}", "", indent = indent)?;
+                match term {
+                    Some(term) => {
+                        write!(writer, "{} : ", name)?;
+                        emit_term(writer, indent, term)?;
+                        writeln!(writer, ",")?;
+                    }
+                    None => writeln!(writer, "{},", name)?,
+                }
+            }
+            write!(writer, "{:indent$}", "", indent = indent)?;
+            write!(writer, "}}")
         }
     }
 }
@@ -346,13 +367,6 @@ fn emit_term(writer: &mut impl Write, term: &Term) -> io::Result<()> {
 fn emit_pattern(writer: &mut impl Write, pattern: &Pattern) -> io::Result<()> {
     match pattern {
         Pattern::Name(name) => write!(writer, "{}", name),
-        Pattern::U8(value) => write!(writer, "{}u8", value),
-        Pattern::U16(value) => write!(writer, "{}u16", value),
-        Pattern::U32(value) => write!(writer, "{}u32", value),
-        Pattern::U64(value) => write!(writer, "{}u64", value),
-        Pattern::I8(value) => write!(writer, "{}i8", value),
-        Pattern::I16(value) => write!(writer, "{}i16", value),
-        Pattern::I32(value) => write!(writer, "{}i32", value),
-        Pattern::I64(value) => write!(writer, "{}i64", value),
+        Pattern::Constant(constant) => emit_constant(writer, constant),
     }
 }

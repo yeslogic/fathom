@@ -92,13 +92,6 @@ Pattern: Pattern = {
 Term: Term = {
     TermAtomic,
     <term: TermAtomic> ":" <ty: Term> => Term::Ann(Box::new(term), Box::new(ty)),
-    <start: @L> "if" <head: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" <end: @R> => {
-        Term::If(Span::new(start, end), Box::new(head), Box::new(if_true), Box::new(if_false))
-    },
-    <start: @L> "match" <head: Term> "{" <mut branches: (<Pattern> "=>" <Term> ",")*> <last: (<Pattern> "=>" <Term>)?>"}" <end: @R> => {
-        branches.extend(last);
-        Term::Match(Span::new(start, end), Box::new(head), branches)
-    },
 };
 
 TermAtomic: Term = {
@@ -108,6 +101,13 @@ TermAtomic: Term = {
     <name: Identifier> => Term::Name(name.0, name.1),
     <start: @L> <literal: "numeric literal"> <end: @R> => {
         Term::NumberLiteral(Span::new(start, end), literal)
+    },
+    <start: @L> "if" <head: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" <end: @R> => {
+        Term::If(Span::new(start, end), Box::new(head), Box::new(if_true), Box::new(if_false))
+    },
+    <start: @L> "match" <head: Term> "{" <mut branches: (<Pattern> "=>" <Term> ",")*> <last: (<Pattern> "=>" <Term>)?>"}" <end: @R> => {
+        branches.extend(last);
+        Term::Match(Span::new(start, end), Box::new(head), branches)
     },
 };
 

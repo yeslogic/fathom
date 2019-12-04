@@ -1,0 +1,5 @@
+test : Bool =
+    match 33 { //~ error: ambiguous numeric literal
+        42 => true,
+        _ => false,
+    };

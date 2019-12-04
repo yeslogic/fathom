@@ -3,8 +3,8 @@
 
 #[derive(Copy, Clone)]
 pub enum Enum0 {
-    True(f64),
-    False(f32),
+    Variant0(f64),
+    Default(f64),
 }
 
 #[derive(Copy, Clone)]
@@ -24,10 +24,9 @@ impl ddl_rt::Format for Test {
 
 impl<'data> ddl_rt::ReadFormat<'data> for Test {
     fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Test, ddl_rt::ReadError> {
-        let inner = if true { 
-            Enum0::True(reader.read::<ddl_rt::F64Be>()?)
-        } else { 
-            Enum0::False(reader.read::<ddl_rt::F32Be>()?)
+        let inner = match 0i64 { 
+            0i64 => Enum0::Variant0(reader.read::<ddl_rt::F64Le>()?),
+            _ => Enum0::Default(reader.read::<ddl_rt::F64Be>()?),
         };
 
         Ok(Test {

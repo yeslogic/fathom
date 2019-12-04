@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub mod emit;
@@ -18,6 +19,7 @@ pub enum Item {
     Function(Function),
     Alias(Alias),
     Struct(StructType),
+    Enum(EnumType),
 }
 
 /// Compiled constants.
@@ -36,7 +38,7 @@ pub struct Function {
     pub is_const: bool,
     pub name: String,
     pub ty: Type,
-    pub term: Term,
+    pub block: Block,
 }
 
 /// Compiled type aliases.
@@ -53,6 +55,7 @@ pub struct StructType {
     pub derives: Vec<String>,
     pub doc: Arc<[String]>,
     pub name: String,
+    pub read: Option<Block>,
     pub fields: Vec<TypeField>,
 }
 
@@ -61,63 +64,62 @@ pub struct StructType {
 pub struct TypeField {
     pub doc: Arc<[String]>,
     pub name: String,
-    pub format_ty: Type,
-    pub host_ty: Type,
+    pub ty: Type,
     pub by_ref: bool,
+}
+
+/// Compiled enum types.
+#[derive(Debug, Clone)]
+pub struct EnumType {
+    pub derives: Vec<String>,
+    pub doc: Arc<[String]>,
+    pub name: String,
+    pub variants: Vec<Variant>,
+}
+
+/// Compiled variants.
+#[derive(Debug, Clone)]
+pub struct Variant {
+    pub doc: Arc<[String]>,
+    pub name: String,
+    pub ty: Type,
 }
 
 /// Compiled types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
-    Var(String),
+    Name(Cow<'static, str>, Vec<Type>),
+}
 
-    If(Box<Term>, Box<Type>, Box<Type>),
+impl Type {
+    pub fn name(name: impl Into<Cow<'static, str>>, arguments: Vec<Type>) -> Type {
+        Type::Name(name.into(), arguments)
+    }
+}
 
-    U8,
-    U16,
-    U32,
-    U64,
-    I8,
-    I16,
-    I32,
-    I64,
-    F32,
-    F64,
-    Bool,
+#[derive(Debug, Clone)]
+pub struct Block {
+    pub statements: Vec<Statement>,
+    pub term: Option<Term>,
+}
 
-    Rt(RtType),
+impl Block {
+    pub fn new(statements: Vec<Statement>, term: impl Into<Option<Term>>) -> Block {
+        Block {
+            statements,
+            term: term.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Statement {
+    Let(String, Box<Term>),
+    Term(Box<Term>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum RtType {
-    Either(Box<Type>, Box<Type>),
-    U8,
-    U16Le,
-    U16Be,
-    U32Le,
-    U32Be,
-    U64Le,
-    U64Be,
-    I8,
-    I16Le,
-    I16Be,
-    I32Le,
-    I32Be,
-    I64Le,
-    I64Be,
-    F32Le,
-    F32Be,
-    F64Le,
-    F64Be,
-    InvalidDataDescription,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Term {
-    Var(String),
-    Panic(String),
-
-    Bool(bool),
+pub enum Constant {
     U8(u8),
     U16(u16),
     U32(u32),
@@ -128,21 +130,34 @@ pub enum Term {
     I64(i64),
     F32(f32),
     F64(f64),
+}
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Term {
+    Name(Cow<'static, str>),
+    Panic(Cow<'static, str>),
+    Constant(Constant),
     If(Box<Term>, Box<Term>, Box<Term>),
     Match(Box<Term>, Vec<(Pattern, Term)>),
-    Call(Box<Term>),
+    Call(Box<Term>, Vec<Term>),
+    Read(Box<Type>),
+    Struct(String, Vec<(String, Option<Term>)>),
+}
+
+impl Term {
+    pub fn name(name: impl Into<Cow<'static, str>>) -> Term {
+        Term::Name(name.into())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
-    Name(String),
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
+    Name(Cow<'static, str>),
+    Constant(Constant),
+}
+
+impl Pattern {
+    pub fn name(name: impl Into<Cow<'static, str>>) -> Pattern {
+        Pattern::Name(name.into())
+    }
 }

@@ -4,7 +4,11 @@
 pub const FOO: i64 = 33i64;
 
 pub fn bar() -> bool {
-    match FOO { 33i64 => true, 42i64 => false, _ => false }
+    match FOO { 
+        33i64 => true,
+        42i64 => false,
+        _ => false,
+    }
 }
 
 pub fn baz() -> bool {
