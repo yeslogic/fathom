@@ -84,7 +84,7 @@ impl Module {
             [] => None,
             doc => Some(alloc.intersperse(
                 doc.iter().map(|line| format!("//!{}", line)),
-                alloc.newline(),
+                alloc.hardline(),
             )),
         };
         let items = self.items.iter().map(|item| item.doc(alloc));
@@ -92,9 +92,9 @@ impl Module {
         (alloc.nil())
             .append(alloc.intersperse(
                 docs.into_iter().chain(items),
-                alloc.newline().append(alloc.newline()),
+                alloc.hardline().append(alloc.hardline()),
             ))
-            .append(alloc.newline())
+            .append(alloc.hardline())
     }
 }
 
@@ -165,7 +165,7 @@ impl Alias {
         let docs = alloc.concat(self.doc.iter().map(|line| {
             (alloc.nil())
                 .append(format!("///{}", line))
-                .append(alloc.newline())
+                .append(alloc.hardline())
         }));
 
         (alloc.nil())
@@ -213,7 +213,7 @@ impl StructType {
         let docs = alloc.concat(self.doc.iter().map(|line| {
             (alloc.nil())
                 .append(format!("///{}", line))
-                .append(alloc.newline())
+                .append(alloc.hardline())
         }));
 
         let struct_prefix = (alloc.nil())
@@ -231,12 +231,12 @@ impl StructType {
                 .group()
                 .append(alloc.concat(self.fields.iter().map(|field| {
                     (alloc.nil())
-                        .append(alloc.newline())
+                        .append(alloc.hardline())
                         .append(field.doc(alloc))
                         .nest(4)
                         .group()
                 })))
-                .append(alloc.newline())
+                .append(alloc.hardline())
                 .append("}")
         };
 
@@ -272,7 +272,7 @@ impl TypeField {
         let docs = alloc.concat(self.doc.iter().map(|line| {
             (alloc.nil())
                 .append(format!("///{}", line))
-                .append(alloc.newline())
+                .append(alloc.hardline())
         }));
 
         (alloc.nil())
