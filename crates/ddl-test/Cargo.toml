@@ -11,15 +11,15 @@ license = "Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dev-dependencies]
-assert_fs = "0.11"
-codespan =  "0.4"
-codespan-reporting =  "0.4"
+assert_fs = "0.13"
+codespan =  "0.5"
+codespan-reporting =  "0.5"
 ddl = { version = "0.1.0", path = "../ddl" }
 ddl-rt = { version = "0.1.0", path = "../ddl-rt" }
 ddl-test-util = { version = "0.1.0", path = "../ddl-test-util" }
 difference = "2.0"
-json = "0.11"
+json = "0.12"
 lazy_static = "1.4"
-pretty = "0.5"
-regex = "1.2"
+pretty = "0.7"
+regex = "1.3"
 unindent = "0.1"
