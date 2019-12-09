@@ -242,6 +242,7 @@ pub fn synth_term(
             | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be" | "F64Le"
             | "F64Be" => Value::Universe(Universe::Format),
             "Bool" | "Int" | "F32" | "F64" => Value::Universe(Universe::Type),
+            "true" | "false" => Value::Neutral(Head::Item(Label("Bool".to_owned())), Vec::new()),
             _ => match context.items.get(label) {
                 Some((_, ty)) => ty.clone(),
                 None => {
@@ -271,9 +272,6 @@ pub fn synth_term(
                 Value::Error
             }
         },
-        Term::Constant(_, Constant::Bool(_)) => {
-            Value::Neutral(Head::Item(Label("Bool".to_owned())), Vec::new())
-        }
         Term::Constant(_, Constant::Int(_)) => {
             Value::Neutral(Head::Item(Label("Int".to_owned())), Vec::new())
         }

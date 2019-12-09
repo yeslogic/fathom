@@ -46,6 +46,6 @@ TestF32 = item F32;
 
 TestF64 = item F64;
 
-test_true = true;
+test_true = item true;
 
-test_false = false;
+test_false = item false;

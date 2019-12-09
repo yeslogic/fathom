@@ -110,8 +110,6 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
 
 pub fn delaborate_constant(span: Span, constant: &core::Constant) -> surface::Term {
     match constant {
-        core::Constant::Bool(true) => surface::Term::Name(span, "true".to_owned()),
-        core::Constant::Bool(false) => surface::Term::Name(span, "false".to_owned()),
         core::Constant::Int(value) => {
             surface::Term::NumberLiteral(span, literal::Number::from_signed(span, value))
         }

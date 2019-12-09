@@ -379,6 +379,16 @@ fn compile_term(
             }
             "F32" => compiled_host_ty(ty_name("f32")),
             "F64" => compiled_host_ty(ty_name("f64")),
+            "true" => CompiledTerm::Term {
+                term: rust::Term::name("true"),
+                ty: rust::Type::name("bool", Vec::new()),
+                is_const: true,
+            },
+            "false" => CompiledTerm::Term {
+                term: rust::Term::name("true"),
+                ty: rust::Type::name("bool", Vec::new()),
+                is_const: true,
+            },
             _ => match context.compiled_items.get(label) {
                 Some(CompiledItem::Term {
                     name,
@@ -437,14 +447,6 @@ fn compile_constant(
     report: &mut dyn FnMut(Diagnostic),
 ) -> CompiledTerm {
     match constant {
-        core::Constant::Bool(value) => CompiledTerm::Term {
-            term: match value {
-                true => rust::Term::name("true"),
-                false => rust::Term::name("false"),
-            },
-            ty: rust::Type::name("bool", Vec::new()),
-            is_const: true,
-        },
         core::Constant::Int(value) => {
             match value.to_i64() {
                 // TODO: don't default to I64.

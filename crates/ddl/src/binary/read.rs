@@ -91,9 +91,15 @@ pub fn read_ty(
             },
         },
         core::Term::Ann(term, _) => read_ty(context, term, reader),
-        core::Term::BoolElim(_, head, if_true, if_false) => match core::semantics::eval(head) {
-            core::Value::Constant(core::Constant::Bool(true)) => read_ty(context, if_true, reader),
-            core::Value::Constant(core::Constant::Bool(false)) => {
+        core::Term::BoolElim(_, head, if_true, if_false) => match &core::semantics::eval(head) {
+            core::Value::Neutral(core::Head::Item(label), elims)
+                if label.0 == "true" && elims.is_empty() =>
+            {
+                read_ty(context, if_true, reader)
+            }
+            core::Value::Neutral(core::Head::Item(label), elims)
+                if label.0 == "false" && elims.is_empty() =>
+            {
                 read_ty(context, if_false, reader)
             }
             _ => Err(ddl_rt::ReadError::InvalidDataDescription),

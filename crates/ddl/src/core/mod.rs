@@ -324,8 +324,6 @@ impl Universe {
 /// Universes.
 #[derive(Debug, Clone)]
 pub enum Constant {
-    /// Host boolean constant.
-    Bool(bool),
     /// Host integer constants.
     Int(BigInt),
     /// Host IEEE-754 single-precision floating point constants.
@@ -353,8 +351,6 @@ impl Constant {
         }
 
         match self {
-            Constant::Bool(true) => alloc.text("true"),
-            Constant::Bool(false) => alloc.text("false"),
             Constant::Int(value) => (alloc.nil())
                 .append("int")
                 .append(alloc.space())
@@ -374,7 +370,6 @@ impl Constant {
 impl PartialEq for Constant {
     fn eq(&self, other: &Constant) -> bool {
         match (self, other) {
-            (Constant::Bool(val0), Constant::Bool(val1)) => val0 == val1,
             (Constant::Int(val0), Constant::Int(val1)) => val0 == val1,
             (Constant::F32(val0), Constant::F32(val1)) => ieee754::logical_eq(*val0, *val1),
             (Constant::F64(val0), Constant::F64(val1)) => ieee754::logical_eq(*val0, *val1),

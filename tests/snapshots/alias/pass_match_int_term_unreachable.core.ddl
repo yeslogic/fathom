@@ -1,1 +1,1 @@
-test = int_elim int 33 : item Int { 33 => true, 42 => false, false } : item Bool;
+test = int_elim int 33 : item Int { 33 => item true, 42 => item false, item false } : item Bool;

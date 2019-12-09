@@ -47,4 +47,4 @@ pub type TestF64 = f64;
 
 pub const TEST_TRUE: bool = true;
 
-pub const TEST_FALSE: bool = false;
+pub const TEST_FALSE: bool = true;

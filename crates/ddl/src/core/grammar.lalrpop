@@ -103,8 +103,6 @@ TermAtomic: Term = {
             "Type" => Term::Universe(span, Universe::Type),
             "Format" => Term::Universe(span, Universe::Format),
             "Kind" => Term::Universe(span, Universe::Kind),
-            "true" => Term::Constant(span, Constant::Bool(true)),
-            "false" => Term::Constant(span, Constant::Bool(false)),
             _ => {
                 report(diagnostics::bug::unknown_global(file_id, &name, span));
                 Term::Error(span)

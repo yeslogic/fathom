@@ -7,7 +7,7 @@ pub fn bar() -> bool {
     if FOO { 
         true
     } else { 
-        false
+        true
     }
 }
 

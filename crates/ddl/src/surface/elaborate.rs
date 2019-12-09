@@ -427,15 +427,8 @@ pub fn synth_term(
                     core::Term::Item(*span, core::Label(name.to_string())),
                     core::Value::Universe(Type),
                 ),
-                "true" => (
-                    core::Term::Constant(*span, core::Constant::Bool(true)),
-                    core::Value::Neutral(
-                        core::Head::Item(core::Label("Bool".to_owned())),
-                        Vec::new(),
-                    ),
-                ),
-                "false" => (
-                    core::Term::Constant(*span, core::Constant::Bool(false)),
+                "true" | "false" => (
+                    core::Term::Item(*span, core::Label(name.to_string())),
                     core::Value::Neutral(
                         core::Head::Item(core::Label("Bool".to_owned())),
                         Vec::new(),

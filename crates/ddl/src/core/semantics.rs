@@ -13,9 +13,14 @@ pub fn eval(term: &Term) -> Value {
         Term::Universe(_, universe) => Value::Universe(*universe),
         Term::Constant(_, constant) => Value::Constant(constant.clone()),
         Term::BoolElim(_, head, if_true, if_false) => match eval(head) {
-            Value::Constant(Constant::Bool(true)) => eval(if_true),
-            Value::Constant(Constant::Bool(false)) => eval(if_false),
             Value::Neutral(head, mut elims) => {
+                if let Head::Item(label) = &head {
+                    match label.0.as_str() {
+                        "true" if elims.is_empty() => return eval(if_true),
+                        "false" if elims.is_empty() => return eval(if_false),
+                        _ => {}
+                    }
+                }
                 elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
                 Value::Neutral(head, elims)
             }
