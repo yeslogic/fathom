@@ -4,38 +4,38 @@ TestType = Type : Kind;
 
 TestFormat = Format : Kind;
 
-TestU8 = U8 : Format;
+TestU8 = item U8 : Format;
 
-TestU16Le = U16Le : Format;
+TestU16Le = item U16Le : Format;
 
-TestU16Be = U16Be : Format;
+TestU16Be = item U16Be : Format;
 
-TestU32Le = U32Le : Format;
+TestU32Le = item U32Le : Format;
 
-TestU32Be = U32Be : Format;
+TestU32Be = item U32Be : Format;
 
-TestU64Le = U64Le : Format;
+TestU64Le = item U64Le : Format;
 
-TestU64Be = U64Be : Format;
+TestU64Be = item U64Be : Format;
 
-TestS8 = S8 : Format;
+TestS8 = item S8 : Format;
 
-TestS16Le = S16Le : Format;
+TestS16Le = item S16Le : Format;
 
-TestS16Be = S16Be : Format;
+TestS16Be = item S16Be : Format;
 
-TestS32Le = S32Le : Format;
+TestS32Le = item S32Le : Format;
 
-TestS32Be = S32Be : Format;
+TestS32Be = item S32Be : Format;
 
-TestS64Le = S64Le : Format;
+TestS64Le = item S64Le : Format;
 
-TestS64Be = S64Be : Format;
+TestS64Be = item S64Be : Format;
 
-TestF32Le = F32Le : Format;
+TestF32Le = item F32Le : Format;
 
-TestF32Be = F32Be : Format;
+TestF32Be = item F32Be : Format;
 
-TestF64Le = F64Le : Format;
+TestF64Le = item F64Le : Format;
 
-TestF64Be = F64Be : Format;
+TestF64Be = item F64Be : Format;

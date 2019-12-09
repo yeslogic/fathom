@@ -353,68 +353,73 @@ fn compile_term(
     };
 
     match core_term {
-        core::Term::Item(span, label) => match context.compiled_items.get(label) {
-            Some(CompiledItem::Term {
-                name,
-                ty,
-                is_function,
-                is_const,
-                ..
-            }) => CompiledTerm::Term {
-                term: if *is_function {
-                    rust::Term::Call(Box::new(rust::Term::Name(name.clone().into())), Vec::new())
-                } else {
-                    rust::Term::Name(name.clone().into())
-                },
-                ty: ty.clone(),
-                is_const: *is_const,
-            },
-            Some(CompiledItem::Type {
-                name,
-                is_copy,
-                host_ty,
-                ..
-            }) => CompiledTerm::Type {
-                ty: rust::Type::Name(name.clone().into(), Vec::new()),
-                is_copy: *is_copy,
-                host_ty: host_ty.clone(),
-                read: None,
-            },
-            Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
-            Some(CompiledItem::Error(_)) => CompiledTerm::Error,
-            None => {
-                report(diagnostics::bug::unbound_item(file_id, label, *span));
-                CompiledTerm::Error
+        core::Term::Item(span, label) => match label.0.as_str() {
+            "U8" => compiled_format_ty(rt_ty_name("U8"), ty_name("u8")),
+            "U16Le" => compiled_format_ty(rt_ty_name("U16Le"), ty_name("u16")),
+            "U16Be" => compiled_format_ty(rt_ty_name("U16Be"), ty_name("u16")),
+            "U32Le" => compiled_format_ty(rt_ty_name("U32Le"), ty_name("u32")),
+            "U32Be" => compiled_format_ty(rt_ty_name("U32Be"), ty_name("u32")),
+            "U64Le" => compiled_format_ty(rt_ty_name("U64Le"), ty_name("u64")),
+            "U64Be" => compiled_format_ty(rt_ty_name("U64Be"), ty_name("u64")),
+            "S8" => compiled_format_ty(rt_ty_name("I8"), ty_name("i8")),
+            "S16Le" => compiled_format_ty(rt_ty_name("I16Le"), ty_name("i16")),
+            "S16Be" => compiled_format_ty(rt_ty_name("I16Be"), ty_name("i16")),
+            "S32Le" => compiled_format_ty(rt_ty_name("I32Le"), ty_name("i32")),
+            "S32Be" => compiled_format_ty(rt_ty_name("I32Be"), ty_name("i32")),
+            "S64Le" => compiled_format_ty(rt_ty_name("I64Le"), ty_name("i64")),
+            "S64Be" => compiled_format_ty(rt_ty_name("I64Be"), ty_name("i64")),
+            "F32Le" => compiled_format_ty(rt_ty_name("F32Le"), ty_name("f32")),
+            "F32Be" => compiled_format_ty(rt_ty_name("F32Be"), ty_name("f32")),
+            "F64Le" => compiled_format_ty(rt_ty_name("F64Le"), ty_name("f64")),
+            "F64Be" => compiled_format_ty(rt_ty_name("F64Be"), ty_name("f64")),
+            "Bool" => compiled_host_ty(ty_name("bool")),
+            "Int" => {
+                report(diagnostics::error::unconstrained_int(file_id, *span));
+                compiled_host_ty(rt_invalid_ty())
             }
+            "F32" => compiled_host_ty(ty_name("f32")),
+            "F64" => compiled_host_ty(ty_name("f64")),
+            _ => match context.compiled_items.get(label) {
+                Some(CompiledItem::Term {
+                    name,
+                    ty,
+                    is_function,
+                    is_const,
+                    ..
+                }) => CompiledTerm::Term {
+                    term: if *is_function {
+                        rust::Term::Call(
+                            Box::new(rust::Term::Name(name.clone().into())),
+                            Vec::new(),
+                        )
+                    } else {
+                        rust::Term::Name(name.clone().into())
+                    },
+                    ty: ty.clone(),
+                    is_const: *is_const,
+                },
+                Some(CompiledItem::Type {
+                    name,
+                    is_copy,
+                    host_ty,
+                    ..
+                }) => CompiledTerm::Type {
+                    ty: rust::Type::Name(name.clone().into(), Vec::new()),
+                    is_copy: *is_copy,
+                    host_ty: host_ty.clone(),
+                    read: None,
+                },
+                Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
+                Some(CompiledItem::Error(_)) => CompiledTerm::Error,
+                None => {
+                    report(diagnostics::bug::unbound_item(file_id, label, *span));
+                    CompiledTerm::Error
+                }
+            },
         },
         core::Term::Ann(term, _) => compile_term(context, term, report),
         core::Term::Universe(_, _) => CompiledTerm::Erased,
         core::Term::Constant(span, constant) => compile_constant(context, *span, constant, report),
-        core::Term::U8Type(_) => compiled_format_ty(rt_ty_name("U8"), ty_name("u8")),
-        core::Term::U16LeType(_) => compiled_format_ty(rt_ty_name("U16Le"), ty_name("u16")),
-        core::Term::U16BeType(_) => compiled_format_ty(rt_ty_name("U16Be"), ty_name("u16")),
-        core::Term::U32LeType(_) => compiled_format_ty(rt_ty_name("U32Le"), ty_name("u32")),
-        core::Term::U32BeType(_) => compiled_format_ty(rt_ty_name("U32Be"), ty_name("u32")),
-        core::Term::U64LeType(_) => compiled_format_ty(rt_ty_name("U64Le"), ty_name("u64")),
-        core::Term::U64BeType(_) => compiled_format_ty(rt_ty_name("U64Be"), ty_name("u64")),
-        core::Term::S8Type(_) => compiled_format_ty(rt_ty_name("I8"), ty_name("i8")),
-        core::Term::S16LeType(_) => compiled_format_ty(rt_ty_name("I16Le"), ty_name("i16")),
-        core::Term::S16BeType(_) => compiled_format_ty(rt_ty_name("I16Be"), ty_name("i16")),
-        core::Term::S32LeType(_) => compiled_format_ty(rt_ty_name("I32Le"), ty_name("i32")),
-        core::Term::S32BeType(_) => compiled_format_ty(rt_ty_name("I32Be"), ty_name("i32")),
-        core::Term::S64LeType(_) => compiled_format_ty(rt_ty_name("I64Le"), ty_name("i64")),
-        core::Term::S64BeType(_) => compiled_format_ty(rt_ty_name("I64Be"), ty_name("i64")),
-        core::Term::F32LeType(_) => compiled_format_ty(rt_ty_name("F32Le"), ty_name("f32")),
-        core::Term::F32BeType(_) => compiled_format_ty(rt_ty_name("F32Be"), ty_name("f32")),
-        core::Term::F64LeType(_) => compiled_format_ty(rt_ty_name("F64Le"), ty_name("f64")),
-        core::Term::F64BeType(_) => compiled_format_ty(rt_ty_name("F64Be"), ty_name("f64")),
-        core::Term::BoolType(_) => compiled_host_ty(ty_name("bool")),
-        core::Term::IntType(span) => {
-            report(diagnostics::error::unconstrained_int(file_id, *span));
-            compiled_host_ty(rt_invalid_ty())
-        }
-        core::Term::F32Type(_) => compiled_host_ty(ty_name("f32")),
-        core::Term::F64Type(_) => compiled_host_ty(ty_name("f64")),
         core::Term::BoolElim(_, head, if_true, if_false) => {
             compile_bool_elim(context, head, if_true, if_false, report)
         }

@@ -281,7 +281,6 @@ pub enum Term {
     Name(Span, String),
     /// Numeric literals.
     NumberLiteral(Span, literal::Number),
-
     /// If-else expressions.
     If(Span, Box<Term>, Box<Term>, Box<Term>),
     /// Match expressions.

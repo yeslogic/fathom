@@ -65,30 +65,32 @@ pub fn read_ty(
     reader: &mut ddl_rt::FormatReader<'_>,
 ) -> Result<Term, ddl_rt::ReadError> {
     match term {
-        core::Term::Item(_, label) => match context.items.get(label) {
-            Some(core::Item::Alias(alias)) => read_ty(&context, &alias.term, reader),
-            Some(core::Item::Struct(struct_ty)) => read_struct_ty(&context, struct_ty, reader),
-            None => Err(ddl_rt::ReadError::InvalidDataDescription),
+        core::Term::Item(_, label) => match label.0.as_str() {
+            "U8" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U8>()?))),
+            "U16Le" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U16Le>()?))),
+            "U16Be" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U16Be>()?))),
+            "U32Le" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U32Le>()?))),
+            "U32Be" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U32Be>()?))),
+            "U64Le" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U64Le>()?))),
+            "U64Be" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U64Be>()?))),
+            "S8" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I8>()?))),
+            "S16Le" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I16Le>()?))),
+            "S16Be" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I16Be>()?))),
+            "S32Le" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I32Le>()?))),
+            "S32Be" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I32Be>()?))),
+            "S64Le" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I64Le>()?))),
+            "S64Be" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I64Be>()?))),
+            "F32Le" => Ok(Term::F32(reader.read::<ddl_rt::F32Le>()?)),
+            "F32Be" => Ok(Term::F32(reader.read::<ddl_rt::F32Be>()?)),
+            "F64Le" => Ok(Term::F64(reader.read::<ddl_rt::F64Le>()?)),
+            "F64Be" => Ok(Term::F64(reader.read::<ddl_rt::F64Be>()?)),
+            _ => match context.items.get(label) {
+                Some(core::Item::Alias(alias)) => read_ty(&context, &alias.term, reader),
+                Some(core::Item::Struct(struct_ty)) => read_struct_ty(&context, struct_ty, reader),
+                None => Err(ddl_rt::ReadError::InvalidDataDescription),
+            },
         },
         core::Term::Ann(term, _) => read_ty(context, term, reader),
-        core::Term::U8Type(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U8>()?))),
-        core::Term::U16LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U16Le>()?))),
-        core::Term::U16BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U16Be>()?))),
-        core::Term::U32LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U32Le>()?))),
-        core::Term::U32BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U32Be>()?))),
-        core::Term::U64LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U64Le>()?))),
-        core::Term::U64BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U64Be>()?))),
-        core::Term::S8Type(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I8>()?))),
-        core::Term::S16LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I16Le>()?))),
-        core::Term::S16BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I16Be>()?))),
-        core::Term::S32LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I32Le>()?))),
-        core::Term::S32BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I32Be>()?))),
-        core::Term::S64LeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I64Le>()?))),
-        core::Term::S64BeType(_) => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::I64Be>()?))),
-        core::Term::F32LeType(_) => Ok(Term::F32(reader.read::<ddl_rt::F32Le>()?)),
-        core::Term::F32BeType(_) => Ok(Term::F32(reader.read::<ddl_rt::F32Be>()?)),
-        core::Term::F64LeType(_) => Ok(Term::F64(reader.read::<ddl_rt::F64Le>()?)),
-        core::Term::F64BeType(_) => Ok(Term::F64(reader.read::<ddl_rt::F64Be>()?)),
         core::Term::BoolElim(_, head, if_true, if_false) => match core::semantics::eval(head) {
             core::Value::Constant(core::Constant::Bool(true)) => read_ty(context, if_true, reader),
             core::Value::Constant(core::Constant::Bool(false)) => {
@@ -103,12 +105,8 @@ pub fn read_ty(
             },
             _ => Err(ddl_rt::ReadError::InvalidDataDescription),
         },
-        core::Term::Universe(_, _)
-        | core::Term::Constant(_, _)
-        | core::Term::BoolType(_)
-        | core::Term::IntType(_)
-        | core::Term::F32Type(_)
-        | core::Term::F64Type(_)
-        | core::Term::Error(_) => Err(ddl_rt::ReadError::InvalidDataDescription),
+        core::Term::Universe(_, _) | core::Term::Constant(_, _) | core::Term::Error(_) => {
+            Err(ddl_rt::ReadError::InvalidDataDescription)
+        }
     }
 }
