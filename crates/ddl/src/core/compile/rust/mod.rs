@@ -80,7 +80,7 @@ impl CompiledItem {
 
 struct ModuleContext {
     file_id: FileId,
-    compiled_items: HashMap<core::Label, CompiledItem>,
+    compiled_items: HashMap<String, CompiledItem>,
     enum_count: usize,
     items: Vec<rust::Item>,
 }
@@ -109,7 +109,7 @@ fn compile_alias(
         CompiledTerm::Term { term, ty, is_const } => {
             let doc = core_alias.doc.clone();
             if is_const {
-                let name = core_alias.name.0.to_screaming_snake_case(); // TODO: name avoidance
+                let name = core_alias.name.to_screaming_snake_case(); // TODO: name avoidance
                 context.items.push(rust::Item::Const(rust::Const {
                     doc,
                     name: name.clone(),
@@ -124,7 +124,7 @@ fn compile_alias(
                     is_const,
                 }
             } else {
-                let name = core_alias.name.0.to_snake_case(); // TODO: name avoidance
+                let name = core_alias.name.to_snake_case(); // TODO: name avoidance
                 context.items.push(rust::Item::Function(rust::Function {
                     doc,
                     name: name.clone(),
@@ -150,7 +150,7 @@ fn compile_alias(
             read,
         } => {
             let doc = core_alias.doc.clone();
-            let name = core_alias.name.0.to_pascal_case(); // TODO: name avoidance
+            let name = core_alias.name.to_pascal_case(); // TODO: name avoidance
             match read {
                 Some(read) => match host_ty {
                     None => unreachable!("type level if for non-format type"),
@@ -229,7 +229,7 @@ fn compile_struct_ty(
     let mut read_statements = Vec::with_capacity(core_struct_ty.fields.len());
 
     for field in &core_struct_ty.fields {
-        let name = field.name.0.to_snake_case();
+        let name = field.name.to_snake_case();
         let (format_ty, host_ty, read, is_field_copy) =
             match compile_term(context, &field.term, report) {
                 // TODO: error message!
@@ -269,12 +269,12 @@ fn compile_struct_ty(
             by_ref: !is_field_copy,
         });
         read_statements.push(rust::Statement::Let(
-            field.name.0.clone(),
+            field.name.clone(),
             Box::new(read.unwrap_or_else(|| rust::Term::Read(Box::new(format_ty)))),
         ));
     }
 
-    let name = core_struct_ty.name.0.to_pascal_case(); // TODO: name avoidance
+    let name = core_struct_ty.name.to_pascal_case(); // TODO: name avoidance
     context.items.push(rust::Item::Struct(rust::StructType {
         derives: derives(is_copy),
         doc: core_struct_ty.doc.clone(),
@@ -353,7 +353,7 @@ fn compile_term(
     };
 
     match core_term {
-        core::Term::Item(span, label) => match label.0.as_str() {
+        core::Term::Item(span, name) => match name.as_str() {
             "U8" => compiled_format_ty(rt_ty_name("U8"), ty_name("u8")),
             "U16Le" => compiled_format_ty(rt_ty_name("U16Le"), ty_name("u16")),
             "U16Be" => compiled_format_ty(rt_ty_name("U16Be"), ty_name("u16")),
@@ -389,7 +389,7 @@ fn compile_term(
                 ty: rust::Type::name("bool", Vec::new()),
                 is_const: true,
             },
-            _ => match context.compiled_items.get(label) {
+            _ => match context.compiled_items.get(name) {
                 Some(CompiledItem::Term {
                     name,
                     ty,
@@ -422,7 +422,7 @@ fn compile_term(
                 Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
                 Some(CompiledItem::Error(_)) => CompiledTerm::Error,
                 None => {
-                    report(diagnostics::bug::unbound_item(file_id, label, *span));
+                    report(diagnostics::bug::unbound_item(file_id, name, *span));
                     CompiledTerm::Error
                 }
             },

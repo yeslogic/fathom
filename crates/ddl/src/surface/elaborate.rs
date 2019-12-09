@@ -36,7 +36,7 @@ pub struct ItemContext {
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    items: HashMap<core::Label, (Span, core::Value)>,
+    items: HashMap<String, (Span, core::Value)>,
 }
 
 impl ItemContext {
@@ -72,7 +72,6 @@ pub fn elaborate_items(
 
         match item {
             surface::Item::Alias(alias) => {
-                let label = core::Label(alias.name.1.clone());
                 let (core_term, ty) = match &alias.ty {
                     Some(surface_ty) => {
                         let context = context.term_context();
@@ -84,7 +83,7 @@ pub fn elaborate_items(
                     None => synth_term(&context.term_context(), &alias.term, report),
                 };
 
-                match context.items.entry(label) {
+                match context.items.entry(alias.name.1.clone()) {
                     Entry::Vacant(entry) => {
                         let item = core::Alias {
                             span: alias.span,
@@ -106,12 +105,11 @@ pub fn elaborate_items(
                 }
             }
             surface::Item::Struct(struct_ty) => {
-                let label = core::Label(struct_ty.name.1.clone());
                 let field_context = context.field_context();
                 let core_fields =
                     elaborate_struct_ty_fields(field_context, &struct_ty.fields, report);
 
-                match context.items.entry(label) {
+                match context.items.entry(struct_ty.name.1.clone()) {
                     Entry::Vacant(entry) => {
                         let item = core::StructType {
                             span: struct_ty.span,
@@ -146,17 +144,17 @@ pub struct FieldContext<'items> {
     /// The file where these fields are defined (for error reporting).
     file_id: FileId,
     /// Previously elaborated items.
-    items: &'items HashMap<core::Label, (Span, core::Value)>,
+    items: &'items HashMap<String, (Span, core::Value)>,
     /// Labels that have previously been used for fields, along with the span
     /// where they were introduced (for error reporting).
-    fields: HashMap<core::Label, Span>,
+    fields: HashMap<String, Span>,
 }
 
 impl<'items> FieldContext<'items> {
     /// Create a new field context.
     pub fn new(
         file_id: FileId,
-        items: &'items HashMap<core::Label, (Span, core::Value)>,
+        items: &'items HashMap<String, (Span, core::Value)>,
     ) -> FieldContext<'items> {
         FieldContext {
             file_id,
@@ -183,7 +181,6 @@ pub fn elaborate_struct_ty_fields(
     for field in surface_fields {
         use std::collections::hash_map::Entry;
 
-        let label = core::Label(field.name.1.clone());
         let field_span = Span::merge(field.name.0, field.term.span());
         let ty = check_term(
             &context.term_context(),
@@ -192,7 +189,7 @@ pub fn elaborate_struct_ty_fields(
             report,
         );
 
-        match context.fields.entry(label) {
+        match context.fields.entry(field.name.1.clone()) {
             Entry::Vacant(entry) => {
                 core_fields.push(core::TypeField {
                     doc: field.doc.clone(),
@@ -221,14 +218,14 @@ pub struct TermContext<'items> {
     /// The file where this term is located (for error reporting).
     file_id: FileId,
     /// Previously elaborated items.
-    items: &'items HashMap<core::Label, (Span, core::Value)>,
+    items: &'items HashMap<String, (Span, core::Value)>,
 }
 
 impl<'items> TermContext<'items> {
     /// Create a new term context.
     pub fn new(
         file_id: FileId,
-        items: &'items HashMap<core::Label, (Span, core::Value)>,
+        items: &'items HashMap<String, (Span, core::Value)>,
     ) -> TermContext<'items> {
         TermContext { file_id, items }
     }
@@ -295,8 +292,8 @@ pub fn check_term(
                 core::Term::Error(surface_term.span())
             };
             match expected_ty {
-                core::Value::Neutral(core::Head::Item(label), elims) if elims.is_empty() => {
-                    match label.0.as_str() {
+                core::Value::Neutral(core::Head::Item(name), elims) if elims.is_empty() => {
+                    match name.as_str() {
                         "Int" => match literal.parse_big_int(context.file_id, report) {
                             Some(value) => core::Term::Constant(*span, core::Constant::Int(value)),
                             None => core::Term::Error(*span),
@@ -316,8 +313,7 @@ pub fn check_term(
             }
         }
         (surface::Term::If(span, surface_head, surface_if_true, surface_if_false), _) => {
-            let bool_ty =
-                core::Value::Neutral(core::Head::Item(core::Label("Bool".to_owned())), Vec::new());
+            let bool_ty = core::Value::Neutral(core::Head::Item("Bool".to_owned()), Vec::new());
             let head = check_term(context, surface_head, &bool_ty, report);
             let if_true = check_term(context, surface_if_true, expected_ty, report);
             let if_false = check_term(context, surface_if_false, expected_ty, report);
@@ -336,8 +332,8 @@ pub fn check_term(
             };
 
             match &head_ty {
-                core::Value::Neutral(core::Head::Item(label), elims) if elims.is_empty() => {
-                    match label.0.as_str() {
+                core::Value::Neutral(core::Head::Item(name), elims) if elims.is_empty() => {
+                    match name.as_str() {
                         "Bool" => {
                             let (if_true, if_false) =
                                 check_bool_branches(context, surface_branches, expected_ty, report);
@@ -396,10 +392,7 @@ pub fn synth_term(
             (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
         }
         surface::Term::Name(span, name) => match context.items.get(name.as_str()) {
-            Some((_, ty)) => (
-                core::Term::Item(*span, core::Label(name.to_string())),
-                ty.clone(),
-            ),
+            Some((_, ty)) => (core::Term::Item(*span, name.to_owned()), ty.clone()),
             None => match name.as_str() {
                 "Kind" => {
                     report(diagnostics::kind_has_no_type(
@@ -420,19 +413,16 @@ pub fn synth_term(
                 "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
                 | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"
                 | "F64Le" | "F64Be" => (
-                    core::Term::Item(*span, core::Label(name.to_string())),
+                    core::Term::Item(*span, name.to_owned()),
                     core::Value::Universe(Format),
                 ),
                 "Bool" | "Int" | "F32" | "F64" => (
-                    core::Term::Item(*span, core::Label(name.to_string())),
+                    core::Term::Item(*span, name.to_owned()),
                     core::Value::Universe(Type),
                 ),
                 "true" | "false" => (
-                    core::Term::Item(*span, core::Label(name.to_string())),
-                    core::Value::Neutral(
-                        core::Head::Item(core::Label("Bool".to_owned())),
-                        Vec::new(),
-                    ),
+                    core::Term::Item(*span, name.to_owned()),
+                    core::Value::Neutral(core::Head::Item("Bool".to_owned()), Vec::new()),
                 ),
                 _ => {
                     report(diagnostics::error::var_name_not_found(
@@ -454,8 +444,7 @@ pub fn synth_term(
             (core::Term::Error(*span), core::Value::Error)
         }
         surface::Term::If(span, surface_head, surface_if_true, surface_if_false) => {
-            let bool_ty =
-                core::Value::Neutral(core::Head::Item(core::Label("Bool".to_owned())), Vec::new());
+            let bool_ty = core::Value::Neutral(core::Head::Item("Bool".to_owned()), Vec::new());
             let head = check_term(context, surface_head, &bool_ty, report);
             let (if_true, if_true_ty) = synth_term(context, surface_if_true, report);
             let (if_false, if_false_ty) = synth_term(context, surface_if_false, report);

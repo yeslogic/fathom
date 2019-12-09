@@ -56,14 +56,14 @@ pub fn compile_module(
     writeln!(writer, r##"      <dl class="items">"##)?;
 
     for item in &module.items {
-        let (label, item) = match item {
+        let (name, item) = match item {
             surface::Item::Alias(alias) => compile_alias(&context, writer, alias, report)?,
             surface::Item::Struct(struct_ty) => {
                 compile_struct_ty(&context, writer, struct_ty, report)?
             }
         };
 
-        context.items.insert(label, item);
+        context.items.insert(name, item);
     }
 
     write!(

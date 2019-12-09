@@ -8,14 +8,14 @@ use crate::core::{Constant, Elim, Head, Term, Value};
 /// Evaluate a term into a semantic value.
 pub fn eval(term: &Term) -> Value {
     match term {
-        Term::Item(_, label) => Value::Neutral(Head::Item(label.clone()), Vec::new()), // TODO: Evaluate to value in environment
+        Term::Item(_, name) => Value::Neutral(Head::Item(name.clone()), Vec::new()), // TODO: Evaluate to value in environment
         Term::Ann(term, _) => eval(term),
         Term::Universe(_, universe) => Value::Universe(*universe),
         Term::Constant(_, constant) => Value::Constant(constant.clone()),
         Term::BoolElim(_, head, if_true, if_false) => match eval(head) {
             Value::Neutral(head, mut elims) => {
-                if let Head::Item(label) = &head {
-                    match label.0.as_str() {
+                if let Head::Item(name) = &head {
+                    match name.as_str() {
                         "true" if elims.is_empty() => return eval(if_true),
                         "false" if elims.is_empty() => return eval(if_false),
                         _ => {}
@@ -51,7 +51,7 @@ pub fn eval(term: &Term) -> Value {
 fn readback_neutral(head: &Head, elims: &[Elim]) -> Term {
     elims.iter().fold(
         match head {
-            Head::Item(label) => Term::Item(Span::initial(), label.clone()),
+            Head::Item(name) => Term::Item(Span::initial(), name.clone()),
             Head::Error => Term::Error(Span::initial()),
         },
         |acc, elim| match elim {

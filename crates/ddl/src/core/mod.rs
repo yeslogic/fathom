@@ -4,7 +4,6 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
 use pretty::{DocAllocator, DocBuilder};
-use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
@@ -19,32 +18,6 @@ mod grammar {
 pub mod compile;
 pub mod semantics;
 pub mod validate;
-
-/// A label.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Label(pub String);
-
-impl Label {
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        alloc.text(&self.0)
-    }
-}
-
-impl fmt::Display for Label {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl Borrow<str> for Label {
-    fn borrow(&self) -> &str {
-        &self.0
-    }
-}
 
 /// A module of items.
 #[derive(Debug, Clone)]
@@ -151,7 +124,7 @@ pub struct Alias {
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
-    pub name: Label,
+    pub name: String,
     /// The term that is aliased.
     pub term: Term,
 }
@@ -170,7 +143,7 @@ impl Alias {
 
         (alloc.nil())
             .append(docs)
-            .append(self.name.doc(alloc))
+            .append(alloc.as_string(&self.name))
             .append(alloc.space())
             .append("=")
             .group()
@@ -199,7 +172,7 @@ pub struct StructType {
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
-    pub name: Label,
+    pub name: String,
     /// Fields in the struct.
     pub fields: Vec<TypeField>,
 }
@@ -219,7 +192,7 @@ impl StructType {
         let struct_prefix = (alloc.nil())
             .append("struct")
             .append(alloc.space())
-            .append(self.name.doc(alloc))
+            .append(alloc.as_string(&self.name))
             .append(alloc.space());
 
         let struct_ty = if self.fields.is_empty() {
@@ -255,7 +228,7 @@ impl PartialEq for StructType {
 pub struct TypeField {
     pub doc: Arc<[String]>,
     pub start: ByteIndex,
-    pub name: Label,
+    pub name: String,
     pub term: Term,
 }
 
@@ -279,7 +252,7 @@ impl TypeField {
             .append(docs)
             .append(
                 (alloc.nil())
-                    .append(self.name.doc(alloc))
+                    .append(alloc.as_string(&self.name))
                     .append(alloc.space())
                     .append(":")
                     .group(),
@@ -382,7 +355,7 @@ impl PartialEq for Constant {
 #[derive(Debug, Clone)]
 pub enum Term {
     /// Item references
-    Item(Span, Label),
+    Item(Span, String),
     /// Terms annotated with types.
     Ann(Arc<Term>, Arc<Term>),
     /// Universes.
@@ -430,10 +403,10 @@ impl Term {
         };
 
         match self {
-            Term::Item(_, label) => (alloc.nil())
+            Term::Item(_, name) => (alloc.nil())
                 .append("item")
                 .append(alloc.space())
-                .append(alloc.as_string(label)),
+                .append(alloc.as_string(name)),
             Term::Ann(term, ty) => show_paren(
                 prec > 0,
                 (alloc.nil())
@@ -491,7 +464,7 @@ impl Term {
 impl PartialEq for Term {
     fn eq(&self, other: &Term) -> bool {
         match (self, other) {
-            (Term::Item(_, label0), Term::Item(_, label1)) => label0 == label1,
+            (Term::Item(_, name0), Term::Item(_, name1)) => name0 == name1,
             (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
             (Term::Universe(_, universe0), Term::Universe(_, universe1)) => universe0 == universe1,
             (Term::Constant(_, constant0), Term::Constant(_, constant1)) => constant0 == constant1,
@@ -513,7 +486,7 @@ impl PartialEq for Term {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Head {
     /// Item references.
-    Item(Label),
+    Item(String),
     /// Errors.
     Error,
 }

@@ -65,7 +65,7 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
     };
 
     match term {
-        core::Term::Item(span, label) => surface::Term::Name(*span, label.to_string()),
+        core::Term::Item(span, name) => surface::Term::Name(*span, name.to_string()),
         core::Term::Ann(term, ty) => delaborate_paren_prec(
             prec > 0,
             surface::Term::Ann(

@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::core::{Alias, Constant, Item, Label, Module, Universe, StructType, Term, TypeField};
+use crate::core::{Alias, Constant, Item, Module, Universe, StructType, Term, TypeField};
 use crate::diagnostics;
 use crate::lexer::Token;
 use crate::literal;
@@ -60,7 +60,6 @@ Item: Item = {
     <start: @L> <name: "identifier"> "=" <term: Term> ";" <end: @R> => {
         let span = Span::new(start, end);
         let doc = Arc::from(doc);
-        let name = Label(name);
 
         Item::Alias(Alias { span, doc, name, term })
     },
@@ -72,7 +71,6 @@ Item: Item = {
         let span = Span::new(start, end);
         let doc = Arc::from(docs);
         fields.extend(last);
-        let name = Label(name);
 
         Item::Struct(StructType { span, doc, name, fields })
     },
@@ -81,7 +79,6 @@ Item: Item = {
 Field: TypeField = {
     <doc: "doc comment"*>
     <start: @L> <name: "identifier"> ":" <term: Term> => {
-        let name = Label(name);
         let doc = Arc::from(doc);
 
         TypeField { doc, start, name, term }
@@ -96,7 +93,7 @@ Term: Term = {
 TermAtomic: Term = {
     "(" <term: Term> ")" => term,
     <start: @L> "!" <end: @R> => Term::Error(Span::new(start, end)),
-    <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(Span::new(start, end), Label(name)),
+    <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(Span::new(start, end), name),
     <start: @L> <name: "identifier"> <end: @R> => {
         let span = Span::new(start, end);
         match name.as_ref() {

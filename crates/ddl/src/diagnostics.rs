@@ -9,7 +9,7 @@ use crate::surface::delaborate;
 pub fn field_redeclaration(
     severity: Severity,
     file_id: FileId,
-    name: &core::Label,
+    name: &str,
     found: Span,
     original: Span,
 ) -> Diagnostic {
@@ -30,7 +30,7 @@ pub fn field_redeclaration(
 pub fn item_redefinition(
     severity: Severity,
     file_id: FileId,
-    name: &core::Label,
+    name: &str,
     found: Span,
     original: Span,
 ) -> Diagnostic {

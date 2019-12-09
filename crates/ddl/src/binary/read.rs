@@ -6,7 +6,7 @@ use crate::core;
 
 /// Contextual information to be used when parsing items.
 pub struct ItemContext<'module> {
-    items: HashMap<core::Label, &'module core::Item>,
+    items: HashMap<String, &'module core::Item>,
 }
 
 impl<'module> ItemContext<'module> {
@@ -27,10 +27,10 @@ pub fn read_module_item(
 
     for item in &module.items {
         match item {
-            core::Item::Alias(alias) if alias.name.0 == name => {
+            core::Item::Alias(alias) if alias.name == name => {
                 return read_ty(&context, &alias.term, reader);
             }
-            core::Item::Struct(struct_ty) if struct_ty.name.0 == name => {
+            core::Item::Struct(struct_ty) if struct_ty.name == name => {
                 return read_struct_ty(&context, struct_ty, reader);
             }
             core::Item::Alias(alias) => {
@@ -53,7 +53,7 @@ pub fn read_struct_ty(
     let fields = struct_ty
         .fields
         .iter()
-        .map(|field| Ok((field.name.0.clone(), read_ty(context, &field.term, reader)?)))
+        .map(|field| Ok((field.name.clone(), read_ty(context, &field.term, reader)?)))
         .collect::<Result<_, ddl_rt::ReadError>>()?;
 
     Ok(Term::Struct(fields))
@@ -65,7 +65,7 @@ pub fn read_ty(
     reader: &mut ddl_rt::FormatReader<'_>,
 ) -> Result<Term, ddl_rt::ReadError> {
     match term {
-        core::Term::Item(_, label) => match label.0.as_str() {
+        core::Term::Item(_, name) => match name.as_str() {
             "U8" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U8>()?))),
             "U16Le" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U16Le>()?))),
             "U16Be" => Ok(Term::Int(BigInt::from(reader.read::<ddl_rt::U16Be>()?))),
@@ -84,7 +84,7 @@ pub fn read_ty(
             "F32Be" => Ok(Term::F32(reader.read::<ddl_rt::F32Be>()?)),
             "F64Le" => Ok(Term::F64(reader.read::<ddl_rt::F64Le>()?)),
             "F64Be" => Ok(Term::F64(reader.read::<ddl_rt::F64Be>()?)),
-            _ => match context.items.get(label) {
+            _ => match context.items.get(name) {
                 Some(core::Item::Alias(alias)) => read_ty(&context, &alias.term, reader),
                 Some(core::Item::Struct(struct_ty)) => read_struct_ty(&context, struct_ty, reader),
                 None => Err(ddl_rt::ReadError::InvalidDataDescription),
@@ -92,13 +92,13 @@ pub fn read_ty(
         },
         core::Term::Ann(term, _) => read_ty(context, term, reader),
         core::Term::BoolElim(_, head, if_true, if_false) => match &core::semantics::eval(head) {
-            core::Value::Neutral(core::Head::Item(label), elims)
-                if label.0 == "true" && elims.is_empty() =>
+            core::Value::Neutral(core::Head::Item(name), elims)
+                if name == "true" && elims.is_empty() =>
             {
                 read_ty(context, if_true, reader)
             }
-            core::Value::Neutral(core::Head::Item(label), elims)
-                if label.0 == "false" && elims.is_empty() =>
+            core::Value::Neutral(core::Head::Item(name), elims)
+                if name == "false" && elims.is_empty() =>
             {
                 read_ty(context, if_false, reader)
             }
