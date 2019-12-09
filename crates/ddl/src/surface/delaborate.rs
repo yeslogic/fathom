@@ -65,7 +65,7 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
     };
 
     match term {
-        core::Term::Item(span, label) => surface::Term::Name(*span, label.to_string()),
+        core::Term::Item(span, name) => surface::Term::Name(*span, name.to_string()),
         core::Term::Ann(term, ty) => delaborate_paren_prec(
             prec > 0,
             surface::Term::Ann(
@@ -78,39 +78,7 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
             core::Universe::Format => surface::Term::Name(*span, "Format".to_owned()),
             core::Universe::Kind => surface::Term::Name(*span, "Kind".to_owned()),
         },
-        core::Term::U8Type(span) => surface::Term::Name(*span, "U8".to_owned()),
-        core::Term::U16LeType(span) => surface::Term::Name(*span, "U16Le".to_owned()),
-        core::Term::U16BeType(span) => surface::Term::Name(*span, "U16Be".to_owned()),
-        core::Term::U32LeType(span) => surface::Term::Name(*span, "U32Le".to_owned()),
-        core::Term::U32BeType(span) => surface::Term::Name(*span, "U32Be".to_owned()),
-        core::Term::U64LeType(span) => surface::Term::Name(*span, "U64Le".to_owned()),
-        core::Term::U64BeType(span) => surface::Term::Name(*span, "U64Be".to_owned()),
-        core::Term::S8Type(span) => surface::Term::Name(*span, "S8".to_owned()),
-        core::Term::S16LeType(span) => surface::Term::Name(*span, "S16Le".to_owned()),
-        core::Term::S16BeType(span) => surface::Term::Name(*span, "S16Be".to_owned()),
-        core::Term::S32LeType(span) => surface::Term::Name(*span, "S32Le".to_owned()),
-        core::Term::S32BeType(span) => surface::Term::Name(*span, "S32Be".to_owned()),
-        core::Term::S64LeType(span) => surface::Term::Name(*span, "S64Le".to_owned()),
-        core::Term::S64BeType(span) => surface::Term::Name(*span, "S64Be".to_owned()),
-        core::Term::F32LeType(span) => surface::Term::Name(*span, "F32Le".to_owned()),
-        core::Term::F32BeType(span) => surface::Term::Name(*span, "F32Be".to_owned()),
-        core::Term::F64LeType(span) => surface::Term::Name(*span, "F64Le".to_owned()),
-        core::Term::F64BeType(span) => surface::Term::Name(*span, "F64Be".to_owned()),
-        core::Term::BoolType(span) => surface::Term::Name(*span, "Bool".to_owned()),
-        core::Term::IntType(span) => surface::Term::Name(*span, "Int".to_owned()),
-        core::Term::F32Type(span) => surface::Term::Name(*span, "F32".to_owned()),
-        core::Term::F64Type(span) => surface::Term::Name(*span, "F64".to_owned()),
-        core::Term::BoolConst(span, true) => surface::Term::Name(*span, "true".to_owned()),
-        core::Term::BoolConst(span, false) => surface::Term::Name(*span, "false".to_owned()),
-        core::Term::IntConst(span, value) => {
-            surface::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
-        }
-        core::Term::F32Const(span, value) => {
-            surface::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
-        }
-        core::Term::F64Const(span, value) => {
-            surface::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
-        }
+        core::Term::Constant(span, constant) => delaborate_constant(*span, constant),
         core::Term::BoolElim(span, head, if_true, if_false) => surface::Term::If(
             *span,
             Box::new(delaborate_term(head)),
@@ -137,5 +105,19 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
                 .collect(),
         ),
         core::Term::Error(span) => surface::Term::Error(*span),
+    }
+}
+
+pub fn delaborate_constant(span: Span, constant: &core::Constant) -> surface::Term {
+    match constant {
+        core::Constant::Int(value) => {
+            surface::Term::NumberLiteral(span, literal::Number::from_signed(span, value))
+        }
+        core::Constant::F32(value) => {
+            surface::Term::NumberLiteral(span, literal::Number::from_signed(span, value))
+        }
+        core::Constant::F64(value) => {
+            surface::Term::NumberLiteral(span, literal::Number::from_signed(span, value))
+        }
     }
 }

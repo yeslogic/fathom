@@ -5,6 +5,6 @@ pub fn test() -> bool {
     if true { 
         true
     } else { 
-        false
+        true
     }
 }

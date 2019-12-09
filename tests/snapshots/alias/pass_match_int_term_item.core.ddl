@@ -1,5 +1,5 @@
-foo = int 33 : Int;
+foo = int 33 : item Int;
 
-bar = int_elim item foo { 33 => true, 42 => false, false } : Bool;
+bar = int_elim item foo { 33 => item true, 42 => item false, item false } : item Bool;
 
 baz = item bar;

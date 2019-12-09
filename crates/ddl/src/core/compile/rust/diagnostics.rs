@@ -3,8 +3,6 @@
 use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 
-use crate::core;
-
 pub fn non_format_type_as_host_type(severity: Severity, file_id: FileId, span: Span) -> Diagnostic {
     Diagnostic {
         severity,
@@ -36,7 +34,7 @@ pub mod bug {
 
     pub fn item_name_reused(
         file_id: FileId,
-        name: &core::Label,
+        name: &str,
         found: Span,
         original: Span,
     ) -> Diagnostic {
@@ -56,7 +54,7 @@ pub mod bug {
         }
     }
 
-    pub fn unbound_item(file_id: FileId, name: &core::Label, span: Span) -> Diagnostic {
+    pub fn unbound_item(file_id: FileId, name: &str, span: Span) -> Diagnostic {
         Diagnostic {
             severity: Severity::Bug,
             code: None,

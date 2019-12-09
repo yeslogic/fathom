@@ -1,1 +1,1 @@
-test = bool_elim true { true, false } : Bool;
+test = bool_elim item true { item true, item false } : item Bool;

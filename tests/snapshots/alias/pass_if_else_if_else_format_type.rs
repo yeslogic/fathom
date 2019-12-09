@@ -43,7 +43,7 @@ impl<'data> ddl_rt::ReadFormat<'data> for Test {
                 Enum0::False(reader.read::<ddl_rt::F32Be>()?)
             })
         } else { 
-            Enum2::False(if false { 
+            Enum2::False(if true { 
                 Enum1::True(reader.read::<ddl_rt::F64Be>()?)
             } else { 
                 Enum1::False(reader.read::<ddl_rt::F32Be>()?)

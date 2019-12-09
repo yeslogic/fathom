@@ -1,4 +1,4 @@
-Test1 = ! : U8;
+Test1 = ! : item U8;
 
 Test2 = ! : !;
 
@@ -6,4 +6,4 @@ Test3 = ! : Type;
 
 Test4 = ! : Format;
 
-Test5 = ! : Int;
+Test5 = ! : item Int;

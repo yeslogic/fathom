@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::core::{Alias, Item, Label, Module, Universe, StructType, Term, TypeField};
+use crate::core::{Alias, Constant, Item, Module, Universe, StructType, Term, TypeField};
 use crate::diagnostics;
 use crate::lexer::Token;
 use crate::literal;
@@ -60,7 +60,6 @@ Item: Item = {
     <start: @L> <name: "identifier"> "=" <term: Term> ";" <end: @R> => {
         let span = Span::new(start, end);
         let doc = Arc::from(doc);
-        let name = Label(name);
 
         Item::Alias(Alias { span, doc, name, term })
     },
@@ -72,7 +71,6 @@ Item: Item = {
         let span = Span::new(start, end);
         let doc = Arc::from(docs);
         fields.extend(last);
-        let name = Label(name);
 
         Item::Struct(StructType { span, doc, name, fields })
     },
@@ -81,7 +79,6 @@ Item: Item = {
 Field: TypeField = {
     <doc: "doc comment"*>
     <start: @L> <name: "identifier"> ":" <term: Term> => {
-        let name = Label(name);
         let doc = Arc::from(doc);
 
         TypeField { doc, start, name, term }
@@ -96,37 +93,13 @@ Term: Term = {
 TermAtomic: Term = {
     "(" <term: Term> ")" => term,
     <start: @L> "!" <end: @R> => Term::Error(Span::new(start, end)),
-    <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(Span::new(start, end), Label(name)),
+    <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(Span::new(start, end), name),
     <start: @L> <name: "identifier"> <end: @R> => {
         let span = Span::new(start, end);
         match name.as_ref() {
             "Type" => Term::Universe(span, Universe::Type),
             "Format" => Term::Universe(span, Universe::Format),
             "Kind" => Term::Universe(span, Universe::Kind),
-            "U8" => Term::U8Type(span),
-            "U16Le" => Term::U16LeType(span),
-            "U16Be" => Term::U16BeType(span),
-            "U32Le" => Term::U32LeType(span),
-            "U32Be" => Term::U32BeType(span),
-            "U64Le" => Term::U64LeType(span),
-            "U64Be" => Term::U64BeType(span),
-            "S8" => Term::S8Type(span),
-            "S16Le" => Term::S16LeType(span),
-            "S16Be" => Term::S16BeType(span),
-            "S32Le" => Term::S32LeType(span),
-            "S32Be" => Term::S32BeType(span),
-            "S64Le" => Term::S64LeType(span),
-            "S64Be" => Term::S64BeType(span),
-            "F32Le" => Term::F32LeType(span),
-            "F32Be" => Term::F32BeType(span),
-            "F64Le" => Term::F64LeType(span),
-            "F64Be" => Term::F64BeType(span),
-            "Bool" => Term::BoolType(span),
-            "Int" => Term::IntType(span),
-            "F32" => Term::F32Type(span),
-            "F64" => Term::F64Type(span),
-            "true" => Term::BoolConst(span, true),
-            "false" => Term::BoolConst(span, false),
             _ => {
                 report(diagnostics::bug::unknown_global(file_id, &name, span));
                 Term::Error(span)
@@ -148,21 +121,21 @@ TermAtomic: Term = {
     <start: @L> "int" <literal: "numeric literal"> <end: @R> => {
         let span = Span::new(start, end);
         match literal.parse_big_int(file_id, report) {
-            Some(value) => Term::IntConst(span, value),
+            Some(value) => Term::Constant(span, Constant::Int(value)),
             None => Term::Error(span),
         }
     },
     <start: @L> "f32" <literal: "numeric literal"> <end: @R> => {
         let span = Span::new(start, end);
         match literal.parse_float(file_id, report) {
-            Some(value) => Term::F32Const(span, value),
+            Some(value) => Term::Constant(span, Constant::F32(value)),
             None => Term::Error(span),
         }
     },
     <start: @L> "f64" <literal: "numeric literal"> <end: @R> => {
         let span = Span::new(start, end);
         match literal.parse_float(file_id, report) {
-            Some(value) => Term::F64Const(span, value),
+            Some(value) => Term::Constant(span, Constant::F64(value)),
             None => Term::Error(span),
         }
     },

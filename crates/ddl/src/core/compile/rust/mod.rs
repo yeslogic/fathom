@@ -80,7 +80,7 @@ impl CompiledItem {
 
 struct ModuleContext {
     file_id: FileId,
-    compiled_items: HashMap<core::Label, CompiledItem>,
+    compiled_items: HashMap<String, CompiledItem>,
     enum_count: usize,
     items: Vec<rust::Item>,
 }
@@ -109,7 +109,7 @@ fn compile_alias(
         CompiledTerm::Term { term, ty, is_const } => {
             let doc = core_alias.doc.clone();
             if is_const {
-                let name = core_alias.name.0.to_screaming_snake_case(); // TODO: name avoidance
+                let name = core_alias.name.to_screaming_snake_case(); // TODO: name avoidance
                 context.items.push(rust::Item::Const(rust::Const {
                     doc,
                     name: name.clone(),
@@ -124,7 +124,7 @@ fn compile_alias(
                     is_const,
                 }
             } else {
-                let name = core_alias.name.0.to_snake_case(); // TODO: name avoidance
+                let name = core_alias.name.to_snake_case(); // TODO: name avoidance
                 context.items.push(rust::Item::Function(rust::Function {
                     doc,
                     name: name.clone(),
@@ -150,7 +150,7 @@ fn compile_alias(
             read,
         } => {
             let doc = core_alias.doc.clone();
-            let name = core_alias.name.0.to_pascal_case(); // TODO: name avoidance
+            let name = core_alias.name.to_pascal_case(); // TODO: name avoidance
             match read {
                 Some(read) => match host_ty {
                     None => unreachable!("type level if for non-format type"),
@@ -229,7 +229,7 @@ fn compile_struct_ty(
     let mut read_statements = Vec::with_capacity(core_struct_ty.fields.len());
 
     for field in &core_struct_ty.fields {
-        let name = field.name.0.to_snake_case();
+        let name = field.name.to_snake_case();
         let (format_ty, host_ty, read, is_field_copy) =
             match compile_term(context, &field.term, report) {
                 // TODO: error message!
@@ -269,12 +269,12 @@ fn compile_struct_ty(
             by_ref: !is_field_copy,
         });
         read_statements.push(rust::Statement::Let(
-            field.name.0.clone(),
+            field.name.clone(),
             Box::new(read.unwrap_or_else(|| rust::Term::Read(Box::new(format_ty)))),
         ));
     }
 
-    let name = core_struct_ty.name.0.to_pascal_case(); // TODO: name avoidance
+    let name = core_struct_ty.name.to_pascal_case(); // TODO: name avoidance
     context.items.push(rust::Item::Struct(rust::StructType {
         derives: derives(is_copy),
         doc: core_struct_ty.doc.clone(),
@@ -353,110 +353,128 @@ fn compile_term(
     };
 
     match core_term {
-        core::Term::Item(span, label) => match context.compiled_items.get(label) {
-            Some(CompiledItem::Term {
-                name,
-                ty,
-                is_function,
-                is_const,
-                ..
-            }) => CompiledTerm::Term {
-                term: if *is_function {
-                    rust::Term::Call(Box::new(rust::Term::Name(name.clone().into())), Vec::new())
-                } else {
-                    rust::Term::Name(name.clone().into())
-                },
-                ty: ty.clone(),
-                is_const: *is_const,
-            },
-            Some(CompiledItem::Type {
-                name,
-                is_copy,
-                host_ty,
-                ..
-            }) => CompiledTerm::Type {
-                ty: rust::Type::Name(name.clone().into(), Vec::new()),
-                is_copy: *is_copy,
-                host_ty: host_ty.clone(),
-                read: None,
-            },
-            Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
-            Some(CompiledItem::Error(_)) => CompiledTerm::Error,
-            None => {
-                report(diagnostics::bug::unbound_item(file_id, label, *span));
-                CompiledTerm::Error
+        core::Term::Item(span, name) => match name.as_str() {
+            "U8" => compiled_format_ty(rt_ty_name("U8"), ty_name("u8")),
+            "U16Le" => compiled_format_ty(rt_ty_name("U16Le"), ty_name("u16")),
+            "U16Be" => compiled_format_ty(rt_ty_name("U16Be"), ty_name("u16")),
+            "U32Le" => compiled_format_ty(rt_ty_name("U32Le"), ty_name("u32")),
+            "U32Be" => compiled_format_ty(rt_ty_name("U32Be"), ty_name("u32")),
+            "U64Le" => compiled_format_ty(rt_ty_name("U64Le"), ty_name("u64")),
+            "U64Be" => compiled_format_ty(rt_ty_name("U64Be"), ty_name("u64")),
+            "S8" => compiled_format_ty(rt_ty_name("I8"), ty_name("i8")),
+            "S16Le" => compiled_format_ty(rt_ty_name("I16Le"), ty_name("i16")),
+            "S16Be" => compiled_format_ty(rt_ty_name("I16Be"), ty_name("i16")),
+            "S32Le" => compiled_format_ty(rt_ty_name("I32Le"), ty_name("i32")),
+            "S32Be" => compiled_format_ty(rt_ty_name("I32Be"), ty_name("i32")),
+            "S64Le" => compiled_format_ty(rt_ty_name("I64Le"), ty_name("i64")),
+            "S64Be" => compiled_format_ty(rt_ty_name("I64Be"), ty_name("i64")),
+            "F32Le" => compiled_format_ty(rt_ty_name("F32Le"), ty_name("f32")),
+            "F32Be" => compiled_format_ty(rt_ty_name("F32Be"), ty_name("f32")),
+            "F64Le" => compiled_format_ty(rt_ty_name("F64Le"), ty_name("f64")),
+            "F64Be" => compiled_format_ty(rt_ty_name("F64Be"), ty_name("f64")),
+            "Bool" => compiled_host_ty(ty_name("bool")),
+            "Int" => {
+                report(diagnostics::error::unconstrained_int(file_id, *span));
+                compiled_host_ty(rt_invalid_ty())
             }
-        },
-        core::Term::Ann(term, _) => compile_term(context, term, report),
-        core::Term::U8Type(_) => compiled_format_ty(rt_ty_name("U8"), ty_name("u8")),
-        core::Term::U16LeType(_) => compiled_format_ty(rt_ty_name("U16Le"), ty_name("u16")),
-        core::Term::U16BeType(_) => compiled_format_ty(rt_ty_name("U16Be"), ty_name("u16")),
-        core::Term::U32LeType(_) => compiled_format_ty(rt_ty_name("U32Le"), ty_name("u32")),
-        core::Term::U32BeType(_) => compiled_format_ty(rt_ty_name("U32Be"), ty_name("u32")),
-        core::Term::U64LeType(_) => compiled_format_ty(rt_ty_name("U64Le"), ty_name("u64")),
-        core::Term::U64BeType(_) => compiled_format_ty(rt_ty_name("U64Be"), ty_name("u64")),
-        core::Term::S8Type(_) => compiled_format_ty(rt_ty_name("I8"), ty_name("i8")),
-        core::Term::S16LeType(_) => compiled_format_ty(rt_ty_name("I16Le"), ty_name("i16")),
-        core::Term::S16BeType(_) => compiled_format_ty(rt_ty_name("I16Be"), ty_name("i16")),
-        core::Term::S32LeType(_) => compiled_format_ty(rt_ty_name("I32Le"), ty_name("i32")),
-        core::Term::S32BeType(_) => compiled_format_ty(rt_ty_name("I32Be"), ty_name("i32")),
-        core::Term::S64LeType(_) => compiled_format_ty(rt_ty_name("I64Le"), ty_name("i64")),
-        core::Term::S64BeType(_) => compiled_format_ty(rt_ty_name("I64Be"), ty_name("i64")),
-        core::Term::F32LeType(_) => compiled_format_ty(rt_ty_name("F32Le"), ty_name("f32")),
-        core::Term::F32BeType(_) => compiled_format_ty(rt_ty_name("F32Be"), ty_name("f32")),
-        core::Term::F64LeType(_) => compiled_format_ty(rt_ty_name("F64Le"), ty_name("f64")),
-        core::Term::F64BeType(_) => compiled_format_ty(rt_ty_name("F64Be"), ty_name("f64")),
-        core::Term::BoolType(_) => compiled_host_ty(ty_name("bool")),
-        core::Term::IntType(span) => {
-            report(diagnostics::error::unconstrained_int(file_id, *span));
-            compiled_host_ty(rt_invalid_ty())
-        }
-        core::Term::F32Type(_) => compiled_host_ty(ty_name("f32")),
-        core::Term::F64Type(_) => compiled_host_ty(ty_name("f64")),
-        core::Term::BoolConst(_, value) => CompiledTerm::Term {
-            term: match value {
-                true => rust::Term::name("true"),
-                false => rust::Term::name("false"),
+            "F32" => compiled_host_ty(ty_name("f32")),
+            "F64" => compiled_host_ty(ty_name("f64")),
+            "true" => CompiledTerm::Term {
+                term: rust::Term::name("true"),
+                ty: rust::Type::name("bool", Vec::new()),
+                is_const: true,
             },
-            ty: ty_name("bool"),
-            is_const: true,
-        },
-        core::Term::IntConst(span, value) => {
-            match value.to_i64() {
-                // TODO: don't default to I64.
-                Some(value) => CompiledTerm::Term {
-                    term: rust::Term::Constant(rust::Constant::I64(value)),
-                    ty: ty_name("i64"),
-                    is_const: true,
+            "false" => CompiledTerm::Term {
+                term: rust::Term::name("true"),
+                ty: rust::Type::name("bool", Vec::new()),
+                is_const: true,
+            },
+            _ => match context.compiled_items.get(name) {
+                Some(CompiledItem::Term {
+                    name,
+                    ty,
+                    is_function,
+                    is_const,
+                    ..
+                }) => CompiledTerm::Term {
+                    term: if *is_function {
+                        rust::Term::Call(
+                            Box::new(rust::Term::Name(name.clone().into())),
+                            Vec::new(),
+                        )
+                    } else {
+                        rust::Term::Name(name.clone().into())
+                    },
+                    ty: ty.clone(),
+                    is_const: *is_const,
                 },
+                Some(CompiledItem::Type {
+                    name,
+                    is_copy,
+                    host_ty,
+                    ..
+                }) => CompiledTerm::Type {
+                    ty: rust::Type::Name(name.clone().into(), Vec::new()),
+                    is_copy: *is_copy,
+                    host_ty: host_ty.clone(),
+                    read: None,
+                },
+                Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
+                Some(CompiledItem::Error(_)) => CompiledTerm::Error,
                 None => {
-                    report(crate::diagnostics::bug::not_yet_implemented(
-                        context.file_id,
-                        *span,
-                        "non-i64 types",
-                    ));
+                    report(diagnostics::bug::unbound_item(file_id, name, *span));
                     CompiledTerm::Error
                 }
-            }
-        }
-        core::Term::F32Const(_, value) => CompiledTerm::Term {
-            term: rust::Term::Constant(rust::Constant::F32(*value)),
-            ty: ty_name("f32"),
-            is_const: true,
+            },
         },
-        core::Term::F64Const(_, value) => CompiledTerm::Term {
-            term: rust::Term::Constant(rust::Constant::F64(*value)),
-            ty: ty_name("f64"),
-            is_const: true,
-        },
+        core::Term::Ann(term, _) => compile_term(context, term, report),
+        core::Term::Universe(_, _) => CompiledTerm::Erased,
+        core::Term::Constant(span, constant) => compile_constant(context, *span, constant, report),
         core::Term::BoolElim(_, head, if_true, if_false) => {
             compile_bool_elim(context, head, if_true, if_false, report)
         }
         core::Term::IntElim(span, head, branches, default) => {
             compile_int_elim(context, *span, head, branches, default, report)
         }
-        core::Term::Universe(_, _) => CompiledTerm::Erased,
         core::Term::Error(_) => CompiledTerm::Error,
+    }
+}
+
+fn compile_constant(
+    context: &mut ModuleContext,
+    span: Span,
+    constant: &core::Constant,
+    report: &mut dyn FnMut(Diagnostic),
+) -> CompiledTerm {
+    match constant {
+        core::Constant::Int(value) => {
+            match value.to_i64() {
+                // TODO: don't default to I64.
+                Some(value) => CompiledTerm::Term {
+                    term: rust::Term::Constant(rust::Constant::I64(value)),
+                    ty: rust::Type::name("i64", Vec::new()),
+                    is_const: true,
+                },
+                None => {
+                    report(crate::diagnostics::bug::not_yet_implemented(
+                        context.file_id,
+                        span,
+                        "non-i64 types",
+                    ));
+                    CompiledTerm::Error
+                }
+            }
+        }
+        core::Constant::F32(value) => CompiledTerm::Term {
+            term: rust::Term::Constant(rust::Constant::F32(*value)),
+            ty: rust::Type::name("f32", Vec::new()),
+            is_const: true,
+        },
+        core::Constant::F64(value) => CompiledTerm::Term {
+            term: rust::Term::Constant(rust::Constant::F64(*value)),
+            ty: rust::Type::name("f64", Vec::new()),
+            is_const: true,
+        },
     }
 }
 

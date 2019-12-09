@@ -7,7 +7,7 @@ use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 
-use crate::core::{semantics, Item, Label, Module, Term, TypeField, Universe, Value};
+use crate::core::{semantics, Constant, Head, Item, Module, Term, TypeField, Universe, Value};
 use crate::diagnostics;
 
 /// Validate a module.
@@ -21,7 +21,7 @@ pub struct ItemContext {
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    items: HashMap<Label, (Span, Value)>,
+    items: HashMap<String, (Span, Value)>,
 }
 
 impl ItemContext {
@@ -57,6 +57,7 @@ pub fn validate_items(
             Item::Alias(alias) => {
                 let ty = synth_term(&context.term_context(), &alias.term, report);
 
+                // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(alias.name.clone()) {
                     Entry::Vacant(entry) => {
                         entry.insert((alias.span, ty));
@@ -73,6 +74,7 @@ pub fn validate_items(
             Item::Struct(struct_ty) => {
                 validate_struct_ty_fields(context.field_context(), &struct_ty.fields, report);
 
+                // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(struct_ty.name.clone()) {
                     Entry::Vacant(entry) => {
                         entry.insert((struct_ty.span, Value::Universe(Universe::Format)));
@@ -95,17 +97,17 @@ pub struct FieldContext<'items> {
     /// The file where these fields are defined (for error reporting).
     file_id: FileId,
     /// Previously validated items.
-    items: &'items HashMap<Label, (Span, Value)>,
+    items: &'items HashMap<String, (Span, Value)>,
     /// Labels that have previously been used for fields, along with the span
     /// where they were introduced (for error reporting).
-    fields: HashMap<Label, Span>,
+    fields: HashMap<String, Span>,
 }
 
 impl<'items> FieldContext<'items> {
     /// Create a new field context.
     pub fn new(
         file_id: FileId,
-        items: &'items HashMap<Label, (Span, Value)>,
+        items: &'items HashMap<String, (Span, Value)>,
     ) -> FieldContext<'items> {
         FieldContext {
             file_id,
@@ -156,14 +158,14 @@ pub struct TermContext<'items> {
     /// The file where the term is defined (for error reporting).
     file_id: FileId,
     /// Previously validated items.
-    items: &'items HashMap<Label, (Span, Value)>,
+    items: &'items HashMap<String, (Span, Value)>,
 }
 
 impl<'items> TermContext<'items> {
     /// Create a new term context.
     pub fn new(
         file_id: FileId,
-        items: &'items HashMap<Label, (Span, Value)>,
+        items: &'items HashMap<String, (Span, Value)>,
     ) -> TermContext<'items> {
         TermContext { file_id, items }
     }
@@ -199,12 +201,14 @@ pub fn check_term(
     match (term, expected_ty) {
         (Term::Error(_), _) | (_, Value::Error) => {}
         (Term::BoolElim(_, term, if_true, if_false), expected_ty) => {
-            check_term(context, term, &Value::BoolType, report);
+            let bool_ty = Value::Neutral(Head::Item("Bool".to_owned()), Vec::new());
+            check_term(context, term, &bool_ty, report);
             check_term(context, if_true, expected_ty, report);
             check_term(context, if_false, expected_ty, report);
         }
         (Term::IntElim(_, head, branches, default), expected_ty) => {
-            check_term(context, head, &Value::IntType, report);
+            let int_ty = Value::Neutral(Head::Item("Int".to_owned()), Vec::new());
+            check_term(context, head, &int_ty, report);
             for (_, term) in branches {
                 check_term(context, term, expected_ty, report);
             }
@@ -233,16 +237,23 @@ pub fn synth_term(
     report: &mut dyn FnMut(Diagnostic),
 ) -> Value {
     match term {
-        Term::Item(span, label) => match context.items.get(label) {
+        Term::Item(span, name) => match context.items.get(name) {
             Some((_, ty)) => ty.clone(),
-            None => {
-                report(diagnostics::bug::item_name_not_found(
-                    context.file_id,
-                    &label.0,
-                    *span,
-                ));
-                Value::Error
-            }
+            None => match name.as_str() {
+                "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
+                | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"
+                | "F64Le" | "F64Be" => Value::Universe(Universe::Format),
+                "Bool" | "Int" | "F32" | "F64" => Value::Universe(Universe::Type),
+                "true" | "false" => Value::Neutral(Head::Item("Bool".to_owned()), Vec::new()),
+                _ => {
+                    report(diagnostics::bug::item_name_not_found(
+                        context.file_id,
+                        &name,
+                        *span,
+                    ));
+                    Value::Error
+                }
+            },
         },
         Term::Ann(term, ty) => {
             validate_universe(context, ty, report);
@@ -261,33 +272,18 @@ pub fn synth_term(
                 Value::Error
             }
         },
-        Term::U8Type(_)
-        | Term::U16LeType(_)
-        | Term::U16BeType(_)
-        | Term::U32LeType(_)
-        | Term::U32BeType(_)
-        | Term::U64LeType(_)
-        | Term::U64BeType(_)
-        | Term::S8Type(_)
-        | Term::S16LeType(_)
-        | Term::S16BeType(_)
-        | Term::S32LeType(_)
-        | Term::S32BeType(_)
-        | Term::S64LeType(_)
-        | Term::S64BeType(_)
-        | Term::F32LeType(_)
-        | Term::F32BeType(_)
-        | Term::F64LeType(_)
-        | Term::F64BeType(_) => Value::Universe(Universe::Format),
-        Term::BoolType(_) | Term::IntType(_) | Term::F32Type(_) | Term::F64Type(_) => {
-            Value::Universe(Universe::Type)
+        Term::Constant(_, Constant::Int(_)) => {
+            Value::Neutral(Head::Item("Int".to_owned()), Vec::new())
         }
-        Term::BoolConst(_, _) => Value::BoolType,
-        Term::IntConst(_, _) => Value::IntType,
-        Term::F32Const(_, _) => Value::F32Type,
-        Term::F64Const(_, _) => Value::F64Type,
+        Term::Constant(_, Constant::F32(_)) => {
+            Value::Neutral(Head::Item("F32".to_owned()), Vec::new())
+        }
+        Term::Constant(_, Constant::F64(_)) => {
+            Value::Neutral(Head::Item("F64".to_owned()), Vec::new())
+        }
         Term::BoolElim(_, head, if_true, if_false) => {
-            check_term(context, head, &Value::BoolType, report);
+            let bool_ty = Value::Neutral(Head::Item("Bool".to_owned()), Vec::new());
+            check_term(context, head, &bool_ty, report);
             let if_true_ty = synth_term(context, if_true, report);
             let if_false_ty = synth_term(context, if_false, report);
 

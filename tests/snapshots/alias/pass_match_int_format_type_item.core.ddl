@@ -1,3 +1,3 @@
-foo = int 0 : Int;
+foo = int 0 : item Int;
 
-Test = int_elim item foo { 0 => F64Le, F64Be } : Format;
+Test = int_elim item foo { 0 => item F64Le, item F64Be } : Format;

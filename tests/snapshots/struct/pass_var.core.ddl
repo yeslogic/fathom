@@ -1,8 +1,8 @@
 //! Test referring to aliases in struct fields.
 
 struct Pair {
-    first : U8,
-    second : U8,
+    first : item U8,
+    second : item U8,
 }
 
 MyPair = item Pair;
