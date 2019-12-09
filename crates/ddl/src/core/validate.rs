@@ -57,6 +57,7 @@ pub fn validate_items(
             Item::Alias(alias) => {
                 let ty = synth_term(&context.term_context(), &alias.term, report);
 
+                // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(alias.name.clone()) {
                     Entry::Vacant(entry) => {
                         entry.insert((alias.span, ty));
@@ -73,6 +74,7 @@ pub fn validate_items(
             Item::Struct(struct_ty) => {
                 validate_struct_ty_fields(context.field_context(), &struct_ty.fields, report);
 
+                // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(struct_ty.name.clone()) {
                     Entry::Vacant(entry) => {
                         entry.insert((struct_ty.span, Value::Universe(Universe::Format)));
@@ -235,15 +237,15 @@ pub fn synth_term(
     report: &mut dyn FnMut(Diagnostic),
 ) -> Value {
     match term {
-        Term::Item(span, name) => match name.as_str() {
-            "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8" | "S16Le"
-            | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be" | "F64Le"
-            | "F64Be" => Value::Universe(Universe::Format),
-            "Bool" | "Int" | "F32" | "F64" => Value::Universe(Universe::Type),
-            "true" | "false" => Value::Neutral(Head::Item("Bool".to_owned()), Vec::new()),
-            _ => match context.items.get(name) {
-                Some((_, ty)) => ty.clone(),
-                None => {
+        Term::Item(span, name) => match context.items.get(name) {
+            Some((_, ty)) => ty.clone(),
+            None => match name.as_str() {
+                "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
+                | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"
+                | "F64Le" | "F64Be" => Value::Universe(Universe::Format),
+                "Bool" | "Int" | "F32" | "F64" => Value::Universe(Universe::Type),
+                "true" | "false" => Value::Neutral(Head::Item("Bool".to_owned()), Vec::new()),
+                _ => {
                     report(diagnostics::bug::item_name_not_found(
                         context.file_id,
                         &name,

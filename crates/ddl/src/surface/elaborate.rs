@@ -83,6 +83,7 @@ pub fn elaborate_items(
                     None => synth_term(&context.term_context(), &alias.term, report),
                 };
 
+                // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(alias.name.1.clone()) {
                     Entry::Vacant(entry) => {
                         let item = core::Alias {
@@ -109,6 +110,7 @@ pub fn elaborate_items(
                 let core_fields =
                     elaborate_struct_ty_fields(field_context, &struct_ty.fields, report);
 
+                // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(struct_ty.name.1.clone()) {
                     Entry::Vacant(entry) => {
                         let item = core::StructType {
