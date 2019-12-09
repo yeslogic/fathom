@@ -2,7 +2,7 @@ use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::core::{Alias, Item, Label, Module, Universe, StructType, Term, TypeField};
+use crate::core::{Alias, Constant, Item, Label, Module, Universe, StructType, Term, TypeField};
 use crate::diagnostics;
 use crate::lexer::Token;
 use crate::literal;
@@ -125,8 +125,8 @@ TermAtomic: Term = {
             "Int" => Term::IntType(span),
             "F32" => Term::F32Type(span),
             "F64" => Term::F64Type(span),
-            "true" => Term::BoolConst(span, true),
-            "false" => Term::BoolConst(span, false),
+            "true" => Term::Constant(span, Constant::Bool(true)),
+            "false" => Term::Constant(span, Constant::Bool(false)),
             _ => {
                 report(diagnostics::bug::unknown_global(file_id, &name, span));
                 Term::Error(span)
@@ -148,21 +148,21 @@ TermAtomic: Term = {
     <start: @L> "int" <literal: "numeric literal"> <end: @R> => {
         let span = Span::new(start, end);
         match literal.parse_big_int(file_id, report) {
-            Some(value) => Term::IntConst(span, value),
+            Some(value) => Term::Constant(span, Constant::Int(value)),
             None => Term::Error(span),
         }
     },
     <start: @L> "f32" <literal: "numeric literal"> <end: @R> => {
         let span = Span::new(start, end);
         match literal.parse_float(file_id, report) {
-            Some(value) => Term::F32Const(span, value),
+            Some(value) => Term::Constant(span, Constant::F32(value)),
             None => Term::Error(span),
         }
     },
     <start: @L> "f64" <literal: "numeric literal"> <end: @R> => {
         let span = Span::new(start, end);
         match literal.parse_float(file_id, report) {
-            Some(value) => Term::F64Const(span, value),
+            Some(value) => Term::Constant(span, Constant::F64(value)),
             None => Term::Error(span),
         }
     },

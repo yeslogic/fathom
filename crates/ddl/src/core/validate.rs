@@ -7,7 +7,7 @@ use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 
-use crate::core::{semantics, Item, Label, Module, Term, TypeField, Universe, Value};
+use crate::core::{semantics, Constant, Item, Label, Module, Term, TypeField, Universe, Value};
 use crate::diagnostics;
 
 /// Validate a module.
@@ -282,10 +282,10 @@ pub fn synth_term(
         Term::BoolType(_) | Term::IntType(_) | Term::F32Type(_) | Term::F64Type(_) => {
             Value::Universe(Universe::Type)
         }
-        Term::BoolConst(_, _) => Value::BoolType,
-        Term::IntConst(_, _) => Value::IntType,
-        Term::F32Const(_, _) => Value::F32Type,
-        Term::F64Const(_, _) => Value::F64Type,
+        Term::Constant(_, Constant::Bool(_)) => Value::BoolType,
+        Term::Constant(_, Constant::Int(_)) => Value::IntType,
+        Term::Constant(_, Constant::F32(_)) => Value::F32Type,
+        Term::Constant(_, Constant::F64(_)) => Value::F64Type,
         Term::BoolElim(_, head, if_true, if_false) => {
             check_term(context, head, &Value::BoolType, report);
             let if_true_ty = synth_term(context, if_true, report);

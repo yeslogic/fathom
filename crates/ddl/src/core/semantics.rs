@@ -3,8 +3,7 @@
 use codespan::Span;
 use std::sync::Arc;
 
-use crate::core::{Elim, Head, Term, Value};
-use crate::ieee754;
+use crate::core::{Constant, Elim, Head, Term, Value};
 
 /// Evaluate a term into a semantic value.
 pub fn eval(term: &Term) -> Value {
@@ -12,6 +11,7 @@ pub fn eval(term: &Term) -> Value {
         Term::Item(_, label) => Value::Neutral(Head::Item(label.clone()), Vec::new()), // TODO: Evaluate to value in environment
         Term::Ann(term, _) => eval(term),
         Term::Universe(_, universe) => Value::Universe(*universe),
+        Term::Constant(_, constant) => Value::Constant(constant.clone()),
         Term::U8Type(_) => Value::U8Type,
         Term::U16LeType(_) => Value::U16LeType,
         Term::U16BeType(_) => Value::U16BeType,
@@ -34,13 +34,9 @@ pub fn eval(term: &Term) -> Value {
         Term::IntType(_) => Value::IntType,
         Term::F32Type(_) => Value::F32Type,
         Term::F64Type(_) => Value::F64Type,
-        Term::BoolConst(_, value) => Value::BoolConst(*value),
-        Term::IntConst(_, value) => Value::IntConst(value.clone()),
-        Term::F32Const(_, value) => Value::F32Const(*value),
-        Term::F64Const(_, value) => Value::F64Const(*value),
         Term::BoolElim(_, head, if_true, if_false) => match eval(head) {
-            Value::BoolConst(true) => eval(if_true),
-            Value::BoolConst(false) => eval(if_false),
+            Value::Constant(Constant::Bool(true)) => eval(if_true),
+            Value::Constant(Constant::Bool(false)) => eval(if_false),
             Value::Neutral(head, mut elims) => {
                 elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
                 Value::Neutral(head, elims)
@@ -51,7 +47,7 @@ pub fn eval(term: &Term) -> Value {
             ),
         },
         Term::IntElim(_, head, branches, default) => match eval(head) {
-            Value::IntConst(value) => match branches.get(&value) {
+            Value::Constant(Constant::Int(value)) => match branches.get(&value) {
                 Some(term) => eval(term),
                 None => eval(default),
             },
@@ -97,6 +93,7 @@ pub fn readback(value: &Value) -> Term {
     match value {
         Value::Neutral(head, elims) => readback_neutral(head, elims),
         Value::Universe(universe) => Term::Universe(Span::initial(), *universe),
+        Value::Constant(constant) => Term::Constant(Span::initial(), constant.clone()),
         Value::U8Type => Term::U8Type(Span::initial()),
         Value::U16LeType => Term::U16LeType(Span::initial()),
         Value::U16BeType => Term::U16BeType(Span::initial()),
@@ -119,10 +116,6 @@ pub fn readback(value: &Value) -> Term {
         Value::IntType => Term::IntType(Span::initial()),
         Value::F32Type => Term::F32Type(Span::initial()),
         Value::F64Type => Term::F64Type(Span::initial()),
-        Value::BoolConst(value) => Term::BoolConst(Span::initial(), *value),
-        Value::IntConst(value) => Term::IntConst(Span::initial(), value.clone()),
-        Value::F32Const(value) => Term::F32Const(Span::initial(), *value),
-        Value::F64Const(value) => Term::F64Const(Span::initial(), *value),
         Value::Error => Term::Error(Span::initial()),
     }
 }
@@ -133,11 +126,8 @@ pub fn equal(val1: &Value, val2: &Value) -> bool {
         (Value::Neutral(head0, elims0), Value::Neutral(head1, elims1)) => {
             readback_neutral(head0, elims0) == readback_neutral(head1, elims1)
         }
-        (Value::BoolConst(value0), Value::BoolConst(value1)) => value0 == value1,
-        (Value::IntConst(value0), Value::IntConst(value1)) => value0 == value1,
-        (Value::F32Const(value0), Value::F32Const(value1)) => ieee754::logical_eq(*value0, *value1),
-        (Value::F64Const(value0), Value::F64Const(value1)) => ieee754::logical_eq(*value0, *value1),
         (Value::Universe(universe0), Value::Universe(universe1)) => universe0 == universe1,
+        (Value::Constant(constant0), Value::Constant(constant1)) => constant0 == constant1,
         (Value::U8Type, Value::U8Type)
         | (Value::U16LeType, Value::U16LeType)
         | (Value::U16BeType, Value::U16BeType)

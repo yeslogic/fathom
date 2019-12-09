@@ -100,17 +100,7 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
         core::Term::IntType(span) => surface::Term::Name(*span, "Int".to_owned()),
         core::Term::F32Type(span) => surface::Term::Name(*span, "F32".to_owned()),
         core::Term::F64Type(span) => surface::Term::Name(*span, "F64".to_owned()),
-        core::Term::BoolConst(span, true) => surface::Term::Name(*span, "true".to_owned()),
-        core::Term::BoolConst(span, false) => surface::Term::Name(*span, "false".to_owned()),
-        core::Term::IntConst(span, value) => {
-            surface::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
-        }
-        core::Term::F32Const(span, value) => {
-            surface::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
-        }
-        core::Term::F64Const(span, value) => {
-            surface::Term::NumberLiteral(*span, literal::Number::from_signed(*span, value))
-        }
+        core::Term::Constant(span, constant) => delaborate_constant(*span, constant),
         core::Term::BoolElim(span, head, if_true, if_false) => surface::Term::If(
             *span,
             Box::new(delaborate_term(head)),
@@ -137,5 +127,21 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
                 .collect(),
         ),
         core::Term::Error(span) => surface::Term::Error(*span),
+    }
+}
+
+pub fn delaborate_constant(span: Span, constant: &core::Constant) -> surface::Term {
+    match constant {
+        core::Constant::Bool(true) => surface::Term::Name(span, "true".to_owned()),
+        core::Constant::Bool(false) => surface::Term::Name(span, "false".to_owned()),
+        core::Constant::Int(value) => {
+            surface::Term::NumberLiteral(span, literal::Number::from_signed(span, value))
+        }
+        core::Constant::F32(value) => {
+            surface::Term::NumberLiteral(span, literal::Number::from_signed(span, value))
+        }
+        core::Constant::F64(value) => {
+            surface::Term::NumberLiteral(span, literal::Number::from_signed(span, value))
+        }
     }
 }

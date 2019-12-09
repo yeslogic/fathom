@@ -388,6 +388,8 @@ fn compile_term(
             }
         },
         core::Term::Ann(term, _) => compile_term(context, term, report),
+        core::Term::Universe(_, _) => CompiledTerm::Erased,
+        core::Term::Constant(span, constant) => compile_constant(context, *span, constant, report),
         core::Term::U8Type(_) => compiled_format_ty(rt_ty_name("U8"), ty_name("u8")),
         core::Term::U16LeType(_) => compiled_format_ty(rt_ty_name("U16Le"), ty_name("u16")),
         core::Term::U16BeType(_) => compiled_format_ty(rt_ty_name("U16Be"), ty_name("u16")),
@@ -413,50 +415,59 @@ fn compile_term(
         }
         core::Term::F32Type(_) => compiled_host_ty(ty_name("f32")),
         core::Term::F64Type(_) => compiled_host_ty(ty_name("f64")),
-        core::Term::BoolConst(_, value) => CompiledTerm::Term {
-            term: match value {
-                true => rust::Term::name("true"),
-                false => rust::Term::name("false"),
-            },
-            ty: ty_name("bool"),
-            is_const: true,
-        },
-        core::Term::IntConst(span, value) => {
-            match value.to_i64() {
-                // TODO: don't default to I64.
-                Some(value) => CompiledTerm::Term {
-                    term: rust::Term::Constant(rust::Constant::I64(value)),
-                    ty: ty_name("i64"),
-                    is_const: true,
-                },
-                None => {
-                    report(crate::diagnostics::bug::not_yet_implemented(
-                        context.file_id,
-                        *span,
-                        "non-i64 types",
-                    ));
-                    CompiledTerm::Error
-                }
-            }
-        }
-        core::Term::F32Const(_, value) => CompiledTerm::Term {
-            term: rust::Term::Constant(rust::Constant::F32(*value)),
-            ty: ty_name("f32"),
-            is_const: true,
-        },
-        core::Term::F64Const(_, value) => CompiledTerm::Term {
-            term: rust::Term::Constant(rust::Constant::F64(*value)),
-            ty: ty_name("f64"),
-            is_const: true,
-        },
         core::Term::BoolElim(_, head, if_true, if_false) => {
             compile_bool_elim(context, head, if_true, if_false, report)
         }
         core::Term::IntElim(span, head, branches, default) => {
             compile_int_elim(context, *span, head, branches, default, report)
         }
-        core::Term::Universe(_, _) => CompiledTerm::Erased,
         core::Term::Error(_) => CompiledTerm::Error,
+    }
+}
+
+fn compile_constant(
+    context: &mut ModuleContext,
+    span: Span,
+    constant: &core::Constant,
+    report: &mut dyn FnMut(Diagnostic),
+) -> CompiledTerm {
+    match constant {
+        core::Constant::Bool(value) => CompiledTerm::Term {
+            term: match value {
+                true => rust::Term::name("true"),
+                false => rust::Term::name("false"),
+            },
+            ty: rust::Type::name("bool", Vec::new()),
+            is_const: true,
+        },
+        core::Constant::Int(value) => {
+            match value.to_i64() {
+                // TODO: don't default to I64.
+                Some(value) => CompiledTerm::Term {
+                    term: rust::Term::Constant(rust::Constant::I64(value)),
+                    ty: rust::Type::name("i64", Vec::new()),
+                    is_const: true,
+                },
+                None => {
+                    report(crate::diagnostics::bug::not_yet_implemented(
+                        context.file_id,
+                        span,
+                        "non-i64 types",
+                    ));
+                    CompiledTerm::Error
+                }
+            }
+        }
+        core::Constant::F32(value) => CompiledTerm::Term {
+            term: rust::Term::Constant(rust::Constant::F32(*value)),
+            ty: rust::Type::name("f32", Vec::new()),
+            is_const: true,
+        },
+        core::Constant::F64(value) => CompiledTerm::Term {
+            term: rust::Term::Constant(rust::Constant::F64(*value)),
+            ty: rust::Type::name("f64", Vec::new()),
+            is_const: true,
+        },
     }
 }
 

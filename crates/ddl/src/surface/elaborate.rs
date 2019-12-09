@@ -287,15 +287,15 @@ pub fn check_term(
         }
         (surface::Term::NumberLiteral(span, literal), _) => match expected_ty {
             core::Value::IntType => match literal.parse_big_int(context.file_id, report) {
-                Some(value) => core::Term::IntConst(*span, value),
+                Some(value) => core::Term::Constant(*span, core::Constant::Int(value)),
                 None => core::Term::Error(*span),
             },
             core::Value::F32Type => match literal.parse_float(context.file_id, report) {
-                Some(value) => core::Term::F32Const(*span, value),
+                Some(value) => core::Term::Constant(*span, core::Constant::F32(value)),
                 None => core::Term::Error(*span),
             },
             core::Value::F64Type => match literal.parse_float(context.file_id, report) {
-                Some(value) => core::Term::F64Const(*span, value),
+                Some(value) => core::Term::Constant(*span, core::Constant::F64(value)),
                 None => core::Term::Error(*span),
             },
             _ => {
@@ -423,8 +423,14 @@ pub fn synth_term(
                 "Int" => (core::Term::IntType(*span), core::Value::Universe(Type)),
                 "F32" => (core::Term::F32Type(*span), core::Value::Universe(Type)),
                 "F64" => (core::Term::F64Type(*span), core::Value::Universe(Type)),
-                "true" => (core::Term::BoolConst(*span, true), core::Value::BoolType),
-                "false" => (core::Term::BoolConst(*span, false), core::Value::BoolType),
+                "true" => (
+                    core::Term::Constant(*span, core::Constant::Bool(true)),
+                    core::Value::BoolType,
+                ),
+                "false" => (
+                    core::Term::Constant(*span, core::Constant::Bool(false)),
+                    core::Value::BoolType,
+                ),
                 _ => {
                     report(diagnostics::error::var_name_not_found(
                         context.file_id,

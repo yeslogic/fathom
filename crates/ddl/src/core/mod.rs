@@ -321,6 +321,68 @@ impl Universe {
     }
 }
 
+/// Universes.
+#[derive(Debug, Clone)]
+pub enum Constant {
+    /// Host boolean constant.
+    Bool(bool),
+    /// Host integer constants.
+    Int(BigInt),
+    /// Host IEEE-754 single-precision floating point constants.
+    F32(f32),
+    /// Host IEEE-754 double-precision floating point constants.
+    F64(f64),
+}
+
+impl Constant {
+    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
+    where
+        D: DocAllocator<'core>,
+        D::Doc: Clone,
+    {
+        use num_traits::Float;
+        use std::borrow::Cow;
+
+        // Workaround -0.0 ridiculousness
+        fn format_float<T: Float + From<u8> + fmt::Display>(value: T) -> Cow<'static, str> {
+            if value == <T as From<u8>>::from(0) && value.is_sign_negative() {
+                "-0".into()
+            } else {
+                value.to_string().into()
+            }
+        }
+
+        match self {
+            Constant::Bool(true) => alloc.text("true"),
+            Constant::Bool(false) => alloc.text("false"),
+            Constant::Int(value) => (alloc.nil())
+                .append("int")
+                .append(alloc.space())
+                .append(alloc.as_string(value)),
+            Constant::F32(value) => (alloc.nil())
+                .append("f32")
+                .append(alloc.space())
+                .append(format_float(*value)),
+            Constant::F64(value) => (alloc.nil())
+                .append("f64")
+                .append(alloc.space())
+                .append(format_float(*value)),
+        }
+    }
+}
+
+impl PartialEq for Constant {
+    fn eq(&self, other: &Constant) -> bool {
+        match (self, other) {
+            (Constant::Bool(val0), Constant::Bool(val1)) => val0 == val1,
+            (Constant::Int(val0), Constant::Int(val1)) => val0 == val1,
+            (Constant::F32(val0), Constant::F32(val1)) => ieee754::logical_eq(*val0, *val1),
+            (Constant::F64(val0), Constant::F64(val1)) => ieee754::logical_eq(*val0, *val1),
+            (_, _) => false,
+        }
+    }
+}
+
 /// Terms.
 #[derive(Debug, Clone)]
 pub enum Term {
@@ -332,6 +394,8 @@ pub enum Term {
 
     /// Universes.
     Universe(Span, Universe),
+    /// Constants.
+    Constant(Span, Constant),
 
     /// Unsigned 8-bit integer type.
     U8Type(Span),
@@ -379,15 +443,6 @@ pub enum Term {
     /// Host IEEE-754 double-precision floating point type.
     F64Type(Span),
 
-    /// Host boolean constant.
-    BoolConst(Span, bool),
-    /// Host integer constants.
-    IntConst(Span, BigInt),
-    /// Host IEEE-754 single-precision floating point constants.
-    F32Const(Span, f32),
-    /// Host IEEE-754 double-precision floating point constants.
-    F64Const(Span, f64),
-
     /// A boolean elimination.
     BoolElim(Span, Arc<Term>, Arc<Term>, Arc<Term>),
     /// A integer elimination.
@@ -402,6 +457,7 @@ impl Term {
         match self {
             Term::Item(span, _)
             | Term::Universe(span, _)
+            | Term::Constant(span, _)
             | Term::U8Type(span)
             | Term::U16LeType(span)
             | Term::U16BeType(span)
@@ -424,10 +480,6 @@ impl Term {
             | Term::IntType(span)
             | Term::F32Type(span)
             | Term::F64Type(span)
-            | Term::BoolConst(span, _)
-            | Term::IntConst(span, _)
-            | Term::F32Const(span, _)
-            | Term::F64Const(span, _)
             | Term::BoolElim(span, _, _, _)
             | Term::IntElim(span, _, _, _)
             | Term::Error(span) => *span,
@@ -448,22 +500,10 @@ impl Term {
         D: DocAllocator<'core>,
         D::Doc: Clone,
     {
-        use num_traits::Float;
-        use std::borrow::Cow;
-
         let show_paren = |cond, doc| match cond {
             true => alloc.text("(").append(doc).append(")"),
             false => doc,
         };
-
-        // Workaround -0.0 ridiculousness
-        fn format_float<T: Float + From<u8> + fmt::Display>(value: T) -> Cow<'static, str> {
-            if value == <T as From<u8>>::from(0) && value.is_sign_negative() {
-                "-0".into()
-            } else {
-                value.to_string().into()
-            }
-        }
 
         match self {
             Term::Item(_, label) => (alloc.nil())
@@ -485,6 +525,7 @@ impl Term {
                     ),
             ),
             Term::Universe(_, universe) => universe.doc(alloc),
+            Term::Constant(_, constant) => constant.doc(alloc),
             Term::U8Type(_) => alloc.text("U8"),
             Term::U16LeType(_) => alloc.text("U16Le"),
             Term::U16BeType(_) => alloc.text("U16Be"),
@@ -507,20 +548,6 @@ impl Term {
             Term::IntType(_) => alloc.text("Int"),
             Term::F32Type(_) => alloc.text("F32"),
             Term::F64Type(_) => alloc.text("F64"),
-            Term::BoolConst(_, true) => alloc.text("true"),
-            Term::BoolConst(_, false) => alloc.text("false"),
-            Term::IntConst(_, value) => (alloc.nil())
-                .append("int")
-                .append(alloc.space())
-                .append(alloc.as_string(value)),
-            Term::F32Const(_, value) => (alloc.nil())
-                .append("f32")
-                .append(alloc.space())
-                .append(format_float(*value)),
-            Term::F64Const(_, value) => (alloc.nil())
-                .append("f64")
-                .append(alloc.space())
-                .append(format_float(*value)),
             Term::BoolElim(_, head, if_true, if_false) => (alloc.nil())
                 .append("bool_elim")
                 .append(alloc.space())
@@ -564,11 +591,8 @@ impl PartialEq for Term {
         match (self, other) {
             (Term::Item(_, label0), Term::Item(_, label1)) => label0 == label1,
             (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
-            (Term::BoolConst(_, val0), Term::BoolConst(_, val1)) => val0 == val1,
-            (Term::IntConst(_, val0), Term::IntConst(_, val1)) => val0 == val1,
-            (Term::F32Const(_, val0), Term::F32Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
-            (Term::F64Const(_, val0), Term::F64Const(_, val1)) => ieee754::logical_eq(*val0, *val1),
             (Term::Universe(_, universe0), Term::Universe(_, universe1)) => universe0 == universe1,
+            (Term::Constant(_, constant0), Term::Constant(_, constant1)) => constant0 == constant1,
             (
                 Term::BoolElim(_, head0, if_true0, if_false0),
                 Term::BoolElim(_, head1, if_true1, if_false1),
@@ -630,6 +654,8 @@ pub enum Value {
 
     /// Universes.
     Universe(Universe),
+    /// Constants.
+    Constant(Constant),
 
     /// Unsigned 8-bit integer type.
     U8Type,
@@ -676,15 +702,6 @@ pub enum Value {
     F32Type,
     /// Host IEEE-754 double-precision floating point type.
     F64Type,
-
-    /// Host boolean constant.
-    BoolConst(bool),
-    /// Host integer constants.
-    IntConst(BigInt),
-    /// Host IEEE-754 single-precision floating point constants.
-    F32Const(f32),
-    /// Host IEEE-754 double-precision floating point constants.
-    F64Const(f64),
 
     /// Error sentinel.
     Error,
