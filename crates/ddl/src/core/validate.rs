@@ -21,7 +21,10 @@ pub struct Context {
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    items: HashMap<String, (Span, Value)>,
+    items: HashMap<String, Span>,
+    /// List of types currently bound in this context. These could either
+    /// refer to items or local bindings.
+    tys: Vec<(String, Value)>,
 }
 
 impl Context {
@@ -30,7 +33,14 @@ impl Context {
         Context {
             file_id,
             items: HashMap::new(),
+            tys: Vec::new(),
         }
+    }
+
+    /// Lookup the type of a binding corresponding to `name` in the context,
+    /// returning `None` if `name` was not yet bound.
+    pub fn lookup_ty(&self, name: &str) -> Option<&Value> {
+        Some(&self.tys.iter().rev().find(|(n, _)| n == name)?.1)
     }
 }
 
@@ -46,14 +56,15 @@ pub fn validate_items(mut context: Context, items: &[Item], report: &mut dyn FnM
                 // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(alias.name.clone()) {
                     Entry::Vacant(entry) => {
-                        entry.insert((alias.span, ty));
+                        entry.insert(alias.span);
+                        context.tys.push((alias.name.clone(), ty));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
                         context.file_id,
                         &alias.name,
                         alias.span,
-                        entry.get().0,
+                        *entry.get(),
                     )),
                 }
             }
@@ -63,14 +74,16 @@ pub fn validate_items(mut context: Context, items: &[Item], report: &mut dyn FnM
                 // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(struct_ty.name.clone()) {
                     Entry::Vacant(entry) => {
-                        entry.insert((struct_ty.span, Value::Universe(Universe::Format)));
+                        entry.insert(struct_ty.span);
+                        let ty = Value::Universe(Universe::Format);
+                        context.tys.push((struct_ty.name.clone(), ty));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
                         context.file_id,
                         &struct_ty.name,
                         struct_ty.span,
-                        entry.get().0,
+                        *entry.get(),
                     )),
                 }
             }
@@ -167,8 +180,8 @@ pub fn check_term(
 /// Synthesize the type of a surface term.
 pub fn synth_term(context: &Context, term: &Term, report: &mut dyn FnMut(Diagnostic)) -> Value {
     match term {
-        Term::Item(span, name) => match context.items.get(name) {
-            Some((_, ty)) => ty.clone(),
+        Term::Item(span, name) => match context.lookup_ty(name) {
+            Some(ty) => ty.clone(),
             None => match name.as_str() {
                 "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
                 | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"

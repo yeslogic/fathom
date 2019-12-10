@@ -36,7 +36,10 @@ pub struct Context {
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    items: HashMap<String, (Span, core::Value)>,
+    items: HashMap<String, Span>,
+    /// List of types currently bound in this context. These could either
+    /// refer to items or local bindings.
+    tys: Vec<(String, core::Value)>,
 }
 
 impl Context {
@@ -45,7 +48,14 @@ impl Context {
         Context {
             file_id,
             items: HashMap::new(),
+            tys: Vec::new(),
         }
+    }
+
+    /// Lookup the type of a binding corresponding to `name` in the context,
+    /// returning `None` if `name` was not yet bound.
+    pub fn lookup_ty(&self, name: &str) -> Option<&core::Value> {
+        Some(&self.tys.iter().rev().find(|(n, _)| n == name)?.1)
     }
 }
 
@@ -83,14 +93,15 @@ pub fn elaborate_items(
                         };
 
                         core_items.push(core::Item::Alias(item));
-                        entry.insert((alias.span, ty));
+                        entry.insert(alias.span);
+                        context.tys.push((alias.name.1.clone(), ty));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
                         context.file_id,
                         entry.key(),
                         alias.span,
-                        entry.get().0,
+                        *entry.get(),
                     )),
                 }
             }
@@ -108,17 +119,16 @@ pub fn elaborate_items(
                         };
 
                         core_items.push(core::Item::Struct(item));
-                        entry.insert((
-                            struct_ty.span,
-                            core::Value::Universe(core::Universe::Format),
-                        ));
+                        entry.insert(struct_ty.span);
+                        let ty = core::Value::Universe(core::Universe::Format);
+                        context.tys.push((struct_ty.name.1.clone(), ty));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
                         context.file_id,
                         entry.key(),
                         struct_ty.span,
-                        entry.get().0,
+                        *entry.get(),
                     )),
                 }
             }
@@ -332,8 +342,8 @@ pub fn synth_term(
             let core_term = check_term(context, surface_term, &ty, report);
             (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
         }
-        surface::Term::Name(span, name) => match context.items.get(name.as_str()) {
-            Some((_, ty)) => (core::Term::Item(*span, name.to_owned()), ty.clone()),
+        surface::Term::Name(span, name) => match context.lookup_ty(name) {
+            Some(ty) => (core::Term::Item(*span, name.to_owned()), ty.clone()),
             None => match name.as_str() {
                 "Kind" => {
                     report(diagnostics::kind_has_no_type(
