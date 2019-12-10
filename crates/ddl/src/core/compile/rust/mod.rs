@@ -31,7 +31,7 @@ fn derives(is_copy: bool) -> Vec<String> {
 }
 
 pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic)) -> rust::Module {
-    let mut context = ModuleContext {
+    let mut context = Context {
         file_id: module.file_id,
         compiled_items: HashMap::new(),
         enum_count: 0,
@@ -78,18 +78,14 @@ impl CompiledItem {
     }
 }
 
-struct ModuleContext {
+struct Context {
     file_id: FileId,
     compiled_items: HashMap<String, CompiledItem>,
     enum_count: usize,
     items: Vec<rust::Item>,
 }
 
-fn compile_item(
-    context: &mut ModuleContext,
-    core_item: &core::Item,
-    report: &mut dyn FnMut(Diagnostic),
-) {
+fn compile_item(context: &mut Context, core_item: &core::Item, report: &mut dyn FnMut(Diagnostic)) {
     match core_item {
         core::Item::Alias(core_alias) => compile_alias(context, core_alias, report),
         core::Item::Struct(core_struct_ty) => compile_struct_ty(context, core_struct_ty, report),
@@ -97,7 +93,7 @@ fn compile_item(
 }
 
 fn compile_alias(
-    context: &mut ModuleContext,
+    context: &mut Context,
     core_alias: &core::Alias,
     report: &mut dyn FnMut(Diagnostic),
 ) {
@@ -218,7 +214,7 @@ fn compile_alias(
 }
 
 fn compile_struct_ty(
-    context: &mut ModuleContext,
+    context: &mut Context,
     core_struct_ty: &core::StructType,
     report: &mut dyn FnMut(Diagnostic),
 ) {
@@ -332,7 +328,7 @@ enum CompiledTerm {
 }
 
 fn compile_term(
-    context: &mut ModuleContext,
+    context: &mut Context,
     core_term: &core::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> CompiledTerm {
@@ -441,7 +437,7 @@ fn compile_term(
 }
 
 fn compile_constant(
-    context: &mut ModuleContext,
+    context: &mut Context,
     span: Span,
     constant: &core::Constant,
     report: &mut dyn FnMut(Diagnostic),
@@ -479,7 +475,7 @@ fn compile_constant(
 }
 
 fn compile_bool_elim(
-    context: &mut ModuleContext,
+    context: &mut Context,
     head: &core::Term,
     if_true: &core::Term,
     if_false: &core::Term,
@@ -611,7 +607,7 @@ fn compile_bool_elim(
 }
 
 fn compile_int_elim(
-    context: &mut ModuleContext,
+    context: &mut Context,
     span: Span,
     head: &core::Term,
     branches: &BTreeMap<BigInt, Arc<core::Term>>,

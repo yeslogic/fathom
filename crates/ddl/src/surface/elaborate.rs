@@ -22,7 +22,7 @@ pub fn elaborate_module(
     surface_module: &surface::Module,
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Module {
-    let item_context = ItemContext::new(surface_module.file_id);
+    let item_context = Context::new(surface_module.file_id);
     core::Module {
         file_id: surface_module.file_id,
         doc: surface_module.doc.clone(),
@@ -30,8 +30,8 @@ pub fn elaborate_module(
     }
 }
 
-/// Contextual information to be used when elaborating items.
-pub struct ItemContext {
+/// Contextual information to be used during elaboration.
+pub struct Context {
     /// The file where these items are defined (for error reporting).
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
@@ -39,29 +39,19 @@ pub struct ItemContext {
     items: HashMap<String, (Span, core::Value)>,
 }
 
-impl ItemContext {
-    /// Create a new item context.
-    pub fn new(file_id: FileId) -> ItemContext {
-        ItemContext {
+impl Context {
+    /// Create a new context.
+    pub fn new(file_id: FileId) -> Context {
+        Context {
             file_id,
             items: HashMap::new(),
         }
-    }
-
-    /// Create a field context based on this item context.
-    pub fn field_context(&self) -> FieldContext<'_> {
-        FieldContext::new(self.file_id, &self.items)
-    }
-
-    /// Create a term context based on this item context.
-    pub fn term_context(&self) -> TermContext<'_> {
-        TermContext::new(self.file_id, &self.items)
     }
 }
 
 /// Elaborate items in the surface syntax into items in the core syntax.
 pub fn elaborate_items(
-    mut context: ItemContext,
+    mut context: Context,
     surface_items: &[surface::Item],
     report: &mut dyn FnMut(Diagnostic),
 ) -> Vec<core::Item> {
@@ -74,13 +64,12 @@ pub fn elaborate_items(
             surface::Item::Alias(alias) => {
                 let (core_term, ty) = match &alias.ty {
                     Some(surface_ty) => {
-                        let context = context.term_context();
                         let core_ty = elaborate_universe(&context, surface_ty, report);
                         let ty = core::semantics::eval(&core_ty);
                         let core_term = check_term(&context, &alias.term, &ty, report);
                         (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
                     }
-                    None => synth_term(&context.term_context(), &alias.term, report),
+                    None => synth_term(&context, &alias.term, report),
                 };
 
                 // FIXME: Avoid shadowing builtin definitions
@@ -106,9 +95,7 @@ pub fn elaborate_items(
                 }
             }
             surface::Item::Struct(struct_ty) => {
-                let field_context = context.field_context();
-                let core_fields =
-                    elaborate_struct_ty_fields(field_context, &struct_ty.fields, report);
+                let core_fields = elaborate_struct_ty_fields(&context, &struct_ty.fields, report);
 
                 // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(struct_ty.name.1.clone()) {
@@ -141,57 +128,27 @@ pub fn elaborate_items(
     core_items
 }
 
-/// Contextual information to be used when elaborating structure type fields.
-pub struct FieldContext<'items> {
-    /// The file where these fields are defined (for error reporting).
-    file_id: FileId,
-    /// Previously elaborated items.
-    items: &'items HashMap<String, (Span, core::Value)>,
-    /// Labels that have previously been used for fields, along with the span
-    /// where they were introduced (for error reporting).
-    fields: HashMap<String, Span>,
-}
-
-impl<'items> FieldContext<'items> {
-    /// Create a new field context.
-    pub fn new(
-        file_id: FileId,
-        items: &'items HashMap<String, (Span, core::Value)>,
-    ) -> FieldContext<'items> {
-        FieldContext {
-            file_id,
-            fields: HashMap::new(),
-            items,
-        }
-    }
-
-    /// Create a term context based on this field context.
-    pub fn term_context(&self) -> TermContext<'_> {
-        TermContext::new(self.file_id, self.items)
-    }
-}
-
 /// Elaborate structure type fields in the surface syntax into structure type
 /// fields in the core syntax.
 pub fn elaborate_struct_ty_fields(
-    mut context: FieldContext<'_>,
+    context: &Context,
     surface_fields: &[surface::TypeField],
     report: &mut dyn FnMut(Diagnostic),
 ) -> Vec<core::TypeField> {
+    // Field names that have previously seen, along with the span
+    // where they were introduced (for error reporting).
+    let mut seen_field_names = HashMap::new();
+    // Fields that have been elaborated into the core syntax.
     let mut core_fields = Vec::with_capacity(surface_fields.len());
 
     for field in surface_fields {
         use std::collections::hash_map::Entry;
 
         let field_span = Span::merge(field.name.0, field.term.span());
-        let ty = check_term(
-            &context.term_context(),
-            &field.term,
-            &core::Value::Universe(core::Universe::Format),
-            report,
-        );
+        let format_ty = core::Value::Universe(core::Universe::Format);
+        let ty = check_term(&context, &field.term, &format_ty, report);
 
-        match context.fields.entry(field.name.1.clone()) {
+        match seen_field_names.entry(field.name.1.clone()) {
             Entry::Vacant(entry) => {
                 core_fields.push(core::TypeField {
                     doc: field.doc.clone(),
@@ -215,27 +172,9 @@ pub fn elaborate_struct_ty_fields(
     core_fields
 }
 
-/// Contextual information to be used when elaborating terms.
-pub struct TermContext<'items> {
-    /// The file where this term is located (for error reporting).
-    file_id: FileId,
-    /// Previously elaborated items.
-    items: &'items HashMap<String, (Span, core::Value)>,
-}
-
-impl<'items> TermContext<'items> {
-    /// Create a new term context.
-    pub fn new(
-        file_id: FileId,
-        items: &'items HashMap<String, (Span, core::Value)>,
-    ) -> TermContext<'items> {
-        TermContext { file_id, items }
-    }
-}
-
 /// Check that a surface term is a type or kind, and elaborate it into the core syntax.
 pub fn elaborate_universe(
-    context: &TermContext<'_>,
+    context: &Context,
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
@@ -273,7 +212,7 @@ pub fn elaborate_universe(
 
 /// Check a surface term against the given type, and elaborate it into the core syntax.
 pub fn check_term(
-    context: &TermContext<'_>,
+    context: &Context,
     surface_term: &surface::Term,
     expected_ty: &core::Value,
     report: &mut dyn FnMut(Diagnostic),
@@ -379,7 +318,7 @@ pub fn check_term(
 
 /// Synthesize the type of a surface term, and elaborate it into the core syntax.
 pub fn synth_term(
-    context: &TermContext<'_>,
+    context: &Context,
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> (core::Term, core::Value) {
@@ -486,7 +425,7 @@ pub fn synth_term(
 
 #[allow(unused_variables)]
 fn check_bool_branches(
-    context: &TermContext<'_>,
+    context: &Context,
     surface_branches: &[(surface::Pattern, surface::Term)],
     expected_ty: &core::Value,
     report: &mut dyn FnMut(Diagnostic),
@@ -495,7 +434,7 @@ fn check_bool_branches(
 }
 
 fn check_int_branches(
-    context: &TermContext<'_>,
+    context: &Context,
     span: Span,
     surface_branches: &[(surface::Pattern, surface::Term)],
     expected_ty: &core::Value,
