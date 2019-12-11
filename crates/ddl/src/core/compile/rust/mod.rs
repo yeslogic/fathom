@@ -31,7 +31,7 @@ fn derives(is_copy: bool) -> Vec<String> {
 }
 
 pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic)) -> rust::Module {
-    let mut context = ModuleContext {
+    let mut context = Context {
         file_id: module.file_id,
         compiled_items: HashMap::new(),
         enum_count: 0,
@@ -78,16 +78,16 @@ impl CompiledItem {
     }
 }
 
-struct ModuleContext {
+struct Context<'me> {
     file_id: FileId,
-    compiled_items: HashMap<String, CompiledItem>,
+    compiled_items: HashMap<&'me str, CompiledItem>,
     enum_count: usize,
     items: Vec<rust::Item>,
 }
 
-fn compile_item(
-    context: &mut ModuleContext,
-    core_item: &core::Item,
+fn compile_item<'item>(
+    context: &mut Context<'item>,
+    core_item: &'item core::Item,
     report: &mut dyn FnMut(Diagnostic),
 ) {
     match core_item {
@@ -96,9 +96,9 @@ fn compile_item(
     }
 }
 
-fn compile_alias(
-    context: &mut ModuleContext,
-    core_alias: &core::Alias,
+fn compile_alias<'item>(
+    context: &mut Context<'item>,
+    core_alias: &'item core::Alias,
     report: &mut dyn FnMut(Diagnostic),
 ) {
     use std::collections::hash_map::Entry;
@@ -202,7 +202,7 @@ fn compile_alias(
         }
     };
 
-    match context.compiled_items.entry(core_alias.name.clone()) {
+    match context.compiled_items.entry(&core_alias.name) {
         Entry::Occupied(entry) => {
             report(diagnostics::bug::item_name_reused(
                 context.file_id,
@@ -217,9 +217,9 @@ fn compile_alias(
     }
 }
 
-fn compile_struct_ty(
-    context: &mut ModuleContext,
-    core_struct_ty: &core::StructType,
+fn compile_struct_ty<'item>(
+    context: &mut Context<'item>,
+    core_struct_ty: &'item core::StructType,
     report: &mut dyn FnMut(Diagnostic),
 ) {
     use std::collections::hash_map::Entry;
@@ -295,7 +295,7 @@ fn compile_struct_ty(
         fields,
     }));
 
-    match context.compiled_items.entry(core_struct_ty.name.clone()) {
+    match context.compiled_items.entry(&core_struct_ty.name) {
         Entry::Occupied(entry) => {
             report(diagnostics::bug::item_name_reused(
                 context.file_id,
@@ -332,7 +332,7 @@ enum CompiledTerm {
 }
 
 fn compile_term(
-    context: &mut ModuleContext,
+    context: &mut Context<'_>,
     core_term: &core::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> CompiledTerm {
@@ -389,7 +389,7 @@ fn compile_term(
                 ty: rust::Type::name("bool", Vec::new()),
                 is_const: true,
             },
-            _ => match context.compiled_items.get(name) {
+            name => match context.compiled_items.get(name) {
                 Some(CompiledItem::Term {
                     name,
                     ty,
@@ -441,7 +441,7 @@ fn compile_term(
 }
 
 fn compile_constant(
-    context: &mut ModuleContext,
+    context: &mut Context<'_>,
     span: Span,
     constant: &core::Constant,
     report: &mut dyn FnMut(Diagnostic),
@@ -479,7 +479,7 @@ fn compile_constant(
 }
 
 fn compile_bool_elim(
-    context: &mut ModuleContext,
+    context: &mut Context<'_>,
     head: &core::Term,
     if_true: &core::Term,
     if_false: &core::Term,
@@ -611,7 +611,7 @@ fn compile_bool_elim(
 }
 
 fn compile_int_elim(
-    context: &mut ModuleContext,
+    context: &mut Context<'_>,
     span: Span,
     head: &core::Term,
     branches: &BTreeMap<BigInt, Arc<core::Term>>,

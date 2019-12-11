@@ -12,42 +12,42 @@ use crate::diagnostics;
 
 /// Validate a module.
 pub fn validate_module(module: &Module, report: &mut dyn FnMut(Diagnostic)) {
-    validate_items(ItemContext::new(module.file_id), &module.items, report);
+    validate_items(Context::new(module.file_id), &module.items, report);
 }
 
-/// Contextual information to be used when validating items.
-pub struct ItemContext {
+/// Contextual information to be used during validation.
+pub struct Context<'me> {
     /// The file where these items are defined (for error reporting).
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    items: HashMap<String, (Span, Value)>,
+    items: HashMap<&'me str, Span>,
+    /// List of types currently bound in this context. These could either
+    /// refer to items or local bindings.
+    tys: Vec<(&'me str, Value)>,
 }
 
-impl ItemContext {
-    /// Create a new item context.
-    pub fn new(file_id: FileId) -> ItemContext {
-        ItemContext {
+impl<'me> Context<'me> {
+    /// Create a new context.
+    pub fn new(file_id: FileId) -> Context<'me> {
+        Context {
             file_id,
             items: HashMap::new(),
+            tys: Vec::new(),
         }
     }
 
-    /// Create a field context based on this item context.
-    pub fn field_context(&self) -> FieldContext<'_> {
-        FieldContext::new(self.file_id, &self.items)
-    }
-
-    /// Create a term context based on this item context.
-    pub fn term_context(&self) -> TermContext<'_> {
-        TermContext::new(self.file_id, &self.items)
+    /// Lookup the type of a binding corresponding to `name` in the context,
+    /// returning `None` if `name` was not yet bound.
+    pub fn lookup_ty(&self, name: &str) -> Option<&Value> {
+        Some(&self.tys.iter().rev().find(|(n, _)| *n == name)?.1)
     }
 }
 
 /// Validate items.
-pub fn validate_items(
-    mut context: ItemContext,
-    items: &[Item],
+pub fn validate_items<'items>(
+    mut context: Context<'items>,
+    items: &'items [Item],
     report: &mut dyn FnMut(Diagnostic),
 ) {
     for item in items {
@@ -55,36 +55,39 @@ pub fn validate_items(
 
         match item {
             Item::Alias(alias) => {
-                let ty = synth_term(&context.term_context(), &alias.term, report);
+                let ty = synth_term(&context, &alias.term, report);
 
                 // FIXME: Avoid shadowing builtin definitions
-                match context.items.entry(alias.name.clone()) {
+                match context.items.entry(&alias.name) {
                     Entry::Vacant(entry) => {
-                        entry.insert((alias.span, ty));
+                        context.tys.push((*entry.key(), ty));
+                        entry.insert(alias.span);
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
                         context.file_id,
                         &alias.name,
                         alias.span,
-                        entry.get().0,
+                        *entry.get(),
                     )),
                 }
             }
             Item::Struct(struct_ty) => {
-                validate_struct_ty_fields(context.field_context(), &struct_ty.fields, report);
+                validate_struct_ty_fields(&context, &struct_ty.fields, report);
 
                 // FIXME: Avoid shadowing builtin definitions
-                match context.items.entry(struct_ty.name.clone()) {
+                match context.items.entry(&struct_ty.name) {
                     Entry::Vacant(entry) => {
-                        entry.insert((struct_ty.span, Value::Universe(Universe::Format)));
+                        let ty = Value::Universe(Universe::Format);
+                        context.tys.push((*entry.key(), ty));
+                        entry.insert(struct_ty.span);
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
                         context.file_id,
                         &struct_ty.name,
                         struct_ty.span,
-                        entry.get().0,
+                        *entry.get(),
                     )),
                 }
             }
@@ -92,53 +95,23 @@ pub fn validate_items(
     }
 }
 
-/// Contextual information to be used when validating structure type fields.
-pub struct FieldContext<'items> {
-    /// The file where these fields are defined (for error reporting).
-    file_id: FileId,
-    /// Previously validated items.
-    items: &'items HashMap<String, (Span, Value)>,
-    /// Labels that have previously been used for fields, along with the span
-    /// where they were introduced (for error reporting).
-    fields: HashMap<String, Span>,
-}
-
-impl<'items> FieldContext<'items> {
-    /// Create a new field context.
-    pub fn new(
-        file_id: FileId,
-        items: &'items HashMap<String, (Span, Value)>,
-    ) -> FieldContext<'items> {
-        FieldContext {
-            file_id,
-            items,
-            fields: HashMap::new(),
-        }
-    }
-
-    /// Create a term context based on this field context.
-    pub fn term_context(&self) -> TermContext<'_> {
-        TermContext::new(self.file_id, self.items)
-    }
-}
-
 /// Validate structure type fields.
 pub fn validate_struct_ty_fields(
-    mut context: FieldContext<'_>,
+    context: &Context<'_>,
     fields: &[TypeField],
     report: &mut dyn FnMut(Diagnostic),
 ) {
+    // Field names that have previously seen, along with the span
+    // where they were introduced (for error reporting).
+    let mut seen_field_names = HashMap::new();
+
     for field in fields {
         use std::collections::hash_map::Entry;
 
-        check_term(
-            &context.term_context(),
-            &field.term,
-            &Value::Universe(Universe::Format),
-            report,
-        );
+        let format_ty = Value::Universe(Universe::Format);
+        check_term(&context, &field.term, &format_ty, report);
 
-        match context.fields.entry(field.name.clone()) {
+        match seen_field_names.entry(field.name.clone()) {
             Entry::Vacant(entry) => {
                 entry.insert(field.span());
             }
@@ -153,30 +126,8 @@ pub fn validate_struct_ty_fields(
     }
 }
 
-/// Contextual information to be used when validating terms.
-pub struct TermContext<'items> {
-    /// The file where the term is defined (for error reporting).
-    file_id: FileId,
-    /// Previously validated items.
-    items: &'items HashMap<String, (Span, Value)>,
-}
-
-impl<'items> TermContext<'items> {
-    /// Create a new term context.
-    pub fn new(
-        file_id: FileId,
-        items: &'items HashMap<String, (Span, Value)>,
-    ) -> TermContext<'items> {
-        TermContext { file_id, items }
-    }
-}
-
 /// Validate that a term is a type or kind.
-pub fn validate_universe(
-    context: &TermContext<'_>,
-    term: &Term,
-    report: &mut dyn FnMut(Diagnostic),
-) {
+pub fn validate_universe(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Diagnostic)) {
     match term {
         Term::Universe(_, _) => {}
         term => match synth_term(context, term, report) {
@@ -193,7 +144,7 @@ pub fn validate_universe(
 
 /// Check a surface term against the given type.
 pub fn check_term(
-    context: &TermContext<'_>,
+    context: &Context<'_>,
     term: &Term,
     expected_ty: &Value,
     report: &mut dyn FnMut(Diagnostic),
@@ -231,14 +182,10 @@ pub fn check_term(
 }
 
 /// Synthesize the type of a surface term.
-pub fn synth_term(
-    context: &TermContext<'_>,
-    term: &Term,
-    report: &mut dyn FnMut(Diagnostic),
-) -> Value {
+pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Diagnostic)) -> Value {
     match term {
-        Term::Item(span, name) => match context.items.get(name) {
-            Some((_, ty)) => ty.clone(),
+        Term::Item(span, name) => match context.lookup_ty(name) {
+            Some(ty) => ty.clone(),
             None => match name.as_str() {
                 "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
                 | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"
