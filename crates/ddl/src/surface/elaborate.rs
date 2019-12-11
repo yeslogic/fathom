@@ -31,20 +31,20 @@ pub fn elaborate_module(
 }
 
 /// Contextual information to be used during elaboration.
-pub struct Context {
+pub struct Context<'me> {
     /// The file where these items are defined (for error reporting).
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    items: HashMap<String, Span>,
+    items: HashMap<&'me str, Span>,
     /// List of types currently bound in this context. These could either
     /// refer to items or local bindings.
-    tys: Vec<(String, core::Value)>,
+    tys: Vec<(&'me str, core::Value)>,
 }
 
-impl Context {
+impl<'me> Context<'me> {
     /// Create a new context.
-    pub fn new(file_id: FileId) -> Context {
+    pub fn new(file_id: FileId) -> Context<'me> {
         Context {
             file_id,
             items: HashMap::new(),
@@ -55,14 +55,14 @@ impl Context {
     /// Lookup the type of a binding corresponding to `name` in the context,
     /// returning `None` if `name` was not yet bound.
     pub fn lookup_ty(&self, name: &str) -> Option<&core::Value> {
-        Some(&self.tys.iter().rev().find(|(n, _)| n == name)?.1)
+        Some(&self.tys.iter().rev().find(|(n, _)| *n == name)?.1)
     }
 }
 
 /// Elaborate items in the surface syntax into items in the core syntax.
-pub fn elaborate_items(
-    mut context: Context,
-    surface_items: &[surface::Item],
+pub fn elaborate_items<'items>(
+    mut context: Context<'items>,
+    surface_items: &'items [surface::Item],
     report: &mut dyn FnMut(Diagnostic),
 ) -> Vec<core::Item> {
     let mut core_items = Vec::new();
@@ -83,18 +83,18 @@ pub fn elaborate_items(
                 };
 
                 // FIXME: Avoid shadowing builtin definitions
-                match context.items.entry(alias.name.1.clone()) {
+                match context.items.entry(&alias.name.1) {
                     Entry::Vacant(entry) => {
                         let item = core::Alias {
                             span: alias.span,
                             doc: alias.doc.clone(),
-                            name: entry.key().clone(),
+                            name: entry.key().to_string(),
                             term: core_term,
                         };
 
                         core_items.push(core::Item::Alias(item));
+                        context.tys.push((*entry.key(), ty));
                         entry.insert(alias.span);
-                        context.tys.push((alias.name.1.clone(), ty));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
@@ -109,19 +109,19 @@ pub fn elaborate_items(
                 let core_fields = elaborate_struct_ty_fields(&context, &struct_ty.fields, report);
 
                 // FIXME: Avoid shadowing builtin definitions
-                match context.items.entry(struct_ty.name.1.clone()) {
+                match context.items.entry(&struct_ty.name.1) {
                     Entry::Vacant(entry) => {
                         let item = core::StructType {
                             span: struct_ty.span,
                             doc: struct_ty.doc.clone(),
-                            name: entry.key().clone(),
+                            name: entry.key().to_string(),
                             fields: core_fields,
                         };
 
                         core_items.push(core::Item::Struct(item));
-                        entry.insert(struct_ty.span);
                         let ty = core::Value::Universe(core::Universe::Format);
-                        context.tys.push((struct_ty.name.1.clone(), ty));
+                        context.tys.push((*entry.key(), ty));
+                        entry.insert(struct_ty.span);
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
@@ -141,7 +141,7 @@ pub fn elaborate_items(
 /// Elaborate structure type fields in the surface syntax into structure type
 /// fields in the core syntax.
 pub fn elaborate_struct_ty_fields(
-    context: &Context,
+    context: &Context<'_>,
     surface_fields: &[surface::TypeField],
     report: &mut dyn FnMut(Diagnostic),
 ) -> Vec<core::TypeField> {
@@ -184,7 +184,7 @@ pub fn elaborate_struct_ty_fields(
 
 /// Check that a surface term is a type or kind, and elaborate it into the core syntax.
 pub fn elaborate_universe(
-    context: &Context,
+    context: &Context<'_>,
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
@@ -222,7 +222,7 @@ pub fn elaborate_universe(
 
 /// Check a surface term against the given type, and elaborate it into the core syntax.
 pub fn check_term(
-    context: &Context,
+    context: &Context<'_>,
     surface_term: &surface::Term,
     expected_ty: &core::Value,
     report: &mut dyn FnMut(Diagnostic),
@@ -328,7 +328,7 @@ pub fn check_term(
 
 /// Synthesize the type of a surface term, and elaborate it into the core syntax.
 pub fn synth_term(
-    context: &Context,
+    context: &Context<'_>,
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> (core::Term, core::Value) {
@@ -435,7 +435,7 @@ pub fn synth_term(
 
 #[allow(unused_variables)]
 fn check_bool_branches(
-    context: &Context,
+    context: &Context<'_>,
     surface_branches: &[(surface::Pattern, surface::Term)],
     expected_ty: &core::Value,
     report: &mut dyn FnMut(Diagnostic),
@@ -444,7 +444,7 @@ fn check_bool_branches(
 }
 
 fn check_int_branches(
-    context: &Context,
+    context: &Context<'_>,
     span: Span,
     surface_branches: &[(surface::Pattern, surface::Term)],
     expected_ty: &core::Value,

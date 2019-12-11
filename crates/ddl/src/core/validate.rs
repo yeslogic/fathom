@@ -16,20 +16,20 @@ pub fn validate_module(module: &Module, report: &mut dyn FnMut(Diagnostic)) {
 }
 
 /// Contextual information to be used during validation.
-pub struct Context {
+pub struct Context<'me> {
     /// The file where these items are defined (for error reporting).
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    items: HashMap<String, Span>,
+    items: HashMap<&'me str, Span>,
     /// List of types currently bound in this context. These could either
     /// refer to items or local bindings.
-    tys: Vec<(String, Value)>,
+    tys: Vec<(&'me str, Value)>,
 }
 
-impl Context {
+impl<'me> Context<'me> {
     /// Create a new context.
-    pub fn new(file_id: FileId) -> Context {
+    pub fn new(file_id: FileId) -> Context<'me> {
         Context {
             file_id,
             items: HashMap::new(),
@@ -40,12 +40,16 @@ impl Context {
     /// Lookup the type of a binding corresponding to `name` in the context,
     /// returning `None` if `name` was not yet bound.
     pub fn lookup_ty(&self, name: &str) -> Option<&Value> {
-        Some(&self.tys.iter().rev().find(|(n, _)| n == name)?.1)
+        Some(&self.tys.iter().rev().find(|(n, _)| *n == name)?.1)
     }
 }
 
 /// Validate items.
-pub fn validate_items(mut context: Context, items: &[Item], report: &mut dyn FnMut(Diagnostic)) {
+pub fn validate_items<'items>(
+    mut context: Context<'items>,
+    items: &'items [Item],
+    report: &mut dyn FnMut(Diagnostic),
+) {
     for item in items {
         use std::collections::hash_map::Entry;
 
@@ -54,10 +58,10 @@ pub fn validate_items(mut context: Context, items: &[Item], report: &mut dyn FnM
                 let ty = synth_term(&context, &alias.term, report);
 
                 // FIXME: Avoid shadowing builtin definitions
-                match context.items.entry(alias.name.clone()) {
+                match context.items.entry(&alias.name) {
                     Entry::Vacant(entry) => {
+                        context.tys.push((*entry.key(), ty));
                         entry.insert(alias.span);
-                        context.tys.push((alias.name.clone(), ty));
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
@@ -72,11 +76,11 @@ pub fn validate_items(mut context: Context, items: &[Item], report: &mut dyn FnM
                 validate_struct_ty_fields(&context, &struct_ty.fields, report);
 
                 // FIXME: Avoid shadowing builtin definitions
-                match context.items.entry(struct_ty.name.clone()) {
+                match context.items.entry(&struct_ty.name) {
                     Entry::Vacant(entry) => {
-                        entry.insert(struct_ty.span);
                         let ty = Value::Universe(Universe::Format);
-                        context.tys.push((struct_ty.name.clone(), ty));
+                        context.tys.push((*entry.key(), ty));
+                        entry.insert(struct_ty.span);
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
@@ -93,7 +97,7 @@ pub fn validate_items(mut context: Context, items: &[Item], report: &mut dyn FnM
 
 /// Validate structure type fields.
 pub fn validate_struct_ty_fields(
-    context: &Context,
+    context: &Context<'_>,
     fields: &[TypeField],
     report: &mut dyn FnMut(Diagnostic),
 ) {
@@ -123,7 +127,7 @@ pub fn validate_struct_ty_fields(
 }
 
 /// Validate that a term is a type or kind.
-pub fn validate_universe(context: &Context, term: &Term, report: &mut dyn FnMut(Diagnostic)) {
+pub fn validate_universe(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Diagnostic)) {
     match term {
         Term::Universe(_, _) => {}
         term => match synth_term(context, term, report) {
@@ -140,7 +144,7 @@ pub fn validate_universe(context: &Context, term: &Term, report: &mut dyn FnMut(
 
 /// Check a surface term against the given type.
 pub fn check_term(
-    context: &Context,
+    context: &Context<'_>,
     term: &Term,
     expected_ty: &Value,
     report: &mut dyn FnMut(Diagnostic),
@@ -178,7 +182,7 @@ pub fn check_term(
 }
 
 /// Synthesize the type of a surface term.
-pub fn synth_term(context: &Context, term: &Term, report: &mut dyn FnMut(Diagnostic)) -> Value {
+pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Diagnostic)) -> Value {
     match term {
         Term::Item(span, name) => match context.lookup_ty(name) {
             Some(ty) => ty.clone(),
