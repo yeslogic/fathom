@@ -1,7 +1,7 @@
 #![cfg(test)]
 
+use ddl_rt::{FormatWriter, ReadError, ReadScope, U8};
 use ddl_test_util::ddl::binary;
-use ddl_rt::{ReadError, ReadScope, FormatWriter, U8};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
@@ -18,9 +18,9 @@ fn eof_inner() {
     let singleton = scope.read::<fixture::Byte>();
 
     match singleton {
-        Err(ReadError::Eof(_)) => {},
+        Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
-        Ok(_) => panic!("error expected, found: Ok(_)")
+        Ok(_) => panic!("error expected, found: Ok(_)"),
     }
 
     // TODO: Check remaining
@@ -31,16 +31,21 @@ fn valid_singleton() {
     let mut writer = FormatWriter::new(vec![]);
     writer.write::<U8>(31); // Byte::inner
 
-    let scope = ReadScope::new(writer.buffer());
-    let singleton = scope.read::<fixture::Byte>().unwrap();
+    let read_scope = ReadScope::new(writer.buffer());
+    let singleton = read_scope.read::<fixture::Byte>().unwrap();
+    let mut read_context = binary::read::Context::new(read_scope.reader());
 
-    match binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.reader()).unwrap() {
+    match binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(singleton.inner(), 31);
 
-            assert_eq!(fields, BTreeMap::from_iter(vec![
-                ("inner".to_owned(), binary::Term::Int(singleton.inner().into())),
-            ]));
+            assert_eq!(
+                fields,
+                BTreeMap::from_iter(vec![(
+                    "inner".to_owned(),
+                    binary::Term::Int(singleton.inner().into())
+                ),])
+            );
         }
         _ => panic!("struct expected"),
     }
@@ -54,16 +59,21 @@ fn valid_singleton_trailing() {
     writer.write::<U8>(255); // Byte::inner
     writer.write::<U8>(42);
 
-    let scope = ReadScope::new(writer.buffer());
-    let singleton = scope.read::<fixture::Byte>().unwrap();
+    let read_scope = ReadScope::new(writer.buffer());
+    let singleton = read_scope.read::<fixture::Byte>().unwrap();
+    let mut read_context = binary::read::Context::new(read_scope.reader());
 
-    match binary::read::read_module_item(&FIXTURE, &"Byte", &mut scope.reader()).unwrap() {
+    match binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(singleton.inner(), 255);
 
-            assert_eq!(fields, BTreeMap::from_iter(vec![
-                ("inner".to_owned(), binary::Term::Int(singleton.inner().into())),
-            ]));
+            assert_eq!(
+                fields,
+                BTreeMap::from_iter(vec![(
+                    "inner".to_owned(),
+                    binary::Term::Int(singleton.inner().into())
+                ),])
+            );
         }
         _ => panic!("struct expected"),
     }
