@@ -5,14 +5,14 @@ use crate::binary::Term;
 use crate::core;
 
 /// Contextual information to be used when parsing items.
-pub struct ItemContext<'module> {
-    items: HashMap<String, &'module core::Item>,
+pub struct Context<'me> {
+    items: HashMap<&'me str, &'me core::Item>,
 }
 
-impl<'module> ItemContext<'module> {
+impl<'me> Context<'me> {
     /// Create a new item context.
-    pub fn new() -> ItemContext<'module> {
-        ItemContext {
+    pub fn new() -> Context<'me> {
+        Context {
             items: HashMap::new(),
         }
     }
@@ -23,7 +23,7 @@ pub fn read_module_item(
     name: &str,
     reader: &mut ddl_rt::FormatReader<'_>,
 ) -> Result<Term, ddl_rt::ReadError> {
-    let mut context = ItemContext::new();
+    let mut context = Context::new();
 
     for item in &module.items {
         match item {
@@ -34,10 +34,10 @@ pub fn read_module_item(
                 return read_struct_ty(&context, struct_ty, reader);
             }
             core::Item::Alias(alias) => {
-                context.items.insert(alias.name.clone(), item);
+                context.items.insert(&alias.name, item);
             }
             core::Item::Struct(struct_ty) => {
-                context.items.insert(struct_ty.name.clone(), item);
+                context.items.insert(&struct_ty.name, item);
             }
         }
     }
@@ -46,7 +46,7 @@ pub fn read_module_item(
 }
 
 pub fn read_struct_ty(
-    context: &ItemContext<'_>,
+    context: &Context<'_>,
     struct_ty: &core::StructType,
     reader: &mut ddl_rt::FormatReader<'_>,
 ) -> Result<Term, ddl_rt::ReadError> {
@@ -60,7 +60,7 @@ pub fn read_struct_ty(
 }
 
 pub fn read_ty(
-    context: &ItemContext<'_>,
+    context: &Context<'_>,
     term: &core::Term,
     reader: &mut ddl_rt::FormatReader<'_>,
 ) -> Result<Term, ddl_rt::ReadError> {
@@ -84,7 +84,7 @@ pub fn read_ty(
             "F32Be" => Ok(Term::F32(reader.read::<ddl_rt::F32Be>()?)),
             "F64Le" => Ok(Term::F64(reader.read::<ddl_rt::F64Le>()?)),
             "F64Be" => Ok(Term::F64(reader.read::<ddl_rt::F64Be>()?)),
-            _ => match context.items.get(name) {
+            name => match context.items.get(name) {
                 Some(core::Item::Alias(alias)) => read_ty(&context, &alias.term, reader),
                 Some(core::Item::Struct(struct_ty)) => read_struct_ty(&context, struct_ty, reader),
                 None => Err(ddl_rt::ReadError::InvalidDataDescription),
