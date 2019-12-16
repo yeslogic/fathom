@@ -231,6 +231,7 @@ pub fn check_term(
                 core::Term::Error(surface_term.span())
             };
             match expected_ty {
+                // TODO: Lookup primitives in environment
                 core::Value::Neutral(core::Head::Item(name), elims) if elims.is_empty() => {
                     match name.as_str() {
                         "Int" => match literal.parse_big_int(context.file_id, report) {
@@ -252,6 +253,7 @@ pub fn check_term(
             }
         }
         (surface::Term::If(span, surface_head, surface_if_true, surface_if_false), _) => {
+            // TODO: Lookup primitives in environment
             let bool_ty = core::Value::Neutral(core::Head::Item("Bool".to_owned()), Vec::new());
             let head = check_term(context, surface_head, &bool_ty, report);
             let if_true = check_term(context, surface_if_true, expected_ty, report);
@@ -272,6 +274,7 @@ pub fn check_term(
 
             match &head_ty {
                 core::Value::Neutral(core::Head::Item(name), elims) if elims.is_empty() => {
+                    // TODO: Lookup primitives in environment
                     match name.as_str() {
                         "Bool" => {
                             let (if_true, if_false) =
@@ -333,6 +336,7 @@ pub fn synth_term(
         surface::Term::Name(span, name) => match context.lookup_ty(name) {
             Some(ty) => (core::Term::Item(*span, name.to_owned()), ty.clone()),
             None => match name.as_str() {
+                // TODO: Put primitives in an environment
                 "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
                 | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"
                 | "F64Le" | "F64Be" => (
@@ -345,6 +349,7 @@ pub fn synth_term(
                 ),
                 "true" | "false" => (
                     core::Term::Item(*span, name.to_owned()),
+                    // TODO: Lookup primitives in environment
                     core::Value::Neutral(core::Head::Item("Bool".to_owned()), Vec::new()),
                 ),
                 _ => {
@@ -383,6 +388,7 @@ pub fn synth_term(
             (core::Term::Error(*span), core::Value::Error)
         }
         surface::Term::If(span, surface_head, surface_if_true, surface_if_false) => {
+            // TODO: Lookup primitives in environment
             let bool_ty = core::Value::Neutral(core::Head::Item("Bool".to_owned()), Vec::new());
             let head = check_term(context, surface_head, &bool_ty, report);
             let (if_true, if_true_ty) = synth_term(context, surface_if_true, report);

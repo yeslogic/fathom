@@ -187,10 +187,12 @@ pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Dia
         Term::Item(span, name) => match context.lookup_ty(name) {
             Some(ty) => ty.clone(),
             None => match name.as_str() {
+                // TODO: Put primitives in an environment
                 "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
                 | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"
                 | "F64Le" | "F64Be" => Value::Universe(Universe::Format),
                 "Bool" | "Int" | "F32" | "F64" => Value::Universe(Universe::Host),
+                // TODO: Lookup primitives in environment
                 "true" | "false" => Value::Neutral(Head::Item("Bool".to_owned()), Vec::new()),
                 _ => {
                     report(diagnostics::bug::item_name_not_found(
@@ -219,16 +221,14 @@ pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Dia
                 Value::Error
             }
         },
-        Term::Constant(_, Constant::Int(_)) => {
-            Value::Neutral(Head::Item("Int".to_owned()), Vec::new())
-        }
-        Term::Constant(_, Constant::F32(_)) => {
-            Value::Neutral(Head::Item("F32".to_owned()), Vec::new())
-        }
-        Term::Constant(_, Constant::F64(_)) => {
-            Value::Neutral(Head::Item("F64".to_owned()), Vec::new())
-        }
+        Term::Constant(_, constant) => match constant {
+            // TODO: Lookup primitives in environment
+            Constant::Int(_) => Value::Neutral(Head::Item("Int".to_owned()), Vec::new()),
+            Constant::F32(_) => Value::Neutral(Head::Item("F32".to_owned()), Vec::new()),
+            Constant::F64(_) => Value::Neutral(Head::Item("F64".to_owned()), Vec::new()),
+        },
         Term::BoolElim(_, head, if_true, if_false) => {
+            // TODO: Lookup primitives in environment
             let bool_ty = Value::Neutral(Head::Item("Bool".to_owned()), Vec::new());
             check_term(context, head, &bool_ty, report);
             let if_true_ty = synth_term(context, if_true, report);
