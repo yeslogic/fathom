@@ -279,6 +279,12 @@ pub enum Term {
     Ann(Box<Term>, Box<Term>),
     /// Names.
     Name(Span, String),
+    /// Type of format types.
+    Format(Span),
+    /// Type of host types.
+    Host(Span),
+    /// The type of types.
+    Kind(Span),
     /// Numeric literals.
     NumberLiteral(Span, literal::Number),
     /// If-else expressions.
@@ -296,6 +302,9 @@ impl Term {
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
             Term::Paren(span, _)
             | Term::Name(span, _)
+            | Term::Format(span)
+            | Term::Host(span)
+            | Term::Kind(span)
             | Term::NumberLiteral(span, _)
             | Term::If(span, _, _, _)
             | Term::Match(span, _, _)
@@ -317,6 +326,9 @@ impl Term {
                 .group()
                 .append((alloc.space()).append(ty.doc(alloc)).group().nest(4)),
             Term::Name(_, name) => alloc.text(name),
+            Term::Format(_) => alloc.text("Format"),
+            Term::Host(_) => alloc.text("Host"),
+            Term::Kind(_) => alloc.text("Kind"),
             Term::NumberLiteral(_, literal) => alloc.as_string(literal),
             Term::If(_, head, if_true, if_false) => (alloc.nil())
                 .append("if")

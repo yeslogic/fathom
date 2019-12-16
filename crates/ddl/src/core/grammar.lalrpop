@@ -3,7 +3,6 @@ use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
 use crate::core::{Alias, Constant, Item, Module, Universe, StructType, Term, TypeField};
-use crate::diagnostics;
 use crate::lexer::Token;
 use crate::literal;
 
@@ -22,13 +21,16 @@ extern {
         "character literal" => Token::CharLiteral(<literal::Char>),
 
         "bool_elim" => Token::BoolElim,
-        "int_elim" => Token::IntElim,
         "else" => Token::Else,
         "f32" => Token::F32,
         "f64" => Token::F64,
+        "Format" => Token::Format,
+        "Host" => Token::Host,
         "if" => Token::If,
         "int" => Token::Int,
+        "int_elim" => Token::IntElim,
         "item" => Token::Item,
+        "Kind" => Token::Kind,
         "match" => Token::Match,
         "struct" => Token::Struct,
 
@@ -94,18 +96,9 @@ TermAtomic: Term = {
     "(" <term: Term> ")" => term,
     <start: @L> "!" <end: @R> => Term::Error(Span::new(start, end)),
     <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(Span::new(start, end), name),
-    <start: @L> <name: "identifier"> <end: @R> => {
-        let span = Span::new(start, end);
-        match name.as_ref() {
-            "Host" => Term::Universe(span, Universe::Host),
-            "Format" => Term::Universe(span, Universe::Format),
-            "Kind" => Term::Universe(span, Universe::Kind),
-            _ => {
-                report(diagnostics::bug::unknown_global(file_id, &name, span));
-                Term::Error(span)
-            },
-        }
-    },
+    <start: @L> "Host" <end: @R> => Term::Universe(Span::new(start, end), Universe::Host),
+    <start: @L> "Format" <end: @R> => Term::Universe(Span::new(start, end), Universe::Format),
+    <start: @L> "Kind" <end: @R> => Term::Universe(Span::new(start, end), Universe::Kind),
     <start: @L> "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" <end: @R> => {
         Term::BoolElim(Span::new(start, end), Arc::new(head), Arc::new(if_true), Arc::new(if_false))
     },

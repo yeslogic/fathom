@@ -73,11 +73,9 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
                 Box::new(delaborate_term_prec(ty, prec + 1)),
             ),
         ),
-        core::Term::Universe(span, universe) => match universe {
-            core::Universe::Host => surface::Term::Name(*span, "Host".to_owned()),
-            core::Universe::Format => surface::Term::Name(*span, "Format".to_owned()),
-            core::Universe::Kind => surface::Term::Name(*span, "Kind".to_owned()),
-        },
+        core::Term::Universe(span, core::Universe::Host) => surface::Term::Host(*span),
+        core::Term::Universe(span, core::Universe::Format) => surface::Term::Format(*span),
+        core::Term::Universe(span, core::Universe::Kind) => surface::Term::Kind(*span),
         core::Term::Constant(span, constant) => delaborate_constant(*span, constant),
         core::Term::BoolElim(span, head, if_true, if_false) => surface::Term::If(
             *span,

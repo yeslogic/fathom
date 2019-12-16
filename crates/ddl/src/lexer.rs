@@ -13,6 +13,9 @@ lazy_static::lazy_static! {
     pub static ref SURFACE_KEYWORDS: Keywords = hashmap! {
         "if".to_owned() => Token::If,
         "else".to_owned() => Token::Else,
+        "Format".to_owned() => Token::Format,
+        "Host".to_owned() => Token::Host,
+        "Kind".to_owned() => Token::Kind,
         "match".to_owned() => Token::Match,
         "struct".to_owned() => Token::Struct,
     };
@@ -21,9 +24,12 @@ lazy_static::lazy_static! {
         "bool_elim".to_owned() => Token::BoolElim,
         "f32".to_owned() => Token::F32,
         "f64".to_owned() => Token::F64,
+        "Format".to_owned() => Token::Format,
+        "Host".to_owned() => Token::Host,
         "int".to_owned() => Token::Int,
         "int_elim".to_owned() => Token::IntElim,
         "item".to_owned() => Token::Item,
+        "Kind".to_owned() => Token::Kind,
         "struct".to_owned() => Token::Struct,
     };
 }
@@ -46,20 +52,26 @@ pub enum Token {
 
     /// Keyword: `bool_elim`.
     BoolElim,
-    /// Keyword: `int_elim`.
-    IntElim,
     /// Keyword: `else`.
     Else,
     /// Keyword: `f32`.
     F32,
     /// Keyword: `f64`.
     F64,
+    /// Keyword: `Format`.
+    Format,
+    /// Keyword: `Host`.
+    Host,
     /// Keyword: `if`.
     If,
     /// Keyword: `int`.
     Int,
+    /// Keyword: `int_elim`.
+    IntElim,
     /// Keyword: `item`.
     Item,
+    /// Keyword: `Kind`.
+    Kind,
     /// Keyword: `match`.
     Match,
     /// Keyword: `struct`.
@@ -99,13 +111,16 @@ impl<'a> fmt::Display for Token {
             Token::CharLiteral(literal) => write!(f, "{}", literal),
 
             Token::BoolElim => write!(f, "bool_elim"),
-            Token::IntElim => write!(f, "int_elim"),
             Token::Else => write!(f, "else"),
             Token::F32 => write!(f, "f32"),
             Token::F64 => write!(f, "f64"),
+            Token::Format => write!(f, "Format"),
+            Token::Host => write!(f, "Host"),
             Token::If => write!(f, "if"),
             Token::Int => write!(f, "int"),
+            Token::IntElim => write!(f, "int_elim"),
             Token::Item => write!(f, "item"),
+            Token::Kind => write!(f, "Kind"),
             Token::Match => write!(f, "match"),
             Token::Struct => write!(f, "struct"),
 

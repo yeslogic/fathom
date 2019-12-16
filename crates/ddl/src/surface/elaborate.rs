@@ -189,21 +189,9 @@ pub fn elaborate_universe(
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
     match surface_term {
-        surface::Term::Name(span, name)
-            if !context.items.contains_key("Host") && name.as_str() == "Host" =>
-        {
-            core::Term::Universe(*span, core::Universe::Host)
-        }
-        surface::Term::Name(span, name)
-            if !context.items.contains_key("Format") && name.as_str() == "Format" =>
-        {
-            core::Term::Universe(*span, core::Universe::Format)
-        }
-        surface::Term::Name(span, name)
-            if !context.items.contains_key("Kind") && name.as_str() == "Kind" =>
-        {
-            core::Term::Universe(*span, core::Universe::Kind)
-        }
+        surface::Term::Kind(span) => core::Term::Universe(*span, core::Universe::Kind),
+        surface::Term::Host(span) => core::Term::Universe(*span, core::Universe::Host),
+        surface::Term::Format(span) => core::Term::Universe(*span, core::Universe::Format),
         surface_term => match synth_term(context, surface_term, report) {
             (core_term, core::Value::Universe(_)) | (core_term, core::Value::Error) => core_term,
             (_, ty) => {
@@ -345,22 +333,6 @@ pub fn synth_term(
         surface::Term::Name(span, name) => match context.lookup_ty(name) {
             Some(ty) => (core::Term::Item(*span, name.to_owned()), ty.clone()),
             None => match name.as_str() {
-                "Kind" => {
-                    report(diagnostics::kind_has_no_type(
-                        Severity::Error,
-                        context.file_id,
-                        *span,
-                    ));
-                    (core::Term::Error(*span), core::Value::Error)
-                }
-                "Host" => (
-                    core::Term::Universe(*span, Host),
-                    core::Value::Universe(Kind),
-                ),
-                "Format" => (
-                    core::Term::Universe(*span, Format),
-                    core::Value::Universe(Kind),
-                ),
                 "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
                 | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"
                 | "F64Le" | "F64Be" => (
@@ -386,6 +358,22 @@ pub fn synth_term(
                 }
             },
         },
+        surface::Term::Kind(span) => {
+            report(diagnostics::kind_has_no_type(
+                Severity::Error,
+                context.file_id,
+                *span,
+            ));
+            (core::Term::Error(*span), core::Value::Error)
+        }
+        surface::Term::Host(span) => (
+            core::Term::Universe(*span, Host),
+            core::Value::Universe(Kind),
+        ),
+        surface::Term::Format(span) => (
+            core::Term::Universe(*span, Format),
+            core::Value::Universe(Kind),
+        ),
         surface::Term::NumberLiteral(span, _) => {
             report(diagnostics::error::ambiguous_numeric_literal(
                 context.file_id,
