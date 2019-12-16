@@ -74,7 +74,7 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
             ),
         ),
         core::Term::Universe(span, universe) => match universe {
-            core::Universe::Type => surface::Term::Name(*span, "Type".to_owned()),
+            core::Universe::Host => surface::Term::Name(*span, "Host".to_owned()),
             core::Universe::Format => surface::Term::Name(*span, "Format".to_owned()),
             core::Universe::Kind => surface::Term::Name(*span, "Kind".to_owned()),
         },

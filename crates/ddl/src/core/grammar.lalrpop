@@ -97,7 +97,7 @@ TermAtomic: Term = {
     <start: @L> <name: "identifier"> <end: @R> => {
         let span = Span::new(start, end);
         match name.as_ref() {
-            "Type" => Term::Universe(span, Universe::Type),
+            "Host" => Term::Universe(span, Universe::Host),
             "Format" => Term::Universe(span, Universe::Format),
             "Kind" => Term::Universe(span, Universe::Kind),
             _ => {

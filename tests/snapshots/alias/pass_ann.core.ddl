@@ -1,6 +1,6 @@
 //! Test annotated terms.
 
-TestType = Type : Kind;
+TestType = Host : Kind;
 
 TestFormat = Format : Kind;
 

@@ -190,9 +190,9 @@ pub fn elaborate_universe(
 ) -> core::Term {
     match surface_term {
         surface::Term::Name(span, name)
-            if !context.items.contains_key("Type") && name.as_str() == "Type" =>
+            if !context.items.contains_key("Host") && name.as_str() == "Host" =>
         {
-            core::Term::Universe(*span, core::Universe::Type)
+            core::Term::Universe(*span, core::Universe::Host)
         }
         surface::Term::Name(span, name)
             if !context.items.contains_key("Format") && name.as_str() == "Format" =>
@@ -332,7 +332,7 @@ pub fn synth_term(
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> (core::Term, core::Value) {
-    use crate::core::Universe::{Format, Kind, Type};
+    use crate::core::Universe::{Format, Host, Kind};
 
     match surface_term {
         surface::Term::Paren(_, surface_term) => synth_term(context, surface_term, report),
@@ -353,8 +353,8 @@ pub fn synth_term(
                     ));
                     (core::Term::Error(*span), core::Value::Error)
                 }
-                "Type" => (
-                    core::Term::Universe(*span, Type),
+                "Host" => (
+                    core::Term::Universe(*span, Host),
                     core::Value::Universe(Kind),
                 ),
                 "Format" => (
@@ -369,7 +369,7 @@ pub fn synth_term(
                 ),
                 "Bool" | "Int" | "F32" | "F64" => (
                     core::Term::Item(*span, name.to_owned()),
-                    core::Value::Universe(Type),
+                    core::Value::Universe(Host),
                 ),
                 "true" | "false" => (
                     core::Term::Item(*span, name.to_owned()),

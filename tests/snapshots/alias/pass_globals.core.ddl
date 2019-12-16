@@ -1,6 +1,6 @@
 //! Test globals.
 
-TestType = Type;
+TestType = Host;
 
 TestFormat = Format;
 

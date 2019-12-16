@@ -190,7 +190,7 @@ pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Dia
                 "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
                 | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"
                 | "F64Le" | "F64Be" => Value::Universe(Universe::Format),
-                "Bool" | "Int" | "F32" | "F64" => Value::Universe(Universe::Type),
+                "Bool" | "Int" | "F32" | "F64" => Value::Universe(Universe::Host),
                 "true" | "false" => Value::Neutral(Head::Item("Bool".to_owned()), Vec::new()),
                 _ => {
                     report(diagnostics::bug::item_name_not_found(
@@ -209,7 +209,7 @@ pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Dia
             ty
         }
         Term::Universe(span, universe) => match universe {
-            Universe::Type | Universe::Format => Value::Universe(Universe::Kind),
+            Universe::Host | Universe::Format => Value::Universe(Universe::Kind),
             Universe::Kind => {
                 report(diagnostics::kind_has_no_type(
                     Severity::Bug,

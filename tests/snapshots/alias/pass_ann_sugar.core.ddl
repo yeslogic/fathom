@@ -1,6 +1,6 @@
 //! Test sugared annotation style.
 
-TestType = Type : Kind;
+TestType = Host : Kind;
 
 TestFormat = Format : Kind;
 

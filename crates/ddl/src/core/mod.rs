@@ -275,7 +275,7 @@ impl PartialEq for TypeField {
 /// Universes.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Universe {
-    Type,
+    Host,
     Format,
     Kind,
 }
@@ -287,7 +287,7 @@ impl Universe {
         D::Doc: Clone,
     {
         match self {
-            Universe::Type => alloc.text("Type"),
+            Universe::Host => alloc.text("Host"),
             Universe::Format => alloc.text("Format"),
             Universe::Kind => alloc.text("Kind"),
         }
