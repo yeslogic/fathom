@@ -189,21 +189,9 @@ pub fn elaborate_universe(
     report: &mut dyn FnMut(Diagnostic),
 ) -> core::Term {
     match surface_term {
-        surface::Term::Name(span, name)
-            if !context.items.contains_key("Type") && name.as_str() == "Type" =>
-        {
-            core::Term::Universe(*span, core::Universe::Type)
-        }
-        surface::Term::Name(span, name)
-            if !context.items.contains_key("Format") && name.as_str() == "Format" =>
-        {
-            core::Term::Universe(*span, core::Universe::Format)
-        }
-        surface::Term::Name(span, name)
-            if !context.items.contains_key("Kind") && name.as_str() == "Kind" =>
-        {
-            core::Term::Universe(*span, core::Universe::Kind)
-        }
+        surface::Term::Kind(span) => core::Term::Universe(*span, core::Universe::Kind),
+        surface::Term::Host(span) => core::Term::Universe(*span, core::Universe::Host),
+        surface::Term::Format(span) => core::Term::Universe(*span, core::Universe::Format),
         surface_term => match synth_term(context, surface_term, report) {
             (core_term, core::Value::Universe(_)) | (core_term, core::Value::Error) => core_term,
             (_, ty) => {
@@ -243,6 +231,7 @@ pub fn check_term(
                 core::Term::Error(surface_term.span())
             };
             match expected_ty {
+                // TODO: Lookup primitives in environment
                 core::Value::Neutral(core::Head::Item(name), elims) if elims.is_empty() => {
                     match name.as_str() {
                         "Int" => match literal.parse_big_int(context.file_id, report) {
@@ -264,6 +253,7 @@ pub fn check_term(
             }
         }
         (surface::Term::If(span, surface_head, surface_if_true, surface_if_false), _) => {
+            // TODO: Lookup primitives in environment
             let bool_ty = core::Value::Neutral(core::Head::Item("Bool".to_owned()), Vec::new());
             let head = check_term(context, surface_head, &bool_ty, report);
             let if_true = check_term(context, surface_if_true, expected_ty, report);
@@ -284,6 +274,7 @@ pub fn check_term(
 
             match &head_ty {
                 core::Value::Neutral(core::Head::Item(name), elims) if elims.is_empty() => {
+                    // TODO: Lookup primitives in environment
                     match name.as_str() {
                         "Bool" => {
                             let (if_true, if_false) =
@@ -332,7 +323,7 @@ pub fn synth_term(
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> (core::Term, core::Value) {
-    use crate::core::Universe::{Format, Kind, Type};
+    use crate::core::Universe::{Format, Host, Kind};
 
     match surface_term {
         surface::Term::Paren(_, surface_term) => synth_term(context, surface_term, report),
@@ -345,22 +336,7 @@ pub fn synth_term(
         surface::Term::Name(span, name) => match context.lookup_ty(name) {
             Some(ty) => (core::Term::Item(*span, name.to_owned()), ty.clone()),
             None => match name.as_str() {
-                "Kind" => {
-                    report(diagnostics::kind_has_no_type(
-                        Severity::Error,
-                        context.file_id,
-                        *span,
-                    ));
-                    (core::Term::Error(*span), core::Value::Error)
-                }
-                "Type" => (
-                    core::Term::Universe(*span, Type),
-                    core::Value::Universe(Kind),
-                ),
-                "Format" => (
-                    core::Term::Universe(*span, Format),
-                    core::Value::Universe(Kind),
-                ),
+                // TODO: Put primitives in an environment
                 "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
                 | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"
                 | "F64Le" | "F64Be" => (
@@ -369,10 +345,11 @@ pub fn synth_term(
                 ),
                 "Bool" | "Int" | "F32" | "F64" => (
                     core::Term::Item(*span, name.to_owned()),
-                    core::Value::Universe(Type),
+                    core::Value::Universe(Host),
                 ),
                 "true" | "false" => (
                     core::Term::Item(*span, name.to_owned()),
+                    // TODO: Lookup primitives in environment
                     core::Value::Neutral(core::Head::Item("Bool".to_owned()), Vec::new()),
                 ),
                 _ => {
@@ -386,6 +363,22 @@ pub fn synth_term(
                 }
             },
         },
+        surface::Term::Kind(span) => {
+            report(diagnostics::kind_has_no_type(
+                Severity::Error,
+                context.file_id,
+                *span,
+            ));
+            (core::Term::Error(*span), core::Value::Error)
+        }
+        surface::Term::Host(span) => (
+            core::Term::Universe(*span, Host),
+            core::Value::Universe(Kind),
+        ),
+        surface::Term::Format(span) => (
+            core::Term::Universe(*span, Format),
+            core::Value::Universe(Kind),
+        ),
         surface::Term::NumberLiteral(span, _) => {
             report(diagnostics::error::ambiguous_numeric_literal(
                 context.file_id,
@@ -395,6 +388,7 @@ pub fn synth_term(
             (core::Term::Error(*span), core::Value::Error)
         }
         surface::Term::If(span, surface_head, surface_if_true, surface_if_false) => {
+            // TODO: Lookup primitives in environment
             let bool_ty = core::Value::Neutral(core::Head::Item("Bool".to_owned()), Vec::new());
             let head = check_term(context, surface_head, &bool_ty, report);
             let (if_true, if_true_ty) = synth_term(context, surface_if_true, report);

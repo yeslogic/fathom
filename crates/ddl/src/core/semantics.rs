@@ -15,6 +15,7 @@ pub fn eval(term: &Term) -> Value {
         Term::BoolElim(_, head, if_true, if_false) => match eval(head) {
             Value::Neutral(head, mut elims) => {
                 if let Head::Item(name) = &head {
+                    // TODO: Lookup primitives in environment
                     match name.as_str() {
                         "true" if elims.is_empty() => return eval(if_true),
                         "false" if elims.is_empty() => return eval(if_false),

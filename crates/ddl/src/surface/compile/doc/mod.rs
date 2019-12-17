@@ -224,6 +224,9 @@ fn compile_term<'term>(
 
             format!(r##"<var><a href="#{}">{}</a></var>"##, id, name).into()
         }
+        surface::Term::Kind(_) => "Kind".into(),
+        surface::Term::Host(_) => "Host".into(),
+        surface::Term::Format(_) => "Format".into(),
         surface::Term::Ann(term, ty) => {
             let term = compile_term(context, term, report);
             let ty = compile_term(context, ty, report);

@@ -354,6 +354,7 @@ fn compile_term(
 
     match core_term {
         core::Term::Item(span, name) => match name.as_str() {
+            // TODO: Put primitives in an environment
             "U8" => compiled_format_ty(rt_ty_name("U8"), ty_name("u8")),
             "U16Le" => compiled_format_ty(rt_ty_name("U16Le"), ty_name("u16")),
             "U16Be" => compiled_format_ty(rt_ty_name("U16Be"), ty_name("u16")),
