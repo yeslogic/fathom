@@ -1,3 +1,3 @@
-foo = item true;
+foo = global true;
 
-Test = bool_elim item foo { item F64Be, item F32Be } : Format;
+Test = bool_elim item foo { global F64Be, global F32Be } : Format;

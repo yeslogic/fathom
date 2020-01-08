@@ -3,25 +3,33 @@
 use codespan::Span;
 use std::sync::Arc;
 
-use crate::core::{Constant, Elim, Head, Term, Value};
+use crate::core::{Constant, Elim, Globals, Head, Term, Value};
 
 /// Evaluate a term into a semantic value.
-pub fn eval(term: &Term) -> Value {
+pub fn eval(globals: &Globals, /* TODO: items, locals, */ term: &Term) -> Value {
     match term {
+        Term::Global(_, name) => globals
+            .get(name)
+            .map_or(Value::Error, |(_, term)| match term {
+                Some(term) => eval(globals, term),
+                None => Value::Neutral(Head::Global(name.clone()), Vec::new()),
+            }),
         Term::Item(_, name) => Value::Neutral(Head::Item(name.clone()), Vec::new()), // TODO: Evaluate to value in environment
-        Term::Ann(term, _) => eval(term),
+        Term::Ann(term, _) => eval(globals, term),
         Term::Universe(_, universe) => Value::Universe(*universe),
         Term::Constant(_, constant) => Value::Constant(constant.clone()),
-        Term::BoolElim(_, head, if_true, if_false) => match eval(head) {
-            Value::Neutral(head, mut elims) => {
-                if let Head::Item(name) = &head {
-                    // TODO: Lookup primitives in environment
-                    match name.as_str() {
-                        "true" if elims.is_empty() => return eval(if_true),
-                        "false" if elims.is_empty() => return eval(if_false),
-                        _ => {}
+        Term::BoolElim(_, head, if_true, if_false) => match eval(globals, head) {
+            Value::Neutral(Head::Global(name), mut elims) if elims.is_empty() => {
+                match name.as_str() {
+                    "true" => eval(globals, if_true),
+                    "false" => eval(globals, if_false),
+                    _ => {
+                        elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
+                        Value::Neutral(Head::Global(name), elims)
                     }
                 }
+            }
+            Value::Neutral(head, mut elims) => {
                 elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
                 Value::Neutral(head, elims)
             }
@@ -30,10 +38,10 @@ pub fn eval(term: &Term) -> Value {
                 vec![Elim::Bool(if_true.clone(), if_false.clone())],
             ),
         },
-        Term::IntElim(_, head, branches, default) => match eval(head) {
+        Term::IntElim(_, head, branches, default) => match eval(globals, head) {
             Value::Constant(Constant::Int(value)) => match branches.get(&value) {
-                Some(term) => eval(term),
-                None => eval(default),
+                Some(term) => eval(globals, term),
+                None => eval(globals, default),
             },
             Value::Neutral(head, mut elims) => {
                 elims.push(Elim::Int(branches.clone(), default.clone()));
@@ -52,6 +60,7 @@ pub fn eval(term: &Term) -> Value {
 fn readback_neutral(head: &Head, elims: &[Elim]) -> Term {
     elims.iter().fold(
         match head {
+            Head::Global(name) => Term::Global(Span::initial(), name.clone()),
             Head::Item(name) => Term::Item(Span::initial(), name.clone()),
             Head::Error => Term::Error(Span::initial()),
         },

@@ -25,6 +25,7 @@ lazy_static::lazy_static! {
         "f32".to_owned() => Token::F32,
         "f64".to_owned() => Token::F64,
         "Format".to_owned() => Token::Format,
+        "global".to_owned() => Token::Global,
         "Host".to_owned() => Token::Host,
         "int".to_owned() => Token::Int,
         "int_elim".to_owned() => Token::IntElim,
@@ -60,6 +61,8 @@ pub enum Token {
     F64,
     /// Keyword: `Format`.
     Format,
+    /// Keyword: `global`.
+    Global,
     /// Keyword: `Host`.
     Host,
     /// Keyword: `if`.
@@ -115,6 +118,7 @@ impl<'a> fmt::Display for Token {
             Token::F32 => write!(f, "f32"),
             Token::F64 => write!(f, "f64"),
             Token::Format => write!(f, "Format"),
+            Token::Global => write!(f, "global"),
             Token::Host => write!(f, "Host"),
             Token::If => write!(f, "if"),
             Token::Int => write!(f, "int"),

@@ -37,6 +37,8 @@ lazy_static::lazy_static! {
 
     static ref INPUT_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("input");
     static ref SNAPSHOTS_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("snapshots");
+
+    static ref GLOBALS: ddl::core::Globals = ddl::core::Globals::default();
 }
 
 pub fn run_integration_test(test_name: &str, ddl_path: &str) {
@@ -137,13 +139,16 @@ impl Test {
         files: &Files,
         surface_module: &ddl::surface::Module,
     ) -> ddl::core::Module {
-        let core_module = ddl::surface::elaborate::elaborate_module(&surface_module, &mut |d| {
-            self.found_diagnostics.push(d)
-        });
+        let core_module =
+            ddl::surface::elaborate::elaborate_module(&GLOBALS, &surface_module, &mut |d| {
+                self.found_diagnostics.push(d)
+            });
 
         // The core syntax from the elaborator should always be well-formed!
         let mut validation_diagnostics = Vec::new();
-        ddl::core::validate::validate_module(&core_module, &mut |d| validation_diagnostics.push(d));
+        ddl::core::validate::validate_module(&GLOBALS, &core_module, &mut |d| {
+            validation_diagnostics.push(d)
+        });
         if !validation_diagnostics.is_empty() {
             self.failed_checks.push("elaborate: validate");
 
@@ -165,6 +170,7 @@ impl Test {
     fn roundtrip_delaborate_core(&mut self, files: &Files, core_module: &ddl::core::Module) {
         let mut elaboration_diagnostics = Vec::new();
         let delaborated_core_module = ddl::surface::elaborate::elaborate_module(
+            &GLOBALS,
             &ddl::surface::delaborate::delaborate_module(core_module),
             &mut |d| elaboration_diagnostics.push(d),
         );

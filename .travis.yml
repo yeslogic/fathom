@@ -8,7 +8,7 @@ cache:
     # - $TRAVIS_BUILD_DIR/target
 
 rust:
-  - 1.36.0
+  - 1.39.0
   - stable
   - beta
   - nightly

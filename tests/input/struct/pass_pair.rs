@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_rt::{FormatWriter, ReadError, ReadScope, I8, U8};
-use ddl_test_util::ddl::binary;
+use ddl_test_util::ddl::{binary, core};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
@@ -49,9 +49,10 @@ fn valid_pair() {
     writer.write::<U8>(31); // Pair::first
     writer.write::<I8>(-30); // Pair::second
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let pair = read_scope.read::<fixture::Pair>().unwrap();
-    let mut read_context = binary::read::Context::new(read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     match binary::read::read_module_item(&mut read_context, &FIXTURE, &"Pair").unwrap() {
         binary::Term::Struct(fields) => {
@@ -79,9 +80,10 @@ fn valid_pair_trailing() {
     writer.write::<I8>(-30); // Pair::second
     writer.write::<U8>(42);
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let pair = read_scope.read::<fixture::Pair>().unwrap();
-    let mut read_context = binary::read::Context::new(read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     match binary::read::read_module_item(&mut read_context, &FIXTURE, &"Pair").unwrap() {
         binary::Term::Struct(fields) => {

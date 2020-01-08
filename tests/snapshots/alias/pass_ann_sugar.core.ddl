@@ -4,38 +4,38 @@ TestType = Host : Kind;
 
 TestFormat = Format : Kind;
 
-TestU8 = item U8 : Format;
+TestU8 = global U8 : Format;
 
-TestU16Le = item U16Le : Format;
+TestU16Le = global U16Le : Format;
 
-TestU16Be = item U16Be : Format;
+TestU16Be = global U16Be : Format;
 
-TestU32Le = item U32Le : Format;
+TestU32Le = global U32Le : Format;
 
-TestU32Be = item U32Be : Format;
+TestU32Be = global U32Be : Format;
 
-TestU64Le = item U64Le : Format;
+TestU64Le = global U64Le : Format;
 
-TestU64Be = item U64Be : Format;
+TestU64Be = global U64Be : Format;
 
-TestS8 = item S8 : Format;
+TestS8 = global S8 : Format;
 
-TestS16Le = item S16Le : Format;
+TestS16Le = global S16Le : Format;
 
-TestS16Be = item S16Be : Format;
+TestS16Be = global S16Be : Format;
 
-TestS32Le = item S32Le : Format;
+TestS32Le = global S32Le : Format;
 
-TestS32Be = item S32Be : Format;
+TestS32Be = global S32Be : Format;
 
-TestS64Le = item S64Le : Format;
+TestS64Le = global S64Le : Format;
 
-TestS64Be = item S64Be : Format;
+TestS64Be = global S64Be : Format;
 
-TestF32Le = item F32Le : Format;
+TestF32Le = global F32Le : Format;
 
-TestF32Be = item F32Be : Format;
+TestF32Be = global F32Be : Format;
 
-TestF64Le = item F64Le : Format;
+TestF64Le = global F64Le : Format;
 
-TestF64Be = item F64Be : Format;
+TestF64Be = global F64Be : Format;

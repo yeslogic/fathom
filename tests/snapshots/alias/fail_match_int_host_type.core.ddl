@@ -1,1 +1,1 @@
-Test = int_elim int 42 : item Int { 0 => item F64, item F32 } : Host;
+Test = int_elim int 42 : global Int { 0 => global F64, global F32 } : Host;

@@ -4,48 +4,48 @@ TestType = Host;
 
 TestFormat = Format;
 
-TestU8 = item U8;
+TestU8 = global U8;
 
-TestU16Le = item U16Le;
+TestU16Le = global U16Le;
 
-TestU16Be = item U16Be;
+TestU16Be = global U16Be;
 
-TestU32Le = item U32Le;
+TestU32Le = global U32Le;
 
-TestU32Be = item U32Be;
+TestU32Be = global U32Be;
 
-TestU64Le = item U64Le;
+TestU64Le = global U64Le;
 
-TestU64Be = item U64Be;
+TestU64Be = global U64Be;
 
-TestS8 = item S8;
+TestS8 = global S8;
 
-TestS16Le = item S16Le;
+TestS16Le = global S16Le;
 
-TestS16Be = item S16Be;
+TestS16Be = global S16Be;
 
-TestS32Le = item S32Le;
+TestS32Le = global S32Le;
 
-TestS32Be = item S32Be;
+TestS32Be = global S32Be;
 
-TestS64Le = item S64Le;
+TestS64Le = global S64Le;
 
-TestS64Be = item S64Be;
+TestS64Be = global S64Be;
 
-TestF32Le = item F32Le;
+TestF32Le = global F32Le;
 
-TestF32Be = item F32Be;
+TestF32Be = global F32Be;
 
-TestF64Le = item F64Le;
+TestF64Le = global F64Le;
 
-TestF64Be = item F64Be;
+TestF64Be = global F64Be;
 
-TestBool = item Bool;
+TestBool = global Bool;
 
-TestF32 = item F32;
+TestF32 = global F32;
 
-TestF64 = item F64;
+TestF64 = global F64;
 
-test_true = item true;
+test_true = global true;
 
-test_false = item false;
+test_false = global false;

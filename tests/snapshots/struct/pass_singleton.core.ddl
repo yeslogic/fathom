@@ -1,5 +1,5 @@
 //! Test a singleton struct.
 
 struct Byte {
-    inner : item U8,
+    inner : global U8,
 }

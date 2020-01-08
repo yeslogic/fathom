@@ -353,8 +353,8 @@ fn compile_term(
     };
 
     match core_term {
-        core::Term::Item(span, name) => match name.as_str() {
-            // TODO: Put primitives in an environment
+        core::Term::Global(span, name) => match name.as_str() {
+            // TODO: Put globals in an environment
             "U8" => compiled_format_ty(rt_ty_name("U8"), ty_name("u8")),
             "U16Le" => compiled_format_ty(rt_ty_name("U16Le"), ty_name("u16")),
             "U16Be" => compiled_format_ty(rt_ty_name("U16Be"), ty_name("u16")),
@@ -390,43 +390,46 @@ fn compile_term(
                 ty: rust::Type::name("bool", Vec::new()),
                 is_const: true,
             },
-            name => match context.compiled_items.get(name) {
-                Some(CompiledItem::Term {
-                    name,
-                    ty,
-                    is_function,
-                    is_const,
-                    ..
-                }) => CompiledTerm::Term {
-                    term: if *is_function {
-                        rust::Term::Call(
-                            Box::new(rust::Term::Name(name.clone().into())),
-                            Vec::new(),
-                        )
-                    } else {
-                        rust::Term::Name(name.clone().into())
-                    },
-                    ty: ty.clone(),
-                    is_const: *is_const,
+            name => {
+                report(crate::diagnostics::bug::global_name_not_found(
+                    file_id, name, *span,
+                ));
+                compiled_host_ty(rt_invalid_ty())
+            }
+        },
+        core::Term::Item(span, name) => match context.compiled_items.get(name.as_str()) {
+            Some(CompiledItem::Term {
+                name,
+                ty,
+                is_function,
+                is_const,
+                ..
+            }) => CompiledTerm::Term {
+                term: if *is_function {
+                    rust::Term::Call(Box::new(rust::Term::Name(name.clone().into())), Vec::new())
+                } else {
+                    rust::Term::Name(name.clone().into())
                 },
-                Some(CompiledItem::Type {
-                    name,
-                    is_copy,
-                    host_ty,
-                    ..
-                }) => CompiledTerm::Type {
-                    ty: rust::Type::Name(name.clone().into(), Vec::new()),
-                    is_copy: *is_copy,
-                    host_ty: host_ty.clone(),
-                    read: None,
-                },
-                Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
-                Some(CompiledItem::Error(_)) => CompiledTerm::Error,
-                None => {
-                    report(diagnostics::bug::unbound_item(file_id, name, *span));
-                    CompiledTerm::Error
-                }
+                ty: ty.clone(),
+                is_const: *is_const,
             },
+            Some(CompiledItem::Type {
+                name,
+                is_copy,
+                host_ty,
+                ..
+            }) => CompiledTerm::Type {
+                ty: rust::Type::Name(name.clone().into(), Vec::new()),
+                is_copy: *is_copy,
+                host_ty: host_ty.clone(),
+                read: None,
+            },
+            Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
+            Some(CompiledItem::Error(_)) => CompiledTerm::Error,
+            None => {
+                report(diagnostics::bug::unbound_item(file_id, name, *span));
+                CompiledTerm::Error
+            }
         },
         core::Term::Ann(term, _) => compile_term(context, term, report),
         core::Term::Universe(_, _) => CompiledTerm::Erased,

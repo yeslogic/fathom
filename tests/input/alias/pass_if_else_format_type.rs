@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_rt::{F64Be, FormatWriter, ReadError, ReadScope, U8};
-use ddl_test_util::ddl::binary;
+use ddl_test_util::ddl::{binary, core};
 
 #[path = "../../snapshots/alias/pass_if_else_format_type.rs"]
 mod fixture;
@@ -32,9 +32,10 @@ fn valid_test() {
     let mut writer = FormatWriter::new(vec![]);
     writer.write::<F64Be>(23.64e10); // Test::inner
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let singleton = read_scope.read::<fixture::Test>().unwrap();
-    let mut read_context = binary::read::Context::new(read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let test = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
     match singleton.inner() {
@@ -54,9 +55,10 @@ fn valid_test_trailing() {
     writer.write::<F64Be>(781.453298); // Test::inner
     writer.write::<U8>(42);
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let singleton = read_scope.read::<fixture::Test>().unwrap();
-    let mut read_context = binary::read::Context::new(read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let test = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
     match singleton.inner() {

@@ -1,1 +1,1 @@
-test = bool_elim ! { item true, item false } : item Bool;
+test = bool_elim ! { global true, global false } : global Bool;

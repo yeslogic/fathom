@@ -3,7 +3,7 @@
 /// A pair of bytes.
 struct Pair {
     /// The first field.
-    first : item U8,
+    first : global U8,
     /// The second field.
-    second : item S8,
+    second : global S8,
 }

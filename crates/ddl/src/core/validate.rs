@@ -7,16 +7,18 @@ use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 
-use crate::core::{semantics, Constant, Head, Item, Module, Term, TypeField, Universe, Value};
+use crate::core::{semantics, Constant, Globals, Item, Module, Term, TypeField, Universe, Value};
 use crate::diagnostics;
 
 /// Validate a module.
-pub fn validate_module(module: &Module, report: &mut dyn FnMut(Diagnostic)) {
-    validate_items(Context::new(module.file_id), &module.items, report);
+pub fn validate_module(globals: &Globals, module: &Module, report: &mut dyn FnMut(Diagnostic)) {
+    validate_items(Context::new(globals, module.file_id), &module.items, report);
 }
 
 /// Contextual information to be used during validation.
 pub struct Context<'me> {
+    /// The global environment.
+    globals: &'me Globals,
     /// The file where these items are defined (for error reporting).
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
@@ -29,8 +31,9 @@ pub struct Context<'me> {
 
 impl<'me> Context<'me> {
     /// Create a new context.
-    pub fn new(file_id: FileId) -> Context<'me> {
+    pub fn new(globals: &'me Globals, file_id: FileId) -> Context<'me> {
         Context {
+            globals,
             file_id,
             items: HashMap::new(),
             tys: Vec::new(),
@@ -152,14 +155,12 @@ pub fn check_term(
     match (term, expected_ty) {
         (Term::Error(_), _) | (_, Value::Error) => {}
         (Term::BoolElim(_, term, if_true, if_false), expected_ty) => {
-            let bool_ty = Value::Neutral(Head::Item("Bool".to_owned()), Vec::new());
-            check_term(context, term, &bool_ty, report);
+            check_term(context, term, &Value::global("Bool"), report);
             check_term(context, if_true, expected_ty, report);
             check_term(context, if_false, expected_ty, report);
         }
         (Term::IntElim(_, head, branches, default), expected_ty) => {
-            let int_ty = Value::Neutral(Head::Item("Int".to_owned()), Vec::new());
-            check_term(context, head, &int_ty, report);
+            check_term(context, head, &Value::global("Int"), report);
             for (_, term) in branches {
                 check_term(context, term, expected_ty, report);
             }
@@ -184,29 +185,31 @@ pub fn check_term(
 /// Synthesize the type of a surface term.
 pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Diagnostic)) -> Value {
     match term {
+        Term::Global(span, name) => match context.globals.get(name) {
+            Some((r#type, _)) => semantics::eval(context.globals, r#type),
+            None => {
+                report(diagnostics::bug::global_name_not_found(
+                    context.file_id,
+                    &name,
+                    *span,
+                ));
+                Value::Error
+            }
+        },
         Term::Item(span, name) => match context.lookup_ty(name) {
             Some(ty) => ty.clone(),
-            None => match name.as_str() {
-                // TODO: Put primitives in an environment
-                "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
-                | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le" | "F32Be"
-                | "F64Le" | "F64Be" => Value::Universe(Universe::Format),
-                "Bool" | "Int" | "F32" | "F64" => Value::Universe(Universe::Host),
-                // TODO: Lookup primitives in environment
-                "true" | "false" => Value::Neutral(Head::Item("Bool".to_owned()), Vec::new()),
-                _ => {
-                    report(diagnostics::bug::item_name_not_found(
-                        context.file_id,
-                        &name,
-                        *span,
-                    ));
-                    Value::Error
-                }
-            },
+            None => {
+                report(diagnostics::bug::item_name_not_found(
+                    context.file_id,
+                    &name,
+                    *span,
+                ));
+                Value::Error
+            }
         },
         Term::Ann(term, ty) => {
             validate_universe(context, ty, report);
-            let ty = semantics::eval(ty);
+            let ty = semantics::eval(context.globals, ty);
             check_term(context, term, &ty, report);
             ty
         }
@@ -222,15 +225,14 @@ pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Dia
             }
         },
         Term::Constant(_, constant) => match constant {
-            // TODO: Lookup primitives in environment
-            Constant::Int(_) => Value::Neutral(Head::Item("Int".to_owned()), Vec::new()),
-            Constant::F32(_) => Value::Neutral(Head::Item("F32".to_owned()), Vec::new()),
-            Constant::F64(_) => Value::Neutral(Head::Item("F64".to_owned()), Vec::new()),
+            // TODO: Lookup globals in environment
+            Constant::Int(_) => Value::global("Int"),
+            Constant::F32(_) => Value::global("F32"),
+            Constant::F64(_) => Value::global("F64"),
         },
         Term::BoolElim(_, head, if_true, if_false) => {
-            // TODO: Lookup primitives in environment
-            let bool_ty = Value::Neutral(Head::Item("Bool".to_owned()), Vec::new());
-            check_term(context, head, &bool_ty, report);
+            // TODO: Lookup globals in environment
+            check_term(context, head, &Value::global("Bool"), report);
             let if_true_ty = synth_term(context, if_true, report);
             let if_false_ty = synth_term(context, if_false, report);
 

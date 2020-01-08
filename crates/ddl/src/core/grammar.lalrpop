@@ -25,6 +25,7 @@ extern {
         "f32" => Token::F32,
         "f64" => Token::F64,
         "Format" => Token::Format,
+        "global" => Token::Global,
         "Host" => Token::Host,
         "if" => Token::If,
         "int" => Token::Int,
@@ -95,6 +96,7 @@ Term: Term = {
 TermAtomic: Term = {
     "(" <term: Term> ")" => term,
     <start: @L> "!" <end: @R> => Term::Error(Span::new(start, end)),
+    <start: @L> "global" <name: "identifier"> <end: @R> => Term::Global(Span::new(start, end), name),
     <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(Span::new(start, end), name),
     <start: @L> "Host" <end: @R> => Term::Universe(Span::new(start, end), Universe::Host),
     <start: @L> "Format" <end: @R> => Term::Universe(Span::new(start, end), Universe::Format),

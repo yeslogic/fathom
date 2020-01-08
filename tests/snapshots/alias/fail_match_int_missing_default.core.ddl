@@ -1,1 +1,1 @@
-test = int_elim int 23 : item Int { 23 => int 42, ! } : item Int;
+test = int_elim int 23 : global Int { 23 => int 42, ! } : global Int;

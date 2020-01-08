@@ -354,7 +354,9 @@ impl PartialEq for Constant {
 /// Terms.
 #[derive(Debug, Clone)]
 pub enum Term {
-    /// Item references
+    /// Global variables.
+    Global(Span, String),
+    /// Item variables.
     Item(Span, String),
     /// Terms annotated with types.
     Ann(Arc<Term>, Arc<Term>),
@@ -374,7 +376,8 @@ pub enum Term {
 impl Term {
     pub fn span(&self) -> Span {
         match self {
-            Term::Item(span, _)
+            Term::Global(span, _)
+            | Term::Item(span, _)
             | Term::Universe(span, _)
             | Term::Constant(span, _)
             | Term::BoolElim(span, _, _, _)
@@ -403,6 +406,10 @@ impl Term {
         };
 
         match self {
+            Term::Global(_, name) => (alloc.nil())
+                .append("global")
+                .append(alloc.space())
+                .append(alloc.as_string(name)),
             Term::Item(_, name) => (alloc.nil())
                 .append("item")
                 .append(alloc.space())
@@ -464,6 +471,7 @@ impl Term {
 impl PartialEq for Term {
     fn eq(&self, other: &Term) -> bool {
         match (self, other) {
+            (Term::Global(_, name0), Term::Global(_, name1)) => name0 == name1,
             (Term::Item(_, name0), Term::Item(_, name1)) => name0 == name1,
             (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
             (Term::Universe(_, universe0), Term::Universe(_, universe1)) => universe0 == universe1,
@@ -485,7 +493,9 @@ impl PartialEq for Term {
 /// The head of a neutral term.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Head {
-    /// Item references.
+    /// Global variables.
+    Global(String),
+    /// Item variables.
     Item(String),
     /// Errors.
     Error,
@@ -511,4 +521,66 @@ pub enum Value {
 
     /// Error sentinel.
     Error,
+}
+
+impl Value {
+    /// Create a global variable.
+    pub fn global(name: impl Into<String>) -> Value {
+        Value::Neutral(Head::Global(name.into()), Vec::new())
+    }
+}
+
+/// An environment of global definitions.
+pub struct Globals {
+    entries: BTreeMap<String, (Arc<Term>, Option<Arc<Term>>)>,
+}
+
+impl Globals {
+    pub fn new(entries: BTreeMap<String, (Arc<Term>, Option<Arc<Term>>)>) -> Globals {
+        Globals { entries }
+    }
+
+    pub fn get(&self, name: &str) -> Option<&(Arc<Term>, Option<Arc<Term>>)> {
+        self.entries.get(name)
+    }
+
+    pub fn entries(&self) -> impl Iterator<Item = (&String, &(Arc<Term>, Option<Arc<Term>>))> {
+        self.entries.iter()
+    }
+}
+
+impl Default for Globals {
+    #[rustfmt::skip]
+    fn default() -> Globals {
+        let mut entries = BTreeMap::new();
+        let span = Span::initial();
+
+        entries.insert("U8".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("U16Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("U16Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("U32Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("U32Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("U64Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("U64Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("S8".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("S16Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("S16Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("S32Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("S32Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("S64Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("S64Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("F32Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("F32Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("F64Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("F64Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+
+        entries.insert("Int".to_owned(), (Arc::new(Term::Universe(span, Universe::Host)), None));
+        entries.insert("F32".to_owned(), (Arc::new(Term::Universe(span, Universe::Host)), None));
+        entries.insert("F64".to_owned(), (Arc::new(Term::Universe(span, Universe::Host)), None));
+        entries.insert("Bool".to_owned(), (Arc::new(Term::Universe(span, Universe::Host)), None));
+        entries.insert("true".to_owned(), (Arc::new(Term::Global(span, "Bool".to_owned())), None));
+        entries.insert("false".to_owned(), (Arc::new(Term::Global(span, "Bool".to_owned())), None));
+
+        Globals::new(entries)
+    }
 }

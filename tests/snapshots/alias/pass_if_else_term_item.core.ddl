@@ -1,5 +1,5 @@
-foo = item true;
+foo = global true;
 
-bar = bool_elim item foo { item true, item false } : item Bool;
+bar = bool_elim item foo { global true, global false } : global Bool;
 
 baz = item bar;

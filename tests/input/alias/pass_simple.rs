@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_rt::{FormatWriter, ReadError, ReadScope, U8};
-use ddl_test_util::ddl::binary;
+use ddl_test_util::ddl::{binary, core};
 
 #[path = "../../snapshots/alias/pass_simple.rs"]
 mod fixture;
@@ -29,9 +29,10 @@ fn valid_singleton() {
     let mut writer = FormatWriter::new(vec![]);
     writer.write::<U8>(31); // Byte
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let inner = read_scope.read::<fixture::Byte>().unwrap();
-    let mut read_context = binary::read::Context::new(read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let byte = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap();
 
@@ -47,9 +48,10 @@ fn valid_singleton_trailing() {
     writer.write::<U8>(255); // Byte
     writer.write::<U8>(42);
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let inner = read_scope.read::<fixture::Byte>().unwrap();
-    let mut read_context = binary::read::Context::new(read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let byte = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap();
 
