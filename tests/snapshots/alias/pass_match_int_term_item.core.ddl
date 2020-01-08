@@ -1,5 +1,5 @@
-foo = int 33 : item Int;
+foo = int 33 : global Int;
 
-bar = int_elim item foo { 33 => item true, 42 => item false, item false } : item Bool;
+bar = int_elim item foo { 33 => global true, 42 => global false, global false } : global Bool;
 
 baz = item bar;

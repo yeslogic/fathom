@@ -329,6 +329,18 @@ pub mod bug {
         }
     }
 
+    pub fn global_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic {
+        Diagnostic {
+            severity: Severity::Bug,
+            code: None,
+            message: format!("global `{}` is not defined", name),
+            primary_label: Label::new(file_id, span, "global is not defined"),
+            secondary_labels: vec![],
+            // TODO: provide suggestions
+            notes: vec![],
+        }
+    }
+
     pub fn item_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic {
         Diagnostic {
             severity: Severity::Bug,

@@ -25,6 +25,7 @@ extern {
         "f32" => Token::F32,
         "f64" => Token::F64,
         "Format" => Token::Format,
+        "global" => Token::Global,
         "Host" => Token::Host,
         "if" => Token::If,
         "int" => Token::Int,

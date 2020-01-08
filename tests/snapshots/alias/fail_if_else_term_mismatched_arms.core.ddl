@@ -1,3 +1,3 @@
-Foo = f32 33.4 : item F32;
+Foo = f32 33.4 : global F32;
 
-test = bool_elim item true { item true, ! } : item Bool;
+test = bool_elim global true { global true, ! } : global Bool;

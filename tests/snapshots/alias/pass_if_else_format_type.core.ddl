@@ -1,1 +1,1 @@
-Test = bool_elim item true { item F64Be, item F32Be } : Format;
+Test = bool_elim global true { global F64Be, global F32Be } : Format;

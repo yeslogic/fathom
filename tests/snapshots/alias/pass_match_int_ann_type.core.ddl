@@ -1,1 +1,1 @@
-Test = item true : (int_elim int 23 : item Int { 0 => item F64, item Bool } : Host);
+Test = global true : (int_elim int 23 : global Int { 0 => global F64, global Bool } : Host);

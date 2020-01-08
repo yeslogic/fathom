@@ -65,6 +65,7 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
     };
 
     match term {
+        core::Term::Global(span, name) => surface::Term::Name(*span, name.to_string()),
         core::Term::Item(span, name) => surface::Term::Name(*span, name.to_string()),
         core::Term::Ann(term, ty) => delaborate_paren_prec(
             prec > 0,
@@ -89,7 +90,7 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
             branches
                 .iter()
                 .map(|(value, term)| {
-                    let span = Span::default();
+                    let span = Span::initial();
                     let value = literal::Number::from_signed(span, value);
                     (
                         surface::Pattern::NumberLiteral(span, value),
@@ -97,7 +98,7 @@ pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
                     )
                 })
                 .chain(std::iter::once((
-                    surface::Pattern::Name(Span::default(), "_".to_owned()),
+                    surface::Pattern::Name(Span::initial(), "_".to_owned()),
                     delaborate_term(default),
                 )))
                 .collect(),

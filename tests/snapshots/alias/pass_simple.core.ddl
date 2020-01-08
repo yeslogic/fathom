@@ -1,3 +1,3 @@
 //! Test simple aliases.
 
-Byte = item U8;
+Byte = global U8;

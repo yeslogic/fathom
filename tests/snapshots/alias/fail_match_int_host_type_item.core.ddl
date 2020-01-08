@@ -1,3 +1,3 @@
-foo = int 43 : item Int;
+foo = int 43 : global Int;
 
-Test = int_elim item foo { 42 => item F64, item F32 } : Host;
+Test = int_elim item foo { 42 => global F64, global F32 } : Host;

@@ -1,3 +1,3 @@
 //! Test annotated annotations.
 
-Test = (item U8 : Format) : Format;
+Test = (global U8 : Format) : Format;

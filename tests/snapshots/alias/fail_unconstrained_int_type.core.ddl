@@ -1,1 +1,1 @@
-TestInt = item Int;
+TestInt = global Int;

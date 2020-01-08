@@ -1,1 +1,1 @@
-test = ! : item Bool;
+test = ! : global Bool;

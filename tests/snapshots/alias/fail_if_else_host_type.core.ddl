@@ -1,1 +1,1 @@
-Test = bool_elim item true { item F64, item F32 } : Host;
+Test = bool_elim global true { global F64, global F32 } : Host;
