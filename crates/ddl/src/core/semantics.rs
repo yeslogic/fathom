@@ -6,53 +6,55 @@ use std::sync::Arc;
 use crate::core::{Constant, Elim, Globals, Head, Term, Value};
 
 /// Evaluate a term into a semantic value.
-pub fn eval(globals: &Globals, /* TODO: items, locals, */ term: &Term) -> Value {
+pub fn eval(globals: &Globals, /* TODO: items, locals, */ term: &Term) -> Arc<Value> {
     match term {
-        Term::Global(_, name) => globals
-            .get(name)
-            .map_or(Value::Error, |(_, term)| match term {
+        Term::Global(_, name) => match globals.get(name) {
+            None => Arc::new(Value::Error),
+            Some((_, term)) => match term {
                 Some(term) => eval(globals, term),
-                None => Value::Neutral(Head::Global(name.clone()), Vec::new()),
-            }),
-        Term::Item(_, name) => Value::Neutral(Head::Item(name.clone()), Vec::new()), // TODO: Evaluate to value in environment
+                None => Arc::new(Value::Neutral(Head::Global(name.clone()), Vec::new())),
+            },
+        },
+        Term::Item(_, name) => Arc::new(Value::Neutral(Head::Item(name.clone()), Vec::new())), // TODO: Evaluate to value in environment
         Term::Ann(term, _) => eval(globals, term),
-        Term::Universe(_, universe) => Value::Universe(*universe),
-        Term::Constant(_, constant) => Value::Constant(constant.clone()),
-        Term::BoolElim(_, head, if_true, if_false) => match eval(globals, head) {
-            Value::Neutral(Head::Global(name), mut elims) if elims.is_empty() => {
-                match name.as_str() {
-                    "true" => eval(globals, if_true),
-                    "false" => eval(globals, if_false),
-                    _ => {
-                        elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
-                        Value::Neutral(Head::Global(name), elims)
-                    }
+        Term::Universe(_, universe) => Arc::new(Value::Universe(*universe)),
+        Term::Constant(_, constant) => Arc::new(Value::Constant(constant.clone())),
+        Term::BoolElim(_, head, if_true, if_false) => match eval(globals, head).as_ref() {
+            Value::Neutral(Head::Global(name), elims) if elims.is_empty() => match name.as_str() {
+                "true" => eval(globals, if_true),
+                "false" => eval(globals, if_false),
+                _ => {
+                    let mut elims = elims.clone(); // FIXME: clone?
+                    elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
+                    Arc::new(Value::Neutral(Head::Global(name.clone()), elims))
                 }
-            }
-            Value::Neutral(head, mut elims) => {
+            },
+            Value::Neutral(head, elims) => {
+                let mut elims = elims.clone(); // FIXME: clone?
                 elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
-                Value::Neutral(head, elims)
+                Arc::new(Value::Neutral(head.clone(), elims))
             }
-            _ => Value::Neutral(
+            _ => Arc::new(Value::Neutral(
                 Head::Error,
                 vec![Elim::Bool(if_true.clone(), if_false.clone())],
-            ),
+            )),
         },
-        Term::IntElim(_, head, branches, default) => match eval(globals, head) {
+        Term::IntElim(_, head, branches, default) => match eval(globals, head).as_ref() {
             Value::Constant(Constant::Int(value)) => match branches.get(&value) {
                 Some(term) => eval(globals, term),
                 None => eval(globals, default),
             },
-            Value::Neutral(head, mut elims) => {
+            Value::Neutral(head, elims) => {
+                let mut elims = elims.clone(); // FIXME: clone?
                 elims.push(Elim::Int(branches.clone(), default.clone()));
-                Value::Neutral(head, elims)
+                Arc::new(Value::Neutral(head.clone(), elims))
             }
-            _ => Value::Neutral(
+            _ => Arc::new(Value::Neutral(
                 Head::Error,
                 vec![Elim::Int(branches.clone(), default.clone())],
-            ),
+            )),
         },
-        Term::Error(_) => Value::Error,
+        Term::Error(_) => Arc::new(Value::Error),
     }
 }
 

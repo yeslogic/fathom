@@ -6,6 +6,7 @@
 use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::core::{semantics, Constant, Globals, Item, Module, Term, TypeField, Universe, Value};
 use crate::diagnostics;
@@ -26,7 +27,7 @@ pub struct Context<'me> {
     items: HashMap<&'me str, Span>,
     /// List of types currently bound in this context. These could either
     /// refer to items or local bindings.
-    tys: Vec<(&'me str, Value)>,
+    tys: Vec<(&'me str, Arc<Value>)>,
 }
 
 impl<'me> Context<'me> {
@@ -42,7 +43,7 @@ impl<'me> Context<'me> {
 
     /// Lookup the type of a binding corresponding to `name` in the context,
     /// returning `None` if `name` was not yet bound.
-    pub fn lookup_ty(&self, name: &str) -> Option<&Value> {
+    pub fn lookup_ty(&self, name: &str) -> Option<&Arc<Value>> {
         Some(&self.tys.iter().rev().find(|(n, _)| *n == name)?.1)
     }
 }
@@ -81,7 +82,7 @@ pub fn validate_items<'items>(
                 // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(&struct_ty.name) {
                     Entry::Vacant(entry) => {
-                        let ty = Value::Universe(Universe::Format);
+                        let ty = Arc::new(Value::Universe(Universe::Format));
                         context.tys.push((*entry.key(), ty));
                         entry.insert(struct_ty.span);
                     }
@@ -111,7 +112,7 @@ pub fn validate_struct_ty_fields(
     for field in fields {
         use std::collections::hash_map::Entry;
 
-        let format_ty = Value::Universe(Universe::Format);
+        let format_ty = Arc::new(Value::Universe(Universe::Format));
         check_term(&context, &field.term, &format_ty, report);
 
         match seen_field_names.entry(field.name.clone()) {
@@ -133,15 +134,18 @@ pub fn validate_struct_ty_fields(
 pub fn validate_universe(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Diagnostic)) {
     match term {
         Term::Universe(_, _) => {}
-        term => match synth_term(context, term, report) {
-            Value::Universe(_) | Value::Error => {}
-            ty => report(diagnostics::universe_mismatch(
-                Severity::Bug,
-                context.file_id,
-                term.span(),
-                &ty,
-            )),
-        },
+        term => {
+            let ty = synth_term(context, term, report);
+            match ty.as_ref() {
+                Value::Universe(_) | Value::Error => {}
+                _ => report(diagnostics::universe_mismatch(
+                    Severity::Bug,
+                    context.file_id,
+                    term.span(),
+                    &ty,
+                )),
+            }
+        }
     }
 }
 
@@ -149,18 +153,18 @@ pub fn validate_universe(context: &Context<'_>, term: &Term, report: &mut dyn Fn
 pub fn check_term(
     context: &Context<'_>,
     term: &Term,
-    expected_ty: &Value,
+    expected_ty: &Arc<Value>,
     report: &mut dyn FnMut(Diagnostic),
 ) {
-    match (term, expected_ty) {
+    match (term, expected_ty.as_ref()) {
         (Term::Error(_), _) | (_, Value::Error) => {}
-        (Term::BoolElim(_, term, if_true, if_false), expected_ty) => {
-            check_term(context, term, &Value::global("Bool"), report);
+        (Term::BoolElim(_, term, if_true, if_false), _) => {
+            check_term(context, term, &Arc::new(Value::global("Bool")), report);
             check_term(context, if_true, expected_ty, report);
             check_term(context, if_false, expected_ty, report);
         }
-        (Term::IntElim(_, head, branches, default), expected_ty) => {
-            check_term(context, head, &Value::global("Int"), report);
+        (Term::IntElim(_, head, branches, default), _) => {
+            check_term(context, head, &Arc::new(Value::global("Int")), report);
             for (_, term) in branches {
                 check_term(context, term, expected_ty, report);
             }
@@ -183,7 +187,11 @@ pub fn check_term(
 }
 
 /// Synthesize the type of a surface term.
-pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Diagnostic)) -> Value {
+pub fn synth_term(
+    context: &Context<'_>,
+    term: &Term,
+    report: &mut dyn FnMut(Diagnostic),
+) -> Arc<Value> {
     match term {
         Term::Global(span, name) => match context.globals.get(name) {
             Some((r#type, _)) => semantics::eval(context.globals, r#type),
@@ -193,7 +201,7 @@ pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Dia
                     &name,
                     *span,
                 ));
-                Value::Error
+                Arc::new(Value::Error)
             }
         },
         Term::Item(span, name) => match context.lookup_ty(name) {
@@ -204,7 +212,7 @@ pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Dia
                     &name,
                     *span,
                 ));
-                Value::Error
+                Arc::new(Value::Error)
             }
         },
         Term::Ann(term, ty) => {
@@ -214,25 +222,25 @@ pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Dia
             ty
         }
         Term::Universe(span, universe) => match universe {
-            Universe::Host | Universe::Format => Value::Universe(Universe::Kind),
+            Universe::Host | Universe::Format => Arc::new(Value::Universe(Universe::Kind)),
             Universe::Kind => {
                 report(diagnostics::kind_has_no_type(
                     Severity::Bug,
                     context.file_id,
                     *span,
                 ));
-                Value::Error
+                Arc::new(Value::Error)
             }
         },
         Term::Constant(_, constant) => match constant {
             // TODO: Lookup globals in environment
-            Constant::Int(_) => Value::global("Int"),
-            Constant::F32(_) => Value::global("F32"),
-            Constant::F64(_) => Value::global("F64"),
+            Constant::Int(_) => Arc::new(Value::global("Int")),
+            Constant::F32(_) => Arc::new(Value::global("F32")),
+            Constant::F64(_) => Arc::new(Value::global("F64")),
         },
         Term::BoolElim(_, head, if_true, if_false) => {
             // TODO: Lookup globals in environment
-            check_term(context, head, &Value::global("Bool"), report);
+            check_term(context, head, &Arc::new(Value::global("Bool")), report);
             let if_true_ty = synth_term(context, if_true, report);
             let if_false_ty = synth_term(context, if_false, report);
 
@@ -246,7 +254,7 @@ pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Dia
                     &if_true_ty,
                     &if_false_ty,
                 ));
-                Value::Error
+                Arc::new(Value::Error)
             }
         }
         Term::IntElim(span, _, _, _) => {
@@ -255,8 +263,8 @@ pub fn synth_term(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Dia
                 context.file_id,
                 *span,
             ));
-            Value::Error
+            Arc::new(Value::Error)
         }
-        Term::Error(_) => Value::Error,
+        Term::Error(_) => Arc::new(Value::Error),
     }
 }

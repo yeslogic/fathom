@@ -96,7 +96,7 @@ pub fn read_ty(context: &mut Context<'_>, term: &core::Term) -> Result<Term, ddl
         },
         core::Term::Ann(term, _) => read_ty(context, term),
         core::Term::BoolElim(_, head, if_true, if_false) => {
-            match &core::semantics::eval(context.globals, head) {
+            match &core::semantics::eval(context.globals, head).as_ref() {
                 core::Value::Neutral(core::Head::Global(name), elims)
                     if name == "true" && elims.is_empty() =>
                 {
@@ -111,7 +111,7 @@ pub fn read_ty(context: &mut Context<'_>, term: &core::Term) -> Result<Term, ddl
             }
         }
         core::Term::IntElim(_, head, branches, default) => {
-            match core::semantics::eval(context.globals, head) {
+            match core::semantics::eval(context.globals, head).as_ref() {
                 core::Value::Constant(core::Constant::Int(value)) => match branches.get(&value) {
                     Some(term) => read_ty(context, term),
                     None => read_ty(context, default),
