@@ -33,9 +33,9 @@ fn derives(is_copy: bool) -> Vec<String> {
 pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic)) -> rust::Module {
     let mut context = Context {
         file_id: module.file_id,
-        compiled_items: HashMap::new(),
+        items: HashMap::new(),
         enum_count: 0,
-        items: Vec::new(),
+        rust_items: Vec::new(),
     };
 
     for core_item in &module.items {
@@ -44,45 +44,72 @@ pub fn compile_module(module: &core::Module, report: &mut dyn FnMut(Diagnostic))
 
     rust::Module {
         doc: module.doc.clone(),
-        items: context.items,
+        items: context.rust_items,
     }
 }
 
-#[derive(Debug, Clone)]
-enum CompiledItem {
-    Term {
-        span: Span,
-        name: String,
-        ty: rust::Type,
-        is_function: bool,
-        is_const: bool,
-    },
-    Type {
-        span: Span,
-        name: String,
-        is_copy: bool,
-        host_ty: Option<rust::Type>,
-    },
+struct TermItem {
+    span: Span,
+    rust_name: String,
+    rust_ty: rust::Type,
+    is_function: bool,
+    is_const: bool,
+}
+
+impl TermItem {
+    fn to_term(&self) -> Term {
+        Term {
+            rust_term: if self.is_function {
+                rust::Term::call(rust::Term::name(self.rust_name.clone()), Vec::new())
+            } else {
+                rust::Term::name(self.rust_name.clone())
+            },
+            rust_ty: self.rust_ty.clone(),
+            is_const: self.is_const,
+        }
+    }
+}
+
+struct TypeItem {
+    span: Span,
+    rust_name: String,
+    is_copy: bool,
+    host_ty: Option<rust::Type>,
+}
+
+impl TypeItem {
+    fn to_ty(&self) -> Type {
+        Type {
+            rust_ty: rust::Type::Name(self.rust_name.clone().into(), Vec::new()),
+            is_copy: self.is_copy,
+            host_ty: self.host_ty.clone(),
+            read: None,
+        }
+    }
+}
+
+enum Item {
+    Term(TermItem),
+    Type(TypeItem),
     Erased(Span),
     Error(Span),
 }
 
-impl CompiledItem {
+impl Item {
     fn span(&self) -> Span {
         match self {
-            CompiledItem::Term { span, .. }
-            | CompiledItem::Type { span, .. }
-            | CompiledItem::Erased(span)
-            | CompiledItem::Error(span) => *span,
+            Item::Term(term_item) => term_item.span,
+            Item::Type(ty_item) => ty_item.span,
+            Item::Erased(span) | Item::Error(span) => *span,
         }
     }
 }
 
 struct Context<'me> {
     file_id: FileId,
-    compiled_items: HashMap<&'me str, CompiledItem>,
+    items: HashMap<&'me str, Item>,
     enum_count: usize,
-    items: Vec<rust::Item>,
+    rust_items: Vec<rust::Item>,
 }
 
 fn compile_item<'item>(
@@ -105,67 +132,61 @@ fn compile_alias<'item>(
 
     let span = core_alias.span;
 
-    let compiled_item = match compile_term(context, &core_alias.term, report) {
-        CompiledTerm::Term { term, ty, is_const } => {
+    let item = match compile_term(context, &core_alias.term, report) {
+        CompiledTerm::Term(term) => {
             let doc = core_alias.doc.clone();
-            if is_const {
-                let name = core_alias.name.to_screaming_snake_case(); // TODO: name avoidance
-                context.items.push(rust::Item::Const(rust::Const {
+            if term.is_const {
+                let rust_name = core_alias.name.to_screaming_snake_case(); // TODO: name avoidance
+                context.rust_items.push(rust::Item::Const(rust::Const {
                     doc,
-                    name: name.clone(),
-                    ty: ty.clone(),
-                    term,
+                    name: rust_name.clone(),
+                    ty: term.rust_ty.clone(),
+                    term: term.rust_term,
                 }));
-                CompiledItem::Term {
+                Item::Term(TermItem {
                     span,
-                    name,
-                    ty,
+                    rust_name,
+                    rust_ty: term.rust_ty,
                     is_function: false,
-                    is_const,
-                }
+                    is_const: term.is_const,
+                })
             } else {
-                let name = core_alias.name.to_snake_case(); // TODO: name avoidance
-                context.items.push(rust::Item::Function(rust::Function {
+                let rust_name = core_alias.name.to_snake_case(); // TODO: name avoidance
+                let rust_item = rust::Item::Function(rust::Function {
                     doc,
-                    name: name.clone(),
-                    is_const,
-                    ty: ty.clone(),
-                    block: rust::Block::new(Vec::new(), term),
-                }));
-                CompiledItem::Term {
+                    name: rust_name.clone(),
+                    is_const: term.is_const,
+                    ty: term.rust_ty.clone(),
+                    block: rust::Block::new(Vec::new(), term.rust_term),
+                });
+                context.rust_items.push(rust_item);
+                Item::Term(TermItem {
                     span,
-                    name,
-                    ty,
+                    rust_name,
+                    rust_ty: term.rust_ty,
                     is_function: true,
-                    is_const,
-                }
+                    is_const: term.is_const,
+                })
             }
         }
-        CompiledTerm::Erased => CompiledItem::Erased(span),
-        CompiledTerm::Error => CompiledItem::Error(span),
-        CompiledTerm::Type {
-            ty,
-            is_copy,
-            host_ty,
-            read,
-        } => {
+        CompiledTerm::Type(ty) => {
             let doc = core_alias.doc.clone();
-            let name = core_alias.name.to_pascal_case(); // TODO: name avoidance
-            match read {
-                Some(read) => match host_ty {
+            let rust_name = core_alias.name.to_pascal_case(); // TODO: name avoidance
+            match ty.read {
+                Some(read) => match ty.host_ty {
                     None => unreachable!("type level if for non-format type"),
                     Some(host_ty) => {
                         // Should we be using `ty` somewhere here?
-                        context.items.push(rust::Item::Struct(rust::StructType {
-                            derives: derives(is_copy),
+                        let rust_item = rust::Item::Struct(rust::StructType {
+                            derives: derives(ty.is_copy),
                             doc,
-                            name: name.clone(),
+                            name: rust_name.clone(),
                             read: Some(rust::Block::new(
                                 vec![rust::Statement::Let("inner".to_owned(), Box::new(read))],
-                                rust::Term::Call(
-                                    Box::new(rust::Term::name("Ok")),
+                                rust::Term::call(
+                                    rust::Term::name("Ok"),
                                     vec![rust::Term::Struct(
-                                        name.clone(),
+                                        rust_name.clone(),
                                         vec![("inner".to_owned(), None)],
                                     )],
                                 ),
@@ -174,35 +195,38 @@ fn compile_alias<'item>(
                                 doc: Arc::new([]),
                                 name: "inner".to_owned(),
                                 ty: host_ty,
-                                by_ref: !is_copy,
+                                by_ref: !ty.is_copy,
                             }],
-                        }));
-                        CompiledItem::Type {
+                        });
+                        context.rust_items.push(rust_item);
+                        Item::Type(TypeItem {
                             span,
-                            name: name.clone(),
-                            is_copy,
-                            host_ty: Some(rust::Type::name(name.clone(), Vec::new())),
-                        }
+                            rust_name: rust_name.clone(),
+                            is_copy: ty.is_copy,
+                            host_ty: Some(rust::Type::name(rust_name, Vec::new())),
+                        })
                     }
                 },
                 None => {
-                    context.items.push(rust::Item::Alias(rust::Alias {
+                    context.rust_items.push(rust::Item::Alias(rust::Alias {
                         doc,
-                        name: name.clone(),
-                        ty,
+                        name: rust_name.clone(),
+                        ty: ty.rust_ty,
                     }));
-                    CompiledItem::Type {
+                    Item::Type(TypeItem {
                         span,
-                        name,
-                        is_copy,
-                        host_ty,
-                    }
+                        rust_name,
+                        is_copy: ty.is_copy,
+                        host_ty: ty.host_ty,
+                    })
                 }
             }
         }
+        CompiledTerm::Erased => Item::Erased(span),
+        CompiledTerm::Error => Item::Error(span),
     };
 
-    match context.compiled_items.entry(&core_alias.name) {
+    match context.items.entry(&core_alias.name) {
         Entry::Occupied(entry) => {
             report(diagnostics::bug::item_name_reused(
                 context.file_id,
@@ -212,7 +236,7 @@ fn compile_alias<'item>(
             ));
         }
         Entry::Vacant(entry) => {
-            entry.insert(compiled_item);
+            entry.insert(item);
         }
     }
 }
@@ -229,62 +253,39 @@ fn compile_struct_ty<'item>(
     let mut read_statements = Vec::with_capacity(core_struct_ty.fields.len());
 
     for field in &core_struct_ty.fields {
-        let name = field.name.to_snake_case();
-        let (format_ty, host_ty, read, is_field_copy) =
-            match compile_term(context, &field.term, report) {
-                // TODO: error message!
-                CompiledTerm::Term { .. } => (rt_invalid_ty(), rt_invalid_ty(), None, true),
-                CompiledTerm::Type {
-                    ty,
-                    is_copy,
-                    host_ty,
-                    read,
-                } => match &host_ty {
-                    Some(host_ty) => (ty, host_ty.clone(), read, is_copy),
-                    None => {
-                        report(diagnostics::bug::host_type_found_in_field(
-                            context.file_id,
-                            core_struct_ty.span,
-                            field.term.span(),
-                        ));
-                        (rt_invalid_ty(), rt_invalid_ty(), None, true)
-                    }
-                },
-                CompiledTerm::Erased => {
-                    report(diagnostics::non_format_type_as_host_type(
-                        Severity::Bug,
-                        context.file_id,
-                        field.term.span(),
-                    ));
-                    (rt_invalid_ty(), rt_invalid_ty(), None, true)
-                }
-                CompiledTerm::Error => (rt_invalid_ty(), rt_invalid_ty(), None, true),
-            };
+        let rust_name = field.name.to_snake_case();
+        let field_ty = compile_term_as_ty(context, &field.term, report).unwrap_or_else(|| Type {
+            rust_ty: rt_invalid_ty(),
+            host_ty: None,
+            read: None,
+            is_copy: true,
+        });
 
-        is_copy &= is_field_copy;
+        is_copy &= field_ty.is_copy;
         fields.push(rust::TypeField {
             doc: field.doc.clone(),
-            name,
-            ty: host_ty,
-            by_ref: !is_field_copy,
+            name: rust_name,
+            ty: field_ty.host_ty.unwrap_or_else(rt_invalid_ty),
+            by_ref: !field_ty.is_copy,
         });
-        read_statements.push(rust::Statement::Let(
-            field.name.clone(),
-            Box::new(read.unwrap_or_else(|| rust::Term::Read(Box::new(format_ty)))),
-        ));
+        let read = match field_ty.read {
+            Some(read) => read,
+            None => rust::Term::Read(Box::new(field_ty.rust_ty)),
+        };
+        read_statements.push(rust::Statement::Let(field.name.clone(), Box::new(read)));
     }
 
-    let name = core_struct_ty.name.to_pascal_case(); // TODO: name avoidance
-    context.items.push(rust::Item::Struct(rust::StructType {
+    let rust_name = core_struct_ty.name.to_pascal_case(); // TODO: name avoidance
+    let rust_item = rust::Item::Struct(rust::StructType {
         derives: derives(is_copy),
         doc: core_struct_ty.doc.clone(),
-        name: name.clone(),
+        name: rust_name.clone(),
         read: Some(rust::Block::new(
             read_statements,
-            rust::Term::Call(
-                Box::new(rust::Term::name("Ok")),
+            rust::Term::call(
+                rust::Term::name("Ok"),
                 vec![rust::Term::Struct(
-                    name.clone(),
+                    rust_name.clone(),
                     fields
                         .iter()
                         .map(|field| (field.name.clone(), None))
@@ -293,9 +294,10 @@ fn compile_struct_ty<'item>(
             ),
         )),
         fields,
-    }));
+    });
+    context.rust_items.push(rust_item);
 
-    match context.compiled_items.entry(&core_struct_ty.name) {
+    match context.items.entry(&core_struct_ty.name) {
         Entry::Occupied(entry) => {
             report(diagnostics::bug::item_name_reused(
                 context.file_id,
@@ -305,28 +307,32 @@ fn compile_struct_ty<'item>(
             ));
         }
         Entry::Vacant(entry) => {
-            entry.insert(CompiledItem::Type {
+            entry.insert(Item::Type(TypeItem {
                 span: core_struct_ty.span,
-                name: name.clone(),
+                rust_name: rust_name.clone(),
                 is_copy,
-                host_ty: Some(rust::Type::name(name.clone(), Vec::new())),
-            });
+                host_ty: Some(rust::Type::name(rust_name, Vec::new())),
+            }));
         }
     }
 }
 
+struct Term {
+    rust_term: rust::Term,
+    rust_ty: rust::Type,
+    is_const: bool,
+}
+
+struct Type {
+    rust_ty: rust::Type,
+    is_copy: bool,
+    host_ty: Option<rust::Type>,
+    read: Option<rust::Term>,
+}
+
 enum CompiledTerm {
-    Term {
-        term: rust::Term,
-        ty: rust::Type,
-        is_const: bool,
-    },
-    Type {
-        ty: rust::Type,
-        is_copy: bool,
-        host_ty: Option<rust::Type>,
-        read: Option<rust::Term>,
-    },
+    Term(Term),
+    Type(Type),
     Erased,
     Error,
 }
@@ -338,94 +344,73 @@ fn compile_term(
 ) -> CompiledTerm {
     let file_id = context.file_id;
 
-    let ty_name = |name| rust::Type::name(name, Vec::new());
-    let compiled_host_ty = |ty| CompiledTerm::Type {
-        ty,
-        is_copy: true,
-        host_ty: None,
-        read: None,
+    let host_ty = |rust_ty| {
+        CompiledTerm::Type(Type {
+            rust_ty,
+            is_copy: true,
+            host_ty: None,
+            read: None,
+        })
     };
-    let compiled_format_ty = |ty, host_ty| CompiledTerm::Type {
-        ty,
-        is_copy: true,
-        host_ty: Some(host_ty),
-        read: None,
+    let format_ty = |rust_ty, host_ty| {
+        CompiledTerm::Type(Type {
+            rust_ty,
+            is_copy: true,
+            host_ty: Some(host_ty),
+            read: None,
+        })
     };
 
     match core_term {
         core::Term::Global(span, name) => match name.as_str() {
             // TODO: Put globals in an environment
-            "U8" => compiled_format_ty(rt_ty_name("U8"), ty_name("u8")),
-            "U16Le" => compiled_format_ty(rt_ty_name("U16Le"), ty_name("u16")),
-            "U16Be" => compiled_format_ty(rt_ty_name("U16Be"), ty_name("u16")),
-            "U32Le" => compiled_format_ty(rt_ty_name("U32Le"), ty_name("u32")),
-            "U32Be" => compiled_format_ty(rt_ty_name("U32Be"), ty_name("u32")),
-            "U64Le" => compiled_format_ty(rt_ty_name("U64Le"), ty_name("u64")),
-            "U64Be" => compiled_format_ty(rt_ty_name("U64Be"), ty_name("u64")),
-            "S8" => compiled_format_ty(rt_ty_name("I8"), ty_name("i8")),
-            "S16Le" => compiled_format_ty(rt_ty_name("I16Le"), ty_name("i16")),
-            "S16Be" => compiled_format_ty(rt_ty_name("I16Be"), ty_name("i16")),
-            "S32Le" => compiled_format_ty(rt_ty_name("I32Le"), ty_name("i32")),
-            "S32Be" => compiled_format_ty(rt_ty_name("I32Be"), ty_name("i32")),
-            "S64Le" => compiled_format_ty(rt_ty_name("I64Le"), ty_name("i64")),
-            "S64Be" => compiled_format_ty(rt_ty_name("I64Be"), ty_name("i64")),
-            "F32Le" => compiled_format_ty(rt_ty_name("F32Le"), ty_name("f32")),
-            "F32Be" => compiled_format_ty(rt_ty_name("F32Be"), ty_name("f32")),
-            "F64Le" => compiled_format_ty(rt_ty_name("F64Le"), ty_name("f64")),
-            "F64Be" => compiled_format_ty(rt_ty_name("F64Be"), ty_name("f64")),
-            "Bool" => compiled_host_ty(ty_name("bool")),
+            "U8" => format_ty(rt_ty_name("U8"), rust::Type::name("u8", Vec::new())),
+            "U16Le" => format_ty(rt_ty_name("U16Le"), rust::Type::name("u16", Vec::new())),
+            "U16Be" => format_ty(rt_ty_name("U16Be"), rust::Type::name("u16", Vec::new())),
+            "U32Le" => format_ty(rt_ty_name("U32Le"), rust::Type::name("u32", Vec::new())),
+            "U32Be" => format_ty(rt_ty_name("U32Be"), rust::Type::name("u32", Vec::new())),
+            "U64Le" => format_ty(rt_ty_name("U64Le"), rust::Type::name("u64", Vec::new())),
+            "U64Be" => format_ty(rt_ty_name("U64Be"), rust::Type::name("u64", Vec::new())),
+            "S8" => format_ty(rt_ty_name("I8"), rust::Type::name("i8", Vec::new())),
+            "S16Le" => format_ty(rt_ty_name("I16Le"), rust::Type::name("i16", Vec::new())),
+            "S16Be" => format_ty(rt_ty_name("I16Be"), rust::Type::name("i16", Vec::new())),
+            "S32Le" => format_ty(rt_ty_name("I32Le"), rust::Type::name("i32", Vec::new())),
+            "S32Be" => format_ty(rt_ty_name("I32Be"), rust::Type::name("i32", Vec::new())),
+            "S64Le" => format_ty(rt_ty_name("I64Le"), rust::Type::name("i64", Vec::new())),
+            "S64Be" => format_ty(rt_ty_name("I64Be"), rust::Type::name("i64", Vec::new())),
+            "F32Le" => format_ty(rt_ty_name("F32Le"), rust::Type::name("f32", Vec::new())),
+            "F32Be" => format_ty(rt_ty_name("F32Be"), rust::Type::name("f32", Vec::new())),
+            "F64Le" => format_ty(rt_ty_name("F64Le"), rust::Type::name("f64", Vec::new())),
+            "F64Be" => format_ty(rt_ty_name("F64Be"), rust::Type::name("f64", Vec::new())),
+            "Bool" => host_ty(rust::Type::name("bool", Vec::new())),
             "Int" => {
                 report(diagnostics::error::unconstrained_int(file_id, *span));
-                compiled_host_ty(rt_invalid_ty())
+                host_ty(rt_invalid_ty())
             }
-            "F32" => compiled_host_ty(ty_name("f32")),
-            "F64" => compiled_host_ty(ty_name("f64")),
-            "true" => CompiledTerm::Term {
-                term: rust::Term::name("true"),
-                ty: rust::Type::name("bool", Vec::new()),
+            "F32" => host_ty(rust::Type::name("f32", Vec::new())),
+            "F64" => host_ty(rust::Type::name("f64", Vec::new())),
+            "true" => CompiledTerm::Term(Term {
+                rust_term: rust::Term::name("true"),
+                rust_ty: rust::Type::name("bool", Vec::new()),
                 is_const: true,
-            },
-            "false" => CompiledTerm::Term {
-                term: rust::Term::name("true"),
-                ty: rust::Type::name("bool", Vec::new()),
+            }),
+            "false" => CompiledTerm::Term(Term {
+                rust_term: rust::Term::name("true"),
+                rust_ty: rust::Type::name("bool", Vec::new()),
                 is_const: true,
-            },
+            }),
             name => {
                 report(crate::diagnostics::bug::global_name_not_found(
                     file_id, name, *span,
                 ));
-                compiled_host_ty(rt_invalid_ty())
+                host_ty(rt_invalid_ty())
             }
         },
-        core::Term::Item(span, name) => match context.compiled_items.get(name.as_str()) {
-            Some(CompiledItem::Term {
-                name,
-                ty,
-                is_function,
-                is_const,
-                ..
-            }) => CompiledTerm::Term {
-                term: if *is_function {
-                    rust::Term::Call(Box::new(rust::Term::Name(name.clone().into())), Vec::new())
-                } else {
-                    rust::Term::Name(name.clone().into())
-                },
-                ty: ty.clone(),
-                is_const: *is_const,
-            },
-            Some(CompiledItem::Type {
-                name,
-                is_copy,
-                host_ty,
-                ..
-            }) => CompiledTerm::Type {
-                ty: rust::Type::Name(name.clone().into(), Vec::new()),
-                is_copy: *is_copy,
-                host_ty: host_ty.clone(),
-                read: None,
-            },
-            Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
-            Some(CompiledItem::Error(_)) => CompiledTerm::Error,
+        core::Term::Item(span, name) => match context.items.get(name.as_str()) {
+            Some(Item::Term(term_item)) => CompiledTerm::Term(term_item.to_term()),
+            Some(Item::Type(ty_item)) => CompiledTerm::Type(ty_item.to_ty()),
+            Some(Item::Erased(_)) => CompiledTerm::Erased,
+            Some(Item::Error(_)) => CompiledTerm::Error,
             None => {
                 report(diagnostics::bug::unbound_item(file_id, name, *span));
                 CompiledTerm::Error
@@ -444,6 +429,31 @@ fn compile_term(
     }
 }
 
+fn compile_term_as_ty(
+    context: &mut Context<'_>,
+    core_term: &core::Term,
+    report: &mut dyn FnMut(Diagnostic),
+) -> Option<Type> {
+    match compile_term(context, &core_term, report) {
+        CompiledTerm::Term(_) => None, // TODO: report error
+        CompiledTerm::Type(ty) => Some(ty),
+        CompiledTerm::Erased => None, // TODO: report error
+        CompiledTerm::Error => None,
+    }
+}
+
+fn compile_term_as_term(
+    context: &mut Context<'_>,
+    core_term: &core::Term,
+    report: &mut dyn FnMut(Diagnostic),
+) -> Option<Term> {
+    match compile_term(context, core_term, report) {
+        CompiledTerm::Term(term) => Some(term),
+        CompiledTerm::Type(_) | CompiledTerm::Erased => None, // TODO: report error
+        CompiledTerm::Error => None,
+    }
+}
+
 fn compile_constant(
     context: &mut Context<'_>,
     span: Span,
@@ -451,34 +461,32 @@ fn compile_constant(
     report: &mut dyn FnMut(Diagnostic),
 ) -> CompiledTerm {
     match constant {
-        core::Constant::Int(value) => {
-            match value.to_i64() {
-                // TODO: don't default to I64.
-                Some(value) => CompiledTerm::Term {
-                    term: rust::Term::Constant(rust::Constant::I64(value)),
-                    ty: rust::Type::name("i64", Vec::new()),
-                    is_const: true,
-                },
-                None => {
-                    report(crate::diagnostics::bug::not_yet_implemented(
-                        context.file_id,
-                        span,
-                        "non-i64 types",
-                    ));
-                    CompiledTerm::Error
-                }
+        core::Constant::Int(value) => match value.to_i64() {
+            // TODO: don't default to I64.
+            Some(value) => CompiledTerm::Term(Term {
+                rust_term: rust::Term::Constant(rust::Constant::I64(value)),
+                rust_ty: rust::Type::name("i64", Vec::new()),
+                is_const: true,
+            }),
+            None => {
+                report(crate::diagnostics::bug::not_yet_implemented(
+                    context.file_id,
+                    span,
+                    "non-i64 types",
+                ));
+                CompiledTerm::Error
             }
-        }
-        core::Constant::F32(value) => CompiledTerm::Term {
-            term: rust::Term::Constant(rust::Constant::F32(*value)),
-            ty: rust::Type::name("f32", Vec::new()),
-            is_const: true,
         },
-        core::Constant::F64(value) => CompiledTerm::Term {
-            term: rust::Term::Constant(rust::Constant::F64(*value)),
-            ty: rust::Type::name("f64", Vec::new()),
+        core::Constant::F32(value) => CompiledTerm::Term(Term {
+            rust_term: rust::Term::Constant(rust::Constant::F32(*value)),
+            rust_ty: rust::Type::name("f32", Vec::new()),
             is_const: true,
-        },
+        }),
+        core::Constant::F64(value) => CompiledTerm::Term(Term {
+            rust_term: rust::Term::Constant(rust::Constant::F64(*value)),
+            rust_ty: rust::Type::name("f64", Vec::new()),
+            is_const: true,
+        }),
     }
 }
 
@@ -489,50 +497,32 @@ fn compile_bool_elim(
     if_false: &core::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> CompiledTerm {
-    let head = match compile_term(context, head, report) {
-        CompiledTerm::Term { term: head, .. } => head,
-        // TODO: Error
-        _ => return CompiledTerm::Error,
-    };
-
     match (
+        compile_term_as_term(context, head, report),
         compile_term(context, if_true, report),
         compile_term(context, if_false, report),
     ) {
-        (
-            CompiledTerm::Term {
-                term: if_true,
-                ty: if_true_ty,
-                ..
-            },
-            CompiledTerm::Term { term: if_false, .. },
-        ) => CompiledTerm::Term {
-            term: rust::Term::If(Box::new(head), Box::new(if_true), Box::new(if_false)),
-            ty: if_true_ty, // TODO: check if arms match
-            is_const: false,
-        },
-        (
-            CompiledTerm::Type {
-                ty: true_ty,
-                is_copy: true_is_copy,
-                host_ty: true_host_ty,
-                read: true_read,
-            },
-            CompiledTerm::Type {
-                ty: false_ty,
-                is_copy: false_is_copy,
-                host_ty: false_host_ty,
-                read: false_read,
-            },
-        ) => {
+        (Some(head), CompiledTerm::Term(true_term), CompiledTerm::Term(false_term)) => {
+            CompiledTerm::Term(Term {
+                rust_term: rust::Term::If(
+                    Box::new(head.rust_term),
+                    Box::new(true_term.rust_term),
+                    Box::new(false_term.rust_term),
+                ),
+                rust_ty: true_term.rust_ty, // TODO: check if arms match
+                is_const: false,
+            })
+        }
+        (Some(head), CompiledTerm::Type(true_ty), CompiledTerm::Type(false_ty)) => {
             let mut is_impossible = true;
-            let (true_host_ty, true_read) = match true_host_ty {
+            let (true_host_ty, true_read) = match true_ty.host_ty {
                 Some(host_ty) => {
                     is_impossible = false;
-                    (
-                        host_ty,
-                        true_read.unwrap_or_else(|| rust::Term::Read(Box::new(true_ty))),
-                    )
+                    let read = match true_ty.read {
+                        Some(read) => read,
+                        None => rust::Term::Read(Box::new(true_ty.rust_ty)),
+                    };
+                    (host_ty, read)
                 }
                 None => {
                     report(diagnostics::non_format_type_as_host_type(
@@ -543,13 +533,14 @@ fn compile_bool_elim(
                     (rt_invalid_ty(), rust::Term::Read(Box::new(rt_invalid_ty())))
                 }
             };
-            let (false_host_ty, false_read) = match false_host_ty {
+            let (false_host_ty, false_read) = match false_ty.host_ty {
                 Some(host_ty) => {
                     is_impossible = false;
-                    (
-                        host_ty,
-                        false_read.unwrap_or_else(|| rust::Term::Read(Box::new(false_ty))),
-                    )
+                    let read = match false_ty.read {
+                        Some(read) => read,
+                        None => rust::Term::Read(Box::new(false_ty.rust_ty)),
+                    };
+                    (host_ty, read)
                 }
                 None => {
                     report(diagnostics::non_format_type_as_host_type(
@@ -567,50 +558,52 @@ fn compile_bool_elim(
 
             // TODO: name avoidance
             // TODO: improve naming
-            let enum_name = format!("Enum{}", context.enum_count);
+            let enum_rust_name = format!("Enum{}", context.enum_count);
             context.enum_count += 1;
 
-            let is_copy = true_is_copy && false_is_copy;
+            let is_copy = true_ty.is_copy && false_ty.is_copy;
 
-            let true_name = "True".to_owned();
-            let true_ctor = rust::Term::name(format!("{}::{}", enum_name, true_name));
-            let false_name = "False".to_owned();
-            let false_ctor = rust::Term::name(format!("{}::{}", enum_name, false_name));
-            context.items.push(rust::Item::Enum(rust::EnumType {
+            let true_rust_name = "True".to_owned();
+            let true_ctor = rust::Term::name(format!("{}::{}", enum_rust_name, true_rust_name));
+            let false_rust_name = "False".to_owned();
+            let false_ctor = rust::Term::name(format!("{}::{}", enum_rust_name, false_rust_name));
+            context.rust_items.push(rust::Item::Enum(rust::EnumType {
                 derives: derives(is_copy),
                 doc: Arc::new([]),
-                name: enum_name.clone(),
+                name: enum_rust_name.clone(),
                 variants: vec![
                     rust::Variant {
                         doc: Arc::new([]),
-                        name: true_name,
+                        name: true_rust_name,
                         ty: true_host_ty,
                     },
                     rust::Variant {
                         doc: Arc::new([]),
-                        name: false_name,
+                        name: false_rust_name,
                         ty: false_host_ty,
                     },
                 ],
             }));
 
-            CompiledTerm::Type {
-                ty: rt_invalid_ty(),
+            CompiledTerm::Type(Type {
+                rust_ty: rt_invalid_ty(),
                 is_copy,
-                host_ty: Some(rust::Type::name(enum_name, Vec::new())),
+                host_ty: Some(rust::Type::name(enum_rust_name, Vec::new())),
                 read: Some(rust::Term::If(
-                    Box::new(head),
-                    Box::new(rust::Term::Call(Box::new(true_ctor), vec![true_read])),
-                    Box::new(rust::Term::Call(Box::new(false_ctor), vec![false_read])),
+                    Box::new(head.rust_term),
+                    Box::new(rust::Term::call(true_ctor, vec![true_read])),
+                    Box::new(rust::Term::call(false_ctor, vec![false_read])),
                 )),
-            }
+            })
         }
 
-        (CompiledTerm::Erased, CompiledTerm::Erased) => CompiledTerm::Erased,
-        (CompiledTerm::Error, _) | (_, CompiledTerm::Error) => CompiledTerm::Error,
+        (Some(_), CompiledTerm::Erased, CompiledTerm::Erased) => CompiledTerm::Erased,
+        (None, _, _) | (_, CompiledTerm::Error, _) | (_, _, CompiledTerm::Error) => {
+            CompiledTerm::Error
+        }
 
         // TODO: report bug: mismatched arms of if expression
-        (_, _) => unimplemented!(),
+        (_, _, _) => unimplemented!(),
     }
 }
 
@@ -622,25 +615,18 @@ fn compile_int_elim(
     default: &core::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> CompiledTerm {
-    let head = match compile_term(context, head, report) {
-        CompiledTerm::Term { term: head, .. } => head,
-        // TODO: Error
-        _ => return CompiledTerm::Error,
-    };
-
-    match compile_term(context, default, report) {
-        CompiledTerm::Term {
-            term: default,
-            ty: default_ty,
-            ..
-        } => {
+    match (
+        compile_term_as_term(context, head, report),
+        compile_term(context, default, report),
+    ) {
+        (Some(head), CompiledTerm::Term(default_term)) => {
             let branches = branches
                 .iter()
                 .filter_map(|(value, term)| match value.to_i64() {
                     Some(value) => Some((
                         rust::Pattern::Constant(rust::Constant::I64(value)),
                         match compile_term(context, term, report) {
-                            CompiledTerm::Term { term, .. } => term,
+                            CompiledTerm::Term(term) => term.rust_term,
                             // TODO: report bug: mismatched arms of match expression
                             _ => rust::Term::Panic("error term".into()),
                         },
@@ -654,27 +640,25 @@ fn compile_int_elim(
                         None
                     }
                 })
-                .chain(std::iter::once((rust::Pattern::name("_"), default))) // TODO: Use pattern name
+                .chain(std::iter::once((
+                    rust::Pattern::name("_"),
+                    default_term.rust_term,
+                ))) // TODO: Use pattern name
                 .collect();
 
-            CompiledTerm::Term {
-                term: rust::Term::Match(Box::new(head), branches),
-                ty: default_ty,
+            CompiledTerm::Term(Term {
+                rust_term: rust::Term::Match(Box::new(head.rust_term), branches),
+                rust_ty: default_term.rust_ty,
                 is_const: false,
-            }
+            })
         }
-        CompiledTerm::Type {
-            ty: default_ty,
-            is_copy: default_is_copy,
-            host_ty: default_host_ty,
-            read: default_read,
-        } => {
+        (Some(head), CompiledTerm::Type(default_ty)) => {
             // TODO: name avoidance
             // TODO: improve naming
-            let enum_name = format!("Enum{}", context.enum_count);
+            let enum_rust_name = format!("Enum{}", context.enum_count);
             context.enum_count += 1;
 
-            let mut is_copy = default_is_copy;
+            let mut is_copy = default_ty.is_copy;
             let mut is_impossible = true;
             let mut variants = Vec::with_capacity(branches.len());
             let mut read_branches = Vec::with_capacity(branches.len());
@@ -694,21 +678,16 @@ fn compile_int_elim(
                 };
 
                 match compile_term(context, term, report) {
-                    CompiledTerm::Type {
-                        ty: branch_ty,
-                        is_copy: branch_is_copy,
-                        host_ty: branch_host_ty,
-                        read: branch_read,
-                    } => {
-                        is_copy &= branch_is_copy;
-                        let (branch_host_ty, branch_read) = match branch_host_ty {
+                    CompiledTerm::Type(branch_ty) => {
+                        is_copy &= branch_ty.is_copy;
+                        let (branch_host_ty, branch_read) = match branch_ty.host_ty {
                             Some(host_ty) => {
                                 is_impossible = false;
-                                (
-                                    host_ty,
-                                    branch_read
-                                        .unwrap_or_else(|| rust::Term::Read(Box::new(branch_ty))),
-                                )
+                                let read = match branch_ty.read {
+                                    Some(read) => read,
+                                    None => rust::Term::Read(Box::new(branch_ty.rust_ty)),
+                                };
+                                (host_ty, read)
                             }
                             None => {
                                 report(diagnostics::non_format_type_as_host_type(
@@ -721,32 +700,31 @@ fn compile_int_elim(
                         };
 
                         // TODO: improve naming?
-                        let branch_name = format!("Variant{}", i);
+                        let branch_rust_name = format!("Variant{}", i);
                         let branch_ctor =
-                            rust::Term::name(format!("{}::{}", enum_name, branch_name));
+                            rust::Term::name(format!("{}::{}", enum_rust_name, branch_rust_name));
                         variants.push(rust::Variant {
                             doc: Arc::new([]),
-                            name: branch_name,
+                            name: branch_rust_name,
                             ty: branch_host_ty,
                         });
-                        read_branches.push((
-                            pattern,
-                            rust::Term::Call(Box::new(branch_ctor), vec![branch_read]),
-                        ));
+                        read_branches
+                            .push((pattern, rust::Term::call(branch_ctor, vec![branch_read])));
                     }
                     // TODO: report bug: mismatched arms of match expression
                     _ => unimplemented!(),
                 }
             }
 
-            is_copy &= default_is_copy;
-            let (default_host_ty, default_read) = match default_host_ty {
+            is_copy &= default_ty.is_copy;
+            let (default_host_ty, default_read) = match default_ty.host_ty {
                 Some(host_ty) => {
                     is_impossible = false;
-                    (
-                        host_ty,
-                        default_read.unwrap_or_else(|| rust::Term::Read(Box::new(default_ty))),
-                    )
+                    let read = match default_ty.read {
+                        Some(read) => read,
+                        None => rust::Term::Read(Box::new(default_ty.rust_ty)),
+                    };
+                    (host_ty, read)
                 }
                 None => {
                     report(diagnostics::non_format_type_as_host_type(
@@ -764,7 +742,7 @@ fn compile_int_elim(
 
             // TODO: improve naming?
             let default_name = "Default".to_owned();
-            let default_ctor = rust::Term::name(format!("{}::{}", enum_name, default_name));
+            let default_ctor = rust::Term::name(format!("{}::{}", enum_rust_name, default_name));
             variants.push(rust::Variant {
                 doc: Arc::new([]),
                 name: default_name,
@@ -772,25 +750,25 @@ fn compile_int_elim(
             });
             read_branches.push((
                 rust::Pattern::Name("_".into()), // TODO: Use pattern name
-                rust::Term::Call(Box::new(default_ctor), vec![default_read]),
+                rust::Term::call(default_ctor, vec![default_read]),
             ));
 
-            context.items.push(rust::Item::Enum(rust::EnumType {
+            context.rust_items.push(rust::Item::Enum(rust::EnumType {
                 derives: derives(is_copy),
                 doc: Arc::new([]),
-                name: enum_name.clone(),
+                name: enum_rust_name.clone(),
                 variants,
             }));
 
-            CompiledTerm::Type {
-                ty: rt_invalid_ty(),
+            CompiledTerm::Type(Type {
+                rust_ty: rt_invalid_ty(),
                 is_copy,
-                host_ty: Some(rust::Type::name(enum_name.clone(), Vec::new())),
-                read: Some(rust::Term::Match(Box::new(head), read_branches)),
-            }
+                host_ty: Some(rust::Type::name(enum_rust_name.clone(), Vec::new())),
+                read: Some(rust::Term::Match(Box::new(head.rust_term), read_branches)),
+            })
         }
-        CompiledTerm::Erased => CompiledTerm::Erased,
-        CompiledTerm::Error => CompiledTerm::Error,
+        (_, CompiledTerm::Erased) => CompiledTerm::Erased,
+        (None, _) | (_, CompiledTerm::Error) => CompiledTerm::Error,
     }
 }
 
