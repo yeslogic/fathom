@@ -249,11 +249,11 @@ fn compile_term<'term>(
             branches = branches
                 .iter()
                 .map(|(pattern, term)| format!(
-                    "{pattern} => {term}",
+                    "{pattern} &rArr; {term}",
                     pattern = compile_pattern(context, pattern),
                     term = compile_term(context, term, report),
                 ))
-                .format(","),
+                .format(", "),
         )
         .into(),
         surface::Term::Error(_) => r##"<strong>(invalid data description)</strong>"##.into(),
