@@ -148,6 +148,10 @@ impl Term {
     pub fn name(name: impl Into<Cow<'static, str>>) -> Term {
         Term::Name(name.into())
     }
+
+    pub fn call(term: impl Into<Box<Term>>, arguments: Vec<Term>) -> Term {
+        Term::Call(term.into(), arguments)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
