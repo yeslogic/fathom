@@ -177,6 +177,7 @@ fn compile_alias<'item>(
                     None => unreachable!("type level if for non-format type"),
                     Some(host_ty) => {
                         // Should we be using `ty` somewhere here?
+                        // FIXME: Coercions between definitionally equal aliases?
                         let rust_item = rust::Item::Struct(rust::StructType {
                             derives: derives(ty.is_copy),
                             doc,

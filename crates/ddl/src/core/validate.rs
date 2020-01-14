@@ -3,7 +3,7 @@
 //! This is used to verify that the core syntax is correctly formed, for
 //! debugging purposes.
 
-use codespan::{FileId, Span};
+use codespan::FileId;
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -24,7 +24,7 @@ pub struct Context<'me> {
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    items: HashMap<&'me str, Span>,
+    items: HashMap<&'me str, Item>,
     /// List of types currently bound in this context. These could either
     /// refer to items or local bindings.
     tys: Vec<(&'me str, Arc<Value>)>,
@@ -65,14 +65,14 @@ pub fn validate_items<'items>(
                 match context.items.entry(&alias.name) {
                     Entry::Vacant(entry) => {
                         context.tys.push((*entry.key(), ty));
-                        entry.insert(alias.span);
+                        entry.insert(item.clone());
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
                         context.file_id,
                         &alias.name,
                         alias.span,
-                        *entry.get(),
+                        entry.get().span(),
                     )),
                 }
             }
@@ -84,14 +84,14 @@ pub fn validate_items<'items>(
                     Entry::Vacant(entry) => {
                         let ty = Arc::new(Value::Universe(Universe::Format));
                         context.tys.push((*entry.key(), ty));
-                        entry.insert(struct_ty.span);
+                        entry.insert(item.clone());
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Bug,
                         context.file_id,
                         &struct_ty.name,
                         struct_ty.span,
-                        *entry.get(),
+                        entry.get().span(),
                     )),
                 }
             }
@@ -194,7 +194,7 @@ pub fn synth_term(
 ) -> Arc<Value> {
     match term {
         Term::Global(span, name) => match context.globals.get(name) {
-            Some((r#type, _)) => semantics::eval(context.globals, r#type),
+            Some((r#type, _)) => semantics::eval(context.globals, &context.items, r#type),
             None => {
                 report(diagnostics::bug::global_name_not_found(
                     context.file_id,
@@ -217,7 +217,7 @@ pub fn synth_term(
         },
         Term::Ann(term, ty) => {
             validate_universe(context, ty, report);
-            let ty = semantics::eval(context.globals, ty);
+            let ty = semantics::eval(context.globals, &context.items, ty);
             check_term(context, term, &ty, report);
             ty
         }

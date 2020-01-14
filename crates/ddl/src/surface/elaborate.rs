@@ -39,7 +39,7 @@ pub struct Context<'me> {
     file_id: FileId,
     /// Labels that have previously been used for items, along with the span
     /// where they were introduced (for error reporting).
-    items: HashMap<&'me str, Span>,
+    items: HashMap<&'me str, core::Item>,
     /// List of types currently bound in this context. These could either
     /// refer to items or local bindings.
     tys: Vec<(&'me str, Arc<core::Value>)>,
@@ -79,7 +79,7 @@ pub fn elaborate_items<'items>(
                 let (core_term, ty) = match &alias.ty {
                     Some(surface_ty) => {
                         let core_ty = elaborate_universe(&context, surface_ty, report);
-                        let ty = core::semantics::eval(context.globals, &core_ty);
+                        let ty = core::semantics::eval(context.globals, &context.items, &core_ty);
                         let core_term = check_term(&context, &alias.term, &ty, report);
                         (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
                     }
@@ -93,19 +93,20 @@ pub fn elaborate_items<'items>(
                             span: alias.span,
                             doc: alias.doc.clone(),
                             name: entry.key().to_string(),
-                            term: core_term,
+                            term: Arc::new(core_term),
                         };
 
-                        core_items.push(core::Item::Alias(item));
+                        let core_item = core::Item::Alias(item);
+                        core_items.push(core_item.clone());
                         context.tys.push((*entry.key(), ty));
-                        entry.insert(alias.span);
+                        entry.insert(core_item);
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
                         context.file_id,
                         entry.key(),
                         alias.span,
-                        *entry.get(),
+                        entry.get().span(),
                     )),
                 }
             }
@@ -122,17 +123,18 @@ pub fn elaborate_items<'items>(
                             fields: core_fields,
                         };
 
-                        core_items.push(core::Item::Struct(item));
+                        let core_item = core::Item::Struct(item);
+                        core_items.push(core_item.clone());
                         let ty = Arc::new(core::Value::Universe(core::Universe::Format));
                         context.tys.push((*entry.key(), ty));
-                        entry.insert(struct_ty.span);
+                        entry.insert(core_item);
                     }
                     Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                         Severity::Error,
                         context.file_id,
                         entry.key(),
                         struct_ty.span,
-                        *entry.get(),
+                        entry.get().span(),
                     )),
                 }
             }
@@ -168,7 +170,7 @@ pub fn elaborate_struct_ty_fields(
                     doc: field.doc.clone(),
                     start: field_span.start(),
                     name: entry.key().clone(),
-                    term: ty,
+                    term: Arc::new(ty),
                 });
 
                 entry.insert(field_span);
@@ -336,7 +338,7 @@ pub fn synth_term(
         surface::Term::Paren(_, surface_term) => synth_term(context, surface_term, report),
         surface::Term::Ann(surface_term, surface_ty) => {
             let core_ty = elaborate_universe(context, surface_ty, report);
-            let ty = core::semantics::eval(context.globals, &core_ty);
+            let ty = core::semantics::eval(context.globals, &context.items, &core_ty);
             let core_term = check_term(context, surface_term, &ty, report);
             (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
         }
@@ -344,7 +346,7 @@ pub fn synth_term(
             if let Some((ty, _)) = context.globals.get(name) {
                 return (
                     core::Term::Global(*span, name.to_owned()),
-                    core::semantics::eval(context.globals, ty),
+                    core::semantics::eval(context.globals, &context.items, ty),
                 );
             }
             if let Some(ty) = context.lookup_ty(name) {

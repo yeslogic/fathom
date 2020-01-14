@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-// use ddl_test_util::ddl::binary;
 use ddl_rt::{F64Be, FormatWriter, ReadError, ReadScope, U8};
+use ddl_test_util::ddl::{binary, core};
 
 #[path = "../../snapshots/alias/pass_if_else_format_type_item.rs"]
 mod fixture;
@@ -32,17 +32,16 @@ fn valid_test() {
     let mut writer = FormatWriter::new(vec![]);
     writer.write::<F64Be>(23.64e10); // Test::inner
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let singleton = read_scope.read::<fixture::Test>().unwrap();
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    // FIXME(#162): Requires us to evaluate items!
-    // let mut read_context = binary::read::Context::new(read_scope.reader());
-    // let test = binary::read::read_module_item(&FIXTURE, &"Test", &mut read_scope.reader()).unwrap();
-
+    let test = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
     match singleton.inner() {
         fixture::Enum0::True(inner) => {
             assert_eq!(inner, 23.64e10);
-            // assert_eq!(test, binary::Term::F64(inner));
+            assert_eq!(test, binary::Term::F64(inner));
         }
         _ => panic!("expected `Enum0::True(_)`"),
     }
@@ -56,17 +55,16 @@ fn valid_test_trailing() {
     writer.write::<F64Be>(781.453298); // Test::inner
     writer.write::<U8>(42);
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let singleton = read_scope.read::<fixture::Test>().unwrap();
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    // FIXME(#162): Requires us to evaluate items!
-    // let mut read_context = binary::read::Context::new(read_scope.reader());
-    // let test = binary::read::read_module_item(&FIXTURE, &"Test", &mut read_scope.reader()).unwrap();
-
+    let test = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
     match singleton.inner() {
         fixture::Enum0::True(inner) => {
             assert_eq!(inner, 781.453298);
-            // assert_eq!(test, binary::Term::F64(inner));
+            assert_eq!(test, binary::Term::F64(inner));
         }
         _ => panic!("expected `Enum0::True(_)`"),
     }

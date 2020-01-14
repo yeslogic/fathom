@@ -126,7 +126,7 @@ pub struct Alias {
     /// Name of this definition.
     pub name: String,
     /// The term that is aliased.
-    pub term: Term,
+    pub term: Arc<Term>,
 }
 
 impl Alias {
@@ -229,7 +229,7 @@ pub struct TypeField {
     pub doc: Arc<[String]>,
     pub start: ByteIndex,
     pub name: String,
-    pub term: Term,
+    pub term: Arc<Term>,
 }
 
 impl TypeField {

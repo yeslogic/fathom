@@ -8,7 +8,7 @@ use crate::core;
 /// Contextual information to be used when parsing items.
 pub struct Context<'me> {
     globals: &'me core::Globals,
-    items: HashMap<&'me str, &'me core::Item>,
+    items: HashMap<&'me str, core::Item>,
     reader: ddl_rt::FormatReader<'me>,
 }
 
@@ -42,10 +42,10 @@ pub fn read_module_item<'module>(
                 return read_struct_ty(context, struct_ty);
             }
             core::Item::Alias(alias) => {
-                context.items.insert(&alias.name, item);
+                context.items.insert(&alias.name, item.clone());
             }
             core::Item::Struct(struct_ty) => {
-                context.items.insert(&struct_ty.name, item);
+                context.items.insert(&struct_ty.name, item.clone());
             }
         }
     }
@@ -89,14 +89,14 @@ pub fn read_ty(context: &mut Context<'_>, term: &core::Term) -> Result<Term, ddl
             "F64Be" => Ok(Term::F64(context.read::<ddl_rt::F64Be>()?)),
             _ => Err(ddl_rt::ReadError::InvalidDataDescription),
         },
-        core::Term::Item(_, name) => match context.items.get(name.as_str()) {
+        core::Term::Item(_, name) => match context.items.get(name.as_str()).cloned() {
             Some(core::Item::Alias(alias)) => read_ty(context, &alias.term),
-            Some(core::Item::Struct(struct_ty)) => read_struct_ty(context, struct_ty),
+            Some(core::Item::Struct(struct_ty)) => read_struct_ty(context, &struct_ty),
             None => Err(ddl_rt::ReadError::InvalidDataDescription),
         },
         core::Term::Ann(term, _) => read_ty(context, term),
         core::Term::BoolElim(_, head, if_true, if_false) => {
-            match &core::semantics::eval(context.globals, head).as_ref() {
+            match &core::semantics::eval(context.globals, &context.items, head).as_ref() {
                 core::Value::Neutral(core::Head::Global(name), elims)
                     if name == "true" && elims.is_empty() =>
                 {
@@ -111,7 +111,7 @@ pub fn read_ty(context: &mut Context<'_>, term: &core::Term) -> Result<Term, ddl
             }
         }
         core::Term::IntElim(_, head, branches, default) => {
-            match core::semantics::eval(context.globals, head).as_ref() {
+            match core::semantics::eval(context.globals, &context.items, head).as_ref() {
                 core::Value::Constant(core::Constant::Int(value)) => match branches.get(&value) {
                     Some(term) => read_ty(context, term),
                     None => read_ty(context, default),
