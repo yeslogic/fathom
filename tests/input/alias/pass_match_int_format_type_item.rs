@@ -1,12 +1,15 @@
 #![cfg(test)]
 
-// use ddl_test_util::ddl::binary;
-use ddl_rt::{ReadError, ReadScope, FormatWriter, U8, F64Le};
+use ddl_rt::{F64Le, FormatWriter, ReadError, ReadScope, U8};
+use ddl_test_util::ddl::{binary, core};
 
 #[path = "../../snapshots/alias/pass_match_int_format_type_item.rs"]
 mod fixture;
 
-ddl_test_util::core_module!(FIXTURE, "../../snapshots/alias/pass_match_int_format_type_item.core.ddl");
+ddl_test_util::core_module!(
+    FIXTURE,
+    "../../snapshots/alias/pass_match_int_format_type_item.core.ddl"
+);
 
 #[test]
 fn eof_inner() {
@@ -16,9 +19,9 @@ fn eof_inner() {
     let singleton = scope.read::<fixture::Test>();
 
     match singleton {
-        Err(ReadError::Eof(_)) => {},
+        Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
-        Ok(_) => panic!("error expected, found: Ok(_)")
+        Ok(_) => panic!("error expected, found: Ok(_)"),
     }
 
     // TODO: Check remaining
@@ -29,17 +32,17 @@ fn valid_test() {
     let mut writer = FormatWriter::new(vec![]);
     writer.write::<F64Le>(23.64e10); // Test::inner
 
-    let scope = ReadScope::new(writer.buffer());
-    let singleton = scope.read::<fixture::Test>().unwrap();
+    let globals = core::Globals::default();
+    let read_scope = ReadScope::new(writer.buffer());
+    let singleton = read_scope.read::<fixture::Test>().unwrap();
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    // FIXME(#162): Requires us to evaluate items!
-    // let test = binary::read::read_module_item(&FIXTURE, &"Test", &mut scope.reader()).unwrap();
-
+    let test = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
     match singleton.inner() {
         fixture::Enum0::Variant0(inner) => {
             assert_eq!(inner, 23.64e10);
-            // assert_eq!(test, binary::Term::F64(inner));
-        },
+            assert_eq!(test, binary::Term::F64(inner));
+        }
         _ => panic!("expected `Enum0::Variant0(_)`"),
     }
 
@@ -52,17 +55,17 @@ fn valid_test_trailing() {
     writer.write::<F64Le>(781.453298); // Test::inner
     writer.write::<U8>(42);
 
-    let scope = ReadScope::new(writer.buffer());
-    let singleton = scope.read::<fixture::Test>().unwrap();
+    let globals = core::Globals::default();
+    let read_scope = ReadScope::new(writer.buffer());
+    let singleton = read_scope.read::<fixture::Test>().unwrap();
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    // FIXME(#162): Requires us to evaluate items!
-    // let test = binary::read::read_module_item(&FIXTURE, &"Test", &mut scope.reader()).unwrap();
-
+    let test = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
     match singleton.inner() {
         fixture::Enum0::Variant0(inner) => {
             assert_eq!(inner, 781.453298);
-            // assert_eq!(test, binary::Term::F64(inner));
-        },
+            assert_eq!(test, binary::Term::F64(inner));
+        }
         _ => panic!("expected `Enum0::Variant0(_)`"),
     }
 

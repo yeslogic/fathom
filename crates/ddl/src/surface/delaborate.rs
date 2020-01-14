@@ -21,7 +21,7 @@ pub fn delaborate_module(module: &core::Module) -> surface::Module {
 pub fn delaborate_item(item: &core::Item) -> surface::Item {
     match item {
         core::Item::Alias(alias) => {
-            let (term, ty) = match &alias.term {
+            let (term, ty) = match alias.term.as_ref() {
                 core::Term::Ann(term, ty) => (delaborate_term(term), Some(delaborate_term(ty))),
                 term => (delaborate_term(term), None),
             };

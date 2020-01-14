@@ -63,6 +63,7 @@ Item: Item = {
     <start: @L> <name: "identifier"> "=" <term: Term> ";" <end: @R> => {
         let span = Span::new(start, end);
         let doc = Arc::from(doc);
+        let term = Arc::new(term);
 
         Item::Alias(Alias { span, doc, name, term })
     },
@@ -83,6 +84,7 @@ Field: TypeField = {
     <doc: "doc comment"*>
     <start: @L> <name: "identifier"> ":" <term: Term> => {
         let doc = Arc::from(doc);
+        let term = Arc::new(term);
 
         TypeField { doc, start, name, term }
     },
