@@ -67,60 +67,39 @@ pub fn read_struct_ty(
 }
 
 pub fn read_ty(context: &mut Context<'_>, term: &core::Term) -> Result<Term, ddl_rt::ReadError> {
-    match term {
-        core::Term::Global(_, name) => match name.as_str() {
-            "U8" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U8>()?))),
-            "U16Le" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U16Le>()?))),
-            "U16Be" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U16Be>()?))),
-            "U32Le" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U32Le>()?))),
-            "U32Be" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U32Be>()?))),
-            "U64Le" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U64Le>()?))),
-            "U64Be" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U64Be>()?))),
-            "S8" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I8>()?))),
-            "S16Le" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I16Le>()?))),
-            "S16Be" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I16Be>()?))),
-            "S32Le" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I32Le>()?))),
-            "S32Be" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I32Be>()?))),
-            "S64Le" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I64Le>()?))),
-            "S64Be" => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I64Be>()?))),
-            "F32Le" => Ok(Term::F32(context.read::<ddl_rt::F32Le>()?)),
-            "F32Be" => Ok(Term::F32(context.read::<ddl_rt::F32Be>()?)),
-            "F64Le" => Ok(Term::F64(context.read::<ddl_rt::F64Le>()?)),
-            "F64Be" => Ok(Term::F64(context.read::<ddl_rt::F64Be>()?)),
-            _ => Err(ddl_rt::ReadError::InvalidDataDescription),
-        },
-        core::Term::Item(_, name) => match context.items.get(name.as_str()).cloned() {
-            Some(core::Item::Alias(alias)) => read_ty(context, &alias.term),
-            Some(core::Item::Struct(struct_ty)) => read_struct_ty(context, &struct_ty),
-            None => Err(ddl_rt::ReadError::InvalidDataDescription),
-        },
-        core::Term::Ann(term, _) => read_ty(context, term),
-        core::Term::BoolElim(_, head, if_true, if_false) => {
-            match &core::semantics::eval(context.globals, &context.items, head).as_ref() {
-                core::Value::Neutral(core::Head::Global(name), elims)
-                    if name == "true" && elims.is_empty() =>
-                {
-                    read_ty(context, if_true)
-                }
-                core::Value::Neutral(core::Head::Item(name), elims)
-                    if name == "false" && elims.is_empty() =>
-                {
-                    read_ty(context, if_false)
-                }
-                _ => Err(ddl_rt::ReadError::InvalidDataDescription),
+    match core::semantics::eval(context.globals, &context.items, term).as_ref() {
+        core::Value::Neutral(core::Head::Global(name), elims) => {
+            match (name.as_str(), elims.as_slice()) {
+                ("U8", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U8>()?))),
+                ("U16Le", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U16Le>()?))),
+                ("U16Be", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U16Be>()?))),
+                ("U32Le", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U32Le>()?))),
+                ("U32Be", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U32Be>()?))),
+                ("U64Le", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U64Le>()?))),
+                ("U64Be", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U64Be>()?))),
+                ("S8", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I8>()?))),
+                ("S16Le", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I16Le>()?))),
+                ("S16Be", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I16Be>()?))),
+                ("S32Le", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I32Le>()?))),
+                ("S32Be", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I32Be>()?))),
+                ("S64Le", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I64Le>()?))),
+                ("S64Be", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::I64Be>()?))),
+                ("F32Le", []) => Ok(Term::F32(context.read::<ddl_rt::F32Le>()?)),
+                ("F32Be", []) => Ok(Term::F32(context.read::<ddl_rt::F32Be>()?)),
+                ("F64Le", []) => Ok(Term::F64(context.read::<ddl_rt::F64Le>()?)),
+                ("F64Be", []) => Ok(Term::F64(context.read::<ddl_rt::F64Be>()?)),
+                (_, _) => Err(ddl_rt::ReadError::InvalidDataDescription),
             }
         }
-        core::Term::IntElim(_, head, branches, default) => {
-            match core::semantics::eval(context.globals, &context.items, head).as_ref() {
-                core::Value::Constant(core::Constant::Int(value)) => match branches.get(&value) {
-                    Some(term) => read_ty(context, term),
-                    None => read_ty(context, default),
-                },
-                _ => Err(ddl_rt::ReadError::InvalidDataDescription),
+        core::Value::Neutral(core::Head::Item(name), elims) => {
+            match (context.items.get(name.as_str()).cloned(), elims.as_slice()) {
+                (Some(core::Item::Struct(struct_ty)), []) => read_struct_ty(context, &struct_ty),
+                (Some(_), _) | (None, _) => Err(ddl_rt::ReadError::InvalidDataDescription),
             }
         }
-        core::Term::Universe(_, _) | core::Term::Constant(_, _) | core::Term::Error(_) => {
-            Err(ddl_rt::ReadError::InvalidDataDescription)
-        }
+        core::Value::Neutral(core::Head::Error, _)
+        | core::Value::Universe(_)
+        | core::Value::Constant(_)
+        | core::Value::Error => Err(ddl_rt::ReadError::InvalidDataDescription),
     }
 }
