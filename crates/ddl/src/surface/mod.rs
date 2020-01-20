@@ -120,8 +120,6 @@ impl Pattern {
 /// Terms.
 #[derive(Debug, Clone)]
 pub enum Term {
-    /// Parenthesised expressions.
-    Paren(Span, Box<Term>),
     /// Annotated terms.
     Ann(Box<Term>, Box<Term>),
     /// Names.
@@ -147,8 +145,7 @@ impl Term {
     pub fn span(&self) -> Span {
         match self {
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
-            Term::Paren(span, _)
-            | Term::Name(span, _)
+            Term::Name(span, _)
             | Term::Format(span)
             | Term::Host(span)
             | Term::Kind(span)

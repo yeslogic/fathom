@@ -99,9 +99,7 @@ Term: Term = {
 };
 
 TermAtomic: Term = {
-    <start: @L> "(" <term: Term> ")" <end: @R> => {
-        Term::Paren(Span::new(start, end), Box::new(term))
-    },
+    <start: @L> "(" <term: Term> ")" <end: @R> => term,
     <name: Identifier> => Term::Name(name.0, name.1),
     <start: @L> "Host" <end: @R> => Term::Host(Span::new(start, end)),
     <start: @L> "Format" <end: @R> => Term::Format(Span::new(start, end)),
