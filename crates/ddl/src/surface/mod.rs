@@ -2,7 +2,6 @@
 
 use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
-use pretty::{DocAllocator, DocBuilder};
 use std::sync::Arc;
 
 use crate::diagnostics;
@@ -12,6 +11,7 @@ use crate::literal;
 pub mod compile;
 pub mod delaborate;
 pub mod elaborate;
+pub mod pretty;
 
 mod grammar {
     include!(concat!(env!("OUT_DIR"), "/surface/grammar.rs"));
@@ -45,28 +45,6 @@ impl Module {
                 }
             })
     }
-
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        let docs = match self.doc.as_ref() {
-            [] => None,
-            doc => Some(alloc.intersperse(
-                doc.iter().map(|line| format!("//!{}", line)),
-                alloc.hardline(),
-            )),
-        };
-        let items = self.items.iter().map(|item| item.doc(alloc));
-
-        (alloc.nil())
-            .append(alloc.intersperse(
-                docs.into_iter().chain(items),
-                alloc.hardline().append(alloc.hardline()),
-            ))
-            .append(alloc.hardline())
-    }
 }
 
 /// Items in a module.
@@ -86,19 +64,6 @@ pub enum Item {
     Struct(StructType),
 }
 
-impl Item {
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        match self {
-            Item::Alias(alias) => alias.doc(alloc),
-            Item::Struct(struct_ty) => struct_ty.doc(alloc),
-        }
-    }
-}
-
 /// Alias definition.
 #[derive(Debug, Clone)]
 pub struct Alias {
@@ -114,43 +79,6 @@ pub struct Alias {
     pub term: Term,
 }
 
-impl Alias {
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        let docs = alloc.concat(self.doc.iter().map(|line| {
-            (alloc.nil())
-                .append(format!("///{}", line))
-                .append(alloc.hardline())
-        }));
-
-        (alloc.nil())
-            .append(docs)
-            .append(&self.name.1)
-            .append(alloc.space())
-            .append("=")
-            .group()
-            .append(match &self.ty {
-                None => alloc.nil(),
-                Some(ty) => (alloc.nil())
-                    .append(alloc.space())
-                    .append(ty.doc(alloc))
-                    .group()
-                    .nest(4),
-            })
-            .append(
-                (alloc.nil())
-                    .append(alloc.space())
-                    .append(self.term.doc(alloc))
-                    .group()
-                    .append(";")
-                    .nest(4),
-            )
-    }
-}
-
 /// A struct type definition.
 #[derive(Debug, Clone)]
 pub struct StructType {
@@ -164,82 +92,12 @@ pub struct StructType {
     pub fields: Vec<TypeField>,
 }
 
-impl StructType {
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        let docs = alloc.concat(self.doc.iter().map(|line| {
-            (alloc.nil())
-                .append(format!("///{}", line))
-                .append(alloc.hardline())
-        }));
-
-        let struct_prefix = (alloc.nil())
-            .append("struct")
-            .append(alloc.space())
-            .append(&self.name.1)
-            .append(alloc.space());
-
-        let struct_ty = if self.fields.is_empty() {
-            (alloc.nil()).append(struct_prefix).append("{}").group()
-        } else {
-            (alloc.nil())
-                .append(struct_prefix)
-                .append("{")
-                .group()
-                .append(alloc.concat(self.fields.iter().map(|field| {
-                    (alloc.nil())
-                        .append(alloc.hardline())
-                        .append(field.doc(alloc))
-                        .nest(4)
-                        .group()
-                })))
-                .append(alloc.hardline())
-                .append("}")
-        };
-
-        (alloc.nil()).append(docs).append(struct_ty)
-    }
-}
-
 /// A field in a struct type definition.
 #[derive(Debug, Clone)]
 pub struct TypeField {
     pub doc: Arc<[String]>,
     pub name: (Span, String),
     pub term: Term,
-}
-
-impl TypeField {
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        let docs = alloc.concat(self.doc.iter().map(|line| {
-            (alloc.nil())
-                .append(format!("///{}", line))
-                .append(alloc.hardline())
-        }));
-
-        (alloc.nil())
-            .append(docs)
-            .append(
-                (alloc.nil())
-                    .append(&self.name.1)
-                    .append(alloc.space())
-                    .append(":")
-                    .group(),
-            )
-            .append(
-                (alloc.nil())
-                    .append(alloc.space())
-                    .append(self.term.doc(alloc))
-                    .append(","),
-            )
-    }
 }
 
 /// Patterns.
@@ -255,17 +113,6 @@ impl Pattern {
     pub fn span(&self) -> Span {
         match self {
             Pattern::Name(span, _) | Pattern::NumberLiteral(span, _) => *span,
-        }
-    }
-
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        match self {
-            Pattern::Name(_, name) => alloc.text(name),
-            Pattern::NumberLiteral(_, literal) => alloc.as_string(literal),
         }
     }
 }
@@ -309,76 +156,6 @@ impl Term {
             | Term::If(span, _, _, _)
             | Term::Match(span, _, _)
             | Term::Error(span) => *span,
-        }
-    }
-
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        match self {
-            Term::Paren(_, term) => alloc.text("(").append(term.doc(alloc)).append(")"),
-            Term::Ann(term, ty) => (alloc.nil())
-                .append(term.doc(alloc))
-                .append(alloc.space())
-                .append(":")
-                .group()
-                .append((alloc.space()).append(ty.doc(alloc)).group().nest(4)),
-            Term::Name(_, name) => alloc.text(name),
-            Term::Format(_) => alloc.text("Format"),
-            Term::Host(_) => alloc.text("Host"),
-            Term::Kind(_) => alloc.text("Kind"),
-            Term::NumberLiteral(_, literal) => alloc.as_string(literal),
-            Term::If(_, head, if_true, if_false) => (alloc.nil())
-                .append("if")
-                .append(alloc.space())
-                .append(head.doc(alloc))
-                .append(alloc.space())
-                .append("{")
-                .group()
-                .append(alloc.space().append(if_true.doc(alloc)).group().nest(4))
-                .append(alloc.space())
-                .append(
-                    (alloc.nil())
-                        .append("}")
-                        .append(alloc.space())
-                        .append("else")
-                        .append(alloc.space())
-                        .append("{")
-                        .nest(4),
-                )
-                .append(alloc.space().append(if_false.doc(alloc)).group().nest(4))
-                .append(alloc.space())
-                .append("}"),
-            Term::Match(_, head, branches) => (alloc.nil())
-                .append("match")
-                .append(alloc.space())
-                .append(head.doc(alloc))
-                .append(alloc.space())
-                .append("{")
-                .append(alloc.concat(branches.iter().map(|(pattern, term)| {
-                    (alloc.nil())
-                        .append(alloc.hardline())
-                        .append(
-                            (alloc.nil())
-                                .append(pattern.doc(alloc))
-                                .append(alloc.space())
-                                .append("=>")
-                                .group(),
-                        )
-                        .append(
-                            (alloc.nil())
-                                .append(alloc.space())
-                                .append(term.doc(alloc))
-                                .append(","),
-                        )
-                        .nest(4)
-                        .group()
-                })))
-                .append(alloc.hardline())
-                .append("}"),
-            Term::Error(_) => alloc.text("!"),
         }
     }
 }

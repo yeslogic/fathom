@@ -3,9 +3,7 @@
 use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
-use pretty::{DocAllocator, DocBuilder};
 use std::collections::BTreeMap;
-use std::fmt;
 use std::sync::Arc;
 
 use crate::lexer::SpannedToken;
@@ -16,6 +14,7 @@ mod grammar {
 }
 
 pub mod compile;
+pub mod pretty;
 pub mod semantics;
 pub mod validate;
 
@@ -47,28 +46,6 @@ impl Module {
                 }
             })
     }
-
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        let docs = match self.doc.as_ref() {
-            [] => None,
-            doc => Some(alloc.intersperse(
-                doc.iter().map(|line| format!("//!{}", line)),
-                alloc.hardline(),
-            )),
-        };
-        let items = self.items.iter().map(|item| item.doc(alloc));
-
-        (alloc.nil())
-            .append(alloc.intersperse(
-                docs.into_iter().chain(items),
-                alloc.hardline().append(alloc.hardline()),
-            ))
-            .append(alloc.hardline())
-    }
 }
 
 impl PartialEq for Module {
@@ -91,17 +68,6 @@ impl Item {
         match self {
             Item::Struct(struct_ty) => struct_ty.span,
             Item::Alias(alias) => alias.span,
-        }
-    }
-
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        match self {
-            Item::Alias(alias) => alias.doc(alloc),
-            Item::Struct(struct_ty) => struct_ty.doc(alloc),
         }
     }
 }
@@ -129,35 +95,6 @@ pub struct Alias {
     pub term: Arc<Term>,
 }
 
-impl Alias {
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        let docs = alloc.concat(self.doc.iter().map(|line| {
-            (alloc.nil())
-                .append(format!("///{}", line))
-                .append(alloc.hardline())
-        }));
-
-        (alloc.nil())
-            .append(docs)
-            .append(alloc.as_string(&self.name))
-            .append(alloc.space())
-            .append("=")
-            .group()
-            .append(
-                (alloc.nil())
-                    .append(alloc.space())
-                    .append(self.term.doc(alloc))
-                    .group()
-                    .append(";")
-                    .nest(4),
-            )
-    }
-}
-
 impl PartialEq for Alias {
     fn eq(&self, other: &Alias) -> bool {
         self.name == other.name && self.term == other.term
@@ -175,46 +112,6 @@ pub struct StructType {
     pub name: String,
     /// Fields in the struct.
     pub fields: Vec<TypeField>,
-}
-
-impl StructType {
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        let docs = alloc.concat(self.doc.iter().map(|line| {
-            (alloc.nil())
-                .append(format!("///{}", line))
-                .append(alloc.hardline())
-        }));
-
-        let struct_prefix = (alloc.nil())
-            .append("struct")
-            .append(alloc.space())
-            .append(alloc.as_string(&self.name))
-            .append(alloc.space());
-
-        let struct_ty = if self.fields.is_empty() {
-            (alloc.nil()).append(struct_prefix).append("{}").group()
-        } else {
-            (alloc.nil())
-                .append(struct_prefix)
-                .append("{")
-                .group()
-                .append(alloc.concat(self.fields.iter().map(|field| {
-                    (alloc.nil())
-                        .append(alloc.hardline())
-                        .append(field.doc(alloc))
-                        .nest(4)
-                        .group()
-                })))
-                .append(alloc.hardline())
-                .append("}")
-        };
-
-        (alloc.nil()).append(docs).append(struct_ty)
-    }
 }
 
 impl PartialEq for StructType {
@@ -236,34 +133,6 @@ impl TypeField {
     pub fn span(&self) -> Span {
         Span::new(self.start, self.term.span().end())
     }
-
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        let docs = alloc.concat(self.doc.iter().map(|line| {
-            (alloc.nil())
-                .append(format!("///{}", line))
-                .append(alloc.hardline())
-        }));
-
-        (alloc.nil())
-            .append(docs)
-            .append(
-                (alloc.nil())
-                    .append(alloc.as_string(&self.name))
-                    .append(alloc.space())
-                    .append(":")
-                    .group(),
-            )
-            .append(
-                (alloc.nil())
-                    .append(alloc.space())
-                    .append(self.term.doc(alloc))
-                    .append(","),
-            )
-    }
 }
 
 impl PartialEq for TypeField {
@@ -280,20 +149,6 @@ pub enum Universe {
     Kind,
 }
 
-impl Universe {
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        match self {
-            Universe::Host => alloc.text("Host"),
-            Universe::Format => alloc.text("Format"),
-            Universe::Kind => alloc.text("Kind"),
-        }
-    }
-}
-
 /// Universes.
 #[derive(Debug, Clone)]
 pub enum Constant {
@@ -303,41 +158,6 @@ pub enum Constant {
     F32(f32),
     /// Host IEEE-754 double-precision floating point constants.
     F64(f64),
-}
-
-impl Constant {
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        use num_traits::Float;
-        use std::borrow::Cow;
-
-        // Workaround -0.0 ridiculousness
-        fn format_float<T: Float + From<u8> + fmt::Display>(value: T) -> Cow<'static, str> {
-            if value == <T as From<u8>>::from(0) && value.is_sign_negative() {
-                "-0".into()
-            } else {
-                value.to_string().into()
-            }
-        }
-
-        match self {
-            Constant::Int(value) => (alloc.nil())
-                .append("int")
-                .append(alloc.space())
-                .append(alloc.as_string(value)),
-            Constant::F32(value) => (alloc.nil())
-                .append("f32")
-                .append(alloc.space())
-                .append(format_float(*value)),
-            Constant::F64(value) => (alloc.nil())
-                .append("f64")
-                .append(alloc.space())
-                .append(format_float(*value)),
-        }
-    }
 }
 
 impl PartialEq for Constant {
@@ -384,86 +204,6 @@ impl Term {
             | Term::IntElim(span, _, _, _)
             | Term::Error(span) => *span,
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
-        }
-    }
-
-    pub fn doc<'core, D>(&'core self, alloc: &'core D) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        self.doc_prec(alloc, 0)
-    }
-
-    pub fn doc_prec<'core, D>(&'core self, alloc: &'core D, prec: u8) -> DocBuilder<'core, D>
-    where
-        D: DocAllocator<'core>,
-        D::Doc: Clone,
-    {
-        let show_paren = |cond, doc| match cond {
-            true => alloc.text("(").append(doc).append(")"),
-            false => doc,
-        };
-
-        match self {
-            Term::Global(_, name) => (alloc.nil())
-                .append("global")
-                .append(alloc.space())
-                .append(alloc.as_string(name)),
-            Term::Item(_, name) => (alloc.nil())
-                .append("item")
-                .append(alloc.space())
-                .append(alloc.as_string(name)),
-            Term::Ann(term, ty) => show_paren(
-                prec > 0,
-                (alloc.nil())
-                    .append(term.doc_prec(alloc, prec + 1))
-                    .append(alloc.space())
-                    .append(":")
-                    .group()
-                    .append(
-                        (alloc.space())
-                            .append(ty.doc_prec(alloc, prec + 1))
-                            .group()
-                            .nest(4),
-                    ),
-            ),
-            Term::Universe(_, universe) => universe.doc(alloc),
-            Term::Constant(_, constant) => constant.doc(alloc),
-            Term::BoolElim(_, head, if_true, if_false) => (alloc.nil())
-                .append("bool_elim")
-                .append(alloc.space())
-                .append(head.doc(alloc))
-                .append(alloc.space())
-                .append("{")
-                .append(alloc.space())
-                .append(if_true.doc(alloc))
-                .append(",")
-                .append(alloc.space())
-                .append(if_false.doc(alloc))
-                .append(alloc.space())
-                .append("}"),
-            Term::IntElim(_, head, branches, default) => (alloc.nil())
-                .append("int_elim")
-                .append(alloc.space())
-                .append(head.doc(alloc))
-                .append(alloc.space())
-                .append("{")
-                .append(alloc.concat(branches.iter().map(|(value, term)| {
-                    (alloc.nil())
-                        .append(alloc.space())
-                        .append(alloc.as_string(value))
-                        .append(alloc.space())
-                        .append("=>")
-                        .append(alloc.space())
-                        .append(term.doc(alloc))
-                        .append(",")
-                })))
-                .append(alloc.space())
-                .append(default.doc(alloc))
-                .append(alloc.space())
-                .append("}"),
-            Term::Error(_) => alloc.text("!"),
         }
     }
 }
