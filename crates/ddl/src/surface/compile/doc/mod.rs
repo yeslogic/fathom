@@ -6,6 +6,7 @@ use std::io;
 use std::io::prelude::*;
 
 use crate::surface;
+use crate::surface::pretty::Prec;
 
 pub fn compile_module(
     writer: &mut impl Write,
@@ -113,7 +114,7 @@ fn compile_alias(
             r##"          <a href="#{id}">{name}</a> : {ty}"##,
             id = id,
             name = name,
-            ty = compile_term(context, ty, report),
+            ty = compile_term_prec(context, ty, Prec::Term, report),
         )?,
     }
     write!(
@@ -129,7 +130,7 @@ fn compile_alias(
         writeln!(writer, r##"          </section>"##)?;
     }
 
-    let term = compile_term(context, &alias.term, report);
+    let term = compile_term_prec(context, &alias.term, Prec::Term, report);
 
     write!(
         writer,
@@ -175,7 +176,7 @@ fn compile_struct_ty(
         for field in &struct_ty.fields {
             let (_, field_name) = &field.name;
             let field_id = format!("{}.fields[{}]", id, field_name);
-            let ty = compile_term(context, &field.term, report);
+            let ty = compile_term_prec(context, &field.term, Prec::Term, report);
 
             write!(
                 writer,
@@ -205,17 +206,15 @@ fn compile_struct_ty(
     Ok((name.clone(), Item { id }))
 }
 
-fn compile_term<'term>(
+fn compile_term_prec<'term>(
     context: &ModuleContext,
     term: &'term surface::Term,
+    prec: Prec,
     report: &mut dyn FnMut(Diagnostic),
 ) -> Cow<'term, str> {
     use itertools::Itertools;
 
     match term {
-        surface::Term::Paren(_, term) => {
-            format!("({})", compile_term(context, term, report)).into()
-        }
         surface::Term::Name(_, name) => {
             let id = match context.items.get(name) {
                 Some(item) => item.id.as_str(),
@@ -228,30 +227,34 @@ fn compile_term<'term>(
         surface::Term::Host(_) => "Host".into(),
         surface::Term::Format(_) => "Format".into(),
         surface::Term::Ann(term, ty) => {
-            let term = compile_term(context, term, report);
-            let ty = compile_term(context, ty, report);
+            let term = compile_term_prec(context, term, Prec::Atomic, report);
+            let ty = compile_term_prec(context, ty, Prec::Term, report);
 
-            format!("{} : {}", term, ty).into()
+            if prec > Prec::Term {
+                format!("({} : {})", term, ty).into()
+            } else {
+                format!("{} : {}", term, ty).into()
+            }
         }
         surface::Term::NumberLiteral(_, literal) => format!("{}", literal).into(),
         surface::Term::If(_, head, if_true, if_false) => format!(
             // TODO: multiline formatting!
             "if {head} {{ {if_true} }} else {{ {if_false} }}",
-            head = compile_term(context, head, report),
-            if_true = compile_term(context, if_true, report),
-            if_false = compile_term(context, if_false, report),
+            head = compile_term_prec(context, head, Prec::Term, report),
+            if_true = compile_term_prec(context, if_true, Prec::Term, report),
+            if_false = compile_term_prec(context, if_false, Prec::Term, report),
         )
         .into(),
         surface::Term::Match(_, head, branches) => format!(
             // TODO: multiline formatting!
             "match {head} {{ {branches} }}",
-            head = compile_term(context, head, report),
+            head = compile_term_prec(context, head, Prec::Term, report),
             branches = branches
                 .iter()
                 .map(|(pattern, term)| format!(
                     "{pattern} &rArr; {term}",
                     pattern = compile_pattern(context, pattern),
-                    term = compile_term(context, term, report),
+                    term = compile_term_prec(context, term, Prec::Term, report),
                 ))
                 .format(", "),
         )

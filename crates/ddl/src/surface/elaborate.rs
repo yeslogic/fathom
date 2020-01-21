@@ -227,9 +227,6 @@ pub fn check_term(
     match (surface_term, expected_ty.as_ref()) {
         (surface::Term::Error(span), _) => core::Term::Error(*span),
         (surface_term, core::Value::Error) => core::Term::Error(surface_term.span()),
-        (surface::Term::Paren(_, surface_term), _) => {
-            check_term(context, surface_term, expected_ty, report)
-        }
         (surface::Term::NumberLiteral(span, literal), _) => {
             let error = |report: &mut dyn FnMut(Diagnostic)| {
                 report(diagnostics::error::numeric_literal_not_supported(
@@ -335,7 +332,6 @@ pub fn synth_term(
     use crate::core::Universe::{Format, Host, Kind};
 
     match surface_term {
-        surface::Term::Paren(_, surface_term) => synth_term(context, surface_term, report),
         surface::Term::Ann(surface_term, surface_ty) => {
             let core_ty = elaborate_universe(context, surface_ty, report);
             let ty = core::semantics::eval(context.globals, &context.items, &core_ty);

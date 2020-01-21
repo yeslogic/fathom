@@ -195,11 +195,13 @@ impl Test {
             let arena = pretty::Arena::new();
 
             let pretty_core_module = {
-                let pretty::DocBuilder(_, doc) = core_module.doc(&arena);
+                let pretty::DocBuilder(_, doc) =
+                    ddl::core::pretty::pretty_module(&arena, core_module);
                 doc.pretty(100).to_string()
             };
             let pretty_delaborated_core_module = {
-                let pretty::DocBuilder(_, doc) = delaborated_core_module.doc(&arena);
+                let pretty::DocBuilder(_, doc) =
+                    ddl::core::pretty::pretty_module(&arena, &delaborated_core_module);
                 doc.pretty(100).to_string()
             };
 
@@ -225,7 +227,7 @@ impl Test {
         let arena = pretty::Arena::new();
 
         let pretty_core_module = {
-            let pretty::DocBuilder(_, doc) = core_module.doc(&arena);
+            let pretty::DocBuilder(_, doc) = ddl::core::pretty::pretty_module(&arena, core_module);
             doc.pretty(100).to_string()
         };
 
@@ -253,7 +255,8 @@ impl Test {
             ddl::core::Module::parse(core_file_id, lexer, &mut |d| core_parse_diagnostics.push(d))
         };
         let pretty_parsed_core_module = {
-            let pretty::DocBuilder(_, doc) = parsed_core_module.doc(&arena);
+            let pretty::DocBuilder(_, doc) =
+                ddl::core::pretty::pretty_module(&arena, &parsed_core_module);
             doc.pretty(100).to_string()
         };
 

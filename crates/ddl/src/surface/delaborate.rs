@@ -55,24 +55,12 @@ pub fn delaborate_item(item: &core::Item) -> surface::Item {
 }
 
 pub fn delaborate_term(term: &core::Term) -> surface::Term {
-    delaborate_term_prec(term, 0)
-}
-
-pub fn delaborate_term_prec(term: &core::Term, prec: u8) -> surface::Term {
-    let delaborate_paren_prec = |cond, surface_term: surface::Term| match cond {
-        true => surface::Term::Paren(surface_term.span(), Box::new(surface_term)),
-        false => surface_term,
-    };
-
     match term {
         core::Term::Global(span, name) => surface::Term::Name(*span, name.to_string()),
         core::Term::Item(span, name) => surface::Term::Name(*span, name.to_string()),
-        core::Term::Ann(term, ty) => delaborate_paren_prec(
-            prec > 0,
-            surface::Term::Ann(
-                Box::new(delaborate_term_prec(term, prec + 1)),
-                Box::new(delaborate_term_prec(ty, prec + 1)),
-            ),
+        core::Term::Ann(term, ty) => surface::Term::Ann(
+            Box::new(delaborate_term(term)),
+            Box::new(delaborate_term(ty)),
         ),
         core::Term::Universe(span, core::Universe::Host) => surface::Term::Host(*span),
         core::Term::Universe(span, core::Universe::Format) => surface::Term::Format(*span),
