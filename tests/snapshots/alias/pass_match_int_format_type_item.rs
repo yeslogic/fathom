@@ -3,36 +3,4 @@
 
 pub const FOO: i64 = 0i64;
 
-#[derive(Copy, Clone)]
-pub enum Enum0 {
-    Variant0(f64),
-    Default(f64),
-}
-
-#[derive(Copy, Clone)]
-pub struct Test {
-    inner: Enum0,
-}
-
-impl Test {
-    pub fn inner(&self) -> Enum0 {
-        self.inner
-    }
-}
-
-impl ddl_rt::Format for Test {
-    type Host = Test;
-}
-
-impl<'data> ddl_rt::ReadFormat<'data> for Test {
-    fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<Test, ddl_rt::ReadError> {
-        let inner = match FOO { 
-            0i64 => Enum0::Variant0(reader.read::<ddl_rt::F64Le>()?),
-            _ => Enum0::Default(reader.read::<ddl_rt::F64Be>()?),
-        };
-
-        Ok(Test {
-            inner,
-        })
-    }
-}
+pub type Test = ddl_rt::F64Le;

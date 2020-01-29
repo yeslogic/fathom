@@ -35,19 +35,18 @@ pub fn eval(
         Term::Constant(span, constant) => Arc::new(Value::Constant(*span, constant.clone())),
         Term::BoolElim(span, head, if_true, if_false) => {
             match eval(globals, items, head).as_ref() {
-                Value::Neutral(Head::Global(span, name), elims) if elims.is_empty() => {
+                Value::Neutral(Head::Global(head_span, name), elims) if elims.is_empty() => {
                     match name.as_str() {
                         "true" => eval(globals, items, if_true),
                         "false" => eval(globals, items, if_false),
                         _ => {
                             let mut elims = elims.clone(); // FIXME: clone?
                             elims.push(Elim::Bool(*span, if_true.clone(), if_false.clone()));
-                            Arc::new(Value::Neutral(Head::Global(*span, name.clone()), elims))
+                            Arc::new(Value::Neutral(
+                                Head::Global(*head_span, name.clone()),
+                                elims,
+                            ))
                         }
-                        _ => Arc::new(Value::Neutral(
-                            Head::Error,
-                            vec![Elim::Bool(*span, if_true.clone(), if_false.clone())],
-                        )),
                     }
                 }
                 _ => Arc::new(Value::Neutral(

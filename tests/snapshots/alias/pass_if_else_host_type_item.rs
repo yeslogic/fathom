@@ -2,3 +2,5 @@
 // It is not intended for manual editing.
 
 pub const FOO: bool = true;
+
+pub type Test = f64;

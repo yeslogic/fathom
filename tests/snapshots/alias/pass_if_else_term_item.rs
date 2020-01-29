@@ -3,14 +3,6 @@
 
 pub const FOO: bool = true;
 
-pub fn bar() -> bool {
-    if FOO { 
-        true
-    } else { 
-        true
-    }
-}
+pub const BAR: bool = true;
 
-pub fn baz() -> bool {
-    bar()
-}
+pub const BAZ: bool = true;
