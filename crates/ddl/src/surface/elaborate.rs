@@ -78,7 +78,7 @@ pub fn elaborate_items<'items>(
             surface::Item::Alias(alias) => {
                 let (core_term, ty) = match &alias.ty {
                     Some(surface_ty) => {
-                        let core_ty = elaborate_universe(&context, surface_ty, report);
+                        let (core_ty, _) = elaborate_universe(&context, surface_ty, report);
                         let ty = core::semantics::eval(context.globals, &context.items, &core_ty);
                         let core_term = check_term(&context, &alias.term, &ty, report);
                         (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
@@ -199,15 +199,18 @@ pub fn elaborate_universe(
     context: &Context<'_>,
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
-) -> core::Term {
+) -> (core::Term, Option<core::Universe>) {
+    use crate::core::Universe::{Format, Host, Kind};
+
     match surface_term {
-        surface::Term::Kind(span) => core::Term::Universe(*span, core::Universe::Kind),
-        surface::Term::Host(span) => core::Term::Universe(*span, core::Universe::Host),
-        surface::Term::Format(span) => core::Term::Universe(*span, core::Universe::Format),
+        surface::Term::Kind(span) => (core::Term::Universe(*span, Kind), Some(Kind)),
+        surface::Term::Host(span) => (core::Term::Universe(*span, Host), Some(Host)),
+        surface::Term::Format(span) => (core::Term::Universe(*span, Format), Some(Format)),
         surface_term => {
             let (core_term, ty) = synth_term(context, surface_term, report);
             match ty.as_ref() {
-                core::Value::Universe(_, _) | core::Value::Error(_) => core_term,
+                core::Value::Universe(_, universe) => (core_term, Some(*universe)),
+                core::Value::Error(_) => (core_term, None),
                 _ => {
                     let span = surface_term.span();
                     report(diagnostics::universe_mismatch(
@@ -216,7 +219,7 @@ pub fn elaborate_universe(
                         span,
                         &ty,
                     ));
-                    core::Term::Error(span)
+                    (core::Term::Error(span), None)
                 }
             }
         }
@@ -339,7 +342,7 @@ pub fn synth_term(
 
     match surface_term {
         surface::Term::Ann(surface_term, surface_ty) => {
-            let core_ty = elaborate_universe(context, surface_ty, report);
+            let (core_ty, _) = elaborate_universe(context, surface_ty, report);
             let ty = core::semantics::eval(context.globals, &context.items, &core_ty);
             let core_term = check_term(context, surface_term, &ty, report);
             (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
@@ -384,6 +387,64 @@ pub fn synth_term(
             core::Term::Universe(*span, Format),
             Arc::new(core::Value::Universe(Span::initial(), Kind)),
         ),
+        surface::Term::FunctionType(param_ty, body_ty) => {
+            let (core_param_ty, param_universe) = elaborate_universe(context, param_ty, report);
+            let (core_body_ty, body_universe) = elaborate_universe(context, body_ty, report);
+            let core_fun_ty =
+                core::Term::FunctionType(Arc::new(core_param_ty), Arc::new(core_body_ty));
+
+            match (param_universe, body_universe) {
+                (Some(Host), Some(Host)) => (
+                    core_fun_ty,
+                    Arc::new(core::Value::Universe(Span::initial(), Host)),
+                ),
+                (Some(Host), Some(Kind)) | (Some(Kind), Some(Kind)) => (
+                    core_fun_ty,
+                    Arc::new(core::Value::Universe(Span::initial(), Kind)),
+                ),
+                (_, _) => (
+                    core::Term::Error(surface_term.span()),
+                    Arc::new(core::Value::Error(Span::initial())),
+                ),
+            }
+        }
+        surface::Term::FunctionElim(head, arguments) => {
+            let span = surface_term.span();
+            let (mut core_head, mut head_type) = synth_term(context, head, report);
+
+            for argument in arguments {
+                match head_type.as_ref() {
+                    core::Value::FunctionType(param_type, body_type) => {
+                        core_head = core::Term::FunctionElim(
+                            Arc::new(core_head),
+                            Arc::new(check_term(context, argument, &param_type, report)),
+                        );
+                        head_type = body_type.clone();
+                    }
+                    core::Value::Error(_) => {
+                        return (
+                            core::Term::Error(span),
+                            Arc::new(core::Value::Error(Span::initial())),
+                        );
+                    }
+                    head_ty => {
+                        report(diagnostics::not_a_function(
+                            Severity::Error,
+                            context.file_id,
+                            head.span(),
+                            head_ty,
+                            argument.span(),
+                        ));
+                        return (
+                            core::Term::Error(span),
+                            Arc::new(core::Value::Error(Span::initial())),
+                        );
+                    }
+                }
+            }
+
+            (core_head, head_type)
+        }
         surface::Term::NumberLiteral(span, _) => {
             report(diagnostics::error::ambiguous_numeric_literal(
                 context.file_id,

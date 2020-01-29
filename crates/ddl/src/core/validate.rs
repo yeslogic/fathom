@@ -130,20 +130,28 @@ pub fn validate_struct_ty_fields(
     }
 }
 
-/// Validate that a term is a type or kind.
-pub fn validate_universe(context: &Context<'_>, term: &Term, report: &mut dyn FnMut(Diagnostic)) {
+/// Validate that a term is a host type, format type, or kind.
+pub fn validate_universe(
+    context: &Context<'_>,
+    term: &Term,
+    report: &mut dyn FnMut(Diagnostic),
+) -> Option<Universe> {
     match term {
-        Term::Universe(_, _) => {}
+        Term::Universe(_, universe) => Some(*universe),
         term => {
             let ty = synth_term(context, term, report);
             match ty.as_ref() {
-                Value::Universe(_, _) | Value::Error(_) => {}
-                _ => report(diagnostics::universe_mismatch(
-                    Severity::Bug,
-                    context.file_id,
-                    term.span(),
-                    &ty,
-                )),
+                Value::Universe(_, universe) => Some(*universe),
+                Value::Error(_) => None,
+                _ => {
+                    report(diagnostics::universe_mismatch(
+                        Severity::Bug,
+                        context.file_id,
+                        term.span(),
+                        &ty,
+                    ));
+                    None
+                }
             }
         }
     }
@@ -236,6 +244,40 @@ pub fn synth_term(
                 Arc::new(Value::Error(Span::initial()))
             }
         },
+        Term::FunctionType(param_type, body_type) => Arc::new(
+            match (
+                validate_universe(context, param_type, report),
+                validate_universe(context, body_type, report),
+            ) {
+                (Some(Universe::Host), Some(Universe::Host)) => {
+                    Value::Universe(Span::initial(), Universe::Host)
+                }
+                (Some(Universe::Host), Some(Universe::Kind))
+                | (Some(Universe::Kind), Some(Universe::Kind)) => {
+                    Value::Universe(Span::initial(), Universe::Kind)
+                }
+                (_, _) => Value::Error(Span::initial()),
+            },
+        ),
+        Term::FunctionElim(head, argument) => {
+            match synth_term(context, head, report).as_ref() {
+                Value::FunctionType(param_type, body_type) => {
+                    check_term(context, argument, &param_type, report);
+                    (*body_type).clone() // FIXME: Clone
+                }
+                Value::Error(_) => Arc::new(Value::Error(Span::initial())),
+                head_ty => {
+                    report(diagnostics::not_a_function(
+                        Severity::Bug,
+                        context.file_id,
+                        head.span(),
+                        head_ty,
+                        argument.span(),
+                    ));
+                    Arc::new(Value::Error(Span::initial()))
+                }
+            }
+        }
         Term::Constant(_, constant) => match constant {
             // TODO: Lookup globals in environment
             Constant::Int(_) => Arc::new(Value::global(Span::initial(), "Int")),

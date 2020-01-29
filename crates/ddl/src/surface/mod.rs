@@ -130,6 +130,10 @@ pub enum Term {
     Host(Span),
     /// The type of types.
     Kind(Span),
+    /// Function types.
+    FunctionType(Box<Term>, Box<Term>),
+    /// Function eliminations (function application).
+    FunctionElim(Box<Term>, Vec<Term>),
     /// Numeric literals.
     NumberLiteral(Span, literal::Number),
     /// If-else expressions.
@@ -153,6 +157,11 @@ impl Term {
             | Term::If(span, _, _, _)
             | Term::Match(span, _, _)
             | Term::Error(span) => *span,
+            Term::FunctionType(param_ty, body_ty) => Span::merge(param_ty.span(), body_ty.span()),
+            Term::FunctionElim(head, arguments) => match arguments.last() {
+                Some(argument) => Span::merge(head.span(), argument.span()),
+                None => head.span(),
+            },
         }
     }
 }

@@ -32,6 +32,20 @@ pub fn eval(
         },
         Term::Ann(term, _) => eval(globals, items, term),
         Term::Universe(span, universe) => Arc::new(Value::Universe(*span, *universe)),
+        Term::FunctionType(param_type, body_type) => {
+            let param_type = eval(globals, items, param_type);
+            let body_type = eval(globals, items, body_type);
+
+            Arc::new(Value::FunctionType(param_type, body_type))
+        }
+        Term::FunctionElim(head, argument) => match eval(globals, items, head).as_ref() {
+            Value::Neutral(head, elims) => {
+                let mut elims = elims.clone(); // FIXME: clone?
+                elims.push(Elim::Function(term.span(), eval(globals, items, argument)));
+                Arc::new(Value::Neutral(head.clone(), elims))
+            }
+            _ => Arc::new(Value::Error(term.span())),
+        },
         Term::Constant(span, constant) => Arc::new(Value::Constant(*span, constant.clone())),
         Term::BoolElim(span, head, if_true, if_false) => {
             match eval(globals, items, head).as_ref() {
@@ -48,6 +62,11 @@ pub fn eval(
                             ))
                         }
                     }
+                }
+                Value::Neutral(head, elims) => {
+                    let mut elims = elims.clone(); // FIXME: clone?
+                    elims.push(Elim::Bool(*span, if_true.clone(), if_false.clone()));
+                    Arc::new(Value::Neutral(head.clone(), elims))
                 }
                 _ => Arc::new(Value::Neutral(
                     Head::Error(head.span()),
@@ -75,29 +94,35 @@ pub fn eval(
 }
 
 /// Read a neutral term back into the term syntax.
-fn readback_neutral(head: &Head, elims: &[Elim]) -> Term {
+fn read_back_neutral(head: &Head, elims: &[Elim]) -> Term {
     elims.iter().fold(
         match head {
             Head::Global(span, name) => Term::Global(*span, name.clone()),
             Head::Item(span, name) => Term::Item(*span, name.clone()),
             Head::Error(span) => Term::Error(*span),
         },
-        |acc, elim| match elim {
+        |head, elim| match elim {
+            Elim::Function(_, argument) => {
+                Term::FunctionElim(Arc::new(head), Arc::new(read_back(argument)))
+            }
             Elim::Bool(span, if_true, if_false) => {
-                Term::BoolElim(*span, Arc::new(acc), if_true.clone(), if_false.clone())
+                Term::BoolElim(*span, Arc::new(head), if_true.clone(), if_false.clone())
             }
             Elim::Int(span, branches, default) => {
-                Term::IntElim(*span, Arc::new(acc), branches.clone(), default.clone())
+                Term::IntElim(*span, Arc::new(head), branches.clone(), default.clone())
             }
         },
     )
 }
 
 /// Read a value back into the term syntax.
-pub fn readback(value: &Value) -> Term {
+pub fn read_back(value: &Value) -> Term {
     match value {
-        Value::Neutral(head, elims) => readback_neutral(head, elims),
+        Value::Neutral(head, elims) => read_back_neutral(head, elims),
         Value::Universe(span, universe) => Term::Universe(*span, *universe),
+        Value::FunctionType(param_ty, body_ty) => {
+            Term::FunctionType(Arc::new(read_back(param_ty)), Arc::new(read_back(body_ty)))
+        }
         Value::Constant(span, constant) => Term::Constant(*span, constant.clone()),
         Value::Error(span) => Term::Error(*span),
     }
@@ -107,9 +132,12 @@ pub fn readback(value: &Value) -> Term {
 pub fn equal(val1: &Value, val2: &Value) -> bool {
     match (val1, val2) {
         (Value::Neutral(head0, elims0), Value::Neutral(head1, elims1)) => {
-            readback_neutral(head0, elims0) == readback_neutral(head1, elims1)
+            read_back_neutral(head0, elims0) == read_back_neutral(head1, elims1)
         }
         (Value::Universe(_, universe0), Value::Universe(_, universe1)) => universe0 == universe1,
+        (Value::FunctionType(param_ty0, body_ty0), Value::FunctionType(param_ty1, body_ty1)) => {
+            equal(param_ty1, param_ty0) && equal(body_ty0, body_ty1)
+        }
         (Value::Constant(_, constant0), Value::Constant(_, constant1)) => constant0 == constant1,
         // Errors are always treated as equal
         (Value::Error(_), _) | (_, Value::Error(_)) => true,

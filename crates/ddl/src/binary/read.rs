@@ -1,5 +1,6 @@
 use ddl_rt::ReadFormat;
 use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
 use crate::binary::Term;
@@ -36,7 +37,8 @@ pub fn read_module_item<'module>(
     for item in &module.items {
         match item {
             core::Item::Alias(alias) if alias.name == name => {
-                return read_ty(context, &alias.term);
+                let value = core::semantics::eval(context.globals, &context.items, &alias.term);
+                return read_ty(context, &value);
             }
             core::Item::Struct(struct_ty) if struct_ty.name == name => {
                 return read_struct_ty(context, struct_ty);
@@ -60,14 +62,17 @@ pub fn read_struct_ty(
     let fields = struct_ty
         .fields
         .iter()
-        .map(|field| Ok((field.name.clone(), read_ty(context, &field.term)?)))
+        .map(|field| {
+            let value = core::semantics::eval(context.globals, &context.items, &field.term);
+            Ok((field.name.clone(), read_ty(context, &value)?))
+        })
         .collect::<Result<_, ddl_rt::ReadError>>()?;
 
     Ok(Term::Struct(fields))
 }
 
-pub fn read_ty(context: &mut Context<'_>, term: &core::Term) -> Result<Term, ddl_rt::ReadError> {
-    match core::semantics::eval(context.globals, &context.items, term).as_ref() {
+pub fn read_ty(context: &mut Context<'_>, ty: &core::Value) -> Result<Term, ddl_rt::ReadError> {
+    match ty {
         core::Value::Neutral(core::Head::Global(_, name), elims) => {
             match (name.as_str(), elims.as_slice()) {
                 ("U8", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U8>()?))),
@@ -88,7 +93,24 @@ pub fn read_ty(context: &mut Context<'_>, term: &core::Term) -> Result<Term, ddl
                 ("F32Be", []) => Ok(Term::F32(context.read::<ddl_rt::F32Be>()?)),
                 ("F64Le", []) => Ok(Term::F64(context.read::<ddl_rt::F64Le>()?)),
                 ("F64Be", []) => Ok(Term::F64(context.read::<ddl_rt::F64Be>()?)),
-                (_, _) => Err(ddl_rt::ReadError::InvalidDataDescription),
+                ("Array", [core::Elim::Function(_, len), core::Elim::Function(_, elem_ty)]) => {
+                    match len.as_ref() {
+                        core::Value::Constant(_, core::Constant::Int(len)) => {
+                            match len.to_usize() {
+                                Some(len) => Ok(Term::Seq(
+                                    (0..len)
+                                        .map(|_| read_ty(context, elem_ty))
+                                        .collect::<Result<_, _>>()?,
+                                )),
+                                None => Err(ddl_rt::ReadError::InvalidDataDescription),
+                            }
+                        }
+                        _ => Err(ddl_rt::ReadError::InvalidDataDescription),
+                    }
+                }
+                ("List", [core::Elim::Function(_, _)]) | (_, _) => {
+                    Err(ddl_rt::ReadError::InvalidDataDescription)
+                }
             }
         }
         core::Value::Neutral(core::Head::Item(_, name), elims) => {
@@ -99,6 +121,7 @@ pub fn read_ty(context: &mut Context<'_>, term: &core::Term) -> Result<Term, ddl
         }
         core::Value::Neutral(core::Head::Error(_), _)
         | core::Value::Universe(_, _)
+        | core::Value::FunctionType(_, _)
         | core::Value::Constant(_, _)
         | core::Value::Error(_) => Err(ddl_rt::ReadError::InvalidDataDescription),
     }

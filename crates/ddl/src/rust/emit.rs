@@ -7,6 +7,8 @@ use crate::rust::{
 };
 
 const INDENT: usize = 4;
+// TODO: Move to rust compiler
+const RT_NAME: &str = "ddl_rt";
 
 pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");
@@ -150,9 +152,6 @@ fn emit_struct_ty(writer: &mut impl Write, struct_ty: &StructType) -> io::Result
         writeln!(writer)?;
     }
 
-    // TODO: Move to rust compiler
-    const RT_NAME: &str = "ddl_rt";
-
     // Format impl
 
     writeln!(
@@ -237,6 +236,11 @@ fn emit_ty(writer: &mut impl Write, ty: &Type) -> io::Result<()> {
             write!(writer, "{}", name)?;
             emit_ty_arguments(writer, arguments)
         }
+        Type::Array(len, elem_ty) => {
+            write!(writer, "[")?;
+            emit_ty(writer, elem_ty)?;
+            write!(writer, "; {}]", len)
+        }
     }
 }
 
@@ -277,10 +281,12 @@ fn emit_constant(writer: &mut impl Write, constant: &Constant) -> io::Result<()>
         Constant::U16(value) => write!(writer, "{}u16", value),
         Constant::U32(value) => write!(writer, "{}u32", value),
         Constant::U64(value) => write!(writer, "{}u64", value),
+        Constant::USize(value) => write!(writer, "{}usize", value),
         Constant::I8(value) => write!(writer, "{}i8", value),
         Constant::I16(value) => write!(writer, "{}i16", value),
         Constant::I32(value) => write!(writer, "{}i32", value),
         Constant::I64(value) => write!(writer, "{}i64", value),
+        Constant::ISize(value) => write!(writer, "{}isize", value),
         Constant::F32(value) => write!(writer, "{}f32", value),
         Constant::F64(value) => write!(writer, "{}f64", value),
     }
@@ -342,6 +348,14 @@ fn emit_term(writer: &mut impl Write, indent: usize, term: &Term) -> io::Result<
             write!(writer, "reader.read::<")?;
             emit_ty(writer, ty)?;
             write!(writer, ">()?")
+        }
+        Term::ReadArray(len, read_elem) => {
+            // TODO: read into fixed-size array
+            write!(writer, "(0..(")?;
+            emit_term(writer, indent, len)?;
+            write!(writer, ")).map(|_| ")?;
+            emit_term(writer, indent, read_elem)?;
+            write!(writer, ").collect::<Result<_, {}::ReadError>>()?", RT_NAME)
         }
         Term::Struct(name, fields) if fields.is_empty() => write!(writer, "{} {{}}", name),
         Term::Struct(name, fields) => {

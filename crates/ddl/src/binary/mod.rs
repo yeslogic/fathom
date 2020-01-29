@@ -18,6 +18,8 @@ pub enum Term {
     F32(f32),
     /// IEEE-754 double-precision floating point numbers.
     F64(f64),
+    /// Sequences
+    Seq(Vec<Term>),
     /// Structure values
     Struct(BTreeMap<String, Term>),
 }

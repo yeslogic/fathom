@@ -182,6 +182,10 @@ pub enum Term {
     Ann(Arc<Term>, Arc<Term>),
     /// Universes.
     Universe(Span, Universe),
+    /// Function types.
+    FunctionType(Arc<Term>, Arc<Term>),
+    /// Function eliminations (function application).
+    FunctionElim(Arc<Term>, Arc<Term>),
     /// Constants.
     Constant(Span, Constant),
     /// A boolean elimination.
@@ -204,6 +208,8 @@ impl Term {
             | Term::IntElim(span, _, _, _)
             | Term::Error(span) => *span,
             Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
+            Term::FunctionType(param_ty, body_ty) => Span::merge(param_ty.span(), body_ty.span()),
+            Term::FunctionElim(head, argument) => Span::merge(head.span(), argument.span()),
         }
     }
 }
@@ -215,6 +221,12 @@ impl PartialEq for Term {
             (Term::Item(_, name0), Term::Item(_, name1)) => name0 == name1,
             (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
             (Term::Universe(_, universe0), Term::Universe(_, universe1)) => universe0 == universe1,
+            (Term::FunctionType(param_ty0, body_ty0), Term::FunctionType(param_ty1, body_ty1)) => {
+                param_ty0 == param_ty1 && body_ty0 == body_ty1
+            }
+            (Term::FunctionElim(head0, argument0), Term::FunctionElim(head1, argument1)) => {
+                head0 == head1 && argument0 == argument1
+            }
             (Term::Constant(_, constant0), Term::Constant(_, constant1)) => constant0 == constant1,
             (
                 Term::BoolElim(_, head0, if_true0, if_false0),
@@ -241,12 +253,32 @@ pub enum Head {
     Error(Span),
 }
 
+impl Head {
+    pub fn span(&self) -> Span {
+        match self {
+            Head::Global(span, _) | Head::Item(span, _) | Head::Error(span) => *span,
+        }
+    }
+}
+
 /// An eliminator that is 'stuck' on some head.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Elim {
+    /// Function eliminatiors (function application).
+    Function(Span, Arc<Value>),
+    /// Boolean eliminators.
     // FIXME: environment?
     Bool(Span, Arc<Term>, Arc<Term>),
+    /// Integer eliminators.
     Int(Span, BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
+}
+
+impl Elim {
+    pub fn span(&self) -> Span {
+        match self {
+            Elim::Function(span, _) | Elim::Bool(span, _, _) | Elim::Int(span, _, _) => *span,
+        }
+    }
 }
 
 /// Values.
@@ -256,6 +288,8 @@ pub enum Value {
     Neutral(Head, Vec<Elim>),
     /// Universes.
     Universe(Span, Universe),
+    /// Function types.
+    FunctionType(Arc<Value>, Arc<Value>),
     /// Constants.
     Constant(Span, Constant),
 
@@ -267,6 +301,17 @@ impl Value {
     /// Create a global variable.
     pub fn global(span: Span, name: impl Into<String>) -> Value {
         Value::Neutral(Head::Global(span, name.into()), Vec::new())
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            Value::Universe(span, _) | Value::Constant(span, _) | Value::Error(span) => *span,
+            Value::FunctionType(param_ty, body_ty) => Span::merge(param_ty.span(), body_ty.span()),
+            Value::Neutral(head, elims) => match elims.last() {
+                Some(elim) => Span::merge(head.span(), elim.span()),
+                None => head.span(),
+            },
+        }
     }
 }
 
@@ -320,6 +365,29 @@ impl Default for Globals {
         entries.insert("Bool".to_owned(), (Arc::new(Term::Universe(span, Universe::Host)), None));
         entries.insert("true".to_owned(), (Arc::new(Term::Global(span, "Bool".to_owned())), None));
         entries.insert("false".to_owned(), (Arc::new(Term::Global(span, "Bool".to_owned())), None));
+        entries.insert(
+            "Array".to_owned(),
+            (
+                Arc::new(Term::FunctionType(
+                    Arc::new(Term::Global(span, "Int".to_owned())),
+                    Arc::new(Term::FunctionType(
+                        Arc::new(Term::Universe(span, Universe::Format)),
+                        Arc::new(Term::Universe(span, Universe::Format)),
+                    )),
+                )),
+                None,
+            ),
+        );
+        entries.insert(
+            "List".to_owned(),
+            (
+                Arc::new(Term::FunctionType(
+                    Arc::new(Term::Universe(span, Universe::Host)),
+                    Arc::new(Term::Universe(span, Universe::Host)),
+                )),
+                None,
+            ),
+        );
 
         Globals::new(entries)
     }

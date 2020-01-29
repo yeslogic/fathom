@@ -4,6 +4,8 @@ use pretty::{DocAllocator, DocBuilder};
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Prec {
     Term = 0,
+    Arrow,
+    App,
     Atomic,
 }
 
@@ -204,7 +206,7 @@ where
             alloc,
             prec > Prec::Term,
             (alloc.nil())
-                .append(pretty_term_prec(alloc, term, Prec::Atomic))
+                .append(pretty_term_prec(alloc, term, Prec::Arrow))
                 .append(alloc.space())
                 .append(":")
                 .group()
@@ -216,6 +218,28 @@ where
                 ),
         ),
         Term::Universe(_, universe) => pretty_universe(alloc, universe),
+        Term::FunctionType(param_type, body_type) => pretty_paren(
+            alloc,
+            prec > Prec::Arrow,
+            (alloc.nil())
+                .append(pretty_term_prec(alloc, param_type, Prec::App))
+                .append(alloc.space())
+                .append("->")
+                .append(alloc.space())
+                .append(pretty_term_prec(alloc, body_type, Prec::Arrow)),
+        ),
+        Term::FunctionElim(head, argument) => pretty_paren(
+            alloc,
+            prec > Prec::App,
+            (alloc.nil())
+                .append(pretty_term_prec(alloc, head, Prec::Atomic))
+                .append(
+                    (alloc.space())
+                        .append(pretty_term_prec(alloc, argument, Prec::Atomic))
+                        .group()
+                        .nest(4),
+                ),
+        ),
         Term::Constant(_, constant) => pretty_constant(alloc, constant),
         Term::BoolElim(_, head, if_true, if_false) => (alloc.nil())
             .append("bool_elim")

@@ -355,6 +355,15 @@ fn compile_term(
     core_term: &core::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> CompiledTerm {
+    let value = core::semantics::eval(context.globals, &context.core_items, core_term);
+    compile_value(context, &value, report)
+}
+
+fn compile_value(
+    context: &mut Context<'_>,
+    value: &core::Value,
+    report: &mut dyn FnMut(Diagnostic),
+) -> CompiledTerm {
     let file_id = context.file_id;
 
     let host_ty = |rust_ty| {
@@ -374,7 +383,7 @@ fn compile_term(
         })
     };
 
-    match core::semantics::eval(context.globals, &context.core_items, core_term).as_ref() {
+    match value {
         core::Value::Neutral(core::Head::Global(span, name), elims) => {
             match (name.as_str(), elims.as_slice()) {
                 // TODO: Put globals in an environment
@@ -398,10 +407,7 @@ fn compile_term(
                 ("F64Be", []) => format_ty(rt_ty_name("F64Be"), rust::Type::name("f64", vec![])),
                 ("Bool", []) => host_ty(rust::Type::name("bool", vec![])),
                 ("Int", []) => {
-                    report(diagnostics::error::unconstrained_int(
-                        file_id,
-                        core_term.span(),
-                    ));
+                    report(diagnostics::error::unconstrained_int(file_id, *span));
                     host_ty(rt_invalid_ty())
                 }
                 ("F32", []) => host_ty(rust::Type::name("f32", vec![])),
@@ -416,11 +422,111 @@ fn compile_term(
                     rust_ty: rust::Type::name("bool", vec![]),
                     is_const: true,
                 }),
-                (name, _) => {
-                    report(crate::diagnostics::bug::global_name_not_found(
-                        file_id, name, *span,
-                    ));
-                    host_ty(rt_invalid_ty())
+                (
+                    "Array",
+                    [core::Elim::Function(len_span, len), core::Elim::Function(_, elem_ty)],
+                ) => {
+                    let len = match len.as_ref() {
+                        core::Value::Error(_) => return CompiledTerm::Error,
+                        core::Value::Constant(_, core::Constant::Int(len)) => {
+                            match len.to_usize() {
+                                Some(len) => len,
+                                None => {
+                                    report(diagnostics::bug::integer_out_of_bounds(
+                                        context.file_id,
+                                        *len_span,
+                                    ));
+                                    return CompiledTerm::Error;
+                                }
+                            }
+                        }
+                        _ => {
+                            report(diagnostics::bug::expected_integer(
+                                context.file_id,
+                                *len_span,
+                            ));
+                            return CompiledTerm::Error;
+                        }
+                    };
+
+                    let elem_ty =
+                        compile_value_as_ty(context, elem_ty, report).unwrap_or_else(|| Type {
+                            rust_ty: rt_invalid_ty(),
+                            host_ty: None,
+                            read: None,
+                            is_copy: true,
+                        });
+
+                    match elem_ty.host_ty {
+                        Some(host_elem_ty) => CompiledTerm::Type(Type {
+                            rust_ty: rt_invalid_ty(),
+                            is_copy: false,
+                            // TODO: read into fixed-size array (if possible)
+                            host_ty: Some(rust::Type::Name("Vec".into(), vec![host_elem_ty])),
+                            read: Some(rust::Term::ReadArray(
+                                Box::new(rust::Term::Constant(rust::Constant::USize(len))),
+                                Box::new(rust::Term::call(
+                                    rust::Term::name("Ok"),
+                                    vec![match elem_ty.read {
+                                        Some(read) => read,
+                                        None => rust::Term::Read(Box::new(elem_ty.rust_ty)),
+                                    }],
+                                )),
+                            )),
+                        }),
+                        None => CompiledTerm::Type(Type {
+                            rust_ty: rust::Type::Array(len, Box::new(elem_ty.rust_ty)),
+                            is_copy: false,
+                            host_ty: None,
+                            read: None,
+                        }),
+                    }
+                }
+                ("List", [core::Elim::Function(_, elem_ty)]) => {
+                    let elem_ty =
+                        compile_value_as_ty(context, elem_ty, report).unwrap_or_else(|| Type {
+                            rust_ty: rt_invalid_ty(),
+                            host_ty: None,
+                            read: None,
+                            is_copy: true,
+                        });
+
+                    CompiledTerm::Type(Type {
+                        rust_ty: rust::Type::Name("Vec".into(), vec![elem_ty.rust_ty]),
+                        is_copy: false,
+                        host_ty: None,
+                        read: None,
+                    })
+                }
+                (name, elims) => {
+                    let arity = match name {
+                        "U8" | "U16Le" | "U16Be" | "U32Le" | "U32Be" | "U64Le" | "U64Be" | "S8"
+                        | "S16Le" | "S16Be" | "S32Le" | "S32Be" | "S64Le" | "S64Be" | "F32Le"
+                        | "F32Be" | "F64Le" | "F64Be" | "Bool" | "Int" | "F32" | "F64" | "true"
+                        | "false" => Some(0),
+                        "List" => Some(1),
+                        "Array" => Some(2),
+                        _ => None,
+                    };
+
+                    match arity {
+                        Some(arity) if elims.len() < arity => {
+                            report(crate::diagnostics::bug::not_yet_implemented(
+                                context.file_id,
+                                value.span(),
+                                "undersaturated type constructors",
+                            ))
+                        }
+                        Some(_) => report(diagnostics::bug::oversaturated_fun_elim(
+                            context.file_id,
+                            value.span(),
+                        )),
+                        None => report(crate::diagnostics::bug::global_name_not_found(
+                            file_id, name, *span,
+                        )),
+                    }
+
+                    CompiledTerm::Error
                 }
             }
         }
@@ -435,25 +541,40 @@ fn compile_term(
                     CompiledTerm::Error
                 }
             };
-            elims.iter().fold(head, |head, elim| match head {
-                CompiledTerm::Term(head) => match elim {
-                    core::Elim::Bool(_, if_true, if_false) => {
-                        compile_bool_elim(context, head, if_true, if_false, report)
-                    }
-                    core::Elim::Int(span, branches, default) => {
-                        compile_int_elim(context, *span, head, branches, default, report)
-                    }
-                },
-                CompiledTerm::Type(head) => match elim {
-                    // TODO: Build up type application?
-                    elim => CompiledTerm::Error,
-                },
-                CompiledTerm::Error => CompiledTerm::Error,
-                CompiledTerm::Erased => CompiledTerm::Erased,
+            elims.iter().fold(head, |head, elim| match (&head, elim) {
+                (_, core::Elim::Function(_, _)) => {
+                    report(crate::diagnostics::bug::not_yet_implemented(
+                        context.file_id,
+                        value.span(),
+                        "function eliminations on items",
+                    ));
+                    CompiledTerm::Error
+                }
+                (CompiledTerm::Term(head), core::Elim::Bool(_, if_true, if_false)) => {
+                    let head = head.rust_term.clone();
+                    compile_bool_elim(context, head, if_true, if_false, report)
+                }
+                (CompiledTerm::Term(head), core::Elim::Int(span, branches, default)) => {
+                    let head = head.rust_term.clone();
+                    compile_int_elim(context, *span, head, branches, default, report)
+                }
+                (CompiledTerm::Error, _) => CompiledTerm::Error,
+                (_, core::Elim::Bool(span, _, _)) | (_, core::Elim::Int(span, _, _)) => {
+                    report(diagnostics::bug::unexpected_elim(file_id, *span));
+                    CompiledTerm::Error
+                }
             })
         }
         core::Value::Neutral(core::Head::Error(_), _) => CompiledTerm::Error,
         core::Value::Universe(_, _) => CompiledTerm::Erased,
+        core::Value::FunctionType(_, _) => {
+            report(crate::diagnostics::bug::not_yet_implemented(
+                context.file_id,
+                value.span(),
+                "function types",
+            ));
+            CompiledTerm::Error
+        }
         core::Value::Constant(span, constant) => compile_constant(context, *span, constant, report),
         core::Value::Error(_) => CompiledTerm::Error,
     }
@@ -464,10 +585,24 @@ fn compile_term_as_ty(
     core_term: &core::Term,
     report: &mut dyn FnMut(Diagnostic),
 ) -> Option<Type> {
-    match compile_term(context, &core_term, report) {
-        CompiledTerm::Term(_) => None, // TODO: report error
+    let value = core::semantics::eval(context.globals, &context.core_items, core_term);
+    compile_value_as_ty(context, &value, report)
+}
+
+fn compile_value_as_ty(
+    context: &mut Context<'_>,
+    value: &core::Value,
+    report: &mut dyn FnMut(Diagnostic),
+) -> Option<Type> {
+    match compile_value(context, &value, report) {
         CompiledTerm::Type(ty) => Some(ty),
-        CompiledTerm::Erased => None, // TODO: report error
+        CompiledTerm::Term(_) | CompiledTerm::Erased => {
+            report(diagnostics::bug::expected_type(
+                context.file_id,
+                value.span(),
+            ));
+            None
+        }
         CompiledTerm::Error => None,
     }
 }
@@ -510,7 +645,7 @@ fn compile_constant(
 
 fn compile_bool_elim(
     context: &mut Context<'_>,
-    head: Term,
+    head: rust::Term,
     if_true: &core::Term,
     if_false: &core::Term,
     report: &mut dyn FnMut(Diagnostic),
@@ -522,7 +657,7 @@ fn compile_bool_elim(
         (CompiledTerm::Term(true_term), CompiledTerm::Term(false_term)) => {
             CompiledTerm::Term(Term {
                 rust_term: rust::Term::If(
-                    Box::new(head.rust_term),
+                    Box::new(head),
                     Box::new(true_term.rust_term),
                     Box::new(false_term.rust_term),
                 ),
@@ -607,7 +742,7 @@ fn compile_bool_elim(
                 is_copy,
                 host_ty: Some(rust::Type::name(enum_rust_name, Vec::new())),
                 read: Some(rust::Term::If(
-                    Box::new(head.rust_term),
+                    Box::new(head),
                     Box::new(rust::Term::call(true_ctor, vec![true_read])),
                     Box::new(rust::Term::call(false_ctor, vec![false_read])),
                 )),
@@ -625,7 +760,7 @@ fn compile_bool_elim(
 fn compile_int_elim(
     context: &mut Context<'_>,
     span: Span,
-    head: Term,
+    head: rust::Term,
     branches: &BTreeMap<BigInt, Arc<core::Term>>,
     default: &core::Term,
     report: &mut dyn FnMut(Diagnostic),
@@ -659,7 +794,7 @@ fn compile_int_elim(
                 .collect();
 
             CompiledTerm::Term(Term {
-                rust_term: rust::Term::Match(Box::new(head.rust_term), branches),
+                rust_term: rust::Term::Match(Box::new(head), branches),
                 rust_ty: default_term.rust_ty,
                 is_const: false,
             })
@@ -776,7 +911,7 @@ fn compile_int_elim(
                 rust_ty: rt_invalid_ty(),
                 is_copy,
                 host_ty: Some(rust::Type::name(enum_rust_name.clone(), Vec::new())),
-                read: Some(rust::Term::Match(Box::new(head.rust_term), read_branches)),
+                read: Some(rust::Term::Match(Box::new(head), read_branches)),
             })
         }
         CompiledTerm::Erased => CompiledTerm::Erased,
