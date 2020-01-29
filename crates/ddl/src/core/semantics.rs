@@ -1,6 +1,5 @@
 //! Operational semantics of the data description language.
 
-use codespan::Span;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -14,57 +13,65 @@ pub fn eval(
     term: &Term,
 ) -> Arc<Value> {
     match term {
-        Term::Global(_, name) => match globals.get(name) {
-            None => Arc::new(Value::Error),
+        Term::Global(span, name) => match globals.get(name) {
+            None => Arc::new(Value::Error(*span)),
             Some((_, term)) => match term {
                 Some(term) => eval(globals, items, term),
-                None => Arc::new(Value::Neutral(Head::Global(name.clone()), Vec::new())),
+                None => Arc::new(Value::Neutral(
+                    Head::Global(*span, name.clone()),
+                    Vec::new(),
+                )),
             },
         },
-        Term::Item(_, name) => match items.get(name.as_str()) {
-            None => Arc::new(Value::Error),
+        Term::Item(span, name) => match items.get(name.as_str()) {
+            None => Arc::new(Value::Error(*span)),
             Some(Item::Alias(alias)) => eval(globals, items, &alias.term),
-            Some(Item::Struct(_)) => Arc::new(Value::Neutral(Head::Item(name.clone()), Vec::new())),
+            Some(Item::Struct(_)) => {
+                Arc::new(Value::Neutral(Head::Item(*span, name.clone()), Vec::new()))
+            }
         },
         Term::Ann(term, _) => eval(globals, items, term),
-        Term::Universe(_, universe) => Arc::new(Value::Universe(*universe)),
-        Term::Constant(_, constant) => Arc::new(Value::Constant(constant.clone())),
-        Term::BoolElim(_, head, if_true, if_false) => match eval(globals, items, head).as_ref() {
-            Value::Neutral(Head::Global(name), elims) if elims.is_empty() => match name.as_str() {
-                "true" => eval(globals, items, if_true),
-                "false" => eval(globals, items, if_false),
-                _ => {
-                    let mut elims = elims.clone(); // FIXME: clone?
-                    elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
-                    Arc::new(Value::Neutral(Head::Global(name.clone()), elims))
+        Term::Universe(span, universe) => Arc::new(Value::Universe(*span, *universe)),
+        Term::Constant(span, constant) => Arc::new(Value::Constant(*span, constant.clone())),
+        Term::BoolElim(span, head, if_true, if_false) => {
+            match eval(globals, items, head).as_ref() {
+                Value::Neutral(Head::Global(span, name), elims) if elims.is_empty() => {
+                    match name.as_str() {
+                        "true" => eval(globals, items, if_true),
+                        "false" => eval(globals, items, if_false),
+                        _ => {
+                            let mut elims = elims.clone(); // FIXME: clone?
+                            elims.push(Elim::Bool(*span, if_true.clone(), if_false.clone()));
+                            Arc::new(Value::Neutral(Head::Global(*span, name.clone()), elims))
+                        }
+                        _ => Arc::new(Value::Neutral(
+                            Head::Error,
+                            vec![Elim::Bool(*span, if_true.clone(), if_false.clone())],
+                        )),
+                    }
                 }
-            },
-            Value::Neutral(head, elims) => {
-                let mut elims = elims.clone(); // FIXME: clone?
-                elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
-                Arc::new(Value::Neutral(head.clone(), elims))
+                _ => Arc::new(Value::Neutral(
+                    Head::Error(head.span()),
+                    vec![Elim::Bool(*span, if_true.clone(), if_false.clone())],
+                )),
             }
-            _ => Arc::new(Value::Neutral(
-                Head::Error,
-                vec![Elim::Bool(if_true.clone(), if_false.clone())],
-            )),
-        },
-        Term::IntElim(_, head, branches, default) => match eval(globals, items, head).as_ref() {
-            Value::Constant(Constant::Int(value)) => match branches.get(&value) {
+        }
+        Term::IntElim(span, head, branches, default) => match eval(globals, items, head).as_ref() {
+            Value::Constant(_, Constant::Int(value)) => match branches.get(&value) {
                 Some(term) => eval(globals, items, term),
                 None => eval(globals, items, default),
             },
             Value::Neutral(head, elims) => {
                 let mut elims = elims.clone(); // FIXME: clone?
-                elims.push(Elim::Int(branches.clone(), default.clone()));
+                elims.push(Elim::Int(*span, branches.clone(), default.clone()));
                 Arc::new(Value::Neutral(head.clone(), elims))
             }
             _ => Arc::new(Value::Neutral(
-                Head::Error,
-                vec![Elim::Int(branches.clone(), default.clone())],
+                Head::Error(head.span()),
+                vec![Elim::Int(*span, branches.clone(), default.clone())],
             )),
         },
-        Term::Error(_) => Arc::new(Value::Error),
+        Term::Error(span) => Arc::new(Value::Error(*span)),
     }
 }
 
@@ -72,23 +79,17 @@ pub fn eval(
 fn readback_neutral(head: &Head, elims: &[Elim]) -> Term {
     elims.iter().fold(
         match head {
-            Head::Global(name) => Term::Global(Span::initial(), name.clone()),
-            Head::Item(name) => Term::Item(Span::initial(), name.clone()),
-            Head::Error => Term::Error(Span::initial()),
+            Head::Global(span, name) => Term::Global(*span, name.clone()),
+            Head::Item(span, name) => Term::Item(*span, name.clone()),
+            Head::Error(span) => Term::Error(*span),
         },
         |acc, elim| match elim {
-            Elim::Bool(if_true, if_false) => Term::BoolElim(
-                Span::initial(),
-                Arc::new(acc),
-                if_true.clone(),
-                if_false.clone(),
-            ),
-            Elim::Int(branches, default) => Term::IntElim(
-                Span::initial(),
-                Arc::new(acc),
-                branches.clone(),
-                default.clone(),
-            ),
+            Elim::Bool(span, if_true, if_false) => {
+                Term::BoolElim(*span, Arc::new(acc), if_true.clone(), if_false.clone())
+            }
+            Elim::Int(span, branches, default) => {
+                Term::IntElim(*span, Arc::new(acc), branches.clone(), default.clone())
+            }
         },
     )
 }
@@ -97,9 +98,9 @@ fn readback_neutral(head: &Head, elims: &[Elim]) -> Term {
 pub fn readback(value: &Value) -> Term {
     match value {
         Value::Neutral(head, elims) => readback_neutral(head, elims),
-        Value::Universe(universe) => Term::Universe(Span::initial(), *universe),
-        Value::Constant(constant) => Term::Constant(Span::initial(), constant.clone()),
-        Value::Error => Term::Error(Span::initial()),
+        Value::Universe(span, universe) => Term::Universe(*span, *universe),
+        Value::Constant(span, constant) => Term::Constant(*span, constant.clone()),
+        Value::Error(span) => Term::Error(*span),
     }
 }
 
@@ -109,10 +110,10 @@ pub fn equal(val1: &Value, val2: &Value) -> bool {
         (Value::Neutral(head0, elims0), Value::Neutral(head1, elims1)) => {
             readback_neutral(head0, elims0) == readback_neutral(head1, elims1)
         }
-        (Value::Universe(universe0), Value::Universe(universe1)) => universe0 == universe1,
-        (Value::Constant(constant0), Value::Constant(constant1)) => constant0 == constant1,
+        (Value::Universe(_, universe0), Value::Universe(_, universe1)) => universe0 == universe1,
+        (Value::Constant(_, constant0), Value::Constant(_, constant1)) => constant0 == constant1,
         // Errors are always treated as equal
-        (Value::Error, _) | (_, Value::Error) => true,
+        (Value::Error(_), _) | (_, Value::Error(_)) => true,
         // Anything else is not equal!
         (_, _) => false,
     }

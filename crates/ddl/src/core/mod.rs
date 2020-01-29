@@ -234,19 +234,19 @@ impl PartialEq for Term {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Head {
     /// Global variables.
-    Global(String),
+    Global(Span, String),
     /// Item variables.
-    Item(String),
+    Item(Span, String),
     /// Errors.
-    Error,
+    Error(Span),
 }
 
 /// An eliminator that is 'stuck' on some head.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Elim {
     // FIXME: environment?
-    Bool(Arc<Term>, Arc<Term>),
-    Int(BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
+    Bool(Span, Arc<Term>, Arc<Term>),
+    Int(Span, BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
 }
 
 /// Values.
@@ -255,18 +255,18 @@ pub enum Value {
     /// Neutral terms
     Neutral(Head, Vec<Elim>),
     /// Universes.
-    Universe(Universe),
+    Universe(Span, Universe),
     /// Constants.
-    Constant(Constant),
+    Constant(Span, Constant),
 
     /// Error sentinel.
-    Error,
+    Error(Span),
 }
 
 impl Value {
     /// Create a global variable.
-    pub fn global(name: impl Into<String>) -> Value {
-        Value::Neutral(Head::Global(name.into()), Vec::new())
+    pub fn global(span: Span, name: impl Into<String>) -> Value {
+        Value::Neutral(Head::Global(span, name.into()), Vec::new())
     }
 }
 

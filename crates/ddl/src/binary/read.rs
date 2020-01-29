@@ -68,7 +68,7 @@ pub fn read_struct_ty(
 
 pub fn read_ty(context: &mut Context<'_>, term: &core::Term) -> Result<Term, ddl_rt::ReadError> {
     match core::semantics::eval(context.globals, &context.items, term).as_ref() {
-        core::Value::Neutral(core::Head::Global(name), elims) => {
+        core::Value::Neutral(core::Head::Global(_, name), elims) => {
             match (name.as_str(), elims.as_slice()) {
                 ("U8", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U8>()?))),
                 ("U16Le", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U16Le>()?))),
@@ -91,15 +91,15 @@ pub fn read_ty(context: &mut Context<'_>, term: &core::Term) -> Result<Term, ddl
                 (_, _) => Err(ddl_rt::ReadError::InvalidDataDescription),
             }
         }
-        core::Value::Neutral(core::Head::Item(name), elims) => {
+        core::Value::Neutral(core::Head::Item(_, name), elims) => {
             match (context.items.get(name.as_str()).cloned(), elims.as_slice()) {
                 (Some(core::Item::Struct(struct_ty)), []) => read_struct_ty(context, &struct_ty),
                 (Some(_), _) | (None, _) => Err(ddl_rt::ReadError::InvalidDataDescription),
             }
         }
-        core::Value::Neutral(core::Head::Error, _)
-        | core::Value::Universe(_)
-        | core::Value::Constant(_)
-        | core::Value::Error => Err(ddl_rt::ReadError::InvalidDataDescription),
+        core::Value::Neutral(core::Head::Error(_), _)
+        | core::Value::Universe(_, _)
+        | core::Value::Constant(_, _)
+        | core::Value::Error(_) => Err(ddl_rt::ReadError::InvalidDataDescription),
     }
 }
