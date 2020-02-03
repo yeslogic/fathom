@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
 #[path = "../../snapshots/struct/pass_empty.rs"]
-mod fixture;
+pub mod fixture;
 
 ddl_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_empty.core.ddl");
 

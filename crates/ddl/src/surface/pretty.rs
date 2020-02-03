@@ -7,6 +7,8 @@ use crate::surface::{Alias, Item, Module, Pattern, StructType, Term, TypeField};
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Prec {
     Term = 0,
+    Arrow,
+    App,
     Atomic,
 }
 
@@ -173,7 +175,7 @@ where
             alloc,
             prec > Prec::Term,
             (alloc.nil())
-                .append(pretty_term_prec(alloc, term, Prec::Atomic))
+                .append(pretty_term_prec(alloc, term, Prec::Arrow))
                 .append(alloc.space())
                 .append(":")
                 .group()
@@ -188,6 +190,28 @@ where
         Term::Format(_) => alloc.text("Format"),
         Term::Host(_) => alloc.text("Host"),
         Term::Kind(_) => alloc.text("Kind"),
+        Term::FunctionType(param_type, body_type) => pretty_paren(
+            alloc,
+            prec > Prec::App,
+            (alloc.nil())
+                .append(pretty_term_prec(alloc, param_type, Prec::Atomic))
+                .append(alloc.space())
+                .append("->")
+                .append(alloc.space())
+                .append(pretty_term_prec(alloc, body_type, Prec::Arrow)),
+        ),
+        Term::FunctionElim(head, arguments) => pretty_paren(
+            alloc,
+            prec > Prec::App,
+            pretty_term_prec(alloc, head, Prec::Atomic).append(
+                (alloc.nil())
+                    .append(alloc.concat(arguments.iter().map(|argument| {
+                        (alloc.space()).append(pretty_term_prec(alloc, argument, Prec::Atomic))
+                    })))
+                    .group()
+                    .nest(4),
+            ),
+        ),
         Term::NumberLiteral(_, literal) => alloc.as_string(literal),
         Term::If(_, head, if_true, if_false) => (alloc.nil())
             .append("if")

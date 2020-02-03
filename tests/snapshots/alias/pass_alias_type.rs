@@ -4,4 +4,4 @@
 /// Test that one can refer to local type aliases in aliases.
 pub type Foo = ddl_rt::U32Be;
 
-pub type Bar = Foo;
+pub type Bar = ddl_rt::U32Be;

@@ -4,7 +4,7 @@ use ddl_rt::{F64Le, FormatWriter, ReadError, ReadScope, U8};
 use ddl_test_util::ddl::{binary, core};
 
 #[path = "../../snapshots/alias/pass_match_int_format_type_item.rs"]
-mod fixture;
+pub mod fixture;
 
 ddl_test_util::core_module!(
     FIXTURE,
@@ -38,13 +38,8 @@ fn valid_test() {
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let test = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
-    match singleton.inner() {
-        fixture::Enum0::Variant0(inner) => {
-            assert_eq!(inner, 23.64e10);
-            assert_eq!(test, binary::Term::F64(inner));
-        }
-        _ => panic!("expected `Enum0::Variant0(_)`"),
-    }
+    assert_eq!(singleton, 23.64e10);
+    assert_eq!(test, binary::Term::F64(singleton));
 
     // TODO: Check remaining
 }
@@ -61,13 +56,8 @@ fn valid_test_trailing() {
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let test = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
-    match singleton.inner() {
-        fixture::Enum0::Variant0(inner) => {
-            assert_eq!(inner, 781.453298);
-            assert_eq!(test, binary::Term::F64(inner));
-        }
-        _ => panic!("expected `Enum0::Variant0(_)`"),
-    }
+    assert_eq!(singleton, 781.453298);
+    assert_eq!(test, binary::Term::F64(singleton));
 
     // TODO: Check remaining
 }

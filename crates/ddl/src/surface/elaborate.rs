@@ -78,7 +78,7 @@ pub fn elaborate_items<'items>(
             surface::Item::Alias(alias) => {
                 let (core_term, ty) = match &alias.ty {
                     Some(surface_ty) => {
-                        let core_ty = elaborate_universe(&context, surface_ty, report);
+                        let (core_ty, _) = elaborate_universe(&context, surface_ty, report);
                         let ty = core::semantics::eval(context.globals, &context.items, &core_ty);
                         let core_term = check_term(&context, &alias.term, &ty, report);
                         (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
@@ -125,7 +125,10 @@ pub fn elaborate_items<'items>(
 
                         let core_item = core::Item::Struct(item);
                         core_items.push(core_item.clone());
-                        let ty = Arc::new(core::Value::Universe(core::Universe::Format));
+                        let ty = Arc::new(core::Value::Universe(
+                            Span::initial(),
+                            core::Universe::Format,
+                        ));
                         context.tys.push((*entry.key(), ty));
                         entry.insert(core_item);
                     }
@@ -161,7 +164,10 @@ pub fn elaborate_struct_ty_fields(
         use std::collections::hash_map::Entry;
 
         let field_span = Span::merge(field.name.0, field.term.span());
-        let format_ty = Arc::new(core::Value::Universe(core::Universe::Format));
+        let format_ty = Arc::new(core::Value::Universe(
+            Span::initial(),
+            core::Universe::Format,
+        ));
         let ty = check_term(&context, &field.term, &format_ty, report);
 
         match seen_field_names.entry(field.name.1.clone()) {
@@ -193,15 +199,18 @@ pub fn elaborate_universe(
     context: &Context<'_>,
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic),
-) -> core::Term {
+) -> (core::Term, Option<core::Universe>) {
+    use crate::core::Universe::{Format, Host, Kind};
+
     match surface_term {
-        surface::Term::Kind(span) => core::Term::Universe(*span, core::Universe::Kind),
-        surface::Term::Host(span) => core::Term::Universe(*span, core::Universe::Host),
-        surface::Term::Format(span) => core::Term::Universe(*span, core::Universe::Format),
+        surface::Term::Kind(span) => (core::Term::Universe(*span, Kind), Some(Kind)),
+        surface::Term::Host(span) => (core::Term::Universe(*span, Host), Some(Host)),
+        surface::Term::Format(span) => (core::Term::Universe(*span, Format), Some(Format)),
         surface_term => {
             let (core_term, ty) = synth_term(context, surface_term, report);
             match ty.as_ref() {
-                core::Value::Universe(_) | core::Value::Error => core_term,
+                core::Value::Universe(_, universe) => (core_term, Some(*universe)),
+                core::Value::Error(_) => (core_term, None),
                 _ => {
                     let span = surface_term.span();
                     report(diagnostics::universe_mismatch(
@@ -210,7 +219,7 @@ pub fn elaborate_universe(
                         span,
                         &ty,
                     ));
-                    core::Term::Error(span)
+                    (core::Term::Error(span), None)
                 }
             }
         }
@@ -226,7 +235,7 @@ pub fn check_term(
 ) -> core::Term {
     match (surface_term, expected_ty.as_ref()) {
         (surface::Term::Error(span), _) => core::Term::Error(*span),
-        (surface_term, core::Value::Error) => core::Term::Error(surface_term.span()),
+        (surface_term, core::Value::Error(_)) => core::Term::Error(surface_term.span()),
         (surface::Term::NumberLiteral(span, literal), _) => {
             let error = |report: &mut dyn FnMut(Diagnostic)| {
                 report(diagnostics::error::numeric_literal_not_supported(
@@ -238,7 +247,7 @@ pub fn check_term(
             };
             match expected_ty.as_ref() {
                 // TODO: Lookup globals in environment
-                core::Value::Neutral(core::Head::Global(name), elims) if elims.is_empty() => {
+                core::Value::Neutral(core::Head::Global(_, name), elims) if elims.is_empty() => {
                     match name.as_str() {
                         "Int" => match literal.parse_big_int(context.file_id, report) {
                             Some(value) => core::Term::Constant(*span, core::Constant::Int(value)),
@@ -260,7 +269,7 @@ pub fn check_term(
         }
         (surface::Term::If(span, surface_head, surface_if_true, surface_if_false), _) => {
             // TODO: Lookup globals in environment
-            let bool_ty = Arc::new(core::Value::global("Bool"));
+            let bool_ty = Arc::new(core::Value::global(Span::initial(), "Bool"));
             let head = check_term(context, surface_head, &bool_ty, report);
             let if_true = check_term(context, surface_if_true, expected_ty, report);
             let if_false = check_term(context, surface_if_false, expected_ty, report);
@@ -279,7 +288,7 @@ pub fn check_term(
             };
 
             match head_ty.as_ref() {
-                core::Value::Neutral(core::Head::Global(name), elims) if elims.is_empty() => {
+                core::Value::Neutral(core::Head::Global(_, name), elims) if elims.is_empty() => {
                     // TODO: Lookup globals in environment
                     match name.as_str() {
                         "Bool" => {
@@ -300,7 +309,7 @@ pub fn check_term(
                         _ => error(report),
                     }
                 }
-                core::Value::Error => core::Term::Error(*span),
+                core::Value::Error(_) => core::Term::Error(*span),
                 _ => error(report),
             }
         }
@@ -333,7 +342,7 @@ pub fn synth_term(
 
     match surface_term {
         surface::Term::Ann(surface_term, surface_ty) => {
-            let core_ty = elaborate_universe(context, surface_ty, report);
+            let (core_ty, _) = elaborate_universe(context, surface_ty, report);
             let ty = core::semantics::eval(context.globals, &context.items, &core_ty);
             let core_term = check_term(context, surface_term, &ty, report);
             (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
@@ -354,7 +363,10 @@ pub fn synth_term(
                 name.as_str(),
                 *span,
             ));
-            (core::Term::Error(*span), Arc::new(core::Value::Error))
+            (
+                core::Term::Error(*span),
+                Arc::new(core::Value::Error(Span::initial())),
+            )
         }
         surface::Term::Kind(span) => {
             report(diagnostics::kind_has_no_type(
@@ -362,27 +374,91 @@ pub fn synth_term(
                 context.file_id,
                 *span,
             ));
-            (core::Term::Error(*span), Arc::new(core::Value::Error))
+            (
+                core::Term::Error(*span),
+                Arc::new(core::Value::Error(Span::initial())),
+            )
         }
         surface::Term::Host(span) => (
             core::Term::Universe(*span, Host),
-            Arc::new(core::Value::Universe(Kind)),
+            Arc::new(core::Value::Universe(Span::initial(), Kind)),
         ),
         surface::Term::Format(span) => (
             core::Term::Universe(*span, Format),
-            Arc::new(core::Value::Universe(Kind)),
+            Arc::new(core::Value::Universe(Span::initial(), Kind)),
         ),
+        surface::Term::FunctionType(param_ty, body_ty) => {
+            let (core_param_ty, param_universe) = elaborate_universe(context, param_ty, report);
+            let (core_body_ty, body_universe) = elaborate_universe(context, body_ty, report);
+            let core_fun_ty =
+                core::Term::FunctionType(Arc::new(core_param_ty), Arc::new(core_body_ty));
+
+            match (param_universe, body_universe) {
+                (Some(Host), Some(Host)) => (
+                    core_fun_ty,
+                    Arc::new(core::Value::Universe(Span::initial(), Host)),
+                ),
+                (Some(Host), Some(Kind)) | (Some(Kind), Some(Kind)) => (
+                    core_fun_ty,
+                    Arc::new(core::Value::Universe(Span::initial(), Kind)),
+                ),
+                (_, _) => (
+                    core::Term::Error(surface_term.span()),
+                    Arc::new(core::Value::Error(Span::initial())),
+                ),
+            }
+        }
+        surface::Term::FunctionElim(head, arguments) => {
+            let span = surface_term.span();
+            let (mut core_head, mut head_type) = synth_term(context, head, report);
+
+            for argument in arguments {
+                match head_type.as_ref() {
+                    core::Value::FunctionType(param_type, body_type) => {
+                        core_head = core::Term::FunctionElim(
+                            Arc::new(core_head),
+                            Arc::new(check_term(context, argument, &param_type, report)),
+                        );
+                        head_type = body_type.clone();
+                    }
+                    core::Value::Error(_) => {
+                        return (
+                            core::Term::Error(span),
+                            Arc::new(core::Value::Error(Span::initial())),
+                        );
+                    }
+                    head_ty => {
+                        report(diagnostics::not_a_function(
+                            Severity::Error,
+                            context.file_id,
+                            head.span(),
+                            head_ty,
+                            argument.span(),
+                        ));
+                        return (
+                            core::Term::Error(span),
+                            Arc::new(core::Value::Error(Span::initial())),
+                        );
+                    }
+                }
+            }
+
+            (core_head, head_type)
+        }
         surface::Term::NumberLiteral(span, _) => {
             report(diagnostics::error::ambiguous_numeric_literal(
                 context.file_id,
                 *span,
             ));
 
-            (core::Term::Error(*span), Arc::new(core::Value::Error))
+            (
+                core::Term::Error(*span),
+                Arc::new(core::Value::Error(Span::initial())),
+            )
         }
         surface::Term::If(span, surface_head, surface_if_true, surface_if_false) => {
             // TODO: Lookup globals in environment
-            let bool_ty = Arc::new(core::Value::global("Bool"));
+            let bool_ty = Arc::new(core::Value::global(Span::initial(), "Bool"));
             let head = check_term(context, surface_head, &bool_ty, report);
             let (if_true, if_true_ty) = synth_term(context, surface_if_true, report);
             let (if_false, if_false_ty) = synth_term(context, surface_if_false, report);
@@ -405,7 +481,10 @@ pub fn synth_term(
                     &if_true_ty,
                     &if_false_ty,
                 ));
-                (core::Term::Error(*span), Arc::new(core::Value::Error))
+                (
+                    core::Term::Error(*span),
+                    Arc::new(core::Value::Error(*span)),
+                )
             }
         }
         surface::Term::Match(span, _, _) => {
@@ -414,9 +493,15 @@ pub fn synth_term(
                 context.file_id,
                 *span,
             ));
-            (core::Term::Error(*span), Arc::new(core::Value::Error))
+            (
+                core::Term::Error(*span),
+                Arc::new(core::Value::Error(*span)),
+            )
         }
-        surface::Term::Error(span) => (core::Term::Error(*span), Arc::new(core::Value::Error)),
+        surface::Term::Error(span) => (
+            core::Term::Error(*span),
+            Arc::new(core::Value::Error(Span::initial())),
+        ),
     }
 }
 

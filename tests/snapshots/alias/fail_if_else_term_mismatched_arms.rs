@@ -2,3 +2,5 @@
 // It is not intended for manual editing.
 
 pub const FOO: f32 = 33.4f32;
+
+pub const TEST: bool = true;

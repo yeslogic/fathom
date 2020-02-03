@@ -296,9 +296,10 @@ impl Test {
 
     fn compile_rust(&mut self, core_module: &ddl::core::Module) {
         let mut output = Vec::new();
-        let rust_module = ddl::core::compile::rust::compile_module(core_module, &mut |d| {
-            self.found_diagnostics.push(d);
-        });
+        let rust_module =
+            ddl::core::compile::rust::compile_module(&GLOBALS, core_module, &mut |d| {
+                self.found_diagnostics.push(d);
+            });
         ddl::rust::emit::emit_module(&mut output, &rust_module).unwrap();
         let snapshot_rs_path = self.snapshot_filename.with_extension("rs");
 

@@ -4,4 +4,4 @@
 /// Test that one can refer to local term aliases in aliases.
 pub const FOO: bool = true;
 
-pub const BAR: bool = FOO;
+pub const BAR: bool = true;

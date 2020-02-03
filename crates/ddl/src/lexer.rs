@@ -99,6 +99,8 @@ pub enum Token {
     Equals,
     /// Equals greater: `=>`.
     EqualsGreater,
+    // Hyphen greater: `->`.
+    HyphenGreater,
     /// Semicolon: `;`.
     Semi,
 }
@@ -138,6 +140,7 @@ impl<'a> fmt::Display for Token {
             Token::Comma => write!(f, ","),
             Token::Equals => write!(f, "="),
             Token::EqualsGreater => write!(f, "=>"),
+            Token::HyphenGreater => write!(f, "->"),
             Token::Semi => write!(f, ";"),
         }
     }
@@ -340,9 +343,17 @@ impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
                     ch if is_dec_digit(ch) => self.consume_number(start, Some(Sign::Positive), ch),
                     ch => self.unexpected_char(start, ch, &["decimal digit"]),
                 },
-                '-' => match self.advance()? {
-                    ch if is_dec_digit(ch) => self.consume_number(start, Some(Sign::Negative), ch),
-                    ch => self.unexpected_char(start, ch, &["decimal digit"]),
+                '-' => match self.peek() {
+                    Some('>') => {
+                        self.advance();
+                        self.emit(Token::HyphenGreater)
+                    }
+                    Some(_) | None => match self.advance()? {
+                        ch if is_dec_digit(ch) => {
+                            self.consume_number(start, Some(Sign::Negative), ch)
+                        }
+                        ch => self.unexpected_char(start, ch, &["decimal digit"]),
+                    },
                 },
                 ch if is_dec_digit(ch) => self.consume_number(start, None, ch),
                 ch if is_identifier_start(ch) => self.consume_identifier(ch),

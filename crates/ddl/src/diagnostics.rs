@@ -55,8 +55,9 @@ pub fn type_mismatch(
 ) -> Diagnostic {
     let arena = pretty::Arena::new();
 
-    let expected_ty = surface::delaborate::delaborate_term(&core::semantics::readback(expected_ty));
-    let found_ty = surface::delaborate::delaborate_term(&core::semantics::readback(found_ty));
+    let expected_ty =
+        surface::delaborate::delaborate_term(&core::semantics::read_back(expected_ty));
+    let found_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(found_ty));
     let pretty::DocBuilder(_, expected_ty) = surface::pretty::pretty_term(&arena, &expected_ty);
     let pretty::DocBuilder(_, found_ty) = surface::pretty::pretty_term(&arena, &found_ty);
     let expected_ty = expected_ty.pretty(100);
@@ -88,7 +89,7 @@ pub fn universe_mismatch(
 ) -> Diagnostic {
     let arena = pretty::Arena::new();
 
-    let found_ty = surface::delaborate::delaborate_term(&core::semantics::readback(found_ty));
+    let found_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(found_ty));
     let pretty::DocBuilder(_, found_ty) = surface::pretty::pretty_term(&arena, &found_ty);
     let found_ty = found_ty.pretty(100);
 
@@ -119,6 +120,37 @@ pub fn kind_has_no_type(severity: Severity, file_id: FileId, span: Span) -> Diag
         secondary_labels: vec![],
         // TODO: provide suggestions
         notes: vec![format!("`Kind` has no corresponding type")],
+    }
+}
+
+pub fn not_a_function(
+    severity: Severity,
+    file_id: FileId,
+    head: Span,
+    head_ty: &core::Value,
+    argument: Span,
+) -> Diagnostic {
+    let arena = pretty::Arena::new();
+
+    let head_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(head_ty));
+    let pretty::DocBuilder(_, found_ty) = surface::pretty::pretty_term(&arena, &head_ty);
+    let head_ty = found_ty.pretty(100);
+
+    Diagnostic {
+        severity,
+        code: None,
+        message: format!("applied something that is not a function to an argument"),
+        primary_label: Label::new(
+            file_id,
+            head,
+            format!("expected a function, found `{}`", head_ty),
+        ),
+        secondary_labels: vec![Label::new(file_id, argument, "applied to this argument")],
+        notes: vec![[
+            format!("expected a function"),
+            format!("   found `{}`", head_ty),
+        ]
+        .join("\n")],
     }
 }
 
@@ -246,7 +278,7 @@ pub mod error {
     ) -> Diagnostic {
         let arena = pretty::Arena::new();
 
-        let found_ty = surface::delaborate::delaborate_term(&core::semantics::readback(found_ty));
+        let found_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(found_ty));
         let pretty::DocBuilder(_, found_ty) = surface::pretty::pretty_term(&arena, &found_ty);
         let found_ty = found_ty.pretty(100);
 
@@ -282,7 +314,7 @@ pub mod error {
     ) -> Diagnostic {
         let arena = pretty::Arena::new();
 
-        let found_ty = surface::delaborate::delaborate_term(&core::semantics::readback(found_ty));
+        let found_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(found_ty));
         let pretty::DocBuilder(_, found_ty) = surface::pretty::pretty_term(&arena, &found_ty);
         let found_ty = found_ty.pretty(100);
 

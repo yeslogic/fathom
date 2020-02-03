@@ -65,6 +65,14 @@ pub fn delaborate_term(term: &core::Term) -> surface::Term {
         core::Term::Universe(span, core::Universe::Host) => surface::Term::Host(*span),
         core::Term::Universe(span, core::Universe::Format) => surface::Term::Format(*span),
         core::Term::Universe(span, core::Universe::Kind) => surface::Term::Kind(*span),
+        core::Term::FunctionType(param_ty, body_ty) => surface::Term::FunctionType(
+            Box::new(delaborate_term(param_ty)),
+            Box::new(delaborate_term(body_ty)),
+        ),
+        core::Term::FunctionElim(head, argument) => surface::Term::FunctionElim(
+            Box::new(delaborate_term(head)),
+            vec![delaborate_term(argument)], // TODO: flatten arguments
+        ),
         core::Term::Constant(span, constant) => delaborate_constant(*span, constant),
         core::Term::BoolElim(span, head, if_true, if_false) => surface::Term::If(
             *span,

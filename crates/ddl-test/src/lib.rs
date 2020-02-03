@@ -24,6 +24,7 @@ test!(fail_unexpected_character, "fail_unexpected_character.ddl");
 #[rustfmt::skip]
 mod alias {
     test!(pass_ann, "alias/pass_ann.ddl");
+    test!(pass_array, "alias/pass_array.ddl");
     test!(pass_alias_term, "alias/pass_alias_term.ddl");
     test!(pass_alias_type, "alias/pass_alias_type.ddl");
     test!(pass_ann_ann, "alias/pass_ann_ann.ddl");
@@ -32,6 +33,8 @@ mod alias {
     test!(pass_if_else_ann_type, "alias/pass_if_else_ann_type.ddl");
     test!(pass_if_else_format_type, "alias/pass_if_else_format_type.ddl");
     test!(pass_if_else_format_type_item, "alias/pass_if_else_format_type_item.ddl");
+    test!(pass_if_else_host_type, "alias/pass_if_else_host_type.ddl");
+    test!(pass_if_else_host_type_item, "alias/pass_if_else_host_type_item.ddl");
     test!(pass_if_else_if_else_format_type, "alias/pass_if_else_if_else_format_type.ddl");
     test!(pass_if_else_term, "alias/pass_if_else_term.ddl");
     test!(pass_if_else_term_item, "alias/pass_if_else_term_item.ddl");
@@ -39,6 +42,8 @@ mod alias {
     test!(pass_match_int_ann_type, "alias/pass_match_int_ann_type.ddl");
     test!(pass_match_int_format_type, "alias/pass_match_int_format_type.ddl");
     test!(pass_match_int_format_type_item, "alias/pass_match_int_format_type_item.ddl");
+    test!(pass_match_int_host_type, "alias/pass_match_int_host_type.ddl");
+    test!(pass_match_int_host_type_item, "alias/pass_match_int_host_type_item.ddl");
     test!(pass_match_int_term, "alias/pass_match_int_term.ddl");
     test!(pass_match_int_term_item, "alias/pass_match_int_term_item.ddl");
     test!(pass_match_int_term_unreachable, "alias/pass_match_int_term_unreachable.ddl");
@@ -46,16 +51,15 @@ mod alias {
     test!(pass_simple_doc, "alias/pass_simple_doc.ddl");
 
     test!(fail_ann_mismatch, "alias/fail_ann_mismatch.ddl");
+    test!(fail_array_bad_elem, "alias/fail_array_bad_elem.ddl");
+    test!(fail_array_bad_len, "alias/fail_array_bad_len.ddl");
+    test!(fail_globals, "alias/fail_globals.ddl");
     test!(fail_type_has_no_type, "alias/fail_type_has_no_type.ddl");
-    test!(fail_if_else_host_type, "alias/fail_if_else_host_type.ddl");
-    test!(fail_if_else_host_type_item, "alias/fail_if_else_host_type_item.ddl");
     test!(fail_if_else_term_mismatched_arms, "alias/fail_if_else_term_mismatched_arms.ddl");
     test!(fail_if_else_term_mismatched_condition, "alias/fail_if_else_term_mismatched_condition.ddl");
     test!(fail_match_ambiguous_scrutinee, "alias/fail_match_ambiguous_scrutinee.ddl");
     test!(fail_match_int_missing_default, "alias/fail_match_int_missing_default.ddl");
     test!(fail_match_int_ambiguous, "alias/fail_match_int_ambiguous.ddl");
-    test!(fail_match_int_host_type, "alias/fail_match_int_host_type.ddl");
-    test!(fail_match_int_host_type_item, "alias/fail_match_int_host_type_item.ddl");
     test!(fail_match_int_term_mismatched_arms, "alias/fail_match_int_term_mismatched_arms.ddl");
     test!(fail_numeric_literal_ambiguous, "alias/fail_numeric_literal_ambiguous.ddl");
     test!(fail_numeric_literal_not_supported, "alias/fail_numeric_literal_not_supported.ddl");

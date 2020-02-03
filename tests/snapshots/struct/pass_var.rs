@@ -60,7 +60,7 @@ impl ddl_rt::Format for PairPair {
 impl<'data> ddl_rt::ReadFormat<'data> for PairPair {
     fn read(reader: &mut ddl_rt::FormatReader<'data>) -> Result<PairPair, ddl_rt::ReadError> {
         let first = reader.read::<Pair>()?;
-        let second = reader.read::<MyPair>()?;
+        let second = reader.read::<Pair>()?;
 
         Ok(PairPair {
             first,

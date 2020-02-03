@@ -45,6 +45,7 @@ extern {
         "," => Token::Comma,
         "=" => Token::Equals,
         "=>" => Token::EqualsGreater,
+        "->" => Token::HyphenGreater,
         ";" => Token::Semi,
     }
 }
@@ -94,12 +95,26 @@ Pattern: Pattern = {
 };
 
 Term: Term = {
-    TermAtomic,
-    <term: TermAtomic> ":" <ty: Term> => Term::Ann(Box::new(term), Box::new(ty)),
+    ArrowTerm,
+    <term: ArrowTerm> ":" <ty: Term> => Term::Ann(Box::new(term), Box::new(ty)),
 };
 
-TermAtomic: Term = {
-    <start: @L> "(" <term: Term> ")" <end: @R> => term,
+ArrowTerm: Term = {
+    AppTerm,
+    <param_type: AppTerm> "->" <body_type: ArrowTerm> => {
+        Term::FunctionType(Box::new(param_type), Box::new(body_type))
+    },
+};
+
+AppTerm: Term = {
+    AtomicTerm,
+    <head: AtomicTerm> <arguments: AtomicTerm+> => {
+        Term::FunctionElim(Box::new(head), arguments)
+    },
+};
+
+AtomicTerm: Term = {
+    "(" <term: Term> ")" => term,
     <name: Identifier> => Term::Name(name.0, name.1),
     <start: @L> "Host" <end: @R> => Term::Host(Span::new(start, end)),
     <start: @L> "Format" <end: @R> => Term::Format(Span::new(start, end)),

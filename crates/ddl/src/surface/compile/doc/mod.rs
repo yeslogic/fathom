@@ -226,16 +226,34 @@ fn compile_term_prec<'term>(
         surface::Term::Kind(_) => "Kind".into(),
         surface::Term::Host(_) => "Host".into(),
         surface::Term::Format(_) => "Format".into(),
-        surface::Term::Ann(term, ty) => {
-            let term = compile_term_prec(context, term, Prec::Atomic, report);
-            let ty = compile_term_prec(context, ty, Prec::Term, report);
-
-            if prec > Prec::Term {
-                format!("({} : {})", term, ty).into()
-            } else {
-                format!("{} : {}", term, ty).into()
-            }
-        }
+        surface::Term::Ann(term, ty) => format!(
+            "{lparen}{term} : {ty}{rparen}",
+            lparen = if prec > Prec::Term { "(" } else { "" },
+            rparen = if prec > Prec::Term { ")" } else { "" },
+            term = compile_term_prec(context, term, Prec::Arrow, report),
+            ty = compile_term_prec(context, ty, Prec::Term, report),
+        )
+        .into(),
+        surface::Term::FunctionType(param_type, body_type) => format!(
+            "{lparen}{param_type} &rarr; {body_type}{rparen}",
+            lparen = if prec > Prec::Arrow { "(" } else { "" },
+            rparen = if prec > Prec::Arrow { ")" } else { "" },
+            param_type = compile_term_prec(context, param_type, Prec::App, report),
+            body_type = compile_term_prec(context, body_type, Prec::Arrow, report),
+        )
+        .into(),
+        surface::Term::FunctionElim(head, arguments) => format!(
+            // TODO: multiline formatting!
+            "{lparen}{head} {arguments}{rparen}",
+            lparen = if prec > Prec::App { "(" } else { "" },
+            rparen = if prec > Prec::App { ")" } else { "" },
+            head = compile_term_prec(context, head, Prec::Atomic, report),
+            arguments = arguments
+                .iter()
+                .map(|argument| compile_term_prec(context, argument, Prec::Atomic, report))
+                .format(" "),
+        )
+        .into(),
         surface::Term::NumberLiteral(_, literal) => format!("{}", literal).into(),
         surface::Term::If(_, head, if_true, if_false) => format!(
             // TODO: multiline formatting!

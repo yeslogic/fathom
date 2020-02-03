@@ -45,6 +45,7 @@ extern {
         "," => Token::Comma,
         "=" => Token::Equals,
         "=>" => Token::EqualsGreater,
+        "->" => Token::HyphenGreater,
         ";" => Token::Semi,
     }
 }
@@ -91,11 +92,25 @@ Field: TypeField = {
 };
 
 Term: Term = {
-    TermAtomic,
-    <term: TermAtomic> ":" <ty: Term> => Term::Ann(Arc::new(term), Arc::new(ty)),
+    ArrowTerm,
+    <term: ArrowTerm> ":" <ty: Term> => Term::Ann(Arc::new(term), Arc::new(ty)),
 };
 
-TermAtomic: Term = {
+ArrowTerm: Term = {
+    AppTerm,
+    <param_type: AppTerm> "->" <body_type: ArrowTerm> => {
+        Term::FunctionType(Arc::new(param_type), Arc::new(body_type))
+    },
+};
+
+AppTerm: Term = {
+    AtomicTerm,
+    <head: AtomicTerm> <argument: AtomicTerm> => {
+        Term::FunctionElim(Arc::new(head), Arc::new(argument))
+    },
+};
+
+AtomicTerm: Term = {
     "(" <term: Term> ")" => term,
     <start: @L> "!" <end: @R> => Term::Error(Span::new(start, end)),
     <start: @L> "global" <name: "identifier"> <end: @R> => Term::Global(Span::new(start, end), name),
