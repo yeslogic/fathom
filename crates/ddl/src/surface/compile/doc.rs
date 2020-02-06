@@ -44,8 +44,8 @@ pub fn compile_module(
         pkg_name = env!("CARGO_PKG_NAME"),
         pkg_version = env!("CARGO_PKG_VERSION"),
         module_name = "", // TODO: module name
-        minireset = include_str!("./minireset.min.css").trim(),
-        style = include_str!("./style.css").trim(),
+        minireset = include_str!("./doc/minireset.min.css").trim(),
+        style = include_str!("./doc/style.css").trim(),
     )?;
 
     if !module.doc.is_empty() {
