@@ -77,7 +77,7 @@ struct Test {
 }
 
 impl Test {
-    fn setup(files: &mut Files, test_name: &str, ddl_path: &str) -> Test {
+    fn setup(files: &mut Files<String>, test_name: &str, ddl_path: &str) -> Test {
         // Set up output streams
 
         let term_config = term::Config::default();
@@ -126,7 +126,7 @@ impl Test {
         }
     }
 
-    fn parse_surface(&mut self, files: &Files) -> ddl::surface::Module {
+    fn parse_surface(&mut self, files: &Files<String>) -> ddl::surface::Module {
         let keywords = &ddl::lexer::SURFACE_KEYWORDS;
         let lexer = ddl::lexer::Lexer::new(files, self.input_ddl_file_id, keywords);
         ddl::surface::Module::parse(self.input_ddl_file_id, lexer, &mut |d| {
@@ -136,7 +136,7 @@ impl Test {
 
     fn elaborate(
         &mut self,
-        files: &Files,
+        files: &Files<String>,
         surface_module: &ddl::surface::Module,
     ) -> ddl::core::Module {
         let core_module =
@@ -167,7 +167,11 @@ impl Test {
         core_module
     }
 
-    fn roundtrip_delaborate_core(&mut self, files: &Files, core_module: &ddl::core::Module) {
+    fn roundtrip_delaborate_core(
+        &mut self,
+        files: &Files<String>,
+        core_module: &ddl::core::Module,
+    ) {
         let mut elaboration_diagnostics = Vec::new();
         let delaborated_core_module = ddl::surface::elaborate::elaborate_module(
             &GLOBALS,
@@ -223,7 +227,11 @@ impl Test {
         }
     }
 
-    fn roundtrip_pretty_core(&mut self, files: &mut Files, core_module: &ddl::core::Module) {
+    fn roundtrip_pretty_core(
+        &mut self,
+        files: &mut Files<String>,
+        core_module: &ddl::core::Module,
+    ) {
         let arena = pretty::Arena::new();
 
         let pretty_core_module = {
@@ -453,7 +461,7 @@ impl Test {
         }
     }
 
-    fn finish(mut self, files: &Files) {
+    fn finish(mut self, files: &Files<String>) {
         // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
         retain_unexpected(
@@ -522,7 +530,7 @@ impl Test {
 }
 
 fn retain_unexpected(
-    files: &Files,
+    files: &Files<String>,
     found_diagnostics: &mut Vec<Diagnostic>,
     expected_diagnostics: &mut Vec<ExpectedDiagnostic>,
 ) {
@@ -550,7 +558,7 @@ fn retain_unexpected(
 }
 
 fn is_expected(
-    files: &Files,
+    files: &Files<String>,
     found_diagnostic: &Diagnostic,
     expected_diagnostic: &ExpectedDiagnostic,
 ) -> bool {

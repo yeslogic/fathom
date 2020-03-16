@@ -11,7 +11,7 @@ license = "Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-codespan = "0.5"
-codespan-reporting =  "0.5"
+codespan = "0.8.0"
+codespan-reporting =  "0.8.0"
 ddl = { version = "0.1.0", path = "../ddl" }
 lazy_static = "1.4"

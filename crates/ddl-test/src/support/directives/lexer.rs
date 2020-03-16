@@ -28,7 +28,7 @@ pub struct Lexer<'input> {
 }
 
 impl<'input> Lexer<'input> {
-    pub fn new(files: &'input Files, file_id: FileId) -> Lexer<'input> {
+    pub fn new(files: &'input Files<String>, file_id: FileId) -> Lexer<'input> {
         Lexer {
             file_id,
             eof: files.source_span(file_id).end(),

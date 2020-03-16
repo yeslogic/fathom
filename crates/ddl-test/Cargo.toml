@@ -12,8 +12,8 @@ license = "Apache-2.0"
 
 [dev-dependencies]
 assert_fs = "0.13"
-codespan =  "0.5"
-codespan-reporting =  "0.5"
+codespan =  "0.8.0"
+codespan-reporting =  "0.8.0"
 ddl = { version = "0.1.0", path = "../ddl" }
 ddl-rt = { version = "0.1.0", path = "../ddl-rt" }
 ddl-test-util = { version = "0.1.0", path = "../ddl-test-util" }

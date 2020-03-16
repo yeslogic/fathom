@@ -15,7 +15,7 @@ macro_rules! core_module {
 
                 let mut files = $crate::codespan::Files::new();
                 const SOURCE: &str = include_str!($path);
-                let file_id = files.add($path.to_string(), SOURCE);
+                let file_id = files.add($path.to_string(), SOURCE.to_string());
 
                 let keywords = &$crate::ddl::lexer::CORE_KEYWORDS;
                 let lexer = $crate::ddl::lexer::Lexer::new(&files, file_id, keywords);

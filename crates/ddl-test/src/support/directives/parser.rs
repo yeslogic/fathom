@@ -4,14 +4,14 @@ use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use super::{Directives, ExpectedDiagnostic, SpannedString, Token};
 
 pub struct Parser<'a> {
-    files: &'a Files,
+    files: &'a Files<String>,
     file_id: FileId,
     directives: Directives,
     diagnostics: Vec<Diagnostic>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(files: &'a Files, file_id: FileId) -> Parser<'a> {
+    pub fn new(files: &'a Files<String>, file_id: FileId) -> Parser<'a> {
         Parser {
             files,
             file_id,

@@ -165,7 +165,7 @@ pub struct Lexer<'input, 'keywords> {
 impl<'input, 'keywords> Lexer<'input, 'keywords> {
     /// Create a new lexer with the given file.
     pub fn new(
-        files: &'input Files,
+        files: &'input Files<String>,
         file_id: FileId,
         keywords: &'keywords Keywords,
     ) -> Lexer<'input, 'keywords> {
