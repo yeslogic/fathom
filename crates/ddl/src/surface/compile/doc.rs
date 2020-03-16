@@ -11,7 +11,7 @@ use crate::surface::pretty::Prec;
 pub fn compile_module(
     writer: &mut impl Write,
     module: &surface::Module,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> io::Result<()> {
     let mut context = ModuleContext {
         _file_id: module.file_id,
@@ -92,7 +92,7 @@ fn compile_alias(
     context: &ModuleContext,
     writer: &mut impl Write,
     alias: &surface::Alias,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> io::Result<(String, Item)> {
     let (_, name) = &alias.name;
     let id = format!("items[{}]", name);
@@ -149,7 +149,7 @@ fn compile_struct_ty(
     context: &ModuleContext,
     writer: &mut impl Write,
     struct_ty: &surface::StructType,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> io::Result<(String, Item)> {
     let (_, name) = &struct_ty.name;
     let id = format!("items[{}]", name);
@@ -210,7 +210,7 @@ fn compile_term_prec<'term>(
     context: &ModuleContext,
     term: &'term surface::Term,
     prec: Prec,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> Cow<'term, str> {
     use itertools::Itertools;
 

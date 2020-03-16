@@ -33,7 +33,7 @@ fn derives(is_copy: bool) -> Vec<String> {
 pub fn compile_module(
     globals: &core::Globals,
     module: &core::Module,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> rust::Module {
     let mut context = Context {
         globals,
@@ -123,7 +123,7 @@ struct Context<'me> {
 fn compile_item<'item>(
     context: &mut Context<'item>,
     core_item: &'item core::Item,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) {
     match core_item {
         core::Item::Alias(core_alias) => compile_alias(context, core_alias, report),
@@ -134,7 +134,7 @@ fn compile_item<'item>(
 fn compile_alias<'item>(
     context: &mut Context<'item>,
     core_alias: &'item core::Alias,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) {
     use std::collections::hash_map::Entry;
 
@@ -255,7 +255,7 @@ fn compile_alias<'item>(
 fn compile_struct_ty<'item>(
     context: &mut Context<'item>,
     core_struct_ty: &'item core::StructType,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) {
     use std::collections::hash_map::Entry;
 
@@ -353,7 +353,7 @@ enum CompiledTerm {
 fn compile_term(
     context: &mut Context<'_>,
     core_term: &core::Term,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> CompiledTerm {
     let value = core::semantics::eval(context.globals, &context.core_items, core_term);
     compile_value(context, &value, report)
@@ -362,7 +362,7 @@ fn compile_term(
 fn compile_value(
     context: &mut Context<'_>,
     value: &core::Value,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> CompiledTerm {
     let file_id = context.file_id;
 
@@ -583,7 +583,7 @@ fn compile_value(
 fn compile_term_as_ty(
     context: &mut Context<'_>,
     core_term: &core::Term,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> Option<Type> {
     let value = core::semantics::eval(context.globals, &context.core_items, core_term);
     compile_value_as_ty(context, &value, report)
@@ -592,7 +592,7 @@ fn compile_term_as_ty(
 fn compile_value_as_ty(
     context: &mut Context<'_>,
     value: &core::Value,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> Option<Type> {
     match compile_value(context, &value, report) {
         CompiledTerm::Type(ty) => Some(ty),
@@ -611,7 +611,7 @@ fn compile_constant(
     context: &mut Context<'_>,
     span: Span,
     constant: &core::Constant,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> CompiledTerm {
     match constant {
         core::Constant::Int(value) => match value.to_i64() {
@@ -648,7 +648,7 @@ fn compile_bool_elim(
     head: rust::Term,
     if_true: &core::Term,
     if_false: &core::Term,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> CompiledTerm {
     match (
         compile_term(context, if_true, report),
@@ -763,7 +763,7 @@ fn compile_int_elim(
     head: rust::Term,
     branches: &BTreeMap<BigInt, Arc<core::Term>>,
     default: &core::Term,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> CompiledTerm {
     match compile_term(context, default, report) {
         CompiledTerm::Term(default_term) => {

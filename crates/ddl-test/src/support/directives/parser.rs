@@ -7,7 +7,7 @@ pub struct Parser<'a> {
     files: &'a Files<String>,
     file_id: FileId,
     directives: Directives,
-    diagnostics: Vec<Diagnostic>,
+    diagnostics: Vec<Diagnostic<FileId>>,
 }
 
 impl<'a> Parser<'a> {
@@ -20,15 +20,19 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn expect_directives(&mut self, tokens: impl Iterator<Item = Result<Token, Diagnostic>>) {
+    pub fn expect_directives(
+        &mut self,
+        tokens: impl Iterator<Item = Result<Token, Diagnostic<FileId>>>,
+    ) {
         for directive in tokens {
             match directive {
                 Ok((span, key, value)) => match (key.as_str(), value) {
                     ("SKIP", reason) => match reason {
-                        None => self.diagnostics.push(Diagnostic::new_error(
-                            "`SKIP` directive must have a reason",
-                            self.label(span, "missing skip reason"),
-                        )),
+                        None => self.diagnostics.push(
+                            Diagnostic::error()
+                                .with_message("`SKIP` directive must have a reason")
+                                .with_labels(vec![self.label(span, "missing skip reason")]),
+                        ),
                         Some(_) if self.directives.skip.is_some() => {
                             self.duplicate_directive(&key);
                         }
@@ -40,21 +44,20 @@ impl<'a> Parser<'a> {
                     ("note", pattern) => self.expect_note(span, pattern),
                     ("help", pattern) => self.expect_help(span, pattern),
                     (_, _) => self.diagnostics.push(
-                        Diagnostic::new_error(
-                            format!("unknown directive `{}`", key),
-                            self.label(key.span(), "unknown directive"),
-                        )
-                        .with_notes(vec![unindent::unindent(
-                            "
-                                perhaps you meant:
-                                    - SKIP:         <reason>
-                                    - bug:          <regex>
-                                    - error:        <regex>
-                                    - warning:      <regex>
-                                    - note:         <regex>
-                                    - help:         <regex>
-                            ",
-                        )]),
+                        Diagnostic::error()
+                            .with_message(format!("unknown directive `{}`", key))
+                            .with_labels(vec![self.label(key.span(), "unknown directive")])
+                            .with_notes(vec![unindent::unindent(
+                                "
+                                    perhaps you meant:
+                                        - SKIP:         <reason>
+                                        - bug:          <regex>
+                                        - error:        <regex>
+                                        - warning:      <regex>
+                                        - note:         <regex>
+                                        - help:         <regex>
+                                ",
+                            )]),
                     ),
                 },
                 Err(diagnostic) => self.diagnostics.push(diagnostic),
@@ -62,19 +65,21 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn finish(self) -> (Directives, Vec<Diagnostic>) {
+    pub fn finish(self) -> (Directives, Vec<Diagnostic<FileId>>) {
         (self.directives, self.diagnostics)
     }
 
-    fn label(&self, span: impl Into<Span>, message: impl Into<String>) -> Label {
-        Label::new(self.file_id, span, message)
+    fn label(&self, span: Span, message: impl Into<String>) -> Label<FileId> {
+        Label::primary(self.file_id, span.start().to_usize()..span.end().to_usize())
+            .with_message(message)
     }
 
     fn duplicate_directive(&mut self, directive: &SpannedString) {
-        self.diagnostics.push(Diagnostic::new_error(
-            format!("`{}` directive already set", directive),
-            self.label(directive.span(), "duplicate directive"),
-        ));
+        self.diagnostics.push(
+            Diagnostic::error()
+                .with_message(format!("`{}` directive already set", directive))
+                .with_labels(vec![self.label(directive.span(), "duplicate directive")]),
+        );
     }
 
     fn expect_bug(&mut self, span: Span, pattern: Option<SpannedString>) {
@@ -131,11 +136,10 @@ impl<'a> Parser<'a> {
             }
             Err((pattern_span, error)) => {
                 self.diagnostics.push(
-                    Diagnostic::new_error(
-                        "failed to compile regex",
-                        self.label(pattern_span, "invalid regex"),
-                    )
-                    .with_notes(vec![error.to_string()]),
+                    Diagnostic::error()
+                        .with_message("failed to compile regex")
+                        .with_labels(vec![self.label(pattern_span, "invalid regex")])
+                        .with_notes(vec![error.to_string()]),
                 );
             }
         }

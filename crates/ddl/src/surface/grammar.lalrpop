@@ -6,11 +6,11 @@ use crate::surface::{Alias, Item, Module, Pattern, StructType, Term, TypeField};
 use crate::lexer::Token;
 use crate::literal;
 
-grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic));
+grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic<FileId>));
 
 extern {
     type Location = ByteIndex;
-    type Error = Diagnostic;
+    type Error = Diagnostic<FileId>;
 
     enum Token {
         "doc comment" => Token::DocComment(<String>),

@@ -82,7 +82,7 @@ impl IntegerLexerState {
         self,
         file_id: FileId,
         ch: Option<(ByteIndex, char)>,
-        report: &mut dyn FnMut(Diagnostic),
+        report: &mut dyn FnMut(Diagnostic<FileId>),
     ) -> Action<IntegerLexerState, Option<BigInt>> {
         use self::Action::{Return, Yield};
         use self::Base::*;
@@ -169,7 +169,7 @@ where
         self,
         file_id: FileId,
         ch: Option<(ByteIndex, char)>,
-        report: &mut dyn FnMut(Diagnostic),
+        report: &mut dyn FnMut(Diagnostic<FileId>),
     ) -> Action<FloatLexerState<T>, Option<T>> {
         use self::Action::{Return, Yield};
         use self::Base::*;
@@ -348,7 +348,7 @@ impl Number {
     pub fn parse_big_int(
         &self,
         file_id: FileId,
-        report: &mut dyn FnMut(Diagnostic),
+        report: &mut dyn FnMut(Diagnostic<FileId>),
     ) -> Option<BigInt> {
         let mut chars = self.chars();
         let mut state = IntegerLexerState::Top;
@@ -364,7 +364,11 @@ impl Number {
         }
     }
 
-    pub fn parse_float<T>(&self, file_id: FileId, report: &mut dyn FnMut(Diagnostic)) -> Option<T>
+    pub fn parse_float<T>(
+        &self,
+        file_id: FileId,
+        report: &mut dyn FnMut(Diagnostic<FileId>),
+    ) -> Option<T>
     where
         T: Float + From<u8> + std::ops::MulAssign + std::ops::AddAssign + std::ops::SubAssign,
     {

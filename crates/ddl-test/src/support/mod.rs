@@ -1,5 +1,5 @@
 use codespan::{FileId, Files};
-use codespan_reporting::diagnostic::{Diagnostic, Severity};
+use codespan_reporting::diagnostic::{Diagnostic, LabelStyle, Severity};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
 use std::fs;
@@ -73,7 +73,7 @@ struct Test {
     snapshot_filename: PathBuf,
     directives: directives::Directives,
     failed_checks: Vec<&'static str>,
-    found_diagnostics: Vec<Diagnostic>,
+    found_diagnostics: Vec<Diagnostic<FileId>>,
 }
 
 impl Test {
@@ -105,7 +105,7 @@ impl Test {
             if !diagnostics.is_empty() {
                 let writer = &mut stdout.lock();
                 for diagnostic in diagnostics {
-                    term::emit(writer, &term_config, &files, &diagnostic).unwrap();
+                    term::emit(writer, &term_config, files, &diagnostic).unwrap();
                 }
 
                 panic!("failed to parse diagnostics");
@@ -531,7 +531,7 @@ impl Test {
 
 fn retain_unexpected(
     files: &Files<String>,
-    found_diagnostics: &mut Vec<Diagnostic>,
+    found_diagnostics: &mut Vec<Diagnostic<FileId>>,
     expected_diagnostics: &mut Vec<ExpectedDiagnostic>,
 ) {
     use std::collections::BTreeSet;
@@ -559,18 +559,22 @@ fn retain_unexpected(
 
 fn is_expected(
     files: &Files<String>,
-    found_diagnostic: &Diagnostic,
+    found_diagnostic: &Diagnostic<FileId>,
     expected_diagnostic: &ExpectedDiagnostic,
 ) -> bool {
-    found_diagnostic.primary_label.file_id == expected_diagnostic.file_id && {
-        let start = found_diagnostic.primary_label.span.start();
-        let found_location = files.location(expected_diagnostic.file_id, start).unwrap();
-        let found_message = &found_diagnostic.message;
+    // TODO: higher quality diagnostic message matching
+    found_diagnostic.labels.iter().any(|label| {
+        label.style == LabelStyle::Primary && label.file_id == expected_diagnostic.file_id && {
+            let found_location = files
+                .location(label.file_id, label.range.start as u32)
+                .unwrap();
+            let found_message = &found_diagnostic.message;
 
-        found_location.line == expected_diagnostic.line
-            && found_diagnostic.severity == expected_diagnostic.severity
-            && expected_diagnostic.pattern.is_match(found_message)
-    }
+            found_location.line == expected_diagnostic.line
+                && found_diagnostic.severity == expected_diagnostic.severity
+                && expected_diagnostic.pattern.is_match(found_message)
+        }
+    })
 }
 
 fn eprintln_indented(indent: usize, prefix: &str, output: &str) {

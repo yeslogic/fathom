@@ -183,7 +183,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
     }
 
     /// Emit a token and reset the start position, ready for the next token.
-    fn emit(&mut self, token: Token) -> Option<Result<SpannedToken, Diagnostic>> {
+    fn emit(&mut self, token: Token) -> Option<Result<SpannedToken, Diagnostic<FileId>>> {
         let start = self.token_start;
         let end = self.token_end;
         self.token_start = self.token_end;
@@ -211,7 +211,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
         start: ByteIndex,
         found: char,
         expected: &[&str],
-    ) -> Option<Result<T, Diagnostic>> {
+    ) -> Option<Result<T, Diagnostic<FileId>>> {
         Some(Err(diagnostics::error::unexpected_char(
             self.file_id,
             start,
@@ -220,7 +220,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
         )))
     }
 
-    fn unexpected_eof<T>(&self, expected: &[&str]) -> Option<Result<T, Diagnostic>> {
+    fn unexpected_eof<T>(&self, expected: &[&str]) -> Option<Result<T, Diagnostic<FileId>>> {
         Some(Err(diagnostics::error::unexpected_eof(
             self.file_id,
             self.token_end,
@@ -233,7 +233,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
         start: ByteIndex,
         sign: Option<Sign>,
         first_digit: char,
-    ) -> Option<Result<SpannedToken, Diagnostic>> {
+    ) -> Option<Result<SpannedToken, Diagnostic<FileId>>> {
         let mut number = String::new();
         number.push(first_digit);
 
@@ -251,7 +251,10 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
         self.emit(Token::NumberLiteral(literal))
     }
 
-    fn consume_identifier(&mut self, start_ch: char) -> Option<Result<SpannedToken, Diagnostic>> {
+    fn consume_identifier(
+        &mut self,
+        start_ch: char,
+    ) -> Option<Result<SpannedToken, Diagnostic<FileId>>> {
         let mut ident = String::new();
         ident.push(start_ch);
 
@@ -272,9 +275,9 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
 }
 
 impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
-    type Item = Result<SpannedToken, Diagnostic>;
+    type Item = Result<SpannedToken, Diagnostic<FileId>>;
 
-    fn next(&mut self) -> Option<Result<SpannedToken, Diagnostic>> {
+    fn next(&mut self) -> Option<Result<SpannedToken, Diagnostic<FileId>>> {
         'top: loop {
             let start = self.token_end;
             return match self.advance()? {
