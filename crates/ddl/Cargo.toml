@@ -22,7 +22,7 @@ lazy_static = "1.4"
 maplit = "1"
 num-bigint = "0.2"
 num-traits = "0.2"
-pretty = "0.7"
+pretty = "0.9"
 
 [dev-dependencies]
 proptest = "0.9"
