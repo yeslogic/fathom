@@ -28,7 +28,7 @@ pub struct Lexer<'input> {
 }
 
 impl<'input> Lexer<'input> {
-    pub fn new(files: &'input Files, file_id: FileId) -> Lexer<'input> {
+    pub fn new(files: &'input Files<String>, file_id: FileId) -> Lexer<'input> {
         Lexer {
             file_id,
             eof: files.source_span(file_id).end(),
@@ -36,22 +36,24 @@ impl<'input> Lexer<'input> {
         }
     }
 
-    fn label(&self, span: impl Into<Span>, message: impl Into<String>) -> Label {
-        Label::new(self.file_id, span, message)
+    fn unexpected_eol<T>(
+        &self,
+        eol: ByteIndex,
+        expected: &str,
+    ) -> Option<Result<T, Diagnostic<FileId>>> {
+        let span = eol.to_usize()..eol.to_usize();
+        Some(Err(Diagnostic::error()
+            .with_message("unexpected end of line")
+            .with_labels(vec![Label::primary(self.file_id, span)
+                .with_message(format!("{} expected here", expected))])))
     }
 
-    fn unexpected_eol<T>(&self, eol: ByteIndex, expected: &str) -> Option<Result<T, Diagnostic>> {
-        Some(Err(Diagnostic::new_error(
-            "unexpected end of line",
-            self.label(eol..eol, format!("{} expected here", expected)),
-        )))
-    }
-
-    fn unexpected_eof<T>(&self, expected: &str) -> Option<Result<T, Diagnostic>> {
-        Some(Err(Diagnostic::new_error(
-            "unexpected end of file",
-            self.label(self.eof..self.eof, format!("{} expected here", expected)),
-        )))
+    fn unexpected_eof<T>(&self, expected: &str) -> Option<Result<T, Diagnostic<FileId>>> {
+        let span = self.eof.to_usize()..self.eof.to_usize();
+        Some(Err(Diagnostic::error()
+            .with_message("unexpected end of file")
+            .with_labels(vec![Label::primary(self.file_id, span)
+                .with_message(format!("{} expected here", expected))])))
     }
 
     fn next_char(&mut self) -> Option<(ByteIndex, char)> {
@@ -61,14 +63,14 @@ impl<'input> Lexer<'input> {
 }
 
 impl<'input> Iterator for Lexer<'input> {
-    type Item = Result<Token, Diagnostic>;
+    type Item = Result<Token, Diagnostic<FileId>>;
 
-    fn next(&mut self) -> Option<Result<Token, Diagnostic>> {
+    fn next(&mut self) -> Option<Result<Token, Diagnostic<FileId>>> {
         fn emit(
             span: impl Into<Span>,
             (key_start, key): (ByteIndex, String),
             value: Option<(ByteIndex, String)>,
-        ) -> Option<Result<Token, Diagnostic>> {
+        ) -> Option<Result<Token, Diagnostic<FileId>>> {
             Some(Ok((
                 span.into(),
                 SpannedString::new(key_start, key.trim().to_string()),

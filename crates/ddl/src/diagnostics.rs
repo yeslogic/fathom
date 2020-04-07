@@ -11,19 +11,14 @@ pub fn field_redeclaration(
     name: &str,
     found: Span,
     original: Span,
-) -> Diagnostic {
-    Diagnostic {
-        severity,
-        code: None,
-        message: format!("field `{}` is already declared", name),
-        primary_label: Label::new(file_id, found, "field already declared"),
-        secondary_labels: vec![Label::new(
-            file_id,
-            original,
-            "previous field declaration here",
-        )],
-        notes: vec![format!("`{}` must be defined only per struct", name)],
-    }
+) -> Diagnostic<FileId> {
+    Diagnostic::new(severity)
+        .with_message(format!("field `{}` is already declared", name))
+        .with_labels(vec![
+            Label::primary(file_id, found).with_message("field already declared"),
+            Label::secondary(file_id, original).with_message("previous field declaration here"),
+        ])
+        .with_notes(vec![format!("`{}` must be defined only per struct", name)])
 }
 
 pub fn item_redefinition(
@@ -32,18 +27,17 @@ pub fn item_redefinition(
     name: &str,
     found: Span,
     original: Span,
-) -> Diagnostic {
-    Diagnostic {
-        severity,
-        code: None,
-        message: format!("the name `{}` is defined multiple times", name),
-        primary_label: Label::new(file_id, found, "redefined here"),
-        secondary_labels: vec![Label::new(file_id, original, "previous definition here")],
-        notes: vec![format!(
+) -> Diagnostic<FileId> {
+    Diagnostic::new(severity)
+        .with_message(format!("the name `{}` is defined multiple times", name))
+        .with_labels(vec![
+            Label::primary(file_id, found).with_message("redefined here"),
+            Label::secondary(file_id, original).with_message("previous definition here"),
+        ])
+        .with_notes(vec![format!(
             "`{}` must be defined only once in this module",
             name,
-        )],
-    }
+        )])
 }
 
 pub fn type_mismatch(
@@ -52,7 +46,7 @@ pub fn type_mismatch(
     term_span: Span,
     expected_ty: &core::Value,
     found_ty: &core::Value,
-) -> Diagnostic {
+) -> Diagnostic<FileId> {
     let arena = pretty::Arena::new();
 
     let expected_ty =
@@ -63,22 +57,16 @@ pub fn type_mismatch(
     let expected_ty = expected_ty.pretty(100);
     let found_ty = found_ty.pretty(100);
 
-    Diagnostic {
-        severity,
-        code: None,
-        message: "type mismatch".to_owned(),
-        primary_label: Label::new(
-            file_id,
-            term_span,
+    Diagnostic::new(severity)
+        .with_message("type mismatch")
+        .with_labels(vec![Label::primary(file_id, term_span).with_message(
             format!("expected `{}`, found `{}`", expected_ty, found_ty),
-        ),
-        secondary_labels: vec![],
-        notes: vec![[
+        )])
+        .with_notes(vec![[
             format!("expected `{}`", expected_ty),
             format!("   found `{}`", found_ty),
         ]
-        .join("\n")],
-    }
+        .join("\n")])
 }
 
 pub fn universe_mismatch(
@@ -86,41 +74,32 @@ pub fn universe_mismatch(
     file_id: FileId,
     term_span: Span,
     found_ty: &core::Value,
-) -> Diagnostic {
+) -> Diagnostic<FileId> {
     let arena = pretty::Arena::new();
 
     let found_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(found_ty));
     let pretty::DocBuilder(_, found_ty) = surface::pretty::pretty_term(&arena, &found_ty);
     let found_ty = found_ty.pretty(100);
 
-    Diagnostic {
-        severity,
-        code: None,
-        message: "universe mismatch".to_owned(),
-        primary_label: Label::new(
-            file_id,
-            term_span,
-            format!("expected a universe, found `{}`", found_ty),
-        ),
-        secondary_labels: vec![],
-        notes: vec![[
+    Diagnostic::new(severity)
+        .with_message("universe mismatch")
+        .with_labels(vec![Label::primary(file_id, term_span)
+            .with_message(format!("expected a universe, found `{}`", found_ty))])
+        .with_notes(vec![[
             format!("expected a universe"),
             format!("   found `{}`", found_ty),
         ]
-        .join("\n")],
-    }
+        .join("\n")])
 }
 
-pub fn kind_has_no_type(severity: Severity, file_id: FileId, span: Span) -> Diagnostic {
-    Diagnostic {
-        severity,
-        code: None,
-        message: "cannot synthesize the type of `Kind`".to_owned(),
-        primary_label: Label::new(file_id, span, "cannot synthesize type"),
-        secondary_labels: vec![],
-        // TODO: provide suggestions
-        notes: vec![format!("`Kind` has no corresponding type")],
-    }
+pub fn kind_has_no_type(severity: Severity, file_id: FileId, span: Span) -> Diagnostic<FileId> {
+    // TODO: provide suggestions
+    Diagnostic::new(severity)
+        .with_message("cannot synthesize the type of `Kind`")
+        .with_labels(vec![
+            Label::primary(file_id, span).with_message("cannot synthesize type")
+        ])
+        .with_notes(vec![format!("`Kind` has no corresponding type")])
 }
 
 pub fn not_a_function(
@@ -129,40 +108,39 @@ pub fn not_a_function(
     head: Span,
     head_ty: &core::Value,
     argument: Span,
-) -> Diagnostic {
+) -> Diagnostic<FileId> {
     let arena = pretty::Arena::new();
 
     let head_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(head_ty));
     let pretty::DocBuilder(_, found_ty) = surface::pretty::pretty_term(&arena, &head_ty);
     let head_ty = found_ty.pretty(100);
 
-    Diagnostic {
-        severity,
-        code: None,
-        message: format!("applied something that is not a function to an argument"),
-        primary_label: Label::new(
-            file_id,
-            head,
-            format!("expected a function, found `{}`", head_ty),
-        ),
-        secondary_labels: vec![Label::new(file_id, argument, "applied to this argument")],
-        notes: vec![[
+    Diagnostic::new(severity)
+        .with_message(format!(
+            "applied something that is not a function to an argument"
+        ))
+        .with_labels(vec![
+            Label::primary(file_id, head)
+                .with_message(format!("expected a function, found `{}`", head_ty)),
+            Label::secondary(file_id, argument).with_message("applied to this argument"),
+        ])
+        .with_notes(vec![[
             format!("expected a function"),
             format!("   found `{}`", head_ty),
         ]
-        .join("\n")],
-    }
+        .join("\n")])
 }
 
-pub fn ambiguous_match_expression(severity: Severity, file_id: FileId, span: Span) -> Diagnostic {
-    Diagnostic {
-        severity,
-        code: None,
-        message: "ambiguous match expression".to_owned(),
-        primary_label: Label::new(file_id, span, "type annotation required"),
-        secondary_labels: vec![],
-        notes: vec![],
-    }
+pub fn ambiguous_match_expression(
+    severity: Severity,
+    file_id: FileId,
+    span: Span,
+) -> Diagnostic<FileId> {
+    Diagnostic::new(severity)
+        .with_message("ambiguous match expression")
+        .with_labels(vec![
+            Label::primary(file_id, span).with_message("type annotation required")
+        ])
 }
 
 pub mod error {
@@ -179,64 +157,87 @@ pub mod error {
         start: ByteIndex,
         found: char,
         expected: &[&str],
-    ) -> Diagnostic {
+    ) -> Diagnostic<FileId> {
         let end = start + ByteOffset::from_char_len(found);
-        Diagnostic {
-            severity: Severity::Error,
-            code: None,
-            message: format!("unexpected character `{}`", found),
-            primary_label: Label::new(file_id, start..end, "unexpected character"),
-            secondary_labels: vec![],
-            notes: vec![format!("expected one of {}", format_expected(&expected))],
-        }
+        let range = start.to_usize()..end.to_usize();
+
+        Diagnostic::error()
+            .with_message(format!("unexpected character `{}`", found))
+            .with_labels(vec![
+                Label::primary(file_id, range).with_message("unexpected character")
+            ])
+            .with_notes(vec![format!(
+                "expected one of {}",
+                format_expected(&expected),
+            )])
     }
 
-    pub fn unexpected_eof(file_id: FileId, eof: ByteIndex, expected: &[&str]) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Error,
-            code: None,
-            message: "unexpected end of file".to_owned(),
-            primary_label: Label::new(file_id, eof..eof, "unexpected end of file"),
-            secondary_labels: vec![],
-            notes: vec![format!("expected one of {}", format_expected(&expected))],
-        }
+    pub fn unexpected_eof(
+        file_id: FileId,
+        eof: ByteIndex,
+        expected: &[&str],
+    ) -> Diagnostic<FileId> {
+        let eof = eof.to_usize();
+
+        Diagnostic::error()
+            .with_message("unexpected end of file")
+            .with_labels(vec![
+                Label::primary(file_id, eof..eof).with_message("unexpected end of file")
+            ])
+            .with_notes(vec![format!(
+                "expected one of {}",
+                format_expected(&expected),
+            )])
     }
 
-    pub fn parse(file_id: FileId, error: ParseError<ByteIndex, Token, Diagnostic>) -> Diagnostic {
+    pub fn parse(
+        file_id: FileId,
+        error: ParseError<ByteIndex, Token, Diagnostic<FileId>>,
+    ) -> Diagnostic<FileId> {
         match error {
             ParseError::InvalidToken { location: _ } => unreachable!(),
 
-            ParseError::UnrecognizedEOF { location, expected } => Diagnostic {
-                severity: Severity::Error,
-                code: None,
-                message: "unexpected end of file".to_owned(),
-                primary_label: Label::new(file_id, location..location, "unexpected end of file"),
-                secondary_labels: vec![],
-                notes: vec![format!("expected one of {}", format_expected(&expected))],
-            },
+            ParseError::UnrecognizedEOF { location, expected } => {
+                let location = location.to_usize();
+
+                Diagnostic::error()
+                    .with_message("unexpected end of file")
+                    .with_labels(vec![Label::primary(file_id, location..location)
+                        .with_message("unexpected end of file")])
+                    .with_notes(vec![format!(
+                        "expected one of {}",
+                        format_expected(&expected),
+                    )])
+            }
 
             ParseError::UnrecognizedToken {
                 token: (start, token, end),
                 expected,
-            } => Diagnostic {
-                severity: Severity::Error,
-                code: None,
-                message: format!("unexpected token \"{}\"", token),
-                primary_label: Label::new(file_id, start..end, "unexpected token"),
-                secondary_labels: vec![],
-                notes: vec![format!("expected one of {}", format_expected(&expected))],
-            },
+            } => {
+                let range = start.to_usize()..end.to_usize();
+
+                Diagnostic::error()
+                    .with_message(format!("unexpected token \"{}\"", token))
+                    .with_labels(vec![
+                        Label::primary(file_id, range).with_message("unexpected token")
+                    ])
+                    .with_notes(vec![format!(
+                        "expected one of {}",
+                        format_expected(&expected),
+                    )])
+            }
 
             ParseError::ExtraToken {
                 token: (start, token, end),
-            } => Diagnostic {
-                severity: Severity::Error,
-                code: None,
-                message: format!("extra token \"{}\"", token),
-                primary_label: Label::new(file_id, start..end, "extra token"),
-                secondary_labels: vec![],
-                notes: vec![],
-            },
+            } => {
+                let range = start.to_usize()..end.to_usize();
+
+                Diagnostic::error()
+                    .with_message(format!("extra token \"{}\"", token))
+                    .with_labels(vec![
+                        Label::primary(file_id, range).with_message("extra token")
+                    ])
+            }
 
             ParseError::User { error } => error,
         }
@@ -259,155 +260,124 @@ pub mod error {
         DisplayExpected(items)
     }
 
-    pub fn var_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Error,
-            code: None,
-            message: format!("cannot find `{}` in this scope", name),
-            primary_label: Label::new(file_id, span, "not found in this scope"),
-            secondary_labels: vec![],
-            // TODO: provide suggestions
-            notes: vec![],
-        }
+    pub fn var_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic<FileId> {
+        // TODO: provide suggestions
+        Diagnostic::error()
+            .with_message(format!("cannot find `{}` in this scope", name))
+            .with_labels(vec![
+                Label::primary(file_id, span).with_message("not found in this scope")
+            ])
     }
 
     pub fn numeric_literal_not_supported(
         file_id: FileId,
         span: Span,
         found_ty: &core::Value,
-    ) -> Diagnostic {
+    ) -> Diagnostic<FileId> {
         let arena = pretty::Arena::new();
 
         let found_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(found_ty));
         let pretty::DocBuilder(_, found_ty) = surface::pretty::pretty_term(&arena, &found_ty);
         let found_ty = found_ty.pretty(100);
 
-        Diagnostic {
-            severity: Severity::Error,
-            code: None,
-            message: format!("cannot construct a `{}` from a numeric literal", found_ty),
-            primary_label: Label::new(
-                file_id,
-                span,
-                format!("numeric literals not supported for type `{}`", found_ty),
-            ),
-            secondary_labels: vec![],
-            notes: vec![],
-        }
+        Diagnostic::error()
+            .with_message(format!(
+                "cannot construct a `{}` from a numeric literal",
+                found_ty,
+            ))
+            .with_labels(vec![Label::primary(file_id, span).with_message(format!(
+                "numeric literals not supported for type `{}`",
+                found_ty,
+            ))])
     }
 
-    pub fn ambiguous_numeric_literal(file_id: FileId, span: Span) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Error,
-            code: None,
-            message: "ambiguous numeric literal".to_owned(),
-            primary_label: Label::new(file_id, span, "type annotation required"),
-            secondary_labels: vec![],
-            notes: vec![],
-        }
+    pub fn ambiguous_numeric_literal(file_id: FileId, span: Span) -> Diagnostic<FileId> {
+        Diagnostic::error()
+            .with_message("ambiguous numeric literal")
+            .with_labels(vec![
+                Label::primary(file_id, span).with_message("type annotation required")
+            ])
     }
 
     pub fn unsupported_pattern_ty(
         file_id: FileId,
         span: Span,
         found_ty: &core::Value,
-    ) -> Diagnostic {
+    ) -> Diagnostic<FileId> {
         let arena = pretty::Arena::new();
 
         let found_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(found_ty));
         let pretty::DocBuilder(_, found_ty) = surface::pretty::pretty_term(&arena, &found_ty);
         let found_ty = found_ty.pretty(100);
 
-        Diagnostic {
-            severity: Severity::Error,
-            code: None,
-            message: format!("unsupported pattern type: `{}`", found_ty),
-            primary_label: Label::new(
-                file_id,
-                span,
-                format!("unsupported pattern type: `{}`", found_ty),
-            ),
-            secondary_labels: vec![],
-            notes: vec![
+        Diagnostic::error()
+            .with_message(format!("unsupported pattern type: `{}`", found_ty))
+            .with_labels(vec![Label::primary(file_id, span)
+                .with_message(format!("unsupported pattern type: `{}`", found_ty))])
+            .with_notes(vec![
                 "can only currently match against terms of type `Bool` or `Int`".to_owned(),
-            ],
-        }
+            ])
     }
 
-    pub fn no_default_pattern(file_id: FileId, span: Span) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Error,
-            code: None,
-            message: "non-exhaustive patterns".to_owned(),
-            primary_label: Label::new(file_id, span, "missing default pattern"),
-            secondary_labels: vec![],
-            notes: vec![],
-        }
+    pub fn no_default_pattern(file_id: FileId, span: Span) -> Diagnostic<FileId> {
+        Diagnostic::error()
+            .with_message("non-exhaustive patterns")
+            .with_labels(vec![
+                Label::primary(file_id, span).with_message("missing default pattern")
+            ])
     }
 }
 
 pub mod bug {
     pub use super::*;
 
-    pub fn not_yet_implemented(file_id: FileId, span: Span, feature_name: &str) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Error,
-            code: None,
-            message: format!("not yet implemented: {}", feature_name),
-            primary_label: Label::new(file_id, span, "relies on an unimplemented language feature"),
-            secondary_labels: vec![],
-            notes: vec![],
-        }
+    pub fn not_yet_implemented(
+        file_id: FileId,
+        span: Span,
+        feature_name: &str,
+    ) -> Diagnostic<FileId> {
+        Diagnostic::bug()
+            .with_message(format!("not yet implemented: {}", feature_name))
+            .with_labels(vec![Label::primary(file_id, span)
+                .with_message("relies on an unimplemented language feature")])
     }
 
-    pub fn global_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Bug,
-            code: None,
-            message: format!("global `{}` is not defined", name),
-            primary_label: Label::new(file_id, span, "global is not defined"),
-            secondary_labels: vec![],
-            // TODO: provide suggestions
-            notes: vec![],
-        }
+    pub fn global_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic<FileId> {
+        // TODO: provide suggestions
+        Diagnostic::bug()
+            .with_message(format!("global `{}` is not defined", name))
+            .with_labels(vec![
+                Label::primary(file_id, span).with_message("global is not defined")
+            ])
     }
 
-    pub fn item_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Bug,
-            code: None,
-            message: format!("cannot find item `{}` in this scope", name),
-            primary_label: Label::new(file_id, span, "item not found in this scope"),
-            secondary_labels: vec![],
-            // TODO: provide suggestions
-            notes: vec![],
-        }
+    pub fn item_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic<FileId> {
+        // TODO: provide suggestions
+        Diagnostic::bug()
+            .with_message(format!("cannot find item `{}` in this scope", name))
+            .with_labels(vec![
+                Label::primary(file_id, span).with_message("item not found in this scope")
+            ])
     }
 
-    pub fn unknown_global(file_id: FileId, name: &str, span: Span) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Bug,
-            code: None,
-            message: format!("unknown global `{}`", name),
-            primary_label: Label::new(file_id, span, "unknown global"),
-            secondary_labels: vec![],
-            // TODO: provide suggestions
-            notes: vec![],
-        }
+    pub fn unknown_global(file_id: FileId, name: &str, span: Span) -> Diagnostic<FileId> {
+        // TODO: provide suggestions
+        Diagnostic::bug()
+            .with_message(format!("unknown global `{}`", name))
+            .with_labels(vec![
+                Label::primary(file_id, span).with_message("unknown global")
+            ])
     }
 }
 
 pub mod warning {
     pub use super::*;
 
-    pub fn unreachable_pattern(file_id: FileId, span: Span) -> Diagnostic {
-        Diagnostic {
-            severity: Severity::Warning,
-            code: None,
-            message: "unreachable pattern".to_owned(),
-            primary_label: Label::new(file_id, span, "unreachable pattern"),
-            secondary_labels: vec![],
-            notes: vec![],
-        }
+    pub fn unreachable_pattern(file_id: FileId, span: Span) -> Diagnostic<FileId> {
+        Diagnostic::warning()
+            .with_message("unreachable pattern")
+            .with_labels(vec![
+                Label::primary(file_id, span).with_message("unreachable pattern")
+            ])
     }
 }

@@ -31,8 +31,8 @@ pub struct Module {
 impl Module {
     pub fn parse(
         file_id: FileId,
-        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic>>,
-        report: &mut dyn FnMut(Diagnostic),
+        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic<FileId>>>,
+        report: &mut dyn FnMut(Diagnostic<FileId>),
     ) -> Module {
         grammar::ModuleParser::new()
             .parse(file_id, report, tokens)

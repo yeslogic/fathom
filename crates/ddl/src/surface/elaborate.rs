@@ -21,7 +21,7 @@ use crate::{core, diagnostics, surface};
 pub fn elaborate_module(
     globals: &core::Globals,
     surface_module: &surface::Module,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> core::Module {
     let item_context = Context::new(globals, surface_module.file_id);
     core::Module {
@@ -67,7 +67,7 @@ impl<'me> Context<'me> {
 pub fn elaborate_items<'items>(
     mut context: Context<'items>,
     surface_items: &'items [surface::Item],
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> Vec<core::Item> {
     let mut core_items = Vec::new();
 
@@ -152,7 +152,7 @@ pub fn elaborate_items<'items>(
 pub fn elaborate_struct_ty_fields(
     context: &Context<'_>,
     surface_fields: &[surface::TypeField],
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> Vec<core::TypeField> {
     // Field names that have previously seen, along with the span
     // where they were introduced (for error reporting).
@@ -198,7 +198,7 @@ pub fn elaborate_struct_ty_fields(
 pub fn elaborate_universe(
     context: &Context<'_>,
     surface_term: &surface::Term,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> (core::Term, Option<core::Universe>) {
     use crate::core::Universe::{Format, Host, Kind};
 
@@ -231,13 +231,13 @@ pub fn check_term(
     context: &Context<'_>,
     surface_term: &surface::Term,
     expected_ty: &Arc<core::Value>,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> core::Term {
     match (surface_term, expected_ty.as_ref()) {
         (surface::Term::Error(span), _) => core::Term::Error(*span),
         (surface_term, core::Value::Error(_)) => core::Term::Error(surface_term.span()),
         (surface::Term::NumberLiteral(span, literal), _) => {
-            let error = |report: &mut dyn FnMut(Diagnostic)| {
+            let error = |report: &mut dyn FnMut(Diagnostic<FileId>)| {
                 report(diagnostics::error::numeric_literal_not_supported(
                     context.file_id,
                     *span,
@@ -278,7 +278,7 @@ pub fn check_term(
         }
         (surface::Term::Match(span, surface_head, surface_branches), _) => {
             let (head, head_ty) = synth_term(context, surface_head, report);
-            let error = |report: &mut dyn FnMut(Diagnostic)| {
+            let error = |report: &mut dyn FnMut(Diagnostic<FileId>)| {
                 report(diagnostics::error::unsupported_pattern_ty(
                     context.file_id,
                     surface_head.span(),
@@ -336,7 +336,7 @@ pub fn check_term(
 pub fn synth_term(
     context: &Context<'_>,
     surface_term: &surface::Term,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> (core::Term, Arc<core::Value>) {
     use crate::core::Universe::{Format, Host, Kind};
 
@@ -510,7 +510,7 @@ fn check_bool_branches(
     context: &Context<'_>,
     surface_branches: &[(surface::Pattern, surface::Term)],
     expected_ty: &core::Value,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> (Arc<core::Term>, Arc<core::Term>) {
     unimplemented!("boolean eliminators")
 }
@@ -520,7 +520,7 @@ fn check_int_branches(
     span: Span,
     surface_branches: &[(surface::Pattern, surface::Term)],
     expected_ty: &Arc<core::Value>,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> (BTreeMap<BigInt, Arc<core::Term>>, Arc<core::Term>) {
     use std::collections::btree_map::Entry;
 

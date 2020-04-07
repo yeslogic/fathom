@@ -12,7 +12,11 @@ use crate::core::{semantics, Constant, Globals, Item, Module, Term, TypeField, U
 use crate::diagnostics;
 
 /// Validate a module.
-pub fn validate_module(globals: &Globals, module: &Module, report: &mut dyn FnMut(Diagnostic)) {
+pub fn validate_module(
+    globals: &Globals,
+    module: &Module,
+    report: &mut dyn FnMut(Diagnostic<FileId>),
+) {
     validate_items(Context::new(globals, module.file_id), &module.items, report);
 }
 
@@ -52,7 +56,7 @@ impl<'me> Context<'me> {
 pub fn validate_items<'items>(
     mut context: Context<'items>,
     items: &'items [Item],
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) {
     for item in items {
         use std::collections::hash_map::Entry;
@@ -103,7 +107,7 @@ pub fn validate_items<'items>(
 pub fn validate_struct_ty_fields(
     context: &Context<'_>,
     fields: &[TypeField],
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) {
     // Field names that have previously seen, along with the span
     // where they were introduced (for error reporting).
@@ -134,7 +138,7 @@ pub fn validate_struct_ty_fields(
 pub fn validate_universe(
     context: &Context<'_>,
     term: &Term,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> Option<Universe> {
     match term {
         Term::Universe(_, universe) => Some(*universe),
@@ -162,7 +166,7 @@ pub fn check_term(
     context: &Context<'_>,
     term: &Term,
     expected_ty: &Arc<Value>,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) {
     match (term, expected_ty.as_ref()) {
         (Term::Error(_), _) | (_, Value::Error(_)) => {}
@@ -200,7 +204,7 @@ pub fn check_term(
 pub fn synth_term(
     context: &Context<'_>,
     term: &Term,
-    report: &mut dyn FnMut(Diagnostic),
+    report: &mut dyn FnMut(Diagnostic<FileId>),
 ) -> Arc<Value> {
     match term {
         Term::Global(span, name) => match context.globals.get(name) {
