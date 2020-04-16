@@ -1,5 +1,5 @@
-use codespan::{FileId, Files};
 use codespan_reporting::diagnostic::{Diagnostic, LabelStyle, Severity};
+use codespan_reporting::files::{Files, SimpleFiles};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
 use std::fs;
@@ -42,7 +42,7 @@ lazy_static::lazy_static! {
 }
 
 pub fn run_integration_test(test_name: &str, ddl_path: &str) {
-    let mut files = Files::new();
+    let mut files = SimpleFiles::new();
     let mut test = Test::setup(&mut files, test_name, ddl_path);
 
     // Run stages
@@ -69,15 +69,15 @@ struct Test {
     test_name: String,
     term_config: codespan_reporting::term::Config,
     input_ddl_path: PathBuf,
-    input_ddl_file_id: FileId,
+    input_ddl_file_id: usize,
     snapshot_filename: PathBuf,
     directives: directives::Directives,
     failed_checks: Vec<&'static str>,
-    found_diagnostics: Vec<Diagnostic<FileId>>,
+    found_diagnostics: Vec<Diagnostic<usize>>,
 }
 
 impl Test {
-    fn setup(files: &mut Files<String>, test_name: &str, ddl_path: &str) -> Test {
+    fn setup(files: &mut SimpleFiles<String, String>, test_name: &str, ddl_path: &str) -> Test {
         // Set up output streams
 
         let term_config = term::Config::default();
@@ -126,7 +126,7 @@ impl Test {
         }
     }
 
-    fn parse_surface(&mut self, files: &Files<String>) -> ddl::surface::Module {
+    fn parse_surface(&mut self, files: &SimpleFiles<String, String>) -> ddl::surface::Module {
         let keywords = &ddl::lexer::SURFACE_KEYWORDS;
         let lexer = ddl::lexer::Lexer::new(files, self.input_ddl_file_id, keywords);
         ddl::surface::Module::parse(self.input_ddl_file_id, lexer, &mut |d| {
@@ -136,7 +136,7 @@ impl Test {
 
     fn elaborate(
         &mut self,
-        files: &Files<String>,
+        files: &SimpleFiles<String, String>,
         surface_module: &ddl::surface::Module,
     ) -> ddl::core::Module {
         let core_module =
@@ -169,7 +169,7 @@ impl Test {
 
     fn roundtrip_delaborate_core(
         &mut self,
-        files: &Files<String>,
+        files: &SimpleFiles<String, String>,
         core_module: &ddl::core::Module,
     ) {
         let mut elaboration_diagnostics = Vec::new();
@@ -229,7 +229,7 @@ impl Test {
 
     fn roundtrip_pretty_core(
         &mut self,
-        files: &mut Files<String>,
+        files: &mut SimpleFiles<String, String>,
         core_module: &ddl::core::Module,
     ) {
         let arena = pretty::Arena::new();
@@ -461,7 +461,7 @@ impl Test {
         }
     }
 
-    fn finish(mut self, files: &Files<String>) {
+    fn finish(mut self, files: &SimpleFiles<String, String>) {
         // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
         retain_unexpected(
@@ -508,7 +508,7 @@ impl Test {
                 eprintln!(
                     "    | {}:{}: {}: {}",
                     self.input_ddl_path.display(),
-                    expected.line.number(),
+                    expected.location.line_number,
                     severity,
                     expected.pattern,
                 );
@@ -530,8 +530,8 @@ impl Test {
 }
 
 fn retain_unexpected(
-    files: &Files<String>,
-    found_diagnostics: &mut Vec<Diagnostic<FileId>>,
+    files: &SimpleFiles<String, String>,
+    found_diagnostics: &mut Vec<Diagnostic<usize>>,
     expected_diagnostics: &mut Vec<ExpectedDiagnostic>,
 ) {
     use std::collections::BTreeSet;
@@ -558,19 +558,17 @@ fn retain_unexpected(
 }
 
 fn is_expected(
-    files: &Files<String>,
-    found_diagnostic: &Diagnostic<FileId>,
+    files: &SimpleFiles<String, String>,
+    found_diagnostic: &Diagnostic<usize>,
     expected_diagnostic: &ExpectedDiagnostic,
 ) -> bool {
     // TODO: higher quality diagnostic message matching
     found_diagnostic.labels.iter().any(|label| {
         label.style == LabelStyle::Primary && label.file_id == expected_diagnostic.file_id && {
-            let found_location = files
-                .location(label.file_id, label.range.start as u32)
-                .unwrap();
+            let found_line_index = files.line_index(label.file_id, label.range.start).unwrap();
             let found_message = &found_diagnostic.message;
 
-            found_location.line == expected_diagnostic.line
+            found_line_index == expected_diagnostic.line_index
                 && found_diagnostic.severity == expected_diagnostic.severity
                 && expected_diagnostic.pattern.is_match(found_message)
         }

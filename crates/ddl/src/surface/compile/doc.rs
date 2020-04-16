@@ -1,4 +1,3 @@
-use codespan::FileId;
 use codespan_reporting::diagnostic::Diagnostic;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -11,7 +10,7 @@ use crate::surface::pretty::Prec;
 pub fn compile_module(
     writer: &mut impl Write,
     module: &surface::Module,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> io::Result<()> {
     let mut context = ModuleContext {
         _file_id: module.file_id,
@@ -80,7 +79,7 @@ pub fn compile_module(
 }
 
 struct ModuleContext {
-    _file_id: FileId,
+    _file_id: usize,
     items: HashMap<String, Item>,
 }
 
@@ -92,7 +91,7 @@ fn compile_alias(
     context: &ModuleContext,
     writer: &mut impl Write,
     alias: &surface::Alias,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> io::Result<(String, Item)> {
     let (_, name) = &alias.name;
     let id = format!("items[{}]", name);
@@ -149,7 +148,7 @@ fn compile_struct_ty(
     context: &ModuleContext,
     writer: &mut impl Write,
     struct_ty: &surface::StructType,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> io::Result<(String, Item)> {
     let (_, name) = &struct_ty.name;
     let id = format!("items[{}]", name);
@@ -210,7 +209,7 @@ fn compile_term_prec<'term>(
     context: &ModuleContext,
     term: &'term surface::Term,
     prec: Prec,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> Cow<'term, str> {
     use itertools::Itertools;
 

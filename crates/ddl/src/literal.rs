@@ -5,11 +5,11 @@
 //!
 //! [literal-wikipedia]: https://en.wikipedia.org/wiki/Literal_%28computer_programming%29
 
-use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
 use num_traits::{Float, Signed};
 use std::fmt;
+use std::ops::Range;
 
 use crate::diagnostics;
 
@@ -80,9 +80,9 @@ enum IntegerLexerState {
 impl IntegerLexerState {
     fn on_char(
         self,
-        file_id: FileId,
-        ch: Option<(ByteIndex, char)>,
-        report: &mut dyn FnMut(Diagnostic<FileId>),
+        file_id: usize,
+        ch: Option<(usize, char)>,
+        report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> Action<IntegerLexerState, Option<BigInt>> {
         use self::Action::{Return, Yield};
         use self::Base::*;
@@ -167,9 +167,9 @@ where
 {
     fn on_char(
         self,
-        file_id: FileId,
-        ch: Option<(ByteIndex, char)>,
-        report: &mut dyn FnMut(Diagnostic<FileId>),
+        file_id: usize,
+        ch: Option<(usize, char)>,
+        report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> Action<FloatLexerState<T>, Option<T>> {
         use self::Action::{Return, Yield};
         use self::Base::*;
@@ -313,42 +313,40 @@ where
 #[derive(Debug, Clone)]
 pub struct Number {
     pub sign: Option<Sign>,
-    pub number: (Span, std::string::String),
+    pub number: (Range<usize>, std::string::String),
 }
 
 impl Number {
-    pub fn new(sign: Option<Sign>, number: (Span, std::string::String)) -> Number {
+    pub fn new(sign: Option<Sign>, number: (Range<usize>, std::string::String)) -> Number {
         Number { sign, number }
     }
 
-    pub fn from_signed(span: Span, value: &(impl Signed + fmt::Display)) -> Number {
+    pub fn from_signed(range: Range<usize>, value: &(impl Signed + fmt::Display)) -> Number {
         let sign = if value.is_negative() {
             Some(Sign::Negative)
         } else {
             None
         };
 
-        Number::new(sign, (span, value.abs().to_string()))
+        Number::new(sign, (range, value.abs().to_string()))
     }
 
     pub fn sign(&self) -> Sign {
         self.sign.unwrap_or(Sign::Positive)
     }
 
-    fn chars<'a>(&'a self) -> impl Iterator<Item = (ByteIndex, char)> + 'a {
-        use codespan::ByteOffset;
-
-        (self.number.1.chars()).scan(self.number.0.start(), |current, ch| {
+    fn chars<'a>(&'a self) -> impl Iterator<Item = (usize, char)> + 'a {
+        (self.number.1.chars()).scan(self.number.0.start, |current, ch| {
             let start = *current;
-            *current += ByteOffset::from_char_len(ch);
+            *current += ch.len_utf8();
             Some((start, ch))
         })
     }
 
     pub fn parse_big_int(
         &self,
-        file_id: FileId,
-        report: &mut dyn FnMut(Diagnostic<FileId>),
+        file_id: usize,
+        report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> Option<BigInt> {
         let mut chars = self.chars();
         let mut state = IntegerLexerState::Top;
@@ -366,8 +364,8 @@ impl Number {
 
     pub fn parse_float<T>(
         &self,
-        file_id: FileId,
-        report: &mut dyn FnMut(Diagnostic<FileId>),
+        file_id: usize,
+        report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> Option<T>
     where
         T: Float + From<u8> + std::ops::MulAssign + std::ops::AddAssign + std::ops::SubAssign,
@@ -400,7 +398,7 @@ impl fmt::Display for Number {
 /// String literals.
 #[derive(Debug, Clone)]
 pub struct String {
-    pub contents: (Span, std::string::String),
+    pub contents: (Range<usize>, std::string::String),
 }
 
 impl String {
@@ -422,7 +420,7 @@ impl fmt::Display for String {
 /// Character literals.
 #[derive(Debug, Clone)]
 pub struct Char {
-    pub contents: (Span, std::string::String),
+    pub contents: (Range<usize>, std::string::String),
 }
 
 impl Char {

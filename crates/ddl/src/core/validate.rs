@@ -3,7 +3,6 @@
 //! This is used to verify that the core syntax is correctly formed, for
 //! debugging purposes.
 
-use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -15,7 +14,7 @@ use crate::diagnostics;
 pub fn validate_module(
     globals: &Globals,
     module: &Module,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) {
     validate_items(Context::new(globals, module.file_id), &module.items, report);
 }
@@ -24,10 +23,10 @@ pub fn validate_module(
 pub struct Context<'me> {
     /// The global environment.
     globals: &'me Globals,
-    /// The file where these items are defined (for error reporting).
-    file_id: FileId,
-    /// Labels that have previously been used for items, along with the span
-    /// where they were introduced (for error reporting).
+    /// The file where these items are defined (for diagnostic reporting).
+    file_id: usize,
+    /// Labels that have previously been used for items, along with the source range
+    /// where they were introduced (for diagnostic reporting).
     items: HashMap<&'me str, Item>,
     /// List of types currently bound in this context. These could either
     /// refer to items or local bindings.
@@ -36,7 +35,7 @@ pub struct Context<'me> {
 
 impl<'me> Context<'me> {
     /// Create a new context.
-    pub fn new(globals: &'me Globals, file_id: FileId) -> Context<'me> {
+    pub fn new(globals: &'me Globals, file_id: usize) -> Context<'me> {
         Context {
             globals,
             file_id,
@@ -56,7 +55,7 @@ impl<'me> Context<'me> {
 pub fn validate_items<'items>(
     mut context: Context<'items>,
     items: &'items [Item],
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) {
     for item in items {
         use std::collections::hash_map::Entry;
@@ -75,8 +74,8 @@ pub fn validate_items<'items>(
                         Severity::Bug,
                         context.file_id,
                         &alias.name,
-                        alias.span,
-                        entry.get().span(),
+                        alias.range.clone(),
+                        entry.get().range(),
                     )),
                 }
             }
@@ -86,7 +85,7 @@ pub fn validate_items<'items>(
                 // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(&struct_ty.name) {
                     Entry::Vacant(entry) => {
-                        let ty = Arc::new(Value::Universe(Span::initial(), Universe::Format));
+                        let ty = Arc::new(Value::Universe(0..0, Universe::Format));
                         context.tys.push((*entry.key(), ty));
                         entry.insert(item.clone());
                     }
@@ -94,8 +93,8 @@ pub fn validate_items<'items>(
                         Severity::Bug,
                         context.file_id,
                         &struct_ty.name,
-                        struct_ty.span,
-                        entry.get().span(),
+                        struct_ty.range.clone(),
+                        entry.get().range(),
                     )),
                 }
             }
@@ -107,28 +106,28 @@ pub fn validate_items<'items>(
 pub fn validate_struct_ty_fields(
     context: &Context<'_>,
     fields: &[TypeField],
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) {
-    // Field names that have previously seen, along with the span
-    // where they were introduced (for error reporting).
+    // Field names that have previously seen, along with the source range
+    // where they were introduced (for diagnostic reporting).
     let mut seen_field_names = HashMap::new();
 
     for field in fields {
         use std::collections::hash_map::Entry;
 
-        let format_ty = Arc::new(Value::Universe(Span::initial(), Universe::Format));
+        let format_ty = Arc::new(Value::Universe(0..0, Universe::Format));
         check_term(&context, &field.term, &format_ty, report);
 
         match seen_field_names.entry(field.name.clone()) {
             Entry::Vacant(entry) => {
-                entry.insert(field.span());
+                entry.insert(field.range());
             }
             Entry::Occupied(entry) => report(diagnostics::field_redeclaration(
                 Severity::Bug,
                 context.file_id,
                 &field.name,
-                field.span(),
-                *entry.get(),
+                field.range(),
+                entry.get().clone(),
             )),
         }
     }
@@ -138,7 +137,7 @@ pub fn validate_struct_ty_fields(
 pub fn validate_universe(
     context: &Context<'_>,
     term: &Term,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> Option<Universe> {
     match term {
         Term::Universe(_, universe) => Some(*universe),
@@ -151,7 +150,7 @@ pub fn validate_universe(
                     report(diagnostics::universe_mismatch(
                         Severity::Bug,
                         context.file_id,
-                        term.span(),
+                        term.range(),
                         &ty,
                     ));
                     None
@@ -166,18 +165,18 @@ pub fn check_term(
     context: &Context<'_>,
     term: &Term,
     expected_ty: &Arc<Value>,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) {
     match (term, expected_ty.as_ref()) {
         (Term::Error(_), _) | (_, Value::Error(_)) => {}
         (Term::BoolElim(_, term, if_true, if_false), _) => {
-            let bool_ty = Arc::new(Value::global(Span::initial(), "Bool"));
+            let bool_ty = Arc::new(Value::global(0..0, "Bool"));
             check_term(context, term, &bool_ty, report);
             check_term(context, if_true, expected_ty, report);
             check_term(context, if_false, expected_ty, report);
         }
         (Term::IntElim(_, head, branches, default), _) => {
-            let int_ty = Arc::new(Value::global(Span::initial(), "Int"));
+            let int_ty = Arc::new(Value::global(0..0, "Int"));
             check_term(context, head, &int_ty, report);
             for (_, term) in branches {
                 check_term(context, term, expected_ty, report);
@@ -191,7 +190,7 @@ pub fn check_term(
                 report(diagnostics::type_mismatch(
                     Severity::Bug,
                     context.file_id,
-                    term.span(),
+                    term.range(),
                     expected_ty,
                     &synth_ty,
                 ));
@@ -204,29 +203,29 @@ pub fn check_term(
 pub fn synth_term(
     context: &Context<'_>,
     term: &Term,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> Arc<Value> {
     match term {
-        Term::Global(span, name) => match context.globals.get(name) {
+        Term::Global(range, name) => match context.globals.get(name) {
             Some((r#type, _)) => semantics::eval(context.globals, &context.items, r#type),
             None => {
                 report(diagnostics::bug::global_name_not_found(
                     context.file_id,
                     &name,
-                    *span,
+                    range.clone(),
                 ));
-                Arc::new(Value::Error(Span::initial()))
+                Arc::new(Value::Error(0..0))
             }
         },
-        Term::Item(span, name) => match context.lookup_ty(name) {
+        Term::Item(range, name) => match context.lookup_ty(name) {
             Some(ty) => ty.clone(),
             None => {
                 report(diagnostics::bug::item_name_not_found(
                     context.file_id,
                     &name,
-                    *span,
+                    range.clone(),
                 ));
-                Arc::new(Value::Error(Span::initial()))
+                Arc::new(Value::Error(0..0))
             }
         },
         Term::Ann(term, ty) => {
@@ -235,17 +234,15 @@ pub fn synth_term(
             check_term(context, term, &ty, report);
             ty
         }
-        Term::Universe(span, universe) => match universe {
-            Universe::Host | Universe::Format => {
-                Arc::new(Value::Universe(Span::initial(), Universe::Kind))
-            }
+        Term::Universe(range, universe) => match universe {
+            Universe::Host | Universe::Format => Arc::new(Value::Universe(0..0, Universe::Kind)),
             Universe::Kind => {
                 report(diagnostics::kind_has_no_type(
                     Severity::Bug,
                     context.file_id,
-                    *span,
+                    range.clone(),
                 ));
-                Arc::new(Value::Error(Span::initial()))
+                Arc::new(Value::Error(0..0))
             }
         },
         Term::FunctionType(param_type, body_type) => Arc::new(
@@ -254,13 +251,13 @@ pub fn synth_term(
                 validate_universe(context, body_type, report),
             ) {
                 (Some(Universe::Host), Some(Universe::Host)) => {
-                    Value::Universe(Span::initial(), Universe::Host)
+                    Value::Universe(0..0, Universe::Host)
                 }
                 (Some(Universe::Host), Some(Universe::Kind))
                 | (Some(Universe::Kind), Some(Universe::Kind)) => {
-                    Value::Universe(Span::initial(), Universe::Kind)
+                    Value::Universe(0..0, Universe::Kind)
                 }
-                (_, _) => Value::Error(Span::initial()),
+                (_, _) => Value::Error(0..0),
             },
         ),
         Term::FunctionElim(head, argument) => {
@@ -269,28 +266,28 @@ pub fn synth_term(
                     check_term(context, argument, &param_type, report);
                     (*body_type).clone() // FIXME: Clone
                 }
-                Value::Error(_) => Arc::new(Value::Error(Span::initial())),
+                Value::Error(_) => Arc::new(Value::Error(0..0)),
                 head_ty => {
                     report(diagnostics::not_a_function(
                         Severity::Bug,
                         context.file_id,
-                        head.span(),
+                        head.range(),
                         head_ty,
-                        argument.span(),
+                        argument.range(),
                     ));
-                    Arc::new(Value::Error(Span::initial()))
+                    Arc::new(Value::Error(0..0))
                 }
             }
         }
         Term::Constant(_, constant) => match constant {
             // TODO: Lookup globals in environment
-            Constant::Int(_) => Arc::new(Value::global(Span::initial(), "Int")),
-            Constant::F32(_) => Arc::new(Value::global(Span::initial(), "F32")),
-            Constant::F64(_) => Arc::new(Value::global(Span::initial(), "F64")),
+            Constant::Int(_) => Arc::new(Value::global(0..0, "Int")),
+            Constant::F32(_) => Arc::new(Value::global(0..0, "F32")),
+            Constant::F64(_) => Arc::new(Value::global(0..0, "F64")),
         },
         Term::BoolElim(_, head, if_true, if_false) => {
             // TODO: Lookup globals in environment
-            let bool_ty = Arc::new(Value::global(Span::initial(), "Bool"));
+            let bool_ty = Arc::new(Value::global(0..0, "Bool"));
             check_term(context, head, &bool_ty, report);
             let if_true_ty = synth_term(context, if_true, report);
             let if_false_ty = synth_term(context, if_false, report);
@@ -301,21 +298,21 @@ pub fn synth_term(
                 report(diagnostics::type_mismatch(
                     Severity::Bug,
                     context.file_id,
-                    if_false.span(),
+                    if_false.range(),
                     &if_true_ty,
                     &if_false_ty,
                 ));
-                Arc::new(Value::Error(Span::initial()))
+                Arc::new(Value::Error(0..0))
             }
         }
-        Term::IntElim(span, _, _, _) => {
+        Term::IntElim(range, _, _, _) => {
             report(diagnostics::ambiguous_match_expression(
                 Severity::Bug,
                 context.file_id,
-                *span,
+                range.clone(),
             ));
-            Arc::new(Value::Error(Span::initial()))
+            Arc::new(Value::Error(0..0))
         }
-        Term::Error(_) => Arc::new(Value::Error(Span::initial())),
+        Term::Error(_) => Arc::new(Value::Error(0..0)),
     }
 }

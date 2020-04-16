@@ -1,9 +1,9 @@
 //! The core type theory of the data description language.
 
-use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
 use std::collections::BTreeMap;
+use std::ops::Range;
 use std::sync::Arc;
 
 use crate::lexer::SpannedToken;
@@ -22,7 +22,7 @@ pub mod validate;
 #[derive(Debug, Clone)]
 pub struct Module {
     /// The file in which this module was defined.
-    pub file_id: FileId,
+    pub file_id: usize,
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// The items in this module.
@@ -31,9 +31,9 @@ pub struct Module {
 
 impl Module {
     pub fn parse(
-        file_id: FileId,
-        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic<FileId>>>,
-        report: &mut dyn FnMut(Diagnostic<FileId>),
+        file_id: usize,
+        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic<usize>>>,
+        report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> Module {
         grammar::ModuleParser::new()
             .parse(file_id, report, tokens)
@@ -64,10 +64,10 @@ pub enum Item {
 }
 
 impl Item {
-    pub fn span(&self) -> Span {
+    pub fn range(&self) -> Range<usize> {
         match self {
-            Item::Struct(struct_ty) => struct_ty.span,
-            Item::Alias(alias) => alias.span,
+            Item::Struct(struct_ty) => struct_ty.range.clone(),
+            Item::Alias(alias) => alias.range.clone(),
         }
     }
 }
@@ -85,8 +85,8 @@ impl PartialEq for Item {
 /// An alias definition.
 #[derive(Debug, Clone)]
 pub struct Alias {
-    /// The full span of this definition.
-    pub span: Span,
+    /// The full source range of this definition.
+    pub range: Range<usize>,
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
@@ -104,8 +104,8 @@ impl PartialEq for Alias {
 /// A struct type definition.
 #[derive(Debug, Clone)]
 pub struct StructType {
-    /// The full span of this definition.
-    pub span: Span,
+    /// The full source range of this definition.
+    pub range: Range<usize>,
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
@@ -124,14 +124,14 @@ impl PartialEq for StructType {
 #[derive(Debug, Clone)]
 pub struct TypeField {
     pub doc: Arc<[String]>,
-    pub start: ByteIndex,
+    pub start: usize,
     pub name: String,
     pub term: Arc<Term>,
 }
 
 impl TypeField {
-    pub fn span(&self) -> Span {
-        Span::new(self.start, self.term.span().end())
+    pub fn range(&self) -> Range<usize> {
+        self.start..self.term.range().end
     }
 }
 
@@ -175,41 +175,46 @@ impl PartialEq for Constant {
 #[derive(Debug, Clone)]
 pub enum Term {
     /// Global variables.
-    Global(Span, String),
+    Global(Range<usize>, String),
     /// Item variables.
-    Item(Span, String),
+    Item(Range<usize>, String),
     /// Terms annotated with types.
     Ann(Arc<Term>, Arc<Term>),
     /// Universes.
-    Universe(Span, Universe),
+    Universe(Range<usize>, Universe),
     /// Function types.
     FunctionType(Arc<Term>, Arc<Term>),
     /// Function eliminations (function application).
     FunctionElim(Arc<Term>, Arc<Term>),
     /// Constants.
-    Constant(Span, Constant),
+    Constant(Range<usize>, Constant),
     /// A boolean elimination.
-    BoolElim(Span, Arc<Term>, Arc<Term>, Arc<Term>),
+    BoolElim(Range<usize>, Arc<Term>, Arc<Term>, Arc<Term>),
     /// A integer elimination.
-    IntElim(Span, Arc<Term>, BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
+    IntElim(
+        Range<usize>,
+        Arc<Term>,
+        BTreeMap<BigInt, Arc<Term>>,
+        Arc<Term>,
+    ),
 
     /// Error sentinel.
-    Error(Span),
+    Error(Range<usize>),
 }
 
 impl Term {
-    pub fn span(&self) -> Span {
+    pub fn range(&self) -> Range<usize> {
         match self {
-            Term::Global(span, _)
-            | Term::Item(span, _)
-            | Term::Universe(span, _)
-            | Term::Constant(span, _)
-            | Term::BoolElim(span, _, _, _)
-            | Term::IntElim(span, _, _, _)
-            | Term::Error(span) => *span,
-            Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
-            Term::FunctionType(param_ty, body_ty) => Span::merge(param_ty.span(), body_ty.span()),
-            Term::FunctionElim(head, argument) => Span::merge(head.span(), argument.span()),
+            Term::Global(range, _)
+            | Term::Item(range, _)
+            | Term::Universe(range, _)
+            | Term::Constant(range, _)
+            | Term::BoolElim(range, _, _, _)
+            | Term::IntElim(range, _, _, _)
+            | Term::Error(range) => range.clone(),
+            Term::Ann(term, ty) => term.range().start..ty.range().end,
+            Term::FunctionType(param_ty, body_ty) => param_ty.range().start..body_ty.range().end,
+            Term::FunctionElim(head, argument) => head.range().start..argument.range().end,
         }
     }
 }
@@ -246,17 +251,17 @@ impl PartialEq for Term {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Head {
     /// Global variables.
-    Global(Span, String),
+    Global(Range<usize>, String),
     /// Item variables.
-    Item(Span, String),
+    Item(Range<usize>, String),
     /// Errors.
-    Error(Span),
+    Error(Range<usize>),
 }
 
 impl Head {
-    pub fn span(&self) -> Span {
+    pub fn range(&self) -> Range<usize> {
         match self {
-            Head::Global(span, _) | Head::Item(span, _) | Head::Error(span) => *span,
+            Head::Global(range, _) | Head::Item(range, _) | Head::Error(range) => range.clone(),
         }
     }
 }
@@ -265,18 +270,20 @@ impl Head {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Elim {
     /// Function eliminatiors (function application).
-    Function(Span, Arc<Value>),
+    Function(Range<usize>, Arc<Value>),
     /// Boolean eliminators.
     // FIXME: environment?
-    Bool(Span, Arc<Term>, Arc<Term>),
+    Bool(Range<usize>, Arc<Term>, Arc<Term>),
     /// Integer eliminators.
-    Int(Span, BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
+    Int(Range<usize>, BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
 }
 
 impl Elim {
-    pub fn span(&self) -> Span {
+    pub fn range(&self) -> Range<usize> {
         match self {
-            Elim::Function(span, _) | Elim::Bool(span, _, _) | Elim::Int(span, _, _) => *span,
+            Elim::Function(range, _) | Elim::Bool(range, _, _) | Elim::Int(range, _, _) => {
+                range.clone()
+            }
         }
     }
 }
@@ -287,29 +294,31 @@ pub enum Value {
     /// Neutral terms
     Neutral(Head, Vec<Elim>),
     /// Universes.
-    Universe(Span, Universe),
+    Universe(Range<usize>, Universe),
     /// Function types.
     FunctionType(Arc<Value>, Arc<Value>),
     /// Constants.
-    Constant(Span, Constant),
+    Constant(Range<usize>, Constant),
 
     /// Error sentinel.
-    Error(Span),
+    Error(Range<usize>),
 }
 
 impl Value {
     /// Create a global variable.
-    pub fn global(span: Span, name: impl Into<String>) -> Value {
-        Value::Neutral(Head::Global(span, name.into()), Vec::new())
+    pub fn global(range: Range<usize>, name: impl Into<String>) -> Value {
+        Value::Neutral(Head::Global(range, name.into()), Vec::new())
     }
 
-    pub fn span(&self) -> Span {
+    pub fn range(&self) -> Range<usize> {
         match self {
-            Value::Universe(span, _) | Value::Constant(span, _) | Value::Error(span) => *span,
-            Value::FunctionType(param_ty, body_ty) => Span::merge(param_ty.span(), body_ty.span()),
+            Value::Universe(range, _) | Value::Constant(range, _) | Value::Error(range) => {
+                range.clone()
+            }
+            Value::FunctionType(param_ty, body_ty) => param_ty.range().start..body_ty.range().end,
             Value::Neutral(head, elims) => match elims.last() {
-                Some(elim) => Span::merge(head.span(), elim.span()),
-                None => head.span(),
+                Some(elim) => head.range().start..elim.range().end,
+                None => head.range(),
             },
         }
     }
@@ -338,41 +347,40 @@ impl Default for Globals {
     #[rustfmt::skip]
     fn default() -> Globals {
         let mut entries = BTreeMap::new();
-        let span = Span::initial();
 
-        entries.insert("U8".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("U16Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("U16Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("U32Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("U32Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("U64Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("U64Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("S8".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("S16Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("S16Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("S32Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("S32Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("S64Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("S64Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("F32Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("F32Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("F64Le".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
-        entries.insert("F64Be".to_owned(), (Arc::new(Term::Universe(span, Universe::Format)), None));
+        entries.insert("U8".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("U16Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("U16Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("U32Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("U32Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("U64Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("U64Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("S8".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("S16Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("S16Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("S32Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("S32Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("S64Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("S64Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("F32Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("F32Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("F64Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("F64Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
 
-        entries.insert("Int".to_owned(), (Arc::new(Term::Universe(span, Universe::Host)), None));
-        entries.insert("F32".to_owned(), (Arc::new(Term::Universe(span, Universe::Host)), None));
-        entries.insert("F64".to_owned(), (Arc::new(Term::Universe(span, Universe::Host)), None));
-        entries.insert("Bool".to_owned(), (Arc::new(Term::Universe(span, Universe::Host)), None));
-        entries.insert("true".to_owned(), (Arc::new(Term::Global(span, "Bool".to_owned())), None));
-        entries.insert("false".to_owned(), (Arc::new(Term::Global(span, "Bool".to_owned())), None));
+        entries.insert("Int".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Host)), None));
+        entries.insert("F32".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Host)), None));
+        entries.insert("F64".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Host)), None));
+        entries.insert("Bool".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Host)), None));
+        entries.insert("true".to_owned(), (Arc::new(Term::Global(0..0, "Bool".to_owned())), None));
+        entries.insert("false".to_owned(), (Arc::new(Term::Global(0..0, "Bool".to_owned())), None));
         entries.insert(
             "Array".to_owned(),
             (
                 Arc::new(Term::FunctionType(
-                    Arc::new(Term::Global(span, "Int".to_owned())),
+                    Arc::new(Term::Global(0..0, "Int".to_owned())),
                     Arc::new(Term::FunctionType(
-                        Arc::new(Term::Universe(span, Universe::Format)),
-                        Arc::new(Term::Universe(span, Universe::Format)),
+                        Arc::new(Term::Universe(0..0, Universe::Format)),
+                        Arc::new(Term::Universe(0..0, Universe::Format)),
                     )),
                 )),
                 None,
@@ -382,8 +390,8 @@ impl Default for Globals {
             "List".to_owned(),
             (
                 Arc::new(Term::FunctionType(
-                    Arc::new(Term::Universe(span, Universe::Host)),
-                    Arc::new(Term::Universe(span, Universe::Host)),
+                    Arc::new(Term::Universe(0..0, Universe::Host)),
+                    Arc::new(Term::Universe(0..0, Universe::Host)),
                 )),
                 None,
             ),

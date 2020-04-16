@@ -1,7 +1,8 @@
-use codespan::{ByteIndex, ByteOffset, FileId, LineIndex, Span};
 use codespan_reporting::diagnostic::Severity;
+use codespan_reporting::files::Location;
 use regex::Regex;
 use std::fmt;
+use std::ops::Range;
 
 mod lexer;
 mod parser;
@@ -41,8 +42,9 @@ impl Default for Directives {
 
 #[derive(Clone, Debug)]
 pub struct ExpectedDiagnostic {
-    pub file_id: FileId,
-    pub line: LineIndex,
+    pub file_id: usize,
+    pub line_index: usize,
+    pub location: Location,
     pub severity: Severity,
     pub pattern: Regex,
 }
@@ -50,23 +52,20 @@ pub struct ExpectedDiagnostic {
 /// A string that is located in a source file.
 #[derive(Debug, Clone)]
 pub struct SpannedString {
-    pub start: ByteIndex,
+    pub start: usize,
     pub inner: String,
 }
 
 impl SpannedString {
-    pub fn new(start: impl Into<ByteIndex>, inner: impl Into<String>) -> SpannedString {
+    pub fn new(start: impl Into<usize>, inner: impl Into<String>) -> SpannedString {
         SpannedString {
             start: start.into(),
             inner: inner.into(),
         }
     }
 
-    pub fn span(&self) -> Span {
-        Span::new(
-            self.start,
-            self.start + ByteOffset::from_str_len(&self.inner),
-        )
+    pub fn range(&self) -> Range<usize> {
+        self.start..(self.start + self.inner.len())
     }
 
     pub fn as_str(&self) -> &str {

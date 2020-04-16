@@ -5,7 +5,7 @@ use codespan::ByteSpan;
 use moniker::{Binder, Embed, Nest, Scope, Var};
 use num_bigint::BigInt;
 use std::fmt;
-use std::ops;
+use std::ops::Range;
 use std::rc::Rc;
 
 use crate::syntax::pretty::{self, ToDoc};

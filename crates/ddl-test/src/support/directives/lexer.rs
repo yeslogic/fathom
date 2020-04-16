@@ -1,9 +1,10 @@
-use codespan::{ByteIndex, FileId, Files, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::files::{Files, SimpleFiles};
+use std::ops::Range;
 
 use super::SpannedString;
 
-pub type Token = (Span, SpannedString, Option<SpannedString>);
+pub type Token = (Range<usize>, SpannedString, Option<SpannedString>);
 
 /// An iterator over the test directives in a file.
 ///
@@ -22,57 +23,57 @@ pub type Token = (Span, SpannedString, Option<SpannedString>);
 /// eol         ::= "\n"
 /// ```
 pub struct Lexer<'input> {
-    file_id: FileId,
-    eof: ByteIndex,
+    file_id: usize,
+    eof: usize,
     chars: std::str::CharIndices<'input>,
 }
 
 impl<'input> Lexer<'input> {
-    pub fn new(files: &'input Files<String>, file_id: FileId) -> Lexer<'input> {
+    pub fn new(files: &'input SimpleFiles<String, String>, file_id: usize) -> Lexer<'input> {
+        let source = files.source(file_id).unwrap();
         Lexer {
             file_id,
-            eof: files.source_span(file_id).end(),
-            chars: files.source(file_id).char_indices(),
+            eof: source.len(),
+            chars: source.char_indices(),
         }
     }
 
     fn unexpected_eol<T>(
         &self,
-        eol: ByteIndex,
+        eol: usize,
         expected: &str,
-    ) -> Option<Result<T, Diagnostic<FileId>>> {
-        let span = eol.to_usize()..eol.to_usize();
+    ) -> Option<Result<T, Diagnostic<usize>>> {
+        let range = eol..eol;
         Some(Err(Diagnostic::error()
             .with_message("unexpected end of line")
-            .with_labels(vec![Label::primary(self.file_id, span)
+            .with_labels(vec![Label::primary(self.file_id, range)
                 .with_message(format!("{} expected here", expected))])))
     }
 
-    fn unexpected_eof<T>(&self, expected: &str) -> Option<Result<T, Diagnostic<FileId>>> {
-        let span = self.eof.to_usize()..self.eof.to_usize();
+    fn unexpected_eof<T>(&self, expected: &str) -> Option<Result<T, Diagnostic<usize>>> {
+        let range = self.eof..self.eof;
         Some(Err(Diagnostic::error()
             .with_message("unexpected end of file")
-            .with_labels(vec![Label::primary(self.file_id, span)
+            .with_labels(vec![Label::primary(self.file_id, range)
                 .with_message(format!("{} expected here", expected))])))
     }
 
-    fn next_char(&mut self) -> Option<(ByteIndex, char)> {
-        let (i, ch) = self.chars.next()?;
-        Some((ByteIndex::from(i as u32), ch))
+    fn next_char(&mut self) -> Option<(usize, char)> {
+        self.chars.next()
     }
 }
 
 impl<'input> Iterator for Lexer<'input> {
-    type Item = Result<Token, Diagnostic<FileId>>;
+    type Item = Result<Token, Diagnostic<usize>>;
 
-    fn next(&mut self) -> Option<Result<Token, Diagnostic<FileId>>> {
+    fn next(&mut self) -> Option<Result<Token, Diagnostic<usize>>> {
         fn emit(
-            span: impl Into<Span>,
-            (key_start, key): (ByteIndex, String),
-            value: Option<(ByteIndex, String)>,
-        ) -> Option<Result<Token, Diagnostic<FileId>>> {
+            range: impl Into<Range<usize>>,
+            (key_start, key): (usize, String),
+            value: Option<(usize, String)>,
+        ) -> Option<Result<Token, Diagnostic<usize>>> {
             Some(Ok((
-                span.into(),
+                range.into(),
                 SpannedString::new(key_start, key.trim().to_string()),
                 value.map(|(value_start, value)| {
                     SpannedString::new(value_start, value.trim().to_string())

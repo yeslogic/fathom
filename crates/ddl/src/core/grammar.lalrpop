@@ -1,4 +1,3 @@
-use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
@@ -6,11 +5,11 @@ use crate::core::{Alias, Constant, Item, Module, Universe, StructType, Term, Typ
 use crate::lexer::Token;
 use crate::literal;
 
-grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic<FileId>));
+grammar(file_id: usize, report: &mut dyn FnMut(Diagnostic<usize>));
 
 extern {
-    type Location = ByteIndex;
-    type Error = Diagnostic<FileId>;
+    type Location = usize;
+    type Error = Diagnostic<usize>;
 
     enum Token {
         "doc comment" => Token::DocComment(<String>),
@@ -62,22 +61,22 @@ pub Module: Module = {
 Item: Item = {
     <doc: "doc comment"*>
     <start: @L> <name: "identifier"> "=" <term: Term> ";" <end: @R> => {
-        let span = Span::new(start, end);
+        let range = start..end;
         let doc = Arc::from(doc);
         let term = Arc::new(term);
 
-        Item::Alias(Alias { span, doc, name, term })
+        Item::Alias(Alias { range, doc, name, term })
     },
     <docs: "doc comment"*>
     <start: @L> "struct" <name: "identifier">  "{"
         <mut fields: (<Field> ",")*>
         <last: Field?>
     "}" <end: @R> => {
-        let span = Span::new(start, end);
+        let range = start..end;
         let doc = Arc::from(docs);
         fields.extend(last);
 
-        Item::Struct(StructType { span, doc, name, fields })
+        Item::Struct(StructType { range, doc, name, fields })
     },
 };
 
@@ -112,14 +111,14 @@ AppTerm: Term = {
 
 AtomicTerm: Term = {
     "(" <term: Term> ")" => term,
-    <start: @L> "!" <end: @R> => Term::Error(Span::new(start, end)),
-    <start: @L> "global" <name: "identifier"> <end: @R> => Term::Global(Span::new(start, end), name),
-    <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(Span::new(start, end), name),
-    <start: @L> "Host" <end: @R> => Term::Universe(Span::new(start, end), Universe::Host),
-    <start: @L> "Format" <end: @R> => Term::Universe(Span::new(start, end), Universe::Format),
-    <start: @L> "Kind" <end: @R> => Term::Universe(Span::new(start, end), Universe::Kind),
+    <start: @L> "!" <end: @R> => Term::Error(start..end),
+    <start: @L> "global" <name: "identifier"> <end: @R> => Term::Global(start..end, name),
+    <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(start..end, name),
+    <start: @L> "Host" <end: @R> => Term::Universe(start..end, Universe::Host),
+    <start: @L> "Format" <end: @R> => Term::Universe(start..end, Universe::Format),
+    <start: @L> "Kind" <end: @R> => Term::Universe(start..end, Universe::Kind),
     <start: @L> "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" <end: @R> => {
-        Term::BoolElim(Span::new(start, end), Arc::new(head), Arc::new(if_true), Arc::new(if_false))
+        Term::BoolElim(start..end, Arc::new(head), Arc::new(if_true), Arc::new(if_false))
     },
     <start: @L> "int_elim" <head: Term> "{" <branches: (<"numeric literal"> "=>" <Term> ",")*> <default: Term> "}" <end: @R> => {
         let branches = branches
@@ -128,27 +127,27 @@ AtomicTerm: Term = {
                 Some((literal.parse_big_int(file_id, report)?, Arc::new(term)))
             }).collect();
 
-        Term::IntElim(Span::new(start, end), Arc::new(head), branches, Arc::new(default))
+        Term::IntElim(start..end, Arc::new(head), branches, Arc::new(default))
     },
     <start: @L> "int" <literal: "numeric literal"> <end: @R> => {
-        let span = Span::new(start, end);
+        let range = start..end;
         match literal.parse_big_int(file_id, report) {
-            Some(value) => Term::Constant(span, Constant::Int(value)),
-            None => Term::Error(span),
+            Some(value) => Term::Constant(range, Constant::Int(value)),
+            None => Term::Error(range),
         }
     },
     <start: @L> "f32" <literal: "numeric literal"> <end: @R> => {
-        let span = Span::new(start, end);
+        let range = start..end;
         match literal.parse_float(file_id, report) {
-            Some(value) => Term::Constant(span, Constant::F32(value)),
-            None => Term::Error(span),
+            Some(value) => Term::Constant(range, Constant::F32(value)),
+            None => Term::Error(range),
         }
     },
     <start: @L> "f64" <literal: "numeric literal"> <end: @R> => {
-        let span = Span::new(start, end);
+        let range = start..end;
         match literal.parse_float(file_id, report) {
-            Some(value) => Term::Constant(span, Constant::F64(value)),
-            None => Term::Error(span),
+            Some(value) => Term::Constant(range, Constant::F64(value)),
+            None => Term::Error(range),
         }
     },
 };
