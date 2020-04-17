@@ -1,16 +1,16 @@
-use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
+use std::ops::Range;
 use std::sync::Arc;
 
 use crate::surface::{Alias, Item, Module, Pattern, StructType, Term, TypeField};
 use crate::lexer::Token;
 use crate::literal;
 
-grammar(file_id: FileId, report: &mut dyn FnMut(Diagnostic<FileId>));
+grammar(file_id: usize, report: &mut dyn FnMut(Diagnostic<usize>));
 
 extern {
-    type Location = ByteIndex;
-    type Error = Diagnostic<FileId>;
+    type Location = usize;
+    type Error = Diagnostic<usize>;
 
     enum Token {
         "doc comment" => Token::DocComment(<String>),
@@ -62,21 +62,21 @@ pub Module: Module = {
 Item: Item = {
     <doc: "doc comment"*>
     <start: @L> <name: Identifier> <ty: (":" <Term>)?> "=" <term: Term> ";" <end: @R> => {
-        let span = Span::new(start, end);
+        let range = start..end;
         let doc = Arc::from(doc);
 
-        Item::Alias(Alias { span, doc, name, ty, term })
+        Item::Alias(Alias { range, doc, name, ty, term })
     },
     <doc: "doc comment"*>
     <start: @L> "struct" <name: Identifier> "{"
         <mut fields: (<Field> ",")*>
         <last: Field?>
     "}" <end: @R> => {
-        let span = Span::from(start..end);
+        let range = start..end;
         let doc = Arc::from(doc);
         fields.extend(last);
 
-        Item::Struct(StructType { span, doc, name, fields })
+        Item::Struct(StructType { range, doc, name, fields })
     },
 };
 
@@ -90,7 +90,7 @@ Field: TypeField = {
 Pattern: Pattern = {
     <name: Identifier> => Pattern::Name(name.0, name.1),
     <start: @L> <literal: "numeric literal"> <end: @R> => {
-        Pattern::NumberLiteral(Span::new(start, end), literal)
+        Pattern::NumberLiteral(start..end, literal)
     },
 };
 
@@ -116,23 +116,23 @@ AppTerm: Term = {
 AtomicTerm: Term = {
     "(" <term: Term> ")" => term,
     <name: Identifier> => Term::Name(name.0, name.1),
-    <start: @L> "Host" <end: @R> => Term::Host(Span::new(start, end)),
-    <start: @L> "Format" <end: @R> => Term::Format(Span::new(start, end)),
-    <start: @L> "Kind" <end: @R> => Term::Kind(Span::new(start, end)),
+    <start: @L> "Host" <end: @R> => Term::Host(start..end),
+    <start: @L> "Format" <end: @R> => Term::Format(start..end),
+    <start: @L> "Kind" <end: @R> => Term::Kind(start..end),
     <start: @L> <literal: "numeric literal"> <end: @R> => {
-        Term::NumberLiteral(Span::new(start, end), literal)
+        Term::NumberLiteral(start..end, literal)
     },
     <start: @L> "if" <head: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" <end: @R> => {
-        Term::If(Span::new(start, end), Box::new(head), Box::new(if_true), Box::new(if_false))
+        Term::If(start..end, Box::new(head), Box::new(if_true), Box::new(if_false))
     },
     <start: @L> "match" <head: Term> "{" <mut branches: (<Pattern> "=>" <Term> ",")*> <last: (<Pattern> "=>" <Term>)?>"}" <end: @R> => {
         branches.extend(last);
-        Term::Match(Span::new(start, end), Box::new(head), branches)
+        Term::Match(start..end, Box::new(head), branches)
     },
 };
 
-Identifier: (Span, String) = {
+Identifier: (Range<usize>, String) = {
     <start: @L> <name: "identifier"> <end: @R> => {
-        (Span::new(start, end), name)
+        (start..end, name)
     },
 };

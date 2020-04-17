@@ -1,7 +1,7 @@
 //! The surface syntax for the data description language.
 
-use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::Diagnostic;
+use std::ops::Range;
 use std::sync::Arc;
 
 use crate::diagnostics;
@@ -21,7 +21,7 @@ mod grammar {
 #[derive(Debug, Clone)]
 pub struct Module {
     /// The file in which this module was defined.
-    pub file_id: FileId,
+    pub file_id: usize,
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// The items in this module.
@@ -30,9 +30,9 @@ pub struct Module {
 
 impl Module {
     pub fn parse(
-        file_id: FileId,
-        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic<FileId>>>,
-        report: &mut dyn FnMut(Diagnostic<FileId>),
+        file_id: usize,
+        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic<usize>>>,
+        report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> Module {
         grammar::ModuleParser::new()
             .parse(file_id, report, tokens)
@@ -67,12 +67,12 @@ pub enum Item {
 /// Alias definition.
 #[derive(Debug, Clone)]
 pub struct Alias {
-    /// The full span of this definition.
-    pub span: Span,
+    /// The full source range of this definition.
+    pub range: Range<usize>,
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
-    pub name: (Span, String),
+    pub name: (Range<usize>, String),
     /// Optional type annotation
     pub ty: Option<Term>,
     /// Fields in the struct.
@@ -82,12 +82,12 @@ pub struct Alias {
 /// A struct type definition.
 #[derive(Debug, Clone)]
 pub struct StructType {
-    /// The full span of this definition.
-    pub span: Span,
+    /// The full source range of this definition.
+    pub range: Range<usize>,
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
-    pub name: (Span, String),
+    pub name: (Range<usize>, String),
     /// Fields in the struct.
     pub fields: Vec<TypeField>,
 }
@@ -96,7 +96,7 @@ pub struct StructType {
 #[derive(Debug, Clone)]
 pub struct TypeField {
     pub doc: Arc<[String]>,
-    pub name: (Span, String),
+    pub name: (Range<usize>, String),
     pub term: Term,
 }
 
@@ -104,15 +104,15 @@ pub struct TypeField {
 #[derive(Debug, Clone)]
 pub enum Pattern {
     /// Named patterns.
-    Name(Span, String),
+    Name(Range<usize>, String),
     /// Numeric literals.
-    NumberLiteral(Span, literal::Number),
+    NumberLiteral(Range<usize>, literal::Number),
 }
 
 impl Pattern {
-    pub fn span(&self) -> Span {
+    pub fn range(&self) -> Range<usize> {
         match self {
-            Pattern::Name(span, _) | Pattern::NumberLiteral(span, _) => *span,
+            Pattern::Name(range, _) | Pattern::NumberLiteral(range, _) => range.clone(),
         }
     }
 }
@@ -123,44 +123,44 @@ pub enum Term {
     /// Annotated terms.
     Ann(Box<Term>, Box<Term>),
     /// Names.
-    Name(Span, String),
+    Name(Range<usize>, String),
     /// Type of format types.
-    Format(Span),
+    Format(Range<usize>),
     /// Type of host types.
-    Host(Span),
+    Host(Range<usize>),
     /// The type of types.
-    Kind(Span),
+    Kind(Range<usize>),
     /// Function types.
     FunctionType(Box<Term>, Box<Term>),
     /// Function eliminations (function application).
     FunctionElim(Box<Term>, Vec<Term>),
     /// Numeric literals.
-    NumberLiteral(Span, literal::Number),
+    NumberLiteral(Range<usize>, literal::Number),
     /// If-else expressions.
-    If(Span, Box<Term>, Box<Term>, Box<Term>),
+    If(Range<usize>, Box<Term>, Box<Term>, Box<Term>),
     /// Match expressions.
-    Match(Span, Box<Term>, Vec<(Pattern, Term)>),
+    Match(Range<usize>, Box<Term>, Vec<(Pattern, Term)>),
 
     /// Error sentinel terms.
-    Error(Span),
+    Error(Range<usize>),
 }
 
 impl Term {
-    pub fn span(&self) -> Span {
+    pub fn range(&self) -> Range<usize> {
         match self {
-            Term::Ann(term, ty) => Span::merge(term.span(), ty.span()),
-            Term::Name(span, _)
-            | Term::Format(span)
-            | Term::Host(span)
-            | Term::Kind(span)
-            | Term::NumberLiteral(span, _)
-            | Term::If(span, _, _, _)
-            | Term::Match(span, _, _)
-            | Term::Error(span) => *span,
-            Term::FunctionType(param_ty, body_ty) => Span::merge(param_ty.span(), body_ty.span()),
+            Term::Ann(term, ty) => term.range().start..ty.range().end,
+            Term::Name(range, _)
+            | Term::Format(range)
+            | Term::Host(range)
+            | Term::Kind(range)
+            | Term::NumberLiteral(range, _)
+            | Term::If(range, _, _, _)
+            | Term::Match(range, _, _)
+            | Term::Error(range) => range.clone(),
+            Term::FunctionType(param_ty, body_ty) => param_ty.range().start..body_ty.range().end,
             Term::FunctionElim(head, arguments) => match arguments.last() {
-                Some(argument) => Span::merge(head.span(), argument.span()),
-                None => head.span(),
+                Some(argument) => head.range().start..argument.range().end,
+                None => head.range(),
             },
         }
     }

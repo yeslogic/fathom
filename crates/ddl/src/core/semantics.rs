@@ -13,25 +13,26 @@ pub fn eval(
     term: &Term,
 ) -> Arc<Value> {
     match term {
-        Term::Global(span, name) => match globals.get(name) {
-            None => Arc::new(Value::Error(*span)),
+        Term::Global(range, name) => match globals.get(name) {
+            None => Arc::new(Value::Error(range.clone())),
             Some((_, term)) => match term {
                 Some(term) => eval(globals, items, term),
                 None => Arc::new(Value::Neutral(
-                    Head::Global(*span, name.clone()),
+                    Head::Global(range.clone(), name.clone()),
                     Vec::new(),
                 )),
             },
         },
-        Term::Item(span, name) => match items.get(name.as_str()) {
-            None => Arc::new(Value::Error(*span)),
+        Term::Item(range, name) => match items.get(name.as_str()) {
+            None => Arc::new(Value::Error(range.clone())),
             Some(Item::Alias(alias)) => eval(globals, items, &alias.term),
-            Some(Item::Struct(_)) => {
-                Arc::new(Value::Neutral(Head::Item(*span, name.clone()), Vec::new()))
-            }
+            Some(Item::Struct(_)) => Arc::new(Value::Neutral(
+                Head::Item(range.clone(), name.clone()),
+                Vec::new(),
+            )),
         },
         Term::Ann(term, _) => eval(globals, items, term),
-        Term::Universe(span, universe) => Arc::new(Value::Universe(*span, *universe)),
+        Term::Universe(range, universe) => Arc::new(Value::Universe(range.clone(), *universe)),
         Term::FunctionType(param_type, body_type) => {
             let param_type = eval(globals, items, param_type);
             let body_type = eval(globals, items, body_type);
@@ -41,23 +42,29 @@ pub fn eval(
         Term::FunctionElim(head, argument) => match eval(globals, items, head).as_ref() {
             Value::Neutral(head, elims) => {
                 let mut elims = elims.clone(); // FIXME: clone?
-                elims.push(Elim::Function(term.span(), eval(globals, items, argument)));
+                elims.push(Elim::Function(term.range(), eval(globals, items, argument)));
                 Arc::new(Value::Neutral(head.clone(), elims))
             }
-            _ => Arc::new(Value::Error(term.span())),
+            _ => Arc::new(Value::Error(term.range())),
         },
-        Term::Constant(span, constant) => Arc::new(Value::Constant(*span, constant.clone())),
-        Term::BoolElim(span, head, if_true, if_false) => {
+        Term::Constant(range, constant) => {
+            Arc::new(Value::Constant(range.clone(), constant.clone()))
+        }
+        Term::BoolElim(range, head, if_true, if_false) => {
             match eval(globals, items, head).as_ref() {
-                Value::Neutral(Head::Global(head_span, name), elims) if elims.is_empty() => {
+                Value::Neutral(Head::Global(head_range, name), elims) if elims.is_empty() => {
                     match name.as_str() {
                         "true" => eval(globals, items, if_true),
                         "false" => eval(globals, items, if_false),
                         _ => {
                             let mut elims = elims.clone(); // FIXME: clone?
-                            elims.push(Elim::Bool(*span, if_true.clone(), if_false.clone()));
+                            elims.push(Elim::Bool(
+                                range.clone(),
+                                if_true.clone(),
+                                if_false.clone(),
+                            ));
                             Arc::new(Value::Neutral(
-                                Head::Global(*head_span, name.clone()),
+                                Head::Global(head_range.clone(), name.clone()),
                                 elims,
                             ))
                         }
@@ -65,31 +72,33 @@ pub fn eval(
                 }
                 Value::Neutral(head, elims) => {
                     let mut elims = elims.clone(); // FIXME: clone?
-                    elims.push(Elim::Bool(*span, if_true.clone(), if_false.clone()));
+                    elims.push(Elim::Bool(range.clone(), if_true.clone(), if_false.clone()));
                     Arc::new(Value::Neutral(head.clone(), elims))
                 }
                 _ => Arc::new(Value::Neutral(
-                    Head::Error(head.span()),
-                    vec![Elim::Bool(*span, if_true.clone(), if_false.clone())],
+                    Head::Error(head.range()),
+                    vec![Elim::Bool(range.clone(), if_true.clone(), if_false.clone())],
                 )),
             }
         }
-        Term::IntElim(span, head, branches, default) => match eval(globals, items, head).as_ref() {
-            Value::Constant(_, Constant::Int(value)) => match branches.get(&value) {
-                Some(term) => eval(globals, items, term),
-                None => eval(globals, items, default),
-            },
-            Value::Neutral(head, elims) => {
-                let mut elims = elims.clone(); // FIXME: clone?
-                elims.push(Elim::Int(*span, branches.clone(), default.clone()));
-                Arc::new(Value::Neutral(head.clone(), elims))
+        Term::IntElim(range, head, branches, default) => {
+            match eval(globals, items, head).as_ref() {
+                Value::Constant(_, Constant::Int(value)) => match branches.get(&value) {
+                    Some(term) => eval(globals, items, term),
+                    None => eval(globals, items, default),
+                },
+                Value::Neutral(head, elims) => {
+                    let mut elims = elims.clone(); // FIXME: clone?
+                    elims.push(Elim::Int(range.clone(), branches.clone(), default.clone()));
+                    Arc::new(Value::Neutral(head.clone(), elims))
+                }
+                _ => Arc::new(Value::Neutral(
+                    Head::Error(head.range()),
+                    vec![Elim::Int(range.clone(), branches.clone(), default.clone())],
+                )),
             }
-            _ => Arc::new(Value::Neutral(
-                Head::Error(head.span()),
-                vec![Elim::Int(*span, branches.clone(), default.clone())],
-            )),
-        },
-        Term::Error(span) => Arc::new(Value::Error(*span)),
+        }
+        Term::Error(range) => Arc::new(Value::Error(range.clone())),
     }
 }
 
@@ -97,20 +106,26 @@ pub fn eval(
 fn read_back_neutral(head: &Head, elims: &[Elim]) -> Term {
     elims.iter().fold(
         match head {
-            Head::Global(span, name) => Term::Global(*span, name.clone()),
-            Head::Item(span, name) => Term::Item(*span, name.clone()),
-            Head::Error(span) => Term::Error(*span),
+            Head::Global(range, name) => Term::Global(range.clone(), name.clone()),
+            Head::Item(range, name) => Term::Item(range.clone(), name.clone()),
+            Head::Error(range) => Term::Error(range.clone()),
         },
         |head, elim| match elim {
             Elim::Function(_, argument) => {
                 Term::FunctionElim(Arc::new(head), Arc::new(read_back(argument)))
             }
-            Elim::Bool(span, if_true, if_false) => {
-                Term::BoolElim(*span, Arc::new(head), if_true.clone(), if_false.clone())
-            }
-            Elim::Int(span, branches, default) => {
-                Term::IntElim(*span, Arc::new(head), branches.clone(), default.clone())
-            }
+            Elim::Bool(range, if_true, if_false) => Term::BoolElim(
+                range.clone(),
+                Arc::new(head),
+                if_true.clone(),
+                if_false.clone(),
+            ),
+            Elim::Int(range, branches, default) => Term::IntElim(
+                range.clone(),
+                Arc::new(head),
+                branches.clone(),
+                default.clone(),
+            ),
         },
     )
 }
@@ -119,12 +134,12 @@ fn read_back_neutral(head: &Head, elims: &[Elim]) -> Term {
 pub fn read_back(value: &Value) -> Term {
     match value {
         Value::Neutral(head, elims) => read_back_neutral(head, elims),
-        Value::Universe(span, universe) => Term::Universe(*span, *universe),
+        Value::Universe(range, universe) => Term::Universe(range.clone(), *universe),
         Value::FunctionType(param_ty, body_ty) => {
             Term::FunctionType(Arc::new(read_back(param_ty)), Arc::new(read_back(body_ty)))
         }
-        Value::Constant(span, constant) => Term::Constant(*span, constant.clone()),
-        Value::Error(span) => Term::Error(*span),
+        Value::Constant(range, constant) => Term::Constant(range.clone(), constant.clone()),
+        Value::Error(range) => Term::Error(range.clone()),
     }
 }
 

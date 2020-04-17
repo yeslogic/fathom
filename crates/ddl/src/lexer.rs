@@ -1,5 +1,5 @@
-use codespan::{ByteIndex, ByteOffset, FileId, Files, Span};
 use codespan_reporting::diagnostic::Diagnostic;
+use codespan_reporting::files::SimpleFiles;
 use maplit::hashmap;
 use std::collections::HashMap;
 use std::fmt;
@@ -146,30 +146,30 @@ impl<'a> fmt::Display for Token {
     }
 }
 
-pub type SpannedToken = (ByteIndex, Token, ByteIndex);
+pub type SpannedToken = (usize, Token, usize);
 
 /// A lexer for the DDL.
 pub struct Lexer<'input, 'keywords> {
-    file_id: FileId,
+    file_id: usize,
     keywords: &'keywords Keywords,
     /// An iterator of unicode characters to consume.
     chars: std::str::Chars<'input>,
     /// One character of lookahead, making this lexer LR(1).
     peeked: Option<char>,
     /// The start of the next token to be emitted.
-    token_start: ByteIndex,
+    token_start: usize,
     /// The end of the next token to be emitted.
-    token_end: ByteIndex,
+    token_end: usize,
 }
 
 impl<'input, 'keywords> Lexer<'input, 'keywords> {
     /// Create a new lexer with the given file.
     pub fn new(
-        files: &'input Files<String>,
-        file_id: FileId,
+        files: &'input SimpleFiles<String, String>,
+        file_id: usize,
         keywords: &'keywords Keywords,
     ) -> Lexer<'input, 'keywords> {
-        let mut chars = files.source(file_id).chars();
+        let mut chars = files.get(file_id).unwrap().source().chars();
         let peeked = chars.next();
 
         Lexer {
@@ -177,13 +177,13 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
             keywords,
             chars,
             peeked,
-            token_start: ByteIndex::from(0),
-            token_end: ByteIndex::from(0),
+            token_start: 0,
+            token_end: 0,
         }
     }
 
     /// Emit a token and reset the start position, ready for the next token.
-    fn emit(&mut self, token: Token) -> Option<Result<SpannedToken, Diagnostic<FileId>>> {
+    fn emit(&mut self, token: Token) -> Option<Result<SpannedToken, Diagnostic<usize>>> {
         let start = self.token_start;
         let end = self.token_end;
         self.token_start = self.token_end;
@@ -198,7 +198,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
     /// Consume the current character and load the next one. Return the old character.
     fn advance(&mut self) -> Option<char> {
         let current = std::mem::replace(&mut self.peeked, self.chars.next());
-        self.token_end += current.map_or(ByteOffset::from(0), ByteOffset::from_char_len);
+        self.token_end += current.map_or(0, char::len_utf8);
         current
     }
 
@@ -208,10 +208,10 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
 
     fn unexpected_char<T>(
         &self,
-        start: ByteIndex,
+        start: usize,
         found: char,
         expected: &[&str],
-    ) -> Option<Result<T, Diagnostic<FileId>>> {
+    ) -> Option<Result<T, Diagnostic<usize>>> {
         Some(Err(diagnostics::error::unexpected_char(
             self.file_id,
             start,
@@ -220,7 +220,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
         )))
     }
 
-    fn unexpected_eof<T>(&self, expected: &[&str]) -> Option<Result<T, Diagnostic<FileId>>> {
+    fn unexpected_eof<T>(&self, expected: &[&str]) -> Option<Result<T, Diagnostic<usize>>> {
         Some(Err(diagnostics::error::unexpected_eof(
             self.file_id,
             self.token_end,
@@ -230,10 +230,10 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
 
     fn consume_number(
         &mut self,
-        start: ByteIndex,
+        start: usize,
         sign: Option<Sign>,
         first_digit: char,
-    ) -> Option<Result<SpannedToken, Diagnostic<FileId>>> {
+    ) -> Option<Result<SpannedToken, Diagnostic<usize>>> {
         let mut number = String::new();
         number.push(first_digit);
 
@@ -246,15 +246,15 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
             }
         }
 
-        let number_span = Span::new(start, self.token_end);
-        let literal = literal::Number::new(sign, (number_span, number));
+        let number_range = start..self.token_end;
+        let literal = literal::Number::new(sign, (number_range, number));
         self.emit(Token::NumberLiteral(literal))
     }
 
     fn consume_identifier(
         &mut self,
         start_ch: char,
-    ) -> Option<Result<SpannedToken, Diagnostic<FileId>>> {
+    ) -> Option<Result<SpannedToken, Diagnostic<usize>>> {
         let mut ident = String::new();
         ident.push(start_ch);
 
@@ -275,9 +275,9 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
 }
 
 impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
-    type Item = Result<SpannedToken, Diagnostic<FileId>>;
+    type Item = Result<SpannedToken, Diagnostic<usize>>;
 
-    fn next(&mut self) -> Option<Result<SpannedToken, Diagnostic<FileId>>> {
+    fn next(&mut self) -> Option<Result<SpannedToken, Diagnostic<usize>>> {
         'top: loop {
             let start = self.token_end;
             return match self.advance()? {

@@ -1,17 +1,17 @@
 //! Diagnostics.
 
-use codespan::{ByteIndex, FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
+use std::ops::Range;
 
 use crate::{core, surface};
 
 pub fn field_redeclaration(
     severity: Severity,
-    file_id: FileId,
+    file_id: usize,
     name: &str,
-    found: Span,
-    original: Span,
-) -> Diagnostic<FileId> {
+    found: Range<usize>,
+    original: Range<usize>,
+) -> Diagnostic<usize> {
     Diagnostic::new(severity)
         .with_message(format!("field `{}` is already declared", name))
         .with_labels(vec![
@@ -23,11 +23,11 @@ pub fn field_redeclaration(
 
 pub fn item_redefinition(
     severity: Severity,
-    file_id: FileId,
+    file_id: usize,
     name: &str,
-    found: Span,
-    original: Span,
-) -> Diagnostic<FileId> {
+    found: Range<usize>,
+    original: Range<usize>,
+) -> Diagnostic<usize> {
     Diagnostic::new(severity)
         .with_message(format!("the name `{}` is defined multiple times", name))
         .with_labels(vec![
@@ -42,11 +42,11 @@ pub fn item_redefinition(
 
 pub fn type_mismatch(
     severity: Severity,
-    file_id: FileId,
-    term_span: Span,
+    file_id: usize,
+    term_range: Range<usize>,
     expected_ty: &core::Value,
     found_ty: &core::Value,
-) -> Diagnostic<FileId> {
+) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
     let expected_ty =
@@ -59,7 +59,7 @@ pub fn type_mismatch(
 
     Diagnostic::new(severity)
         .with_message("type mismatch")
-        .with_labels(vec![Label::primary(file_id, term_span).with_message(
+        .with_labels(vec![Label::primary(file_id, term_range).with_message(
             format!("expected `{}`, found `{}`", expected_ty, found_ty),
         )])
         .with_notes(vec![[
@@ -71,10 +71,10 @@ pub fn type_mismatch(
 
 pub fn universe_mismatch(
     severity: Severity,
-    file_id: FileId,
-    term_span: Span,
+    file_id: usize,
+    term_range: Range<usize>,
     found_ty: &core::Value,
-) -> Diagnostic<FileId> {
+) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
     let found_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(found_ty));
@@ -83,7 +83,7 @@ pub fn universe_mismatch(
 
     Diagnostic::new(severity)
         .with_message("universe mismatch")
-        .with_labels(vec![Label::primary(file_id, term_span)
+        .with_labels(vec![Label::primary(file_id, term_range)
             .with_message(format!("expected a universe, found `{}`", found_ty))])
         .with_notes(vec![[
             format!("expected a universe"),
@@ -92,23 +92,27 @@ pub fn universe_mismatch(
         .join("\n")])
 }
 
-pub fn kind_has_no_type(severity: Severity, file_id: FileId, span: Span) -> Diagnostic<FileId> {
+pub fn kind_has_no_type(
+    severity: Severity,
+    file_id: usize,
+    range: Range<usize>,
+) -> Diagnostic<usize> {
     // TODO: provide suggestions
     Diagnostic::new(severity)
         .with_message("cannot synthesize the type of `Kind`")
         .with_labels(vec![
-            Label::primary(file_id, span).with_message("cannot synthesize type")
+            Label::primary(file_id, range).with_message("cannot synthesize type")
         ])
         .with_notes(vec![format!("`Kind` has no corresponding type")])
 }
 
 pub fn not_a_function(
     severity: Severity,
-    file_id: FileId,
-    head: Span,
+    file_id: usize,
+    head: Range<usize>,
     head_ty: &core::Value,
-    argument: Span,
-) -> Diagnostic<FileId> {
+    argument: Range<usize>,
+) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
     let head_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(head_ty));
@@ -133,18 +137,17 @@ pub fn not_a_function(
 
 pub fn ambiguous_match_expression(
     severity: Severity,
-    file_id: FileId,
-    span: Span,
-) -> Diagnostic<FileId> {
+    file_id: usize,
+    range: Range<usize>,
+) -> Diagnostic<usize> {
     Diagnostic::new(severity)
         .with_message("ambiguous match expression")
         .with_labels(vec![
-            Label::primary(file_id, span).with_message("type annotation required")
+            Label::primary(file_id, range).with_message("type annotation required")
         ])
 }
 
 pub mod error {
-    use codespan::ByteOffset;
     use lalrpop_util::ParseError;
     use std::fmt;
 
@@ -153,13 +156,13 @@ pub mod error {
     use super::*;
 
     pub fn unexpected_char(
-        file_id: FileId,
-        start: ByteIndex,
+        file_id: usize,
+        start: usize,
         found: char,
         expected: &[&str],
-    ) -> Diagnostic<FileId> {
-        let end = start + ByteOffset::from_char_len(found);
-        let range = start.to_usize()..end.to_usize();
+    ) -> Diagnostic<usize> {
+        let end = start + found.len_utf8();
+        let range = start..end;
 
         Diagnostic::error()
             .with_message(format!("unexpected character `{}`", found))
@@ -172,12 +175,8 @@ pub mod error {
             )])
     }
 
-    pub fn unexpected_eof(
-        file_id: FileId,
-        eof: ByteIndex,
-        expected: &[&str],
-    ) -> Diagnostic<FileId> {
-        let eof = eof.to_usize();
+    pub fn unexpected_eof(file_id: usize, eof: usize, expected: &[&str]) -> Diagnostic<usize> {
+        let eof = eof;
 
         Diagnostic::error()
             .with_message("unexpected end of file")
@@ -191,14 +190,14 @@ pub mod error {
     }
 
     pub fn parse(
-        file_id: FileId,
-        error: ParseError<ByteIndex, Token, Diagnostic<FileId>>,
-    ) -> Diagnostic<FileId> {
+        file_id: usize,
+        error: ParseError<usize, Token, Diagnostic<usize>>,
+    ) -> Diagnostic<usize> {
         match error {
             ParseError::InvalidToken { location: _ } => unreachable!(),
 
             ParseError::UnrecognizedEOF { location, expected } => {
-                let location = location.to_usize();
+                let location = location;
 
                 Diagnostic::error()
                     .with_message("unexpected end of file")
@@ -214,7 +213,7 @@ pub mod error {
                 token: (start, token, end),
                 expected,
             } => {
-                let range = start.to_usize()..end.to_usize();
+                let range = start..end;
 
                 Diagnostic::error()
                     .with_message(format!("unexpected token \"{}\"", token))
@@ -230,7 +229,7 @@ pub mod error {
             ParseError::ExtraToken {
                 token: (start, token, end),
             } => {
-                let range = start.to_usize()..end.to_usize();
+                let range = start..end;
 
                 Diagnostic::error()
                     .with_message(format!("extra token \"{}\"", token))
@@ -260,20 +259,24 @@ pub mod error {
         DisplayExpected(items)
     }
 
-    pub fn var_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic<FileId> {
+    pub fn var_name_not_found(
+        file_id: usize,
+        name: &str,
+        range: Range<usize>,
+    ) -> Diagnostic<usize> {
         // TODO: provide suggestions
         Diagnostic::error()
             .with_message(format!("cannot find `{}` in this scope", name))
             .with_labels(vec![
-                Label::primary(file_id, span).with_message("not found in this scope")
+                Label::primary(file_id, range).with_message("not found in this scope")
             ])
     }
 
     pub fn numeric_literal_not_supported(
-        file_id: FileId,
-        span: Span,
+        file_id: usize,
+        range: Range<usize>,
         found_ty: &core::Value,
-    ) -> Diagnostic<FileId> {
+    ) -> Diagnostic<usize> {
         let arena = pretty::Arena::new();
 
         let found_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(found_ty));
@@ -285,25 +288,25 @@ pub mod error {
                 "cannot construct a `{}` from a numeric literal",
                 found_ty,
             ))
-            .with_labels(vec![Label::primary(file_id, span).with_message(format!(
+            .with_labels(vec![Label::primary(file_id, range).with_message(format!(
                 "numeric literals not supported for type `{}`",
                 found_ty,
             ))])
     }
 
-    pub fn ambiguous_numeric_literal(file_id: FileId, span: Span) -> Diagnostic<FileId> {
+    pub fn ambiguous_numeric_literal(file_id: usize, range: Range<usize>) -> Diagnostic<usize> {
         Diagnostic::error()
             .with_message("ambiguous numeric literal")
             .with_labels(vec![
-                Label::primary(file_id, span).with_message("type annotation required")
+                Label::primary(file_id, range).with_message("type annotation required")
             ])
     }
 
     pub fn unsupported_pattern_ty(
-        file_id: FileId,
-        span: Span,
+        file_id: usize,
+        range: Range<usize>,
         found_ty: &core::Value,
-    ) -> Diagnostic<FileId> {
+    ) -> Diagnostic<usize> {
         let arena = pretty::Arena::new();
 
         let found_ty = surface::delaborate::delaborate_term(&core::semantics::read_back(found_ty));
@@ -312,18 +315,18 @@ pub mod error {
 
         Diagnostic::error()
             .with_message(format!("unsupported pattern type: `{}`", found_ty))
-            .with_labels(vec![Label::primary(file_id, span)
+            .with_labels(vec![Label::primary(file_id, range)
                 .with_message(format!("unsupported pattern type: `{}`", found_ty))])
             .with_notes(vec![
                 "can only currently match against terms of type `Bool` or `Int`".to_owned(),
             ])
     }
 
-    pub fn no_default_pattern(file_id: FileId, span: Span) -> Diagnostic<FileId> {
+    pub fn no_default_pattern(file_id: usize, range: Range<usize>) -> Diagnostic<usize> {
         Diagnostic::error()
             .with_message("non-exhaustive patterns")
             .with_labels(vec![
-                Label::primary(file_id, span).with_message("missing default pattern")
+                Label::primary(file_id, range).with_message("missing default pattern")
             ])
     }
 }
@@ -332,40 +335,48 @@ pub mod bug {
     pub use super::*;
 
     pub fn not_yet_implemented(
-        file_id: FileId,
-        span: Span,
+        file_id: usize,
+        range: Range<usize>,
         feature_name: &str,
-    ) -> Diagnostic<FileId> {
+    ) -> Diagnostic<usize> {
         Diagnostic::bug()
             .with_message(format!("not yet implemented: {}", feature_name))
-            .with_labels(vec![Label::primary(file_id, span)
+            .with_labels(vec![Label::primary(file_id, range)
                 .with_message("relies on an unimplemented language feature")])
     }
 
-    pub fn global_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic<FileId> {
+    pub fn global_name_not_found(
+        file_id: usize,
+        name: &str,
+        range: Range<usize>,
+    ) -> Diagnostic<usize> {
         // TODO: provide suggestions
         Diagnostic::bug()
             .with_message(format!("global `{}` is not defined", name))
             .with_labels(vec![
-                Label::primary(file_id, span).with_message("global is not defined")
+                Label::primary(file_id, range).with_message("global is not defined")
             ])
     }
 
-    pub fn item_name_not_found(file_id: FileId, name: &str, span: Span) -> Diagnostic<FileId> {
+    pub fn item_name_not_found(
+        file_id: usize,
+        name: &str,
+        range: Range<usize>,
+    ) -> Diagnostic<usize> {
         // TODO: provide suggestions
         Diagnostic::bug()
             .with_message(format!("cannot find item `{}` in this scope", name))
             .with_labels(vec![
-                Label::primary(file_id, span).with_message("item not found in this scope")
+                Label::primary(file_id, range).with_message("item not found in this scope")
             ])
     }
 
-    pub fn unknown_global(file_id: FileId, name: &str, span: Span) -> Diagnostic<FileId> {
+    pub fn unknown_global(file_id: usize, name: &str, range: Range<usize>) -> Diagnostic<usize> {
         // TODO: provide suggestions
         Diagnostic::bug()
             .with_message(format!("unknown global `{}`", name))
             .with_labels(vec![
-                Label::primary(file_id, span).with_message("unknown global")
+                Label::primary(file_id, range).with_message("unknown global")
             ])
     }
 }
@@ -373,11 +384,11 @@ pub mod bug {
 pub mod warning {
     pub use super::*;
 
-    pub fn unreachable_pattern(file_id: FileId, span: Span) -> Diagnostic<FileId> {
+    pub fn unreachable_pattern(file_id: usize, range: Range<usize>) -> Diagnostic<usize> {
         Diagnostic::warning()
             .with_message("unreachable pattern")
             .with_labels(vec![
-                Label::primary(file_id, span).with_message("unreachable pattern")
+                Label::primary(file_id, range).with_message("unreachable pattern")
             ])
     }
 }

@@ -1,9 +1,9 @@
-use codespan::{FileId, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use inflector::Inflector;
 use num_bigint::BigInt;
 use num_traits::cast::ToPrimitive;
 use std::collections::{BTreeMap, HashMap};
+use std::ops::Range;
 use std::sync::Arc;
 
 use crate::{core, rust};
@@ -33,7 +33,7 @@ fn derives(is_copy: bool) -> Vec<String> {
 pub fn compile_module(
     globals: &core::Globals,
     module: &core::Module,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> rust::Module {
     let mut context = Context {
         globals,
@@ -55,7 +55,7 @@ pub fn compile_module(
 }
 
 struct TermItem {
-    span: Span,
+    range: Range<usize>,
     rust_name: String,
     rust_ty: rust::Type,
     is_function: bool,
@@ -77,7 +77,7 @@ impl TermItem {
 }
 
 struct TypeItem {
-    span: Span,
+    range: Range<usize>,
     rust_name: String,
     is_copy: bool,
     host_ty: Option<rust::Type>,
@@ -97,23 +97,23 @@ impl TypeItem {
 enum CompiledItem {
     Term(TermItem),
     Type(TypeItem),
-    Erased(Span),
-    Error(Span),
+    Erased(Range<usize>),
+    Error(Range<usize>),
 }
 
 impl CompiledItem {
-    fn span(&self) -> Span {
+    fn range(&self) -> Range<usize> {
         match self {
-            CompiledItem::Term(term_item) => term_item.span,
-            CompiledItem::Type(ty_item) => ty_item.span,
-            CompiledItem::Erased(span) | CompiledItem::Error(span) => *span,
+            CompiledItem::Term(term_item) => term_item.range.clone(),
+            CompiledItem::Type(ty_item) => ty_item.range.clone(),
+            CompiledItem::Erased(range) | CompiledItem::Error(range) => range.clone(),
         }
     }
 }
 
 struct Context<'me> {
     globals: &'me core::Globals,
-    file_id: FileId,
+    file_id: usize,
     enum_count: usize,
     compiled_items: HashMap<&'me str, CompiledItem>,
     core_items: HashMap<&'me str, core::Item>,
@@ -123,7 +123,7 @@ struct Context<'me> {
 fn compile_item<'item>(
     context: &mut Context<'item>,
     core_item: &'item core::Item,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) {
     match core_item {
         core::Item::Alias(core_alias) => compile_alias(context, core_alias, report),
@@ -134,11 +134,9 @@ fn compile_item<'item>(
 fn compile_alias<'item>(
     context: &mut Context<'item>,
     core_alias: &'item core::Alias,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) {
     use std::collections::hash_map::Entry;
-
-    let span = core_alias.span;
 
     let item = match compile_term(context, &core_alias.term, report) {
         CompiledTerm::Term(term) => {
@@ -152,7 +150,7 @@ fn compile_alias<'item>(
                     term: term.rust_term,
                 }));
                 CompiledItem::Term(TermItem {
-                    span,
+                    range: core_alias.range.clone(),
                     rust_name,
                     rust_ty: term.rust_ty,
                     is_function: false,
@@ -169,7 +167,7 @@ fn compile_alias<'item>(
                 });
                 context.rust_items.push(rust_item);
                 CompiledItem::Term(TermItem {
-                    span,
+                    range: core_alias.range.clone(),
                     rust_name,
                     rust_ty: term.rust_ty,
                     is_function: true,
@@ -209,7 +207,7 @@ fn compile_alias<'item>(
                         });
                         context.rust_items.push(rust_item);
                         CompiledItem::Type(TypeItem {
-                            span,
+                            range: core_alias.range.clone(),
                             rust_name: rust_name.clone(),
                             is_copy: ty.is_copy,
                             host_ty: Some(rust::Type::name(rust_name, Vec::new())),
@@ -223,7 +221,7 @@ fn compile_alias<'item>(
                         ty: ty.rust_ty,
                     }));
                     CompiledItem::Type(TypeItem {
-                        span,
+                        range: core_alias.range.clone(),
                         rust_name,
                         is_copy: ty.is_copy,
                         host_ty: ty.host_ty,
@@ -231,8 +229,8 @@ fn compile_alias<'item>(
                 }
             }
         }
-        CompiledTerm::Erased => CompiledItem::Erased(span),
-        CompiledTerm::Error => CompiledItem::Error(span),
+        CompiledTerm::Erased => CompiledItem::Erased(core_alias.range.clone()),
+        CompiledTerm::Error => CompiledItem::Error(core_alias.range.clone()),
     };
 
     match context.compiled_items.entry(&core_alias.name) {
@@ -240,8 +238,8 @@ fn compile_alias<'item>(
             report(diagnostics::bug::item_name_reused(
                 context.file_id,
                 entry.key(),
-                span,
-                entry.get().span(),
+                core_alias.range.clone(),
+                entry.get().range(),
             ));
         }
         Entry::Vacant(entry) => {
@@ -255,7 +253,7 @@ fn compile_alias<'item>(
 fn compile_struct_ty<'item>(
     context: &mut Context<'item>,
     core_struct_ty: &'item core::StructType,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) {
     use std::collections::hash_map::Entry;
 
@@ -313,13 +311,13 @@ fn compile_struct_ty<'item>(
             report(diagnostics::bug::item_name_reused(
                 context.file_id,
                 entry.key(),
-                core_struct_ty.span,
-                entry.get().span(),
+                core_struct_ty.range.clone(),
+                entry.get().range(),
             ));
         }
         Entry::Vacant(entry) => {
             entry.insert(CompiledItem::Type(TypeItem {
-                span: core_struct_ty.span,
+                range: core_struct_ty.range.clone(),
                 rust_name: rust_name.clone(),
                 is_copy,
                 host_ty: Some(rust::Type::name(rust_name, Vec::new())),
@@ -353,7 +351,7 @@ enum CompiledTerm {
 fn compile_term(
     context: &mut Context<'_>,
     core_term: &core::Term,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> CompiledTerm {
     let value = core::semantics::eval(context.globals, &context.core_items, core_term);
     compile_value(context, &value, report)
@@ -362,7 +360,7 @@ fn compile_term(
 fn compile_value(
     context: &mut Context<'_>,
     value: &core::Value,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> CompiledTerm {
     let file_id = context.file_id;
 
@@ -384,7 +382,7 @@ fn compile_value(
     };
 
     match value {
-        core::Value::Neutral(core::Head::Global(span, name), elims) => {
+        core::Value::Neutral(core::Head::Global(range, name), elims) => {
             match (name.as_str(), elims.as_slice()) {
                 // TODO: Put globals in an environment
                 ("U8", []) => format_ty(rt_ty_name("U8"), rust::Type::name("u8", vec![])),
@@ -407,7 +405,10 @@ fn compile_value(
                 ("F64Be", []) => format_ty(rt_ty_name("F64Be"), rust::Type::name("f64", vec![])),
                 ("Bool", []) => host_ty(rust::Type::name("bool", vec![])),
                 ("Int", []) => {
-                    report(diagnostics::error::unconstrained_int(file_id, *span));
+                    report(diagnostics::error::unconstrained_int(
+                        file_id,
+                        range.clone(),
+                    ));
                     host_ty(rt_invalid_ty())
                 }
                 ("F32", []) => host_ty(rust::Type::name("f32", vec![])),
@@ -424,7 +425,7 @@ fn compile_value(
                 }),
                 (
                     "Array",
-                    [core::Elim::Function(len_span, len), core::Elim::Function(_, elem_ty)],
+                    [core::Elim::Function(len_range, len), core::Elim::Function(_, elem_ty)],
                 ) => {
                     let len = match len.as_ref() {
                         core::Value::Error(_) => return CompiledTerm::Error,
@@ -434,7 +435,7 @@ fn compile_value(
                                 None => {
                                     report(diagnostics::bug::integer_out_of_bounds(
                                         context.file_id,
-                                        *len_span,
+                                        len_range.clone(),
                                     ));
                                     return CompiledTerm::Error;
                                 }
@@ -443,7 +444,7 @@ fn compile_value(
                         _ => {
                             report(diagnostics::bug::expected_integer(
                                 context.file_id,
-                                *len_span,
+                                len_range.clone(),
                             ));
                             return CompiledTerm::Error;
                         }
@@ -513,16 +514,18 @@ fn compile_value(
                         Some(arity) if elims.len() < arity => {
                             report(crate::diagnostics::bug::not_yet_implemented(
                                 context.file_id,
-                                value.span(),
+                                value.range(),
                                 "undersaturated type constructors",
                             ))
                         }
                         Some(_) => report(diagnostics::bug::oversaturated_fun_elim(
                             context.file_id,
-                            value.span(),
+                            value.range(),
                         )),
                         None => report(crate::diagnostics::bug::global_name_not_found(
-                            file_id, name, *span,
+                            file_id,
+                            name,
+                            range.clone(),
                         )),
                     }
 
@@ -530,14 +533,14 @@ fn compile_value(
                 }
             }
         }
-        core::Value::Neutral(core::Head::Item(span, name), elims) => {
+        core::Value::Neutral(core::Head::Item(range, name), elims) => {
             let head = match context.compiled_items.get(name.as_str()) {
                 Some(CompiledItem::Term(term_item)) => CompiledTerm::Term(term_item.to_term()),
                 Some(CompiledItem::Type(ty_item)) => CompiledTerm::Type(ty_item.to_ty()),
                 Some(CompiledItem::Erased(_)) => CompiledTerm::Erased,
                 Some(CompiledItem::Error(_)) => CompiledTerm::Error,
                 None => {
-                    report(diagnostics::bug::unbound_item(file_id, name, *span));
+                    report(diagnostics::bug::unbound_item(file_id, name, range.clone()));
                     CompiledTerm::Error
                 }
             };
@@ -545,7 +548,7 @@ fn compile_value(
                 (_, core::Elim::Function(_, _)) => {
                     report(crate::diagnostics::bug::not_yet_implemented(
                         context.file_id,
-                        value.span(),
+                        value.range(),
                         "function eliminations on items",
                     ));
                     CompiledTerm::Error
@@ -554,13 +557,13 @@ fn compile_value(
                     let head = head.rust_term.clone();
                     compile_bool_elim(context, head, if_true, if_false, report)
                 }
-                (CompiledTerm::Term(head), core::Elim::Int(span, branches, default)) => {
+                (CompiledTerm::Term(head), core::Elim::Int(range, branches, default)) => {
                     let head = head.rust_term.clone();
-                    compile_int_elim(context, *span, head, branches, default, report)
+                    compile_int_elim(context, range.clone(), head, branches, default, report)
                 }
                 (CompiledTerm::Error, _) => CompiledTerm::Error,
-                (_, core::Elim::Bool(span, _, _)) | (_, core::Elim::Int(span, _, _)) => {
-                    report(diagnostics::bug::unexpected_elim(file_id, *span));
+                (_, core::Elim::Bool(range, _, _)) | (_, core::Elim::Int(range, _, _)) => {
+                    report(diagnostics::bug::unexpected_elim(file_id, range.clone()));
                     CompiledTerm::Error
                 }
             })
@@ -570,12 +573,14 @@ fn compile_value(
         core::Value::FunctionType(_, _) => {
             report(crate::diagnostics::bug::not_yet_implemented(
                 context.file_id,
-                value.span(),
+                value.range(),
                 "function types",
             ));
             CompiledTerm::Error
         }
-        core::Value::Constant(span, constant) => compile_constant(context, *span, constant, report),
+        core::Value::Constant(range, constant) => {
+            compile_constant(context, range.clone(), constant, report)
+        }
         core::Value::Error(_) => CompiledTerm::Error,
     }
 }
@@ -583,7 +588,7 @@ fn compile_value(
 fn compile_term_as_ty(
     context: &mut Context<'_>,
     core_term: &core::Term,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> Option<Type> {
     let value = core::semantics::eval(context.globals, &context.core_items, core_term);
     compile_value_as_ty(context, &value, report)
@@ -592,14 +597,14 @@ fn compile_term_as_ty(
 fn compile_value_as_ty(
     context: &mut Context<'_>,
     value: &core::Value,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> Option<Type> {
     match compile_value(context, &value, report) {
         CompiledTerm::Type(ty) => Some(ty),
         CompiledTerm::Term(_) | CompiledTerm::Erased => {
             report(diagnostics::bug::expected_type(
                 context.file_id,
-                value.span(),
+                value.range(),
             ));
             None
         }
@@ -609,9 +614,9 @@ fn compile_value_as_ty(
 
 fn compile_constant(
     context: &mut Context<'_>,
-    span: Span,
+    range: Range<usize>,
     constant: &core::Constant,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> CompiledTerm {
     match constant {
         core::Constant::Int(value) => match value.to_i64() {
@@ -624,7 +629,7 @@ fn compile_constant(
             None => {
                 report(crate::diagnostics::bug::not_yet_implemented(
                     context.file_id,
-                    span,
+                    range,
                     "non-i64 types",
                 ));
                 CompiledTerm::Error
@@ -648,7 +653,7 @@ fn compile_bool_elim(
     head: rust::Term,
     if_true: &core::Term,
     if_false: &core::Term,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> CompiledTerm {
     match (
         compile_term(context, if_true, report),
@@ -680,7 +685,7 @@ fn compile_bool_elim(
                     report(diagnostics::non_format_type_as_host_type(
                         Severity::Error,
                         context.file_id,
-                        if_true.span(),
+                        if_true.range(),
                     ));
                     (rt_invalid_ty(), rust::Term::Read(Box::new(rt_invalid_ty())))
                 }
@@ -698,7 +703,7 @@ fn compile_bool_elim(
                     report(diagnostics::non_format_type_as_host_type(
                         Severity::Error,
                         context.file_id,
-                        if_false.span(),
+                        if_false.range(),
                     ));
                     (rt_invalid_ty(), rust::Term::Read(Box::new(rt_invalid_ty())))
                 }
@@ -759,11 +764,11 @@ fn compile_bool_elim(
 
 fn compile_int_elim(
     context: &mut Context<'_>,
-    span: Span,
+    range: Range<usize>,
     head: rust::Term,
     branches: &BTreeMap<BigInt, Arc<core::Term>>,
     default: &core::Term,
-    report: &mut dyn FnMut(Diagnostic<FileId>),
+    report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> CompiledTerm {
     match compile_term(context, default, report) {
         CompiledTerm::Term(default_term) => {
@@ -781,7 +786,7 @@ fn compile_int_elim(
                     None => {
                         report(crate::diagnostics::bug::not_yet_implemented(
                             context.file_id,
-                            span,
+                            range.clone(),
                             "non-i64 patterns",
                         ));
                         None
@@ -817,7 +822,7 @@ fn compile_int_elim(
                     None => {
                         report(crate::diagnostics::bug::not_yet_implemented(
                             context.file_id,
-                            span,
+                            range.clone(),
                             "non-i64 patterns",
                         ));
                         continue;
@@ -840,7 +845,7 @@ fn compile_int_elim(
                                 report(diagnostics::non_format_type_as_host_type(
                                     Severity::Error,
                                     context.file_id,
-                                    term.span(),
+                                    term.range(),
                                 ));
                                 (rt_invalid_ty(), rust::Term::Read(Box::new(rt_invalid_ty())))
                             }
@@ -877,7 +882,7 @@ fn compile_int_elim(
                     report(diagnostics::non_format_type_as_host_type(
                         Severity::Error,
                         context.file_id,
-                        default.span(),
+                        default.range(),
                     ));
                     (rt_invalid_ty(), rust::Term::Read(Box::new(rt_invalid_ty())))
                 }

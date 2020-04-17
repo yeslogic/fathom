@@ -4,7 +4,7 @@
 //! The naming of this pass is not entirely standard, but was one of the better
 //! ones to emerge from [this twitter discussion](https://twitter.com/brendanzab/status/1173798146356342784).
 
-use codespan::Span;
+use std::ops::Range;
 
 use crate::{core, literal, surface};
 
@@ -27,17 +27,17 @@ pub fn delaborate_item(item: &core::Item) -> surface::Item {
             };
 
             surface::Item::Alias(surface::Alias {
-                span: alias.span,
+                range: alias.range.clone(),
                 doc: alias.doc.clone(),
-                name: (Span::initial(), alias.name.to_string()),
+                name: (0..0, alias.name.to_string()),
                 ty,
                 term,
             })
         }
         core::Item::Struct(struct_ty) => surface::Item::Struct(surface::StructType {
-            span: struct_ty.span,
+            range: struct_ty.range.clone(),
             doc: struct_ty.doc.clone(),
-            name: (Span::initial(), struct_ty.name.to_string()),
+            name: (0..0, struct_ty.name.to_string()),
             fields: struct_ty
                 .fields
                 .iter()
@@ -45,7 +45,7 @@ pub fn delaborate_item(item: &core::Item) -> surface::Item {
                     surface::TypeField {
                         doc: ty_field.doc.clone(),
                         // TODO: use `ty_field.start`
-                        name: (Span::initial(), ty_field.name.to_string()),
+                        name: (0..0, ty_field.name.to_string()),
                         term: delaborate_term(&ty_field.term),
                     }
                 })
@@ -56,15 +56,15 @@ pub fn delaborate_item(item: &core::Item) -> surface::Item {
 
 pub fn delaborate_term(term: &core::Term) -> surface::Term {
     match term {
-        core::Term::Global(span, name) => surface::Term::Name(*span, name.to_string()),
-        core::Term::Item(span, name) => surface::Term::Name(*span, name.to_string()),
+        core::Term::Global(range, name) => surface::Term::Name(range.clone(), name.to_string()),
+        core::Term::Item(range, name) => surface::Term::Name(range.clone(), name.to_string()),
         core::Term::Ann(term, ty) => surface::Term::Ann(
             Box::new(delaborate_term(term)),
             Box::new(delaborate_term(ty)),
         ),
-        core::Term::Universe(span, core::Universe::Host) => surface::Term::Host(*span),
-        core::Term::Universe(span, core::Universe::Format) => surface::Term::Format(*span),
-        core::Term::Universe(span, core::Universe::Kind) => surface::Term::Kind(*span),
+        core::Term::Universe(range, core::Universe::Host) => surface::Term::Host(range.clone()),
+        core::Term::Universe(range, core::Universe::Format) => surface::Term::Format(range.clone()),
+        core::Term::Universe(range, core::Universe::Kind) => surface::Term::Kind(range.clone()),
         core::Term::FunctionType(param_ty, body_ty) => surface::Term::FunctionType(
             Box::new(delaborate_term(param_ty)),
             Box::new(delaborate_term(body_ty)),
@@ -73,46 +73,45 @@ pub fn delaborate_term(term: &core::Term) -> surface::Term {
             Box::new(delaborate_term(head)),
             vec![delaborate_term(argument)], // TODO: flatten arguments
         ),
-        core::Term::Constant(span, constant) => delaborate_constant(*span, constant),
-        core::Term::BoolElim(span, head, if_true, if_false) => surface::Term::If(
-            *span,
+        core::Term::Constant(range, constant) => delaborate_constant(range.clone(), constant),
+        core::Term::BoolElim(range, head, if_true, if_false) => surface::Term::If(
+            range.clone(),
             Box::new(delaborate_term(head)),
             Box::new(delaborate_term(if_true)),
             Box::new(delaborate_term(if_false)),
         ),
-        core::Term::IntElim(span, head, branches, default) => surface::Term::Match(
-            *span,
+        core::Term::IntElim(range, head, branches, default) => surface::Term::Match(
+            range.clone(),
             Box::new(delaborate_term(head)),
             branches
                 .iter()
                 .map(|(value, term)| {
-                    let span = Span::initial();
-                    let value = literal::Number::from_signed(span, value);
+                    let value = literal::Number::from_signed(0..0, value);
                     (
-                        surface::Pattern::NumberLiteral(span, value),
+                        surface::Pattern::NumberLiteral(0..0, value),
                         delaborate_term(term),
                     )
                 })
                 .chain(std::iter::once((
-                    surface::Pattern::Name(Span::initial(), "_".to_owned()),
+                    surface::Pattern::Name(0..0, "_".to_owned()),
                     delaborate_term(default),
                 )))
                 .collect(),
         ),
-        core::Term::Error(span) => surface::Term::Error(*span),
+        core::Term::Error(range) => surface::Term::Error(range.clone()),
     }
 }
 
-pub fn delaborate_constant(span: Span, constant: &core::Constant) -> surface::Term {
+pub fn delaborate_constant(range: Range<usize>, constant: &core::Constant) -> surface::Term {
     match constant {
         core::Constant::Int(value) => {
-            surface::Term::NumberLiteral(span, literal::Number::from_signed(span, value))
+            surface::Term::NumberLiteral(range.clone(), literal::Number::from_signed(range, value))
         }
         core::Constant::F32(value) => {
-            surface::Term::NumberLiteral(span, literal::Number::from_signed(span, value))
+            surface::Term::NumberLiteral(range.clone(), literal::Number::from_signed(range, value))
         }
         core::Constant::F64(value) => {
-            surface::Term::NumberLiteral(span, literal::Number::from_signed(span, value))
+            surface::Term::NumberLiteral(range.clone(), literal::Number::from_signed(range, value))
         }
     }
 }
