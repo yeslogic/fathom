@@ -2,25 +2,9 @@
 %
 % The core language is an extension of Martin-Löf type theory, with some builtin
 % data types, like booleans, integers, and arrays, and support for defining
-% binary format descriptions. We skip identity types and η-rules for now.
+% binary format descriptions (inspired by [DDC]). We skip identity types and η-rules for now.
 %
-% In making this language, we owe much of our inspiration to the work on PADS/ML
-% and the data description calculus (DDC) in ["The Next 700 Data Description Languages"].
-% In contrast to DDC, we have decided to 'embed' format descriptions within a
-% dependendently typed language rather than splitting the language up into
-% separate format and host languages.
-%
-% At the moment it's possible to describe 'dependent format descriptions'. This
-% could be useful for 'extensible' binary formats, but it makes compilation much
-% harder. We might ultimately want to restrict this in the future for ease of
-% compilation through some use of [multi-stage programming], either using an
-% approach based on [modal type theory], or by 'intentionally' conflating
-% 'phase' with 'universe level', as described in ["Phase Distinctions in Type Theory"].
-%
-% ["Phase Distinctions in Type Theory"]: http://lucacardelli.name/Papers/PhaseDistinctions.A4.pdf
-% ["The Next 700 Data Description Languages"]: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.156.1375
-% [modal type theory]: https://jozefg.github.io/papers/2019-implementing-modal-dependent-type-theory.pdf
-% [multi-stage programming]: https://github.com/metaocaml/metaocaml-bibliography
+% [DDC]: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.156.1375
 
 %extend core.
 
