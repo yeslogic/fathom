@@ -537,7 +537,9 @@ fn check_int_branches(
                                     range.clone(),
                                 ))
                             }
-                            Entry::Vacant(entry) => drop(entry.insert(Arc::new(core_term))),
+                            Entry::Vacant(entry) => {
+                                entry.insert(Arc::new(core_term));
+                            }
                         },
                         Some(_) => report(diagnostics::warning::unreachable_pattern(
                             context.file_id,

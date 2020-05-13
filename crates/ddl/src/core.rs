@@ -9,6 +9,7 @@ use std::sync::Arc;
 use crate::lexer::SpannedToken;
 use crate::{diagnostics, ieee754};
 
+#[allow(clippy::style, clippy::complexity, clippy::perf)]
 mod grammar {
     include!(concat!(env!("OUT_DIR"), "/core/grammar.rs"));
 }

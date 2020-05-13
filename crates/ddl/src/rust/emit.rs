@@ -252,7 +252,7 @@ fn emit_block(writer: &mut impl Write, indent: usize, block: &Block) -> io::Resu
     }
     if let Some(term) = &block.term {
         if !block.statements.is_empty() {
-            writeln!(writer, "")?;
+            writeln!(writer)?;
         }
         write!(writer, "{:indent$}", "", indent = indent)?;
         emit_term(writer, indent, term)?;

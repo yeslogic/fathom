@@ -99,6 +99,10 @@ impl<'data> ReadScope<'data> {
     }
 
     /// Read some binary data in the context without bounds checking.
+    ///
+    /// # Safety
+    ///
+    /// Must read exactly [`T::SIZE`] bytes.
     #[inline]
     pub unsafe fn read_unchecked<T: ReadFormatUnchecked<'data>>(&mut self) -> T::Host {
         self.reader().read_unchecked::<T>()
@@ -126,12 +130,20 @@ impl<'data> FormatReader<'data> {
     }
 
     /// Read some binary data in the context without bounds checking.
+    ///
+    /// # Safety
+    ///
+    /// Must read exactly [`T::SIZE`] bytes.
     #[inline]
     pub unsafe fn read_unchecked<T: ReadFormatUnchecked<'data>>(&mut self) -> T::Host {
         T::read_unchecked(self)
     }
 
     /// Read an unsigned u8-bit integer without performing a bounds check.
+    ///
+    /// # Safety
+    ///
+    /// Assumes that there is a byte available to be read at the current offset.
     #[inline]
     pub unsafe fn read_unchecked_u8(&mut self) -> u8 {
         let byte = *self.scope.data.get_unchecked(self.offset);
@@ -158,8 +170,11 @@ where
     /// The number of bytes consumed by `read_unchecked`.
     const SIZE: usize;
 
-    /// Must read exactly `SIZE` bytes.
-    /// Unsafe as it avoids per-byte bounds checking.
+    /// Read a host value while avoiding per-byte bounds checking.
+    ///
+    /// # Safety
+    ///
+    /// Must read exactly [`Self::SIZE`] bytes.
     unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> Self::Host;
 }
 

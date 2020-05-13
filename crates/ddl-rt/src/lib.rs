@@ -334,23 +334,21 @@ macro_rules! impl_float_marker {
 
             #[inline]
             unsafe fn read_unchecked(reader: &mut FormatReader<'data>) -> $float {
-                std::mem::transmute::<_, $float>(reader.read_unchecked::<$UInt>())
+                $float::from_bits(reader.read_unchecked::<$UInt>())
             }
         }
 
         impl<'data> ReadFormat<'data> for $Float {
             #[inline]
             fn read(reader: &mut FormatReader<'data>) -> Result<$float, ReadError> {
-                reader
-                    .read::<$UInt>()
-                    .map(|value| unsafe { std::mem::transmute::<_, $float>(value) })
+                reader.read::<$UInt>().map($float::from_bits)
             }
         }
 
         impl WriteFormat for $Float {
             #[inline]
             fn write(writer: &mut FormatWriter, value: $float) {
-                writer.write::<$UInt>(unsafe { std::mem::transmute::<$float, _>(value) });
+                writer.write::<$UInt>(value.to_bits());
             }
         }
     };

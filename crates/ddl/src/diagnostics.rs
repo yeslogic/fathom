@@ -1,5 +1,7 @@
 //! Diagnostics.
 
+#![allow(clippy::useless_format)]
+
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use std::ops::Range;
 
@@ -194,7 +196,7 @@ pub mod error {
         error: ParseError<usize, Token, Diagnostic<usize>>,
     ) -> Diagnostic<usize> {
         match error {
-            ParseError::InvalidToken { location: _ } => unreachable!(),
+            ParseError::InvalidToken { .. } => unreachable!(),
 
             ParseError::UnrecognizedEOF { location, expected } => {
                 let location = location;

@@ -915,7 +915,7 @@ fn compile_int_elim(
             CompiledTerm::Type(Type {
                 rust_ty: rt_invalid_ty(),
                 is_copy,
-                host_ty: Some(rust::Type::name(enum_rust_name.clone(), Vec::new())),
+                host_ty: Some(rust::Type::name(enum_rust_name, Vec::new())),
                 read: Some(rust::Term::Match(Box::new(head), read_branches)),
             })
         }
