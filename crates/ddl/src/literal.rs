@@ -91,7 +91,7 @@ impl IntegerLexerState {
         match (self, ch) {
             (Top, Some((start, ch))) => match ch {
                 '0' => Yield(ZeroOrBase),
-                '1'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - '0' as u8).into(), 0)),
+                '1'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - b'0').into(), 0)),
                 _ => {
                     // TODO: bug?
                     report(diagnostics::error::unexpected_char(
@@ -110,7 +110,7 @@ impl IntegerLexerState {
                 'o' => Yield(IntegerPart(Octal, 0.into(), 0)),
                 'x' => Yield(IntegerPart(Hexadecimal, 0.into(), 0)),
                 '_' => Yield(IntegerPart(Decimal, 0.into(), 0)),
-                '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - '0' as u8).into(), 2)),
+                '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - b'0').into(), 2)),
                 _ => {
                     report(diagnostics::error::unexpected_char(
                         file_id,
@@ -126,12 +126,12 @@ impl IntegerLexerState {
             (IntegerPart(base, mut value, digits), Some((start, ch))) => {
                 let digit = match (base, ch) {
                     (base, '_') => return Yield(IntegerPart(base, value, digits)),
-                    (Binary, '0'..='1') => ch as u8 - '0' as u8,
-                    (Octal, '0'..='7') => ch as u8 - '0' as u8,
-                    (Decimal, '0'..='9') => ch as u8 - '0' as u8,
-                    (Hexadecimal, '0'..='9') => ch as u8 - '0' as u8,
-                    (Hexadecimal, 'a'..='f') => ch as u8 - 'a' as u8 + 10,
-                    (Hexadecimal, 'A'..='F') => ch as u8 - 'A' as u8 + 10,
+                    (Binary, '0'..='1') => ch as u8 - b'0',
+                    (Octal, '0'..='7') => ch as u8 - b'0',
+                    (Decimal, '0'..='9') => ch as u8 - b'0',
+                    (Hexadecimal, '0'..='9') => ch as u8 - b'0',
+                    (Hexadecimal, 'a'..='f') => ch as u8 - b'a' + 10,
+                    (Hexadecimal, 'A'..='F') => ch as u8 - b'A' + 10,
                     (_, _) => {
                         report(diagnostics::error::unexpected_char(
                             file_id,
@@ -178,7 +178,7 @@ where
         match (self, ch) {
             (Top, Some((start, ch))) => match ch {
                 '0' => Yield(ZeroOrBase),
-                '1'..='9' => Yield(IntegerPart(Base::Decimal, (ch as u8 - '0' as u8).into(), 1)),
+                '1'..='9' => Yield(IntegerPart(Base::Decimal, (ch as u8 - b'0').into(), 1)),
                 _ => {
                     // TODO: bug?
                     report(diagnostics::error::unexpected_char(
@@ -197,10 +197,10 @@ where
                 'o' => Yield(IntegerPart(Octal, 0.into(), 0)),
                 'x' => Yield(IntegerPart(Hexadecimal, 0.into(), 0)),
                 '_' => Yield(IntegerPart(Decimal, 0.into(), 0)),
-                '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - '0' as u8).into(), 2)),
+                '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - b'0').into(), 2)),
                 '.' => Yield(FractionalPart(Decimal, 0.into(), 0.into(), 0)),
-                ch if ['e', 'E'].contains(&ch) => return Yield(Exponent(0.into(), 0, 0)),
-                ch if ['p', 'P'].contains(&ch) => return Yield(Exponent(0.into(), 0, 0)),
+                ch if ['e', 'E'].contains(&ch) => Yield(Exponent(0.into(), 0, 0)),
+                ch if ['p', 'P'].contains(&ch) => Yield(Exponent(0.into(), 0, 0)),
                 _ => {
                     report(diagnostics::error::unexpected_char(
                         file_id,
@@ -216,12 +216,12 @@ where
             (IntegerPart(base, mut value, digits), Some((start, ch))) => {
                 let digit = match (base, ch) {
                     (base, '_') => return Yield(IntegerPart(base, value, digits)),
-                    (Binary, '0'..='1') => ch as u8 - '0' as u8,
-                    (Octal, '0'..='7') => ch as u8 - '0' as u8,
-                    (Decimal, '0'..='9') => ch as u8 - '0' as u8,
-                    (Hexadecimal, '0'..='9') => ch as u8 - '0' as u8,
-                    (Hexadecimal, 'a'..='f') => ch as u8 - 'a' as u8 + 10,
-                    (Hexadecimal, 'A'..='F') => ch as u8 - 'A' as u8 + 10,
+                    (Binary, '0'..='1') => ch as u8 - b'0',
+                    (Octal, '0'..='7') => ch as u8 - b'0',
+                    (Decimal, '0'..='9') => ch as u8 - b'0',
+                    (Hexadecimal, '0'..='9') => ch as u8 - b'0',
+                    (Hexadecimal, 'a'..='f') => ch as u8 - b'a' + 10,
+                    (Hexadecimal, 'A'..='F') => ch as u8 - b'A' + 10,
                     (base, '.') => return Yield(FractionalPart(base, value, 0.into(), 0)), // TODO: Check num digits
                     (Decimal, ch) if ['e', 'E'].contains(&ch) => {
                         // TODO: Check num digits
@@ -251,12 +251,12 @@ where
             (FractionalPart(base, value, mut frac, digits), Some((start, ch))) => {
                 let digit = match (base, ch) {
                     (base, '_') => return Yield(FractionalPart(base, value, frac, digits)),
-                    (Binary, '0'..='1') => ch as u8 - '0' as u8,
-                    (Octal, '0'..='7') => ch as u8 - '0' as u8,
-                    (Decimal, '0'..='9') => ch as u8 - '0' as u8,
-                    (Hexadecimal, '0'..='9') => ch as u8 - '0' as u8,
-                    (Hexadecimal, 'a'..='f') => ch as u8 - 'a' as u8 + 10,
-                    (Hexadecimal, 'A'..='F') => ch as u8 - 'A' as u8 + 10,
+                    (Binary, '0'..='1') => ch as u8 - b'0',
+                    (Octal, '0'..='7') => ch as u8 - b'0',
+                    (Decimal, '0'..='9') => ch as u8 - b'0',
+                    (Hexadecimal, '0'..='9') => ch as u8 - b'0',
+                    (Hexadecimal, 'a'..='f') => ch as u8 - b'a' + 10,
+                    (Hexadecimal, 'A'..='F') => ch as u8 - b'A' + 10,
                     (Decimal, ch) if ['e', 'E'].contains(&ch) => {
                         // TODO: Check num digits
                         let frac = frac / T::powi(base.to_u8().into(), digits.into());
@@ -291,7 +291,7 @@ where
                 // TODO: + or -
                 '_' => Yield(Exponent(value, exp, digits)),
                 '0'..='9' => {
-                    let exp = exp + (ch as u8 - '0' as u8) as u16;
+                    let exp = exp + (ch as u8 - b'0') as u16;
                     Yield(Exponent(value, exp, digits + 1))
                 }
                 _ => {

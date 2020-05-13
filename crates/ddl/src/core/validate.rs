@@ -178,7 +178,7 @@ pub fn check_term(
         (Term::IntElim(_, head, branches, default), _) => {
             let int_ty = Arc::new(Value::global(0..0, "Int"));
             check_term(context, head, &int_ty, report);
-            for (_, term) in branches {
+            for term in branches.values() {
                 check_term(context, term, expected_ty, report);
             }
             check_term(context, default, expected_ty, report);

@@ -13,6 +13,7 @@ pub mod delaborate;
 pub mod elaborate;
 pub mod pretty;
 
+#[allow(clippy::style, clippy::complexity, clippy::perf)]
 mod grammar {
     include!(concat!(env!("OUT_DIR"), "/surface/grammar.rs"));
 }

@@ -7,6 +7,7 @@ use std::io::prelude::*;
 use crate::surface;
 use crate::surface::pretty::Prec;
 
+#[allow(clippy::write_literal)]
 pub fn compile_module(
     writer: &mut impl Write,
     module: &surface::Module,
@@ -299,7 +300,7 @@ fn compile_doc_lines(
 
     for doc_line in doc_lines.iter() {
         let doc_line = match doc_line {
-            line if line.starts_with(" ") => &line[" ".len()..],
+            line if line.starts_with(' ') => &line[" ".len()..],
             line => &line[..],
         };
         writeln!(writer, "{}{}", prefix, doc_line)?;
