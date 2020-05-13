@@ -10,6 +10,18 @@ on:
       - master
 
 jobs:
+  spec:
+    runs-on: ubuntu-latest
+    name: Check specification
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install specification dependencies
+        run: yarn install
+        working-directory: ./spec
+      - name: Check specification
+        run: yarn test
+        working-directory: ./spec
+
   check:
     runs-on: ubuntu-latest
     strategy:

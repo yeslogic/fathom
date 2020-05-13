@@ -1,0 +1,51 @@
+% Bidirectional elaboration of the surface syntax into core terms
+%
+% Here we describe how we elaborate the surface language into the core
+% language. This involves doing a number of things, including:
+%
+% - desugaring
+% - unification
+% - pattern compilation
+% - etc.
+
+%extend surface_to_core.
+
+    context : type.
+
+
+    % Elaboration rules
+
+    % Check that a term is a type and elaborate it to a core term.
+    is_type : context -> surface.term -> core.term -> prop.
+    % Check that a term is an element of the given type and elaborate it to a core term.
+    check_type : context -> surface.term -> core.semantics.value -> core.term -> prop.
+    % Synthesize the type of a given term and elaborate it to a core term.
+    synth_type : context -> surface.term -> core.semantics.value -> core.term -> prop.
+
+    % A note on modes
+    %
+    % Makam does not support mode declarations (like in Mercury), but if it did
+    % we'd assign the following mode declarations to the above predicates:
+    %
+    % ```
+    % is_type : in -> in -> out -> semidet.
+    % check_type : in -> in -> in -> out -> semidet.
+    % synth_type : in -> in -> out -> out -> semidet.
+    % ```
+
+    % TODO
+
+    % Conversion
+    % Variables
+    % Annotated terms
+    % Universes
+    % Void
+    % Unit
+    % Functions
+    % Pairs
+    % Booleans
+    % Integers
+    % Arrays
+    % Binary format descriptions
+
+%end.

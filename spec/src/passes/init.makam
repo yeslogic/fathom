@@ -1,0 +1,26 @@
+% Projections between intermediate languages.
+%
+% It would be fun to prototype compiling to Rust here.
+%
+% This course has a bunch of helpful information (in particular, Lecture 2: C
+% representation): http://www.cse.chalmers.se/edu/year/2011/course/CompFun/
+%
+% Some challenges involve:
+%
+% - stratifying source terms into runtime vs compile time
+% - stratifying source terms into terms and types in the target language
+% - uncurrying functions
+% - translating functions on types into parameterised types
+% - defunctionalization/monomorphization of more complicated type functions
+% - erasure of dependencies in pair types and term level functions
+
+%extend passes.
+
+    %use "surface_to_core".
+    %use "core_to_surface".
+    %use "core_to_stratified".
+    %use "stratified_to_unkinded".
+    %use "unkinded_to_uncurried".
+    %use "uncurried_to_rust".
+
+%end.

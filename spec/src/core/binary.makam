@@ -1,0 +1,29 @@
+% Binary interpretation of format descriptions
+
+%extend binary.
+
+    byte : type.
+
+
+    % Decoding byte sequences into terms, guided by a format description
+
+    interpret : list semantics.value -> list byte -> semantics.value -> semantics.value -> prop.
+    interpret Values Bytes semantics.format_intro_unit semantics.unit_intro.
+    %  interpret Values Bytes semantics.format_intro_u8 (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_u16le (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_u16be (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_u32le (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_u32be (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_u64le (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_u64be (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_s8 (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_s16le (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_s16be (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_s32le (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_s32be (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_s64le (semantics.intro_int TODO).
+    %  interpret Values Bytes semantics.format_intro_s64be (semantics.intro_int TODO).
+    %  interpret Values Bytes (semantics.format_intro_array ElemFormat Len) TODO.
+    %  interpret Values Bytes (semantics.format_intro_pair FirstFormat Closure) TODO.
+
+%end.

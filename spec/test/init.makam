@@ -1,0 +1,7 @@
+%use "../src/init".
+
+%extend ddl.
+
+    %use "core/init".
+
+%end.

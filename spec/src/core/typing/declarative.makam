@@ -1,0 +1,247 @@
+% Declarative Typing
+%
+% This section defines the typing rules in a way that is close to a
+% standard presentation of Martin-Löf Type Theory with explicit
+% substitutions. The disadvantage of this description is that it's hard
+% to derive an actual type checker implementation directly from these
+% rules. We instead to this later on, by describing a bidirectional type
+% checking algorithm in the `core.typing.bidirectional` namespace.
+
+% Further reading:
+%
+% - https://intuitionistic.files.wordpress.com/2010/07/martin-lof-tt.pdf
+% - http://www.cse.chalmers.se/research/group/logic/book/book.pdf
+
+%extend declarative.
+
+    % Declarative typing context
+    context : type.
+
+    % Empty typing context
+    empty : context.
+    % A typing context, extended with a new binding
+    extend : context -> term -> context.
+
+
+    is_context : context -> prop.
+    is_type : context -> term -> prop.
+    is_elem : context -> term -> term -> prop.
+    %  is_subst : context -> subst -> context -> prop.
+    is_equal_type : context -> term -> term -> prop.
+    is_equal_elem : context -> term -> term -> term -> prop.
+    %  is_equal_subst : context -> subst -> subst -> context -> prop.
+
+    % Contexts
+    is_context empty.
+    is_context (extend Context Type) :-
+        is_context Context,
+        is_type Context Type.
+
+    % Reflexivity
+    is_equal_type Context Type Type :-
+        is_type Context Type.
+    is_equal_elem Context Term Term Type :-
+        is_type Context Type.
+
+    % Symmetry
+    is_equal_type Context Type1 Type2 :-
+        is_equal_type Context Type2 Type1.
+    is_equal_elem Context Term1 Term2 Type :-
+        is_equal_elem Context Term2 Term1 Type.
+
+    % Transitivity
+    is_equal_type Context Type1 Type3 :-
+        is_equal_type Context Type1 Type2,
+        is_equal_type Context Type2 Type3.
+    is_equal_elem Context Term1 Term3 Type :-
+        is_equal_elem Context Term1 Term2 Type,
+        is_equal_elem Context Term1 Term3 Type.
+
+    % Type Equality
+    is_elem Context Term Type2 :-
+        is_elem Context Term Type1,
+        is_equal_type Context Type1 Type2.
+    is_equal_elem Context Term1 Term2 Type2 :-
+        is_equal_elem Context Term1 Term2 Type1,
+        is_equal_type Context Type1 Type2.
+
+    % Variables
+    is_type (extend Context Type) (local 0) :-
+        is_type Context Type.
+    is_type (extend Context _) (local Index) :-
+        plus PrevIndex 1 Index,
+        is_type Context (local PrevIndex).
+    is_elem (extend Context Type') (local 0) Type :-
+        is_elem Context Type' Type.
+    is_elem (extend Context _) (local Index) Type :-
+        plus PrevIndex 1 Index,
+        is_elem Context (local PrevIndex) Type.
+
+    % Universes
+    is_type Context universe :-
+        is_context Context.
+
+    % Void
+    is_type Context void_type :-
+        is_context Context.
+    is_elem Context void_type universe :-
+        is_context Context.
+
+    % Unit
+    is_type Context unit_type :-
+        is_context Context.
+    is_elem Context unit_type universe :-
+        is_context Context.
+    is_elem Context unit_intro unit_type :-
+        is_context Context.
+
+    % Functions
+    is_type Context (function_type InputType OutputType) :-
+        is_type Context InputType,
+        is_type (extend Context InputType) OutputType.
+    is_elem Context (function_type InputType OutputType) universe :-
+        is_type Context InputType,
+        is_type (extend Context InputType) OutputType.
+    is_elem Context (function_intro OutputTerm) (function_type InputType OutputType) :-
+        is_type Context InputType,
+        is_elem (extend Context InputType) OutputTerm OutputType.
+    %  is_elem Context (function_elim (function_intro OutputTerm) InputTerm) OutputType :- TODO.
+    %  is_equal_elem Context (function_elim (function_intro OutputTerm) InputTerm) Term OutputType :- TODO.
+
+    % Pairs
+    is_type Context (pair_type FirstType SecondType) :-
+        is_elem Context FirstType universe,
+        is_elem (extend Context FirstType) SecondType universe.
+    is_elem Context (pair_type FirstType SecondType) universe :-
+        is_elem Context FirstType universe,
+        is_elem (extend Context FirstType) SecondType universe.
+    %  is_elem Context (pair_intro FirstTerm SecondTerm) (pair_type FirstType SecondType) :- TODO.
+    %  is_elem Context (pair_elim_first (pair_intro FirstTerm SecondTerm)) FirstType :- TODO.
+    %  is_elem Context (pair_elim_second (pair_intro FirstTerm SecondTerm)) SecondType :- TODO.
+    %  is_equal_elem Context (pair_elim_first (pair_intro FirstTerm SecondTerm)) Term FirstType :- TODO.
+    %  is_equal_elem Context (pair_elim_second (pair_intro FirstTerm SecondTerm)) Term SecondType :- TODO.
+
+    % Booleans
+    is_type Context bool_type :-
+        is_context Context.
+    is_elem Context bool_type universe :-
+        is_context Context.
+    is_elem Context (bool_intro _) bool_type :-
+        is_context Context.
+    is_elem Context (bool_elim BoolTerm TrueTerm FalseTerm) Type :-
+        is_elem Context BoolTerm bool_type,
+        is_type Context Type,
+        is_elem Context TrueTerm Type,
+        is_elem Context FalseTerm Type.
+    is_equal_elem Context (bool_elim (bool_intro true) TrueTerm FalseTerm) TrueTerm Type :-
+        is_type Context Type,
+        is_elem Context TrueTerm Type,
+        is_elem Context FalseTerm Type.
+    is_equal_elem Context (bool_elim (bool_intro false) TrueTerm FalseTerm) FalseTerm Type :-
+        is_type Context Type,
+        is_elem Context TrueTerm Type,
+        is_elem Context FalseTerm Type.
+
+    % Integers
+    is_type Context int_type :-
+        is_context Context.
+    is_elem Context int_type universe :-
+        is_context Context.
+    is_elem Context (int_intro _) int_type :-
+        is_context Context.
+
+    % Arrays
+    is_type Context (array_type ElemType LenTerm) :-
+        is_elem Context ElemType universe,
+        is_elem Context LenTerm int_type.
+    is_elem Context (array_type ElemType LenTerm) universe :-
+        is_elem Context ElemType universe,
+        is_elem Context LenTerm int_type.
+    is_elem Context (array_intro ElemTerms) (array_type ElemType LenTerm) :-
+        is_equal_elem Context (int_intro Len) LenTerm int_type,
+        length ElemTerms Len,
+        map (fun elem_term => is_elem Context elem_term ElemType) ElemTerms.
+    is_equal_elem Context (array_elim (array_intro ElemTerms) IndexTerm) ElemTerm ElemType :-
+        % FIXME: ensure `IndexTerm` is in array bounds, possibly with refinement types?
+        is_equal_elem Context (int_intro Index) IndexTerm int_type,
+        map (fun elem_term => is_elem Context elem_term ElemType) ElemTerms,
+        list.nth ElemTerms Index ElemTerm.
+
+    % Binary format descriptions
+    is_type Context format_type :-
+        is_context Context.
+    is_elem Context format_intro_void format_type :-
+        is_context Context.
+    is_elem Context format_intro_unit format_type :-
+        is_context Context.
+    is_elem Context format_intro_u8 format_type :-
+        is_context Context.
+    is_elem Context format_intro_u16le format_type :-
+        is_context Context.
+    is_elem Context format_intro_u16be format_type :-
+        is_context Context.
+    is_elem Context format_intro_u32le format_type :-
+        is_context Context.
+    is_elem Context format_intro_u32be format_type :-
+        is_context Context.
+    is_elem Context format_intro_u64le format_type :-
+        is_context Context.
+    is_elem Context format_intro_u64be format_type :-
+        is_context Context.
+    is_elem Context format_intro_s8 format_type :-
+        is_context Context.
+    is_elem Context format_intro_s16le format_type :-
+        is_context Context.
+    is_elem Context format_intro_s16be format_type :-
+        is_context Context.
+    is_elem Context format_intro_s32le format_type :-
+        is_context Context.
+    is_elem Context format_intro_s32be format_type :-
+        is_context Context.
+    is_elem Context format_intro_s64le format_type :-
+        is_context Context.
+    is_elem Context format_intro_s64be format_type :-
+        is_context Context.
+    is_elem Context (format_intro_array ElemType LenTerm) format_type :-
+        is_elem Context ElemType format_type,
+        is_elem Context LenTerm int_type.
+    is_elem Context (format_intro_pair FirstType SecondType) format_type :-
+        is_elem Context FirstType format_type,
+        is_elem (extend Context (format_elim FirstType)) SecondType format_type.
+    is_equal_elem Context (format_elim format_intro_void) void_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_unit) unit_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_u8) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_u16le) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_u16be) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_u32le) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_u32be) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_u64le) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_u64be) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_s8) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_s16le) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_s16be) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_s32le) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_s32be) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_s64le) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim format_intro_s64be) int_type universe :-
+        is_context Context.
+    is_equal_elem Context (format_elim (format_intro_array ElemType LenTerm)) (array_type ElemType' LenTerm) format_type :-
+        is_equal_elem Context (format_elim ElemType) ElemType' universe.
+    % TODO: format_intro_pair
+
+%end.

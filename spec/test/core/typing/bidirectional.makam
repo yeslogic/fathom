@@ -1,0 +1,75 @@
+%extend bidirectional.
+
+    % Tests
+
+    tests : testsuite.
+    %testsuite tests.
+
+
+% FIXME: there seems to be a bug with indenting tests here - see https://github.com/astampoulis/makam/issues/94
+
+>> synth_type (context [ ( semantics.format_intro_u8, semantics.format_type ) ]) (local 0) Type ?
+>> Yes:
+>> Type := semantics.format_type.
+
+
+>> synth_type (ann format_intro_u8 format_type) Type ?
+>> Yes:
+>> Type := semantics.format_type.
+
+>> check_type (ann format_intro_u8 format_type) semantics.universe ?
+>> Impossible.
+
+
+>> synth_type (ann int_type universe) Type ?
+>> Yes:
+>> Type := semantics.universe.
+
+>> check_type (ann int_type universe) semantics.format_type ?
+>> Impossible.
+
+
+>> synth_type (function_type universe (function_type (local 0) (local 1))) Type ?
+>> Yes:
+>> Type := semantics.universe.
+
+>> check_type (function_intro (function_intro (local 0))) (semantics.function_type semantics.universe (semantics.closure [] (function_type (local 0) (local 1)))) ?
+>> Yes.
+
+>> synth_type (function_type universe (function_type (local 0) (local 1))) Type ?
+>> Yes:
+>> Type := semantics.universe.
+
+>> synth_type (function_elim (ann (function_intro (function_intro (local 0))) (function_type universe (function_type (local 0) (local 1)))) int_type) Type ?
+>> Yes:
+>> Type := semantics.function_type semantics.int_type (semantics.closure [ semantics.int_type ] (local 1)).
+
+
+>> check_type (pair_intro (int_intro 1) (array_intro [ int_intro 42 ])) (semantics.pair_type semantics.int_type (semantics.closure [] (array_type int_type (local 0)))) ?
+>> Yes.
+
+>> synth_type (pair_elim_first (ann (pair_intro (int_intro 0) (array_intro [])) (pair_type int_type (array_type int_type (local 0))))) Type ?
+>> Yes:
+>> Type := semantics.int_type.
+
+>> synth_type (pair_elim_second (ann (pair_intro (int_intro 0) (array_intro [])) (pair_type int_type (array_type int_type (local 0))))) Type ?
+>> Yes:
+>> Type := semantics.array_type semantics.int_type (semantics.int_intro 0).
+
+
+>> check_type (array_intro []) (semantics.array_type semantics.int_type (semantics.int_intro 0)) ?
+>> Yes.
+
+>> check_type (array_intro [ int_intro 1, int_intro 2, int_intro 3 ]) (semantics.array_type semantics.int_type (semantics.int_intro 3)) ?
+>> Yes.
+
+
+>> check_type (format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0))) semantics.format_type ?
+>> Yes.
+
+
+>> synth_type (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Type ?
+>> Yes:
+>> Type := semantics.universe.
+
+%end.

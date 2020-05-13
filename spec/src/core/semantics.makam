@@ -1,0 +1,413 @@
+% Semantics
+%
+% This section defines an operational semantics for language, using
+% normalization-by-evaluation for performance reasons.
+
+%extend semantics.
+
+    % The result of evaluating a term.
+    value : type.
+    % Neutral values are computations that are currently 'stuck' on some
+    % as-yet unknown computation. We build up a 'spine' of eliminations
+    % that cannot yet reduce in preperation for if they become 'unstuck'.
+    neutral : type.
+    % Closures are terms from the core syntax that have yet to be evaluated.
+    % They capture an environment of values to be used later, when they are
+    % finally evaluated.
+    closure : type.
+
+    % Neutral values
+    neutral : neutral -> value.
+
+    % Universes
+    universe : value.
+
+    % Void
+    void_type : value.
+
+    % Unit
+    unit_type : value.
+    unit_intro : value.
+
+    % Functions
+    function_type : value -> closure -> value.  % Also known as: Pi type, Dependent product type
+    function_intro : closure -> value.          % Also known as: Lambda abstraction, anonymous function
+
+    % Pairs
+    pair_type : value -> closure -> value.      % Also known as: Sigma type, Dependent sum type
+    pair_intro : value -> value -> value.       % Also known as: Pair constructor
+
+    % Refinements
+    %  refine_type : value -> closure -> value.
+    %  refine_intro : value -> (* some proof from a solver here? *) -> value.
+
+    % Staging
+    %  stage_type : value -> value.
+    %  stage_intro : value -> value.
+
+    % Booleans
+    bool_type : value.
+    bool_intro : bool -> value.
+
+    % Integers
+    int_type : value.
+    int_intro : int -> value.
+
+    % Arrays
+    array_type : value -> value -> value.
+    array_intro : list value -> value.
+
+    % Binary format descriptions
+    format_type : value.
+    format_intro_void : value.
+    format_intro_unit : value.
+    format_intro_u8 : value.
+    format_intro_u16le : value.
+    format_intro_u16be : value.
+    format_intro_u32le : value.
+    format_intro_u32be : value.
+    format_intro_u64le : value.
+    format_intro_u64be : value.
+    format_intro_s8 : value.
+    format_intro_s16le : value.
+    format_intro_s16be : value.
+    format_intro_s32le : value.
+    format_intro_s32be : value.
+    format_intro_s64le : value.
+    format_intro_s64be : value.
+    format_intro_array : value -> value -> value.
+    format_intro_pair : value -> closure -> value.
+
+    % Variables
+    local : int -> neutral. % Local variables (using De Bruijn levels)
+
+    % Suspended eliminations
+    function_elim : neutral -> value -> neutral.
+    pair_elim_first : neutral -> neutral.
+    pair_elim_second : neutral -> neutral.
+    %  stage_elim : neutral -> neutral.
+    %  bool_elim : neutral -> value -> value -> neutral.
+    %  array_elim : neutral -> value -> neutral.
+    format_elim : neutral -> neutral.
+
+    closure : list value -> term -> closure.
+
+
+    % Evaluation of terms into values
+
+    eval : list value -> term -> value -> prop.
+
+    apply : closure -> value -> value -> prop.
+    apply_param : closure -> int -> value -> prop.
+
+    function_elim : value -> value -> value -> prop.
+    pair_elim_first : value -> value -> prop.
+    pair_elim_second : value -> value -> prop.
+    %  stage_elim : value -> value -> prop.
+    %  bool_elim : value -> value -> value -> value -> prop.
+    %  array_elim : value -> value -> value -> prop.
+    format_elim : value -> value -> prop.
+
+    eval Values (local Index) Value :-
+        list.nth Values Index Value.
+    eval Values (ann Term _) Value :-
+        eval Values Term Value.
+    eval Values universe universe.
+    eval Values void_type void_type.
+    eval Values unit_type unit_type.
+    eval Values unit_intro unit_intro.
+    eval Values (function_type InputType OutputType) (function_type InputType' (closure Values OutputType)) :-
+        eval Values InputType InputType'.
+    eval Values (function_intro OutputTerm) (function_intro (closure Values OutputTerm)).
+    eval Values (function_elim Term InputTerm) Value' :-
+        eval Values Term Value,
+        eval Values InputTerm InputValue,
+        function_elim Value InputValue Value'.
+    eval Values (pair_type FirstType SecondType) (pair_type FirstType' (closure Values SecondType)) :-
+        eval Values FirstType FirstType'.
+    eval Values (pair_intro FirstTerm SecondTerm) (pair_intro FirstValue SecondValue) :-
+        eval Values FirstTerm FirstValue,
+        eval Values SecondTerm SecondValue.
+    eval Values (pair_elim_first PairTerm) FirstValue :-
+        eval Values PairTerm PairValue,
+        pair_elim_first PairValue FirstValue.
+    eval Values (pair_elim_second PairTerm) SecondValue :-
+        eval Values PairTerm PairValue,
+        pair_elim_second PairValue SecondValue.
+    eval Values bool_type bool_type.
+    eval Values (bool_intro Bool) (bool_intro Bool).
+    % FIXME: This breaks for neutral terms! We should use `bool_elim` here.
+    eval Values (bool_elim BoolTerm TrueTerm _) Value :-
+        eval Values BoolTerm (bool_intro true),
+        eval Values TrueTerm Value.
+    eval Values (bool_elim BoolTerm _ False1Term) Value :-
+        eval Values BoolTerm (bool_intro false),
+        eval Values FalseTerm Value.
+    eval Values int_type int_type.
+    eval Values (int_intro Int) (int_intro Int).
+    eval Values (array_type ElemType LenTerm) (array_type ElemType' LenValue) :-
+        eval Values ElemType ElemType',
+        eval Values LenTerm LenValue.
+    eval Values (array_intro ElemTerms) (array_intro ElemValues) :-
+        map (fun term value => eval Values term value) ElemTerms ElemValues.
+    % FIXME: This breaks for neutral terms! We should use `array_elim` here.
+    eval Values (array_elim ArrayTerm IndexTerm) ElemValue :-
+        eval Values ArrayTerm (array_intro ElemValues),
+        eval Values IndexTerm (int_intro Index),
+        list.nth ElemValues Index ElemValue.
+    eval Values format_type format_type.
+    eval Values format_intro_void format_intro_void.
+    eval Values format_intro_unit format_intro_unit.
+    eval Values format_intro_u8 format_intro_u8.
+    eval Values format_intro_u16le format_intro_u16le.
+    eval Values format_intro_u16be format_intro_u16be.
+    eval Values format_intro_u32le format_intro_u32le.
+    eval Values format_intro_u32be format_intro_u32be.
+    eval Values format_intro_u64le format_intro_u64le.
+    eval Values format_intro_u64be format_intro_u64be.
+    eval Values format_intro_s8 format_intro_s8.
+    eval Values format_intro_s16le format_intro_s16le.
+    eval Values format_intro_s16be format_intro_s16be.
+    eval Values format_intro_s32le format_intro_s32le.
+    eval Values format_intro_s32be format_intro_s32be.
+    eval Values format_intro_s64le format_intro_s64le.
+    eval Values format_intro_s64be format_intro_s64be.
+    eval Values (format_intro_array ElemType LenTerm) (format_intro_array ElemType' LenValue) :-
+        eval Values ElemType ElemType',
+        eval Values LenTerm LenValue.
+    eval Values (format_intro_pair FirstType SecondType) (format_intro_pair FirstType' (closure Values SecondType)) :-
+        eval Values FirstType FirstType'.
+    eval Values (format_elim Term) Value' :-
+        eval Values Term Value,
+        format_elim Value Value'.
+
+    % Closure operations
+
+    apply (closure Values Term) InputValue Value :-
+        eval (InputValue :: Values) Term Value.
+
+    apply_param Closure Length Value :-
+        apply Closure (neutral (local Length)) Value.
+
+    % Eliminations
+
+    function_elim (neutral Neutral) InputValue (neutral (function_elim Neutral InputValue)).
+    function_elim (function_intro Closure) InputValue OutputValue :-
+        apply Closure InputValue OutputValue.
+
+    pair_elim_first (neutral Neutral) (neutral (pair_elim_first Neutral)).
+    pair_elim_first (pair_intro FirstValue _) FirstValue.
+
+    pair_elim_second (neutral Neutral) (neutral (pair_elim_second Neutral)).
+    pair_elim_second (pair_intro _ SecondValue) SecondValue.
+
+    % TODO: stage_elim
+
+    %  bool_elim (neutral Neutral) TrueValue FalseValue (neutral (bool_elim Neutral TrueValue FalseValue)).
+    %  bool_elim (bool_intro true) TrueValue _ TrueValue.
+    %  bool_elim (bool_intro false) _ FalseValue FalseValue.
+
+    % TODO: array_elim
+
+    format_elim (neutral Neutral) (neutral (format_elim Neutral)).
+    format_elim format_intro_void void_type.
+    format_elim format_intro_unit unit_type.
+    format_elim format_intro_u8 int_type.
+    format_elim format_intro_u16le int_type.
+    format_elim format_intro_u16be int_type.
+    format_elim format_intro_u32le int_type.
+    format_elim format_intro_u32be int_type.
+    format_elim format_intro_u64le int_type.
+    format_elim format_intro_u64be int_type.
+    format_elim format_intro_s8 int_type.
+    format_elim format_intro_s16le int_type.
+    format_elim format_intro_s16be int_type.
+    format_elim format_intro_s32le int_type.
+    format_elim format_intro_s32be int_type.
+    format_elim format_intro_s64le int_type.
+    format_elim format_intro_s64be int_type.
+    format_elim (format_intro_array Elem Len) (array_type Elem' Len) :-
+        format_elim Elem Elem'.
+    format_elim (format_intro_pair First (closure Values Term)) (pair_type First' (closure Values (format_elim Term))) :-
+        format_elim First First'.
+
+
+    % Readback of values into terms in normal form
+
+    readback : int -> neutral -> term -> prop.
+    readback : int -> value -> term -> prop.
+
+    % FIXME: Makam's type unification breaks hear for some reason - it
+    % thinks that we want to definine `int -> value -> term -> prop.`
+    readback Length (local Level : neutral) (local Index) :-
+        % Convert De Bruijn levels to De Bruijn indices using the following
+        % arithmetic (this is a bit awkward to express in Makam):
+        %
+        % ```
+        % Index = Length - (Level + 1)
+        % ```
+        plus 1 Level Level1,
+        plus Level1 Index Length.
+    readback Length (function_elim Neutral InputValue : neutral) (function_elim Term InputTerm) :-
+        readback Length Neutral Term,
+        readback Length InputValue InputTerm.
+    readback Length (pair_elim_first Neutral : neutral) (pair_elim_first Term) :-
+        readback Length Neutral Term.
+    readback Length (pair_elim_second Neutral : neutral) (pair_elim_second Term) :-
+        readback Length Neutral Term.
+    readback Length (format_elim Neutral : neutral) (format_elim Term) :-
+        readback Length Neutral Term.
+
+    readback Length (neutral Neutral) Term :-
+        readback Length Neutral Term.
+    readback Length universe universe.
+    readback Length void_type void_type.
+    readback Length unit_type unit_type.
+    readback Length unit_intro unit_intro.
+    readback Length (function_type InputType Closure) (function_type InputType' OutputType') :-
+        readback Length InputType InputType',
+        apply_param Closure Length OutputType,
+        plus Length 1 Length1,
+        readback Length1 OutputType OutputType'.
+    readback Length (function_intro Closure) (function_intro OutputTerm') :-
+        apply_param Closure Length OutputTerm,
+        plus Length 1 Length1,
+        readback Length1 OutputTerm OutputTerm'.
+    readback Length (pair_type FirstType Closure) (pair_type FirstType' SecondType') :-
+        readback Length FirstType FirstType',
+        apply_param Closure Length SecondType,
+        plus Length 1 Length1,
+        readback Length1 SecondType SecondType'.
+    readback Values (pair_intro FirstValue SecondValue) (pair_intro FirstTerm SecondTerm) :-
+        readback Values FirstValue FirstType,
+        readback Values SecondValue SecondType.
+    readback Length bool_type bool_type.
+    readback Length (bool_intro Bool) (bool_intro Bool).
+    readback Length int_type int_type.
+    readback Length (int_intro Int) (int_intro Int).
+    readback Length (array_type ElemValue LenValue) (array_type ElemType LenTerm) :-
+        readback Length ElemValue ElemType,
+        readback Length LenValue LenTerm.
+    readback Length (array_intro ElemValues) (array_intro ElemTerms) :-
+        map (fun value term => readback Length value term) ElemValues ElemTerms.
+    readback Length format_type format_type.
+    readback Length format_intro_void format_intro_void.
+    readback Length format_intro_unit format_intro_unit.
+    readback Length format_intro_u8 format_intro_u8.
+    readback Length format_intro_u16le format_intro_u16le.
+    readback Length format_intro_u16be format_intro_u16be.
+    readback Length format_intro_u32le format_intro_u32le.
+    readback Length format_intro_u32be format_intro_u32be.
+    readback Length format_intro_u64le format_intro_u64le.
+    readback Length format_intro_u64be format_intro_u64be.
+    readback Length format_intro_s8 format_intro_s8.
+    readback Length format_intro_s16le format_intro_s16le.
+    readback Length format_intro_s16be format_intro_s16be.
+    readback Length format_intro_s32le format_intro_s32le.
+    readback Length format_intro_s32be format_intro_s32be.
+    readback Length format_intro_s64le format_intro_s64le.
+    readback Length format_intro_s64be format_intro_s64be.
+    readback Length (format_intro_array ElemValue LenValue) (format_intro_array ElemType LenTerm) :-
+        readback Length ElemValue ElemType,
+        readback Length LenValue LenTerm.
+    readback Length (format_intro_pair FirstType Closure) (format_intro_pair FirstType' SecondType') :-
+        readback Length FirstType FirstType',
+        apply_param Closure Length SecondType,
+        plus Length 1 Length1,
+        readback Length1 SecondType SecondType'.
+
+
+    % Normalization-by-evaluation
+
+    normalize : list value -> term -> term -> prop.
+    normalize Values Term Term' :-
+        eval Values Term Value,
+        length Values Length,
+        readback Length Value Term'.
+
+    normalize : term -> term -> prop.
+    normalize Term Term' :-
+        normalize [] Term Term'.
+
+
+    % Equality of values
+
+    is_equal : int -> neutral -> neutral -> prop.
+    is_equal : int -> value -> value -> prop.
+
+    % FIXME: Makam's type unification breaks hear for some reason - it
+    % thinks that we want to definine `int -> value -> term -> prop.`
+    is_equal Length (local Level : neutral) (local Level).
+    is_equal Length (function_elim Neutral1 InputValue1 : neutral) (function_elim Neutral2 InputValue2) :-
+        is_equal Length Neutral1 Neutral2,
+        is_equal Length InputValue1 InputValue2.
+    is_equal Length (pair_elim_first Neutral1 : neutral) (pair_elim_first Neutral2) :-
+        is_equal Length Neutral1 Neutral2.
+    is_equal Length (pair_elim_second Neutral1 : neutral) (pair_elim_second Neutral2) :-
+        is_equal Length Neutral1 Neutral2.
+    is_equal Length (format_elim Neutral1 : neutral) (format_elim Neutral2) :-
+        is_equal Length Neutral1 Neutral2.
+
+    is_equal Length (neutral Neutral1) (neutral Neutral2) :-
+        is_equal Length Neutral1 Neutral2.
+    is_equal Length universe universe.
+    is_equal Length void_type void_type.
+    is_equal Length unit_type unit_type.
+    is_equal Length unit_intro unit_intro.
+    is_equal Length (function_type InputType1 Closure1) (function_type InputType2 Closure2) :-
+        is_equal Length InputType1 InputType2,
+        apply_param Closure1 Length OutputType1,
+        apply_param Closure2 Length OutputType2,
+        plus Length 1 Length1,
+        is_equal Length1 OutputType1 OutputType2.
+    is_equal Length (function_intro Closure1) (function_intro Closure2) :-
+        apply_param Closure1 Length OutputValue1,
+        apply_param Closure2 Length OutputValue2,
+        plus Length 1 Length1,
+        is_equal Length1 OutputValue1 OutputValue2.
+    is_equal Length (pair_type FirstType1 Closure1) (pair_type FirstType2 Closure2) :-
+        is_equal Length FirstType1 FirstType2,
+        apply_param Closure1 Length SecondType1,
+        apply_param Closure2 Length SecondType2,
+        plus Length 1 Length1,
+        is_equal Length1 SecondType1 SecondType2.
+    is_equal Length (pair_intro FirstTerm1 SecondTerm1) (pair_intro FirstTerm2 SecondTerm2) :-
+        is_equal Length FirstTerm1 FirstTerm2,
+        is_equal Length SecondTerm1 SecondTerm2.
+    is_equal Length bool_type bool_type.
+    is_equal Length (bool_intro Bool) (bool_intro Bool).
+    is_equal Length int_type int_type.
+    is_equal Length (int_intro Bool) (int_intro Bool).
+    is_equal Length (array_type ElemType1 LenTerm1) (array_type ElemType2 LenTerm2) :-
+        is_equal Length ElemType1 ElemType2,
+        is_equal Length LenTerm1 LenTerm2.
+    is_equal Length (array_intro ElemValues1) (array_intro ElemValues2) :-
+        map (fun value1 value2 => is_equal Length value1 value2) ElemValues1 ElemType2.
+    is_equal Length format_type format_type.
+    is_equal Length format_intro_void format_intro_void.
+    is_equal Length format_intro_unit format_intro_unit.
+    is_equal Length format_intro_u8 format_intro_u8.
+    is_equal Length format_intro_u16le format_intro_u16le.
+    is_equal Length format_intro_u16be format_intro_u16be.
+    is_equal Length format_intro_u32le format_intro_u32le.
+    is_equal Length format_intro_u32be format_intro_u32be.
+    is_equal Length format_intro_u64le format_intro_u64le.
+    is_equal Length format_intro_u64be format_intro_u64be.
+    is_equal Length format_intro_s8 format_intro_s8.
+    is_equal Length format_intro_s16le format_intro_s16le.
+    is_equal Length format_intro_s16be format_intro_s16be.
+    is_equal Length format_intro_s32le format_intro_s32le.
+    is_equal Length format_intro_s32be format_intro_s32be.
+    is_equal Length format_intro_s64le format_intro_s64le.
+    is_equal Length format_intro_s64be format_intro_s64be.
+    is_equal Length (format_intro_array ElemType1 LenTerm1) (format_intro_array ElemType2 LenTerm2) :-
+        is_equal Length ElemType1 ElemType2,
+        is_equal Length LenTerm1 LenTerm2.
+    is_equal Length (format_intro_pair FirstType1 Closure1) (format_intro_pair FirstType2 Closure2) :-
+        is_equal Length FirstType1 FirstType2,
+        apply_param Closure1 Length SecondType1,
+        apply_param Closure2 Length SecondType2,
+        plus Length 1 Length1,
+        is_equal Length1 SecondType1 SecondType2.
+
+%end.

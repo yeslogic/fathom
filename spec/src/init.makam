@@ -1,0 +1,60 @@
+% A specification of the data description language using Makam.
+%
+% # A note on naming
+%
+% In general we try to keep to the following naming scheme:
+%
+% - `thing_type` describes the shape of some `thing`
+% - `thing_intro` introduces an element of `thing_type`
+% - `thing_elim` eliminates an element of `thing_type`
+%
+% Based on this naming-scheme, we follow this terminology mapping:
+%
+% | [Type theory] name      | Our name              |
+% | ----------------------- | --------------------- |
+% | [Pi type]               | `function_type`       |
+% | [Lambda abstraction]    | `function_intro`      |
+% | [Function application]  | `function_elim`       |
+% | [Sigma type]            | `pair_type`           |
+% | [Pairing]               | `pair_intro`          |
+% | Project first           | `pair_elim_first`     |
+% | Project second          | `pair_elim_second`    |
+%
+% [Type theory]: https://ncatlab.org/nlab/show/type+theory
+% [Pi type]: https://ncatlab.org/nlab/show/dependent+product+type
+% [Lambda abstraction]: https://ncatlab.org/nlab/show/lambda-abstraction
+% [Function application]: https://ncatlab.org/nlab/show/function+application
+% [Sigma type]: https://ncatlab.org/nlab/show/dependent+sum+type
+% [Pairing]: https://ncatlab.org/nlab/show/pairing
+%
+% I'm not entirely sold on these suffixes - here are some alternatives that
+% I've currently come up with:
+%
+% - `_type`, `_elem`, `_apply`
+% - `_type`, `_elem`, `_call`
+% - `_space`, `_point`, `_???`
+%
+% Let me know if you have other ideas!
+%
+% # An annoying naming issue
+%
+% I have `InputTerm : term` for a function argument, that then gets
+% evaluated to `InputValue : value`. but then I have `InputType : term` for
+% a parameter type... but I can't do `InputValue : value` - it's already
+% taken for the term level! And I can't do `InputType : type` because that's
+% taken by the term.
+
+%extend ddl.
+
+    % Intermediate representations (IRs)
+    %use "lexical".
+    %use "surface".
+    %use "core/init".
+    %use "stratified/init".
+    %use "unkinded".
+    %use "uncurried".
+    %use "rust".
+
+    %use "passes/init".    % Passes between IRs
+
+%end.

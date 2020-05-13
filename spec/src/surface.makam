@@ -1,0 +1,19 @@
+% Surface language
+%
+% This language is what we expect users of the language interact with directly.
+% It includes convenience features such as implicit parameters and pattern
+% matching to make binary data formats easier to describe.
+
+%extend surface.
+
+    % Surface syntax
+
+    % Terms
+
+    term : type.
+
+    name : string -> term.
+
+    % TODO
+
+%end.

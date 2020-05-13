@@ -1,0 +1,34 @@
+%extend rust.
+
+    typ : type.
+
+    bool : typ.
+    u8 : typ.
+    u16 : typ.
+    u32 : typ.
+    u64 : typ.
+    i8 : typ.
+    i16 : typ.
+    i32 : typ.
+    i64 : typ.
+    f32 : typ.
+    f64 : typ.
+
+
+    expr : type.
+
+    bool : bool -> expr.
+    int : int -> expr.
+    struct : string -> list (string * expr) -> expr.
+    ifte : expr -> expr -> expr -> expr.
+
+
+    item : type.
+
+    alias : string -> list string -> typ -> item.
+    struct : string -> list string -> list (string * typ) -> item.
+    enum : string -> list string -> list (string * typ) -> item.
+    function : string -> list string -> list (string * typ) -> typ -> expr -> item.
+    const : string -> typ -> expr -> item.
+
+%end.

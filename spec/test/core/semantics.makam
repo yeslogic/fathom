@@ -1,0 +1,116 @@
+%extend semantics.
+
+    tests : testsuite.
+    %testsuite tests.
+
+
+% FIXME: there seems to be a bug with indenting tests here - see https://github.com/astampoulis/makam/issues/94
+
+>> function_elim (neutral Neutral) InputValue Value ?
+>> Yes:
+>> Value := neutral (function_elim Neutral InputValue).
+
+>> function_elim (function_intro (closure [] (local 0))) InputValue Value ?
+>> Yes:
+>> Value := InputValue.
+
+
+>> pair_elim_first (neutral Neutral) Value ?
+>> Yes:
+>> Value := neutral (pair_elim_first Neutral).
+
+>> pair_elim_first (pair_intro FirstValue _) Value ?
+>> Yes:
+>> Value := FirstValue.
+
+
+>> pair_elim_second (neutral Neutral) Value ?
+>> Yes:
+>> Value := neutral (pair_elim_second Neutral).
+
+>> pair_elim_second (pair_intro _ SecondValue) Value ?
+>> Yes:
+>> Value := SecondValue.
+
+
+>> format_elim (neutral Neutral) Term ?
+>> Yes:
+>> Term := neutral (format_elim Neutral).
+
+>> format_elim format_intro_u8 Term ?
+>> Yes:
+>> Term := int_type.
+
+
+>> normalize [format_intro_u8] (local 0) Term ?
+>> Yes:
+>> Term := format_intro_u8.
+
+
+>> normalize (ann format_intro_u8 _) Term ?
+>> Yes:
+>> Term := format_intro_u8.
+
+
+>> normalize void_type Term ?
+>> Yes:
+>> Term := void_type.
+
+
+>> normalize unit_type Term ?
+>> Yes:
+>> Term := unit_type.
+
+
+>> normalize unit_intro Term ?
+>> Yes:
+>> Term := unit_intro.
+
+
+>> normalize (function_type universe (function_type (local 0) (local 1))) Term ?
+>> Yes:
+>> Term := function_type universe (function_type (local 0) (local 1)).
+
+>> normalize (function_intro (function_intro (local 0))) Term ?
+>> Yes:
+>> Term := function_intro (function_intro (local 0)).
+
+>> normalize (function_elim (function_intro (local 0)) (int_intro 1)) Term ?
+>> Yes:
+>> Term := int_intro 1.
+
+
+>> normalize (pair_type int_type (array_type int_type (local 0))) Term ?
+>> Yes:
+>> Term := pair_type int_type (array_type int_type (local 0)).
+
+>> normalize (pair_elim_first (pair_intro (int_intro 0) (array_intro []))) Term ?
+>> Yes:
+>> Term := int_intro 0.
+
+>> normalize (pair_elim_first (ann (pair_intro (int_intro 0) (array_intro [])) _)) Term ?
+>> Yes:
+>> Term := int_intro 0.
+
+>> normalize (pair_elim_second (pair_intro (int_intro 0) (array_intro []))) Term ?
+>> Yes:
+>> Term := array_intro [].
+
+>> normalize (pair_elim_second (ann (pair_intro (int_intro 0) (array_intro [])) _)) Term ?
+>> Yes:
+>> Term := array_intro [].
+
+
+>> normalize (format_elim format_intro_u8) Term ?
+>> Yes:
+>> Term := int_type.
+
+>> normalize (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Term ?
+>> Yes:
+>> Term := array_type int_type (int_intro 3).
+
+>> normalize (format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0))) Term ?
+>> Yes:
+>> Term := format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0)).
+
+%end.

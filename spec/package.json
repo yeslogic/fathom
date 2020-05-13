@@ -1,0 +1,18 @@
+{
+  "name": "spec",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "author": {
+    "name": "YesLogic Pty. Ltd.",
+    "email": "info@yeslogic.com",
+    "url": "https://yeslogic.com"
+  },
+  "scripts": {
+    "test": "makam test/init --run-tests",
+    "repl": "makam --include=./src"
+  },
+  "devDependencies": {
+    "makam": "^0.7.34"
+  }
+}

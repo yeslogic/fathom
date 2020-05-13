@@ -1,0 +1,20 @@
+% Stratified language
+%
+% As a stepping-stone to generating Rust code (or other languages like Haskell,
+% SML, or, OCaml), we first compile the core language into a language where the
+% distinction between expressions, types, and kinds are made explicit.
+%
+% This seems to be something like [System Fω], with lifted expressions and types.
+%
+% We need to be careful with lifted expressions and types - this might involve
+% embedding 'runtime' relevant variables being used in types, which is where
+% multistage programming might ultimately help us gain more control.
+%
+%  [System Fω]: https://en.wikipedia.org/wiki/System_F#System_F.CF.89
+
+%extend stratified.
+
+    %use "base".
+    %use "semantics".
+
+%end.

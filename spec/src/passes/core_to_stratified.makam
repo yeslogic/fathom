@@ -1,0 +1,106 @@
+% Bidirectional stratification of the core language.
+
+%extend core_to_stratified.
+
+    % Stratified terms
+    stratified_term : type.
+
+    kind : stratified.kind -> stratified_term.
+    typ : stratified.typ -> stratified_term.
+    expr : stratified.expr -> stratified_term.
+
+    % Stratified values
+    stratified_value : type.
+
+    kind : stratified.semantics.kind_value -> stratified_value.
+    typ : stratified.semantics.typ_value -> stratified_value.
+    expr : stratified.semantics.expr_value -> stratified_value.
+
+
+    context : type.
+
+
+    % Check that a term is a type and lower it to a stratified term.
+    is_type : context -> core.term -> stratified_term -> prop.
+    % Check that a term is an element of the given type and lower it to a stratified term.
+    check_type : context -> core.term -> stratified_value -> stratified_term -> prop.
+    % Synthesize the type of a given term and lower it to a stratified term.
+    synth_type : context -> core.term -> stratified_value -> stratified_term -> prop.
+
+    % A note on modes
+    %
+    % Makam does not support mode declarations (like in Mercury), but if it did
+    % we'd assign the following mode declarations to the above predicates:
+    %
+    % ```
+    % is_type : in -> in -> out -> semidet.
+    % check_type : in -> in -> in -> out -> semidet.
+    % synth_type : in -> in -> out -> out -> semidet.
+    % ```
+
+    % Conversion
+    % Variables
+    % Annotated terms
+
+    % Universes
+    is_type Context core.universe (kind stratified.universe).
+
+    % Void
+    is_type Context core.void_type (typ stratified.void_type).
+    synth_type Context core.void_type (kind stratified.semantics.universe) (typ stratified.void_type).
+
+    % Unit
+    is_type Context core.unit_type (typ stratified.unit_type).
+    synth_type Context core.unit_type (kind stratified.semantics.universe) (typ stratified.unit_type).
+    synth_type Context core.unit_intro (typ stratified.semantics.unit_type) (expr stratified.unit_intro).
+
+    % Functions
+    % Pairs
+
+    % Booleans
+    is_type Context core.bool_type (typ stratified.bool_type).
+    synth_type Context core.bool_type (kind stratified.semantics.universe) (typ stratified.bool_type).
+    synth_type Context (core.bool_intro Bool) (typ stratified.semantics.bool_type) (expr (stratified.bool_intro Bool)).
+
+    % Integers
+    is_type Context core.int_type (typ stratified.int_type).
+    synth_type Context core.int_type (kind stratified.semantics.universe) (typ stratified.int_type).
+    synth_type Context (core.int_intro Int) (typ stratified.semantics.int_type) (expr (stratified.int_intro Int)).
+
+    % Arrays
+    is_type Context (core.array_type ElemType LenTerm) (typ (stratified.array_type ElemTerm' LenTerm')) :-
+        check_type Context ElemType (kind stratified.semantics.universe) (typ ElemTerm'),
+        check_type Context LenTerm (typ stratified.semantics.int_type) (expr LenTerm').
+    check_type Context (core.array_type ElemType LenTerm) (kind stratified.semantics.universe) (typ (stratified.array_type ElemTerm' LenTerm')) :-
+        check_type Context ElemType (kind stratified.semantics.universe) (typ ElemTerm'),
+        check_type Context LenTerm (typ stratified.semantics.int_type) (expr LenTerm').
+    check_type Context (core.array_intro ElemTerms) (typ (stratified.semantics.array_type ElemType (stratified.semantics.int_intro Len))) (expr (stratified.array_intro ElemTerms')) :-
+        length ElemTerms Len,
+        map (fun elem_term elem_term' => check_type Context elem_term (typ ElemType) (expr elem_term')) ElemTerms ElemTerms'.
+    synth_type Context (core.array_elim ArrayTerm IndexTerm) (typ ElemType) (expr (stratified.array_elim ArrayTerm' IndexTerm')) :-
+        % FIXME: ensure `IndexTerm` is in array bounds, possibly with refinement types?
+        synth_type Context ArrayTerm (typ (stratified.semantics.array_type ElemType _)) (expr ArrayTerm'),
+        check_type Context IndexTerm (typ stratified.semantics.int_type) (expr IndexTerm').
+
+    % Binary format descriptions
+    is_type Context core.format_type (kind stratified.format_type).
+    synth_type Context core.format_intro_unit (kind stratified.semantics.format_type) (typ stratified.format_intro_unit).
+    synth_type Context core.format_intro_u8 (kind stratified.semantics.format_type) (typ stratified.format_intro_u8).
+    synth_type Context core.format_intro_u16le (kind stratified.semantics.format_type) (typ stratified.format_intro_u16le).
+    synth_type Context core.format_intro_u16be (kind stratified.semantics.format_type) (typ stratified.format_intro_u16be).
+    synth_type Context core.format_intro_u32le (kind stratified.semantics.format_type) (typ stratified.format_intro_u32le).
+    synth_type Context core.format_intro_u32be (kind stratified.semantics.format_type) (typ stratified.format_intro_u32be).
+    synth_type Context core.format_intro_u64le (kind stratified.semantics.format_type) (typ stratified.format_intro_u64le).
+    synth_type Context core.format_intro_u64be (kind stratified.semantics.format_type) (typ stratified.format_intro_u64be).
+    synth_type Context core.format_intro_s8 (kind stratified.semantics.format_type) (typ stratified.format_intro_s8).
+    synth_type Context core.format_intro_s16le (kind stratified.semantics.format_type) (typ stratified.format_intro_s16le).
+    synth_type Context core.format_intro_s16be (kind stratified.semantics.format_type) (typ stratified.format_intro_s16be).
+    synth_type Context core.format_intro_s32le (kind stratified.semantics.format_type) (typ stratified.format_intro_s32le).
+    synth_type Context core.format_intro_s32be (kind stratified.semantics.format_type) (typ stratified.format_intro_s32be).
+    synth_type Context core.format_intro_s64le (kind stratified.semantics.format_type) (typ stratified.format_intro_s64le).
+    synth_type Context core.format_intro_s64be (kind stratified.semantics.format_type) (typ stratified.format_intro_s64be).
+    % TODO: core.format_intro_array
+    % TODO: core.format_intro_pair
+    % TODO: core.format_elim
+
+%end.

@@ -1,0 +1,77 @@
+% Terms
+kind : type.
+typ : type.
+expr : type.
+
+% Variables
+local : int -> typ.
+local : int -> expr.
+
+% Annotated terms
+ann : typ -> kind -> typ.
+ann : expr -> typ -> expr.
+
+% 'Lifted' terms
+lift : typ -> kind.
+lift : expr -> typ.
+
+% Universes
+universe : kind.
+
+% Void
+void_type : typ.
+
+% Unit
+unit_type : typ.
+unit_intro : expr.
+
+% Functions
+function_type : kind -> kind -> kind.
+function_type : typ -> typ.
+function_intro : typ -> typ.
+function_intro : expr -> expr. % for terms or types
+function_elim : typ -> typ -> expr.
+function_elim : expr -> expr -> expr.
+function_elim : expr -> typ -> expr.
+
+% Pairs
+pair_type : typ -> typ -> typ.
+pair_intro : expr -> expr -> expr.
+pair_elim_first : expr -> expr.
+pair_elim_second : expr -> expr.
+
+% Booleans
+bool_type : typ.
+bool_intro : bool -> expr.
+bool_elim : expr -> expr -> expr -> expr.
+
+% Integers
+int_type : typ.
+int_intro : int -> expr.
+
+% Arrays
+array_type : typ -> expr -> typ.
+array_intro : list expr -> expr.
+array_elim : expr -> expr -> expr.
+
+% Binary format descriptions
+format_type : kind.
+format_intro_void : typ.
+format_intro_unit : typ.
+format_intro_u8 : typ.
+format_intro_u16le : typ. % TODO: make this a computed format?
+format_intro_u16be : typ. % TODO: make this a computed format?
+format_intro_u32le : typ. % TODO: make this a computed format?
+format_intro_u32be : typ. % TODO: make this a computed format?
+format_intro_u64le : typ. % TODO: make this a computed format?
+format_intro_u64be : typ. % TODO: make this a computed format?
+format_intro_s8 : typ. % TODO: make this a computed format?
+format_intro_s16le : typ. % TODO: make this a computed format?
+format_intro_s16be : typ. % TODO: make this a computed format?
+format_intro_s32le : typ. % TODO: make this a computed format?
+format_intro_s32be : typ. % TODO: make this a computed format?
+format_intro_s64le : typ. % TODO: make this a computed format?
+format_intro_s64be : typ. % TODO: make this a computed format?
+format_intro_array : typ -> expr -> typ.
+format_intro_pair : typ -> typ -> typ.
+format_elim : typ -> typ.

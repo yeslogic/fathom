@@ -1,0 +1,22 @@
+% Lexical syntax
+
+%extend lexical.
+
+    token : type.
+
+    name : string -> token.
+
+    % Symbols
+    comma : token.      % `,`
+    semi : token.       % `;`
+    equal : token.      % `=`
+
+    % Delimiters
+    lbrace : token.     % `{`
+    rbrace : token.     % `}`
+    lbracket : token.   % `[`
+    rbracket : token.   % `]`
+    lparen : token.     % `(`
+    rparen : token.     % `)`
+
+%end.
