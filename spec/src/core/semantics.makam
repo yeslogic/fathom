@@ -5,6 +5,8 @@
 
 %extend semantics.
 
+    %use "stdlib/functional".
+
     % The result of evaluating a term.
     value : type.
     % Neutral values are computations that are currently 'stuck' on some
@@ -237,17 +239,9 @@
     readback : int -> neutral -> term -> prop.
     readback : int -> value -> term -> prop.
 
-    % FIXME: Makam's type unification breaks hear for some reason - it
-    % thinks that we want to definine `int -> value -> term -> prop.`
     readback Length (local Level : neutral) (local Index) :-
-        % Convert De Bruijn levels to De Bruijn indices using the following
-        % arithmetic (this is a bit awkward to express in Makam):
-        %
-        % ```
-        % Index = Length - (Level + 1)
-        % ```
-        plus 1 Level Level1,
-        plus Level1 Index Length.
+        % Convert De Bruijn levels to De Bruijn indices
+        functional.do !(minus Length !(plus Level 1)) Index.
     readback Length (function_elim Neutral InputValue : neutral) (function_elim Term InputTerm) :-
         readback Length Neutral Term,
         readback Length InputValue InputTerm.

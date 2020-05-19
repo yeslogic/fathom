@@ -13,6 +13,6 @@
     "repl": "makam --include=./src"
   },
   "devDependencies": {
-    "makam": "^0.7.34"
+    "makam": "^0.7.35"
   }
 }
