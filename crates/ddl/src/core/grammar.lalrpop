@@ -1,7 +1,7 @@
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::core::{Alias, Constant, Item, Module, Universe, StructType, Term, TypeField};
+use crate::core::{Alias, Constant, Item, Module, StructType, Term, TypeField};
 use crate::lexer::Token;
 use crate::literal;
 
@@ -25,14 +25,13 @@ extern {
         "f64" => Token::F64,
         "Format" => Token::Format,
         "global" => Token::Global,
-        "Host" => Token::Host,
         "if" => Token::If,
         "int" => Token::Int,
         "int_elim" => Token::IntElim,
         "item" => Token::Item,
-        "Kind" => Token::Kind,
         "match" => Token::Match,
         "struct" => Token::Struct,
+        "Type" => Token::Type,
 
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
@@ -114,9 +113,7 @@ AtomicTerm: Term = {
     <start: @L> "!" <end: @R> => Term::Error(start..end),
     <start: @L> "global" <name: "identifier"> <end: @R> => Term::Global(start..end, name),
     <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(start..end, name),
-    <start: @L> "Host" <end: @R> => Term::Universe(start..end, Universe::Host),
-    <start: @L> "Format" <end: @R> => Term::Universe(start..end, Universe::Format),
-    <start: @L> "Kind" <end: @R> => Term::Universe(start..end, Universe::Kind),
+    <start: @L> "Type" <end: @R> => Term::TypeType(start..end),
     <start: @L> "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" <end: @R> => {
         Term::BoolElim(start..end, Arc::new(head), Arc::new(if_true), Arc::new(if_false))
     },
@@ -150,4 +147,5 @@ AtomicTerm: Term = {
             None => Term::Error(range),
         }
     },
+    <start: @L> "Format" <end: @R> => Term::FormatType(start..end),
 };

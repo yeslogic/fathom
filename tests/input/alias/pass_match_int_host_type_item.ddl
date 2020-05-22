@@ -1,7 +1,7 @@
 foo : Int =
     43;
 
-Test : Host =
+Test : Type =
     match foo {
         42 => F64,
         _ => F32,

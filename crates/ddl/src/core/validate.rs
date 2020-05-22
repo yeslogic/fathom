@@ -7,7 +7,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::{semantics, Constant, Globals, Item, Module, Term, TypeField, Universe, Value};
+use crate::core::{semantics, Constant, Globals, Item, Module, Term, TypeField, Value};
 use crate::diagnostics;
 
 /// Validate a module.
@@ -85,7 +85,7 @@ pub fn validate_items<'items>(
                 // FIXME: Avoid shadowing builtin definitions
                 match context.items.entry(&struct_ty.name) {
                     Entry::Vacant(entry) => {
-                        let ty = Arc::new(Value::Universe(0..0, Universe::Format));
+                        let ty = Arc::new(Value::FormatType(0..0));
                         context.tys.push((*entry.key(), ty));
                         entry.insert(item.clone());
                     }
@@ -115,7 +115,7 @@ pub fn validate_struct_ty_fields(
     for field in fields {
         use std::collections::hash_map::Entry;
 
-        let format_ty = Arc::new(Value::Universe(0..0, Universe::Format));
+        let format_ty = Arc::new(Value::FormatType(0..0));
         check_term(&context, &field.term, &format_ty, report);
 
         match seen_field_names.entry(field.name.clone()) {
@@ -138,14 +138,14 @@ pub fn validate_universe(
     context: &Context<'_>,
     term: &Term,
     report: &mut dyn FnMut(Diagnostic<usize>),
-) -> Option<Universe> {
+) -> bool {
     match term {
-        Term::Universe(_, universe) => Some(*universe),
+        Term::FormatType(_) | Term::TypeType(_) => true,
         term => {
             let ty = synth_term(context, term, report);
             match ty.as_ref() {
-                Value::Universe(_, universe) => Some(*universe),
-                Value::Error(_) => None,
+                Value::FormatType(_) | Value::TypeType(_) => true,
+                Value::Error(_) => false,
                 _ => {
                     report(diagnostics::universe_mismatch(
                         Severity::Bug,
@@ -153,7 +153,7 @@ pub fn validate_universe(
                         term.range(),
                         &ty,
                     ));
-                    None
+                    false
                 }
             }
         }
@@ -234,29 +234,20 @@ pub fn synth_term(
             check_term(context, term, &ty, report);
             ty
         }
-        Term::Universe(range, universe) => match universe {
-            Universe::Host | Universe::Format => Arc::new(Value::Universe(0..0, Universe::Kind)),
-            Universe::Kind => {
-                report(diagnostics::kind_has_no_type(
-                    Severity::Bug,
-                    context.file_id,
-                    range.clone(),
-                ));
-                Arc::new(Value::Error(0..0))
-            }
-        },
+        Term::FormatType(range) | Term::TypeType(range) => {
+            report(diagnostics::term_has_no_type(
+                Severity::Bug,
+                context.file_id,
+                range.clone(),
+            ));
+            Arc::new(Value::Error(0..0))
+        }
         Term::FunctionType(param_type, body_type) => Arc::new(
             match (
                 validate_universe(context, param_type, report),
                 validate_universe(context, body_type, report),
             ) {
-                (Some(Universe::Host), Some(Universe::Host)) => {
-                    Value::Universe(0..0, Universe::Host)
-                }
-                (Some(Universe::Host), Some(Universe::Kind))
-                | (Some(Universe::Kind), Some(Universe::Kind)) => {
-                    Value::Universe(0..0, Universe::Kind)
-                }
+                (true, true) => Value::TypeType(0..0),
                 (_, _) => Value::Error(0..0),
             },
         ),

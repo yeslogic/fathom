@@ -223,9 +223,7 @@ fn compile_term_prec<'term>(
 
             format!(r##"<var><a href="#{}">{}</a></var>"##, id, name).into()
         }
-        surface::Term::Kind(_) => "Kind".into(),
-        surface::Term::Host(_) => "Host".into(),
-        surface::Term::Format(_) => "Format".into(),
+        surface::Term::TypeType(_) => "Type".into(),
         surface::Term::Ann(term, ty) => format!(
             "{lparen}{term} : {ty}{rparen}",
             lparen = if prec > Prec::Term { "(" } else { "" },
@@ -277,6 +275,7 @@ fn compile_term_prec<'term>(
                 .format(", "),
         )
         .into(),
+        surface::Term::FormatType(_) => "Format".into(),
         surface::Term::Error(_) => r##"<strong>(invalid data description)</strong>"##.into(),
     }
 }

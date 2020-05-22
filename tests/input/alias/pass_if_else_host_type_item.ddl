@@ -1,7 +1,7 @@
 foo =
     true;
 
-Test : Host =
+Test : Type =
     if foo {
         F64
     } else {

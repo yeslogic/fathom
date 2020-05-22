@@ -569,7 +569,7 @@ fn compile_value(
             })
         }
         core::Value::Neutral(core::Head::Error(_), _) => CompiledTerm::Error,
-        core::Value::Universe(_, _) => CompiledTerm::Erased,
+        core::Value::FormatType(_) | core::Value::TypeType(_) => CompiledTerm::Erased,
         core::Value::FunctionType(_, _) => {
             report(crate::diagnostics::bug::not_yet_implemented(
                 context.file_id,

@@ -26,14 +26,13 @@ extern {
         "f64" => Token::F64,
         "Format" => Token::Format,
         "global" => Token::Global,
-        "Host" => Token::Host,
         "if" => Token::If,
         "int" => Token::Int,
         "int_elim" => Token::IntElim,
         "item" => Token::Item,
-        "Kind" => Token::Kind,
         "match" => Token::Match,
         "struct" => Token::Struct,
+        "Type" => Token::Type,
 
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
@@ -116,9 +115,7 @@ AppTerm: Term = {
 AtomicTerm: Term = {
     "(" <term: Term> ")" => term,
     <name: Identifier> => Term::Name(name.0, name.1),
-    <start: @L> "Host" <end: @R> => Term::Host(start..end),
-    <start: @L> "Format" <end: @R> => Term::Format(start..end),
-    <start: @L> "Kind" <end: @R> => Term::Kind(start..end),
+    <start: @L> "Type" <end: @R> => Term::TypeType(start..end),
     <start: @L> <literal: "numeric literal"> <end: @R> => {
         Term::NumberLiteral(start..end, literal)
     },
@@ -129,6 +126,7 @@ AtomicTerm: Term = {
         branches.extend(last);
         Term::Match(start..end, Box::new(head), branches)
     },
+    <start: @L> "Format" <end: @R> => Term::FormatType(start..end),
 };
 
 Identifier: (Range<usize>, String) = {

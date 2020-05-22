@@ -1,4 +1,4 @@
-Test : Host =
+Test : Type =
     if true {
         F64
     } else {

@@ -32,7 +32,7 @@ pub fn eval(
             )),
         },
         Term::Ann(term, _) => eval(globals, items, term),
-        Term::Universe(range, universe) => Arc::new(Value::Universe(range.clone(), *universe)),
+        Term::TypeType(range) => Arc::new(Value::TypeType(range.clone())),
         Term::FunctionType(param_type, body_type) => {
             let param_type = eval(globals, items, param_type);
             let body_type = eval(globals, items, body_type);
@@ -98,6 +98,7 @@ pub fn eval(
                 )),
             }
         }
+        Term::FormatType(range) => Arc::new(Value::FormatType(range.clone())),
         Term::Error(range) => Arc::new(Value::Error(range.clone())),
     }
 }
@@ -134,11 +135,12 @@ fn read_back_neutral(head: &Head, elims: &[Elim]) -> Term {
 pub fn read_back(value: &Value) -> Term {
     match value {
         Value::Neutral(head, elims) => read_back_neutral(head, elims),
-        Value::Universe(range, universe) => Term::Universe(range.clone(), *universe),
+        Value::TypeType(range) => Term::TypeType(range.clone()),
         Value::FunctionType(param_ty, body_ty) => {
             Term::FunctionType(Arc::new(read_back(param_ty)), Arc::new(read_back(body_ty)))
         }
         Value::Constant(range, constant) => Term::Constant(range.clone(), constant.clone()),
+        Value::FormatType(range) => Term::FormatType(range.clone()),
         Value::Error(range) => Term::Error(range.clone()),
     }
 }
@@ -149,11 +151,12 @@ pub fn equal(val1: &Value, val2: &Value) -> bool {
         (Value::Neutral(head0, elims0), Value::Neutral(head1, elims1)) => {
             read_back_neutral(head0, elims0) == read_back_neutral(head1, elims1)
         }
-        (Value::Universe(_, universe0), Value::Universe(_, universe1)) => universe0 == universe1,
+        (Value::TypeType(_), Value::TypeType(_)) => true,
         (Value::FunctionType(param_ty0, body_ty0), Value::FunctionType(param_ty1, body_ty1)) => {
             equal(param_ty1, param_ty0) && equal(body_ty0, body_ty1)
         }
         (Value::Constant(_, constant0), Value::Constant(_, constant1)) => constant0 == constant1,
+        (Value::FormatType(_), Value::FormatType(_)) => true,
         // Errors are always treated as equal
         (Value::Error(_), _) | (_, Value::Error(_)) => true,
         // Anything else is not equal!

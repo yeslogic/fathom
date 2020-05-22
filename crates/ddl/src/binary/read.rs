@@ -120,9 +120,10 @@ pub fn read_ty(context: &mut Context<'_>, ty: &core::Value) -> Result<Term, ddl_
             }
         }
         core::Value::Neutral(core::Head::Error(_), _)
-        | core::Value::Universe(_, _)
+        | core::Value::TypeType(_)
         | core::Value::FunctionType(_, _)
         | core::Value::Constant(_, _)
+        | core::Value::FormatType(_)
         | core::Value::Error(_) => Err(ddl_rt::ReadError::InvalidDataDescription),
     }
 }

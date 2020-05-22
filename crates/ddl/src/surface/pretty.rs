@@ -187,9 +187,7 @@ where
                 ),
         ),
         Term::Name(_, name) => alloc.text(name),
-        Term::Format(_) => alloc.text("Format"),
-        Term::Host(_) => alloc.text("Host"),
-        Term::Kind(_) => alloc.text("Kind"),
+        Term::TypeType(_) => alloc.text("Type"),
         Term::FunctionType(param_type, body_type) => pretty_paren(
             alloc,
             prec > Prec::App,
@@ -273,6 +271,7 @@ where
             })))
             .append(alloc.hardline())
             .append("}"),
+        Term::FormatType(_) => alloc.text("Format"),
         Term::Error(_) => alloc.text("!"),
     }
 }

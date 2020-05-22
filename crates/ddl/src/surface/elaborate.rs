@@ -78,7 +78,7 @@ pub fn elaborate_items<'items>(
             surface::Item::Alias(alias) => {
                 let (core_term, ty) = match &alias.ty {
                     Some(surface_ty) => {
-                        let (core_ty, _) = elaborate_universe(&context, surface_ty, report);
+                        let core_ty = elaborate_universe(&context, surface_ty, report);
                         let ty = core::semantics::eval(context.globals, &context.items, &core_ty);
                         let core_term = check_term(&context, &alias.term, &ty, report);
                         (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
@@ -125,7 +125,7 @@ pub fn elaborate_items<'items>(
 
                         let core_item = core::Item::Struct(item);
                         core_items.push(core_item.clone());
-                        let ty = Arc::new(core::Value::Universe(0..0, core::Universe::Format));
+                        let ty = Arc::new(core::Value::FormatType(0..0));
                         context.tys.push((*entry.key(), ty));
                         entry.insert(core_item);
                     }
@@ -161,7 +161,7 @@ pub fn elaborate_struct_ty_fields(
         use std::collections::hash_map::Entry;
 
         let field_range = field.name.0.start..field.term.range().end;
-        let format_ty = Arc::new(core::Value::Universe(0..0, core::Universe::Format));
+        let format_ty = Arc::new(core::Value::FormatType(0..0));
         let ty = check_term(&context, &field.term, &format_ty, report);
 
         match seen_field_names.entry(field.name.1.clone()) {
@@ -193,18 +193,16 @@ pub fn elaborate_universe(
     context: &Context<'_>,
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic<usize>),
-) -> (core::Term, Option<core::Universe>) {
-    use crate::core::Universe::{Format, Host, Kind};
-
+) -> core::Term {
     match surface_term {
-        surface::Term::Kind(range) => (core::Term::Universe(range.clone(), Kind), Some(Kind)),
-        surface::Term::Host(range) => (core::Term::Universe(range.clone(), Host), Some(Host)),
-        surface::Term::Format(range) => (core::Term::Universe(range.clone(), Format), Some(Format)),
+        surface::Term::FormatType(range) => core::Term::FormatType(range.clone()),
+        surface::Term::TypeType(range) => core::Term::TypeType(range.clone()),
         surface_term => {
             let (core_term, ty) = synth_term(context, surface_term, report);
             match ty.as_ref() {
-                core::Value::Universe(_, universe) => (core_term, Some(*universe)),
-                core::Value::Error(_) => (core_term, None),
+                core::Value::FormatType(_) | core::Value::TypeType(_) | core::Value::Error(_) => {
+                    core_term
+                }
                 _ => {
                     let range = surface_term.range();
                     report(diagnostics::universe_mismatch(
@@ -213,7 +211,7 @@ pub fn elaborate_universe(
                         range.clone(),
                         &ty,
                     ));
-                    (core::Term::Error(range), None)
+                    core::Term::Error(range)
                 }
             }
         }
@@ -343,11 +341,9 @@ pub fn synth_term(
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> (core::Term, Arc<core::Value>) {
-    use crate::core::Universe::{Format, Host, Kind};
-
     match surface_term {
         surface::Term::Ann(surface_term, surface_ty) => {
-            let (core_ty, _) = elaborate_universe(context, surface_ty, report);
+            let core_ty = elaborate_universe(context, surface_ty, report);
             let ty = core::semantics::eval(context.globals, &context.items, &core_ty);
             let core_term = check_term(context, surface_term, &ty, report);
             (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
@@ -373,8 +369,8 @@ pub fn synth_term(
                 Arc::new(core::Value::Error(0..0)),
             )
         }
-        surface::Term::Kind(range) => {
-            report(diagnostics::kind_has_no_type(
+        surface::Term::TypeType(range) | surface::Term::FormatType(range) => {
+            report(diagnostics::term_has_no_type(
                 Severity::Error,
                 context.file_id,
                 range.clone(),
@@ -384,30 +380,18 @@ pub fn synth_term(
                 Arc::new(core::Value::Error(0..0)),
             )
         }
-        surface::Term::Host(range) => (
-            core::Term::Universe(range.clone(), Host),
-            Arc::new(core::Value::Universe(0..0, Kind)),
-        ),
-        surface::Term::Format(range) => (
-            core::Term::Universe(range.clone(), Format),
-            Arc::new(core::Value::Universe(0..0, Kind)),
-        ),
         surface::Term::FunctionType(param_ty, body_ty) => {
-            let (core_param_ty, param_universe) = elaborate_universe(context, param_ty, report);
-            let (core_body_ty, body_universe) = elaborate_universe(context, body_ty, report);
-            let core_fun_ty =
-                core::Term::FunctionType(Arc::new(core_param_ty), Arc::new(core_body_ty));
+            let core_param_ty = elaborate_universe(context, param_ty, report);
+            let core_body_ty = elaborate_universe(context, body_ty, report);
 
-            match (param_universe, body_universe) {
-                (Some(Host), Some(Host)) => {
-                    (core_fun_ty, Arc::new(core::Value::Universe(0..0, Host)))
-                }
-                (Some(Host), Some(Kind)) | (Some(Kind), Some(Kind)) => {
-                    (core_fun_ty, Arc::new(core::Value::Universe(0..0, Kind)))
-                }
-                (_, _) => (
+            match (&core_param_ty, &core_body_ty) {
+                (core::Term::Error(_), _) | (_, core::Term::Error(_)) => (
                     core::Term::Error(surface_term.range()),
                     Arc::new(core::Value::Error(0..0)),
+                ),
+                (_, _) => (
+                    core::Term::FunctionType(Arc::new(core_param_ty), Arc::new(core_body_ty)),
+                    Arc::new(core::Value::TypeType(0..0)),
                 ),
             }
         }

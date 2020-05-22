@@ -1,7 +1,5 @@
 //! Test annotated terms.
 
-TestType = Host : Kind;
-TestFormat = Format : Kind;
 TestU8 = U8 : Format;
 TestU16Le = U16Le : Format;
 TestU16Be = U16Be : Format;
