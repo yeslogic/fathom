@@ -18,7 +18,7 @@ pub mod binary;
 pub mod compile;
 pub mod pretty;
 pub mod semantics;
-pub mod validate;
+pub mod typing;
 
 /// A module of items.
 #[derive(Debug, Clone)]

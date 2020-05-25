@@ -146,7 +146,7 @@ impl Test {
 
         // The core syntax from the elaborator should always be well-formed!
         let mut validation_diagnostics = Vec::new();
-        ddl::core::validate::validate_module(&GLOBALS, &core_module, &mut |d| {
+        ddl::core::typing::validate_module(&GLOBALS, &core_module, &mut |d| {
             validation_diagnostics.push(d)
         });
         if !validation_diagnostics.is_empty() {
