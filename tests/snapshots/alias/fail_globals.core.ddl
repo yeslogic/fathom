@@ -1,5 +1,5 @@
 //! Test globals.
 
-TestArray = global Array;
+TestFormatArray = global FormatArray;
 
 TestList = global List;

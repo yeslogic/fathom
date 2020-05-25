@@ -424,7 +424,7 @@ fn compile_value(
                     is_const: true,
                 }),
                 (
-                    "Array",
+                    "FormatArray",
                     [core::Elim::Function(len_range, len), core::Elim::Function(_, elem_ty)],
                 ) => {
                     let len = match len.as_ref() {
@@ -506,7 +506,7 @@ fn compile_value(
                         | "F32Be" | "F64Le" | "F64Be" | "Bool" | "Int" | "F32" | "F64" | "true"
                         | "false" => Some(0),
                         "List" => Some(1),
-                        "Array" => Some(2),
+                        "FormatArray" => Some(2),
                         _ => None,
                     };
 

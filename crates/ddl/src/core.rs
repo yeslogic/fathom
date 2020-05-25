@@ -379,7 +379,7 @@ impl Default for Globals {
             (Arc::new(Term::Global(0..0, "Bool".to_owned())), None),
         );
         entries.insert(
-            "Array".to_owned(),
+            "FormatArray".to_owned(),
             (
                 Arc::new(Term::FunctionType(
                     Arc::new(Term::Global(0..0, "Int".to_owned())),
