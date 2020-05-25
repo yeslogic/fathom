@@ -29,7 +29,7 @@ impl<'me> Context<'me> {
     }
 }
 
-pub fn read_module_item<'module>(
+pub fn from_module_item<'module>(
     context: &mut Context<'module>,
     module: &'module Module,
     name: &str,
@@ -38,10 +38,10 @@ pub fn read_module_item<'module>(
         match item {
             Item::Alias(alias) if alias.name == name => {
                 let value = semantics::eval(context.globals, &context.items, &alias.term);
-                return read_ty(context, &value);
+                return from_ty(context, &value);
             }
             Item::Struct(struct_ty) if struct_ty.name == name => {
-                return read_struct_ty(context, struct_ty);
+                return from_struct_ty(context, struct_ty);
             }
             Item::Alias(alias) => {
                 context.items.insert(&alias.name, item.clone());
@@ -55,7 +55,7 @@ pub fn read_module_item<'module>(
     Err(ddl_rt::ReadError::InvalidDataDescription)
 }
 
-pub fn read_struct_ty(
+pub fn from_struct_ty(
     context: &mut Context<'_>,
     struct_ty: &StructType,
 ) -> Result<Term, ddl_rt::ReadError> {
@@ -64,14 +64,14 @@ pub fn read_struct_ty(
         .iter()
         .map(|field| {
             let value = semantics::eval(context.globals, &context.items, &field.term);
-            Ok((field.name.clone(), read_ty(context, &value)?))
+            Ok((field.name.clone(), from_ty(context, &value)?))
         })
         .collect::<Result<_, ddl_rt::ReadError>>()?;
 
     Ok(Term::Struct(fields))
 }
 
-pub fn read_ty(context: &mut Context<'_>, ty: &Value) -> Result<Term, ddl_rt::ReadError> {
+pub fn from_ty(context: &mut Context<'_>, ty: &Value) -> Result<Term, ddl_rt::ReadError> {
     match ty {
         Value::Neutral(Head::Global(_, name), elims) => match (name.as_str(), elims.as_slice()) {
             ("U8", []) => Ok(Term::Int(BigInt::from(context.read::<ddl_rt::U8>()?))),
@@ -97,7 +97,7 @@ pub fn read_ty(context: &mut Context<'_>, ty: &Value) -> Result<Term, ddl_rt::Re
                     Value::Constant(_, Constant::Int(len)) => match len.to_usize() {
                         Some(len) => Ok(Term::Seq(
                             (0..len)
-                                .map(|_| read_ty(context, elem_ty))
+                                .map(|_| from_ty(context, elem_ty))
                                 .collect::<Result<_, _>>()?,
                         )),
                         None => Err(ddl_rt::ReadError::InvalidDataDescription),
@@ -111,7 +111,7 @@ pub fn read_ty(context: &mut Context<'_>, ty: &Value) -> Result<Term, ddl_rt::Re
         },
         Value::Neutral(Head::Item(_, name), elims) => {
             match (context.items.get(name.as_str()).cloned(), elims.as_slice()) {
-                (Some(Item::Struct(struct_ty)), []) => read_struct_ty(context, &struct_ty),
+                (Some(Item::Struct(struct_ty)), []) => from_struct_ty(context, &struct_ty),
                 (Some(_), _) | (None, _) => Err(ddl_rt::ReadError::InvalidDataDescription),
             }
         }

@@ -45,7 +45,7 @@ pub fn compile_module(
     };
 
     for core_item in &module.items {
-        compile_item(&mut context, core_item, report);
+        from_item(&mut context, core_item, report);
     }
 
     rust::Module {
@@ -120,25 +120,25 @@ struct Context<'me> {
     rust_items: Vec<rust::Item>,
 }
 
-fn compile_item<'item>(
+fn from_item<'item>(
     context: &mut Context<'item>,
     core_item: &'item core::Item,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) {
     match core_item {
-        core::Item::Alias(core_alias) => compile_alias(context, core_alias, report),
-        core::Item::Struct(core_struct_ty) => compile_struct_ty(context, core_struct_ty, report),
+        core::Item::Alias(core_alias) => from_alias(context, core_alias, report),
+        core::Item::Struct(core_struct_ty) => from_struct_ty(context, core_struct_ty, report),
     }
 }
 
-fn compile_alias<'item>(
+fn from_alias<'item>(
     context: &mut Context<'item>,
     core_alias: &'item core::Alias,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) {
     use std::collections::hash_map::Entry;
 
-    let item = match compile_term(context, &core_alias.term, report) {
+    let item = match from_term(context, &core_alias.term, report) {
         CompiledTerm::Term(term) => {
             let doc = core_alias.doc.clone();
             if term.is_const {
@@ -250,7 +250,7 @@ fn compile_alias<'item>(
     }
 }
 
-fn compile_struct_ty<'item>(
+fn from_struct_ty<'item>(
     context: &mut Context<'item>,
     core_struct_ty: &'item core::StructType,
     report: &mut dyn FnMut(Diagnostic<usize>),
@@ -263,7 +263,7 @@ fn compile_struct_ty<'item>(
 
     for field in &core_struct_ty.fields {
         let rust_name = field.name.to_snake_case();
-        let field_ty = compile_term_as_ty(context, &field.term, report).unwrap_or_else(|| Type {
+        let field_ty = from_term_to_ty(context, &field.term, report).unwrap_or_else(|| Type {
             rust_ty: rt_invalid_ty(),
             host_ty: None,
             read: None,
@@ -348,16 +348,16 @@ enum CompiledTerm {
     Error,
 }
 
-fn compile_term(
+fn from_term(
     context: &mut Context<'_>,
     core_term: &core::Term,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> CompiledTerm {
     let value = core::semantics::eval(context.globals, &context.core_items, core_term);
-    compile_value(context, &value, report)
+    from_value(context, &value, report)
 }
 
-fn compile_value(
+fn from_value(
     context: &mut Context<'_>,
     value: &core::Value,
     report: &mut dyn FnMut(Diagnostic<usize>),
@@ -451,7 +451,7 @@ fn compile_value(
                     };
 
                     let elem_ty =
-                        compile_value_as_ty(context, elem_ty, report).unwrap_or_else(|| Type {
+                        from_value_to_ty(context, elem_ty, report).unwrap_or_else(|| Type {
                             rust_ty: rt_invalid_ty(),
                             host_ty: None,
                             read: None,
@@ -485,7 +485,7 @@ fn compile_value(
                 }
                 ("List", [core::Elim::Function(_, elem_ty)]) => {
                     let elem_ty =
-                        compile_value_as_ty(context, elem_ty, report).unwrap_or_else(|| Type {
+                        from_value_to_ty(context, elem_ty, report).unwrap_or_else(|| Type {
                             rust_ty: rt_invalid_ty(),
                             host_ty: None,
                             read: None,
@@ -555,11 +555,11 @@ fn compile_value(
                 }
                 (CompiledTerm::Term(head), core::Elim::Bool(_, if_true, if_false)) => {
                     let head = head.rust_term.clone();
-                    compile_bool_elim(context, head, if_true, if_false, report)
+                    from_bool_elim(context, head, if_true, if_false, report)
                 }
                 (CompiledTerm::Term(head), core::Elim::Int(range, branches, default)) => {
                     let head = head.rust_term.clone();
-                    compile_int_elim(context, range.clone(), head, branches, default, report)
+                    from_int_elim(context, range.clone(), head, branches, default, report)
                 }
                 (CompiledTerm::Error, _) => CompiledTerm::Error,
                 (_, core::Elim::Bool(range, _, _)) | (_, core::Elim::Int(range, _, _)) => {
@@ -579,27 +579,27 @@ fn compile_value(
             CompiledTerm::Error
         }
         core::Value::Constant(range, constant) => {
-            compile_constant(context, range.clone(), constant, report)
+            from_constant(context, range.clone(), constant, report)
         }
         core::Value::Error(_) => CompiledTerm::Error,
     }
 }
 
-fn compile_term_as_ty(
+fn from_term_to_ty(
     context: &mut Context<'_>,
     core_term: &core::Term,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> Option<Type> {
     let value = core::semantics::eval(context.globals, &context.core_items, core_term);
-    compile_value_as_ty(context, &value, report)
+    from_value_to_ty(context, &value, report)
 }
 
-fn compile_value_as_ty(
+fn from_value_to_ty(
     context: &mut Context<'_>,
     value: &core::Value,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> Option<Type> {
-    match compile_value(context, &value, report) {
+    match from_value(context, &value, report) {
         CompiledTerm::Type(ty) => Some(ty),
         CompiledTerm::Term(_) | CompiledTerm::Erased => {
             report(diagnostics::bug::expected_type(
@@ -612,7 +612,7 @@ fn compile_value_as_ty(
     }
 }
 
-fn compile_constant(
+fn from_constant(
     context: &mut Context<'_>,
     range: Range<usize>,
     constant: &core::Constant,
@@ -648,7 +648,7 @@ fn compile_constant(
     }
 }
 
-fn compile_bool_elim(
+fn from_bool_elim(
     context: &mut Context<'_>,
     head: rust::Term,
     if_true: &core::Term,
@@ -656,8 +656,8 @@ fn compile_bool_elim(
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> CompiledTerm {
     match (
-        compile_term(context, if_true, report),
-        compile_term(context, if_false, report),
+        from_term(context, if_true, report),
+        from_term(context, if_false, report),
     ) {
         (CompiledTerm::Term(true_term), CompiledTerm::Term(false_term)) => {
             CompiledTerm::Term(Term {
@@ -762,7 +762,7 @@ fn compile_bool_elim(
     }
 }
 
-fn compile_int_elim(
+fn from_int_elim(
     context: &mut Context<'_>,
     range: Range<usize>,
     head: rust::Term,
@@ -770,14 +770,14 @@ fn compile_int_elim(
     default: &core::Term,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> CompiledTerm {
-    match compile_term(context, default, report) {
+    match from_term(context, default, report) {
         CompiledTerm::Term(default_term) => {
             let branches = branches
                 .iter()
                 .filter_map(|(value, term)| match value.to_i64() {
                     Some(value) => Some((
                         rust::Pattern::Constant(rust::Constant::I64(value)),
-                        match compile_term(context, term, report) {
+                        match from_term(context, term, report) {
                             CompiledTerm::Term(term) => term.rust_term,
                             // TODO: report bug: mismatched arms of match expression
                             _ => rust::Term::Panic("error term".into()),
@@ -829,7 +829,7 @@ fn compile_int_elim(
                     }
                 };
 
-                match compile_term(context, term, report) {
+                match from_term(context, term, report) {
                     CompiledTerm::Type(branch_ty) => {
                         is_copy &= branch_ty.is_copy;
                         let (branch_host_ty, branch_read) = match branch_ty.host_ty {

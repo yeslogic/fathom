@@ -34,7 +34,7 @@ fn valid_singleton() {
     let inner = read_scope.read::<fixture::Byte>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let byte = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap();
+    let byte = binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap();
 
     assert_eq!(inner, 31);
     assert_eq!(byte, binary::Term::Int(inner.into()));
@@ -53,7 +53,7 @@ fn valid_singleton_trailing() {
     let inner = read_scope.read::<fixture::Byte>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let byte = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap();
+    let byte = binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap();
 
     assert_eq!(inner, 255);
     assert_eq!(byte, binary::Term::Int(inner.into()));

@@ -140,13 +140,13 @@ impl Test {
         files: &SimpleFiles<String, String>,
         surface_module: &ddl::ast::surface::Module,
     ) -> ddl::ast::core::Module {
-        let core_module = surface_to_core::elaborate_module(&GLOBALS, &surface_module, &mut |d| {
+        let core_module = surface_to_core::from_module(&GLOBALS, &surface_module, &mut |d| {
             self.found_diagnostics.push(d)
         });
 
         // The core syntax from the elaborator should always be well-formed!
         let mut validation_diagnostics = Vec::new();
-        ddl::ast::core::typing::validate_module(&GLOBALS, &core_module, &mut |d| {
+        ddl::ast::core::typing::wf_module(&GLOBALS, &core_module, &mut |d| {
             validation_diagnostics.push(d)
         });
         if !validation_diagnostics.is_empty() {
@@ -173,9 +173,9 @@ impl Test {
         core_module: &ddl::ast::core::Module,
     ) {
         let mut elaboration_diagnostics = Vec::new();
-        let delaborated_core_module = surface_to_core::elaborate_module(
+        let delaborated_core_module = surface_to_core::from_module(
             &GLOBALS,
-            &core_to_surface::delaborate_module(core_module),
+            &core_to_surface::from_module(core_module),
             &mut |d| elaboration_diagnostics.push(d),
         );
 
@@ -199,12 +199,12 @@ impl Test {
             let arena = pretty::Arena::new();
 
             let pretty_core_module = {
-                let pretty::DocBuilder(_, doc) = core_to_pretty::pretty_module(&arena, core_module);
+                let pretty::DocBuilder(_, doc) = core_to_pretty::from_module(&arena, core_module);
                 doc.pretty(100).to_string()
             };
             let pretty_delaborated_core_module = {
                 let pretty::DocBuilder(_, doc) =
-                    core_to_pretty::pretty_module(&arena, &delaborated_core_module);
+                    core_to_pretty::from_module(&arena, &delaborated_core_module);
                 doc.pretty(100).to_string()
             };
 
@@ -236,7 +236,7 @@ impl Test {
         let arena = pretty::Arena::new();
 
         let pretty_core_module = {
-            let pretty::DocBuilder(_, doc) = core_to_pretty::pretty_module(&arena, core_module);
+            let pretty::DocBuilder(_, doc) = core_to_pretty::from_module(&arena, core_module);
             doc.pretty(100).to_string()
         };
 
@@ -267,7 +267,7 @@ impl Test {
         };
         let pretty_parsed_core_module = {
             let pretty::DocBuilder(_, doc) =
-                core_to_pretty::pretty_module(&arena, &parsed_core_module);
+                core_to_pretty::from_module(&arena, &parsed_core_module);
             doc.pretty(100).to_string()
         };
 
@@ -445,7 +445,7 @@ impl Test {
 
     fn compile_doc(&mut self, surface_module: &ddl::ast::surface::Module) {
         let mut output = Vec::new();
-        surface_to_doc::compile_module(&mut output, surface_module, &mut |d| {
+        surface_to_doc::from_module(&mut output, surface_module, &mut |d| {
             self.found_diagnostics.push(d)
         })
         .unwrap();

@@ -52,10 +52,10 @@ pub fn type_mismatch(
 ) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
-    let expected_ty = core_to_surface::delaborate_term(&core::semantics::read_back(expected_ty));
-    let found_ty = core_to_surface::delaborate_term(&core::semantics::read_back(found_ty));
-    let pretty::DocBuilder(_, expected_ty) = surface_to_pretty::pretty_term(&arena, &expected_ty);
-    let pretty::DocBuilder(_, found_ty) = surface_to_pretty::pretty_term(&arena, &found_ty);
+    let expected_ty = core_to_surface::from_term(&core::semantics::read_back(expected_ty));
+    let found_ty = core_to_surface::from_term(&core::semantics::read_back(found_ty));
+    let pretty::DocBuilder(_, expected_ty) = surface_to_pretty::from_term(&arena, &expected_ty);
+    let pretty::DocBuilder(_, found_ty) = surface_to_pretty::from_term(&arena, &found_ty);
     let expected_ty = expected_ty.pretty(100);
     let found_ty = found_ty.pretty(100);
 
@@ -79,8 +79,8 @@ pub fn universe_mismatch(
 ) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
-    let found_ty = core_to_surface::delaborate_term(&core::semantics::read_back(found_ty));
-    let pretty::DocBuilder(_, found_ty) = surface_to_pretty::pretty_term(&arena, &found_ty);
+    let found_ty = core_to_surface::from_term(&core::semantics::read_back(found_ty));
+    let pretty::DocBuilder(_, found_ty) = surface_to_pretty::from_term(&arena, &found_ty);
     let found_ty = found_ty.pretty(100);
 
     Diagnostic::new(severity)
@@ -117,8 +117,8 @@ pub fn not_a_function(
 ) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
-    let head_ty = core_to_surface::delaborate_term(&core::semantics::read_back(head_ty));
-    let pretty::DocBuilder(_, found_ty) = surface_to_pretty::pretty_term(&arena, &head_ty);
+    let head_ty = core_to_surface::from_term(&core::semantics::read_back(head_ty));
+    let pretty::DocBuilder(_, found_ty) = surface_to_pretty::from_term(&arena, &head_ty);
     let head_ty = found_ty.pretty(100);
 
     Diagnostic::new(severity)
@@ -281,8 +281,8 @@ pub mod error {
     ) -> Diagnostic<usize> {
         let arena = pretty::Arena::new();
 
-        let found_ty = core_to_surface::delaborate_term(&core::semantics::read_back(found_ty));
-        let pretty::DocBuilder(_, found_ty) = surface_to_pretty::pretty_term(&arena, &found_ty);
+        let found_ty = core_to_surface::from_term(&core::semantics::read_back(found_ty));
+        let pretty::DocBuilder(_, found_ty) = surface_to_pretty::from_term(&arena, &found_ty);
         let found_ty = found_ty.pretty(100);
 
         Diagnostic::error()
@@ -311,8 +311,8 @@ pub mod error {
     ) -> Diagnostic<usize> {
         let arena = pretty::Arena::new();
 
-        let found_ty = core_to_surface::delaborate_term(&core::semantics::read_back(found_ty));
-        let pretty::DocBuilder(_, found_ty) = surface_to_pretty::pretty_term(&arena, &found_ty);
+        let found_ty = core_to_surface::from_term(&core::semantics::read_back(found_ty));
+        let pretty::DocBuilder(_, found_ty) = surface_to_pretty::from_term(&arena, &found_ty);
         let found_ty = found_ty.pretty(100);
 
         Diagnostic::error()

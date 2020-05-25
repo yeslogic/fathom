@@ -54,7 +54,7 @@ fn valid_pair() {
     let pair = read_scope.read::<fixture::Pair>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::read_module_item(&mut read_context, &FIXTURE, &"Pair").unwrap() {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Pair").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(pair.first(), 31);
             assert_eq!(pair.second(), -30);
@@ -85,7 +85,7 @@ fn valid_pair_trailing() {
     let pair = read_scope.read::<fixture::Pair>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::read_module_item(&mut read_context, &FIXTURE, &"Pair").unwrap() {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Pair").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(pair.first(), 255);
             assert_eq!(pair.second(), -30);

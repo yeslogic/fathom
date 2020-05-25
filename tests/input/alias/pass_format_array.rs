@@ -40,7 +40,7 @@ fn valid_test() {
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let simple_array_term =
-        binary::read::read_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
+        binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
     assert_eq!(simple_array.inner(), &[1, 2, 3, 4, 5, 6]);
     assert_eq!(
         simple_array_term,
@@ -95,7 +95,7 @@ fn valid_test_trailing() {
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let simple_array_term =
-        binary::read::read_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
+        binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
     assert_eq!(simple_array.inner(), &[1, 2, 3, 4, 5, 6]);
     assert_eq!(
         simple_array_term,

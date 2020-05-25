@@ -36,7 +36,7 @@ fn valid_singleton() {
     let singleton = read_scope.read::<fixture::Byte>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(singleton.inner(), 31);
 
@@ -65,7 +65,7 @@ fn valid_singleton_trailing() {
     let singleton = read_scope.read::<fixture::Byte>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(singleton.inner(), 255);
 

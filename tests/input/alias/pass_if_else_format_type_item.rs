@@ -37,7 +37,7 @@ fn valid_test() {
     let singleton = read_scope.read::<fixture::Test>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let test = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
+    let test = binary::read::from_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
     assert_eq!(singleton, 23.64e10);
     assert_eq!(test, binary::Term::F64(singleton));
 
@@ -55,7 +55,7 @@ fn valid_test_trailing() {
     let singleton = read_scope.read::<fixture::Test>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let test = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
+    let test = binary::read::from_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
     assert_eq!(singleton, 781.453298);
     assert_eq!(test, binary::Term::F64(singleton));
 
