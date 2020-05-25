@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_rt::{FormatWriter, ReadScope, U8};
-use ddl_test_util::ddl::{binary, core};
+use ddl_test_util::ddl::ast::core::{self, binary};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
@@ -20,7 +20,7 @@ fn valid_empty() {
 
     match (
         read_scope.read::<fixture::Empty>().unwrap(),
-        binary::read::read_module_item(&mut read_context, &FIXTURE, "Empty").unwrap(),
+        binary::read::from_module_item(&mut read_context, &FIXTURE, "Empty").unwrap(),
     ) {
         (fixture::Empty {}, binary::Term::Struct(fields)) => {
             assert_eq!(fields, BTreeMap::from_iter(vec![]));
@@ -42,7 +42,7 @@ fn valid_empty_trailing() {
 
     match (
         read_scope.read::<fixture::Empty>().unwrap(),
-        binary::read::read_module_item(&mut read_context, &FIXTURE, "Empty").unwrap(),
+        binary::read::from_module_item(&mut read_context, &FIXTURE, "Empty").unwrap(),
     ) {
         (fixture::Empty {}, binary::Term::Struct(fields)) => {
             assert_eq!(fields, BTreeMap::from_iter(vec![]));

@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_rt::{FormatWriter, ReadError, ReadScope, U8};
-use ddl_test_util::ddl::{binary, core};
+use ddl_test_util::ddl::ast::core::{self, binary};
 
 #[path = "../../snapshots/alias/pass_simple.rs"]
 pub mod fixture;
@@ -34,7 +34,7 @@ fn valid_singleton() {
     let inner = read_scope.read::<fixture::Byte>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let byte = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap();
+    let byte = binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap();
 
     assert_eq!(inner, 31);
     assert_eq!(byte, binary::Term::Int(inner.into()));
@@ -53,7 +53,7 @@ fn valid_singleton_trailing() {
     let inner = read_scope.read::<fixture::Byte>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let byte = binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap();
+    let byte = binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap();
 
     assert_eq!(inner, 255);
     assert_eq!(byte, binary::Term::Int(inner.into()));

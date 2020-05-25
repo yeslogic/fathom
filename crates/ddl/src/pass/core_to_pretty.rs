@@ -1,4 +1,4 @@
-use crate::core::{Alias, Constant, Item, Module, StructType, Term, TypeField};
+use crate::ast::core::{Alias, Constant, Item, Module, StructType, Term, TypeField};
 use pretty::{DocAllocator, DocBuilder};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -9,7 +9,7 @@ pub enum Prec {
     Atomic,
 }
 
-pub fn pretty_module<'a, D>(alloc: &'a D, module: &'a Module) -> DocBuilder<'a, D>
+pub fn from_module<'a, D>(alloc: &'a D, module: &'a Module) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
@@ -21,7 +21,7 @@ where
             alloc.hardline(),
         )),
     };
-    let items = module.items.iter().map(|item| pretty_item(alloc, item));
+    let items = module.items.iter().map(|item| from_item(alloc, item));
 
     (alloc.nil())
         .append(alloc.intersperse(
@@ -31,18 +31,18 @@ where
         .append(alloc.hardline())
 }
 
-pub fn pretty_item<'a, D>(alloc: &'a D, item: &'a Item) -> DocBuilder<'a, D>
+pub fn from_item<'a, D>(alloc: &'a D, item: &'a Item) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
     match item {
-        Item::Alias(alias) => pretty_alias(alloc, alias),
-        Item::Struct(struct_ty) => pretty_struct_ty(alloc, struct_ty),
+        Item::Alias(alias) => from_alias(alloc, alias),
+        Item::Struct(struct_ty) => from_struct_ty(alloc, struct_ty),
     }
 }
 
-pub fn pretty_alias<'a, D>(alloc: &'a D, alias: &'a Alias) -> DocBuilder<'a, D>
+pub fn from_alias<'a, D>(alloc: &'a D, alias: &'a Alias) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
@@ -62,14 +62,14 @@ where
         .append(
             (alloc.nil())
                 .append(alloc.space())
-                .append(pretty_term_prec(alloc, &alias.term, Prec::Term))
+                .append(from_term_prec(alloc, &alias.term, Prec::Term))
                 .group()
                 .append(";")
                 .nest(4),
         )
 }
 
-pub fn pretty_struct_ty<'a, D>(alloc: &'a D, struct_ty: &'a StructType) -> DocBuilder<'a, D>
+pub fn from_struct_ty<'a, D>(alloc: &'a D, struct_ty: &'a StructType) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
@@ -96,7 +96,7 @@ where
             .append(alloc.concat(struct_ty.fields.iter().map(|field| {
                 (alloc.nil())
                     .append(alloc.hardline())
-                    .append(pretty_ty_field(alloc, field))
+                    .append(from_ty_field(alloc, field))
                     .nest(4)
                     .group()
             })))
@@ -107,7 +107,7 @@ where
     (alloc.nil()).append(docs).append(struct_ty)
 }
 
-pub fn pretty_ty_field<'a, D>(alloc: &'a D, ty_field: &'a TypeField) -> DocBuilder<'a, D>
+pub fn from_ty_field<'a, D>(alloc: &'a D, ty_field: &'a TypeField) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
@@ -130,12 +130,12 @@ where
         .append(
             (alloc.nil())
                 .append(alloc.space())
-                .append(pretty_term_prec(alloc, &ty_field.term, Prec::Term))
+                .append(from_term_prec(alloc, &ty_field.term, Prec::Term))
                 .append(","),
         )
 }
 
-pub fn pretty_constant<'a, D>(alloc: &'a D, constant: &'a Constant) -> DocBuilder<'a, D>
+pub fn from_constant<'a, D>(alloc: &'a D, constant: &'a Constant) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
@@ -168,15 +168,15 @@ where
     }
 }
 
-pub fn pretty_term<'a, D>(alloc: &'a D, term: &'a Term) -> DocBuilder<'a, D>
+pub fn from_term<'a, D>(alloc: &'a D, term: &'a Term) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
-    pretty_term_prec(alloc, term, Prec::Term)
+    from_term_prec(alloc, term, Prec::Term)
 }
 
-pub fn pretty_term_prec<'a, D>(alloc: &'a D, term: &'a Term, prec: Prec) -> DocBuilder<'a, D>
+pub fn from_term_prec<'a, D>(alloc: &'a D, term: &'a Term, prec: Prec) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
@@ -190,62 +190,62 @@ where
             .append("item")
             .append(alloc.space())
             .append(alloc.as_string(name)),
-        Term::Ann(term, ty) => pretty_paren(
+        Term::Ann(term, ty) => paren(
             alloc,
             prec > Prec::Term,
             (alloc.nil())
-                .append(pretty_term_prec(alloc, term, Prec::Arrow))
+                .append(from_term_prec(alloc, term, Prec::Arrow))
                 .append(alloc.space())
                 .append(":")
                 .group()
                 .append(
                     (alloc.space())
-                        .append(pretty_term_prec(alloc, ty, Prec::Term))
+                        .append(from_term_prec(alloc, ty, Prec::Term))
                         .group()
                         .nest(4),
                 ),
         ),
         Term::TypeType(_) => alloc.text("Type"),
-        Term::FunctionType(param_type, body_type) => pretty_paren(
+        Term::FunctionType(param_type, body_type) => paren(
             alloc,
             prec > Prec::Arrow,
             (alloc.nil())
-                .append(pretty_term_prec(alloc, param_type, Prec::App))
+                .append(from_term_prec(alloc, param_type, Prec::App))
                 .append(alloc.space())
                 .append("->")
                 .append(alloc.space())
-                .append(pretty_term_prec(alloc, body_type, Prec::Arrow)),
+                .append(from_term_prec(alloc, body_type, Prec::Arrow)),
         ),
-        Term::FunctionElim(head, argument) => pretty_paren(
+        Term::FunctionElim(head, argument) => paren(
             alloc,
             prec > Prec::App,
             (alloc.nil())
-                .append(pretty_term_prec(alloc, head, Prec::Atomic))
+                .append(from_term_prec(alloc, head, Prec::Atomic))
                 .append(
                     (alloc.space())
-                        .append(pretty_term_prec(alloc, argument, Prec::Atomic))
+                        .append(from_term_prec(alloc, argument, Prec::Atomic))
                         .group()
                         .nest(4),
                 ),
         ),
-        Term::Constant(_, constant) => pretty_constant(alloc, constant),
+        Term::Constant(_, constant) => from_constant(alloc, constant),
         Term::BoolElim(_, head, if_true, if_false) => (alloc.nil())
             .append("bool_elim")
             .append(alloc.space())
-            .append(pretty_term_prec(alloc, head, Prec::Term))
+            .append(from_term_prec(alloc, head, Prec::Term))
             .append(alloc.space())
             .append("{")
             .append(alloc.space())
-            .append(pretty_term_prec(alloc, if_true, Prec::Term))
+            .append(from_term_prec(alloc, if_true, Prec::Term))
             .append(",")
             .append(alloc.space())
-            .append(pretty_term_prec(alloc, if_false, Prec::Term))
+            .append(from_term_prec(alloc, if_false, Prec::Term))
             .append(alloc.space())
             .append("}"),
         Term::IntElim(_, head, branches, default) => (alloc.nil())
             .append("int_elim")
             .append(alloc.space())
-            .append(pretty_term_prec(alloc, head, Prec::Term))
+            .append(from_term_prec(alloc, head, Prec::Term))
             .append(alloc.space())
             .append("{")
             .append(alloc.concat(branches.iter().map(|(value, term)| {
@@ -255,11 +255,11 @@ where
                     .append(alloc.space())
                     .append("=>")
                     .append(alloc.space())
-                    .append(pretty_term_prec(alloc, term, Prec::Term))
+                    .append(from_term_prec(alloc, term, Prec::Term))
                     .append(",")
             })))
             .append(alloc.space())
-            .append(pretty_term_prec(alloc, default, Prec::Term))
+            .append(from_term_prec(alloc, default, Prec::Term))
             .append(alloc.space())
             .append("}"),
         Term::FormatType(_) => alloc.text("Format"),
@@ -267,7 +267,7 @@ where
     }
 }
 
-fn pretty_paren<'a, D>(alloc: &'a D, b: bool, doc: DocBuilder<'a, D>) -> DocBuilder<'a, D>
+fn paren<'a, D>(alloc: &'a D, b: bool, doc: DocBuilder<'a, D>) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,

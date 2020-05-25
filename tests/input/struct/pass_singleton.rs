@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_rt::{FormatWriter, ReadError, ReadScope, U8};
-use ddl_test_util::ddl::{binary, core};
+use ddl_test_util::ddl::ast::core::{self, binary};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
@@ -36,7 +36,7 @@ fn valid_singleton() {
     let singleton = read_scope.read::<fixture::Byte>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(singleton.inner(), 31);
 
@@ -65,7 +65,7 @@ fn valid_singleton_trailing() {
     let singleton = read_scope.read::<fixture::Byte>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::read_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(singleton.inner(), 255);
 

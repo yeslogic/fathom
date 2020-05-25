@@ -6,24 +6,25 @@
 
 use std::ops::Range;
 
-use crate::{core, literal, surface};
+use crate::ast::{core, surface};
+use crate::literal;
 
 // TODO: name/keyword avoidance!
 
-pub fn delaborate_module(module: &core::Module) -> surface::Module {
+pub fn from_module(module: &core::Module) -> surface::Module {
     surface::Module {
         file_id: module.file_id,
         doc: module.doc.clone(),
-        items: module.items.iter().map(delaborate_item).collect(),
+        items: module.items.iter().map(from_item).collect(),
     }
 }
 
-pub fn delaborate_item(item: &core::Item) -> surface::Item {
+pub fn from_item(item: &core::Item) -> surface::Item {
     match item {
         core::Item::Alias(alias) => {
             let (term, ty) = match alias.term.as_ref() {
-                core::Term::Ann(term, ty) => (delaborate_term(term), Some(delaborate_term(ty))),
-                term => (delaborate_term(term), None),
+                core::Term::Ann(term, ty) => (from_term(term), Some(from_term(ty))),
+                term => (from_term(term), None),
             };
 
             surface::Item::Alias(surface::Alias {
@@ -46,7 +47,7 @@ pub fn delaborate_item(item: &core::Item) -> surface::Item {
                         doc: ty_field.doc.clone(),
                         // TODO: use `ty_field.start`
                         name: (0..0, ty_field.name.to_string()),
-                        term: delaborate_term(&ty_field.term),
+                        term: from_term(&ty_field.term),
                     }
                 })
                 .collect(),
@@ -54,45 +55,43 @@ pub fn delaborate_item(item: &core::Item) -> surface::Item {
     }
 }
 
-pub fn delaborate_term(term: &core::Term) -> surface::Term {
+pub fn from_term(term: &core::Term) -> surface::Term {
     match term {
         core::Term::Global(range, name) => surface::Term::Name(range.clone(), name.to_string()),
         core::Term::Item(range, name) => surface::Term::Name(range.clone(), name.to_string()),
-        core::Term::Ann(term, ty) => surface::Term::Ann(
-            Box::new(delaborate_term(term)),
-            Box::new(delaborate_term(ty)),
-        ),
+        core::Term::Ann(term, ty) => {
+            surface::Term::Ann(Box::new(from_term(term)), Box::new(from_term(ty)))
+        }
         core::Term::TypeType(range) => surface::Term::TypeType(range.clone()),
-        core::Term::FunctionType(param_ty, body_ty) => surface::Term::FunctionType(
-            Box::new(delaborate_term(param_ty)),
-            Box::new(delaborate_term(body_ty)),
-        ),
+        core::Term::FunctionType(param_ty, body_ty) => {
+            surface::Term::FunctionType(Box::new(from_term(param_ty)), Box::new(from_term(body_ty)))
+        }
         core::Term::FunctionElim(head, argument) => surface::Term::FunctionElim(
-            Box::new(delaborate_term(head)),
-            vec![delaborate_term(argument)], // TODO: flatten arguments
+            Box::new(from_term(head)),
+            vec![from_term(argument)], // TODO: flatten arguments
         ),
-        core::Term::Constant(range, constant) => delaborate_constant(range.clone(), constant),
+        core::Term::Constant(range, constant) => from_constant(range.clone(), constant),
         core::Term::BoolElim(range, head, if_true, if_false) => surface::Term::If(
             range.clone(),
-            Box::new(delaborate_term(head)),
-            Box::new(delaborate_term(if_true)),
-            Box::new(delaborate_term(if_false)),
+            Box::new(from_term(head)),
+            Box::new(from_term(if_true)),
+            Box::new(from_term(if_false)),
         ),
         core::Term::IntElim(range, head, branches, default) => surface::Term::Match(
             range.clone(),
-            Box::new(delaborate_term(head)),
+            Box::new(from_term(head)),
             branches
                 .iter()
                 .map(|(value, term)| {
                     let value = literal::Number::from_signed(0..0, value);
                     (
                         surface::Pattern::NumberLiteral(0..0, value),
-                        delaborate_term(term),
+                        from_term(term),
                     )
                 })
                 .chain(std::iter::once((
                     surface::Pattern::Name(0..0, "_".to_owned()),
-                    delaborate_term(default),
+                    from_term(default),
                 )))
                 .collect(),
         ),
@@ -101,7 +100,7 @@ pub fn delaborate_term(term: &core::Term) -> surface::Term {
     }
 }
 
-pub fn delaborate_constant(range: Range<usize>, constant: &core::Constant) -> surface::Term {
+pub fn from_constant(range: Range<usize>, constant: &core::Constant) -> surface::Term {
     match constant {
         core::Constant::Int(value) => {
             surface::Term::NumberLiteral(range.clone(), literal::Number::from_signed(range, value))

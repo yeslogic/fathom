@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_rt::{FormatWriter, ReadError, ReadScope, U32Be, U8};
-use ddl_test_util::ddl::{binary, core};
+use ddl_test_util::ddl::ast::core::{self, binary};
 
 #[path = "../../snapshots/alias/pass_format_array.rs"]
 pub mod fixture;
@@ -40,7 +40,7 @@ fn valid_test() {
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let simple_array_term =
-        binary::read::read_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
+        binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
     assert_eq!(simple_array.inner(), &[1, 2, 3, 4, 5, 6]);
     assert_eq!(
         simple_array_term,
@@ -95,7 +95,7 @@ fn valid_test_trailing() {
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let simple_array_term =
-        binary::read::read_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
+        binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
     assert_eq!(simple_array.inner(), &[1, 2, 3, 4, 5, 6]);
     assert_eq!(
         simple_array_term,

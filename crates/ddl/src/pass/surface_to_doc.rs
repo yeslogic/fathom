@@ -4,11 +4,11 @@ use std::collections::HashMap;
 use std::io;
 use std::io::prelude::*;
 
-use crate::surface;
-use crate::surface::pretty::Prec;
+use crate::ast::surface;
+use crate::pass::surface_to_pretty::Prec;
 
 #[allow(clippy::write_literal)]
-pub fn compile_module(
+pub fn from_module(
     writer: &mut impl Write,
     module: &surface::Module,
     report: &mut dyn FnMut(Diagnostic<usize>),
@@ -44,13 +44,13 @@ pub fn compile_module(
         pkg_name = env!("CARGO_PKG_NAME"),
         pkg_version = env!("CARGO_PKG_VERSION"),
         module_name = "", // TODO: module name
-        minireset = include_str!("./doc/minireset.min.css").trim(),
-        style = include_str!("./doc/style.css").trim(),
+        minireset = include_str!("./surface_to_doc/minireset.min.css").trim(),
+        style = include_str!("./surface_to_doc/style.css").trim(),
     )?;
 
     if !module.doc.is_empty() {
         writeln!(writer, r##"      <section class="doc">"##)?;
-        compile_doc_lines(writer, "        ", &module.doc)?;
+        from_doc_lines(writer, "        ", &module.doc)?;
         writeln!(writer, r##"      </section>"##)?;
     }
 
@@ -58,9 +58,9 @@ pub fn compile_module(
 
     for item in &module.items {
         let (name, item) = match item {
-            surface::Item::Alias(alias) => compile_alias(&context, writer, alias, report)?,
+            surface::Item::Alias(alias) => from_alias(&context, writer, alias, report)?,
             surface::Item::Struct(struct_ty) => {
-                compile_struct_ty(&context, writer, struct_ty, report)?
+                from_struct_ty(&context, writer, struct_ty, report)?
             }
         };
 
@@ -88,7 +88,7 @@ struct Item {
     id: String,
 }
 
-fn compile_alias(
+fn from_alias(
     context: &ModuleContext,
     writer: &mut impl Write,
     alias: &surface::Alias,
@@ -114,7 +114,7 @@ fn compile_alias(
             r##"          <a href="#{id}">{name}</a> : {ty}"##,
             id = id,
             name = name,
-            ty = compile_term_prec(context, ty, Prec::Term, report),
+            ty = from_term_prec(context, ty, Prec::Term, report),
         )?,
     }
     write!(
@@ -126,11 +126,11 @@ fn compile_alias(
 
     if !alias.doc.is_empty() {
         writeln!(writer, r##"          <section class="doc">"##)?;
-        compile_doc_lines(writer, "            ", &alias.doc)?;
+        from_doc_lines(writer, "            ", &alias.doc)?;
         writeln!(writer, r##"          </section>"##)?;
     }
 
-    let term = compile_term_prec(context, &alias.term, Prec::Term, report);
+    let term = from_term_prec(context, &alias.term, Prec::Term, report);
 
     write!(
         writer,
@@ -145,7 +145,7 @@ fn compile_alias(
     Ok((name.clone(), Item { id }))
 }
 
-fn compile_struct_ty(
+fn from_struct_ty(
     context: &ModuleContext,
     writer: &mut impl Write,
     struct_ty: &surface::StructType,
@@ -167,7 +167,7 @@ fn compile_struct_ty(
 
     if !struct_ty.doc.is_empty() {
         writeln!(writer, r##"          <section class="doc">"##)?;
-        compile_doc_lines(writer, "            ", &struct_ty.doc)?;
+        from_doc_lines(writer, "            ", &struct_ty.doc)?;
         writeln!(writer, r##"          </section>"##)?;
     }
 
@@ -176,7 +176,7 @@ fn compile_struct_ty(
         for field in &struct_ty.fields {
             let (_, field_name) = &field.name;
             let field_id = format!("{}.fields[{}]", id, field_name);
-            let ty = compile_term_prec(context, &field.term, Prec::Term, report);
+            let ty = from_term_prec(context, &field.term, Prec::Term, report);
 
             write!(
                 writer,
@@ -190,7 +190,7 @@ fn compile_struct_ty(
                 name = field_name,
                 ty = ty,
             )?;
-            compile_doc_lines(writer, "                ", &field.doc)?;
+            from_doc_lines(writer, "                ", &field.doc)?;
             write!(
                 writer,
                 r##"              </section>
@@ -206,7 +206,7 @@ fn compile_struct_ty(
     Ok((name.clone(), Item { id }))
 }
 
-fn compile_term_prec<'term>(
+fn from_term_prec<'term>(
     context: &ModuleContext,
     term: &'term surface::Term,
     prec: Prec,
@@ -228,16 +228,16 @@ fn compile_term_prec<'term>(
             "{lparen}{term} : {ty}{rparen}",
             lparen = if prec > Prec::Term { "(" } else { "" },
             rparen = if prec > Prec::Term { ")" } else { "" },
-            term = compile_term_prec(context, term, Prec::Arrow, report),
-            ty = compile_term_prec(context, ty, Prec::Term, report),
+            term = from_term_prec(context, term, Prec::Arrow, report),
+            ty = from_term_prec(context, ty, Prec::Term, report),
         )
         .into(),
         surface::Term::FunctionType(param_type, body_type) => format!(
             "{lparen}{param_type} &rarr; {body_type}{rparen}",
             lparen = if prec > Prec::Arrow { "(" } else { "" },
             rparen = if prec > Prec::Arrow { ")" } else { "" },
-            param_type = compile_term_prec(context, param_type, Prec::App, report),
-            body_type = compile_term_prec(context, body_type, Prec::Arrow, report),
+            param_type = from_term_prec(context, param_type, Prec::App, report),
+            body_type = from_term_prec(context, body_type, Prec::Arrow, report),
         )
         .into(),
         surface::Term::FunctionElim(head, arguments) => format!(
@@ -245,10 +245,10 @@ fn compile_term_prec<'term>(
             "{lparen}{head} {arguments}{rparen}",
             lparen = if prec > Prec::App { "(" } else { "" },
             rparen = if prec > Prec::App { ")" } else { "" },
-            head = compile_term_prec(context, head, Prec::Atomic, report),
+            head = from_term_prec(context, head, Prec::Atomic, report),
             arguments = arguments
                 .iter()
-                .map(|argument| compile_term_prec(context, argument, Prec::Atomic, report))
+                .map(|argument| from_term_prec(context, argument, Prec::Atomic, report))
                 .format(" "),
         )
         .into(),
@@ -256,21 +256,21 @@ fn compile_term_prec<'term>(
         surface::Term::If(_, head, if_true, if_false) => format!(
             // TODO: multiline formatting!
             "if {head} {{ {if_true} }} else {{ {if_false} }}",
-            head = compile_term_prec(context, head, Prec::Term, report),
-            if_true = compile_term_prec(context, if_true, Prec::Term, report),
-            if_false = compile_term_prec(context, if_false, Prec::Term, report),
+            head = from_term_prec(context, head, Prec::Term, report),
+            if_true = from_term_prec(context, if_true, Prec::Term, report),
+            if_false = from_term_prec(context, if_false, Prec::Term, report),
         )
         .into(),
         surface::Term::Match(_, head, branches) => format!(
             // TODO: multiline formatting!
             "match {head} {{ {branches} }}",
-            head = compile_term_prec(context, head, Prec::Term, report),
+            head = from_term_prec(context, head, Prec::Term, report),
             branches = branches
                 .iter()
                 .map(|(pattern, term)| format!(
                     "{pattern} &rArr; {term}",
-                    pattern = compile_pattern(context, pattern),
-                    term = compile_term_prec(context, term, Prec::Term, report),
+                    pattern = from_pattern(context, pattern),
+                    term = from_term_prec(context, term, Prec::Term, report),
                 ))
                 .format(", "),
         )
@@ -280,7 +280,7 @@ fn compile_term_prec<'term>(
     }
 }
 
-fn compile_pattern<'term>(
+fn from_pattern<'term>(
     _context: &ModuleContext,
     pattern: &'term surface::Pattern,
 ) -> Cow<'term, str> {
@@ -290,11 +290,7 @@ fn compile_pattern<'term>(
     }
 }
 
-fn compile_doc_lines(
-    writer: &mut impl Write,
-    prefix: &str,
-    doc_lines: &[String],
-) -> io::Result<()> {
+fn from_doc_lines(writer: &mut impl Write, prefix: &str, doc_lines: &[String]) -> io::Result<()> {
     // TODO: parse markdown
 
     for doc_line in doc_lines.iter() {

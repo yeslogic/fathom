@@ -10,7 +10,7 @@ pub use lazy_static;
 macro_rules! core_module {
     ($IDENT:ident, $path:literal) => {
         $crate::lazy_static::lazy_static! {
-            static ref $IDENT: $crate::ddl::core::Module = {
+            static ref $IDENT: $crate::ddl::ast::core::Module = {
                 use std::fs;
 
                 let mut files = $crate::codespan_reporting::files::SimpleFiles::new();
@@ -19,7 +19,7 @@ macro_rules! core_module {
 
                 let keywords = &$crate::ddl::lexer::CORE_KEYWORDS;
                 let lexer = $crate::ddl::lexer::Lexer::new(&files, file_id, keywords);
-                $crate::ddl::core::Module::parse(file_id, lexer, &mut |_| {}) // FIXME: Log syntax errors?
+                $crate::ddl::ast::core::Module::parse(file_id, lexer, &mut |_| {}) // FIXME: Log syntax errors?
             };
         }
     };

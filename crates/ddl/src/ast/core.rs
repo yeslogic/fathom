@@ -11,13 +11,12 @@ use crate::{diagnostics, ieee754};
 
 #[allow(clippy::style, clippy::complexity, clippy::perf)]
 mod grammar {
-    include!(concat!(env!("OUT_DIR"), "/core/grammar.rs"));
+    include!(concat!(env!("OUT_DIR"), "/ast/core/grammar.rs"));
 }
 
-pub mod compile;
-pub mod pretty;
+pub mod binary;
 pub mod semantics;
-pub mod validate;
+pub mod typing;
 
 /// A module of items.
 #[derive(Debug, Clone)]
