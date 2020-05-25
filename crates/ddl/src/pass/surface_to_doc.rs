@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::io;
 use std::io::prelude::*;
 
-use crate::surface;
-use crate::surface::pretty::Prec;
+use crate::ast::surface;
+use crate::pass::surface_to_pretty::Prec;
 
 #[allow(clippy::write_literal)]
 pub fn compile_module(
@@ -44,8 +44,8 @@ pub fn compile_module(
         pkg_name = env!("CARGO_PKG_NAME"),
         pkg_version = env!("CARGO_PKG_VERSION"),
         module_name = "", // TODO: module name
-        minireset = include_str!("./doc/minireset.min.css").trim(),
-        style = include_str!("./doc/style.css").trim(),
+        minireset = include_str!("./surface_to_doc/minireset.min.css").trim(),
+        style = include_str!("./surface_to_doc/style.css").trim(),
     )?;
 
     if !module.doc.is_empty() {

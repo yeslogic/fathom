@@ -2,6 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, LabelStyle, Severity};
 use codespan_reporting::files::{Files, SimpleFiles};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
+use ddl::pass::{core_to_pretty, core_to_rust, core_to_surface, surface_to_core, surface_to_doc};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -38,7 +39,7 @@ lazy_static::lazy_static! {
     static ref INPUT_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("input");
     static ref SNAPSHOTS_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("snapshots");
 
-    static ref GLOBALS: ddl::core::Globals = ddl::core::Globals::default();
+    static ref GLOBALS: ddl::ast::core::Globals = ddl::ast::core::Globals::default();
 }
 
 pub fn run_integration_test(test_name: &str, ddl_path: &str) {
@@ -58,7 +59,7 @@ pub fn run_integration_test(test_name: &str, ddl_path: &str) {
     let surface_module = test.parse_surface(&files);
     test.compile_doc(&surface_module);
     let core_module = test.elaborate(&files, &surface_module);
-    test.roundtrip_delaborate_core(&files, &core_module);
+    test.roundtrip_surface_to_core(&files, &core_module);
     test.roundtrip_pretty_core(&mut files, &core_module);
     test.compile_rust(&core_module);
 
@@ -126,10 +127,10 @@ impl Test {
         }
     }
 
-    fn parse_surface(&mut self, files: &SimpleFiles<String, String>) -> ddl::surface::Module {
+    fn parse_surface(&mut self, files: &SimpleFiles<String, String>) -> ddl::ast::surface::Module {
         let keywords = &ddl::lexer::SURFACE_KEYWORDS;
         let lexer = ddl::lexer::Lexer::new(files, self.input_ddl_file_id, keywords);
-        ddl::surface::Module::parse(self.input_ddl_file_id, lexer, &mut |d| {
+        ddl::ast::surface::Module::parse(self.input_ddl_file_id, lexer, &mut |d| {
             self.found_diagnostics.push(d)
         })
     }
@@ -137,16 +138,15 @@ impl Test {
     fn elaborate(
         &mut self,
         files: &SimpleFiles<String, String>,
-        surface_module: &ddl::surface::Module,
-    ) -> ddl::core::Module {
-        let core_module =
-            ddl::surface::elaborate::elaborate_module(&GLOBALS, &surface_module, &mut |d| {
-                self.found_diagnostics.push(d)
-            });
+        surface_module: &ddl::ast::surface::Module,
+    ) -> ddl::ast::core::Module {
+        let core_module = surface_to_core::elaborate_module(&GLOBALS, &surface_module, &mut |d| {
+            self.found_diagnostics.push(d)
+        });
 
         // The core syntax from the elaborator should always be well-formed!
         let mut validation_diagnostics = Vec::new();
-        ddl::core::typing::validate_module(&GLOBALS, &core_module, &mut |d| {
+        ddl::ast::core::typing::validate_module(&GLOBALS, &core_module, &mut |d| {
             validation_diagnostics.push(d)
         });
         if !validation_diagnostics.is_empty() {
@@ -167,28 +167,28 @@ impl Test {
         core_module
     }
 
-    fn roundtrip_delaborate_core(
+    fn roundtrip_surface_to_core(
         &mut self,
         files: &SimpleFiles<String, String>,
-        core_module: &ddl::core::Module,
+        core_module: &ddl::ast::core::Module,
     ) {
         let mut elaboration_diagnostics = Vec::new();
-        let delaborated_core_module = ddl::surface::elaborate::elaborate_module(
+        let delaborated_core_module = surface_to_core::elaborate_module(
             &GLOBALS,
-            &ddl::surface::delaborate::delaborate_module(core_module),
+            &core_to_surface::delaborate_module(core_module),
             &mut |d| elaboration_diagnostics.push(d),
         );
 
         if !elaboration_diagnostics.is_empty() {
             self.failed_checks
-                .push("roundtrip_delaborate_core: elaborate surface");
+                .push("roundtrip_surface_to_core: elaborate surface");
 
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
             for diagnostic in &elaboration_diagnostics {
                 term::emit(&mut buffer, &self.term_config, files, diagnostic).unwrap();
             }
 
-            eprintln!("  • roundtrip_delaborate_core: elaborate surface");
+            eprintln!("  • roundtrip_surface_to_core: elaborate surface");
             eprintln!();
             eprintln_indented(4, "", "---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
@@ -199,27 +199,28 @@ impl Test {
             let arena = pretty::Arena::new();
 
             let pretty_core_module = {
-                let pretty::DocBuilder(_, doc) =
-                    ddl::core::pretty::pretty_module(&arena, core_module);
+                let pretty::DocBuilder(_, doc) = core_to_pretty::pretty_module(&arena, core_module);
                 doc.pretty(100).to_string()
             };
             let pretty_delaborated_core_module = {
                 let pretty::DocBuilder(_, doc) =
-                    ddl::core::pretty::pretty_module(&arena, &delaborated_core_module);
+                    core_to_pretty::pretty_module(&arena, &delaborated_core_module);
                 doc.pretty(100).to_string()
             };
 
             self.failed_checks
-                .push("roundtrip_delaborate_core: core != elaborate(delaborate(core))");
+                .push("roundtrip_surface_to_core: core != surface_to_core(core_to_surface(core))");
 
-            eprintln!("  • roundtrip_delaborate_core: core != elaborate(delaborate(core))");
+            eprintln!(
+                "  • roundtrip_surface_to_core: core != surface_to_core(core_to_surface(core))",
+            );
             eprintln!();
             eprintln_indented(4, "", "---- core ----");
             for line in pretty_core_module.lines() {
                 eprintln_indented(4, "| ", line);
             }
             eprintln!();
-            eprintln_indented(4, "", "---- elaborate(delaborate(core)) ----");
+            eprintln_indented(4, "", "---- surface_to_core(core_to_surface(core)) ----");
             for line in pretty_delaborated_core_module.lines() {
                 eprintln_indented(4, "| ", line);
             }
@@ -230,12 +231,12 @@ impl Test {
     fn roundtrip_pretty_core(
         &mut self,
         files: &mut SimpleFiles<String, String>,
-        core_module: &ddl::core::Module,
+        core_module: &ddl::ast::core::Module,
     ) {
         let arena = pretty::Arena::new();
 
         let pretty_core_module = {
-            let pretty::DocBuilder(_, doc) = ddl::core::pretty::pretty_module(&arena, core_module);
+            let pretty::DocBuilder(_, doc) = core_to_pretty::pretty_module(&arena, core_module);
             doc.pretty(100).to_string()
         };
 
@@ -260,11 +261,13 @@ impl Test {
         let parsed_core_module = {
             let keywords = &ddl::lexer::CORE_KEYWORDS;
             let lexer = ddl::lexer::Lexer::new(files, core_file_id, keywords);
-            ddl::core::Module::parse(core_file_id, lexer, &mut |d| core_parse_diagnostics.push(d))
+            ddl::ast::core::Module::parse(core_file_id, lexer, &mut |d| {
+                core_parse_diagnostics.push(d)
+            })
         };
         let pretty_parsed_core_module = {
             let pretty::DocBuilder(_, doc) =
-                ddl::core::pretty::pretty_module(&arena, &parsed_core_module);
+                core_to_pretty::pretty_module(&arena, &parsed_core_module);
             doc.pretty(100).to_string()
         };
 
@@ -302,13 +305,12 @@ impl Test {
         }
     }
 
-    fn compile_rust(&mut self, core_module: &ddl::core::Module) {
+    fn compile_rust(&mut self, core_module: &ddl::ast::core::Module) {
         let mut output = Vec::new();
-        let rust_module =
-            ddl::core::compile::rust::compile_module(&GLOBALS, core_module, &mut |d| {
-                self.found_diagnostics.push(d);
-            });
-        ddl::rust::emit::emit_module(&mut output, &rust_module).unwrap();
+        let rust_module = core_to_rust::compile_module(&GLOBALS, core_module, &mut |d| {
+            self.found_diagnostics.push(d);
+        });
+        ddl::ast::rust::emit::emit_module(&mut output, &rust_module).unwrap();
         let snapshot_rs_path = self.snapshot_filename.with_extension("rs");
 
         if let Err(error) = snapshot::compare(&snapshot_rs_path, &output) {
@@ -441,9 +443,9 @@ impl Test {
         }
     }
 
-    fn compile_doc(&mut self, surface_module: &ddl::surface::Module) {
+    fn compile_doc(&mut self, surface_module: &ddl::ast::surface::Module) {
         let mut output = Vec::new();
-        ddl::surface::compile::doc::compile_module(&mut output, surface_module, &mut |d| {
+        surface_to_doc::compile_module(&mut output, surface_module, &mut |d| {
             self.found_diagnostics.push(d)
         })
         .unwrap();

@@ -1,4 +1,4 @@
-use crate::core::{Alias, Constant, Item, Module, StructType, Term, TypeField};
+use crate::ast::core::{Alias, Constant, Item, Module, StructType, Term, TypeField};
 use pretty::{DocAllocator, DocBuilder};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

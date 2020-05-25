@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::{Constant, Elim, Globals, Head, Item, Term, Value};
+use crate::ast::core::{Constant, Elim, Globals, Head, Item, Term, Value};
 
 /// Evaluate a term into a semantic value.
 pub fn eval(

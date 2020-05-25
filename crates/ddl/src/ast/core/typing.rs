@@ -7,7 +7,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::{semantics, Constant, Globals, Item, Module, Term, TypeField, Value};
+use crate::ast::core::{semantics, Constant, Globals, Item, Module, Term, TypeField, Value};
 use crate::diagnostics;
 
 /// Validate a module.

@@ -8,14 +8,9 @@ use crate::diagnostics;
 use crate::lexer::SpannedToken;
 use crate::literal;
 
-pub mod compile;
-pub mod delaborate;
-pub mod elaborate;
-pub mod pretty;
-
 #[allow(clippy::style, clippy::complexity, clippy::perf)]
 mod grammar {
-    include!(concat!(env!("OUT_DIR"), "/surface/grammar.rs"));
+    include!(concat!(env!("OUT_DIR"), "/ast/surface/grammar.rs"));
 }
 
 /// A module of items.

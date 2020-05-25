@@ -15,7 +15,8 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::{core, diagnostics, surface};
+use crate::ast::{core, surface};
+use crate::diagnostics;
 
 /// Elaborate a module in the surface syntax into the core syntax.
 pub fn elaborate_module(

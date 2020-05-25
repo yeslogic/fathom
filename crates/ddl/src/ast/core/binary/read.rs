@@ -3,8 +3,8 @@ use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
-use crate::core::binary::Term;
-use crate::core::{semantics, Constant, Elim, Globals, Head, Item, Module, StructType, Value};
+use crate::ast::core::binary::Term;
+use crate::ast::core::{semantics, Constant, Elim, Globals, Head, Item, Module, StructType, Value};
 
 /// Contextual information to be used when parsing items.
 pub struct Context<'me> {

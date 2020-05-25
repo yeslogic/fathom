@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_rt::{F64Le, FormatWriter, ReadError, ReadScope, U8};
-use ddl_test_util::ddl::core::{self, binary};
+use ddl_test_util::ddl::ast::core::{self, binary};
 
 #[path = "../../snapshots/alias/pass_match_int_format_type_item.rs"]
 pub mod fixture;
