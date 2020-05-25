@@ -41,25 +41,25 @@
 
 
         add_local : context -> semantics.value -> semantics.value -> context -> prop.
-        add_local (context Entries) Value Type (context (( Value, Type ) :: Entries)).
+        add_local (context Entries) Elem Type (context (( Elem, Type ) :: Entries)).
 
 
         add_param : context -> semantics.value -> context -> prop.
         add_param Context Type Context' :-
-            next_local Context LocalTerm,
-            add_local Context LocalTerm Type Context'.
+            next_local Context LocalElem,
+            add_local Context LocalElem Type Context'.
 
 
         eval : context -> term -> semantics.value -> prop.
-        eval Context Term Value :-
+        eval Context Elem Elem' :-
             values Context Values,
-            semantics.eval Values Term Value.
+            semantics.eval Values Elem Elem'.
 
 
         is_equal : context -> semantics.value -> semantics.value -> prop.
-        is_equal (context Entries) Value1 Value2 :-
+        is_equal (context Entries) Elem1 Elem2 :-
             length Entries Length,
-            semantics.is_equal Length Value1 Value2.
+            semantics.is_equal Length Elem1 Elem2.
 
     %end.
 
@@ -85,8 +85,8 @@
     % ```
 
     % Conversion
-    check_type Context Term Type :-
-        synth_type Context Term Type',
+    check_type Context Elem Type :-
+        synth_type Context Elem Type',
         context.is_equal Context Type Type'.
 
     % Variables
@@ -95,10 +95,10 @@
 
     % Annotated terms
     % FIXME: is_type?
-    synth_type Context (ann Term Type) Type' :-
+    synth_type Context (ann Elem Type) Type' :-
         is_type Context Type,
         context.eval Context Type Type',
-        check_type Context Term Type'.
+        check_type Context Elem Type'.
 
     % Universes
     is_type Context universe.
@@ -119,16 +119,16 @@
         context.eval Context InputType InputType',
         context.add_param Context InputType' Context'.
         is_type Context' OutputType.
-    check_type Context (function_intro OutputTerm) (semantics.function_type InputType Closure) :-
-        context.next_local Context LocalTerm,
-        semantics.apply Closure LocalTerm OutputType,
+    check_type Context (function_intro OutputElem) (semantics.function_type InputType Closure) :-
+        context.next_local Context LocalElem,
+        semantics.apply Closure LocalElem OutputType,
         context.add_param Context InputType Context',
-        check_type Context' OutputTerm OutputType.
-    synth_type Context (function_elim Term InputTerm) OutputType :-
-        synth_type Context Term (semantics.function_type InputType Closure),
-        check_type Context InputTerm InputType,
-        context.eval Context InputTerm InputValue,
-        semantics.apply Closure InputValue OutputType.
+        check_type Context' OutputElem OutputType.
+    synth_type Context (function_elim Elem InputElem) OutputType :-
+        synth_type Context Elem (semantics.function_type InputType Closure),
+        check_type Context InputElem InputType,
+        context.eval Context InputElem InputElem',
+        semantics.apply Closure InputElem' OutputType.
 
     % Pairs
     is_type Context (pair_type FirstType SecondType) :-
@@ -141,27 +141,27 @@
         context.eval Context FirstType FirstType',
         context.add_param Context FirstType' Context',
         check_type Context' SecondType semantics.universe.
-    check_type Context (pair_intro FirstTerm SecondTerm) (semantics.pair_type FirstType Closure) :-
-        check_type Context FirstTerm FirstType,
-        context.eval Context FirstTerm FirstValue,
-        context.add_local Context FirstValue FirstType Context',
-        semantics.apply Closure FirstValue SecondType,
-        check_type Context' SecondTerm SecondType.
-    synth_type Context (pair_elim_first PairTerm) FirstType :-
-        synth_type Context PairTerm (semantics.pair_type FirstType _).
-    synth_type Context (pair_elim_second PairTerm) SecondType :-
-        synth_type Context PairTerm (semantics.pair_type _ Closure),
-        context.eval Context (pair_elim_first PairTerm) FirstValue,
-        semantics.apply Closure FirstValue SecondType.
+    check_type Context (pair_intro FirstElem SecondElem) (semantics.pair_type FirstType Closure) :-
+        check_type Context FirstElem FirstType,
+        context.eval Context FirstElem FirstElem',
+        context.add_local Context FirstElem' FirstType Context',
+        semantics.apply Closure FirstElem' SecondType,
+        check_type Context' SecondElem SecondType.
+    synth_type Context (pair_elim_first PairElem) FirstType :-
+        synth_type Context PairElem (semantics.pair_type FirstType _).
+    synth_type Context (pair_elim_second PairElem) SecondType :-
+        synth_type Context PairElem (semantics.pair_type _ Closure),
+        context.eval Context (pair_elim_first PairElem) FirstElem,
+        semantics.apply Closure FirstElem SecondType.
 
     % Booleans
     is_type Context bool_type.
     synth_type Context bool_type semantics.universe.
     synth_type Context (bool_intro _) semantics.bool_type.
-    check_type Context (bool_elim BoolTerm TrueTerm FalseTerm) Type :-
-        check_type Context BoolTerm semantics.bool_type,
-        check_type Context TrueTerm Type,
-        check_type Context FalseTerm Type.
+    check_type Context (bool_elim BoolElem TrueElem FalseElem) Type :-
+        check_type Context BoolElem semantics.bool_type,
+        check_type Context TrueElem Type,
+        check_type Context FalseElem Type.
 
     % Integers
     is_type Context int_type.
@@ -169,19 +169,19 @@
     synth_type Context (int_intro _) semantics.int_type.
 
     % Arrays
-    is_type Context (array_type ElemType LenTerm) :-
-        check_type Context ElemType semantics.universe,
-        check_type Context LenTerm semantics.int_type.
-    synth_type Context (array_type ElemType LenTerm) semantics.universe :-
-        check_type Context ElemType semantics.universe,
-        check_type Context LenTerm semantics.int_type.
-    check_type Context (array_intro ElemTerms) (semantics.array_type ElemType (semantics.int_intro Len)) :-
-        length ElemTerms Len,
-        map (fun elem_term => check_type Context elem_term ElemType) ElemTerms.
-    synth_type Context (array_elim ArrayTerm IndexTerm) ElemType :-
-        % FIXME: ensure `IndexTerm` is in array bounds, possibly with refinement types?
-        synth_type Context ArrayTerm (semantics.array_type ElemType _),
-        check_type Context IndexTerm semantics.int_type.
+    is_type Context (array_type Type LenElem) :-
+        check_type Context Type semantics.universe,
+        check_type Context LenElem semantics.int_type.
+    synth_type Context (array_type Type LenElem) semantics.universe :-
+        check_type Context Type semantics.universe,
+        check_type Context LenElem semantics.int_type.
+    check_type Context (array_intro Elems) (semantics.array_type Type (semantics.int_intro Len)) :-
+        length Elems Len,
+        map (fun elem => check_type Context elem Type) Elems.
+    synth_type Context (array_elim ArrayElem IndexElem) Type :-
+        % FIXME: ensure `IndexElem` is in array bounds, possibly with refinement types?
+        synth_type Context ArrayElem (semantics.array_type Type _),
+        check_type Context IndexElem semantics.int_type.
 
     % Binary format descriptions
     is_type Context format_type.
@@ -200,9 +200,9 @@
     synth_type Context format_intro_s32be semantics.format_type.
     synth_type Context format_intro_s64le semantics.format_type.
     synth_type Context format_intro_s64be semantics.format_type.
-    synth_type Context (format_intro_array ElemType LenTerm) semantics.format_type :-
-        check_type Context ElemType semantics.format_type,
-        check_type Context LenTerm semantics.int_type.
+    synth_type Context (format_intro_array Type LenElem) semantics.format_type :-
+        check_type Context Type semantics.format_type,
+        check_type Context LenElem semantics.int_type.
     synth_type Context (format_intro_pair FirstType SecondType) semantics.format_type :-
         check_type Context FirstType semantics.format_type,
         context.eval Context (format_elim FirstType) FirstType',
@@ -217,15 +217,15 @@
     % Convenience predicates
 
     is_type : term -> prop.
-    is_type Term :-
-        is_type (context []) Term.
+    is_type Elem :-
+        is_type (context []) Elem.
 
     synth_type : term -> semantics.value -> prop.
-    synth_type Term Type :-
-        synth_type (context []) Term Type.
+    synth_type Elem Type :-
+        synth_type (context []) Elem Type.
 
     check_type : term -> semantics.value -> prop.
-    check_type Term Type :-
-        check_type (context []) Term Type.
+    check_type Elem Type :-
+        check_type (context []) Elem Type.
 
 %end.

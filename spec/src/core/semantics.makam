@@ -112,50 +112,50 @@
 
     eval Values (local Index) Value :-
         list.nth Values Index Value.
-    eval Values (ann Term _) Value :-
-        eval Values Term Value.
+    eval Values (ann Elem _) Value :-
+        eval Values Elem Value.
     eval Values universe universe.
     eval Values void_type void_type.
     eval Values unit_type unit_type.
     eval Values unit_intro unit_intro.
     eval Values (function_type InputType OutputType) (function_type InputType' (closure Values OutputType)) :-
         eval Values InputType InputType'.
-    eval Values (function_intro OutputTerm) (function_intro (closure Values OutputTerm)).
-    eval Values (function_elim Term InputTerm) Value' :-
-        eval Values Term Value,
-        eval Values InputTerm InputValue,
+    eval Values (function_intro OutputElem) (function_intro (closure Values OutputElem)).
+    eval Values (function_elim Elem InputElem) Value' :-
+        eval Values Elem Value,
+        eval Values InputElem InputValue,
         function_elim Value InputValue Value'.
     eval Values (pair_type FirstType SecondType) (pair_type FirstType' (closure Values SecondType)) :-
         eval Values FirstType FirstType'.
-    eval Values (pair_intro FirstTerm SecondTerm) (pair_intro FirstValue SecondValue) :-
-        eval Values FirstTerm FirstValue,
-        eval Values SecondTerm SecondValue.
-    eval Values (pair_elim_first PairTerm) FirstValue :-
-        eval Values PairTerm PairValue,
+    eval Values (pair_intro FirstElem SecondElem) (pair_intro FirstValue SecondValue) :-
+        eval Values FirstElem FirstValue,
+        eval Values SecondElem SecondValue.
+    eval Values (pair_elim_first PairElem) FirstValue :-
+        eval Values PairElem PairValue,
         pair_elim_first PairValue FirstValue.
-    eval Values (pair_elim_second PairTerm) SecondValue :-
-        eval Values PairTerm PairValue,
+    eval Values (pair_elim_second PairElem) SecondValue :-
+        eval Values PairElem PairValue,
         pair_elim_second PairValue SecondValue.
     eval Values bool_type bool_type.
     eval Values (bool_intro Bool) (bool_intro Bool).
     % FIXME: This breaks for neutral terms! We should use `bool_elim` here.
-    eval Values (bool_elim BoolTerm TrueTerm _) Value :-
-        eval Values BoolTerm (bool_intro true),
-        eval Values TrueTerm Value.
-    eval Values (bool_elim BoolTerm _ False1Term) Value :-
-        eval Values BoolTerm (bool_intro false),
-        eval Values FalseTerm Value.
+    eval Values (bool_elim BoolElem TrueElem _) Value :-
+        eval Values BoolElem (bool_intro true),
+        eval Values TrueElem Value.
+    eval Values (bool_elim BoolElem _ False1Elem) Value :-
+        eval Values BoolElem (bool_intro false),
+        eval Values FalseElem Value.
     eval Values int_type int_type.
     eval Values (int_intro Int) (int_intro Int).
-    eval Values (array_type ElemType LenTerm) (array_type ElemType' LenValue) :-
+    eval Values (array_type ElemType LenElem) (array_type ElemType' LenValue) :-
         eval Values ElemType ElemType',
-        eval Values LenTerm LenValue.
-    eval Values (array_intro ElemTerms) (array_intro ElemValues) :-
-        map (fun term value => eval Values term value) ElemTerms ElemValues.
+        eval Values LenElem LenValue.
+    eval Values (array_intro Elems) (array_intro ElemValues) :-
+        map (fun term value => eval Values term value) Elems ElemValues.
     % FIXME: This breaks for neutral terms! We should use `array_elim` here.
-    eval Values (array_elim ArrayTerm IndexTerm) ElemValue :-
-        eval Values ArrayTerm (array_intro ElemValues),
-        eval Values IndexTerm (int_intro Index),
+    eval Values (array_elim ArrayElem IndexElem) ElemValue :-
+        eval Values ArrayElem (array_intro ElemValues),
+        eval Values IndexElem (int_intro Index),
         list.nth ElemValues Index ElemValue.
     eval Values format_type format_type.
     eval Values format_intro_void format_intro_void.
@@ -174,19 +174,19 @@
     eval Values format_intro_s32be format_intro_s32be.
     eval Values format_intro_s64le format_intro_s64le.
     eval Values format_intro_s64be format_intro_s64be.
-    eval Values (format_intro_array ElemType LenTerm) (format_intro_array ElemType' LenValue) :-
+    eval Values (format_intro_array ElemType LenElem) (format_intro_array ElemType' LenValue) :-
         eval Values ElemType ElemType',
-        eval Values LenTerm LenValue.
+        eval Values LenElem LenValue.
     eval Values (format_intro_pair FirstType SecondType) (format_intro_pair FirstType' (closure Values SecondType)) :-
         eval Values FirstType FirstType'.
-    eval Values (format_elim Term) Value' :-
-        eval Values Term Value,
+    eval Values (format_elim Elem) Value' :-
+        eval Values Elem Value,
         format_elim Value Value'.
 
     % Closure operations
 
-    apply (closure Values Term) InputValue Value :-
-        eval (InputValue :: Values) Term Value.
+    apply (closure Values Elem) InputValue Value :-
+        eval (InputValue :: Values) Elem Value.
 
     apply_param Closure Length Value :-
         apply Closure (neutral (local Length)) Value.
@@ -230,7 +230,7 @@
     format_elim format_intro_s64be int_type.
     format_elim (format_intro_array Elem Len) (array_type Elem' Len) :-
         format_elim Elem Elem'.
-    format_elim (format_intro_pair First (closure Values Term)) (pair_type First' (closure Values (format_elim Term))) :-
+    format_elim (format_intro_pair First (closure Values Elem)) (pair_type First' (closure Values (format_elim Elem))) :-
         format_elim First First'.
 
 
@@ -242,18 +242,18 @@
     readback Length (local Level : neutral) (local Index) :-
         % Convert De Bruijn levels to De Bruijn indices
         functional.do !(minus Length !(plus Level 1)) Index.
-    readback Length (function_elim Neutral InputValue : neutral) (function_elim Term InputTerm) :-
-        readback Length Neutral Term,
-        readback Length InputValue InputTerm.
-    readback Length (pair_elim_first Neutral : neutral) (pair_elim_first Term) :-
-        readback Length Neutral Term.
-    readback Length (pair_elim_second Neutral : neutral) (pair_elim_second Term) :-
-        readback Length Neutral Term.
-    readback Length (format_elim Neutral : neutral) (format_elim Term) :-
-        readback Length Neutral Term.
+    readback Length (function_elim Neutral InputValue : neutral) (function_elim Elem InputElem) :-
+        readback Length Neutral Elem,
+        readback Length InputValue InputElem.
+    readback Length (pair_elim_first Neutral : neutral) (pair_elim_first Elem) :-
+        readback Length Neutral Elem.
+    readback Length (pair_elim_second Neutral : neutral) (pair_elim_second Elem) :-
+        readback Length Neutral Elem.
+    readback Length (format_elim Neutral : neutral) (format_elim Elem) :-
+        readback Length Neutral Elem.
 
-    readback Length (neutral Neutral) Term :-
-        readback Length Neutral Term.
+    readback Length (neutral Neutral) Elem :-
+        readback Length Neutral Elem.
     readback Length universe universe.
     readback Length void_type void_type.
     readback Length unit_type unit_type.
@@ -263,27 +263,27 @@
         apply_param Closure Length OutputType,
         plus Length 1 Length1,
         readback Length1 OutputType OutputType'.
-    readback Length (function_intro Closure) (function_intro OutputTerm') :-
-        apply_param Closure Length OutputTerm,
+    readback Length (function_intro Closure) (function_intro OutputElem') :-
+        apply_param Closure Length OutputElem,
         plus Length 1 Length1,
-        readback Length1 OutputTerm OutputTerm'.
+        readback Length1 OutputElem OutputElem'.
     readback Length (pair_type FirstType Closure) (pair_type FirstType' SecondType') :-
         readback Length FirstType FirstType',
         apply_param Closure Length SecondType,
         plus Length 1 Length1,
         readback Length1 SecondType SecondType'.
-    readback Values (pair_intro FirstValue SecondValue) (pair_intro FirstTerm SecondTerm) :-
+    readback Values (pair_intro FirstValue SecondValue) (pair_intro FirstElem SecondElem) :-
         readback Values FirstValue FirstType,
         readback Values SecondValue SecondType.
     readback Length bool_type bool_type.
     readback Length (bool_intro Bool) (bool_intro Bool).
     readback Length int_type int_type.
     readback Length (int_intro Int) (int_intro Int).
-    readback Length (array_type ElemValue LenValue) (array_type ElemType LenTerm) :-
+    readback Length (array_type ElemValue LenValue) (array_type ElemType LenElem) :-
         readback Length ElemValue ElemType,
-        readback Length LenValue LenTerm.
-    readback Length (array_intro ElemValues) (array_intro ElemTerms) :-
-        map (fun value term => readback Length value term) ElemValues ElemTerms.
+        readback Length LenValue LenElem.
+    readback Length (array_intro ElemValues) (array_intro Elems) :-
+        map (fun value term => readback Length value term) ElemValues Elems.
     readback Length format_type format_type.
     readback Length format_intro_void format_intro_void.
     readback Length format_intro_unit format_intro_unit.
@@ -301,9 +301,9 @@
     readback Length format_intro_s32be format_intro_s32be.
     readback Length format_intro_s64le format_intro_s64le.
     readback Length format_intro_s64be format_intro_s64be.
-    readback Length (format_intro_array ElemValue LenValue) (format_intro_array ElemType LenTerm) :-
+    readback Length (format_intro_array ElemValue LenValue) (format_intro_array ElemType LenElem) :-
         readback Length ElemValue ElemType,
-        readback Length LenValue LenTerm.
+        readback Length LenValue LenElem.
     readback Length (format_intro_pair FirstType Closure) (format_intro_pair FirstType' SecondType') :-
         readback Length FirstType FirstType',
         apply_param Closure Length SecondType,
@@ -314,14 +314,14 @@
     % Normalization-by-evaluation
 
     normalize : list value -> term -> term -> prop.
-    normalize Values Term Term' :-
-        eval Values Term Value,
+    normalize Values Elem Elem' :-
+        eval Values Elem Value,
         length Values Length,
-        readback Length Value Term'.
+        readback Length Value Elem'.
 
     normalize : term -> term -> prop.
-    normalize Term Term' :-
-        normalize [] Term Term'.
+    normalize Elem Elem' :-
+        normalize [] Elem Elem'.
 
 
     % Equality of values
@@ -365,16 +365,16 @@
         apply_param Closure2 Length SecondType2,
         plus Length 1 Length1,
         is_equal Length1 SecondType1 SecondType2.
-    is_equal Length (pair_intro FirstTerm1 SecondTerm1) (pair_intro FirstTerm2 SecondTerm2) :-
-        is_equal Length FirstTerm1 FirstTerm2,
-        is_equal Length SecondTerm1 SecondTerm2.
+    is_equal Length (pair_intro FirstElem1 SecondElem1) (pair_intro FirstElem2 SecondElem2) :-
+        is_equal Length FirstElem1 FirstElem2,
+        is_equal Length SecondElem1 SecondElem2.
     is_equal Length bool_type bool_type.
     is_equal Length (bool_intro Bool) (bool_intro Bool).
     is_equal Length int_type int_type.
     is_equal Length (int_intro Bool) (int_intro Bool).
-    is_equal Length (array_type ElemType1 LenTerm1) (array_type ElemType2 LenTerm2) :-
+    is_equal Length (array_type ElemType1 LenElem1) (array_type ElemType2 LenElem2) :-
         is_equal Length ElemType1 ElemType2,
-        is_equal Length LenTerm1 LenTerm2.
+        is_equal Length LenElem1 LenElem2.
     is_equal Length (array_intro ElemValues1) (array_intro ElemValues2) :-
         map (fun value1 value2 => is_equal Length value1 value2) ElemValues1 ElemType2.
     is_equal Length format_type format_type.
@@ -394,9 +394,9 @@
     is_equal Length format_intro_s32be format_intro_s32be.
     is_equal Length format_intro_s64le format_intro_s64le.
     is_equal Length format_intro_s64be format_intro_s64be.
-    is_equal Length (format_intro_array ElemType1 LenTerm1) (format_intro_array ElemType2 LenTerm2) :-
+    is_equal Length (format_intro_array ElemType1 LenElem1) (format_intro_array ElemType2 LenElem2) :-
         is_equal Length ElemType1 ElemType2,
-        is_equal Length LenTerm1 LenTerm2.
+        is_equal Length LenElem1 LenElem2.
     is_equal Length (format_intro_pair FirstType1 Closure1) (format_intro_pair FirstType2 Closure2) :-
         is_equal Length FirstType1 FirstType2,
         apply_param Closure1 Length SecondType1,

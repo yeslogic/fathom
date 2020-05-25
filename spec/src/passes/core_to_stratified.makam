@@ -68,19 +68,19 @@
     synth_type Context (core.int_intro Int) (typ stratified.semantics.int_type) (expr (stratified.int_intro Int)).
 
     % Arrays
-    is_type Context (core.array_type ElemType LenTerm) (typ (stratified.array_type ElemTerm' LenTerm')) :-
-        check_type Context ElemType (kind stratified.semantics.universe) (typ ElemTerm'),
-        check_type Context LenTerm (typ stratified.semantics.int_type) (expr LenTerm').
-    check_type Context (core.array_type ElemType LenTerm) (kind stratified.semantics.universe) (typ (stratified.array_type ElemTerm' LenTerm')) :-
-        check_type Context ElemType (kind stratified.semantics.universe) (typ ElemTerm'),
-        check_type Context LenTerm (typ stratified.semantics.int_type) (expr LenTerm').
-    check_type Context (core.array_intro ElemTerms) (typ (stratified.semantics.array_type ElemType (stratified.semantics.int_intro Len))) (expr (stratified.array_intro ElemTerms')) :-
-        length ElemTerms Len,
-        map (fun elem_term elem_term' => check_type Context elem_term (typ ElemType) (expr elem_term')) ElemTerms ElemTerms'.
-    synth_type Context (core.array_elim ArrayTerm IndexTerm) (typ ElemType) (expr (stratified.array_elim ArrayTerm' IndexTerm')) :-
-        % FIXME: ensure `IndexTerm` is in array bounds, possibly with refinement types?
-        synth_type Context ArrayTerm (typ (stratified.semantics.array_type ElemType _)) (expr ArrayTerm'),
-        check_type Context IndexTerm (typ stratified.semantics.int_type) (expr IndexTerm').
+    is_type Context (core.array_type Type LenElem) (typ (stratified.array_type Type' LenElem')) :-
+        check_type Context Type (kind stratified.semantics.universe) (typ Type'),
+        check_type Context LenElem (typ stratified.semantics.int_type) (expr LenElem').
+    check_type Context (core.array_type Type LenElem) (kind stratified.semantics.universe) (typ (stratified.array_type Type' LenElem')) :-
+        check_type Context Type (kind stratified.semantics.universe) (typ Type'),
+        check_type Context LenElem (typ stratified.semantics.int_type) (expr LenElem').
+    check_type Context (core.array_intro Elems) (typ (stratified.semantics.array_type Type (stratified.semantics.int_intro Len))) (expr (stratified.array_intro Elems')) :-
+        length Elems Len,
+        map (fun elem_term elem_term' => check_type Context elem_term (typ Type) (expr elem_term')) Elems Elems'.
+    synth_type Context (core.array_elim ArrayElem IndexElem) (typ Type) (expr (stratified.array_elim ArrayElem' IndexElem')) :-
+        % FIXME: ensure `IndexElem` is in array bounds, possibly with refinement types?
+        synth_type Context ArrayElem (typ (stratified.semantics.array_type Type _)) (expr ArrayElem'),
+        check_type Context IndexElem (typ stratified.semantics.int_type) (expr IndexElem').
 
     % Binary format descriptions
     is_type Context core.format_type (kind stratified.format_type).

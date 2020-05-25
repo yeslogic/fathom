@@ -51,17 +51,10 @@
 %
 % - `_type`, `_elem`, `_apply`
 % - `_type`, `_elem`, `_call`
+% - `_type`, `_data`, `_elim`
 % - `_space`, `_point`, `_???`
 %
 % Let me know if you have other ideas!
-%
-% # An annoying naming issue
-%
-% I have `InputTerm : term` for a function argument, that then gets
-% evaluated to `InputValue : value`. but then I have `InputType : term` for
-% a parameter type... but I can't do `InputValue : value` - it's already
-% taken for the term level! And I can't do `InputType : type` because that's
-% taken by the term.
 
 %extend ddl.
 
