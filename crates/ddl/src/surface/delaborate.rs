@@ -62,9 +62,7 @@ pub fn delaborate_term(term: &core::Term) -> surface::Term {
             Box::new(delaborate_term(term)),
             Box::new(delaborate_term(ty)),
         ),
-        core::Term::Universe(range, core::Universe::Host) => surface::Term::Host(range.clone()),
-        core::Term::Universe(range, core::Universe::Format) => surface::Term::Format(range.clone()),
-        core::Term::Universe(range, core::Universe::Kind) => surface::Term::Kind(range.clone()),
+        core::Term::TypeType(range) => surface::Term::TypeType(range.clone()),
         core::Term::FunctionType(param_ty, body_ty) => surface::Term::FunctionType(
             Box::new(delaborate_term(param_ty)),
             Box::new(delaborate_term(body_ty)),
@@ -98,6 +96,7 @@ pub fn delaborate_term(term: &core::Term) -> surface::Term {
                 )))
                 .collect(),
         ),
+        core::Term::FormatType(range) => surface::Term::FormatType(range.clone()),
         core::Term::Error(range) => surface::Term::Error(range.clone()),
     }
 }

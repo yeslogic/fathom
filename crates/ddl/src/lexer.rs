@@ -14,10 +14,9 @@ lazy_static::lazy_static! {
         "if".to_owned() => Token::If,
         "else".to_owned() => Token::Else,
         "Format".to_owned() => Token::Format,
-        "Host".to_owned() => Token::Host,
-        "Kind".to_owned() => Token::Kind,
         "match".to_owned() => Token::Match,
         "struct".to_owned() => Token::Struct,
+        "Type".to_owned() => Token::Type,
     };
 
     pub static ref CORE_KEYWORDS: Keywords = hashmap! {
@@ -26,12 +25,11 @@ lazy_static::lazy_static! {
         "f64".to_owned() => Token::F64,
         "Format".to_owned() => Token::Format,
         "global".to_owned() => Token::Global,
-        "Host".to_owned() => Token::Host,
         "int".to_owned() => Token::Int,
         "int_elim".to_owned() => Token::IntElim,
         "item".to_owned() => Token::Item,
-        "Kind".to_owned() => Token::Kind,
         "struct".to_owned() => Token::Struct,
+        "Type".to_owned() => Token::Type,
     };
 }
 
@@ -63,8 +61,6 @@ pub enum Token {
     Format,
     /// Keyword: `global`.
     Global,
-    /// Keyword: `Host`.
-    Host,
     /// Keyword: `if`.
     If,
     /// Keyword: `int`.
@@ -73,12 +69,12 @@ pub enum Token {
     IntElim,
     /// Keyword: `item`.
     Item,
-    /// Keyword: `Kind`.
-    Kind,
     /// Keyword: `match`.
     Match,
     /// Keyword: `struct`.
     Struct,
+    /// Keyword: `Type`.
+    Type,
 
     /// Open curly brace: `{`.
     OpenBrace,
@@ -121,14 +117,13 @@ impl<'a> fmt::Display for Token {
             Token::F64 => write!(f, "f64"),
             Token::Format => write!(f, "Format"),
             Token::Global => write!(f, "global"),
-            Token::Host => write!(f, "Host"),
             Token::If => write!(f, "if"),
             Token::Int => write!(f, "int"),
             Token::IntElim => write!(f, "int_elim"),
             Token::Item => write!(f, "item"),
-            Token::Kind => write!(f, "Kind"),
             Token::Match => write!(f, "match"),
             Token::Struct => write!(f, "struct"),
+            Token::Type => write!(f, "Type"),
 
             Token::OpenBrace => write!(f, "{{"),
             Token::CloseBrace => write!(f, "}}"),

@@ -1,4 +1,4 @@
-Test : Host =
+Test : Type =
     match 42 : Int {
         0 => F64,
         _ => F32,

@@ -125,12 +125,8 @@ pub enum Term {
     Ann(Box<Term>, Box<Term>),
     /// Names.
     Name(Range<usize>, String),
-    /// Type of format types.
-    Format(Range<usize>),
-    /// Type of host types.
-    Host(Range<usize>),
-    /// The type of types.
-    Kind(Range<usize>),
+    /// Type of types.
+    TypeType(Range<usize>),
     /// Function types.
     FunctionType(Box<Term>, Box<Term>),
     /// Function eliminations (function application).
@@ -141,6 +137,8 @@ pub enum Term {
     If(Range<usize>, Box<Term>, Box<Term>, Box<Term>),
     /// Match expressions.
     Match(Range<usize>, Box<Term>, Vec<(Pattern, Term)>),
+    /// Type of format types.
+    FormatType(Range<usize>),
 
     /// Error sentinel terms.
     Error(Range<usize>),
@@ -151,12 +149,11 @@ impl Term {
         match self {
             Term::Ann(term, ty) => term.range().start..ty.range().end,
             Term::Name(range, _)
-            | Term::Format(range)
-            | Term::Host(range)
-            | Term::Kind(range)
+            | Term::TypeType(range)
             | Term::NumberLiteral(range, _)
             | Term::If(range, _, _, _)
             | Term::Match(range, _, _)
+            | Term::FormatType(range)
             | Term::Error(range) => range.clone(),
             Term::FunctionType(param_ty, body_ty) => param_ty.range().start..body_ty.range().end,
             Term::FunctionElim(head, arguments) => match arguments.last() {

@@ -424,7 +424,7 @@ fn compile_value(
                     is_const: true,
                 }),
                 (
-                    "Array",
+                    "FormatArray",
                     [core::Elim::Function(len_range, len), core::Elim::Function(_, elem_ty)],
                 ) => {
                     let len = match len.as_ref() {
@@ -506,7 +506,7 @@ fn compile_value(
                         | "F32Be" | "F64Le" | "F64Be" | "Bool" | "Int" | "F32" | "F64" | "true"
                         | "false" => Some(0),
                         "List" => Some(1),
-                        "Array" => Some(2),
+                        "FormatArray" => Some(2),
                         _ => None,
                     };
 
@@ -569,7 +569,7 @@ fn compile_value(
             })
         }
         core::Value::Neutral(core::Head::Error(_), _) => CompiledTerm::Error,
-        core::Value::Universe(_, _) => CompiledTerm::Erased,
+        core::Value::FormatType(_) | core::Value::TypeType(_) => CompiledTerm::Erased,
         core::Value::FunctionType(_, _) => {
             report(crate::diagnostics::bug::not_yet_implemented(
                 context.file_id,

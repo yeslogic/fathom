@@ -23,7 +23,7 @@ struct Pixel {
 struct Picture {
     width : U16Be,
     height : U16Be,
-    data : Array (width * height) Pixel,
+    data : FormatArray (width * height) Pixel,
 }
 ```
 

@@ -1,9 +1,5 @@
 //! Test globals.
 
-TestType = Host;
-
-TestFormat = Format;
-
 TestU8 = global U8;
 
 TestU16Le = global U16Le;

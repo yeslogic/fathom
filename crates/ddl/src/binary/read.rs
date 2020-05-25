@@ -93,21 +93,20 @@ pub fn read_ty(context: &mut Context<'_>, ty: &core::Value) -> Result<Term, ddl_
                 ("F32Be", []) => Ok(Term::F32(context.read::<ddl_rt::F32Be>()?)),
                 ("F64Le", []) => Ok(Term::F64(context.read::<ddl_rt::F64Le>()?)),
                 ("F64Be", []) => Ok(Term::F64(context.read::<ddl_rt::F64Be>()?)),
-                ("Array", [core::Elim::Function(_, len), core::Elim::Function(_, elem_ty)]) => {
-                    match len.as_ref() {
-                        core::Value::Constant(_, core::Constant::Int(len)) => {
-                            match len.to_usize() {
-                                Some(len) => Ok(Term::Seq(
-                                    (0..len)
-                                        .map(|_| read_ty(context, elem_ty))
-                                        .collect::<Result<_, _>>()?,
-                                )),
-                                None => Err(ddl_rt::ReadError::InvalidDataDescription),
-                            }
-                        }
-                        _ => Err(ddl_rt::ReadError::InvalidDataDescription),
-                    }
-                }
+                (
+                    "FormatArray",
+                    [core::Elim::Function(_, len), core::Elim::Function(_, elem_ty)],
+                ) => match len.as_ref() {
+                    core::Value::Constant(_, core::Constant::Int(len)) => match len.to_usize() {
+                        Some(len) => Ok(Term::Seq(
+                            (0..len)
+                                .map(|_| read_ty(context, elem_ty))
+                                .collect::<Result<_, _>>()?,
+                        )),
+                        None => Err(ddl_rt::ReadError::InvalidDataDescription),
+                    },
+                    _ => Err(ddl_rt::ReadError::InvalidDataDescription),
+                },
                 ("List", [core::Elim::Function(_, _)]) | (_, _) => {
                     Err(ddl_rt::ReadError::InvalidDataDescription)
                 }
@@ -120,9 +119,10 @@ pub fn read_ty(context: &mut Context<'_>, ty: &core::Value) -> Result<Term, ddl_
             }
         }
         core::Value::Neutral(core::Head::Error(_), _)
-        | core::Value::Universe(_, _)
+        | core::Value::TypeType(_)
         | core::Value::FunctionType(_, _)
         | core::Value::Constant(_, _)
+        | core::Value::FormatType(_)
         | core::Value::Error(_) => Err(ddl_rt::ReadError::InvalidDataDescription),
     }
 }

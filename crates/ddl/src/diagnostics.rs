@@ -94,18 +94,18 @@ pub fn universe_mismatch(
         .join("\n")])
 }
 
-pub fn kind_has_no_type(
+pub fn term_has_no_type(
     severity: Severity,
     file_id: usize,
     range: Range<usize>,
 ) -> Diagnostic<usize> {
     // TODO: provide suggestions
     Diagnostic::new(severity)
-        .with_message("cannot synthesize the type of `Kind`")
+        .with_message("term has no type")
         .with_labels(vec![
             Label::primary(file_id, range).with_message("cannot synthesize type")
         ])
-        .with_notes(vec![format!("`Kind` has no corresponding type")])
+        .with_notes(vec![format!("term has no type")])
 }
 
 pub fn not_a_function(

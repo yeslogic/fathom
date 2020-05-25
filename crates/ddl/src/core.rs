@@ -142,22 +142,14 @@ impl PartialEq for TypeField {
     }
 }
 
-/// Universes.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Universe {
-    Host,
-    Format,
-    Kind,
-}
-
-/// Universes.
+/// Constants.
 #[derive(Debug, Clone)]
 pub enum Constant {
-    /// Host integer constants.
+    /// Integer constants.
     Int(BigInt),
-    /// Host IEEE-754 single-precision floating point constants.
+    /// IEEE-754 single-precision floating point constants.
     F32(f32),
-    /// Host IEEE-754 double-precision floating point constants.
+    /// IEEE-754 double-precision floating point constants.
     F64(f64),
 }
 
@@ -181,8 +173,8 @@ pub enum Term {
     Item(Range<usize>, String),
     /// Terms annotated with types.
     Ann(Arc<Term>, Arc<Term>),
-    /// Universes.
-    Universe(Range<usize>, Universe),
+    /// Type of types.
+    TypeType(Range<usize>),
     /// Function types.
     FunctionType(Arc<Term>, Arc<Term>),
     /// Function eliminations (function application).
@@ -198,6 +190,8 @@ pub enum Term {
         BTreeMap<BigInt, Arc<Term>>,
         Arc<Term>,
     ),
+    /// Type of format types.
+    FormatType(Range<usize>),
 
     /// Error sentinel.
     Error(Range<usize>),
@@ -208,10 +202,11 @@ impl Term {
         match self {
             Term::Global(range, _)
             | Term::Item(range, _)
-            | Term::Universe(range, _)
+            | Term::TypeType(range)
             | Term::Constant(range, _)
             | Term::BoolElim(range, _, _, _)
             | Term::IntElim(range, _, _, _)
+            | Term::FormatType(range)
             | Term::Error(range) => range.clone(),
             Term::Ann(term, ty) => term.range().start..ty.range().end,
             Term::FunctionType(param_ty, body_ty) => param_ty.range().start..body_ty.range().end,
@@ -226,7 +221,7 @@ impl PartialEq for Term {
             (Term::Global(_, name0), Term::Global(_, name1)) => name0 == name1,
             (Term::Item(_, name0), Term::Item(_, name1)) => name0 == name1,
             (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
-            (Term::Universe(_, universe0), Term::Universe(_, universe1)) => universe0 == universe1,
+            (Term::TypeType(_), Term::TypeType(_)) => true,
             (Term::FunctionType(param_ty0, body_ty0), Term::FunctionType(param_ty1, body_ty1)) => {
                 param_ty0 == param_ty1 && body_ty0 == body_ty1
             }
@@ -242,6 +237,7 @@ impl PartialEq for Term {
                 Term::IntElim(_, head0, branches0, default0),
                 Term::IntElim(_, head1, branches1, default1),
             ) => head0 == head1 && branches0 == branches1 && default0 == default1,
+            (Term::FormatType(_), Term::FormatType(_)) => true,
             (Term::Error(_), Term::Error(_)) => true,
             (_, _) => false,
         }
@@ -294,12 +290,14 @@ impl Elim {
 pub enum Value {
     /// Neutral terms
     Neutral(Head, Vec<Elim>),
-    /// Universes.
-    Universe(Range<usize>, Universe),
+    /// Type of types.
+    TypeType(Range<usize>),
     /// Function types.
     FunctionType(Arc<Value>, Arc<Value>),
     /// Constants.
     Constant(Range<usize>, Constant),
+    /// Type of format types.
+    FormatType(Range<usize>),
 
     /// Error sentinel.
     Error(Range<usize>),
@@ -313,9 +311,10 @@ impl Value {
 
     pub fn range(&self) -> Range<usize> {
         match self {
-            Value::Universe(range, _) | Value::Constant(range, _) | Value::Error(range) => {
-                range.clone()
-            }
+            Value::TypeType(range)
+            | Value::Constant(range, _)
+            | Value::FormatType(range)
+            | Value::Error(range) => range.clone(),
             Value::FunctionType(param_ty, body_ty) => param_ty.range().start..body_ty.range().end,
             Value::Neutral(head, elims) => match elims.last() {
                 Some(elim) => head.range().start..elim.range().end,
@@ -345,43 +344,48 @@ impl Globals {
 }
 
 impl Default for Globals {
-    #[rustfmt::skip]
     fn default() -> Globals {
         let mut entries = BTreeMap::new();
 
-        entries.insert("U8".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("U16Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("U16Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("U32Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("U32Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("U64Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("U64Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("S8".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("S16Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("S16Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("S32Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("S32Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("S64Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("S64Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("F32Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("F32Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("F64Le".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
-        entries.insert("F64Be".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Format)), None));
+        entries.insert("U8".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("U16Le".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("U16Be".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("U32Le".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("U32Be".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("U64Le".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("U64Be".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("S8".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("S16Le".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("S16Be".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("S32Le".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("S32Be".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("S64Le".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("S64Be".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("F32Le".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("F32Be".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("F64Le".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
+        entries.insert("F64Be".to_owned(), (Arc::new(Term::FormatType(0..0)), None));
 
-        entries.insert("Int".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Host)), None));
-        entries.insert("F32".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Host)), None));
-        entries.insert("F64".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Host)), None));
-        entries.insert("Bool".to_owned(), (Arc::new(Term::Universe(0..0, Universe::Host)), None));
-        entries.insert("true".to_owned(), (Arc::new(Term::Global(0..0, "Bool".to_owned())), None));
-        entries.insert("false".to_owned(), (Arc::new(Term::Global(0..0, "Bool".to_owned())), None));
+        entries.insert("Int".to_owned(), (Arc::new(Term::TypeType(0..0)), None));
+        entries.insert("F32".to_owned(), (Arc::new(Term::TypeType(0..0)), None));
+        entries.insert("F64".to_owned(), (Arc::new(Term::TypeType(0..0)), None));
+        entries.insert("Bool".to_owned(), (Arc::new(Term::TypeType(0..0)), None));
         entries.insert(
-            "Array".to_owned(),
+            "true".to_owned(),
+            (Arc::new(Term::Global(0..0, "Bool".to_owned())), None),
+        );
+        entries.insert(
+            "false".to_owned(),
+            (Arc::new(Term::Global(0..0, "Bool".to_owned())), None),
+        );
+        entries.insert(
+            "FormatArray".to_owned(),
             (
                 Arc::new(Term::FunctionType(
                     Arc::new(Term::Global(0..0, "Int".to_owned())),
                     Arc::new(Term::FunctionType(
-                        Arc::new(Term::Universe(0..0, Universe::Format)),
-                        Arc::new(Term::Universe(0..0, Universe::Format)),
+                        Arc::new(Term::FormatType(0..0)),
+                        Arc::new(Term::FormatType(0..0)),
                     )),
                 )),
                 None,
@@ -391,8 +395,8 @@ impl Default for Globals {
             "List".to_owned(),
             (
                 Arc::new(Term::FunctionType(
-                    Arc::new(Term::Universe(0..0, Universe::Host)),
-                    Arc::new(Term::Universe(0..0, Universe::Host)),
+                    Arc::new(Term::TypeType(0..0)),
+                    Arc::new(Term::TypeType(0..0)),
                 )),
                 None,
             ),

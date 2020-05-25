@@ -1,4 +1,4 @@
-use crate::core::{Alias, Constant, Item, Module, StructType, Term, TypeField, Universe};
+use crate::core::{Alias, Constant, Item, Module, StructType, Term, TypeField};
 use pretty::{DocAllocator, DocBuilder};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -135,18 +135,6 @@ where
         )
 }
 
-pub fn pretty_universe<'a, D>(alloc: &'a D, universe: &'a Universe) -> DocBuilder<'a, D>
-where
-    D: DocAllocator<'a>,
-    D::Doc: Clone,
-{
-    match universe {
-        Universe::Host => alloc.text("Host"),
-        Universe::Format => alloc.text("Format"),
-        Universe::Kind => alloc.text("Kind"),
-    }
-}
-
 pub fn pretty_constant<'a, D>(alloc: &'a D, constant: &'a Constant) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
@@ -217,7 +205,7 @@ where
                         .nest(4),
                 ),
         ),
-        Term::Universe(_, universe) => pretty_universe(alloc, universe),
+        Term::TypeType(_) => alloc.text("Type"),
         Term::FunctionType(param_type, body_type) => pretty_paren(
             alloc,
             prec > Prec::Arrow,
@@ -274,6 +262,7 @@ where
             .append(pretty_term_prec(alloc, default, Prec::Term))
             .append(alloc.space())
             .append("}"),
+        Term::FormatType(_) => alloc.text("Format"),
         Term::Error(_) => alloc.text("!"),
     }
 }
