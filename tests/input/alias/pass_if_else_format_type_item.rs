@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_rt::{F64Be, FormatWriter, ReadError, ReadScope, U8};
-use ddl_test_util::ddl::{binary, core};
+use ddl_test_util::ddl::core::{self, binary};
 
 #[path = "../../snapshots/alias/pass_if_else_format_type_item.rs"]
 pub mod fixture;

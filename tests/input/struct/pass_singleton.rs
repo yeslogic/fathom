@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use ddl_rt::{FormatWriter, ReadError, ReadScope, U8};
-use ddl_test_util::ddl::{binary, core};
+use ddl_test_util::ddl::core::{self, binary};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
