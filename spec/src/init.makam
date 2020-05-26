@@ -57,6 +57,8 @@
 % Let me know if you have other ideas!
 
 %extend ddl.
+    % Extensions to Makam's standard library
+    %use "stdlib".
 
     %use "ast/init".
     %use "pass/init".

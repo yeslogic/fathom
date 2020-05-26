@@ -45,22 +45,15 @@
     % Universes
     is_type Context ast.core.universe (kind ast.stratified.universe).
 
-    % Void
-    is_type Context ast.core.void_type (typ ast.stratified.void_type).
-    synth_type Context ast.core.void_type (kind ast.stratified.semantics.universe) (typ ast.stratified.void_type).
-
-    % Unit
-    is_type Context ast.core.unit_type (typ ast.stratified.unit_type).
-    synth_type Context ast.core.unit_type (kind ast.stratified.semantics.universe) (typ ast.stratified.unit_type).
-    synth_type Context ast.core.unit_intro (typ ast.stratified.semantics.unit_type) (expr ast.stratified.unit_intro).
-
     % Functions
     % Pairs
 
-    % Booleans
-    is_type Context ast.core.bool_type (typ ast.stratified.bool_type).
-    synth_type Context ast.core.bool_type (kind ast.stratified.semantics.universe) (typ ast.stratified.bool_type).
-    synth_type Context (ast.core.bool_intro Bool) (typ ast.stratified.semantics.bool_type) (expr (ast.stratified.bool_intro Bool)).
+    % Enumerations
+    is_type Context (ast.core.enum_type Labels) (typ (ast.stratified.enum_type Labels)).
+    synth_type Context (ast.core.enum_type Labels) (kind ast.stratified.semantics.universe) (typ (ast.stratified.enum_type Labels)).
+    check_type Context (ast.core.enum_intro Label) (typ (ast.stratified.semantics.enum_type Labels)) (expr (ast.stratified.enum_intro Label)) :-
+        set.member Labels Label _.
+    % TODO: ast.core.enum_elim
 
     % Integers
     is_type Context ast.core.int_type (typ ast.stratified.int_type).

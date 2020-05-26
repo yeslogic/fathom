@@ -18,13 +18,6 @@ lift : expr -> typ.
 % Universes
 universe : kind.
 
-% Void
-void_type : typ.
-
-% Unit
-unit_type : typ.
-unit_intro : expr.
-
 % Functions
 function_type : kind -> kind -> kind.
 function_type : typ -> typ.
@@ -40,10 +33,10 @@ pair_intro : expr -> expr -> expr.
 pair_elim_first : expr -> expr.
 pair_elim_second : expr -> expr.
 
-% Booleans
-bool_type : typ.
-bool_intro : bool -> expr.
-bool_elim : expr -> expr -> expr -> expr.
+% Enumerations
+enum_type : set string -> typ.
+enum_intro : string -> expr.
+enum_elim : expr -> list (string * expr) -> expr.
 
 % Integers
 int_type : typ.

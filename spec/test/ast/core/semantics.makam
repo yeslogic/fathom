@@ -15,6 +15,19 @@
 >> Value := InputValue.
 
 
+>> function_elim (enum_elim (choice_closure [] [("true", (int_intro 0)), ("false", (int_intro 1))])) (neutral Neutral) Value ?
+>> Yes:
+>> Value := neutral (enum_elim (choice_closure [] [("true", (int_intro 0)), ("false", (int_intro 1))]) Neutral).
+
+>> function_elim (enum_elim (choice_closure [] [("true", (int_intro 0)), ("false", (int_intro 1))])) (enum_intro "true") Value ?
+>> Yes:
+>> Value := int_intro 0.
+
+>> function_elim (enum_elim (choice_closure [] [("true", (int_intro 0)), ("false", (int_intro 1))])) (enum_intro "false") Value ?
+>> Yes:
+>> Value := int_intro 1.
+
+
 >> pair_elim_first (neutral Neutral) Value ?
 >> Yes:
 >> Value := neutral (pair_elim_first Neutral).
@@ -32,40 +45,31 @@
 >> Yes:
 >> Value := SecondValue.
 
-
->> format_elim (neutral Neutral) Term ?
+>> format_elim (neutral Neutral) Value ?
 >> Yes:
->> Term := neutral (format_elim Neutral).
+>> Value := neutral (format_elim Neutral).
 
->> format_elim format_intro_u8 Term ?
+>> format_elim format_intro_u8 Value ?
 >> Yes:
->> Term := int_type.
+>> Value := int_type.
 
+
+
+    % Variables
 
 >> normalize [format_intro_u8] (local 0) Term ?
 >> Yes:
 >> Term := format_intro_u8.
 
 
+    % Annotated terms
+
 >> normalize (ann format_intro_u8 _) Term ?
 >> Yes:
 >> Term := format_intro_u8.
 
 
->> normalize void_type Term ?
->> Yes:
->> Term := void_type.
-
-
->> normalize unit_type Term ?
->> Yes:
->> Term := unit_type.
-
-
->> normalize unit_intro Term ?
->> Yes:
->> Term := unit_intro.
-
+    % Functions
 
 >> normalize (function_type universe (function_type (local 0) (local 1))) Term ?
 >> Yes:
@@ -79,6 +83,8 @@
 >> Yes:
 >> Term := int_intro 1.
 
+
+    % Pairs
 
 >> normalize (pair_type int_type (array_type int_type (local 0))) Term ?
 >> Yes:
@@ -100,6 +106,39 @@
 >> Yes:
 >> Term := array_intro [].
 
+
+    % Enumerations
+
+>> normalize (enum_type []) Term ?
+>> Yes:
+>> Term := enum_type [].
+
+>> normalize (enum_type ["unit"]) Term ?
+>> Yes:
+>> Term := enum_type ["unit"].
+
+>> normalize (enum_type ["true", "false"]) Term ?
+>> Yes:
+>> Term := core.enum_type [ "true", "false" ].
+
+>> normalize (enum_intro "true") Term ?
+>> Yes:
+>> Term := core.enum_intro "true".
+
+>> normalize [int_intro 0, int_intro 1] (enum_elim [("true", (local 0)), ("false", (local 1))]) Term ?
+>> Yes:
+>> Term := enum_elim [("true", (int_intro 0)), ("false", (int_intro 1))].
+
+>> normalize (function_elim (enum_elim [("true", (int_intro 0)), ("false", (int_intro 1))]) (enum_intro "true")) Term ?
+>> Yes:
+>> Term := int_intro 0.
+
+>> normalize (function_elim (enum_elim [("true", (int_intro 0)), ("false", (int_intro 1))]) (enum_intro "false")) Term ?
+>> Yes:
+>> Term := int_intro 1.
+
+
+    % Binary format descriptions
 
 >> normalize (format_elim format_intro_u8) Term ?
 >> Yes:

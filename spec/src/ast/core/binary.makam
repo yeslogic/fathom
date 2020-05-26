@@ -8,7 +8,7 @@
     % Decoding byte sequences into terms, guided by a format description
 
     interpret : list semantics.value -> list byte -> semantics.value -> semantics.value -> prop.
-    interpret Values Bytes semantics.format_intro_unit semantics.unit_intro.
+    interpret Values Bytes semantics.format_intro_unit (semantics.enum_intro "unit").
     %  interpret Values Bytes semantics.format_intro_u8 (semantics.intro_int TODO).
     %  interpret Values Bytes semantics.format_intro_u16le (semantics.intro_int TODO).
     %  interpret Values Bytes semantics.format_intro_u16be (semantics.intro_int TODO).

@@ -8,13 +8,9 @@
     % Universes
     universe : kind_value.
 
-    % Unit
-    unit_type : typ_value.
-    unit_intro : expr_value.
-
-    % Booleans
-    bool_type : typ_value.
-    bool_intro : bool -> expr_value.
+    % Enumerations
+    enum_type : set string -> typ_value.
+    enum_intro : string -> expr_value.
 
     % Integers
     int_type : typ_value.

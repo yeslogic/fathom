@@ -10,13 +10,6 @@ ann : term -> term -> term.
 % Universes
 universe : term.
 
-% Void
-void_type : term.
-
-% Unit
-unit_type : term.
-unit_intro : term.
-
 % Functions
 function_type : term -> term -> term.   % Also known as: Pi type, Dependent product type
 function_intro : term -> term.          % Also known as: Lambda abstraction, anonymous function
@@ -28,6 +21,11 @@ pair_intro : term -> term -> term.      % Also known as: Pair constructor
 pair_elim_first : term -> term.
 pair_elim_second : term -> term.
 
+% Enumerations
+enum_type : set string -> term.
+enum_intro : string -> term.
+enum_elim : map string term -> term.
+
 % Refinements
 %  refine_type : term -> term -> term.
 %  refine_intro : term -> (* some proof from a solver here? *) -> term.
@@ -36,11 +34,6 @@ pair_elim_second : term -> term.
 %  stage_type : term -> term.
 %  stage_intro : term -> term.
 %  stage_elim : term -> term.
-
-% Booleans
-bool_type : term.
-bool_intro : bool -> term.
-bool_elim : term -> term -> term -> term.
 
 % Integers
 int_type : term.

@@ -8,10 +8,14 @@
 
 % FIXME: there seems to be a bug with indenting tests here - see https://github.com/astampoulis/makam/issues/94
 
+    % Variables
+
 >> synth_type (context [ ( semantics.format_intro_u8, semantics.format_type ) ]) (local 0) Type ?
 >> Yes:
 >> Type := semantics.format_type.
 
+
+    % Annotated terms
 
 >> synth_type (ann format_intro_u8 format_type) Type ?
 >> Yes:
@@ -29,6 +33,14 @@
 >> Impossible.
 
 
+    % Universes
+
+
+    % Unit
+
+
+    % Functions
+
 >> synth_type (function_type universe (function_type (local 0) (local 1))) Type ?
 >> Yes:
 >> Type := semantics.universe.
@@ -45,6 +57,8 @@
 >> Type := semantics.function_type semantics.int_type (semantics.closure [ semantics.int_type ] (local 1)).
 
 
+    % Pairs
+
 >> check_type (pair_intro (int_intro 1) (array_intro [ int_intro 42 ])) (semantics.pair_type semantics.int_type (semantics.closure [] (array_type int_type (local 0)))) ?
 >> Yes.
 
@@ -57,6 +71,56 @@
 >> Type := semantics.array_type semantics.int_type (semantics.int_intro 0).
 
 
+    % Enumerations
+
+>> synth_type (enum_type []) Type ?
+>> Yes:
+>> Type := semantics.universe.
+
+>> synth_type (enum_type ["unit"]) Type ?
+>> Yes:
+>> Type := semantics.universe.
+
+>> synth_type (enum_type ["true", "false"]) Type ?
+>> Yes:
+>> Type := semantics.universe.
+
+>> check_type (enum_intro "unit") (semantics.enum_type ["unit"]) ?
+>> Yes.
+
+>> check_type (enum_intro "true") (semantics.enum_type ["true", "false"]) ?
+>> Yes.
+
+>> check_type (enum_intro "false") (semantics.enum_type ["true", "false"]) ?
+>> Yes.
+
+>> check_type (enum_intro "unit") (semantics.enum_type []) ?
+>> Impossible.
+
+>> check_type (enum_intro "unit") (semantics.enum_type ["true", "false"]) ?
+>> Impossible.
+
+>> check_type (enum_elim []) (semantics.function_type (semantics.enum_type []) (semantics.closure [] int_type)) ?
+>> Yes.
+
+>> check_type (enum_elim [("unit", int_intro 0)]) (semantics.function_type (semantics.enum_type ["unit"]) (semantics.closure [] int_type)) ?
+>> Yes.
+
+>> check_type (enum_elim [("true", int_intro 0), ("false", int_intro 1)]) (semantics.function_type (semantics.enum_type ["true", "false"]) (semantics.closure [] int_type)) ?
+>> Yes.
+
+>> check_type (enum_elim [("true", int_intro 0), ("false", int_intro 1)]) (semantics.function_type (semantics.enum_type ["false", "true"]) (semantics.closure [] int_type)) ?
+>> Yes.
+
+>> check_type (enum_elim [("true", int_intro 0), ("false", int_intro 1)]) (semantics.function_type (semantics.enum_type []) (semantics.closure [] int_type)) ?
+>> Impossible.
+
+>> check_type (enum_elim [("true", int_intro 0)]) (semantics.function_type (semantics.enum_type ["true", "false"]) (semantics.closure [] int_type)) ?
+>> Impossible.
+
+
+    % Arrays
+
 >> check_type (array_intro []) (semantics.array_type semantics.int_type (semantics.int_intro 0)) ?
 >> Yes.
 
@@ -67,6 +131,7 @@
 >> check_type (format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0))) semantics.format_type ?
 >> Yes.
 
+    % Binary format descriptions
 
 >> synth_type (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Type ?
 >> Yes:

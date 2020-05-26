@@ -103,11 +103,6 @@
     % Universes
     is_type Context universe.
 
-    % Unit
-    is_type Context unit_type.
-    synth_type Context unit_type semantics.universe.
-    synth_type Context unit_intro semantics.unit_type.
-
     % Functions
     is_type Context (function_type InputType OutputType) :-
         is_type Context InputType,
@@ -154,14 +149,19 @@
         context.eval Context (pair_elim_first PairElem) FirstElem,
         semantics.apply Closure FirstElem SecondType.
 
-    % Booleans
-    is_type Context bool_type.
-    synth_type Context bool_type semantics.universe.
-    synth_type Context (bool_intro _) semantics.bool_type.
-    check_type Context (bool_elim BoolElem TrueElem FalseElem) Type :-
-        check_type Context BoolElem semantics.bool_type,
-        check_type Context TrueElem Type,
-        check_type Context FalseElem Type.
+    % Enumerations
+    is_type Context (enum_type Labels).
+    synth_type Context (enum_type Labels) semantics.universe.
+    check_type Context (enum_intro Label) (semantics.enum_type Labels) :-
+        set.member Labels Label _.
+    check_type Context (enum_elim Clauses) (semantics.function_type (semantics.enum_type Labels) Closure) :-
+        map.keys Clauses ClauseLabels,
+        eqv Labels ClauseLabels,
+        set.map (pfun Label => [Type Elem] (
+            map.find Clauses Label Elem,
+            semantics.apply Closure (semantics.enum_intro Label) Type,
+            check_type Context Elem Type
+        )) ClauseLabels.
 
     % Integers
     is_type Context int_type.
@@ -185,6 +185,7 @@
 
     % Binary format descriptions
     is_type Context format_type.
+    synth_type Context format_intro_void semantics.format_type.
     synth_type Context format_intro_unit semantics.format_type.
     synth_type Context format_intro_u8 semantics.format_type.
     synth_type Context format_intro_u16le semantics.format_type.

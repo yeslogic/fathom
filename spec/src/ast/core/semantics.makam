@@ -17,19 +17,13 @@
     % They capture an environment of values to be used later, when they are
     % finally evaluated.
     closure : type.
+    choice_closure : type.
 
     % Neutral values
     neutral : neutral -> value.
 
     % Universes
     universe : value.
-
-    % Void
-    void_type : value.
-
-    % Unit
-    unit_type : value.
-    unit_intro : value.
 
     % Functions
     function_type : value -> closure -> value.  % Also known as: Pi type, Dependent product type
@@ -39,6 +33,11 @@
     pair_type : value -> closure -> value.      % Also known as: Sigma type, Dependent sum type
     pair_intro : value -> value -> value.       % Also known as: Pair constructor
 
+    % Enumerations
+    enum_type : set string -> value.
+    enum_intro : string -> value.
+    enum_elim : choice_closure -> value.
+
     % Refinements
     %  refine_type : value -> closure -> value.
     %  refine_intro : value -> (* some proof from a solver here? *) -> value.
@@ -46,10 +45,6 @@
     % Staging
     %  stage_type : value -> value.
     %  stage_intro : value -> value.
-
-    % Booleans
-    bool_type : value.
-    bool_intro : bool -> value.
 
     % Integers
     int_type : value.
@@ -87,12 +82,13 @@
     function_elim : neutral -> value -> neutral.
     pair_elim_first : neutral -> neutral.
     pair_elim_second : neutral -> neutral.
+    enum_elim : choice_closure -> neutral -> neutral.
     %  stage_elim : neutral -> neutral.
-    %  bool_elim : neutral -> value -> value -> neutral.
     %  array_elim : neutral -> value -> neutral.
     format_elim : neutral -> neutral.
 
     closure : list value -> term -> closure.
+    choice_closure : list value -> map string term -> choice_closure.
 
 
     % Evaluation of terms into values
@@ -100,14 +96,11 @@
     eval : list value -> term -> value -> prop.
 
     apply : closure -> value -> value -> prop.
-    apply_param : closure -> int -> value -> prop.
 
     function_elim : value -> value -> value -> prop.
     pair_elim_first : value -> value -> prop.
     pair_elim_second : value -> value -> prop.
     %  stage_elim : value -> value -> prop.
-    %  bool_elim : value -> value -> value -> value -> prop.
-    %  array_elim : value -> value -> value -> prop.
     format_elim : value -> value -> prop.
 
     eval Values (local Index) Value :-
@@ -115,9 +108,6 @@
     eval Values (ann Elem _) Value :-
         eval Values Elem Value.
     eval Values universe universe.
-    eval Values void_type void_type.
-    eval Values unit_type unit_type.
-    eval Values unit_intro unit_intro.
     eval Values (function_type InputType OutputType) (function_type InputType' (closure Values OutputType)) :-
         eval Values InputType InputType'.
     eval Values (function_intro OutputElem) (function_intro (closure Values OutputElem)).
@@ -136,15 +126,9 @@
     eval Values (pair_elim_second PairElem) SecondValue :-
         eval Values PairElem PairValue,
         pair_elim_second PairValue SecondValue.
-    eval Values bool_type bool_type.
-    eval Values (bool_intro Bool) (bool_intro Bool).
-    % FIXME: This breaks for neutral terms! We should use `bool_elim` here.
-    eval Values (bool_elim BoolElem TrueElem _) Value :-
-        eval Values BoolElem (bool_intro true),
-        eval Values TrueElem Value.
-    eval Values (bool_elim BoolElem _ False1Elem) Value :-
-        eval Values BoolElem (bool_intro false),
-        eval Values FalseElem Value.
+    eval Values (enum_type Labels) (enum_type Labels).
+    eval Values (enum_intro Label) (enum_intro Label).
+    eval Values (enum_elim Clauses) (enum_elim (choice_closure Values Clauses)).
     eval Values int_type int_type.
     eval Values (int_intro Int) (int_intro Int).
     eval Values (array_type ElemType LenElem) (array_type ElemType' LenValue) :-
@@ -188,14 +172,15 @@
     apply (closure Values Elem) InputValue Value :-
         eval (InputValue :: Values) Elem Value.
 
-    apply_param Closure Length Value :-
-        apply Closure (neutral (local Length)) Value.
-
     % Eliminations
 
     function_elim (neutral Neutral) InputValue (neutral (function_elim Neutral InputValue)).
     function_elim (function_intro Closure) InputValue OutputValue :-
         apply Closure InputValue OutputValue.
+    function_elim (enum_elim (choice_closure Values Clauses)) (neutral Neutral) (neutral (enum_elim (choice_closure Values Clauses) Neutral)).
+    function_elim (enum_elim (choice_closure Values Clauses)) (enum_intro Label) OutputValue :-
+        map.find Clauses Label OutputElem,
+        eval Values OutputElem OutputValue.
 
     pair_elim_first (neutral Neutral) (neutral (pair_elim_first Neutral)).
     pair_elim_first (pair_intro FirstValue _) FirstValue.
@@ -205,15 +190,9 @@
 
     % TODO: stage_elim
 
-    %  bool_elim (neutral Neutral) TrueValue FalseValue (neutral (bool_elim Neutral TrueValue FalseValue)).
-    %  bool_elim (bool_intro true) TrueValue _ TrueValue.
-    %  bool_elim (bool_intro false) _ FalseValue FalseValue.
-
-    % TODO: array_elim
-
     format_elim (neutral Neutral) (neutral (format_elim Neutral)).
-    format_elim format_intro_void void_type.
-    format_elim format_intro_unit unit_type.
+    format_elim format_intro_void (enum_type []).
+    format_elim format_intro_unit (enum_type ["unit"]).
     format_elim format_intro_u8 int_type.
     format_elim format_intro_u16le int_type.
     format_elim format_intro_u16be int_type.
@@ -249,34 +228,44 @@
         readback Length Neutral Elem.
     readback Length (pair_elim_second Neutral : neutral) (pair_elim_second Elem) :-
         readback Length Neutral Elem.
+    readback Length (enum_elim (choice_closure Values Clauses) Neutral : neutral) (function_elim (enum_elim Clauses') Elem) :-
+        map.mapvalues (pfun Elem Elem' => [Value Length] (
+            eval Values Elem Value,
+            length Values Length,
+            readback Length Value Elem'
+        )) Clauses Cluses',
+        readback Length Neutral Elem.
     readback Length (format_elim Neutral : neutral) (format_elim Elem) :-
         readback Length Neutral Elem.
 
     readback Length (neutral Neutral) Elem :-
         readback Length Neutral Elem.
     readback Length universe universe.
-    readback Length void_type void_type.
-    readback Length unit_type unit_type.
-    readback Length unit_intro unit_intro.
     readback Length (function_type InputType Closure) (function_type InputType' OutputType') :-
         readback Length InputType InputType',
-        apply_param Closure Length OutputType,
+        apply Closure (neutral (local Length)) OutputType,
         plus Length 1 Length1,
         readback Length1 OutputType OutputType'.
     readback Length (function_intro Closure) (function_intro OutputElem') :-
-        apply_param Closure Length OutputElem,
+        apply Closure (neutral (local Length)) OutputElem,
         plus Length 1 Length1,
         readback Length1 OutputElem OutputElem'.
     readback Length (pair_type FirstType Closure) (pair_type FirstType' SecondType') :-
         readback Length FirstType FirstType',
-        apply_param Closure Length SecondType,
+        apply Closure (neutral (local Length)) SecondType,
         plus Length 1 Length1,
         readback Length1 SecondType SecondType'.
-    readback Values (pair_intro FirstValue SecondValue) (pair_intro FirstElem SecondElem) :-
-        readback Values FirstValue FirstType,
-        readback Values SecondValue SecondType.
-    readback Length bool_type bool_type.
-    readback Length (bool_intro Bool) (bool_intro Bool).
+    readback Length (pair_intro FirstValue SecondValue) (pair_intro FirstElem SecondElem) :-
+        readback Length FirstValue FirstType,
+        readback Length SecondValue SecondType.
+    readback Length (enum_type Labels) (enum_type Labels).
+    readback Length (enum_intro Label) (enum_intro Label).
+    readback Length (enum_elim (choice_closure Values Clauses)) (enum_elim Clauses') :-
+        map.mapvalues (pfun Elem Elem' => [Value Length] (
+            eval Values Elem Value,
+            length Values Length,
+            readback Length Value Elem'
+        )) Clauses Clauses'.
     readback Length int_type int_type.
     readback Length (int_intro Int) (int_intro Int).
     readback Length (array_type ElemValue LenValue) (array_type ElemType LenElem) :-
@@ -306,7 +295,7 @@
         readback Length LenValue LenElem.
     readback Length (format_intro_pair FirstType Closure) (format_intro_pair FirstType' SecondType') :-
         readback Length FirstType FirstType',
-        apply_param Closure Length SecondType,
+        apply Closure (neutral (local Length)) SecondType,
         plus Length 1 Length1,
         readback Length1 SecondType SecondType'.
 
@@ -329,8 +318,6 @@
     is_equal : int -> neutral -> neutral -> prop.
     is_equal : int -> value -> value -> prop.
 
-    % FIXME: Makam's type unification breaks hear for some reason - it
-    % thinks that we want to definine `int -> value -> term -> prop.`
     is_equal Length (local Level : neutral) (local Level).
     is_equal Length (function_elim Neutral1 InputValue1 : neutral) (function_elim Neutral2 InputValue2) :-
         is_equal Length Neutral1 Neutral2,
@@ -339,39 +326,61 @@
         is_equal Length Neutral1 Neutral2.
     is_equal Length (pair_elim_second Neutral1 : neutral) (pair_elim_second Neutral2) :-
         is_equal Length Neutral1 Neutral2.
+    is_equal Length (enum_elim (choice_closure Values1 Clauses1) Neutral1 : neutral) (enum_elim (choice_closure Values2 Clauses2) Neutral2) :-
+        map.keys Clauses1 Labels1,
+        map.keys Clauses2 Labels2,
+        eqv Labels1 Labels2,
+        set.map (pfun Label => [Elem1 Elem2 Value1 Value2] (
+            map.find Clauses1 Label Elem1,
+            map.find Clauses2 Label Elem2,
+            eval Values1 Elem1 Value1,
+            eval Values2 Elem2 Value2,
+            is_equal Length Value1 Value2
+        )) Labels1,
+        is_equal Length Neutral1 Neutral2.
     is_equal Length (format_elim Neutral1 : neutral) (format_elim Neutral2) :-
         is_equal Length Neutral1 Neutral2.
 
     is_equal Length (neutral Neutral1) (neutral Neutral2) :-
         is_equal Length Neutral1 Neutral2.
     is_equal Length universe universe.
-    is_equal Length void_type void_type.
-    is_equal Length unit_type unit_type.
-    is_equal Length unit_intro unit_intro.
     is_equal Length (function_type InputType1 Closure1) (function_type InputType2 Closure2) :-
         is_equal Length InputType1 InputType2,
-        apply_param Closure1 Length OutputType1,
-        apply_param Closure2 Length OutputType2,
+        apply Closure1 (neutral (local Length)) OutputType1,
+        apply Closure2 (neutral (local Length)) OutputType2,
         plus Length 1 Length1,
         is_equal Length1 OutputType1 OutputType2.
     is_equal Length (function_intro Closure1) (function_intro Closure2) :-
-        apply_param Closure1 Length OutputValue1,
-        apply_param Closure2 Length OutputValue2,
+        apply Closure1 (neutral (local Length)) OutputValue1,
+        apply Closure2 (neutral (local Length)) OutputValue2,
         plus Length 1 Length1,
         is_equal Length1 OutputValue1 OutputValue2.
     is_equal Length (pair_type FirstType1 Closure1) (pair_type FirstType2 Closure2) :-
         is_equal Length FirstType1 FirstType2,
-        apply_param Closure1 Length SecondType1,
-        apply_param Closure2 Length SecondType2,
+        apply Closure1 (neutral (local Length)) SecondType1,
+        apply Closure2 (neutral (local Length)) SecondType2,
         plus Length 1 Length1,
         is_equal Length1 SecondType1 SecondType2.
     is_equal Length (pair_intro FirstElem1 SecondElem1) (pair_intro FirstElem2 SecondElem2) :-
         is_equal Length FirstElem1 FirstElem2,
         is_equal Length SecondElem1 SecondElem2.
-    is_equal Length bool_type bool_type.
-    is_equal Length (bool_intro Bool) (bool_intro Bool).
+    is_equal Length (enum_type Labels1) (enum_type Labels2) :-
+        eqv Labels1 Labels2.
+    is_equal Length (enum_intro Label1) (enum_intro Label2) :-
+        eqv Label1 Label2.
+    is_equal Length (enum_elim (choice_closure Values1 Clauses1)) (enum_elim (choice_closure Values2 Clauses2)) :-
+        map.keys Clauses1 Labels1,
+        map.keys Clauses2 Labels2,
+        eqv Labels1 Labels2,
+        set.map (pfun Label => [Elem1 Elem2 Value1 Value2] (
+            map.find Clauses1 Label Elem1,
+            map.find Clauses2 Label Elem2,
+            eval Values1 Elem1 Value1,
+            eval Values2 Elem2 Value2,
+            is_equal Length Value1 Value2
+        )) Labels1.
     is_equal Length int_type int_type.
-    is_equal Length (int_intro Bool) (int_intro Bool).
+    is_equal Length (int_intro Int) (int_intro Int).
     is_equal Length (array_type ElemType1 LenElem1) (array_type ElemType2 LenElem2) :-
         is_equal Length ElemType1 ElemType2,
         is_equal Length LenElem1 LenElem2.
@@ -399,8 +408,8 @@
         is_equal Length LenElem1 LenElem2.
     is_equal Length (format_intro_pair FirstType1 Closure1) (format_intro_pair FirstType2 Closure2) :-
         is_equal Length FirstType1 FirstType2,
-        apply_param Closure1 Length SecondType1,
-        apply_param Closure2 Length SecondType2,
+        apply Closure1 (neutral (local Length)) SecondType1,
+        apply Closure2 (neutral (local Length)) SecondType2,
         plus Length 1 Length1,
         is_equal Length1 SecondType1 SecondType2.
 

@@ -81,20 +81,6 @@
     is_type Context universe :-
         is_context Context.
 
-    % Void
-    is_type Context void_type :-
-        is_context Context.
-    is_elem Context void_type universe :-
-        is_context Context.
-
-    % Unit
-    is_type Context unit_type :-
-        is_context Context.
-    is_elem Context unit_type universe :-
-        is_context Context.
-    is_elem Context unit_intro unit_type :-
-        is_context Context.
-
     % Functions
     is_type Context (function_type InputType OutputType) :-
         is_type Context InputType,
@@ -121,26 +107,20 @@
     %  is_equal_elem Context (pair_elim_first (pair_intro FirstElem SecondElem)) Elem FirstType :- TODO.
     %  is_equal_elem Context (pair_elim_second (pair_intro FirstElem SecondElem)) Elem SecondType :- TODO.
 
-    % Booleans
-    is_type Context bool_type :-
+    % Enumerations
+    is_type Context (enum_type Labels) :-
         is_context Context.
-    is_elem Context bool_type universe :-
+    is_elem Context (enum_type Labels) universe :-
         is_context Context.
-    is_elem Context (bool_intro _) bool_type :-
-        is_context Context.
-    is_elem Context (bool_elim BoolElem TrueElem FalseElem) Type :-
-        is_elem Context BoolElem bool_type,
-        is_type Context Type,
-        is_elem Context TrueElem Type,
-        is_elem Context FalseElem Type.
-    is_equal_elem Context (bool_elim (bool_intro true) TrueElem FalseElem) TrueElem Type :-
-        is_type Context Type,
-        is_elem Context TrueElem Type,
-        is_elem Context FalseElem Type.
-    is_equal_elem Context (bool_elim (bool_intro false) TrueElem FalseElem) FalseElem Type :-
-        is_type Context Type,
-        is_elem Context TrueElem Type,
-        is_elem Context FalseElem Type.
+    is_elem Context (enum_intro Label) (enum_type Labels) :-
+        is_context Context,
+        set.member Labels Label _.
+    %  is_elem Context (enum_elim Clauses) (enum_type Labels) Type :- TODO.
+    is_equal_type Context (enum_type Labels1) (enum_type Labels2) :-
+        eqv Labels1 Labels2.
+    is_equal_elem Context (enum_intro Label) (enum_intro Label) (enum_type Labels) :-
+        set.member Labels Label _.
+    %  is_equal_elem Context (enum_elim (enum_intro Label) Clauses) Term Type :- TODO.
 
     % Integers
     is_type Context int_type :-
@@ -208,9 +188,9 @@
     is_elem Context (format_intro_pair FirstType SecondType) format_type :-
         is_elem Context FirstType format_type,
         is_elem (extend Context (format_elim FirstType)) SecondType format_type.
-    is_equal_elem Context (format_elim format_intro_void) void_type universe :-
+    is_equal_elem Context (format_elim format_intro_void) (enum_type []) universe :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_unit) unit_type universe :-
+    is_equal_elem Context (format_elim format_intro_unit) (enum_type ["unit"]) universe :-
         is_context Context.
     is_equal_elem Context (format_elim format_intro_u8) int_type universe :-
         is_context Context.
