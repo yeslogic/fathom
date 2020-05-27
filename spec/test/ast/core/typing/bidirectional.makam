@@ -35,8 +35,8 @@
 
     % Universes
 
-
-    % Unit
+>> synth_type universe Type ?
+>> Impossible.
 
 
     % Functions
@@ -132,6 +132,13 @@
 >> Yes.
 
     % Binary format descriptions
+
+>> synth_type format_type Type ?
+>> Impossible.
+
+>> synth_type (format_intro_array format_intro_u8 (int_intro 3)) Type ?
+>> Yes:
+>> Type := semantics.format_type.
 
 >> synth_type (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Type ?
 >> Yes:
