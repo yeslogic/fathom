@@ -1,4 +1,4 @@
-% Projections between intermediate languages.
+% Trranslation passes between intermediate languages.
 %
 % It would be fun to prototype compiling to Rust here.
 %
@@ -14,7 +14,7 @@
 % - defunctionalization/monomorphization of more complicated type functions
 % - erasure of dependencies in pair types and term level functions
 
-%extend passes.
+%extend pass.
 
     %use "surface_to_core".
     %use "core_to_surface".

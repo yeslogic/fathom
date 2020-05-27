@@ -1,0 +1,13 @@
+% Abstract syntax trees (ASTs) for the intermediate languages of the data
+% description language.
+
+%extend ast.
+
+    %use "surface".
+    %use "core/init".
+    %use "stratified/init".
+    %use "unkinded".
+    %use "uncurried".
+    %use "rust".
+
+%end.

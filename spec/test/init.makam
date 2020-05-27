@@ -2,6 +2,6 @@
 
 %extend ddl.
 
-    %use "core/init".
+    %use "ast/init".
 
 %end.

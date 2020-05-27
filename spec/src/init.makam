@@ -58,15 +58,7 @@
 
 %extend ddl.
 
-    % Intermediate representations (IRs)
-    %use "lexical".
-    %use "surface".
-    %use "core/init".
-    %use "stratified/init".
-    %use "unkinded".
-    %use "uncurried".
-    %use "rust".
-
-    %use "passes/init".    % Passes between IRs
+    %use "ast/init".
+    %use "pass/init".
 
 %end.
