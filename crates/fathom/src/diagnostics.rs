@@ -47,8 +47,8 @@ pub fn type_mismatch(
     severity: Severity,
     file_id: usize,
     term_range: Range<usize>,
-    expected_ty: &core::Value,
-    found_ty: &core::Value,
+    expected_ty: &core::semantics::Value,
+    found_ty: &core::semantics::Value,
 ) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
@@ -75,7 +75,7 @@ pub fn universe_mismatch(
     severity: Severity,
     file_id: usize,
     term_range: Range<usize>,
-    found_ty: &core::Value,
+    found_ty: &core::semantics::Value,
 ) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
@@ -112,7 +112,7 @@ pub fn not_a_function(
     severity: Severity,
     file_id: usize,
     head: Range<usize>,
-    head_ty: &core::Value,
+    head_ty: &core::semantics::Value,
     argument: Range<usize>,
 ) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
@@ -277,7 +277,7 @@ pub mod error {
     pub fn numeric_literal_not_supported(
         file_id: usize,
         range: Range<usize>,
-        found_ty: &core::Value,
+        found_ty: &core::semantics::Value,
     ) -> Diagnostic<usize> {
         let arena = pretty::Arena::new();
 
@@ -307,7 +307,7 @@ pub mod error {
     pub fn unsupported_pattern_ty(
         file_id: usize,
         range: Range<usize>,
-        found_ty: &core::Value,
+        found_ty: &core::semantics::Value,
     ) -> Diagnostic<usize> {
         let arena = pretty::Arena::new();
 

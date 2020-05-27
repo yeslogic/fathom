@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
+use crate::ast::core::semantics::{self, Head, Value};
 use crate::ast::{core, surface};
 use crate::diagnostics;
 
@@ -29,7 +30,7 @@ pub struct Context<'me> {
     items: HashMap<&'me str, core::Item>,
     /// List of types currently bound in this context. These could either
     /// refer to items or local bindings.
-    tys: Vec<(&'me str, Arc<core::Value>)>,
+    tys: Vec<(&'me str, Arc<Value>)>,
 }
 
 impl<'me> Context<'me> {
@@ -45,7 +46,7 @@ impl<'me> Context<'me> {
 
     /// Lookup the type of a binding corresponding to `name` in the context,
     /// returning `None` if `name` was not yet bound.
-    pub fn lookup_ty(&self, name: &str) -> Option<&Arc<core::Value>> {
+    pub fn lookup_ty(&self, name: &str) -> Option<&Arc<Value>> {
         Some(&self.tys.iter().rev().find(|(n, _)| *n == name)?.1)
     }
 }
@@ -82,7 +83,7 @@ pub fn from_items<'items>(
                 let (core_term, ty) = match &alias.ty {
                     Some(surface_ty) => {
                         let core_ty = from_term_to_ty(&context, surface_ty, report);
-                        let ty = core::semantics::eval(context.globals, &context.items, &core_ty);
+                        let ty = semantics::eval(context.globals, &context.items, &core_ty);
                         let core_term = from_term_check_ty(&context, &alias.term, &ty, report);
                         (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
                     }
@@ -128,7 +129,7 @@ pub fn from_items<'items>(
 
                         let core_item = core::Item::Struct(item);
                         core_items.push(core_item.clone());
-                        let ty = Arc::new(core::Value::FormatType(0..0));
+                        let ty = Arc::new(Value::FormatType(0..0));
                         context.tys.push((*entry.key(), ty));
                         entry.insert(core_item);
                     }
@@ -164,7 +165,7 @@ pub fn from_struct_ty_fields(
         use std::collections::hash_map::Entry;
 
         let field_range = field.name.0.start..field.term.range().end;
-        let format_ty = Arc::new(core::Value::FormatType(0..0));
+        let format_ty = Arc::new(Value::FormatType(0..0));
         let ty = from_term_check_ty(&context, &field.term, &format_ty, report);
 
         match seen_field_names.entry(field.name.1.clone()) {
@@ -203,9 +204,7 @@ pub fn from_term_to_ty(
         surface_term => {
             let (core_term, ty) = from_term_synth_ty(context, surface_term, report);
             match ty.as_ref() {
-                core::Value::FormatType(_) | core::Value::TypeType(_) | core::Value::Error(_) => {
-                    core_term
-                }
+                Value::FormatType(_) | Value::TypeType(_) | Value::Error(_) => core_term,
                 _ => {
                     let range = surface_term.range();
                     report(diagnostics::universe_mismatch(
@@ -226,12 +225,12 @@ pub fn from_term_to_ty(
 pub fn from_term_check_ty(
     context: &Context<'_>,
     surface_term: &surface::Term,
-    expected_ty: &Arc<core::Value>,
+    expected_ty: &Arc<Value>,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> core::Term {
     match (surface_term, expected_ty.as_ref()) {
         (surface::Term::Error(range), _) => core::Term::Error(range.clone()),
-        (surface_term, core::Value::Error(_)) => core::Term::Error(surface_term.range()),
+        (surface_term, Value::Error(_)) => core::Term::Error(surface_term.range()),
         (surface::Term::NumberLiteral(range, literal), _) => {
             let error = |report: &mut dyn FnMut(Diagnostic<usize>)| {
                 report(diagnostics::error::numeric_literal_not_supported(
@@ -243,7 +242,7 @@ pub fn from_term_check_ty(
             };
             match expected_ty.as_ref() {
                 // TODO: Lookup globals in environment
-                core::Value::Neutral(core::Head::Global(_, name), elims) if elims.is_empty() => {
+                Value::Neutral(Head::Global(_, name), elims) if elims.is_empty() => {
                     match name.as_str() {
                         "Int" => match literal.parse_big_int(context.file_id, report) {
                             Some(value) => {
@@ -271,7 +270,7 @@ pub fn from_term_check_ty(
         }
         (surface::Term::If(range, surface_head, surface_if_true, surface_if_false), _) => {
             // TODO: Lookup globals in environment
-            let bool_ty = Arc::new(core::Value::global(0..0, "Bool"));
+            let bool_ty = Arc::new(Value::global(0..0, "Bool"));
             let head = from_term_check_ty(context, surface_head, &bool_ty, report);
             let if_true = from_term_check_ty(context, surface_if_true, expected_ty, report);
             let if_false = from_term_check_ty(context, surface_if_false, expected_ty, report);
@@ -295,7 +294,7 @@ pub fn from_term_check_ty(
             };
 
             match head_ty.as_ref() {
-                core::Value::Neutral(core::Head::Global(_, name), elims) if elims.is_empty() => {
+                Value::Neutral(Head::Global(_, name), elims) if elims.is_empty() => {
                     // TODO: Lookup globals in environment
                     match name.as_str() {
                         "Bool" => {
@@ -316,14 +315,14 @@ pub fn from_term_check_ty(
                         _ => error(report),
                     }
                 }
-                core::Value::Error(_) => core::Term::Error(range.clone()),
+                Value::Error(_) => core::Term::Error(range.clone()),
                 _ => error(report),
             }
         }
         (surface_term, expected_ty) => {
             let (core_term, synth_ty) = from_term_synth_ty(context, surface_term, report);
 
-            if core::semantics::equal(&synth_ty, expected_ty) {
+            if semantics::equal(&synth_ty, expected_ty) {
                 core_term
             } else {
                 report(diagnostics::type_mismatch(
@@ -344,11 +343,11 @@ pub fn from_term_synth_ty(
     context: &Context<'_>,
     surface_term: &surface::Term,
     report: &mut dyn FnMut(Diagnostic<usize>),
-) -> (core::Term, Arc<core::Value>) {
+) -> (core::Term, Arc<Value>) {
     match surface_term {
         surface::Term::Ann(surface_term, surface_ty) => {
             let core_ty = from_term_to_ty(context, surface_ty, report);
-            let ty = core::semantics::eval(context.globals, &context.items, &core_ty);
+            let ty = semantics::eval(context.globals, &context.items, &core_ty);
             let core_term = from_term_check_ty(context, surface_term, &ty, report);
             (core::Term::Ann(Arc::new(core_term), Arc::new(core_ty)), ty)
         }
@@ -356,7 +355,7 @@ pub fn from_term_synth_ty(
             if let Some((ty, _)) = context.globals.get(name) {
                 return (
                     core::Term::Global(range.clone(), name.to_owned()),
-                    core::semantics::eval(context.globals, &context.items, ty),
+                    semantics::eval(context.globals, &context.items, ty),
                 );
             }
             if let Some(ty) = context.lookup_ty(name) {
@@ -370,7 +369,7 @@ pub fn from_term_synth_ty(
             ));
             (
                 core::Term::Error(range.clone()),
-                Arc::new(core::Value::Error(0..0)),
+                Arc::new(Value::Error(0..0)),
             )
         }
         surface::Term::TypeType(range) | surface::Term::FormatType(range) => {
@@ -381,7 +380,7 @@ pub fn from_term_synth_ty(
             ));
             (
                 core::Term::Error(range.clone()),
-                Arc::new(core::Value::Error(0..0)),
+                Arc::new(Value::Error(0..0)),
             )
         }
         surface::Term::FunctionType(param_ty, body_ty) => {
@@ -391,11 +390,11 @@ pub fn from_term_synth_ty(
             match (&core_param_ty, &core_body_ty) {
                 (core::Term::Error(_), _) | (_, core::Term::Error(_)) => (
                     core::Term::Error(surface_term.range()),
-                    Arc::new(core::Value::Error(0..0)),
+                    Arc::new(Value::Error(0..0)),
                 ),
                 (_, _) => (
                     core::Term::FunctionType(Arc::new(core_param_ty), Arc::new(core_body_ty)),
-                    Arc::new(core::Value::TypeType(0..0)),
+                    Arc::new(Value::TypeType(0..0)),
                 ),
             }
         }
@@ -405,15 +404,15 @@ pub fn from_term_synth_ty(
 
             for argument in arguments {
                 match head_type.as_ref() {
-                    core::Value::FunctionType(param_type, body_type) => {
+                    Value::FunctionType(param_type, body_type) => {
                         core_head = core::Term::FunctionElim(
                             Arc::new(core_head),
                             Arc::new(from_term_check_ty(context, argument, &param_type, report)),
                         );
                         head_type = body_type.clone();
                     }
-                    core::Value::Error(_) => {
-                        return (core::Term::Error(range), Arc::new(core::Value::Error(0..0)));
+                    Value::Error(_) => {
+                        return (core::Term::Error(range), Arc::new(Value::Error(0..0)));
                     }
                     head_ty => {
                         report(diagnostics::not_a_function(
@@ -423,7 +422,7 @@ pub fn from_term_synth_ty(
                             head_ty,
                             argument.range(),
                         ));
-                        return (core::Term::Error(range), Arc::new(core::Value::Error(0..0)));
+                        return (core::Term::Error(range), Arc::new(Value::Error(0..0)));
                     }
                 }
             }
@@ -438,17 +437,17 @@ pub fn from_term_synth_ty(
 
             (
                 core::Term::Error(range.clone()),
-                Arc::new(core::Value::Error(0..0)),
+                Arc::new(Value::Error(0..0)),
             )
         }
         surface::Term::If(range, surface_head, surface_if_true, surface_if_false) => {
             // TODO: Lookup globals in environment
-            let bool_ty = Arc::new(core::Value::global(0..0, "Bool"));
+            let bool_ty = Arc::new(Value::global(0..0, "Bool"));
             let head = from_term_check_ty(context, surface_head, &bool_ty, report);
             let (if_true, if_true_ty) = from_term_synth_ty(context, surface_if_true, report);
             let (if_false, if_false_ty) = from_term_synth_ty(context, surface_if_false, report);
 
-            if core::semantics::equal(&if_true_ty, &if_false_ty) {
+            if semantics::equal(&if_true_ty, &if_false_ty) {
                 (
                     core::Term::BoolElim(
                         range.clone(),
@@ -468,7 +467,7 @@ pub fn from_term_synth_ty(
                 ));
                 (
                     core::Term::Error(range.clone()),
-                    Arc::new(core::Value::Error(range.clone())),
+                    Arc::new(Value::Error(range.clone())),
                 )
             }
         }
@@ -480,12 +479,12 @@ pub fn from_term_synth_ty(
             ));
             (
                 core::Term::Error(range.clone()),
-                Arc::new(core::Value::Error(range.clone())),
+                Arc::new(Value::Error(range.clone())),
             )
         }
         surface::Term::Error(range) => (
             core::Term::Error(range.clone()),
-            Arc::new(core::Value::Error(0..0)),
+            Arc::new(Value::Error(0..0)),
         ),
     }
 }
@@ -494,7 +493,7 @@ pub fn from_term_synth_ty(
 fn from_bool_branches(
     context: &Context<'_>,
     surface_branches: &[(surface::Pattern, surface::Term)],
-    expected_ty: &core::Value,
+    expected_ty: &Value,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> (Arc<core::Term>, Arc<core::Term>) {
     unimplemented!("boolean eliminators")
@@ -504,7 +503,7 @@ fn from_int_branches(
     context: &Context<'_>,
     range: Range<usize>,
     surface_branches: &[(surface::Pattern, surface::Term)],
-    expected_ty: &Arc<core::Value>,
+    expected_ty: &Arc<Value>,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> (BTreeMap<BigInt, Arc<core::Term>>, Arc<core::Term>) {
     use std::collections::btree_map::Entry;
