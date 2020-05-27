@@ -119,7 +119,7 @@
 
 >> normalize (enum_type ["true", "false"]) Term ?
 >> Yes:
->> Term := core.enum_type [ "true", "false" ].
+>> Term := core.enum_type ["true", "false"].
 
 >> normalize (enum_intro "true") Term ?
 >> Yes:

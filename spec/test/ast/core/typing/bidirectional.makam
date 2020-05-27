@@ -10,7 +10,7 @@
 
     % Variables
 
->> synth_type (context [ ( semantics.format_intro_u8, semantics.format_type ) ]) (local 0) Type ?
+>> synth_type (context [(semantics.format_intro_u8, semantics.format_type)]) (local 0) Type ?
 >> Yes:
 >> Type := semantics.format_type.
 
@@ -54,12 +54,12 @@
 
 >> synth_type (function_elim (ann (function_intro (function_intro (local 0))) (function_type universe (function_type (local 0) (local 1)))) int_type) Type ?
 >> Yes:
->> Type := semantics.function_type semantics.int_type (semantics.closure [ semantics.int_type ] (local 1)).
+>> Type := semantics.function_type semantics.int_type (semantics.closure [semantics.int_type] (local 1)).
 
 
     % Pairs
 
->> check_type (pair_intro (int_intro 1) (array_intro [ int_intro 42 ])) (semantics.pair_type semantics.int_type (semantics.closure [] (array_type int_type (local 0)))) ?
+>> check_type (pair_intro (int_intro 1) (array_intro [int_intro 42])) (semantics.pair_type semantics.int_type (semantics.closure [] (array_type int_type (local 0)))) ?
 >> Yes.
 
 >> synth_type (pair_elim_first (ann (pair_intro (int_intro 0) (array_intro [])) (pair_type int_type (array_type int_type (local 0))))) Type ?
@@ -124,7 +124,7 @@
 >> check_type (array_intro []) (semantics.array_type semantics.int_type (semantics.int_intro 0)) ?
 >> Yes.
 
->> check_type (array_intro [ int_intro 1, int_intro 2, int_intro 3 ]) (semantics.array_type semantics.int_type (semantics.int_intro 3)) ?
+>> check_type (array_intro [int_intro 1, int_intro 2, int_intro 3]) (semantics.array_type semantics.int_type (semantics.int_intro 3)) ?
 >> Yes.
 
 
