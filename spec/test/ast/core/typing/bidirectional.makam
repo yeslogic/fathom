@@ -112,6 +112,9 @@
 >> check_type (enum_elim [("true", int_intro 0), ("false", int_intro 1)]) (semantics.function_type (semantics.enum_type ["false", "true"]) (semantics.closure [] int_type)) ?
 >> Yes.
 
+>> check_type (enum_elim [("true", enum_intro "unit"), ("false", int_intro 1)]) (semantics.function_type (semantics.enum_type ["true", "false"]) (semantics.closure [] (function_elim (enum_elim [("true", enum_type ["unit"]), ("false", int_type)]) (local 0)))) ?
+>> Yes.
+
 >> check_type (enum_elim [("true", int_intro 0), ("false", int_intro 1)]) (semantics.function_type (semantics.enum_type []) (semantics.closure [] int_type)) ?
 >> Impossible.
 
