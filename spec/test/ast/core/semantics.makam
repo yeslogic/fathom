@@ -83,6 +83,10 @@
 >> Yes:
 >> Term := int_intro 1.
 
+>> normalize [neutral (local 0)] (function_elim (local 0) (int_intro 1)) Term ?
+>> Yes:
+>> Term := function_elim (local 0) (int_intro 1).
+
 
     % Pairs
 
@@ -98,6 +102,10 @@
 >> Yes:
 >> Term := int_intro 0.
 
+>> normalize [neutral (local 0)] (pair_elim_first (local 0)) Term ?
+>> Yes:
+>> Term := pair_elim_first (local 0).
+
 >> normalize (pair_elim_second (pair_intro (int_intro 0) (array_intro []))) Term ?
 >> Yes:
 >> Term := array_intro [].
@@ -105,6 +113,10 @@
 >> normalize (pair_elim_second (ann (pair_intro (int_intro 0) (array_intro [])) _)) Term ?
 >> Yes:
 >> Term := array_intro [].
+
+>> normalize [neutral (local 0)] (pair_elim_second (local 0)) Term ?
+>> Yes:
+>> Term := pair_elim_second (local 0).
 
 
     % Enumerations
@@ -137,6 +149,10 @@
 >> Yes:
 >> Term := int_intro 1.
 
+>> normalize [neutral (local 0)] (function_elim (enum_elim [("true", (int_intro 0)), ("false", (int_intro 1))]) (local 0)) Term ?
+>> Yes:
+>> Term := function_elim (enum_elim [("true", (int_intro 0)), ("false", (int_intro 1))]) (local 0).
+
 
     % Binary format descriptions
 
@@ -151,5 +167,13 @@
 >> normalize (format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0))) Term ?
 >> Yes:
 >> Term := format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0)).
+
+>> normalize (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Term ?
+>> Yes:
+>> Term := array_type int_type (int_intro 3).
+
+>> normalize [neutral (local 0)] (format_elim (local 0)) Term ?
+>> Yes:
+>> Term := format_elim (local 0).
 
 %end.

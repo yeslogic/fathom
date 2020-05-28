@@ -233,7 +233,7 @@
             eval Values Elem Value,
             length Values Length,
             readback Length Value Elem'
-        )) Clauses Cluses',
+        )) Clauses Clauses',
         readback Length Neutral Elem.
     readback Length (format_elim Neutral : neutral) (format_elim Elem) :-
         readback Length Neutral Elem.
