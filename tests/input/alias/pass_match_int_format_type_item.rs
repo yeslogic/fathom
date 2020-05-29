@@ -1,14 +1,14 @@
 #![cfg(test)]
 
-use ddl_rt::{F64Le, FormatWriter, ReadError, ReadScope, U8};
-use ddl_test_util::ddl::ast::core::{self, binary};
+use fathom_rt::{F64Le, FormatWriter, ReadError, ReadScope, U8};
+use fathom_test_util::fathom::ast::core::{self, binary};
 
 #[path = "../../snapshots/alias/pass_match_int_format_type_item.rs"]
 pub mod fixture;
 
-ddl_test_util::core_module!(
+fathom_test_util::core_module!(
     FIXTURE,
-    "../../snapshots/alias/pass_match_int_format_type_item.core.ddl"
+    "../../snapshots/alias/pass_match_int_format_type_item.core.fathom"
 );
 
 #[test]

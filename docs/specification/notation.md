@@ -1,6 +1,6 @@
 # Notation
 
-The following notation is used to specify the data description language.
+The following notation is used to specify Fathom.
 The notation is reminiscent of what you might find in programming language and
 type theory texts, but we have made an effort to take advantage of the increased
 amount of space and styling options that we have on the web in order to make
