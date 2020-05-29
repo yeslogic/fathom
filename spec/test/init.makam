@@ -1,6 +1,6 @@
 %use "../src/init".
 
-%extend ddl.
+%extend fathom.
 
     %use "ast/init".
 

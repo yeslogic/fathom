@@ -1,4 +1,4 @@
-% A specification of the data description language.
+% A specification of the Fathom binarary data description language.
 %
 % In making this language, we owe much of our inspiration to the work on PADS/ML
 % and the data description calculus (DDC) in ["The Next 700 Data Description Languages"].
@@ -56,7 +56,7 @@
 %
 % Let me know if you have other ideas!
 
-%extend ddl.
+%extend fathom.
     % Extensions to Makam's standard library
     %use "stdlib".
 
