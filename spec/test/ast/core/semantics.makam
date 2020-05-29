@@ -154,6 +154,41 @@
 >> Term := function_elim (enum_elim [("true", (int_intro 0)), ("false", (int_intro 1))]) (local 0).
 
 
+    % Integers
+
+>> normalize int_type Term ?
+>> Yes:
+>> Term := int_type.
+
+>> normalize (int_intro 25) Term ?
+>> Yes:
+>> Term := int_intro 25.
+
+
+    % Arrays
+
+>> normalize [int_intro 42, int_type] (array_type (local 1) (local 0)) Term ?
+>> Yes:
+>> Term := array_type int_type (int_intro 42).
+
+>> normalize (array_intro []) Term ?
+>> Yes:
+>> Term := array_intro [].
+
+>> normalize [int_intro 25, int_intro 30] (array_intro [local 0, local 1]) Term ?
+>> Yes:
+>> Term := array_intro [int_intro 25, int_intro 30].
+
+>> normalize [int_intro 1, int_intro 25, int_intro 30] (array_elim (array_intro [local 1, local 2]) (local 0)) Term ?
+>> Yes:
+>> Term := int_intro 30.
+
+% FIXME:
+%  >> normalize [neutral (local 0), int_intro 25, int_intro 30] (array_elim (array_intro [local 1, local 2]) (local 0)) Term ?
+%  >> Yes:
+%  >> Term := array_elim (array_intro [int_intro 25, int_intro 30]) (local 0).
+
+
     % Binary format descriptions
 
 >> normalize (format_elim format_intro_u8) Term ?
