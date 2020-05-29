@@ -1,14 +1,14 @@
 #![cfg(test)]
 
-use ddl_rt::{FormatWriter, ReadError, ReadScope, U8};
-use ddl_test_util::ddl::ast::core::{self, binary};
+use fathom_rt::{FormatWriter, ReadError, ReadScope, U8};
+use fathom_test_util::fathom::ast::core::{self, binary};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
 #[path = "../../snapshots/struct/pass_singleton.rs"]
 pub mod fixture;
 
-ddl_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_singleton.core.ddl");
+fathom_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_singleton.core.fathom");
 
 #[test]
 fn eof_inner() {

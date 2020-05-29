@@ -1,6 +1,6 @@
-# DDL: Language Specification
+# Fathom: Language Specification
 
-Here we describe the syntax and semantics of the data description language in a
+Here we describe the syntax and semantics of Fathom in a
 semi-formal way.
 
 ## Limitations
@@ -24,4 +24,4 @@ formally verified specification in the future.
 -   [Binary interpretation](./specification/binary-interpretation.md):
     describes how to interpret binary types as binary encoders and decoders
 -   [References](./specification/references.md):
-    list of references that proved useful when designing the data description language
+    list of references that proved useful when designing Fathom

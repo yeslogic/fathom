@@ -1,7 +1,6 @@
 # Core theory
 
-The binary data description language can be represented in a small dependently
-typed language. We describe this here.
+Fathom can be represented in a small dependently typed language. We describe this here.
 
 ## Contents
 

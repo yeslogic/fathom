@@ -1,6 +1,6 @@
 # Elaboration
 
-This section describes how the surface syntax of the data description language
+This section describes how the surface syntax of Fathom
 is 'elaborated' into the core type theory.
 The intention is that the resulting core terms and modules are well-formed with
 respect to the validation rules described in the core type theory, but we make

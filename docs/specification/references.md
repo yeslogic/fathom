@@ -1,6 +1,6 @@
 # References
 
-A list of resources that were useful when designing the data description language.
+A list of resources that were useful when designing Fathom.
 
 ## Academic papers
 
@@ -54,7 +54,7 @@ A list of resources that were useful when designing the data description languag
 ## Language specifications
 
 The following language specifications and language references were used as
-inspiration when writing the specification of the data description language:
+inspiration when writing the specification of Fathom:
 
 - [WebAssembly Specification](https://webassembly.github.io/spec/core/index.html)
 - [Dhall Semantics](https://github.com/dhall-lang/dhall-lang/tree/master/standard)

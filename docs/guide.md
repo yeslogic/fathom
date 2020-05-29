@@ -1,4 +1,4 @@
-# DDL: Language Guide
+# Fathom: Language Guide
 
 Binary formats exist in many forms in computing. Examples of these include:
 
@@ -7,9 +7,8 @@ Binary formats exist in many forms in computing. Examples of these include:
 - Fonts: OTF, TTF
 - &hellip;and many more!
 
-The DDL (data description language) is a domain-specific language that can be used to
-describe these various binary data types in a declarative way that is both
-human and machine readable.
+Fathom is a domain-specific language that can be used to describe these various
+binary data types in a declarative way that is both human and machine readable.
 
 ## A first binary format
 

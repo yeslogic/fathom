@@ -1,12 +1,12 @@
 #![cfg(test)]
 
-use ddl_rt::{FormatWriter, ReadError, ReadScope, U8};
-use ddl_test_util::ddl::ast::core::{self, binary};
+use fathom_rt::{FormatWriter, ReadError, ReadScope, U8};
+use fathom_test_util::fathom::ast::core::{self, binary};
 
 #[path = "../../snapshots/alias/pass_simple.rs"]
 pub mod fixture;
 
-ddl_test_util::core_module!(FIXTURE, "../../snapshots/alias/pass_simple.core.ddl");
+fathom_test_util::core_module!(FIXTURE, "../../snapshots/alias/pass_simple.core.fathom");
 
 #[test]
 fn eof_inner() {

@@ -1,7 +1,7 @@
 # Primitive Types
 
-The data description language has a number of built-in types that can be used
-to create more complicated format specifications.
+Fathom has a number of built-in types that can be used to create more
+complicated format specifications.
 
 ## Unsigned integers
 
