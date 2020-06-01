@@ -4,7 +4,8 @@ use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
 use crate::ast::core::binary::Term;
-use crate::ast::core::{semantics, Constant, Elim, Globals, Head, Item, Module, StructType, Value};
+use crate::ast::core::semantics::{self, Elim, Head, Value};
+use crate::ast::core::{Constant, Globals, Item, Module, StructType};
 
 /// Contextual information to be used when parsing items.
 pub struct Context<'me> {

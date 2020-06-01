@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::Range;
 use std::sync::Arc;
 
+use crate::ast::core::semantics::{self, Elim, Head, Value};
 use crate::ast::{core, rust};
 
 mod diagnostics;
@@ -353,13 +354,13 @@ fn from_term(
     core_term: &core::Term,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> CompiledTerm {
-    let value = core::semantics::eval(context.globals, &context.core_items, core_term);
+    let value = semantics::eval(context.globals, &context.core_items, core_term);
     from_value(context, &value, report)
 }
 
 fn from_value(
     context: &mut Context<'_>,
-    value: &core::Value,
+    value: &Value,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> CompiledTerm {
     let file_id = context.file_id;
@@ -382,7 +383,7 @@ fn from_value(
     };
 
     match value {
-        core::Value::Neutral(core::Head::Global(range, name), elims) => {
+        Value::Neutral(Head::Global(range, name), elims) => {
             match (name.as_str(), elims.as_slice()) {
                 // TODO: Put globals in an environment
                 ("U8", []) => format_ty(rt_ty_name("U8"), rust::Type::name("u8", vec![])),
@@ -423,24 +424,19 @@ fn from_value(
                     rust_ty: rust::Type::name("bool", vec![]),
                     is_const: true,
                 }),
-                (
-                    "FormatArray",
-                    [core::Elim::Function(len_range, len), core::Elim::Function(_, elem_ty)],
-                ) => {
+                ("FormatArray", [Elim::Function(len_range, len), Elim::Function(_, elem_ty)]) => {
                     let len = match len.as_ref() {
-                        core::Value::Error(_) => return CompiledTerm::Error,
-                        core::Value::Constant(_, core::Constant::Int(len)) => {
-                            match len.to_usize() {
-                                Some(len) => len,
-                                None => {
-                                    report(diagnostics::bug::integer_out_of_bounds(
-                                        context.file_id,
-                                        len_range.clone(),
-                                    ));
-                                    return CompiledTerm::Error;
-                                }
+                        Value::Error(_) => return CompiledTerm::Error,
+                        Value::Constant(_, core::Constant::Int(len)) => match len.to_usize() {
+                            Some(len) => len,
+                            None => {
+                                report(diagnostics::bug::integer_out_of_bounds(
+                                    context.file_id,
+                                    len_range.clone(),
+                                ));
+                                return CompiledTerm::Error;
                             }
-                        }
+                        },
                         _ => {
                             report(diagnostics::bug::expected_integer(
                                 context.file_id,
@@ -483,7 +479,7 @@ fn from_value(
                         }),
                     }
                 }
-                ("List", [core::Elim::Function(_, elem_ty)]) => {
+                ("List", [Elim::Function(_, elem_ty)]) => {
                     let elem_ty =
                         from_value_to_ty(context, elem_ty, report).unwrap_or_else(|| Type {
                             rust_ty: rt_invalid_ty(),
@@ -533,7 +529,7 @@ fn from_value(
                 }
             }
         }
-        core::Value::Neutral(core::Head::Item(range, name), elims) => {
+        Value::Neutral(Head::Item(range, name), elims) => {
             let head = match context.compiled_items.get(name.as_str()) {
                 Some(CompiledItem::Term(term_item)) => CompiledTerm::Term(term_item.to_term()),
                 Some(CompiledItem::Type(ty_item)) => CompiledTerm::Type(ty_item.to_ty()),
@@ -545,7 +541,7 @@ fn from_value(
                 }
             };
             elims.iter().fold(head, |head, elim| match (&head, elim) {
-                (_, core::Elim::Function(_, _)) => {
+                (_, Elim::Function(_, _)) => {
                     report(crate::diagnostics::bug::not_yet_implemented(
                         context.file_id,
                         value.range(),
@@ -553,24 +549,24 @@ fn from_value(
                     ));
                     CompiledTerm::Error
                 }
-                (CompiledTerm::Term(head), core::Elim::Bool(_, if_true, if_false)) => {
+                (CompiledTerm::Term(head), Elim::Bool(_, if_true, if_false)) => {
                     let head = head.rust_term.clone();
                     from_bool_elim(context, head, if_true, if_false, report)
                 }
-                (CompiledTerm::Term(head), core::Elim::Int(range, branches, default)) => {
+                (CompiledTerm::Term(head), Elim::Int(range, branches, default)) => {
                     let head = head.rust_term.clone();
                     from_int_elim(context, range.clone(), head, branches, default, report)
                 }
                 (CompiledTerm::Error, _) => CompiledTerm::Error,
-                (_, core::Elim::Bool(range, _, _)) | (_, core::Elim::Int(range, _, _)) => {
+                (_, Elim::Bool(range, _, _)) | (_, Elim::Int(range, _, _)) => {
                     report(diagnostics::bug::unexpected_elim(file_id, range.clone()));
                     CompiledTerm::Error
                 }
             })
         }
-        core::Value::Neutral(core::Head::Error(_), _) => CompiledTerm::Error,
-        core::Value::FormatType(_) | core::Value::TypeType(_) => CompiledTerm::Erased,
-        core::Value::FunctionType(_, _) => {
+        Value::Neutral(Head::Error(_), _) => CompiledTerm::Error,
+        Value::FormatType(_) | Value::TypeType(_) => CompiledTerm::Erased,
+        Value::FunctionType(_, _) => {
             report(crate::diagnostics::bug::not_yet_implemented(
                 context.file_id,
                 value.range(),
@@ -578,10 +574,8 @@ fn from_value(
             ));
             CompiledTerm::Error
         }
-        core::Value::Constant(range, constant) => {
-            from_constant(context, range.clone(), constant, report)
-        }
-        core::Value::Error(_) => CompiledTerm::Error,
+        Value::Constant(range, constant) => from_constant(context, range.clone(), constant, report),
+        Value::Error(_) => CompiledTerm::Error,
     }
 }
 
@@ -590,13 +584,13 @@ fn from_term_to_ty(
     core_term: &core::Term,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> Option<Type> {
-    let value = core::semantics::eval(context.globals, &context.core_items, core_term);
+    let value = semantics::eval(context.globals, &context.core_items, core_term);
     from_value_to_ty(context, &value, report)
 }
 
 fn from_value_to_ty(
     context: &mut Context<'_>,
-    value: &core::Value,
+    value: &Value,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> Option<Type> {
     match from_value(context, &value, report) {
