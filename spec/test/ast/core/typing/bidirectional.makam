@@ -21,38 +21,38 @@
 >> Yes:
 >> Type := semantics.format_type.
 
->> check_type (ann format_intro_u8 format_type) semantics.universe ?
+>> check_type (ann format_intro_u8 format_type) semantics.type_type ?
 >> Impossible.
 
 
->> synth_type (ann int_type universe) Type ?
+>> synth_type (ann int_type type_type) Type ?
 >> Yes:
->> Type := semantics.universe.
+>> Type := semantics.type_type.
 
->> check_type (ann int_type universe) semantics.format_type ?
+>> check_type (ann int_type type_type) semantics.format_type ?
 >> Impossible.
 
 
     % Universes
 
->> synth_type universe Type ?
+>> synth_type type_type Type ?
 >> Impossible.
 
 
     % Functions
 
->> synth_type (function_type universe (function_type (local 0) (local 1))) Type ?
+>> synth_type (function_type type_type (function_type (local 0) (local 1))) Type ?
 >> Yes:
->> Type := semantics.universe.
+>> Type := semantics.type_type.
 
->> check_type (function_intro (function_intro (local 0))) (semantics.function_type semantics.universe (semantics.closure [] (function_type (local 0) (local 1)))) ?
+>> check_type (function_intro (function_intro (local 0))) (semantics.function_type semantics.type_type (semantics.closure [] (function_type (local 0) (local 1)))) ?
 >> Yes.
 
->> synth_type (function_type universe (function_type (local 0) (local 1))) Type ?
+>> synth_type (function_type type_type (function_type (local 0) (local 1))) Type ?
 >> Yes:
->> Type := semantics.universe.
+>> Type := semantics.type_type.
 
->> synth_type (function_elim (ann (function_intro (function_intro (local 0))) (function_type universe (function_type (local 0) (local 1)))) int_type) Type ?
+>> synth_type (function_elim (ann (function_intro (function_intro (local 0))) (function_type type_type (function_type (local 0) (local 1)))) int_type) Type ?
 >> Yes:
 >> Type := semantics.function_type semantics.int_type (semantics.closure [semantics.int_type] (local 1)).
 
@@ -75,15 +75,15 @@
 
 >> synth_type (enum_type []) Type ?
 >> Yes:
->> Type := semantics.universe.
+>> Type := semantics.type_type.
 
 >> synth_type (enum_type ["unit"]) Type ?
 >> Yes:
->> Type := semantics.universe.
+>> Type := semantics.type_type.
 
 >> synth_type (enum_type ["true", "false"]) Type ?
 >> Yes:
->> Type := semantics.universe.
+>> Type := semantics.type_type.
 
 >> check_type (enum_intro "unit") (semantics.enum_type ["unit"]) ?
 >> Yes.
@@ -145,6 +145,6 @@
 
 >> synth_type (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Type ?
 >> Yes:
->> Type := semantics.universe.
+>> Type := semantics.type_type.
 
 %end.

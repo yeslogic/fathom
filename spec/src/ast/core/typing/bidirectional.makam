@@ -101,7 +101,7 @@
         check_type Context Elem Type'.
 
     % Universes
-    is_type Context universe.
+    is_type Context type_type.
 
     % Functions
     is_type Context (function_type InputType OutputType) :-
@@ -109,7 +109,7 @@
         context.eval Context InputType InputType',
         context.add_param Context InputType' Context',
         is_type Context' OutputType.
-    synth_type Context (function_type InputType OutputType) semantics.universe :-
+    synth_type Context (function_type InputType OutputType) semantics.type_type :-
         is_type Context InputType,
         context.eval Context InputType InputType',
         context.add_param Context InputType' Context'.
@@ -127,15 +127,15 @@
 
     % Pairs
     is_type Context (pair_type FirstType SecondType) :-
-        check_type Context FirstType semantics.universe,
+        check_type Context FirstType semantics.type_type,
         context.eval Context FirstType FirstType',
         context.add_param Context FirstType' Context',
-        check_type Context' SecondType semantics.universe.
-    synth_type Context (pair_type FirstType SecondType) semantics.universe :-
-        check_type Context FirstType semantics.universe,
+        check_type Context' SecondType semantics.type_type.
+    synth_type Context (pair_type FirstType SecondType) semantics.type_type :-
+        check_type Context FirstType semantics.type_type,
         context.eval Context FirstType FirstType',
         context.add_param Context FirstType' Context',
-        check_type Context' SecondType semantics.universe.
+        check_type Context' SecondType semantics.type_type.
     check_type Context (pair_intro FirstElem SecondElem) (semantics.pair_type FirstType Closure) :-
         check_type Context FirstElem FirstType,
         context.eval Context FirstElem FirstElem',
@@ -151,7 +151,7 @@
 
     % Enumerations
     is_type Context (enum_type Labels).
-    synth_type Context (enum_type Labels) semantics.universe.
+    synth_type Context (enum_type Labels) semantics.type_type.
     check_type Context (enum_intro Label) (semantics.enum_type Labels) :-
         set.member Labels Label _.
     check_type Context (enum_elim Clauses) (semantics.function_type (semantics.enum_type Labels) Closure) :-
@@ -165,15 +165,15 @@
 
     % Integers
     is_type Context int_type.
-    synth_type Context int_type semantics.universe.
+    synth_type Context int_type semantics.type_type.
     synth_type Context (int_intro _) semantics.int_type.
 
     % Arrays
     is_type Context (array_type Type LenElem) :-
-        check_type Context Type semantics.universe,
+        check_type Context Type semantics.type_type,
         check_type Context LenElem semantics.int_type.
-    synth_type Context (array_type Type LenElem) semantics.universe :-
-        check_type Context Type semantics.universe,
+    synth_type Context (array_type Type LenElem) semantics.type_type :-
+        check_type Context Type semantics.type_type,
         check_type Context LenElem semantics.int_type.
     check_type Context (array_intro Elems) (semantics.array_type Type (semantics.int_intro Len)) :-
         length Elems Len,
@@ -211,7 +211,7 @@
         check_type Context' SecondType semantics.format_type.
     is_type Context (format_elim Type) :-
         check_type Context Type semantics.format_type.
-    synth_type Context (format_elim Type) semantics.universe :-
+    synth_type Context (format_elim Type) semantics.type_type :-
         check_type Context Type semantics.format_type.
 
 

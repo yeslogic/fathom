@@ -78,14 +78,14 @@
         is_elem Context (local PrevIndex) Type.
 
     % Universes
-    is_type Context universe :-
+    is_type Context type_type :-
         is_context Context.
 
     % Functions
     is_type Context (function_type InputType OutputType) :-
         is_type Context InputType,
         is_type (extend Context InputType) OutputType.
-    is_elem Context (function_type InputType OutputType) universe :-
+    is_elem Context (function_type InputType OutputType) type_type :-
         is_type Context InputType,
         is_type (extend Context InputType) OutputType.
     is_elem Context (function_intro OutputElem) (function_type InputType OutputType) :-
@@ -96,11 +96,11 @@
 
     % Pairs
     is_type Context (pair_type FirstType SecondType) :-
-        is_elem Context FirstType universe,
-        is_elem (extend Context FirstType) SecondType universe.
-    is_elem Context (pair_type FirstType SecondType) universe :-
-        is_elem Context FirstType universe,
-        is_elem (extend Context FirstType) SecondType universe.
+        is_elem Context FirstType type_type,
+        is_elem (extend Context FirstType) SecondType type_type.
+    is_elem Context (pair_type FirstType SecondType) type_type :-
+        is_elem Context FirstType type_type,
+        is_elem (extend Context FirstType) SecondType type_type.
     %  is_elem Context (pair_intro FirstElem SecondElem) (pair_type FirstType SecondType) :- TODO.
     %  is_elem Context (pair_elim_first (pair_intro FirstElem SecondElem)) FirstType :- TODO.
     %  is_elem Context (pair_elim_second (pair_intro FirstElem SecondElem)) SecondType :- TODO.
@@ -110,7 +110,7 @@
     % Enumerations
     is_type Context (enum_type Labels) :-
         is_context Context.
-    is_elem Context (enum_type Labels) universe :-
+    is_elem Context (enum_type Labels) type_type :-
         is_context Context.
     is_elem Context (enum_intro Label) (enum_type Labels) :-
         is_context Context,
@@ -125,17 +125,17 @@
     % Integers
     is_type Context int_type :-
         is_context Context.
-    is_elem Context int_type universe :-
+    is_elem Context int_type type_type :-
         is_context Context.
     is_elem Context (int_intro _) int_type :-
         is_context Context.
 
     % Arrays
     is_type Context (array_type Type LenElem) :-
-        is_elem Context Type universe,
+        is_elem Context Type type_type,
         is_elem Context LenElem int_type.
-    is_elem Context (array_type Type LenElem) universe :-
-        is_elem Context Type universe,
+    is_elem Context (array_type Type LenElem) type_type :-
+        is_elem Context Type type_type,
         is_elem Context LenElem int_type.
     is_elem Context (array_intro Elems) (array_type Type LenElem) :-
         is_equal_elem Context (int_intro Len) LenElem int_type,
@@ -188,40 +188,40 @@
     is_elem Context (format_intro_pair FirstType SecondType) format_type :-
         is_elem Context FirstType format_type,
         is_elem (extend Context (format_elim FirstType)) SecondType format_type.
-    is_equal_elem Context (format_elim format_intro_void) (enum_type []) universe :-
+    is_equal_elem Context (format_elim format_intro_void) (enum_type []) type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_unit) (enum_type ["unit"]) universe :-
+    is_equal_elem Context (format_elim format_intro_unit) (enum_type ["unit"]) type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_u8) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_u8) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_u16le) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_u16le) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_u16be) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_u16be) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_u32le) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_u32le) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_u32be) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_u32be) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_u64le) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_u64le) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_u64be) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_u64be) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_s8) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_s8) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_s16le) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_s16le) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_s16be) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_s16be) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_s32le) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_s32le) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_s32be) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_s32be) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_s64le) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_s64le) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_s64be) int_type universe :-
+    is_equal_elem Context (format_elim format_intro_s64be) int_type type_type :-
         is_context Context.
     is_equal_elem Context (format_elim (format_intro_array Type LenElem)) (array_type Type' LenElem) format_type :-
-        is_equal_elem Context (format_elim Type) Type' universe.
+        is_equal_elem Context (format_elim Type) Type' type_type.
     % TODO: format_intro_pair
 
 %end.

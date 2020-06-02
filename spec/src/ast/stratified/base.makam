@@ -16,7 +16,7 @@ lift : typ -> kind.
 lift : expr -> typ.
 
 % Universes
-universe : kind.
+type_type : kind.
 
 % Functions
 function_type : kind -> kind -> kind.

@@ -6,7 +6,7 @@
     expr_value : type.
 
     % Universes
-    universe : kind_value.
+    type_type : kind_value.
 
     % Enumerations
     enum_type : set string -> typ_value.

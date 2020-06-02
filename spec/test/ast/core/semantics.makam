@@ -71,9 +71,9 @@
 
     % Functions
 
->> normalize (function_type universe (function_type (local 0) (local 1))) Term ?
+>> normalize (function_type type_type (function_type (local 0) (local 1))) Term ?
 >> Yes:
->> Term := function_type universe (function_type (local 0) (local 1)).
+>> Term := function_type type_type (function_type (local 0) (local 1)).
 
 >> normalize (function_intro (function_intro (local 0))) Term ?
 >> Yes:

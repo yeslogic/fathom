@@ -43,29 +43,29 @@
     % Annotated terms
 
     % Universes
-    is_type Context ast.core.universe (kind ast.stratified.universe).
+    is_type Context ast.core.type_type (kind ast.stratified.type_type).
 
     % Functions
     % Pairs
 
     % Enumerations
     is_type Context (ast.core.enum_type Labels) (typ (ast.stratified.enum_type Labels)).
-    synth_type Context (ast.core.enum_type Labels) (kind ast.stratified.semantics.universe) (typ (ast.stratified.enum_type Labels)).
+    synth_type Context (ast.core.enum_type Labels) (kind ast.stratified.semantics.type_type) (typ (ast.stratified.enum_type Labels)).
     check_type Context (ast.core.enum_intro Label) (typ (ast.stratified.semantics.enum_type Labels)) (expr (ast.stratified.enum_intro Label)) :-
         set.member Labels Label _.
     % TODO: ast.core.enum_elim
 
     % Integers
     is_type Context ast.core.int_type (typ ast.stratified.int_type).
-    synth_type Context ast.core.int_type (kind ast.stratified.semantics.universe) (typ ast.stratified.int_type).
+    synth_type Context ast.core.int_type (kind ast.stratified.semantics.type_type) (typ ast.stratified.int_type).
     synth_type Context (ast.core.int_intro Int) (typ ast.stratified.semantics.int_type) (expr (ast.stratified.int_intro Int)).
 
     % Arrays
     is_type Context (ast.core.array_type Type LenElem) (typ (ast.stratified.array_type Type' LenElem')) :-
-        check_type Context Type (kind ast.stratified.semantics.universe) (typ Type'),
+        check_type Context Type (kind ast.stratified.semantics.type_type) (typ Type'),
         check_type Context LenElem (typ ast.stratified.semantics.int_type) (expr LenElem').
-    check_type Context (ast.core.array_type Type LenElem) (kind ast.stratified.semantics.universe) (typ (ast.stratified.array_type Type' LenElem')) :-
-        check_type Context Type (kind ast.stratified.semantics.universe) (typ Type'),
+    check_type Context (ast.core.array_type Type LenElem) (kind ast.stratified.semantics.type_type) (typ (ast.stratified.array_type Type' LenElem')) :-
+        check_type Context Type (kind ast.stratified.semantics.type_type) (typ Type'),
         check_type Context LenElem (typ ast.stratified.semantics.int_type) (expr LenElem').
     check_type Context (ast.core.array_intro Elems) (typ (ast.stratified.semantics.array_type Type (ast.stratified.semantics.int_intro Len))) (expr (ast.stratified.array_intro Elems')) :-
         length Elems Len,

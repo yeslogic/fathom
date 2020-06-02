@@ -23,7 +23,7 @@
     neutral : neutral -> value.
 
     % Universes
-    universe : value.
+    type_type : value.
 
     % Functions
     function_type : value -> closure -> value.  % Also known as: Pi type, Dependent product type
@@ -107,7 +107,7 @@
         list.nth Values Index Value.
     eval Values (ann Elem _) Value :-
         eval Values Elem Value.
-    eval Values universe universe.
+    eval Values type_type type_type.
     eval Values (function_type InputType OutputType) (function_type InputType' (closure Values OutputType)) :-
         eval Values InputType InputType'.
     eval Values (function_intro OutputElem) (function_intro (closure Values OutputElem)).
@@ -240,7 +240,7 @@
 
     readback Length (neutral Neutral) Elem :-
         readback Length Neutral Elem.
-    readback Length universe universe.
+    readback Length type_type type_type.
     readback Length (function_type InputType Closure) (function_type InputType' OutputType') :-
         readback Length InputType InputType',
         apply Closure (neutral (local Length)) OutputType,
@@ -343,7 +343,7 @@
 
     is_equal Length (neutral Neutral1) (neutral Neutral2) :-
         is_equal Length Neutral1 Neutral2.
-    is_equal Length universe universe.
+    is_equal Length type_type type_type.
     is_equal Length (function_type InputType1 Closure1) (function_type InputType2 Closure2) :-
         is_equal Length InputType1 InputType2,
         apply Closure1 (neutral (local Length)) OutputType1,
