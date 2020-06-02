@@ -17,19 +17,26 @@
 
     % Annotated terms
 
->> synth_type (ann format_intro_u8 format_type) Type ?
+>> synth_type (ann (int_intro 23) int_type) Type ?
 >> Yes:
->> Type := semantics.format_type.
+>> Type := semantics.int_type.
 
->> check_type (ann format_intro_u8 format_type) semantics.type_type ?
->> Impossible.
-
+>> synth_type (ann (int_intro 23) (ann int_type type_type)) Type ?
+>> Yes:
+>> Type := semantics.int_type.
 
 >> synth_type (ann int_type type_type) Type ?
 >> Yes:
 >> Type := semantics.type_type.
 
+>> synth_type (ann format_intro_u8 format_type) Type ?
+>> Yes:
+>> Type := semantics.format_type.
+
 >> check_type (ann int_type type_type) semantics.format_type ?
+>> Impossible.
+
+>> check_type (ann format_intro_u8 format_type) semantics.type_type ?
 >> Impossible.
 
 

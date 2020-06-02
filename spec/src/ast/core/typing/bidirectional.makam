@@ -94,7 +94,6 @@
         context.lookup_type Context Index Type.
 
     % Annotated terms
-    % FIXME: is_type?
     synth_type Context (ann Elem Type) Type' :-
         is_type Context Type,
         context.eval Context Type Type',
