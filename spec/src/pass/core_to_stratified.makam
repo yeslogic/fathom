@@ -19,6 +19,19 @@
 
     context : type.
 
+    %extend context.
+
+        eval : context -> ast.stratified.kind -> ast.stratified.semantics.kind_value -> prop.
+        % TODO: eval
+
+        eval : context -> ast.stratified.typ -> ast.stratified.semantics.typ_value -> prop.
+        % TODO: eval
+
+        eval : context -> ast.stratified.expr -> ast.stratified.semantics.expr_value -> prop.
+        % TODO: eval
+
+    %end.
+
 
     % Check that a term is a type and lower it to a stratified term.
     is_type : context -> ast.core.term -> stratified_term -> prop.
@@ -40,7 +53,16 @@
 
     % Conversion
     % Variables
+
     % Annotated terms
+    is_type Context (ast.core.ann Elem Type) Elem' :-
+        is_type Context Type (kind Kind),
+        context.eval Context Kind Kind',
+        check_type Context Elem (kind Kind') Elem'.
+    is_type Context (ast.core.ann Elem Type) Elem' :-
+        is_type Context Type (typ Type'),
+        context.eval Context Type' Type'',
+        check_type Context Elem (typ Type'') Elem'.
 
     % Universes
     is_type Context ast.core.type_type (kind ast.stratified.type_type).
