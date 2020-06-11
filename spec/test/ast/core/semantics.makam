@@ -6,55 +6,6 @@
 
 % FIXME: there seems to be a bug with indenting tests here - see https://github.com/astampoulis/makam/issues/94
 
->> function_elim (neutral Neutral) InputValue Value ?
->> Yes:
->> Value := neutral (function_elim Neutral InputValue).
-
->> function_elim (function_intro (closure [] (local 0))) InputValue Value ?
->> Yes:
->> Value := InputValue.
-
-
->> function_elim (enum_elim (choice_closure [] [("true", (int_intro 0)), ("false", (int_intro 1))])) (neutral Neutral) Value ?
->> Yes:
->> Value := neutral (enum_elim (choice_closure [] [("true", (int_intro 0)), ("false", (int_intro 1))]) Neutral).
-
->> function_elim (enum_elim (choice_closure [] [("true", (int_intro 0)), ("false", (int_intro 1))])) (enum_intro "true") Value ?
->> Yes:
->> Value := int_intro 0.
-
->> function_elim (enum_elim (choice_closure [] [("true", (int_intro 0)), ("false", (int_intro 1))])) (enum_intro "false") Value ?
->> Yes:
->> Value := int_intro 1.
-
-
->> pair_elim_first (neutral Neutral) Value ?
->> Yes:
->> Value := neutral (pair_elim_first Neutral).
-
->> pair_elim_first (pair_intro FirstValue _) Value ?
->> Yes:
->> Value := FirstValue.
-
-
->> pair_elim_second (neutral Neutral) Value ?
->> Yes:
->> Value := neutral (pair_elim_second Neutral).
-
->> pair_elim_second (pair_intro _ SecondValue) Value ?
->> Yes:
->> Value := SecondValue.
-
->> format_elim (neutral Neutral) Value ?
->> Yes:
->> Value := neutral (format_elim Neutral).
-
->> format_elim format_intro_u8 Value ?
->> Yes:
->> Value := int_type.
-
-
-
     % Variables
 
 >> normalize [format_intro_u8] (local 0) Term ?
@@ -117,6 +68,37 @@
 >> normalize [neutral (local 0)] (pair_elim_second (local 0)) Term ?
 >> Yes:
 >> Term := pair_elim_second (local 0).
+
+
+    % Records
+
+>> normalize (record_type []) Term ?
+>> Yes:
+>> Term := record_type [].
+
+>> normalize [int_intro 42] (record_type [("data", array_type int_type (local 0))]) Term ?
+>> Yes:
+>> Term := record_type [("data", array_type int_type (int_intro 42))].
+
+>> normalize [enum_type []] (record_type [("len", int_type), ("data", array_type (local 1) (local 0))]) Term ?
+>> Yes:
+>> Term := record_type [("len", int_type), ("data", array_type (enum_type []) (local 0))].
+
+>> normalize [int_intro 2, int_intro 1] (record_intro [("len", local 0), ("data", array_intro [local 1, int_intro 2])]) Term ?
+>> Yes:
+>> Term := record_intro [("len", int_intro 2), ("data", array_intro [int_intro 1, int_intro 2])].
+
+>> normalize (record_elim (record_intro [("len", int_intro 2), ("data", array_intro [int_intro 1, int_intro 2])]) "len") Term ?
+>> Yes:
+>> Term := int_intro 2.
+
+>> normalize (record_elim (record_intro [("len", int_intro 2), ("data", array_intro [int_intro 1, int_intro 2])]) "data") Term ?
+>> Yes:
+>> Term := array_intro [int_intro 1, int_intro 2].
+
+>> normalize [neutral (local 0)] (record_elim (local 0) "data") Term ?
+>> Yes:
+>> Term := record_elim (local 0) "data".
 
 
     % Enumerations
@@ -191,6 +173,14 @@
 
     % Binary format descriptions
 
+>> normalize (format_elim format_intro_void) Term ?
+>> Yes:
+>> Term := enum_type [].
+
+>> normalize (format_elim format_intro_unit) Term ?
+>> Yes:
+>> Term := record_type [].
+
 >> normalize (format_elim format_intro_u8) Term ?
 >> Yes:
 >> Term := int_type.
@@ -203,9 +193,25 @@
 >> Yes:
 >> Term := format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0)).
 
+>> normalize (format_intro_record []) Term ?
+>> Yes:
+>> Term := format_intro_record [].
+
+>> normalize [format_intro_u16be, format_intro_unit] (format_intro_record [("len", local 0), ("data", format_intro_array (local 2) (local 0))]) Term ?
+>> Yes:
+>> Term := format_intro_record [("len", format_intro_u16be), ("data", format_intro_array format_intro_unit (local 0))].
+
 >> normalize (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Term ?
 >> Yes:
 >> Term := array_type int_type (int_intro 3).
+
+>> normalize (format_elim (format_intro_record [])) Term ?
+>> Yes:
+>> Term := record_type [].
+
+>> normalize [format_intro_u16be, format_intro_unit] (format_elim (format_intro_record [("len", local 0), ("data", format_intro_array (local 2) (local 0))])) Term ?
+>> Yes:
+>> Term := record_type [("len", int_type), ("data", array_type (record_type []) (local 0))].
 
 >> normalize [neutral (local 0)] (format_elim (local 0)) Term ?
 >> Yes:

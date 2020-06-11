@@ -7,23 +7,24 @@
 
     % Decoding byte sequences into terms, guided by a format description
 
-    interpret : list semantics.value -> semantics.value -> semantics.value -> list byte -> prop.
-    interpret Values semantics.format_intro_unit (semantics.enum_intro "unit") [].
-    interpret Values semantics.format_intro_u8 (semantics.int_intro TODO) [Byte0].
-    interpret Values semantics.format_intro_u16le (semantics.int_intro TODO) [Byte0, Byte1].
-    interpret Values semantics.format_intro_u16be (semantics.int_intro TODO) [Byte0, Byte1].
-    interpret Values semantics.format_intro_u32le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
-    interpret Values semantics.format_intro_u32be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
-    interpret Values semantics.format_intro_u64le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
-    interpret Values semantics.format_intro_u64be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
-    interpret Values semantics.format_intro_s8 (semantics.int_intro TODO) [Byte0].
-    interpret Values semantics.format_intro_s16le (semantics.int_intro TODO) [Byte0, Byte1].
-    interpret Values semantics.format_intro_s16be (semantics.int_intro TODO) [Byte0, Byte1].
-    interpret Values semantics.format_intro_s32le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
-    interpret Values semantics.format_intro_s32be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
-    interpret Values semantics.format_intro_s64le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
-    interpret Values semantics.format_intro_s64be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
-    interpret Values (semantics.format_intro_array ElemFormat Len) (semantics.array_intro TODO) Bytes.
-    interpret Values (semantics.format_intro_pair FirstFormat Closure) (semantics.pair_intro TODO TODO') Bytes.
+    interpret : semantics.value -> semantics.value -> list byte -> prop.
+    interpret semantics.format_intro_unit (semantics.enum_intro "unit") [].
+    interpret semantics.format_intro_u8 (semantics.int_intro TODO) [Byte0].
+    interpret semantics.format_intro_u16le (semantics.int_intro TODO) [Byte0, Byte1].
+    interpret semantics.format_intro_u16be (semantics.int_intro TODO) [Byte0, Byte1].
+    interpret semantics.format_intro_u32le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
+    interpret semantics.format_intro_u32be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
+    interpret semantics.format_intro_u64le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
+    interpret semantics.format_intro_u64be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
+    interpret semantics.format_intro_s8 (semantics.int_intro TODO) [Byte0].
+    interpret semantics.format_intro_s16le (semantics.int_intro TODO) [Byte0, Byte1].
+    interpret semantics.format_intro_s16be (semantics.int_intro TODO) [Byte0, Byte1].
+    interpret semantics.format_intro_s32le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
+    interpret semantics.format_intro_s32be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
+    interpret semantics.format_intro_s64le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
+    interpret semantics.format_intro_s64be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
+    interpret (semantics.format_intro_array ElemType Len) (semantics.array_intro TODO) Bytes.
+    interpret (semantics.format_intro_pair FirstType Closure) (semantics.pair_intro TODO TODO') Bytes.
+    interpret (semantics.format_intro_record TypeFields) (semantics.record_intro TODO) Bytes.
 
 %end.

@@ -17,6 +17,30 @@
 
     % Annotated terms
 
+>> synth_type (ann (record_intro []) (record_type [])) Type ?
+>> Yes:
+>> Type := semantics.record_type (semantics.field_closure [] []).
+
+>> synth_type (ann (record_intro [("data", int_intro 23)]) (record_type [("data", int_type)])) Type ?
+>> Yes:
+>> Type := semantics.record_type (semantics.field_closure [] [("data", int_type)]).
+
+>> synth_type (ann (record_intro [("y", int_intro 2), ("x", int_intro 1)]) (record_type [("x", int_type), ("y", int_type)])) Type ?
+>> Yes:
+>> Type := semantics.record_type (semantics.field_closure [] [("x", int_type), ("y", int_type)]).
+
+>> synth_type (ann (record_intro [("data", array_intro []), ("len", int_intro 0)]) (record_type [("len", int_type), ("data", array_type (enum_type ["unit"]) (local 0))])) Type ?
+>> Yes:
+>> Type := semantics.record_type (semantics.field_closure [] [("len", int_type), ("data", array_type (enum_type ["unit"]) (local 0))]).
+
+>> synth_type (ann (record_intro [("data", array_intro [enum_intro "unit", enum_intro "unit"]), ("len", int_intro 2)]) (record_type [("len", int_type), ("data", array_type (enum_type ["unit"]) (local 0))])) Type ?
+>> Yes:
+>> Type := semantics.record_type (semantics.field_closure [] [("len", int_type), ("data", array_type (enum_type ["unit"]) (local 0))]).
+
+>> synth_type (ann (enum_intro "false") (enum_type ["true", "false"])) Type ?
+>> Yes:
+>> Type := semantics.enum_type ["true", "false"].
+
 >> synth_type (ann (int_intro 23) int_type) Type ?
 >> Yes:
 >> Type := semantics.int_type.
@@ -28,6 +52,10 @@
 >> synth_type (ann int_type type_type) Type ?
 >> Yes:
 >> Type := semantics.type_type.
+
+>> synth_type (ann (format_intro_record []) format_type) Type ?
+>> Yes:
+>> Type := semantics.format_type.
 
 >> synth_type (ann format_intro_u8 format_type) Type ?
 >> Yes:
@@ -76,6 +104,58 @@
 >> synth_type (pair_elim_second (ann (pair_intro (int_intro 0) (array_intro [])) (pair_type int_type (array_type int_type (local 0))))) Type ?
 >> Yes:
 >> Type := semantics.array_type semantics.int_type (semantics.int_intro 0).
+
+
+    % Records
+
+>> synth_type (record_type []) Type ?
+>> Yes:
+>> Type := semantics.type_type.
+
+>> synth_type (record_type [("data", int_type)]) Type ?
+>> Yes:
+>> Type := semantics.type_type.
+
+>> synth_type (record_type [("data", int_type), ("data", enum_type [])]) Type ?
+>> Impossible.
+
+>> synth_type (record_type [("x", int_type), ("y", int_type)]) Type ?
+>> Yes:
+>> Type := semantics.type_type.
+
+>> synth_type (record_type [("len", int_type), ("data", array_type (enum_type ["unit"]) (local 0))]) Type ?
+>> Yes:
+>> Type := semantics.type_type.
+
+>> check_type (record_intro []) (semantics.record_type (semantics.field_closure [] [])) ?
+>> Yes.
+
+>> check_type (record_intro [("y", int_intro 2), ("x", int_intro 1)]) (semantics.record_type (semantics.field_closure [] [("x", int_type), ("y", int_type)])) ?
+>> Yes.
+
+>> check_type (record_intro [("data", array_intro []), ("len", int_intro 0)]) (semantics.record_type (semantics.field_closure [] [("len", int_type), ("data", array_type (enum_type ["unit"]) (local 0))])) ?
+>> Yes.
+
+>> check_type (record_intro [("data", array_intro [enum_intro "unit", enum_intro "unit"]), ("len", int_intro 2)]) (semantics.record_type (semantics.field_closure [] [("len", int_type), ("data", array_type (enum_type ["unit"]) (local 0))])) ?
+>> Yes.
+
+>> synth_type (record_elim (ann (record_intro []) (record_type [])) "hello") Type ?
+>> Impossible.
+
+>> synth_type (record_elim (ann (record_intro [("data", int_intro 23)]) (record_type [("data", int_type)])) "data") Type ?
+>> Yes:
+>> Type := semantics.int_type.
+
+>> synth_type (record_elim (ann (record_intro [("data", int_intro 23)]) (record_type [("data", enum_type [])])) "data") Type ?
+>> Impossible.
+
+>> synth_type (record_elim (ann (record_intro [("y", int_intro 2), ("x", int_intro 1)]) (record_type [("x", int_type), ("y", int_type)])) "y") Type ?
+>> Yes:
+>> Type := semantics.int_type.
+
+>> synth_type (record_elim (ann (record_intro [("data", array_intro [enum_intro "unit", enum_intro "unit"]), ("len", int_intro 2)]) (record_type [("len", int_type), ("data", array_type (enum_type ["unit"]) (local 0))])) "data") Type ?
+>> Yes:
+>> Type := semantics.array_type (semantics.enum_type ["unit"]) (semantics.int_intro 2).
 
 
     % Enumerations
@@ -147,6 +227,28 @@
 >> Impossible.
 
 >> synth_type (format_intro_array format_intro_u8 (int_intro 3)) Type ?
+>> Yes:
+>> Type := semantics.format_type.
+
+>> synth_type (format_intro_array int_type (int_intro 3)) Type ?
+>> Impossible.
+
+>> synth_type (format_intro_record []) Type ?
+>> Yes:
+>> Type := semantics.format_type.
+
+>> synth_type (format_intro_record [("data", format_intro_u8)]) Type ?
+>> Yes:
+>> Type := semantics.format_type.
+
+>> synth_type (format_intro_record [("data", format_intro_u8), ("data", format_intro_s8)]) Type ?
+>> Impossible.
+
+>> synth_type (format_intro_record [("x", format_intro_u8), ("y", format_intro_s8)]) Type ?
+>> Yes:
+>> Type := semantics.format_type.
+
+>> synth_type (format_intro_record [("len", format_intro_u16be), ("data", format_intro_array format_intro_u8 (local 0))]) Type ?
 >> Yes:
 >> Type := semantics.format_type.
 

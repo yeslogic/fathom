@@ -107,6 +107,11 @@
     %  is_equal_elem Context (pair_elim_first (pair_intro FirstElem SecondElem)) Elem FirstType :- TODO.
     %  is_equal_elem Context (pair_elim_second (pair_intro FirstElem SecondElem)) Elem SecondType :- TODO.
 
+    % Records
+    % TODO: record_type
+    % TODO: record_intro
+    % TODO: record_elim
+
     % Enumerations
     is_type Context (enum_type Labels) :-
         is_context Context.
@@ -188,6 +193,7 @@
     is_elem Context (format_intro_pair FirstType SecondType) format_type :-
         is_elem Context FirstType format_type,
         is_elem (extend Context (format_elim FirstType)) SecondType format_type.
+    % TODO: format_intro_record
     is_equal_elem Context (format_elim format_intro_void) (enum_type []) type_type :-
         is_context Context.
     is_equal_elem Context (format_elim format_intro_unit) (enum_type ["unit"]) type_type :-
@@ -223,5 +229,6 @@
     is_equal_elem Context (format_elim (format_intro_array Type LenElem)) (array_type Type' LenElem) format_type :-
         is_equal_elem Context (format_elim Type) Type' type_type.
     % TODO: format_intro_pair
+    % TODO: format_intro_record
 
 %end.

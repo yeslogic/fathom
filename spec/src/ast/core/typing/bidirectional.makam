@@ -148,12 +148,49 @@
         context.eval Context (pair_elim_first PairElem) FirstElem,
         semantics.apply Closure FirstElem SecondType.
 
+    % Records
+    is_type Context (record_type []).
+    is_type Context (record_type ((Label, Type) :: TypeFields)) :-
+        not (contains (Label, _) TypeFields),
+        check_type Context Type semantics.type_type,
+        context.eval Context Type Type',
+        context.add_param Context Type' Context',
+        is_type Context (record_type TypeFields).
+    synth_type Context (record_type []) semantics.type_type.
+    synth_type Context (record_type ((Label, Type) :: TypeFields)) semantics.type_type :-
+        not (contains (Label, _) TypeFields),
+        check_type Context Type semantics.type_type,
+        context.eval Context Type Type',
+        context.add_param Context Type' Context',
+        check_type Context' (record_type TypeFields) semantics.type_type.
+    check_type Context (record_intro []) (semantics.record_type (semantics.field_closure Values [])).
+    check_type
+        Context
+        (record_intro ElemFields)
+        (semantics.record_type (semantics.field_closure Values ((Label, Type) :: TypeFields)))
+    :-
+        map.remove ElemFields Label Elem ElemFields',
+        semantics.eval Values Type Type',
+        check_type Context Elem Type',
+        context.eval Context Elem Elem',
+        context.add_local Context Elem' Type' Context',
+        eq FieldClosure (semantics.field_closure (Elem' :: Values) TypeFields),
+        check_type Context' (record_intro ElemFields') (semantics.record_type FieldClosure).
+    synth_type Context (record_elim RecordElem Label) FieldType :-
+        synth_type Context RecordElem (semantics.record_type FieldClosure),
+        context.eval Context RecordElem RecordElem',
+        semantics.record_elim_type RecordElem' Label FieldClosure FieldType.
+
     % Enumerations
     is_type Context (enum_type Labels).
     synth_type Context (enum_type Labels) semantics.type_type.
     check_type Context (enum_intro Label) (semantics.enum_type Labels) :-
         set.member Labels Label _.
-    check_type Context (enum_elim Clauses) (semantics.function_type (semantics.enum_type Labels) Closure) :-
+    check_type
+        Context
+        (enum_elim Clauses)
+        (semantics.function_type (semantics.enum_type Labels) Closure)
+    :-
         map.keys Clauses ClauseLabels,
         eqv Labels ClauseLabels,
         set.map (pfun Label => [Type Elem] (
@@ -208,6 +245,13 @@
         context.eval Context (format_elim FirstType) FirstType',
         context.add_param Context FirstType' Context',
         check_type Context' SecondType semantics.format_type.
+    synth_type Context (format_intro_record []) semantics.format_type.
+    synth_type Context (format_intro_record ((Label, Type) :: TypeFields)) semantics.format_type :-
+        not (contains (Label, _) TypeFields),
+        check_type Context Type semantics.format_type,
+        context.eval Context (format_elim Type) Type',
+        context.add_param Context Type' Context',
+        check_type Context' (format_intro_record TypeFields) semantics.format_type.
     is_type Context (format_elim Type) :-
         check_type Context Type semantics.format_type.
     synth_type Context (format_elim Type) semantics.type_type :-

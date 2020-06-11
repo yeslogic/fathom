@@ -21,6 +21,11 @@ pair_intro : term -> term -> term.      % Also known as: Pair constructor
 pair_elim_first : term -> term.
 pair_elim_second : term -> term.
 
+% Records
+record_type : list (string * term) -> term.
+record_intro : map string term -> term.
+record_elim : term -> string -> term.
+
 % Enumerations
 enum_type : set string -> term.
 enum_intro : string -> term.
@@ -64,6 +69,7 @@ format_intro_s64le : term. % TODO: make this a computed format?
 format_intro_s64be : term. % TODO: make this a computed format?
 format_intro_array : term -> term -> term.
 format_intro_pair : term -> term -> term.
+format_intro_record : list (string * term) -> term.
 format_elim : term -> term.
 
 
