@@ -1,8 +1,9 @@
 % Extensions to Makam's standard library
 
+
 %extend map.
 
-    keys : map K V -> set K -> prop.
+    keys : map Key Elem -> set Key -> prop.
     keys [] [].
     keys ((Key, _) :: Map) (Key :: Keys) :-
         keys Map Keys.
@@ -12,11 +13,11 @@
 
 %extend set.
 
-    map : (A -> prop) -> set A -> prop.
-    map P [].
-    map P (Elem :: Set) :-
-        P Elem,
+    map : (Key -> prop) -> set Key -> prop.
+    map Prop [].
+    map Prop (Elem :: Set) :-
+        Prop Elem,
         set.remove_if_member Set Elem Set',
-        map P Set.
+        map Prop Set'.
 
 %end.
