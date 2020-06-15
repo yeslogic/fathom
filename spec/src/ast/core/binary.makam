@@ -10,7 +10,7 @@
 
     interpret : value -> value -> list byte -> prop.
 
-    interpret format_intro_unit (enum_intro "unit") [].
+    interpret format_intro_unit (record_intro []) [].
     interpret format_intro_u8 (int_intro TODO) [Byte0].
     interpret format_intro_u16le (int_intro TODO) [Byte0, Byte1].
     interpret format_intro_u16be (int_intro TODO) [Byte0, Byte1].
