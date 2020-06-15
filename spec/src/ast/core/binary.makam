@@ -4,6 +4,7 @@
 
     %open fathom.ast.core.semantics.
 
+
     byte : type.
 
 

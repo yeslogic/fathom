@@ -7,6 +7,7 @@
 
     %use "stdlib/functional".
 
+
     % The result of evaluating a term.
     value : type.
     % Neutral values are computations that are currently 'stuck' on some
