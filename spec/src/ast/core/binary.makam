@@ -24,7 +24,26 @@
     interpret semantics.format_intro_s64le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
     interpret semantics.format_intro_s64be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
     interpret (semantics.format_intro_array ElemType Len) (semantics.array_intro TODO) Bytes.
-    interpret (semantics.format_intro_pair FirstType Closure) (semantics.pair_intro TODO TODO') Bytes.
-    interpret (semantics.format_intro_record TypeFields) (semantics.record_intro TODO) Bytes.
+    interpret
+        (semantics.format_intro_pair FirstType Closure)
+        (semantics.pair_intro FirstElem SecondElem)
+        PairBytes
+    :-
+        interpret FirstType FirstElem FirstBytes,
+        semantics.apply Closure FirstElem SecondType,
+        interpret SecondType SecondElem SecondBytes,
+        append FirstBytes SecondBytes PairBytes.
+    interpret
+        (semantics.format_intro_record (semantics.field_closure Values ((Label, FirstType) :: TypeFields)))
+        (semantics.record_intro ((Label, Elem) :: ElemFields))
+        RecordBytes
+    :-
+        semantics.eval Values FirstType FirstType',
+        interpret FirstType' Elem FirstBytes,
+        interpret
+            (semantics.format_intro_record (semantics.field_closure (Elem :: Values) TypeFields))
+            (semantics.record_intro ElemFields)
+            RestBytes,
+        append FirstBytes RestBytes RecordBytes.
 
 %end.
