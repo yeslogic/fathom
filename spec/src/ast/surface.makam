@@ -6,14 +6,38 @@
 
 %extend surface.
 
-    % Surface syntax
-
     % Terms
-
     term : type.
 
+    % A reference a definition
     name : string -> term.
 
-    % TODO
+    % Annotated terms
+    ann : term -> term -> term.
+
+    % Functions
+    function_type : term -> term -> term.   % Also known as: Pi type, Dependent product type
+    function_intro : term -> term.          % Also known as: Lambda abstraction, anonymous function
+    function_elim : term -> term -> term.   % Also known as: Function application
+
+    % Records
+    record_type : list (string * term) -> term.
+    record_intro : map string term -> term.
+    record_elim : term -> string -> term.
+
+    % Enumerations
+    enum_type : set string -> term.
+    enum_intro : string -> term.
+    enum_elim : map string term -> term.
+
+    % Numeric literals
+    number : string -> term.
+    string : string -> term.
+    sequence : list term -> term.
+
+    % Arrays
+    array_type : term -> term -> term.
+    array_intro : list term -> term.
+    array_elim : term -> term -> term.
 
 %end.

@@ -2,43 +2,46 @@
 
 %extend core_to_stratified.
 
+    %open fathom.ast.
+    %open fathom.ast.stratified.semantics.
+
     % Stratified terms
     stratified_term : type.
 
-    kind : ast.stratified.kind -> stratified_term.
-    typ : ast.stratified.typ -> stratified_term.
-    expr : ast.stratified.expr -> stratified_term.
+    kind : stratified.kind -> stratified_term.
+    typ : stratified.typ -> stratified_term.
+    expr : stratified.expr -> stratified_term.
 
     % Stratified values
     stratified_value : type.
 
-    kind : ast.stratified.semantics.kind_value -> stratified_value.
-    typ : ast.stratified.semantics.typ_value -> stratified_value.
-    expr : ast.stratified.semantics.expr_value -> stratified_value.
+    kind : kind_value -> stratified_value.
+    typ : typ_value -> stratified_value.
+    expr : expr_value -> stratified_value.
 
 
     context : type.
 
     %extend context.
 
-        eval : context -> ast.stratified.kind -> ast.stratified.semantics.kind_value -> prop.
+        eval : context -> stratified.kind -> kind_value -> prop.
         % TODO: eval
 
-        eval : context -> ast.stratified.typ -> ast.stratified.semantics.typ_value -> prop.
+        eval : context -> stratified.typ -> typ_value -> prop.
         % TODO: eval
 
-        eval : context -> ast.stratified.expr -> ast.stratified.semantics.expr_value -> prop.
+        eval : context -> stratified.expr -> expr_value -> prop.
         % TODO: eval
 
     %end.
 
 
     % Check that a term is a type and lower it to a stratified term.
-    is_type : context -> ast.core.term -> stratified_term -> prop.
+    is_type : context -> core.term -> stratified_term -> prop.
     % Check that a term is an element of the given type and lower it to a stratified term.
-    check_type : context -> ast.core.term -> stratified_value -> stratified_term -> prop.
+    check_type : context -> core.term -> stratified_value -> stratified_term -> prop.
     % Synthesize the type of a given term and lower it to a stratified term.
-    synth_type : context -> ast.core.term -> stratified_value -> stratified_term -> prop.
+    synth_type : context -> core.term -> stratified_value -> stratified_term -> prop.
 
     % A note on modes
     %
@@ -55,67 +58,67 @@
     % Variables
 
     % Annotated terms
-    is_type Context (ast.core.ann Elem Type) Elem' :-
+    is_type Context (core.ann Elem Type) Elem' :-
         is_type Context Type (kind Kind),
         context.eval Context Kind Kind',
         check_type Context Elem (kind Kind') Elem'.
-    is_type Context (ast.core.ann Elem Type) Elem' :-
+    is_type Context (core.ann Elem Type) Elem' :-
         is_type Context Type (typ Type'),
         context.eval Context Type' Type'',
         check_type Context Elem (typ Type'') Elem'.
 
     % Universes
-    is_type Context ast.core.type_type (kind ast.stratified.type_type).
+    is_type Context core.type_type (kind stratified.type_type).
 
     % Functions
     % Pairs
 
     % Enumerations
-    is_type Context (ast.core.enum_type Labels) (typ (ast.stratified.enum_type Labels)).
-    synth_type Context (ast.core.enum_type Labels) (kind ast.stratified.semantics.type_type) (typ (ast.stratified.enum_type Labels)).
-    check_type Context (ast.core.enum_intro Label) (typ (ast.stratified.semantics.enum_type Labels)) (expr (ast.stratified.enum_intro Label)) :-
+    is_type Context (core.enum_type Labels) (typ (stratified.enum_type Labels)).
+    synth_type Context (core.enum_type Labels) (kind type_type) (typ (stratified.enum_type Labels)).
+    check_type Context (core.enum_intro Label) (typ (enum_type Labels)) (expr (stratified.enum_intro Label)) :-
         set.member Labels Label _.
-    % TODO: ast.core.enum_elim
+    % TODO: core.enum_elim
 
     % Integers
-    is_type Context ast.core.int_type (typ ast.stratified.int_type).
-    synth_type Context ast.core.int_type (kind ast.stratified.semantics.type_type) (typ ast.stratified.int_type).
-    synth_type Context (ast.core.int_intro Int) (typ ast.stratified.semantics.int_type) (expr (ast.stratified.int_intro Int)).
+    is_type Context core.int_type (typ stratified.int_type).
+    synth_type Context core.int_type (kind type_type) (typ stratified.int_type).
+    synth_type Context (core.int_intro Int) (typ int_type) (expr (stratified.int_intro Int)).
 
     % Arrays
-    is_type Context (ast.core.array_type Type LenElem) (typ (ast.stratified.array_type Type' LenElem')) :-
-        check_type Context Type (kind ast.stratified.semantics.type_type) (typ Type'),
-        check_type Context LenElem (typ ast.stratified.semantics.int_type) (expr LenElem').
-    check_type Context (ast.core.array_type Type LenElem) (kind ast.stratified.semantics.type_type) (typ (ast.stratified.array_type Type' LenElem')) :-
-        check_type Context Type (kind ast.stratified.semantics.type_type) (typ Type'),
-        check_type Context LenElem (typ ast.stratified.semantics.int_type) (expr LenElem').
-    check_type Context (ast.core.array_intro Elems) (typ (ast.stratified.semantics.array_type Type (ast.stratified.semantics.int_intro Len))) (expr (ast.stratified.array_intro Elems')) :-
+    is_type Context (core.array_type Type LenElem) (typ (stratified.array_type Type' LenElem')) :-
+        check_type Context Type (kind type_type) (typ Type'),
+        check_type Context LenElem (typ int_type) (expr LenElem').
+    check_type Context (core.array_type Type LenElem) (kind type_type) (typ (stratified.array_type Type' LenElem')) :-
+        check_type Context Type (kind type_type) (typ Type'),
+        check_type Context LenElem (typ int_type) (expr LenElem').
+    check_type Context (core.array_intro Elems) (typ (array_type Type (int_intro Len))) (expr (stratified.array_intro Elems')) :-
         length Elems Len,
         map (fun elem_term elem_term' => check_type Context elem_term (typ Type) (expr elem_term')) Elems Elems'.
-    synth_type Context (ast.core.array_elim ArrayElem IndexElem) (typ Type) (expr (ast.stratified.array_elim ArrayElem' IndexElem')) :-
+    synth_type Context (core.array_elim ArrayElem IndexElem) (typ Type) (expr (stratified.array_elim ArrayElem' IndexElem')) :-
         % FIXME: ensure `IndexElem` is in array bounds, possibly with refinement types?
-        synth_type Context ArrayElem (typ (ast.stratified.semantics.array_type Type _)) (expr ArrayElem'),
-        check_type Context IndexElem (typ ast.stratified.semantics.int_type) (expr IndexElem').
+        synth_type Context ArrayElem (typ (array_type Type _)) (expr ArrayElem'),
+        check_type Context IndexElem (typ int_type) (expr IndexElem').
 
     % Binary format descriptions
-    is_type Context ast.core.format_type (kind ast.stratified.format_type).
-    synth_type Context ast.core.format_intro_unit (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_unit).
-    synth_type Context ast.core.format_intro_u8 (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_u8).
-    synth_type Context ast.core.format_intro_u16le (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_u16le).
-    synth_type Context ast.core.format_intro_u16be (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_u16be).
-    synth_type Context ast.core.format_intro_u32le (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_u32le).
-    synth_type Context ast.core.format_intro_u32be (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_u32be).
-    synth_type Context ast.core.format_intro_u64le (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_u64le).
-    synth_type Context ast.core.format_intro_u64be (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_u64be).
-    synth_type Context ast.core.format_intro_s8 (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_s8).
-    synth_type Context ast.core.format_intro_s16le (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_s16le).
-    synth_type Context ast.core.format_intro_s16be (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_s16be).
-    synth_type Context ast.core.format_intro_s32le (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_s32le).
-    synth_type Context ast.core.format_intro_s32be (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_s32be).
-    synth_type Context ast.core.format_intro_s64le (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_s64le).
-    synth_type Context ast.core.format_intro_s64be (kind ast.stratified.semantics.format_type) (typ ast.stratified.format_intro_s64be).
-    % TODO: ast.core.format_intro_array
-    % TODO: ast.core.format_intro_pair
-    % TODO: ast.core.format_elim
+    is_type Context core.format_type (kind stratified.format_type).
+    synth_type Context core.format_intro_unit (kind format_type) (typ stratified.format_intro_unit).
+    synth_type Context core.format_intro_u8 (kind format_type) (typ stratified.format_intro_u8).
+    synth_type Context core.format_intro_u16le (kind format_type) (typ stratified.format_intro_u16le).
+    synth_type Context core.format_intro_u16be (kind format_type) (typ stratified.format_intro_u16be).
+    synth_type Context core.format_intro_u32le (kind format_type) (typ stratified.format_intro_u32le).
+    synth_type Context core.format_intro_u32be (kind format_type) (typ stratified.format_intro_u32be).
+    synth_type Context core.format_intro_u64le (kind format_type) (typ stratified.format_intro_u64le).
+    synth_type Context core.format_intro_u64be (kind format_type) (typ stratified.format_intro_u64be).
+    synth_type Context core.format_intro_s8 (kind format_type) (typ stratified.format_intro_s8).
+    synth_type Context core.format_intro_s16le (kind format_type) (typ stratified.format_intro_s16le).
+    synth_type Context core.format_intro_s16be (kind format_type) (typ stratified.format_intro_s16be).
+    synth_type Context core.format_intro_s32le (kind format_type) (typ stratified.format_intro_s32le).
+    synth_type Context core.format_intro_s32be (kind format_type) (typ stratified.format_intro_s32be).
+    synth_type Context core.format_intro_s64le (kind format_type) (typ stratified.format_intro_s64le).
+    synth_type Context core.format_intro_s64be (kind format_type) (typ stratified.format_intro_s64be).
+    % TODO: core.format_intro_array
+    % TODO: core.format_intro_pair
+    % TODO: core.format_elim
 
 %end.

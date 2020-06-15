@@ -2,7 +2,7 @@
 # yarn lockfile v1
 
 
-makam@^0.7.35:
-  version "0.7.35"
-  resolved "https://registry.yarnpkg.com/makam/-/makam-0.7.35.tgz#3d94839564766c881d980133a7998aaf8d39dcba"
-  integrity sha512-29dnlc+UvrFre6CPMUg998fomd3SWxzhsV8CkZXCiAibQWqjKYOqGIGH/YWwjOMjJQdS9x7+8J4noyKASMJ4Sg==
+makam@^0.7.36:
+  version "0.7.36"
+  resolved "https://registry.yarnpkg.com/makam/-/makam-0.7.36.tgz#d6aa45b9b8c272fb6edf73dfc793b4bfd748990a"
+  integrity sha512-Qrbi2Cx6uGdCHVwOy2F/EQva15zqAYizpDyBKxSgK8FBNOs9j0iqIJRfCyj0j6N/LMzbg0P7kzYQSMz92+JCfQ==

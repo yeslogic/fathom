@@ -2,47 +2,44 @@
 
 %extend binary.
 
+    %open fathom.ast.core.semantics.
+
     byte : type.
 
 
-    % Decoding byte sequences into terms, guided by a format description
+    interpret : value -> value -> list byte -> prop.
 
-    interpret : semantics.value -> semantics.value -> list byte -> prop.
-    interpret semantics.format_intro_unit (semantics.enum_intro "unit") [].
-    interpret semantics.format_intro_u8 (semantics.int_intro TODO) [Byte0].
-    interpret semantics.format_intro_u16le (semantics.int_intro TODO) [Byte0, Byte1].
-    interpret semantics.format_intro_u16be (semantics.int_intro TODO) [Byte0, Byte1].
-    interpret semantics.format_intro_u32le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
-    interpret semantics.format_intro_u32be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
-    interpret semantics.format_intro_u64le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
-    interpret semantics.format_intro_u64be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
-    interpret semantics.format_intro_s8 (semantics.int_intro TODO) [Byte0].
-    interpret semantics.format_intro_s16le (semantics.int_intro TODO) [Byte0, Byte1].
-    interpret semantics.format_intro_s16be (semantics.int_intro TODO) [Byte0, Byte1].
-    interpret semantics.format_intro_s32le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
-    interpret semantics.format_intro_s32be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
-    interpret semantics.format_intro_s64le (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
-    interpret semantics.format_intro_s64be (semantics.int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
-    interpret (semantics.format_intro_array ElemType Len) (semantics.array_intro TODO) Bytes.
-    interpret
-        (semantics.format_intro_pair FirstType Closure)
-        (semantics.pair_intro FirstElem SecondElem)
-        PairBytes
-    :-
+    interpret format_intro_unit (enum_intro "unit") [].
+    interpret format_intro_u8 (int_intro TODO) [Byte0].
+    interpret format_intro_u16le (int_intro TODO) [Byte0, Byte1].
+    interpret format_intro_u16be (int_intro TODO) [Byte0, Byte1].
+    interpret format_intro_u32le (int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
+    interpret format_intro_u32be (int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
+    interpret format_intro_u64le (int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
+    interpret format_intro_u64be (int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
+    interpret format_intro_s8 (int_intro TODO) [Byte0].
+    interpret format_intro_s16le (int_intro TODO) [Byte0, Byte1].
+    interpret format_intro_s16be (int_intro TODO) [Byte0, Byte1].
+    interpret format_intro_s32le (int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
+    interpret format_intro_s32be (int_intro TODO) [Byte0, Byte1, Byte2, Byte3].
+    interpret format_intro_s64le (int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
+    interpret format_intro_s64be (int_intro TODO) [Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8].
+    interpret (format_intro_array ElemType Len) (array_intro TODO) Bytes.
+    interpret (format_intro_pair FirstType Closure) (pair_intro FirstElem SecondElem) PairBytes :-
         interpret FirstType FirstElem FirstBytes,
-        semantics.apply Closure FirstElem SecondType,
+        apply Closure FirstElem SecondType,
         interpret SecondType SecondElem SecondBytes,
         append FirstBytes SecondBytes PairBytes.
     interpret
-        (semantics.format_intro_record (semantics.field_closure Values ((Label, FirstType) :: TypeFields)))
-        (semantics.record_intro ((Label, Elem) :: ElemFields))
+        (format_intro_record (field_closure Values ((Label, FirstType) :: TypeFields)))
+        (record_intro ((Label, Elem) :: ElemFields))
         RecordBytes
     :-
-        semantics.eval Values FirstType FirstType',
+        eval Values FirstType FirstType',
         interpret FirstType' Elem FirstBytes,
         interpret
-            (semantics.format_intro_record (semantics.field_closure (Elem :: Values) TypeFields))
-            (semantics.record_intro ElemFields)
+            (format_intro_record (field_closure (Elem :: Values) TypeFields))
+            (record_intro ElemFields)
             RestBytes,
         append FirstBytes RestBytes RecordBytes.
 
