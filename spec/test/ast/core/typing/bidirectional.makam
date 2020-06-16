@@ -18,6 +18,12 @@
 
     % Annotated terms
 
+>> is_type (ann int_type type_type) ?
+>> Yes.
+
+>> is_type (ann format_intro_u8 format_type) ?
+>> Yes.
+
 >> synth_type (ann (record_intro []) (record_type [])) Type ?
 >> Yes:
 >> Type := record_type (field_closure [] []).
@@ -110,11 +116,22 @@
 
     % Universes
 
+>> is_type type_type ?
+>> Yes.
+
 >> synth_type type_type Type ?
 >> Impossible.
 
 
     % Functions
+
+>> synth_type (function_type type_type type_type) Type ?
+>> Yes:
+>> Type := type_type.
+
+>> synth_type (function_type type_type (function_type (local 0) (local 1))) Type ?
+>> Yes:
+>> Type := type_type.
 
 >> synth_type (function_type type_type (function_type (local 0) (local 1))) Type ?
 >> Yes:
@@ -124,10 +141,6 @@
     (function_intro (function_intro (local 0)))
     (function_type type_type (closure [] (function_type (local 0) (local 1)))) ?
 >> Yes.
-
->> synth_type (function_type type_type (function_type (local 0) (local 1))) Type ?
->> Yes:
->> Type := type_type.
 
 >> synth_type
     (function_elim
@@ -385,6 +398,9 @@
 >> Yes.
 
     % Binary format descriptions
+
+>> is_type format_type ?
+>> Yes.
 
 >> synth_type format_type Type ?
 >> Impossible.

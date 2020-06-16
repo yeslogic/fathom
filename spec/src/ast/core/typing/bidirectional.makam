@@ -83,6 +83,10 @@
     % ```
 
     % Conversion
+    is_type Context Elem :-
+        synth_type Context Elem type_type.
+    is_type Context Elem :-
+        synth_type Context Elem format_type.
     check_type Context Elem Type :-
         synth_type Context Elem Type',
         context.is_equal Context Type Type'.
@@ -109,7 +113,7 @@
     synth_type Context (function_type InputType OutputType) type_type :-
         is_type Context InputType,
         context.eval Context InputType InputType',
-        context.add_param Context InputType' Context'.
+        context.add_param Context InputType' Context',
         is_type Context' OutputType.
     check_type Context (function_intro OutputElem) (function_type InputType Closure) :-
         context.next_local Context LocalElem,
@@ -153,7 +157,7 @@
         check_type Context Type type_type,
         context.eval Context Type Type',
         context.add_param Context Type' Context',
-        is_type Context (record_type TypeFields).
+        is_type Context' (record_type TypeFields).
     synth_type Context (record_type []) type_type.
     synth_type Context (record_type ((Label, Type) :: TypeFields)) type_type :-
         not (contains (Label, _) TypeFields),
