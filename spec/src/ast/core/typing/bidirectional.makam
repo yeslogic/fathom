@@ -162,8 +162,7 @@
         context.add_param Context Type' Context',
         check_type Context' (record_type TypeFields) type_type.
     check_type Context (record_intro []) (record_type (field_closure Values [])).
-    check_type
-        Context
+    check_type Context
         (record_intro ElemFields)
         (record_type (field_closure Values ((Label, Type) :: TypeFields)))
     :-

@@ -287,8 +287,7 @@
         readback Length Neutral Elem.
     readback Length (record_elim Neutral Label : neutral) (record_elim Elem Label) :-
         readback Length Neutral Elem.
-    readback
-        Length
+    readback Length
         (enum_elim (choice_closure Values Clauses) Neutral : neutral)
         (function_elim (enum_elim Clauses') Elem)
     :-
@@ -322,16 +321,14 @@
         readback Length FirstValue FirstType,
         readback Length SecondValue SecondType.
     readback Length (record_type (field_closure Values [])) (record_type []).
-    readback
-        Length
+    readback Length
         (record_type (field_closure Values ((Label, Type) :: Fields)))
         (record_type ((Label, Type'') :: Fields'))
     :-
         eval Values Type Type',
         readback Length Type' Type'',
         plus Length 1 Length1,
-        readback
-            Length1
+        readback Length1
             (record_type (field_closure (neutral (local Length) :: Values) Fields))
             (record_type Fields').
     readback Length (record_intro ElemFields) (record_intro ElemFields') :-
@@ -377,16 +374,14 @@
         plus Length 1 Length1,
         readback Length1 SecondType SecondType'.
     readback Length (format_intro_record (field_closure Values [])) (format_intro_record []).
-    readback
-        Length
+    readback Length
         (format_intro_record (field_closure Values ((Label, Type) :: Fields)))
         (format_intro_record ((Label, Type'') :: Fields'))
     :-
         eval Values Type Type',
         readback Length Type' Type'',
         plus Length 1 Length1,
-        readback
-            Length1
+        readback Length1
             (format_intro_record (field_closure (neutral (local Length) :: Values) Fields))
             (format_intro_record Fields').
     readback Length (format_intro_compute Elem Type) (format_intro_compute Elem' Type') :-
@@ -415,15 +410,17 @@
     is_equal : int -> value -> value -> prop.
 
     is_equal Length (local Level : neutral) (local Level).
-    is_equal Length (function_elim Neutral1 InputValue1 : neutral) (function_elim Neutral2 InputValue2) :-
+    is_equal Length
+        (function_elim Neutral1 InputValue1 : neutral)
+        (function_elim Neutral2 InputValue2)
+    :-
         is_equal Length Neutral1 Neutral2,
         is_equal Length InputValue1 InputValue2.
     is_equal Length (pair_elim_first Neutral1 : neutral) (pair_elim_first Neutral2) :-
         is_equal Length Neutral1 Neutral2.
     is_equal Length (pair_elim_second Neutral1 : neutral) (pair_elim_second Neutral2) :-
         is_equal Length Neutral1 Neutral2.
-    is_equal
-        Length
+    is_equal Length
         (enum_elim (choice_closure Values1 Clauses1) Neutral1 : neutral)
         (enum_elim (choice_closure Values2 Clauses2) Neutral2)
     :-
@@ -464,12 +461,10 @@
     is_equal Length (pair_intro FirstElem1 SecondElem1) (pair_intro FirstElem2 SecondElem2) :-
         is_equal Length FirstElem1 FirstElem2,
         is_equal Length SecondElem1 SecondElem2.
-    is_equal
-        Length
+    is_equal Length
         (record_type (field_closure Values1 []))
         (record_type (field_closure Values2 [])).
-    is_equal
-        Length
+    is_equal Length
         (record_type (field_closure Values1 ((Label1, Type1) :: Fields1)))
         (record_type (field_closure Values2 ((Label2, Type2) :: Fields2)))
     :-
@@ -478,8 +473,7 @@
         eval Values2 Type2 Type2',
         is_equal Length Type1' Type2',
         plus Length 1 Length1,
-        is_equal
-            Length1
+        is_equal Length1
             (record_type (field_closure (neutral (local Length) :: Values1) Fields1))
             (record_type (field_closure (neutral (local Length) :: Values2) Fields2)).
     is_equal Length (record_intro ElemFields1) (record_intro ElemFields2) :-
@@ -491,8 +485,7 @@
         eqv Labels1 Labels2.
     is_equal Length (enum_intro Label1) (enum_intro Label2) :-
         eqv Label1 Label2.
-    is_equal
-        Length
+    is_equal Length
         (enum_elim (choice_closure Values1 Clauses1))
         (enum_elim (choice_closure Values2 Clauses2))
     :-
@@ -539,12 +532,10 @@
         apply Closure2 (neutral (local Length)) SecondType2,
         plus Length 1 Length1,
         is_equal Length1 SecondType1 SecondType2.
-    is_equal
-        Length
+    is_equal Length
         (format_intro_record (field_closure Values1 []))
         (format_intro_record (field_closure Values2 [])).
-    is_equal
-        Length
+    is_equal Length
         (format_intro_record (field_closure Values1 ((Label1, Type1) :: Fields1)))
         (format_intro_record (field_closure Values2 ((Label2, Type2) :: Fields2)))
     :-
@@ -553,8 +544,7 @@
         eval Values2 Type2 Type2',
         is_equal Length Type1' Type2',
         plus Length 1 Length1,
-        is_equal
-            Length1
+        is_equal Length1
             (format_intro_record (field_closure (neutral (local Length) :: Values1) Fields1))
             (format_intro_record (field_closure (neutral (local Length) :: Values2) Fields2)).
     is_equal Length (format_intro_compute Elem1 Type1) (format_intro_compute Elem2 Type2) :-

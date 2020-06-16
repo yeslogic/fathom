@@ -198,7 +198,7 @@
     % TODO: format_intro_absorb
     is_equal_elem Context (format_elim format_intro_void) (enum_type []) type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim format_intro_unit) (enum_type ["unit"]) type_type :-
+    is_equal_elem Context (format_elim format_intro_unit) (record_type []) type_type :-
         is_context Context.
     is_equal_elem Context (format_elim format_intro_u8) int_type type_type :-
         is_context Context.
@@ -228,7 +228,11 @@
         is_context Context.
     is_equal_elem Context (format_elim format_intro_s64be) int_type type_type :-
         is_context Context.
-    is_equal_elem Context (format_elim (format_intro_array Type LenElem)) (array_type Type' LenElem) format_type :-
+    is_equal_elem Context
+        (format_elim (format_intro_array Type LenElem))
+        (array_type Type' LenElem)
+        format_type
+    :-
         is_equal_elem Context (format_elim Type) Type' type_type.
     % TODO: format_intro_pair
     % TODO: format_intro_record
