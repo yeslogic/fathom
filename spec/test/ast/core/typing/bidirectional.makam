@@ -253,6 +253,14 @@
 >> Yes:
 >> Type := format_type.
 
+>> synth_type (format_intro_compute (int_intro 2) int_type) Type ?
+>> Yes:
+>> Type := format_type.
+
+>> synth_type (format_intro_absorb format_intro_u16be) Type ?
+>> Yes:
+>> Type := format_type.
+
 >> synth_type (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Type ?
 >> Yes:
 >> Type := type_type.

@@ -173,6 +173,54 @@
 
     % Binary format descriptions
 
+>> normalize format_intro_void Term ?
+>> Yes:
+>> Term := format_intro_void.
+
+>> normalize format_intro_unit Term ?
+>> Yes:
+>> Term := format_intro_unit.
+
+>> normalize format_intro_u8 Term ?
+>> Yes:
+>> Term := format_intro_u8.
+
+>> normalize (format_intro_array format_intro_u8 (int_intro 3)) Term ?
+>> Yes:
+>> Term := format_intro_array format_intro_u8 (int_intro 3).
+
+>> normalize (format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0))) Term ?
+>> Yes:
+>> Term := format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0)).
+
+>> normalize (format_intro_record []) Term ?
+>> Yes:
+>> Term := format_intro_record [].
+
+>> normalize (format_intro_record [("len", format_intro_u16be), ("data", format_intro_array format_intro_unit (local 0))]) Term ?
+>> Yes:
+>> Term := format_intro_record [("len", format_intro_u16be), ("data", format_intro_array format_intro_unit (local 0))].
+
+>> normalize [format_intro_u16be, format_intro_unit] (format_intro_record [("len", local 0), ("data", format_intro_array (local 2) (local 0))]) Term ?
+>> Yes:
+>> Term := format_intro_record [("len", format_intro_u16be), ("data", format_intro_array format_intro_unit (local 0))].
+
+>> normalize (format_intro_compute (int_intro 2) int_type) Term ?
+>> Yes:
+>> Term := (format_intro_compute (int_intro 2) int_type).
+
+>> normalize (format_intro_absorb format_intro_u8) Term ?
+>> Yes:
+>> Term := format_intro_absorb format_intro_u8.
+
+>> normalize [format_intro_u8] (format_intro_absorb (local 0)) Term ?
+>> Yes:
+>> Term := format_intro_absorb format_intro_u8.
+
+>> normalize [neutral (local 0)] (format_elim (local 0)) Term ?
+>> Yes:
+>> Term := format_elim (local 0).
+
 >> normalize (format_elim format_intro_void) Term ?
 >> Yes:
 >> Term := enum_type [].
@@ -189,18 +237,6 @@
 >> Yes:
 >> Term := array_type int_type (int_intro 3).
 
->> normalize (format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0))) Term ?
->> Yes:
->> Term := format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0)).
-
->> normalize (format_intro_record []) Term ?
->> Yes:
->> Term := format_intro_record [].
-
->> normalize [format_intro_u16be, format_intro_unit] (format_intro_record [("len", local 0), ("data", format_intro_array (local 2) (local 0))]) Term ?
->> Yes:
->> Term := format_intro_record [("len", format_intro_u16be), ("data", format_intro_array format_intro_unit (local 0))].
-
 >> normalize (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Term ?
 >> Yes:
 >> Term := array_type int_type (int_intro 3).
@@ -213,8 +249,12 @@
 >> Yes:
 >> Term := record_type [("len", int_type), ("data", array_type (record_type []) (local 0))].
 
->> normalize [neutral (local 0)] (format_elim (local 0)) Term ?
+>> normalize [int_type] (format_elim (format_intro_compute (int_intro 2) (local 0))) Term ?
 >> Yes:
->> Term := format_elim (local 0).
+>> Term := int_type.
+
+>> normalize [format_intro_u8] (format_elim (format_intro_absorb (local 0))) Term ?
+>> Yes:
+>> Term := record_type [].
 
 %end.

@@ -43,5 +43,8 @@
             (record_intro ElemFields)
             RestBytes,
         append FirstBytes RestBytes RecordBytes.
+    interpret (format_intro_compute Elem Type) Elem [].
+    interpret (format_intro_absorb Type) (record_intro []) Bytes :-
+        interpret Type _ Bytes.
 
 %end.

@@ -194,6 +194,8 @@
         is_elem Context FirstType format_type,
         is_elem (extend Context (format_elim FirstType)) SecondType format_type.
     % TODO: format_intro_record
+    % TODO: format_intro_compute
+    % TODO: format_intro_absorb
     is_equal_elem Context (format_elim format_intro_void) (enum_type []) type_type :-
         is_context Context.
     is_equal_elem Context (format_elim format_intro_unit) (enum_type ["unit"]) type_type :-
@@ -230,5 +232,7 @@
         is_equal_elem Context (format_elim Type) Type' type_type.
     % TODO: format_intro_pair
     % TODO: format_intro_record
+    % TODO: format_intro_compute
+    % TODO: format_intro_absorb
 
 %end.

@@ -70,6 +70,8 @@ format_intro_s64be : term. % TODO: make this a computed format?
 format_intro_array : term -> term -> term.
 format_intro_pair : term -> term -> term.
 format_intro_record : list (string * term) -> term.
+format_intro_compute : term -> term -> term.
+format_intro_absorb : term -> term.
 format_elim : term -> term.
 
 

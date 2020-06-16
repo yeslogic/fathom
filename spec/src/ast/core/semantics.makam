@@ -84,6 +84,8 @@
     format_intro_array : value -> value -> value.
     format_intro_pair : value -> closure -> value.
     format_intro_record : field_closure -> value.
+    format_intro_compute : value -> value -> value.
+    format_intro_absorb : value -> value.
 
     % Variables
     local : int -> neutral. % Local variables (using De Bruijn levels)
@@ -178,12 +180,17 @@
     eval Values format_intro_s32be format_intro_s32be.
     eval Values format_intro_s64le format_intro_s64le.
     eval Values format_intro_s64be format_intro_s64be.
-    eval Values (format_intro_array ElemType LenElem) (format_intro_array ElemType' LenValue) :-
+    eval Values (format_intro_array ElemType LenElem) (format_intro_array ElemType' LenElem') :-
         eval Values ElemType ElemType',
-        eval Values LenElem LenValue.
+        eval Values LenElem LenElem'.
     eval Values (format_intro_pair FirstType SecondType) (format_intro_pair FirstType' (closure Values SecondType)) :-
         eval Values FirstType FirstType'.
     eval Values (format_intro_record TypeFields) (format_intro_record (field_closure Values TypeFields)).
+    eval Values (format_intro_compute Elem Type) (format_intro_compute Elem' Type') :-
+        eval Values Elem Elem',
+        eval Values Type Type'.
+    eval Values (format_intro_absorb Type) (format_intro_absorb Type') :-
+        eval Values Type Type'.
     eval Values (format_elim Elem) Value' :-
         eval Values Elem Value,
         format_elim Value Value'.
@@ -247,6 +254,8 @@
         (record_type (field_closure Values TypeFields'))
     :-
         map (pfun (Label, Elem) (Label, (format_elim Elem)) => success) TypeFields TypeFields'.
+    format_elim (format_intro_compute Elem Type) Type.
+    format_elim (format_intro_absorb Type) (record_type (field_closure [] [])).
 
 
     % Find the type of a field in a record elimination, based on the given
@@ -380,6 +389,11 @@
             Length1
             (format_intro_record (field_closure (neutral (local Length) :: Values) Fields))
             (format_intro_record Fields').
+    readback Length (format_intro_compute Elem Type) (format_intro_compute Elem' Type') :-
+        readback Length Elem Elem',
+        readback Length Type Type'.
+    readback Length (format_intro_absorb Type) (format_intro_absorb Type') :-
+        readback Length Type Type'.
 
 
     % Normalization-by-evaluation
@@ -543,5 +557,10 @@
             Length1
             (format_intro_record (field_closure (neutral (local Length) :: Values1) Fields1))
             (format_intro_record (field_closure (neutral (local Length) :: Values2) Fields2)).
+    is_equal Length (format_intro_compute Elem1 Type1) (format_intro_compute Elem2 Type2) :-
+        is_equal Length Elem1 Elem2,
+        is_equal Length Type1 Type2.
+    is_equal Length (format_intro_absorb Type1) (format_intro_absorb Type2) :-
+        is_equal Length Type1 Type2.
 
 %end.
