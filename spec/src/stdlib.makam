@@ -5,7 +5,7 @@
 
     keys : map Key Elem -> set Key -> prop.
     keys [] [].
-    keys ((Key, _) :: Map) (Key :: Keys) :-
+    keys (( Key, _ ) :: Map) (Key :: Keys) :-
         keys Map Keys.
 
 %end.

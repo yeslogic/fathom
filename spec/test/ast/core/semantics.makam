@@ -78,42 +78,42 @@
 
 >> normalize
     [ int_intro 42 ]
-    (record_type [ ("data", array_type int_type (local 0)) ])
+    (record_type [ ( "data", array_type int_type (local 0) ) ])
     Term ?
 >> Yes:
->> Term := record_type [ ("data", array_type int_type (int_intro 42)) ].
+>> Term := record_type [ ( "data", array_type int_type (int_intro 42) ) ].
 
 >> normalize [ enum_type [] ]
     (record_type
-        [ ("len", int_type)
-        , ("data", array_type (local 1) (local 0))
+        [ ( "len", int_type )
+        , ( "data", array_type (local 1) (local 0) )
         ])
     Term ?
 >> Yes:
 >> Term :=
     record_type
-        [ ("len", int_type)
-        , ("data", array_type (enum_type []) (local 0))
+        [ ( "len", int_type )
+        , ( "data", array_type (enum_type []) (local 0) )
         ].
 
 >> normalize [ int_intro 2, int_intro 1 ]
     (record_intro
-        [ ("len", local 0)
-        , ("data", array_intro [local 1, int_intro 2])
+        [ ( "len", local 0 )
+        , ( "data", array_intro [local 1, int_intro 2] )
         ])
     Term ?
 >> Yes:
 >> Term :=
     record_intro
-        [ ("len", int_intro 2)
-        , ("data", array_intro [int_intro 1, int_intro 2])
+        [ ( "len", int_intro 2 )
+        , ( "data", array_intro [int_intro 1, int_intro 2] )
         ].
 
 >> normalize
     (record_elim
         (record_intro
-            [ ("len", int_intro 2)
-            , ("data", array_intro [int_intro 1, int_intro 2])
+            [ ( "len", int_intro 2 )
+            , ( "data", array_intro [int_intro 1, int_intro 2] )
             ])
         "len")
     Term ?
@@ -123,8 +123,8 @@
 >> normalize
     (record_elim
         (record_intro
-            [ ("len", int_intro 2)
-            , ("data", array_intro [int_intro 1, int_intro 2])
+            [ ( "len", int_intro 2 )
+            , ( "data", array_intro [int_intro 1, int_intro 2] )
             ])
         "data")
     Term ?
@@ -156,22 +156,22 @@
 
 >> normalize [ int_intro 0, int_intro 1 ]
     (enum_elim
-        [ ("true", (local 0))
-        , ("false", (local 1))
+        [ ( "true", local 0 )
+        , ( "false", local 1 )
         ])
     Term ?
 >> Yes:
 >> Term :=
     enum_elim
-        [ ("true", (int_intro 0))
-        , ("false", (int_intro 1))
+        [ ( "true", int_intro 0 )
+        , ( "false", int_intro 1 )
         ].
 
 >> normalize
     (function_elim
         (enum_elim
-            [ ("true", (int_intro 0))
-            , ("false", (int_intro 1))
+            [ ( "true", int_intro 0 )
+            , ( "false", int_intro 1 )
             ])
         (enum_intro "true"))
     Term ?
@@ -181,8 +181,8 @@
 >> normalize
     (function_elim
         (enum_elim
-            [ ("true", (int_intro 0))
-            , ("false", (int_intro 1))
+            [ ( "true", int_intro 0 )
+            , ( "false", int_intro 1 )
             ])
         (enum_intro "false"))
     Term ?
@@ -193,8 +193,8 @@
     [ neutral (local 0) ]
     (function_elim
         (enum_elim
-            [ ("true", (int_intro 0))
-            , ("false", (int_intro 1))
+            [ ( "true", int_intro 0 )
+            , ( "false", int_intro 1 )
             ])
         (local 0))
     Term ?
@@ -202,8 +202,8 @@
 >> Term :=
     function_elim
         (enum_elim
-            [ ("true", (int_intro 0))
-            , ("false", (int_intro 1))
+            [ ( "true", int_intro 0 )
+            , ( "false", int_intro 1 )
             ])
         (local 0).
 
@@ -284,28 +284,28 @@
 
 >> normalize
     (format_intro_record
-        [ ("len", format_intro_u16be)
-        , ("data", format_intro_array format_intro_unit (local 0))
+        [ ( "len", format_intro_u16be )
+        , ( "data", format_intro_array format_intro_unit (local 0) )
         ])
     Term ?
 >> Yes:
 >> Term :=
     format_intro_record
-        [ ("len", format_intro_u16be)
-        , ("data", format_intro_array format_intro_unit (local 0))
+        [ ( "len", format_intro_u16be )
+        , ( "data", format_intro_array format_intro_unit (local 0) )
         ].
 
 >> normalize [ format_intro_u16be, format_intro_unit ]
     (format_intro_record
-        [ ("len", local 0)
-        , ("data", format_intro_array (local 2) (local 0))
+        [ ( "len", local 0 )
+        , ( "data", format_intro_array (local 2) (local 0) )
         ])
     Term ?
 >> Yes:
 >> Term :=
     format_intro_record
-        [ ("len", format_intro_u16be)
-        , ("data", format_intro_array format_intro_unit (local 0))
+        [ ( "len", format_intro_u16be )
+        , ( "data", format_intro_array format_intro_unit (local 0) )
         ].
 
 >> normalize (format_intro_compute (int_intro 2) int_type) Term ?
@@ -351,15 +351,15 @@
 >> normalize [ format_intro_u16be, format_intro_unit ]
     (format_elim
         (format_intro_record
-            [ ("len", local 0)
-            , ("data", format_intro_array (local 2) (local 0))
+            [ ( "len", local 0 )
+            , ( "data", format_intro_array (local 2) (local 0) )
             ]))
     Term ?
 >> Yes:
 >> Term :=
     record_type
-        [ ("len", int_type)
-        , ("data", array_type (record_type []) (local 0))
+        [ ( "len", int_type )
+        , ( "data", array_type (record_type []) (local 0) )
         ].
 
 >> normalize [ int_type ]

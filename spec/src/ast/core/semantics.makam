@@ -253,7 +253,7 @@
         (format_intro_record (field_closure Values TypeFields))
         (record_type (field_closure Values TypeFields'))
     :-
-        map (pfun (Label, Elem) (Label, (format_elim Elem)) => success) TypeFields TypeFields'.
+        map (pfun ( Label, Elem ) ( Label, format_elim Elem ) => success) TypeFields TypeFields'.
     format_elim (format_intro_compute Elem Type) Type.
     format_elim (format_intro_absorb Type) (record_type (field_closure [] [])).
 
@@ -262,10 +262,10 @@
     % closure of type fields.
 
     record_elim_type : value -> string -> field_closure -> value -> prop.
-    record_elim_type RecordElem Label (field_closure Values ((Label', FieldType) :: _)) FieldType' :-
+    record_elim_type RecordElem Label (field_closure Values (( Label', FieldType ) :: _)) FieldType' :-
         eqv Label Label',
         eval Values FieldType FieldType'.
-    record_elim_type RecordElem Label (field_closure Values ((Label', _) :: TypeFields)) FieldType :-
+    record_elim_type RecordElem Label (field_closure Values (( Label', _ ) :: TypeFields)) FieldType :-
         record_elim RecordElem Label' FieldElem,
         record_elim_type RecordElem Label (field_closure (FieldElem :: Values) TypeFields) FieldType.
 
@@ -322,8 +322,8 @@
         readback Length SecondValue SecondType.
     readback Length (record_type (field_closure Values [])) (record_type []).
     readback Length
-        (record_type (field_closure Values ((Label, Type) :: Fields)))
-        (record_type ((Label, Type'') :: Fields'))
+        (record_type (field_closure Values (( Label, Type ) :: Fields)))
+        (record_type (( Label, Type'' ) :: Fields'))
     :-
         eval Values Type Type',
         readback Length Type' Type'',
@@ -375,8 +375,8 @@
         readback Length1 SecondType SecondType'.
     readback Length (format_intro_record (field_closure Values [])) (format_intro_record []).
     readback Length
-        (format_intro_record (field_closure Values ((Label, Type) :: Fields)))
-        (format_intro_record ((Label, Type'') :: Fields'))
+        (format_intro_record (field_closure Values (( Label, Type ) :: Fields)))
+        (format_intro_record (( Label, Type'' ) :: Fields'))
     :-
         eval Values Type Type',
         readback Length Type' Type'',
@@ -465,8 +465,8 @@
         (record_type (field_closure Values1 []))
         (record_type (field_closure Values2 [])).
     is_equal Length
-        (record_type (field_closure Values1 ((Label1, Type1) :: Fields1)))
-        (record_type (field_closure Values2 ((Label2, Type2) :: Fields2)))
+        (record_type (field_closure Values1 (( Label1, Type1 ) :: Fields1)))
+        (record_type (field_closure Values2 (( Label2, Type2 ) :: Fields2)))
     :-
         eqv Label1 Label2,
         eval Values1 Type1 Type1',
@@ -536,8 +536,8 @@
         (format_intro_record (field_closure Values1 []))
         (format_intro_record (field_closure Values2 [])).
     is_equal Length
-        (format_intro_record (field_closure Values1 ((Label1, Type1) :: Fields1)))
-        (format_intro_record (field_closure Values2 ((Label2, Type2) :: Fields2)))
+        (format_intro_record (field_closure Values1 (( Label1, Type1 ) :: Fields1)))
+        (format_intro_record (field_closure Values2 (( Label2, Type2 ) :: Fields2)))
     :-
         eqv Label1 Label2,
         eval Values1 Type1 Type1',

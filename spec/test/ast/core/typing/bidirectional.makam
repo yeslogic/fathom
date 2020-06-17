@@ -11,7 +11,10 @@
 
     % Variables
 
->> synth_type (context [ (format_intro_u8, format_type) ]) (local 0) Type ?
+>> synth_type
+    (context [ ( format_intro_u8, format_type ) ])
+    (local 0)
+    Type ?
 >> Yes:
 >> Type := format_type.
 
@@ -30,57 +33,58 @@
 
 >> synth_type
     (ann
-        (record_intro [ ("data", int_intro 23) ])
-        (record_type [ ("data", int_type) ]))
+        (record_intro [ ( "data", int_intro 23 ) ])
+        (record_type [ ( "data", int_type ) ]))
     Type ?
 >> Yes:
->> Type := record_type (field_closure [] [ ("data", int_type) ]).
+>> Type := record_type (field_closure [] [ ( "data", int_type ) ]).
 
 >> synth_type
     (ann
-        (record_intro [ ("y", int_intro 2), ("x", int_intro 1) ])
-        (record_type [ ("x", int_type), ("y", int_type) ]))
+        (record_intro [ ( "y", int_intro 2 ), ( "x", int_intro 1 ) ])
+        (record_type [ ( "x", int_type ), ( "y", int_type ) ]))
     Type ?
 >> Yes:
 >> Type := record_type
     (field_closure []
-        [ ("x", int_type)
-        , ("y", int_type)
+        [ ( "x", int_type )
+        , ( "y", int_type )
         ]).
 
 >> synth_type
     (ann
         (record_intro
-            [ ("data", array_intro [])
-            , ("len", int_intro 0)
+            [ ( "data", array_intro [] )
+            , ( "len", int_intro 0 )
             ])
         (record_type
-            [ ("len", int_type)
-            , ("data", array_type (enum_type [ "unit" ]) (local 0))
+            [ ( "len", int_type )
+            , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
             ]))
     Type ?
 >> Yes:
 >> Type := record_type
     (field_closure []
-        [ ("len", int_type)
-        , ("data", array_type (enum_type [ "unit" ]) (local 0))
+        [ ( "len", int_type )
+        , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
         ]).
 
 >> synth_type
-    (ann (record_intro [
-             ("data", array_intro [ enum_intro "unit", enum_intro "unit" ]),
-             ("len", int_intro 2)
-         ])
-         (record_type [
-             ("len", int_type),
-             ("data", array_type (enum_type [ "unit" ]) (local 0))
-         ]))
+    (ann
+        (record_intro [
+            ( "data", array_intro [ enum_intro "unit", enum_intro "unit" ]) ,
+            ( "len", int_intro 2 )
+        ])
+        (record_type [
+            ( "len", int_type ),
+            ( "data", array_type (enum_type [ "unit" ]) (local 0) )
+        ]))
     Type ?
 >> Yes:
 >> Type := record_type
     (field_closure []
-        [ ("len", int_type)
-        , ("data", array_type (enum_type [ "unit" ]) (local 0))
+        [ ( "len", int_type )
+        , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
         ]).
 
 >> synth_type (ann (enum_intro "false") (enum_type [ "true", "false" ])) Type ?
@@ -185,21 +189,35 @@
 >> Yes:
 >> Type := type_type.
 
->> synth_type (record_type [ ("data", int_type) ]) Type ?
->> Yes:
->> Type := type_type.
-
->> synth_type (record_type [ ("data", int_type), ("data", enum_type []) ]) Type ?
->> Impossible.
-
->> synth_type (record_type [ ("x", int_type), ("y", int_type) ]) Type ?
+>> synth_type
+    (record_type
+        [ ( "data", int_type )
+        ])
+    Type ?
 >> Yes:
 >> Type := type_type.
 
 >> synth_type
     (record_type
-        [ ("len", int_type)
-        , ("data", array_type (enum_type [ "unit" ]) (local 0))
+        [ ( "data", int_type )
+        , ( "data", enum_type [] )
+        ])
+    Type ?
+>> Impossible.
+
+>> synth_type
+    (record_type
+        [ ( "x", int_type )
+        , ( "y", int_type )
+        ])
+    Type ?
+>> Yes:
+>> Type := type_type.
+
+>> synth_type
+    (record_type
+        [ ( "len", int_type )
+        , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
         ])
     Type ?
 >> Yes:
@@ -210,48 +228,54 @@
 
 >> check_type
     (record_intro
-        [ ("y", int_intro 2)
-        , ("x", int_intro 1)
+        [ ( "y", int_intro 2 )
+        , ( "x", int_intro 1 )
         ])
     (record_type
         (field_closure []
-            [ ("x", int_type)
-            , ("y", int_type)
+            [ ( "x", int_type )
+            , ( "y", int_type )
             ])) ?
 >> Yes.
 
 >> check_type
     (record_intro
-        [ ("data", array_intro [])
-        , ("len", int_intro 0)
+        [ ( "data", array_intro [] )
+        , ( "len", int_intro 0 )
         ])
     (record_type
         (field_closure []
-            [ ("len", int_type)
-            , ("data", array_type (enum_type [ "unit" ]) (local 0))
+            [ ( "len", int_type )
+            , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
             ])) ?
 >> Yes.
 
 >> check_type
     (record_intro
-        [ ("data", array_intro [ enum_intro "unit", enum_intro "unit" ])
-        , ("len", int_intro 2)
+        [ ( "data", array_intro [ enum_intro "unit", enum_intro "unit" ] )
+        , ( "len", int_intro 2 )
         ])
     (record_type
         (field_closure []
-            [ ("len", int_type)
-            , ("data", array_type (enum_type [ "unit" ]) (local 0))
+            [ ( "len", int_type )
+            , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
             ])) ?
 >> Yes.
 
->> synth_type (record_elim (ann (record_intro []) (record_type [])) "hello") Type ?
+>> synth_type
+    (record_elim
+        (ann
+            (record_intro [])
+            (record_type []))
+        "hello")
+    Type ?
 >> Impossible.
 
 >> synth_type
     (record_elim
         (ann
-            (record_intro [ ("data", int_intro 23) ])
-            (record_type [ ("data", int_type) ]))
+            (record_intro [ ( "data", int_intro 23 ) ])
+            (record_type [ ( "data", int_type ) ]))
         "data")
     Type ?
 >> Yes:
@@ -260,8 +284,8 @@
 >> synth_type
     (record_elim
         (ann
-            (record_intro [ ("data", int_intro 23) ])
-            (record_type [ ("data", enum_type []) ]))
+            (record_intro [ ( "data", int_intro 23 ) ])
+            (record_type [ ( "data", enum_type [] ) ]))
         "data")
     Type ?
 >> Impossible.
@@ -269,8 +293,8 @@
 >> synth_type
     (record_elim
         (ann
-            (record_intro [ ("y", int_intro 2), ("x", int_intro 1) ])
-            (record_type [ ("x", int_type), ("y", int_type) ]))
+            (record_intro [ ( "y", int_intro 2 ), ( "x", int_intro 1 ) ])
+            (record_type [ ( "x", int_type ), ( "y", int_type ) ]))
         "y")
     Type ?
 >> Yes:
@@ -280,12 +304,12 @@
     (record_elim
         (ann
             (record_intro
-                [ ("data", array_intro [ enum_intro "unit", enum_intro "unit" ])
-                , ("len", int_intro 2)
+                [ ( "data", array_intro [ enum_intro "unit", enum_intro "unit" ] )
+                , ( "len", int_intro 2 )
                 ])
             (record_type
-                [ ("len", int_type)
-                , ("data", array_type (enum_type [ "unit" ]) (local 0))
+                [ ( "len", int_type )
+                , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
                 ]))
         "data")
     Type ?
@@ -327,7 +351,7 @@
 
 >> check_type
     (enum_elim
-        [ ("unit", int_intro 0)
+        [ ( "unit", int_intro 0 )
         ])
     (function_type
         (enum_type [ "unit" ])
@@ -336,8 +360,8 @@
 
 >> check_type
     (enum_elim
-        [ ("true", int_intro 0)
-        , ("false", int_intro 1)
+        [ ( "true", int_intro 0 )
+        , ( "false", int_intro 1 )
         ])
     (function_type
         (enum_type [ "true", "false" ])
@@ -346,8 +370,8 @@
 
 >> check_type
     (enum_elim
-        [ ("true", int_intro 0)
-        , ("false", int_intro 1)
+        [ ( "true", int_intro 0 )
+        , ( "false", int_intro 1 )
         ])
     (function_type
         (enum_type [ "false", "true" ])
@@ -356,8 +380,8 @@
 
 >> check_type
     (enum_elim
-        [ ("true", enum_intro "unit")
-        , ("false", int_intro 1)
+        [ ( "true", enum_intro "unit" )
+        , ( "false", int_intro 1 )
         ])
     (function_type
         (enum_type [ "true", "false" ])
@@ -369,8 +393,8 @@
 
 >> check_type
     (enum_elim
-        [ ("true", int_intro 0)
-        , ("false", int_intro 1)
+        [ ( "true", int_intro 0 )
+        , ( "false", int_intro 1 )
         ])
     (function_type
         (enum_type [])
@@ -378,7 +402,7 @@
 >> Impossible.
 
 >> check_type
-    (enum_elim [ ("true", int_intro 0) ])
+    (enum_elim [ ( "true", int_intro 0 ) ])
     (function_type
         (enum_type [ "true", "false" ])
         (closure [] int_type)) ?
@@ -418,7 +442,7 @@
 
 >> synth_type
     (format_intro_record
-        [ ("data", format_intro_u8)
+        [ ( "data", format_intro_u8 )
         ])
     Type ?
 >> Yes:
@@ -426,16 +450,16 @@
 
 >> synth_type
     (format_intro_record
-        [ ("data", format_intro_u8)
-        , ("data", format_intro_s8)
+        [ ( "data", format_intro_u8 )
+        , ( "data", format_intro_s8 )
         ])
     Type ?
 >> Impossible.
 
 >> synth_type
     (format_intro_record
-        [ ("x", format_intro_u8)
-        , ("y", format_intro_s8)
+        [ ( "x", format_intro_u8 )
+        , ( "y", format_intro_s8 )
         ])
     Type ?
 >> Yes:
@@ -443,8 +467,8 @@
 
 >> synth_type
     (format_intro_record
-        [ ("len", format_intro_u16be)
-        , ("data", format_intro_array format_intro_u8 (local 0))
+        [ ( "len", format_intro_u16be )
+        , ( "data", format_intro_array format_intro_u8 (local 0) )
         ])
     Type ?
 >> Yes:
