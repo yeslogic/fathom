@@ -16,6 +16,48 @@
 
     context : type.
 
+    context : list (value * value) -> context.
+
+    %extend context.
+
+        values : context -> list value -> prop.
+        values (context Entries) Values :-
+            map tuple.fst Entries Values.
+
+
+        lookup_type : context -> int -> value -> prop.
+        lookup_type (context Entries) Index Type :-
+            list.nth Entries Index ( _, Type ).
+
+
+        next_local : context -> value -> prop.
+        next_local (context Entries) (neutral (local Level)) :-
+            length Entries Level.
+
+
+        add_local : context -> value -> value -> context -> prop.
+        add_local (context Entries) Elem Type (context (( Elem, Type ) :: Entries)).
+
+
+        add_param : context -> value -> context -> prop.
+        add_param Context Type Context' :-
+            next_local Context LocalElem,
+            add_local Context LocalElem Type Context'.
+
+
+        eval : context -> core.term -> value -> prop.
+        eval Context Elem Elem' :-
+            values Context Values,
+            eval Values Elem Elem'.
+
+
+        is_equal : context -> value -> value -> prop.
+        is_equal (context Entries) Elem1 Elem2 :-
+            length Entries Length,
+            is_equal Length Elem1 Elem2.
+
+    %end.
+
 
     % Elaboration rules
 
@@ -37,17 +79,28 @@
     % synth_type : in -> in -> out -> out -> semidet.
     % ```
 
-    % TODO
-
     % Conversion
+    is_type Context SourceElem Elem:-
+        synth_type Context SourceElem type_type Elem.
+    is_type Context SourceElem Elem :-
+        synth_type Context SourceElem format_type Elem.
+    check_type Context SourceElem Type Elem :-
+        synth_type Context SourceElem Type' Elem,
+        context.is_equal Context Type Type'.
+
     % Variables
+
     % Annotated terms
+    synth_type Context (surface.ann SourceElem SourceType) Type' (core.ann Elem Type) :-
+        is_type Context SourceType Type,
+        context.eval Context Type Type',
+        check_type Context SourceElem Type' Elem.
+
     % Universes
-    % Void
-    % Unit
     % Functions
     % Pairs
-    % Booleans
+    % Records
+    % Enumerations
     % Integers
     % Arrays
     % Binary format descriptions
