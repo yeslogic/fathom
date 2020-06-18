@@ -44,8 +44,8 @@
 
         add_param : context -> value -> context -> prop.
         add_param Context Type Context' :-
-            next_local Context LocalElem,
-            add_local Context LocalElem Type Context'.
+            next_local Context Elem,
+            add_local Context Elem Type Context'.
 
 
         eval : context -> term -> value -> prop.
