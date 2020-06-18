@@ -83,25 +83,27 @@
     % ```
 
     % Conversion
-    is_type Context SourceElem Elem:-
-        synth_type Context SourceElem type_type Elem.
-    is_type Context SourceElem Elem :-
-        synth_type Context SourceElem format_type Elem.
-    check_type Context SourceElem Type Elem :-
-        synth_type Context SourceElem Type' Elem,
-        context.is_equal Context Type Type'.
+    is_type Context SourceElem TargetElem:-
+        synth_type Context SourceElem type_type TargetElem.
+    is_type Context SourceElem TargetElem :-
+        synth_type Context SourceElem format_type TargetElem.
+    check_type Context SourceElem TargetType TargetElem :-
+        synth_type Context SourceElem TargetType' TargetElem,
+        context.is_equal Context TargetType TargetType'.
 
     % Variables
-    synth_type Context (surface.name "Type") Type core.type_type.
-    synth_type Context (surface.name "Format") Type core.format_type.
-    synth_type Context (surface.name Name) Type (core.local Level) :-
-        context.lookup_type Context Name Level Type.
+    synth_type Context (surface.name "Type") TargetType core.type_type.
+    synth_type Context (surface.name "Format") TargetType core.format_type.
+    synth_type Context (surface.name Name) TargetType (core.local Level) :-
+        context.lookup_type Context Name Level TargetType.
 
     % Annotated terms
-    synth_type Context (surface.ann SourceElem SourceType) Type' (core.ann Elem Type) :-
-        is_type Context SourceType Type,
-        context.eval Context Type Type',
-        check_type Context SourceElem Type' Elem.
+    synth_type Context (surface.ann SourceElem SourceType) TargetType'
+        (core.ann TargetElem TargetType)
+    :-
+        is_type Context SourceType TargetType,
+        context.eval Context TargetType TargetType',
+        check_type Context SourceElem TargetType' TargetElem.
 
     % Universes
     % Functions
