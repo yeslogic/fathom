@@ -86,16 +86,27 @@
     synth_type Context (core.int_intro Int) (typ int_type) (expr (stratified.int_intro Int)).
 
     % Arrays
-    is_type Context (core.array_type Type LenElem) (typ (stratified.array_type Type' LenElem')) :-
+    is_type Context (core.array_type Type LenElem)
+        (typ (stratified.array_type Type' LenElem'))
+    :-
         check_type Context Type (kind type_type) (typ Type'),
         check_type Context LenElem (typ int_type) (expr LenElem').
-    check_type Context (core.array_type Type LenElem) (kind type_type) (typ (stratified.array_type Type' LenElem')) :-
+    check_type Context (core.array_type Type LenElem) (kind type_type)
+        (typ (stratified.array_type Type' LenElem'))
+    :-
         check_type Context Type (kind type_type) (typ Type'),
         check_type Context LenElem (typ int_type) (expr LenElem').
-    check_type Context (core.array_intro Elems) (typ (array_type Type (int_intro Len))) (expr (stratified.array_intro Elems')) :-
+    check_type Context (core.array_intro Elems) (typ (array_type Type (int_intro Len)))
+        (expr (stratified.array_intro Elems'))
+    :-
         length Elems Len,
-        map (fun elem_term elem_term' => check_type Context elem_term (typ Type) (expr elem_term')) Elems Elems'.
-    synth_type Context (core.array_elim ArrayElem IndexElem) (typ Type) (expr (stratified.array_elim ArrayElem' IndexElem')) :-
+        map (fun elem_term elem_term' =>
+                check_type Context elem_term (typ Type) (expr elem_term')
+            )
+            Elems Elems'.
+    synth_type Context (core.array_elim ArrayElem IndexElem) (typ Type)
+        (expr (stratified.array_elim ArrayElem' IndexElem'))
+    :-
         % FIXME: ensure `IndexElem` is in array bounds, possibly with refinement types?
         synth_type Context ArrayElem (typ (array_type Type _)) (expr ArrayElem'),
         check_type Context IndexElem (typ int_type) (expr IndexElem').
