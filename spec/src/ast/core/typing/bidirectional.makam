@@ -84,9 +84,9 @@
 
     % Conversion
     is_type Context Elem :-
-        synth_type Context Elem type_type.
+        check_type Context Elem type_type.
     is_type Context Elem :-
-        synth_type Context Elem format_type.
+        check_type Context Elem format_type.
     check_type Context Elem Type :-
         synth_type Context Elem Type',
         context.is_equal Context Type Type'.

@@ -84,9 +84,9 @@
 
     % Conversion
     is_type Context SourceElem TargetElem:-
-        synth_type Context SourceElem type_type TargetElem.
+        check_type Context SourceElem type_type TargetElem.
     is_type Context SourceElem TargetElem :-
-        synth_type Context SourceElem format_type TargetElem.
+        check_type Context SourceElem format_type TargetElem.
     check_type Context SourceElem TargetType TargetElem :-
         synth_type Context SourceElem TargetType' TargetElem,
         context.is_equal Context TargetType TargetType'.
