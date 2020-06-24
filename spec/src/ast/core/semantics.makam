@@ -424,16 +424,11 @@
         (enum_elim (choice_closure Values1 Clauses1) Neutral1 : neutral)
         (enum_elim (choice_closure Values2 Clauses2) Neutral2)
     :-
-        map.keys Clauses1 Labels1,
-        map.keys Clauses2 Labels2,
-        eqv Labels1 Labels2,
-        set.map (pfun Label => [Elem1 Elem2 Value1 Value2] (
-            map.find Clauses1 Label Elem1,
-            map.find Clauses2 Label Elem2,
+        map.mapvalues (pfun Elem1 Elem2 => [Value1 Value2] (
             eval Values1 Elem1 Value1,
             eval Values2 Elem2 Value2,
             is_equal Length Value1 Value2
-        )) Labels1,
+        )) Clauses1 Clauses2,
         is_equal Length Neutral1 Neutral2.
     is_equal Length (format_elim Neutral1 : neutral) (format_elim Neutral2) :-
         is_equal Length Neutral1 Neutral2.
@@ -489,16 +484,11 @@
         (enum_elim (choice_closure Values1 Clauses1))
         (enum_elim (choice_closure Values2 Clauses2))
     :-
-        map.keys Clauses1 Labels1,
-        map.keys Clauses2 Labels2,
-        eqv Labels1 Labels2,
-        set.map (pfun Label => [Elem1 Elem2 Value1 Value2] (
-            map.find Clauses1 Label Elem1,
-            map.find Clauses2 Label Elem2,
+        map.mapvalues (pfun Elem1 Elem2 => [Value1 Value2] (
             eval Values1 Elem1 Value1,
             eval Values2 Elem2 Value2,
             is_equal Length Value1 Value2
-        )) Labels1.
+        )) Clauses1 Clauses2.
     is_equal Length int_type int_type.
     is_equal Length (int_intro Int) (int_intro Int).
     is_equal Length (array_type ElemType1 LenElem1) (array_type ElemType2 LenElem2) :-
