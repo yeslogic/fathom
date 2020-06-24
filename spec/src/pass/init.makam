@@ -9,6 +9,7 @@
 %
 % - stratifying source terms into runtime vs compile time
 % - stratifying source terms into terms and types in the target language
+% - converting to nominal type definitions
 % - uncurrying functions
 % - translating functions on types into parameterised types
 % - defunctionalization/monomorphization of more complicated type functions
