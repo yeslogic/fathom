@@ -15,12 +15,12 @@
     f64 : typ.
 
 
-    expr : type.
+    term : type.
 
-    bool : bool -> expr.
-    int : int -> expr.
-    struct : string -> list (string * expr) -> expr.
-    ifte : expr -> expr -> expr -> expr.
+    bool : bool -> term.
+    int : int -> term.
+    struct : string -> list (string * term) -> term.
+    ifte : term -> term -> term -> term.
 
 
     item : type.
@@ -28,7 +28,7 @@
     alias : string -> list string -> typ -> item.
     struct : string -> list string -> list (string * typ) -> item.
     enum : string -> list string -> list (string * typ) -> item.
-    function : string -> list string -> list (string * typ) -> typ -> expr -> item.
-    const : string -> typ -> expr -> item.
+    function : string -> list string -> list (string * typ) -> typ -> term -> item.
+    const : string -> typ -> term -> item.
 
 %end.

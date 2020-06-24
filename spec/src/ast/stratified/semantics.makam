@@ -3,22 +3,22 @@
     % Values
     kind_value : type.
     typ_value : type.
-    expr_value : type.
+    term_value : type.
 
     % Universes
     type_type : kind_value.
 
     % Enumerations
     enum_type : set string -> typ_value.
-    enum_intro : string -> expr_value.
+    enum_intro : string -> term_value.
 
     % Integers
     int_type : typ_value.
-    int_intro : int -> expr_value.
+    int_intro : int -> term_value.
 
     % Arrays
-    array_intro : list expr_value -> expr_value.
-    array_type : typ_value -> expr_value -> typ_value.
+    array_intro : list term_value -> term_value.
+    array_type : typ_value -> term_value -> typ_value.
 
     % Binary format descriptions
     format_type : kind_value.

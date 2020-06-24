@@ -10,15 +10,15 @@
 
     kind : stratified.kind -> stratified.
     typ : stratified.typ -> stratified.
-    expr : stratified.expr -> stratified.
+    term : stratified.term -> stratified.
     format : stratified.format -> stratified.
 
     % Stratified values
-    stratified_value : type.
+    value : type.
 
-    kind : kind_value -> stratified_value.
-    typ : typ_value -> stratified_value.
-    expr : expr_value -> stratified_value.
+    kind : kind_value -> value.
+    typ : typ_value -> value.
+    term : term_value -> value.
 
 
     context : type.
@@ -31,7 +31,7 @@
         eval : context -> stratified.typ -> typ_value -> prop.
         % TODO: eval
 
-        eval : context -> stratified.expr -> expr_value -> prop.
+        eval : context -> stratified.term -> term_value -> prop.
         % TODO: eval
 
     %end.
@@ -40,9 +40,9 @@
     % Check that a term is a type and lower it to a stratified term.
     is_type : context -> core.term -> stratified -> prop.
     % Check that a term is an element of the given type and lower it to a stratified term.
-    check_type : context -> core.term -> stratified_value -> stratified -> prop.
+    check_type : context -> core.term -> value -> stratified -> prop.
     % Synthesize the type of a given term and lower it to a stratified term.
-    synth_type : context -> core.term -> stratified_value -> stratified -> prop.
+    synth_type : context -> core.term -> value -> stratified -> prop.
 
     % A note on modes
     %
@@ -77,39 +77,39 @@
     % Enumerations
     is_type Context (core.enum_type Labels) (typ (stratified.enum_type Labels)).
     synth_type Context (core.enum_type Labels) (kind type_type) (typ (stratified.enum_type Labels)).
-    check_type Context (core.enum_intro Label) (typ (enum_type Labels)) (expr (stratified.enum_intro Label)) :-
+    check_type Context (core.enum_intro Label) (typ (enum_type Labels)) (term (stratified.enum_intro Label)) :-
         set.member Labels Label _.
     % TODO: core.enum_elim
 
     % Integers
     is_type Context core.int_type (typ stratified.int_type).
     synth_type Context core.int_type (kind type_type) (typ stratified.int_type).
-    synth_type Context (core.int_intro Int) (typ int_type) (expr (stratified.int_intro Int)).
+    synth_type Context (core.int_intro Int) (typ int_type) (term (stratified.int_intro Int)).
 
     % Arrays
     is_type Context (core.array_type Type LenElem)
         (typ (stratified.array_type Type' LenElem'))
     :-
         check_type Context Type (kind type_type) (typ Type'),
-        check_type Context LenElem (typ int_type) (expr LenElem').
+        check_type Context LenElem (typ int_type) (term LenElem').
     check_type Context (core.array_type Type LenElem) (kind type_type)
         (typ (stratified.array_type Type' LenElem'))
     :-
         check_type Context Type (kind type_type) (typ Type'),
-        check_type Context LenElem (typ int_type) (expr LenElem').
+        check_type Context LenElem (typ int_type) (term LenElem').
     check_type Context (core.array_intro Elems) (typ (array_type Type (int_intro Len)))
-        (expr (stratified.array_intro Elems'))
+        (term (stratified.array_intro Elems'))
     :-
         length Elems Len,
         map (fun elem_term elem_term' =>
-                check_type Context elem_term (typ Type) (expr elem_term')
+                check_type Context elem_term (typ Type) (term elem_term')
             ) Elems Elems'.
     synth_type Context (core.array_elim ArrayElem IndexElem) (typ Type)
-        (expr (stratified.array_elim ArrayElem' IndexElem'))
+        (term (stratified.array_elim ArrayElem' IndexElem'))
     :-
         % FIXME: ensure `IndexElem` is in array bounds, possibly with refinement types?
-        synth_type Context ArrayElem (typ (array_type Type _)) (expr ArrayElem'),
-        check_type Context IndexElem (typ int_type) (expr IndexElem').
+        synth_type Context ArrayElem (typ (array_type Type _)) (term ArrayElem'),
+        check_type Context IndexElem (typ int_type) (term IndexElem').
 
     % Binary format descriptions
     is_type Context core.format_type (kind stratified.format_type).

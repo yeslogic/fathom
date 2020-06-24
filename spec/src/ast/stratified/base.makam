@@ -1,20 +1,20 @@
 % Terms
 kind : type.
 typ : type.
-expr : type.
+term : type.
 format : type.
 
 % Variables
 local : int -> typ.
-local : int -> expr.
+local : int -> term.
 
 % Annotated terms
 ann : typ -> kind -> typ.
-ann : expr -> typ -> expr.
+ann : term -> typ -> term.
 
 % 'Lifted' terms
 lift : typ -> kind.
-lift : expr -> typ.
+lift : term -> typ.
 
 % Universes
 type_type : kind.
@@ -23,30 +23,30 @@ type_type : kind.
 function_type : kind -> kind -> kind.
 function_type : typ -> typ.
 function_intro : typ -> typ.
-function_intro : expr -> expr. % for terms or types
-function_elim : typ -> typ -> expr.
-function_elim : expr -> expr -> expr.
-function_elim : expr -> typ -> expr.
+function_intro : term -> term. % for terms or types
+function_elim : typ -> typ -> term.
+function_elim : term -> term -> term.
+function_elim : term -> typ -> term.
 
 % Pairs
 pair_type : typ -> typ -> typ.
-pair_intro : expr -> expr -> expr.
-pair_elim_first : expr -> expr.
-pair_elim_second : expr -> expr.
+pair_intro : term -> term -> term.
+pair_elim_first : term -> term.
+pair_elim_second : term -> term.
 
 % Enumerations
 enum_type : set string -> typ.
-enum_intro : string -> expr.
-enum_elim : expr -> list (string * expr) -> expr.
+enum_intro : string -> term.
+enum_elim : term -> list (string * term) -> term.
 
 % Integers
 int_type : typ.
-int_intro : int -> expr.
+int_intro : int -> term.
 
 % Arrays
-array_type : typ -> expr -> typ.
-array_intro : list expr -> expr.
-array_elim : expr -> expr -> expr.
+array_type : typ -> term -> typ.
+array_intro : list term -> term.
+array_elim : term -> term -> term.
 
 % Binary format descriptions
 format_type : kind.
@@ -66,9 +66,9 @@ format_intro_s32le : format. % TODO: make this a computed format?
 format_intro_s32be : format. % TODO: make this a computed format?
 format_intro_s64le : format. % TODO: make this a computed format?
 format_intro_s64be : format. % TODO: make this a computed format?
-format_intro_array : format -> expr -> format.
+format_intro_array : format -> term -> format.
 format_intro_pair : format -> format -> format.
 format_intro_record : list (string * format) -> format.
-format_intro_compute : format -> expr -> format.
+format_intro_compute : format -> term -> format.
 format_intro_absorb : format -> format.
 format_elim : format -> typ.
