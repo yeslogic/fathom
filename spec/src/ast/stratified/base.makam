@@ -2,6 +2,7 @@
 kind : type.
 typ : type.
 expr : type.
+format : type.
 
 % Variables
 local : int -> typ.
@@ -49,22 +50,25 @@ array_elim : expr -> expr -> expr.
 
 % Binary format descriptions
 format_type : kind.
-format_intro_void : typ.
-format_intro_unit : typ.
-format_intro_u8 : typ.
-format_intro_u16le : typ. % TODO: make this a computed format?
-format_intro_u16be : typ. % TODO: make this a computed format?
-format_intro_u32le : typ. % TODO: make this a computed format?
-format_intro_u32be : typ. % TODO: make this a computed format?
-format_intro_u64le : typ. % TODO: make this a computed format?
-format_intro_u64be : typ. % TODO: make this a computed format?
-format_intro_s8 : typ. % TODO: make this a computed format?
-format_intro_s16le : typ. % TODO: make this a computed format?
-format_intro_s16be : typ. % TODO: make this a computed format?
-format_intro_s32le : typ. % TODO: make this a computed format?
-format_intro_s32be : typ. % TODO: make this a computed format?
-format_intro_s64le : typ. % TODO: make this a computed format?
-format_intro_s64be : typ. % TODO: make this a computed format?
-format_intro_array : typ -> expr -> typ.
-format_intro_pair : typ -> typ -> typ.
-format_elim : typ -> typ.
+format_intro_void : format.
+format_intro_unit : format.
+format_intro_u8 : format.
+format_intro_u16le : format. % TODO: make this a computed format?
+format_intro_u16be : format. % TODO: make this a computed format?
+format_intro_u32le : format. % TODO: make this a computed format?
+format_intro_u32be : format. % TODO: make this a computed format?
+format_intro_u64le : format. % TODO: make this a computed format?
+format_intro_u64be : format. % TODO: make this a computed format?
+format_intro_s8 : format. % TODO: make this a computed format?
+format_intro_s16le : format. % TODO: make this a computed format?
+format_intro_s16be : format. % TODO: make this a computed format?
+format_intro_s32le : format. % TODO: make this a computed format?
+format_intro_s32be : format. % TODO: make this a computed format?
+format_intro_s64le : format. % TODO: make this a computed format?
+format_intro_s64be : format. % TODO: make this a computed format?
+format_intro_array : format -> expr -> format.
+format_intro_pair : format -> format -> format.
+format_intro_record : list (string * format) -> format.
+format_intro_compute : format -> expr -> format.
+format_intro_absorb : format -> format.
+format_elim : format -> typ.

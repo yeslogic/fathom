@@ -6,11 +6,12 @@
     %open fathom.ast.stratified.semantics.
 
     % Stratified terms
-    stratified_term : type.
+    stratified : type.
 
-    kind : stratified.kind -> stratified_term.
-    typ : stratified.typ -> stratified_term.
-    expr : stratified.expr -> stratified_term.
+    kind : stratified.kind -> stratified.
+    typ : stratified.typ -> stratified.
+    expr : stratified.expr -> stratified.
+    format : stratified.format -> stratified.
 
     % Stratified values
     stratified_value : type.
@@ -37,11 +38,11 @@
 
 
     % Check that a term is a type and lower it to a stratified term.
-    is_type : context -> core.term -> stratified_term -> prop.
+    is_type : context -> core.term -> stratified -> prop.
     % Check that a term is an element of the given type and lower it to a stratified term.
-    check_type : context -> core.term -> stratified_value -> stratified_term -> prop.
+    check_type : context -> core.term -> stratified_value -> stratified -> prop.
     % Synthesize the type of a given term and lower it to a stratified term.
-    synth_type : context -> core.term -> stratified_value -> stratified_term -> prop.
+    synth_type : context -> core.term -> stratified_value -> stratified -> prop.
 
     % A note on modes
     %
@@ -102,8 +103,7 @@
         length Elems Len,
         map (fun elem_term elem_term' =>
                 check_type Context elem_term (typ Type) (expr elem_term')
-            )
-            Elems Elems'.
+            ) Elems Elems'.
     synth_type Context (core.array_elim ArrayElem IndexElem) (typ Type)
         (expr (stratified.array_elim ArrayElem' IndexElem'))
     :-
@@ -113,23 +113,26 @@
 
     % Binary format descriptions
     is_type Context core.format_type (kind stratified.format_type).
-    synth_type Context core.format_intro_unit (kind format_type) (typ stratified.format_intro_unit).
-    synth_type Context core.format_intro_u8 (kind format_type) (typ stratified.format_intro_u8).
-    synth_type Context core.format_intro_u16le (kind format_type) (typ stratified.format_intro_u16le).
-    synth_type Context core.format_intro_u16be (kind format_type) (typ stratified.format_intro_u16be).
-    synth_type Context core.format_intro_u32le (kind format_type) (typ stratified.format_intro_u32le).
-    synth_type Context core.format_intro_u32be (kind format_type) (typ stratified.format_intro_u32be).
-    synth_type Context core.format_intro_u64le (kind format_type) (typ stratified.format_intro_u64le).
-    synth_type Context core.format_intro_u64be (kind format_type) (typ stratified.format_intro_u64be).
-    synth_type Context core.format_intro_s8 (kind format_type) (typ stratified.format_intro_s8).
-    synth_type Context core.format_intro_s16le (kind format_type) (typ stratified.format_intro_s16le).
-    synth_type Context core.format_intro_s16be (kind format_type) (typ stratified.format_intro_s16be).
-    synth_type Context core.format_intro_s32le (kind format_type) (typ stratified.format_intro_s32le).
-    synth_type Context core.format_intro_s32be (kind format_type) (typ stratified.format_intro_s32be).
-    synth_type Context core.format_intro_s64le (kind format_type) (typ stratified.format_intro_s64le).
-    synth_type Context core.format_intro_s64be (kind format_type) (typ stratified.format_intro_s64be).
+    synth_type Context core.format_intro_unit (kind format_type) (format stratified.format_intro_unit).
+    synth_type Context core.format_intro_u8 (kind format_type) (format stratified.format_intro_u8).
+    synth_type Context core.format_intro_u16le (kind format_type) (format stratified.format_intro_u16le).
+    synth_type Context core.format_intro_u16be (kind format_type) (format stratified.format_intro_u16be).
+    synth_type Context core.format_intro_u32le (kind format_type) (format stratified.format_intro_u32le).
+    synth_type Context core.format_intro_u32be (kind format_type) (format stratified.format_intro_u32be).
+    synth_type Context core.format_intro_u64le (kind format_type) (format stratified.format_intro_u64le).
+    synth_type Context core.format_intro_u64be (kind format_type) (format stratified.format_intro_u64be).
+    synth_type Context core.format_intro_s8 (kind format_type) (format stratified.format_intro_s8).
+    synth_type Context core.format_intro_s16le (kind format_type) (format stratified.format_intro_s16le).
+    synth_type Context core.format_intro_s16be (kind format_type) (format stratified.format_intro_s16be).
+    synth_type Context core.format_intro_s32le (kind format_type) (format stratified.format_intro_s32le).
+    synth_type Context core.format_intro_s32be (kind format_type) (format stratified.format_intro_s32be).
+    synth_type Context core.format_intro_s64le (kind format_type) (format stratified.format_intro_s64le).
+    synth_type Context core.format_intro_s64be (kind format_type) (format stratified.format_intro_s64be).
     % TODO: core.format_intro_array
     % TODO: core.format_intro_pair
+    % TODO: core.format_intro_record
+    % TODO: core.format_intro_compute
+    % TODO: core.format_intro_absorb
     % TODO: core.format_elim
 
 %end.
