@@ -25,14 +25,9 @@
 
     %extend context.
 
-        eval : context -> stratified.kind -> kind_value -> prop.
-        % TODO: eval
+        eval : context -> stratified -> value -> prop.
 
-        eval : context -> stratified.typ -> typ_value -> prop.
-        % TODO: eval
-
-        eval : context -> stratified.term -> term_value -> prop.
-        % TODO: eval
+        is_equal : context -> value -> value -> prop.
 
     %end.
 
@@ -56,17 +51,21 @@
     % ```
 
     % Conversion
+    is_type Context Elem Elem' :-
+        check_type Context Elem (kind type_type) Elem'.
+    is_type Context Elem Elem' :-
+        check_type Context Elem (kind format_type) Elem'.
+    check_type Context Elem Type Elem' :-
+        synth_type Context Elem Type' Elem',
+        context.is_equal Context Type Type'.
+
     % Variables
 
     % Annotated terms
     is_type Context (core.ann Elem Type) Elem' :-
-        is_type Context Type (kind Kind),
+        is_type Context Type Kind,
         context.eval Context Kind Kind',
-        check_type Context Elem (kind Kind') Elem'.
-    is_type Context (core.ann Elem Type) Elem' :-
-        is_type Context Type (typ Type'),
-        context.eval Context Type' Type'',
-        check_type Context Elem (typ Type'') Elem'.
+        check_type Context Elem Type' Elem'.
 
     % Universes
     is_type Context core.type_type (kind stratified.type_type).
