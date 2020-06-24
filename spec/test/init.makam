@@ -3,5 +3,6 @@
 %extend fathom.
 
     %use "ast/init".
+    %use "pass/init".
 
 %end.

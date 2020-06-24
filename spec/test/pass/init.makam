@@ -1,0 +1,5 @@
+%extend ast.
+
+    %use "core_to_stratified".
+
+%end.

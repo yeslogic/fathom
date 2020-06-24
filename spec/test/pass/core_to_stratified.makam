@@ -1,0 +1,6 @@
+%extend core_to_stratified.
+
+    tests : testsuite.
+    %testsuite tests.
+
+%end.
