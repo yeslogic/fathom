@@ -62,10 +62,18 @@
     % Variables
 
     % Annotated terms
-    is_type Context (core.ann SourceElem SourceType) TargetElem :-
-        is_type Context SourceType TargetType,
-        context.eval Context TargetType TargetType',
-        check_type Context SourceElem TargetType' TargetElem.
+    synth_type Context (core.ann SourceElem SourceType) (kind TargetType')
+        (type' (stratified.ann TargetElem TargetType))
+    :-
+        is_type Context SourceType (kind TargetType),
+        context.eval Context (kind TargetType) (kind TargetType'),
+        check_type Context SourceElem (kind TargetType') (type' TargetElem).
+    synth_type Context (core.ann SourceElem SourceType) (type' TargetType')
+        (term (stratified.ann TargetElem TargetType))
+    :-
+        is_type Context SourceType (type' TargetType),
+        context.eval Context (type' TargetType) (type' TargetType'),
+        check_type Context SourceElem (type' TargetType') (term TargetElem).
 
     % Universes
     is_type Context core.type_type (kind stratified.type_type).
