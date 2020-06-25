@@ -250,7 +250,7 @@
         context.add_param Context Type' Context',
         check_type Context' (format_intro_record TypeFields) format_type.
     synth_type Context (format_intro_compute Elem Type) format_type :-
-        is_type Context Type,
+        check_type Context Type type_type,
         context.eval Context Type Type',
         check_type Context Elem Type'.
     synth_type Context (format_intro_absorb Type) format_type :-

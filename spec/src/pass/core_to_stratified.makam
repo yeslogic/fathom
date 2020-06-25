@@ -130,8 +130,19 @@
     % TODO: core.format_intro_array
     % TODO: core.format_intro_pair
     % TODO: core.format_intro_record
-    % TODO: core.format_intro_compute
-    % TODO: core.format_intro_absorb
-    % TODO: core.format_elim
+    synth_type Context (core.format_intro_compute Elem Type) (kind format_type)
+        (format (stratified.format_intro_compute Elem' Type'))
+    :-
+        check_type Context Type (kind type_type) (type' Type'),
+        context.eval Context (type' Type') Type'',
+        check_type Context Elem Type'' (term Elem').
+    synth_type Context (core.format_intro_absorb Type) (kind format_type)
+        (format (stratified.format_intro_absorb Type'))
+    :-
+        check_type Context Type (kind format_type) (format Type').
+    synth_type Context (core.format_elim Type) (kind type_type)
+        (type' (stratified.format_elim Type'))
+    :-
+        check_type Context Type (kind format_type) (format Type').
 
 %end.
