@@ -1,18 +1,18 @@
 %extend rust.
 
-    typ : type.
+    type' : type.
 
-    bool : typ.
-    u8 : typ.
-    u16 : typ.
-    u32 : typ.
-    u64 : typ.
-    i8 : typ.
-    i16 : typ.
-    i32 : typ.
-    i64 : typ.
-    f32 : typ.
-    f64 : typ.
+    bool : type'.
+    u8 : type'.
+    u16 : type'.
+    u32 : type'.
+    u64 : type'.
+    i8 : type'.
+    i16 : type'.
+    i32 : type'.
+    i64 : type'.
+    f32 : type'.
+    f64 : type'.
 
 
     term : type.
@@ -25,10 +25,10 @@
 
     item : type.
 
-    alias : string -> list string -> typ -> item.
-    struct : string -> list string -> list (string * typ) -> item.
-    enum : string -> list string -> list (string * typ) -> item.
-    function : string -> list string -> list (string * typ) -> typ -> term -> item.
-    const : string -> typ -> term -> item.
+    alias : string -> list string -> type' -> item.
+    struct : string -> list string -> list (string * type') -> item.
+    enum : string -> list string -> list (string * type') -> item.
+    function : string -> list string -> list (string * type') -> type' -> term -> item.
+    const : string -> type' -> term -> item.
 
 %end.

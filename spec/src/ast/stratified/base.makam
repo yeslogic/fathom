@@ -1,50 +1,50 @@
 % Terms
 kind : type.
-typ : type.
+type' : type.
 term : type.
 format : type.
 
 % Variables
-local : int -> typ.
+local : int -> type'.
 local : int -> term.
 
 % Annotated terms
-ann : typ -> kind -> typ.
-ann : term -> typ -> term.
+ann : type' -> kind -> type'.
+ann : term -> type' -> term.
 
 % 'Lifted' terms
-lift : typ -> kind.
-lift : term -> typ.
+lift : type' -> kind.
+lift : term -> type'.
 
 % Universes
 type_type : kind.
 
 % Functions
 function_type : kind -> kind -> kind.
-function_type : typ -> typ.
-function_intro : typ -> typ.
+function_type : type' -> type'.
+function_intro : type' -> type'.
 function_intro : term -> term. % for terms or types
-function_elim : typ -> typ -> term.
+function_elim : type' -> type' -> term.
 function_elim : term -> term -> term.
-function_elim : term -> typ -> term.
+function_elim : term -> type' -> term.
 
 % Pairs
-pair_type : typ -> typ -> typ.
+pair_type : type' -> type' -> type'.
 pair_intro : term -> term -> term.
 pair_elim_first : term -> term.
 pair_elim_second : term -> term.
 
 % Enumerations
-enum_type : set string -> typ.
+enum_type : set string -> type'.
 enum_intro : string -> term.
 enum_elim : term -> list (string * term) -> term.
 
 % Integers
-int_type : typ.
+int_type : type'.
 int_intro : int -> term.
 
 % Arrays
-array_type : typ -> term -> typ.
+array_type : type' -> term -> type'.
 array_intro : list term -> term.
 array_elim : term -> term -> term.
 
@@ -71,4 +71,4 @@ format_intro_pair : format -> format -> format.
 format_intro_record : list (string * format) -> format.
 format_intro_compute : format -> term -> format.
 format_intro_absorb : format -> format.
-format_elim : format -> typ.
+format_elim : format -> type'.
