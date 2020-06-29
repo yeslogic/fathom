@@ -37,13 +37,24 @@
     type_type : kind.
 
     % Functions
-    function_type : kind -> kind -> kind.
-    function_type : type' -> type'.
-    function_intro : type' -> type'.
-    function_intro : term -> term. % for terms or types
-    function_elim : type' -> type' -> term.
-    function_elim : term -> term -> term.
-    function_elim : term -> type' -> term.
+    function_type : kind -> kind -> kind.               % Kinds to Kinds, eg. `Type -> (Format -> Format)`
+    function_type : type' -> kind -> kind.              % Types to Kinds, eg. `Int -> (Type -> Type)`
+    function_type : kind -> type' -> kind.              % Kinds to Types, eg. `(A : Type) -> Array 3 A`
+    function_type : type' -> type' -> type'.            % Types to Types, eg. `(n : Int) -> Array n Int`
+    function_intro_type : type' -> type'.               % Types parameterised by types, eg. `fun A => Array 3 A`
+    function_intro_term : type' -> type'.               % Types parameterised by terms, eg. `fun n => Array n U32Be`
+    function_intro_type : term -> term.                 % Terms parameterised by types, eg. `fun A => [] : Array 0 A`
+    function_intro_term : term -> term.                 % Terms parameterised by types, eg. `fun n => n : Int`
+    function_intro_type : format -> format.             % Formats parameterised by types, eg. `fun A => compute ([] : Array 0 A)`
+    function_intro_term : format -> format.             % Formats parameterised by terms, eg. `fun n => FormatArray n U32Be`
+    function_intro_format : format -> format.           % Formats parameterised by formats, `fun A => FormatArray 3 A`
+    function_elim_type : type' -> type' -> type'.       % Type-level type application, eg. `(Array 3) Int`
+    function_elim_term : type' -> term -> type'.        % Type-level term application, eg. `Array 3`
+    function_elim_type : term -> type' -> term.         % Term-level type application, eg. `(fun A => [] : Array 0 A) Int`
+    function_elim_term : term -> term -> term.          % Term-level term application, eg. `(fun n => n : Int) 3`
+    function_elim_type : format -> type' -> format.     % Format-level type application, eg. `(fun A => compute ([] : Array 0 A)) Int`
+    function_elim_term : format -> term -> format.      % Format-level type application, eg. `FormatArray 3`
+    function_elim_format : format -> format -> format.  % Format-level format application, eg. `(FormatArray 3) U32Be`
 
     % Pairs
     pair_type : type' -> type' -> type'.
