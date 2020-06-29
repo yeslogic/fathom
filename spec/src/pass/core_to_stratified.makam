@@ -157,4 +157,27 @@
     from_term Context (core.format_elim SourceType) (type' (stratified.format_elim TargetType)) :-
         from_term_to_format Context SourceType TargetType.
 
+
+    % Convenience predicates
+
+    from_term_to_kind : core.term -> stratified.kind -> prop.
+    from_term_to_kind Source Target :-
+        from_term_to_kind (context []) Source Target.
+
+    from_term_to_type : core.term -> stratified.type' -> prop.
+    from_term_to_type Source Target :-
+        from_term_to_type (context []) Source Target.
+
+    from_term_to_term : core.term -> stratified.term -> prop.
+    from_term_to_term Source Target :-
+        from_term_to_term (context []) Source Target.
+
+    from_term_to_format : core.term -> stratified.format -> prop.
+    from_term_to_format Source Target :-
+        from_term_to_format (context []) Source Target.
+
+    from_term : core.term -> stratified -> prop.
+    from_term Source Target :-
+        from_term (context []) Source Target.
+
 %end.
