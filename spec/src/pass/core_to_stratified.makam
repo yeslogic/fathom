@@ -80,6 +80,7 @@
 
     % Functions
     % Pairs
+    % Records
 
     % Enumerations
     is_type Context (core.enum_type Labels) (type' (stratified.enum_type Labels)).

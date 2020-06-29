@@ -34,6 +34,11 @@ pair_intro : term -> term -> term.
 pair_elim_first : term -> term.
 pair_elim_second : term -> term.
 
+% Records
+record_type : list (string * term) -> term.
+record_intro : map string term -> term.
+record_elim : term -> string -> term.
+
 % Enumerations
 enum_type : set string -> type'.
 enum_intro : string -> term.
