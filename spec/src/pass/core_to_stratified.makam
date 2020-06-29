@@ -47,7 +47,7 @@
     from_term_to_term : context -> core.term -> stratified.term -> prop.
     % Stratify a term into a format.
     from_term_to_format : context -> core.term -> stratified.format -> prop.
-    % Stratify a term into a kinds, types, terms, and formats.
+    % Stratify a term into a kind, type, term, or formats.
     from_term : context -> core.term -> stratified -> prop.
 
     % Conversion
