@@ -5,6 +5,7 @@
     %open fathom.ast.
     %open fathom.ast.stratified.semantics.
 
+
     % Stratified terms
     stratified : type.
 
@@ -13,164 +14,143 @@
     term : stratified.term -> stratified.
     format : stratified.format -> stratified.
 
-    % Stratified values
-    value : type.
+    % Stratified universes
+    universe : type.
 
-    kind : kind_value -> value.
-    type' : typ_value -> value.
-    term : term_value -> value.
+    type' : universe.
+    term : universe.
+    format : universe.
 
 
+    % Stratification context.
+    %
+    % We just need to keep track of the universe of variables in order to
+    % separate them into kinds, types, terms, and formats.
     context : type.
+
+    context : list universe -> context.
 
     %extend context.
 
-        eval : context -> stratified -> value -> prop.
-
-        is_equal : context -> value -> value -> prop.
+        lookup_universe : context -> int -> universe -> prop.
+        lookup_universe (context Entries) Index Universe :-
+            list.nth Entries Index Universe.
 
     %end.
 
 
-    % Check that a term is a type and lower it to a stratified term.
-    is_type : context -> core.term -> stratified -> prop.
-    % Check that a term is an element of the given type and lower it to a stratified term.
-    check_type : context -> core.term -> value -> stratified -> prop.
-    % Synthesize the type of a given term and lower it to a stratified term.
-    synth_type : context -> core.term -> value -> stratified -> prop.
-
-    % A note on modes
-    %
-    % Makam does not support mode declarations (like in Mercury), but if it did
-    % we'd assign the following mode declarations to the above predicates:
-    %
-    % ```
-    % is_type : in -> in -> out -> semidet.
-    % check_type : in -> in -> in -> out -> semidet.
-    % synth_type : in -> in -> out -> out -> semidet.
-    % ```
+    % Stratify a term into a kind.
+    from_term_to_kind : context -> core.term -> stratified.kind -> prop.
+    % Stratify a term into a type.
+    from_term_to_type : context -> core.term -> stratified.type' -> prop.
+    % Stratify a term into a term.
+    from_term_to_term : context -> core.term -> stratified.term -> prop.
+    % Stratify a term into a format.
+    from_term_to_format : context -> core.term -> stratified.format -> prop.
+    % Stratify a term into a kinds, types, terms, and formats.
+    from_term : context -> core.term -> stratified -> prop.
 
     % Conversion
-    is_type Context SourceElem TargetElem :-
-        check_type Context SourceElem (kind type_type) TargetElem.
-    is_type Context SourceElem TargetElem :-
-        check_type Context SourceElem (kind format_type) TargetElem.
-    check_type Context SourceElem TargetType TargetElem :-
-        synth_type Context SourceElem TargetType' TargetElem,
-        context.is_equal Context TargetType TargetType'.
+    from_term_to_kind Context Source Target :-
+        from_term Context Source (kind Target).
+    from_term_to_type Context Source Target :-
+        from_term Context Source (type' Target).
+    from_term_to_term Context Source Target :-
+        from_term Context Source (term Target).
+    from_term_to_format Context Source Target :-
+        from_term Context Source (format Target).
 
     % Variables
+    from_term Context (core.local Index) (type' (stratified.local Int)) :-
+        context.lookup_universe Context Index type'.
+    from_term Context (core.local Index) (term (stratified.local Int)) :-
+        context.lookup_universe Context Index term.
+    from_term Context (core.local Index) (format (stratified.local Int)) :-
+        context.lookup_universe Context Index format.
 
     % Annotated terms
-    synth_type Context (core.ann SourceElem SourceType) (kind TargetType')
+    from_term Context (core.ann SourceElem SourceType)
         (type' (stratified.ann TargetElem TargetType))
     :-
-        is_type Context SourceType (kind TargetType),
-        context.eval Context (kind TargetType) (kind TargetType'),
-        check_type Context SourceElem (kind TargetType') (type' TargetElem).
-    synth_type Context (core.ann SourceElem SourceType) (type' TargetType')
+        from_term Context SourceType (kind TargeType),
+        from_term Context SourceElem (type' TargetElem).
+    from_term Context (core.ann SourceElem SourceType)
         (term (stratified.ann TargetElem TargetType))
     :-
-        is_type Context SourceType (type' TargetType),
-        context.eval Context (type' TargetType) (type' TargetType'),
-        check_type Context SourceElem (type' TargetType') (term TargetElem).
+        from_term Context SourceType (type' TargetType),
+        from_term_to_term Context SourceElem TargetElem.
+    from_term Context (core.ann SourceElem SourceType) (format TargetElem) :-
+        from_term Context SourceType (kind TargeType),
+        from_term Context SourceElem (format TargetElem).
 
     % Universes
-    is_type Context core.type_type (kind stratified.type_type).
+    from_term Context core.type_type (kind stratified.type_type).
 
     % Functions
     % Pairs
     % Records
 
     % Enumerations
-    is_type Context (core.enum_type Labels) (type' (stratified.enum_type Labels)).
-    synth_type Context (core.enum_type Labels) (kind type_type)
-        (type' (stratified.enum_type Labels)).
-    check_type Context (core.enum_intro Label) (type' (enum_type Labels))
-        (term (stratified.enum_intro Label))
-    :-
-        set.member Labels Label _.
-    % TODO: core.enum_elim
+    from_term Context (core.enum_type Labels) (type' (stratified.enum_type Labels)).
+    from_term Context (core.enum_intro Label) (term (stratified.enum_intro Label)).
+    % TODO: core.enum_elim (type)
+    % TODO: core.enum_elim (term)
+    % TODO: core.enum_elim (format)
 
     % Integers
-    is_type Context core.int_type (type' stratified.int_type).
-    synth_type Context core.int_type (kind type_type) (type' stratified.int_type).
-    synth_type Context (core.int_intro Int) (type' int_type) (term (stratified.int_intro Int)).
+    from_term Context core.int_type (type' stratified.int_type).
+    from_term Context (core.int_intro Int) (term (stratified.int_intro Int)).
 
     % Arrays
-    is_type Context (core.array_type SourceType SourceLenElem)
+    from_term Context (core.array_type SourceType SourceLenElem)
         (type' (stratified.array_type TargetType TargetLenElem))
     :-
-        check_type Context SourceType (kind type_type) (type' TargetType),
-        check_type Context SourceLenElem (type' int_type) (term TargetLenElem).
-    check_type Context (core.array_type SourceType SourceLenElem) (kind type_type)
-        (type' (stratified.array_type TargetType TargetLenElem))
-    :-
-        check_type Context SourceType (kind type_type) (type' TargetType),
-        check_type Context SourceLenElem (type' int_type) (term TargetLenElem).
-    check_type Context (core.array_intro SourceElems)
-        (type' (array_type TargetType (int_intro Len)))
-        (term (stratified.array_intro TargetElems))
-    :-
-        length SourceElems Len,
+        from_term_to_type Context SourceType TargetType,
+        from_term_to_term Context SourceLenElem TargetLenElem.
+    from_term Context (core.array_intro SourceElems) (term (stratified.array_intro TargetElems)) :-
         map (pfun SourceElem TargetElem =>
-            check_type Context SourceElem (type' TargetType) (term TargetElem)
+            from_term_to_term Context SourceElem TargetElem
         ) SourceElems TargetElems.
-    synth_type Context (core.array_elim SourceArrayElem SourceIndexElem) (type' TargetType)
+    from_term Context (core.array_elim SourceArrayElem SourceIndexElem)
         (term (stratified.array_elim TargetArrayElem TargetIndexElem))
     :-
-        % FIXME: ensure `IndexElem` is in array bounds, possibly with refinement types?
-        synth_type Context SourceArrayElem (type' (array_type TargetType _)) (term TargetArrayElem),
-        check_type Context SourceIndexElem (type' int_type) (term TargetIndexElem).
+        from_term_to_term Context SourceArrayElem TargetArrayElem,
+        from_term_to_term Context SourceIndexElem TargetIndexElem.
 
     % Binary format descriptions
-    is_type Context core.format_type (kind stratified.format_type).
-    synth_type Context core.format_intro_unit (kind format_type)
-        (format stratified.format_intro_unit).
-    synth_type Context core.format_intro_u8 (kind format_type)
-        (format stratified.format_intro_u8).
-    synth_type Context core.format_intro_u16le (kind format_type)
-        (format stratified.format_intro_u16le).
-    synth_type Context core.format_intro_u16be (kind format_type)
-        (format stratified.format_intro_u16be).
-    synth_type Context core.format_intro_u32le (kind format_type)
-        (format stratified.format_intro_u32le).
-    synth_type Context core.format_intro_u32be (kind format_type)
-        (format stratified.format_intro_u32be).
-    synth_type Context core.format_intro_u64le (kind format_type)
-        (format stratified.format_intro_u64le).
-    synth_type Context core.format_intro_u64be (kind format_type)
-        (format stratified.format_intro_u64be).
-    synth_type Context core.format_intro_s8 (kind format_type)
-        (format stratified.format_intro_s8).
-    synth_type Context core.format_intro_s16le (kind format_type)
-        (format stratified.format_intro_s16le).
-    synth_type Context core.format_intro_s16be (kind format_type)
-        (format stratified.format_intro_s16be).
-    synth_type Context core.format_intro_s32le (kind format_type)
-        (format stratified.format_intro_s32le).
-    synth_type Context core.format_intro_s32be (kind format_type)
-        (format stratified.format_intro_s32be).
-    synth_type Context core.format_intro_s64le (kind format_type)
-        (format stratified.format_intro_s64le).
-    synth_type Context core.format_intro_s64be (kind format_type)
-        (format stratified.format_intro_s64be).
-    % TODO: core.format_intro_array
+    from_term Context core.format_type (kind stratified.format_type).
+    from_term Context core.format_intro_unit (format stratified.format_intro_unit).
+    from_term Context core.format_intro_u8 (format stratified.format_intro_u8).
+    from_term Context core.format_intro_u16le (format stratified.format_intro_u16le).
+    from_term Context core.format_intro_u16be (format stratified.format_intro_u16be).
+    from_term Context core.format_intro_u32le (format stratified.format_intro_u32le).
+    from_term Context core.format_intro_u32be (format stratified.format_intro_u32be).
+    from_term Context core.format_intro_u64le (format stratified.format_intro_u64le).
+    from_term Context core.format_intro_u64be (format stratified.format_intro_u64be).
+    from_term Context core.format_intro_s8 (format stratified.format_intro_s8).
+    from_term Context core.format_intro_s16le (format stratified.format_intro_s16le).
+    from_term Context core.format_intro_s16be (format stratified.format_intro_s16be).
+    from_term Context core.format_intro_s32le (format stratified.format_intro_s32le).
+    from_term Context core.format_intro_s32be (format stratified.format_intro_s32be).
+    from_term Context core.format_intro_s64le (format stratified.format_intro_s64le).
+    from_term Context core.format_intro_s64be (format stratified.format_intro_s64be).
+    from_term Context (core.format_intro_array SourceType SourceLenElem)
+        (format (stratified.format_intro_array TargetType TargetLenElem))
+    :-
+        from_term_to_format Context SourceType TargetType,
+        from_term_to_term Context SourceLenElem TargetLenElem.
     % TODO: core.format_intro_pair
     % TODO: core.format_intro_record
-    synth_type Context (core.format_intro_compute SourceElem SourceType) (kind format_type)
+    from_term Context (core.format_intro_compute SourceElem SourceType)
         (format (stratified.format_intro_compute TargetElem TargetType))
     :-
-        check_type Context SourceType (kind type_type) (type' TargetType),
-        context.eval Context (type' TargetType) TargetType',
-        check_type Context SourceElem TargetType' (term TargetElem).
-    synth_type Context (core.format_intro_absorb SourceType) (kind format_type)
+        from_term_to_type Context SourceType TargetType,
+        from_term_to_term Context SourceElem TargetElem.
+    from_term Context (core.format_intro_absorb SourceType)
         (format (stratified.format_intro_absorb TargetType))
     :-
-        check_type Context SourceType (kind format_type) (format TargetType).
-    synth_type Context (core.format_elim SourceType) (kind type_type)
-        (type' (stratified.format_elim TargetType))
-    :-
-        check_type Context SourceType (kind format_type) (format TargetType).
+        from_term_to_format Context SourceType TargetType.
+    from_term Context (core.format_elim SourceType) (type' (stratified.format_elim TargetType)) :-
+        from_term_to_format Context SourceType TargetType.
 
 %end.

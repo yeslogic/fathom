@@ -5,7 +5,7 @@
 
     %use "surface".
     %use "core/init".
-    %use "stratified/init".
+    %use "stratified".
     %use "unkinded".
     %use "uncurried".
     %use "rust".
