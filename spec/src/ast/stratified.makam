@@ -18,12 +18,10 @@
     kind : type.
     type' : type.
     term : type.
-    format : type.
 
     % Variables
     local : int -> type'.
     local : int -> term.
-    local : int -> format.
 
     % Annotated terms
     ann : type' -> kind -> type'.
@@ -37,24 +35,18 @@
     type_type : kind.
 
     % Functions
-    function_kind : kind -> kind -> kind.               % Kinds to Kinds, eg. `Type -> (Format -> Format)`
+    function_kind : kind -> kind -> kind.               % Kinds to Kinds, eg. `Type -> Type`
     function_kind : type' -> kind -> kind.              % Types to Kinds, eg. `Int -> (Type -> Type)`
     function_kind : kind -> type' -> kind.              % Kinds to Types, eg. `(A : Type) -> Array 3 A`
     function_type : type' -> type' -> type'.            % Types to Types, eg. `(n : Int) -> Array n Int`
     function_intro_type : type' -> type'.               % Types parameterised by types, eg. `fun A => Array 3 A`
-    function_intro_term : type' -> type'.               % Types parameterised by terms, eg. `fun n => Array n U32Be`
+    function_intro_term : type' -> type'.               % Types parameterised by terms, eg. `fun n => Array n Int`
     function_intro_type : term -> term.                 % Terms parameterised by types, eg. `fun A => [] : Array 0 A`
     function_intro_term : term -> term.                 % Terms parameterised by types, eg. `fun n => n : Int`
-    function_intro_type : format -> format.             % Formats parameterised by types, eg. `fun A => compute ([] : Array 0 A)`
-    function_intro_term : format -> format.             % Formats parameterised by terms, eg. `fun n => FormatArray n U32Be`
-    function_intro_format : format -> format.           % Formats parameterised by formats, `fun A => FormatArray 3 A`
     function_elim_type : type' -> type' -> type'.       % Type-level type application, eg. `(Array 3) Int`
     function_elim_term : type' -> term -> type'.        % Type-level term application, eg. `Array 3`
     function_elim_type : term -> type' -> term.         % Term-level type application, eg. `(fun A => [] : Array 0 A) Int`
     function_elim_term : term -> term -> term.          % Term-level term application, eg. `(fun n => n : Int) 3`
-    function_elim_type : format -> type' -> format.     % Format-level type application, eg. `(fun A => compute ([] : Array 0 A)) Int`
-    function_elim_term : format -> term -> format.      % Format-level type application, eg. `FormatArray 3`
-    function_elim_format : format -> format -> format.  % Format-level format application, eg. `(FormatArray 3) U32Be`
 
     % Pairs
     pair_type : type' -> type' -> type'.
@@ -72,7 +64,6 @@
     enum_intro : string -> term.
     enum_elim : term -> list (string * type') -> type'.
     enum_elim : term -> list (string * term) -> term.
-    enum_elim : term -> list (string * format) -> format.
 
     % Integers
     int_type : type'.
@@ -84,28 +75,28 @@
     array_elim : term -> term -> term.
 
     % Binary format descriptions
-    format_type : kind.
-    format_intro_void : format.
-    format_intro_unit : format.
-    format_intro_u8 : format.
-    format_intro_u16le : format. % TODO: make this a computed format?
-    format_intro_u16be : format. % TODO: make this a computed format?
-    format_intro_u32le : format. % TODO: make this a computed format?
-    format_intro_u32be : format. % TODO: make this a computed format?
-    format_intro_u64le : format. % TODO: make this a computed format?
-    format_intro_u64be : format. % TODO: make this a computed format?
-    format_intro_s8 : format. % TODO: make this a computed format?
-    format_intro_s16le : format. % TODO: make this a computed format?
-    format_intro_s16be : format. % TODO: make this a computed format?
-    format_intro_s32le : format. % TODO: make this a computed format?
-    format_intro_s32be : format. % TODO: make this a computed format?
-    format_intro_s64le : format. % TODO: make this a computed format?
-    format_intro_s64be : format. % TODO: make this a computed format?
-    format_intro_array : format -> term -> format.
-    format_intro_pair : format -> format -> format.
-    format_intro_record : list (string * format) -> format.
-    format_intro_compute : term -> type' -> format.
-    format_intro_absorb : format -> format.
-    format_elim : format -> type'.
+    format_type : type'.
+    format_intro_void : term.
+    format_intro_unit : term.
+    format_intro_u8 : term.
+    format_intro_u16le : term. % TODO: make this a computed format?
+    format_intro_u16be : term. % TODO: make this a computed format?
+    format_intro_u32le : term. % TODO: make this a computed format?
+    format_intro_u32be : term. % TODO: make this a computed format?
+    format_intro_u64le : term. % TODO: make this a computed format?
+    format_intro_u64be : term. % TODO: make this a computed format?
+    format_intro_s8 : term. % TODO: make this a computed format?
+    format_intro_s16le : term. % TODO: make this a computed format?
+    format_intro_s16be : term. % TODO: make this a computed format?
+    format_intro_s32le : term. % TODO: make this a computed format?
+    format_intro_s32be : term. % TODO: make this a computed format?
+    format_intro_s64le : term. % TODO: make this a computed format?
+    format_intro_s64be : term. % TODO: make this a computed format?
+    format_intro_array : term -> term -> term.
+    format_intro_pair : term -> term -> term.
+    format_intro_record : list (string * term) -> term.
+    format_intro_compute : term -> type' -> term.
+    format_intro_absorb : term -> term.
+    format_elim : term -> type'.
 
 %end.
