@@ -53,8 +53,12 @@
     % Conversion
     from_term_to_kind Context Source Target :-
         from_term Context Source (kind Target).
+    from_term_to_kind Context Source (stratified.lift Target) :-
+        from_term Context Source (type' Target).
     from_term_to_type Context Source Target :-
         from_term Context Source (type' Target).
+    from_term_to_type Context Source (stratified.lift Target) :-
+        from_term Context Source (term Target).
     from_term_to_term Context Source Target :-
         from_term Context Source (term Target).
     from_term_to_format Context Source Target :-
