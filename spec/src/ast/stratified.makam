@@ -37,9 +37,9 @@
     type_type : kind.
 
     % Functions
-    function_type : kind -> kind -> kind.               % Kinds to Kinds, eg. `Type -> (Format -> Format)`
-    function_type : type' -> kind -> kind.              % Types to Kinds, eg. `Int -> (Type -> Type)`
-    function_type : kind -> type' -> kind.              % Kinds to Types, eg. `(A : Type) -> Array 3 A`
+    function_kind : kind -> kind -> kind.               % Kinds to Kinds, eg. `Type -> (Format -> Format)`
+    function_kind : type' -> kind -> kind.              % Types to Kinds, eg. `Int -> (Type -> Type)`
+    function_kind : kind -> type' -> kind.              % Kinds to Types, eg. `(A : Type) -> Array 3 A`
     function_type : type' -> type' -> type'.            % Types to Types, eg. `(n : Int) -> Array n Int`
     function_intro_type : type' -> type'.               % Types parameterised by types, eg. `fun A => Array 3 A`
     function_intro_term : type' -> type'.               % Types parameterised by terms, eg. `fun n => Array n U32Be`
