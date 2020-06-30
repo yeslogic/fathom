@@ -59,9 +59,9 @@
         from_term Context Source (term Target).
 
     % Variables
-    from_term Context (core.local Index) (type' (stratified.local Int)) :-
+    from_term Context (core.local Index) (type' (stratified.local Index)) :-
         context.lookup_universe Context Index type'.
-    from_term Context (core.local Index) (term (stratified.local Int)) :-
+    from_term Context (core.local Index) (term (stratified.local Index)) :-
         context.lookup_universe Context Index term.
 
     % Annotated terms
