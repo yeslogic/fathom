@@ -55,7 +55,7 @@
     pair_elim_second : term -> term.
 
     % Records
-    record_type : list (string * term) -> term.
+    record_type : list (string * type') -> type'.
     record_intro : map string term -> term.
     record_elim : term -> string -> term.
 

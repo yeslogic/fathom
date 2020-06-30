@@ -34,6 +34,9 @@
         lookup_universe (context Entries) Index Universe :-
             list.nth Entries Index Universe.
 
+        add_binding : context -> universe -> context -> prop.
+        add_binding (context Entries) Universe (context (Universe :: Entries)).
+
     %end.
 
 
@@ -81,7 +84,27 @@
 
     % Functions
     % Pairs
+
     % Records
+    from_term Context (core.record_type []) (type' (stratified.record_type [])).
+    from_term Context (core.record_type (( Label, SourceType ) :: SourceTypeFields))
+        (type' (stratified.record_type (( Label, TargetType ) :: TargetTypeFields)))
+    :-
+        from_term_to_type Context SourceType TargetType,
+        context.add_binding Context type' Context',
+        from_term_to_type Context
+            (core.record_type SourceTypeFields)
+            (stratified.record_type TargetTypeFields).
+    from_term Context (core.record_intro SourceElemFields)
+        (term (stratified.record_intro TargetElemFields))
+    :-
+        map.mapvalues (pfun SourceElem TargetElem =>
+            from_term_to_term Context SourceElem TargetElem
+        ) SourceElemFields TargetElemFields.
+    from_term Context (core.record_elim SourceRecordElem Label)
+        (term (stratified.record_elim TargetRecordElem Label))
+    :-
+        from_term_to_term Context SourceRecordElem TargetRecordElem.
 
     % Enumerations
     from_term Context (core.enum_type Labels) (type' (stratified.enum_type Labels)).
@@ -132,7 +155,14 @@
         from_term_to_term Context SourceType TargetType,
         from_term_to_term Context SourceLenElem TargetLenElem.
     % TODO: core.format_intro_pair
-    % TODO: core.format_intro_record
+    from_term Context (core.format_intro_record (( Label, SourceType ) :: SourceTypeFields))
+        (term (stratified.format_intro_record (( Label, TargetType ) :: TargetTypeFields)))
+    :-
+        from_term_to_term Context SourceType TargetType,
+        context.add_binding Context type' Context',
+        from_term_to_term Context
+            (core.format_intro_record SourceTypeFields)
+            (stratified.format_intro_record TargetTypeFields).
     from_term Context (core.format_intro_compute SourceElem SourceType)
         (term (stratified.format_intro_compute TargetElem TargetType))
     :-
