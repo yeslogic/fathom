@@ -83,6 +83,13 @@
     from_term Context core.type_type (kind stratified.type_type).
 
     % Functions
+    %  from_term Context (core.function_type SourceInputType SourceOutputType) (kind (stratified.function_type TargetInputType TargetOutputType)) :- TODO.
+    %  from_term Context (core.function_type SourceInputType SourceOutputType) (type' (stratified.function_type TargetInputType TargetOutputType)) :- TODO.
+    %  from_term_to_type Context (core.function_intro SourceOutputElem) (stratified.function_intro TargetOutputElem) :- TODO.
+    %  from_term_to_term Context (core.function_intro SourceOutputElem) (stratified.function_intro TargetOutputElem) :- TODO.
+    %  from_term Context (core.function_elim SourceElem SourceInputElem) (type' (core.function_elim TargetElem TargetInputElem)) :- TODO.
+    %  from_term Context (core.function_elim SourceElem SourceInputElem) (term (core.function_elim TargetElem TargetInputElem)) :- TODO.
+
     % Pairs
 
     % Records
@@ -109,8 +116,14 @@
     % Enumerations
     from_term Context (core.enum_type Labels) (type' (stratified.enum_type Labels)).
     from_term Context (core.enum_intro Label) (term (stratified.enum_intro Label)).
-    % TODO: core.enum_elim (type)
-    % TODO: core.enum_elim (term)
+    from_term_to_type Context (core.enum_elim SourceClauses) (stratified.enum_elim TargetClauses) :-
+        map.mapvalues (pfun SourceElem TargetElem =>
+            from_term_to_type Context SourceElem TargetElem
+        ) SourceClauses TargetClauses.
+    from_term_to_term Context (core.enum_elim SourceClauses) (stratified.enum_elim TargetClauses) :-
+        map.mapvalues (pfun SourceElem TargetElem =>
+            from_term_to_term Context SourceElem TargetElem
+        ) SourceClauses TargetClauses.
 
     % Integers
     from_term Context core.int_type (type' stratified.int_type).

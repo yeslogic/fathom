@@ -62,8 +62,8 @@
     % Enumerations
     enum_type : set string -> type'.
     enum_intro : string -> term.
-    enum_elim : term -> list (string * type') -> type'.
-    enum_elim : term -> list (string * term) -> term.
+    enum_elim : map string type' -> type'.
+    enum_elim : map string term -> term.
 
     % Integers
     int_type : type'.
