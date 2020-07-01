@@ -104,10 +104,12 @@
 >> Yes:
 >> Target := term
     (stratified.record_intro
-        [ ( "data", stratified.array_intro
+        [ ( "data",
+            stratified.array_intro
                 [ stratified.record_intro []
                 , stratified.record_intro []
-                ])
+                ]
+          )
         , ( "len", stratified.int_intro 2 )
         ]).
 
