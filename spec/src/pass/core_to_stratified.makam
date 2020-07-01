@@ -71,7 +71,7 @@
     from_term Context (core.ann SourceElem SourceType)
         (type' (stratified.ann TargetElem TargetType))
     :-
-        from_term Context SourceType (kind TargeType),
+        from_term Context SourceType (kind TargetType),
         from_term Context SourceElem (type' TargetElem).
     from_term Context (core.ann SourceElem SourceType)
         (term (stratified.ann TargetElem TargetType))

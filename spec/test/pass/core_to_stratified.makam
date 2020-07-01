@@ -36,7 +36,29 @@
 
 
     % Variables
+
+>> from_term (context [type', term]) (core.local 0) Target ?
+>> Yes:
+>> Target := type' (stratified.local 0).
+
+>> from_term (context [type', term]) (core.local 1) Target ?
+>> Yes:
+>> Target := term (stratified.local 1).
+
+
     % Annotated terms
+
+>> from_term (core.ann core.int_type core.type_type) Target ?
+>> Yes:
+>> Target := type' (stratified.ann stratified.int_type stratified.type_type).
+
+>> from_term (core.ann core.format_intro_u8 core.format_type) Target ?
+>> Yes:
+>> Target := term (stratified.ann stratified.format_intro_u8 stratified.format_type).
+
+>> from_term (core.ann (core.record_intro []) (core.record_type [])) Target ?
+>> Yes:
+>> Target := term (stratified.ann (stratified.record_intro []) (stratified.record_type [])).
 
 
     % Universes
