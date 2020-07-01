@@ -1,4 +1,4 @@
-%extend ast.
+%extend pass.
 
     %use "surface_to_core".
     %use "core_to_stratified".

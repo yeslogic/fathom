@@ -1,6 +1,90 @@
 %extend core_to_stratified.
 
+    %open fathom.ast.
+
+
     tests : testsuite.
     %testsuite tests.
+
+
+% FIXME: there seems to be a bug with indenting tests here - see https://github.com/astampoulis/makam/issues/94
+
+    % Variables
+    % Annotated terms
+
+
+    % Universes
+
+>> from_term core.type_type Target ?
+>> Yes:
+>> Target := kind stratified.type_type.
+
+>> from_term_to_kind core.type_type Target ?
+>> Yes:
+>> Target := stratified.type_type.
+
+
+    % Functions
+    % Pairs
+
+
+    % Records
+
+>> from_term (core.record_type []) Target ?
+>> Yes:
+>> Target := type' (stratified.record_type []).
+
+>> from_term_to_type (core.record_type []) Target ?
+>> Yes:
+>> Target := stratified.record_type [].
+
+>> from_term (core.record_intro []) Target ?
+>> Yes:
+>> Target := term (stratified.record_intro []).
+
+    % TODO: Test dependent record type
+
+>> from_term_to_term (core.record_intro []) Target ?
+>> Yes:
+>> Target := stratified.record_intro [].
+
+>> from_term
+    (core.record_intro
+        [ ( "data", core.array_intro [ core.record_intro [], core.record_intro [] ])
+        , ( "len", core.int_intro 2 )
+        ])
+    Target ?
+>> Yes:
+>> Target := term
+    (stratified.record_intro
+        [ ( "data", stratified.array_intro
+                [ stratified.record_intro []
+                , stratified.record_intro []
+                ])
+        , ( "len", stratified.int_intro 2 )
+        ]).
+
+>> from_term_to_term
+    (core.record_intro
+        [ ( "data", core.array_intro [ core.record_intro [], core.record_intro [] ])
+        , ( "len", core.int_intro 2 )
+        ])
+    Target ?
+>> Yes:
+>> Target := stratified.record_intro
+    [ ( "data", stratified.array_intro
+            [ stratified.record_intro []
+            , stratified.record_intro []
+            ])
+    , ( "len", stratified.int_intro 2 )
+    ].
+
+    % TODO: Test record elimination
+
+
+    % Enumerations
+    % Integers
+    % Arrays
+    % Binary format descriptions
 
 %end.
