@@ -98,8 +98,8 @@
         (type' (stratified.record_type (( Label, TargetType ) :: TargetTypeFields)))
     :-
         from_term_to_type Context SourceType TargetType,
-        context.add_binding Context type' Context',
-        from_term_to_type Context
+        context.add_binding Context term Context',
+        from_term_to_type Context'
             (core.record_type SourceTypeFields)
             (stratified.record_type TargetTypeFields).
     from_term Context (core.record_intro SourceElemFields)
