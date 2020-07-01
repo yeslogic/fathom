@@ -1,5 +1,6 @@
 %extend ast.
 
+    %use "surface_to_core".
     %use "core_to_stratified".
 
 %end.

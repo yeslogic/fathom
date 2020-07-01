@@ -1,0 +1,6 @@
+%extend surface_to_core.
+
+    tests : testsuite.
+    %testsuite tests.
+
+%end.
