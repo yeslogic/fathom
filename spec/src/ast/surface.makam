@@ -6,6 +6,17 @@
 
 %extend surface.
 
+    % Patterns
+    pattern : type.
+
+    name : string -> pattern.
+    record : map string pattern -> pattern.
+    enum : string -> pattern.
+    number : string -> pattern.
+    string : string -> pattern.
+    sequence : list pattern -> pattern.
+
+
     % Terms
     term : type.
 
@@ -14,6 +25,9 @@
 
     % Annotated terms
     ann : term -> term -> term.
+
+    % Pattern matching
+    match : term -> list (pattern * term) -> term.
 
     % Functions
     function_type : term -> term -> term.   % Also known as: Pi type, Dependent product type
@@ -28,7 +42,6 @@
     % Enumerations
     enum_type : set string -> term.
     enum_intro : string -> term.
-    enum_elim : map string term -> term.
 
     % Numeric literals
     number : string -> term.
@@ -37,7 +50,6 @@
 
     % Arrays
     array_type : term -> term -> term.
-    array_intro : list term -> term.
     array_elim : term -> term -> term.
 
 %end.
