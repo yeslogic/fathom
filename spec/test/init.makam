@@ -2,7 +2,7 @@
 
 %extend fathom.
 
-    %use "ast/init".
+    %use "lang/init".
     %use "pass/init".
 
 %end.

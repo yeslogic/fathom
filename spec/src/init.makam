@@ -60,7 +60,7 @@
     % Extensions to Makam's standard library
     %use "stdlib".
 
-    %use "ast/init".
+    %use "lang/init".
     %use "pass/init".
 
 %end.

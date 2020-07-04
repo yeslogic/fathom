@@ -1,7 +1,6 @@
-% Abstract syntax trees (ASTs) for the intermediate languages of the data
-% description language.
+% Intermediate languages for the Fathom data description language.
 
-%extend ast.
+%extend lang.
 
     %use "surface".
     %use "core/init".

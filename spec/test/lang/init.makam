@@ -1,4 +1,4 @@
-%extend ast.
+%extend lang.
 
     %use "core/init".
 

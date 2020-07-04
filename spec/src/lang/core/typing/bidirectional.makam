@@ -9,7 +9,7 @@
 
 %extend bidirectional.
 
-    %open fathom.ast.core.semantics.
+    %open fathom.lang.core.semantics.
 
 
     % Bidirectional typing context.

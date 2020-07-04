@@ -2,8 +2,8 @@
 
 %extend core_to_stratified.
 
-    %open fathom.ast.
-    %open fathom.ast.stratified.semantics.
+    %open fathom.lang.
+    %open fathom.lang.stratified.semantics.
 
 
     % Stratified terms

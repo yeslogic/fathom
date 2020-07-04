@@ -2,7 +2,7 @@
 
 %extend binary.
 
-    %open fathom.ast.core.semantics.
+    %open fathom.lang.core.semantics.
 
 
     byte : type.

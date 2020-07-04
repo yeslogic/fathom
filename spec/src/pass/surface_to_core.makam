@@ -10,8 +10,8 @@
 
 %extend surface_to_core.
 
-    %open fathom.ast.
-    %open fathom.ast.core.semantics.
+    %open fathom.lang.
+    %open fathom.lang.core.semantics.
 
 
     context : type.
