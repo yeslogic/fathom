@@ -27,10 +27,6 @@
     ann : type' -> kind -> type'.
     ann : term -> type' -> term.
 
-    % 'Lifted' terms
-    lift : type' -> kind.
-    lift : term -> type'.
-
     % Universes
     type_type : kind.
 

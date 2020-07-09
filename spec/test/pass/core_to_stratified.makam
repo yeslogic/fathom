@@ -16,8 +16,7 @@
 >> Target := stratified.type_type.
 
 >> from_term_to_kind (core.record_type []) Target ?
->> Yes:
->> Target := stratified.lift (stratified.record_type []).
+>> Impossible.
 
 >> from_term_to_kind (core.record_intro []) Target ?
 >> Impossible.
@@ -27,8 +26,7 @@
 >> Target := stratified.record_type [].
 
 >> from_term_to_type (core.record_intro []) Target ?
->> Yes:
->> Target := stratified.lift (stratified.record_intro []).
+>> Impossible.
 
 >> from_term_to_term (core.record_intro []) Target ?
 >> Yes:
