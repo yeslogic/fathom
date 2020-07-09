@@ -4,95 +4,114 @@
 % SML, or, OCaml), we first compile the core language into a language where the
 % distinction between expressions, types, and kinds are made explicit.
 %
-% This seems to be something like [System Fω], with lifted expressions and types.
+% This inspired by the language typed intermediate language, TL, described in
+% [A Type System for Certified Binaries][Shao et al. 2005], using a compilation
+% strategy similar to the one described in section 5 of [Singleton types here,
+% singleton types there, singleton types everywhere][Monnier et al. 2010]. We
+% have no computation language, so instead we shift terms back down one level.
 %
-% We need to be careful with lifted expressions and types - this might involve
-% embedding 'runtime' relevant variables being used in types, which is where
-% multistage programming might ultimately help us gain more control.
-%
-%  [System Fω]: https://en.wikipedia.org/wiki/System_F#System_F.CF.89
+% [Shao et al. 2005]: http://dl.acm.org/doi/10.1145/1053468.1053469
+% [Monnier et al. 2010]: https://doi.org/10.1145/1707790.1707792
 
 %extend stratified.
 
-    % Terms
-    kind : type.
-    type' : type.
-    term : type.
+    % Terms, stratified into multiple syntactic levels in order to make
+    % further compilation passes more tractable.
+    term2 : type.   % Level-2 terms (or kind-schemas in [Shao et al. 2005])
+    term1 : type.   % Level-1 terms (or kinds in [Shao et al. 2005])
+    term0 : type.   % Level-0 terms (or types in [Shao et al. 2005])
 
     % Variables
-    local : int -> type'.
-    local : int -> term.
+    local : int -> term2.   % Level-2 term variables
+    local : int -> term1.   % Level-1 term variables
+    local : int -> term0.   % Level-0 term variables
 
     % Annotated terms
-    ann : type' -> kind -> type'.
-    ann : term -> type' -> term.
+    ann : term1 -> term2 -> term1.  % Level-1 terms annotated with level-2 terms
+    ann : term0 -> term1 -> term0.  % Level-0 terms annotated with level-1 terms
 
     % Universes
-    type_type : kind.
+    type_type : term2.  % Type of types (or `Kind` in [Shao et al. 2005])
 
-    % Functions
-    function_kind : kind -> kind -> kind.               % Kinds to Kinds, eg. `Type -> Type`
-    function_kind : type' -> kind -> kind.              % Types to Kinds, eg. `Int -> (Type -> Type)`
-    function_kind : kind -> type' -> kind.              % Kinds to Types, eg. `(A : Type) -> Array 3 A`
-    function_type : type' -> type' -> type'.            % Types to Types, eg. `(n : Int) -> Array n Int`
-    function_intro_type : type' -> type'.               % Types parameterised by types, eg. `fun A => Array 3 A`
-    function_intro_term : type' -> type'.               % Types parameterised by terms, eg. `fun n => Array n Int`
-    function_intro_type : term -> term.                 % Terms parameterised by types, eg. `fun A => [] : Array 0 A`
-    function_intro_term : term -> term.                 % Terms parameterised by types, eg. `fun n => n : Int`
-    function_elim_type : type' -> type' -> type'.       % Type-level type application, eg. `(Array 3) Int`
-    function_elim_term : type' -> term -> type'.        % Type-level term application, eg. `Array 3`
-    function_elim_type : term -> type' -> term.         % Term-level type application, eg. `(fun A => [] : Array 0 A) Int`
-    function_elim_term : term -> term -> term.          % Term-level term application, eg. `(fun n => n : Int) 3`
+    % Functions from input level to output level
+    function_type_1_1 : term2 -> term2 -> term2.     % Dependent function types from term1s-to-term1s
+    function_type_1_0 : term1 -> term2 -> term2.     % Dependent function types from term0s-to-term1s
+    function_type_2_0 : term1 -> term1.              % Dependent function types from term2s-to-term1s
+    function_type_0_1 : term2 -> term1 -> term1.     % Dependent function types from term1s-to-term0s
+    function_type_0_0 : term1 -> term1 -> term1.     % Dependent function types from term0s-to-term0s
+    function_intro_1_1 : term1 -> term1.             % Lambdas from term1s-to-term1s
+    function_intro_1_0 : term1 -> term1.             % Lambdas from term0s-to-term1s
+    function_intro_2_0 : term0 -> term0.             % Lambdas from term2s-to-term1s
+    function_intro_0_1 : term0 -> term0.             % Lambdas from term1s-to-term0s
+    function_intro_0_0 : term0 -> term0.             % Lambdas from term0s-to-term0s
+    function_elim_1_1 : term1 -> term1 -> term1.     % Applications from term1s-to-term1s
+    function_elim_1_0 : term1 -> term0 -> term1.     % Applications from term0s-to-term1s
+    function_elim_2_0 : term0 -> term2 -> term0.     % Applications from term2s-to-term1s
+    function_elim_0_1 : term0 -> term1 -> term0.     % Applications from term1s-to-term0s
+    function_elim_0_0 : term0 -> term0 -> term0.     % Applications from term0s-to-term0s
 
     % Pairs
-    pair_type : type' -> type' -> type'.
-    pair_intro : term -> term -> term.
-    pair_elim_first : term -> term.
-    pair_elim_second : term -> term.
+    pair_type : term1 -> term1 -> term1.
+    pair_intro : term0 -> term0 -> term0.
+    pair_elim_first : term0 -> term0.
+    pair_elim_second : term0 -> term0.
 
     % Records
-    record_type : list (string * type') -> type'.
-    record_intro : map string term -> term.
-    record_elim : term -> string -> term.
+    record_type : list (string * term1) -> term1.
+    record_intro : map string term0 -> term0.
+    record_elim : term0 -> string -> term0.
 
     % Enumerations
-    enum_type : set string -> type'.
-    enum_intro : string -> term.
-    enum_elim : map string type' -> type'.
-    enum_elim : map string term -> term.
+    enum_type : set string -> term1.
+    enum_intro : string -> term0.
+    enum_elim : map string term1 -> term1.
+    enum_elim : map string term0 -> term0.
 
     % Integers
-    int_type : type'.
-    int_intro : int -> term.
+    int_type : term1.
+    int_intro : int -> term0.
 
     % Arrays
-    array_type : type' -> term -> type'.
-    array_intro : list term -> term.
-    array_elim : term -> term -> term.
+    array_type : term1 -> term0 -> term1.
+    array_intro : list term0 -> term0.
+    array_elim : term0 -> term0 -> term0.
+
+    % Singletons
+    %
+    % Instead encoding singletons as an inductive type definition, we instead
+    % define it as a primitive in our stratified intermediate language.
+    singleton_type : term2.                                 % Type of singletons (or `Ω` in [Shao et al. 2005])
+    singleton_intro_arrow : term1 -> term1 -> term1.        % Arrow singletons
+    singleton_intro_forall_2 : term1 -> term1 -> term1.     % Singletons quantified over Level-2 variables
+    singleton_intro_forall_1 : term1 -> term1 -> term1.     % Singletons quantified over Level-1 variables
+    singleton_intro_record : map string term1 -> term1.     % Record singletons
+    singleton_intro_enum : string -> term1.                 % Enumeration singletons
+    singleton_intro_int : int -> term1.                     % Integer singletons
+    singleton_intro_array : list term1 -> term1.            % Array Singletons
 
     % Binary format descriptions
-    format_type : kind.
-    format_intro_void : type'.
-    format_intro_unit : type'.
-    format_intro_u8 : type'.
-    format_intro_u16le : type'. % TODO: make this a computed format?
-    format_intro_u16be : type'. % TODO: make this a computed format?
-    format_intro_u32le : type'. % TODO: make this a computed format?
-    format_intro_u32be : type'. % TODO: make this a computed format?
-    format_intro_u64le : type'. % TODO: make this a computed format?
-    format_intro_u64be : type'. % TODO: make this a computed format?
-    format_intro_s8 : type'. % TODO: make this a computed format?
-    format_intro_s16le : type'. % TODO: make this a computed format?
-    format_intro_s16be : type'. % TODO: make this a computed format?
-    format_intro_s32le : type'. % TODO: make this a computed format?
-    format_intro_s32be : type'. % TODO: make this a computed format?
-    format_intro_s64le : type'. % TODO: make this a computed format?
-    format_intro_s64be : type'. % TODO: make this a computed format?
-    format_intro_array : type' -> term -> type'.
-    format_intro_pair : type' -> type' -> type'.
-    format_intro_record : list (string * type') -> type'.
-    format_intro_compute : term -> type' -> type'.
-    format_intro_absorb : type' -> type'.
-    format_elim : type' -> kind.
+    format_type : term2.
+    format_intro_void : term1.
+    format_intro_unit : term1.
+    format_intro_u8 : term1.
+    format_intro_u16le : term1. % TODO: make this a computed format?
+    format_intro_u16be : term1. % TODO: make this a computed format?
+    format_intro_u32le : term1. % TODO: make this a computed format?
+    format_intro_u32be : term1. % TODO: make this a computed format?
+    format_intro_u64le : term1. % TODO: make this a computed format?
+    format_intro_u64be : term1. % TODO: make this a computed format?
+    format_intro_s8 : term1. % TODO: make this a computed format?
+    format_intro_s16le : term1. % TODO: make this a computed format?
+    format_intro_s16be : term1. % TODO: make this a computed format?
+    format_intro_s32le : term1. % TODO: make this a computed format?
+    format_intro_s32be : term1. % TODO: make this a computed format?
+    format_intro_s64le : term1. % TODO: make this a computed format?
+    format_intro_s64be : term1. % TODO: make this a computed format?
+    format_intro_array : term1 -> term0 -> term1.
+    format_intro_pair : term1 -> term1 -> term1.
+    format_intro_record : list (string * term1) -> term1.
+    format_intro_compute : term0 -> term1 -> term1.
+    format_intro_absorb : term1 -> term1.
+    format_elim : term1 -> term2.
 
 %end.

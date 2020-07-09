@@ -11,59 +11,59 @@
 
     % Conversion
 
->> from_term_to_kind core.type_type Target ?
+>> from_term_to_term2 core.type_type Target ?
 >> Yes:
 >> Target := stratified.type_type.
 
->> from_term_to_kind (core.record_type []) Target ?
+>> from_term_to_term2 (core.record_type []) Target ?
 >> Impossible.
 
->> from_term_to_kind (core.record_intro []) Target ?
+>> from_term_to_term2 (core.record_intro []) Target ?
 >> Impossible.
 
->> from_term_to_type (core.record_type []) Target ?
+>> from_term_to_term1 (core.record_type []) Target ?
 >> Yes:
 >> Target := stratified.record_type [].
 
->> from_term_to_type (core.record_intro []) Target ?
+>> from_term_to_term1 (core.record_intro []) Target ?
 >> Impossible.
 
->> from_term_to_term (core.record_intro []) Target ?
+>> from_term_to_term0 (core.record_intro []) Target ?
 >> Yes:
 >> Target := stratified.record_intro [].
 
 
     % Variables
 
->> from_term (context [kind, type']) (core.local 0) Target ?
+>> from_term (context [term2, term1]) (core.local 0) Target ?
 >> Yes:
->> Target := type' (stratified.local 0).
+>> Target := term1 (stratified.local 0).
 
->> from_term (context [kind, type']) (core.local 1) Target ?
+>> from_term (context [term2, term1]) (core.local 1) Target ?
 >> Yes:
->> Target := term (stratified.local 1).
+>> Target := term0 (stratified.local 1).
 
 
     % Annotated terms
 
 >> from_term (core.ann core.int_type core.type_type) Target ?
 >> Yes:
->> Target := type' (stratified.ann stratified.int_type stratified.type_type).
+>> Target := term1 (stratified.ann stratified.int_type stratified.type_type).
 
 >> from_term (core.ann core.format_intro_u8 core.format_type) Target ?
 >> Yes:
->> Target := type' (stratified.ann stratified.format_intro_u8 stratified.format_type).
+>> Target := term1 (stratified.ann stratified.format_intro_u8 stratified.format_type).
 
 >> from_term (core.ann (core.record_intro []) (core.record_type [])) Target ?
 >> Yes:
->> Target := term (stratified.ann (stratified.record_intro []) (stratified.record_type [])).
+>> Target := term0 (stratified.ann (stratified.record_intro []) (stratified.record_type [])).
 
 
     % Universes
 
 >> from_term core.type_type Target ?
 >> Yes:
->> Target := kind stratified.type_type.
+>> Target := term2 stratified.type_type.
 
 
     % Functions
@@ -74,7 +74,7 @@
 
 >> from_term (core.record_type []) Target ?
 >> Yes:
->> Target := type' (stratified.record_type []).
+>> Target := term1 (stratified.record_type []).
 
 >> from_term
     (core.record_type
@@ -83,7 +83,7 @@
         ])
     Target ?
 >> Yes:
->> Target := type'
+>> Target := term1
     (stratified.record_type
         [ ( "len", stratified.int_type )
         , ( "data", stratified.array_type (stratified.record_type []) (stratified.local 0) )
@@ -91,7 +91,7 @@
 
 >> from_term (core.record_intro []) Target ?
 >> Yes:
->> Target := term (stratified.record_intro []).
+>> Target := term0 (stratified.record_intro []).
 
 >> from_term
     (core.record_intro
@@ -100,7 +100,7 @@
         ])
     Target ?
 >> Yes:
->> Target := term
+>> Target := term0
     (stratified.record_intro
         [ ( "data",
             stratified.array_intro
@@ -123,19 +123,19 @@
 
 >> from_term (core.format_intro_unit) Target ?
 >> Yes:
->> Target := type' (stratified.format_intro_unit).
+>> Target := term1 (stratified.format_intro_unit).
 
 >> from_term (core.format_intro_u8) Target ?
 >> Yes:
->> Target := type' (stratified.format_intro_u8).
+>> Target := term1 (stratified.format_intro_u8).
 
 >> from_term (core.format_intro_record []) Target ?
 >> Yes:
->> Target := type' (stratified.format_intro_record []).
+>> Target := term1 (stratified.format_intro_record []).
 
 >> from_term (core.format_intro_array (core.format_intro_record []) (core.int_intro 3)) Target ?
 >> Yes:
->> Target := type'
+>> Target := term1
     (stratified.format_intro_array
         (stratified.format_intro_record [])
         (stratified.int_intro 3)).
@@ -147,7 +147,7 @@
         ])
     Target ?
 >> Yes:
->> Target := type'
+>> Target := term1
     (stratified.format_intro_record
         [ ( "len", stratified.format_intro_u32be )
         , ( "data"
