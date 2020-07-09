@@ -71,28 +71,28 @@
     array_elim : term -> term -> term.
 
     % Binary format descriptions
-    format_type : type'.
-    format_intro_void : term.
-    format_intro_unit : term.
-    format_intro_u8 : term.
-    format_intro_u16le : term. % TODO: make this a computed format?
-    format_intro_u16be : term. % TODO: make this a computed format?
-    format_intro_u32le : term. % TODO: make this a computed format?
-    format_intro_u32be : term. % TODO: make this a computed format?
-    format_intro_u64le : term. % TODO: make this a computed format?
-    format_intro_u64be : term. % TODO: make this a computed format?
-    format_intro_s8 : term. % TODO: make this a computed format?
-    format_intro_s16le : term. % TODO: make this a computed format?
-    format_intro_s16be : term. % TODO: make this a computed format?
-    format_intro_s32le : term. % TODO: make this a computed format?
-    format_intro_s32be : term. % TODO: make this a computed format?
-    format_intro_s64le : term. % TODO: make this a computed format?
-    format_intro_s64be : term. % TODO: make this a computed format?
-    format_intro_array : term -> term -> term.
-    format_intro_pair : term -> term -> term.
-    format_intro_record : list (string * term) -> term.
-    format_intro_compute : term -> type' -> term.
-    format_intro_absorb : term -> term.
-    format_elim : term -> type'.
+    format_type : kind.
+    format_intro_void : type'.
+    format_intro_unit : type'.
+    format_intro_u8 : type'.
+    format_intro_u16le : type'. % TODO: make this a computed format?
+    format_intro_u16be : type'. % TODO: make this a computed format?
+    format_intro_u32le : type'. % TODO: make this a computed format?
+    format_intro_u32be : type'. % TODO: make this a computed format?
+    format_intro_u64le : type'. % TODO: make this a computed format?
+    format_intro_u64be : type'. % TODO: make this a computed format?
+    format_intro_s8 : type'. % TODO: make this a computed format?
+    format_intro_s16le : type'. % TODO: make this a computed format?
+    format_intro_s16be : type'. % TODO: make this a computed format?
+    format_intro_s32le : type'. % TODO: make this a computed format?
+    format_intro_s32be : type'. % TODO: make this a computed format?
+    format_intro_s64le : type'. % TODO: make this a computed format?
+    format_intro_s64be : type'. % TODO: make this a computed format?
+    format_intro_array : type' -> term -> type'.
+    format_intro_pair : type' -> type' -> type'.
+    format_intro_record : list (string * type') -> type'.
+    format_intro_compute : term -> type' -> type'.
+    format_intro_absorb : type' -> type'.
+    format_elim : type' -> kind.
 
 %end.

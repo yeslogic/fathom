@@ -35,11 +35,11 @@
 
     % Variables
 
->> from_term (context [type', term]) (core.local 0) Target ?
+>> from_term (context [kind, type']) (core.local 0) Target ?
 >> Yes:
 >> Target := type' (stratified.local 0).
 
->> from_term (context [type', term]) (core.local 1) Target ?
+>> from_term (context [kind, type']) (core.local 1) Target ?
 >> Yes:
 >> Target := term (stratified.local 1).
 
@@ -52,7 +52,7 @@
 
 >> from_term (core.ann core.format_intro_u8 core.format_type) Target ?
 >> Yes:
->> Target := term (stratified.ann stratified.format_intro_u8 stratified.format_type).
+>> Target := type' (stratified.ann stratified.format_intro_u8 stratified.format_type).
 
 >> from_term (core.ann (core.record_intro []) (core.record_type [])) Target ?
 >> Yes:
@@ -117,6 +117,44 @@
     % Enumerations
     % Integers
     % Arrays
+
+
     % Binary format descriptions
+
+>> from_term (core.format_intro_unit) Target ?
+>> Yes:
+>> Target := type' (stratified.format_intro_unit).
+
+>> from_term (core.format_intro_u8) Target ?
+>> Yes:
+>> Target := type' (stratified.format_intro_u8).
+
+>> from_term (core.format_intro_record []) Target ?
+>> Yes:
+>> Target := type' (stratified.format_intro_record []).
+
+>> from_term (core.format_intro_array (core.format_intro_record []) (core.int_intro 3)) Target ?
+>> Yes:
+>> Target := type'
+    (stratified.format_intro_array
+        (stratified.format_intro_record [])
+        (stratified.int_intro 3)).
+
+>> from_term
+    (core.format_intro_record
+        [ ( "len", core.format_intro_u32be )
+        , ( "data", core.format_intro_array (core.format_intro_record []) (core.local 0) )
+        ])
+    Target ?
+>> Yes:
+>> Target := type'
+    (stratified.format_intro_record
+        [ ( "len", stratified.format_intro_u32be )
+        , ( "data"
+          , stratified.format_intro_array
+                (stratified.format_intro_record [])
+                (stratified.local 0)
+          )
+        ]).
 
 %end.

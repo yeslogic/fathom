@@ -16,13 +16,13 @@
     % Stratified universes
     universe : type.
 
+    kind : universe.
     type' : universe.
-    term : universe.
 
 
     % Stratification context.
     %
-    % We just need to keep track of the universe of variables in order to
+    % We just need to keep track of the universe of variables types in order to
     % separate them into kinds, types, and terms.
     context : type.
 
@@ -59,9 +59,9 @@
 
     % Variables
     from_term Context (core.local Index) (type' (stratified.local Index)) :-
-        context.lookup_universe Context Index type'.
+        context.lookup_universe Context Index kind.
     from_term Context (core.local Index) (term (stratified.local Index)) :-
-        context.lookup_universe Context Index term.
+        context.lookup_universe Context Index type'.
 
     % Annotated terms
     from_term Context (core.ann SourceElem SourceType)
@@ -94,7 +94,7 @@
         (type' (stratified.record_type (( Label, TargetType ) :: TargetTypeFields)))
     :-
         from_term_to_type Context SourceType TargetType,
-        context.add_binding Context term Context',
+        context.add_binding Context type' Context',
         from_term_to_type Context'
             (core.record_type SourceTypeFields)
             (stratified.record_type TargetTypeFields).
@@ -142,47 +142,48 @@
         from_term_to_term Context SourceIndexElem TargetIndexElem.
 
     % Binary format descriptions
-    from_term Context core.format_type (type' stratified.format_type).
-    from_term Context core.format_intro_unit (term stratified.format_intro_unit).
-    from_term Context core.format_intro_u8 (term stratified.format_intro_u8).
-    from_term Context core.format_intro_u16le (term stratified.format_intro_u16le).
-    from_term Context core.format_intro_u16be (term stratified.format_intro_u16be).
-    from_term Context core.format_intro_u32le (term stratified.format_intro_u32le).
-    from_term Context core.format_intro_u32be (term stratified.format_intro_u32be).
-    from_term Context core.format_intro_u64le (term stratified.format_intro_u64le).
-    from_term Context core.format_intro_u64be (term stratified.format_intro_u64be).
-    from_term Context core.format_intro_s8 (term stratified.format_intro_s8).
-    from_term Context core.format_intro_s16le (term stratified.format_intro_s16le).
-    from_term Context core.format_intro_s16be (term stratified.format_intro_s16be).
-    from_term Context core.format_intro_s32le (term stratified.format_intro_s32le).
-    from_term Context core.format_intro_s32be (term stratified.format_intro_s32be).
-    from_term Context core.format_intro_s64le (term stratified.format_intro_s64le).
-    from_term Context core.format_intro_s64be (term stratified.format_intro_s64be).
+    from_term Context core.format_type (kind stratified.format_type).
+    from_term Context core.format_intro_unit (type' stratified.format_intro_unit).
+    from_term Context core.format_intro_u8 (type' stratified.format_intro_u8).
+    from_term Context core.format_intro_u16le (type' stratified.format_intro_u16le).
+    from_term Context core.format_intro_u16be (type' stratified.format_intro_u16be).
+    from_term Context core.format_intro_u32le (type' stratified.format_intro_u32le).
+    from_term Context core.format_intro_u32be (type' stratified.format_intro_u32be).
+    from_term Context core.format_intro_u64le (type' stratified.format_intro_u64le).
+    from_term Context core.format_intro_u64be (type' stratified.format_intro_u64be).
+    from_term Context core.format_intro_s8 (type' stratified.format_intro_s8).
+    from_term Context core.format_intro_s16le (type' stratified.format_intro_s16le).
+    from_term Context core.format_intro_s16be (type' stratified.format_intro_s16be).
+    from_term Context core.format_intro_s32le (type' stratified.format_intro_s32le).
+    from_term Context core.format_intro_s32be (type' stratified.format_intro_s32be).
+    from_term Context core.format_intro_s64le (type' stratified.format_intro_s64le).
+    from_term Context core.format_intro_s64be (type' stratified.format_intro_s64be).
     from_term Context (core.format_intro_array SourceType SourceLenElem)
-        (term (stratified.format_intro_array TargetType TargetLenElem))
+        (type' (stratified.format_intro_array TargetType TargetLenElem))
     :-
-        from_term_to_term Context SourceType TargetType,
+        from_term_to_type Context SourceType TargetType,
         from_term_to_term Context SourceLenElem TargetLenElem.
     % TODO: core.format_intro_pair
+    from_term Context (core.format_intro_record []) (type' (stratified.format_intro_record [])).
     from_term Context (core.format_intro_record (( Label, SourceType ) :: SourceTypeFields))
-        (term (stratified.format_intro_record (( Label, TargetType ) :: TargetTypeFields)))
+        (type' (stratified.format_intro_record (( Label, TargetType ) :: TargetTypeFields)))
     :-
-        from_term_to_term Context SourceType TargetType,
+        from_term_to_type Context SourceType TargetType,
         context.add_binding Context type' Context',
-        from_term_to_term Context
+        from_term_to_type Context'
             (core.format_intro_record SourceTypeFields)
             (stratified.format_intro_record TargetTypeFields).
     from_term Context (core.format_intro_compute SourceElem SourceType)
-        (term (stratified.format_intro_compute TargetElem TargetType))
+        (type' (stratified.format_intro_compute TargetElem TargetType))
     :-
         from_term_to_type Context SourceType TargetType,
         from_term_to_term Context SourceElem TargetElem.
     from_term Context (core.format_intro_absorb SourceType)
-        (term (stratified.format_intro_absorb TargetType))
+        (type' (stratified.format_intro_absorb TargetType))
     :-
-        from_term_to_term Context SourceType TargetType.
-    from_term Context (core.format_elim SourceType) (type' (stratified.format_elim TargetType)) :-
-        from_term_to_term Context SourceType TargetType.
+        from_term_to_type Context SourceType TargetType.
+    from_term Context (core.format_elim SourceType) (kind (stratified.format_elim TargetType)) :-
+        from_term_to_type Context SourceType TargetType.
 
 
     % Convenience predicates
