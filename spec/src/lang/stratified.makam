@@ -17,9 +17,9 @@
 
     % Terms, stratified into multiple syntactic levels in order to make
     % further compilation passes more tractable.
-    term2 : type.   % Level-2 terms (or kind-schemas in [Shao et al. 2005])
-    term1 : type.   % Level-1 terms (or kinds in [Shao et al. 2005])
-    term0 : type.   % Level-0 terms (or types in [Shao et al. 2005])
+    term2 : type.   % Level-2 terms (‘kind-schemas’ in [Shao et al. 2005])
+    term1 : type.   % Level-1 terms (‘kinds’ in [Shao et al. 2005])
+    term0 : type.   % Level-0 terms (‘types’ in [Shao et al. 2005])
 
     % Variables
     local : int -> term2.   % Level-2 term variables
@@ -31,9 +31,12 @@
     ann : term0 -> term1 -> term0.  % Level-0 terms annotated with level-1 terms
 
     % Universes
-    type_type : term2.  % Type of types (or `Kind` in [Shao et al. 2005])
+    type_type : term2.  % Type of types (the symbol `Kind` in [Shao et al. 2005])
 
-    % Functions from input level to output level
+    % Functions
+    %
+    % The numbers usied in the identifier of each constructor refers to the
+    % level of the input term and output term.
     function_type_1_1 : term2 -> term2 -> term2.     % Dependent function types from term1s-to-term1s
     function_type_1_0 : term1 -> term2 -> term2.     % Dependent function types from term0s-to-term1s
     function_type_2_0 : term1 -> term1.              % Dependent function types from term2s-to-term1s
@@ -78,18 +81,24 @@
 
     % Singletons
     %
-    % Instead encoding singletons as an inductive type definition, we instead
-    % define it as a primitive in our stratified intermediate language.
+    % These are 'reflections' of term-level constructs at the type level.
+    %
+    % Instead of encoding singletons as an inductive definitions as in
+    % [Shao et al. 2005] and [Monnier et al. 2010], we instead define it as a
+    % primitive in our stratified intermediate language. This avoids the need
+    % for us to add 'proper' inductive definitions to the stratified IR.
     singleton_type : term2.                                 % Type of singletons (or `Ω` in [Shao et al. 2005])
     singleton_intro_arrow : term1 -> term1 -> term1.        % Arrow singletons
-    singleton_intro_forall_2 : term1 -> term1 -> term1.     % Singletons quantified over Level-2 variables
-    singleton_intro_forall_1 : term1 -> term1 -> term1.     % Singletons quantified over Level-1 variables
+    singleton_intro_forall_2 : term1 -> term1 -> term1.     % Universal quantification over level-2 variables
+    singleton_intro_forall_1 : term1 -> term1 -> term1.     % Universal quantification over level-1 variables
     singleton_intro_record : map string term1 -> term1.     % Record singletons
     singleton_intro_enum : string -> term1.                 % Enumeration singletons
     singleton_intro_int : int -> term1.                     % Integer singletons
     singleton_intro_array : list term1 -> term1.            % Array Singletons
 
     % Binary format descriptions
+    %
+    % These are copied from the core language, but are now explicitly statified.
     format_type : term2.
     format_intro_void : term1.
     format_intro_unit : term1.
