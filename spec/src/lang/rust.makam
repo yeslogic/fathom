@@ -15,20 +15,27 @@
     f64 : type'.
 
 
-    term : type.
+    expr : type.
+    block : type.
 
-    bool : bool -> term.
-    int : int -> term.
-    struct : string -> list (string * term) -> term.
-    ifte : term -> term -> term -> term.
+    bool : bool -> expr.
+    int : int -> expr.
+    struct : string -> list (string * expr) -> expr.
+    ifte : expr -> block -> option block -> expr.
+    block : list expr -> option expr -> block.
+
+
+    visability : type.
+    pub : visability.
+    priv : visability.
 
 
     item : type.
 
-    alias : string -> list string -> type' -> item.
-    struct : string -> list string -> list (string * type') -> item.
-    enum : string -> list string -> list (string * type') -> item.
-    function : string -> list string -> list (string * type') -> type' -> term -> item.
-    const : string -> type' -> term -> item.
+    alias : visability -> string -> list string -> type' -> item.
+    struct : visability -> string -> list string -> list (visability * string * type') -> item.
+    enum : visability -> string -> list string -> list (string * type') -> item.
+    function : visability -> string -> list string -> list (string * type') -> type' -> block -> item.
+    const : visability -> string -> type' -> expr -> item.
 
 %end.
