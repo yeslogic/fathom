@@ -4,19 +4,19 @@
 % SML, or, OCaml), we first compile the core language into a language where the
 % distinction between expressions, types, and kinds are made explicit.
 %
-% This inspired by the language typed intermediate language, TL, described in
-% [A Type System for Certified Binaries][Shao et al. 2005], using a compilation
-% strategy similar to the one described in section 5 of [Singleton types here,
-% singleton types there, singleton types everywhere][Monnier et al. 2010]. We
-% have no computation language, so instead we shift terms back down one level.
+% This inspired by the TL and λ<sub>H</sub>, described in [A Type System for
+% Certified Binaries][Shao et al. 2005], using a compilation strategy similar
+% to the one described in section 5 of [Singleton types here, singleton types
+% there, singleton types everywhere][Monnier et al. 2010].
 %
 % [Shao et al. 2005]: http://dl.acm.org/doi/10.1145/1053468.1053469
 % [Monnier et al. 2010]: https://doi.org/10.1145/1707790.1707792
 
 %extend stratified.
 
-    % Terms, stratified into multiple syntactic levels in order to make
-    % further compilation passes more tractable.
+    % The type language.
+    %
+    % This inspired by TL, described  in [Shao et al. 2005].
     term2 : type.   % Level-2 terms (‘kind-schemas’ in [Shao et al. 2005])
     term1 : type.   % Level-1 terms (‘kinds’ in [Shao et al. 2005])
     term0 : type.   % Level-0 terms (‘types’ in [Shao et al. 2005])
@@ -81,11 +81,12 @@
 
     % Singletons
     %
+    % We use these to classify terms in the computation language.
     % These are 'reflections' of term-level constructs at the type level.
     %
-    % Instead of encoding singletons as an inductive definitions as in
-    % [Shao et al. 2005] and [Monnier et al. 2010], we instead define it as a
-    % primitive in our stratified intermediate language. This avoids the need
+    % Instead of encoding singletons as an inductive definition as in
+    % [Shao et al. 2005] and [Monnier et al. 2010], we instead define them as
+    % primitives in our stratified intermediate language. This avoids the need
     % for us to add 'proper' inductive definitions to the stratified IR.
     singleton_type : term2.                                 % Type of singletons (or `Ω` in [Shao et al. 2005])
     singleton_intro_arrow : term1 -> term1 -> term1.        % Arrow singletons
@@ -122,5 +123,31 @@
     format_intro_compute : term0 -> term1 -> term1.
     format_intro_absorb : term1 -> term1.
     format_elim : term1 -> term2.
+
+
+    % The computation language.
+    %
+    % This is inspired by λ<sub>H</sub>, described in [Shao et al. 2005].
+    % Note that no format descriptions appear in the computation language.
+
+    % Expressions
+    expr : type.
+    % Functions
+    func : type.
+
+    local : int -> expr.                        % Local variables
+    ann : expr -> term0 -> expr.                % Expressions annotated with level-0 types
+    function : func -> expr.                    % Function expressions
+    function_intro_e_e : expr -> func.          % Expressions parametrised by expressions (`λx:τ.e` in [Shao et al. 2005])
+    function_intro_0_e : func -> func.          % Expressions parametrised by level-0 types (`ΛX:A.f` in [Shao et al. 2005])
+    function_elim_e_e : expr -> expr -> expr.   % Expressions applied to expressions (`e e` in [Shao et al. 2005])
+    function_elim_0_e : expr -> term0 -> expr.  % Expressions applied to level-0 types (`e [A]` in [Shao et al. 2005])
+    record_intro : map string expr -> expr.     % Record introductions
+    record_elim : expr -> string -> expr.       % Record eliminations
+    enum_intro : string -> expr.                % Enumeration introductions
+    enum_elim : map string expr -> expr.        % Enumeration eliminations
+    int_intro : int -> expr.                    % Integer introductions
+    array_intro : list expr -> expr.            % Array introductiona
+    array_elim : expr -> expr -> expr.          % Array eliminations
 
 %end.
