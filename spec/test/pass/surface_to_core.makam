@@ -1,6 +1,42 @@
 %extend surface_to_core.
 
+    %open fathom.lang.
+    %open fathom.lang.core.semantics.
+
     tests : testsuite.
     %testsuite tests.
+
+
+% FIXME: there seems to be a bug with indenting tests here - see https://github.com/astampoulis/makam/issues/94
+
+    % Names
+
+>> is_type (context []) (surface.name "Type") Elem ?
+>> Yes:
+>> Elem := core.type_type.
+
+>> synth_type (context []) (surface.name "Type") Type Elem ?
+>> Impossible.
+
+>> is_type (context []) (surface.name "Format") Elem ?
+>> Yes:
+>> Elem := core.format_type.
+
+>> synth_type (context []) (surface.name "Format") Type Elem ?
+>> Impossible.
+
+>> synth_type
+    (context [ ( some "U8", Level, _, format_type ) ])
+    (surface.name "U8")
+    Type Elem ?
+>> Yes:
+>> Type := format_type.
+>> Elem := core.local Level.
+
+>> synth_type
+    (context [ ( some "U8", Level, _, format_type ) ])
+    (surface.name "U16Be")
+    Type Elem ?
+>> Impossible.
 
 %end.

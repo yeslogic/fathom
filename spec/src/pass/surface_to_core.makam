@@ -92,8 +92,8 @@
         context.is_equal Context TargetType TargetType'.
 
     % Variables
-    synth_type Context (surface.name "Type") TargetType core.type_type.
-    synth_type Context (surface.name "Format") TargetType core.format_type.
+    is_type Context (surface.name "Type") core.type_type.
+    is_type Context (surface.name "Format") core.format_type.
     synth_type Context (surface.name Name) TargetType (core.local Level) :-
         context.lookup_type Context Name Level TargetType.
 
