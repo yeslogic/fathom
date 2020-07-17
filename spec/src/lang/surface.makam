@@ -20,7 +20,7 @@
     % Terms
     term : type.
 
-    % A reference a definition
+    % Named terms
     name : string -> term.
 
     % Annotated terms
@@ -30,9 +30,9 @@
     match : term -> list (pattern * term) -> term.
 
     % Functions
-    function_type : term -> term -> term.   % Also known as: Pi type, Dependent product type
-    function_intro : term -> term.          % Also known as: Lambda abstraction, anonymous function
-    function_elim : term -> term -> term.   % Also known as: Function application
+    function_type : (option string * term) -> term -> term.     % Also known as: Pi type, Dependent product type
+    function_intro : (string * option term) -> term -> term.    % Also known as: Lambda abstraction, anonymous function
+    function_elim : term -> term -> term.                       % Also known as: Function application
 
     % Records
     record_type : list (string * term) -> term.

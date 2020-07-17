@@ -16,7 +16,7 @@
 
     context : type.
 
-    context : list (string * int * value * value) -> context.
+    context : list (option string * int * value * value) -> context.
 
     %extend context.
 
@@ -27,7 +27,7 @@
 
         lookup_type : context -> string -> int -> value -> prop.
         lookup_type (context Entries) Name Level Type :-
-            contains ( Name, Level, _, Type ) Entries.
+            contains ( some Name, Level, _, Type ) Entries.
 
 
         next_local : context -> value -> prop.
@@ -35,17 +35,17 @@
             length Entries Level.
 
 
-        add_local : context -> string -> value -> value -> context -> prop.
-        add_local (context Entries) Name Elem Type
+        add_local : context -> (option string * value * value) -> context -> prop.
+        add_local (context Entries) ( Name, Elem, Type )
             (context (( Name, Level, Elem, Type ) :: Entries))
         :-
             length Entries Level.
 
 
-        add_param : context -> string -> value -> context -> prop.
-        add_param Context Name Type Context' :-
+        add_param : context -> (option string * value) -> context -> prop.
+        add_param Context ( Name, Type ) Context' :-
             next_local Context Elem,
-            add_local Context Name Elem Type Context'.
+            add_local Context ( Name, Elem, Type ) Context'.
 
 
         eval : context -> core.term -> value -> prop.
@@ -105,8 +105,41 @@
         context.eval Context TargetType TargetType',
         check_type Context SourceElem TargetType' TargetElem.
 
-    % Universes
     % Functions
+    is_type Context (surface.function_type ( Name, SourceInputType ) SourceOutputType)
+        (core.function_type TargetInputType TargetOutputType)
+    :-
+        is_type Context SourceInputType TargetInputType,
+        context.eval Context TargetInputType TargetInputType',
+        context.add_param Context ( Name, TargetInputType' ) Context',
+        is_type Context' SourceOutputType TargetOutputType.
+    synth_type Context (surface.function_type ( Name, SourceInputType ) SourceOutputType) type_type
+        (core.function_type TargetInputType TargetOutputType)
+    :-
+        is_type Context SourceInputType TargetInputType,
+        context.eval Context TargetInputType TargetInputType',
+        context.add_param Context ( Name, TargetInputType' ) Context',
+        is_type Context' SourceOutputType TargetOutputType.
+    check_type Context (surface.function_intro ( Name, none ) SourceOutputElem)
+        (function_type TargetInputType Closure)
+        (core.function_intro TargetOutputElem)
+    :-
+        context.next_local Context LocalElem,
+        apply Closure LocalElem TargetOutputType,
+        context.add_param Context ( some Name, TargetInputType ) Context',
+        check_type Context' SourceOutputElem TargetOutputType TargetOutputElem.
+    %  synth_type Context (surface.function_intro ( Name, some SourceInputType ) SourceOutputElem)
+    %      (function_type TargetInputType Closure)
+    %      (core.function_intro TargetOutputElem)
+    %  :- TODO.
+    synth_type Context (surface.function_elim SourceElem SourceInputElem) TargetOutputType
+        (core.function_elim TargetElem TargetInputElem)
+    :-
+        synth_type Context SourceElem (function_type InputType Closure) TargetElem,
+        check_type Context SourceInputElem InputType TargetInputElem,
+        context.eval Context TargetInputElem TargetInputElem',
+        apply Closure TargetInputElem' TargetOutputType.
+
     % Pairs
     % Records
     % Enumerations
