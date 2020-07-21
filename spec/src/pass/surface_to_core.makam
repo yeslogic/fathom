@@ -91,9 +91,25 @@
         synth_type Context SourceElem TargetType' TargetElem,
         context.is_equal Context TargetType TargetType'.
 
-    % Variables
+    % Names
     is_type Context (surface.name "Type") core.type_type.
     is_type Context (surface.name "Format") core.format_type.
+    is_type Context (surface.name "Int") core.int_type.
+    synth_type Context (surface.name "Int") type_type core.int_type.
+    synth_type Context (surface.name "U8") format_type core.format_intro_u8.
+    synth_type Context (surface.name "U16le") format_type core.format_intro_u16le.
+    synth_type Context (surface.name "U16be") format_type core.format_intro_u16be.
+    synth_type Context (surface.name "U32le") format_type core.format_intro_u32le.
+    synth_type Context (surface.name "U32be") format_type core.format_intro_u32be.
+    synth_type Context (surface.name "U64le") format_type core.format_intro_u64le.
+    synth_type Context (surface.name "U64be") format_type core.format_intro_u64be.
+    synth_type Context (surface.name "S8") format_type core.format_intro_s8.
+    synth_type Context (surface.name "S16le") format_type core.format_intro_s16le.
+    synth_type Context (surface.name "S16be") format_type core.format_intro_s16be.
+    synth_type Context (surface.name "S32le") format_type core.format_intro_s32le.
+    synth_type Context (surface.name "S32be") format_type core.format_intro_s32be.
+    synth_type Context (surface.name "S64le") format_type core.format_intro_s64le.
+    synth_type Context (surface.name "S64be") format_type core.format_intro_s64be.
     synth_type Context (surface.name Name) TargetType (core.local Level) :-
         context.lookup_type Context Name Level TargetType.
 

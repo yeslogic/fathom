@@ -26,16 +26,16 @@
 >> Impossible.
 
 >> synth_type
-    (context [ ( some "U8", Level, _, format_type ) ])
-    (surface.name "U8")
+    (context [ ( some "Boop", Level, _, format_type ) ])
+    (surface.name "Boop")
     Type Elem ?
 >> Yes:
 >> Type := format_type.
 >> Elem := core.local Level.
 
 >> synth_type
-    (context [ ( some "U8", Level, _, format_type ) ])
-    (surface.name "U16Be")
+    (context [ ( some "Boop", Level, _, format_type ) ])
+    (surface.name "Bap")
     Type Elem ?
 >> Impossible.
 
