@@ -157,32 +157,6 @@
 >> Type := function_type int_type (closure [ int_type ] (local 1)).
 
 
-    % Pairs
-
->> check_type
-    (pair_intro (int_intro 1) (array_intro [int_intro 42]))
-    (pair_type int_type (closure [] (array_type int_type (local 0)))) ?
->> Yes.
-
->> synth_type
-    (pair_elim_first
-        (ann
-            (pair_intro (int_intro 0) (array_intro []))
-            (pair_type int_type (array_type int_type (local 0)))))
-    Type ?
->> Yes:
->> Type := int_type.
-
->> synth_type
-    (pair_elim_second
-        (ann
-            (pair_intro (int_intro 0) (array_intro []))
-            (pair_type int_type (array_type int_type (local 0)))))
-    Type ?
->> Yes:
->> Type := array_type int_type (int_intro 0).
-
-
     % Records
 
 >> synth_type (record_type []) Type ?
@@ -415,10 +389,6 @@
 >> Yes.
 
 >> check_type (array_intro [int_intro 1, int_intro 2, int_intro 3]) (array_type int_type (int_intro 3)) ?
->> Yes.
-
-
->> check_type (format_intro_pair format_intro_u16be (format_intro_array format_intro_u8 (local 0))) format_type ?
 >> Yes.
 
     % Binary format descriptions

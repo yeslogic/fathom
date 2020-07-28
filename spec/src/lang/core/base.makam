@@ -15,12 +15,6 @@ function_type : term -> term -> term.   % Also known as: Pi type, Dependent prod
 function_intro : term -> term.          % Also known as: Lambda abstraction, anonymous function
 function_elim : term -> term -> term.   % Also known as: Function application
 
-% Pairs
-pair_type : term -> term -> term.       % Also known as: Sigma type, Dependent sum type
-pair_intro : term -> term -> term.      % Also known as: Pair constructor
-pair_elim_first : term -> term.
-pair_elim_second : term -> term.
-
 % Records
 record_type : list (string * term) -> term.
 record_intro : map string term -> term.
@@ -68,7 +62,6 @@ format_intro_s32be : term. % TODO: make this a computed format?
 format_intro_s64le : term. % TODO: make this a computed format?
 format_intro_s64be : term. % TODO: make this a computed format?
 format_intro_array : term -> term -> term.
-format_intro_pair : term -> term -> term.
 format_intro_record : list (string * term) -> term.
 format_intro_compute : term -> term -> term.
 format_intro_absorb : term -> term.

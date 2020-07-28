@@ -26,11 +26,6 @@
     interpret format_intro_s64le (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8 ].
     interpret format_intro_s64be (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8 ].
     interpret (format_intro_array ElemType Len) (array_intro TODO) Bytes.
-    interpret (format_intro_pair FirstType Closure) (pair_intro FirstElem SecondElem) PairBytes :-
-        interpret FirstType FirstElem FirstBytes,
-        apply Closure FirstElem SecondType,
-        interpret SecondType SecondElem SecondBytes,
-        append FirstBytes SecondBytes PairBytes.
     interpret
         (format_intro_record (field_closure Values (( Label, FirstType ) :: TypeFields)))
         (record_intro (( Label, Elem ) :: ElemFields))

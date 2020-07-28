@@ -85,8 +85,6 @@
     %  from_term Context (core.function_elim SourceElem SourceInputElem) (term1 (core.function_elim TargetElem TargetInputElem)) :- TODO.
     %  from_term Context (core.function_elim SourceElem SourceInputElem) (term0 (core.function_elim TargetElem TargetInputElem)) :- TODO.
 
-    % Pairs
-
     % Records
     from_term Context (core.record_type []) (term1 (stratified.record_type [])).
     from_term Context (core.record_type (( Label, SourceType ) :: SourceTypeFields))
@@ -162,7 +160,6 @@
     :-
         from_term_to_term1 Context SourceType TargetType,
         from_term_to_term0 Context SourceLenElem TargetLenElem.
-    % TODO: core.format_intro_pair
     from_term Context (core.format_intro_record []) (term1 (stratified.format_intro_record [])).
     from_term Context (core.format_intro_record (( Label, SourceType ) :: SourceTypeFields))
         (term1 (stratified.format_intro_record (( Label, TargetType ) :: TargetTypeFields)))

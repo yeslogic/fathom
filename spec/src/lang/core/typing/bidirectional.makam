@@ -126,30 +126,6 @@
         context.eval Context InputElem InputElem',
         apply Closure InputElem' OutputType.
 
-    % Pairs
-    is_type Context (pair_type FirstType SecondType) :-
-        check_type Context FirstType type_type,
-        context.eval Context FirstType FirstType',
-        context.add_param Context FirstType' Context',
-        check_type Context' SecondType type_type.
-    synth_type Context (pair_type FirstType SecondType) type_type :-
-        check_type Context FirstType type_type,
-        context.eval Context FirstType FirstType',
-        context.add_param Context FirstType' Context',
-        check_type Context' SecondType type_type.
-    check_type Context (pair_intro FirstElem SecondElem) (pair_type FirstType Closure) :-
-        check_type Context FirstElem FirstType,
-        context.eval Context FirstElem FirstElem',
-        context.add_local Context FirstElem' FirstType Context',
-        apply Closure FirstElem' SecondType,
-        check_type Context' SecondElem SecondType.
-    synth_type Context (pair_elim_first PairElem) FirstType :-
-        synth_type Context PairElem (pair_type FirstType _).
-    synth_type Context (pair_elim_second PairElem) SecondType :-
-        synth_type Context PairElem (pair_type _ Closure),
-        context.eval Context (pair_elim_first PairElem) FirstElem,
-        apply Closure FirstElem SecondType.
-
     % Records
     is_type Context (record_type []).
     is_type Context (record_type (( Label, Type ) :: TypeFields)) :-
@@ -237,11 +213,6 @@
     synth_type Context (format_intro_array Type LenElem) format_type :-
         check_type Context Type format_type,
         check_type Context LenElem int_type.
-    synth_type Context (format_intro_pair FirstType SecondType) format_type :-
-        check_type Context FirstType format_type,
-        context.eval Context (format_elim FirstType) FirstType',
-        context.add_param Context FirstType' Context',
-        check_type Context' SecondType format_type.
     synth_type Context (format_intro_record []) format_type.
     synth_type Context (format_intro_record (( Label, Type ) :: TypeFields)) format_type :-
         not (contains ( Label, _ ) TypeFields),

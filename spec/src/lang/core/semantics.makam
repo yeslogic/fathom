@@ -34,10 +34,6 @@
     function_type : value -> closure -> value.  % Also known as: Pi type, Dependent product type
     function_intro : closure -> value.          % Also known as: Lambda abstraction, anonymous function
 
-    % Pairs
-    pair_type : value -> closure -> value.      % Also known as: Sigma type, Dependent sum type
-    pair_intro : value -> value -> value.       % Also known as: Pair constructor
-
     % Records
     record_type : field_closure -> value.
     record_intro : map string value -> value.
@@ -82,7 +78,6 @@
     format_intro_s64le : value.
     format_intro_s64be : value.
     format_intro_array : value -> value -> value.
-    format_intro_pair : value -> closure -> value.
     format_intro_record : field_closure -> value.
     format_intro_compute : value -> value -> value.
     format_intro_absorb : value -> value.
@@ -92,8 +87,6 @@
 
     % Suspended eliminations
     function_elim : neutral -> value -> neutral.
-    pair_elim_first : neutral -> neutral.
-    pair_elim_second : neutral -> neutral.
     record_elim : neutral -> string -> neutral.
     enum_elim : choice_closure -> neutral -> neutral.
     %  stage_elim : neutral -> neutral.
@@ -112,8 +105,6 @@
     apply : closure -> value -> value -> prop.
 
     function_elim : value -> value -> value -> prop.
-    pair_elim_first : value -> value -> prop.
-    pair_elim_second : value -> value -> prop.
     record_elim : value -> string -> value -> prop.
     %  stage_elim : value -> value -> prop.
     %  array_elim : value -> value -> neutral.
@@ -131,17 +122,6 @@
         eval Values Elem Value,
         eval Values InputElem InputValue,
         function_elim Value InputValue Value'.
-    eval Values (pair_type FirstType SecondType) (pair_type FirstType' (closure Values SecondType)) :-
-        eval Values FirstType FirstType'.
-    eval Values (pair_intro FirstElem SecondElem) (pair_intro FirstValue SecondValue) :-
-        eval Values FirstElem FirstValue,
-        eval Values SecondElem SecondValue.
-    eval Values (pair_elim_first PairElem) FirstValue :-
-        eval Values PairElem PairValue,
-        pair_elim_first PairValue FirstValue.
-    eval Values (pair_elim_second PairElem) SecondValue :-
-        eval Values PairElem PairValue,
-        pair_elim_second PairValue SecondValue.
     eval Values (record_type TypeFields) (record_type (field_closure Values TypeFields)).
     eval Values (record_intro FieldElems) (record_intro FieldElems') :-
         map.mapvalues (fun elem elem' => eval Values elem elem') FieldElems FieldElems'.
@@ -183,8 +163,6 @@
     eval Values (format_intro_array ElemType LenElem) (format_intro_array ElemType' LenElem') :-
         eval Values ElemType ElemType',
         eval Values LenElem LenElem'.
-    eval Values (format_intro_pair FirstType SecondType) (format_intro_pair FirstType' (closure Values SecondType)) :-
-        eval Values FirstType FirstType'.
     eval Values (format_intro_record TypeFields) (format_intro_record (field_closure Values TypeFields)).
     eval Values (format_intro_compute Elem Type) (format_intro_compute Elem' Type') :-
         eval Values Elem Elem',
@@ -213,12 +191,6 @@
         map.find Clauses Label OutputElem,
         eval Values OutputElem OutputValue.
 
-    pair_elim_first (neutral Neutral) (neutral (pair_elim_first Neutral)).
-    pair_elim_first (pair_intro FirstValue _) FirstValue.
-
-    pair_elim_second (neutral Neutral) (neutral (pair_elim_second Neutral)).
-    pair_elim_second (pair_intro _ SecondValue) SecondValue.
-
     record_elim (neutral Neutral) Label (neutral (record_elim Neutral Label)).
     record_elim (record_intro ElemFields) Label FieldElem :-
         map.find ElemFields Label FieldElem.
@@ -244,11 +216,6 @@
     format_elim format_intro_s64be int_type.
     format_elim (format_intro_array Elem Len) (array_type Elem' Len) :-
         format_elim Elem Elem'.
-    format_elim
-        (format_intro_pair First (closure Values Elem))
-        (pair_type First' (closure Values (format_elim Elem)))
-    :-
-        format_elim First First'.
     format_elim
         (format_intro_record (field_closure Values TypeFields))
         (record_type (field_closure Values TypeFields'))
@@ -281,10 +248,6 @@
     readback Length (function_elim Neutral InputValue : neutral) (function_elim Elem InputElem) :-
         readback Length Neutral Elem,
         readback Length InputValue InputElem.
-    readback Length (pair_elim_first Neutral : neutral) (pair_elim_first Elem) :-
-        readback Length Neutral Elem.
-    readback Length (pair_elim_second Neutral : neutral) (pair_elim_second Elem) :-
-        readback Length Neutral Elem.
     readback Length (record_elim Neutral Label : neutral) (record_elim Elem Label) :-
         readback Length Neutral Elem.
     readback Length
@@ -312,14 +275,6 @@
         apply Closure (neutral (local Length)) OutputElem,
         plus Length 1 Length1,
         readback Length1 OutputElem OutputElem'.
-    readback Length (pair_type FirstType Closure) (pair_type FirstType' SecondType') :-
-        readback Length FirstType FirstType',
-        apply Closure (neutral (local Length)) SecondType,
-        plus Length 1 Length1,
-        readback Length1 SecondType SecondType'.
-    readback Length (pair_intro FirstValue SecondValue) (pair_intro FirstElem SecondElem) :-
-        readback Length FirstValue FirstType,
-        readback Length SecondValue SecondType.
     readback Length (record_type (field_closure Values [])) (record_type []).
     readback Length
         (record_type (field_closure Values (( Label, Type ) :: Fields)))
@@ -368,11 +323,6 @@
     readback Length (format_intro_array ElemValue LenValue) (format_intro_array ElemType LenElem) :-
         readback Length ElemValue ElemType,
         readback Length LenValue LenElem.
-    readback Length (format_intro_pair FirstType Closure) (format_intro_pair FirstType' SecondType') :-
-        readback Length FirstType FirstType',
-        apply Closure (neutral (local Length)) SecondType,
-        plus Length 1 Length1,
-        readback Length1 SecondType SecondType'.
     readback Length (format_intro_record (field_closure Values [])) (format_intro_record []).
     readback Length
         (format_intro_record (field_closure Values (( Label, Type ) :: Fields)))
@@ -416,10 +366,6 @@
     :-
         is_equal Length Neutral1 Neutral2,
         is_equal Length InputValue1 InputValue2.
-    is_equal Length (pair_elim_first Neutral1 : neutral) (pair_elim_first Neutral2) :-
-        is_equal Length Neutral1 Neutral2.
-    is_equal Length (pair_elim_second Neutral1 : neutral) (pair_elim_second Neutral2) :-
-        is_equal Length Neutral1 Neutral2.
     is_equal Length
         (enum_elim (choice_closure Values1 Clauses1) Neutral1 : neutral)
         (enum_elim (choice_closure Values2 Clauses2) Neutral2)
@@ -447,15 +393,6 @@
         apply Closure2 (neutral (local Length)) OutputValue2,
         plus Length 1 Length1,
         is_equal Length1 OutputValue1 OutputValue2.
-    is_equal Length (pair_type FirstType1 Closure1) (pair_type FirstType2 Closure2) :-
-        is_equal Length FirstType1 FirstType2,
-        apply Closure1 (neutral (local Length)) SecondType1,
-        apply Closure2 (neutral (local Length)) SecondType2,
-        plus Length 1 Length1,
-        is_equal Length1 SecondType1 SecondType2.
-    is_equal Length (pair_intro FirstElem1 SecondElem1) (pair_intro FirstElem2 SecondElem2) :-
-        is_equal Length FirstElem1 FirstElem2,
-        is_equal Length SecondElem1 SecondElem2.
     is_equal Length
         (record_type (field_closure Values1 []))
         (record_type (field_closure Values2 [])).
@@ -516,12 +453,6 @@
     is_equal Length (format_intro_array ElemType1 LenElem1) (format_intro_array ElemType2 LenElem2) :-
         is_equal Length ElemType1 ElemType2,
         is_equal Length LenElem1 LenElem2.
-    is_equal Length (format_intro_pair FirstType1 Closure1) (format_intro_pair FirstType2 Closure2) :-
-        is_equal Length FirstType1 FirstType2,
-        apply Closure1 (neutral (local Length)) SecondType1,
-        apply Closure2 (neutral (local Length)) SecondType2,
-        plus Length 1 Length1,
-        is_equal Length1 SecondType1 SecondType2.
     is_equal Length
         (format_intro_record (field_closure Values1 []))
         (format_intro_record (field_closure Values2 [])).

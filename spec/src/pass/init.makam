@@ -13,7 +13,7 @@
 % - uncurrying functions
 % - translating functions on types into parameterised types
 % - defunctionalization/monomorphization of more complicated type functions
-% - erasure of dependencies in pair types and term level functions
+% - erasure of dependencies in record types and term level functions
 
 %extend pass.
 

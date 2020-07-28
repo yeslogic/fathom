@@ -27,24 +27,19 @@
 % - `thing_intro` introduces an element of `thing_type`
 % - `thing_elim` eliminates an element of `thing_type`
 %
-% Based on this naming-scheme, we follow this terminology mapping:
+% For example, based on this naming-scheme, we follow this terminology mapping
+% for functions:
 %
 % | [Type theory] name      | Our name              |
 % | ----------------------- | --------------------- |
 % | [Pi type]               | `function_type`       |
 % | [Lambda abstraction]    | `function_intro`      |
 % | [Function application]  | `function_elim`       |
-% | [Sigma type]            | `pair_type`           |
-% | [Pairing]               | `pair_intro`          |
-% | Project first           | `pair_elim_first`     |
-% | Project second          | `pair_elim_second`    |
 %
 % [Type theory]: https://ncatlab.org/nlab/show/type+theory
 % [Pi type]: https://ncatlab.org/nlab/show/dependent+product+type
 % [Lambda abstraction]: https://ncatlab.org/nlab/show/lambda-abstraction
 % [Function application]: https://ncatlab.org/nlab/show/function+application
-% [Sigma type]: https://ncatlab.org/nlab/show/dependent+sum+type
-% [Pairing]: https://ncatlab.org/nlab/show/pairing
 %
 % I'm not entirely sold on these suffixes - here are some alternatives that
 % I've currently come up with:

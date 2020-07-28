@@ -53,12 +53,6 @@
     function_elim_0_1 : term0 -> term1 -> term0.     % Applications from term1s-to-term0s
     function_elim_0_0 : term0 -> term0 -> term0.     % Applications from term0s-to-term0s
 
-    % Pairs
-    pair_type : term1 -> term1 -> term1.
-    pair_intro : term0 -> term0 -> term0.
-    pair_elim_first : term0 -> term0.
-    pair_elim_second : term0 -> term0.
-
     % Records
     record_type : list (string * term1) -> term1.
     record_intro : map string term0 -> term0.
@@ -118,7 +112,6 @@
     format_intro_s64le : term1. % TODO: make this a computed format?
     format_intro_s64be : term1. % TODO: make this a computed format?
     format_intro_array : term1 -> term0 -> term1.
-    format_intro_pair : term1 -> term1 -> term1.
     format_intro_record : list (string * term1) -> term1.
     format_intro_compute : term0 -> term1 -> term1.
     format_intro_absorb : term1 -> term1.

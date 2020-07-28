@@ -94,19 +94,6 @@
     %  is_elem Context (function_elim (function_intro OutputElem) InputElem) OutputType :- TODO.
     %  is_equal_elem Context (function_elim (function_intro OutputElem) InputElem) Elem OutputType :- TODO.
 
-    % Pairs
-    is_type Context (pair_type FirstType SecondType) :-
-        is_elem Context FirstType type_type,
-        is_elem (extend Context FirstType) SecondType type_type.
-    is_elem Context (pair_type FirstType SecondType) type_type :-
-        is_elem Context FirstType type_type,
-        is_elem (extend Context FirstType) SecondType type_type.
-    %  is_elem Context (pair_intro FirstElem SecondElem) (pair_type FirstType SecondType) :- TODO.
-    %  is_elem Context (pair_elim_first (pair_intro FirstElem SecondElem)) FirstType :- TODO.
-    %  is_elem Context (pair_elim_second (pair_intro FirstElem SecondElem)) SecondType :- TODO.
-    %  is_equal_elem Context (pair_elim_first (pair_intro FirstElem SecondElem)) Elem FirstType :- TODO.
-    %  is_equal_elem Context (pair_elim_second (pair_intro FirstElem SecondElem)) Elem SecondType :- TODO.
-
     % Records
     % TODO: record_type
     % TODO: record_intro
@@ -190,9 +177,6 @@
     is_elem Context (format_intro_array Type LenElem) format_type :-
         is_elem Context Type format_type,
         is_elem Context LenElem int_type.
-    is_elem Context (format_intro_pair FirstType SecondType) format_type :-
-        is_elem Context FirstType format_type,
-        is_elem (extend Context (format_elim FirstType)) SecondType format_type.
     % TODO: format_intro_record
     % TODO: format_intro_compute
     % TODO: format_intro_absorb
@@ -234,7 +218,6 @@
         format_type
     :-
         is_equal_elem Context (format_elim Type) Type' type_type.
-    % TODO: format_intro_pair
     % TODO: format_intro_record
     % TODO: format_intro_compute
     % TODO: format_intro_absorb
