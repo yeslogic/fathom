@@ -6,50 +6,43 @@
 
 %extend surface.
 
-    % Patterns
+    % Terms and patterns
+    term : type.
     pattern : type.
 
-    name : string -> pattern.
-    record : map string pattern -> pattern.
-    enum : string -> pattern.
-    number : string -> pattern.
-    string : string -> pattern.
-    sequence : list pattern -> pattern.
-
-
-    % Terms
-    term : type.
-
-    % Named terms
+    % Named terms and patterns
     name : string -> term.
+    name : string -> pattern.
 
-    % Annotated terms
+    % Annotated terms and patterns
     ann : term -> term -> term.
+    ann : pattern -> term -> pattern.
 
-    % Pattern matching
+    % Pattern match expressions
     match : term -> list (pattern * term) -> term.
 
     % Functions
-    function_type : (option string * term) -> term -> term.     % Also known as: Pi type, Dependent product type
-    function_intro : (string * option term) -> term -> term.    % Also known as: Lambda abstraction, anonymous function
-    function_elim : term -> term -> term.                       % Also known as: Function application
+    function_type : pattern -> term -> term.    % Also known as: Pi type, Dependent product type
+    function_intro : pattern -> term -> term.   % Also known as: Lambda abstraction, anonymous function
+    function_elim : term -> term -> term.       % Also known as: Function application
 
     % Records
     record_type : list (string * term) -> term.
     record_intro : map string term -> term.
     record_elim : term -> string -> term.
+    record_elim : map string pattern -> pattern.
 
     % Enumerations
     enum_type : set string -> term.
     enum_intro : string -> term.
+    enum_elim : string -> pattern.
 
-    % Numeric literals
+    % Literals
     number : string -> term.
+    number : string -> pattern.
     string : string -> term.
+    string : string -> pattern.
     sequence : list term -> term.
-
-    % Arrays
-    array_type : term -> term -> term.
-    array_elim : term -> term -> term.
+    sequence : list pattern -> pattern.
 
 %end.

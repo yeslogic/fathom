@@ -121,30 +121,33 @@
         context.eval Context TargetType TargetType',
         check_type Context SourceElem TargetType' TargetElem.
 
+    % Pattern matching
+
     % Functions
-    is_type Context (surface.function_type ( Name, SourceInputType ) SourceOutputType)
+    is_type Context (surface.function_type (surface.ann (surface.name Name) SourceInputType) SourceOutputType)
         (core.function_type TargetInputType TargetOutputType)
     :-
         is_type Context SourceInputType TargetInputType,
         context.eval Context TargetInputType TargetInputType',
-        context.add_param Context ( Name, TargetInputType' ) Context',
+        context.add_param Context ( some Name, TargetInputType' ) Context',
         is_type Context' SourceOutputType TargetOutputType.
-    synth_type Context (surface.function_type ( Name, SourceInputType ) SourceOutputType) type_type
+    synth_type Context (surface.function_type (surface.ann (surface.name Name) SourceInputType) SourceOutputType) type_type
         (core.function_type TargetInputType TargetOutputType)
     :-
         is_type Context SourceInputType TargetInputType,
         context.eval Context TargetInputType TargetInputType',
-        context.add_param Context ( Name, TargetInputType' ) Context',
+        context.add_param Context ( some Name, TargetInputType' ) Context',
         is_type Context' SourceOutputType TargetOutputType.
-    check_type Context (surface.function_intro ( Name, none ) SourceOutputElem)
+    check_type Context (surface.function_intro (surface.name Name) SourceOutputElem)
         (function_type TargetInputType Closure)
         (core.function_intro TargetOutputElem)
     :-
         context.next_local Context LocalElem,
         apply Closure LocalElem TargetOutputType,
-        context.add_param Context ( some Name, TargetInputType ) Context',
+        context.add_param Context ( some Name, TargetInputType) Context',
         check_type Context' SourceOutputElem TargetOutputType TargetOutputElem.
-    %  synth_type Context (surface.function_intro ( Name, some SourceInputType ) SourceOutputElem)
+    %  synth_type Context
+    %      (surface.function_intro (surface.ann (surface.name Name) SourceInputType) SourceOutputElem)
     %      (function_type TargetInputType Closure)
     %      (core.function_intro TargetOutputElem)
     %  :- TODO.
@@ -156,11 +159,14 @@
         context.eval Context TargetInputElem TargetInputElem',
         apply Closure TargetInputElem' TargetOutputType.
 
-    % Pairs
     % Records
+
     % Enumerations
-    % Integers
-    % Arrays
-    % Binary format descriptions
+    is_type Context (surface.enum_type Labels) (core.enum_type Labels).
+    synth_type Context (surface.enum_type Labels) type_type (core.enum_type Labels).
+    check_type Context (surface.enum_intro Label) (enum_type Labels) (core.enum_intro Label) :-
+        set.member Labels Label _.
+
+    % Literals
 
 %end.
