@@ -18,7 +18,7 @@
     ann : term -> term -> term.
     ann : pattern -> term -> pattern.
 
-    % Pattern match expressions
+    % Pattern match terms
     match : term -> list (pattern * term) -> term.
 
     % Functions

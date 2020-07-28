@@ -122,6 +122,7 @@
         check_type Context SourceElem TargetType' TargetElem.
 
     % Pattern matching
+    %  check_type Context (surface.match SourceElem SourceClauses) TargetType TODO' :- TODO''.
 
     % Functions
     is_type Context (surface.function_type (surface.ann (surface.name Name) SourceInputType) SourceOutputType)
@@ -160,6 +161,28 @@
         apply Closure TargetInputElem' TargetOutputType.
 
     % Records
+    is_type Context (surface.record_type []) (core.record_type []).
+    %  is_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields))
+    %      (core.record_type (( Label, TargetType ) :: TargetTypeFields))
+    %  :- TODO.
+    check_type Context (surface.record_type []) type_type (core.record_type []).
+    %  check_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields)) type_type
+    %      (core.record_type (( Label, TargetType ) :: TargetTypeFields))
+    %  :- TODO.
+    check_type Context (surface.record_type []) format_type (core.format_intro_record []).
+    %  check_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields)) format_type
+    %      (core.format_intro_record (( Label, TargetType ) :: TargetTypeFields))
+    %  :- TODO.
+    check_type Context (surface.record_intro []) (record_type (field_closure TargetValues []))
+        (core.record_intro []).
+    %  check_type Context
+    %      (surface.record_intro SourceElemFields)
+    %      (record_type (field_closure TargetValues (( Label, Type ) :: TargetTypeFields)))
+    %      (surface.record_intro TargetElemFields)
+    %  :- TODO.
+    %  synth_type Context (surface.record_elim SourceRecordElem Label) TargetFieldType
+    %      (surface.record_elim TargetRecordElem Label)
+    %  :- TODO.
 
     % Enumerations
     is_type Context (surface.enum_type Labels) (core.enum_type Labels).
@@ -168,5 +191,8 @@
         set.member Labels Label _.
 
     % Literals
+    %  check_type Context (surface.number Data) int_type (core.int_intro Int) :- TODO.
+    %  check_type Context (surface.string Data) TODO TODO' :- TODO''.
+    %  check_type Context (surface.sequence SourceElems) (array_type TargetType TargetLenElem) (core.array_intro TargetElems) :- TODO.
 
 %end.
