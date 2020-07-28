@@ -54,6 +54,12 @@
             eval Values Elem Elem'.
 
 
+        readback : context -> value -> core.term -> prop.
+        readback Context Elem Elem' :-
+            length Entries Length,
+            readback Length Elem Elem'.
+
+
         is_equal : context -> value -> value -> prop.
         is_equal (context Entries) Elem1 Elem2 :-
             length Entries Length,
@@ -141,17 +147,24 @@
         is_type Context' SourceOutputType TargetOutputType.
     check_type Context (surface.function_intro (surface.name Name) SourceOutputElem)
         (function_type TargetInputType Closure)
-        (core.function_intro TargetOutputElem)
+        (core.function_intro TargetInputType' TargetOutputElem)
     :-
         context.next_local Context LocalElem,
         apply Closure LocalElem TargetOutputType,
-        context.add_param Context ( some Name, TargetInputType) Context',
+        context.add_param Context ( some Name, TargetInputType ) Context',
+        context.readback Context TargetInputType TargetInputType',
         check_type Context' SourceOutputElem TargetOutputType TargetOutputElem.
-    %  synth_type Context
-    %      (surface.function_intro (surface.ann (surface.name Name) SourceInputType) SourceOutputElem)
-    %      (function_type TargetInputType Closure)
-    %      (core.function_intro TargetOutputElem)
-    %  :- TODO.
+    synth_type Context
+        (surface.function_intro (surface.ann (surface.name Name) SourceInputType) SourceOutputElem)
+        (function_type TargetInputType' (closure TargetValues TargetOutputType'))
+        (core.function_intro TargetInputType TargetOutputElem)
+    :-
+        is_type Context SourceInputType TargetInputType,
+        context.eval Context TargetInputType TargetInputType',
+        context.add_param Context ( some Name, TargetInputType' ) Context',
+        synth_type Context' SourceOutputElem TargetOutputType TargetOutputElem,
+        context.values Context' TargetValues,
+        context.readback Context' TargetOutputType TargetOutputType'.
     synth_type Context (surface.function_elim SourceElem SourceInputElem) TargetOutputType
         (core.function_elim TargetElem TargetInputElem)
     :-

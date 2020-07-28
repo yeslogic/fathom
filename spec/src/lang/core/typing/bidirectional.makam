@@ -54,6 +54,12 @@
             eval Values Elem Elem'.
 
 
+        readback : context -> value -> term -> prop.
+        readback (context Entries) Elem Elem' :-
+            length Entries Length,
+            readback Length Elem Elem'.
+
+
         is_equal : context -> value -> value -> prop.
         is_equal (context Entries) Elem1 Elem2 :-
             length Entries Length,
@@ -115,11 +121,15 @@
         context.eval Context InputType InputType',
         context.add_param Context InputType' Context',
         is_type Context' OutputType.
-    check_type Context (function_intro OutputElem) (function_type InputType Closure) :-
-        context.next_local Context LocalElem,
-        apply Closure LocalElem OutputType,
-        context.add_param Context InputType Context',
-        check_type Context' OutputElem OutputType.
+    synth_type Context (function_intro InputType OutputElem)
+        (function_type InputType' (closure Values OutputType'))
+    :-
+        is_type Context InputType,
+        context.eval Context InputType InputType',
+        context.add_param Context InputType' Context',
+        synth_type Context' OutputElem OutputType,
+        context.values Context Values,
+        context.readback Context' OutputType OutputType'. % FIXME: what about checkable terms?
     synth_type Context (function_elim Elem InputElem) OutputType :-
         synth_type Context Elem (function_type InputType Closure),
         check_type Context InputElem InputType,

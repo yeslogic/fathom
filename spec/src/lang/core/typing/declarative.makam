@@ -88,7 +88,7 @@
     is_elem Context (function_type InputType OutputType) type_type :-
         is_type Context InputType,
         is_type (extend Context InputType) OutputType.
-    is_elem Context (function_intro OutputElem) (function_type InputType OutputType) :-
+    is_elem Context (function_intro InputType OutputElem) (function_type InputType OutputType) :-
         is_type Context InputType,
         is_elem (extend Context InputType) OutputElem OutputType.
     %  is_elem Context (function_elim (function_intro OutputElem) InputElem) OutputType :- TODO.

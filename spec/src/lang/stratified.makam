@@ -38,19 +38,19 @@
     % The numbers usied in the identifier of each constructor refers to the
     % level of the input term and output term.
     function_type_1_1 : term2 -> term2 -> term2.     % Dependent function types from term1s-to-term1s
-    function_type_1_0 : term1 -> term2 -> term2.     % Dependent function types from term0s-to-term1s
+    function_type_0_1 : term1 -> term2 -> term2.     % Dependent function types from term0s-to-term1s
     function_type_2_0 : term1 -> term1.              % Dependent function types from term2s-to-term1s
-    function_type_0_1 : term2 -> term1 -> term1.     % Dependent function types from term1s-to-term0s
+    function_type_1_0 : term2 -> term1 -> term1.     % Dependent function types from term1s-to-term0s
     function_type_0_0 : term1 -> term1 -> term1.     % Dependent function types from term0s-to-term0s
-    function_intro_1_1 : term1 -> term1.             % Lambdas from term1s-to-term1s
-    function_intro_1_0 : term1 -> term1.             % Lambdas from term0s-to-term1s
+    function_intro_1_1 : term2 -> term1 -> term1.    % Lambdas from term1s-to-term1s
+    function_intro_0_1 : term1 -> term1 -> term1.    % Lambdas from term0s-to-term1s
     function_intro_2_0 : term0 -> term0.             % Lambdas from term2s-to-term1s
-    function_intro_0_1 : term0 -> term0.             % Lambdas from term1s-to-term0s
-    function_intro_0_0 : term0 -> term0.             % Lambdas from term0s-to-term0s
+    function_intro_1_0 : term2 -> term0 -> term0.    % Lambdas from term1s-to-term0s
+    function_intro_0_0 : term1 -> term0 -> term0.    % Lambdas from term0s-to-term0s
     function_elim_1_1 : term1 -> term1 -> term1.     % Applications from term1s-to-term1s
-    function_elim_1_0 : term1 -> term0 -> term1.     % Applications from term0s-to-term1s
+    function_elim_0_1 : term1 -> term0 -> term1.     % Applications from term0s-to-term1s
     function_elim_2_0 : term0 -> term2 -> term0.     % Applications from term2s-to-term1s
-    function_elim_0_1 : term0 -> term1 -> term0.     % Applications from term1s-to-term0s
+    function_elim_1_0 : term0 -> term1 -> term0.     % Applications from term1s-to-term0s
     function_elim_0_0 : term0 -> term0 -> term0.     % Applications from term0s-to-term0s
 
     % Records
@@ -131,8 +131,8 @@
     local : int -> expr.                        % Local variables
     ann : expr -> term0 -> expr.                % Expressions annotated with level-0 types
     function : func -> expr.                    % Function expressions
-    function_intro_e_e : expr -> func.          % Expressions parametrised by expressions (`λx:τ.e` in [Shao et al. 2005])
-    function_intro_0_e : func -> func.          % Expressions parametrised by level-0 types (`ΛX:A.f` in [Shao et al. 2005])
+    function_intro_e_e : term0 -> expr -> func. % Expressions parametrised by expressions (`λx:τ.e` in [Shao et al. 2005])
+    function_intro_0_e : term1 -> func -> func. % Expressions parametrised by level-0 types (`ΛX:A.f` in [Shao et al. 2005])
     function_elim_e_e : expr -> expr -> expr.   % Expressions applied to expressions (`e e` in [Shao et al. 2005])
     function_elim_0_e : expr -> term0 -> expr.  % Expressions applied to level-0 types (`e [A]` in [Shao et al. 2005])
     record_intro : map string expr -> expr.     % Record introductions

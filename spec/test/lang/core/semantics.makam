@@ -26,11 +26,11 @@
 >> Yes:
 >> Term := function_type type_type (function_type (local 0) (local 1)).
 
->> normalize (function_intro (function_intro (local 0))) Term ?
+>> normalize (function_intro type_type (function_intro (local 0) (local 0))) Term ?
 >> Yes:
->> Term := function_intro (function_intro (local 0)).
+>> Term := function_intro type_type (function_intro (local 0) (local 0)).
 
->> normalize (function_elim (function_intro (local 0)) (int_intro 1)) Term ?
+>> normalize (function_elim (function_intro int_type (local 0)) (int_intro 1)) Term ?
 >> Yes:
 >> Term := int_intro 1.
 

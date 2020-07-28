@@ -32,7 +32,7 @@
 
     % Functions
     function_type : value -> closure -> value.  % Also known as: Pi type, Dependent product type
-    function_intro : closure -> value.          % Also known as: Lambda abstraction, anonymous function
+    function_intro : value -> closure -> value. % Also known as: Lambda abstraction, anonymous function
 
     % Records
     record_type : field_closure -> value.
@@ -115,9 +115,14 @@
     eval Values (ann Elem _) Value :-
         eval Values Elem Value.
     eval Values type_type type_type.
-    eval Values (function_type InputType OutputType) (function_type InputType' (closure Values OutputType)) :-
+    eval Values (function_type InputType OutputType)
+        (function_type InputType' (closure Values OutputType))
+    :-
         eval Values InputType InputType'.
-    eval Values (function_intro OutputElem) (function_intro (closure Values OutputElem)).
+    eval Values (function_intro InputType OutputElem)
+        (function_intro InputType' (closure Values OutputElem))
+    :-
+        eval Values InputType InputType'.
     eval Values (function_elim Elem InputElem) Value' :-
         eval Values Elem Value,
         eval Values InputElem InputValue,
@@ -181,7 +186,7 @@
     % Eliminations
 
     function_elim (neutral Neutral) InputValue (neutral (function_elim Neutral InputValue)).
-    function_elim (function_intro Closure) InputValue OutputValue :-
+    function_elim (function_intro _ Closure) InputValue OutputValue :-
         apply Closure InputValue OutputValue.
     function_elim
         (enum_elim (choice_closure Values Clauses))
@@ -271,7 +276,8 @@
         apply Closure (neutral (local Length)) OutputType,
         plus Length 1 Length1,
         readback Length1 OutputType OutputType'.
-    readback Length (function_intro Closure) (function_intro OutputElem') :-
+    readback Length (function_intro InputType Closure) (function_intro InputType' OutputElem') :-
+        readback Length InputType InputType',
         apply Closure (neutral (local Length)) OutputElem,
         plus Length 1 Length1,
         readback Length1 OutputElem OutputElem'.
@@ -388,7 +394,8 @@
         apply Closure2 (neutral (local Length)) OutputType2,
         plus Length 1 Length1,
         is_equal Length1 OutputType1 OutputType2.
-    is_equal Length (function_intro Closure1) (function_intro Closure2) :-
+    is_equal Length (function_intro InputType1 Closure1) (function_intro InputType2 Closure2) :-
+        is_equal Length InputType1 InputType2,
         apply Closure1 (neutral (local Length)) OutputValue1,
         apply Closure2 (neutral (local Length)) OutputValue2,
         plus Length 1 Length1,

@@ -141,15 +141,28 @@
 >> Yes:
 >> Type := type_type.
 
+>> synth_type (function_intro type_type (function_intro (local 0) (local 0))) Type ?
+>> Yes:
+>> Type :=
+    function_type type_type (closure [] (function_type (local 0) (local 1))).
+
 >> check_type
-    (function_intro (function_intro (local 0)))
+    (function_intro type_type (function_intro (local 0) (local 0)))
     (function_type type_type (closure [] (function_type (local 0) (local 1)))) ?
 >> Yes.
 
 >> synth_type
     (function_elim
+        (function_intro type_type (function_intro (local 0) (local 0)))
+        int_type)
+    Type ?
+>> Yes:
+>> Type := function_type int_type (closure [ int_type ] (local 1)).
+
+>> synth_type
+    (function_elim
         (ann
-            (function_intro (function_intro (local 0)))
+            (function_intro type_type (function_intro (local 0) (local 0)))
             (function_type type_type (function_type (local 0) (local 1))))
         int_type)
     Type ?

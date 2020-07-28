@@ -12,7 +12,7 @@ type_type : term.
 
 % Functions
 function_type : term -> term -> term.   % Also known as: Pi type, Dependent product type
-function_intro : term -> term.          % Also known as: Lambda abstraction, anonymous function
+function_intro : term -> term -> term.  % Also known as: Lambda abstraction, anonymous function
 function_elim : term -> term -> term.   % Also known as: Function application
 
 % Records
