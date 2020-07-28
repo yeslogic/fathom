@@ -162,27 +162,56 @@
 
     % Records
     is_type Context (surface.record_type []) (core.record_type []).
-    %  is_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields))
-    %      (core.record_type (( Label, TargetType ) :: TargetTypeFields))
-    %  :- TODO.
+    is_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields))
+        (core.record_type (( Label, TargetType ) :: TargetTypeFields))
+    :-
+        not (contains ( Label, _ ) SurfaceTypeFields),
+        check_type Context SurfaceType type_type TargetType,
+        context.eval Context TargetType TargetType',
+        context.add_param Context ( some Label, TargetType' ) Context',
+        check_type Context' (surface.record_type SurfaceTypeFields) type_type
+            (core.record_type TargetTypeFields).
     check_type Context (surface.record_type []) type_type (core.record_type []).
-    %  check_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields)) type_type
-    %      (core.record_type (( Label, TargetType ) :: TargetTypeFields))
-    %  :- TODO.
+    check_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields)) type_type
+        (core.record_type (( Label, TargetType ) :: TargetTypeFields))
+    :-
+        not (contains ( Label, _ ) SurfaceTypeFields),
+        check_type Context SurfaceType type_type TargetType,
+        context.eval Context TargetType TargetType',
+        context.add_param Context ( some Label, TargetType' ) Context',
+        check_type Context' (surface.record_type SurfaceTypeFields) type_type
+            (core.record_type TargetTypeFields).
     check_type Context (surface.record_type []) format_type (core.format_intro_record []).
-    %  check_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields)) format_type
-    %      (core.format_intro_record (( Label, TargetType ) :: TargetTypeFields))
-    %  :- TODO.
+    check_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields)) format_type
+        (core.format_intro_record (( Label, TargetType ) :: TargetTypeFields))
+    :-
+        not (contains ( Label, _ ) SurfaceTypeFields),
+        check_type Context SurfaceType format_type TargetType,
+        context.eval Context (core.format_elim TargetType) TargetType',
+        context.add_param Context ( some Label, TargetType' ) Context',
+        check_type Context' (surface.record_type SurfaceTypeFields) format_type
+            (core.record_type TargetTypeFields).
     check_type Context (surface.record_intro []) (record_type (field_closure TargetValues []))
         (core.record_intro []).
-    %  check_type Context
-    %      (surface.record_intro SourceElemFields)
-    %      (record_type (field_closure TargetValues (( Label, Type ) :: TargetTypeFields)))
-    %      (surface.record_intro TargetElemFields)
-    %  :- TODO.
-    %  synth_type Context (surface.record_elim SourceRecordElem Label) TargetFieldType
-    %      (surface.record_elim TargetRecordElem Label)
-    %  :- TODO.
+    check_type Context
+        (surface.record_intro SourceElemFields)
+        (record_type (field_closure TargetValues (( Label, TargetType ) :: TargetTypeFields)))
+        (core.record_intro (( Label, TargetElem ) :: TargetElemFields))
+    :-
+        map.remove SourceElemFields Label SourceElem SourceElemFields',
+        eval Values TargetType TargetType',
+        check_type Context SourceElem TargetType' TargetElem,
+        context.eval Context TargetElem TargetElem',
+        context.add_local Context ( some Label, TargetElem', TargetType' ) Context',
+        eq FieldClosure (field_closure (TargetElem' :: TargetValues) TargetTypeFields),
+        check_type Context' (surface.record_intro SourceElemFields') (record_type FieldClosure)
+            (core.record_intro TargetElemFields).
+    synth_type Context (surface.record_elim SourceRecordElem Label) TargetFieldType
+        (core.record_elim TargetRecordElem Label)
+    :-
+        synth_type Context SourceRecordElem (record_type FieldClosure) TargetRecordElem,
+        context.eval Context TargetRecordElem TargetRecordElem',
+        record_elim_type TargetRecordElem' Label FieldClosure TargetFieldType.
 
     % Enumerations
     is_type Context (surface.enum_type Labels) (core.enum_type Labels).
