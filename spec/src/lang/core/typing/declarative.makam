@@ -104,15 +104,22 @@
         is_context Context.
     is_elem Context (enum_type Labels) type_type :-
         is_context Context.
-    is_elem Context (enum_intro Label) (enum_type Labels) :-
+    is_elem Context (enum_intro Label Labels) (enum_type TypeLabels) :-
         is_context Context,
-        set.member Labels Label _.
+        set.member Labels Label _,
+        eqv Labels TypeLabels.
     %  is_elem Context (enum_elim Clauses) (enum_type Labels) Type :- TODO.
     is_equal_type Context (enum_type Labels1) (enum_type Labels2) :-
         eqv Labels1 Labels2.
-    is_equal_elem Context (enum_intro Label) (enum_intro Label) (enum_type Labels) :-
-        set.member Labels Label _.
-    %  is_equal_elem Context (enum_elim (enum_intro Label) Clauses) Term Type :- TODO.
+    is_equal_elem Context (enum_intro Label1 Labels1) (enum_intro Label2 Labels2)
+        (enum_type TypeLabels)
+    :-
+        eqv Label1 Label2,
+        set.member Labels1 Label1 _,
+        set.member Labels2 Label2 _,
+        eqv Labels1 Labels2,
+        eqv Labels1 TypeLabels.
+    %  is_equal_elem Context (enum_elim (enum_intro Label Labels) Clauses) Term Type :- TODO.
 
     % Integers
     is_type Context int_type :-

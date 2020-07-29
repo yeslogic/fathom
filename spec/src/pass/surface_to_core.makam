@@ -229,7 +229,9 @@
     % Enumerations
     is_type Context (surface.enum_type Labels) (core.enum_type Labels).
     synth_type Context (surface.enum_type Labels) type_type (core.enum_type Labels).
-    check_type Context (surface.enum_intro Label) (enum_type Labels) (core.enum_intro Label) :-
+    check_type Context (surface.enum_intro Label) (enum_type Labels)
+        (core.enum_intro Label Labels)
+    :-
         set.member Labels Label _.
 
     % Literals

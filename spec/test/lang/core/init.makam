@@ -1,6 +1,6 @@
 %extend core.
 
-    %use "typing/init".
     %use "semantics".
+    %use "typing/init".
 
 %end.

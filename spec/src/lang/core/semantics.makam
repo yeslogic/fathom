@@ -40,7 +40,7 @@
 
     % Enumerations
     enum_type : set string -> value.
-    enum_intro : string -> value.
+    enum_intro : string -> set string -> value.
     enum_elim : choice_closure -> value.
 
     % Refinements
@@ -134,7 +134,7 @@
         eval Values RecordElem RecordElem',
         record_elim RecordElem' Label FieldElem'.
     eval Values (enum_type Labels) (enum_type Labels).
-    eval Values (enum_intro Label) (enum_intro Label).
+    eval Values (enum_intro Label Labels) (enum_intro Label Labels).
     eval Values (enum_elim Clauses) (enum_elim (choice_closure Values Clauses)).
     eval Values int_type int_type.
     eval Values (int_intro Int) (int_intro Int).
@@ -192,7 +192,7 @@
         (enum_elim (choice_closure Values Clauses))
         (neutral Neutral)
         (neutral (enum_elim (choice_closure Values Clauses) Neutral)).
-    function_elim (enum_elim (choice_closure Values Clauses)) (enum_intro Label) OutputValue :-
+    function_elim (enum_elim (choice_closure Values Clauses)) (enum_intro Label _) OutputValue :-
         map.find Clauses Label OutputElem,
         eval Values OutputElem OutputValue.
 
@@ -295,7 +295,7 @@
     readback Length (record_intro ElemFields) (record_intro ElemFields') :-
         map.mapvalues (fun elem elem' => readback Length elem elem') ElemFields ElemFields'.
     readback Length (enum_type Labels) (enum_type Labels).
-    readback Length (enum_intro Label) (enum_intro Label).
+    readback Length (enum_intro Label Labels) (enum_intro Label Labels).
     readback Length (enum_elim (choice_closure Values Clauses)) (enum_elim Clauses') :-
         map.mapvalues (pfun Elem Elem' => [Value Length] (
             eval Values Elem Value,
@@ -422,8 +422,9 @@
         is_equal Length (record_intro ElemFields1') (record_intro ElemFields2').
     is_equal Length (enum_type Labels1) (enum_type Labels2) :-
         eqv Labels1 Labels2.
-    is_equal Length (enum_intro Label1) (enum_intro Label2) :-
-        eqv Label1 Label2.
+    is_equal Length (enum_intro Label1 Labels1) (enum_intro Label2 Labels2) :-
+        eqv Label1 Label2,
+        eqv Labels1 Labels2.
     is_equal Length
         (enum_elim (choice_closure Values1 Clauses1))
         (enum_elim (choice_closure Values2 Clauses2))

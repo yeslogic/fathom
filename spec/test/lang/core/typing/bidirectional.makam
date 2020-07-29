@@ -9,6 +9,21 @@
 
 % FIXME: there seems to be a bug with indenting tests here - see https://github.com/astampoulis/makam/issues/94
 
+    % Conversion
+
+>> check_type (enum_intro "false" [ "true", "false" ]) (enum_type [ "true", "false" ]) ?
+>> Yes.
+
+>> check_type (enum_intro "false" [ "true", "false" ]) (enum_type [ "false", "true" ]) ?
+>> Yes.
+
+>> check_type (enum_intro "unit" [ "unit" ]) (enum_type []) ?
+>> Impossible.
+
+>> check_type (enum_intro "unit" [ "unit" ]) (enum_type [ "true", "false" ]) ?
+>> Impossible.
+
+
     % Variables
 
 >> synth_type
@@ -71,14 +86,14 @@
 
 >> synth_type
     (ann
-        (record_intro [
-            ( "data", array_intro [ enum_intro "unit", enum_intro "unit" ]) ,
-            ( "len", int_intro 2 )
-        ])
-        (record_type [
-            ( "len", int_type ),
-            ( "data", array_type (enum_type [ "unit" ]) (local 0) )
-        ]))
+        (record_intro
+            [ ( "data", array_intro [ enum_intro "unit" [ "unit" ], enum_intro "unit" [ "unit" ] ])
+            , ( "len", int_intro 2 )
+            ])
+        (record_type
+            [ ( "len", int_type )
+            , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
+            ]))
     Type ?
 >> Yes:
 >> Type := record_type
@@ -87,7 +102,7 @@
         , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
         ]).
 
->> synth_type (ann (enum_intro "false") (enum_type [ "true", "false" ])) Type ?
+>> synth_type (enum_intro "false" [ "true", "false" ]) Type ?
 >> Yes:
 >> Type := enum_type [ "true", "false" ].
 
@@ -239,7 +254,7 @@
 
 >> check_type
     (record_intro
-        [ ( "data", array_intro [ enum_intro "unit", enum_intro "unit" ] )
+        [ ( "data", array_intro [ enum_intro "unit" [ "unit" ], enum_intro "unit" [ "unit" ] ] )
         , ( "len", int_intro 2 )
         ])
     (record_type
@@ -291,7 +306,12 @@
     (record_elim
         (ann
             (record_intro
-                [ ( "data", array_intro [ enum_intro "unit", enum_intro "unit" ] )
+                [ ( "data",
+                    array_intro
+                        [ enum_intro "unit" [ "unit" ]
+                        , enum_intro "unit" [ "unit" ]
+                        ]
+                  )
                 , ( "len", int_intro 2 )
                 ])
             (record_type
@@ -318,19 +338,22 @@
 >> Yes:
 >> Type := type_type.
 
->> check_type (enum_intro "unit") (enum_type [ "unit" ]) ?
->> Yes.
+>> synth_type (enum_intro "unit" [ "unit" ]) Type ?
+>> Yes:
+>> Type := enum_type [ "unit" ].
 
->> check_type (enum_intro "true") (enum_type [ "true", "false" ]) ?
->> Yes.
+>> synth_type (enum_intro "true" [ "true", "false" ]) Type ?
+>> Yes:
+>> Type := enum_type [ "true", "false" ].
 
->> check_type (enum_intro "false") (enum_type [ "true", "false" ]) ?
->> Yes.
+>> synth_type (enum_intro "false" [ "true", "false" ]) Type ?
+>> Yes:
+>> Type := enum_type [ "true", "false" ].
 
->> check_type (enum_intro "unit") (enum_type []) ?
+>> synth_type (enum_intro "unit" []) Type ?
 >> Impossible.
 
->> check_type (enum_intro "unit") (enum_type [ "true", "false" ]) ?
+>> synth_type (enum_intro "unit" [ "true", "false" ]) Type ?
 >> Impossible.
 
 >> check_type (enum_elim []) (function_type (enum_type []) (closure [] int_type)) ?
@@ -367,7 +390,7 @@
 
 >> check_type
     (enum_elim
-        [ ( "true", enum_intro "unit" )
+        [ ( "true", enum_intro "unit" [ "unit" ] )
         , ( "false", int_intro 1 )
         ])
     (function_type

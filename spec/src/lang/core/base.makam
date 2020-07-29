@@ -22,7 +22,7 @@ record_elim : term -> string -> term.
 
 % Enumerations
 enum_type : set string -> term.
-enum_intro : string -> term.
+enum_intro : string -> set string -> term.
 enum_elim : map string term -> term.
 
 % Refinements
