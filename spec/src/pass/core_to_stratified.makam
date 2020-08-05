@@ -95,12 +95,21 @@
         from_term_to_term1 Context'
             (core.record_type SourceTypeFields)
             (stratified.record_type TargetTypeFields).
-    from_term Context (core.record_intro SourceElemFields)
-        (term0 (stratified.record_intro TargetElemFields))
+    from_term Context (core.record_intro [] []) (term0 (stratified.record_intro [] [])).
+    from_term Context
+        (core.record_intro SourceElemFields (( Label, SourceType ) :: SourceTypeFields))
+        (term0
+            (stratified.record_intro
+                (( Label, TargetElem ) :: TargetElemFields)
+                (( Label, TargetType ) :: TargetTypeFields)))
     :-
-        map.mapvalues (pfun SourceElem TargetElem =>
-            from_term_to_term0 Context SourceElem TargetElem
-        ) SourceElemFields TargetElemFields.
+        map.remove SourceElemFields Label SourceElem SourceElemFields',
+        from_term_to_term0 Context SourceElem TargetElem,
+        from_term_to_term1 Context SourceType TargetType,
+        context.add_binding Context term1 Context',
+        from_term_to_term0 Context'
+            (core.record_intro SourceElemFields' SourceTypeFields)
+            (stratified.record_intro TargetElemFields TargetTypeFields).
     from_term Context (core.record_elim SourceRecordElem Label)
         (term0 (stratified.record_elim TargetRecordElem Label))
     :-

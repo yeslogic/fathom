@@ -17,7 +17,7 @@ function_elim : term -> term -> term.   % Also known as: Function application
 
 % Records
 record_type : list (string * term) -> term.
-record_intro : map string term -> term.
+record_intro : map string term -> list (string * term) -> term.
 record_elim : term -> string -> term.
 
 % Enumerations

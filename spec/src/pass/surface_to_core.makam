@@ -175,41 +175,43 @@
 
     % Records
     is_type Context (surface.record_type []) (core.record_type []).
-    is_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields))
+    is_type Context (surface.record_type (( Label, SourceType ) :: SourceTypeFields))
         (core.record_type (( Label, TargetType ) :: TargetTypeFields))
     :-
-        not (contains ( Label, _ ) SurfaceTypeFields),
-        check_type Context SurfaceType type_type TargetType,
+        not (contains ( Label, _ ) SourceTypeFields),
+        check_type Context SourceType type_type TargetType,
         context.eval Context TargetType TargetType',
         context.add_param Context ( some Label, TargetType' ) Context',
-        check_type Context' (surface.record_type SurfaceTypeFields) type_type
+        check_type Context' (surface.record_type SourceTypeFields) type_type
             (core.record_type TargetTypeFields).
     check_type Context (surface.record_type []) type_type (core.record_type []).
-    check_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields)) type_type
+    check_type Context (surface.record_type (( Label, SourceType ) :: SourceTypeFields)) type_type
         (core.record_type (( Label, TargetType ) :: TargetTypeFields))
     :-
-        not (contains ( Label, _ ) SurfaceTypeFields),
-        check_type Context SurfaceType type_type TargetType,
+        not (contains ( Label, _ ) SourceTypeFields),
+        check_type Context SourceType type_type TargetType,
         context.eval Context TargetType TargetType',
         context.add_param Context ( some Label, TargetType' ) Context',
-        check_type Context' (surface.record_type SurfaceTypeFields) type_type
+        check_type Context' (surface.record_type SourceTypeFields) type_type
             (core.record_type TargetTypeFields).
     check_type Context (surface.record_type []) format_type (core.format_intro_record []).
-    check_type Context (surface.record_type (( Label, SurfaceType ) :: SurfaceTypeFields)) format_type
+    check_type Context (surface.record_type (( Label, SourceType ) :: SourceTypeFields)) format_type
         (core.format_intro_record (( Label, TargetType ) :: TargetTypeFields))
     :-
-        not (contains ( Label, _ ) SurfaceTypeFields),
-        check_type Context SurfaceType format_type TargetType,
+        not (contains ( Label, _ ) SourceTypeFields),
+        check_type Context SourceType format_type TargetType,
         context.eval Context (core.format_elim TargetType) TargetType',
         context.add_param Context ( some Label, TargetType' ) Context',
-        check_type Context' (surface.record_type SurfaceTypeFields) format_type
+        check_type Context' (surface.record_type SourceTypeFields) format_type
             (core.record_type TargetTypeFields).
     check_type Context (surface.record_intro []) (record_type (field_closure TargetValues []))
-        (core.record_intro []).
+        (core.record_intro [] []).
     check_type Context
         (surface.record_intro SourceElemFields)
         (record_type (field_closure TargetValues (( Label, TargetType ) :: TargetTypeFields)))
-        (core.record_intro (( Label, TargetElem ) :: TargetElemFields))
+        (core.record_intro
+            (( Label, TargetElem ) :: TargetElemFields)
+            (( Label, TargetType ) :: TargetTypeFields))
     :-
         map.remove SourceElemFields Label SourceElem SourceElemFields',
         eval Values TargetType TargetType',
@@ -218,7 +220,8 @@
         context.add_local Context ( some Label, TargetElem', TargetType' ) Context',
         eq FieldClosure (field_closure (TargetElem' :: TargetValues) TargetTypeFields),
         check_type Context' (surface.record_intro SourceElemFields') (record_type FieldClosure)
-            (core.record_intro TargetElemFields).
+            (core.record_intro TargetElemFields _).
+
     synth_type Context (surface.record_elim SourceRecordElem Label) TargetFieldType
         (core.record_elim TargetRecordElem Label)
     :-

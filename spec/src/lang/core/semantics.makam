@@ -36,7 +36,7 @@
 
     % Records
     record_type : field_closure -> value.
-    record_intro : map string value -> value.
+    record_intro : map string value -> field_closure -> value.
 
     % Enumerations
     enum_type : set string -> value.
@@ -128,8 +128,10 @@
         eval Values InputElem InputValue,
         function_elim Value InputValue Value'.
     eval Values (record_type TypeFields) (record_type (field_closure Values TypeFields)).
-    eval Values (record_intro FieldElems) (record_intro FieldElems') :-
-        map.mapvalues (fun elem elem' => eval Values elem elem') FieldElems FieldElems'.
+    eval Values (record_intro ElemFields TypeFields)
+        (record_intro ElemFields' (field_closure Values TypeFields))
+    :-
+        map.mapvalues (pfun Elem Elem' => eval Values Elem Elem') ElemFields ElemFields'.
     eval Values (record_elim RecordElem Label) FieldElem' :-
         eval Values RecordElem RecordElem',
         record_elim RecordElem' Label FieldElem'.
@@ -197,7 +199,7 @@
         eval Values OutputElem OutputValue.
 
     record_elim (neutral Neutral) Label (neutral (record_elim Neutral Label)).
-    record_elim (record_intro ElemFields) Label FieldElem :-
+    record_elim (record_intro ElemFields _) Label FieldElem :-
         map.find ElemFields Label FieldElem.
 
     % TODO: stage_elim
@@ -292,8 +294,9 @@
         readback Length1
             (record_type (field_closure (neutral (local Length) :: Values) Fields))
             (record_type Fields').
-    readback Length (record_intro ElemFields) (record_intro ElemFields') :-
-        map.mapvalues (fun elem elem' => readback Length elem elem') ElemFields ElemFields'.
+    readback Length (record_intro ElemFields FieldClosure) (record_intro ElemFields' TypeFields) :-
+        map.mapvalues (pfun Elem Elem' => readback Length Elem Elem') ElemFields ElemFields',
+        readback Length (record_type FieldClosure) (record_type TypeFields).
     readback Length (enum_type Labels) (enum_type Labels).
     readback Length (enum_intro Label Labels) (enum_intro Label Labels).
     readback Length (enum_elim (choice_closure Values Clauses)) (enum_elim Clauses') :-
@@ -365,16 +368,16 @@
     is_equal : int -> neutral -> neutral -> prop.
     is_equal : int -> value -> value -> prop.
 
-    is_equal Length (local Level : neutral) (local Level).
+    is_equal Length (local Level : neutral) (local Level : neutral).
     is_equal Length
         (function_elim Neutral1 InputValue1 : neutral)
-        (function_elim Neutral2 InputValue2)
+        (function_elim Neutral2 InputValue2 : neutral)
     :-
         is_equal Length Neutral1 Neutral2,
         is_equal Length InputValue1 InputValue2.
     is_equal Length
         (enum_elim (choice_closure Values1 Clauses1) Neutral1 : neutral)
-        (enum_elim (choice_closure Values2 Clauses2) Neutral2)
+        (enum_elim (choice_closure Values2 Clauses2) Neutral2 : neutral)
     :-
         map.mapvalues (pfun Elem1 Elem2 => [Value1 Value2] (
             eval Values1 Elem1 Value1,
@@ -382,7 +385,7 @@
             is_equal Length Value1 Value2
         )) Clauses1 Clauses2,
         is_equal Length Neutral1 Neutral2.
-    is_equal Length (format_elim Neutral1 : neutral) (format_elim Neutral2) :-
+    is_equal Length (format_elim Neutral1 : neutral) (format_elim Neutral2 : neutral) :-
         is_equal Length Neutral1 Neutral2.
 
     is_equal Length (neutral Neutral1) (neutral Neutral2) :-
@@ -415,11 +418,12 @@
         is_equal Length1
             (record_type (field_closure (neutral (local Length) :: Values1) Fields1))
             (record_type (field_closure (neutral (local Length) :: Values2) Fields2)).
-    is_equal Length (record_intro ElemFields1) (record_intro ElemFields2) :-
-        map.headtail ElemFields1 Label Elem1 ElemFields1',
-        map.remove ElemFields2 Label Elem2 ElemFields2',
-        is_equal Length Elem1 Elem2,
-        is_equal Length (record_intro ElemFields1') (record_intro ElemFields2').
+    is_equal Length
+        (record_intro ElemFields1 FieldClosure1)
+        (record_intro ElemFields2 FieldClosure2)
+    :-
+        map.mapvalues (pfun Elem1 Elem2 => is_equal Length Elem1 Elem2) ElemFields1 ElemFields2,
+        is_equal Length (record_type FieldClosure1) (record_type FieldClosure2).
     is_equal Length (enum_type Labels1) (enum_type Labels2) :-
         eqv Labels1 Labels2.
     is_equal Length (enum_intro Label1 Labels1) (enum_intro Label2 Labels2) :-

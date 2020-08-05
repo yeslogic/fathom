@@ -151,18 +151,21 @@
         context.eval Context Type Type',
         context.add_param Context Type' Context',
         check_type Context' (record_type TypeFields) type_type.
-    check_type Context (record_intro []) (record_type (field_closure Values [])).
-    check_type Context
-        (record_intro ElemFields)
-        (record_type (field_closure Values (( Label, Type ) :: TypeFields)))
+    synth_type Context
+        (record_intro ElemFields TypeFields)
+        (record_type (field_closure Values TypeFields))
     :-
-        map.remove ElemFields Label Elem ElemFields',
-        eval Values Type Type',
-        check_type Context Elem Type',
-        context.eval Context Elem Elem',
-        context.add_local Context Elem' Type' Context',
-        eq FieldClosure (field_closure (Elem' :: Values) TypeFields),
-        check_type Context' (record_intro ElemFields') (record_type FieldClosure).
+        foldl (pfun ( Context, ElemFields ) ( Label, Type ) ( Context', ElemFields' ) =>
+            [ Elem Type' Elem' ] (
+                map.remove ElemFields Label Elem ElemFields',
+                check_type Context Type type_type,
+                context.eval Context Type Type',
+                check_type Context Elem Type',
+                context.eval Context Elem Elem',
+                context.add_local Context Elem' Type' Context'
+            )
+        ) ( Context, ElemFields ) TypeFields ( _, [] ),
+        context.values Context Values.
     synth_type Context (record_elim RecordElem Label) FieldType :-
         synth_type Context RecordElem (record_type FieldClosure),
         context.eval Context RecordElem RecordElem',

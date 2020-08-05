@@ -55,7 +55,7 @@
 
     % Records
     record_type : list (string * term1) -> term1.
-    record_intro : map string term0 -> term0.
+    record_intro : map string term0 -> list (string * term1) -> term0.
     record_elim : term0 -> string -> term0.
 
     % Enumerations
@@ -135,7 +135,7 @@
     function_intro_0_e : term1 -> func -> func. % Expressions parametrised by level-0 types (`ΛX:A.f` in [Shao et al. 2005])
     function_elim_e_e : expr -> expr -> expr.   % Expressions applied to expressions (`e e` in [Shao et al. 2005])
     function_elim_0_e : expr -> term0 -> expr.  % Expressions applied to level-0 types (`e [A]` in [Shao et al. 2005])
-    record_intro : map string expr -> expr.     % Record introductions
+    record_intro : map string expr -> list (string * term0) -> expr.    % Record introductions
     record_elim : expr -> string -> expr.       % Record eliminations
     enum_intro : string -> set string ->  expr. % Enumeration introductions
     enum_elim : map string expr -> expr.        % Enumeration eliminations

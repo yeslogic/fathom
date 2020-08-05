@@ -65,10 +65,13 @@
         , ( "data", array_type (enum_type []) (local 0) )
         ].
 
->> normalize [ int_intro 2, int_intro 1 ]
+>> normalize [ int_intro 2, int_intro 1, int_type ]
     (record_intro
         [ ( "len", local 0 )
         , ( "data", array_intro [local 1, int_intro 2] )
+        ]
+        [ ( "len", int_type )
+        , ( "data", array_type (local 3) (local 0) )
         ])
     Term ?
 >> Yes:
@@ -76,6 +79,9 @@
     record_intro
         [ ( "len", int_intro 2 )
         , ( "data", array_intro [int_intro 1, int_intro 2] )
+        ]
+        [ ( "len", int_type )
+        , ( "data", array_type int_type (local 0) )
         ].
 
 >> normalize
@@ -83,6 +89,9 @@
         (record_intro
             [ ( "len", int_intro 2 )
             , ( "data", array_intro [int_intro 1, int_intro 2] )
+            ]
+            [ ( "len", int_type )
+            , ( "data", array_type int_type (local 0) )
             ])
         "len")
     Term ?
@@ -94,6 +103,9 @@
         (record_intro
             [ ( "len", int_intro 2 )
             , ( "data", array_intro [int_intro 1, int_intro 2] )
+            ]
+            [ ( "len", int_type )
+            , ( "data", array_type int_type (local 0) )
             ])
         "data")
     Term ?

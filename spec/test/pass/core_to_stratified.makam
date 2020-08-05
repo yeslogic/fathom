@@ -18,19 +18,19 @@
 >> from_term_to_term2 (core.record_type []) Target ?
 >> Impossible.
 
->> from_term_to_term2 (core.record_intro []) Target ?
+>> from_term_to_term2 (core.record_intro [] []) Target ?
 >> Impossible.
 
 >> from_term_to_term1 (core.record_type []) Target ?
 >> Yes:
 >> Target := stratified.record_type [].
 
->> from_term_to_term1 (core.record_intro []) Target ?
+>> from_term_to_term1 (core.record_intro [] []) Target ?
 >> Impossible.
 
->> from_term_to_term0 (core.record_intro []) Target ?
+>> from_term_to_term0 (core.record_intro [] []) Target ?
 >> Yes:
->> Target := stratified.record_intro [].
+>> Target := stratified.record_intro [] [].
 
 
     % Variables
@@ -54,9 +54,9 @@
 >> Yes:
 >> Target := term1 (stratified.ann stratified.format_intro_u8 stratified.format_type).
 
->> from_term (core.ann (core.record_intro []) (core.record_type [])) Target ?
+>> from_term (core.ann (core.record_intro [] []) (core.record_type [])) Target ?
 >> Yes:
->> Target := term0 (stratified.ann (stratified.record_intro []) (stratified.record_type [])).
+>> Target := term0 (stratified.ann (stratified.record_intro [] []) (stratified.record_type [])).
 
 
     % Universes
@@ -88,26 +88,32 @@
         , ( "data", stratified.array_type (stratified.record_type []) (stratified.local 0) )
         ]).
 
->> from_term (core.record_intro []) Target ?
+>> from_term (core.record_intro [] []) Target ?
 >> Yes:
->> Target := term0 (stratified.record_intro []).
+>> Target := term0 (stratified.record_intro [] []).
 
 >> from_term
     (core.record_intro
-        [ ( "data", core.array_intro [ core.record_intro [], core.record_intro [] ])
+        [ ( "data", core.array_intro [ core.record_intro [] [], core.record_intro [] [] ] )
         , ( "len", core.int_intro 2 )
+        ]
+        [ ( "len", core.int_type )
+        , ( "data", core.array_type (core.record_type []) (core.local 0) )
         ])
     Target ?
 >> Yes:
 >> Target := term0
     (stratified.record_intro
-        [ ( "data",
+        [ ( "len", stratified.int_intro 2 )
+        , ( "data",
             stratified.array_intro
-                [ stratified.record_intro []
-                , stratified.record_intro []
+                [ stratified.record_intro [] []
+                , stratified.record_intro [] []
                 ]
           )
-        , ( "len", stratified.int_intro 2 )
+        ]
+        [ ( "len", stratified.int_type )
+        , ( "data", stratified.array_type (stratified.record_type []) (stratified.local 0) )
         ]).
 
     % TODO: Test record elimination
