@@ -136,14 +136,14 @@
     is_elem Context (array_type Type LenElem) type_type :-
         is_elem Context Type type_type,
         is_elem Context LenElem int_type.
-    is_elem Context (array_intro Elems) (array_type Type LenElem) :-
+    is_elem Context (array_intro Elems Type) (array_type Type LenElem) :-
         is_equal_elem Context (int_intro Len) LenElem int_type,
         length Elems Len,
-        map (fun elem => is_elem Context elem Type) Elems.
-    is_equal_elem Context (array_elim (array_intro Elems) IndexElem) Elem Type :-
+        map (pfun Elem => is_elem Context Elem Type) Elems.
+    is_equal_elem Context (array_elim (array_intro Elems Type) IndexElem) Elem Type :-
         % FIXME: ensure `IndexElem` is in array bounds, possibly with refinement types?
         is_equal_elem Context (int_intro Index) IndexElem int_type,
-        map (fun elem => is_elem Context elem Type) Elems,
+        map (pfun Elem => is_elem Context Elem Type) Elems,
         list.nth Elems Index Elem.
 
     % Binary format descriptions

@@ -40,7 +40,7 @@ int_intro : int -> term.
 
 % Arrays
 array_type : term -> term -> term.
-array_intro : list term -> term.
+array_intro : list term -> term -> term.
 array_elim : term -> term -> term.
 
 % Binary format descriptions

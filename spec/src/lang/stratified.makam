@@ -70,7 +70,7 @@
 
     % Arrays
     array_type : term1 -> term0 -> term1.
-    array_intro : list term0 -> term0.
+    array_intro : list term0 -> term1 -> term0.
     array_elim : term0 -> term0 -> term0.
 
     % Singletons
@@ -86,10 +86,10 @@
     singleton_intro_arrow : term1 -> term1 -> term1.        % Arrow singletons
     singleton_intro_forall_2 : term1 -> term1 -> term1.     % Universal quantification over level-2 variables
     singleton_intro_forall_1 : term1 -> term1 -> term1.     % Universal quantification over level-1 variables
-    singleton_intro_record : map string term1 -> term1.     % Record singletons
+    singleton_intro_record : map string term1 -> list (string * term1) -> term1. % Record singletons
     singleton_intro_enum : string -> set string -> term1.   % Enumeration singletons
     singleton_intro_int : int -> term1.                     % Integer singletons
-    singleton_intro_array : list term1 -> term1.            % Array Singletons
+    singleton_intro_array : list term1 -> term1 -> term1.   % Array Singletons
 
     % Binary format descriptions
     %
@@ -140,7 +140,7 @@
     enum_intro : string -> set string ->  expr. % Enumeration introductions
     enum_elim : map string expr -> expr.        % Enumeration eliminations
     int_intro : int -> expr.                    % Integer introductions
-    array_intro : list expr -> expr.            % Array introductiona
+    array_intro : list expr -> term0 -> expr.   % Array introductiona
     array_elim : expr -> expr -> expr.          % Array eliminations
 
 %end.

@@ -197,9 +197,11 @@
     synth_type Context (array_type Type LenElem) type_type :-
         check_type Context Type type_type,
         check_type Context LenElem int_type.
-    check_type Context (array_intro Elems) (array_type Type (int_intro Len)) :-
+    synth_type Context (array_intro Elems Type) (array_type Type' (int_intro Len)) :-
         length Elems Len,
-        map (fun elem => check_type Context elem Type) Elems.
+        check_type Context Type type_type,
+        context.eval Context Type Type',
+        map (pfun Elem => check_type Context Elem Type') Elems.
     synth_type Context (array_elim ArrayElem IndexElem) Type :-
         % FIXME: ensure `IndexElem` is in array bounds, possibly with refinement types?
         synth_type Context ArrayElem (array_type Type _),

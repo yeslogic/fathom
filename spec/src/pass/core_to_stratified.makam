@@ -137,7 +137,10 @@
     :-
         from_term_to_term1 Context SourceType TargetType,
         from_term_to_term0 Context SourceLenElem TargetLenElem.
-    from_term Context (core.array_intro SourceElems) (term0 (stratified.array_intro TargetElems)) :-
+    from_term Context (core.array_intro SourceElems SourceType)
+        (term0 (stratified.array_intro TargetElems TargetType))
+    :-
+        from_term_to_term1 Context SourceType TargetType,
         map (pfun SourceElem TargetElem =>
             from_term_to_term0 Context SourceElem TargetElem
         ) SourceElems TargetElems.

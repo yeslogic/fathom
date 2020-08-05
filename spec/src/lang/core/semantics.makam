@@ -57,7 +57,7 @@
 
     % Arrays
     array_type : value -> value -> value.
-    array_intro : list value -> value.
+    array_intro : list value -> value -> value.
 
     % Binary format descriptions
     format_type : value.
@@ -140,14 +140,15 @@
     eval Values (enum_elim Clauses) (enum_elim (choice_closure Values Clauses)).
     eval Values int_type int_type.
     eval Values (int_intro Int) (int_intro Int).
-    eval Values (array_type ElemType LenElem) (array_type ElemType' LenValue) :-
-        eval Values ElemType ElemType',
-        eval Values LenElem LenValue.
-    eval Values (array_intro Elems) (array_intro ElemValues) :-
-        map (fun elem value => eval Values elem value) Elems ElemValues.
+    eval Values (array_type Type LenElem) (array_type Type' LenElem') :-
+        eval Values Type Type',
+        eval Values LenElem LenElem'.
+    eval Values (array_intro Elems Type) (array_intro Elems' Type') :-
+        map (pfun Elem Elem' => eval Values Elem Elem') Elems Elems',
+        eval Values Type Type'.
     % FIXME: This breaks for neutral terms! We should use `array_elim` here.
     eval Values (array_elim ArrayElem IndexElem) ElemValue :-
-        eval Values ArrayElem (array_intro ElemValues),
+        eval Values ArrayElem (array_intro ElemValues _),
         eval Values IndexElem (int_intro Index),
         list.nth ElemValues Index ElemValue.
     eval Values format_type format_type.
@@ -167,8 +168,8 @@
     eval Values format_intro_s32be format_intro_s32be.
     eval Values format_intro_s64le format_intro_s64le.
     eval Values format_intro_s64be format_intro_s64be.
-    eval Values (format_intro_array ElemType LenElem) (format_intro_array ElemType' LenElem') :-
-        eval Values ElemType ElemType',
+    eval Values (format_intro_array Type LenElem) (format_intro_array Type' LenElem') :-
+        eval Values Type Type',
         eval Values LenElem LenElem'.
     eval Values (format_intro_record TypeFields) (format_intro_record (field_closure Values TypeFields)).
     eval Values (format_intro_compute Elem Type) (format_intro_compute Elem' Type') :-
@@ -307,11 +308,12 @@
         )) Clauses Clauses'.
     readback Length int_type int_type.
     readback Length (int_intro Int) (int_intro Int).
-    readback Length (array_type ElemValue LenValue) (array_type ElemType LenElem) :-
-        readback Length ElemValue ElemType,
-        readback Length LenValue LenElem.
-    readback Length (array_intro ElemValues) (array_intro Elems) :-
-        map (fun value term => readback Length value term) ElemValues Elems.
+    readback Length (array_type Type LenElem) (array_type Type' LenElem') :-
+        readback Length Type Type',
+        readback Length LenElem LenElem'.
+    readback Length (array_intro Elems Type) (array_intro Elems' Type') :-
+        map (pfun Elem Elem' => readback Length Elem Elem') Elems Elems',
+        readback Length Type Type'.
     readback Length format_type format_type.
     readback Length format_intro_void format_intro_void.
     readback Length format_intro_unit format_intro_unit.
@@ -443,8 +445,9 @@
     is_equal Length (array_type ElemType1 LenElem1) (array_type ElemType2 LenElem2) :-
         is_equal Length ElemType1 ElemType2,
         is_equal Length LenElem1 LenElem2.
-    is_equal Length (array_intro ElemValues1) (array_intro ElemValues2) :-
-        map (fun value1 value2 => is_equal Length value1 value2) ElemValues1 ElemType2.
+    is_equal Length (array_intro Elems1 ElemType1) (array_intro Elems2 ElemType2) :-
+        map (pfun Elem1 Elem2 => is_equal Length Elem1 Elem2) Elems1 Elems2,
+        is_equal Length ElemType1 ElemType2.
     is_equal Length format_type format_type.
     is_equal Length format_intro_void format_intro_void.
     is_equal Length format_intro_unit format_intro_unit.

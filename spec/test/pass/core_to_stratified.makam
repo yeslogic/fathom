@@ -94,7 +94,13 @@
 
 >> from_term
     (core.record_intro
-        [ ( "data", core.array_intro [ core.record_intro [] [], core.record_intro [] [] ] )
+        [ ( "data",
+            core.array_intro
+                [ core.record_intro [] []
+                , core.record_intro [] []
+                ]
+                core.int_type
+          )
         , ( "len", core.int_intro 2 )
         ]
         [ ( "len", core.int_type )
@@ -110,6 +116,7 @@
                 [ stratified.record_intro [] []
                 , stratified.record_intro [] []
                 ]
+                stratified.int_type
           )
         ]
         [ ( "len", stratified.int_type )

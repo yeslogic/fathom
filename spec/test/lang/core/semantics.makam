@@ -68,7 +68,7 @@
 >> normalize [ int_intro 2, int_intro 1, int_type ]
     (record_intro
         [ ( "len", local 0 )
-        , ( "data", array_intro [local 1, int_intro 2] )
+        , ( "data", array_intro [local 1, int_intro 2] (local 2) )
         ]
         [ ( "len", int_type )
         , ( "data", array_type (local 3) (local 0) )
@@ -78,7 +78,7 @@
 >> Term :=
     record_intro
         [ ( "len", int_intro 2 )
-        , ( "data", array_intro [int_intro 1, int_intro 2] )
+        , ( "data", array_intro [int_intro 1, int_intro 2] int_type )
         ]
         [ ( "len", int_type )
         , ( "data", array_type int_type (local 0) )
@@ -88,7 +88,7 @@
     (record_elim
         (record_intro
             [ ( "len", int_intro 2 )
-            , ( "data", array_intro [int_intro 1, int_intro 2] )
+            , ( "data", array_intro [int_intro 1, int_intro 2] int_type )
             ]
             [ ( "len", int_type )
             , ( "data", array_type int_type (local 0) )
@@ -102,7 +102,7 @@
     (record_elim
         (record_intro
             [ ( "len", int_intro 2 )
-            , ( "data", array_intro [int_intro 1, int_intro 2] )
+            , ( "data", array_intro [int_intro 1, int_intro 2] int_type )
             ]
             [ ( "len", int_type )
             , ( "data", array_type int_type (local 0) )
@@ -110,7 +110,7 @@
         "data")
     Term ?
 >> Yes:
->> Term := array_intro [int_intro 1, int_intro 2].
+>> Term := array_intro [int_intro 1, int_intro 2] int_type.
 
 >> normalize [ neutral (local 0) ] (record_elim (local 0) "data") Term ?
 >> Yes:
@@ -206,20 +206,21 @@
 >> Yes:
 >> Term := array_type int_type (int_intro 42).
 
->> normalize (array_intro []) Term ?
+>> normalize (array_intro [] int_type) Term ?
 >> Yes:
->> Term := array_intro [].
+>> Term := array_intro [] int_type.
 
->> normalize [ int_intro 25, int_intro 30 ] (array_intro [ local 0, local 1 ]) Term ?
+>> normalize [ int_intro 25, int_intro 30, int_type ] (array_intro [ local 0, local 1 ] (local 2)) Term ?
 >> Yes:
->> Term := array_intro [int_intro 25, int_intro 30].
+>> Term := array_intro [int_intro 25, int_intro 30] int_type.
 
 >> normalize
     [ int_intro 1
     , int_intro 25
     , int_intro 30
+    , int_type
     ]
-    (array_elim (array_intro [ local 1, local 2 ]) (local 0))
+    (array_elim (array_intro [ local 1, local 2 ] (local 3)) (local 0))
     Term ?
 >> Yes:
 >> Term := int_intro 30.

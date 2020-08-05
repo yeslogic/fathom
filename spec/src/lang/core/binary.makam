@@ -25,7 +25,7 @@
     interpret format_intro_s32be (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3 ].
     interpret format_intro_s64le (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8 ].
     interpret format_intro_s64be (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8 ].
-    interpret (format_intro_array ElemType Len) (array_intro TODO) Bytes.
+    interpret (format_intro_array Type Len) (array_intro TODO Type) Bytes.
     interpret
         (format_intro_record (field_closure Values (( Label, Type ) :: TypeFields)))
         (record_intro (( Label, Elem ) :: ElemFields) TODO)

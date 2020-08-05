@@ -71,7 +71,7 @@
 >> synth_type
     (ann
         (record_intro
-            [ ( "data", array_intro [] )
+            [ ( "data", array_intro [] (enum_type [ "unit" ]) )
             , ( "len", int_intro 0 )
             ]
             [ ( "len", int_type )
@@ -92,7 +92,13 @@
 >> synth_type
     (ann
         (record_intro
-            [ ( "data", array_intro [ enum_intro "unit" [ "unit" ], enum_intro "unit" [ "unit" ] ])
+            [ ( "data"
+              , array_intro
+                [ enum_intro "unit" [ "unit" ]
+                , enum_intro "unit" [ "unit" ]
+                ]
+                (enum_type [ "unit" ])
+              )
             , ( "len", int_intro 2 )
             ]
             [ ( "len", int_type )
@@ -256,7 +262,7 @@
 
 >> synth_type
     (record_intro
-        [ ( "data", array_intro [] )
+        [ ( "data", array_intro [] (enum_type [ "unit" ]) )
         , ( "len", int_intro 0 )
         ]
         [ ( "len", int_type )
@@ -278,6 +284,7 @@
                 [ enum_intro "unit" [ "unit" ]
                 , enum_intro "unit" [ "unit" ]
                 ]
+                (enum_type [ "unit" ])
           )
         , ( "len", int_intro 2 )
         ]
@@ -333,6 +340,7 @@
                     [ enum_intro "unit" [ "unit" ]
                     , enum_intro "unit" [ "unit" ]
                     ]
+                    (enum_type [ "unit" ])
                 )
             , ( "len", int_intro 2 )
             ]
@@ -442,11 +450,13 @@
 
     % Arrays
 
->> check_type (array_intro []) (array_type int_type (int_intro 0)) ?
->> Yes.
+>> synth_type (array_intro [] int_type) Type ?
+>> Yes:
+>> Type := array_type int_type (int_intro 0).
 
->> check_type (array_intro [int_intro 1, int_intro 2, int_intro 3]) (array_type int_type (int_intro 3)) ?
->> Yes.
+>> synth_type (array_intro [int_intro 1, int_intro 2, int_intro 3] int_type) Type ?
+>> Yes:
+>> Type := array_type int_type (int_intro 3).
 
     % Binary format descriptions
 
