@@ -129,7 +129,7 @@
         context.add_param Context InputType' Context',
         synth_type Context' OutputElem OutputType,
         context.values Context Values,
-        context.readback Context' OutputType OutputType'. % FIXME: what about checkable terms?
+        context.readback Context' OutputType OutputType'.
     synth_type Context (function_elim Elem InputElem) OutputType :-
         synth_type Context Elem (function_type InputType Closure),
         check_type Context InputElem InputType,
@@ -176,14 +176,19 @@
     synth_type Context (enum_type Labels) type_type.
     synth_type Context (enum_intro Label Labels) (enum_type Labels) :-
         set.member Labels Label _.
-    check_type Context (enum_elim Clauses) (function_type (enum_type Labels) Closure) :-
-        map.keys Clauses ClauseLabels,
-        eqv Labels ClauseLabels,
-        set.map (pfun Label => [Type Elem] (
+    synth_type Context (enum_elim Clauses Type)
+        (function_type (enum_type Labels) (closure Values Type))
+    :-
+        map.keys Clauses Labels,
+        context.add_param Context (enum_type Labels) Context',
+        is_type Context' Type,
+        set.map (pfun Label => [Type' Elem Context'] (
             map.find Clauses Label Elem,
-            apply Closure (enum_intro Label Labels) Type,
-            check_type Context Elem Type
-        )) ClauseLabels.
+            context.add_local Context (enum_intro Label Labels) (enum_type Labels) Context',
+            context.eval Context' Type Type',
+            check_type Context Elem Type'
+        )) Labels,
+        context.values Context Values.
 
     % Integers
     is_type Context int_type.

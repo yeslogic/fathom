@@ -118,14 +118,22 @@
     % Enumerations
     from_term Context (core.enum_type Labels) (term1 (stratified.enum_type Labels)).
     from_term Context (core.enum_intro Label Labels) (term0 (stratified.enum_intro Label Labels)).
-    from_term_to_term1 Context (core.enum_elim SourceClauses) (stratified.enum_elim TargetClauses) :-
+    from_term_to_term1 Context (core.enum_elim SourceClauses SourceType)
+        (stratified.enum_elim TargetClauses TargetType)
+    :-
         map.mapvalues (pfun SourceElem TargetElem =>
             from_term_to_term1 Context SourceElem TargetElem
-        ) SourceClauses TargetClauses.
-    from_term_to_term0 Context (core.enum_elim SourceClauses) (stratified.enum_elim TargetClauses) :-
+        ) SourceClauses TargetClauses,
+        context.add_binding Context term1 Context',
+        from_term_to_term2 Context' SourceType TargetType.
+    from_term_to_term0 Context (core.enum_elim SourceClauses SourceType)
+        (stratified.enum_elim TargetClauses TargetType)
+    :-
         map.mapvalues (pfun SourceElem TargetElem =>
             from_term_to_term0 Context SourceElem TargetElem
-        ) SourceClauses TargetClauses.
+        ) SourceClauses TargetClauses,
+        context.add_binding Context term1 Context',
+        from_term_to_term1 Context' SourceType TargetType.
 
     % Integers
     from_term Context core.int_type (term1 stratified.int_type).

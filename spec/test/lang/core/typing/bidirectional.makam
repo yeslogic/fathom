@@ -385,66 +385,81 @@
 >> synth_type (enum_intro "unit" [ "true", "false" ]) Type ?
 >> Impossible.
 
->> check_type (enum_elim []) (function_type (enum_type []) (closure [] int_type)) ?
->> Yes.
+>> synth_type (enum_elim [] int_type) Type ?
+>> Yes:
+>> Type := function_type (enum_type []) (closure [] int_type).
 
->> check_type
+>> synth_type
     (enum_elim
         [ ( "unit", int_intro 0 )
-        ])
-    (function_type
+        ]
+        int_type)
+    Type ?
+>> Yes:
+>> Type :=
+    function_type
         (enum_type [ "unit" ])
-        (closure [] int_type)) ?
->> Yes.
+        (closure [] int_type).
 
->> check_type
+>> synth_type
     (enum_elim
         [ ( "true", int_intro 0 )
         , ( "false", int_intro 1 )
-        ])
-    (function_type
+        ]
+        int_type)
+    Type ?
+>> Yes:
+>> Type :=
+    function_type
         (enum_type [ "true", "false" ])
-        (closure [] int_type)) ?
->> Yes.
+        (closure [] int_type).
 
->> check_type
+>> synth_type
     (enum_elim
         [ ( "true", int_intro 0 )
         , ( "false", int_intro 1 )
-        ])
-    (function_type
-        (enum_type [ "false", "true" ])
-        (closure [] int_type)) ?
->> Yes.
+        ]
+        int_type)
+    Type ?
+>> Yes:
+>> Type :=
+    function_type
+        (enum_type [ "true", "false" ])
+        (closure [] int_type).
 
->> check_type
+>> synth_type
     (enum_elim
         [ ( "true", enum_intro "unit" [ "unit" ] )
         , ( "false", int_intro 1 )
-        ])
-    (function_type
+        ]
+        (function_elim
+                (enum_elim
+                    [ ("true", enum_type [ "unit" ])
+                    , ("false", int_type)
+                    ]
+                    type_type)
+                (local 0)))
+    Type ?
+>> Yes:
+>> Type :=
+    function_type
         (enum_type [ "true", "false" ])
         (closure []
             (function_elim
-                (enum_elim [ ("true", enum_type [ "unit" ]), ("false", int_type) ])
-                (local 0)))) ?
->> Yes.
+                (enum_elim
+                    [ ("true", enum_type [ "unit" ])
+                    , ("false", int_type)
+                    ]
+                    type_type)
+                (local 0))).
 
->> check_type
+>> synth_type
     (enum_elim
         [ ( "true", int_intro 0 )
         , ( "false", int_intro 1 )
-        ])
-    (function_type
-        (enum_type [])
-        (closure [] int_type)) ?
->> Impossible.
-
->> check_type
-    (enum_elim [ ( "true", int_intro 0 ) ])
-    (function_type
-        (enum_type [ "true", "false" ])
-        (closure [] int_type)) ?
+        ]
+        (record_type []))
+    Type ?
 >> Impossible.
 
 

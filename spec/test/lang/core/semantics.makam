@@ -135,25 +135,28 @@
 >> Yes:
 >> Term := enum_intro "true" [ "true", "false" ].
 
->> normalize [ int_intro 0, int_intro 1 ]
+>> normalize [ int_intro 0, int_intro 1, int_type ]
     (enum_elim
         [ ( "true", local 0 )
         , ( "false", local 1 )
-        ])
+        ]
+        (local 3))
     Term ?
 >> Yes:
 >> Term :=
     enum_elim
         [ ( "true", int_intro 0 )
         , ( "false", int_intro 1 )
-        ].
+        ]
+        int_type.
 
 >> normalize
     (function_elim
         (enum_elim
             [ ( "true", int_intro 0 )
             , ( "false", int_intro 1 )
-            ])
+            ]
+            int_type)
         (enum_intro "true" [ "true", "false" ]))
     Term ?
 >> Yes:
@@ -164,7 +167,8 @@
         (enum_elim
             [ ( "true", int_intro 0 )
             , ( "false", int_intro 1 )
-            ])
+            ]
+            int_type)
         (enum_intro "false" [ "true", "false" ]))
     Term ?
 >> Yes:
@@ -176,7 +180,8 @@
         (enum_elim
             [ ( "true", int_intro 0 )
             , ( "false", int_intro 1 )
-            ])
+            ]
+            int_type)
         (local 0))
     Term ?
 >> Yes:
@@ -185,8 +190,36 @@
         (enum_elim
             [ ( "true", int_intro 0 )
             , ( "false", int_intro 1 )
-            ])
+            ]
+            int_type)
         (local 0).
+
+>> normalize
+    (enum_elim
+        [ ( "true", enum_intro "unit" [ "unit" ] )
+        , ( "false", int_intro 1 )
+        ]
+        (function_elim
+                (enum_elim
+                    [ ("true", enum_type [ "unit" ])
+                    , ("false", int_type)
+                    ]
+                    type_type)
+                (local 0)))
+    Term ?
+>> Yes:
+>> Term :=
+    enum_elim
+        [ ( "true", enum_intro "unit" [ "unit" ] )
+        , ( "false", int_intro 1 )
+        ]
+        (function_elim
+                (enum_elim
+                    [ ("true", enum_type [ "unit" ])
+                    , ("false", int_type)
+                    ]
+                    type_type)
+                (local 0)).
 
 
     % Integers
