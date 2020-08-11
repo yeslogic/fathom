@@ -39,4 +39,11 @@
     Type Elem ?
 >> Impossible.
 
+
+    % Annotated terms
+    % Functions
+    % Records
+    % Enumerations
+    % Literals
+
 %end.
