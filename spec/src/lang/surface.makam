@@ -38,11 +38,11 @@
     enum_elim : string -> pattern.
 
     % Literals
-    number : string -> term.
-    number : string -> pattern.
-    string : string -> term.
-    string : string -> pattern.
-    sequence : list term -> term.
-    sequence : list pattern -> pattern.
+    number_intro : string -> term.
+    number_intro : string -> pattern.
+    string_intro : string -> term.
+    string_intro : string -> pattern.
+    sequence_intro : list term -> term.
+    sequence_intro : list pattern -> pattern.
 
 %end.

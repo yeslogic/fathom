@@ -11,18 +11,18 @@
 
     % Names
 
->> is_type (context []) (surface.name "Type") Elem ?
+>> is_type (surface.name "Type") Elem ?
 >> Yes:
 >> Elem := core.type_type.
 
->> synth_type (context []) (surface.name "Type") Type Elem ?
+>> synth_type (surface.name "Type") Type Elem ?
 >> Impossible.
 
->> is_type (context []) (surface.name "Format") Elem ?
+>> is_type (surface.name "Format") Elem ?
 >> Yes:
 >> Elem := core.format_type.
 
->> synth_type (context []) (surface.name "Format") Type Elem ?
+>> synth_type (surface.name "Format") Type Elem ?
 >> Impossible.
 
 >> synth_type
@@ -42,8 +42,115 @@
 
     % Annotated terms
     % Functions
+
+
     % Records
+
+>> check_type (surface.record_type []) type_type Elem ?
+>> Yes:
+>> Elem := core.record_type [].
+
+>> check_type
+    (surface.record_type
+        [ ( "data", surface.name "Int" )
+        ])
+    type_type Elem ?
+>> Yes:
+>> Elem :=
+    core.record_type
+        [ ( "data", core.int_type ) ].
+
+>> synth_type
+    (surface.record_type
+        [ ( "data", surface.name "Int" )
+        , ( "data", surface.enum_type [] )
+        ])
+    type_type Elem ?
+>> Impossible.
+
+>> check_type
+    (surface.record_type
+        [ ( "x", surface.name "Int" )
+        , ( "y", surface.name "Int" )
+        ])
+    type_type Elem ?
+>> Yes:
+>> Elem :=
+    core.record_type
+        [ ( "x", core.int_type )
+        , ( "y", core.int_type )
+        ].
+
+    % TODO: Dependent record tests
+
+>> check_type (surface.record_type []) format_type Elem ?
+>> Yes:
+>> Elem := core.format_intro_record [].
+
+>> check_type
+    (surface.record_type
+        [ ( "data", surface.name "U32Be" )
+        ])
+    format_type Elem ?
+>> Yes:
+>> Elem :=
+    core.format_intro_record
+        [ ( "data", core.format_intro_u32be )
+        ].
+
+>> check_type
+    (surface.record_type
+        [ ( "x", surface.name "U32Le" )
+        , ( "y", surface.name "U32Le" )
+        ])
+    format_type Elem ?
+>> Yes:
+>> Elem :=
+    core.format_intro_record
+        [ ( "x", core.format_intro_u32le )
+        , ( "y", core.format_intro_u32le )
+        ].
+
+    % TODO: Dependent record format tests
+
+>> synth_type (surface.record_intro []) Type Elem ?
+>> Yes:
+>> Type := record_type (field_closure [] []).
+>> Elem := core.record_intro [] [].
+
+>> check_type
+    (surface.record_intro
+        [ ( "y", surface.number_intro "2" )
+        , ( "x", surface.number_intro "1" )
+        ])
+    (record_type
+        (field_closure []
+            [ ( "x", core.int_type )
+            , ( "y", core.int_type )
+            ]))
+    Elem ?
+>> Yes:
+>> Elem :=
+    core.record_intro
+        [ ( "x", core.int_intro 1 )
+        , ( "y", core.int_intro 2 )
+        ]
+        [ ( "x", core.int_type )
+        , ( "y", core.int_type )
+        ].
+
+    % TODO: Dependent record introduction tests
+    % TODO: Record elimination tests
+
+
     % Enumerations
+
+
     % Literals
+
+>> check_type (surface.number_intro "23") int_type Elem ?
+>> Yes:
+>> Elem := core.int_intro 23.
+
 
 %end.

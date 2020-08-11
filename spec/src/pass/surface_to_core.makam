@@ -100,22 +100,21 @@
     % Names
     is_type Context (surface.name "Type") core.type_type.
     is_type Context (surface.name "Format") core.format_type.
-    is_type Context (surface.name "Int") core.int_type.
     synth_type Context (surface.name "Int") type_type core.int_type.
     synth_type Context (surface.name "U8") format_type core.format_intro_u8.
-    synth_type Context (surface.name "U16le") format_type core.format_intro_u16le.
-    synth_type Context (surface.name "U16be") format_type core.format_intro_u16be.
-    synth_type Context (surface.name "U32le") format_type core.format_intro_u32le.
-    synth_type Context (surface.name "U32be") format_type core.format_intro_u32be.
-    synth_type Context (surface.name "U64le") format_type core.format_intro_u64le.
-    synth_type Context (surface.name "U64be") format_type core.format_intro_u64be.
+    synth_type Context (surface.name "U16Le") format_type core.format_intro_u16le.
+    synth_type Context (surface.name "U16Be") format_type core.format_intro_u16be.
+    synth_type Context (surface.name "U32Le") format_type core.format_intro_u32le.
+    synth_type Context (surface.name "U32Be") format_type core.format_intro_u32be.
+    synth_type Context (surface.name "U64Le") format_type core.format_intro_u64le.
+    synth_type Context (surface.name "U64Be") format_type core.format_intro_u64be.
     synth_type Context (surface.name "S8") format_type core.format_intro_s8.
-    synth_type Context (surface.name "S16le") format_type core.format_intro_s16le.
-    synth_type Context (surface.name "S16be") format_type core.format_intro_s16be.
-    synth_type Context (surface.name "S32le") format_type core.format_intro_s32le.
-    synth_type Context (surface.name "S32be") format_type core.format_intro_s32be.
-    synth_type Context (surface.name "S64le") format_type core.format_intro_s64le.
-    synth_type Context (surface.name "S64be") format_type core.format_intro_s64be.
+    synth_type Context (surface.name "S16Le") format_type core.format_intro_s16le.
+    synth_type Context (surface.name "S16Be") format_type core.format_intro_s16be.
+    synth_type Context (surface.name "S32Le") format_type core.format_intro_s32le.
+    synth_type Context (surface.name "S32Be") format_type core.format_intro_s32be.
+    synth_type Context (surface.name "S64Le") format_type core.format_intro_s64le.
+    synth_type Context (surface.name "S64Be") format_type core.format_intro_s64be.
     synth_type Context (surface.name Name) TargetType (core.local Level) :-
         context.lookup_type Context Name Level TargetType.
 
@@ -131,13 +130,6 @@
     %  check_type Context (surface.match SourceElem SourceClauses) TargetType TODO' :- TODO''.
 
     % Functions
-    is_type Context (surface.function_type (surface.ann (surface.name Name) SourceInputType) SourceOutputType)
-        (core.function_type TargetInputType TargetOutputType)
-    :-
-        is_type Context SourceInputType TargetInputType,
-        context.eval Context TargetInputType TargetInputType',
-        context.add_param Context ( some Name, TargetInputType' ) Context',
-        is_type Context' SourceOutputType TargetOutputType.
     synth_type Context (surface.function_type (surface.ann (surface.name Name) SourceInputType) SourceOutputType) type_type
         (core.function_type TargetInputType TargetOutputType)
     :-
@@ -174,16 +166,6 @@
         apply Closure TargetInputElem' TargetOutputType.
 
     % Records
-    is_type Context (surface.record_type []) (core.record_type []).
-    is_type Context (surface.record_type (( Label, SourceType ) :: SourceTypeFields))
-        (core.record_type (( Label, TargetType ) :: TargetTypeFields))
-    :-
-        not (contains ( Label, _ ) SourceTypeFields),
-        check_type Context SourceType type_type TargetType,
-        context.eval Context TargetType TargetType',
-        context.add_param Context ( some Label, TargetType' ) Context',
-        check_type Context' (surface.record_type SourceTypeFields) type_type
-            (core.record_type TargetTypeFields).
     check_type Context (surface.record_type []) type_type (core.record_type []).
     check_type Context (surface.record_type (( Label, SourceType ) :: SourceTypeFields)) type_type
         (core.record_type (( Label, TargetType ) :: TargetTypeFields))
@@ -203,8 +185,8 @@
         context.eval Context (core.format_elim TargetType) TargetType',
         context.add_param Context ( some Label, TargetType' ) Context',
         check_type Context' (surface.record_type SourceTypeFields) format_type
-            (core.record_type TargetTypeFields).
-    check_type Context (surface.record_intro []) (record_type (field_closure TargetValues []))
+            (core.format_intro_record TargetTypeFields).
+    synth_type Context (surface.record_intro []) (record_type (field_closure [] []))
         (core.record_intro [] []).
     check_type Context
         (surface.record_intro SourceElemFields)
@@ -230,7 +212,6 @@
         record_elim_type TargetRecordElem' Label FieldClosure TargetFieldType.
 
     % Enumerations
-    is_type Context (surface.enum_type Labels) (core.enum_type Labels).
     synth_type Context (surface.enum_type Labels) type_type (core.enum_type Labels).
     check_type Context (surface.enum_intro Label) (enum_type Labels)
         (core.enum_intro Label Labels)
@@ -238,8 +219,25 @@
         set.member Labels Label _.
 
     % Literals
-    %  check_type Context (surface.number Data) int_type (core.int_intro Int) :- TODO.
-    %  check_type Context (surface.string Data) TODO TODO' :- TODO''.
-    %  check_type Context (surface.sequence SourceElems) (array_type TargetType TargetLenElem) (core.array_intro TargetElems) :- TODO.
+    check_type Context (surface.number_intro Source) int_type (core.int_intro Int) :-
+        % NOTE: Just using Makam's integer parser for now :)
+        syntax.parse makam.int_literal_ Source Int.
+    %  check_type Context (surface.string_intro Data) TODO TODO' :- TODO''.
+    %  check_type Context (surface.sequence_intro SourceElems) (array_type TargetType TargetLenElem) (core.array_intro TargetElems) :- TODO.
+
+
+    % Convenience predicates
+
+    is_type : surface.term -> core.term -> prop.
+    is_type SourceElem TargetElem :-
+        is_type (context []) SourceElem TargetElem.
+
+    synth_type : surface.term -> value -> core.term -> prop.
+    synth_type SourceElem TargetType TargetElem :-
+        synth_type (context []) SourceElem TargetType TargetElem.
+
+    check_type : surface.term -> value -> core.term -> prop.
+    check_type SourceElem TargetType TargetElem :-
+        check_type (context []) SourceElem TargetType TargetElem.
 
 %end.
