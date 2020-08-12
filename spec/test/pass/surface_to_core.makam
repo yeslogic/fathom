@@ -109,7 +109,7 @@
     core.record_type
         [ ( "data", core.int_type ) ].
 
->> synth_type
+>> check_type
     (surface.record_type
         [ ( "data", surface.name "Int" )
         , ( "data", surface.enum_type [] )
@@ -130,7 +130,31 @@
         , ( "y", core.int_type )
         ].
 
-    % TODO: Dependent record tests
+>> check_type
+    (surface.record_type
+        [ ( "len", surface.name "Int" )
+        , ( "data",
+            surface.function_elim
+                (surface.function_elim (surface.name "Array")
+                    (surface.enum_type [ "unit" ]))
+                (surface.name "len")
+          )
+        ])
+    type_type Elem ?
+>> Yes:
+>> Elem :=
+    core.record_type
+        [ ( "len", core.int_type )
+        , ( "data",
+            core.function_elim
+                (core.function_elim
+                    (core.function_intro core.type_type
+                            (core.function_intro core.int_type
+                                (core.array_type (core.local 1) (core.local 0))))
+                    (core.enum_type [ "unit" ]))
+                (core.local 0)
+          )
+        ].
 
 >> check_type (surface.record_type []) format_type Elem ?
 >> Yes:
@@ -149,6 +173,14 @@
 
 >> check_type
     (surface.record_type
+        [ ( "data", surface.name "U32Be" )
+        , ( "data", surface.name "U16Be" )
+        ])
+    format_type Elem ?
+>> Impossible.
+
+>> check_type
+    (surface.record_type
         [ ( "x", surface.name "U32Le" )
         , ( "y", surface.name "U32Le" )
         ])
@@ -160,7 +192,31 @@
         , ( "y", core.format_intro_u32le )
         ].
 
-    % TODO: Dependent record format tests
+>> check_type
+    (surface.record_type
+        [ ( "len", surface.name "U16Be" )
+        , ( "data",
+            surface.function_elim
+                (surface.function_elim (surface.name "FormatArray")
+                    (surface.name "U32Be"))
+                (surface.name "len")
+          )
+        ])
+    format_type Elem ?
+>> Yes:
+>> Elem :=
+    core.format_intro_record
+        [ ( "len", core.format_intro_u16be )
+        , ( "data",
+            core.function_elim
+                (core.function_elim
+                    (core.function_intro core.format_type
+                            (core.function_intro core.int_type
+                                (core.format_intro_array (core.local 1) (core.local 0))))
+                    core.format_intro_u32be)
+                (core.local 0)
+          )
+        ].
 
 >> synth_type (surface.record_intro []) Type Elem ?
 >> Yes:
