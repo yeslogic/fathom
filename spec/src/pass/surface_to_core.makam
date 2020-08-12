@@ -68,6 +68,38 @@
     %end.
 
 
+    % Globals
+
+    lookup_global : string -> core.term -> core.term -> prop.
+    lookup_global "Int" core.type_type core.int_type.
+    lookup_global "Array"
+        (core.function_type core.type_type
+            (core.function_type core.int_type core.type_type))
+        (core.function_intro core.type_type
+            (core.function_intro core.int_type
+                (core.array_type (core.local 1) (core.local 0)))).
+    lookup_global "FormatArray"
+        (core.function_type core.format_type
+            (core.function_type core.int_type core.format_type))
+        (core.function_intro core.format_type
+            (core.function_intro core.int_type
+                (core.format_intro_array (core.local 1) (core.local 0)))).
+    lookup_global "U8" core.format_type core.format_intro_u8.
+    lookup_global "U16Le" core.format_type core.format_intro_u16le.
+    lookup_global "U16Be" core.format_type core.format_intro_u16be.
+    lookup_global "U32Le" core.format_type core.format_intro_u32le.
+    lookup_global "U32Be" core.format_type core.format_intro_u32be.
+    lookup_global "U64Le" core.format_type core.format_intro_u64le.
+    lookup_global "U64Be" core.format_type core.format_intro_u64be.
+    lookup_global "S8" core.format_type core.format_intro_s8.
+    lookup_global "S16Le" core.format_type core.format_intro_s16le.
+    lookup_global "S16Be" core.format_type core.format_intro_s16be.
+    lookup_global "S32Le" core.format_type core.format_intro_s32le.
+    lookup_global "S32Be" core.format_type core.format_intro_s32be.
+    lookup_global "S64Le" core.format_type core.format_intro_s64le.
+    lookup_global "S64Be" core.format_type core.format_intro_s64be.
+
+
     % Elaboration rules
 
     % Check that a term is a type and elaborate it to a core term.
@@ -98,25 +130,14 @@
         context.is_equal Context TargetType TargetType'.
 
     % Names
-    is_type Context (surface.name "Type") core.type_type.
-    is_type Context (surface.name "Format") core.format_type.
-    synth_type Context (surface.name "Int") type_type core.int_type.
-    synth_type Context (surface.name "U8") format_type core.format_intro_u8.
-    synth_type Context (surface.name "U16Le") format_type core.format_intro_u16le.
-    synth_type Context (surface.name "U16Be") format_type core.format_intro_u16be.
-    synth_type Context (surface.name "U32Le") format_type core.format_intro_u32le.
-    synth_type Context (surface.name "U32Be") format_type core.format_intro_u32be.
-    synth_type Context (surface.name "U64Le") format_type core.format_intro_u64le.
-    synth_type Context (surface.name "U64Be") format_type core.format_intro_u64be.
-    synth_type Context (surface.name "S8") format_type core.format_intro_s8.
-    synth_type Context (surface.name "S16Le") format_type core.format_intro_s16le.
-    synth_type Context (surface.name "S16Be") format_type core.format_intro_s16be.
-    synth_type Context (surface.name "S32Le") format_type core.format_intro_s32le.
-    synth_type Context (surface.name "S32Be") format_type core.format_intro_s32be.
-    synth_type Context (surface.name "S64Le") format_type core.format_intro_s64le.
-    synth_type Context (surface.name "S64Be") format_type core.format_intro_s64be.
+    is_type Context (surface.name "Type") core.type_type.       % TODO: Move to globals
+    is_type Context (surface.name "Format") core.format_type.   % TODO: Move to globals
     synth_type Context (surface.name Name) TargetType (core.local Level) :-
         context.lookup_type Context Name Level TargetType.
+    synth_type Context (surface.name Name) TargetType' TargetElem :-
+        not (context.lookup_type Context Name _ _),
+        lookup_global Name TargetType TargetElem,
+        context.eval Context TargetType TargetType'.
 
     % Annotated terms
     synth_type Context (surface.ann SourceElem SourceType) TargetType'

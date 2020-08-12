@@ -39,9 +39,58 @@
     Type Elem ?
 >> Impossible.
 
+>> synth_type (surface.name "Array") Type Elem ?
+>> Yes:
+>> Type :=
+    function_type type_type
+        (closure [] (core.function_type core.int_type core.type_type)).
+>> Elem :=
+    core.function_intro core.type_type
+            (core.function_intro core.int_type
+                (core.array_type (core.local 1) (core.local 0))).
+
 
     % Annotated terms
+
+
     % Functions
+
+    % TODO: Function type tests
+    % TODO: Function term tests
+
+>> synth_type
+    (surface.function_elim
+        (surface.function_elim (surface.name "Array")
+            (surface.name "Int"))
+        (surface.number_intro "23"))
+    Type Elem ?
+>> Yes:
+>> Type := type_type.
+>> Elem :=
+    core.function_elim
+        (core.function_elim
+            (core.function_intro core.type_type
+                    (core.function_intro core.int_type
+                        (core.array_type (core.local 1) (core.local 0))))
+            core.int_type)
+        (core.int_intro 23).
+
+>> synth_type
+    (surface.function_elim
+        (surface.function_elim (surface.name "FormatArray")
+            (surface.name "U32Be"))
+        (surface.number_intro "23"))
+    Type Elem ?
+>> Yes:
+>> Type := format_type.
+>> Elem :=
+    core.function_elim
+        (core.function_elim
+            (core.function_intro core.format_type
+                    (core.function_intro core.int_type
+                        (core.format_intro_array (core.local 1) (core.local 0))))
+            core.format_intro_u32be)
+        (core.int_intro 23).
 
 
     % Records
