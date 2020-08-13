@@ -178,13 +178,19 @@
         synth_type Context' SourceOutputElem TargetOutputType TargetOutputElem,
         context.values Context' TargetValues,
         context.readback Context' TargetOutputType TargetOutputType'.
-    synth_type Context (surface.function_elim SourceElem SourceInputElem) TargetOutputType
-        (core.function_elim TargetElem TargetInputElem)
+    synth_type Context (surface.function_elim SourceHeadElem SourceInputElems)
+        TargetOutputType TargetElem
     :-
-        synth_type Context SourceElem (function_type InputType Closure) TargetElem,
-        check_type Context SourceInputElem InputType TargetInputElem,
-        context.eval Context TargetInputElem TargetInputElem',
-        apply Closure TargetInputElem' TargetOutputType.
+        synth_type Context SourceHeadElem TargetHeadType TargetHeadElem,
+        foldl (pfun
+            ( function_type InputType Closure, TargetHeadElem )
+            SourceInputElem
+            ( TargetOutputType, core.function_elim TargetHeadElem TargetInputElem )
+        => [TargetInputElem'] (
+            check_type Context SourceInputElem InputType TargetInputElem,
+            context.eval Context TargetInputElem TargetInputElem',
+            apply Closure TargetInputElem' TargetOutputType
+        )) ( TargetHeadType, TargetHeadElem ) SourceInputElems ( TargetOutputType, TargetElem ).
 
     % Records
     check_type Context (surface.record_type []) type_type (core.record_type []).

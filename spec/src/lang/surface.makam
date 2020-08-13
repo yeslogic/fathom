@@ -24,7 +24,7 @@
     % Functions
     function_type : pattern -> term -> term.    % Also known as: Pi type, Dependent product type
     function_intro : pattern -> term -> term.   % Also known as: Lambda abstraction, anonymous function
-    function_elim : term -> term -> term.       % Also known as: Function application
+    function_elim : term -> list term -> term.  % Also known as: Function application
 
     % Records
     record_type : list (string * term) -> term.

@@ -59,10 +59,10 @@
     % TODO: Function term tests
 
 >> synth_type
-    (surface.function_elim
-        (surface.function_elim (surface.name "Array")
-            (surface.name "Int"))
-        (surface.number_intro "23"))
+    (surface.function_elim (surface.name "Array")
+        [ surface.name "Int"
+        , surface.number_intro "23"
+        ])
     Type Elem ?
 >> Yes:
 >> Type := type_type.
@@ -76,10 +76,10 @@
         (core.int_intro 23).
 
 >> synth_type
-    (surface.function_elim
-        (surface.function_elim (surface.name "FormatArray")
-            (surface.name "U32Be"))
-        (surface.number_intro "23"))
+    (surface.function_elim (surface.name "FormatArray")
+        [ surface.name "U32Be"
+        , surface.number_intro "23"
+        ])
     Type Elem ?
 >> Yes:
 >> Type := format_type.
@@ -134,10 +134,10 @@
     (surface.record_type
         [ ( "len", surface.name "Int" )
         , ( "data",
-            surface.function_elim
-                (surface.function_elim (surface.name "Array")
-                    (surface.enum_type [ "unit" ]))
-                (surface.name "len")
+            surface.function_elim (surface.name "Array")
+                [ surface.enum_type [ "unit" ]
+                , surface.name "len"
+                ]
           )
         ])
     type_type Elem ?
@@ -196,10 +196,10 @@
     (surface.record_type
         [ ( "len", surface.name "U16Be" )
         , ( "data",
-            surface.function_elim
-                (surface.function_elim (surface.name "FormatArray")
-                    (surface.name "U32Be"))
-                (surface.name "len")
+            surface.function_elim (surface.name "FormatArray")
+                [ surface.name "U32Be"
+                , surface.name "len"
+                ]
           )
         ])
     format_type Elem ?
