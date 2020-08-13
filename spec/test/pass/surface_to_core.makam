@@ -52,6 +52,201 @@
 
     % Annotated terms
 
+>> synth_type
+    (surface.ann (surface.record_intro []) (surface.record_type []))
+    Type Elem ?
+>> Yes:
+>> Type := record_type (field_closure [] []).
+>> Elem := core.record_intro [] [].
+
+>> synth_type
+    (surface.ann
+        (surface.record_intro [ ( "data", surface.number_intro "23" ) ])
+        (surface.record_type [ ( "data", surface.name "Int" ) ]))
+    Type Elem ?
+>> Yes:
+>> Type := record_type (field_closure [] [ ( "data", core.int_type ) ]).
+>> Elem :=
+    core.record_intro
+        [ ( "data", core.int_intro 23 ) ]
+        [ ( "data", core.int_type ) ].
+
+>> synth_type
+    (surface.ann
+        (surface.record_intro
+            [ ( "y", surface.number_intro "2" )
+            , ( "x", surface.number_intro "1" )
+            ])
+        (surface.record_type
+            [ ( "x", surface.name "Int" )
+            , ( "y", surface.name "Int" )
+            ]))
+    Type Elem ?
+>> Yes:
+>> Type :=
+    record_type
+        (field_closure []
+            [ ( "x", core.int_type )
+            , ( "y", core.int_type )
+            ]).
+>> Elem :=
+    core.record_intro
+        [ ( "x", core.int_intro 1 )
+        , ( "y", core.int_intro 2 )
+        ]
+        [ ( "x", core.int_type )
+        , ( "y", core.int_type )
+        ].
+
+>> synth_type
+    (surface.ann
+        (surface.record_intro
+            [ ( "data", surface.sequence_intro [] )
+            , ( "len", surface.number_intro "0" )
+            ])
+        (surface.record_type
+            [ ( "len", surface.name "Int" )
+            , ( "data"
+              , surface.function_elim (surface.name "Array")
+                    [ surface.enum_type [ "unit" ]
+                    , surface.name "len"
+                    ]
+              )
+            ]))
+    Type Elem ?
+>> Yes:
+>> Type := record_type
+    (field_closure []
+        [ ( "len", core.int_type )
+        , ( "data"
+          , core.function_elim
+                (core.function_elim
+                    (core.function_intro core.type_type
+                            (core.function_intro core.int_type
+                                (core.array_type (core.local 1) (core.local 0))))
+                    (core.enum_type [ "unit" ]))
+                (core.local 0)
+          )
+        ]).
+>> Elem :=
+    core.record_intro
+        [ ( "len", core.int_intro 0 )
+        , ( "data", core.array_intro [] (core.enum_type [ "unit" ]) )
+        ]
+        [ ( "len", core.int_type )
+        , ( "data"
+          , core.function_elim
+                (core.function_elim
+                    (core.function_intro core.type_type
+                            (core.function_intro core.int_type
+                                (core.array_type (core.local 1) (core.local 0))))
+                    (core.enum_type [ "unit" ]))
+                (core.local 0)
+          )
+        ].
+
+>> synth_type
+    (surface.ann
+        (surface.record_intro
+            [ ( "data"
+              , surface.sequence_intro
+                [ surface.enum_intro "unit"
+                , surface.enum_intro "unit"
+                ]
+              )
+            , ( "len", surface.number_intro "2" )
+            ])
+        (surface.record_type
+            [ ( "len", surface.name "Int" )
+            , ( "data"
+              , surface.function_elim (surface.name "Array")
+                    [ surface.enum_type [ "unit" ]
+                    , surface.name "len"
+                    ]
+              )
+            ]))
+    Type Elem ?
+>> Yes:
+>> Type := record_type
+    (field_closure []
+        [ ( "len", core.int_type )
+        , ( "data"
+          , core.function_elim
+                (core.function_elim
+                    (core.function_intro core.type_type
+                            (core.function_intro core.int_type
+                                (core.array_type (core.local 1) (core.local 0))))
+                    (core.enum_type [ "unit" ]))
+                (core.local 0)
+          )
+        ]).
+>> Elem :=
+    core.record_intro
+        [ ( "len", core.int_intro 2 )
+        , ( "data"
+          , core.array_intro
+                [ core.enum_intro "unit" [ "unit" ]
+                , core.enum_intro "unit" [ "unit" ]
+                ]
+                (core.enum_type [ "unit" ])
+          )
+        ]
+        [ ( "len", core.int_type )
+        , ( "data"
+          , core.function_elim
+                (core.function_elim
+                    (core.function_intro core.type_type
+                            (core.function_intro core.int_type
+                                (core.array_type (core.local 1) (core.local 0))))
+                    (core.enum_type [ "unit" ]))
+                (core.local 0)
+          )
+        ].
+
+>> synth_type
+    (surface.ann
+        (surface.enum_intro "false")
+        (surface.enum_type [ "true", "false" ]))
+    Type Elem ?
+>> Yes:
+>> Type := enum_type [ "true", "false" ].
+>> Elem := core.enum_intro "false" [ "true", "false" ].
+
+>> synth_type (surface.ann (surface.number_intro "23") (surface.name "Int")) Type Elem ?
+>> Yes:
+>> Type := int_type.
+>> Elem := core.int_intro 23.
+
+>> synth_type
+    (surface.ann
+        (surface.number_intro "23")
+        (surface.ann (surface.name "Int") (surface.name "Type")))
+    Type Elem ?
+>> Yes:
+>> Type := int_type.
+>> Elem := core.int_intro 23.
+
+>> synth_type (surface.ann (surface.name "Int") (surface.name "Type")) Type Elem ?
+>> Yes:
+>> Type := type_type.
+>> Elem := core.int_type.
+
+>> synth_type (surface.ann (surface.record_type []) (surface.name "Format")) Type Elem ?
+>> Yes:
+>> Type := format_type.
+>> Elem := core.format_intro_record [].
+
+>> synth_type (surface.ann (surface.name "U8") (surface.name "Format")) Type Elem ?
+>> Yes:
+>> Type := format_type.
+>> Elem := core.format_intro_u8.
+
+>> check_type (surface.ann (surface.name "Int") (surface.name "Type")) format_type Elem ?
+>> Impossible.
+
+>> check_type (surface.ann (surface.name "U8") (surface.name "Format")) type_type Elem ?
+>> Impossible.
+
 
     % Functions
 
@@ -133,8 +328,8 @@
 >> check_type
     (surface.record_type
         [ ( "len", surface.name "Int" )
-        , ( "data",
-            surface.function_elim (surface.name "Array")
+        , ( "data"
+          , surface.function_elim (surface.name "Array")
                 [ surface.enum_type [ "unit" ]
                 , surface.name "len"
                 ]
@@ -145,8 +340,8 @@
 >> Elem :=
     core.record_type
         [ ( "len", core.int_type )
-        , ( "data",
-            core.function_elim
+        , ( "data"
+          , core.function_elim
                 (core.function_elim
                     (core.function_intro core.type_type
                             (core.function_intro core.int_type
@@ -195,8 +390,8 @@
 >> check_type
     (surface.record_type
         [ ( "len", surface.name "U16Be" )
-        , ( "data",
-            surface.function_elim (surface.name "FormatArray")
+        , ( "data"
+          , surface.function_elim (surface.name "FormatArray")
                 [ surface.name "U32Be"
                 , surface.name "len"
                 ]
@@ -207,8 +402,8 @@
 >> Elem :=
     core.format_intro_record
         [ ( "len", core.format_intro_u16be )
-        , ( "data",
-            core.function_elim
+        , ( "data"
+          , core.function_elim
                 (core.function_elim
                     (core.function_intro core.format_type
                             (core.function_intro core.int_type
@@ -222,6 +417,28 @@
 >> Yes:
 >> Type := record_type (field_closure [] []).
 >> Elem := core.record_intro [] [].
+
+>> check_type
+    (surface.record_intro [ ( "data", surface.number_intro "23" ) ])
+    (record_type (field_closure [] [ ( "data", core.int_type ) ]))
+    Elem ?
+>> Yes:
+>> Elem :=
+    core.record_intro
+        [ ( "data", core.int_intro 23 ) ]
+        [ ( "data", core.int_type ) ].
+
+>> check_type
+    (surface.record_intro [ ( "data", surface.number_intro "23" ) ])
+    (record_type (field_closure [] [ ( "data", core.enum_type [] ) ]))
+    Elem ?
+>> Impossible.
+
+>> check_type
+    (surface.record_intro [ ( "data", surface.number_intro "23" ) ])
+    (record_type (field_closure [] [ ( "len", core.int_type ) ]))
+    Elem ?
+>> Impossible.
 
 >> check_type
     (surface.record_intro
@@ -297,7 +514,96 @@
         , ( "data", core.array_type (core.enum_type [ "unit" ]) (core.local 0) )
         ].
 
-    % TODO: Record elimination tests
+>> synth_type (surface.record_elim (surface.record_intro []) "hello") Type Elem ?
+>> Impossible.
+
+>> synth_type
+    (surface.record_elim
+        (surface.ann
+            (surface.record_intro [ ( "data", surface.number_intro "23" ) ])
+            (surface.record_type [ ( "data", surface.name "Int" ) ]))
+        "data")
+    Type Elem ?
+>> Yes:
+>> Type := int_type.
+>> Elem :=
+    core.record_elim
+        (core.record_intro
+            [ ( "data", core.int_intro 23 ) ]
+            [ ( "data", core.int_type ) ])
+        "data".
+
+>> synth_type
+    (surface.record_elim
+        (surface.ann
+            (surface.record_intro
+                [ ( "y", surface.number_intro "2" )
+                , ( "x", surface.number_intro "1" )
+                ])
+            (surface.record_type
+                [ ( "x", surface.name "Int" )
+                , ( "y", surface.name "Int" )
+                ]))
+        "y")
+    Type Elem ?
+>> Yes:
+>> Type := int_type.
+>> Elem :=
+    core.record_elim
+        (core.record_intro
+            [ ( "x", core.int_intro 1 ), ( "y", core.int_intro 2 ) ]
+            [ ( "x", core.int_type ), ( "y", core.int_type ) ])
+        "y".
+
+>> synth_type
+    (surface.record_elim
+        (surface.ann
+            (surface.record_intro
+                [ ( "len", surface.number_intro "2" )
+                , ( "data"
+                  , surface.sequence_intro
+                        [ surface.enum_intro "unit"
+                        , surface.enum_intro "unit"
+                        ]
+                  )
+                ])
+            (surface.record_type
+                [ ( "len", surface.name "Int" )
+                , ( "data"
+                  , surface.function_elim (surface.name "Array")
+                        [ surface.enum_type [ "unit" ]
+                        , surface.name "len"
+                        ]
+                  )
+                ]))
+        "data")
+    Type Elem ?
+>> Yes:
+>> Type := array_type (enum_type [ "unit" ]) (int_intro 2).
+>> Elem :=
+    core.record_elim
+        (core.record_intro
+            [ ( "len", core.int_intro 2 )
+            , ( "data"
+              , core.array_intro
+                    [ core.enum_intro "unit" [ "unit" ]
+                    , core.enum_intro "unit" [ "unit" ]
+                    ]
+                    (core.enum_type [ "unit" ])
+              )
+            ]
+            [ ( "len", core.int_type )
+            , ( "data"
+              , core.function_elim
+                    (core.function_elim
+                        (core.function_intro core.type_type
+                                (core.function_intro core.int_type
+                                    (core.array_type (core.local 1) (core.local 0))))
+                        (core.enum_type [ "unit" ]))
+                    (core.local 0)
+              )
+            ])
+        "data".
 
 
     % Enumerations

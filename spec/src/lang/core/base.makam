@@ -4,9 +4,6 @@ term : type.
 % Variables
 local : int -> term. % Local variables (using De Bruijn indices)
 
-% Annotated terms
-ann : term -> term -> term.
-
 % Universes
 type_type : term.
 

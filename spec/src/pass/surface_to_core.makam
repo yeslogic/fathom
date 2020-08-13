@@ -140,9 +140,7 @@
         context.eval Context TargetType TargetType'.
 
     % Annotated terms
-    synth_type Context (surface.ann SourceElem SourceType) TargetType'
-        (core.ann TargetElem TargetType)
-    :-
+    synth_type Context (surface.ann SourceElem SourceType) TargetType' TargetElem :-
         is_type Context SourceType TargetType,
         context.eval Context TargetType TargetType',
         check_type Context SourceElem TargetType' TargetElem.
@@ -215,6 +213,7 @@
             (core.format_intro_record TargetTypeFields).
     synth_type Context (surface.record_intro []) (record_type (field_closure [] []))
         (core.record_intro [] []).
+    % FIXME: Elaborated record fields don't capture closure bindings from the field closure
     check_type Context
         (surface.record_intro SourceElemFields)
         (record_type (field_closure TargetValues (( Label, TargetType ) :: TargetTypeFields)))
@@ -223,12 +222,12 @@
             (( Label, TargetType ) :: TargetTypeFields))
     :-
         map.remove SourceElemFields Label SourceElem SourceElemFields',
-        eval Values TargetType TargetType',
+        eval TargetValues TargetType TargetType',
         check_type Context SourceElem TargetType' TargetElem,
         context.eval Context TargetElem TargetElem',
         context.add_local Context ( some Label, TargetElem', TargetType' ) Context',
-        eq FieldClosure (field_closure (TargetElem' :: TargetValues) TargetTypeFields),
-        check_type Context' (surface.record_intro SourceElemFields') (record_type FieldClosure)
+        check_type Context' (surface.record_intro SourceElemFields')
+            (record_type (field_closure (TargetElem' :: TargetValues) TargetTypeFields))
             (core.record_intro TargetElemFields _).
 
     synth_type Context (surface.record_elim SourceRecordElem Label) TargetFieldType

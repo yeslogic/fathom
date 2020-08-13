@@ -101,12 +101,6 @@
     synth_type Context (local Index) Type :-
         context.lookup_type Context Index Type.
 
-    % Annotated terms
-    synth_type Context (ann Elem Type) Type' :-
-        is_type Context Type,
-        context.eval Context Type Type',
-        check_type Context Elem Type'.
-
     % Universes
     is_type Context type_type.
 

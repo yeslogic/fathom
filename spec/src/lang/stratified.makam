@@ -26,10 +26,6 @@
     local : int -> term1.   % Level-1 term variables
     local : int -> term0.   % Level-0 term variables
 
-    % Annotated terms
-    ann : term1 -> term2 -> term1.  % Level-1 terms annotated with level-2 terms
-    ann : term0 -> term1 -> term0.  % Level-0 terms annotated with level-1 terms
-
     % Universes
     type_type : term2.  % Type of types (the symbol `Kind` in [Shao et al. 2005])
 

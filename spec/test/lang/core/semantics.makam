@@ -13,13 +13,6 @@
 >> Term := format_intro_u8.
 
 
-    % Annotated terms
-
->> normalize (ann format_intro_u8 _) Term ?
->> Yes:
->> Term := format_intro_u8.
-
-
     % Functions
 
 >> normalize (function_type type_type (function_type (local 0) (local 1))) Term ?

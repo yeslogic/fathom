@@ -112,8 +112,6 @@
 
     eval Values (local Index) Value :-
         list.nth Values Index Value.
-    eval Values (ann Elem _) Value :-
-        eval Values Elem Value.
     eval Values type_type type_type.
     eval Values (function_type InputType OutputType)
         (function_type InputType' (closure Values OutputType))

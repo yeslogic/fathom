@@ -62,18 +62,6 @@
     from_term Context (core.local Index) (term0 (stratified.local Index)) :-
         context.lookup_universe Context Index term1.
 
-    % Annotated terms
-    from_term Context (core.ann SourceElem SourceType)
-        (term1 (stratified.ann TargetElem TargetType))
-    :-
-        from_term Context SourceType (term2 TargetType),
-        from_term Context SourceElem (term1 TargetElem).
-    from_term Context (core.ann SourceElem SourceType)
-        (term0 (stratified.ann TargetElem TargetType))
-    :-
-        from_term Context SourceType (term1 TargetType),
-        from_term_to_term0 Context SourceElem TargetElem.
-
     % Universes
     from_term Context core.type_type (term2 stratified.type_type).
 

@@ -44,21 +44,6 @@
 >> Target := term0 (stratified.local 1).
 
 
-    % Annotated terms
-
->> from_term (core.ann core.int_type core.type_type) Target ?
->> Yes:
->> Target := term1 (stratified.ann stratified.int_type stratified.type_type).
-
->> from_term (core.ann core.format_intro_u8 core.format_type) Target ?
->> Yes:
->> Target := term1 (stratified.ann stratified.format_intro_u8 stratified.format_type).
-
->> from_term (core.ann (core.record_intro [] []) (core.record_type [])) Target ?
->> Yes:
->> Target := term0 (stratified.ann (stratified.record_intro [] []) (stratified.record_type [])).
-
-
     % Universes
 
 >> from_term core.type_type Target ?
