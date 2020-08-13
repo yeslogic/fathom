@@ -10,7 +10,7 @@
 
     %use "base".        % Base syntax
     %use "semantics".   % Operational semantics
-    %use "typing/init". % Typing rules
+    %use "typing".      % Typing rules
     %use "binary".      % Binary interpretation of format descriptions
 
 %end.

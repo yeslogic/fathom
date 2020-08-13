@@ -1,8 +1,0 @@
-% Typing rules for the core of the data description language
-
-%extend typing.
-
-    %use "declarative".     % Declarative typing rules
-    %use "bidirectional".   % Bidirectional typing rules
-
-%end.

@@ -1,18 +1,11 @@
-% Bidirectional Typing
-%
-% This section provides an operational semantics for the declarative
-% typing rules in `core.typing.declarative`, and thus is intended to be
-% a refinement of these rules. This means that some terms that are
-% well-formed with respect to the declarative typing rules may _not_ be
-% well-formed in the bidirectional typing rules, requiring additional
-% type annotations in order to be considered valid.
+% Algorithmic typing rules
 
 %extend bidirectional.
 
     %open fathom.lang.core.semantics.
 
 
-    % Bidirectional typing context.
+    % Typing context.
     %
     % This stores the values and types of the bindings we have currently
     % traversed over, allowing us to evaluate terms and synthesize the

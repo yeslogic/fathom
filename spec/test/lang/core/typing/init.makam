@@ -1,5 +1,0 @@
-%extend typing.
-
-    %use "bidirectional".
-
-%end.
