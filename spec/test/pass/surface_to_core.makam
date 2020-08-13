@@ -244,7 +244,59 @@
         , ( "y", core.int_type )
         ].
 
-    % TODO: Dependent record introduction tests
+>> check_type
+    (surface.record_intro
+        [ ( "data", surface.sequence_intro [] )
+        , ( "len", surface.number_intro "0" )
+        ])
+    (record_type
+        (field_closure []
+            [ ( "len", core.int_type )
+            , ( "data", core.array_type (core.enum_type [ "unit" ]) (core.local 0) )
+            ]))
+    Elem ?
+>> Yes:
+>> Elem :=
+    core.record_intro
+        [ ( "len", core.int_intro 0 )
+        , ( "data", core.array_intro [] (core.enum_type [ "unit" ]) )
+        ]
+        [ ( "len", core.int_type )
+        , ( "data", core.array_type (core.enum_type [ "unit" ]) (core.local 0) )
+        ].
+
+>> check_type
+    (surface.record_intro
+        [ ( "len", surface.number_intro "2" )
+        , ( "data"
+          , surface.sequence_intro
+                [ surface.enum_intro "unit"
+                , surface.enum_intro "unit"
+                ]
+          )
+        ])
+    (record_type
+        (field_closure []
+            [ ( "len", core.int_type )
+            , ( "data", core.array_type (core.enum_type [ "unit" ]) (core.local 0) )
+            ]))
+    Elem ?
+>> Yes:
+>> Elem :=
+    core.record_intro
+        [ ( "len", core.int_intro 2 )
+        , ( "data"
+          , core.array_intro
+                [ core.enum_intro "unit" [ "unit" ]
+                , core.enum_intro "unit" [ "unit" ]
+                ]
+                (core.enum_type [ "unit" ])
+          )
+        ]
+        [ ( "len", core.int_type )
+        , ( "data", core.array_type (core.enum_type [ "unit" ]) (core.local 0) )
+        ].
+
     % TODO: Record elimination tests
 
 
@@ -257,5 +309,26 @@
 >> Yes:
 >> Elem := core.int_intro 23.
 
+>> check_type
+    (surface.sequence_intro [])
+    (array_type (enum_type [ "unit" ]) (int_intro 0))
+    Elem ?
+>> Yes:
+>> Elem := core.array_intro [] (core.enum_type [ "unit" ]).
+
+>> check_type
+    (surface.sequence_intro
+        [ surface.enum_intro "unit"
+        , surface.enum_intro "unit"
+        ])
+    (array_type (enum_type [ "unit" ]) (int_intro 2))
+    Elem ?
+>> Yes:
+>> Elem :=
+    core.array_intro
+        [ core.enum_intro "unit" [ "unit" ]
+        , core.enum_intro "unit" [ "unit" ]
+        ]
+        (core.enum_type [ "unit" ]).
 
 %end.

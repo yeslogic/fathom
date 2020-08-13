@@ -250,7 +250,14 @@
         % NOTE: Just using Makam's integer parser for now :)
         syntax.parse makam.int_literal_ Source Int.
     %  check_type Context (surface.string_intro Data) TODO TODO' :- TODO''.
-    %  check_type Context (surface.sequence_intro SourceElems) (array_type TargetType TargetLenElem) (core.array_intro TargetElems) :- TODO.
+    check_type Context (surface.sequence_intro SourceElems)
+        (array_type TargetType (int_intro TargetLen))
+        (core.array_intro TargetElems TargetType')
+    :-
+        length SourceElems TargetLen,
+        map (pfun SourceElem TargetElem => check_type Context SourceElem TargetType TargetElem)
+            SourceElems TargetElems,
+        context.readback Context TargetType TargetType'.
 
 
     % Convenience predicates
