@@ -9,29 +9,6 @@
 
 % FIXME: there seems to be a bug with indenting tests here - see https://github.com/astampoulis/makam/issues/94
 
-    % Conversion
-
->> from_term_to_term2 core.type_type Target ?
->> Yes:
->> Target := stratified.type_type.
-
->> from_term_to_term2 (core.record_type []) Target ?
->> Impossible.
-
->> from_term_to_term2 (core.record_intro [] []) Target ?
->> Impossible.
-
->> from_term_to_term1 (core.record_type []) Target ?
->> Yes:
->> Target := stratified.record_type [].
-
->> from_term_to_term1 (core.record_intro [] []) Target ?
->> Impossible.
-
->> from_term_to_term0 (core.record_intro [] []) Target ?
->> Yes:
->> Target := stratified.record_intro [] [].
-
 
     % Variables
 
