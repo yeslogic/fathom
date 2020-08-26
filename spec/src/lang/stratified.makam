@@ -31,7 +31,7 @@
 
     % Functions
     %
-    % The numbers usied in the identifier of each constructor refers to the
+    % The numbers used in the identifier of each constructor refer to the
     % level of the input term and output term.
     function_type_1_1 : term2 -> term2 -> term2.     % Dependent function types from term1s-to-term1s
     function_type_0_1 : term1 -> term2 -> term2.     % Dependent function types from term0s-to-term1s
@@ -76,8 +76,8 @@
     %
     % Instead of encoding singletons as an inductive definition as in
     % [Shao et al. 2005] and [Monnier et al. 2010], we instead define them as
-    % primitives in our stratified intermediate language. This avoids the need
-    % for us to add 'proper' inductive definitions to the stratified IR.
+    % primitives in our stratified intermediate language. We might eventually
+    % want support full inductive types in the future, however.
     singleton_type : term2.                                 % Type of singletons (or `Ω` in [Shao et al. 2005])
     singleton_intro_arrow : term1 -> term1 -> term1.        % Arrow singletons
     singleton_intro_forall_2 : term1 -> term1 -> term1.     % Universal quantification over level-2 variables
