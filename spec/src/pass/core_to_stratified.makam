@@ -50,12 +50,9 @@
     from_term Context core.type_type (term2 stratified.type_type).
 
     % Functions
-    %  from_term Context (core.function_term1 SourceInputType SourceOutputType) (term2 (stratified.function_term1 TargetInputType TargetOutputType)) :- TODO.
-    %  from_term Context (core.function_term1 SourceInputType SourceOutputType) (term1 (stratified.function_term1 TargetInputType TargetOutputType)) :- TODO.
-    %  from_term Context (core.function_intro SourceInputType SourceOutputElem) (term1 (stratified.function_intro TargetOutputElem)) :- TODO.
-    %  from_term Context (core.function_intro SourceInputType SourceOutputElem) (term0 (stratified.function_intro TargetOutputElem)) :- TODO.
-    %  from_term Context (core.function_elim SourceElem SourceInputElem) (term1 (core.function_elim TargetElem TargetInputElem)) :- TODO.
-    %  from_term Context (core.function_elim SourceElem SourceInputElem) (term0 (core.function_elim TargetElem TargetInputElem)) :- TODO.
+    from_term Context (core.function_type SourceInputType SourceOutputType) _ :- TODO.
+    from_term Context (core.function_intro SourceInputType SourceOutputElem) _ :- TODO.
+    from_term Context (core.function_elim SourceElem SourceInputElem) _ :- TODO.
 
     % Records
     from_term Context (core.record_type []) (term1 (stratified.record_type [])).
