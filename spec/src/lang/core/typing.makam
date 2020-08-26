@@ -81,6 +81,10 @@
     % synth_type : in -> in -> out -> semidet.
     % ```
 
+    % Axioms
+    is_type Context type_type.
+    is_type Context format_type.
+
     % Conversion
     is_type Context Elem :-
         check_type Context Elem type_type.
@@ -94,15 +98,7 @@
     synth_type Context (local Index) Type :-
         context.lookup_type Context Index Type.
 
-    % Universes
-    is_type Context type_type.
-
     % Functions
-    is_type Context (function_type InputType OutputType) :-
-        is_type Context InputType,
-        context.eval Context InputType InputType',
-        context.add_param Context InputType' Context',
-        is_type Context' OutputType.
     synth_type Context (function_type InputType OutputType) type_type :-
         is_type Context InputType,
         context.eval Context InputType InputType',
@@ -124,13 +120,6 @@
         apply Closure InputElem' OutputType.
 
     % Records
-    is_type Context (record_type []).
-    is_type Context (record_type (( Label, Type ) :: TypeFields)) :-
-        not (contains ( Label, _ ) TypeFields),
-        check_type Context Type type_type,
-        context.eval Context Type Type',
-        context.add_param Context Type' Context',
-        is_type Context' (record_type TypeFields).
     synth_type Context (record_type []) type_type.
     synth_type Context (record_type (( Label, Type ) :: TypeFields)) type_type :-
         not (contains ( Label, _ ) TypeFields),
@@ -159,7 +148,6 @@
         record_elim_type RecordElem' Label FieldClosure FieldType.
 
     % Enumerations
-    is_type Context (enum_type Labels).
     synth_type Context (enum_type Labels) type_type.
     synth_type Context (enum_intro Label Labels) (enum_type Labels) :-
         set.member Labels Label _.
@@ -178,14 +166,10 @@
         context.values Context Values.
 
     % Integers
-    is_type Context int_type.
     synth_type Context int_type type_type.
     synth_type Context (int_intro _) int_type.
 
     % Arrays
-    is_type Context (array_type Type LenElem) :-
-        check_type Context Type type_type,
-        check_type Context LenElem int_type.
     synth_type Context (array_type Type LenElem) type_type :-
         check_type Context Type type_type,
         check_type Context LenElem int_type.
@@ -200,7 +184,6 @@
         check_type Context IndexElem int_type.
 
     % Binary format descriptions
-    is_type Context format_type.
     synth_type Context format_intro_void format_type.
     synth_type Context format_intro_unit format_type.
     synth_type Context format_intro_u8 format_type.
@@ -232,8 +215,6 @@
         context.eval Context Type Type',
         check_type Context Elem Type'.
     synth_type Context (format_intro_absorb Type) format_type :-
-        check_type Context Type format_type.
-    is_type Context (format_elim Type) :-
         check_type Context Type format_type.
     synth_type Context (format_elim Type) type_type :-
         check_type Context Type format_type.
