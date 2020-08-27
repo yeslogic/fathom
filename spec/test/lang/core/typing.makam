@@ -36,26 +36,56 @@
 
     % Universes
 
->> is_type type_type ?
->> Yes.
-
 >> synth_type type_type Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type kind_type Type ?
 >> Impossible.
 
 
     % Functions
 
+>> synth_type (function_type int_type type_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type int_type format_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
 >> synth_type (function_type type_type type_type) Type ?
 >> Yes:
->> Type := type_type.
+>> Type := kind_type.
+
+>> synth_type (function_type type_type format_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type type_type kind_type) Type ?
+>> Impossible.
+
+>> synth_type (function_type format_type format_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type format_type type_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type kind_type kind_type) Type ?
+>> Impossible.
+
+>> synth_type (function_type kind_type type_type) Type ?
+>> Impossible.
 
 >> synth_type (function_type type_type (function_type (local 0) (local 1))) Type ?
 >> Yes:
->> Type := type_type.
+>> Type := kind_type.
 
 >> synth_type (function_type type_type (function_type (local 0) (local 1))) Type ?
 >> Yes:
->> Type := type_type.
+>> Type := kind_type.
 
 >> synth_type (function_intro type_type (function_intro (local 0) (local 0))) Type ?
 >> Yes:
@@ -360,11 +390,9 @@
 
     % Binary format descriptions
 
->> is_type format_type ?
->> Yes.
-
 >> synth_type format_type Type ?
->> Impossible.
+>> Yes:
+>> Type := kind_type.
 
 >> synth_type (format_intro_array format_intro_u8 (int_intro 3)) Type ?
 >> Yes:

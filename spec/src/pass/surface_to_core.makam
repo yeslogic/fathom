@@ -68,9 +68,35 @@
     %end.
 
 
+    % Pure Type System configuration
+
+    % FIXME: Can't use call these directly from `core.typing` for some reason?
+    % For now lets just duplicate them.
+
+    % Valid sorts in the type system
+    sort : value -> prop.
+    sort type_type.
+    sort kind_type.
+
+    % Axioms for synthesizing sorts of sorts
+    axiom : core.term -> value -> prop.
+    axiom core.type_type kind_type.
+
+    % Rules for checking the sorts of the inputs and outputs of function types.
+    % This yeilds a system that is close to the Calculus of Constructions, but
+    % with a predicative `type_type` sort.
+    rule : value -> value -> value -> prop.
+    rule type_type type_type type_type.
+    rule type_type kind_type kind_type.
+    rule kind_type type_type kind_type.
+    rule kind_type kind_type kind_type.
+
+
     % Globals
 
     lookup_global : string -> core.term -> core.term -> prop.
+    lookup_global "Type" core.kind_type core.type_type. % NOTE: Follows from the PTS axioms
+    lookup_global "Format" core.kind_type core.format_type.
     lookup_global "Int" core.type_type core.int_type.
     lookup_global "Array"
         (core.function_type core.type_type
@@ -102,36 +128,17 @@
 
     % Elaboration rules
 
-    % Check that a term is a type and elaborate it to a core term.
-    is_type : context -> surface.term -> core.term -> prop.
     % Check that a term is an element of the given type and elaborate it to a core term.
     check_type : context -> surface.term -> value -> core.term -> prop.
     % Synthesize the type of a given term and elaborate it to a core term.
     synth_type : context -> surface.term -> value -> core.term -> prop.
 
-    % A note on modes
-    %
-    % Makam does not support mode declarations (like in Mercury), but if it did
-    % we'd assign the following mode declarations to the above predicates:
-    %
-    % ```
-    % is_type : in -> in -> out -> semidet.
-    % check_type : in -> in -> in -> out -> semidet.
-    % synth_type : in -> in -> out -> out -> semidet.
-    % ```
-
     % Conversion
-    is_type Context SourceElem TargetElem:-
-        check_type Context SourceElem type_type TargetElem.
-    is_type Context SourceElem TargetElem :-
-        check_type Context SourceElem format_type TargetElem.
     check_type Context SourceElem TargetType TargetElem :-
         synth_type Context SourceElem TargetType' TargetElem,
         context.is_equal Context TargetType TargetType'.
 
     % Names
-    is_type Context (surface.name "Type") core.type_type.       % TODO: Move to globals
-    is_type Context (surface.name "Format") core.format_type.   % TODO: Move to globals
     synth_type Context (surface.name Name) TargetType (core.local Level) :-
         context.lookup_type Context Name Level TargetType.
     synth_type Context (surface.name Name) TargetType' TargetElem :-
@@ -141,7 +148,8 @@
 
     % Annotated terms
     synth_type Context (surface.ann SourceElem SourceType) TargetType' TargetElem :-
-        is_type Context SourceType TargetType,
+        synth_type Context SourceType TargetTypeType TargetType,
+        sort TargetTypeType,
         context.eval Context TargetType TargetType',
         check_type Context SourceElem TargetType' TargetElem.
 
@@ -149,13 +157,16 @@
     %  check_type Context (surface.match SourceElem SourceClauses) TargetType TODO' :- TODO''.
 
     % Functions
-    synth_type Context (surface.function_type (surface.ann (surface.name Name) SourceInputType) SourceOutputType) type_type
+    synth_type Context
+        (surface.function_type (surface.ann (surface.name Name) SourceInputType) SourceOutputType)
+        TypeType
         (core.function_type TargetInputType TargetOutputType)
     :-
-        is_type Context SourceInputType TargetInputType,
+        synth_type Context SourceInputType TargetInputTypeType TargetInputType,
         context.eval Context TargetInputType TargetInputType',
         context.add_param Context ( some Name, TargetInputType' ) Context',
-        is_type Context' SourceOutputType TargetOutputType.
+        synth_type Context' SourceOutputType TargetOutputTypeType TargetOutputType,
+        rule TargetInputTypeType TargetOutputTypeType TypeType.
     check_type Context (surface.function_intro (surface.name Name) SourceOutputElem)
         (function_type TargetInputType Closure)
         (core.function_intro TargetInputType' TargetOutputElem)
@@ -170,12 +181,16 @@
         (function_type TargetInputType' (closure TargetValues TargetOutputType'))
         (core.function_intro TargetInputType TargetOutputElem)
     :-
-        is_type Context SourceInputType TargetInputType,
+        synth_type Context SourceInputType TargetInputTypeType TargetInputType,
         context.eval Context TargetInputType TargetInputType',
         context.add_param Context ( some Name, TargetInputType' ) Context',
         synth_type Context' SourceOutputElem TargetOutputType TargetOutputElem,
         context.values Context' TargetValues,
-        context.readback Context' TargetOutputType TargetOutputType'.
+        context.readback Context' TargetOutputType TargetOutputType',
+        % NOTE: due to the definition of `synth_type`, we always synthesize
+        % values that are in `type_type` or `kind_kind`. This means that we
+        % don't need to check the type of `TargetOutputType` against the PTS rules.
+        rule TargetTypeType _ _.
     synth_type Context (surface.function_elim SourceHeadElem SourceInputElems)
         TargetOutputType TargetElem
     :-
@@ -260,10 +275,6 @@
 
 
     % Convenience predicates
-
-    is_type : surface.term -> core.term -> prop.
-    is_type SourceElem TargetElem :-
-        is_type (context []) SourceElem TargetElem.
 
     synth_type : surface.term -> value -> core.term -> prop.
     synth_type SourceElem TargetType TargetElem :-

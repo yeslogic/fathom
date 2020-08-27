@@ -6,6 +6,7 @@ local : int -> term. % Local variables (using De Bruijn indices)
 
 % Universes
 type_type : term.
+kind_type : term.
 
 % Functions
 function_type : term -> term -> term.   % Also known as: Pi type, Dependent product type

@@ -48,6 +48,7 @@
 
     % Universes
     from_term Context core.type_type (term2 stratified.type_type).
+    from_term Context core.kind_type TODO.
 
     % Functions
     from_term Context (core.function_type SourceInputType SourceOutputType) _ :- TODO.

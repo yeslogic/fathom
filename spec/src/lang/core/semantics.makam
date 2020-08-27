@@ -29,6 +29,7 @@
 
     % Universes
     type_type : value.
+    kind_type : value.
 
     % Functions
     function_type : value -> closure -> value.  % Also known as: Pi type, Dependent product type
@@ -113,6 +114,7 @@
     eval Values (local Index) Value :-
         list.nth Values Index Value.
     eval Values type_type type_type.
+    eval Values kind_type kind_type.
     eval Values (function_type InputType OutputType)
         (function_type InputType' (closure Values OutputType))
     :-
@@ -135,7 +137,7 @@
         record_elim RecordElem' Label FieldElem'.
     eval Values (enum_type Labels) (enum_type Labels).
     eval Values (enum_intro Label Labels) (enum_intro Label Labels).
-    eval Values (enum_elim Clauses Type) (enum_elim (choice_closure Values Clauses Type)).
+    eval Values (enum_elim Clauses OutputType) (enum_elim (choice_closure Values Clauses OutputType)).
     eval Values int_type int_type.
     eval Values (int_intro Int) (int_intro Int).
     eval Values (array_type Type LenElem) (array_type Type' LenElem') :-
@@ -190,9 +192,9 @@
     function_elim (function_intro _ Closure) InputValue OutputValue :-
         apply Closure InputValue OutputValue.
     function_elim
-        (enum_elim (choice_closure Values Clauses Type))
+        (enum_elim (choice_closure Values Clauses OutputType))
         (neutral Neutral)
-        (neutral (enum_elim (choice_closure Values Clauses Type) Neutral)).
+        (neutral (enum_elim (choice_closure Values Clauses OutputType) Neutral)).
     function_elim (enum_elim (choice_closure Values Clauses _)) (enum_intro Label _) OutputValue :-
         map.find Clauses Label OutputElem,
         eval Values OutputElem OutputValue.
@@ -257,17 +259,17 @@
     readback Length (record_elim Neutral Label : neutral) (record_elim Elem Label) :-
         readback Length Neutral Elem.
     readback Length
-        (enum_elim (choice_closure Values Clauses Type) Neutral : neutral)
-        (function_elim (enum_elim Clauses' Type'') Elem)
+        (enum_elim (choice_closure Values Clauses OutputType) Neutral : neutral)
+        (function_elim (enum_elim Clauses' OutputType'') Elem)
     :-
         length Values ChoiceLength,
         map.mapvalues (pfun Elem Elem' => [Value] (
             eval Values Elem Value,
             readback Length Value Elem'
         )) Clauses Clauses',
-        eval (neutral (local Length) :: Values) Type Type',
+        eval (neutral (local Length) :: Values) OutputType OutputType',
         plus Length 1 Length1,
-        readback Length1 Type' Type'',
+        readback Length1 OutputType' OutputType'',
         readback Length Neutral Elem.
     readback Length (format_elim Neutral : neutral) (format_elim Elem) :-
         readback Length Neutral Elem.
@@ -301,14 +303,14 @@
         readback Length (record_type FieldClosure) (record_type TypeFields).
     readback Length (enum_type Labels) (enum_type Labels).
     readback Length (enum_intro Label Labels) (enum_intro Label Labels).
-    readback Length (enum_elim (choice_closure Values Clauses Type)) (enum_elim Clauses' Type'') :-
+    readback Length (enum_elim (choice_closure Values Clauses OutputType)) (enum_elim Clauses' OutputType'') :-
         map.mapvalues (pfun Elem Elem' => [Value Length] (
             eval Values Elem Value,
             readback Length Value Elem'
         )) Clauses Clauses',
-        eval (neutral (local Length) :: Values) Type Type',
+        eval (neutral (local Length) :: Values) OutputType OutputType',
         plus Length 1 Length1,
-        readback Length1 Type' Type''.
+        readback Length1 OutputType' OutputType''.
     readback Length int_type int_type.
     readback Length (int_intro Int) (int_intro Int).
     readback Length (array_type Type LenElem) (array_type Type' LenElem') :-
@@ -381,17 +383,17 @@
         is_equal Length Neutral1 Neutral2,
         is_equal Length InputValue1 InputValue2.
     is_equal Length
-        (enum_elim (choice_closure Values1 Clauses1 Type1) Neutral1 : neutral)
-        (enum_elim (choice_closure Values2 Clauses2 Type1) Neutral2 : neutral)
+        (enum_elim (choice_closure Values1 Clauses1 OutputType1) Neutral1 : neutral)
+        (enum_elim (choice_closure Values2 Clauses2 OutputType1) Neutral2 : neutral)
     :-
         map.mapvalues (pfun Elem1 Elem2 => [Value1 Value2] (
             eval Values1 Elem1 Value1,
             eval Values2 Elem2 Value2,
             is_equal Length Value1 Value2
         )) Clauses1 Clauses2,
-        eval (neutral (local Length) :: Values1) Type1 Type1',
-        eval (neutral (local Length) :: Values2) Type2 Type2',
-        is_equal Length Type1' Type2',
+        eval (neutral (local Length) :: Values1) OutputType1 OutputType1',
+        eval (neutral (local Length) :: Values2) OutputType2 OutputType2',
+        is_equal Length OutputType1' OutputType2',
         is_equal Length Neutral1 Neutral2.
     is_equal Length (format_elim Neutral1 : neutral) (format_elim Neutral2 : neutral) :-
         is_equal Length Neutral1 Neutral2.
@@ -438,17 +440,17 @@
         eqv Label1 Label2,
         eqv Labels1 Labels2.
     is_equal Length
-        (enum_elim (choice_closure Values1 Clauses1 Type1))
-        (enum_elim (choice_closure Values2 Clauses2 Type2))
+        (enum_elim (choice_closure Values1 Clauses1 OutputType1))
+        (enum_elim (choice_closure Values2 Clauses2 OutputType2))
     :-
         map.mapvalues (pfun Elem1 Elem2 => [Value1 Value2] (
             eval Values1 Elem1 Value1,
             eval Values2 Elem2 Value2,
             is_equal Length Value1 Value2
         )) Clauses1 Clauses2,
-        eval (neutral (local Length) :: Values1) Type1 Type1',
-        eval (neutral (local Length) :: Values2) Type2 Type2',
-        is_equal Length Type1' Type2'.
+        eval (neutral (local Length) :: Values1) OutputType1 OutputType1',
+        eval (neutral (local Length) :: Values2) OutputType2 OutputType2',
+        is_equal Length OutputType1' OutputType2'.
     is_equal Length int_type int_type.
     is_equal Length (int_intro Int) (int_intro Int).
     is_equal Length (array_type ElemType1 LenElem1) (array_type ElemType2 LenElem2) :-

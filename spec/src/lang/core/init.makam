@@ -1,10 +1,11 @@
 % Core language
 %
-% The core language is an extension of Martin-Löf type theory, with some builtin
-% data types, like booleans, integers, and arrays, and support for defining
-% binary format descriptions (inspired by [DDC]). We skip identity types and η-rules for now.
+% The core language is a dependent type theory defined in the style
+% of a pure type system (PTS), with some builtin data types, like integers,
+% and arrays, and a universe of binary format descriptions inspired by
+% [the Data Description Calculus][ddc].
 %
-% [DDC]: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.156.1375
+% [ddc]: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.156.1375
 
 %extend core.
 
