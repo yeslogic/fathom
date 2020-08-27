@@ -68,30 +68,6 @@
     %end.
 
 
-    % Pure Type System configuration
-
-    % FIXME: Can't use call these directly from `core.typing` for some reason?
-    % For now lets just duplicate them.
-
-    % Valid sorts in the type system
-    sort : value -> prop.
-    sort type_type.
-    sort kind_type.
-
-    % Axioms for synthesizing sorts of sorts
-    axiom : core.term -> value -> prop.
-    axiom core.type_type kind_type.
-
-    % Rules for checking the sorts of the inputs and outputs of function types.
-    % This yeilds a system that is close to the Calculus of Constructions, but
-    % with a predicative `type_type` sort.
-    rule : value -> value -> value -> prop.
-    rule type_type type_type type_type.
-    rule type_type kind_type kind_type.
-    rule kind_type type_type kind_type.
-    rule kind_type kind_type kind_type.
-
-
     % Globals
 
     lookup_global : string -> core.term -> core.term -> prop.
@@ -149,7 +125,7 @@
     % Annotated terms
     synth_type Context (surface.ann SourceElem SourceType) TargetType' TargetElem :-
         synth_type Context SourceType TargetTypeType TargetType,
-        sort TargetTypeType,
+        core.typing.sort TargetTypeType,
         context.eval Context TargetType TargetType',
         check_type Context SourceElem TargetType' TargetElem.
 
@@ -166,7 +142,7 @@
         context.eval Context TargetInputType TargetInputType',
         context.add_param Context ( some Name, TargetInputType' ) Context',
         synth_type Context' SourceOutputType TargetOutputTypeType TargetOutputType,
-        rule TargetInputTypeType TargetOutputTypeType TypeType.
+        core.typing.rule TargetInputTypeType TargetOutputTypeType TypeType.
     check_type Context (surface.function_intro (surface.name Name) SourceOutputElem)
         (function_type TargetInputType Closure)
         (core.function_intro TargetInputType' TargetOutputElem)
@@ -187,10 +163,10 @@
         synth_type Context' SourceOutputElem TargetOutputType TargetOutputElem,
         context.values Context' TargetValues,
         context.readback Context' TargetOutputType TargetOutputType',
-        % NOTE: due to the definition of `synth_type`, we always synthesize
-        % values that are in `type_type` or `kind_kind`. This means that we
-        % don't need to check the type of `TargetOutputType` against the PTS rules.
-        rule TargetTypeType _ _.
+        % NOTE: due to the definition of `synth_type`, we always synthesize values
+        % that are in `type_type` or `kind_kind`. This means that we don't need
+        % to check the type of `TargetOutputType` against `core.typing.rule`.
+        core.typing.rule TargetTypeType _ _.
     synth_type Context (surface.function_elim SourceHeadElem SourceInputElems)
         TargetOutputType TargetElem
     :-

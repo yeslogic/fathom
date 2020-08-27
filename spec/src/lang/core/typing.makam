@@ -1,6 +1,6 @@
 % Algorithmic typing rules
 
-%extend bidirectional.
+%extend typing.
 
     %open fathom.lang.core.semantics.
 
