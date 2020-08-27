@@ -36,22 +36,20 @@ yarn workspace spec repl     # Start the Makam REPL with the source files loaded
 
 ## Roadmap
 
-- [-] core language
-    - [-] language feautures
+- [ ] core language
+    - [ ] language feautures
         - [x] basic MLTT (without identity types)
         - [x] basic binary format descriptions
-        - [ ] unions
+        - [x] unions
         - [ ] refinement types
         - [ ] multi-stage programming
     - [x] normalization by evaluation
-    - [-] typing rules
-        - [-] declarative typing rules
-        - [x] bidirectional type checking rules
-    - [ ] binary format interpretation
+    - [x] bidirectional typing rules
+    - [ ] binary format interpretation (in progress)
 - [ ] projections
-    - [ ] surface-to-core
+    - [ ] surface-to-core (in progress)
     - [ ] core-to-surface
-    - [ ] core-to-stratified
+    - [ ] core-to-stratified (in progress)
     - [ ] stratified-to-unkinded
     - [ ] unkinded-to-uncurried
     - [ ] uncurried-to-rust
