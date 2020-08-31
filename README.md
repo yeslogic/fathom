@@ -23,6 +23,11 @@ The work-in-progress language documentation can be found under the [docs directo
 -   [Language specification](./docs/specification.md):
     a low level technical specification of Fathom
 
+## Code of Conduct
+
+Please note that this project is released with a [Code of Conduct](./CODE_OF_CONDUCT.md).
+By participating in this project you agree to abide by its terms.
+
 ## License
 
 Fathom is licensed under the terms of the Apache License (Version 2.0).
