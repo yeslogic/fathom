@@ -1,5 +1,10 @@
 # Fathom: Language Guide
 
+## Introduction
+
+Fathom is a domain-specific language that can be used to describe existing
+binary formats in a declarative way that is both human and machine readable.
+
 Binary formats exist in many forms in computing. Examples of these include:
 
 - Image formats: JPEG, GIF, TIFF, etc.
@@ -7,34 +12,11 @@ Binary formats exist in many forms in computing. Examples of these include:
 - Fonts: OTF, TTF
 - &hellip;and many more!
 
-Fathom is a domain-specific language that can be used to describe these various
-binary data types in a declarative way that is both human and machine readable.
+Implementing a parser for a binary format such as those listed above is
+difficult and error-prone, especially when it is derived from a natural language
+specification that leaves room for ambiguity.
 
-## A first binary format
+## Sections
 
-```
-struct Pixel {
-    red : U8,
-    green : U8,
-    blue : U8,
-}
-
-struct Picture {
-    width : U16Be,
-    height : U16Be,
-    data : FormatArray (width * height) Pixel,
-}
-```
-
-## Differences from Protobufs, ASN.1, etc.
-
-TODO
-
-## Editor support
-
-Not yet implemented!
-
-## Compilers
-
-- Rust Compiler
-- Documentation Compiler
+- [Installation](./guide/installation.md)
+- [Your first binary format](./guide/first-format.md)
