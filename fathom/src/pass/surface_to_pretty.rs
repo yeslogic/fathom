@@ -2,7 +2,7 @@
 
 use pretty::{DocAllocator, DocBuilder};
 
-use crate::ast::surface::{Alias, Item, Module, Pattern, StructType, Term, TypeField};
+use crate::lang::surface::{Alias, Item, Module, Pattern, StructType, Term, TypeField};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Prec {

@@ -15,9 +15,9 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::ast::core::semantics::{self, Head, Value};
-use crate::ast::{core, surface};
 use crate::diagnostics;
+use crate::lang::core::semantics::{self, Head, Value};
+use crate::lang::{core, surface};
 
 /// Contextual information to be used during elaboration.
 pub struct Context<'me> {

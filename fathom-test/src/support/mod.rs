@@ -41,7 +41,7 @@ lazy_static::lazy_static! {
     static ref INPUT_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("input");
     static ref SNAPSHOTS_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("snapshots");
 
-    static ref GLOBALS: fathom::ast::core::Globals = fathom::ast::core::Globals::default();
+    static ref GLOBALS: fathom::lang::core::Globals = fathom::lang::core::Globals::default();
 }
 
 pub fn run_integration_test(test_name: &str, fathom_path: &str) {
@@ -132,10 +132,10 @@ impl Test {
     fn parse_surface(
         &mut self,
         files: &SimpleFiles<String, String>,
-    ) -> fathom::ast::surface::Module {
+    ) -> fathom::lang::surface::Module {
         let keywords = &fathom::lexer::SURFACE_KEYWORDS;
         let lexer = fathom::lexer::Lexer::new(files, self.input_fathom_file_id, keywords);
-        fathom::ast::surface::Module::parse(self.input_fathom_file_id, lexer, &mut |d| {
+        fathom::lang::surface::Module::parse(self.input_fathom_file_id, lexer, &mut |d| {
             self.found_diagnostics.push(d)
         })
     }
@@ -143,15 +143,15 @@ impl Test {
     fn elaborate(
         &mut self,
         files: &SimpleFiles<String, String>,
-        surface_module: &fathom::ast::surface::Module,
-    ) -> fathom::ast::core::Module {
+        surface_module: &fathom::lang::surface::Module,
+    ) -> fathom::lang::core::Module {
         let core_module = surface_to_core::from_module(&GLOBALS, &surface_module, &mut |d| {
             self.found_diagnostics.push(d)
         });
 
         // The core syntax from the elaborator should always be well-formed!
         let mut validation_diagnostics = Vec::new();
-        fathom::ast::core::typing::wf_module(&GLOBALS, &core_module, &mut |d| {
+        fathom::lang::core::typing::wf_module(&GLOBALS, &core_module, &mut |d| {
             validation_diagnostics.push(d)
         });
         if !validation_diagnostics.is_empty() {
@@ -175,7 +175,7 @@ impl Test {
     fn roundtrip_surface_to_core(
         &mut self,
         files: &SimpleFiles<String, String>,
-        core_module: &fathom::ast::core::Module,
+        core_module: &fathom::lang::core::Module,
     ) {
         let mut elaboration_diagnostics = Vec::new();
         let delaborated_core_module = surface_to_core::from_module(
@@ -236,7 +236,7 @@ impl Test {
     fn roundtrip_pretty_core(
         &mut self,
         files: &mut SimpleFiles<String, String>,
-        core_module: &fathom::ast::core::Module,
+        core_module: &fathom::lang::core::Module,
     ) {
         let arena = pretty::Arena::new();
 
@@ -266,7 +266,7 @@ impl Test {
         let parsed_core_module = {
             let keywords = &fathom::lexer::CORE_KEYWORDS;
             let lexer = fathom::lexer::Lexer::new(files, core_file_id, keywords);
-            fathom::ast::core::Module::parse(core_file_id, lexer, &mut |d| {
+            fathom::lang::core::Module::parse(core_file_id, lexer, &mut |d| {
                 core_parse_diagnostics.push(d)
             })
         };
@@ -310,12 +310,12 @@ impl Test {
         }
     }
 
-    fn compile_rust(&mut self, core_module: &fathom::ast::core::Module) {
+    fn compile_rust(&mut self, core_module: &fathom::lang::core::Module) {
         let mut output = Vec::new();
         let rust_module = core_to_rust::compile_module(&GLOBALS, core_module, &mut |d| {
             self.found_diagnostics.push(d);
         });
-        fathom::ast::rust::emit::emit_module(&mut output, &rust_module).unwrap();
+        fathom::lang::rust::emit::emit_module(&mut output, &rust_module).unwrap();
         let snapshot_rs_path = self.snapshot_filename.with_extension("rs");
 
         if let Err(error) = snapshot::compare(&snapshot_rs_path, &output) {
@@ -449,7 +449,7 @@ impl Test {
         }
     }
 
-    fn compile_doc(&mut self, surface_module: &fathom::ast::surface::Module) {
+    fn compile_doc(&mut self, surface_module: &fathom::lang::surface::Module) {
         let mut output = Vec::new();
         surface_to_doc::from_module(&mut output, surface_module, &mut |d| {
             self.found_diagnostics.push(d)

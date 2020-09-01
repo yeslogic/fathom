@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use crate::ast::rust::{
+use crate::lang::rust::{
     Alias, Block, Const, Constant, EnumType, Function, Item, Module, Pattern, Statement,
     StructType, Term, Type,
 };

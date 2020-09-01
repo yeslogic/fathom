@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::Diagnostic;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::ast::surface::{Alias, Item, Module, Pattern, StructType, Term, TypeField};
+use crate::lang::surface::{Alias, Item, Module, Pattern, StructType, Term, TypeField};
 use crate::lexer::Token;
 use crate::literal;
 

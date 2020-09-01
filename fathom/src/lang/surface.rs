@@ -10,7 +10,7 @@ use crate::literal;
 
 #[allow(clippy::style, clippy::complexity, clippy::perf)]
 mod grammar {
-    include!(concat!(env!("OUT_DIR"), "/ast/surface/grammar.rs"));
+    include!(concat!(env!("OUT_DIR"), "/lang/surface/grammar.rs"));
 }
 
 /// A module of items.

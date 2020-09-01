@@ -5,7 +5,7 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use std::ops::Range;
 
-use crate::ast::core;
+use crate::lang::core;
 use crate::pass::{core_to_surface, surface_to_pretty};
 
 pub fn field_redeclaration(

@@ -11,7 +11,7 @@ use crate::{diagnostics, ieee754};
 
 #[allow(clippy::style, clippy::complexity, clippy::perf)]
 mod grammar {
-    include!(concat!(env!("OUT_DIR"), "/ast/core/grammar.rs"));
+    include!(concat!(env!("OUT_DIR"), "/lang/core/grammar.rs"));
 }
 
 pub mod binary;

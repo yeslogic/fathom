@@ -1,7 +1,7 @@
 use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::ast::core::{Alias, Constant, Item, Module, StructType, Term, TypeField};
+use crate::lang::core::{Alias, Constant, Item, Module, StructType, Term, TypeField};
 use crate::lexer::Token;
 use crate::literal;
 

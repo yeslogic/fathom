@@ -6,7 +6,7 @@
 
 use std::ops::Range;
 
-use crate::ast::{core, surface};
+use crate::lang::{core, surface};
 use crate::literal;
 
 // TODO: name/keyword avoidance!

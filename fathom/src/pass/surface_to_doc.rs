@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::io;
 use std::io::prelude::*;
 
-use crate::ast::surface;
+use crate::lang::surface;
 use crate::pass::surface_to_pretty::Prec;
 
 #[allow(clippy::write_literal)]

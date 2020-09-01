@@ -6,8 +6,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::ast::core::semantics::{self, Elim, Head, Value};
-use crate::ast::{core, rust};
+use crate::lang::core::semantics::{self, Elim, Head, Value};
+use crate::lang::{core, rust};
 
 mod diagnostics;
 
@@ -922,7 +922,7 @@ fn from_int_elim(
 fn host_int(min: &BigInt, max: &BigInt) -> Option<rust::Type> {
     use std::{i16, i32, i64, i8, u16, u32, u64, u8};
 
-    use crate::ast::rust::Type;
+    use crate::lang::rust::Type;
 
     match () {
         () if *min >= u8::MIN.into() && *max <= u8::MAX.into() => Some(Type::name("u8", vec![])),
