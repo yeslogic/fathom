@@ -28,8 +28,7 @@ For example, consider the following specification of a simple bitmap format:
 > | blue | u8 | Blue channel |
 >
 
-The above natural language specification can be described using the following
-description in Fathom:
+The above natural language specification can be described using the following description in Fathom:
 
 ```fathom
 //! A simple bitmap image data format
@@ -55,13 +54,12 @@ Image : Format = {
 };
 ```
 
-We use the built-in format descriptions, `U8`, `U16Be`, and `FormatArray` to
-create the composite format descriptions, `Pixel` and `Image`.
+We use the built-in format descriptions, `U8`, `U16Be`, and `FormatArray` to create the composite format descriptions, `Pixel` and `Image`.
 
-Note in particular how the `data` field of `Format` depends on `width` and
-`height`. These data-dependencies are very important when parsing binary formats!
+Note in particular how the `data` field of `Format` depends on `width` and `height`.
+These data-dependencies are very important when parsing binary formats!
 
-From this description we can use the Fathom tooling to generate HTML
-documentation for out format, and compile to an efficient Rust parser.
+From this description we can use the Fathom tooling to generate HTML documentation for out format,
+and compile to an efficient Rust parser.
 
 > **TODO**: demonstrate integer overflow by using `U64Be` for the image width and height

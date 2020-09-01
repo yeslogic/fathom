@@ -11,8 +11,7 @@
 [license-badge]: https://img.shields.io/github/license/yeslogic/fathom
 [license-url]: ./LICENSE
 
-A declarative data definition language for formally specifying binary
-data formats.
+A declarative data definition language for formally specifying binary data formats.
 
 ## Documentation
 
