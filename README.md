@@ -19,6 +19,8 @@ The work-in-progress language documentation can be found under the [docs directo
 
 -   [Language guide](./docs/guide.md):
     a user-level guide to Fathom
+-   [Language reference](./docs/reference.md):
+    a reference-level guide to Fathom
 -   [Language specification](./docs/specification.md):
     a low level technical specification of Fathom
 
