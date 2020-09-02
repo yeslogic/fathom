@@ -1,0 +1,151 @@
+use codespan_reporting::diagnostic::Diagnostic;
+use std::sync::Arc;
+
+use crate::lang::core::{Alias, Constant, Item, Module, StructType, Term, TypeField};
+use crate::lexer::Token;
+use crate::literal;
+
+grammar(file_id: usize, report: &mut dyn FnMut(Diagnostic<usize>));
+
+extern {
+    type Location = usize;
+    type Error = Diagnostic<usize>;
+
+    enum Token {
+        "doc comment" => Token::DocComment(<String>),
+        "inner doc comment" => Token::InnerDocComment(<String>),
+        "identifier" => Token::Identifier(<String>),
+        "numeric literal" => Token::NumberLiteral(<literal::Number>),
+        "string literal" => Token::StringLiteral(<literal::String>),
+        "character literal" => Token::CharLiteral(<literal::Char>),
+
+        "bool_elim" => Token::BoolElim,
+        "else" => Token::Else,
+        "f32" => Token::F32,
+        "f64" => Token::F64,
+        "Format" => Token::Format,
+        "global" => Token::Global,
+        "if" => Token::If,
+        "int" => Token::Int,
+        "int_elim" => Token::IntElim,
+        "item" => Token::Item,
+        "match" => Token::Match,
+        "struct" => Token::Struct,
+        "Type" => Token::Type,
+
+        "{" => Token::OpenBrace,
+        "}" => Token::CloseBrace,
+        "(" => Token::OpenParen,
+        ")" => Token::CloseParen,
+
+        "!" => Token::Bang,
+        ":" => Token::Colon,
+        "," => Token::Comma,
+        "=" => Token::Equals,
+        "=>" => Token::EqualsGreater,
+        "->" => Token::HyphenGreater,
+        ";" => Token::Semi,
+    }
+}
+
+pub Module: Module = {
+    <doc: "inner doc comment"*>
+    <items: Item*> => {
+        let doc = Arc::from(doc);
+
+        Module { file_id, doc, items }
+    },
+};
+
+Item: Item = {
+    <doc: "doc comment"*>
+    <start: @L> <name: "identifier"> "=" <term: Term> ";" <end: @R> => {
+        let range = start..end;
+        let doc = Arc::from(doc);
+        let term = Arc::new(term);
+
+        Item::Alias(Alias { range, doc, name, term })
+    },
+    <docs: "doc comment"*>
+    <start: @L> "struct" <name: "identifier">  "{"
+        <mut fields: (<Field> ",")*>
+        <last: Field?>
+    "}" <end: @R> => {
+        let range = start..end;
+        let doc = Arc::from(docs);
+        fields.extend(last);
+
+        Item::Struct(StructType { range, doc, name, fields })
+    },
+};
+
+Field: TypeField = {
+    <doc: "doc comment"*>
+    <start: @L> <name: "identifier"> ":" <term: Term> => {
+        let doc = Arc::from(doc);
+        let term = Arc::new(term);
+
+        TypeField { doc, start, name, term }
+    },
+};
+
+Term: Term = {
+    ArrowTerm,
+    <term: ArrowTerm> ":" <ty: Term> => Term::Ann(Arc::new(term), Arc::new(ty)),
+};
+
+ArrowTerm: Term = {
+    AppTerm,
+    <param_type: AppTerm> "->" <body_type: ArrowTerm> => {
+        Term::FunctionType(Arc::new(param_type), Arc::new(body_type))
+    },
+};
+
+AppTerm: Term = {
+    AtomicTerm,
+    <head: AtomicTerm> <argument: AtomicTerm> => {
+        Term::FunctionElim(Arc::new(head), Arc::new(argument))
+    },
+};
+
+AtomicTerm: Term = {
+    "(" <term: Term> ")" => term,
+    <start: @L> "!" <end: @R> => Term::Error(start..end),
+    <start: @L> "global" <name: "identifier"> <end: @R> => Term::Global(start..end, name),
+    <start: @L> "item" <name: "identifier"> <end: @R> => Term::Item(start..end, name),
+    <start: @L> "Type" <end: @R> => Term::TypeType(start..end),
+    <start: @L> "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" <end: @R> => {
+        Term::BoolElim(start..end, Arc::new(head), Arc::new(if_true), Arc::new(if_false))
+    },
+    <start: @L> "int_elim" <head: Term> "{" <branches: (<"numeric literal"> "=>" <Term> ",")*> <default: Term> "}" <end: @R> => {
+        let branches = branches
+            .into_iter()
+            .filter_map(|(literal, term)| {
+                Some((literal.parse_big_int(file_id, report)?, Arc::new(term)))
+            }).collect();
+
+        Term::IntElim(start..end, Arc::new(head), branches, Arc::new(default))
+    },
+    <start: @L> "int" <literal: "numeric literal"> <end: @R> => {
+        let range = start..end;
+        match literal.parse_big_int(file_id, report) {
+            Some(value) => Term::Constant(range, Constant::Int(value)),
+            None => Term::Error(range),
+        }
+    },
+    <start: @L> "f32" <literal: "numeric literal"> <end: @R> => {
+        let range = start..end;
+        match literal.parse_float(file_id, report) {
+            Some(value) => Term::Constant(range, Constant::F32(value)),
+            None => Term::Error(range),
+        }
+    },
+    <start: @L> "f64" <literal: "numeric literal"> <end: @R> => {
+        let range = start..end;
+        match literal.parse_float(file_id, report) {
+            Some(value) => Term::Constant(range, Constant::F64(value)),
+            None => Term::Error(range),
+        }
+    },
+    <start: @L> "Format" <end: @R> => Term::FormatType(start..end),
+};

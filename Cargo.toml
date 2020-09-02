@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    './crates/fathom',
-    './crates/fathom-rt',
-    './crates/fathom-test',
-    './crates/fathom-test-util',
+    './fathom',
+    './fathom-rt',
+    './fathom-test',
+    './fathom-test-util',
 ]
