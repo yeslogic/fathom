@@ -1,0 +1,263 @@
+% Bidirectional elaboration of the surface syntax into core terms
+%
+% Here we describe how we elaborate the surface language into the core
+% language. This involves doing a number of things, including:
+%
+% - desugaring
+% - unification
+% - pattern compilation
+% - etc.
+
+%extend surface_to_core.
+
+    %open fathom.lang.
+    %open fathom.lang.core.semantics.
+
+
+    context : type.
+
+    context : list (option string * int * value * value) -> context.
+
+    %extend context.
+
+        values : context -> list value -> prop.
+        values (context Entries) Values :-
+            map (pfun ( _, _, Elem, _ ) Elem => success) Entries Values.
+
+
+        lookup_type : context -> string -> int -> value -> prop.
+        lookup_type (context Entries) Name Level Type :-
+            contains ( some Name, Level, _, Type ) Entries.
+
+
+        next_local : context -> value -> prop.
+        next_local (context Entries) (neutral (local Level)) :-
+            length Entries Level.
+
+
+        add_local : context -> (option string * value * value) -> context -> prop.
+        add_local (context Entries) ( Name, Elem, Type )
+            (context (( Name, Level, Elem, Type ) :: Entries))
+        :-
+            length Entries Level.
+
+
+        add_param : context -> (option string * value) -> context -> prop.
+        add_param Context ( Name, Type ) Context' :-
+            next_local Context Elem,
+            add_local Context ( Name, Elem, Type ) Context'.
+
+
+        eval : context -> core.term -> value -> prop.
+        eval Context Elem Elem' :-
+            values Context Values,
+            eval Values Elem Elem'.
+
+
+        readback : context -> value -> core.term -> prop.
+        readback Context Elem Elem' :-
+            length Entries Length,
+            readback Length Elem Elem'.
+
+
+        is_equal : context -> value -> value -> prop.
+        is_equal (context Entries) Elem1 Elem2 :-
+            length Entries Length,
+            is_equal Length Elem1 Elem2.
+
+    %end.
+
+
+    % Globals
+
+    lookup_global : string -> core.term -> core.term -> prop.
+    lookup_global "Type" core.kind_type core.type_type. % NOTE: Follows from the PTS axioms
+    lookup_global "Format" core.kind_type core.format_type.
+    lookup_global "Int" core.type_type core.int_type.
+    lookup_global "Array"
+        (core.function_type core.type_type
+            (core.function_type core.int_type core.type_type))
+        (core.function_intro core.type_type
+            (core.function_intro core.int_type
+                (core.array_type (core.local 1) (core.local 0)))).
+    lookup_global "FormatArray"
+        (core.function_type core.format_type
+            (core.function_type core.int_type core.format_type))
+        (core.function_intro core.format_type
+            (core.function_intro core.int_type
+                (core.format_intro_array (core.local 1) (core.local 0)))).
+    lookup_global "U8" core.format_type core.format_intro_u8.
+    lookup_global "U16Le" core.format_type core.format_intro_u16le.
+    lookup_global "U16Be" core.format_type core.format_intro_u16be.
+    lookup_global "U32Le" core.format_type core.format_intro_u32le.
+    lookup_global "U32Be" core.format_type core.format_intro_u32be.
+    lookup_global "U64Le" core.format_type core.format_intro_u64le.
+    lookup_global "U64Be" core.format_type core.format_intro_u64be.
+    lookup_global "S8" core.format_type core.format_intro_s8.
+    lookup_global "S16Le" core.format_type core.format_intro_s16le.
+    lookup_global "S16Be" core.format_type core.format_intro_s16be.
+    lookup_global "S32Le" core.format_type core.format_intro_s32le.
+    lookup_global "S32Be" core.format_type core.format_intro_s32be.
+    lookup_global "S64Le" core.format_type core.format_intro_s64le.
+    lookup_global "S64Be" core.format_type core.format_intro_s64be.
+
+
+    % Elaboration rules
+
+    % Check that a term is an element of the given type and elaborate it to a core term.
+    check_type : context -> surface.term -> value -> core.term -> prop.
+    % Synthesize the type of a given term and elaborate it to a core term.
+    synth_type : context -> surface.term -> value -> core.term -> prop.
+
+    % Conversion
+    check_type Context SourceElem TargetType TargetElem :-
+        synth_type Context SourceElem TargetType' TargetElem,
+        context.is_equal Context TargetType TargetType'.
+
+    % Names
+    synth_type Context (surface.name Name) TargetType (core.local Level) :-
+        context.lookup_type Context Name Level TargetType.
+    synth_type Context (surface.name Name) TargetType' TargetElem :-
+        not (context.lookup_type Context Name _ _),
+        lookup_global Name TargetType TargetElem,
+        context.eval Context TargetType TargetType'.
+
+    % Annotated terms
+    synth_type Context (surface.ann SourceElem SourceType) TargetType' TargetElem :-
+        synth_type Context SourceType TargetTypeType TargetType,
+        core.typing.sort TargetTypeType,
+        context.eval Context TargetType TargetType',
+        check_type Context SourceElem TargetType' TargetElem.
+
+    % Pattern matching
+    %  check_type Context (surface.match SourceElem SourceClauses) TargetType TODO' :- TODO''.
+
+    % Functions
+    synth_type Context
+        (surface.function_type (surface.ann (surface.name Name) SourceInputType) SourceOutputType)
+        TypeType
+        (core.function_type TargetInputType TargetOutputType)
+    :-
+        synth_type Context SourceInputType TargetInputTypeType TargetInputType,
+        context.eval Context TargetInputType TargetInputType',
+        context.add_param Context ( some Name, TargetInputType' ) Context',
+        synth_type Context' SourceOutputType TargetOutputTypeType TargetOutputType,
+        core.typing.rule TargetInputTypeType TargetOutputTypeType TypeType.
+    check_type Context (surface.function_intro (surface.name Name) SourceOutputElem)
+        (function_type TargetInputType Closure)
+        (core.function_intro TargetInputType' TargetOutputElem)
+    :-
+        context.next_local Context LocalElem,
+        apply Closure LocalElem TargetOutputType,
+        context.add_param Context ( some Name, TargetInputType ) Context',
+        context.readback Context TargetInputType TargetInputType',
+        check_type Context' SourceOutputElem TargetOutputType TargetOutputElem.
+    synth_type Context
+        (surface.function_intro (surface.ann (surface.name Name) SourceInputType) SourceOutputElem)
+        (function_type TargetInputType' (closure TargetValues TargetOutputType'))
+        (core.function_intro TargetInputType TargetOutputElem)
+    :-
+        synth_type Context SourceInputType TargetInputTypeType TargetInputType,
+        context.eval Context TargetInputType TargetInputType',
+        context.add_param Context ( some Name, TargetInputType' ) Context',
+        synth_type Context' SourceOutputElem TargetOutputType TargetOutputElem,
+        context.values Context' TargetValues,
+        context.readback Context' TargetOutputType TargetOutputType',
+        % NOTE: due to the definition of `synth_type`, we always synthesize values
+        % that are in `type_type` or `kind_kind`. This means that we don't need
+        % to check the type of `TargetOutputType` against `core.typing.rule`.
+        core.typing.rule TargetTypeType _ _.
+    synth_type Context (surface.function_elim SourceHeadElem SourceInputElems)
+        TargetOutputType TargetElem
+    :-
+        synth_type Context SourceHeadElem TargetHeadType TargetHeadElem,
+        foldl (pfun
+            ( function_type InputType Closure, TargetHeadElem )
+            SourceInputElem
+            ( TargetOutputType, core.function_elim TargetHeadElem TargetInputElem )
+        => [TargetInputElem'] (
+            check_type Context SourceInputElem InputType TargetInputElem,
+            context.eval Context TargetInputElem TargetInputElem',
+            apply Closure TargetInputElem' TargetOutputType
+        )) ( TargetHeadType, TargetHeadElem ) SourceInputElems ( TargetOutputType, TargetElem ).
+
+    % Records
+    check_type Context (surface.record_type []) type_type (core.record_type []).
+    check_type Context (surface.record_type (( Label, SourceType ) :: SourceTypeFields)) type_type
+        (core.record_type (( Label, TargetType ) :: TargetTypeFields))
+    :-
+        not (contains ( Label, _ ) SourceTypeFields),
+        check_type Context SourceType type_type TargetType,
+        context.eval Context TargetType TargetType',
+        context.add_param Context ( some Label, TargetType' ) Context',
+        check_type Context' (surface.record_type SourceTypeFields) type_type
+            (core.record_type TargetTypeFields).
+    check_type Context (surface.record_type []) format_type (core.format_intro_record []).
+    check_type Context (surface.record_type (( Label, SourceType ) :: SourceTypeFields)) format_type
+        (core.format_intro_record (( Label, TargetType ) :: TargetTypeFields))
+    :-
+        not (contains ( Label, _ ) SourceTypeFields),
+        check_type Context SourceType format_type TargetType,
+        context.eval Context (core.format_elim TargetType) TargetType',
+        context.add_param Context ( some Label, TargetType' ) Context',
+        check_type Context' (surface.record_type SourceTypeFields) format_type
+            (core.format_intro_record TargetTypeFields).
+    synth_type Context (surface.record_intro []) (record_type (field_closure [] []))
+        (core.record_intro [] []).
+    % FIXME: Elaborated record fields don't capture closure bindings from the field closure
+    check_type Context
+        (surface.record_intro SourceElemFields)
+        (record_type (field_closure TargetValues (( Label, TargetType ) :: TargetTypeFields)))
+        (core.record_intro
+            (( Label, TargetElem ) :: TargetElemFields)
+            (( Label, TargetType ) :: TargetTypeFields))
+    :-
+        map.remove SourceElemFields Label SourceElem SourceElemFields',
+        eval TargetValues TargetType TargetType',
+        check_type Context SourceElem TargetType' TargetElem,
+        context.eval Context TargetElem TargetElem',
+        context.add_local Context ( some Label, TargetElem', TargetType' ) Context',
+        check_type Context' (surface.record_intro SourceElemFields')
+            (record_type (field_closure (TargetElem' :: TargetValues) TargetTypeFields))
+            (core.record_intro TargetElemFields _).
+
+    synth_type Context (surface.record_elim SourceRecordElem Label) TargetFieldType
+        (core.record_elim TargetRecordElem Label)
+    :-
+        synth_type Context SourceRecordElem (record_type FieldClosure) TargetRecordElem,
+        context.eval Context TargetRecordElem TargetRecordElem',
+        record_elim_type TargetRecordElem' Label FieldClosure TargetFieldType.
+
+    % Enumerations
+    synth_type Context (surface.enum_type Labels) type_type (core.enum_type Labels).
+    check_type Context (surface.enum_intro Label) (enum_type Labels)
+        (core.enum_intro Label Labels)
+    :-
+        set.member Labels Label _.
+
+    % Literals
+    check_type Context (surface.number_intro Source) int_type (core.int_intro Int) :-
+        % NOTE: Just using Makam's integer parser for now :)
+        syntax.parse makam.int_literal_ Source Int.
+    %  check_type Context (surface.string_intro Data) TODO TODO' :- TODO''.
+    check_type Context (surface.sequence_intro SourceElems)
+        (array_type TargetType (int_intro TargetLen))
+        (core.array_intro TargetElems TargetType')
+    :-
+        length SourceElems TargetLen,
+        map (pfun SourceElem TargetElem => check_type Context SourceElem TargetType TargetElem)
+            SourceElems TargetElems,
+        context.readback Context TargetType TargetType'.
+
+
+    % Convenience predicates
+
+    synth_type : surface.term -> value -> core.term -> prop.
+    synth_type SourceElem TargetType TargetElem :-
+        synth_type (context []) SourceElem TargetType TargetElem.
+
+    check_type : surface.term -> value -> core.term -> prop.
+    check_type SourceElem TargetType TargetElem :-
+        check_type (context []) SourceElem TargetType TargetElem.
+
+%end.

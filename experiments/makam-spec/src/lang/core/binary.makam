@@ -1,0 +1,45 @@
+% Binary interpretation of format descriptions
+
+%extend binary.
+
+    %open fathom.lang.core.semantics.
+
+
+    byte : type.
+
+
+    interpret : value -> value -> list byte -> prop.
+
+    interpret format_intro_unit (record_intro [] (field_closure [] [])) [].
+    interpret format_intro_u8 (int_intro TODO) [ Byte0 ].
+    interpret format_intro_u16le (int_intro TODO) [ Byte0, Byte1 ].
+    interpret format_intro_u16be (int_intro TODO) [ Byte0, Byte1 ].
+    interpret format_intro_u32le (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3 ].
+    interpret format_intro_u32be (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3 ].
+    interpret format_intro_u64le (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8 ].
+    interpret format_intro_u64be (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8 ].
+    interpret format_intro_s8 (int_intro TODO) [ Byte0 ].
+    interpret format_intro_s16le (int_intro TODO) [ Byte0, Byte1 ].
+    interpret format_intro_s16be (int_intro TODO) [ Byte0, Byte1 ].
+    interpret format_intro_s32le (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3 ].
+    interpret format_intro_s32be (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3 ].
+    interpret format_intro_s64le (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8 ].
+    interpret format_intro_s64be (int_intro TODO) [ Byte0, Byte1, Byte2, Byte3, Byte4, Byte5, Byte6, Byte7, Byte8 ].
+    interpret (format_intro_array Type Len) (array_intro TODO Type) Bytes.
+    interpret
+        (format_intro_record (field_closure Values (( Label, Type ) :: TypeFields)))
+        (record_intro (( Label, Elem ) :: ElemFields) TODO)
+        RecordBytes
+    :-
+        eval Values Type Type',
+        interpret Type' Elem ElemBytes,
+        interpret
+            (format_intro_record (field_closure (Elem :: Values) TypeFields))
+            (record_intro ElemFields TODO')
+            RestBytes,
+        append ElemBytes RestBytes RecordBytes.
+    interpret (format_intro_compute Elem Type) Elem [].
+    interpret (format_intro_absorb Type) (record_intro [] (field_closure [] [])) Bytes :-
+        interpret Type _ Bytes.
+
+%end.

@@ -1,0 +1,454 @@
+%extend typing.
+
+    %open fathom.lang.core.semantics.
+
+
+    tests : testsuite.
+    %testsuite tests.
+
+
+% FIXME: there seems to be a bug with indenting tests here - see https://github.com/astampoulis/makam/issues/94
+
+    % Conversion
+
+>> check_type (enum_intro "false" [ "true", "false" ]) (enum_type [ "true", "false" ]) ?
+>> Yes.
+
+>> check_type (enum_intro "false" [ "true", "false" ]) (enum_type [ "false", "true" ]) ?
+>> Yes.
+
+>> check_type (enum_intro "unit" [ "unit" ]) (enum_type []) ?
+>> Impossible.
+
+>> check_type (enum_intro "unit" [ "unit" ]) (enum_type [ "true", "false" ]) ?
+>> Impossible.
+
+
+    % Variables
+
+>> synth_type
+    (context [ ( format_intro_u8, format_type ) ])
+    (local 0)
+    Type ?
+>> Yes:
+>> Type := format_type.
+
+
+    % Universes
+
+>> synth_type type_type Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type kind_type Type ?
+>> Impossible.
+
+
+    % Functions
+
+>> synth_type (function_type int_type type_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type int_type format_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type type_type type_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type type_type format_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type type_type kind_type) Type ?
+>> Impossible.
+
+>> synth_type (function_type format_type format_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type format_type type_type) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type kind_type kind_type) Type ?
+>> Impossible.
+
+>> synth_type (function_type kind_type type_type) Type ?
+>> Impossible.
+
+>> synth_type (function_type type_type (function_type (local 0) (local 1))) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_type type_type (function_type (local 0) (local 1))) Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (function_intro type_type (function_intro (local 0) (local 0))) Type ?
+>> Yes:
+>> Type :=
+    function_type type_type (closure [] (function_type (local 0) (local 1))).
+
+>> synth_type (function_intro type_type (function_intro (local 0) (local 0))) Type ?
+>> Yes:
+>> Type :=
+    function_type type_type (closure [] (function_type (local 0) (local 1))).
+
+>> synth_type
+    (function_elim
+        (function_intro type_type (function_intro (local 0) (local 0)))
+        int_type)
+    Type ?
+>> Yes:
+>> Type := function_type int_type (closure [ int_type ] (local 1)).
+
+>> synth_type
+    (function_elim
+        (function_intro type_type (function_intro (local 0) (local 0)))
+        int_type)
+    Type ?
+>> Yes:
+>> Type := function_type int_type (closure [ int_type ] (local 1)).
+
+
+    % Records
+
+>> synth_type (record_type []) Type ?
+>> Yes:
+>> Type := type_type.
+
+>> synth_type
+    (record_type
+        [ ( "data", int_type )
+        ])
+    Type ?
+>> Yes:
+>> Type := type_type.
+
+>> synth_type
+    (record_type
+        [ ( "data", int_type )
+        , ( "data", enum_type [] )
+        ])
+    Type ?
+>> Impossible.
+
+>> synth_type
+    (record_type
+        [ ( "x", int_type )
+        , ( "y", int_type )
+        ])
+    Type ?
+>> Yes:
+>> Type := type_type.
+
+>> synth_type
+    (record_type
+        [ ( "len", int_type )
+        , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
+        ])
+    Type ?
+>> Yes:
+>> Type := type_type.
+
+>> synth_type (record_intro [] []) Type ?
+>> Yes:
+>> Type := record_type (field_closure [] []).
+
+>> synth_type
+    (record_intro
+        [ ( "y", int_intro 2 )
+        , ( "x", int_intro 1 )
+        ]
+        [ ( "x", int_type )
+        , ( "y", int_type )
+        ])
+    Type ?
+>> Yes:
+>> Type :=
+    record_type
+        (field_closure []
+            [ ( "x", int_type )
+            , ( "y", int_type )
+            ]).
+
+>> synth_type
+    (record_intro
+        [ ( "data", array_intro [] (enum_type [ "unit" ]) )
+        , ( "len", int_intro 0 )
+        ]
+        [ ( "len", int_type )
+        , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
+        ])
+    Type ?
+>> Yes:
+>> Type :=
+    record_type
+        (field_closure []
+            [ ( "len", int_type )
+            , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
+            ]).
+
+>> synth_type
+    (record_intro
+        [ ( "data",
+            array_intro
+                [ enum_intro "unit" [ "unit" ]
+                , enum_intro "unit" [ "unit" ]
+                ]
+                (enum_type [ "unit" ])
+          )
+        , ( "len", int_intro 2 )
+        ]
+        [ ( "len", int_type )
+        , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
+        ])
+    Type ?
+>> Yes:
+>> Type :=
+    record_type
+        (field_closure []
+            [ ( "len", int_type )
+            , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
+            ]).
+
+>> synth_type (record_elim (record_intro [] []) "hello") Type ?
+>> Impossible.
+
+>> synth_type
+    (record_elim
+        (record_intro
+            [ ( "data", int_intro 23 ) ]
+            [ ( "data", int_type ) ])
+        "data")
+    Type ?
+>> Yes:
+>> Type := int_type.
+
+>> synth_type
+    (record_elim
+        (record_intro
+            [ ( "data", int_intro 23 ) ]
+            [ ( "data", enum_type [] ) ])
+        "data")
+    Type ?
+>> Impossible.
+
+>> synth_type
+    (record_elim
+        (record_intro
+            [ ( "y", int_intro 2 ), ( "x", int_intro 1 ) ]
+            [ ( "x", int_type ), ( "y", int_type ) ])
+        "y")
+    Type ?
+>> Yes:
+>> Type := int_type.
+
+>> synth_type
+    (record_elim
+        (record_intro
+            [ ( "data",
+                array_intro
+                    [ enum_intro "unit" [ "unit" ]
+                    , enum_intro "unit" [ "unit" ]
+                    ]
+                    (enum_type [ "unit" ])
+                )
+            , ( "len", int_intro 2 )
+            ]
+            [ ( "len", int_type )
+            , ( "data", array_type (enum_type [ "unit" ]) (local 0) )
+            ])
+        "data")
+    Type ?
+>> Yes:
+>> Type := array_type (enum_type [ "unit" ]) (int_intro 2).
+
+
+    % Enumerations
+
+>> synth_type (enum_type []) Type ?
+>> Yes:
+>> Type := type_type.
+
+>> synth_type (enum_type [ "unit" ]) Type ?
+>> Yes:
+>> Type := type_type.
+
+>> synth_type (enum_type [ "true", "false" ]) Type ?
+>> Yes:
+>> Type := type_type.
+
+>> synth_type (enum_intro "unit" [ "unit" ]) Type ?
+>> Yes:
+>> Type := enum_type [ "unit" ].
+
+>> synth_type (enum_intro "true" [ "true", "false" ]) Type ?
+>> Yes:
+>> Type := enum_type [ "true", "false" ].
+
+>> synth_type (enum_intro "false" [ "true", "false" ]) Type ?
+>> Yes:
+>> Type := enum_type [ "true", "false" ].
+
+>> synth_type (enum_intro "unit" []) Type ?
+>> Impossible.
+
+>> synth_type (enum_intro "unit" [ "true", "false" ]) Type ?
+>> Impossible.
+
+>> synth_type (enum_elim [] int_type) Type ?
+>> Yes:
+>> Type := function_type (enum_type []) (closure [] int_type).
+
+>> synth_type
+    (enum_elim
+        [ ( "unit", int_intro 0 )
+        ]
+        int_type)
+    Type ?
+>> Yes:
+>> Type :=
+    function_type
+        (enum_type [ "unit" ])
+        (closure [] int_type).
+
+>> synth_type
+    (enum_elim
+        [ ( "true", int_intro 0 )
+        , ( "false", int_intro 1 )
+        ]
+        int_type)
+    Type ?
+>> Yes:
+>> Type :=
+    function_type
+        (enum_type [ "true", "false" ])
+        (closure [] int_type).
+
+>> synth_type
+    (enum_elim
+        [ ( "true", int_intro 0 )
+        , ( "false", int_intro 1 )
+        ]
+        int_type)
+    Type ?
+>> Yes:
+>> Type :=
+    function_type
+        (enum_type [ "true", "false" ])
+        (closure [] int_type).
+
+>> synth_type
+    (enum_elim
+        [ ( "true", enum_intro "unit" [ "unit" ] )
+        , ( "false", int_intro 1 )
+        ]
+        (function_elim
+                (enum_elim
+                    [ ("true", enum_type [ "unit" ])
+                    , ("false", int_type)
+                    ]
+                    type_type)
+                (local 0)))
+    Type ?
+>> Yes:
+>> Type :=
+    function_type
+        (enum_type [ "true", "false" ])
+        (closure []
+            (function_elim
+                (enum_elim
+                    [ ("true", enum_type [ "unit" ])
+                    , ("false", int_type)
+                    ]
+                    type_type)
+                (local 0))).
+
+>> synth_type
+    (enum_elim
+        [ ( "true", int_intro 0 )
+        , ( "false", int_intro 1 )
+        ]
+        (record_type []))
+    Type ?
+>> Impossible.
+
+
+    % Arrays
+
+>> synth_type (array_intro [] int_type) Type ?
+>> Yes:
+>> Type := array_type int_type (int_intro 0).
+
+>> synth_type (array_intro [int_intro 1, int_intro 2, int_intro 3] int_type) Type ?
+>> Yes:
+>> Type := array_type int_type (int_intro 3).
+
+    % Binary format descriptions
+
+>> synth_type format_type Type ?
+>> Yes:
+>> Type := kind_type.
+
+>> synth_type (format_intro_array format_intro_u8 (int_intro 3)) Type ?
+>> Yes:
+>> Type := format_type.
+
+>> synth_type (format_intro_array int_type (int_intro 3)) Type ?
+>> Impossible.
+
+>> synth_type (format_intro_record []) Type ?
+>> Yes:
+>> Type := format_type.
+
+>> synth_type
+    (format_intro_record
+        [ ( "data", format_intro_u8 )
+        ])
+    Type ?
+>> Yes:
+>> Type := format_type.
+
+>> synth_type
+    (format_intro_record
+        [ ( "data", format_intro_u8 )
+        , ( "data", format_intro_s8 )
+        ])
+    Type ?
+>> Impossible.
+
+>> synth_type
+    (format_intro_record
+        [ ( "x", format_intro_u8 )
+        , ( "y", format_intro_s8 )
+        ])
+    Type ?
+>> Yes:
+>> Type := format_type.
+
+>> synth_type
+    (format_intro_record
+        [ ( "len", format_intro_u16be )
+        , ( "data", format_intro_array format_intro_u8 (local 0) )
+        ])
+    Type ?
+>> Yes:
+>> Type := format_type.
+
+>> synth_type (format_intro_compute (int_intro 2) int_type) Type ?
+>> Yes:
+>> Type := format_type.
+
+>> synth_type (format_intro_absorb format_intro_u16be) Type ?
+>> Yes:
+>> Type := format_type.
+
+>> synth_type (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Type ?
+>> Yes:
+>> Type := type_type.
+
+%end.

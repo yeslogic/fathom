@@ -1,0 +1,12 @@
+% Intermediate languages for the Fathom data description language.
+
+%extend lang.
+
+    %use "surface".
+    %use "core/init".
+    %use "stratified".
+    %use "unkinded".
+    %use "uncurried".
+    %use "rust".
+
+%end.

@@ -1,0 +1,17 @@
+% Core language
+%
+% The core language is a dependent type theory defined in the style
+% of a pure type system (PTS), with some builtin data types, like integers,
+% and arrays, and a universe of binary format descriptions inspired by
+% [the Data Description Calculus][ddc].
+%
+% [ddc]: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.156.1375
+
+%extend core.
+
+    %use "base".        % Base syntax
+    %use "semantics".   % Operational semantics
+    %use "typing".      % Typing rules
+    %use "binary".      % Binary interpretation of format descriptions
+
+%end.

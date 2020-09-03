@@ -1,0 +1,142 @@
+% Stratified language
+%
+% As a stepping-stone to generating Rust code (or other languages like Haskell,
+% SML, or, OCaml), we first compile the core language into a language where the
+% distinction between expressions, types, and kinds are made explicit.
+%
+% This inspired by the TL and λ<sub>H</sub>, described in [A Type System for
+% Certified Binaries][Shao et al. 2005], using a compilation strategy similar
+% to the one described in section 5 of [Singleton types here, singleton types
+% there, singleton types everywhere][Monnier et al. 2010].
+%
+% [Shao et al. 2005]: http://dl.acm.org/doi/10.1145/1053468.1053469
+% [Monnier et al. 2010]: https://doi.org/10.1145/1707790.1707792
+
+%extend stratified.
+
+    % The type language.
+    %
+    % This inspired by TL, described  in [Shao et al. 2005].
+    term2 : type.   % Level-2 terms (‘kind-schemas’ in [Shao et al. 2005])
+    term1 : type.   % Level-1 terms (‘kinds’ in [Shao et al. 2005])
+    term0 : type.   % Level-0 terms (‘types’ in [Shao et al. 2005])
+
+    % Variables
+    local : int -> term2.   % Level-2 term variables
+    local : int -> term1.   % Level-1 term variables
+    local : int -> term0.   % Level-0 term variables
+
+    % Universes
+    type_type : term2.  % Type of types (the symbol `Kind` in [Shao et al. 2005])
+
+    % Functions
+    %
+    % The numbers used in the identifier of each constructor refer to the
+    % level of the input term and output term.
+    function_type_1_1 : term2 -> term2 -> term2.     % Dependent function types from term1s-to-term1s
+    function_type_0_1 : term1 -> term2 -> term2.     % Dependent function types from term0s-to-term1s
+    function_type_2_0 : term1 -> term1.              % Dependent function types from term2s-to-term1s
+    function_type_1_0 : term2 -> term1 -> term1.     % Dependent function types from term1s-to-term0s
+    function_type_0_0 : term1 -> term1 -> term1.     % Dependent function types from term0s-to-term0s
+    function_intro_1_1 : term2 -> term1 -> term1.    % Lambdas from term1s-to-term1s
+    function_intro_0_1 : term1 -> term1 -> term1.    % Lambdas from term0s-to-term1s
+    function_intro_2_0 : term0 -> term0.             % Lambdas from term2s-to-term1s
+    function_intro_1_0 : term2 -> term0 -> term0.    % Lambdas from term1s-to-term0s
+    function_intro_0_0 : term1 -> term0 -> term0.    % Lambdas from term0s-to-term0s
+    function_elim_1_1 : term1 -> term1 -> term1.     % Applications from term1s-to-term1s
+    function_elim_0_1 : term1 -> term0 -> term1.     % Applications from term0s-to-term1s
+    function_elim_2_0 : term0 -> term2 -> term0.     % Applications from term2s-to-term1s
+    function_elim_1_0 : term0 -> term1 -> term0.     % Applications from term1s-to-term0s
+    function_elim_0_0 : term0 -> term0 -> term0.     % Applications from term0s-to-term0s
+
+    % Records
+    record_type : list (string * term1) -> term1.
+    record_intro : map string term0 -> list (string * term1) -> term0.
+    record_elim : term0 -> string -> term0.
+
+    % Enumerations
+    enum_type : set string -> term1.
+    enum_intro : string -> set string -> term0.
+    enum_elim : map string term1 -> term2 -> term1.
+    enum_elim : map string term0 -> term1 -> term0.
+
+    % Integers
+    int_type : term1.
+    int_intro : int -> term0.
+
+    % Arrays
+    array_type : term1 -> term0 -> term1.
+    array_intro : list term0 -> term1 -> term0.
+    array_elim : term0 -> term0 -> term0.
+
+    % Singletons
+    %
+    % We use these to classify terms in the computation language.
+    % These are 'reflections' of term-level constructs at the type level.
+    %
+    % Instead of encoding singletons as an inductive definition as in
+    % [Shao et al. 2005] and [Monnier et al. 2010], we instead define them as
+    % primitives in our stratified intermediate language. We might eventually
+    % want support full inductive types in the future, however.
+    singleton_type : term2.                                 % Type of singletons (or `Ω` in [Shao et al. 2005])
+    singleton_intro_arrow : term1 -> term1 -> term1.        % Arrow singletons
+    singleton_intro_forall_2 : term1 -> term1 -> term1.     % Universal quantification over level-2 variables
+    singleton_intro_forall_1 : term1 -> term1 -> term1.     % Universal quantification over level-1 variables
+    singleton_intro_record : map string term1 -> term1.     % Record singletons
+    singleton_intro_enum : string -> set string -> term1.   % Enumeration singletons
+    singleton_intro_int : int -> term1.                     % Integer singletons
+    singleton_intro_array : list term1 -> term1 -> term1.   % Array Singletons
+
+    % Binary format descriptions
+    %
+    % These are copied from the core language, but are now explicitly statified.
+    format_type : term2.
+    format_intro_void : term1.
+    format_intro_unit : term1.
+    format_intro_u8 : term1.
+    format_intro_u16le : term1. % TODO: make this a computed format?
+    format_intro_u16be : term1. % TODO: make this a computed format?
+    format_intro_u32le : term1. % TODO: make this a computed format?
+    format_intro_u32be : term1. % TODO: make this a computed format?
+    format_intro_u64le : term1. % TODO: make this a computed format?
+    format_intro_u64be : term1. % TODO: make this a computed format?
+    format_intro_s8 : term1. % TODO: make this a computed format?
+    format_intro_s16le : term1. % TODO: make this a computed format?
+    format_intro_s16be : term1. % TODO: make this a computed format?
+    format_intro_s32le : term1. % TODO: make this a computed format?
+    format_intro_s32be : term1. % TODO: make this a computed format?
+    format_intro_s64le : term1. % TODO: make this a computed format?
+    format_intro_s64be : term1. % TODO: make this a computed format?
+    format_intro_array : term1 -> term0 -> term1.
+    format_intro_record : list (string * term1) -> term1.
+    format_intro_compute : term0 -> term1 -> term1.
+    format_intro_absorb : term1 -> term1.
+    format_elim : term1 -> term2.
+
+
+    % The computation language.
+    %
+    % This is inspired by λ<sub>H</sub>, described in [Shao et al. 2005].
+    % Note that no format descriptions appear in the computation language.
+
+    % Expressions
+    expr : type.
+    % Functions
+    func : type.
+
+    local : int -> expr.                        % Local variables
+    ann : expr -> term0 -> expr.                % Expressions annotated with level-0 types
+    function : func -> expr.                    % Function expressions
+    function_intro_e_e : term0 -> expr -> func. % Expressions parametrised by expressions (`λx:τ.e` in [Shao et al. 2005])
+    function_intro_0_e : term1 -> func -> func. % Expressions parametrised by level-0 types (`ΛX:A.f` in [Shao et al. 2005])
+    function_elim_e_e : expr -> expr -> expr.   % Expressions applied to expressions (`e e` in [Shao et al. 2005])
+    function_elim_0_e : expr -> term0 -> expr.  % Expressions applied to level-0 types (`e [A]` in [Shao et al. 2005])
+    record_intro : map string expr -> expr.     % Record introductions
+    record_elim : expr -> string -> expr.       % Record eliminations
+    enum_intro : string -> set string ->  expr. % Enumeration introductions
+    enum_elim : map string expr -> expr.        % Enumeration eliminations
+    int_intro : int -> expr.                    % Integer introductions
+    array_intro : list expr -> term0 -> expr.   % Array introductiona
+    array_elim : expr -> expr -> expr.          % Array eliminations
+
+%end.

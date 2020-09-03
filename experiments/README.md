@@ -11,6 +11,7 @@ In rough chronological order:
 3.  [lean](./lean) (@brendanzab)
 4.  [prolog-prototype](./prolog-prototype) (@markbrown)
 5.  [rust-prototype-v2](./rust-prototype-v2) (@brendanzab)
+6.  [makam-spec](./makam-spec) (@brendanzab)
 
 The following repositories also provided us with valuable experience along the way:
 

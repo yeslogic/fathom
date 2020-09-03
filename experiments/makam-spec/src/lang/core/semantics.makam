@@ -1,0 +1,503 @@
+% Semantics
+%
+% This section defines an operational semantics for language, using
+% normalization-by-evaluation for performance reasons.
+
+%extend semantics.
+
+    %use "stdlib/functional".
+
+
+    % The result of evaluating a term.
+    value : type.
+    % Neutral values are computations that are currently 'stuck' on some
+    % as-yet unknown computation. We build up a 'spine' of eliminations
+    % that cannot yet reduce in preperation for if they become 'unstuck'.
+    neutral : type.
+    % Closures are terms from the core syntax that have yet to be evaluated.
+    % They capture an environment of values to be used later, when they are
+    % finally evaluated.
+    closure : type.
+    % A closure used for capturing the fields of a record types or a record
+    % format introduction.
+    field_closure : type.
+    % A closure used for capturing the variants of an enumeration elimination.
+    choice_closure : type.
+
+    % Neutral values
+    neutral : neutral -> value.
+
+    % Universes
+    type_type : value.
+    kind_type : value.
+
+    % Functions
+    function_type : value -> closure -> value.  % Also known as: Pi type, Dependent product type
+    function_intro : value -> closure -> value. % Also known as: Lambda abstraction, anonymous function
+
+    % Records
+    record_type : field_closure -> value.
+    record_intro : map string value -> field_closure -> value.
+
+    % Enumerations
+    enum_type : set string -> value.
+    enum_intro : string -> set string -> value.
+    enum_elim : choice_closure -> value.
+
+    % Refinements
+    %  refine_type : value -> closure -> value.
+    %  refine_intro : value -> (* some proof from a solver here? *) -> value.
+
+    % Staging
+    %  stage_type : value -> value.
+    %  stage_intro : value -> value.
+
+    % Integers
+    int_type : value.
+    int_intro : int -> value.
+
+    % Arrays
+    array_type : value -> value -> value.
+    array_intro : list value -> value -> value.
+
+    % Binary format descriptions
+    format_type : value.
+    format_intro_void : value.
+    format_intro_unit : value.
+    format_intro_u8 : value.
+    format_intro_u16le : value.
+    format_intro_u16be : value.
+    format_intro_u32le : value.
+    format_intro_u32be : value.
+    format_intro_u64le : value.
+    format_intro_u64be : value.
+    format_intro_s8 : value.
+    format_intro_s16le : value.
+    format_intro_s16be : value.
+    format_intro_s32le : value.
+    format_intro_s32be : value.
+    format_intro_s64le : value.
+    format_intro_s64be : value.
+    format_intro_array : value -> value -> value.
+    format_intro_record : field_closure -> value.
+    format_intro_compute : value -> value -> value.
+    format_intro_absorb : value -> value.
+
+    % Variables
+    local : int -> neutral. % Local variables (using De Bruijn levels)
+
+    % Suspended eliminations
+    function_elim : neutral -> value -> neutral.
+    record_elim : neutral -> string -> neutral.
+    enum_elim : choice_closure -> neutral -> neutral.
+    %  stage_elim : neutral -> neutral.
+    %  array_elim : neutral -> value -> neutral.
+    format_elim : neutral -> neutral.
+
+    closure : list value -> term -> closure.
+    field_closure : list value -> list (string * term) -> field_closure.
+    choice_closure : list value -> map string term -> term -> choice_closure.
+
+
+    % Evaluation of terms into values
+
+    eval : list value -> term -> value -> prop.
+
+    apply : closure -> value -> value -> prop.
+
+    function_elim : value -> value -> value -> prop.
+    record_elim : value -> string -> value -> prop.
+    %  stage_elim : value -> value -> prop.
+    %  array_elim : value -> value -> neutral.
+    format_elim : value -> value -> prop.
+
+    eval Values (local Index) Value :-
+        list.nth Values Index Value.
+    eval Values type_type type_type.
+    eval Values kind_type kind_type.
+    eval Values (function_type InputType OutputType)
+        (function_type InputType' (closure Values OutputType))
+    :-
+        eval Values InputType InputType'.
+    eval Values (function_intro InputType OutputElem)
+        (function_intro InputType' (closure Values OutputElem))
+    :-
+        eval Values InputType InputType'.
+    eval Values (function_elim Elem InputElem) Value' :-
+        eval Values Elem Value,
+        eval Values InputElem InputValue,
+        function_elim Value InputValue Value'.
+    eval Values (record_type TypeFields) (record_type (field_closure Values TypeFields)).
+    eval Values (record_intro ElemFields TypeFields)
+        (record_intro ElemFields' (field_closure Values TypeFields))
+    :-
+        map.mapvalues (pfun Elem Elem' => eval Values Elem Elem') ElemFields ElemFields'.
+    eval Values (record_elim RecordElem Label) FieldElem' :-
+        eval Values RecordElem RecordElem',
+        record_elim RecordElem' Label FieldElem'.
+    eval Values (enum_type Labels) (enum_type Labels).
+    eval Values (enum_intro Label Labels) (enum_intro Label Labels).
+    eval Values (enum_elim Clauses OutputType) (enum_elim (choice_closure Values Clauses OutputType)).
+    eval Values int_type int_type.
+    eval Values (int_intro Int) (int_intro Int).
+    eval Values (array_type Type LenElem) (array_type Type' LenElem') :-
+        eval Values Type Type',
+        eval Values LenElem LenElem'.
+    eval Values (array_intro Elems Type) (array_intro Elems' Type') :-
+        map (pfun Elem Elem' => eval Values Elem Elem') Elems Elems',
+        eval Values Type Type'.
+    % FIXME: This breaks for neutral terms! We should use `array_elim` here.
+    eval Values (array_elim ArrayElem IndexElem) ElemValue :-
+        eval Values ArrayElem (array_intro ElemValues _),
+        eval Values IndexElem (int_intro Index),
+        list.nth ElemValues Index ElemValue.
+    eval Values format_type format_type.
+    eval Values format_intro_void format_intro_void.
+    eval Values format_intro_unit format_intro_unit.
+    eval Values format_intro_u8 format_intro_u8.
+    eval Values format_intro_u16le format_intro_u16le.
+    eval Values format_intro_u16be format_intro_u16be.
+    eval Values format_intro_u32le format_intro_u32le.
+    eval Values format_intro_u32be format_intro_u32be.
+    eval Values format_intro_u64le format_intro_u64le.
+    eval Values format_intro_u64be format_intro_u64be.
+    eval Values format_intro_s8 format_intro_s8.
+    eval Values format_intro_s16le format_intro_s16le.
+    eval Values format_intro_s16be format_intro_s16be.
+    eval Values format_intro_s32le format_intro_s32le.
+    eval Values format_intro_s32be format_intro_s32be.
+    eval Values format_intro_s64le format_intro_s64le.
+    eval Values format_intro_s64be format_intro_s64be.
+    eval Values (format_intro_array Type LenElem) (format_intro_array Type' LenElem') :-
+        eval Values Type Type',
+        eval Values LenElem LenElem'.
+    eval Values (format_intro_record TypeFields) (format_intro_record (field_closure Values TypeFields)).
+    eval Values (format_intro_compute Elem Type) (format_intro_compute Elem' Type') :-
+        eval Values Elem Elem',
+        eval Values Type Type'.
+    eval Values (format_intro_absorb Type) (format_intro_absorb Type') :-
+        eval Values Type Type'.
+    eval Values (format_elim Elem) Value' :-
+        eval Values Elem Value,
+        format_elim Value Value'.
+
+    % Closure operations
+
+    apply (closure Values Elem) InputValue Value :-
+        eval (InputValue :: Values) Elem Value.
+
+    % Eliminations
+
+    function_elim (neutral Neutral) InputValue (neutral (function_elim Neutral InputValue)).
+    function_elim (function_intro _ Closure) InputValue OutputValue :-
+        apply Closure InputValue OutputValue.
+    function_elim
+        (enum_elim (choice_closure Values Clauses OutputType))
+        (neutral Neutral)
+        (neutral (enum_elim (choice_closure Values Clauses OutputType) Neutral)).
+    function_elim (enum_elim (choice_closure Values Clauses _)) (enum_intro Label _) OutputValue :-
+        map.find Clauses Label OutputElem,
+        eval Values OutputElem OutputValue.
+
+    record_elim (neutral Neutral) Label (neutral (record_elim Neutral Label)).
+    record_elim (record_intro ElemFields _) Label FieldElem :-
+        map.find ElemFields Label FieldElem.
+
+    % TODO: stage_elim
+
+    format_elim (neutral Neutral) (neutral (format_elim Neutral)).
+    format_elim format_intro_void (enum_type []).
+    format_elim format_intro_unit (record_type (field_closure [] [])).
+    format_elim format_intro_u8 int_type.
+    format_elim format_intro_u16le int_type.
+    format_elim format_intro_u16be int_type.
+    format_elim format_intro_u32le int_type.
+    format_elim format_intro_u32be int_type.
+    format_elim format_intro_u64le int_type.
+    format_elim format_intro_u64be int_type.
+    format_elim format_intro_s8 int_type.
+    format_elim format_intro_s16le int_type.
+    format_elim format_intro_s16be int_type.
+    format_elim format_intro_s32le int_type.
+    format_elim format_intro_s32be int_type.
+    format_elim format_intro_s64le int_type.
+    format_elim format_intro_s64be int_type.
+    format_elim (format_intro_array Elem Len) (array_type Elem' Len) :-
+        format_elim Elem Elem'.
+    format_elim
+        (format_intro_record (field_closure Values TypeFields))
+        (record_type (field_closure Values TypeFields'))
+    :-
+        map (pfun ( Label, Elem ) ( Label, format_elim Elem ) => success) TypeFields TypeFields'.
+    format_elim (format_intro_compute Elem Type) Type.
+    format_elim (format_intro_absorb Type) (record_type (field_closure [] [])).
+
+
+    % Find the type of a field in a record elimination, based on the given
+    % closure of type fields.
+
+    record_elim_type : value -> string -> field_closure -> value -> prop.
+    record_elim_type RecordElem Label (field_closure Values (( Label', FieldType ) :: _)) FieldType' :-
+        eqv Label Label',
+        eval Values FieldType FieldType'.
+    record_elim_type RecordElem Label (field_closure Values (( Label', _ ) :: TypeFields)) FieldType :-
+        record_elim RecordElem Label' FieldElem,
+        record_elim_type RecordElem Label (field_closure (FieldElem :: Values) TypeFields) FieldType.
+
+
+    % Readback of values into terms in normal form
+
+    readback : int -> neutral -> term -> prop.
+    readback : int -> value -> term -> prop.
+
+    readback Length (local Level : neutral) (local Index) :-
+        % Convert De Bruijn levels to De Bruijn indices
+        functional.do !(minus Length !(plus Level 1)) Index.
+    readback Length (function_elim Neutral InputValue : neutral) (function_elim Elem InputElem) :-
+        readback Length Neutral Elem,
+        readback Length InputValue InputElem.
+    readback Length (record_elim Neutral Label : neutral) (record_elim Elem Label) :-
+        readback Length Neutral Elem.
+    readback Length
+        (enum_elim (choice_closure Values Clauses OutputType) Neutral : neutral)
+        (function_elim (enum_elim Clauses' OutputType'') Elem)
+    :-
+        length Values ChoiceLength,
+        map.mapvalues (pfun Elem Elem' => [Value] (
+            eval Values Elem Value,
+            readback Length Value Elem'
+        )) Clauses Clauses',
+        eval (neutral (local Length) :: Values) OutputType OutputType',
+        plus Length 1 Length1,
+        readback Length1 OutputType' OutputType'',
+        readback Length Neutral Elem.
+    readback Length (format_elim Neutral : neutral) (format_elim Elem) :-
+        readback Length Neutral Elem.
+
+    readback Length (neutral Neutral) Elem :-
+        readback Length Neutral Elem.
+    readback Length type_type type_type.
+    readback Length (function_type InputType Closure) (function_type InputType' OutputType') :-
+        readback Length InputType InputType',
+        apply Closure (neutral (local Length)) OutputType,
+        plus Length 1 Length1,
+        readback Length1 OutputType OutputType'.
+    readback Length (function_intro InputType Closure) (function_intro InputType' OutputElem') :-
+        readback Length InputType InputType',
+        apply Closure (neutral (local Length)) OutputElem,
+        plus Length 1 Length1,
+        readback Length1 OutputElem OutputElem'.
+    readback Length (record_type (field_closure Values [])) (record_type []).
+    readback Length
+        (record_type (field_closure Values (( Label, Type ) :: Fields)))
+        (record_type (( Label, Type'' ) :: Fields'))
+    :-
+        eval Values Type Type',
+        readback Length Type' Type'',
+        plus Length 1 Length1,
+        readback Length1
+            (record_type (field_closure (neutral (local Length) :: Values) Fields))
+            (record_type Fields').
+    readback Length (record_intro ElemFields FieldClosure) (record_intro ElemFields' TypeFields) :-
+        map.mapvalues (pfun Elem Elem' => readback Length Elem Elem') ElemFields ElemFields',
+        readback Length (record_type FieldClosure) (record_type TypeFields).
+    readback Length (enum_type Labels) (enum_type Labels).
+    readback Length (enum_intro Label Labels) (enum_intro Label Labels).
+    readback Length (enum_elim (choice_closure Values Clauses OutputType)) (enum_elim Clauses' OutputType'') :-
+        map.mapvalues (pfun Elem Elem' => [Value Length] (
+            eval Values Elem Value,
+            readback Length Value Elem'
+        )) Clauses Clauses',
+        eval (neutral (local Length) :: Values) OutputType OutputType',
+        plus Length 1 Length1,
+        readback Length1 OutputType' OutputType''.
+    readback Length int_type int_type.
+    readback Length (int_intro Int) (int_intro Int).
+    readback Length (array_type Type LenElem) (array_type Type' LenElem') :-
+        readback Length Type Type',
+        readback Length LenElem LenElem'.
+    readback Length (array_intro Elems Type) (array_intro Elems' Type') :-
+        map (pfun Elem Elem' => readback Length Elem Elem') Elems Elems',
+        readback Length Type Type'.
+    readback Length format_type format_type.
+    readback Length format_intro_void format_intro_void.
+    readback Length format_intro_unit format_intro_unit.
+    readback Length format_intro_u8 format_intro_u8.
+    readback Length format_intro_u16le format_intro_u16le.
+    readback Length format_intro_u16be format_intro_u16be.
+    readback Length format_intro_u32le format_intro_u32le.
+    readback Length format_intro_u32be format_intro_u32be.
+    readback Length format_intro_u64le format_intro_u64le.
+    readback Length format_intro_u64be format_intro_u64be.
+    readback Length format_intro_s8 format_intro_s8.
+    readback Length format_intro_s16le format_intro_s16le.
+    readback Length format_intro_s16be format_intro_s16be.
+    readback Length format_intro_s32le format_intro_s32le.
+    readback Length format_intro_s32be format_intro_s32be.
+    readback Length format_intro_s64le format_intro_s64le.
+    readback Length format_intro_s64be format_intro_s64be.
+    readback Length (format_intro_array ElemValue LenValue) (format_intro_array ElemType LenElem) :-
+        readback Length ElemValue ElemType,
+        readback Length LenValue LenElem.
+    readback Length (format_intro_record (field_closure Values [])) (format_intro_record []).
+    readback Length
+        (format_intro_record (field_closure Values (( Label, Type ) :: Fields)))
+        (format_intro_record (( Label, Type'' ) :: Fields'))
+    :-
+        eval Values Type Type',
+        readback Length Type' Type'',
+        plus Length 1 Length1,
+        readback Length1
+            (format_intro_record (field_closure (neutral (local Length) :: Values) Fields))
+            (format_intro_record Fields').
+    readback Length (format_intro_compute Elem Type) (format_intro_compute Elem' Type') :-
+        readback Length Elem Elem',
+        readback Length Type Type'.
+    readback Length (format_intro_absorb Type) (format_intro_absorb Type') :-
+        readback Length Type Type'.
+
+
+    % Normalization-by-evaluation
+
+    normalize : list value -> term -> term -> prop.
+    normalize Values Elem Elem' :-
+        eval Values Elem Value,
+        length Values Length,
+        readback Length Value Elem'.
+
+    normalize : term -> term -> prop.
+    normalize Elem Elem' :-
+        normalize [] Elem Elem'.
+
+
+    % Equality of values
+
+    is_equal : int -> neutral -> neutral -> prop.
+    is_equal : int -> value -> value -> prop.
+
+    is_equal Length (local Level : neutral) (local Level : neutral).
+    is_equal Length
+        (function_elim Neutral1 InputValue1 : neutral)
+        (function_elim Neutral2 InputValue2 : neutral)
+    :-
+        is_equal Length Neutral1 Neutral2,
+        is_equal Length InputValue1 InputValue2.
+    is_equal Length
+        (enum_elim (choice_closure Values1 Clauses1 OutputType1) Neutral1 : neutral)
+        (enum_elim (choice_closure Values2 Clauses2 OutputType1) Neutral2 : neutral)
+    :-
+        map.mapvalues (pfun Elem1 Elem2 => [Value1 Value2] (
+            eval Values1 Elem1 Value1,
+            eval Values2 Elem2 Value2,
+            is_equal Length Value1 Value2
+        )) Clauses1 Clauses2,
+        eval (neutral (local Length) :: Values1) OutputType1 OutputType1',
+        eval (neutral (local Length) :: Values2) OutputType2 OutputType2',
+        is_equal Length OutputType1' OutputType2',
+        is_equal Length Neutral1 Neutral2.
+    is_equal Length (format_elim Neutral1 : neutral) (format_elim Neutral2 : neutral) :-
+        is_equal Length Neutral1 Neutral2.
+
+    is_equal Length (neutral Neutral1) (neutral Neutral2) :-
+        is_equal Length Neutral1 Neutral2.
+    is_equal Length type_type type_type.
+    is_equal Length (function_type InputType1 Closure1) (function_type InputType2 Closure2) :-
+        is_equal Length InputType1 InputType2,
+        apply Closure1 (neutral (local Length)) OutputType1,
+        apply Closure2 (neutral (local Length)) OutputType2,
+        plus Length 1 Length1,
+        is_equal Length1 OutputType1 OutputType2.
+    is_equal Length (function_intro InputType1 Closure1) (function_intro InputType2 Closure2) :-
+        is_equal Length InputType1 InputType2,
+        apply Closure1 (neutral (local Length)) OutputValue1,
+        apply Closure2 (neutral (local Length)) OutputValue2,
+        plus Length 1 Length1,
+        is_equal Length1 OutputValue1 OutputValue2.
+    is_equal Length
+        (record_type (field_closure Values1 []))
+        (record_type (field_closure Values2 [])).
+    is_equal Length
+        (record_type (field_closure Values1 (( Label1, Type1 ) :: Fields1)))
+        (record_type (field_closure Values2 (( Label2, Type2 ) :: Fields2)))
+    :-
+        eqv Label1 Label2,
+        eval Values1 Type1 Type1',
+        eval Values2 Type2 Type2',
+        is_equal Length Type1' Type2',
+        plus Length 1 Length1,
+        is_equal Length1
+            (record_type (field_closure (neutral (local Length) :: Values1) Fields1))
+            (record_type (field_closure (neutral (local Length) :: Values2) Fields2)).
+    is_equal Length
+        (record_intro ElemFields1 FieldClosure1)
+        (record_intro ElemFields2 FieldClosure2)
+    :-
+        map.mapvalues (pfun Elem1 Elem2 => is_equal Length Elem1 Elem2) ElemFields1 ElemFields2,
+        is_equal Length (record_type FieldClosure1) (record_type FieldClosure2).
+    is_equal Length (enum_type Labels1) (enum_type Labels2) :-
+        eqv Labels1 Labels2.
+    is_equal Length (enum_intro Label1 Labels1) (enum_intro Label2 Labels2) :-
+        eqv Label1 Label2,
+        eqv Labels1 Labels2.
+    is_equal Length
+        (enum_elim (choice_closure Values1 Clauses1 OutputType1))
+        (enum_elim (choice_closure Values2 Clauses2 OutputType2))
+    :-
+        map.mapvalues (pfun Elem1 Elem2 => [Value1 Value2] (
+            eval Values1 Elem1 Value1,
+            eval Values2 Elem2 Value2,
+            is_equal Length Value1 Value2
+        )) Clauses1 Clauses2,
+        eval (neutral (local Length) :: Values1) OutputType1 OutputType1',
+        eval (neutral (local Length) :: Values2) OutputType2 OutputType2',
+        is_equal Length OutputType1' OutputType2'.
+    is_equal Length int_type int_type.
+    is_equal Length (int_intro Int) (int_intro Int).
+    is_equal Length (array_type ElemType1 LenElem1) (array_type ElemType2 LenElem2) :-
+        is_equal Length ElemType1 ElemType2,
+        is_equal Length LenElem1 LenElem2.
+    is_equal Length (array_intro Elems1 ElemType1) (array_intro Elems2 ElemType2) :-
+        map (pfun Elem1 Elem2 => is_equal Length Elem1 Elem2) Elems1 Elems2,
+        is_equal Length ElemType1 ElemType2.
+    is_equal Length format_type format_type.
+    is_equal Length format_intro_void format_intro_void.
+    is_equal Length format_intro_unit format_intro_unit.
+    is_equal Length format_intro_u8 format_intro_u8.
+    is_equal Length format_intro_u16le format_intro_u16le.
+    is_equal Length format_intro_u16be format_intro_u16be.
+    is_equal Length format_intro_u32le format_intro_u32le.
+    is_equal Length format_intro_u32be format_intro_u32be.
+    is_equal Length format_intro_u64le format_intro_u64le.
+    is_equal Length format_intro_u64be format_intro_u64be.
+    is_equal Length format_intro_s8 format_intro_s8.
+    is_equal Length format_intro_s16le format_intro_s16le.
+    is_equal Length format_intro_s16be format_intro_s16be.
+    is_equal Length format_intro_s32le format_intro_s32le.
+    is_equal Length format_intro_s32be format_intro_s32be.
+    is_equal Length format_intro_s64le format_intro_s64le.
+    is_equal Length format_intro_s64be format_intro_s64be.
+    is_equal Length (format_intro_array ElemType1 LenElem1) (format_intro_array ElemType2 LenElem2) :-
+        is_equal Length ElemType1 ElemType2,
+        is_equal Length LenElem1 LenElem2.
+    is_equal Length
+        (format_intro_record (field_closure Values1 []))
+        (format_intro_record (field_closure Values2 [])).
+    is_equal Length
+        (format_intro_record (field_closure Values1 (( Label1, Type1 ) :: Fields1)))
+        (format_intro_record (field_closure Values2 (( Label2, Type2 ) :: Fields2)))
+    :-
+        eqv Label1 Label2,
+        eval Values1 Type1 Type1',
+        eval Values2 Type2 Type2',
+        is_equal Length Type1' Type2',
+        plus Length 1 Length1,
+        is_equal Length1
+            (format_intro_record (field_closure (neutral (local Length) :: Values1) Fields1))
+            (format_intro_record (field_closure (neutral (local Length) :: Values2) Fields2)).
+    is_equal Length (format_intro_compute Elem1 Type1) (format_intro_compute Elem2 Type2) :-
+        is_equal Length Elem1 Elem2,
+        is_equal Length Type1 Type2.
+    is_equal Length (format_intro_absorb Type1) (format_intro_absorb Type2) :-
+        is_equal Length Type1 Type2.
+
+%end.

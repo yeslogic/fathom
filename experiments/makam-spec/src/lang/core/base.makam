@@ -1,0 +1,73 @@
+% Terms
+term : type.
+
+% Variables
+local : int -> term. % Local variables (using De Bruijn indices)
+
+% Universes
+type_type : term.
+kind_type : term.
+
+% Functions
+function_type : term -> term -> term.   % Also known as: Pi type, Dependent product type
+function_intro : term -> term -> term.  % Also known as: Lambda abstraction, anonymous function
+function_elim : term -> term -> term.   % Also known as: Function application
+
+% Records
+record_type : list (string * term) -> term.
+record_intro : map string term -> list (string * term) -> term.
+record_elim : term -> string -> term.
+
+% Enumerations
+enum_type : set string -> term.
+enum_intro : string -> set string -> term.
+enum_elim : map string term -> term -> term.
+
+% Refinements
+%  refine_type : term -> term -> term.
+%  refine_intro : term -> (* some proof from a solver here? *) -> term.
+
+% Staging
+%  stage_type : term -> term.
+%  stage_intro : term -> term.
+%  stage_elim : term -> term.
+
+% Integers
+int_type : term.
+int_intro : int -> term.
+
+% Arrays
+array_type : term -> term -> term.
+array_intro : list term -> term -> term.
+array_elim : term -> term -> term.
+
+% Binary format descriptions
+format_type : term.
+format_intro_void : term.
+format_intro_unit : term.
+format_intro_u8 : term.
+format_intro_u16le : term. % TODO: make this a computed format?
+format_intro_u16be : term. % TODO: make this a computed format?
+format_intro_u32le : term. % TODO: make this a computed format?
+format_intro_u32be : term. % TODO: make this a computed format?
+format_intro_u64le : term. % TODO: make this a computed format?
+format_intro_u64be : term. % TODO: make this a computed format?
+format_intro_s8 : term. % TODO: make this a computed format?
+format_intro_s16le : term. % TODO: make this a computed format?
+format_intro_s16be : term. % TODO: make this a computed format?
+format_intro_s32le : term. % TODO: make this a computed format?
+format_intro_s32be : term. % TODO: make this a computed format?
+format_intro_s64le : term. % TODO: make this a computed format?
+format_intro_s64be : term. % TODO: make this a computed format?
+format_intro_array : term -> term -> term.
+format_intro_record : list (string * term) -> term.
+format_intro_compute : term -> term -> term.
+format_intro_absorb : term -> term.
+format_elim : term -> term.
+
+
+% Items
+item : type.
+
+declaration : string -> term -> item.
+definition : string -> term -> item.

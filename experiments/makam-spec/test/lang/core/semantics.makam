@@ -1,0 +1,374 @@
+%extend semantics.
+
+    tests : testsuite.
+    %testsuite tests.
+
+
+% FIXME: there seems to be a bug with indenting tests here - see https://github.com/astampoulis/makam/issues/94
+
+    % Variables
+
+>> normalize [ format_intro_u8 ] (local 0) Term ?
+>> Yes:
+>> Term := format_intro_u8.
+
+
+    % Functions
+
+>> normalize (function_type type_type (function_type (local 0) (local 1))) Term ?
+>> Yes:
+>> Term := function_type type_type (function_type (local 0) (local 1)).
+
+>> normalize (function_intro type_type (function_intro (local 0) (local 0))) Term ?
+>> Yes:
+>> Term := function_intro type_type (function_intro (local 0) (local 0)).
+
+>> normalize (function_elim (function_intro int_type (local 0)) (int_intro 1)) Term ?
+>> Yes:
+>> Term := int_intro 1.
+
+>> normalize [neutral (local 0) ] (function_elim (local 0) (int_intro 1)) Term ?
+>> Yes:
+>> Term := function_elim (local 0) (int_intro 1).
+
+
+    % Records
+
+>> normalize (record_type []) Term ?
+>> Yes:
+>> Term := record_type [].
+
+>> normalize
+    [ int_intro 42 ]
+    (record_type [ ( "data", array_type int_type (local 0) ) ])
+    Term ?
+>> Yes:
+>> Term := record_type [ ( "data", array_type int_type (int_intro 42) ) ].
+
+>> normalize [ enum_type [] ]
+    (record_type
+        [ ( "len", int_type )
+        , ( "data", array_type (local 1) (local 0) )
+        ])
+    Term ?
+>> Yes:
+>> Term :=
+    record_type
+        [ ( "len", int_type )
+        , ( "data", array_type (enum_type []) (local 0) )
+        ].
+
+>> normalize [ int_intro 2, int_intro 1, int_type ]
+    (record_intro
+        [ ( "len", local 0 )
+        , ( "data", array_intro [local 1, int_intro 2] (local 2) )
+        ]
+        [ ( "len", int_type )
+        , ( "data", array_type (local 3) (local 0) )
+        ])
+    Term ?
+>> Yes:
+>> Term :=
+    record_intro
+        [ ( "len", int_intro 2 )
+        , ( "data", array_intro [int_intro 1, int_intro 2] int_type )
+        ]
+        [ ( "len", int_type )
+        , ( "data", array_type int_type (local 0) )
+        ].
+
+>> normalize
+    (record_elim
+        (record_intro
+            [ ( "len", int_intro 2 )
+            , ( "data", array_intro [int_intro 1, int_intro 2] int_type )
+            ]
+            [ ( "len", int_type )
+            , ( "data", array_type int_type (local 0) )
+            ])
+        "len")
+    Term ?
+>> Yes:
+>> Term := int_intro 2.
+
+>> normalize
+    (record_elim
+        (record_intro
+            [ ( "len", int_intro 2 )
+            , ( "data", array_intro [int_intro 1, int_intro 2] int_type )
+            ]
+            [ ( "len", int_type )
+            , ( "data", array_type int_type (local 0) )
+            ])
+        "data")
+    Term ?
+>> Yes:
+>> Term := array_intro [int_intro 1, int_intro 2] int_type.
+
+>> normalize [ neutral (local 0) ] (record_elim (local 0) "data") Term ?
+>> Yes:
+>> Term := record_elim (local 0) "data".
+
+
+    % Enumerations
+
+>> normalize (enum_type []) Term ?
+>> Yes:
+>> Term := enum_type [].
+
+>> normalize (enum_type [ "unit" ]) Term ?
+>> Yes:
+>> Term := enum_type [ "unit" ].
+
+>> normalize (enum_type [ "true", "false" ]) Term ?
+>> Yes:
+>> Term := enum_type [ "true", "false" ].
+
+>> normalize (enum_intro "true" [ "true", "false" ]) Term ?
+>> Yes:
+>> Term := enum_intro "true" [ "true", "false" ].
+
+>> normalize [ int_intro 0, int_intro 1, int_type ]
+    (enum_elim
+        [ ( "true", local 0 )
+        , ( "false", local 1 )
+        ]
+        (local 3))
+    Term ?
+>> Yes:
+>> Term :=
+    enum_elim
+        [ ( "true", int_intro 0 )
+        , ( "false", int_intro 1 )
+        ]
+        int_type.
+
+>> normalize
+    (function_elim
+        (enum_elim
+            [ ( "true", int_intro 0 )
+            , ( "false", int_intro 1 )
+            ]
+            int_type)
+        (enum_intro "true" [ "true", "false" ]))
+    Term ?
+>> Yes:
+>> Term := int_intro 0.
+
+>> normalize
+    (function_elim
+        (enum_elim
+            [ ( "true", int_intro 0 )
+            , ( "false", int_intro 1 )
+            ]
+            int_type)
+        (enum_intro "false" [ "true", "false" ]))
+    Term ?
+>> Yes:
+>> Term := int_intro 1.
+
+>> normalize
+    [ neutral (local 0) ]
+    (function_elim
+        (enum_elim
+            [ ( "true", int_intro 0 )
+            , ( "false", int_intro 1 )
+            ]
+            int_type)
+        (local 0))
+    Term ?
+>> Yes:
+>> Term :=
+    function_elim
+        (enum_elim
+            [ ( "true", int_intro 0 )
+            , ( "false", int_intro 1 )
+            ]
+            int_type)
+        (local 0).
+
+>> normalize
+    (enum_elim
+        [ ( "true", enum_intro "unit" [ "unit" ] )
+        , ( "false", int_intro 1 )
+        ]
+        (function_elim
+                (enum_elim
+                    [ ("true", enum_type [ "unit" ])
+                    , ("false", int_type)
+                    ]
+                    type_type)
+                (local 0)))
+    Term ?
+>> Yes:
+>> Term :=
+    enum_elim
+        [ ( "true", enum_intro "unit" [ "unit" ] )
+        , ( "false", int_intro 1 )
+        ]
+        (function_elim
+                (enum_elim
+                    [ ("true", enum_type [ "unit" ])
+                    , ("false", int_type)
+                    ]
+                    type_type)
+                (local 0)).
+
+
+    % Integers
+
+>> normalize int_type Term ?
+>> Yes:
+>> Term := int_type.
+
+>> normalize (int_intro 25) Term ?
+>> Yes:
+>> Term := int_intro 25.
+
+
+    % Arrays
+
+>> normalize [ int_intro 42, int_type ] (array_type (local 1) (local 0)) Term ?
+>> Yes:
+>> Term := array_type int_type (int_intro 42).
+
+>> normalize (array_intro [] int_type) Term ?
+>> Yes:
+>> Term := array_intro [] int_type.
+
+>> normalize [ int_intro 25, int_intro 30, int_type ] (array_intro [ local 0, local 1 ] (local 2)) Term ?
+>> Yes:
+>> Term := array_intro [int_intro 25, int_intro 30] int_type.
+
+>> normalize
+    [ int_intro 1
+    , int_intro 25
+    , int_intro 30
+    , int_type
+    ]
+    (array_elim (array_intro [ local 1, local 2 ] (local 3)) (local 0))
+    Term ?
+>> Yes:
+>> Term := int_intro 30.
+
+% FIXME:
+%  >> normalize [neutral (local 0), int_intro 25, int_intro 30] (array_elim (array_intro [local 1, local 2]) (local 0)) Term ?
+%  >> Yes:
+%  >> Term := array_elim (array_intro [int_intro 25, int_intro 30]) (local 0).
+
+
+    % Binary format descriptions
+
+>> normalize format_intro_void Term ?
+>> Yes:
+>> Term := format_intro_void.
+
+>> normalize format_intro_unit Term ?
+>> Yes:
+>> Term := format_intro_unit.
+
+>> normalize format_intro_u8 Term ?
+>> Yes:
+>> Term := format_intro_u8.
+
+>> normalize (format_intro_array format_intro_u8 (int_intro 3)) Term ?
+>> Yes:
+>> Term := format_intro_array format_intro_u8 (int_intro 3).
+
+>> normalize (format_intro_record []) Term ?
+>> Yes:
+>> Term := format_intro_record [].
+
+>> normalize
+    (format_intro_record
+        [ ( "len", format_intro_u16be )
+        , ( "data", format_intro_array format_intro_unit (local 0) )
+        ])
+    Term ?
+>> Yes:
+>> Term :=
+    format_intro_record
+        [ ( "len", format_intro_u16be )
+        , ( "data", format_intro_array format_intro_unit (local 0) )
+        ].
+
+>> normalize [ format_intro_u16be, format_intro_unit ]
+    (format_intro_record
+        [ ( "len", local 0 )
+        , ( "data", format_intro_array (local 2) (local 0) )
+        ])
+    Term ?
+>> Yes:
+>> Term :=
+    format_intro_record
+        [ ( "len", format_intro_u16be )
+        , ( "data", format_intro_array format_intro_unit (local 0) )
+        ].
+
+>> normalize (format_intro_compute (int_intro 2) int_type) Term ?
+>> Yes:
+>> Term := (format_intro_compute (int_intro 2) int_type).
+
+>> normalize (format_intro_absorb format_intro_u8) Term ?
+>> Yes:
+>> Term := format_intro_absorb format_intro_u8.
+
+>> normalize [ format_intro_u8 ] (format_intro_absorb (local 0)) Term ?
+>> Yes:
+>> Term := format_intro_absorb format_intro_u8.
+
+>> normalize [ neutral (local 0) ] (format_elim (local 0)) Term ?
+>> Yes:
+>> Term := format_elim (local 0).
+
+>> normalize (format_elim format_intro_void) Term ?
+>> Yes:
+>> Term := enum_type [].
+
+>> normalize (format_elim format_intro_unit) Term ?
+>> Yes:
+>> Term := record_type [].
+
+>> normalize (format_elim format_intro_u8) Term ?
+>> Yes:
+>> Term := int_type.
+
+>> normalize (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Term ?
+>> Yes:
+>> Term := array_type int_type (int_intro 3).
+
+>> normalize (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Term ?
+>> Yes:
+>> Term := array_type int_type (int_intro 3).
+
+>> normalize (format_elim (format_intro_record [])) Term ?
+>> Yes:
+>> Term := record_type [].
+
+>> normalize [ format_intro_u16be, format_intro_unit ]
+    (format_elim
+        (format_intro_record
+            [ ( "len", local 0 )
+            , ( "data", format_intro_array (local 2) (local 0) )
+            ]))
+    Term ?
+>> Yes:
+>> Term :=
+    record_type
+        [ ( "len", int_type )
+        , ( "data", array_type (record_type []) (local 0) )
+        ].
+
+>> normalize [ int_type ]
+    (format_elim (format_intro_compute (int_intro 2) (local 0)))
+    Term ?
+>> Yes:
+>> Term := int_type.
+
+>> normalize [ format_intro_u8 ]
+    (format_elim (format_intro_absorb (local 0)))
+    Term ?
+>> Yes:
+>> Term := record_type [].
+
+%end.

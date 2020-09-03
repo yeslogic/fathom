@@ -1,0 +1,41 @@
+%extend rust.
+
+    type' : type.
+
+    bool : type'.
+    u8 : type'.
+    u16 : type'.
+    u32 : type'.
+    u64 : type'.
+    i8 : type'.
+    i16 : type'.
+    i32 : type'.
+    i64 : type'.
+    f32 : type'.
+    f64 : type'.
+
+
+    expr : type.
+    block : type.
+
+    bool : bool -> expr.
+    int : int -> expr.
+    struct : string -> list (string * expr) -> expr.
+    ifte : expr -> block -> option block -> expr.
+    block : list expr -> option expr -> block.
+
+
+    visability : type.
+    pub : visability.
+    priv : visability.
+
+
+    item : type.
+
+    alias : visability -> string -> list string -> type' -> item.
+    struct : visability -> string -> list string -> list (visability * string * type') -> item.
+    enum : visability -> string -> list string -> list (string * type') -> item.
+    function : visability -> string -> list string -> list (string * type') -> type' -> block -> item.
+    const : visability -> string -> type' -> expr -> item.
+
+%end.

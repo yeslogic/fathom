@@ -1,0 +1,61 @@
+% A specification of the Fathom binarary data description language.
+%
+% In making this language, we owe much of our inspiration to the work on PADS/ML
+% and the data description calculus (DDC) in ["The Next 700 Data Description Languages"].
+% In contrast to DDC, we have decided to 'embed' format descriptions within a
+% dependently typed language rather than splitting the language up into
+% separate format and host languages.
+%
+% At the moment it's possible to describe 'dependent format descriptions'. This
+% could be useful for 'extensible' binary formats, but it makes compilation to
+% efficient code much harder in the common case. We might ultimately want to
+% restrict this in the future for ease of compilation through some use of
+% [multi-stage programming], either using an approach based on [modal type
+% theory], or by intentionally conflating 'universe level' with 'phase', as
+% described in ["Phase Distinctions in Type Theory"].
+%
+% ["Phase Distinctions in Type Theory"]: http://lucacardelli.name/Papers/PhaseDistinctions.A4.pdf
+% ["The Next 700 Data Description Languages"]: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.156.1375
+% [modal type theory]: https://jozefg.github.io/papers/2019-implementing-modal-dependent-type-theory.pdf
+% [multi-stage programming]: https://github.com/metaocaml/metaocaml-bibliography
+%
+% # A note on naming
+%
+% In general we try to keep to the following naming scheme:
+%
+% - `thing_type` describes the shape of some `thing`
+% - `thing_intro` introduces an element of `thing_type`
+% - `thing_elim` eliminates an element of `thing_type`
+%
+% For example, based on this naming-scheme, we follow this terminology mapping
+% for functions:
+%
+% | [Type theory] name      | Our name              |
+% | ----------------------- | --------------------- |
+% | [Pi type]               | `function_type`       |
+% | [Lambda abstraction]    | `function_intro`      |
+% | [Function application]  | `function_elim`       |
+%
+% [Type theory]: https://ncatlab.org/nlab/show/type+theory
+% [Pi type]: https://ncatlab.org/nlab/show/dependent+product+type
+% [Lambda abstraction]: https://ncatlab.org/nlab/show/lambda-abstraction
+% [Function application]: https://ncatlab.org/nlab/show/function+application
+%
+% I'm not entirely sold on these suffixes - here are some alternatives that
+% I've currently come up with:
+%
+% - `_type`, `_elem`, `_apply`
+% - `_type`, `_elem`, `_call`
+% - `_type`, `_data`, `_elim`
+% - `_space`, `_point`, `_???`
+%
+% Let me know if you have other ideas!
+
+%extend fathom.
+    % Extensions to Makam's standard library
+    %use "stdlib".
+
+    %use "lang/init".
+    %use "pass/init".
+
+%end.

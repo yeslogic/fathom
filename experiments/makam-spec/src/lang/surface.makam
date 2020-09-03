@@ -1,0 +1,48 @@
+% Surface language
+%
+% This language is what we expect users of the language interact with directly.
+% It includes convenience features such as implicit parameters and pattern
+% matching to make binary data formats easier to describe.
+
+%extend surface.
+
+    % Terms and patterns
+    term : type.
+    pattern : type.
+
+    % Named terms and patterns
+    name : string -> term.
+    name : string -> pattern.
+
+    % Annotated terms and patterns
+    ann : term -> term -> term.
+    ann : pattern -> term -> pattern.
+
+    % Pattern match terms
+    match : term -> list (pattern * term) -> term.
+
+    % Functions
+    function_type : pattern -> term -> term.    % Also known as: Pi type, Dependent product type
+    function_intro : pattern -> term -> term.   % Also known as: Lambda abstraction, anonymous function
+    function_elim : term -> list term -> term.  % Also known as: Function application
+
+    % Records
+    record_type : list (string * term) -> term.
+    record_intro : map string term -> term.
+    record_elim : term -> string -> term.
+    record_elim : map string pattern -> pattern.
+
+    % Enumerations
+    enum_type : set string -> term.
+    enum_intro : string -> term.
+    enum_elim : string -> pattern.
+
+    % Literals
+    number_intro : string -> term.
+    number_intro : string -> pattern.
+    string_intro : string -> term.
+    string_intro : string -> pattern.
+    sequence_intro : list term -> term.
+    sequence_intro : list pattern -> pattern.
+
+%end.

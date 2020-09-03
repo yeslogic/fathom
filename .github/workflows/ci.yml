@@ -10,6 +10,18 @@ on:
       - master
 
 jobs:
+  spec:
+    runs-on: ubuntu-latest
+    name: Check Makam specification
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install specification dependencies
+        run: yarn install
+        working-directory: ./experiments/makam-spec
+      - name: Check specification
+        run: yarn test
+        working-directory: ./experiments/makam-spec
+
   check:
     runs-on: ubuntu-latest
     strategy:

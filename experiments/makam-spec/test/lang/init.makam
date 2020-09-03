@@ -1,0 +1,5 @@
+%extend lang.
+
+    %use "core/init".
+
+%end.

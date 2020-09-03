@@ -1,0 +1,10 @@
+% Kind-erased language
+%
+% We take this route if our target language does not have a kind system, for
+% example a language like Rust or OCaml.
+
+%extend unkinded.
+
+    % TODO
+
+%end.

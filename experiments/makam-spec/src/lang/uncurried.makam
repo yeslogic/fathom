@@ -1,0 +1,9 @@
+% Uncurried language
+%
+% In this language functions are _uncurried_.
+
+%extend uncurried.
+
+    % TODO
+
+%end.

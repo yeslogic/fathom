@@ -1,0 +1,8 @@
+%use "../src/init".
+
+%extend fathom.
+
+    %use "lang/init".
+    %use "pass/init".
+
+%end.

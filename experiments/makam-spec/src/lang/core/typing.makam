@@ -1,0 +1,243 @@
+% Algorithmic typing rules
+
+%extend typing.
+
+    %open fathom.lang.core.semantics.
+
+
+    % Typing context.
+    %
+    % This stores the values and types of the bindings we have currently
+    % traversed over, allowing us to evaluate terms and synthesize the
+    % types of variables when we encounter them, and evaluate term.
+    context : type.
+
+    context : list (value * value) -> context.
+
+    %extend context.
+
+        values : context -> list value -> prop.
+        values (context Entries) Values :-
+            map tuple.fst Entries Values.
+
+
+        lookup_type : context -> int -> value -> prop.
+        lookup_type (context Entries) Index Type :-
+            list.nth Entries Index ( _, Type ).
+
+
+        next_local : context -> value -> prop.
+        next_local (context Entries) (neutral (local Level)) :-
+            length Entries Level.
+
+
+        add_local : context -> value -> value -> context -> prop.
+        add_local (context Entries) Elem Type (context (( Elem, Type ) :: Entries)).
+
+
+        add_param : context -> value -> context -> prop.
+        add_param Context Type Context' :-
+            next_local Context Elem,
+            add_local Context Elem Type Context'.
+
+
+        eval : context -> term -> value -> prop.
+        eval Context Elem Elem' :-
+            values Context Values,
+            eval Values Elem Elem'.
+
+
+        readback : context -> value -> term -> prop.
+        readback (context Entries) Elem Elem' :-
+            length Entries Length,
+            readback Length Elem Elem'.
+
+
+        is_equal : context -> value -> value -> prop.
+        is_equal (context Entries) Elem1 Elem2 :-
+            length Entries Length,
+            is_equal Length Elem1 Elem2.
+
+    %end.
+
+
+    % Pure Type System configuration
+
+    % Valid sorts in the type system
+    sort : value -> prop.
+    sort type_type.
+    sort kind_type.
+
+    % Axioms for synthesizing the types sorts of sorts
+    axiom : term -> value -> prop.
+    axiom type_type kind_type.
+
+    % Rules for checking the sorts of the inputs and outputs of function types.
+    % This yeilds a system close to the Calculus of Constructions, but with a
+    % predicative `type_type` sort.
+    rule : value -> value -> value -> prop.
+    rule type_type type_type type_type.
+    rule type_type kind_type kind_type.
+    rule kind_type type_type kind_type.
+    rule kind_type kind_type kind_type.
+
+
+    % Typing rules
+
+    % Check that a term is an element of the given type in the current context.
+    check_type : context -> term -> value -> prop.
+    % Synthesize the type of a given term in the current context.
+    synth_type : context -> term -> value -> prop.
+
+    % Axiom
+    synth_type Context Elem Type :-
+        axiom Elem Type.
+
+    % Conversion
+    check_type Context Elem Type :-
+        synth_type Context Elem Type',
+        context.is_equal Context Type Type'.
+
+    % Variables
+    synth_type Context (local Index) Type :-
+        context.lookup_type Context Index Type.
+
+    % Functions
+    synth_type Context (function_type InputType OutputType) TypeType :-
+        synth_type Context InputType InputTypeType,
+        context.eval Context InputType InputType',
+        context.add_param Context InputType' Context',
+        synth_type Context' OutputType OutputTypeType,
+        rule InputTypeType OutputTypeType TypeType.
+    synth_type Context (function_intro InputType OutputElem)
+        (function_type InputType' (closure Values OutputType'))
+    :-
+        synth_type Context InputType InputTypeType,
+        context.eval Context InputType InputType',
+        context.add_param Context InputType' Context',
+        synth_type Context' OutputElem OutputType,
+        context.values Context Values,
+        context.readback Context' OutputType OutputType',
+        % TODO: not sure if checking the `OutputTypeType` against `rule` is needed here?
+        synth_type Context' OutputType' OutputTypeType,
+        rule InputTypeType OutputTypeType _.
+    synth_type Context (function_elim Elem InputElem) OutputType :-
+        synth_type Context Elem (function_type InputType Closure),
+        check_type Context InputElem InputType,
+        context.eval Context InputElem InputElem',
+        apply Closure InputElem' OutputType.
+
+    % Records
+    synth_type Context (record_type []) type_type.
+    synth_type Context (record_type (( Label, Type ) :: TypeFields)) type_type :-
+        not (contains ( Label, _ ) TypeFields),
+        check_type Context Type type_type,
+        context.eval Context Type Type',
+        context.add_param Context Type' Context',
+        check_type Context' (record_type TypeFields) type_type.
+    synth_type Context
+        (record_intro ElemFields TypeFields)
+        (record_type (field_closure Values TypeFields))
+    :-
+        foldl (pfun ( Context, ElemFields ) ( Label, Type ) ( Context', ElemFields' ) =>
+            [ Elem Type' Elem' ] (
+                map.remove ElemFields Label Elem ElemFields',
+                check_type Context Type type_type,
+                context.eval Context Type Type',
+                check_type Context Elem Type',
+                context.eval Context Elem Elem',
+                context.add_local Context Elem' Type' Context'
+            )
+        ) ( Context, ElemFields ) TypeFields ( _, [] ),
+        context.values Context Values.
+    synth_type Context (record_elim RecordElem Label) FieldType :-
+        synth_type Context RecordElem (record_type FieldClosure),
+        context.eval Context RecordElem RecordElem',
+        record_elim_type RecordElem' Label FieldClosure FieldType.
+
+    % Enumerations
+    synth_type Context (enum_type Labels) type_type.
+    synth_type Context (enum_intro Label Labels) (enum_type Labels) :-
+        set.member Labels Label _.
+    synth_type Context (enum_elim Clauses OutputType)
+        (function_type (enum_type Labels) (closure Values OutputType))
+    :-
+        map.keys Clauses Labels,
+        context.add_param Context (enum_type Labels) Context',
+        synth_type Context' OutputType OutputTypeType,
+        rule type_type OutputTypeType _,
+        set.map (pfun Label => [OutputType' Elem Context'] (
+            map.find Clauses Label Elem,
+            context.add_local Context (enum_intro Label Labels) (enum_type Labels) Context',
+            context.eval Context' OutputType OutputType',
+            check_type Context Elem OutputType'
+        )) Labels,
+        context.values Context Values.
+
+    % Integers
+    synth_type Context int_type type_type.
+    synth_type Context (int_intro _) int_type.
+
+    % Arrays
+    synth_type Context (array_type Type LenElem) type_type :-
+        check_type Context Type type_type,
+        check_type Context LenElem int_type.
+    synth_type Context (array_intro Elems Type) (array_type Type' (int_intro Len)) :-
+        length Elems Len,
+        check_type Context Type type_type,
+        context.eval Context Type Type',
+        map (pfun Elem => check_type Context Elem Type') Elems.
+    synth_type Context (array_elim ArrayElem IndexElem) Type :-
+        % FIXME: ensure `IndexElem` is in array bounds, possibly with refinement types?
+        synth_type Context ArrayElem (array_type Type _),
+        check_type Context IndexElem int_type.
+
+    % Binary format descriptions
+    synth_type Context format_type kind_type.
+    synth_type Context format_intro_void format_type.
+    synth_type Context format_intro_unit format_type.
+    synth_type Context format_intro_u8 format_type.
+    synth_type Context format_intro_u16le format_type.
+    synth_type Context format_intro_u16be format_type.
+    synth_type Context format_intro_u32le format_type.
+    synth_type Context format_intro_u32be format_type.
+    synth_type Context format_intro_u64le format_type.
+    synth_type Context format_intro_u64be format_type.
+    synth_type Context format_intro_s8 format_type.
+    synth_type Context format_intro_s16le format_type.
+    synth_type Context format_intro_s16be format_type.
+    synth_type Context format_intro_s32le format_type.
+    synth_type Context format_intro_s32be format_type.
+    synth_type Context format_intro_s64le format_type.
+    synth_type Context format_intro_s64be format_type.
+    synth_type Context (format_intro_array Type LenElem) format_type :-
+        check_type Context Type format_type,
+        check_type Context LenElem int_type.
+    synth_type Context (format_intro_record []) format_type.
+    synth_type Context (format_intro_record (( Label, Type ) :: TypeFields)) format_type :-
+        not (contains ( Label, _ ) TypeFields),
+        check_type Context Type format_type,
+        context.eval Context (format_elim Type) Type',
+        context.add_param Context Type' Context',
+        check_type Context' (format_intro_record TypeFields) format_type.
+    synth_type Context (format_intro_compute Elem Type) format_type :-
+        check_type Context Type type_type,
+        context.eval Context Type Type',
+        check_type Context Elem Type'.
+    synth_type Context (format_intro_absorb Type) format_type :-
+        check_type Context Type format_type.
+    synth_type Context (format_elim Type) type_type :-
+        check_type Context Type format_type.
+
+
+    % Convenience predicates
+
+    synth_type : term -> value -> prop.
+    synth_type Elem Type :-
+        synth_type (context []) Elem Type.
+
+    check_type : term -> value -> prop.
+    check_type Elem Type :-
+        check_type (context []) Elem Type.
+
+%end.
