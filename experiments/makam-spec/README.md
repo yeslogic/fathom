@@ -15,7 +15,7 @@ yarn install
 You can alternatively run this from another directory in this repository using:
 
 ```sh
-yarn workspace spec install
+yarn workspace makam-spec install
 ```
 
 ### Available scripts
@@ -30,8 +30,8 @@ yarn repl     # Start the Makam REPL with the source files loaded
 From another directory in this project:
 
 ```sh
-yarn workspace spec test     # Run the tests
-yarn workspace spec repl     # Start the Makam REPL with the source files loaded
+yarn workspace makam-spec test     # Run the tests
+yarn workspace makam-spec repl     # Start the Makam REPL with the source files loaded
 ```
 
 ## Roadmap

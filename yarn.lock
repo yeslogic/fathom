@@ -3,6 +3,6 @@
 
 
 makam@^0.7.36:
-  version "0.7.36"
-  resolved "https://registry.yarnpkg.com/makam/-/makam-0.7.36.tgz#d6aa45b9b8c272fb6edf73dfc793b4bfd748990a"
-  integrity sha512-Qrbi2Cx6uGdCHVwOy2F/EQva15zqAYizpDyBKxSgK8FBNOs9j0iqIJRfCyj0j6N/LMzbg0P7kzYQSMz92+JCfQ==
+  version "0.7.37"
+  resolved "https://registry.yarnpkg.com/makam/-/makam-0.7.37.tgz#201f773a888fe2a1d64c37ae23241dd708ccc00b"
+  integrity sha512-6DGx7FnmgAf+dYXrptwmgC6WDR0+emgM1jMscY/3yitXP3IYq0BvFE2UKq66P16nkHcQHmENK6xTt8M3Z+rdBw==
