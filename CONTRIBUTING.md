@@ -1,48 +1,72 @@
 # Contributing to Fathom
 
+## Contents
+
+- [Code of Conduct](#code-of-conduct)
+- [Matrix room](#matrix-room)
+- [Prerequisites](#prerequisites)
+- [Workflow](#workflow)
+- [Quality standards](#workflow)
+- [Background](#background)
+
 ## Code of Conduct
 
 Please note that this project is released with a [Code of Conduct](./CODE_OF_CONDUCT.md).
 By participating in this project you agree to abide by its terms.
 
-## Join the matrix room
+## Matrix room
 
-Joining the matrix room at [#fathom-lang:matrix.org](https://app.element.io/#/room/#fathom-lang:matrix.org) is a good way to get in touch with the developers and community.
+Joining the matrix room at [#fathom-lang:matrix.org][fathom-matrix] is a good way to get in touch with the developers and community.
 
-## Getting started with development
+[fathom-matrix]: https://app.element.io/#/room/#fathom-lang:matrix.org
 
-### Install Rust
+## Prerequisites
 
-We use [Rust](https://www.rust-lang.org/) as our implementation language.
-You can learn more about programming in Rust by reading
-[The Rust Programming Language](https://doc.rust-lang.org/book/).
+We use [Rust][rust] as our implementation language, which can be installed using the [rustup] tool.
 
-For the best experience in working with Rust, you'll want to also install IDE
-support for your editor of choice:
+For the best experience in working with Rust we also recommend installing IDE support for your editor of choice:
 
-- [Rust Analyzer](https://rust-analyzer.github.io/) (for VS Code, Vim Emacs, etc.)
-- [IntelliJ Rust](https://intellij-rust.github.io/) (for IntelliJ-based IDEs)
+- [Rust Analyzer][rust-analyzer] (for VS Code, Vim Emacs, etc.)
+- [IntelliJ Rust][intellij-rust] (for IntelliJ-based IDEs)
 
-### Cloning the repository
+You can learn more about programming in Rust by reading [The Rust Programming Language][rust-book].
 
-Clone the Fathom repository using [Git](https://git-scm.com) by running the
-following command in your terminal:
+[rust]: https://www.rust-lang.org/
+[rustup]: https://rustup.rs/
+[rust-analyzer]: https://rust-analyzer.github.io/
+[intellij-rust]: https://intellij-rust.github.io/
+[rust-book]: https://doc.rust-lang.org/book/
 
-```sh
-git clone git@github.com:yeslogic/fathom.git
-```
+## Workflow
 
-### Running the tests
+Follow these steps to contribute to the project:
 
-We run tests using continuous integration in order to reduce the risk of
-regressions and bugs being introduced. The cargo tests can be run with the
-following command from within the Fathom project directory:
+1. Make a fork of the Fathom repository.
+1. Within your fork, create a branch for your contribution. Use a meaningful name.
+1. Create your contribution, meeting all [contribution quality standards](#quality-standards).
+1. Ensure all the tests pass (`cargo test`).
+1. [Create a pull request][create-a-pr] against the `master` branch of the repository.
+1. Once the pull request is reviewed and CI passes, it will be merged.
 
-```sh
-cargo test
-```
+[create-a-pr]: https://help.github.com/articles/creating-a-pull-request-from-a-fork/
 
-## Get up to speed with the theory
+## Quality Standards
+
+Most quality and style standards are checked automatically by the CI build.
+Contributions should:
+
+- Separate each **logical change** into its own commit.
+- Include tests for any new functionality in your pull request.
+- Document public functions.
+- Format code with `cargo fmt`.
+- Avoid adding `unsafe` code.
+  If it is necessary, provide an explanatory comment on any `unsafe` block explaining its rationale and why it's safe.
+- Add a descriptive message for each commit. Follow [these commit message guidelines][commit-messages].
+- Document your pull requests. Include the reasoning behind each change, and the testing done.
+
+[commit-messages]: https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
+
+## Background
 
 Watching the [talk on Fathom][compose-talk] at Compose Melbourne 2019 is a good
 start if you want to get an initial understanding of our approach. It is
@@ -57,7 +81,7 @@ those first!
 
 If are new to reading programming language papers, Jeremy Siek's [Crash Course
 on Notation in Programming Language Theory][crash-couse] can be a big help. Also
-feel free to reach out to us on [Matrix](#join-the-matrix-room) for assistance!
+feel free to reach out to us on [Matrix](#matrix-room) for assistance!
 
 [compose-talk]: https://www.youtube.com/watch?v=L9TubiWkBZ8
 [references]: ./docs/specification/references.md
