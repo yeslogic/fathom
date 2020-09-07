@@ -1,7 +1,7 @@
 [package]
 name = "fathom-rt"
 version = "0.1.0"
-authors = ["Brendan Zabarauskas <bjzaba@yahoo.com.au>"]
+authors = ["YesLogic Pty. Ltd. <info@yeslogic.com>"]
 edition = "2018"
 publish = false # TODO: Remove this when we are ready to publish to crates.io
 
