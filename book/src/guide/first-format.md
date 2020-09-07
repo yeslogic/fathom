@@ -3,7 +3,7 @@
 Binary format specifications are often described using natural language.
 For example, consider the following specification of a simple bitmap format:
 
-> A simple bitmap image data format.
+> A simple bitmap image format
 >
 > All numeric data is in big-endian.
 >
@@ -31,7 +31,7 @@ For example, consider the following specification of a simple bitmap format:
 The above natural language specification can be described using the following description in Fathom:
 
 ```fathom
-//! A simple bitmap image data format
+//! A simple bitmap image format
 
 /// RGB pixel in the image
 Pixel : Format = {
@@ -50,7 +50,7 @@ Image : Format = {
     /// The height of the image, in pixels
     height : U16Be,
     /// The uncompressed pixel data
-    data : format.Array (width * height) RgbPixel,
+    data : FormatArray (width * height) RgbPixel,
 };
 ```
 

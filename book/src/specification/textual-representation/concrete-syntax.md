@@ -1,0 +1,75 @@
+# Concrete Syntax
+
+The surface syntax matches on any _token_, filtering out _white-space_ in the
+process.
+
+## Terms
+
+> <sub>Grammar:</sub>
+>
+> _term_ ::=\
+> &emsp;|&ensp;_term-atomic_\
+> &emsp;|&ensp;_term-atomic_ `:` _term_
+>
+> _term-atomic_ ::=\
+> &emsp;|&ensp;`(` _term_ `)`\
+> &emsp;|&ensp;_ident_
+
+## Items
+
+### Alias definitions
+
+Alias definitions are used to give names to terms that can be later used in
+other places in the binary description. For example:
+
+```
+Byte = U8;
+```
+
+Aliases are made up of an identifier and the term that they are assigned to,
+followed by a semicolon:
+
+> <sub>Grammar:</sub>
+>
+> _alias-definition_ ::=\
+> &emsp;|&ensp;_doc-comment_<sup>?</sup> _ident_ `=` _term_ `;`
+
+### Structure type definitions
+
+Structure types are used to describe ordered sequences of binary data.
+They are defined using the `struct` keyword, for example:
+
+```
+struct Point3 {
+    x : F32Be,
+    y : F32Be,
+    z : F32Be,
+}
+```
+
+Structures are composite types that are have a name and a list of fields. The
+fields within a structure must have unique names.
+
+> <sub>Grammar:</sub>
+>
+> _struct-type-field_ ::=\
+> &emsp;|&ensp;_doc-comment_<sup>?</sup> _ident_ `:` _term_
+>
+> _struct-type-fields_ ::=\
+> &emsp;|&ensp;(_struct-type-field_ `,`)<sup>\*</sup> _struct-type-field_<sup>?</sup>
+>
+> _struct-type-definition_ ::=\
+> &emsp;|&ensp;_doc-comment_<sup>?</sup> `struct` _ident_ `{` _struct-type-fields_ `}`
+
+## Modules
+
+Modules are lists of zero-or-more definitions. Definitions within a module must have unique names.
+
+> <sub>Grammar:</sub>
+>
+> _item_ ::=\
+> &emsp;|&ensp;_alias-type-definition_\
+> &emsp;|&ensp;_struct-type-definition_
+>
+> _module_ ::=\
+> &emsp;|&ensp;_item_<sup>\*</sup>

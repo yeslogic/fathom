@@ -101,3 +101,31 @@ jobs:
 #         with:
 #           command: clippy
 #           args: -- -D warnings
+
+  book:
+    runs-on: ubuntu-latest
+    name: Build book
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install mdBook
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: mdbook --version "^0.4.2"
+      - name: Install mdBook Linkcheck
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: mdbook-linkcheck --version "^0.7.0"
+      - name: Build book
+        run: mdbook build book
+      # TODO: Deploy to Github Pages on crate release - possibly in a separate workflow?
+      # - name: Deploy
+      #   uses: peaceiris/actions-gh-pages@v2.5.0
+      #   env:
+      #     ACTIONS_DEPLOY_KEY: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+      #     PUBLISH_BRANCH: gh-pages
+      #     PUBLISH_DIR: ./docs/book

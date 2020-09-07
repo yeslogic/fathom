@@ -1,4 +1,4 @@
-# References
+# Background Reading
 
 A list of resources that were useful when designing Fathom.
 
@@ -25,7 +25,7 @@ A list of resources that were useful when designing Fathom.
   **A domain-specific language for manipulation of binary data in Dylan**.
   In _Proceedings of the 2007 International Lisp Conference_.\
   [[ACM](https://dl.acm.org/citation.cfm?id=1622148)]
-  [[PDF](citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.536.753&rep=rep1&type=pdf)]
+  [[PDF](https://github.com/dylan-lang/binary-data/blob/master/documentation/a-DSL-for-manipulation-of-binary-data.pdf)]
 - Nicolas Oury and Wouter Swierstra. 2008.
   **The power of Pi**.
   In _Proceedings of the 13th ACM SIGPLAN international conference on Functional programming (ICFP '08)_.\
@@ -64,30 +64,26 @@ inspiration when writing the specification of Fathom:
 ## Existing Binary data description languages:
 
 [dloss/binary-parsing](https://github.com/dloss/binary-parsing):
-This is a a comprehensive list of tools for and links about parsing binary data
-structures, such as file formats, network protocols or bitstreams.
+This is a a comprehensive list of tools for and links about parsing binary data structures,
+such as file formats, network protocols or bitstreams.
 
 - [Kaitai Struct](http://kaitai.io):
-  Uses YAML as a way of marking up the data definitions. Lots of nice
-  examples, a nice graphvis output, and a nice web-based IDE. It lacks a
-  formal foundation however, and YAML can be hard to read.
+  Uses YAML as a way of marking up the data definitions. Lots of nice examples,
+  a nice graphvis output, and a nice web-based IDE. It lacks a formal foundation however,
+  and YAML can be hard to read.
 - [IPADS/DDC](https://www.cs.princeton.edu/~dpw/papers/700popl06.pdf):
-  We like the IPADS/DDC approach, but it is geard more towards log files and
-  misses things like pointer offsets which are needed to support many
-  binary formats.
+  We like the IPADS/DDC approach, but it is geard more towards log files and misses features like pointer offsets
+  which are needed to support many binary formats.
 - [Restructure](https://github.com/devongovett/restructure):
-  A library for declaratively encode and decode binary data using a JavaScript
-  EDSL. Used in [fontkit](https://github.com/devongovett/fontkit) for describing
-  the Open Type Font specification. Shows promise as nice way to describe
-  binary formats, but JS is not the most flexible host language.
-- [HarfBuzz](https://github.com/harfbuzz/harfbuzz) defines [a handy set of types
-  and macros](https://github.com/harfbuzz/harfbuzz/blob/35218c488c3966aa6d459ec5a007a2b43208e97c/src/hb-machinery.hh)
-  that allows binary data to be cast in-place into declaratively described Open
-  Type Font tables. Alas, it is in C++, and the API seems extremely prone to
-  human-error. A Rust API would be much more robust in regards to upholding
-  claimed invariants.
+  A library for declaratively encode and decode binary data using a JavaScript EDSL.
+  Used in [fontkit](https://github.com/devongovett/fontkit) for describing the Open Type Font specification.
+  Shows promise as nice way to describe binary formats, but JS is not the most flexible host language.
+- [HarfBuzz](https://github.com/harfbuzz/harfbuzz) defines [a handy set of types and macros](https://github.com/harfbuzz/harfbuzz/blob/35218c488c3966aa6d459ec5a007a2b43208e97c/src/hb-machinery.hh)
+  that allows binary data to be cast in-place into declaratively described Open Type Font tables.
+  Alas, it is in C++, and the API seems extremely prone to human-error.
+  A Rust API would be much more robust in regards to upholding claimed invariants.
 - [Nom](https://github.com/Geal/nom):
-  A Rust parser combinator library geared towards describing binary
-  formats. It is fast and zero copy, but we believe that the combinator
-  approach has drawbacks to do with being to tied to a specific programming
-  language for specifications, and a specific operational semantics.
+  A Rust parser combinator library geared towards describing binary formats.
+  It is fast and zero copy, but we believe that the combinator approach has drawbacks to do with
+  being to tied to a single host language for specifications,
+  and a tied to a single operational semantics.
