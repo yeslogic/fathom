@@ -22,7 +22,7 @@ process.
 Alias definitions are used to give names to terms that can be later used in
 other places in the binary description. For example:
 
-```
+```fathom
 Byte = U8;
 ```
 
@@ -39,7 +39,7 @@ followed by a semicolon:
 Structure types are used to describe ordered sequences of binary data.
 They are defined using the `struct` keyword, for example:
 
-```
+```fathom
 struct Point3 {
     x : F32Be,
     y : F32Be,

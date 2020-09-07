@@ -12,7 +12,7 @@ on:
 jobs:
   spec:
     runs-on: ubuntu-latest
-    name: Check Makam specification
+    name: Check Makam Specification
     steps:
       - uses: actions/checkout@v2
       - name: Install specification dependencies
@@ -104,28 +104,25 @@ jobs:
 
   book:
     runs-on: ubuntu-latest
-    name: Build book
+    name: Build and Test Book
+    env:
+      MDBOOK_VERSION: '0.4.2'
+      MDBOOK_LINKCHECK_VERSION: '0.7.0'
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
       - name: Install mdBook
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: mdbook --version "^0.4.2"
-      - name: Install mdBook Linkcheck
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: mdbook-linkcheck --version "^0.7.0"
+        # Install prebuilt binaries where possible to improve CI performance
+        run: |
+          mkdir -p $HOME/mdbook
+          curl -L https://github.com/rust-lang/mdBook/releases/download/v$MDBOOK_VERSION/mdbook-v$MDBOOK_VERSION-x86_64-unknown-linux-gnu.tar.gz | tar xz -C $HOME/mdbook
+          echo "::add-path::${HOME}/mdbook/"
+          mkdir -p $HOME/mdbook-linkcheck
+          curl -L https://github.com/Michael-F-Bryan/mdbook-linkcheck/releases/download/v$MDBOOK_LINKCHECK_VERSION/mdbook-linkcheck-v$MDBOOK_LINKCHECK_VERSION-x86_64-unknown-linux-gnu.tar.gz | tar xz -C $HOME/mdbook-linkcheck
+          echo "::add-path::${HOME}/mdbook-linkcheck/"
       - name: Build book
-        run: mdbook build book
-      # TODO: Deploy to Github Pages on crate release - possibly in a separate workflow?
-      # - name: Deploy
-      #   uses: peaceiris/actions-gh-pages@v2.5.0
-      #   env:
-      #     ACTIONS_DEPLOY_KEY: ${{ secrets.ACTIONS_DEPLOY_KEY }}
-      #     PUBLISH_BRANCH: gh-pages
-      #     PUBLISH_DIR: ./docs/book
+        run: mdbook build
+        working-directory: book
+      - name: Test book
+        run: mdbook test
+        working-directory: book
+      # TODO: Deploy to Github Pages on crate release

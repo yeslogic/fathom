@@ -13,7 +13,7 @@ Fathom has two sorts, `Type` and `Kind`, with a single axiom, `Type : Kind`.
 `Kind` has no type, so is limited in where it can appear.
 For example it cannot be used in top-level definitions:
 
-```
+```fathom
 MyKind = Kind; // this is an error
 ```
 
