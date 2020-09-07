@@ -26,10 +26,9 @@ Binary formats exist in many forms in computing. Examples of these include:
 - Fonts: OTF, TTF
 - &hellip;and many more!
 
-Implementing a parser for a binary format such as those listed above in a general purpose programming language is tedious and error-prone,
-especially when it is derived from a natural language specification that leaves room for ambiguity.
-
-Fathom aims to streamline the process of specifying and implementing parsers for new and existing binary formats through the power of modern programming language theory.
+Implementing binary format parsers by hand in a general purpose programming languages is tedious and error-prone,
+especially when the implementations are derived from natural language specifications that leave room for ambiguity.
+Fathom aims to streamline this process for new and existing binary formats.
 
 ## Fathom at a glance
 
