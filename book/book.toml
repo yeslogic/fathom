@@ -1,0 +1,17 @@
+[book]
+title = "Fathom Book"
+authors = ["YesLogic Pty. Ltd. <info@yeslogic.com>"]
+description = "Documentation for the Fathom data description language"
+language = "en"
+multilingual = false
+src = "src"
+
+[build]
+build-dir = "build"
+
+[output.html]
+
+[output.linkcheck]
+exclude = [
+    '\./code-of-conduct\.md', # Bypass `traverse-parent-directories` for this symlink
+]

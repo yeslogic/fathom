@@ -1,4 +1,4 @@
-name: Continuous integration
+name: ci
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
 jobs:
   spec:
     runs-on: ubuntu-latest
-    name: Check Makam specification
+    name: Check Makam Specification
     steps:
       - uses: actions/checkout@v2
       - name: Install specification dependencies
@@ -101,3 +101,28 @@ jobs:
 #         with:
 #           command: clippy
 #           args: -- -D warnings
+
+  book:
+    runs-on: ubuntu-latest
+    name: Build and Test Book
+    env:
+      MDBOOK_VERSION: '0.4.2'
+      MDBOOK_LINKCHECK_VERSION: '0.7.0'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install mdBook
+        # Install prebuilt binaries where possible to improve CI performance
+        run: |
+          mkdir -p $HOME/mdbook
+          curl -L https://github.com/rust-lang/mdBook/releases/download/v$MDBOOK_VERSION/mdbook-v$MDBOOK_VERSION-x86_64-unknown-linux-gnu.tar.gz | tar xz -C $HOME/mdbook
+          echo "::add-path::${HOME}/mdbook/"
+          mkdir -p $HOME/mdbook-linkcheck
+          curl -L https://github.com/Michael-F-Bryan/mdbook-linkcheck/releases/download/v$MDBOOK_LINKCHECK_VERSION/mdbook-linkcheck-v$MDBOOK_LINKCHECK_VERSION-x86_64-unknown-linux-gnu.tar.gz | tar xz -C $HOME/mdbook-linkcheck
+          echo "::add-path::${HOME}/mdbook-linkcheck/"
+      - name: Build book
+        run: mdbook build
+        working-directory: book
+      - name: Test book
+        run: mdbook test
+        working-directory: book
+      # TODO: Deploy to Github Pages on crate release
