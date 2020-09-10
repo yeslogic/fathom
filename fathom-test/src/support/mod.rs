@@ -428,10 +428,7 @@ impl Test {
 
     fn compile_doc(&mut self, surface_module: &fathom::lang::surface::Module) {
         let mut output = Vec::new();
-        surface_to_doc::from_module(&mut output, surface_module, &mut |d| {
-            self.found_diagnostics.push(d)
-        })
-        .unwrap();
+        surface_to_doc::from_module(&mut output, surface_module).unwrap();
 
         if let Err(error) =
             snapshot::compare(&self.snapshot_filename.with_extension("html"), &output)

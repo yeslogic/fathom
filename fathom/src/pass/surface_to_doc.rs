@@ -1,4 +1,3 @@
-use codespan_reporting::diagnostic::Diagnostic;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io;
@@ -8,11 +7,7 @@ use crate::lang::surface;
 use crate::pass::surface_to_pretty::Prec;
 
 #[allow(clippy::write_literal)]
-pub fn from_module(
-    writer: &mut impl Write,
-    module: &surface::Module,
-    report: &mut dyn FnMut(Diagnostic<usize>),
-) -> io::Result<()> {
+pub fn from_module(writer: &mut impl Write, module: &surface::Module) -> io::Result<()> {
     let mut context = Context {
         _file_id: module.file_id,
         items: HashMap::new(),
@@ -58,10 +53,8 @@ pub fn from_module(
 
     for item in &module.items {
         let (name, item) = match item {
-            surface::Item::Alias(alias) => context.from_alias(writer, alias, report)?,
-            surface::Item::Struct(struct_type) => {
-                context.from_struct_type(writer, struct_type, report)?
-            }
+            surface::Item::Alias(alias) => context.from_alias(writer, alias)?,
+            surface::Item::Struct(struct_type) => context.from_struct_type(writer, struct_type)?,
         };
 
         context.items.insert(name, item);
@@ -93,7 +86,6 @@ impl Context {
         &self,
         writer: &mut impl Write,
         alias: &surface::Alias,
-        report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> io::Result<(String, Item)> {
         let (_, name) = &alias.name;
         let id = format!("items[{}]", name);
@@ -115,7 +107,7 @@ impl Context {
                 r##"          <a href="#{id}">{name}</a> : {type}"##,
                 id = id,
                 name = name,
-                type = self.from_term_prec(r#type, Prec::Term, report),
+                type = self.from_term_prec(r#type, Prec::Term),
             )?,
         }
         write!(
@@ -131,7 +123,7 @@ impl Context {
             writeln!(writer, r##"          </section>"##)?;
         }
 
-        let term = self.from_term_prec(&alias.term, Prec::Term, report);
+        let term = self.from_term_prec(&alias.term, Prec::Term);
 
         write!(
             writer,
@@ -150,7 +142,6 @@ impl Context {
         &self,
         writer: &mut impl Write,
         struct_type: &surface::StructType,
-        report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> io::Result<(String, Item)> {
         let (_, name) = &struct_type.name;
         let id = format!("items[{}]", name);
@@ -177,7 +168,7 @@ impl Context {
             for field in &struct_type.fields {
                 let (_, field_name) = &field.name;
                 let field_id = format!("{}.fields[{}]", id, field_name);
-                let r#type = self.from_term_prec(&field.term, Prec::Term, report);
+                let r#type = self.from_term_prec(&field.term, Prec::Term);
 
                 write!(
                     writer,
@@ -207,12 +198,7 @@ impl Context {
         Ok((name.clone(), Item { id }))
     }
 
-    fn from_term_prec<'term>(
-        &self,
-        term: &'term surface::Term,
-        prec: Prec,
-        report: &mut dyn FnMut(Diagnostic<usize>),
-    ) -> Cow<'term, str> {
+    fn from_term_prec<'term>(&self, term: &'term surface::Term, prec: Prec) -> Cow<'term, str> {
         use itertools::Itertools;
 
         match term {
@@ -229,16 +215,16 @@ impl Context {
                 "{lparen}{term} : {type}{rparen}",
                 lparen = if prec > Prec::Term { "(" } else { "" },
                 rparen = if prec > Prec::Term { ")" } else { "" },
-                term = self.from_term_prec(term, Prec::Arrow, report),
-                type = self.from_term_prec(r#type, Prec::Term, report),
+                term = self.from_term_prec(term, Prec::Arrow),
+                type = self.from_term_prec(r#type, Prec::Term),
             )
             .into(),
             surface::Term::FunctionType(param_type, body_type) => format!(
                 "{lparen}{param_type} &rarr; {body_type}{rparen}",
                 lparen = if prec > Prec::Arrow { "(" } else { "" },
                 rparen = if prec > Prec::Arrow { ")" } else { "" },
-                param_type = self.from_term_prec(param_type, Prec::App, report),
-                body_type = self.from_term_prec(body_type, Prec::Arrow, report),
+                param_type = self.from_term_prec(param_type, Prec::App),
+                body_type = self.from_term_prec(body_type, Prec::Arrow),
             )
             .into(),
             surface::Term::FunctionElim(head, arguments) => format!(
@@ -246,10 +232,10 @@ impl Context {
                 "{lparen}{head} {arguments}{rparen}",
                 lparen = if prec > Prec::App { "(" } else { "" },
                 rparen = if prec > Prec::App { ")" } else { "" },
-                head = self.from_term_prec(head, Prec::Atomic, report),
+                head = self.from_term_prec(head, Prec::Atomic),
                 arguments = arguments
                     .iter()
-                    .map(|argument| self.from_term_prec(argument, Prec::Atomic, report))
+                    .map(|argument| self.from_term_prec(argument, Prec::Atomic))
                     .format(" "),
             )
             .into(),
@@ -257,21 +243,21 @@ impl Context {
             surface::Term::If(_, head, if_true, if_false) => format!(
                 // TODO: multiline formatting!
                 "if {head} {{ {if_true} }} else {{ {if_false} }}",
-                head = self.from_term_prec(head, Prec::Term, report),
-                if_true = self.from_term_prec(if_true, Prec::Term, report),
-                if_false = self.from_term_prec(if_false, Prec::Term, report),
+                head = self.from_term_prec(head, Prec::Term),
+                if_true = self.from_term_prec(if_true, Prec::Term),
+                if_false = self.from_term_prec(if_false, Prec::Term),
             )
             .into(),
             surface::Term::Match(_, head, branches) => format!(
                 // TODO: multiline formatting!
                 "match {head} {{ {branches} }}",
-                head = self.from_term_prec(head, Prec::Term, report),
+                head = self.from_term_prec(head, Prec::Term),
                 branches = branches
                     .iter()
                     .map(|(pattern, term)| format!(
                         "{pattern} &rArr; {term}",
                         pattern = self.from_pattern(pattern),
-                        term = self.from_term_prec(term, Prec::Term, report),
+                        term = self.from_term_prec(term, Prec::Term),
                     ))
                     .format(", "),
             )
