@@ -89,7 +89,31 @@ These are encoded following the [IEEE Standard for Floating-Point Arithmetic
 
 ### Array formats
 
-> **TODO**: add documentation
+An fixed-length array of a single format can be described using the `FormatArray` format:
+
+```fathom
+FormatArray : Int -> Format -> Format
+```
+
+Representation, assuming `len : Int` and `format : Format`:
+
+```fathom
+repr (FormatArray len format) == Array len (repr format)
+```
+
+### Position formats
+
+The current position of the binary stream can be accessed using the `CurrentPos` format:
+
+```fathom
+CurrentPos : Format
+```
+
+Representation:
+
+```fathom
+repr CurrentPos == Pos
+```
 
 ### Offset formats
 
