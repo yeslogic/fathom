@@ -1,8 +1,11 @@
 # Language Reference
 
-This part of the documentation is a reference-level description of the Fathom data description language.
-This is intended for Fathom users who want a comprehensive description of Fathom's features,
-but isn't intended to be a precise formal description.
+This part of the documentation is a reference-level description of the Fathom data description language,
+intended for Fathom users who want a comprehensive description of Fathom's surface-level features.
+A more precise description of the concrete syntax, elaboration,
+and core language of Fathom can be found in the [language specification].
+
+[language specification]: ./specification.md
 
 ## Summary
 
