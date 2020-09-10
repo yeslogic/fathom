@@ -1,1 +1,1 @@
-TestInt = Int; //~ error: unconstrained integer type
+TestInt = Int;

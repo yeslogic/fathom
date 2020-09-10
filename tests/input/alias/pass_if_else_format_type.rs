@@ -3,9 +3,6 @@
 use fathom_runtime::{F64Be, FormatWriter, ReadError, ReadScope, U8};
 use fathom_test_util::fathom::lang::core::{self, binary};
 
-#[path = "../../snapshots/alias/pass_if_else_format_type.rs"]
-pub mod fixture;
-
 fathom_test_util::core_module!(
     FIXTURE,
     "../../snapshots/alias/pass_if_else_format_type.core.fathom"
@@ -15,10 +12,11 @@ fathom_test_util::core_module!(
 fn eof_inner() {
     let writer = FormatWriter::new(vec![]);
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let singleton = read_scope.read::<fixture::Test>();
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match singleton {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Test") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -34,12 +32,10 @@ fn valid_test() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let singleton = read_scope.read::<fixture::Test>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let test = binary::read::from_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
-    assert_eq!(singleton, 23.64e10);
-    assert_eq!(test, binary::Term::F64(singleton.into()));
+    assert_eq!(test, binary::Term::F64(23.64e10));
 
     // TODO: Check remaining
 }
@@ -52,12 +48,10 @@ fn valid_test_trailing() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let singleton = read_scope.read::<fixture::Test>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let test = binary::read::from_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
-    assert_eq!(singleton, 781.453298);
-    assert_eq!(test, binary::Term::F64(singleton.into()));
+    assert_eq!(test, binary::Term::F64(781.453298));
 
     // TODO: Check remaining
 }

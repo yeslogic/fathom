@@ -2,9 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, LabelStyle, Severity};
 use codespan_reporting::files::{Files, SimpleFiles};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
-use fathom::pass::{
-    core_to_pretty, core_to_rust, core_to_surface, surface_to_core, surface_to_doc,
-};
+use fathom::pass::{core_to_pretty, core_to_surface, surface_to_core, surface_to_doc};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -63,7 +61,7 @@ pub fn run_integration_test(test_name: &str, fathom_path: &str) {
     let core_module = test.elaborate(&files, &surface_module);
     test.roundtrip_surface_to_core(&files, &core_module);
     test.roundtrip_pretty_core(&mut files, &core_module);
-    test.compile_rust(&core_module);
+    test.binary_parse_tests();
 
     test.finish(&files);
 }
@@ -310,141 +308,120 @@ impl Test {
         }
     }
 
-    fn compile_rust(&mut self, core_module: &fathom::lang::core::Module) {
-        let mut output = Vec::new();
-        let rust_module = core_to_rust::compile_module(&GLOBALS, core_module, &mut |d| {
-            self.found_diagnostics.push(d);
-        });
-        fathom::lang::rust::emit::emit_module(&mut output, &rust_module).unwrap();
-        let snapshot_rs_path = self.snapshot_filename.with_extension("rs");
+    fn binary_parse_tests(&mut self) {
+        // Test compiled output against rustc
+        let temp_dir = assert_fs::TempDir::new().unwrap();
 
-        if let Err(error) = snapshot::compare(&snapshot_rs_path, &output) {
-            self.failed_checks.push("compile_rust: snapshot");
+        let rs_path = match &self.input_fathom_path.with_extension("rs") {
+            input_rs_path if input_rs_path.exists() => input_rs_path.clone(),
+            _ => return,
+        };
 
-            eprintln!("  • compile_rust: snapshot");
-            eprintln!();
-            eprintln_indented(4, "", "---- snapshot error ----");
-            eprintln_indented(4, "", &error.to_string());
-            eprintln!();
-        } else {
-            // Test compiled output against rustc
-            let temp_dir = assert_fs::TempDir::new().unwrap();
+        let mut rustc_command = Command::new("rustc");
 
-            let (rs_path, is_binary_parse_test) = match &self.input_fathom_path.with_extension("rs")
-            {
-                input_rs_path if input_rs_path.exists() => (input_rs_path.clone(), true),
-                _ => (snapshot_rs_path, false),
-            };
+        rustc_command
+            .arg(format!("--out-dir={}", temp_dir.path().display()))
+            .arg(format!("--crate-name={}", self.test_name))
+            .arg("--test")
+            .arg("--color=always")
+            .arg("--edition=2018")
+            // Manually pass shared cargo directories
+            .arg("-C")
+            .arg(format!("incremental={}", CARGO_INCREMENTAL_DIR.display()))
+            .arg("-L")
+            .arg(format!("dependency={}", CARGO_DEPS_DIR.display()))
+            // Add `fathom-runtime` to the dependencies
+            .arg("--extern")
+            .arg(format!("fathom_runtime={}", CARGO_FATHOM_RT_RLIB.display()));
 
-            let mut rustc_command = Command::new("rustc");
+        // Ensure that fathom-runtime is present at `CARGO_FATHOM_RT_RLIB`
+        Command::new(env!("CARGO"))
+            .arg("build")
+            .arg("--package=fathom-runtime")
+            .output()
+            .unwrap();
 
-            rustc_command
-                .arg(format!("--out-dir={}", temp_dir.path().display()))
-                .arg(format!("--crate-name={}", self.test_name))
-                .arg("--test")
-                .arg("--color=always")
-                .arg("--edition=2018")
-                // Manually pass shared cargo directories
-                .arg("-C")
-                .arg(format!("incremental={}", CARGO_INCREMENTAL_DIR.display()))
-                .arg("-L")
-                .arg(format!("dependency={}", CARGO_DEPS_DIR.display()))
-                // Add `fathom-runtime` to the dependencies
-                .arg("--extern")
-                .arg(format!("fathom_runtime={}", CARGO_FATHOM_RT_RLIB.display()));
+        // Ensure that fathom-test-util is present at `CARGO_FATHOM_TEST_UTIL_RLIB`
+        Command::new(env!("CARGO"))
+            .arg("build")
+            .arg("--package=fathom-test-util")
+            .output()
+            .unwrap();
 
-            // Ensure that fathom-runtime is present at `CARGO_FATHOM_RT_RLIB`
-            Command::new(env!("CARGO"))
-                .arg("build")
-                .arg("--package=fathom-runtime")
-                .output()
-                .unwrap();
+        // Add `fathom-test-util` to the dependencies
+        rustc_command.arg("--extern").arg(format!(
+            "fathom_test_util={}",
+            CARGO_FATHOM_TEST_UTIL_RLIB.display(),
+        ));
 
-            if is_binary_parse_test {
-                // Ensure that fathom-test-util is present at `CARGO_FATHOM_TEST_UTIL_RLIB`
-                Command::new(env!("CARGO"))
-                    .arg("build")
-                    .arg("--package=fathom-test-util")
-                    .output()
-                    .unwrap();
+        match rustc_command.arg(&rs_path).output() {
+            Ok(output) => {
+                if !output.status.success()
+                    || !output.stdout.is_empty()
+                    || !output.stderr.is_empty()
+                {
+                    self.failed_checks
+                        .push("binary_parse_tests: rust compile output");
 
-                // Add `fathom-test-util` to the dependencies
-                rustc_command.arg("--extern").arg(format!(
-                    "fathom_test_util={}",
-                    CARGO_FATHOM_TEST_UTIL_RLIB.display(),
-                ));
-            }
-
-            match rustc_command.arg(&rs_path).output() {
-                Ok(output) => {
-                    if !output.status.success()
-                        || !output.stdout.is_empty()
-                        || !output.stderr.is_empty()
-                    {
-                        self.failed_checks.push("compile_rust: rust compile output");
-
-                        eprintln!("  • compile_rust: rust compile output");
-                        eprintln!();
-                    }
-
-                    if !output.status.success() {
-                        eprintln_indented(4, "", "---- rustc status ----");
-                        eprintln_indented(4, "| ", &output.status.to_string());
-                        eprintln!();
-                    }
-
-                    if !output.stdout.is_empty() {
-                        eprintln_indented(4, "", "---- rustc stdout ----");
-                        eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
-                        eprintln!();
-                    }
-
-                    if !output.stderr.is_empty() {
-                        eprintln_indented(4, "", "---- rustc stderr ----");
-                        eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
-                        eprintln!();
-                    }
-                }
-                Err(error) => {
-                    self.failed_checks.push("compile_rust: execute rustc");
-
-                    eprintln!("  • compile_rust: execute rustc");
+                    eprintln!("  • binary_parse_tests: rust compile output");
                     eprintln!();
-                    eprintln_indented(4, "", "---- rustc error ----");
-                    eprintln_indented(4, "", &error.to_string());
+                }
+
+                if !output.status.success() {
+                    eprintln_indented(4, "", "---- rustc status ----");
+                    eprintln_indented(4, "| ", &output.status.to_string());
+                    eprintln!();
+                }
+
+                if !output.stdout.is_empty() {
+                    eprintln_indented(4, "", "---- rustc stdout ----");
+                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
+                    eprintln!();
+                }
+
+                if !output.stderr.is_empty() {
+                    eprintln_indented(4, "", "---- rustc stderr ----");
+                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
                     eprintln!();
                 }
             }
+            Err(error) => {
+                self.failed_checks.push("binary_parse_tests: execute rustc");
 
-            // Run binary parse tests
-            if is_binary_parse_test {
-                let test_path = temp_dir.path().join(&self.test_name);
-                let display_path = test_path.display();
-                match Command::new(&test_path).arg("--color=always").output() {
-                    Ok(output) => {
-                        if !output.status.success() {
-                            self.failed_checks.push("compile_rust: rust test output");
+                eprintln!("  • binary_parse_tests: execute rustc");
+                eprintln!();
+                eprintln_indented(4, "", "---- rustc error ----");
+                eprintln_indented(4, "", &error.to_string());
+                eprintln!();
+            }
+        }
 
-                            eprintln!("  • compile_rust: rust test output");
-                            eprintln!();
-                            eprintln_indented(4, "", &format!("---- {} stdout ----", display_path));
-                            eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
-                            eprintln!();
-                            eprintln_indented(4, "", &format!("---- {} stderr ----", display_path));
-                            eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
-                            eprintln!();
-                        }
-                    }
-                    Err(error) => {
-                        self.failed_checks.push("compile_rust: execute test");
+        let test_path = temp_dir.path().join(&self.test_name);
+        let display_path = test_path.display();
+        match Command::new(&test_path).arg("--color=always").output() {
+            Ok(output) => {
+                if !output.status.success() {
+                    self.failed_checks
+                        .push("binary_parse_tests: rust test output");
 
-                        eprintln!("  • compile_rust: execute test");
-                        eprintln!();
-                        eprintln_indented(4, "", &format!("---- {} error ----", display_path));
-                        eprintln_indented(4, "| ", &error.to_string());
-                        eprintln!();
-                    }
+                    eprintln!("  • binary_parse_tests: rust test output");
+                    eprintln!();
+                    eprintln_indented(4, "", &format!("---- {} stdout ----", display_path));
+                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stdout));
+                    eprintln!();
+                    eprintln_indented(4, "", &format!("---- {} stderr ----", display_path));
+                    eprintln_indented(4, "| ", &String::from_utf8_lossy(&output.stderr));
+                    eprintln!();
                 }
+            }
+            Err(error) => {
+                self.failed_checks.push("binary_parse_tests: execute test");
+
+                eprintln!("  • binary_parse_tests: execute test");
+                eprintln!();
+                eprintln_indented(4, "", &format!("---- {} error ----", display_path));
+                eprintln_indented(4, "| ", &error.to_string());
+                eprintln!();
             }
         }
     }
