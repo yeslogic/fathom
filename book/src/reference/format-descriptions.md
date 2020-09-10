@@ -25,9 +25,9 @@ This can be accessed by using the built-in `repr : Format -> Type` function.
 For example:
 
 ```fathom
-repr U8             // evaluates to `Int`
-repr I32Be          // evaluates to `Int`
-repr { x : U32Be }  // evaluates to `{ x : Int } : Type`
+repr U8             // normalizes to `Int`
+repr I32Be          // normalizes to `Int`
+repr { x : U32Be }  // normalizes to `{ x : Int } : Type`
 ```
 
 ## Introduction
@@ -98,7 +98,7 @@ FormatArray : Int -> Format -> Format
 Representation, assuming `len : Int` and `format : Format`:
 
 ```fathom
-repr (FormatArray len format) == Array len (repr format)
+repr (FormatArray len format) // normalizes to `Array len (repr format)`
 ```
 
 ### Position formats
@@ -112,7 +112,7 @@ CurrentPos : Format
 Representation:
 
 ```fathom
-repr CurrentPos == Pos
+repr CurrentPos         // normalizes to `Pos`
 ```
 
 ### Offset formats
