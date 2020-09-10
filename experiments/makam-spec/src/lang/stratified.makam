@@ -136,7 +136,7 @@
     enum_intro : string -> set string ->  expr. % Enumeration introductions
     enum_elim : map string expr -> expr.        % Enumeration eliminations
     int_intro : int -> expr.                    % Integer introductions
-    array_intro : list expr -> term0 -> expr.   % Array introductiona
+    array_intro : list expr -> term0 -> expr.   % Array introductions
     array_elim : expr -> expr -> expr.          % Array eliminations
 
 %end.
