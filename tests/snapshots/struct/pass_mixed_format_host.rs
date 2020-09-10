@@ -6,7 +6,7 @@
 #[derive(Copy, Clone)]
 pub struct Test {
     format: u32,
-    host: fathom_rt::InvalidDataDescription,
+    host: fathom_runtime::InvalidDataDescription,
 }
 
 impl Test {
@@ -14,19 +14,19 @@ impl Test {
         self.format
     }
 
-    pub fn host(&self) -> fathom_rt::InvalidDataDescription {
+    pub fn host(&self) -> fathom_runtime::InvalidDataDescription {
         self.host
     }
 }
 
-impl fathom_rt::Format for Test {
+impl fathom_runtime::Format for Test {
     type Host = Test;
 }
 
-impl<'data> fathom_rt::ReadFormat<'data> for Test {
-    fn read(reader: &mut fathom_rt::FormatReader<'data>) -> Result<Test, fathom_rt::ReadError> {
-        let format = reader.read::<fathom_rt::U32Be>()?;
-        let host = reader.read::<fathom_rt::InvalidDataDescription>()?;
+impl<'data> fathom_runtime::ReadFormat<'data> for Test {
+    fn read(reader: &mut fathom_runtime::FormatReader<'data>) -> Result<Test, fathom_runtime::ReadError> {
+        let format = reader.read::<fathom_runtime::U32Be>()?;
+        let host = reader.read::<fathom_runtime::InvalidDataDescription>()?;
 
         Ok(Test {
             format,

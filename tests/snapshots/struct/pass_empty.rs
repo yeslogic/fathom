@@ -6,12 +6,12 @@
 #[derive(Copy, Clone)]
 pub struct Empty {}
 
-impl fathom_rt::Format for Empty {
+impl fathom_runtime::Format for Empty {
     type Host = Empty;
 }
 
-impl<'data> fathom_rt::ReadFormat<'data> for Empty {
-    fn read(_: &mut fathom_rt::FormatReader<'data>) -> Result<Empty, fathom_rt::ReadError> {
+impl<'data> fathom_runtime::ReadFormat<'data> for Empty {
+    fn read(_: &mut fathom_runtime::FormatReader<'data>) -> Result<Empty, fathom_runtime::ReadError> {
         Ok(Empty {})
     }
 }

@@ -12,7 +12,7 @@ use crate::lang::{core, rust};
 mod diagnostics;
 
 // TODO: Make this path configurable
-const RT_NAME: &str = "fathom_rt";
+const RT_NAME: &str = "fathom_runtime";
 
 fn rt_ty_name(name: &str) -> rust::Type {
     rust::Type::name(format!("{}::{}", RT_NAME, name), Vec::new())

@@ -8,7 +8,7 @@ use crate::lang::rust::{
 
 const INDENT: usize = 4;
 // TODO: Move to rust compiler
-const RT_NAME: &str = "fathom_rt";
+const RT_NAME: &str = "fathom_runtime";
 
 pub fn emit_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let pkg_name = env!("CARGO_PKG_NAME");

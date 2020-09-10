@@ -11,13 +11,13 @@ impl SimpleFormatArray {
     }
 }
 
-impl fathom_rt::Format for SimpleFormatArray {
+impl fathom_runtime::Format for SimpleFormatArray {
     type Host = SimpleFormatArray;
 }
 
-impl<'data> fathom_rt::ReadFormat<'data> for SimpleFormatArray {
-    fn read(reader: &mut fathom_rt::FormatReader<'data>) -> Result<SimpleFormatArray, fathom_rt::ReadError> {
-        let inner = (0..(6usize)).map(|_| Ok(reader.read::<fathom_rt::U32Be>()?)).collect::<Result<_, fathom_rt::ReadError>>()?;
+impl<'data> fathom_runtime::ReadFormat<'data> for SimpleFormatArray {
+    fn read(reader: &mut fathom_runtime::FormatReader<'data>) -> Result<SimpleFormatArray, fathom_runtime::ReadError> {
+        let inner = (0..(6usize)).map(|_| Ok(reader.read::<fathom_runtime::U32Be>()?)).collect::<Result<_, fathom_runtime::ReadError>>()?;
 
         Ok(SimpleFormatArray {
             inner,

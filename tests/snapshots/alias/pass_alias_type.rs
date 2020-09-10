@@ -2,6 +2,6 @@
 // It is not intended for manual editing.
 
 /// Test that one can refer to local type aliases in aliases.
-pub type Foo = fathom_rt::U32Be;
+pub type Foo = fathom_runtime::U32Be;
 
-pub type Bar = fathom_rt::U32Be;
+pub type Bar = fathom_runtime::U32Be;

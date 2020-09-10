@@ -4,4 +4,4 @@
 //! Test aliases with doc comments.
 
 /// A 8-bit long unit of information.
-pub type Byte = fathom_rt::U8;
+pub type Byte = fathom_runtime::U8;

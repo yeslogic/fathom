@@ -3,4 +3,4 @@
 
 pub const FOO: i64 = 0i64;
 
-pub type Test = fathom_rt::F64Le;
+pub type Test = fathom_runtime::F64Le;

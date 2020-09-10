@@ -23,3 +23,9 @@ pub enum Term {
     /// Structure values
     Struct(BTreeMap<String, Term>),
 }
+
+impl Term {
+    pub fn int(data: impl Into<BigInt>) -> Term {
+        Term::Int(data.into())
+    }
+}

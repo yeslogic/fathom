@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use fathom_rt::{FormatWriter, ReadError, ReadScope, U8};
+use fathom_runtime::{FormatWriter, ReadError, ReadScope, U8};
 use fathom_test_util::fathom::lang::core::{self, binary};
 
 #[path = "../../snapshots/alias/pass_simple.rs"]

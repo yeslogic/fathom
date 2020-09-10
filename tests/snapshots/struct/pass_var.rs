@@ -19,14 +19,14 @@ impl Pair {
     }
 }
 
-impl fathom_rt::Format for Pair {
+impl fathom_runtime::Format for Pair {
     type Host = Pair;
 }
 
-impl<'data> fathom_rt::ReadFormat<'data> for Pair {
-    fn read(reader: &mut fathom_rt::FormatReader<'data>) -> Result<Pair, fathom_rt::ReadError> {
-        let first = reader.read::<fathom_rt::U8>()?;
-        let second = reader.read::<fathom_rt::U8>()?;
+impl<'data> fathom_runtime::ReadFormat<'data> for Pair {
+    fn read(reader: &mut fathom_runtime::FormatReader<'data>) -> Result<Pair, fathom_runtime::ReadError> {
+        let first = reader.read::<fathom_runtime::U8>()?;
+        let second = reader.read::<fathom_runtime::U8>()?;
 
         Ok(Pair {
             first,
@@ -53,12 +53,12 @@ impl PairPair {
     }
 }
 
-impl fathom_rt::Format for PairPair {
+impl fathom_runtime::Format for PairPair {
     type Host = PairPair;
 }
 
-impl<'data> fathom_rt::ReadFormat<'data> for PairPair {
-    fn read(reader: &mut fathom_rt::FormatReader<'data>) -> Result<PairPair, fathom_rt::ReadError> {
+impl<'data> fathom_runtime::ReadFormat<'data> for PairPair {
+    fn read(reader: &mut fathom_runtime::FormatReader<'data>) -> Result<PairPair, fathom_runtime::ReadError> {
         let first = reader.read::<Pair>()?;
         let second = reader.read::<Pair>()?;
 

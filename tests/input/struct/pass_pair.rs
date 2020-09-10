@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use fathom_rt::{FormatWriter, ReadError, ReadScope, I8, U8};
+use fathom_runtime::{FormatWriter, ReadError, ReadScope, I8, U8};
 use fathom_test_util::fathom::lang::core::{self, binary};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
