@@ -1,27 +1,36 @@
 # Binary format descriptions
 
-Binary format descriptions allow us to describe binary formats in a declarative way.
-These can then be compiled to parser implementations.
+Binary format descriptions allow us to describe binary formats in a way that is similar to datatype-generic programming.
+
+Although appear reminiscent of types on a syntactic level,
+they have no inhabitants and are better thought of as a builtin [inductive type].
+
+[inductive type]: https://en.wikipedia.org/wiki/Inductive_type
+
+## Formation
 
 All binary format descriptions are elements of the primitive type `Format`.
-`Format` is an element of the `Kind` sort.
+
+`Format` is an element of the `Kind` sort:
 
 ```fathom
 Format : Kind
 ```
 
-Although they seem to be types on a superficial, syntactic level,
-they are better thought of as a primitive inductive datatype that is hard-coded into the host language.
+## Representations of format descriptions
 
 Each binary format description can be interpreted as a corresponding 'representation type'
 that is intended to represent result of parsing a format description.
-This can be accessed by using the `repr` operator, for example:
+This can be accessed by using the built-in `repr : Format -> Type` function.
+For example:
 
 ```fathom
-repr U8
+repr U8             // evaluates to `Int`
+repr I32Be          // evaluates to `Int`
+repr { x : U32Be }  // evaluates to `{ x : Int } : Type`
 ```
 
-## Numeric formats
+## Introduction
 
 ### Unsigned integer formats
 
@@ -70,22 +79,26 @@ These are encoded following the [IEEE Standard for Floating-Point Arithmetic
 
 [ieee-754-wikipedia]: https://en.wikipedia.org/wiki/IEEE_754
 
-## Character formats
+### Character formats
 
 > **TODO**: add documentation
 
-## String formats
+### String formats
 
 > **TODO**: add documentation
 
-## Array formats
+### Array formats
 
 > **TODO**: add documentation
 
-## Offset formats
+### Offset formats
 
 > **TODO**: add documentation
 
-## Record formats
+### Record formats
+
+> **TODO**: add documentation
+
+### Enumeration formats
 
 > **TODO**: add documentation

@@ -10,5 +10,12 @@ and core language of Fathom can be found in the [language specification].
 ## Summary
 
 - [Lexical Syntax](./reference/lexical-syntax.md)
-- [Host Language](./reference/host-language.md)
+- [Sorts](./reference/sorts.md)
+- [Functions]()
+- [Records](./reference/records.md)
+- [Enumerations]()
+- [Integers]()
+- [Pattern Matching]()
+- [Refinement Types]()
 - [Binary Format Descriptions](./reference/format-descriptions.md)
+- [Top-level items]()

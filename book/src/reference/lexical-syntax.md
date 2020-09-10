@@ -26,6 +26,10 @@ Definition-level doc comments are preceded by `///`:
 
 > **TODO**: add documentation
 
+## Identifiers
+
+> **TODO**: add documentation
+
 ## Operators
 
 > **TODO**: add documentation

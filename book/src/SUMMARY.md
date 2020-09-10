@@ -14,8 +14,16 @@
 
 - [Reference](./reference.md)
   - [Lexical Syntax](./reference/lexical-syntax.md)
-  - [Host Language](./reference/host-language.md)
+  - [Sorts](./reference/sorts.md)
+  - [Integers]()
+  - [Functions]()
+  - [Records](./reference/records.md)
+  - [Enumerations](./reference/enumerations.md)
+  - [Arrays]()
+  - [Pattern Matching]()
+  - [Refinements]()
   - [Binary Format Descriptions](./reference/format-descriptions.md)
+  - [Top-level items]()
 
 - [Specification](./specification.md)
   - [Core Language]()
