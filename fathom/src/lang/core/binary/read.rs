@@ -72,8 +72,7 @@ impl<'me> Context<'me> {
 
     fn read_format(&mut self, format: &Value) -> Result<Term, fathom_runtime::ReadError> {
         match format {
-            Value::Neutral(Head::Global(_, name), elims) => match (name.as_str(), elims.as_slice())
-            {
+            Value::Stuck(Head::Global(_, name), elims) => match (name.as_str(), elims.as_slice()) {
                 ("U8", []) => Ok(Term::int(self.read::<fathom_runtime::U8>()?)),
                 ("U16Le", []) => Ok(Term::int(self.read::<fathom_runtime::U16Le>()?)),
                 ("U16Be", []) => Ok(Term::int(self.read::<fathom_runtime::U16Be>()?)),
@@ -109,7 +108,7 @@ impl<'me> Context<'me> {
                     Err(fathom_runtime::ReadError::InvalidDataDescription)
                 }
             },
-            Value::Neutral(Head::Item(_, name), elims) => {
+            Value::Stuck(Head::Item(_, name), elims) => {
                 match (self.items.get(name.as_str()).cloned(), elims.as_slice()) {
                     (Some(Item::Struct(struct_type)), []) => self.read_struct_format(&struct_type),
                     (Some(_), _) | (None, _) => {
@@ -117,7 +116,7 @@ impl<'me> Context<'me> {
                     }
                 }
             }
-            Value::Neutral(Head::Error(_), _)
+            Value::Stuck(Head::Error(_), _)
             | Value::TypeType(_)
             | Value::FunctionType(_, _)
             | Value::Constant(_, _)

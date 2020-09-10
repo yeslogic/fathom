@@ -246,7 +246,7 @@ impl<'me> Context<'me> {
                 };
                 match expected_type.as_ref() {
                     // TODO: Lookup globals in environment
-                    Value::Neutral(Head::Global(_, name), elims) if elims.is_empty() => {
+                    Value::Stuck(Head::Global(_, name), elims) if elims.is_empty() => {
                         match name.as_str() {
                             "Int" => match literal.parse_big_int(self.file_id, report) {
                                 Some(value) => core::Term::Constant(range.clone(), Int(value)),
@@ -292,7 +292,7 @@ impl<'me> Context<'me> {
                 };
 
                 match head_type.as_ref() {
-                    Value::Neutral(Head::Global(_, name), elims) if elims.is_empty() => {
+                    Value::Stuck(Head::Global(_, name), elims) if elims.is_empty() => {
                         // TODO: Lookup globals in environment
                         match name.as_str() {
                             "Bool" => {

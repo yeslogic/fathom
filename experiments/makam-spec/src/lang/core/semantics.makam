@@ -10,10 +10,13 @@
 
     % The result of evaluating a term.
     value : type.
-    % Neutral values are computations that are currently 'stuck' on some
-    % as-yet unknown computation. We build up a 'spine' of eliminations
-    % that cannot yet reduce in preperation for if they become 'unstuck'.
-    neutral : type.
+    % Values that are currently 'stuck' on some as-yet unknown computation.
+    % We build up a 'spine' of eliminations that cannot yet reduce in
+    % preperation for if they become 'unstuck'.
+    %
+    % These are also known as 'neutral values' or 'accumulators'
+    % in other presentations of normalization-by-evaluation.
+    stuck : type.
     % Closures are terms from the core syntax that have yet to be evaluated.
     % They capture an environment of values to be used later, when they are
     % finally evaluated.
@@ -25,7 +28,7 @@
     choice_closure : type.
 
     % Neutral values
-    neutral : neutral -> value.
+    stuck : stuck -> value.
 
     % Universes
     type_type : value.
@@ -84,15 +87,15 @@
     format_intro_absorb : value -> value.
 
     % Variables
-    local : int -> neutral. % Local variables (using De Bruijn levels)
+    local : int -> stuck. % Local variables (using De Bruijn levels)
 
     % Suspended eliminations
-    function_elim : neutral -> value -> neutral.
-    record_elim : neutral -> string -> neutral.
-    enum_elim : choice_closure -> neutral -> neutral.
-    %  stage_elim : neutral -> neutral.
-    %  array_elim : neutral -> value -> neutral.
-    format_elim : neutral -> neutral.
+    function_elim : stuck -> value -> stuck.
+    record_elim : stuck -> string -> stuck.
+    enum_elim : choice_closure -> stuck -> stuck.
+    %  stage_elim : stuck -> stuck.
+    %  array_elim : stuck -> value -> stuck.
+    format_elim : stuck -> stuck.
 
     closure : list value -> term -> closure.
     field_closure : list value -> list (string * term) -> field_closure.
@@ -108,7 +111,7 @@
     function_elim : value -> value -> value -> prop.
     record_elim : value -> string -> value -> prop.
     %  stage_elim : value -> value -> prop.
-    %  array_elim : value -> value -> neutral.
+    %  array_elim : value -> value -> stuck.
     format_elim : value -> value -> prop.
 
     eval Values (local Index) Value :-
@@ -146,7 +149,7 @@
     eval Values (array_intro Elems Type) (array_intro Elems' Type') :-
         map (pfun Elem Elem' => eval Values Elem Elem') Elems Elems',
         eval Values Type Type'.
-    % FIXME: This breaks for neutral terms! We should use `array_elim` here.
+    % FIXME: This breaks for stuck terms! We should use `array_elim` here.
     eval Values (array_elim ArrayElem IndexElem) ElemValue :-
         eval Values ArrayElem (array_intro ElemValues _),
         eval Values IndexElem (int_intro Index),
@@ -188,24 +191,24 @@
 
     % Eliminations
 
-    function_elim (neutral Neutral) InputValue (neutral (function_elim Neutral InputValue)).
+    function_elim (stuck Neutral) InputValue (stuck (function_elim Neutral InputValue)).
     function_elim (function_intro _ Closure) InputValue OutputValue :-
         apply Closure InputValue OutputValue.
     function_elim
         (enum_elim (choice_closure Values Clauses OutputType))
-        (neutral Neutral)
-        (neutral (enum_elim (choice_closure Values Clauses OutputType) Neutral)).
+        (stuck Neutral)
+        (stuck (enum_elim (choice_closure Values Clauses OutputType) Neutral)).
     function_elim (enum_elim (choice_closure Values Clauses _)) (enum_intro Label _) OutputValue :-
         map.find Clauses Label OutputElem,
         eval Values OutputElem OutputValue.
 
-    record_elim (neutral Neutral) Label (neutral (record_elim Neutral Label)).
+    record_elim (stuck Neutral) Label (stuck (record_elim Neutral Label)).
     record_elim (record_intro ElemFields _) Label FieldElem :-
         map.find ElemFields Label FieldElem.
 
     % TODO: stage_elim
 
-    format_elim (neutral Neutral) (neutral (format_elim Neutral)).
+    format_elim (stuck Neutral) (stuck (format_elim Neutral)).
     format_elim format_intro_void (enum_type []).
     format_elim format_intro_unit (record_type (field_closure [] [])).
     format_elim format_intro_u8 int_type.
@@ -247,19 +250,19 @@
 
     % Readback of values into terms in normal form
 
-    readback : int -> neutral -> term -> prop.
+    readback : int -> stuck -> term -> prop.
     readback : int -> value -> term -> prop.
 
-    readback Length (local Level : neutral) (local Index) :-
+    readback Length (local Level : stuck) (local Index) :-
         % Convert De Bruijn levels to De Bruijn indices
         functional.do !(minus Length !(plus Level 1)) Index.
-    readback Length (function_elim Neutral InputValue : neutral) (function_elim Elem InputElem) :-
+    readback Length (function_elim Neutral InputValue : stuck) (function_elim Elem InputElem) :-
         readback Length Neutral Elem,
         readback Length InputValue InputElem.
-    readback Length (record_elim Neutral Label : neutral) (record_elim Elem Label) :-
+    readback Length (record_elim Neutral Label : stuck) (record_elim Elem Label) :-
         readback Length Neutral Elem.
     readback Length
-        (enum_elim (choice_closure Values Clauses OutputType) Neutral : neutral)
+        (enum_elim (choice_closure Values Clauses OutputType) Neutral : stuck)
         (function_elim (enum_elim Clauses' OutputType'') Elem)
     :-
         length Values ChoiceLength,
@@ -267,24 +270,24 @@
             eval Values Elem Value,
             readback Length Value Elem'
         )) Clauses Clauses',
-        eval (neutral (local Length) :: Values) OutputType OutputType',
+        eval (stuck (local Length) :: Values) OutputType OutputType',
         plus Length 1 Length1,
         readback Length1 OutputType' OutputType'',
         readback Length Neutral Elem.
-    readback Length (format_elim Neutral : neutral) (format_elim Elem) :-
+    readback Length (format_elim Neutral : stuck) (format_elim Elem) :-
         readback Length Neutral Elem.
 
-    readback Length (neutral Neutral) Elem :-
+    readback Length (stuck Neutral) Elem :-
         readback Length Neutral Elem.
     readback Length type_type type_type.
     readback Length (function_type InputType Closure) (function_type InputType' OutputType') :-
         readback Length InputType InputType',
-        apply Closure (neutral (local Length)) OutputType,
+        apply Closure (stuck (local Length)) OutputType,
         plus Length 1 Length1,
         readback Length1 OutputType OutputType'.
     readback Length (function_intro InputType Closure) (function_intro InputType' OutputElem') :-
         readback Length InputType InputType',
-        apply Closure (neutral (local Length)) OutputElem,
+        apply Closure (stuck (local Length)) OutputElem,
         plus Length 1 Length1,
         readback Length1 OutputElem OutputElem'.
     readback Length (record_type (field_closure Values [])) (record_type []).
@@ -296,7 +299,7 @@
         readback Length Type' Type'',
         plus Length 1 Length1,
         readback Length1
-            (record_type (field_closure (neutral (local Length) :: Values) Fields))
+            (record_type (field_closure (stuck (local Length) :: Values) Fields))
             (record_type Fields').
     readback Length (record_intro ElemFields FieldClosure) (record_intro ElemFields' TypeFields) :-
         map.mapvalues (pfun Elem Elem' => readback Length Elem Elem') ElemFields ElemFields',
@@ -308,7 +311,7 @@
             eval Values Elem Value,
             readback Length Value Elem'
         )) Clauses Clauses',
-        eval (neutral (local Length) :: Values) OutputType OutputType',
+        eval (stuck (local Length) :: Values) OutputType OutputType',
         plus Length 1 Length1,
         readback Length1 OutputType' OutputType''.
     readback Length int_type int_type.
@@ -348,7 +351,7 @@
         readback Length Type' Type'',
         plus Length 1 Length1,
         readback Length1
-            (format_intro_record (field_closure (neutral (local Length) :: Values) Fields))
+            (format_intro_record (field_closure (stuck (local Length) :: Values) Fields))
             (format_intro_record Fields').
     readback Length (format_intro_compute Elem Type) (format_intro_compute Elem' Type') :-
         readback Length Elem Elem',
@@ -372,45 +375,45 @@
 
     % Equality of values
 
-    is_equal : int -> neutral -> neutral -> prop.
+    is_equal : int -> stuck -> stuck -> prop.
     is_equal : int -> value -> value -> prop.
 
-    is_equal Length (local Level : neutral) (local Level : neutral).
+    is_equal Length (local Level : stuck) (local Level : stuck).
     is_equal Length
-        (function_elim Neutral1 InputValue1 : neutral)
-        (function_elim Neutral2 InputValue2 : neutral)
+        (function_elim Neutral1 InputValue1 : stuck)
+        (function_elim Neutral2 InputValue2 : stuck)
     :-
         is_equal Length Neutral1 Neutral2,
         is_equal Length InputValue1 InputValue2.
     is_equal Length
-        (enum_elim (choice_closure Values1 Clauses1 OutputType1) Neutral1 : neutral)
-        (enum_elim (choice_closure Values2 Clauses2 OutputType1) Neutral2 : neutral)
+        (enum_elim (choice_closure Values1 Clauses1 OutputType1) Neutral1 : stuck)
+        (enum_elim (choice_closure Values2 Clauses2 OutputType1) Neutral2 : stuck)
     :-
         map.mapvalues (pfun Elem1 Elem2 => [Value1 Value2] (
             eval Values1 Elem1 Value1,
             eval Values2 Elem2 Value2,
             is_equal Length Value1 Value2
         )) Clauses1 Clauses2,
-        eval (neutral (local Length) :: Values1) OutputType1 OutputType1',
-        eval (neutral (local Length) :: Values2) OutputType2 OutputType2',
+        eval (stuck (local Length) :: Values1) OutputType1 OutputType1',
+        eval (stuck (local Length) :: Values2) OutputType2 OutputType2',
         is_equal Length OutputType1' OutputType2',
         is_equal Length Neutral1 Neutral2.
-    is_equal Length (format_elim Neutral1 : neutral) (format_elim Neutral2 : neutral) :-
+    is_equal Length (format_elim Neutral1 : stuck) (format_elim Neutral2 : stuck) :-
         is_equal Length Neutral1 Neutral2.
 
-    is_equal Length (neutral Neutral1) (neutral Neutral2) :-
+    is_equal Length (stuck Neutral1) (stuck Neutral2) :-
         is_equal Length Neutral1 Neutral2.
     is_equal Length type_type type_type.
     is_equal Length (function_type InputType1 Closure1) (function_type InputType2 Closure2) :-
         is_equal Length InputType1 InputType2,
-        apply Closure1 (neutral (local Length)) OutputType1,
-        apply Closure2 (neutral (local Length)) OutputType2,
+        apply Closure1 (stuck (local Length)) OutputType1,
+        apply Closure2 (stuck (local Length)) OutputType2,
         plus Length 1 Length1,
         is_equal Length1 OutputType1 OutputType2.
     is_equal Length (function_intro InputType1 Closure1) (function_intro InputType2 Closure2) :-
         is_equal Length InputType1 InputType2,
-        apply Closure1 (neutral (local Length)) OutputValue1,
-        apply Closure2 (neutral (local Length)) OutputValue2,
+        apply Closure1 (stuck (local Length)) OutputValue1,
+        apply Closure2 (stuck (local Length)) OutputValue2,
         plus Length 1 Length1,
         is_equal Length1 OutputValue1 OutputValue2.
     is_equal Length
@@ -426,8 +429,8 @@
         is_equal Length Type1' Type2',
         plus Length 1 Length1,
         is_equal Length1
-            (record_type (field_closure (neutral (local Length) :: Values1) Fields1))
-            (record_type (field_closure (neutral (local Length) :: Values2) Fields2)).
+            (record_type (field_closure (stuck (local Length) :: Values1) Fields1))
+            (record_type (field_closure (stuck (local Length) :: Values2) Fields2)).
     is_equal Length
         (record_intro ElemFields1 FieldClosure1)
         (record_intro ElemFields2 FieldClosure2)
@@ -448,8 +451,8 @@
             eval Values2 Elem2 Value2,
             is_equal Length Value1 Value2
         )) Clauses1 Clauses2,
-        eval (neutral (local Length) :: Values1) OutputType1 OutputType1',
-        eval (neutral (local Length) :: Values2) OutputType2 OutputType2',
+        eval (stuck (local Length) :: Values1) OutputType1 OutputType1',
+        eval (stuck (local Length) :: Values2) OutputType2 OutputType2',
         is_equal Length OutputType1' OutputType2'.
     is_equal Length int_type int_type.
     is_equal Length (int_intro Int) (int_intro Int).
@@ -492,8 +495,8 @@
         is_equal Length Type1' Type2',
         plus Length 1 Length1,
         is_equal Length1
-            (format_intro_record (field_closure (neutral (local Length) :: Values1) Fields1))
-            (format_intro_record (field_closure (neutral (local Length) :: Values2) Fields2)).
+            (format_intro_record (field_closure (stuck (local Length) :: Values1) Fields1))
+            (format_intro_record (field_closure (stuck (local Length) :: Values2) Fields2)).
     is_equal Length (format_intro_compute Elem1 Type1) (format_intro_compute Elem2 Type2) :-
         is_equal Length Elem1 Elem2,
         is_equal Length Type1 Type2.

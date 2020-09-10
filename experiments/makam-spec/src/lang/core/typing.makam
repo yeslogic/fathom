@@ -27,7 +27,7 @@
 
 
         next_local : context -> value -> prop.
-        next_local (context Entries) (neutral (local Level)) :-
+        next_local (context Entries) (stuck (local Level)) :-
             length Entries Level.
 
 

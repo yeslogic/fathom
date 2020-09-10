@@ -27,7 +27,7 @@
 >> Yes:
 >> Term := int_intro 1.
 
->> normalize [neutral (local 0) ] (function_elim (local 0) (int_intro 1)) Term ?
+>> normalize [stuck (local 0) ] (function_elim (local 0) (int_intro 1)) Term ?
 >> Yes:
 >> Term := function_elim (local 0) (int_intro 1).
 
@@ -105,7 +105,7 @@
 >> Yes:
 >> Term := array_intro [int_intro 1, int_intro 2] int_type.
 
->> normalize [ neutral (local 0) ] (record_elim (local 0) "data") Term ?
+>> normalize [ stuck (local 0) ] (record_elim (local 0) "data") Term ?
 >> Yes:
 >> Term := record_elim (local 0) "data".
 
@@ -168,7 +168,7 @@
 >> Term := int_intro 1.
 
 >> normalize
-    [ neutral (local 0) ]
+    [ stuck (local 0) ]
     (function_elim
         (enum_elim
             [ ( "true", int_intro 0 )
@@ -252,7 +252,7 @@
 >> Term := int_intro 30.
 
 % FIXME:
-%  >> normalize [neutral (local 0), int_intro 25, int_intro 30] (array_elim (array_intro [local 1, local 2]) (local 0)) Term ?
+%  >> normalize [stuck (local 0), int_intro 25, int_intro 30] (array_elim (array_intro [local 1, local 2]) (local 0)) Term ?
 %  >> Yes:
 %  >> Term := array_elim (array_intro [int_intro 25, int_intro 30]) (local 0).
 
@@ -317,7 +317,7 @@
 >> Yes:
 >> Term := format_intro_absorb format_intro_u8.
 
->> normalize [ neutral (local 0) ] (format_elim (local 0)) Term ?
+>> normalize [ stuck (local 0) ] (format_elim (local 0)) Term ?
 >> Yes:
 >> Term := format_elim (local 0).
 

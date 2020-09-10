@@ -11,8 +11,16 @@ use crate::lang::core::{Constant, Globals, Item, Term};
 /// Values.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
-    /// Neutral terms
-    Neutral(Head, Vec<Elim>),
+    /// A suspended elimination.
+    ///
+    /// This is more commonly known as a 'neutral value' or sometimes as an
+    /// 'accumulator'.
+    ///
+    /// These eliminations cannot be reduced further as a result of being stuck
+    /// on some head that also cannot be reduced further (eg. a parameter, an
+    /// abstract global, or an unsolved metavariable).
+    Stuck(Head, Vec<Elim>),
+
     /// Type of types.
     TypeType(Range<usize>),
     /// Function types.
@@ -29,7 +37,7 @@ pub enum Value {
 impl Value {
     /// Create a global variable.
     pub fn global(range: Range<usize>, name: impl Into<String>) -> Value {
-        Value::Neutral(Head::Global(range, name.into()), Vec::new())
+        Value::Stuck(Head::Global(range, name.into()), Vec::new())
     }
 
     pub fn range(&self) -> Range<usize> {
@@ -41,7 +49,7 @@ impl Value {
             Value::FunctionType(param_type, body_type) => {
                 param_type.range().start..body_type.range().end
             }
-            Value::Neutral(head, elims) => match elims.last() {
+            Value::Stuck(head, elims) => match elims.last() {
                 Some(elim) => head.range().start..elim.range().end,
                 None => head.range(),
             },
@@ -102,7 +110,7 @@ pub fn eval(
             None => Arc::new(Value::Error(range.clone())),
             Some((_, term)) => match term {
                 Some(term) => eval(globals, items, term),
-                None => Arc::new(Value::Neutral(
+                None => Arc::new(Value::Stuck(
                     Head::Global(range.clone(), name.clone()),
                     Vec::new(),
                 )),
@@ -111,7 +119,7 @@ pub fn eval(
         Term::Item(range, name) => match items.get(name.as_str()) {
             None => Arc::new(Value::Error(range.clone())),
             Some(Item::Alias(alias)) => eval(globals, items, &alias.term),
-            Some(Item::Struct(_)) => Arc::new(Value::Neutral(
+            Some(Item::Struct(_)) => Arc::new(Value::Stuck(
                 Head::Item(range.clone(), name.clone()),
                 Vec::new(),
             )),
@@ -125,10 +133,10 @@ pub fn eval(
             Arc::new(Value::FunctionType(param_type, body_type))
         }
         Term::FunctionElim(head, argument) => match eval(globals, items, head).as_ref() {
-            Value::Neutral(head, elims) => {
+            Value::Stuck(head, elims) => {
                 let mut elims = elims.clone(); // FIXME: clone?
                 elims.push(Elim::Function(term.range(), eval(globals, items, argument)));
-                Arc::new(Value::Neutral(head.clone(), elims))
+                Arc::new(Value::Stuck(head.clone(), elims))
             }
             _ => Arc::new(Value::Error(term.range())),
         },
@@ -137,7 +145,7 @@ pub fn eval(
         }
         Term::BoolElim(range, head, if_true, if_false) => {
             match eval(globals, items, head).as_ref() {
-                Value::Neutral(Head::Global(head_range, name), elims) if elims.is_empty() => {
+                Value::Stuck(Head::Global(head_range, name), elims) if elims.is_empty() => {
                     match name.as_str() {
                         "true" => eval(globals, items, if_true),
                         "false" => eval(globals, items, if_false),
@@ -148,19 +156,19 @@ pub fn eval(
                                 if_true.clone(),
                                 if_false.clone(),
                             ));
-                            Arc::new(Value::Neutral(
+                            Arc::new(Value::Stuck(
                                 Head::Global(head_range.clone(), name.clone()),
                                 elims,
                             ))
                         }
                     }
                 }
-                Value::Neutral(head, elims) => {
+                Value::Stuck(head, elims) => {
                     let mut elims = elims.clone(); // FIXME: clone?
                     elims.push(Elim::Bool(range.clone(), if_true.clone(), if_false.clone()));
-                    Arc::new(Value::Neutral(head.clone(), elims))
+                    Arc::new(Value::Stuck(head.clone(), elims))
                 }
-                _ => Arc::new(Value::Neutral(
+                _ => Arc::new(Value::Stuck(
                     Head::Error(head.range()),
                     vec![Elim::Bool(range.clone(), if_true.clone(), if_false.clone())],
                 )),
@@ -172,12 +180,12 @@ pub fn eval(
                     Some(term) => eval(globals, items, term),
                     None => eval(globals, items, default),
                 },
-                Value::Neutral(head, elims) => {
+                Value::Stuck(head, elims) => {
                     let mut elims = elims.clone(); // FIXME: clone?
                     elims.push(Elim::Int(range.clone(), branches.clone(), default.clone()));
-                    Arc::new(Value::Neutral(head.clone(), elims))
+                    Arc::new(Value::Stuck(head.clone(), elims))
                 }
-                _ => Arc::new(Value::Neutral(
+                _ => Arc::new(Value::Stuck(
                     Head::Error(head.range()),
                     vec![Elim::Int(range.clone(), branches.clone(), default.clone())],
                 )),
@@ -219,7 +227,7 @@ fn read_back_neutral(head: &Head, elims: &[Elim]) -> Term {
 /// Read a value back into the term syntax.
 pub fn read_back(value: &Value) -> Term {
     match value {
-        Value::Neutral(head, elims) => read_back_neutral(head, elims),
+        Value::Stuck(head, elims) => read_back_neutral(head, elims),
         Value::TypeType(range) => Term::TypeType(range.clone()),
         Value::FunctionType(param_type, body_type) => Term::FunctionType(
             Arc::new(read_back(param_type)),
@@ -234,7 +242,7 @@ pub fn read_back(value: &Value) -> Term {
 /// Check that two values are equal.
 pub fn equal(val1: &Value, val2: &Value) -> bool {
     match (val1, val2) {
-        (Value::Neutral(head0, elims0), Value::Neutral(head1, elims1)) => {
+        (Value::Stuck(head0, elims0), Value::Stuck(head1, elims1)) => {
             read_back_neutral(head0, elims0) == read_back_neutral(head1, elims1)
         }
         (Value::TypeType(_), Value::TypeType(_)) => true,
