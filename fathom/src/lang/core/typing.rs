@@ -47,6 +47,23 @@ impl<'me> Context<'me> {
         Some(&self.types.iter().rev().find(|(n, _)| *n == name)?.1)
     }
 
+    /// Evaluate a [`core::Term`] into a [`Value`] in the current typing context.
+    ///
+    /// [`Value`]: crate::lang::core::semantics::Value
+    /// [`core::Term`]: crate::lang::core::Term
+    pub fn eval(&self, term: &Term) -> Arc<Value> {
+        semantics::eval(self.globals, &self.items, term)
+    }
+
+    /// Check that one [`Value`] is [computationally equal]
+    /// to another [`Value`] in the current typing context.
+    ///
+    /// [`Value`]: crate::lang::core::semantics::Value
+    /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
+    pub fn is_equal(&self, value0: &Value, value1: &Value) -> bool {
+        semantics::is_equal(value0, value1)
+    }
+
     /// Validate that the items are well-formed.
     pub fn is_items(mut self, items: &'me [Item], report: &mut dyn FnMut(Diagnostic<usize>)) {
         for item in items {
@@ -126,8 +143,8 @@ impl<'me> Context<'me> {
         match term {
             Term::FormatType(_) | Term::TypeType(_) => true,
             term => {
-                let r#type = self.synth_type(term, report);
-                match r#type.as_ref() {
+                let found_type = self.synth_type(term, report);
+                match found_type.as_ref() {
                     Value::FormatType(_) | Value::TypeType(_) => true,
                     Value::Error(_) => false,
                     _ => {
@@ -135,7 +152,7 @@ impl<'me> Context<'me> {
                             Severity::Bug,
                             self.file_id,
                             term.range(),
-                            &r#type,
+                            &found_type,
                         ));
                         false
                     }
@@ -167,19 +184,16 @@ impl<'me> Context<'me> {
                 }
                 self.check_type(default, expected_type, report);
             }
-            (term, expected_type) => {
-                let synth_type = self.synth_type(term, report);
-
-                if !semantics::equal(&synth_type, expected_type) {
-                    report(diagnostics::type_mismatch(
-                        Severity::Bug,
-                        self.file_id,
-                        term.range(),
-                        expected_type,
-                        &synth_type,
-                    ));
-                }
-            }
+            (term, expected_type) => match self.synth_type(term, report) {
+                found_type if self.is_equal(&found_type, expected_type) => {}
+                found_type => report(diagnostics::type_mismatch(
+                    Severity::Bug,
+                    self.file_id,
+                    term.range(),
+                    expected_type,
+                    &found_type,
+                )),
+            },
         }
     }
 
@@ -187,7 +201,7 @@ impl<'me> Context<'me> {
     pub fn synth_type(&self, term: &Term, report: &mut dyn FnMut(Diagnostic<usize>)) -> Arc<Value> {
         match term {
             Term::Global(range, name) => match self.globals.get(name) {
-                Some((r#type, _)) => semantics::eval(self.globals, &self.items, r#type),
+                Some((r#type, _)) => self.eval(r#type),
                 None => {
                     report(diagnostics::bug::global_name_not_found(
                         self.file_id,
@@ -210,7 +224,7 @@ impl<'me> Context<'me> {
             },
             Term::Ann(term, r#type) => {
                 self.is_type(r#type, report);
-                let r#type = semantics::eval(self.globals, &self.items, r#type);
+                let r#type = self.eval(r#type);
                 self.check_type(term, &r#type, report);
                 r#type
             }
@@ -263,7 +277,7 @@ impl<'me> Context<'me> {
                 let if_true_type = self.synth_type(if_true, report);
                 let if_false_type = self.synth_type(if_false, report);
 
-                if semantics::equal(&if_true_type, &if_false_type) {
+                if semantics::is_equal(&if_true_type, &if_false_type) {
                     if_true_type
                 } else {
                     report(diagnostics::type_mismatch(

@@ -65,6 +65,23 @@ impl<'me> Context<'me> {
         Some(&self.types.iter().rev().find(|(n, _)| *n == name)?.1)
     }
 
+    /// Evaluate a [`core::Term`] into a [`Value`] in the current elaboration context.
+    ///
+    /// [`Value`]: crate::lang::core::semantics::Value
+    /// [`core::Term`]: crate::lang::core::Term
+    pub fn eval(&self, term: &core::Term) -> Arc<Value> {
+        semantics::eval(self.globals, &self.items, term)
+    }
+
+    /// Check that one [`Value`] is [computationally equal]
+    /// to another [`Value`] in the current elaboration context.
+    ///
+    /// [`Value`]: crate::lang::core::semantics::Value
+    /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
+    pub fn is_equal(&self, value0: &Value, value1: &Value) -> bool {
+        semantics::is_equal(value0, value1)
+    }
+
     /// Translate surface items into core items, while validating that they are
     /// well-formed.
     pub fn from_items(
@@ -82,7 +99,7 @@ impl<'me> Context<'me> {
                     let (core_term, r#type) = match &alias.type_ {
                         Some(surface_type) => {
                             let core_type = self.is_type(surface_type, report);
-                            let r#type = semantics::eval(self.globals, &self.items, &core_type);
+                            let r#type = self.eval(&core_type);
                             let core_term = self.check_type(&alias.term, &r#type, report);
                             (
                                 core::Term::Ann(Arc::new(core_term), Arc::new(core_type)),
@@ -204,8 +221,8 @@ impl<'me> Context<'me> {
             surface::Term::FormatType(range) => core::Term::FormatType(range.clone()),
             surface::Term::TypeType(range) => core::Term::TypeType(range.clone()),
             surface_term => {
-                let (core_term, r#type) = self.synth_type(surface_term, report);
-                match r#type.as_ref() {
+                let (core_term, found_type) = self.synth_type(surface_term, report);
+                match found_type.as_ref() {
                     Value::FormatType(_) | Value::TypeType(_) | Value::Error(_) => core_term,
                     _ => {
                         let range = surface_term.range();
@@ -213,7 +230,7 @@ impl<'me> Context<'me> {
                             Severity::Error,
                             self.file_id,
                             range.clone(),
-                            &r#type,
+                            &found_type,
                         ));
                         core::Term::Error(range)
                     }
@@ -329,22 +346,19 @@ impl<'me> Context<'me> {
                     _ => error(report),
                 }
             }
-            (surface_term, expected_type) => {
-                let (core_term, synth_type) = self.synth_type(surface_term, report);
-
-                if semantics::equal(&synth_type, expected_type) {
-                    core_term
-                } else {
+            (surface_term, expected_type) => match self.synth_type(surface_term, report) {
+                (core_term, found_type) if self.is_equal(&found_type, expected_type) => core_term,
+                (_, found_type) => {
                     report(diagnostics::type_mismatch(
                         Severity::Error,
                         self.file_id,
                         surface_term.range(),
                         expected_type,
-                        &synth_type,
+                        &found_type,
                     ));
                     core::Term::Error(surface_term.range())
                 }
-            }
+            },
         }
     }
 
@@ -357,7 +371,7 @@ impl<'me> Context<'me> {
         match surface_term {
             surface::Term::Ann(surface_term, surface_type) => {
                 let core_type = self.is_type(surface_type, report);
-                let r#type = semantics::eval(self.globals, &self.items, &core_type);
+                let r#type = self.eval(&core_type);
                 let core_term = self.check_type(surface_term, &r#type, report);
                 (
                     core::Term::Ann(Arc::new(core_term), Arc::new(core_type)),
@@ -368,7 +382,7 @@ impl<'me> Context<'me> {
                 if let Some((r#type, _)) = self.globals.get(name) {
                     return (
                         core::Term::Global(range.clone(), name.to_owned()),
-                        semantics::eval(self.globals, &self.items, r#type),
+                        self.eval(r#type),
                     );
                 }
                 if let Some(r#type) = self.lookup_type(name) {
@@ -466,7 +480,7 @@ impl<'me> Context<'me> {
                 let (if_true, if_true_type) = self.synth_type(surface_if_true, report);
                 let (if_false, if_false_type) = self.synth_type(surface_if_false, report);
 
-                if semantics::equal(&if_true_type, &if_false_type) {
+                if semantics::is_equal(&if_true_type, &if_false_type) {
                     (
                         core::Term::BoolElim(
                             range.clone(),

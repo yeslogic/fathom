@@ -1,7 +1,9 @@
 use fathom_runtime::ReadFormat;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use crate::lang::core;
 use crate::lang::core::binary::Term;
 use crate::lang::core::semantics::{self, Elim, Head, Value};
 use crate::lang::core::{Constant, Globals, Item, Module, StructType};
@@ -23,6 +25,11 @@ impl<'me> Context<'me> {
         }
     }
 
+    /// Evaluate a term in the parser context.
+    fn eval(&self, term: &core::Term) -> Arc<Value> {
+        semantics::eval(self.globals, &self.items, term)
+    }
+
     /// Read a module item in the context.
     pub fn read_item(
         &mut self,
@@ -32,7 +39,7 @@ impl<'me> Context<'me> {
         for item in &module.items {
             match item {
                 Item::Alias(alias) if alias.name == name => {
-                    let value = semantics::eval(self.globals, &self.items, &alias.term);
+                    let value = self.eval(&alias.term);
                     return self.read_format(&value);
                 }
                 Item::Struct(struct_type) if struct_type.name == name => {
@@ -62,7 +69,7 @@ impl<'me> Context<'me> {
             .fields
             .iter()
             .map(|field| {
-                let value = semantics::eval(self.globals, &self.items, &field.term);
+                let value = self.eval(&field.term);
                 Ok((field.name.clone(), self.read_format(&value)?))
             })
             .collect::<Result<_, fathom_runtime::ReadError>>()?;

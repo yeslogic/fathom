@@ -98,13 +98,11 @@ impl Elim {
     }
 }
 
-/// Evaluate a term into a semantic value.
-pub fn eval(
-    globals: &Globals,
-    items: &HashMap<&str, Item>,
-    // TODO: locals: &Locals<Arc<Value>>,
-    term: &Term,
-) -> Arc<Value> {
+/// Evaluate a [`core::Term`] into a [`Value`].
+///
+/// [`Value`]: crate::lang::core::semantics::Value
+/// [`core::Term`]: crate::lang::core::Term
+pub fn eval(globals: &Globals, items: &HashMap<&str, Item>, term: &Term) -> Arc<Value> {
     match term {
         Term::Global(range, name) => match globals.get(name) {
             None => Arc::new(Value::Error(range.clone())),
@@ -239,9 +237,12 @@ pub fn read_back(value: &Value) -> Term {
     }
 }
 
-/// Check that two values are equal.
-pub fn equal(val1: &Value, val2: &Value) -> bool {
-    match (val1, val2) {
+/// Check that one  [`Value`] is [computationally equal] to another  [`Value`].
+///
+/// [`Value`]: crate::lang::core::semantics::Value
+/// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
+pub fn is_equal(value0: &Value, value1: &Value) -> bool {
+    match (value0, value1) {
         (Value::Stuck(head0, elims0), Value::Stuck(head1, elims1)) => {
             read_back_neutral(head0, elims0) == read_back_neutral(head1, elims1)
         }
@@ -249,7 +250,7 @@ pub fn equal(val1: &Value, val2: &Value) -> bool {
         (
             Value::FunctionType(param_type0, body_type0),
             Value::FunctionType(param_type1, body_type1),
-        ) => equal(param_type1, param_type0) && equal(body_type0, body_type1),
+        ) => is_equal(param_type1, param_type0) && is_equal(body_type0, body_type1),
         (Value::Constant(_, constant0), Value::Constant(_, constant1)) => constant0 == constant1,
         (Value::FormatType(_), Value::FormatType(_)) => true,
         // Errors are always treated as equal
