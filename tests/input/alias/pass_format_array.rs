@@ -16,7 +16,7 @@ fn eof_inner() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray") {
+    match read_context.read_item(&FIXTURE, &"SimpleFormatArray") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -39,8 +39,9 @@ fn valid_test() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let simple_array =
-        binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
+    let simple_array = read_context
+        .read_item(&FIXTURE, &"SimpleFormatArray")
+        .unwrap();
     assert_eq!(
         simple_array,
         binary::Term::Seq(vec![
@@ -70,7 +71,7 @@ fn invalid_test_trailing() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray") {
+    match read_context.read_item(&FIXTURE, &"SimpleFormatArray") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -94,8 +95,9 @@ fn valid_test_trailing() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let simple_array =
-        binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
+    let simple_array = read_context
+        .read_item(&FIXTURE, &"SimpleFormatArray")
+        .unwrap();
     assert_eq!(
         simple_array,
         binary::Term::Seq(vec![
