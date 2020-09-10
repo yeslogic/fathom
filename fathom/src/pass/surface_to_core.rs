@@ -313,17 +313,12 @@ impl<'me> Context<'me> {
                         // TODO: Lookup globals in environment
                         match name.as_str() {
                             "Bool" => {
-                                let (if_true, if_false) = self.from_bool_branches(
-                                    surface_branches,
-                                    expected_type,
-                                    report,
-                                );
-                                core::Term::BoolElim(
+                                report(diagnostics::bug::not_yet_implemented(
+                                    self.file_id,
                                     range.clone(),
-                                    Arc::new(head),
-                                    if_true,
-                                    if_false,
-                                )
+                                    "boolean patterns",
+                                ));
+                                core::Term::Error(range.clone())
                             }
                             "Int" => {
                                 let (branches, default) = self.from_int_branches(
@@ -520,16 +515,6 @@ impl<'me> Context<'me> {
                 Arc::new(Value::Error(0..0)),
             ),
         }
-    }
-
-    #[allow(unused_variables)]
-    fn from_bool_branches(
-        &self,
-        surface_branches: &[(surface::Pattern, surface::Term)],
-        expected_type: &Value,
-        report: &mut dyn FnMut(Diagnostic<usize>),
-    ) -> (Arc<core::Term>, Arc<core::Term>) {
-        unimplemented!("boolean eliminators")
     }
 
     fn from_int_branches(
