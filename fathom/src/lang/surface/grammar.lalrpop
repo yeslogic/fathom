@@ -60,11 +60,11 @@ pub Module: Module = {
 
 Item: Item = {
     <doc: "doc comment"*>
-    <start: @L> <name: Identifier> <ty: (":" <Term>)?> "=" <term: Term> ";" <end: @R> => {
+    <start: @L> <name: Identifier> <type_: (":" <Term>)?> "=" <term: Term> ";" <end: @R> => {
         let range = start..end;
         let doc = Arc::from(doc);
 
-        Item::Alias(Alias { range, doc, name, ty, term })
+        Item::Alias(Alias { range, doc, name, type_, term })
     },
     <doc: "doc comment"*>
     <start: @L> "struct" <name: Identifier> "{"

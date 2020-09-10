@@ -66,7 +66,7 @@ pub enum Item {
 impl Item {
     pub fn range(&self) -> Range<usize> {
         match self {
-            Item::Struct(struct_ty) => struct_ty.range.clone(),
+            Item::Struct(struct_type) => struct_type.range.clone(),
             Item::Alias(alias) => alias.range.clone(),
         }
     }
@@ -207,8 +207,10 @@ impl Term {
             | Term::IntElim(range, _, _, _)
             | Term::FormatType(range)
             | Term::Error(range) => range.clone(),
-            Term::Ann(term, ty) => term.range().start..ty.range().end,
-            Term::FunctionType(param_ty, body_ty) => param_ty.range().start..body_ty.range().end,
+            Term::Ann(term, r#type) => term.range().start..r#type.range().end,
+            Term::FunctionType(param_type, body_type) => {
+                param_type.range().start..body_type.range().end
+            }
             Term::FunctionElim(head, argument) => head.range().start..argument.range().end,
         }
     }
@@ -219,11 +221,12 @@ impl PartialEq for Term {
         match (self, other) {
             (Term::Global(_, name0), Term::Global(_, name1)) => name0 == name1,
             (Term::Item(_, name0), Term::Item(_, name1)) => name0 == name1,
-            (Term::Ann(term0, ty0), Term::Ann(term1, ty1)) => term0 == term1 && ty0 == ty1,
+            (Term::Ann(term0, type0), Term::Ann(term1, type1)) => term0 == term1 && type0 == type1,
             (Term::TypeType(_), Term::TypeType(_)) => true,
-            (Term::FunctionType(param_ty0, body_ty0), Term::FunctionType(param_ty1, body_ty1)) => {
-                param_ty0 == param_ty1 && body_ty0 == body_ty1
-            }
+            (
+                Term::FunctionType(param_type0, body_type0),
+                Term::FunctionType(param_type1, body_type1),
+            ) => param_type0 == param_type1 && body_type0 == body_type1,
             (Term::FunctionElim(head0, argument0), Term::FunctionElim(head1, argument1)) => {
                 head0 == head1 && argument0 == argument1
             }

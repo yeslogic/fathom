@@ -22,8 +22,8 @@ pub fn from_module(module: &core::Module) -> surface::Module {
 pub fn from_item(item: &core::Item) -> surface::Item {
     match item {
         core::Item::Alias(alias) => {
-            let (term, ty) = match alias.term.as_ref() {
-                core::Term::Ann(term, ty) => (from_term(term), Some(from_term(ty))),
+            let (term, r#type) = match alias.term.as_ref() {
+                core::Term::Ann(term, r#type) => (from_term(term), Some(from_term(r#type))),
                 term => (from_term(term), None),
             };
 
@@ -31,23 +31,23 @@ pub fn from_item(item: &core::Item) -> surface::Item {
                 range: alias.range.clone(),
                 doc: alias.doc.clone(),
                 name: (0..0, alias.name.to_string()),
-                ty,
+                type_: r#type,
                 term,
             })
         }
-        core::Item::Struct(struct_ty) => surface::Item::Struct(surface::StructType {
-            range: struct_ty.range.clone(),
-            doc: struct_ty.doc.clone(),
-            name: (0..0, struct_ty.name.to_string()),
-            fields: struct_ty
+        core::Item::Struct(struct_type) => surface::Item::Struct(surface::StructType {
+            range: struct_type.range.clone(),
+            doc: struct_type.doc.clone(),
+            name: (0..0, struct_type.name.to_string()),
+            fields: struct_type
                 .fields
                 .iter()
-                .map(|ty_field| {
+                .map(|type_field| {
                     surface::TypeField {
-                        doc: ty_field.doc.clone(),
-                        // TODO: use `ty_field.start`
-                        name: (0..0, ty_field.name.to_string()),
-                        term: from_term(&ty_field.term),
+                        doc: type_field.doc.clone(),
+                        // TODO: use `type_field.start`
+                        name: (0..0, type_field.name.to_string()),
+                        term: from_term(&type_field.term),
                     }
                 })
                 .collect(),
@@ -59,13 +59,14 @@ pub fn from_term(term: &core::Term) -> surface::Term {
     match term {
         core::Term::Global(range, name) => surface::Term::Name(range.clone(), name.to_string()),
         core::Term::Item(range, name) => surface::Term::Name(range.clone(), name.to_string()),
-        core::Term::Ann(term, ty) => {
-            surface::Term::Ann(Box::new(from_term(term)), Box::new(from_term(ty)))
+        core::Term::Ann(term, r#type) => {
+            surface::Term::Ann(Box::new(from_term(term)), Box::new(from_term(r#type)))
         }
         core::Term::TypeType(range) => surface::Term::TypeType(range.clone()),
-        core::Term::FunctionType(param_ty, body_ty) => {
-            surface::Term::FunctionType(Box::new(from_term(param_ty)), Box::new(from_term(body_ty)))
-        }
+        core::Term::FunctionType(param_type, body_type) => surface::Term::FunctionType(
+            Box::new(from_term(param_type)),
+            Box::new(from_term(body_type)),
+        ),
         core::Term::FunctionElim(head, argument) => surface::Term::FunctionElim(
             Box::new(from_term(head)),
             vec![from_term(argument)], // TODO: flatten arguments

@@ -35,14 +35,14 @@ impl<'me> Context<'me> {
                     let value = semantics::eval(self.globals, &self.items, &alias.term);
                     return self.read_format(&value);
                 }
-                Item::Struct(struct_ty) if struct_ty.name == name => {
-                    return self.read_struct_format(struct_ty);
+                Item::Struct(struct_type) if struct_type.name == name => {
+                    return self.read_struct_format(struct_type);
                 }
                 Item::Alias(alias) => {
                     self.items.insert(&alias.name, item.clone());
                 }
-                Item::Struct(struct_ty) => {
-                    self.items.insert(&struct_ty.name, item.clone());
+                Item::Struct(struct_type) => {
+                    self.items.insert(&struct_type.name, item.clone());
                 }
             }
         }
@@ -56,9 +56,9 @@ impl<'me> Context<'me> {
 
     fn read_struct_format(
         &mut self,
-        struct_ty: &StructType,
+        struct_type: &StructType,
     ) -> Result<Term, fathom_runtime::ReadError> {
-        let fields = struct_ty
+        let fields = struct_type
             .fields
             .iter()
             .map(|field| {
@@ -92,12 +92,12 @@ impl<'me> Context<'me> {
                 ("F32Be", []) => Ok(Term::F32(self.read::<fathom_runtime::F32Be>()?)),
                 ("F64Le", []) => Ok(Term::F64(self.read::<fathom_runtime::F64Le>()?)),
                 ("F64Be", []) => Ok(Term::F64(self.read::<fathom_runtime::F64Be>()?)),
-                ("FormatArray", [Elim::Function(_, len), Elim::Function(_, elem_ty)]) => {
+                ("FormatArray", [Elim::Function(_, len), Elim::Function(_, elem_type)]) => {
                     match len.as_ref() {
                         Value::Constant(_, Constant::Int(len)) => match len.to_usize() {
                             Some(len) => Ok(Term::Seq(
                                 (0..len)
-                                    .map(|_| self.read_format(elem_ty))
+                                    .map(|_| self.read_format(elem_type))
                                     .collect::<Result<_, _>>()?,
                             )),
                             None => Err(fathom_runtime::ReadError::InvalidDataDescription),
@@ -111,7 +111,7 @@ impl<'me> Context<'me> {
             },
             Value::Neutral(Head::Item(_, name), elims) => {
                 match (self.items.get(name.as_str()).cloned(), elims.as_slice()) {
-                    (Some(Item::Struct(struct_ty)), []) => self.read_struct_format(&struct_ty),
+                    (Some(Item::Struct(struct_type)), []) => self.read_struct_format(&struct_type),
                     (Some(_), _) | (None, _) => {
                         Err(fathom_runtime::ReadError::InvalidDataDescription)
                     }

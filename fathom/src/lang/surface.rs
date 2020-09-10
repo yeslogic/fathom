@@ -70,7 +70,8 @@ pub struct Alias {
     /// Name of this definition.
     pub name: (Range<usize>, String),
     /// Optional type annotation
-    pub ty: Option<Term>,
+    // FIXME: can't use `r#type` in LALRPOP grammars
+    pub type_: Option<Term>,
     /// Fields in the struct.
     pub term: Term,
 }
@@ -142,7 +143,7 @@ pub enum Term {
 impl Term {
     pub fn range(&self) -> Range<usize> {
         match self {
-            Term::Ann(term, ty) => term.range().start..ty.range().end,
+            Term::Ann(term, r#type) => term.range().start..r#type.range().end,
             Term::Name(range, _)
             | Term::TypeType(range)
             | Term::NumberLiteral(range, _)
@@ -150,7 +151,9 @@ impl Term {
             | Term::Match(range, _, _)
             | Term::FormatType(range)
             | Term::Error(range) => range.clone(),
-            Term::FunctionType(param_ty, body_ty) => param_ty.range().start..body_ty.range().end,
+            Term::FunctionType(param_type, body_type) => {
+                param_type.range().start..body_type.range().end
+            }
             Term::FunctionElim(head, arguments) => match arguments.last() {
                 Some(argument) => head.range().start..argument.range().end,
                 None => head.range(),

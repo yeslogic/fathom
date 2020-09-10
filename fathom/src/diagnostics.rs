@@ -47,26 +47,26 @@ pub fn type_mismatch(
     severity: Severity,
     file_id: usize,
     term_range: Range<usize>,
-    expected_ty: &core::semantics::Value,
-    found_ty: &core::semantics::Value,
+    expected_type: &core::semantics::Value,
+    found_type: &core::semantics::Value,
 ) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
-    let expected_ty = core_to_surface::from_term(&core::semantics::read_back(expected_ty));
-    let found_ty = core_to_surface::from_term(&core::semantics::read_back(found_ty));
-    let pretty::DocBuilder(_, expected_ty) = surface_to_pretty::from_term(&arena, &expected_ty);
-    let pretty::DocBuilder(_, found_ty) = surface_to_pretty::from_term(&arena, &found_ty);
-    let expected_ty = expected_ty.pretty(100);
-    let found_ty = found_ty.pretty(100);
+    let expected_type = core_to_surface::from_term(&core::semantics::read_back(expected_type));
+    let found_type = core_to_surface::from_term(&core::semantics::read_back(found_type));
+    let pretty::DocBuilder(_, expected_type) = surface_to_pretty::from_term(&arena, &expected_type);
+    let pretty::DocBuilder(_, found_type) = surface_to_pretty::from_term(&arena, &found_type);
+    let expected_type = expected_type.pretty(100);
+    let found_type = found_type.pretty(100);
 
     Diagnostic::new(severity)
         .with_message("type mismatch")
         .with_labels(vec![Label::primary(file_id, term_range).with_message(
-            format!("expected `{}`, found `{}`", expected_ty, found_ty),
+            format!("expected `{}`, found `{}`", expected_type, found_type),
         )])
         .with_notes(vec![[
-            format!("expected `{}`", expected_ty),
-            format!("   found `{}`", found_ty),
+            format!("expected `{}`", expected_type),
+            format!("   found `{}`", found_type),
         ]
         .join("\n")])
 }
@@ -75,21 +75,22 @@ pub fn universe_mismatch(
     severity: Severity,
     file_id: usize,
     term_range: Range<usize>,
-    found_ty: &core::semantics::Value,
+    found_type: &core::semantics::Value,
 ) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
-    let found_ty = core_to_surface::from_term(&core::semantics::read_back(found_ty));
-    let pretty::DocBuilder(_, found_ty) = surface_to_pretty::from_term(&arena, &found_ty);
-    let found_ty = found_ty.pretty(100);
+    let found_type = core_to_surface::from_term(&core::semantics::read_back(found_type));
+    let pretty::DocBuilder(_, found_type) = surface_to_pretty::from_term(&arena, &found_type);
+    let found_type = found_type.pretty(100);
 
     Diagnostic::new(severity)
         .with_message("universe mismatch")
-        .with_labels(vec![Label::primary(file_id, term_range)
-            .with_message(format!("expected a universe, found `{}`", found_ty))])
+        .with_labels(vec![Label::primary(file_id, term_range).with_message(
+            format!("expected a universe, found `{}`", found_type),
+        )])
         .with_notes(vec![[
             format!("expected a universe"),
-            format!("   found `{}`", found_ty),
+            format!("   found `{}`", found_type),
         ]
         .join("\n")])
 }
@@ -112,14 +113,14 @@ pub fn not_a_function(
     severity: Severity,
     file_id: usize,
     head: Range<usize>,
-    head_ty: &core::semantics::Value,
+    head_type: &core::semantics::Value,
     argument: Range<usize>,
 ) -> Diagnostic<usize> {
     let arena = pretty::Arena::new();
 
-    let head_ty = core_to_surface::from_term(&core::semantics::read_back(head_ty));
-    let pretty::DocBuilder(_, found_ty) = surface_to_pretty::from_term(&arena, &head_ty);
-    let head_ty = found_ty.pretty(100);
+    let head_type = core_to_surface::from_term(&core::semantics::read_back(head_type));
+    let pretty::DocBuilder(_, found_type) = surface_to_pretty::from_term(&arena, &head_type);
+    let head_type = found_type.pretty(100);
 
     Diagnostic::new(severity)
         .with_message(format!(
@@ -127,12 +128,12 @@ pub fn not_a_function(
         ))
         .with_labels(vec![
             Label::primary(file_id, head)
-                .with_message(format!("expected a function, found `{}`", head_ty)),
+                .with_message(format!("expected a function, found `{}`", head_type)),
             Label::secondary(file_id, argument).with_message("applied to this argument"),
         ])
         .with_notes(vec![[
             format!("expected a function"),
-            format!("   found `{}`", head_ty),
+            format!("   found `{}`", head_type),
         ]
         .join("\n")])
 }
@@ -277,22 +278,22 @@ pub mod error {
     pub fn numeric_literal_not_supported(
         file_id: usize,
         range: Range<usize>,
-        found_ty: &core::semantics::Value,
+        found_type: &core::semantics::Value,
     ) -> Diagnostic<usize> {
         let arena = pretty::Arena::new();
 
-        let found_ty = core_to_surface::from_term(&core::semantics::read_back(found_ty));
-        let pretty::DocBuilder(_, found_ty) = surface_to_pretty::from_term(&arena, &found_ty);
-        let found_ty = found_ty.pretty(100);
+        let found_type = core_to_surface::from_term(&core::semantics::read_back(found_type));
+        let pretty::DocBuilder(_, found_type) = surface_to_pretty::from_term(&arena, &found_type);
+        let found_type = found_type.pretty(100);
 
         Diagnostic::error()
             .with_message(format!(
                 "cannot construct a `{}` from a numeric literal",
-                found_ty,
+                found_type,
             ))
             .with_labels(vec![Label::primary(file_id, range).with_message(format!(
                 "numeric literals not supported for type `{}`",
-                found_ty,
+                found_type,
             ))])
     }
 
@@ -304,21 +305,21 @@ pub mod error {
             ])
     }
 
-    pub fn unsupported_pattern_ty(
+    pub fn unsupported_pattern_type(
         file_id: usize,
         range: Range<usize>,
-        found_ty: &core::semantics::Value,
+        found_type: &core::semantics::Value,
     ) -> Diagnostic<usize> {
         let arena = pretty::Arena::new();
 
-        let found_ty = core_to_surface::from_term(&core::semantics::read_back(found_ty));
-        let pretty::DocBuilder(_, found_ty) = surface_to_pretty::from_term(&arena, &found_ty);
-        let found_ty = found_ty.pretty(100);
+        let found_type = core_to_surface::from_term(&core::semantics::read_back(found_type));
+        let pretty::DocBuilder(_, found_type) = surface_to_pretty::from_term(&arena, &found_type);
+        let found_type = found_type.pretty(100);
 
         Diagnostic::error()
-            .with_message(format!("unsupported pattern type: `{}`", found_ty))
+            .with_message(format!("unsupported pattern type: `{}`", found_type))
             .with_labels(vec![Label::primary(file_id, range)
-                .with_message(format!("unsupported pattern type: `{}`", found_ty))])
+                .with_message(format!("unsupported pattern type: `{}`", found_type))])
             .with_notes(vec![
                 "can only currently match against terms of type `Bool` or `Int`".to_owned(),
             ])

@@ -59,8 +59,8 @@ pub fn from_module(
     for item in &module.items {
         let (name, item) = match item {
             surface::Item::Alias(alias) => context.from_alias(writer, alias, report)?,
-            surface::Item::Struct(struct_ty) => {
-                context.from_struct_ty(writer, struct_ty, report)?
+            surface::Item::Struct(struct_type) => {
+                context.from_struct_type(writer, struct_type, report)?
             }
         };
 
@@ -103,19 +103,19 @@ impl Context {
             r##"        <dt id="{id}" class="item alias">"##,
             id = id,
         )?;
-        match &alias.ty {
+        match &alias.type_ {
             None => writeln!(
                 writer,
                 r##"          <a href="#{id}">{name}</a>"##,
                 id = id,
                 name = name,
             )?,
-            Some(ty) => writeln!(
+            Some(r#type) => writeln!(
                 writer,
-                r##"          <a href="#{id}">{name}</a> : {ty}"##,
+                r##"          <a href="#{id}">{name}</a> : {type}"##,
                 id = id,
                 name = name,
-                ty = self.from_term_prec(ty, Prec::Term, report),
+                type = self.from_term_prec(r#type, Prec::Term, report),
             )?,
         }
         write!(
@@ -146,13 +146,13 @@ impl Context {
         Ok((name.clone(), Item { id }))
     }
 
-    fn from_struct_ty(
+    fn from_struct_type(
         &self,
         writer: &mut impl Write,
-        struct_ty: &surface::StructType,
+        struct_type: &surface::StructType,
         report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> io::Result<(String, Item)> {
-        let (_, name) = &struct_ty.name;
+        let (_, name) = &struct_type.name;
         let id = format!("items[{}]", name);
 
         write!(
@@ -166,30 +166,30 @@ impl Context {
             name = name
         )?;
 
-        if !struct_ty.doc.is_empty() {
+        if !struct_type.doc.is_empty() {
             writeln!(writer, r##"          <section class="doc">"##)?;
-            from_doc_lines(writer, "            ", &struct_ty.doc)?;
+            from_doc_lines(writer, "            ", &struct_type.doc)?;
             writeln!(writer, r##"          </section>"##)?;
         }
 
-        if !struct_ty.fields.is_empty() {
+        if !struct_type.fields.is_empty() {
             writeln!(writer, r##"          <dl class="fields">"##)?;
-            for field in &struct_ty.fields {
+            for field in &struct_type.fields {
                 let (_, field_name) = &field.name;
                 let field_id = format!("{}.fields[{}]", id, field_name);
-                let ty = self.from_term_prec(&field.term, Prec::Term, report);
+                let r#type = self.from_term_prec(&field.term, Prec::Term, report);
 
                 write!(
                     writer,
                     r##"            <dt id="{id}" class="field">
-              <a href="#{id}">{name}</a> : {ty}
+              <a href="#{id}">{name}</a> : {type}
             </dt>
             <dd class="field">
               <section class="doc">
 "##,
                     id = field_id,
                     name = field_name,
-                    ty = ty,
+                    type = r#type,
                 )?;
                 from_doc_lines(writer, "                ", &field.doc)?;
                 write!(
@@ -225,12 +225,12 @@ impl Context {
                 format!(r##"<var><a href="#{}">{}</a></var>"##, id, name).into()
             }
             surface::Term::TypeType(_) => "Type".into(),
-            surface::Term::Ann(term, ty) => format!(
-                "{lparen}{term} : {ty}{rparen}",
+            surface::Term::Ann(term, r#type) => format!(
+                "{lparen}{term} : {type}{rparen}",
                 lparen = if prec > Prec::Term { "(" } else { "" },
                 rparen = if prec > Prec::Term { ")" } else { "" },
                 term = self.from_term_prec(term, Prec::Arrow, report),
-                ty = self.from_term_prec(ty, Prec::Term, report),
+                type = self.from_term_prec(r#type, Prec::Term, report),
             )
             .into(),
             surface::Term::FunctionType(param_type, body_type) => format!(

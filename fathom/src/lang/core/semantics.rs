@@ -38,7 +38,9 @@ impl Value {
             | Value::Constant(range, _)
             | Value::FormatType(range)
             | Value::Error(range) => range.clone(),
-            Value::FunctionType(param_ty, body_ty) => param_ty.range().start..body_ty.range().end,
+            Value::FunctionType(param_type, body_type) => {
+                param_type.range().start..body_type.range().end
+            }
             Value::Neutral(head, elims) => match elims.last() {
                 Some(elim) => head.range().start..elim.range().end,
                 None => head.range(),
@@ -219,9 +221,10 @@ pub fn read_back(value: &Value) -> Term {
     match value {
         Value::Neutral(head, elims) => read_back_neutral(head, elims),
         Value::TypeType(range) => Term::TypeType(range.clone()),
-        Value::FunctionType(param_ty, body_ty) => {
-            Term::FunctionType(Arc::new(read_back(param_ty)), Arc::new(read_back(body_ty)))
-        }
+        Value::FunctionType(param_type, body_type) => Term::FunctionType(
+            Arc::new(read_back(param_type)),
+            Arc::new(read_back(body_type)),
+        ),
         Value::Constant(range, constant) => Term::Constant(range.clone(), constant.clone()),
         Value::FormatType(range) => Term::FormatType(range.clone()),
         Value::Error(range) => Term::Error(range.clone()),
@@ -235,9 +238,10 @@ pub fn equal(val1: &Value, val2: &Value) -> bool {
             read_back_neutral(head0, elims0) == read_back_neutral(head1, elims1)
         }
         (Value::TypeType(_), Value::TypeType(_)) => true,
-        (Value::FunctionType(param_ty0, body_ty0), Value::FunctionType(param_ty1, body_ty1)) => {
-            equal(param_ty1, param_ty0) && equal(body_ty0, body_ty1)
-        }
+        (
+            Value::FunctionType(param_type0, body_type0),
+            Value::FunctionType(param_type1, body_type1),
+        ) => equal(param_type1, param_type0) && equal(body_type0, body_type1),
         (Value::Constant(_, constant0), Value::Constant(_, constant1)) => constant0 == constant1,
         (Value::FormatType(_), Value::FormatType(_)) => true,
         // Errors are always treated as equal

@@ -38,7 +38,7 @@ where
 {
     match item {
         Item::Alias(alias) => from_alias(alloc, alias),
-        Item::Struct(struct_ty) => from_struct_ty(alloc, struct_ty),
+        Item::Struct(struct_type) => from_struct_type(alloc, struct_type),
     }
 }
 
@@ -69,12 +69,12 @@ where
         )
 }
 
-pub fn from_struct_ty<'a, D>(alloc: &'a D, struct_ty: &'a StructType) -> DocBuilder<'a, D>
+pub fn from_struct_type<'a, D>(alloc: &'a D, struct_type: &'a StructType) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
-    let docs = alloc.concat(struct_ty.doc.iter().map(|line| {
+    let docs = alloc.concat(struct_type.doc.iter().map(|line| {
         (alloc.nil())
             .append(format!("///{}", line))
             .append(alloc.hardline())
@@ -83,17 +83,17 @@ where
     let struct_prefix = (alloc.nil())
         .append("struct")
         .append(alloc.space())
-        .append(alloc.as_string(&struct_ty.name))
+        .append(alloc.as_string(&struct_type.name))
         .append(alloc.space());
 
-    let struct_ty = if struct_ty.fields.is_empty() {
+    let struct_type = if struct_type.fields.is_empty() {
         (alloc.nil()).append(struct_prefix).append("{}").group()
     } else {
         (alloc.nil())
             .append(struct_prefix)
             .append("{")
             .group()
-            .append(alloc.concat(struct_ty.fields.iter().map(|field| {
+            .append(alloc.concat(struct_type.fields.iter().map(|field| {
                 (alloc.nil())
                     .append(alloc.hardline())
                     .append(from_ty_field(alloc, field))
@@ -104,7 +104,7 @@ where
             .append("}")
     };
 
-    (alloc.nil()).append(docs).append(struct_ty)
+    (alloc.nil()).append(docs).append(struct_type)
 }
 
 pub fn from_ty_field<'a, D>(alloc: &'a D, ty_field: &'a TypeField) -> DocBuilder<'a, D>
@@ -190,7 +190,7 @@ where
             .append("item")
             .append(alloc.space())
             .append(alloc.as_string(name)),
-        Term::Ann(term, ty) => paren(
+        Term::Ann(term, r#type) => paren(
             alloc,
             prec > Prec::Term,
             (alloc.nil())
@@ -200,7 +200,7 @@ where
                 .group()
                 .append(
                     (alloc.space())
-                        .append(from_term_prec(alloc, ty, Prec::Term))
+                        .append(from_term_prec(alloc, r#type, Prec::Term))
                         .group()
                         .nest(4),
                 ),
