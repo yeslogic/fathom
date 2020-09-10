@@ -3,40 +3,40 @@
 
 #[derive(Copy, Clone)]
 pub struct Foo {
-    field_type: fathom_rt::InvalidDataDescription,
-    field_format: fathom_rt::InvalidDataDescription,
-    field_true: fathom_rt::InvalidDataDescription,
-    field_false: fathom_rt::InvalidDataDescription,
+    field_type: fathom_runtime::InvalidDataDescription,
+    field_format: fathom_runtime::InvalidDataDescription,
+    field_true: fathom_runtime::InvalidDataDescription,
+    field_false: fathom_runtime::InvalidDataDescription,
 }
 
 impl Foo {
-    pub fn field_type(&self) -> fathom_rt::InvalidDataDescription {
+    pub fn field_type(&self) -> fathom_runtime::InvalidDataDescription {
         self.field_type
     }
 
-    pub fn field_format(&self) -> fathom_rt::InvalidDataDescription {
+    pub fn field_format(&self) -> fathom_runtime::InvalidDataDescription {
         self.field_format
     }
 
-    pub fn field_true(&self) -> fathom_rt::InvalidDataDescription {
+    pub fn field_true(&self) -> fathom_runtime::InvalidDataDescription {
         self.field_true
     }
 
-    pub fn field_false(&self) -> fathom_rt::InvalidDataDescription {
+    pub fn field_false(&self) -> fathom_runtime::InvalidDataDescription {
         self.field_false
     }
 }
 
-impl fathom_rt::Format for Foo {
+impl fathom_runtime::Format for Foo {
     type Host = Foo;
 }
 
-impl<'data> fathom_rt::ReadFormat<'data> for Foo {
-    fn read(reader: &mut fathom_rt::FormatReader<'data>) -> Result<Foo, fathom_rt::ReadError> {
-        let field_type = reader.read::<fathom_rt::InvalidDataDescription>()?;
-        let field_format = reader.read::<fathom_rt::InvalidDataDescription>()?;
-        let field_true = reader.read::<fathom_rt::InvalidDataDescription>()?;
-        let field_false = reader.read::<fathom_rt::InvalidDataDescription>()?;
+impl<'data> fathom_runtime::ReadFormat<'data> for Foo {
+    fn read(reader: &mut fathom_runtime::FormatReader<'data>) -> Result<Foo, fathom_runtime::ReadError> {
+        let field_type = reader.read::<fathom_runtime::InvalidDataDescription>()?;
+        let field_format = reader.read::<fathom_runtime::InvalidDataDescription>()?;
+        let field_true = reader.read::<fathom_runtime::InvalidDataDescription>()?;
+        let field_false = reader.read::<fathom_runtime::InvalidDataDescription>()?;
 
         Ok(Foo {
             field_type,

@@ -14,13 +14,13 @@ impl Byte {
     }
 }
 
-impl fathom_rt::Format for Byte {
+impl fathom_runtime::Format for Byte {
     type Host = Byte;
 }
 
-impl<'data> fathom_rt::ReadFormat<'data> for Byte {
-    fn read(reader: &mut fathom_rt::FormatReader<'data>) -> Result<Byte, fathom_rt::ReadError> {
-        let inner = reader.read::<fathom_rt::U8>()?;
+impl<'data> fathom_runtime::ReadFormat<'data> for Byte {
+    fn read(reader: &mut fathom_runtime::FormatReader<'data>) -> Result<Byte, fathom_runtime::ReadError> {
+        let inner = reader.read::<fathom_runtime::U8>()?;
 
         Ok(Byte {
             inner,

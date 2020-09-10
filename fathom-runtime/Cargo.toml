@@ -1,5 +1,5 @@
 [package]
-name = "fathom-rt"
+name = "fathom-runtime"
 version = "0.1.0"
 authors = ["YesLogic Pty. Ltd. <info@yeslogic.com>"]
 edition = "2018"

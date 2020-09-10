@@ -3,28 +3,28 @@
 
 #[derive(Copy, Clone)]
 pub struct Pair {
-    first: fathom_rt::InvalidDataDescription,
-    second: fathom_rt::InvalidDataDescription,
+    first: fathom_runtime::InvalidDataDescription,
+    second: fathom_runtime::InvalidDataDescription,
 }
 
 impl Pair {
-    pub fn first(&self) -> fathom_rt::InvalidDataDescription {
+    pub fn first(&self) -> fathom_runtime::InvalidDataDescription {
         self.first
     }
 
-    pub fn second(&self) -> fathom_rt::InvalidDataDescription {
+    pub fn second(&self) -> fathom_runtime::InvalidDataDescription {
         self.second
     }
 }
 
-impl fathom_rt::Format for Pair {
+impl fathom_runtime::Format for Pair {
     type Host = Pair;
 }
 
-impl<'data> fathom_rt::ReadFormat<'data> for Pair {
-    fn read(reader: &mut fathom_rt::FormatReader<'data>) -> Result<Pair, fathom_rt::ReadError> {
-        let first = reader.read::<fathom_rt::InvalidDataDescription>()?;
-        let second = reader.read::<fathom_rt::InvalidDataDescription>()?;
+impl<'data> fathom_runtime::ReadFormat<'data> for Pair {
+    fn read(reader: &mut fathom_runtime::FormatReader<'data>) -> Result<Pair, fathom_runtime::ReadError> {
+        let first = reader.read::<fathom_runtime::InvalidDataDescription>()?;
+        let second = reader.read::<fathom_runtime::InvalidDataDescription>()?;
 
         Ok(Pair {
             first,

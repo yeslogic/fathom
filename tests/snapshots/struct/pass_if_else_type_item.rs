@@ -14,13 +14,13 @@ impl Test {
     }
 }
 
-impl fathom_rt::Format for Test {
+impl fathom_runtime::Format for Test {
     type Host = Test;
 }
 
-impl<'data> fathom_rt::ReadFormat<'data> for Test {
-    fn read(reader: &mut fathom_rt::FormatReader<'data>) -> Result<Test, fathom_rt::ReadError> {
-        let bar = reader.read::<fathom_rt::F32Be>()?;
+impl<'data> fathom_runtime::ReadFormat<'data> for Test {
+    fn read(reader: &mut fathom_runtime::FormatReader<'data>) -> Result<Test, fathom_runtime::ReadError> {
+        let bar = reader.read::<fathom_runtime::F32Be>()?;
 
         Ok(Test {
             bar,

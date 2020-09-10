@@ -3,4 +3,4 @@
 
 //! Test annotated annotations.
 
-pub type Test = fathom_rt::U8;
+pub type Test = fathom_runtime::U8;

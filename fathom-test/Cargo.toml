@@ -14,7 +14,7 @@ license = "Apache-2.0"
 assert_fs = "1.0"
 codespan-reporting =  "0.9.4"
 fathom = { version = "0.1.0", path = "../fathom" }
-fathom-rt = { version = "0.1.0", path = "../fathom-rt" }
+fathom-runtime = { version = "0.1.0", path = "../fathom-runtime" }
 fathom-test-util = { version = "0.1.0", path = "../fathom-test-util" }
 difference = "2.0"
 json = "0.12"

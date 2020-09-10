@@ -3,4 +3,4 @@
 
 pub const FOO: bool = true;
 
-pub type Test = fathom_rt::F64Be;
+pub type Test = fathom_runtime::F64Be;

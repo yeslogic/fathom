@@ -35,7 +35,7 @@ lazy_static::lazy_static! {
     static ref CARGO_WORKSPACE_ROOT: PathBuf = PathBuf::from(CARGO_METADATA["workspace_root"].as_str().unwrap());
     static ref CARGO_DEPS_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("deps");
     static ref CARGO_INCREMENTAL_DIR: PathBuf = CARGO_TARGET_DIR.join("debug").join("incremental");
-    static ref CARGO_FATHOM_RT_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libfathom_rt.rlib");
+    static ref CARGO_FATHOM_RT_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libfathom_runtime.rlib");
     static ref CARGO_FATHOM_TEST_UTIL_RLIB: PathBuf = CARGO_TARGET_DIR.join("debug").join("libfathom_test_util.rlib");
 
     static ref INPUT_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("input");
@@ -349,14 +349,14 @@ impl Test {
                 .arg(format!("incremental={}", CARGO_INCREMENTAL_DIR.display()))
                 .arg("-L")
                 .arg(format!("dependency={}", CARGO_DEPS_DIR.display()))
-                // Add `fathom-rt` to the dependencies
+                // Add `fathom-runtime` to the dependencies
                 .arg("--extern")
-                .arg(format!("fathom_rt={}", CARGO_FATHOM_RT_RLIB.display()));
+                .arg(format!("fathom_runtime={}", CARGO_FATHOM_RT_RLIB.display()));
 
-            // Ensure that fathom-rt is present at `CARGO_FATHOM_RT_RLIB`
+            // Ensure that fathom-runtime is present at `CARGO_FATHOM_RT_RLIB`
             Command::new(env!("CARGO"))
                 .arg("build")
-                .arg("--package=fathom-rt")
+                .arg("--package=fathom-runtime")
                 .output()
                 .unwrap();
 
