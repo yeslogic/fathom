@@ -30,6 +30,20 @@ repr I32Be          // normalizes to `Int`
 repr { x : U32Be }  // normalizes to `{ x : Int } : Type`
 ```
 
+The `repr` function will rarely appear in user-code,
+but it may occasionally pop up in type errors when a `format` is unknown.
+For example:
+
+```fathom
+Things (format : Format): Format = {
+    thing : format,
+    // `thing : repr format` is now in the typing context
+    another_thing : Array (thing.len) U32Be, // error: `len` is not a field of `repr format`
+};
+```
+
+In the above example `format : Format` is unknown, and therefore its representation is also unknown.
+
 ## Introduction
 
 ### Unsigned integer formats
