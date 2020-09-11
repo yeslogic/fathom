@@ -3,9 +3,6 @@
 use fathom_runtime::{FormatWriter, ReadError, ReadScope, U32Be, U8};
 use fathom_test_util::fathom::lang::core::{self, binary};
 
-#[path = "../../snapshots/alias/pass_format_array.rs"]
-pub mod fixture;
-
 fathom_test_util::core_module!(
     FIXTURE,
     "../../snapshots/alias/pass_format_array.core.fathom"
@@ -15,10 +12,11 @@ fathom_test_util::core_module!(
 fn eof_inner() {
     let writer = FormatWriter::new(vec![]);
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let simple_array = read_scope.read::<fixture::SimpleFormatArray>();
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match simple_array {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -39,21 +37,20 @@ fn valid_test() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let simple_array = read_scope.read::<fixture::SimpleFormatArray>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let simple_array_term =
+    let simple_array =
         binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
-    assert_eq!(simple_array.inner(), &[1, 2, 3, 4, 5, 6]);
     assert_eq!(
-        simple_array_term,
-        binary::Term::Seq(
-            simple_array
-                .inner()
-                .iter()
-                .map(|elem| binary::Term::Int((*elem).into()))
-                .collect(),
-        ),
+        simple_array,
+        binary::Term::Seq(vec![
+            binary::Term::int(1),
+            binary::Term::int(2),
+            binary::Term::int(3),
+            binary::Term::int(4),
+            binary::Term::int(5),
+            binary::Term::int(6),
+        ]),
     );
 
     // TODO: Check remaining
@@ -69,14 +66,15 @@ fn invalid_test_trailing() {
     writer.write::<U32Be>(5); // SimpleFormatArray::inner[4]
     writer.write::<U8>(42);
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let simple_array = read_scope.read::<fixture::SimpleFormatArray>();
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match simple_array {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
-    };
+    }
 
     // TODO: Check remaining
 }
@@ -94,21 +92,20 @@ fn valid_test_trailing() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let simple_array = read_scope.read::<fixture::SimpleFormatArray>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let simple_array_term =
+    let simple_array =
         binary::read::from_module_item(&mut read_context, &FIXTURE, &"SimpleFormatArray").unwrap();
-    assert_eq!(simple_array.inner(), &[1, 2, 3, 4, 5, 6]);
     assert_eq!(
-        simple_array_term,
-        binary::Term::Seq(
-            simple_array
-                .inner()
-                .iter()
-                .map(|elem| binary::Term::Int((*elem).into()))
-                .collect(),
-        ),
+        simple_array,
+        binary::Term::Seq(vec![
+            binary::Term::int(1),
+            binary::Term::int(2),
+            binary::Term::int(3),
+            binary::Term::int(4),
+            binary::Term::int(5),
+            binary::Term::int(6),
+        ]),
     );
 
     // TODO: Check remaining

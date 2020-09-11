@@ -5,19 +5,17 @@ use fathom_test_util::fathom::lang::core::{self, binary};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
-#[path = "../../snapshots/struct/pass_pair.rs"]
-pub mod fixture;
-
 fathom_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_pair.core.fathom");
 
 #[test]
 fn eof_first() {
     let writer = FormatWriter::new(vec![]);
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let pair = read_scope.read::<fixture::Pair>();
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match pair {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Pair") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -31,10 +29,11 @@ fn eof_second() {
     let mut writer = FormatWriter::new(vec![]);
     writer.write::<U8>(255); // Pair::first
 
+    let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let pair = read_scope.read::<fixture::Pair>();
+    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match pair {
+    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Pair") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -51,20 +50,16 @@ fn valid_pair() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let pair = read_scope.read::<fixture::Pair>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Pair").unwrap() {
         binary::Term::Struct(fields) => {
-            assert_eq!(pair.first(), 31);
-            assert_eq!(pair.second(), -30);
-
             assert_eq!(
                 fields,
                 BTreeMap::from_iter(vec![
-                    ("first".to_owned(), binary::Term::Int(pair.first().into())),
-                    ("second".to_owned(), binary::Term::Int(pair.second().into())),
-                ])
+                    ("first".to_owned(), binary::Term::int(31)),
+                    ("second".to_owned(), binary::Term::int(-30)),
+                ]),
             );
         }
         _ => panic!("struct expected"),
@@ -82,20 +77,16 @@ fn valid_pair_trailing() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let pair = read_scope.read::<fixture::Pair>().unwrap();
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Pair").unwrap() {
         binary::Term::Struct(fields) => {
-            assert_eq!(pair.first(), 255);
-            assert_eq!(pair.second(), -30);
-
             assert_eq!(
                 fields,
                 BTreeMap::from_iter(vec![
-                    ("first".to_owned(), binary::Term::Int(pair.first().into())),
-                    ("second".to_owned(), binary::Term::Int(pair.second().into())),
-                ])
+                    ("first".to_owned(), binary::Term::int(255)),
+                    ("second".to_owned(), binary::Term::int(-30)),
+                ]),
             );
         }
         _ => panic!("struct expected"),
