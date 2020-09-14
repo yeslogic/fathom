@@ -16,14 +16,15 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::diagnostics;
+use crate::lang::core;
 use crate::lang::core::semantics::{self, Head, Value};
-use crate::lang::{core, surface};
+use crate::lang::surface::{Item, ItemData, Module, Pattern, PatternData, Term, TermData};
 
 /// Translate a surface module into a core module, while validating that it is
 /// well-formed.
 pub fn from_module(
     globals: &core::Globals,
-    surface_module: &surface::Module,
+    surface_module: &Module,
     report: &mut dyn FnMut(Diagnostic<usize>),
 ) -> core::Module {
     core::Module {
@@ -85,7 +86,7 @@ impl<'me> Context<'me> {
     /// well-formed.
     pub fn from_items(
         mut self,
-        surface_items: &'me [surface::Item],
+        surface_items: &'me [Item],
         report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> Vec<core::Item> {
         let mut core_items = Vec::new();
@@ -94,7 +95,7 @@ impl<'me> Context<'me> {
             use std::collections::hash_map::Entry;
 
             match &item.data {
-                surface::ItemData::Alias(alias) => {
+                ItemData::Alias(alias) => {
                     let (core_term, r#type) = match &alias.type_ {
                         Some(surface_type) => {
                             let core_type = self.is_type(surface_type, report);
@@ -131,8 +132,38 @@ impl<'me> Context<'me> {
                         )),
                     }
                 }
-                surface::ItemData::Struct(struct_type) => {
-                    let core_fields = self.is_fields(&struct_type.fields, report);
+                ItemData::Struct(struct_type) => {
+                    // Field names that have previously seen, along with the source
+                    // range where they were introduced (for diagnostic reporting).
+                    let mut seen_field_names = HashMap::new();
+                    // Fields that have been elaborated into the core syntax.
+                    let mut core_fields = Vec::with_capacity(struct_type.fields.len());
+
+                    for field in &struct_type.fields {
+                        let field_range = field.name.range().start..field.term.range().end;
+                        let format_type = Arc::new(Value::FormatType);
+                        let r#type = self.check_type(&field.term, &format_type, report);
+
+                        match seen_field_names.entry(field.name.data.clone()) {
+                            Entry::Vacant(entry) => {
+                                core_fields.push(core::TypeField {
+                                    doc: field.doc.clone(),
+                                    name: field.name.data.clone(),
+                                    term: Arc::new(r#type),
+                                });
+
+                                entry.insert(field_range);
+                            }
+                            Entry::Occupied(entry) => {
+                                report(diagnostics::error::field_redeclaration(
+                                    self.file_id,
+                                    entry.key(),
+                                    field_range,
+                                    entry.get().clone(),
+                                ))
+                            }
+                        }
+                    }
 
                     // FIXME: Avoid shadowing builtin definitions
                     match self.items.entry(&struct_type.name.data) {
@@ -163,59 +194,17 @@ impl<'me> Context<'me> {
         core_items
     }
 
-    /// Translate surface structure type fields into core structure type fields in
-    /// the core syntax, while validating that they are well-formed.
-    pub fn is_fields(
-        &self,
-        surface_fields: &[surface::TypeField],
-        report: &mut dyn FnMut(Diagnostic<usize>),
-    ) -> Vec<core::TypeField> {
-        // Field names that have previously seen, along with the source
-        // range where they were introduced (for diagnostic reporting).
-        let mut seen_field_names = HashMap::new();
-        // Fields that have been elaborated into the core syntax.
-        let mut core_fields = Vec::with_capacity(surface_fields.len());
-
-        for field in surface_fields {
-            use std::collections::hash_map::Entry;
-
-            let field_range = field.name.range().start..field.term.range().end;
-            let format_type = Arc::new(Value::FormatType);
-            let r#type = self.check_type(&field.term, &format_type, report);
-
-            match seen_field_names.entry(field.name.data.clone()) {
-                Entry::Vacant(entry) => {
-                    core_fields.push(core::TypeField {
-                        doc: field.doc.clone(),
-                        name: field.name.data.clone(),
-                        term: Arc::new(r#type),
-                    });
-
-                    entry.insert(field_range);
-                }
-                Entry::Occupied(entry) => report(diagnostics::error::field_redeclaration(
-                    self.file_id,
-                    entry.key(),
-                    field_range,
-                    entry.get().clone(),
-                )),
-            }
-        }
-
-        core_fields
-    }
-
     /// Validate that a surface term is a type, and translate it into the core syntax.
     pub fn is_type(
         &self,
-        surface_term: &surface::Term,
+        surface_term: &Term,
         report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> core::Term {
         let range = surface_term.range();
 
         match &surface_term.data {
-            surface::TermData::FormatType => core::Term::new(range, core::TermData::FormatType),
-            surface::TermData::TypeType => core::Term::new(range, core::TermData::TypeType),
+            TermData::FormatType => core::Term::new(range, core::TermData::FormatType),
+            TermData::TypeType => core::Term::new(range, core::TermData::TypeType),
             _ => {
                 let (core_term, found_type) = self.synth_type(surface_term, report);
                 match found_type.as_ref() {
@@ -238,16 +227,16 @@ impl<'me> Context<'me> {
     /// core syntax.
     pub fn check_type(
         &self,
-        surface_term: &surface::Term,
+        surface_term: &Term,
         expected_type: &Arc<Value>,
         report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> core::Term {
         let range = surface_term.range();
 
         match (&surface_term.data, expected_type.as_ref()) {
-            (surface::TermData::Error, _) => core::Term::new(range, core::TermData::Error),
+            (TermData::Error, _) => core::Term::new(range, core::TermData::Error),
             (_, Value::Error) => core::Term::new(range, core::TermData::Error),
-            (surface::TermData::NumberLiteral(literal), _) => {
+            (TermData::NumberLiteral(literal), _) => {
                 use crate::lang::core::Constant::{Int, F32, F64};
 
                 let error = |report: &mut dyn FnMut(Diagnostic<usize>)| {
@@ -283,7 +272,7 @@ impl<'me> Context<'me> {
 
                 core::Term::new(range, term_data)
             }
-            (surface::TermData::If(surface_head, surface_if_true, surface_if_false), _) => {
+            (TermData::If(surface_head, surface_if_true, surface_if_false), _) => {
                 // TODO: Lookup globals in environment
                 let bool_type = Arc::new(Value::global("Bool"));
                 let head = self.check_type(surface_head, &bool_type, report);
@@ -295,7 +284,7 @@ impl<'me> Context<'me> {
                     core::TermData::BoolElim(Arc::new(head), Arc::new(if_true), Arc::new(if_false)),
                 )
             }
-            (surface::TermData::Match(surface_head, surface_branches), _) => {
+            (TermData::Match(surface_head, surface_branches), _) => {
                 let (head, head_type) = self.synth_type(surface_head, report);
                 let error = |report: &mut dyn FnMut(Diagnostic<usize>)| {
                     report(diagnostics::error::unsupported_pattern_type(
@@ -355,13 +344,13 @@ impl<'me> Context<'me> {
     /// Synthesize the type of a surface term, and elaborate it into the core syntax.
     pub fn synth_type(
         &self,
-        surface_term: &surface::Term,
+        surface_term: &Term,
         report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> (core::Term, Arc<Value>) {
         let range = surface_term.range();
 
         match &surface_term.data {
-            surface::TermData::Ann(surface_term, surface_type) => {
+            TermData::Ann(surface_term, surface_type) => {
                 let core_type = self.is_type(surface_type, report);
                 let r#type = self.eval(&core_type);
                 let core_term = self.check_type(surface_term, &r#type, report);
@@ -369,7 +358,7 @@ impl<'me> Context<'me> {
 
                 (core::Term::new(surface_term.range(), term_data), r#type)
             }
-            surface::TermData::Name(name) => {
+            TermData::Name(name) => {
                 if let Some((r#type, _)) = self.globals.get(name) {
                     let core_term = core::Term::new(range, core::TermData::Global(name.to_owned()));
                     return (core_term, self.eval(r#type));
@@ -389,7 +378,7 @@ impl<'me> Context<'me> {
                     Arc::new(Value::Error),
                 )
             }
-            surface::TermData::TypeType | surface::TermData::FormatType => {
+            TermData::TypeType | TermData::FormatType => {
                 report(diagnostics::term_has_no_type(
                     Severity::Error,
                     self.file_id,
@@ -400,7 +389,7 @@ impl<'me> Context<'me> {
                     Arc::new(Value::Error),
                 )
             }
-            surface::TermData::FunctionType(param_type, body_type) => {
+            TermData::FunctionType(param_type, body_type) => {
                 let core_param_type = self.is_type(param_type, report);
                 let core_body_type = self.is_type(body_type, report);
 
@@ -421,7 +410,7 @@ impl<'me> Context<'me> {
                     ),
                 }
             }
-            surface::TermData::FunctionElim(head, arguments) => {
+            TermData::FunctionElim(head, arguments) => {
                 let (mut core_head, mut head_type) = self.synth_type(head, report);
 
                 for argument in arguments {
@@ -460,7 +449,7 @@ impl<'me> Context<'me> {
 
                 (core_head, head_type)
             }
-            surface::TermData::NumberLiteral(_) => {
+            TermData::NumberLiteral(_) => {
                 report(diagnostics::error::ambiguous_numeric_literal(
                     self.file_id,
                     surface_term.range(),
@@ -471,7 +460,7 @@ impl<'me> Context<'me> {
                     Arc::new(Value::Error),
                 )
             }
-            surface::TermData::If(surface_head, surface_if_true, surface_if_false) => {
+            TermData::If(surface_head, surface_if_true, surface_if_false) => {
                 // TODO: Lookup globals in environment
                 let bool_type = Arc::new(Value::global("Bool"));
                 let head = self.check_type(surface_head, &bool_type, report);
@@ -499,7 +488,7 @@ impl<'me> Context<'me> {
                     )
                 }
             }
-            surface::TermData::Match(_, _) => {
+            TermData::Match(_, _) => {
                 report(diagnostics::ambiguous_match_expression(
                     Severity::Error,
                     self.file_id,
@@ -510,7 +499,7 @@ impl<'me> Context<'me> {
                     Arc::new(Value::Error),
                 )
             }
-            surface::TermData::Error => (
+            TermData::Error => (
                 core::Term::new(range, core::TermData::Error),
                 Arc::new(Value::Error),
             ),
@@ -520,7 +509,7 @@ impl<'me> Context<'me> {
     fn from_int_branches(
         &self,
         range: Range<usize>,
-        surface_branches: &[(surface::Pattern, surface::Term)],
+        surface_branches: &[(Pattern, Term)],
         expected_type: &Arc<Value>,
         report: &mut dyn FnMut(Diagnostic<usize>),
     ) -> (BTreeMap<BigInt, Arc<core::Term>>, Arc<core::Term>) {
@@ -531,7 +520,7 @@ impl<'me> Context<'me> {
 
         for (pattern, surface_term) in surface_branches {
             match &pattern.data {
-                surface::PatternData::NumberLiteral(literal) => {
+                PatternData::NumberLiteral(literal) => {
                     let core_term = self.check_type(surface_term, expected_type, report);
                     if let Some(value) = literal.parse_big_int(self.file_id, report) {
                         match &default {
@@ -553,7 +542,7 @@ impl<'me> Context<'me> {
                         }
                     }
                 }
-                surface::PatternData::Name(_name) => {
+                PatternData::Name(_name) => {
                     // TODO: check if name is bound
                     // - if so compare for equality
                     // - otherwise bind local variable

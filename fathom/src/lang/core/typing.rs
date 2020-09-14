@@ -5,12 +5,11 @@
 
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
-use std::ops::Range;
 use std::sync::Arc;
 
 use crate::diagnostics;
 use crate::lang::core::semantics::{self, Value};
-use crate::lang::core::{Constant, Globals, Item, ItemData, Module, StructType, Term, TermData};
+use crate::lang::core::{Constant, Globals, Item, ItemData, Module, Term, TermData};
 
 /// Validate that a module is well-formed.
 pub fn is_module(globals: &Globals, module: &Module, report: &mut dyn FnMut(Diagnostic<usize>)) {
@@ -89,7 +88,23 @@ impl<'me> Context<'me> {
                     }
                 }
                 ItemData::Struct(struct_type) => {
-                    self.is_struct_type(item.range(), &struct_type, report);
+                    use std::collections::HashSet;
+
+                    // Field names that have previously seen.
+                    let mut seen_field_names = HashSet::new();
+
+                    for field in &struct_type.fields {
+                        let format_type = Arc::new(Value::FormatType);
+                        self.check_type(&field.term, &format_type, report);
+
+                        if !seen_field_names.insert(field.name.clone()) {
+                            report(diagnostics::bug::field_redeclaration(
+                                self.file_id,
+                                &field.name,
+                                item.range(),
+                            ));
+                        }
+                    }
 
                     // FIXME: Avoid shadowing builtin definitions
                     match self.items.entry(&struct_type.name) {
@@ -106,32 +121,6 @@ impl<'me> Context<'me> {
                         )),
                     }
                 }
-            }
-        }
-    }
-
-    /// Validate that the structure type is well-formed.
-    pub fn is_struct_type(
-        &self,
-        range: Range<usize>,
-        struct_type: &StructType,
-        report: &mut dyn FnMut(Diagnostic<usize>),
-    ) {
-        use std::collections::HashSet;
-
-        // Field names that have previously seen.
-        let mut seen_field_names = HashSet::new();
-
-        for field in &struct_type.fields {
-            let format_type = Arc::new(Value::FormatType);
-            self.check_type(&field.term, &format_type, report);
-
-            if !seen_field_names.insert(field.name.clone()) {
-                report(diagnostics::bug::field_redeclaration(
-                    self.file_id,
-                    &field.name,
-                    range.clone(),
-                ));
             }
         }
     }
