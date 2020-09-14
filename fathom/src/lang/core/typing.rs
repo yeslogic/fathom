@@ -3,13 +3,12 @@
 //! This is used to verify that the core syntax is correctly formed, for
 //! debugging purposes.
 
-use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::diagnostics;
 use crate::lang::core::semantics::{self, Value};
 use crate::lang::core::{Constant, Globals, Item, ItemData, Module, Term, TermData};
+use crate::reporting::{CoreTypingMessage, Message};
 
 /// Contextual information to be used during validation.
 pub struct Context<'me> {
@@ -20,8 +19,8 @@ pub struct Context<'me> {
     /// List of types currently bound in this context.
     /// These could either refer to items or local bindings.
     types: Vec<(String, Arc<Value>)>,
-    /// Diagnostics collected during type checking.
-    diagnostics: Vec<Diagnostic<usize>>,
+    /// Diagnostic messages collected during type checking.
+    messages: Vec<Message>,
 }
 
 impl<'me> Context<'me> {
@@ -31,18 +30,18 @@ impl<'me> Context<'me> {
             globals,
             items: HashMap::new(),
             types: Vec::new(),
-            diagnostics: Vec::new(),
+            messages: Vec::new(),
         }
     }
 
     /// Store a diagnostic message in the context for later reporting.
-    fn push_diagnostic(&mut self, diagnostic: Diagnostic<usize>) {
-        self.diagnostics.push(diagnostic);
+    fn push_message(&mut self, message: impl Into<Message>) {
+        self.messages.push(message.into());
     }
 
-    /// Drain the collected diagnostics from the context.
-    pub fn drain_diagnostics<'a>(&'a mut self) -> impl 'a + Iterator<Item = Diagnostic<usize>> {
-        self.diagnostics.drain(..)
+    /// Drain the collected diagnostic messages from the context.
+    pub fn drain_messages<'a>(&'a mut self) -> impl 'a + Iterator<Item = Message> {
+        self.messages.drain(..)
     }
 
     /// Lookup the type of a binding corresponding to `name` in the context,
@@ -57,6 +56,11 @@ impl<'me> Context<'me> {
     /// [`core::Term`]: crate::lang::core::Term
     pub fn eval(&self, term: &Term) -> Arc<Value> {
         semantics::eval(self.globals, &self.items, term)
+    }
+
+    /// Read back a value into normal form using the current state of the elaborator.
+    pub fn read_back(&self, value: &Value) -> Term {
+        semantics::read_back(value)
     }
 
     /// Check that one [`Value`] is [computationally equal]
@@ -87,13 +91,12 @@ impl<'me> Context<'me> {
                         }
                         Entry::Occupied(entry) => {
                             let original_range = entry.get().range();
-                            self.push_diagnostic(diagnostics::item_redefinition(
-                                Severity::Bug,
+                            self.push_message(CoreTypingMessage::ItemRedefinition {
                                 file_id,
-                                &alias.name,
-                                item.range(),
+                                name: alias.name.clone(),
+                                found_range: item.range(),
                                 original_range,
-                            ));
+                            });
                         }
                     }
                 }
@@ -108,11 +111,11 @@ impl<'me> Context<'me> {
                         self.check_type(file_id, &field.term, &format_type);
 
                         if !seen_field_names.insert(field.name.clone()) {
-                            self.push_diagnostic(diagnostics::bug::field_redeclaration(
+                            self.push_message(CoreTypingMessage::FieldRedeclaration {
                                 file_id,
-                                &field.name,
-                                item.range(),
-                            ));
+                                field_name: field.name.clone(),
+                                record_range: item.range(),
+                            });
                         }
                     }
 
@@ -125,13 +128,12 @@ impl<'me> Context<'me> {
                         }
                         Entry::Occupied(entry) => {
                             let original_range = entry.get().range();
-                            self.push_diagnostic(diagnostics::item_redefinition(
-                                Severity::Bug,
+                            self.push_message(CoreTypingMessage::ItemRedefinition {
                                 file_id,
-                                &struct_type.name,
-                                item.range(),
+                                name: struct_type.name.clone(),
+                                found_range: item.range.clone(),
                                 original_range,
-                            ));
+                            });
                         }
                     }
                 }
@@ -152,12 +154,11 @@ impl<'me> Context<'me> {
                     Value::FormatType | Value::TypeType => true,
                     Value::Error => false,
                     _ => {
-                        self.push_diagnostic(diagnostics::universe_mismatch(
-                            Severity::Bug,
+                        self.push_message(CoreTypingMessage::UniverseMismatch {
                             file_id,
-                            term.range(),
-                            &found_type,
-                        ));
+                            term_range: term.range(),
+                            found_type: self.read_back(&found_type),
+                        });
                         false
                     }
                 }
@@ -185,13 +186,12 @@ impl<'me> Context<'me> {
             }
             (_, expected_type) => match self.synth_type(file_id, term) {
                 found_type if self.is_equal(&found_type, expected_type) => {}
-                found_type => self.push_diagnostic(diagnostics::type_mismatch(
-                    Severity::Bug,
+                found_type => self.push_message(CoreTypingMessage::TypeMismatch {
                     file_id,
-                    term.range(),
-                    expected_type,
-                    &found_type,
-                )),
+                    term_range: term.range(),
+                    expected_type: self.read_back(expected_type),
+                    found_type: self.read_back(&found_type),
+                }),
             },
         }
     }
@@ -202,22 +202,22 @@ impl<'me> Context<'me> {
             TermData::Global(name) => match self.globals.get(name) {
                 Some((r#type, _)) => self.eval(r#type),
                 None => {
-                    self.push_diagnostic(diagnostics::bug::global_name_not_found(
+                    self.push_message(CoreTypingMessage::GlobalNameNotFound {
                         file_id,
-                        &name,
-                        term.range(),
-                    ));
+                        name: name.clone(),
+                        name_range: term.range(),
+                    });
                     Arc::new(Value::Error)
                 }
             },
             TermData::Item(name) => match self.lookup_type(name) {
                 Some(r#type) => r#type.clone(),
                 None => {
-                    self.push_diagnostic(diagnostics::bug::item_name_not_found(
+                    self.push_message(CoreTypingMessage::ItemNameNotFound {
                         file_id,
-                        &name,
-                        term.range(),
-                    ));
+                        name: name.clone(),
+                        name_range: term.range(),
+                    });
                     Arc::new(Value::Error)
                 }
             },
@@ -228,11 +228,10 @@ impl<'me> Context<'me> {
                 r#type
             }
             TermData::FormatType | TermData::TypeType => {
-                self.push_diagnostic(diagnostics::term_has_no_type(
-                    Severity::Bug,
+                self.push_message(CoreTypingMessage::TermHasNoType {
                     file_id,
-                    term.range(),
-                ));
+                    term_range: term.range(),
+                });
                 Arc::new(Value::Error)
             }
             TermData::FunctionType(param_type, body_type) => Arc::new(
@@ -252,13 +251,12 @@ impl<'me> Context<'me> {
                     }
                     Value::Error => Arc::new(Value::Error),
                     head_type => {
-                        self.push_diagnostic(diagnostics::not_a_function(
-                            Severity::Bug,
+                        self.push_message(CoreTypingMessage::NotAFunction {
                             file_id,
-                            head.range(),
-                            head_type,
-                            argument.range(),
-                        ));
+                            head_range: head.range(),
+                            head_type: self.read_back(head_type),
+                            argument_range: argument.range(),
+                        });
                         Arc::new(Value::Error)
                     }
                 }
@@ -279,22 +277,20 @@ impl<'me> Context<'me> {
                 if self.is_equal(&if_true_type, &if_false_type) {
                     if_true_type
                 } else {
-                    self.push_diagnostic(diagnostics::type_mismatch(
-                        Severity::Bug,
+                    self.push_message(CoreTypingMessage::TypeMismatch {
                         file_id,
-                        if_false.range(),
-                        &if_true_type,
-                        &if_false_type,
-                    ));
+                        term_range: if_false.range(),
+                        expected_type: self.read_back(&if_true_type),
+                        found_type: self.read_back(&if_false_type),
+                    });
                     Arc::new(Value::Error)
                 }
             }
             TermData::IntElim(_, _, _) => {
-                self.push_diagnostic(diagnostics::ambiguous_match_expression(
-                    Severity::Bug,
+                self.push_message(CoreTypingMessage::AmbiguousIntElim {
                     file_id,
-                    term.range(),
-                ));
+                    term_range: term.range(),
+                });
                 Arc::new(Value::Error)
             }
             TermData::Error => Arc::new(Value::Error),

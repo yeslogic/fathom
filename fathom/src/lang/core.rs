@@ -1,13 +1,13 @@
 //! The core type theory of Fathom.
 
-use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use crate::ieee754;
 use crate::lang::Ranged;
 use crate::lexer::SpannedToken;
-use crate::{diagnostics, ieee754};
+use crate::reporting::{LexerMessage, Message};
 
 #[allow(clippy::style, clippy::complexity, clippy::perf)]
 mod grammar {
@@ -32,13 +32,13 @@ pub struct Module {
 impl Module {
     pub fn parse(
         file_id: usize,
-        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic<usize>>>,
-        report: &mut dyn FnMut(Diagnostic<usize>),
+        tokens: impl IntoIterator<Item = Result<SpannedToken, LexerMessage>>,
+        messages: &mut Vec<Message>,
     ) -> Module {
         grammar::ModuleParser::new()
-            .parse(file_id, report, tokens)
+            .parse(file_id, messages, tokens)
             .unwrap_or_else(|error| {
-                report(diagnostics::error::parse(file_id, error));
+                messages.push(Message::from_lalrpop(file_id, error));
                 Module {
                     file_id,
                     doc: Arc::new([]),

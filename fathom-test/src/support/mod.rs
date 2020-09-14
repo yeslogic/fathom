@@ -74,7 +74,7 @@ struct Test {
     snapshot_filename: PathBuf,
     directives: directives::Directives,
     failed_checks: Vec<&'static str>,
-    found_diagnostics: Vec<Diagnostic<usize>>,
+    found_messages: Vec<fathom::reporting::Message>,
 }
 
 impl Test {
@@ -123,7 +123,7 @@ impl Test {
             snapshot_filename,
             directives,
             failed_checks: Vec::new(),
-            found_diagnostics: Vec::new(),
+            found_messages: Vec::new(),
         }
     }
 
@@ -131,11 +131,10 @@ impl Test {
         &mut self,
         files: &SimpleFiles<String, String>,
     ) -> fathom::lang::surface::Module {
+        let file_id = self.input_fathom_file_id;
         let keywords = &fathom::lexer::SURFACE_KEYWORDS;
-        let lexer = fathom::lexer::Lexer::new(files, self.input_fathom_file_id, keywords);
-        fathom::lang::surface::Module::parse(self.input_fathom_file_id, lexer, &mut |d| {
-            self.found_diagnostics.push(d)
-        })
+        let lexer = fathom::lexer::Lexer::new(files, file_id, keywords);
+        fathom::lang::surface::Module::parse(file_id, lexer, &mut self.found_messages)
     }
 
     fn elaborate(
@@ -145,19 +144,22 @@ impl Test {
     ) -> fathom::lang::core::Module {
         let mut context = surface_to_core::Context::new(&GLOBALS);
         let core_module = context.from_module(&surface_module);
-        self.found_diagnostics.extend(context.drain_diagnostics());
+        self.found_messages.extend(context.drain_messages());
 
         // The core syntax from the elaborator should always be well-formed!
         let mut context = fathom::lang::core::typing::Context::new(&GLOBALS);
         context.is_module(&core_module);
-        let validation_diagnostics = context.drain_diagnostics().collect::<Vec<_>>();
+        let validation_messages = context.drain_messages().collect::<Vec<_>>();
 
-        if !validation_diagnostics.is_empty() {
+        if !validation_messages.is_empty() {
             self.failed_checks.push("elaborate: validate");
 
+            let pretty_arena = pretty::Arena::new();
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
-            for diagnostic in &validation_diagnostics {
-                term::emit(&mut buffer, &self.term_config, files, diagnostic).unwrap();
+
+            for message in &validation_messages {
+                let diagnostic = message.to_diagnostic(&pretty_arena);
+                term::emit(&mut buffer, &self.term_config, files, &diagnostic).unwrap();
             }
 
             eprintln!("  • elaborate: validate");
@@ -177,15 +179,18 @@ impl Test {
     ) {
         let mut context = surface_to_core::Context::new(&GLOBALS);
         let delaborated_module = context.from_module(&core_to_surface::from_module(core_module));
-        let elaboration_diagnostics = context.drain_diagnostics().collect::<Vec<_>>();
+        let elaboration_messages = context.drain_messages().collect::<Vec<_>>();
 
-        if !elaboration_diagnostics.is_empty() {
+        if !elaboration_messages.is_empty() {
             self.failed_checks
                 .push("roundtrip_surface_to_core: elaborate surface");
 
+            let pretty_arena = pretty::Arena::new();
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
-            for diagnostic in &elaboration_diagnostics {
-                term::emit(&mut buffer, &self.term_config, files, diagnostic).unwrap();
+
+            for message in &elaboration_messages {
+                let diagnostic = message.to_diagnostic(&pretty_arena);
+                term::emit(&mut buffer, &self.term_config, files, &diagnostic).unwrap();
             }
 
             eprintln!("  • roundtrip_surface_to_core: elaborate surface");
@@ -253,7 +258,7 @@ impl Test {
             eprintln!();
         }
 
-        let mut core_parse_diagnostics = Vec::new();
+        let mut core_parse_messages = Vec::new();
         let core_file_id = files.add(
             snapshot_core_fathom_path.display().to_string(),
             pretty_core_module.clone(),
@@ -261,9 +266,7 @@ impl Test {
         let parsed_core_module = {
             let keywords = &fathom::lexer::CORE_KEYWORDS;
             let lexer = fathom::lexer::Lexer::new(files, core_file_id, keywords);
-            fathom::lang::core::Module::parse(core_file_id, lexer, &mut |d| {
-                core_parse_diagnostics.push(d)
-            })
+            fathom::lang::core::Module::parse(core_file_id, lexer, &mut core_parse_messages)
         };
         let pretty_parsed_core_module = {
             let pretty::DocBuilder(_, doc) =
@@ -271,12 +274,15 @@ impl Test {
             doc.pretty(100).to_string()
         };
 
-        if !core_parse_diagnostics.is_empty() {
+        if !core_parse_messages.is_empty() {
             self.failed_checks.push("roundtrip_pretty_core: parse core");
 
+            let pretty_arena = pretty::Arena::new();
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
-            for diagnostic in &core_parse_diagnostics {
-                term::emit(&mut buffer, &self.term_config, files, diagnostic).unwrap();
+
+            for message in &core_parse_messages {
+                let diagnostic = message.to_diagnostic(&pretty_arena);
+                term::emit(&mut buffer, &self.term_config, files, &diagnostic).unwrap();
             }
 
             eprintln!("  • roundtrip_pretty_core: parse core");
@@ -443,13 +449,20 @@ impl Test {
     fn finish(mut self, files: &SimpleFiles<String, String>) {
         // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
+        let pretty_arena = pretty::Arena::new();
+        let mut found_diagnostics = self
+            .found_messages
+            .iter()
+            .map(|message| message.to_diagnostic(&pretty_arena))
+            .collect();
+
         retain_unexpected(
             files,
-            &mut self.found_diagnostics,
+            &mut found_diagnostics,
             &mut self.directives.expected_diagnostics,
         );
 
-        if !self.found_diagnostics.is_empty() {
+        if !found_diagnostics.is_empty() {
             self.failed_checks.push("unexpected_diagnostics");
 
             eprintln!("Unexpected diagnostics found:");
@@ -459,7 +472,7 @@ impl Test {
             // test status output.
 
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
-            for diagnostic in &self.found_diagnostics {
+            for diagnostic in &found_diagnostics {
                 term::emit(&mut buffer, &self.term_config, files, diagnostic).unwrap();
             }
 

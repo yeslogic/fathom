@@ -5,13 +5,12 @@
 //!
 //! [literal-wikipedia]: https://en.wikipedia.org/wiki/Literal_%28computer_programming%29
 
-use codespan_reporting::diagnostic::Diagnostic;
 use num_bigint::BigInt;
 use num_traits::{Float, Signed};
 use std::fmt;
 use std::ops::Range;
 
-use crate::diagnostics;
+use crate::reporting::{LexerMessage, Message};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Sign {
@@ -82,7 +81,7 @@ impl IntegerLexerState {
         self,
         file_id: usize,
         ch: Option<(usize, char)>,
-        report: &mut dyn FnMut(Diagnostic<usize>),
+        messages: &mut Vec<Message>,
     ) -> Action<IntegerLexerState, Option<BigInt>> {
         use self::Action::{Return, Yield};
         use self::Base::*;
@@ -94,12 +93,12 @@ impl IntegerLexerState {
                 '1'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - b'0').into(), 0)),
                 _ => {
                     // TODO: bug?
-                    report(diagnostics::error::unexpected_char(
+                    messages.push(Message::from(LexerMessage::UnexpectedChar {
                         file_id,
                         start,
-                        ch,
-                        &["decimal digit"],
-                    ));
+                        found: ch,
+                        expected: &["decimal digit"],
+                    }));
                     Return(None)
                 }
             },
@@ -112,12 +111,12 @@ impl IntegerLexerState {
                 '_' => Yield(IntegerPart(Decimal, 0.into(), 0)),
                 '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - b'0').into(), 2)),
                 _ => {
-                    report(diagnostics::error::unexpected_char(
+                    messages.push(Message::from(LexerMessage::UnexpectedChar {
                         file_id,
                         start,
-                        ch,
-                        &["digit", "base character"],
-                    ));
+                        found: ch,
+                        expected: &["digit", "base character"],
+                    }));
                     Return(None)
                 }
             },
@@ -133,12 +132,12 @@ impl IntegerLexerState {
                     (Hexadecimal, 'a'..='f') => ch as u8 - b'a' + 10,
                     (Hexadecimal, 'A'..='F') => ch as u8 - b'A' + 10,
                     (_, _) => {
-                        report(diagnostics::error::unexpected_char(
+                        messages.push(Message::from(LexerMessage::UnexpectedChar {
                             file_id,
                             start,
-                            ch,
-                            &["digit", "digit separator", "point", "exponent"],
-                        ));
+                            found: ch,
+                            expected: &["digit", "digit separator", "point", "exponent"],
+                        }));
                         return Return(None);
                     }
                 };
@@ -169,7 +168,7 @@ where
         self,
         file_id: usize,
         ch: Option<(usize, char)>,
-        report: &mut dyn FnMut(Diagnostic<usize>),
+        messages: &mut Vec<Message>,
     ) -> Action<FloatLexerState<T>, Option<T>> {
         use self::Action::{Return, Yield};
         use self::Base::*;
@@ -181,12 +180,12 @@ where
                 '1'..='9' => Yield(IntegerPart(Base::Decimal, (ch as u8 - b'0').into(), 1)),
                 _ => {
                     // TODO: bug?
-                    report(diagnostics::error::unexpected_char(
+                    messages.push(Message::from(LexerMessage::UnexpectedChar {
                         file_id,
                         start,
-                        ch,
-                        &["decimal digit"],
-                    ));
+                        found: ch,
+                        expected: &["decimal digit"],
+                    }));
                     Return(None)
                 }
             },
@@ -202,12 +201,12 @@ where
                 ch if ['e', 'E'].contains(&ch) => Yield(Exponent(0.into(), 0, 0)),
                 ch if ['p', 'P'].contains(&ch) => Yield(Exponent(0.into(), 0, 0)),
                 _ => {
-                    report(diagnostics::error::unexpected_char(
+                    messages.push(Message::from(LexerMessage::UnexpectedChar {
                         file_id,
                         start,
-                        ch,
-                        &["digit", "base character"],
-                    ));
+                        found: ch,
+                        expected: &["digit", "base character"],
+                    }));
                     Return(None)
                 }
             },
@@ -232,12 +231,12 @@ where
                         return Yield(Exponent(value, 0, 0));
                     }
                     (_, _) => {
-                        report(diagnostics::error::unexpected_char(
+                        messages.push(Message::from(LexerMessage::UnexpectedChar {
                             file_id,
                             start,
-                            ch,
-                            &["digit", "digit separator", "point", "exponent"],
-                        ));
+                            found: ch,
+                            expected: &["digit", "digit separator", "point", "exponent"],
+                        }));
                         return Return(None);
                     }
                 };
@@ -268,12 +267,12 @@ where
                         return Yield(Exponent(value + frac, 0, 0));
                     }
                     (_, _) => {
-                        report(diagnostics::error::unexpected_char(
+                        messages.push(Message::from(LexerMessage::UnexpectedChar {
                             file_id,
                             start,
-                            ch,
-                            &["digit", "digit separator", "exponent"],
-                        ));
+                            found: ch,
+                            expected: &["digit", "digit separator", "exponent"],
+                        }));
                         return Return(None);
                     }
                 };
@@ -295,12 +294,12 @@ where
                     Yield(Exponent(value, exp, digits + 1))
                 }
                 _ => {
-                    report(diagnostics::error::unexpected_char(
+                    messages.push(Message::from(LexerMessage::UnexpectedChar {
                         file_id,
                         start,
-                        ch,
-                        &["decimal digit"],
-                    ));
+                        found: ch,
+                        expected: &["decimal digit"],
+                    }));
                     Return(None)
                 }
             },
@@ -343,16 +342,12 @@ impl Number {
         })
     }
 
-    pub fn parse_big_int(
-        &self,
-        file_id: usize,
-        report: &mut dyn FnMut(Diagnostic<usize>),
-    ) -> Option<BigInt> {
+    pub fn parse_big_int(&self, file_id: usize, messages: &mut Vec<Message>) -> Option<BigInt> {
         let mut chars = self.chars();
         let mut state = IntegerLexerState::Top;
 
         loop {
-            state = match state.on_char(file_id, chars.next(), report) {
+            state = match state.on_char(file_id, chars.next(), messages) {
                 Action::Yield(next) => next,
                 Action::Return(value) => match self.sign() {
                     Sign::Positive => return value,
@@ -362,11 +357,7 @@ impl Number {
         }
     }
 
-    pub fn parse_float<T>(
-        &self,
-        file_id: usize,
-        report: &mut dyn FnMut(Diagnostic<usize>),
-    ) -> Option<T>
+    pub fn parse_float<T>(&self, file_id: usize, messages: &mut Vec<Message>) -> Option<T>
     where
         T: Float + From<u8> + std::ops::MulAssign + std::ops::AddAssign + std::ops::SubAssign,
     {
@@ -374,7 +365,7 @@ impl Number {
         let mut state = FloatLexerState::Top;
 
         loop {
-            state = match state.on_char(file_id, chars.next(), report) {
+            state = match state.on_char(file_id, chars.next(), messages) {
                 Action::Yield(next) => next,
                 // TODO: Check infinity
                 Action::Return(value) => match self.sign() {

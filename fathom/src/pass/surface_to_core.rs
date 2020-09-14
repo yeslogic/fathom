@@ -8,17 +8,17 @@
 //! - bidirectional type checking (TODO)
 //! - unification (TODO)
 
-use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use num_bigint::BigInt;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::diagnostics;
 use crate::lang::core;
 use crate::lang::core::semantics::{self, Head, Value};
 use crate::lang::surface::{ItemData, Module, Pattern, PatternData, Term, TermData};
+use crate::pass::core_to_surface;
+use crate::reporting::{Message, SurfaceToCoreMessage};
 
 /// Contextual information to be used during elaboration.
 pub struct Context<'me> {
@@ -29,8 +29,8 @@ pub struct Context<'me> {
     /// List of types currently bound in this context.
     /// These could either refer to items or local bindings.
     types: Vec<(String, Arc<Value>)>,
-    /// Diagnostics collected during elaboration.
-    diagnostics: Vec<Diagnostic<usize>>,
+    /// Diagnostic messages collected during type checking.
+    messages: Vec<Message>,
 }
 
 impl<'me> Context<'me> {
@@ -40,18 +40,18 @@ impl<'me> Context<'me> {
             globals,
             items: HashMap::new(),
             types: Vec::new(),
-            diagnostics: Vec::new(),
+            messages: Vec::new(),
         }
     }
 
     /// Store a diagnostic message in the context for later reporting.
-    fn push_diagnostic(&mut self, diagnostic: Diagnostic<usize>) {
-        self.diagnostics.push(diagnostic);
+    fn push_message(&mut self, message: impl Into<Message>) {
+        self.messages.push(message.into());
     }
 
-    /// Drain the collected diagnostics from the context.
-    pub fn drain_diagnostics<'a>(&'a mut self) -> impl 'a + Iterator<Item = Diagnostic<usize>> {
-        self.diagnostics.drain(..)
+    /// Drain the collected diagnostic messages from the context.
+    pub fn drain_messages<'a>(&'a mut self) -> impl 'a + Iterator<Item = Message> {
+        self.messages.drain(..)
     }
 
     /// Lookup the type of a binding corresponding to `name` in the context,
@@ -68,6 +68,18 @@ impl<'me> Context<'me> {
         semantics::eval(self.globals, &self.items, term)
     }
 
+    /// Read back a [`Value`] to a [`core::Term`] using the current
+    /// state of the elaborator.
+    ///
+    /// Unstuck eliminations are not unfolded, making this useful for printing
+    /// terms and types in user-facing diagnostics.
+    ///
+    /// [`Value`]: crate::lang::core::semantics::Value
+    /// [`core::Term`]: crate::lang::core::Term
+    pub fn read_back(&self, value: &Value) -> core::Term {
+        semantics::read_back(value)
+    }
+
     /// Check that one [`Value`] is [computationally equal]
     /// to another [`Value`] in the current elaboration context.
     ///
@@ -75,6 +87,27 @@ impl<'me> Context<'me> {
     /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
     pub fn is_equal(&self, value0: &Value, value1: &Value) -> bool {
         semantics::is_equal(self.globals, &self.items, value0, value1)
+    }
+
+    /// Distill a [`core::Term`] into a [`surface::Term`].
+    ///
+    /// [`core::Term`]: crate::lang::core::Term
+    /// [`surface::Term`]: crate::lang::surface::Term
+    pub fn core_to_surface(&mut self, core_term: &core::Term) -> Term {
+        core_to_surface::from_term(&core_term)
+    }
+
+    /// Read back a [`Value`] into a [`surface::Term`] using the
+    /// current state of the elaborator.
+    ///
+    /// Unstuck eliminations are not unfolded, making this useful for printing
+    /// terms and types in user-facing diagnostics.
+    ///
+    /// [`Value`]: crate::lang::core::semantics::Value
+    /// [`surface::Term`]: crate::lang::surface::Term
+    pub fn read_back_to_surface(&mut self, value: &Value) -> Term {
+        let core_term = self.read_back(value);
+        self.core_to_surface(&core_term)
     }
 
     /// Translate a surface module into a core module,
@@ -117,13 +150,12 @@ impl<'me> Context<'me> {
                         }
                         Entry::Occupied(entry) => {
                             let original_range = entry.get().range();
-                            self.push_diagnostic(diagnostics::item_redefinition(
-                                Severity::Error,
+                            self.push_message(SurfaceToCoreMessage::ItemRedefinition {
                                 file_id,
-                                &alias.name.data,
-                                item.range.clone(),
+                                name: alias.name.data.clone(),
+                                found_range: item.range.clone(),
                                 original_range,
-                            ))
+                            })
                         }
                     }
                 }
@@ -150,12 +182,12 @@ impl<'me> Context<'me> {
                                 entry.insert(field_range);
                             }
                             Entry::Occupied(entry) => {
-                                self.push_diagnostic(diagnostics::error::field_redeclaration(
+                                self.push_message(SurfaceToCoreMessage::FieldRedeclaration {
                                     file_id,
-                                    entry.key(),
-                                    field_range,
-                                    entry.get().clone(),
-                                ));
+                                    name: entry.key().clone(),
+                                    found_range: field_range,
+                                    original_range: entry.get().clone(),
+                                });
                             }
                         }
                     }
@@ -177,13 +209,12 @@ impl<'me> Context<'me> {
                         }
                         Entry::Occupied(entry) => {
                             let original_range = entry.get().range();
-                            self.push_diagnostic(diagnostics::item_redefinition(
-                                Severity::Error,
+                            self.push_message(SurfaceToCoreMessage::ItemRedefinition {
                                 file_id,
-                                &struct_type.name.data,
-                                item.range.clone(),
+                                name: struct_type.name.data.clone(),
+                                found_range: item.range.clone(),
                                 original_range,
-                            ));
+                            });
                         }
                     }
                 }
@@ -210,14 +241,15 @@ impl<'me> Context<'me> {
             _ => {
                 let (core_term, found_type) = self.synth_type(file_id, surface_term);
                 match found_type.as_ref() {
-                    Value::FormatType | Value::TypeType | Value::Error => core_term,
+                    Value::FormatType | Value::TypeType => core_term,
+                    Value::Error => core::Term::new(range, core::TermData::Error),
                     _ => {
-                        self.push_diagnostic(diagnostics::universe_mismatch(
-                            Severity::Error,
+                        let found_type = self.read_back_to_surface(&found_type);
+                        self.push_message(SurfaceToCoreMessage::UniverseMismatch {
                             file_id,
-                            range.clone(),
-                            &found_type,
-                        ));
+                            term_range: range.clone(),
+                            found_type,
+                        });
                         core::Term::new(range, core::TermData::Error)
                     }
                 }
@@ -239,42 +271,43 @@ impl<'me> Context<'me> {
             (TermData::Error, _) => core::Term::new(range, core::TermData::Error),
             (_, Value::Error) => core::Term::new(range, core::TermData::Error),
             (TermData::NumberLiteral(literal), _) => {
-                use crate::lang::core::Constant::{Int, F32, F64};
-
-                let numeric_literal_not_supported = || {
-                    diagnostics::error::numeric_literal_not_supported(
-                        file_id,
-                        range.clone(),
-                        expected_type,
-                    )
-                };
-
                 let term_data = match expected_type.as_ref() {
                     // TODO: Lookup globals in environment
                     Value::Stuck(Head::Global(name), elims) if elims.is_empty() => {
-                        let mut report = |diagnostic| self.push_diagnostic(diagnostic);
                         match name.as_str() {
-                            "Int" => match literal.parse_big_int(file_id, &mut report) {
-                                Some(value) => core::TermData::Constant(Int(value)),
-                                None => core::TermData::Error,
-                            },
-                            "F32" => match literal.parse_float(file_id, &mut report) {
-                                Some(value) => core::TermData::Constant(F32(value)),
-                                None => core::TermData::Error,
-                            },
-                            "F64" => match literal.parse_float(file_id, &mut report) {
-                                Some(value) => core::TermData::Constant(F64(value)),
-                                None => core::TermData::Error,
-                            },
+                            "Int" => literal
+                                .parse_big_int(file_id, &mut self.messages)
+                                .map(core::Constant::Int)
+                                .map_or(core::TermData::Error, core::TermData::Constant),
+                            "F32" => literal
+                                .parse_float(file_id, &mut self.messages)
+                                .map(core::Constant::F32)
+                                .map_or(core::TermData::Error, core::TermData::Constant),
+                            "F64" => literal
+                                .parse_float(file_id, &mut self.messages)
+                                .map(core::Constant::F64)
+                                .map_or(core::TermData::Error, core::TermData::Constant),
                             _ => {
-                                self.push_diagnostic(numeric_literal_not_supported());
+                                let expected_type = self.read_back_to_surface(expected_type);
+                                self.push_message(
+                                    SurfaceToCoreMessage::NumericLiteralNotSupported {
+                                        file_id,
+                                        literal_range: range.clone(),
+                                        expected_type,
+                                    },
+                                );
                                 core::TermData::Error
                             }
                         }
                     }
                     Value::Error => core::TermData::Error,
                     _ => {
-                        self.push_diagnostic(numeric_literal_not_supported());
+                        let expected_type = self.read_back_to_surface(expected_type);
+                        self.push_message(SurfaceToCoreMessage::NumericLiteralNotSupported {
+                            file_id,
+                            literal_range: range.clone(),
+                            expected_type,
+                        });
                         core::TermData::Error
                     }
                 };
@@ -296,24 +329,16 @@ impl<'me> Context<'me> {
             (TermData::Match(surface_head, surface_branches), _) => {
                 let (head, head_type) = self.synth_type(file_id, surface_head);
 
-                let unsupported_pattern_type = || {
-                    diagnostics::error::unsupported_pattern_type(
-                        file_id,
-                        surface_head.range(),
-                        &head_type,
-                    )
-                };
-
                 let term_data = match head_type.as_ref() {
                     Value::Stuck(Head::Global(name), elims) if elims.is_empty() => {
                         // TODO: Lookup globals in environment
                         match name.as_str() {
                             "Bool" => {
-                                self.push_diagnostic(diagnostics::bug::not_yet_implemented(
+                                self.push_message(Message::NotYetImplemented {
                                     file_id,
-                                    range.clone(),
-                                    "boolean patterns",
-                                ));
+                                    range: range.clone(),
+                                    feature_name: "boolean patterns",
+                                });
                                 core::TermData::Error
                             }
                             "Int" => {
@@ -326,14 +351,24 @@ impl<'me> Context<'me> {
                                 core::TermData::IntElim(Arc::new(head), branches, default)
                             }
                             _ => {
-                                self.push_diagnostic(unsupported_pattern_type());
+                                let found_type = self.read_back_to_surface(&head_type);
+                                self.push_message(SurfaceToCoreMessage::UnsupportedPatternType {
+                                    file_id,
+                                    scrutinee_range: surface_head.range(),
+                                    found_type,
+                                });
                                 core::TermData::Error
                             }
                         }
                     }
                     Value::Error => core::TermData::Error,
                     _ => {
-                        self.push_diagnostic(unsupported_pattern_type());
+                        let found_type = self.read_back_to_surface(&head_type);
+                        self.push_message(SurfaceToCoreMessage::UnsupportedPatternType {
+                            file_id,
+                            scrutinee_range: surface_head.range(),
+                            found_type,
+                        });
                         core::TermData::Error
                     }
                 };
@@ -343,13 +378,14 @@ impl<'me> Context<'me> {
             (_, expected_type) => match self.synth_type(file_id, surface_term) {
                 (core_term, found_type) if self.is_equal(&found_type, expected_type) => core_term,
                 (_, found_type) => {
-                    self.push_diagnostic(diagnostics::type_mismatch(
-                        Severity::Error,
+                    let expected_type = self.read_back_to_surface(expected_type);
+                    let found_type = self.read_back_to_surface(&found_type);
+                    self.push_message(SurfaceToCoreMessage::TypeMismatch {
                         file_id,
-                        range.clone(),
+                        term_range: range.clone(),
                         expected_type,
-                        &found_type,
-                    ));
+                        found_type,
+                    });
                     core::Term::new(range, core::TermData::Error)
                 }
             },
@@ -379,22 +415,21 @@ impl<'me> Context<'me> {
                     return (core_term, r#type.clone());
                 }
 
-                self.push_diagnostic(diagnostics::error::var_name_not_found(
+                self.push_message(SurfaceToCoreMessage::VarNameNotFound {
                     file_id,
-                    name.as_str(),
-                    surface_term.range(),
-                ));
+                    name: name.clone(),
+                    name_range: surface_term.range(),
+                });
                 (
                     core::Term::new(range, core::TermData::Error),
                     Arc::new(Value::Error),
                 )
             }
             TermData::TypeType | TermData::FormatType => {
-                self.push_diagnostic(diagnostics::term_has_no_type(
-                    Severity::Error,
+                self.push_message(SurfaceToCoreMessage::TermHasNoType {
                     file_id,
-                    surface_term.range(),
-                ));
+                    term_range: surface_term.range(),
+                });
                 (
                     core::Term::new(range, core::TermData::Error),
                     Arc::new(Value::Error),
@@ -443,13 +478,13 @@ impl<'me> Context<'me> {
                             );
                         }
                         head_type => {
-                            self.push_diagnostic(diagnostics::not_a_function(
-                                Severity::Error,
+                            let head_type = self.read_back_to_surface(head_type);
+                            self.push_message(SurfaceToCoreMessage::NotAFunction {
                                 file_id,
-                                head.range(),
+                                head_range: head.range(),
                                 head_type,
-                                argument.range(),
-                            ));
+                                argument_range: argument.range(),
+                            });
                             return (
                                 core::Term::new(range, core::TermData::Error),
                                 Arc::new(Value::Error),
@@ -461,10 +496,10 @@ impl<'me> Context<'me> {
                 (core_head, head_type)
             }
             TermData::NumberLiteral(_) => {
-                self.push_diagnostic(diagnostics::error::ambiguous_numeric_literal(
+                self.push_message(SurfaceToCoreMessage::AmbiguousNumericLiteral {
                     file_id,
-                    surface_term.range(),
-                ));
+                    literal_range: surface_term.range(),
+                });
 
                 (
                     core::Term::new(range, core::TermData::Error),
@@ -486,13 +521,14 @@ impl<'me> Context<'me> {
                     );
                     (core::Term::new(range, term_data), if_true_type)
                 } else {
-                    self.push_diagnostic(diagnostics::type_mismatch(
-                        Severity::Error,
+                    let expected_type = self.read_back_to_surface(&if_true_type);
+                    let found_type = self.read_back_to_surface(&if_false_type);
+                    self.push_message(SurfaceToCoreMessage::TypeMismatch {
                         file_id,
-                        surface_if_false.range(),
-                        &if_true_type,
-                        &if_false_type,
-                    ));
+                        term_range: surface_if_false.range(),
+                        expected_type,
+                        found_type,
+                    });
                     (
                         core::Term::new(range, core::TermData::Error),
                         Arc::new(Value::Error),
@@ -500,11 +536,10 @@ impl<'me> Context<'me> {
                 }
             }
             TermData::Match(_, _) => {
-                self.push_diagnostic(diagnostics::ambiguous_match_expression(
-                    Severity::Error,
+                self.push_message(SurfaceToCoreMessage::AmbiguousMatchExpression {
                     file_id,
-                    surface_term.range(),
-                ));
+                    term_range: surface_term.range(),
+                });
                 (
                     core::Term::new(range, core::TermData::Error),
                     Arc::new(Value::Error),
@@ -530,23 +565,25 @@ impl<'me> Context<'me> {
         let mut default = None;
 
         for (pattern, surface_term) in surface_branches {
-            let unreachable_pattern =
-                || diagnostics::warning::unreachable_pattern(file_id, pattern.range());
+            let unreachable_pattern = || SurfaceToCoreMessage::UnreachablePattern {
+                file_id,
+                pattern_range: pattern.range(),
+            };
 
             match &pattern.data {
                 PatternData::NumberLiteral(literal) => {
                     let core_term = self.check_type(file_id, surface_term, expected_type);
-                    let mut report = |diagnostic| self.push_diagnostic(diagnostic);
-                    if let Some(value) = literal.parse_big_int(file_id, &mut report) {
-                        match &default {
+                    match literal.parse_big_int(file_id, &mut self.messages) {
+                        None => {} // Skipping - an error message should have already been recorded
+                        Some(value) => match &default {
                             None => match branches.entry(value) {
-                                Entry::Occupied(_) => self.push_diagnostic(unreachable_pattern()),
+                                Entry::Occupied(_) => self.push_message(unreachable_pattern()),
                                 Entry::Vacant(entry) => {
                                     entry.insert(Arc::new(core_term));
                                 }
                             },
-                            Some(_) => self.push_diagnostic(unreachable_pattern()),
-                        }
+                            Some(_) => self.push_message(unreachable_pattern()),
+                        },
                     }
                 }
                 PatternData::Name(_name) => {
@@ -556,17 +593,17 @@ impl<'me> Context<'me> {
                     let core_term = self.check_type(file_id, surface_term, expected_type);
                     match &default {
                         None => default = Some(Arc::new(core_term)),
-                        Some(_) => self.push_diagnostic(unreachable_pattern()),
+                        Some(_) => self.push_message(unreachable_pattern()),
                     }
                 }
             }
         }
 
         let default = default.unwrap_or_else(|| {
-            self.push_diagnostic(diagnostics::error::no_default_pattern(
+            self.push_message(SurfaceToCoreMessage::NoDefaultPattern {
                 file_id,
-                range.clone(),
-            ));
+                match_range: range.clone(),
+            });
             Arc::new(core::Term::new(range, core::TermData::Error))
         });
 

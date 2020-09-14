@@ -1,16 +1,16 @@
-use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
 use crate::lang::Ranged;
 use crate::lang::core::{Alias, Constant, ItemData, Module, StructType, Term, TermData, TypeField};
 use crate::lexer::Token;
 use crate::literal;
+use crate::reporting::{LexerMessage, Message};
 
-grammar(file_id: usize, report: &mut dyn FnMut(Diagnostic<usize>));
+grammar(file_id: usize, messages: &mut Vec<Message>);
 
 extern {
     type Location = usize;
-    type Error = Diagnostic<usize>;
+    type Error = LexerMessage;
 
     enum Token {
         "doc comment" => Token::DocComment(<String>),
@@ -121,26 +121,27 @@ AtomicTermData: TermData = {
     "int_elim" <head: Term> "{" <branches: (<"numeric literal"> "=>" <Term> ",")*> <default: Term> "}" => {
         let branches = branches
             .into_iter()
-            .filter_map(|(literal, term)| {
-                Some((literal.parse_big_int(file_id, report)?, Arc::new(term)))
-            }).collect();
+            .filter_map(|(literal, term)| Some((
+                literal.parse_big_int(file_id, messages)?,
+                Arc::new(term),
+            ))).collect();
 
         TermData::IntElim(Arc::new(head), branches, Arc::new(default))
     },
     "int" <literal: "numeric literal"> => {
-        match literal.parse_big_int(file_id, report) {
+        match literal.parse_big_int(file_id, messages) {
             Some(value) => TermData::Constant(Constant::Int(value)),
             None => TermData::Error,
         }
     },
     "f32" <literal: "numeric literal"> => {
-        match literal.parse_float(file_id, report) {
+        match literal.parse_float(file_id, messages) {
             Some(value) => TermData::Constant(Constant::F32(value)),
             None => TermData::Error,
         }
     },
     "f64" <literal: "numeric literal"> => {
-        match literal.parse_float(file_id, report) {
+        match literal.parse_float(file_id, messages) {
             Some(value) => TermData::Constant(Constant::F64(value)),
             None => TermData::Error,
         }
