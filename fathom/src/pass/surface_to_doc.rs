@@ -52,9 +52,11 @@ pub fn from_module(writer: &mut impl Write, module: &surface::Module) -> io::Res
     writeln!(writer, r##"      <dl class="items">"##)?;
 
     for item in &module.items {
-        let (name, item) = match item {
-            surface::Item::Alias(alias) => context.from_alias(writer, alias)?,
-            surface::Item::Struct(struct_type) => context.from_struct_type(writer, struct_type)?,
+        let (name, item) = match &item.data {
+            surface::ItemData::Alias(alias) => context.from_alias(writer, alias)?,
+            surface::ItemData::Struct(struct_type) => {
+                context.from_struct_type(writer, struct_type)?
+            }
         };
 
         context.items.insert(name, item);
@@ -87,8 +89,7 @@ impl Context {
         writer: &mut impl Write,
         alias: &surface::Alias,
     ) -> io::Result<(String, Item)> {
-        let (_, name) = &alias.name;
-        let id = format!("items[{}]", name);
+        let id = format!("items[{}]", alias.name.data);
 
         writeln!(
             writer,
@@ -100,13 +101,13 @@ impl Context {
                 writer,
                 r##"          <a href="#{id}">{name}</a>"##,
                 id = id,
-                name = name,
+                name = alias.name.data,
             )?,
             Some(r#type) => writeln!(
                 writer,
                 r##"          <a href="#{id}">{name}</a> : {type}"##,
                 id = id,
-                name = name,
+                name = alias.name.data,
                 type = self.from_term_prec(r#type, Prec::Term),
             )?,
         }
@@ -135,7 +136,7 @@ impl Context {
             term
         )?;
 
-        Ok((name.clone(), Item { id }))
+        Ok((alias.name.data.clone(), Item { id }))
     }
 
     fn from_struct_type(
@@ -143,8 +144,7 @@ impl Context {
         writer: &mut impl Write,
         struct_type: &surface::StructType,
     ) -> io::Result<(String, Item)> {
-        let (_, name) = &struct_type.name;
-        let id = format!("items[{}]", name);
+        let id = format!("items[{}]", struct_type.name.data);
 
         write!(
             writer,
@@ -154,7 +154,7 @@ impl Context {
         <dd class="item struct">
 "##,
             id = id,
-            name = name
+            name = struct_type.name.data,
         )?;
 
         if !struct_type.doc.is_empty() {
@@ -166,8 +166,7 @@ impl Context {
         if !struct_type.fields.is_empty() {
             writeln!(writer, r##"          <dl class="fields">"##)?;
             for field in &struct_type.fields {
-                let (_, field_name) = &field.name;
-                let field_id = format!("{}.fields[{}]", id, field_name);
+                let field_id = format!("{}.fields[{}]", id, field.name.data);
                 let r#type = self.from_term_prec(&field.term, Prec::Term);
 
                 write!(
@@ -179,7 +178,7 @@ impl Context {
               <section class="doc">
 "##,
                     id = field_id,
-                    name = field_name,
+                    name = field.name.data,
                     type = r#type,
                 )?;
                 from_doc_lines(writer, "                ", &field.doc)?;
@@ -195,14 +194,14 @@ impl Context {
 
         writeln!(writer, r##"        </dd>"##)?;
 
-        Ok((name.clone(), Item { id }))
+        Ok((struct_type.name.data.clone(), Item { id }))
     }
 
     fn from_term_prec<'term>(&self, term: &'term surface::Term, prec: Prec) -> Cow<'term, str> {
         use itertools::Itertools;
 
-        match term {
-            surface::Term::Name(_, name) => {
+        match &term.data {
+            surface::TermData::Name(name) => {
                 let id = match self.items.get(name) {
                     Some(item) => item.id.as_str(),
                     None => "",
@@ -210,8 +209,8 @@ impl Context {
 
                 format!(r##"<var><a href="#{}">{}</a></var>"##, id, name).into()
             }
-            surface::Term::TypeType(_) => "Type".into(),
-            surface::Term::Ann(term, r#type) => format!(
+            surface::TermData::TypeType => "Type".into(),
+            surface::TermData::Ann(term, r#type) => format!(
                 "{lparen}{term} : {type}{rparen}",
                 lparen = if prec > Prec::Term { "(" } else { "" },
                 rparen = if prec > Prec::Term { ")" } else { "" },
@@ -219,7 +218,7 @@ impl Context {
                 type = self.from_term_prec(r#type, Prec::Term),
             )
             .into(),
-            surface::Term::FunctionType(param_type, body_type) => format!(
+            surface::TermData::FunctionType(param_type, body_type) => format!(
                 "{lparen}{param_type} &rarr; {body_type}{rparen}",
                 lparen = if prec > Prec::Arrow { "(" } else { "" },
                 rparen = if prec > Prec::Arrow { ")" } else { "" },
@@ -227,7 +226,7 @@ impl Context {
                 body_type = self.from_term_prec(body_type, Prec::Arrow),
             )
             .into(),
-            surface::Term::FunctionElim(head, arguments) => format!(
+            surface::TermData::FunctionElim(head, arguments) => format!(
                 // TODO: multiline formatting!
                 "{lparen}{head} {arguments}{rparen}",
                 lparen = if prec > Prec::App { "(" } else { "" },
@@ -239,8 +238,8 @@ impl Context {
                     .format(" "),
             )
             .into(),
-            surface::Term::NumberLiteral(_, literal) => format!("{}", literal).into(),
-            surface::Term::If(_, head, if_true, if_false) => format!(
+            surface::TermData::NumberLiteral(literal) => format!("{}", literal).into(),
+            surface::TermData::If(head, if_true, if_false) => format!(
                 // TODO: multiline formatting!
                 "if {head} {{ {if_true} }} else {{ {if_false} }}",
                 head = self.from_term_prec(head, Prec::Term),
@@ -248,7 +247,7 @@ impl Context {
                 if_false = self.from_term_prec(if_false, Prec::Term),
             )
             .into(),
-            surface::Term::Match(_, head, branches) => format!(
+            surface::TermData::Match(head, branches) => format!(
                 // TODO: multiline formatting!
                 "match {head} {{ {branches} }}",
                 head = self.from_term_prec(head, Prec::Term),
@@ -262,15 +261,15 @@ impl Context {
                     .format(", "),
             )
             .into(),
-            surface::Term::FormatType(_) => "Format".into(),
-            surface::Term::Error(_) => r##"<strong>(invalid data description)</strong>"##.into(),
+            surface::TermData::FormatType => "Format".into(),
+            surface::TermData::Error => r##"<strong>(invalid data description)</strong>"##.into(),
         }
     }
 
     fn from_pattern<'term>(&self, pattern: &'term surface::Pattern) -> Cow<'term, str> {
-        match pattern {
-            surface::Pattern::Name(_, name) => format!(r##"<a href="#">{}</a>"##, name).into(), // TODO: add local binding
-            surface::Pattern::NumberLiteral(_, literal) => format!("{}", literal).into(),
+        match &pattern.data {
+            surface::PatternData::Name(name) => format!(r##"<a href="#">{}</a>"##, name).into(), // TODO: add local binding
+            surface::PatternData::NumberLiteral(literal) => format!("{}", literal).into(),
         }
     }
 }

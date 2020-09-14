@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::lang::core;
 use crate::lang::core::binary::Term;
 use crate::lang::core::semantics::{self, Elim, Head, Value};
-use crate::lang::core::{Constant, Globals, Item, Module, StructType};
+use crate::lang::core::{Constant, Globals, Item, ItemData, Module, StructType};
 
 /// Contextual information to be used when parsing items.
 pub struct Context<'me> {
@@ -37,18 +37,18 @@ impl<'me> Context<'me> {
         name: &str,
     ) -> Result<Term, fathom_runtime::ReadError> {
         for item in &module.items {
-            match item {
-                Item::Alias(alias) if alias.name == name => {
+            match &item.data {
+                ItemData::Alias(alias) if alias.name == name => {
                     let value = self.eval(&alias.term);
                     return self.read_format(&value);
                 }
-                Item::Struct(struct_type) if struct_type.name == name => {
+                ItemData::Struct(struct_type) if struct_type.name == name => {
                     return self.read_struct_format(struct_type);
                 }
-                Item::Alias(alias) => {
+                ItemData::Alias(alias) => {
                     self.items.insert(&alias.name, item.clone());
                 }
-                Item::Struct(struct_type) => {
+                ItemData::Struct(struct_type) => {
                     self.items.insert(&struct_type.name, item.clone());
                 }
             }
@@ -79,7 +79,7 @@ impl<'me> Context<'me> {
 
     fn read_format(&mut self, format: &Value) -> Result<Term, fathom_runtime::ReadError> {
         match format {
-            Value::Stuck(Head::Global(_, name), elims) => match (name.as_str(), elims.as_slice()) {
+            Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
                 ("U8", []) => Ok(Term::int(self.read::<fathom_runtime::U8>()?)),
                 ("U16Le", []) => Ok(Term::int(self.read::<fathom_runtime::U16Le>()?)),
                 ("U16Be", []) => Ok(Term::int(self.read::<fathom_runtime::U16Be>()?)),
@@ -98,9 +98,9 @@ impl<'me> Context<'me> {
                 ("F32Be", []) => Ok(Term::F32(self.read::<fathom_runtime::F32Be>()?)),
                 ("F64Le", []) => Ok(Term::F64(self.read::<fathom_runtime::F64Le>()?)),
                 ("F64Be", []) => Ok(Term::F64(self.read::<fathom_runtime::F64Be>()?)),
-                ("FormatArray", [Elim::Function(_, len), Elim::Function(_, elem_type)]) => {
+                ("FormatArray", [Elim::Function(len), Elim::Function(elem_type)]) => {
                     match len.as_ref() {
-                        Value::Constant(_, Constant::Int(len)) => match len.to_usize() {
+                        Value::Constant(Constant::Int(len)) => match len.to_usize() {
                             Some(len) => Ok(Term::Seq(
                                 (0..len)
                                     .map(|_| self.read_format(elem_type))
@@ -111,24 +111,27 @@ impl<'me> Context<'me> {
                         _ => Err(fathom_runtime::ReadError::InvalidDataDescription),
                     }
                 }
-                ("List", [Elim::Function(_, _)]) | (_, _) => {
+                ("List", [Elim::Function(_)]) | (_, _) => {
                     Err(fathom_runtime::ReadError::InvalidDataDescription)
                 }
             },
-            Value::Stuck(Head::Item(_, name), elims) => {
+            Value::Stuck(Head::Item(name), elims) => {
                 match (self.items.get(name.as_str()).cloned(), elims.as_slice()) {
-                    (Some(Item::Struct(struct_type)), []) => self.read_struct_format(&struct_type),
+                    (Some(item), []) => match item.data {
+                        ItemData::Struct(struct_type) => self.read_struct_format(&struct_type),
+                        _ => Err(fathom_runtime::ReadError::InvalidDataDescription),
+                    },
                     (Some(_), _) | (None, _) => {
                         Err(fathom_runtime::ReadError::InvalidDataDescription)
                     }
                 }
             }
-            Value::Stuck(Head::Error(_), _)
-            | Value::TypeType(_)
+            Value::Stuck(Head::Error, _)
+            | Value::TypeType
             | Value::FunctionType(_, _)
-            | Value::Constant(_, _)
-            | Value::FormatType(_)
-            | Value::Error(_) => Err(fathom_runtime::ReadError::InvalidDataDescription),
+            | Value::Constant(_)
+            | Value::FormatType
+            | Value::Error => Err(fathom_runtime::ReadError::InvalidDataDescription),
         }
     }
 }

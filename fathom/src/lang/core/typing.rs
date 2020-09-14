@@ -5,11 +5,12 @@
 
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use std::collections::HashMap;
+use std::ops::Range;
 use std::sync::Arc;
 
 use crate::diagnostics;
 use crate::lang::core::semantics::{self, Value};
-use crate::lang::core::{Constant, Globals, Item, Module, Term, TypeField};
+use crate::lang::core::{Constant, Globals, Item, ItemData, Module, StructType, Term, TermData};
 
 /// Validate that a module is well-formed.
 pub fn is_module(globals: &Globals, module: &Module, report: &mut dyn FnMut(Diagnostic<usize>)) {
@@ -22,8 +23,7 @@ pub struct Context<'me> {
     globals: &'me Globals,
     /// The file where these items are defined (for diagnostic reporting).
     file_id: usize,
-    /// Labels that have previously been used for items, along with the source range
-    /// where they were introduced (for diagnostic reporting).
+    /// Labels that have previously been used for items.
     items: HashMap<&'me str, Item>,
     /// List of types currently bound in this context. These could either
     /// refer to items or local bindings.
@@ -61,7 +61,7 @@ impl<'me> Context<'me> {
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
     pub fn is_equal(&self, value0: &Value, value1: &Value) -> bool {
-        semantics::is_equal(value0, value1)
+        semantics::is_equal(self.globals, &self.items, value0, value1)
     }
 
     /// Validate that the items are well-formed.
@@ -69,8 +69,8 @@ impl<'me> Context<'me> {
         for item in items {
             use std::collections::hash_map::Entry;
 
-            match item {
-                Item::Alias(alias) => {
+            match &item.data {
+                ItemData::Alias(alias) => {
                     let r#type = self.synth_type(&alias.term, report);
 
                     // FIXME: Avoid shadowing builtin definitions
@@ -83,26 +83,25 @@ impl<'me> Context<'me> {
                             Severity::Bug,
                             self.file_id,
                             &alias.name,
-                            alias.range.clone(),
+                            item.range(),
                             entry.get().range(),
                         )),
                     }
                 }
-                Item::Struct(struct_type) => {
-                    self.is_fields(&struct_type.fields, report);
+                ItemData::Struct(struct_type) => {
+                    self.is_struct_type(item.range(), &struct_type, report);
 
                     // FIXME: Avoid shadowing builtin definitions
                     match self.items.entry(&struct_type.name) {
                         Entry::Vacant(entry) => {
-                            let r#type = Arc::new(Value::FormatType(0..0));
-                            self.types.push((*entry.key(), r#type));
+                            self.types.push((*entry.key(), Arc::new(Value::FormatType)));
                             entry.insert(item.clone());
                         }
                         Entry::Occupied(entry) => report(diagnostics::item_redefinition(
                             Severity::Bug,
                             self.file_id,
                             &struct_type.name,
-                            struct_type.range.clone(),
+                            item.range(),
                             entry.get().range(),
                         )),
                     }
@@ -111,42 +110,41 @@ impl<'me> Context<'me> {
         }
     }
 
-    /// Validate that the structure type fields are well-formed.
-    pub fn is_fields(&self, fields: &[TypeField], report: &mut dyn FnMut(Diagnostic<usize>)) {
-        // Field names that have previously seen, along with the source range
-        // where they were introduced (for diagnostic reporting).
-        let mut seen_field_names = HashMap::new();
+    /// Validate that the structure type is well-formed.
+    pub fn is_struct_type(
+        &self,
+        range: Range<usize>,
+        struct_type: &StructType,
+        report: &mut dyn FnMut(Diagnostic<usize>),
+    ) {
+        use std::collections::HashSet;
 
-        for field in fields {
-            use std::collections::hash_map::Entry;
+        // Field names that have previously seen.
+        let mut seen_field_names = HashSet::new();
 
-            let format_type = Arc::new(Value::FormatType(0..0));
+        for field in &struct_type.fields {
+            let format_type = Arc::new(Value::FormatType);
             self.check_type(&field.term, &format_type, report);
 
-            match seen_field_names.entry(field.name.clone()) {
-                Entry::Vacant(entry) => {
-                    entry.insert(field.range());
-                }
-                Entry::Occupied(entry) => report(diagnostics::field_redeclaration(
-                    Severity::Bug,
+            if !seen_field_names.insert(field.name.clone()) {
+                report(diagnostics::bug::field_redeclaration(
                     self.file_id,
                     &field.name,
-                    field.range(),
-                    entry.get().clone(),
-                )),
+                    range.clone(),
+                ));
             }
         }
     }
 
     /// Validate that that a term is a well-formed type.
     pub fn is_type(&self, term: &Term, report: &mut dyn FnMut(Diagnostic<usize>)) -> bool {
-        match term {
-            Term::FormatType(_) | Term::TypeType(_) => true,
-            term => {
+        match &term.data {
+            TermData::FormatType | TermData::TypeType => true,
+            _ => {
                 let found_type = self.synth_type(term, report);
                 match found_type.as_ref() {
-                    Value::FormatType(_) | Value::TypeType(_) => true,
-                    Value::Error(_) => false,
+                    Value::FormatType | Value::TypeType => true,
+                    Value::Error => false,
                     _ => {
                         report(diagnostics::universe_mismatch(
                             Severity::Bug,
@@ -168,23 +166,23 @@ impl<'me> Context<'me> {
         expected_type: &Arc<Value>,
         report: &mut dyn FnMut(Diagnostic<usize>),
     ) {
-        match (term, expected_type.as_ref()) {
-            (Term::Error(_), _) | (_, Value::Error(_)) => {}
-            (Term::BoolElim(_, term, if_true, if_false), _) => {
-                let bool_type = Arc::new(Value::global(0..0, "Bool"));
+        match (&term.data, expected_type.as_ref()) {
+            (TermData::Error, _) | (_, Value::Error) => {}
+            (TermData::BoolElim(term, if_true, if_false), _) => {
+                let bool_type = Arc::new(Value::global("Bool"));
                 self.check_type(term, &bool_type, report);
                 self.check_type(if_true, expected_type, report);
                 self.check_type(if_false, expected_type, report);
             }
-            (Term::IntElim(_, head, branches, default), _) => {
-                let int_type = Arc::new(Value::global(0..0, "Int"));
+            (TermData::IntElim(head, branches, default), _) => {
+                let int_type = Arc::new(Value::global("Int"));
                 self.check_type(head, &int_type, report);
                 for term in branches.values() {
                     self.check_type(term, expected_type, report);
                 }
                 self.check_type(default, expected_type, report);
             }
-            (term, expected_type) => match self.synth_type(term, report) {
+            (_, expected_type) => match self.synth_type(term, report) {
                 found_type if self.is_equal(&found_type, expected_type) => {}
                 found_type => report(diagnostics::type_mismatch(
                     Severity::Bug,
@@ -199,59 +197,59 @@ impl<'me> Context<'me> {
 
     /// Synthesize the type of a term.
     pub fn synth_type(&self, term: &Term, report: &mut dyn FnMut(Diagnostic<usize>)) -> Arc<Value> {
-        match term {
-            Term::Global(range, name) => match self.globals.get(name) {
+        match &term.data {
+            TermData::Global(name) => match self.globals.get(name) {
                 Some((r#type, _)) => self.eval(r#type),
                 None => {
                     report(diagnostics::bug::global_name_not_found(
                         self.file_id,
                         &name,
-                        range.clone(),
+                        term.range(),
                     ));
-                    Arc::new(Value::Error(0..0))
+                    Arc::new(Value::Error)
                 }
             },
-            Term::Item(range, name) => match self.lookup_type(name) {
+            TermData::Item(name) => match self.lookup_type(name) {
                 Some(r#type) => r#type.clone(),
                 None => {
                     report(diagnostics::bug::item_name_not_found(
                         self.file_id,
                         &name,
-                        range.clone(),
+                        term.range(),
                     ));
-                    Arc::new(Value::Error(0..0))
+                    Arc::new(Value::Error)
                 }
             },
-            Term::Ann(term, r#type) => {
+            TermData::Ann(term, r#type) => {
                 self.is_type(r#type, report);
                 let r#type = self.eval(r#type);
                 self.check_type(term, &r#type, report);
                 r#type
             }
-            Term::FormatType(range) | Term::TypeType(range) => {
+            TermData::FormatType | TermData::TypeType => {
                 report(diagnostics::term_has_no_type(
                     Severity::Bug,
                     self.file_id,
-                    range.clone(),
+                    term.range(),
                 ));
-                Arc::new(Value::Error(0..0))
+                Arc::new(Value::Error)
             }
-            Term::FunctionType(param_type, body_type) => Arc::new(
+            TermData::FunctionType(param_type, body_type) => Arc::new(
                 match (
                     self.is_type(param_type, report),
                     self.is_type(body_type, report),
                 ) {
-                    (true, true) => Value::TypeType(0..0),
-                    (_, _) => Value::Error(0..0),
+                    (true, true) => Value::TypeType,
+                    (_, _) => Value::Error,
                 },
             ),
-            Term::FunctionElim(head, argument) => {
+            TermData::FunctionElim(head, argument) => {
                 match self.synth_type(head, report).as_ref() {
                     Value::FunctionType(param_type, body_type) => {
                         self.check_type(argument, &param_type, report);
                         (*body_type).clone() // FIXME: Clone
                     }
-                    Value::Error(_) => Arc::new(Value::Error(0..0)),
+                    Value::Error => Arc::new(Value::Error),
                     head_type => {
                         report(diagnostics::not_a_function(
                             Severity::Bug,
@@ -260,24 +258,24 @@ impl<'me> Context<'me> {
                             head_type,
                             argument.range(),
                         ));
-                        Arc::new(Value::Error(0..0))
+                        Arc::new(Value::Error)
                     }
                 }
             }
-            Term::Constant(_, constant) => match constant {
+            TermData::Constant(constant) => match constant {
                 // TODO: Lookup globals in environment
-                Constant::Int(_) => Arc::new(Value::global(0..0, "Int")),
-                Constant::F32(_) => Arc::new(Value::global(0..0, "F32")),
-                Constant::F64(_) => Arc::new(Value::global(0..0, "F64")),
+                Constant::Int(_) => Arc::new(Value::global("Int")),
+                Constant::F32(_) => Arc::new(Value::global("F32")),
+                Constant::F64(_) => Arc::new(Value::global("F64")),
             },
-            Term::BoolElim(_, head, if_true, if_false) => {
+            TermData::BoolElim(head, if_true, if_false) => {
                 // TODO: Lookup globals in environment
-                let bool_type = Arc::new(Value::global(0..0, "Bool"));
+                let bool_type = Arc::new(Value::global("Bool"));
                 self.check_type(head, &bool_type, report);
                 let if_true_type = self.synth_type(if_true, report);
                 let if_false_type = self.synth_type(if_false, report);
 
-                if semantics::is_equal(&if_true_type, &if_false_type) {
+                if self.is_equal(&if_true_type, &if_false_type) {
                     if_true_type
                 } else {
                     report(diagnostics::type_mismatch(
@@ -287,18 +285,18 @@ impl<'me> Context<'me> {
                         &if_true_type,
                         &if_false_type,
                     ));
-                    Arc::new(Value::Error(0..0))
+                    Arc::new(Value::Error)
                 }
             }
-            Term::IntElim(range, _, _, _) => {
+            TermData::IntElim(_, _, _) => {
                 report(diagnostics::ambiguous_match_expression(
                     Severity::Bug,
                     self.file_id,
-                    range.clone(),
+                    term.range(),
                 ));
-                Arc::new(Value::Error(0..0))
+                Arc::new(Value::Error)
             }
-            Term::Error(_) => Arc::new(Value::Error(0..0)),
+            TermData::Error => Arc::new(Value::Error),
         }
     }
 }

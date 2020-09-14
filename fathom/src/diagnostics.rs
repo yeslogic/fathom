@@ -8,22 +8,6 @@ use std::ops::Range;
 use crate::lang::core;
 use crate::pass::{core_to_surface, surface_to_pretty};
 
-pub fn field_redeclaration(
-    severity: Severity,
-    file_id: usize,
-    name: &str,
-    found: Range<usize>,
-    original: Range<usize>,
-) -> Diagnostic<usize> {
-    Diagnostic::new(severity)
-        .with_message(format!("field `{}` is already declared", name))
-        .with_labels(vec![
-            Label::primary(file_id, found).with_message("field already declared"),
-            Label::secondary(file_id, original).with_message("previous field declaration here"),
-        ])
-        .with_notes(vec![format!("`{}` must be defined only per struct", name)])
-}
-
 pub fn item_redefinition(
     severity: Severity,
     file_id: usize,
@@ -262,6 +246,21 @@ pub mod error {
         DisplayExpected(items)
     }
 
+    pub fn field_redeclaration(
+        file_id: usize,
+        name: &str,
+        found: Range<usize>,
+        original: Range<usize>,
+    ) -> Diagnostic<usize> {
+        Diagnostic::error()
+            .with_message(format!("field `{}` is already declared", name))
+            .with_labels(vec![
+                Label::primary(file_id, found).with_message("field already declared"),
+                Label::secondary(file_id, original).with_message("previous field declaration here"),
+            ])
+            .with_notes(vec![format!("`{}` must be defined only per struct", name)])
+    }
+
     pub fn var_name_not_found(
         file_id: usize,
         name: &str,
@@ -336,6 +335,18 @@ pub mod error {
 
 pub mod bug {
     pub use super::*;
+
+    pub fn field_redeclaration(
+        file_id: usize,
+        name: &str,
+        record_range: Range<usize>,
+    ) -> Diagnostic<usize> {
+        Diagnostic::bug()
+            .with_message(format!("field `{}` is already declared", name))
+            .with_labels(vec![Label::primary(file_id, record_range)
+                .with_message(format!("field `{}` declared twice", name))])
+            .with_notes(vec![format!("`{}` must be defined only per struct", name)])
+    }
 
     pub fn not_yet_implemented(
         file_id: usize,
