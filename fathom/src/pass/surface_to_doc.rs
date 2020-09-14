@@ -11,7 +11,6 @@ use crate::pass::surface_to_pretty::Prec;
 #[allow(clippy::write_literal)]
 pub fn from_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     let mut context = Context {
-        _file_id: module.file_id,
         items: HashMap::new(),
     };
 
@@ -75,7 +74,6 @@ pub fn from_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
 }
 
 struct Context {
-    _file_id: usize,
     items: HashMap<String, ItemMeta>,
 }
 
