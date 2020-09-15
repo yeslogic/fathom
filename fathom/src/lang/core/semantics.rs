@@ -67,7 +67,7 @@ pub enum Elim {
 ///
 /// [`Value`]: crate::lang::core::semantics::Value
 /// [`core::Term`]: crate::lang::core::Term
-pub fn eval(globals: &Globals, items: &HashMap<&str, Item>, term: &Term) -> Arc<Value> {
+pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Arc<Value> {
     match &term.data {
         TermData::Global(name) => match globals.get(name) {
             None => Arc::new(Value::Error),
@@ -203,7 +203,7 @@ fn is_equal_head(head0: &Head, head1: &Head) -> bool {
 /// Check that one elimination spine is equal to another elimination spine.
 fn is_equal_spine(
     globals: &Globals,
-    items: &HashMap<&str, Item>,
+    items: &HashMap<String, Item>,
     spine0: &[Elim],
     spine1: &[Elim],
 ) -> bool {
@@ -265,7 +265,7 @@ fn is_equal_spine(
 /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
 pub fn is_equal(
     globals: &Globals,
-    items: &HashMap<&str, Item>,
+    items: &HashMap<String, Item>,
     value0: &Value,
     value1: &Value,
 ) -> bool {

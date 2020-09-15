@@ -143,15 +143,15 @@ impl Test {
         files: &SimpleFiles<String, String>,
         surface_module: &fathom::lang::surface::Module,
     ) -> fathom::lang::core::Module {
-        let core_module = surface_to_core::from_module(&GLOBALS, &surface_module, &mut |d| {
-            self.found_diagnostics.push(d)
-        });
+        let mut context = surface_to_core::Context::new(&GLOBALS);
+        let core_module = context.from_module(&surface_module);
+        self.found_diagnostics.extend(context.drain_diagnostics());
 
         // The core syntax from the elaborator should always be well-formed!
-        let mut validation_diagnostics = Vec::new();
-        fathom::lang::core::typing::is_module(&GLOBALS, &core_module, &mut |d| {
-            validation_diagnostics.push(d)
-        });
+        let mut context = fathom::lang::core::typing::Context::new(&GLOBALS);
+        context.is_module(&core_module);
+        let validation_diagnostics = context.drain_diagnostics().collect::<Vec<_>>();
+
         if !validation_diagnostics.is_empty() {
             self.failed_checks.push("elaborate: validate");
 
@@ -175,12 +175,9 @@ impl Test {
         files: &SimpleFiles<String, String>,
         core_module: &fathom::lang::core::Module,
     ) {
-        let mut elaboration_diagnostics = Vec::new();
-        let delaborated_core_module = surface_to_core::from_module(
-            &GLOBALS,
-            &core_to_surface::from_module(core_module),
-            &mut |d| elaboration_diagnostics.push(d),
-        );
+        let mut context = surface_to_core::Context::new(&GLOBALS);
+        let delaborated_module = context.from_module(&core_to_surface::from_module(core_module));
+        let elaboration_diagnostics = context.drain_diagnostics().collect::<Vec<_>>();
 
         if !elaboration_diagnostics.is_empty() {
             self.failed_checks
@@ -198,16 +195,16 @@ impl Test {
             eprintln!();
         }
 
-        if !is_equal_module(&delaborated_core_module, core_module) {
+        if !is_equal_module(&delaborated_module, core_module) {
             let arena = pretty::Arena::new();
 
             let pretty_core_module = {
                 let pretty::DocBuilder(_, doc) = core_to_pretty::from_module(&arena, core_module);
                 doc.pretty(100).to_string()
             };
-            let pretty_delaborated_core_module = {
+            let pretty_delaborated_module = {
                 let pretty::DocBuilder(_, doc) =
-                    core_to_pretty::from_module(&arena, &delaborated_core_module);
+                    core_to_pretty::from_module(&arena, &delaborated_module);
                 doc.pretty(100).to_string()
             };
 
@@ -224,7 +221,7 @@ impl Test {
             }
             eprintln!();
             eprintln_indented(4, "", "---- surface_to_core(core_to_surface(core)) ----");
-            for line in pretty_delaborated_core_module.lines() {
+            for line in pretty_delaborated_module.lines() {
                 eprintln_indented(4, "| ", line);
             }
             eprintln!();

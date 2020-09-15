@@ -11,7 +11,7 @@ use crate::lang::core::{Constant, Globals, Item, ItemData, Module, StructType};
 /// Contextual information to be used when parsing items.
 pub struct Context<'me> {
     globals: &'me Globals,
-    items: HashMap<&'me str, Item>,
+    items: HashMap<String, Item>,
     reader: fathom_runtime::FormatReader<'me>,
 }
 
@@ -46,10 +46,10 @@ impl<'me> Context<'me> {
                     return self.read_struct_format(struct_type);
                 }
                 ItemData::Alias(alias) => {
-                    self.items.insert(&alias.name, item.clone());
+                    self.items.insert(alias.name.clone(), item.clone());
                 }
                 ItemData::Struct(struct_type) => {
-                    self.items.insert(&struct_type.name, item.clone());
+                    self.items.insert(struct_type.name.clone(), item.clone());
                 }
             }
         }
