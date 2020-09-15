@@ -16,7 +16,7 @@ fn eof_inner() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Test") {
+    match read_context.read_item(&FIXTURE, &"Test") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -34,7 +34,7 @@ fn valid_test() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let test = binary::read::from_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
+    let test = read_context.read_item(&FIXTURE, &"Test").unwrap();
     assert_eq!(test, binary::Term::F64(23.64e10));
 
     // TODO: Check remaining
@@ -50,7 +50,7 @@ fn valid_test_trailing() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    let test = binary::read::from_module_item(&mut read_context, &FIXTURE, &"Test").unwrap();
+    let test = read_context.read_item(&FIXTURE, &"Test").unwrap();
     assert_eq!(test, binary::Term::F64(781.453298));
 
     // TODO: Check remaining

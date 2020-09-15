@@ -4,14 +4,13 @@
 //! The naming of this pass is not entirely standard, but was one of the better
 //! ones to emerge from [this twitter discussion](https://twitter.com/brendanzab/status/1173798146356342784).
 
-use std::ops::Range;
-
-use crate::lang::{core, surface};
+use crate::lang::core::{Constant, Item, ItemData, Module, Term, TermData};
+use crate::lang::{surface, Ranged};
 use crate::literal;
 
 // TODO: name/keyword avoidance!
 
-pub fn from_module(module: &core::Module) -> surface::Module {
+pub fn from_module(module: &Module) -> surface::Module {
     surface::Module {
         file_id: module.file_id,
         doc: module.doc.clone(),
@@ -19,97 +18,90 @@ pub fn from_module(module: &core::Module) -> surface::Module {
     }
 }
 
-pub fn from_item(item: &core::Item) -> surface::Item {
-    match item {
-        core::Item::Alias(alias) => {
-            let (term, ty) = match alias.term.as_ref() {
-                core::Term::Ann(term, ty) => (from_term(term), Some(from_term(ty))),
-                term => (from_term(term), None),
+pub fn from_item(item: &Item) -> surface::Item {
+    let item_data = match &item.data {
+        ItemData::Alias(alias) => {
+            let (term, r#type) = match &alias.term.data {
+                TermData::Ann(term, r#type) => (from_term(term), Some(from_term(r#type))),
+                _ => (from_term(&alias.term), None),
             };
 
-            surface::Item::Alias(surface::Alias {
-                range: alias.range.clone(),
+            surface::ItemData::Alias(surface::Alias {
                 doc: alias.doc.clone(),
-                name: (0..0, alias.name.to_string()),
-                ty,
+                name: Ranged::from(alias.name.clone()),
+                type_: r#type,
                 term,
             })
         }
-        core::Item::Struct(struct_ty) => surface::Item::Struct(surface::StructType {
-            range: struct_ty.range.clone(),
-            doc: struct_ty.doc.clone(),
-            name: (0..0, struct_ty.name.to_string()),
-            fields: struct_ty
+        ItemData::Struct(struct_type) => surface::ItemData::Struct(surface::StructType {
+            doc: struct_type.doc.clone(),
+            name: Ranged::from(struct_type.name.clone()),
+            fields: struct_type
                 .fields
                 .iter()
-                .map(|ty_field| {
-                    surface::TypeField {
-                        doc: ty_field.doc.clone(),
-                        // TODO: use `ty_field.start`
-                        name: (0..0, ty_field.name.to_string()),
-                        term: from_term(&ty_field.term),
-                    }
+                .map(|type_field| surface::TypeField {
+                    doc: type_field.doc.clone(),
+                    name: Ranged::from(type_field.name.clone()),
+                    term: from_term(&type_field.term),
                 })
                 .collect(),
         }),
-    }
+    };
+
+    surface::Item::from(item_data)
 }
 
-pub fn from_term(term: &core::Term) -> surface::Term {
-    match term {
-        core::Term::Global(range, name) => surface::Term::Name(range.clone(), name.to_string()),
-        core::Term::Item(range, name) => surface::Term::Name(range.clone(), name.to_string()),
-        core::Term::Ann(term, ty) => {
-            surface::Term::Ann(Box::new(from_term(term)), Box::new(from_term(ty)))
+pub fn from_term(term: &Term) -> surface::Term {
+    let term_data = match &term.data {
+        TermData::Global(name) => surface::TermData::Name(name.to_string()),
+        TermData::Item(name) => surface::TermData::Name(name.to_string()),
+        TermData::Ann(term, r#type) => {
+            surface::TermData::Ann(Box::new(from_term(term)), Box::new(from_term(r#type)))
         }
-        core::Term::TypeType(range) => surface::Term::TypeType(range.clone()),
-        core::Term::FunctionType(param_ty, body_ty) => {
-            surface::Term::FunctionType(Box::new(from_term(param_ty)), Box::new(from_term(body_ty)))
-        }
-        core::Term::FunctionElim(head, argument) => surface::Term::FunctionElim(
+        TermData::TypeType => surface::TermData::TypeType,
+        TermData::FunctionType(param_type, body_type) => surface::TermData::FunctionType(
+            Box::new(from_term(param_type)),
+            Box::new(from_term(body_type)),
+        ),
+        TermData::FunctionElim(head, argument) => surface::TermData::FunctionElim(
             Box::new(from_term(head)),
             vec![from_term(argument)], // TODO: flatten arguments
         ),
-        core::Term::Constant(range, constant) => from_constant(range.clone(), constant),
-        core::Term::BoolElim(range, head, if_true, if_false) => surface::Term::If(
-            range.clone(),
+        TermData::Constant(constant) => match constant {
+            Constant::Int(value) => {
+                surface::TermData::NumberLiteral(literal::Number::from_signed(term.range(), value))
+            }
+            Constant::F32(value) => {
+                surface::TermData::NumberLiteral(literal::Number::from_signed(term.range(), value))
+            }
+            Constant::F64(value) => {
+                surface::TermData::NumberLiteral(literal::Number::from_signed(term.range(), value))
+            }
+        },
+        TermData::BoolElim(head, if_true, if_false) => surface::TermData::If(
             Box::new(from_term(head)),
             Box::new(from_term(if_true)),
             Box::new(from_term(if_false)),
         ),
-        core::Term::IntElim(range, head, branches, default) => surface::Term::Match(
-            range.clone(),
+        TermData::IntElim(head, branches, default) => surface::TermData::Match(
             Box::new(from_term(head)),
             branches
                 .iter()
                 .map(|(value, term)| {
                     let value = literal::Number::from_signed(0..0, value);
-                    (
-                        surface::Pattern::NumberLiteral(0..0, value),
-                        from_term(term),
-                    )
+                    let pattern_data = surface::PatternData::NumberLiteral(value);
+                    (surface::Pattern::from(pattern_data), from_term(term))
                 })
                 .chain(std::iter::once((
-                    surface::Pattern::Name(0..0, "_".to_owned()),
+                    surface::Pattern::from(surface::PatternData::Name("_".to_owned())),
                     from_term(default),
                 )))
                 .collect(),
         ),
-        core::Term::FormatType(range) => surface::Term::FormatType(range.clone()),
-        core::Term::Error(range) => surface::Term::Error(range.clone()),
-    }
-}
+        TermData::FormatType => surface::TermData::FormatType,
 
-pub fn from_constant(range: Range<usize>, constant: &core::Constant) -> surface::Term {
-    match constant {
-        core::Constant::Int(value) => {
-            surface::Term::NumberLiteral(range.clone(), literal::Number::from_signed(range, value))
-        }
-        core::Constant::F32(value) => {
-            surface::Term::NumberLiteral(range.clone(), literal::Number::from_signed(range, value))
-        }
-        core::Constant::F64(value) => {
-            surface::Term::NumberLiteral(range.clone(), literal::Number::from_signed(range, value))
-        }
-    }
+        TermData::Error => surface::TermData::Error,
+    };
+
+    surface::Term::from(term_data)
 }

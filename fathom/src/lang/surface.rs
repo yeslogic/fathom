@@ -1,10 +1,10 @@
 //! The surface syntax for Fathom.
 
 use codespan_reporting::diagnostic::Diagnostic;
-use std::ops::Range;
 use std::sync::Arc;
 
 use crate::diagnostics;
+use crate::lang::Ranged;
 use crate::lexer::SpannedToken;
 use crate::literal;
 
@@ -43,9 +43,12 @@ impl Module {
     }
 }
 
+/// Items in the surface language.
+pub type Item = Ranged<ItemData>;
+
 /// Items in a module.
 #[derive(Debug, Clone)]
-pub enum Item {
+pub enum ItemData {
     /// Alias definitions.
     ///
     /// ```text
@@ -63,14 +66,13 @@ pub enum Item {
 /// Alias definition.
 #[derive(Debug, Clone)]
 pub struct Alias {
-    /// The full source range of this definition.
-    pub range: Range<usize>,
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
-    pub name: (Range<usize>, String),
+    pub name: Ranged<String>,
     /// Optional type annotation
-    pub ty: Option<Term>,
+    // FIXME: can't use `r#type` in LALRPOP grammars
+    pub type_: Option<Term>,
     /// Fields in the struct.
     pub term: Term,
 }
@@ -78,12 +80,10 @@ pub struct Alias {
 /// A struct type definition.
 #[derive(Debug, Clone)]
 pub struct StructType {
-    /// The full source range of this definition.
-    pub range: Range<usize>,
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
-    pub name: (Range<usize>, String),
+    pub name: Ranged<String>,
     /// Fields in the struct.
     pub fields: Vec<TypeField>,
 }
@@ -92,69 +92,48 @@ pub struct StructType {
 #[derive(Debug, Clone)]
 pub struct TypeField {
     pub doc: Arc<[String]>,
-    pub name: (Range<usize>, String),
+    pub name: Ranged<String>,
     pub term: Term,
 }
 
-/// Patterns.
+/// Patterns in the surface language.
+pub type Pattern = Ranged<PatternData>;
+
+/// Pattern data.
 #[derive(Debug, Clone)]
-pub enum Pattern {
+pub enum PatternData {
     /// Named patterns.
-    Name(Range<usize>, String),
+    Name(String),
     /// Numeric literals.
-    NumberLiteral(Range<usize>, literal::Number),
+    NumberLiteral(literal::Number),
 }
 
-impl Pattern {
-    pub fn range(&self) -> Range<usize> {
-        match self {
-            Pattern::Name(range, _) | Pattern::NumberLiteral(range, _) => range.clone(),
-        }
-    }
-}
+/// Terms in the surface language.
+pub type Term = Ranged<TermData>;
 
-/// Terms.
+/// Term data.
 #[derive(Debug, Clone)]
-pub enum Term {
+pub enum TermData {
     /// Annotated terms.
     Ann(Box<Term>, Box<Term>),
     /// Names.
-    Name(Range<usize>, String),
+    Name(String),
     /// Type of types.
-    TypeType(Range<usize>),
+    TypeType,
     /// Function types.
     FunctionType(Box<Term>, Box<Term>),
     /// Function eliminations (function application).
     FunctionElim(Box<Term>, Vec<Term>),
     /// Numeric literals.
-    NumberLiteral(Range<usize>, literal::Number),
+    NumberLiteral(literal::Number),
     /// If-else expressions.
-    If(Range<usize>, Box<Term>, Box<Term>, Box<Term>),
+    If(Box<Term>, Box<Term>, Box<Term>),
     /// Match expressions.
-    Match(Range<usize>, Box<Term>, Vec<(Pattern, Term)>),
+    Match(Box<Term>, Vec<(Pattern, Term)>),
+
     /// Type of format types.
-    FormatType(Range<usize>),
+    FormatType,
 
     /// Error sentinel terms.
-    Error(Range<usize>),
-}
-
-impl Term {
-    pub fn range(&self) -> Range<usize> {
-        match self {
-            Term::Ann(term, ty) => term.range().start..ty.range().end,
-            Term::Name(range, _)
-            | Term::TypeType(range)
-            | Term::NumberLiteral(range, _)
-            | Term::If(range, _, _, _)
-            | Term::Match(range, _, _)
-            | Term::FormatType(range)
-            | Term::Error(range) => range.clone(),
-            Term::FunctionType(param_ty, body_ty) => param_ty.range().start..body_ty.range().end,
-            Term::FunctionElim(head, arguments) => match arguments.last() {
-                Some(argument) => head.range().start..argument.range().end,
-                None => head.range(),
-            },
-        }
-    }
+    Error,
 }

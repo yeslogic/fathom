@@ -15,7 +15,7 @@ fn eof_inner() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte") {
+    match read_context.read_item(&FIXTURE, &"Byte") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -33,7 +33,7 @@ fn valid_singleton() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
+    match read_context.read_item(&FIXTURE, &"Byte").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(
                 fields,
@@ -56,7 +56,7 @@ fn valid_singleton_trailing() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Byte").unwrap() {
+    match read_context.read_item(&FIXTURE, &"Byte").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(
                 fields,

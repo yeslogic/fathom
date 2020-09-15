@@ -2,7 +2,9 @@
 
 use pretty::{DocAllocator, DocBuilder};
 
-use crate::lang::surface::{Alias, Item, Module, Pattern, StructType, Term, TypeField};
+use crate::lang::surface::{
+    Alias, Item, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField,
+};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Prec {
@@ -39,9 +41,9 @@ where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
-    match item {
-        Item::Alias(alias) => from_alias(alloc, alias),
-        Item::Struct(struct_ty) => from_struct_ty(alloc, struct_ty),
+    match &item.data {
+        ItemData::Alias(alias) => from_alias(alloc, alias),
+        ItemData::Struct(struct_type) => from_struct_type(alloc, struct_type),
     }
 }
 
@@ -58,15 +60,15 @@ where
 
     (alloc.nil())
         .append(docs)
-        .append(&alias.name.1)
+        .append(&alias.name.data)
         .append(alloc.space())
         .append("=")
         .group()
-        .append(match &alias.ty {
+        .append(match &alias.type_ {
             None => alloc.nil(),
-            Some(ty) => (alloc.nil())
+            Some(r#type) => (alloc.nil())
                 .append(alloc.space())
-                .append(from_term_prec(alloc, ty, Prec::Term))
+                .append(from_term_prec(alloc, r#type, Prec::Term))
                 .group()
                 .nest(4),
         })
@@ -80,12 +82,12 @@ where
         )
 }
 
-pub fn from_struct_ty<'a, D>(alloc: &'a D, struct_ty: &'a StructType) -> DocBuilder<'a, D>
+pub fn from_struct_type<'a, D>(alloc: &'a D, struct_type: &'a StructType) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
-    let docs = alloc.concat(struct_ty.doc.iter().map(|line| {
+    let docs = alloc.concat(struct_type.doc.iter().map(|line| {
         (alloc.nil())
             .append(format!("///{}", line))
             .append(alloc.hardline())
@@ -94,17 +96,17 @@ where
     let struct_prefix = (alloc.nil())
         .append("struct")
         .append(alloc.space())
-        .append(&struct_ty.name.1)
+        .append(&struct_type.name.data)
         .append(alloc.space());
 
-    let struct_ty = if struct_ty.fields.is_empty() {
+    let struct_type = if struct_type.fields.is_empty() {
         (alloc.nil()).append(struct_prefix).append("{}").group()
     } else {
         (alloc.nil())
             .append(struct_prefix)
             .append("{")
             .group()
-            .append(alloc.concat(struct_ty.fields.iter().map(|field| {
+            .append(alloc.concat(struct_type.fields.iter().map(|field| {
                 (alloc.nil())
                     .append(alloc.hardline())
                     .append(from_ty_field(alloc, field))
@@ -115,7 +117,7 @@ where
             .append("}")
     };
 
-    (alloc.nil()).append(docs).append(struct_ty)
+    (alloc.nil()).append(docs).append(struct_type)
 }
 
 pub fn from_ty_field<'a, D>(alloc: &'a D, ty_field: &'a TypeField) -> DocBuilder<'a, D>
@@ -133,7 +135,7 @@ where
         .append(docs)
         .append(
             (alloc.nil())
-                .append(&ty_field.name.1)
+                .append(&ty_field.name.data)
                 .append(alloc.space())
                 .append(":")
                 .group(),
@@ -151,9 +153,9 @@ where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
-    match pattern {
-        Pattern::Name(_, name) => alloc.text(name),
-        Pattern::NumberLiteral(_, literal) => alloc.as_string(literal),
+    match &pattern.data {
+        PatternData::Name(name) => alloc.text(name),
+        PatternData::NumberLiteral(literal) => alloc.as_string(literal),
     }
 }
 
@@ -170,8 +172,8 @@ where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
-    match term {
-        Term::Ann(term, ty) => paren(
+    match &term.data {
+        TermData::Ann(term, r#type) => paren(
             alloc,
             prec > Prec::Term,
             (alloc.nil())
@@ -181,14 +183,14 @@ where
                 .group()
                 .append(
                     (alloc.space())
-                        .append(from_term_prec(alloc, ty, Prec::Term))
+                        .append(from_term_prec(alloc, r#type, Prec::Term))
                         .group()
                         .nest(4),
                 ),
         ),
-        Term::Name(_, name) => alloc.text(name),
-        Term::TypeType(_) => alloc.text("Type"),
-        Term::FunctionType(param_type, body_type) => paren(
+        TermData::Name(name) => alloc.text(name),
+        TermData::TypeType => alloc.text("Type"),
+        TermData::FunctionType(param_type, body_type) => paren(
             alloc,
             prec > Prec::App,
             (alloc.nil())
@@ -198,7 +200,7 @@ where
                 .append(alloc.space())
                 .append(from_term_prec(alloc, body_type, Prec::Arrow)),
         ),
-        Term::FunctionElim(head, arguments) => paren(
+        TermData::FunctionElim(head, arguments) => paren(
             alloc,
             prec > Prec::App,
             from_term_prec(alloc, head, Prec::Atomic).append(
@@ -210,8 +212,8 @@ where
                     .nest(4),
             ),
         ),
-        Term::NumberLiteral(_, literal) => alloc.as_string(literal),
-        Term::If(_, head, if_true, if_false) => (alloc.nil())
+        TermData::NumberLiteral(literal) => alloc.as_string(literal),
+        TermData::If(head, if_true, if_false) => (alloc.nil())
             .append("if")
             .append(alloc.space())
             .append(from_term_prec(alloc, head, Prec::Term))
@@ -244,7 +246,7 @@ where
             )
             .append(alloc.space())
             .append("}"),
-        Term::Match(_, head, branches) => (alloc.nil())
+        TermData::Match(head, branches) => (alloc.nil())
             .append("match")
             .append(alloc.space())
             .append(from_term_prec(alloc, head, Prec::Term))
@@ -271,8 +273,9 @@ where
             })))
             .append(alloc.hardline())
             .append("}"),
-        Term::FormatType(_) => alloc.text("Format"),
-        Term::Error(_) => alloc.text("!"),
+        TermData::FormatType => alloc.text("Format"),
+
+        TermData::Error => alloc.text("!"),
     }
 }
 

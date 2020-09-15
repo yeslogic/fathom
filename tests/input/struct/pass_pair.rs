@@ -15,7 +15,7 @@ fn eof_first() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Pair") {
+    match read_context.read_item(&FIXTURE, &"Pair") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -33,7 +33,7 @@ fn eof_second() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Pair") {
+    match read_context.read_item(&FIXTURE, &"Pair") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -52,7 +52,7 @@ fn valid_pair() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Pair").unwrap() {
+    match read_context.read_item(&FIXTURE, &"Pair").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(
                 fields,
@@ -79,7 +79,7 @@ fn valid_pair_trailing() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match binary::read::from_module_item(&mut read_context, &FIXTURE, &"Pair").unwrap() {
+    match read_context.read_item(&FIXTURE, &"Pair").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(
                 fields,

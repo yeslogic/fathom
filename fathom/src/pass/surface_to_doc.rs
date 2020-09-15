@@ -1,20 +1,16 @@
-use codespan_reporting::diagnostic::Diagnostic;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io;
 use std::io::prelude::*;
 
-use crate::lang::surface;
+use crate::lang::surface::{
+    Alias, ItemData, Module, Pattern, PatternData, StructType, Term, TermData,
+};
 use crate::pass::surface_to_pretty::Prec;
 
 #[allow(clippy::write_literal)]
-pub fn from_module(
-    writer: &mut impl Write,
-    module: &surface::Module,
-    report: &mut dyn FnMut(Diagnostic<usize>),
-) -> io::Result<()> {
-    let mut context = ModuleContext {
-        _file_id: module.file_id,
+pub fn from_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
+    let mut context = Context {
         items: HashMap::new(),
     };
 
@@ -57,11 +53,9 @@ pub fn from_module(
     writeln!(writer, r##"      <dl class="items">"##)?;
 
     for item in &module.items {
-        let (name, item) = match item {
-            surface::Item::Alias(alias) => from_alias(&context, writer, alias, report)?,
-            surface::Item::Struct(struct_ty) => {
-                from_struct_ty(&context, writer, struct_ty, report)?
-            }
+        let (name, item) = match &item.data {
+            ItemData::Alias(alias) => context.from_alias(writer, alias)?,
+            ItemData::Struct(struct_type) => context.from_struct_type(writer, struct_type)?,
         };
 
         context.items.insert(name, item);
@@ -79,214 +73,198 @@ pub fn from_module(
     Ok(())
 }
 
-struct ModuleContext {
-    _file_id: usize,
-    items: HashMap<String, Item>,
+struct Context {
+    items: HashMap<String, ItemMeta>,
 }
 
-struct Item {
+struct ItemMeta {
     id: String,
 }
 
-fn from_alias(
-    context: &ModuleContext,
-    writer: &mut impl Write,
-    alias: &surface::Alias,
-    report: &mut dyn FnMut(Diagnostic<usize>),
-) -> io::Result<(String, Item)> {
-    let (_, name) = &alias.name;
-    let id = format!("items[{}]", name);
+impl Context {
+    fn from_alias(&self, writer: &mut impl Write, alias: &Alias) -> io::Result<(String, ItemMeta)> {
+        let id = format!("items[{}]", alias.name.data);
 
-    writeln!(
-        writer,
-        r##"        <dt id="{id}" class="item alias">"##,
-        id = id,
-    )?;
-    match &alias.ty {
-        None => writeln!(
+        writeln!(
             writer,
-            r##"          <a href="#{id}">{name}</a>"##,
+            r##"        <dt id="{id}" class="item alias">"##,
             id = id,
-            name = name,
-        )?,
-        Some(ty) => writeln!(
+        )?;
+        match &alias.type_ {
+            None => writeln!(
+                writer,
+                r##"          <a href="#{id}">{name}</a>"##,
+                id = id,
+                name = alias.name.data,
+            )?,
+            Some(r#type) => writeln!(
+                writer,
+                r##"          <a href="#{id}">{name}</a> : {type_}"##,
+                id = id,
+                name = alias.name.data,
+                type_ = self.from_term_prec(r#type, Prec::Term),
+            )?,
+        }
+        write!(
             writer,
-            r##"          <a href="#{id}">{name}</a> : {ty}"##,
-            id = id,
-            name = name,
-            ty = from_term_prec(context, ty, Prec::Term, report),
-        )?,
-    }
-    write!(
-        writer,
-        r##"        </dt>
+            r##"        </dt>
         <dd class="item alias">
 "##
-    )?;
+        )?;
 
-    if !alias.doc.is_empty() {
-        writeln!(writer, r##"          <section class="doc">"##)?;
-        from_doc_lines(writer, "            ", &alias.doc)?;
-        writeln!(writer, r##"          </section>"##)?;
-    }
+        if !alias.doc.is_empty() {
+            writeln!(writer, r##"          <section class="doc">"##)?;
+            from_doc_lines(writer, "            ", &alias.doc)?;
+            writeln!(writer, r##"          </section>"##)?;
+        }
 
-    let term = from_term_prec(context, &alias.term, Prec::Term, report);
+        let term = self.from_term_prec(&alias.term, Prec::Term);
 
-    write!(
-        writer,
-        r##"          <section class="term">
+        write!(
+            writer,
+            r##"          <section class="term">
             {}
           </section>
         </dd>
 "##,
-        term
-    )?;
+            term
+        )?;
 
-    Ok((name.clone(), Item { id }))
-}
+        Ok((alias.name.data.clone(), ItemMeta { id }))
+    }
 
-fn from_struct_ty(
-    context: &ModuleContext,
-    writer: &mut impl Write,
-    struct_ty: &surface::StructType,
-    report: &mut dyn FnMut(Diagnostic<usize>),
-) -> io::Result<(String, Item)> {
-    let (_, name) = &struct_ty.name;
-    let id = format!("items[{}]", name);
+    fn from_struct_type(
+        &self,
+        writer: &mut impl Write,
+        struct_type: &StructType,
+    ) -> io::Result<(String, ItemMeta)> {
+        let id = format!("items[{}]", struct_type.name.data);
 
-    write!(
-        writer,
-        r##"        <dt id="{id}" class="item struct">
+        write!(
+            writer,
+            r##"        <dt id="{id}" class="item struct">
           struct <a href="#{id}">{name}</a>
         </dt>
         <dd class="item struct">
 "##,
-        id = id,
-        name = name
-    )?;
+            id = id,
+            name = struct_type.name.data,
+        )?;
 
-    if !struct_ty.doc.is_empty() {
-        writeln!(writer, r##"          <section class="doc">"##)?;
-        from_doc_lines(writer, "            ", &struct_ty.doc)?;
-        writeln!(writer, r##"          </section>"##)?;
-    }
+        if !struct_type.doc.is_empty() {
+            writeln!(writer, r##"          <section class="doc">"##)?;
+            from_doc_lines(writer, "            ", &struct_type.doc)?;
+            writeln!(writer, r##"          </section>"##)?;
+        }
 
-    if !struct_ty.fields.is_empty() {
-        writeln!(writer, r##"          <dl class="fields">"##)?;
-        for field in &struct_ty.fields {
-            let (_, field_name) = &field.name;
-            let field_id = format!("{}.fields[{}]", id, field_name);
-            let ty = from_term_prec(context, &field.term, Prec::Term, report);
+        if !struct_type.fields.is_empty() {
+            writeln!(writer, r##"          <dl class="fields">"##)?;
+            for field in &struct_type.fields {
+                let field_id = format!("{}.fields[{}]", id, field.name.data);
+                let r#type = self.from_term_prec(&field.term, Prec::Term);
 
-            write!(
-                writer,
-                r##"            <dt id="{id}" class="field">
-              <a href="#{id}">{name}</a> : {ty}
+                write!(
+                    writer,
+                    r##"            <dt id="{id}" class="field">
+              <a href="#{id}">{name}</a> : {type_}
             </dt>
             <dd class="field">
               <section class="doc">
 "##,
-                id = field_id,
-                name = field_name,
-                ty = ty,
-            )?;
-            from_doc_lines(writer, "                ", &field.doc)?;
-            write!(
-                writer,
-                r##"              </section>
+                    id = field_id,
+                    name = field.name.data,
+                    type_ = r#type,
+                )?;
+                from_doc_lines(writer, "                ", &field.doc)?;
+                write!(
+                    writer,
+                    r##"              </section>
             </dd>
 "##
-            )?;
+                )?;
+            }
+            writeln!(writer, r##"          </dl>"##)?;
         }
-        writeln!(writer, r##"          </dl>"##)?;
+
+        writeln!(writer, r##"        </dd>"##)?;
+
+        Ok((struct_type.name.data.clone(), ItemMeta { id }))
     }
 
-    writeln!(writer, r##"        </dd>"##)?;
+    fn from_term_prec<'term>(&self, term: &'term Term, prec: Prec) -> Cow<'term, str> {
+        use itertools::Itertools;
 
-    Ok((name.clone(), Item { id }))
-}
+        match &term.data {
+            TermData::Name(name) => {
+                let id = match self.items.get(name) {
+                    Some(item) => item.id.as_str(),
+                    None => "",
+                };
 
-fn from_term_prec<'term>(
-    context: &ModuleContext,
-    term: &'term surface::Term,
-    prec: Prec,
-    report: &mut dyn FnMut(Diagnostic<usize>),
-) -> Cow<'term, str> {
-    use itertools::Itertools;
-
-    match term {
-        surface::Term::Name(_, name) => {
-            let id = match context.items.get(name) {
-                Some(item) => item.id.as_str(),
-                None => "",
-            };
-
-            format!(r##"<var><a href="#{}">{}</a></var>"##, id, name).into()
+                format!(r##"<var><a href="#{}">{}</a></var>"##, id, name).into()
+            }
+            TermData::TypeType => "Type".into(),
+            TermData::Ann(term, r#type) => format!(
+                "{lparen}{term} : {type}{rparen}",
+                lparen = if prec > Prec::Term { "(" } else { "" },
+                rparen = if prec > Prec::Term { ")" } else { "" },
+                term = self.from_term_prec(term, Prec::Arrow),
+                type = self.from_term_prec(r#type, Prec::Term),
+            )
+            .into(),
+            TermData::FunctionType(param_type, body_type) => format!(
+                "{lparen}{param_type} &rarr; {body_type}{rparen}",
+                lparen = if prec > Prec::Arrow { "(" } else { "" },
+                rparen = if prec > Prec::Arrow { ")" } else { "" },
+                param_type = self.from_term_prec(param_type, Prec::App),
+                body_type = self.from_term_prec(body_type, Prec::Arrow),
+            )
+            .into(),
+            TermData::FunctionElim(head, arguments) => format!(
+                // TODO: multiline formatting!
+                "{lparen}{head} {arguments}{rparen}",
+                lparen = if prec > Prec::App { "(" } else { "" },
+                rparen = if prec > Prec::App { ")" } else { "" },
+                head = self.from_term_prec(head, Prec::Atomic),
+                arguments = arguments
+                    .iter()
+                    .map(|argument| self.from_term_prec(argument, Prec::Atomic))
+                    .format(" "),
+            )
+            .into(),
+            TermData::NumberLiteral(literal) => format!("{}", literal).into(),
+            TermData::If(head, if_true, if_false) => format!(
+                // TODO: multiline formatting!
+                "if {head} {{ {if_true} }} else {{ {if_false} }}",
+                head = self.from_term_prec(head, Prec::Term),
+                if_true = self.from_term_prec(if_true, Prec::Term),
+                if_false = self.from_term_prec(if_false, Prec::Term),
+            )
+            .into(),
+            TermData::Match(head, branches) => format!(
+                // TODO: multiline formatting!
+                "match {head} {{ {branches} }}",
+                head = self.from_term_prec(head, Prec::Term),
+                branches = branches
+                    .iter()
+                    .map(|(pattern, term)| format!(
+                        "{pattern} &rArr; {term}",
+                        pattern = self.from_pattern(pattern),
+                        term = self.from_term_prec(term, Prec::Term),
+                    ))
+                    .format(", "),
+            )
+            .into(),
+            TermData::FormatType => "Format".into(),
+            TermData::Error => r##"<strong>(invalid data description)</strong>"##.into(),
         }
-        surface::Term::TypeType(_) => "Type".into(),
-        surface::Term::Ann(term, ty) => format!(
-            "{lparen}{term} : {ty}{rparen}",
-            lparen = if prec > Prec::Term { "(" } else { "" },
-            rparen = if prec > Prec::Term { ")" } else { "" },
-            term = from_term_prec(context, term, Prec::Arrow, report),
-            ty = from_term_prec(context, ty, Prec::Term, report),
-        )
-        .into(),
-        surface::Term::FunctionType(param_type, body_type) => format!(
-            "{lparen}{param_type} &rarr; {body_type}{rparen}",
-            lparen = if prec > Prec::Arrow { "(" } else { "" },
-            rparen = if prec > Prec::Arrow { ")" } else { "" },
-            param_type = from_term_prec(context, param_type, Prec::App, report),
-            body_type = from_term_prec(context, body_type, Prec::Arrow, report),
-        )
-        .into(),
-        surface::Term::FunctionElim(head, arguments) => format!(
-            // TODO: multiline formatting!
-            "{lparen}{head} {arguments}{rparen}",
-            lparen = if prec > Prec::App { "(" } else { "" },
-            rparen = if prec > Prec::App { ")" } else { "" },
-            head = from_term_prec(context, head, Prec::Atomic, report),
-            arguments = arguments
-                .iter()
-                .map(|argument| from_term_prec(context, argument, Prec::Atomic, report))
-                .format(" "),
-        )
-        .into(),
-        surface::Term::NumberLiteral(_, literal) => format!("{}", literal).into(),
-        surface::Term::If(_, head, if_true, if_false) => format!(
-            // TODO: multiline formatting!
-            "if {head} {{ {if_true} }} else {{ {if_false} }}",
-            head = from_term_prec(context, head, Prec::Term, report),
-            if_true = from_term_prec(context, if_true, Prec::Term, report),
-            if_false = from_term_prec(context, if_false, Prec::Term, report),
-        )
-        .into(),
-        surface::Term::Match(_, head, branches) => format!(
-            // TODO: multiline formatting!
-            "match {head} {{ {branches} }}",
-            head = from_term_prec(context, head, Prec::Term, report),
-            branches = branches
-                .iter()
-                .map(|(pattern, term)| format!(
-                    "{pattern} &rArr; {term}",
-                    pattern = from_pattern(context, pattern),
-                    term = from_term_prec(context, term, Prec::Term, report),
-                ))
-                .format(", "),
-        )
-        .into(),
-        surface::Term::FormatType(_) => "Format".into(),
-        surface::Term::Error(_) => r##"<strong>(invalid data description)</strong>"##.into(),
     }
-}
 
-fn from_pattern<'term>(
-    _context: &ModuleContext,
-    pattern: &'term surface::Pattern,
-) -> Cow<'term, str> {
-    match pattern {
-        surface::Pattern::Name(_, name) => format!(r##"<a href="#">{}</a>"##, name).into(), // TODO: add local binding
-        surface::Pattern::NumberLiteral(_, literal) => format!("{}", literal).into(),
+    fn from_pattern<'term>(&self, pattern: &'term Pattern) -> Cow<'term, str> {
+        match &pattern.data {
+            PatternData::Name(name) => format!(r##"<a href="#">{}</a>"##, name).into(), // TODO: add local binding
+            PatternData::NumberLiteral(literal) => format!("{}", literal).into(),
+        }
     }
 }
 

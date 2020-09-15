@@ -149,7 +149,7 @@ impl Test {
 
         // The core syntax from the elaborator should always be well-formed!
         let mut validation_diagnostics = Vec::new();
-        fathom::lang::core::typing::wf_module(&GLOBALS, &core_module, &mut |d| {
+        fathom::lang::core::typing::is_module(&GLOBALS, &core_module, &mut |d| {
             validation_diagnostics.push(d)
         });
         if !validation_diagnostics.is_empty() {
@@ -198,7 +198,7 @@ impl Test {
             eprintln!();
         }
 
-        if delaborated_core_module != *core_module {
+        if !is_equal_module(&delaborated_core_module, core_module) {
             let arena = pretty::Arena::new();
 
             let pretty_core_module = {
@@ -289,7 +289,7 @@ impl Test {
             eprintln!();
         }
 
-        if *core_module != parsed_core_module {
+        if !is_equal_module(core_module, &parsed_core_module) {
             self.failed_checks
                 .push("roundtrip_pretty_core: core != parse(pretty(core))");
 
@@ -428,10 +428,7 @@ impl Test {
 
     fn compile_doc(&mut self, surface_module: &fathom::lang::surface::Module) {
         let mut output = Vec::new();
-        surface_to_doc::from_module(&mut output, surface_module, &mut |d| {
-            self.found_diagnostics.push(d)
-        })
-        .unwrap();
+        surface_to_doc::from_module(&mut output, surface_module).unwrap();
 
         if let Err(error) =
             snapshot::compare(&self.snapshot_filename.with_extension("html"), &output)
@@ -569,5 +566,83 @@ fn eprintln_indented(indent: usize, prefix: &str, output: &str) {
             prefix = prefix,
             line = line,
         );
+    }
+}
+
+fn is_equal_module(
+    module0: &fathom::lang::core::Module,
+    module1: &fathom::lang::core::Module,
+) -> bool {
+    module0.doc == module1.doc
+        && module0.items.len() == module0.items.len()
+        && Iterator::zip(module0.items.iter(), module0.items.iter())
+            .all(|(item0, item1)| is_equal_item(item0, item1))
+}
+
+fn is_equal_item(item0: &fathom::lang::core::Item, item1: &fathom::lang::core::Item) -> bool {
+    use fathom::lang::core::ItemData;
+
+    match (&item0.data, &item1.data) {
+        (ItemData::Alias(alias0), ItemData::Alias(alias1)) => {
+            alias0.doc == alias1.doc
+                && alias0.name == alias1.name
+                && is_equal_term(&alias0.term, &alias1.term)
+        }
+        (ItemData::Struct(struct_ty0), ItemData::Struct(struct_ty1)) => {
+            struct_ty0.doc == struct_ty1.doc
+                && struct_ty0.name == struct_ty1.name
+                && struct_ty0.fields.len() == struct_ty1.fields.len()
+                && Iterator::zip(struct_ty0.fields.iter(), struct_ty1.fields.iter()).all(
+                    |(field0, field1)| {
+                        field0.doc == field1.doc
+                            && field0.name == field1.name
+                            && is_equal_term(&field0.term, &field1.term)
+                    },
+                )
+        }
+        (_, _) => false,
+    }
+}
+
+fn is_equal_term(term0: &fathom::lang::core::Term, term1: &fathom::lang::core::Term) -> bool {
+    use fathom::lang::core::TermData;
+
+    match (&term0.data, &term1.data) {
+        (TermData::Global(name0), TermData::Global(name1)) => name0 == name1,
+        (TermData::Item(name0), TermData::Item(name1)) => name0 == name1,
+        (TermData::Ann(term0, type0), TermData::Ann(term1, type1)) => {
+            is_equal_term(term0, term1) && is_equal_term(type0, type1)
+        }
+        (TermData::TypeType, TermData::TypeType) => true,
+        (
+            TermData::FunctionType(param_type0, body_type0),
+            TermData::FunctionType(param_type1, body_type1),
+        ) => is_equal_term(param_type0, param_type1) && is_equal_term(body_type0, body_type1),
+        (TermData::FunctionElim(head0, argument0), TermData::FunctionElim(head1, argument1)) => {
+            is_equal_term(head0, head1) && is_equal_term(argument0, argument1)
+        }
+        (TermData::Constant(constant0), TermData::Constant(constant1)) => constant0 == constant1,
+        (
+            TermData::BoolElim(head0, if_true0, if_false0),
+            TermData::BoolElim(head1, if_true1, if_false1),
+        ) => {
+            is_equal_term(head0, head1)
+                && is_equal_term(if_true0, if_true1)
+                && is_equal_term(if_false0, if_false1)
+        }
+        (
+            TermData::IntElim(head0, branches0, default0),
+            TermData::IntElim(head1, branches1, default1),
+        ) => {
+            is_equal_term(head0, head1)
+                && branches0.len() == branches1.len()
+                && Iterator::zip(branches0.iter(), branches1.iter()).all(
+                    |((int0, body0), (int1, body1))| int0 == int1 && is_equal_term(body0, body1),
+                )
+                && is_equal_term(default0, default1)
+        }
+        (TermData::FormatType, TermData::FormatType) => true,
+        (TermData::Error, TermData::Error) => true,
+        (_, _) => false,
     }
 }
