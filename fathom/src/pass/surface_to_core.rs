@@ -317,14 +317,13 @@ impl<'me> Context<'me> {
             (TermData::If(surface_head, surface_if_true, surface_if_false), _) => {
                 // TODO: Lookup globals in environment
                 let bool_type = Arc::new(Value::global("Bool"));
-                let head = self.check_type(file_id, surface_head, &bool_type);
-                let if_true = self.check_type(file_id, surface_if_true, expected_type);
-                let if_false = self.check_type(file_id, surface_if_false, expected_type);
+                let term_data = core::TermData::BoolElim(
+                    Arc::new(self.check_type(file_id, surface_head, &bool_type)),
+                    Arc::new(self.check_type(file_id, surface_if_true, expected_type)),
+                    Arc::new(self.check_type(file_id, surface_if_false, expected_type)),
+                );
 
-                core::Term::new(
-                    range,
-                    core::TermData::BoolElim(Arc::new(head), Arc::new(if_true), Arc::new(if_false)),
-                )
+                core::Term::new(range, term_data)
             }
             (TermData::Match(surface_head, surface_branches), _) => {
                 let (head, head_type) = self.synth_type(file_id, surface_head);
@@ -444,16 +443,13 @@ impl<'me> Context<'me> {
                         core::Term::new(range, core::TermData::Error),
                         Arc::new(Value::Error),
                     ),
-                    (_, _) => (
-                        core::Term::new(
-                            range,
-                            core::TermData::FunctionType(
-                                Arc::new(core_param_type),
-                                Arc::new(core_body_type),
-                            ),
-                        ),
-                        Arc::new(Value::TypeType),
-                    ),
+                    (_, _) => {
+                        let term_data = core::TermData::FunctionType(
+                            Arc::new(core_param_type),
+                            Arc::new(core_body_type),
+                        );
+                        (core::Term::new(range, term_data), Arc::new(Value::TypeType))
+                    }
                 }
             }
             TermData::FunctionElim(head, arguments) => {
@@ -462,13 +458,11 @@ impl<'me> Context<'me> {
                 for argument in arguments {
                     match head_type.as_ref() {
                         Value::FunctionType(param_type, body_type) => {
-                            core_head = core::Term::new(
-                                range.clone(),
-                                core::TermData::FunctionElim(
-                                    Arc::new(core_head),
-                                    Arc::new(self.check_type(file_id, argument, &param_type)),
-                                ),
+                            let term_data = core::TermData::FunctionElim(
+                                Arc::new(core_head),
+                                Arc::new(self.check_type(file_id, argument, &param_type)),
                             );
+                            core_head = core::Term::new(range.clone(), term_data);
                             head_type = body_type.clone();
                         }
                         Value::Error => {
