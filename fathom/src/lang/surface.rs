@@ -1,12 +1,11 @@
 //! The surface syntax for Fathom.
 
-use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
-use crate::diagnostics;
 use crate::lang::Ranged;
 use crate::lexer::SpannedToken;
 use crate::literal;
+use crate::reporting::{LexerMessage, Message};
 
 #[allow(clippy::style, clippy::complexity, clippy::perf)]
 mod grammar {
@@ -27,13 +26,13 @@ pub struct Module {
 impl Module {
     pub fn parse(
         file_id: usize,
-        tokens: impl IntoIterator<Item = Result<SpannedToken, Diagnostic<usize>>>,
-        report: &mut dyn FnMut(Diagnostic<usize>),
+        tokens: impl IntoIterator<Item = Result<SpannedToken, LexerMessage>>,
+        messages: &mut Vec<Message>,
     ) -> Module {
         grammar::ModuleParser::new()
-            .parse(file_id, report, tokens)
+            .parse(file_id, tokens)
             .unwrap_or_else(|error| {
-                report(diagnostics::error::parse(file_id, error));
+                messages.push(Message::from_lalrpop(file_id, error));
                 Module {
                     file_id,
                     doc: Arc::new([]),

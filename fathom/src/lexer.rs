@@ -1,11 +1,10 @@
-use codespan_reporting::diagnostic::Diagnostic;
 use codespan_reporting::files::SimpleFiles;
 use maplit::hashmap;
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::diagnostics;
 use crate::literal::{self, Sign};
+use crate::reporting::LexerMessage;
 
 type Keywords = HashMap<String, Token>;
 
@@ -178,7 +177,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
     }
 
     /// Emit a token and reset the start position, ready for the next token.
-    fn emit(&mut self, token: Token) -> Option<Result<SpannedToken, Diagnostic<usize>>> {
+    fn emit(&mut self, token: Token) -> Option<Result<SpannedToken, LexerMessage>> {
         let start = self.token_start;
         let end = self.token_end;
         self.token_start = self.token_end;
@@ -205,22 +204,25 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
         &self,
         start: usize,
         found: char,
-        expected: &[&str],
-    ) -> Option<Result<T, Diagnostic<usize>>> {
-        Some(Err(diagnostics::error::unexpected_char(
-            self.file_id,
+        expected: &'static [&'static str],
+    ) -> Option<Result<T, LexerMessage>> {
+        Some(Err(LexerMessage::UnexpectedChar {
+            file_id: self.file_id,
             start,
             found,
             expected,
-        )))
+        }))
     }
 
-    fn unexpected_eof<T>(&self, expected: &[&str]) -> Option<Result<T, Diagnostic<usize>>> {
-        Some(Err(diagnostics::error::unexpected_eof(
-            self.file_id,
-            self.token_end,
+    fn unexpected_eof<T>(
+        &self,
+        expected: &'static [&'static str],
+    ) -> Option<Result<T, LexerMessage>> {
+        Some(Err(LexerMessage::UnexpectedEof {
+            file_id: self.file_id,
+            eof: self.token_end,
             expected,
-        )))
+        }))
     }
 
     fn consume_number(
@@ -228,7 +230,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
         start: usize,
         sign: Option<Sign>,
         first_digit: char,
-    ) -> Option<Result<SpannedToken, Diagnostic<usize>>> {
+    ) -> Option<Result<SpannedToken, LexerMessage>> {
         let mut number = String::new();
         number.push(first_digit);
 
@@ -246,10 +248,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
         self.emit(Token::NumberLiteral(literal))
     }
 
-    fn consume_identifier(
-        &mut self,
-        start_ch: char,
-    ) -> Option<Result<SpannedToken, Diagnostic<usize>>> {
+    fn consume_identifier(&mut self, start_ch: char) -> Option<Result<SpannedToken, LexerMessage>> {
         let mut ident = String::new();
         ident.push(start_ch);
 
@@ -270,9 +269,9 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
 }
 
 impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
-    type Item = Result<SpannedToken, Diagnostic<usize>>;
+    type Item = Result<SpannedToken, LexerMessage>;
 
-    fn next(&mut self) -> Option<Result<SpannedToken, Diagnostic<usize>>> {
+    fn next(&mut self) -> Option<Result<SpannedToken, LexerMessage>> {
         'top: loop {
             let start = self.token_end;
             return match self.advance()? {

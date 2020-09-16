@@ -1,16 +1,16 @@
-use codespan_reporting::diagnostic::Diagnostic;
 use std::sync::Arc;
 
 use crate::lang::Ranged;
 use crate::lang::surface::{Alias, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField};
 use crate::lexer::Token;
 use crate::literal;
+use crate::reporting::LexerMessage;
 
-grammar(file_id: usize, report: &mut dyn FnMut(Diagnostic<usize>));
+grammar(file_id: usize);
 
 extern {
     type Location = usize;
-    type Error = Diagnostic<usize>;
+    type Error = LexerMessage;
 
     enum Token {
         "doc comment" => Token::DocComment(<String>),

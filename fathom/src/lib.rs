@@ -3,7 +3,7 @@
 pub mod lang;
 pub mod pass;
 
-pub mod diagnostics;
 mod ieee754;
 pub mod lexer;
 pub mod literal;
+pub mod reporting;
