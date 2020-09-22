@@ -47,7 +47,7 @@ struct Point3 {
 }
 ```
 
-Structures are composite types that are have a name and a list of fields. The
+Structures are composite types that have a name and a list of fields. The
 fields within a structure must have unique names.
 
 > <sub>Grammar:</sub>

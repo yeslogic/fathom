@@ -68,11 +68,11 @@ no matter your experience with type theory and programming language research.
 
 Optionally you might be interested in some of the academic research we base our work on.
 These can be found in the [background reading][background].
-Our approach is very inspired those described in
-“The next 700 hundred data description languages” and “The power of pi”,
+Our approach is very inspired by those described in
+“The next 700 data description languages” and “The power of pi”,
 so you might want to start with those first!
 
-If are new to reading programming language papers,
+If you are new to reading programming language papers,
 Jeremy Siek's [Crash Course on Notation in Programming Language Theory][crash-couse] can be a big help.
 Also feel free to reach out to us on [Matrix](#matrix-room) for assistance!
 
