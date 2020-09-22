@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use crate::lang::Ranged;
 use crate::lexer::SpannedToken;
-use crate::literal;
 use crate::reporting::{LexerMessage, Message};
 
 #[allow(clippy::style, clippy::complexity, clippy::perf)]
@@ -104,7 +103,7 @@ pub enum PatternData {
     /// Named patterns.
     Name(String),
     /// Numeric literals.
-    NumberLiteral(literal::Number),
+    NumberLiteral(String),
 }
 
 /// Terms in the surface language.
@@ -124,7 +123,7 @@ pub enum TermData {
     /// Function eliminations (function application).
     FunctionElim(Box<Term>, Vec<Term>),
     /// Numeric literals.
-    NumberLiteral(literal::Number),
+    NumberLiteral(String),
     /// If-else expressions.
     If(Box<Term>, Box<Term>, Box<Term>),
     /// Match expressions.

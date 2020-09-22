@@ -16,9 +16,9 @@ extern {
         "doc comment" => Token::DocComment(<String>),
         "inner doc comment" => Token::InnerDocComment(<String>),
         "identifier" => Token::Identifier(<String>),
-        "numeric literal" => Token::NumberLiteral(<literal::Number>),
-        "string literal" => Token::StringLiteral(<literal::String>),
-        "character literal" => Token::CharLiteral(<literal::Char>),
+        "numeric literal" => Token::NumberLiteral(<String>),
+        "string literal" => Token::StringLiteral(<String>),
+        "character literal" => Token::CharLiteral(<String>),
 
         "bool_elim" => Token::BoolElim,
         "else" => Token::Else,
@@ -118,30 +118,32 @@ AtomicTermData: TermData = {
     "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" => {
         TermData::BoolElim(Arc::new(head), Arc::new(if_true), Arc::new(if_false))
     },
-    "int_elim" <head: Term> "{" <branches: (<"numeric literal"> "=>" <Term> ",")*> <default: Term> "}" => {
+    "int_elim" <head: Term> "{"
+        <branches: (<@L> <"numeric literal"> <@R> "=>" <Term> ",")*> <default: Term>
+    "}" => {
         let branches = branches
             .into_iter()
-            .filter_map(|(literal, term)| Some((
-                literal.parse_big_int(file_id, messages)?,
+            .filter_map(|(start, literal, end, term)| Some((
+                literal::State::new(file_id, start..end, literal.as_str(), messages).number_to_big_int()?,
                 Arc::new(term),
             ))).collect();
 
         TermData::IntElim(Arc::new(head), branches, Arc::new(default))
     },
-    "int" <literal: "numeric literal"> => {
-        match literal.parse_big_int(file_id, messages) {
+    "int" <start: @L> <literal: "numeric literal"> <end: @R> => {
+        match literal::State::new(file_id, start..end, literal.as_str(), messages).number_to_big_int() {
             Some(value) => TermData::Constant(Constant::Int(value)),
             None => TermData::Error,
         }
     },
-    "f32" <literal: "numeric literal"> => {
-        match literal.parse_float(file_id, messages) {
+    "f32" <start: @L> <literal: "numeric literal"> <end: @R> => {
+        match literal::State::new(file_id, start..end, literal.as_str(), messages).number_to_float() {
             Some(value) => TermData::Constant(Constant::F32(value)),
             None => TermData::Error,
         }
     },
-    "f64" <literal: "numeric literal"> => {
-        match literal.parse_float(file_id, messages) {
+    "f64" <start: @L> <literal: "numeric literal"> <end: @R> => {
+        match literal::State::new(file_id, start..end, literal.as_str(), messages).number_to_float() {
             Some(value) => TermData::Constant(Constant::F64(value)),
             None => TermData::Error,
         }

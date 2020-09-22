@@ -6,7 +6,6 @@
 
 use crate::lang::core::{Constant, Item, ItemData, Module, Term, TermData};
 use crate::lang::{surface, Ranged};
-use crate::literal;
 
 // TODO: name/keyword avoidance!
 
@@ -68,15 +67,9 @@ pub fn from_term(term: &Term) -> surface::Term {
             vec![from_term(argument)], // TODO: flatten arguments
         ),
         TermData::Constant(constant) => match constant {
-            Constant::Int(value) => {
-                surface::TermData::NumberLiteral(literal::Number::from_signed(term.range(), value))
-            }
-            Constant::F32(value) => {
-                surface::TermData::NumberLiteral(literal::Number::from_signed(term.range(), value))
-            }
-            Constant::F64(value) => {
-                surface::TermData::NumberLiteral(literal::Number::from_signed(term.range(), value))
-            }
+            Constant::Int(value) => surface::TermData::NumberLiteral(value.to_string()),
+            Constant::F32(value) => surface::TermData::NumberLiteral(value.to_string()),
+            Constant::F64(value) => surface::TermData::NumberLiteral(value.to_string()),
         },
         TermData::BoolElim(head, if_true, if_false) => surface::TermData::If(
             Box::new(from_term(head)),
@@ -88,8 +81,7 @@ pub fn from_term(term: &Term) -> surface::Term {
             branches
                 .iter()
                 .map(|(value, term)| {
-                    let value = literal::Number::from_signed(0..0, value);
-                    let pattern_data = surface::PatternData::NumberLiteral(value);
+                    let pattern_data = surface::PatternData::NumberLiteral(value.to_string());
                     (surface::Pattern::from(pattern_data), from_term(term))
                 })
                 .chain(std::iter::once((

@@ -11,6 +11,7 @@ use pretty::DocAllocator;
 use std::ops::Range;
 
 use crate::lang::{core, surface};
+use crate::literal;
 
 /// Global diagnostic messages
 #[derive(Debug, Clone)]
@@ -21,6 +22,7 @@ pub enum Message {
         feature_name: &'static str,
     },
     Lexer(LexerMessage),
+    LiteralParse(LiteralParseMessage),
     Parse(ParseMessage),
     CoreTyping(CoreTypingMessage),
     SurfaceToCore(SurfaceToCoreMessage),
@@ -35,6 +37,12 @@ impl From<LexerMessage> for Message {
 impl From<ParseMessage> for Message {
     fn from(error: ParseMessage) -> Self {
         Message::Parse(error)
+    }
+}
+
+impl From<LiteralParseMessage> for Message {
+    fn from(message: LiteralParseMessage) -> Self {
+        Message::LiteralParse(message)
     }
 }
 
@@ -103,8 +111,9 @@ impl Message {
                 .with_message(format!("not yet implemented: {}", feature_name))
                 .with_labels(vec![Label::primary(*file_id, range.clone())
                     .with_message("relies on an unimplemented language feature")]),
-            Message::Lexer(error) => error.to_diagnostic(),
-            Message::Parse(error) => error.to_diagnostic(),
+            Message::Lexer(message) => message.to_diagnostic(),
+            Message::Parse(message) => message.to_diagnostic(),
+            Message::LiteralParse(message) => message.to_diagnostic(),
             Message::CoreTyping(message) => message.to_diagnostic(pretty_alloc),
             Message::SurfaceToCore(message) => message.to_diagnostic(pretty_alloc),
         }
@@ -235,6 +244,80 @@ fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
         (last, []) => format!("expected {}", last),
         (last, expected) => format!("expected {} or {}", expected.iter().format(", "), last),
     })
+}
+
+#[derive(Clone, Debug)]
+pub enum LiteralParseMessage {
+    ExpectedRadixOrDecimalDigit(usize, Range<usize>),
+    ExpectedStartOfNumericLiteral(usize, Range<usize>),
+    ExpectedDigit(usize, Range<usize>, literal::Base),
+    ExpectedDigitOrSeparator(usize, Range<usize>, literal::Base),
+    ExpectedDigitSeparatorOrExp(usize, Range<usize>, literal::Base),
+    ExpectedDigitSeparatorFracOrExp(usize, Range<usize>, literal::Base),
+    FloatLiteralExponentNotSupported(usize, Range<usize>),
+    UnsupportedFloatLiteralBase(usize, Range<usize>, literal::Base),
+    UnexpectedEndOfLiteral(usize, Range<usize>),
+}
+
+impl LiteralParseMessage {
+    pub fn to_diagnostic(&self) -> Diagnostic<usize> {
+        match self {
+            LiteralParseMessage::ExpectedRadixOrDecimalDigit(file_id, range) => Diagnostic::error()
+                .with_message("expected a radix or decimal digit")
+                .with_labels(vec![Label::primary(*file_id, range.clone())]),
+            LiteralParseMessage::ExpectedStartOfNumericLiteral(file_id, range) => {
+                Diagnostic::error()
+                    .with_message("expected the start of a numeric literal")
+                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+            }
+            LiteralParseMessage::ExpectedDigit(file_id, range, base) => Diagnostic::error()
+                .with_message(format!("expected a base {} digit", base.to_u8()))
+                .with_labels(vec![Label::primary(*file_id, range.clone())]),
+            LiteralParseMessage::ExpectedDigitOrSeparator(file_id, range, base) => {
+                Diagnostic::error()
+                    .with_message(format!(
+                        "expected a base {} digit or digit separator",
+                        base.to_u8(),
+                    ))
+                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+            }
+            LiteralParseMessage::ExpectedDigitSeparatorOrExp(file_id, range, base) => {
+                Diagnostic::error()
+                    .with_message(format!(
+                        "expected a base {} digit, digit separator, or exponent",
+                        base.to_u8(),
+                    ))
+                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+            }
+            LiteralParseMessage::ExpectedDigitSeparatorFracOrExp(file_id, range, base) => {
+                Diagnostic::error()
+                    .with_message(format!(
+                        "expected a base {} digit, digit separator, period, or exponent",
+                        base.to_u8(),
+                    ))
+                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+            }
+            LiteralParseMessage::FloatLiteralExponentNotSupported(file_id, range) => {
+                Diagnostic::error()
+                    .with_message("exponents are not yet supported for float literals")
+                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+            }
+            LiteralParseMessage::UnsupportedFloatLiteralBase(file_id, range, base) => {
+                Diagnostic::error()
+                    .with_message(format!(
+                        "base {} float literals are not yet supported",
+                        base.to_u8(),
+                    ))
+                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+                    .with_notes(vec![
+                        "only base 10 float literals are currently supported".to_owned()
+                    ])
+            }
+            LiteralParseMessage::UnexpectedEndOfLiteral(file_id, range) => Diagnostic::error()
+                .with_message("unexpected end of literal")
+                .with_labels(vec![Label::primary(*file_id, range.clone())]),
+        }
+    }
 }
 
 /// Messages produced from [`lang::core::typing`]

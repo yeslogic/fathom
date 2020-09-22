@@ -62,7 +62,7 @@ test_f32_09u = f32 9 : global F32;
 
 test_f32_pos_0 = f32 0 : global F32;
 
-test_f32_neg_0 = f32 -0 : global F32;
+test_f32_neg_0 = f32 0 : global F32;
 
 test_f32_pos_1 = f32 1 : global F32;
 
@@ -76,7 +76,7 @@ test_f32_0_p_0 = f32 0 : global F32;
 
 test_f32_pos_0_p_0 = f32 0 : global F32;
 
-test_f32_neg_0_p_0 = f32 -0 : global F32;
+test_f32_neg_0_p_0 = f32 0 : global F32;
 
 test_f32_1_p_1 = f32 1.1 : global F32;
 
@@ -110,7 +110,7 @@ test_f64_09u = f64 9 : global F64;
 
 test_f64_pos_0 = f64 0 : global F64;
 
-test_f64_neg_0 = f64 -0 : global F64;
+test_f64_neg_0 = f64 0 : global F64;
 
 test_f64_pos_1 = f64 1 : global F64;
 
@@ -124,7 +124,7 @@ test_f64_0_p_0 = f64 0 : global F64;
 
 test_f64_pos_0_p_0 = f64 0 : global F64;
 
-test_f64_neg_0_p_0 = f64 -0 : global F64;
+test_f64_neg_0_p_0 = f64 0 : global F64;
 
 test_f64_1_p_1 = f64 1.1 : global F64;
 

@@ -1,33 +1,26 @@
-//! [Literals][literal-wikipedia] in the surface language.
+//! Decoding of [literals] in the surface language into Rust datatypes.
 //!
-//! These will be translated into constants in the core language during
-//! elaboration, once we know the type of the data we are translating to.
-//!
-//! [literal-wikipedia]: https://en.wikipedia.org/wiki/Literal_%28computer_programming%29
+//! [literals]: https://en.wikipedia.org/wiki/Literal_%28computer_programming%29
 
+use logos::Logos;
 use num_bigint::BigInt;
-use num_traits::{Float, Signed};
-use std::fmt;
+use num_traits::Float;
 use std::ops::Range;
 
-use crate::reporting::{LexerMessage, Message};
+use crate::reporting::LiteralParseMessage::*;
+use crate::reporting::Message;
 
-#[derive(Debug, Copy, Clone)]
+/// The sign of a numeric literal.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Sign {
     Positive,
     Negative,
 }
 
-impl fmt::Display for Sign {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Sign::Positive => write!(f, "+"),
-            Sign::Negative => write!(f, "-"),
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
+/// The [base] of a numeric digit.
+///
+/// [base]: https://en.wikipedia.org/wiki/Radix
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Base {
     Binary,
     Octal,
@@ -46,386 +39,317 @@ impl Base {
     }
 }
 
-impl Default for Base {
-    fn default() -> Base {
-        Base::Decimal
-    }
-}
-
-impl fmt::Display for Base {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Base::Binary => write!(f, "0b"),
-            Base::Octal => write!(f, "0o"),
-            Base::Decimal => Ok(()),
-            Base::Hexadecimal => write!(f, "0x"),
-        }
-    }
-}
-
-/// An action to take after advancing a state machine
-enum Action<State, Output> {
-    Yield(State),
-    Return(Output),
-}
-
-/// The state of an integer literal lexer.
-enum IntegerLexerState {
-    Top,
-    ZeroOrBase,
-    IntegerPart(Base, BigInt, u16),
-}
-
-impl IntegerLexerState {
-    fn on_char(
-        self,
-        file_id: usize,
-        ch: Option<(usize, char)>,
-        messages: &mut Vec<Message>,
-    ) -> Action<IntegerLexerState, Option<BigInt>> {
-        use self::Action::{Return, Yield};
-        use self::Base::*;
-        use self::IntegerLexerState::*;
-
-        match (self, ch) {
-            (Top, Some((start, ch))) => match ch {
-                '0' => Yield(ZeroOrBase),
-                '1'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - b'0').into(), 0)),
-                _ => {
-                    // TODO: bug?
-                    messages.push(Message::from(LexerMessage::UnexpectedChar {
-                        file_id,
-                        start,
-                        found: ch,
-                        expected: &["decimal digit"],
-                    }));
-                    Return(None)
-                }
-            },
-            (Top, None) => unimplemented!("bug: no characters in literal"),
-
-            (ZeroOrBase, Some((start, ch))) => match ch {
-                'b' => Yield(IntegerPart(Binary, 0.into(), 0)),
-                'o' => Yield(IntegerPart(Octal, 0.into(), 0)),
-                'x' => Yield(IntegerPart(Hexadecimal, 0.into(), 0)),
-                '_' => Yield(IntegerPart(Decimal, 0.into(), 0)),
-                '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - b'0').into(), 2)),
-                _ => {
-                    messages.push(Message::from(LexerMessage::UnexpectedChar {
-                        file_id,
-                        start,
-                        found: ch,
-                        expected: &["digit", "base character"],
-                    }));
-                    Return(None)
-                }
-            },
-            (ZeroOrBase, None) => Return(Some(0.into())),
-
-            (IntegerPart(base, mut value, digits), Some((start, ch))) => {
-                let digit = match (base, ch) {
-                    (base, '_') => return Yield(IntegerPart(base, value, digits)),
-                    (Binary, '0'..='1') => ch as u8 - b'0',
-                    (Octal, '0'..='7') => ch as u8 - b'0',
-                    (Decimal, '0'..='9') => ch as u8 - b'0',
-                    (Hexadecimal, '0'..='9') => ch as u8 - b'0',
-                    (Hexadecimal, 'a'..='f') => ch as u8 - b'a' + 10,
-                    (Hexadecimal, 'A'..='F') => ch as u8 - b'A' + 10,
-                    (_, _) => {
-                        messages.push(Message::from(LexerMessage::UnexpectedChar {
-                            file_id,
-                            start,
-                            found: ch,
-                            expected: &["digit", "digit separator", "point", "exponent"],
-                        }));
-                        return Return(None);
-                    }
-                };
-
-                value *= base.to_u8();
-                value += digit;
-                Yield(IntegerPart(base, value, digits + 1))
-            }
-            (IntegerPart(_, value, _), None) => Return(Some(value)), // TODO: Check num digits
-        }
-    }
-}
-
-/// The state of an floating point literal lexer.
-enum FloatLexerState<T> {
-    Top,
-    ZeroOrBase,
-    IntegerPart(Base, T, u16),
-    FractionalPart(Base, T, T, u16),
-    Exponent(T, u16, u16),
-}
-
-impl<T> FloatLexerState<T>
+/// Convert the first byte of the source string to a digit.
+fn ascii_digit<'source, Token>(lexer: &mut logos::Lexer<'source, Token>) -> Option<u8>
 where
-    T: Float + From<u8> + std::ops::MulAssign + std::ops::AddAssign + std::ops::SubAssign,
+    Token: Logos<'source, Source = [u8]>,
 {
-    fn on_char(
-        self,
+    match lexer.slice().first()? {
+        byte @ b'0'..=b'9' => Some(byte - b'0'),
+        byte @ b'a'..=b'z' => Some(byte - b'a' + 10),
+        byte @ b'A'..=b'Z' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+/// Numeric literal tokens.
+#[derive(Debug, Clone, Logos)]
+enum NumericLiteral {
+    #[token(b"+", |_| Sign::Positive)]
+    #[token(b"-", |_| Sign::Negative)]
+    Sign(Sign),
+    #[token(b"0b", |_| Base::Binary)]
+    #[token(b"0o", |_| Base::Octal)]
+    #[token(b"0x", |_| Base::Hexadecimal)]
+    Base(Base),
+    #[regex(b"[0-9]", ascii_digit)]
+    Digit(u8),
+
+    #[error]
+    Error,
+}
+
+/// Digits up to base 32.
+#[derive(Debug, Clone, Logos)]
+enum Digit36 {
+    #[regex(b"[0-9a-zA-Z]", ascii_digit)]
+    Digit(u8),
+    #[regex(b"_+")]
+    Separator,
+
+    #[error]
+    Error,
+}
+
+/// Digits up to base 10.
+#[derive(Debug, Clone, Logos)]
+enum Digit10 {
+    #[regex(b"[0-9]", ascii_digit)]
+    Digit(u8),
+    #[regex(b"_+")]
+    Separator,
+    #[token(b".")]
+    StartFractional,
+    #[token(b"e")]
+    #[token(b"E")]
+    StartExponent,
+
+    #[error]
+    Error,
+}
+
+/// Literal parser state.
+pub struct State<'source, 'messages> {
+    file_id: usize,
+    range: Range<usize>,
+    source: &'source str,
+    messages: &'messages mut Vec<Message>,
+}
+
+impl<'source, 'messages> State<'source, 'messages> {
+    pub fn new(
         file_id: usize,
-        ch: Option<(usize, char)>,
-        messages: &mut Vec<Message>,
-    ) -> Action<FloatLexerState<T>, Option<T>> {
-        use self::Action::{Return, Yield};
-        use self::Base::*;
-        use self::FloatLexerState::*;
-
-        match (self, ch) {
-            (Top, Some((start, ch))) => match ch {
-                '0' => Yield(ZeroOrBase),
-                '1'..='9' => Yield(IntegerPart(Base::Decimal, (ch as u8 - b'0').into(), 1)),
-                _ => {
-                    // TODO: bug?
-                    messages.push(Message::from(LexerMessage::UnexpectedChar {
-                        file_id,
-                        start,
-                        found: ch,
-                        expected: &["decimal digit"],
-                    }));
-                    Return(None)
-                }
-            },
-            (Top, None) => unimplemented!("bug: no characters in literal"),
-
-            (ZeroOrBase, Some((start, ch))) => match ch {
-                'b' => Yield(IntegerPart(Binary, 0.into(), 0)),
-                'o' => Yield(IntegerPart(Octal, 0.into(), 0)),
-                'x' => Yield(IntegerPart(Hexadecimal, 0.into(), 0)),
-                '_' => Yield(IntegerPart(Decimal, 0.into(), 0)),
-                '0'..='9' => Yield(IntegerPart(Decimal, (ch as u8 - b'0').into(), 2)),
-                '.' => Yield(FractionalPart(Decimal, 0.into(), 0.into(), 0)),
-                ch if ['e', 'E'].contains(&ch) => Yield(Exponent(0.into(), 0, 0)),
-                ch if ['p', 'P'].contains(&ch) => Yield(Exponent(0.into(), 0, 0)),
-                _ => {
-                    messages.push(Message::from(LexerMessage::UnexpectedChar {
-                        file_id,
-                        start,
-                        found: ch,
-                        expected: &["digit", "base character"],
-                    }));
-                    Return(None)
-                }
-            },
-            (ZeroOrBase, None) => Return(Some(0.into())),
-
-            (IntegerPart(base, mut value, digits), Some((start, ch))) => {
-                let digit = match (base, ch) {
-                    (base, '_') => return Yield(IntegerPart(base, value, digits)),
-                    (Binary, '0'..='1') => ch as u8 - b'0',
-                    (Octal, '0'..='7') => ch as u8 - b'0',
-                    (Decimal, '0'..='9') => ch as u8 - b'0',
-                    (Hexadecimal, '0'..='9') => ch as u8 - b'0',
-                    (Hexadecimal, 'a'..='f') => ch as u8 - b'a' + 10,
-                    (Hexadecimal, 'A'..='F') => ch as u8 - b'A' + 10,
-                    (base, '.') => return Yield(FractionalPart(base, value, 0.into(), 0)), // TODO: Check num digits
-                    (Decimal, ch) if ['e', 'E'].contains(&ch) => {
-                        // TODO: Check num digits
-                        return Yield(Exponent(value, 0, 0));
-                    }
-                    (Binary, ch) | (Octal, ch) | (Hexadecimal, ch) if ['p', 'P'].contains(&ch) => {
-                        // TODO: Check num digits
-                        return Yield(Exponent(value, 0, 0));
-                    }
-                    (_, _) => {
-                        messages.push(Message::from(LexerMessage::UnexpectedChar {
-                            file_id,
-                            start,
-                            found: ch,
-                            expected: &["digit", "digit separator", "point", "exponent"],
-                        }));
-                        return Return(None);
-                    }
-                };
-
-                value *= base.to_u8().into();
-                value += digit.into();
-                Yield(IntegerPart(base, value, digits + 1))
-            }
-            (IntegerPart(_, value, _), None) => Return(Some(value)), // TODO: Check num digits
-
-            (FractionalPart(base, value, mut frac, digits), Some((start, ch))) => {
-                let digit = match (base, ch) {
-                    (base, '_') => return Yield(FractionalPart(base, value, frac, digits)),
-                    (Binary, '0'..='1') => ch as u8 - b'0',
-                    (Octal, '0'..='7') => ch as u8 - b'0',
-                    (Decimal, '0'..='9') => ch as u8 - b'0',
-                    (Hexadecimal, '0'..='9') => ch as u8 - b'0',
-                    (Hexadecimal, 'a'..='f') => ch as u8 - b'a' + 10,
-                    (Hexadecimal, 'A'..='F') => ch as u8 - b'A' + 10,
-                    (Decimal, ch) if ['e', 'E'].contains(&ch) => {
-                        // TODO: Check num digits
-                        let frac = frac / T::powi(base.to_u8().into(), digits.into());
-                        return Yield(Exponent(value + frac, 0, 0));
-                    }
-                    (Binary, ch) | (Octal, ch) | (Hexadecimal, ch) if ['p', 'P'].contains(&ch) => {
-                        // TODO: Check num digits
-                        let frac = frac / T::powi(base.to_u8().into(), digits.into());
-                        return Yield(Exponent(value + frac, 0, 0));
-                    }
-                    (_, _) => {
-                        messages.push(Message::from(LexerMessage::UnexpectedChar {
-                            file_id,
-                            start,
-                            found: ch,
-                            expected: &["digit", "digit separator", "exponent"],
-                        }));
-                        return Return(None);
-                    }
-                };
-
-                frac *= base.to_u8().into();
-                frac += digit.into();
-                Yield(FractionalPart(base, value, frac, digits + 1))
-            }
-            (FractionalPart(base, value, frac, digits), None) => {
-                // TODO: Check num digits
-                let frac = frac / T::powi(base.to_u8().into(), digits.into());
-                Return(Some(value + frac))
-            }
-            (Exponent(value, exp, digits), Some((start, ch))) => match ch {
-                // TODO: + or -
-                '_' => Yield(Exponent(value, exp, digits)),
-                '0'..='9' => {
-                    let exp = exp + (ch as u8 - b'0') as u16;
-                    Yield(Exponent(value, exp, digits + 1))
-                }
-                _ => {
-                    messages.push(Message::from(LexerMessage::UnexpectedChar {
-                        file_id,
-                        start,
-                        found: ch,
-                        expected: &["decimal digit"],
-                    }));
-                    Return(None)
-                }
-            },
-            (Exponent(value, exp, _), None) => Return(Some(value * T::powi(10.into(), exp as i32))), // TODO: Check num digits
+        range: Range<usize>,
+        source: &'source str,
+        messages: &'messages mut Vec<Message>,
+    ) -> State<'source, 'messages> {
+        State {
+            file_id,
+            range,
+            source,
+            messages,
         }
     }
-}
 
-/// Numeric literals.
-#[derive(Debug, Clone)]
-pub struct Number {
-    pub sign: Option<Sign>,
-    pub number: (Range<usize>, std::string::String),
-}
-
-impl Number {
-    pub fn new(sign: Option<Sign>, number: (Range<usize>, std::string::String)) -> Number {
-        Number { sign, number }
+    /// Report a diagnostic message.
+    fn report<T>(&mut self, error: impl Into<Message>) -> Option<T> {
+        self.messages.push(error.into());
+        None
     }
 
-    pub fn from_signed(range: Range<usize>, value: &(impl Signed + fmt::Display)) -> Number {
-        let sign = if value.is_negative() {
-            Some(Sign::Negative)
-        } else {
-            None
+    /// The range of the entire literal.
+    fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+
+    /// Get the file-relative range of the current token.
+    fn token_range<Token>(&self, lexer: &logos::Lexer<'source, Token>) -> Range<usize>
+    where
+        Token: Logos<'source>,
+    {
+        let span = lexer.span();
+        (self.range.start + span.start)..(self.range.start + span.end)
+    }
+
+    /// Expect another token to be present in the lexer, reporting an error if not.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(_)`: If another token was found in the source stream
+    /// - `None`: If we reached the end of the source stream and we need to terminate parsing
+    fn expect_token<Token: Logos<'source>>(
+        &mut self,
+        lexer: &mut logos::Lexer<'source, Token>,
+    ) -> Option<Token> {
+        match lexer.next() {
+            Some(token) => Some(token),
+            None => {
+                let range = self.token_range(&lexer);
+                self.report(UnexpectedEndOfLiteral(self.file_id, range))
+            }
+        }
+    }
+
+    /// Parse a numeric literal into a big integer.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(_)`: If the literal was parsed correctly.
+    /// - `None`: If a fatal error when parsing the literal.
+    pub fn number_to_big_int(mut self) -> Option<BigInt> {
+        let mut lexer = NumericLiteral::lexer(self.source.as_bytes());
+        let file_id = self.file_id;
+
+        let (sign, base, start_digit) = self.expect_numeric_literal_start(&mut lexer)?;
+
+        let add_digit = |sign, base: Base, integer: &mut BigInt, digit: u8| {
+            *integer *= base.to_u8();
+            match sign {
+                Sign::Positive => *integer += digit,
+                Sign::Negative => *integer -= digit,
+            }
         };
 
-        Number::new(sign, (range, value.abs().to_string()))
-    }
+        let mut lexer = lexer.morph();
+        let mut integer = BigInt::from(0);
+        let mut num_digits = 0;
 
-    pub fn sign(&self) -> Sign {
-        self.sign.unwrap_or(Sign::Positive)
-    }
+        if let Some(digit) = start_digit {
+            add_digit(sign, base, &mut integer, digit);
+            num_digits += 1;
+        }
 
-    fn chars<'a>(&'a self) -> impl Iterator<Item = (usize, char)> + 'a {
-        (self.number.1.chars()).scan(self.number.0.start, |current, ch| {
-            let start = *current;
-            *current += ch.len_utf8();
-            Some((start, ch))
-        })
-    }
-
-    pub fn parse_big_int(&self, file_id: usize, messages: &mut Vec<Message>) -> Option<BigInt> {
-        let mut chars = self.chars();
-        let mut state = IntegerLexerState::Top;
-
-        loop {
-            state = match state.on_char(file_id, chars.next(), messages) {
-                Action::Yield(next) => next,
-                Action::Return(value) => match self.sign() {
-                    Sign::Positive => return value,
-                    Sign::Negative => return value.map(|v| -v),
+        while let Some(token) = lexer.next() {
+            let range = self.token_range(&lexer);
+            match token {
+                Digit36::Digit(digit) if digit < base.to_u8() => {
+                    add_digit(sign, base, &mut integer, digit);
+                    num_digits += 1;
+                }
+                Digit36::Separator => match num_digits {
+                    0 => return self.report(ExpectedDigit(file_id, range, base)),
+                    _ => {}
+                },
+                Digit36::Digit(_) | Digit36::Error => match num_digits {
+                    0 => return self.report(ExpectedDigit(file_id, range, base)),
+                    _ => return self.report(ExpectedDigitOrSeparator(file_id, range, base)),
                 },
             }
         }
+
+        if num_digits == 0 {
+            return self.report(UnexpectedEndOfLiteral(file_id, self.token_range(&lexer)));
+        }
+
+        Some(integer)
     }
 
-    pub fn parse_float<T>(&self, file_id: usize, messages: &mut Vec<Message>) -> Option<T>
-    where
-        T: Float + From<u8> + std::ops::MulAssign + std::ops::AddAssign + std::ops::SubAssign,
-    {
-        let mut chars = self.chars();
-        let mut state = FloatLexerState::Top;
+    /// Parse a numeric literal into a float.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(_)`: If the literal was parsed correctly.
+    /// - `None`: If a fatal error when parsing the literal.
+    pub fn number_to_float<T: Float + From<u8>>(mut self) -> Option<T> {
+        // NOTE: This could probably be improved a great deal.
+        // It might be worth looking at `lexical-core` crate as an alternative
+        // to implementing our own parser: https://github.com/Alexhuszagh/rust-lexical/
 
-        loop {
-            state = match state.on_char(file_id, chars.next(), messages) {
-                Action::Yield(next) => next,
-                // TODO: Check infinity
-                Action::Return(value) => match self.sign() {
-                    Sign::Positive => return value,
-                    Sign::Negative => return value.map(|v| -v),
-                },
+        let mut lexer = NumericLiteral::lexer(self.source.as_bytes());
+        let file_id = self.file_id;
+
+        let add_digit = |sign, base: Base, float: T, digit: u8| match sign {
+            Sign::Positive => float * base.to_u8().into() + digit.into(),
+            Sign::Negative => float * base.to_u8().into() - digit.into(),
+        };
+
+        let (sign, base, start_digit) = self.expect_numeric_literal_start(&mut lexer)?;
+
+        let mut float = T::zero();
+        let mut num_integer_digits = 0;
+
+        if let Some(digit) = start_digit {
+            float = add_digit(sign, base, float, digit);
+            num_integer_digits += 1;
+        }
+
+        if base == Base::Decimal {
+            let mut lexer = lexer.morph();
+            let mut has_fractional = false;
+            let mut has_exponent = false;
+
+            while let Some(token) = lexer.next() {
+                let range = self.token_range(&lexer);
+                match token {
+                    Digit10::Digit(digit) if digit < base.to_u8() => {
+                        float = add_digit(sign, base, float, digit);
+                        num_integer_digits += 1;
+                    }
+                    Digit10::Separator => match num_integer_digits {
+                        0 => return self.report(ExpectedDigit(file_id, range, base)),
+                        _ => {}
+                    },
+                    Digit10::StartFractional => {
+                        has_fractional = true;
+                        break;
+                    }
+                    Digit10::StartExponent => {
+                        has_exponent = true;
+                        break;
+                    }
+                    Digit10::Digit(_) | Digit10::Error => match num_integer_digits {
+                        0 => return self.report(ExpectedDigit(file_id, range, base)),
+                        _ => {
+                            return self
+                                .report(ExpectedDigitSeparatorFracOrExp(file_id, range, base));
+                        }
+                    },
+                }
+            }
+
+            if num_integer_digits == 0 {
+                let range = self.token_range(&lexer);
+                return self.report(ExpectedDigit(file_id, range, base));
+            }
+
+            if has_fractional {
+                let mut frac = T::zero();
+                let mut num_frac_digits = 0;
+
+                while let Some(token) = lexer.next() {
+                    let range = self.token_range(&lexer);
+                    match token {
+                        Digit10::Digit(digit) if digit < base.to_u8() => {
+                            frac = add_digit(sign, base, frac, digit);
+                            num_frac_digits += 1;
+                        }
+                        Digit10::Separator => match num_frac_digits {
+                            0 => return self.report(ExpectedDigit(file_id, range, base)),
+                            _ => {}
+                        },
+                        Digit10::StartExponent => {
+                            has_exponent = true;
+                            break;
+                        }
+                        Digit10::Digit(_) | Digit10::StartFractional | Digit10::Error => {
+                            match num_frac_digits {
+                                0 => return self.report(ExpectedDigit(file_id, range, base)),
+                                _ => {
+                                    return self
+                                        .report(ExpectedDigitSeparatorOrExp(file_id, range, base))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if num_frac_digits == 0 {
+                    return self.report(ExpectedDigit(file_id, self.token_range(&lexer), base));
+                }
+
+                float = float + frac / T::powi(base.to_u8().into(), num_frac_digits.into());
+            }
+
+            if has_exponent {
+                let range = self.token_range(&lexer);
+                return self.report(FloatLiteralExponentNotSupported(file_id, range));
+            }
+
+            Some(float)
+        } else {
+            self.report(UnsupportedFloatLiteralBase(file_id, self.range(), base))
+        }
+    }
+
+    fn expect_numeric_literal_start(
+        &mut self,
+        lexer: &mut logos::Lexer<'source, NumericLiteral>,
+    ) -> Option<(Sign, Base, Option<u8>)> {
+        match self.expect_token(lexer)? {
+            NumericLiteral::Sign(sign) => match self.expect_token(lexer)? {
+                NumericLiteral::Base(base) => Some((sign, base, None)),
+                NumericLiteral::Digit(digit) => Some((sign, Base::Decimal, Some(digit))),
+                NumericLiteral::Sign(_) | NumericLiteral::Error => {
+                    let range = self.token_range(&lexer);
+                    self.report(ExpectedRadixOrDecimalDigit(self.file_id, range))
+                }
+            },
+            NumericLiteral::Base(base) => Some((Sign::Positive, base, None)),
+            NumericLiteral::Digit(digit) => Some((Sign::Positive, Base::Decimal, Some(digit))),
+            NumericLiteral::Error => {
+                let range = self.token_range(&lexer);
+                self.report(ExpectedStartOfNumericLiteral(self.file_id, range))
             }
         }
-    }
-}
-
-impl fmt::Display for Number {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.sign {
-            None => write!(f, "{}", self.number.1),
-            Some(sign) => write!(f, "{}{}", sign, self.number.1),
-        }
-    }
-}
-
-/// String literals.
-#[derive(Debug, Clone)]
-pub struct String {
-    pub contents: (Range<usize>, std::string::String),
-}
-
-impl String {
-    pub fn to_string(&self) -> Result<std::string::String, ()> {
-        unimplemented!()
-    }
-
-    pub fn to_bytes(&self) -> Result<Vec<u8>, ()> {
-        unimplemented!()
-    }
-}
-
-impl fmt::Display for String {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "\"{}\"", self.contents.1)
-    }
-}
-
-/// Character literals.
-#[derive(Debug, Clone)]
-pub struct Char {
-    pub contents: (Range<usize>, std::string::String),
-}
-
-impl Char {
-    pub fn to_char(&self) -> Result<char, ()> {
-        unimplemented!()
-    }
-
-    pub fn to_u8(&self) -> Result<u8, ()> {
-        unimplemented!()
-    }
-}
-
-impl fmt::Display for Char {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "\'{}\'", self.contents.1)
     }
 }

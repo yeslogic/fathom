@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::lang::Ranged;
 use crate::lang::surface::{Alias, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField};
 use crate::lexer::Token;
-use crate::literal;
 use crate::reporting::LexerMessage;
 
 grammar(file_id: usize);
@@ -16,9 +15,9 @@ extern {
         "doc comment" => Token::DocComment(<String>),
         "inner doc comment" => Token::InnerDocComment(<String>),
         "identifier" => Token::Identifier(<String>),
-        "numeric literal" => Token::NumberLiteral(<literal::Number>),
-        "string literal" => Token::StringLiteral(<literal::String>),
-        "character literal" => Token::CharLiteral(<literal::Char>),
+        "numeric literal" => Token::NumberLiteral(<String>),
+        "string literal" => Token::StringLiteral(<String>),
+        "character literal" => Token::CharLiteral(<String>),
 
         "bool_elim" => Token::BoolElim,
         "else" => Token::Else,

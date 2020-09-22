@@ -3,7 +3,6 @@ use maplit::hashmap;
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::literal::{self, Sign};
 use crate::reporting::LexerMessage;
 
 type Keywords = HashMap<String, Token>;
@@ -42,11 +41,11 @@ pub enum Token {
     /// Identifiers.
     Identifier(String),
     /// Numeric literals.
-    NumberLiteral(literal::Number),
+    NumberLiteral(String),
     /// String literals.
-    StringLiteral(literal::String),
+    StringLiteral(String),
     /// Character literals.
-    CharLiteral(literal::Char),
+    CharLiteral(String),
 
     /// Keyword: `bool_elim`.
     BoolElim,
@@ -227,11 +226,13 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
 
     fn consume_number(
         &mut self,
-        start: usize,
-        sign: Option<Sign>,
+        sign: Option<char>,
         first_digit: char,
     ) -> Option<Result<SpannedToken, LexerMessage>> {
         let mut number = String::new();
+        if let Some(sign) = sign {
+            number.push(sign);
+        }
         number.push(first_digit);
 
         while let Some(ch) = self.peek() {
@@ -243,9 +244,7 @@ impl<'input, 'keywords> Lexer<'input, 'keywords> {
             }
         }
 
-        let number_range = start..self.token_end;
-        let literal = literal::Number::new(sign, (number_range, number));
-        self.emit(Token::NumberLiteral(literal))
+        self.emit(Token::NumberLiteral(number))
     }
 
     fn consume_identifier(&mut self, start_ch: char) -> Option<Result<SpannedToken, LexerMessage>> {
@@ -337,7 +336,7 @@ impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
                 },
                 ';' => self.emit(Token::Semi),
                 '+' => match self.advance()? {
-                    ch if is_dec_digit(ch) => self.consume_number(start, Some(Sign::Positive), ch),
+                    ch if is_dec_digit(ch) => self.consume_number(Some('+'), ch),
                     ch => self.unexpected_char(start, ch, &["decimal digit"]),
                 },
                 '-' => match self.peek() {
@@ -346,13 +345,11 @@ impl<'input, 'keywords> Iterator for Lexer<'input, 'keywords> {
                         self.emit(Token::HyphenGreater)
                     }
                     Some(_) | None => match self.advance()? {
-                        ch if is_dec_digit(ch) => {
-                            self.consume_number(start, Some(Sign::Negative), ch)
-                        }
+                        ch if is_dec_digit(ch) => self.consume_number(Some('-'), ch),
                         ch => self.unexpected_char(start, ch, &["decimal digit"]),
                     },
                 },
-                ch if is_dec_digit(ch) => self.consume_number(start, None, ch),
+                ch if is_dec_digit(ch) => self.consume_number(None, ch),
                 ch if is_identifier_start(ch) => self.consume_identifier(ch),
                 ch if is_whitespace(ch) => {
                     self.reset_start();
