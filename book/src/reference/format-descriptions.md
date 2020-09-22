@@ -103,7 +103,7 @@ These are encoded following the [IEEE Standard for Floating-Point Arithmetic
 
 ### Array formats
 
-An fixed-length array of a single format can be described using the `FormatArray` format:
+A fixed-length array of a single format can be described using the `FormatArray` format:
 
 ```fathom
 FormatArray : Int -> Format -> Format

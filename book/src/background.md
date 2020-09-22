@@ -72,10 +72,10 @@ such as file formats, network protocols or bitstreams.
   a nice graphvis output, and a nice web-based IDE. It lacks a formal foundation however,
   and YAML can be hard to read.
 - [IPADS/DDC](https://www.cs.princeton.edu/~dpw/papers/700popl06.pdf):
-  We like the IPADS/DDC approach, but it is geard more towards log files and misses features like pointer offsets
+  We like the IPADS/DDC approach, but it is geared more towards log files and misses features like pointer offsets
   which are needed to support many binary formats.
 - [Restructure](https://github.com/devongovett/restructure):
-  A library for declaratively encode and decode binary data using a JavaScript EDSL.
+  A library for declaratively encoding and decoding binary data using a JavaScript EDSL.
   Used in [fontkit](https://github.com/devongovett/fontkit) for describing the Open Type Font specification.
   Shows promise as nice way to describe binary formats, but JS is not the most flexible host language.
 - [HarfBuzz](https://github.com/harfbuzz/harfbuzz) defines [a handy set of types and macros](https://github.com/harfbuzz/harfbuzz/blob/35218c488c3966aa6d459ec5a007a2b43208e97c/src/hb-machinery.hh)
@@ -85,5 +85,5 @@ such as file formats, network protocols or bitstreams.
 - [Nom](https://github.com/Geal/nom):
   A Rust parser combinator library geared towards describing binary formats.
   It is fast and zero copy, but we believe that the combinator approach has drawbacks to do with
-  being to tied to a single host language for specifications,
-  and a tied to a single operational semantics.
+  being too tied to a single host language for specifications,
+  and tied to a single operational semantics.
