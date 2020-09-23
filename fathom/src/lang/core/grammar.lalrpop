@@ -2,35 +2,33 @@ use std::sync::Arc;
 
 use crate::lang::Ranged;
 use crate::lang::core::{Alias, Constant, ItemData, Module, StructType, Term, TermData, TypeField};
-use crate::lexer::Token;
+use crate::lang::core::lexer::Token;
 use crate::literal;
 use crate::reporting::{LexerMessage, Message};
 
-grammar(file_id: usize, messages: &mut Vec<Message>);
+grammar<'source>(file_id: usize, messages: &mut Vec<Message>);
 
 extern {
     type Location = usize;
     type Error = LexerMessage;
 
-    enum Token {
+    enum Token<'source> {
         "doc comment" => Token::DocComment(<String>),
         "inner doc comment" => Token::InnerDocComment(<String>),
-        "identifier" => Token::Identifier(<String>),
-        "numeric literal" => Token::NumberLiteral(<String>),
-        "string literal" => Token::StringLiteral(<String>),
-        "character literal" => Token::CharLiteral(<String>),
+
+        "name" => Token::Name(<&'source str>),
+        "numeric literal" => Token::NumericLiteral(<&'source str>),
+        "string literal" => Token::StringLiteral(<&'source str>),
+        "character literal" => Token::CharLiteral(<&'source str>),
 
         "bool_elim" => Token::BoolElim,
-        "else" => Token::Else,
         "f32" => Token::F32,
         "f64" => Token::F64,
         "Format" => Token::Format,
         "global" => Token::Global,
-        "if" => Token::If,
         "int" => Token::Int,
         "int_elim" => Token::IntElim,
         "item" => Token::Item,
-        "match" => Token::Match,
         "struct" => Token::Struct,
         "Type" => Token::Type,
 
@@ -51,37 +49,44 @@ extern {
 
 pub Module: Module = {
     <doc: "inner doc comment"*> <items: Ranged<ItemData>*> => {
-        let doc = Arc::from(doc);
-
-        Module { file_id, doc, items }
+        Module {
+            file_id,
+            doc: Arc::from(doc),
+            items,
+        }
     },
 };
 
 ItemData: ItemData = {
-    <doc: "doc comment"*> <name: "identifier"> "=" <term: Term> ";" => {
-        let doc = Arc::from(doc);
-        let term = Arc::new(term);
-
-        ItemData::Alias(Alias { doc, name, term })
+    <doc: "doc comment"*> <name: Name> "=" <term: Term> ";" => {
+        ItemData::Alias(Alias {
+            doc: Arc::from(doc),
+            name,
+            term: Arc::new(term),
+        })
     },
     <docs: "doc comment"*>
-    "struct" <name: "identifier">  "{"
+    "struct" <name: Name>  "{"
         <mut fields: (<Field> ",")*>
         <last: Field?>
     "}" => {
-        let doc = Arc::from(docs);
         fields.extend(last);
 
-        ItemData::Struct(StructType { doc, name, fields })
+        ItemData::Struct(StructType {
+            doc: Arc::from(docs),
+            name,
+            fields
+        })
     },
 };
 
 Field: TypeField = {
-    <doc: "doc comment"*> <name: "identifier"> ":" <term: Term> => {
-        let doc = Arc::from(doc);
-        let term = Arc::new(term);
-
-        TypeField { doc, name, term }
+    <doc: "doc comment"*> <name: Name> ":" <term: Term> => {
+        TypeField {
+            doc: Arc::from(doc),
+            name,
+            term: Arc::new(term),
+        }
     },
 };
 
@@ -112,8 +117,8 @@ AppTermData: TermData = {
 AtomicTermData: TermData = {
     "(" <term: TermData> ")" => term,
     "!" => TermData::Error,
-    "global" <name: "identifier"> => TermData::Global(name),
-    "item" <name: "identifier"> => TermData::Item(name),
+    "global" <name: Name> => TermData::Global(name),
+    "item" <name: Name> => TermData::Item(name),
     "Type" => TermData::TypeType,
     "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" => {
         TermData::BoolElim(Arc::new(head), Arc::new(if_true), Arc::new(if_false))
@@ -124,26 +129,26 @@ AtomicTermData: TermData = {
         let branches = branches
             .into_iter()
             .filter_map(|(start, literal, end, term)| Some((
-                literal::State::new(file_id, start..end, literal.as_str(), messages).number_to_big_int()?,
+                literal::State::new(file_id, start..end, literal, messages).number_to_big_int()?,
                 Arc::new(term),
             ))).collect();
 
         TermData::IntElim(Arc::new(head), branches, Arc::new(default))
     },
     "int" <start: @L> <literal: "numeric literal"> <end: @R> => {
-        match literal::State::new(file_id, start..end, literal.as_str(), messages).number_to_big_int() {
+        match literal::State::new(file_id, start..end, literal, messages).number_to_big_int() {
             Some(value) => TermData::Constant(Constant::Int(value)),
             None => TermData::Error,
         }
     },
     "f32" <start: @L> <literal: "numeric literal"> <end: @R> => {
-        match literal::State::new(file_id, start..end, literal.as_str(), messages).number_to_float() {
+        match literal::State::new(file_id, start..end, literal, messages).number_to_float() {
             Some(value) => TermData::Constant(Constant::F32(value)),
             None => TermData::Error,
         }
     },
     "f64" <start: @L> <literal: "numeric literal"> <end: @R> => {
-        match literal::State::new(file_id, start..end, literal.as_str(), messages).number_to_float() {
+        match literal::State::new(file_id, start..end, literal, messages).number_to_float() {
             Some(value) => TermData::Constant(Constant::F64(value)),
             None => TermData::Error,
         }
@@ -151,6 +156,12 @@ AtomicTermData: TermData = {
     "Format" => TermData::FormatType,
 };
 
-#[inline] Ranged<T>: Ranged<T> = {
+#[inline]
+Name: String = {
+    <"name"> => (<>).to_owned(),
+};
+
+#[inline]
+Ranged<T>: Ranged<T> = {
     <start: @L> <data: T> <end: @R> => Ranged::new(start..end, data),
 };

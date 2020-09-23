@@ -123,21 +123,7 @@ impl Message {
 /// Messages produced during lexing
 #[derive(Debug, Clone)]
 pub enum LexerMessage {
-    InvalidToken {
-        file_id: usize,
-        range: Range<usize>,
-    },
-    UnexpectedChar {
-        file_id: usize,
-        start: usize,
-        found: char,
-        expected: &'static [&'static str],
-    },
-    UnexpectedEof {
-        file_id: usize,
-        eof: usize,
-        expected: &'static [&'static str],
-    },
+    InvalidToken { file_id: usize, range: Range<usize> },
 }
 
 impl LexerMessage {
@@ -146,34 +132,6 @@ impl LexerMessage {
             LexerMessage::InvalidToken { file_id, range } => Diagnostic::error()
                 .with_message("invalid token")
                 .with_labels(vec![Label::primary(*file_id, range.clone())]),
-            LexerMessage::UnexpectedChar {
-                file_id,
-                start,
-                found,
-                expected,
-            } => {
-                let end = start + found.len_utf8();
-                let range = *start..end;
-
-                Diagnostic::error()
-                    .with_message(format!("unexpected character `{}`", found))
-                    .with_labels(vec![
-                        Label::primary(*file_id, range).with_message("unexpected character")
-                    ])
-                    .with_notes(
-                        format_expected(expected).map_or(Vec::new(), |message| vec![message]),
-                    )
-            }
-            LexerMessage::UnexpectedEof {
-                file_id,
-                eof,
-                expected,
-            } => Diagnostic::error()
-                .with_message("unexpected end of file")
-                .with_labels(vec![
-                    Label::primary(*file_id, *eof..*eof).with_message("unexpected end of file")
-                ])
-                .with_notes(format_expected(expected).map_or(Vec::new(), |message| vec![message])),
         }
     }
 }

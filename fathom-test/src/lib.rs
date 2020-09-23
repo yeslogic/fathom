@@ -22,10 +22,7 @@ test!(
     "fail_duplicate_definitions.fathom"
 );
 test!(fail_unexpected_token, "fail_unexpected_token.fathom");
-test!(
-    fail_unexpected_character,
-    "fail_unexpected_character.fathom"
-);
+test!(fail_invalid_token, "fail_invalid_token.fathom");
 
 #[rustfmt::skip]
 mod alias {
@@ -60,6 +57,7 @@ mod alias {
     test!(fail_format_array_bad_elem, "alias/fail_format_array_bad_elem.fathom");
     test!(fail_format_array_bad_len, "alias/fail_format_array_bad_len.fathom");
     test!(fail_globals, "alias/fail_globals.fathom");
+    test!(fail_literals, "alias/fail_literals.fathom");
     test!(fail_type_has_no_type, "alias/fail_type_has_no_type.fathom");
     test!(fail_if_else_term_mismatched_arms, "alias/fail_if_else_term_mismatched_arms.fathom");
     test!(fail_if_else_term_mismatched_condition, "alias/fail_if_else_term_mismatched_condition.fathom");

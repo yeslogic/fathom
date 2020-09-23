@@ -255,10 +255,8 @@ impl<'source, 'messages> State<'source, 'messages> {
                         float = add_digit(sign, base, float, digit);
                         num_integer_digits += 1;
                     }
-                    Digit10::Separator => match num_integer_digits {
-                        0 => return self.report(ExpectedDigit(file_id, range, base)),
-                        _ => {}
-                    },
+                    Digit10::Separator if num_integer_digits != 0 => {}
+                    Digit10::Separator => return self.report(ExpectedDigit(file_id, range, base)),
                     Digit10::StartFractional => {
                         has_fractional = true;
                         break;
@@ -293,10 +291,10 @@ impl<'source, 'messages> State<'source, 'messages> {
                             frac = add_digit(sign, base, frac, digit);
                             num_frac_digits += 1;
                         }
-                        Digit10::Separator => match num_frac_digits {
-                            0 => return self.report(ExpectedDigit(file_id, range, base)),
-                            _ => {}
-                        },
+                        Digit10::Separator if num_frac_digits != 0 => {}
+                        Digit10::Separator => {
+                            return self.report(ExpectedDigit(file_id, range, base));
+                        }
                         Digit10::StartExponent => {
                             has_exponent = true;
                             break;
@@ -317,7 +315,7 @@ impl<'source, 'messages> State<'source, 'messages> {
                     return self.report(ExpectedDigit(file_id, self.token_range(&lexer), base));
                 }
 
-                float = float + frac / T::powi(base.to_u8().into(), num_frac_digits.into());
+                float = float + frac / T::powi(base.to_u8().into(), num_frac_digits);
             }
 
             if has_exponent {

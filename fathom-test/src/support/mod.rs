@@ -132,9 +132,8 @@ impl Test {
         files: &SimpleFiles<String, String>,
     ) -> fathom::lang::surface::Module {
         let file_id = self.input_fathom_file_id;
-        let keywords = &fathom::lexer::SURFACE_KEYWORDS;
-        let lexer = fathom::lexer::Lexer::new(files, file_id, keywords);
-        fathom::lang::surface::Module::parse(file_id, lexer, &mut self.found_messages)
+        let source = files.source(file_id).unwrap();
+        fathom::lang::surface::Module::parse(file_id, source, &mut self.found_messages)
     }
 
     fn elaborate(
@@ -264,9 +263,8 @@ impl Test {
             pretty_core_module.clone(),
         );
         let parsed_core_module = {
-            let keywords = &fathom::lexer::CORE_KEYWORDS;
-            let lexer = fathom::lexer::Lexer::new(files, core_file_id, keywords);
-            fathom::lang::core::Module::parse(core_file_id, lexer, &mut core_parse_messages)
+            let source = files.source(core_file_id).unwrap();
+            fathom::lang::core::Module::parse(core_file_id, source, &mut core_parse_messages)
         };
         let pretty_parsed_core_module = {
             let pretty::DocBuilder(_, doc) =
