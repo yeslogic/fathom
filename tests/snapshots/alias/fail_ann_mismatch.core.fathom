@@ -1,6 +1,6 @@
-Test1 = ! : global U8;
+Test1 = !;
 
-Test2 = ! : !;
+Test2 = !;
 
 Test3 = ! : Type;
 

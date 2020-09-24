@@ -27,11 +27,12 @@ test!(fail_invalid_token, "fail_invalid_token.fathom");
 #[rustfmt::skip]
 mod alias {
     test!(pass_ann, "alias/pass_ann.fathom");
-    test!(pass_format_array, "alias/pass_format_array.fathom");
     test!(pass_alias_term, "alias/pass_alias_term.fathom");
     test!(pass_alias_type, "alias/pass_alias_type.fathom");
     test!(pass_ann_ann, "alias/pass_ann_ann.fathom");
     test!(pass_ann_sugar, "alias/pass_ann_sugar.fathom");
+    test!(pass_format_array, "alias/pass_format_array.fathom");
+    test!(pass_function_types, "alias/pass_function_types.fathom");
     test!(pass_globals, "alias/pass_globals.fathom");
     test!(pass_if_else_ann_type, "alias/pass_if_else_ann_type.fathom");
     test!(pass_if_else_format_type, "alias/pass_if_else_format_type.fathom");
@@ -58,9 +59,9 @@ mod alias {
     test!(fail_format_array_bad_len, "alias/fail_format_array_bad_len.fathom");
     test!(fail_globals, "alias/fail_globals.fathom");
     test!(fail_literals, "alias/fail_literals.fathom");
-    test!(fail_type_has_no_type, "alias/fail_type_has_no_type.fathom");
     test!(fail_if_else_term_mismatched_arms, "alias/fail_if_else_term_mismatched_arms.fathom");
     test!(fail_if_else_term_mismatched_condition, "alias/fail_if_else_term_mismatched_condition.fathom");
+    test!(fail_kind_has_no_type, "alias/fail_kind_has_no_type.fathom");
     test!(fail_match_ambiguous_scrutinee, "alias/fail_match_ambiguous_scrutinee.fathom");
     test!(fail_match_int_missing_default, "alias/fail_match_int_missing_default.fathom");
     test!(fail_match_int_ambiguous, "alias/fail_match_int_ambiguous.fathom");

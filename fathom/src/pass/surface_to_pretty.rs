@@ -189,7 +189,10 @@ where
                 ),
         ),
         TermData::Name(name) => alloc.text(name),
+
+        TermData::KindType => alloc.text("Kind"),
         TermData::TypeType => alloc.text("Type"),
+
         TermData::FunctionType(param_type, body_type) => paren(
             alloc,
             prec > Prec::App,
@@ -212,6 +215,7 @@ where
                     .nest(4),
             ),
         ),
+
         TermData::NumberLiteral(literal) => alloc.as_string(literal),
         TermData::If(head, if_true, if_false) => (alloc.nil())
             .append("if")
@@ -273,6 +277,7 @@ where
             })))
             .append(alloc.hardline())
             .append("}"),
+
         TermData::FormatType => alloc.text("Format"),
 
         TermData::Error => alloc.text("!"),

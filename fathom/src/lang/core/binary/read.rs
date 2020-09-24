@@ -127,7 +127,7 @@ impl<'me> Context<'me> {
                 }
             }
             Value::Stuck(Head::Error, _)
-            | Value::TypeType
+            | Value::Sort(_)
             | Value::FunctionType(_, _)
             | Value::Constant(_)
             | Value::FormatType

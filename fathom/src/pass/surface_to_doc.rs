@@ -203,7 +203,10 @@ impl Context {
 
                 format!(r##"<var><a href="#{}">{}</a></var>"##, id, name).into()
             }
+
+            TermData::KindType => "Kind".into(),
             TermData::TypeType => "Type".into(),
+
             TermData::Ann(term, r#type) => format!(
                 "{lparen}{term} : {type}{rparen}",
                 lparen = if prec > Prec::Term { "(" } else { "" },
@@ -212,6 +215,7 @@ impl Context {
                 type = self.from_term_prec(r#type, Prec::Term),
             )
             .into(),
+
             TermData::FunctionType(param_type, body_type) => format!(
                 "{lparen}{param_type} &rarr; {body_type}{rparen}",
                 lparen = if prec > Prec::Arrow { "(" } else { "" },
@@ -232,6 +236,7 @@ impl Context {
                     .format(" "),
             )
             .into(),
+
             TermData::NumberLiteral(literal) => format!("{}", literal).into(),
             TermData::If(head, if_true, if_false) => format!(
                 // TODO: multiline formatting!
@@ -255,7 +260,9 @@ impl Context {
                     .format(", "),
             )
             .into(),
+
             TermData::FormatType => "Format".into(),
+
             TermData::Error => r##"<strong>(invalid data description)</strong>"##.into(),
         }
     }

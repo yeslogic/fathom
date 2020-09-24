@@ -1,5 +1,9 @@
 //! Test globals.
 
+TestType = Type;
+
+TestFormat = Format;
+
 TestU8 = global U8;
 
 TestU16Le = global U16Le;

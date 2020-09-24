@@ -621,7 +621,9 @@ fn is_equal_term(term0: &fathom::lang::core::Term, term1: &fathom::lang::core::T
         (TermData::Ann(term0, type0), TermData::Ann(term1, type1)) => {
             is_equal_term(term0, term1) && is_equal_term(type0, type1)
         }
-        (TermData::TypeType, TermData::TypeType) => true,
+
+        (TermData::Sort(sort0), TermData::Sort(sort1)) => sort0 == sort1,
+
         (
             TermData::FunctionType(param_type0, body_type0),
             TermData::FunctionType(param_type1, body_type1),
@@ -629,6 +631,7 @@ fn is_equal_term(term0: &fathom::lang::core::Term, term1: &fathom::lang::core::T
         (TermData::FunctionElim(head0, argument0), TermData::FunctionElim(head1, argument1)) => {
             is_equal_term(head0, head1) && is_equal_term(argument0, argument1)
         }
+
         (TermData::Constant(constant0), TermData::Constant(constant1)) => constant0 == constant1,
         (
             TermData::BoolElim(head0, if_true0, if_false0),
@@ -649,7 +652,9 @@ fn is_equal_term(term0: &fathom::lang::core::Term, term1: &fathom::lang::core::T
                 )
                 && is_equal_term(default0, default1)
         }
+
         (TermData::FormatType, TermData::FormatType) => true,
+
         (TermData::Error, TermData::Error) => true,
         (_, _) => false,
     }

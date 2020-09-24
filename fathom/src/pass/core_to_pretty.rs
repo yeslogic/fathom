@@ -1,5 +1,5 @@
 use crate::lang::core::{
-    Alias, Constant, Item, ItemData, Module, StructType, Term, TermData, TypeField,
+    Alias, Constant, Item, ItemData, Module, Sort, StructType, Term, TermData, TypeField,
 };
 use pretty::{DocAllocator, DocBuilder};
 
@@ -207,7 +207,10 @@ where
                         .nest(4),
                 ),
         ),
-        TermData::TypeType => alloc.text("Type"),
+
+        TermData::Sort(Sort::Type) => alloc.text("Type"),
+        TermData::Sort(Sort::Kind) => alloc.text("Kind"),
+
         TermData::FunctionType(param_type, body_type) => paren(
             alloc,
             prec > Prec::Arrow,
@@ -230,6 +233,7 @@ where
                         .nest(4),
                 ),
         ),
+
         TermData::Constant(constant) => from_constant(alloc, constant),
         TermData::BoolElim(head, if_true, if_false) => (alloc.nil())
             .append("bool_elim")

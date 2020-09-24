@@ -1,6 +1,7 @@
 struct Foo {
-    field_type : Type, //~ error: term has no type
-    field_format : Format, //~ error: term has no type
+    field_kind : Kind, //~ error: term has no type
+    field_type : Type, //~ error: type mismatch
+    field_format : Format, //~ error: type mismatch
     field_true : true, //~ error: type mismatch
     field_false : true, //~ error: type mismatch
 }

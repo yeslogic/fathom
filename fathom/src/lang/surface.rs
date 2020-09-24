@@ -114,12 +114,17 @@ pub enum TermData {
     Ann(Box<Term>, Box<Term>),
     /// Names.
     Name(String),
+
     /// Type of types.
     TypeType,
+    /// Type of kinds.
+    KindType,
+
     /// Function types.
     FunctionType(Box<Term>, Box<Term>),
     /// Function eliminations (function application).
     FunctionElim(Box<Term>, Vec<Term>),
+
     /// Numeric literals.
     NumberLiteral(String),
     /// If-else expressions.
@@ -127,7 +132,7 @@ pub enum TermData {
     /// Match expressions.
     Match(Box<Term>, Vec<(Pattern, Term)>),
 
-    /// Type of format types.
+    /// Type of format descriptions.
     FormatType,
 
     /// Error sentinel terms.
