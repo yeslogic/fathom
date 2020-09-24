@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::lang::Ranged;
-use crate::lang::core::{Alias, Constant, ItemData, Module, StructType, Term, TermData, TypeField};
+use crate::lang::core::{Alias, Constant, ItemData, Module, Sort, StructType, Term, TermData, TypeField};
 use crate::lang::core::lexer::Token;
 use crate::literal;
 use crate::reporting::{LexerMessage, Message};
@@ -29,6 +29,7 @@ extern {
         "int" => Token::Int,
         "int_elim" => Token::IntElim,
         "item" => Token::Item,
+        "Kind" => Token::Kind,
         "struct" => Token::Struct,
         "Type" => Token::Type,
 
@@ -119,7 +120,8 @@ AtomicTermData: TermData = {
     "!" => TermData::Error,
     "global" <name: Name> => TermData::Global(name),
     "item" <name: Name> => TermData::Item(name),
-    "Type" => TermData::TypeType,
+    "Type" => TermData::Sort(Sort::Type),
+    "Kind" => TermData::Sort(Sort::Kind),
     "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" => {
         TermData::BoolElim(Arc::new(head), Arc::new(if_true), Arc::new(if_false))
     },

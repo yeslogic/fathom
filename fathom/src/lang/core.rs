@@ -88,6 +88,12 @@ pub struct TypeField {
     pub term: Arc<Term>,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Sort {
+    Type,
+    Kind,
+}
+
 /// Constants.
 #[derive(Debug, Clone)]
 pub enum Constant {
@@ -120,20 +126,24 @@ pub enum TermData {
     Global(String),
     /// Item variables.
     Item(String),
+
     /// Terms annotated with types.
     Ann(Arc<Term>, Arc<Term>),
-    /// Type of types.
-    TypeType,
+    /// Sorts.
+    Sort(Sort),
+
     /// Function types.
     FunctionType(Arc<Term>, Arc<Term>),
     /// Function eliminations (function application).
     FunctionElim(Arc<Term>, Arc<Term>),
+
     /// Constants.
     Constant(Constant),
     /// A boolean elimination.
     BoolElim(Arc<Term>, Arc<Term>, Arc<Term>),
     /// A integer elimination.
     IntElim(Arc<Term>, BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
+
     /// Type of format types.
     FormatType,
 
@@ -162,6 +172,7 @@ impl Globals {
 
 impl Default for Globals {
     fn default() -> Globals {
+        use self::Sort::*;
         use self::TermData::*;
 
         let mut entries = BTreeMap::new();
@@ -185,10 +196,10 @@ impl Default for Globals {
         entries.insert("F64Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
         entries.insert("F64Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
 
-        entries.insert("Int".to_owned(), (Arc::new(Term::from(TypeType)), None));
-        entries.insert("F32".to_owned(), (Arc::new(Term::from(TypeType)), None));
-        entries.insert("F64".to_owned(), (Arc::new(Term::from(TypeType)), None));
-        entries.insert("Bool".to_owned(), (Arc::new(Term::from(TypeType)), None));
+        entries.insert("Int".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
+        entries.insert("F32".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
+        entries.insert("F64".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
+        entries.insert("Bool".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
         entries.insert(
             "true".to_owned(),
             (Arc::new(Term::from(Global("Bool".to_owned()))), None),
@@ -214,8 +225,8 @@ impl Default for Globals {
             "List".to_owned(),
             (
                 Arc::new(Term::from(FunctionType(
-                    Arc::new(Term::from(TypeType)),
-                    Arc::new(Term::from(TypeType)),
+                    Arc::new(Term::from(Sort(Type))),
+                    Arc::new(Term::from(Sort(Type))),
                 ))),
                 None,
             ),

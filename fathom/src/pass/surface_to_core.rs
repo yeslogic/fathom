@@ -124,13 +124,22 @@ impl<'me> Context<'me> {
                 ItemData::Alias(alias) => {
                     let (core_term, r#type) = match &alias.type_ {
                         Some(surface_type) => {
-                            let core_type = self.is_type(file_id, surface_type);
-                            let r#type = self.eval(&core_type);
-                            let core_term = self.check_type(file_id, &alias.term, &r#type);
-                            let term_data =
-                                core::TermData::Ann(Arc::new(core_term), Arc::new(core_type));
+                            let (core_type, _) = self.is_type(file_id, surface_type);
+                            match &core_type.data {
+                                core::TermData::Error => (
+                                    core::Term::new(alias.term.range(), core::TermData::Error),
+                                    Arc::new(Value::Error),
+                                ),
+                                _ => {
+                                    let r#type = self.eval(&core_type);
+                                    let term_data = core::TermData::Ann(
+                                        Arc::new(self.check_type(file_id, &alias.term, &r#type)),
+                                        Arc::new(core_type),
+                                    );
 
-                            (core::Term::new(alias.term.range(), term_data), r#type)
+                                    (core::Term::new(alias.term.range(), term_data), r#type)
+                                }
+                            }
                         }
                         None => self.synth_type(file_id, &alias.term),
                     };
@@ -233,27 +242,25 @@ impl<'me> Context<'me> {
     }
 
     /// Validate that a surface term is a type, and translate it into the core syntax.
-    pub fn is_type(&mut self, file_id: usize, surface_term: &Term) -> core::Term {
+    pub fn is_type(
+        &mut self,
+        file_id: usize,
+        surface_term: &Term,
+    ) -> (core::Term, Option<core::Sort>) {
         let range = surface_term.range();
 
-        match &surface_term.data {
-            TermData::FormatType => core::Term::new(range, core::TermData::FormatType),
-            TermData::TypeType => core::Term::new(range, core::TermData::TypeType),
-            _ => {
-                let (core_term, found_type) = self.synth_type(file_id, surface_term);
-                match found_type.as_ref() {
-                    Value::FormatType | Value::TypeType => core_term,
-                    Value::Error => core::Term::new(range, core::TermData::Error),
-                    _ => {
-                        let found_type = self.read_back_to_surface(&found_type);
-                        self.push_message(SurfaceToCoreMessage::UniverseMismatch {
-                            file_id,
-                            term_range: range.clone(),
-                            found_type,
-                        });
-                        core::Term::new(range, core::TermData::Error)
-                    }
-                }
+        let (core_term, core_type) = self.synth_type(file_id, surface_term);
+        match core_type.as_ref() {
+            Value::Error => (core::Term::new(range, core::TermData::Error), None),
+            Value::Sort(sort) => (core_term, Some(*sort)),
+            core_type => {
+                let found_type = self.read_back_to_surface(core_type);
+                self.push_message(SurfaceToCoreMessage::UniverseMismatch {
+                    file_id,
+                    term_range: range.clone(),
+                    found_type,
+                });
+                (core::Term::new(range, core::TermData::Error), None)
             }
         }
     }
@@ -397,16 +404,9 @@ impl<'me> Context<'me> {
     /// Synthesize the type of a surface term, and elaborate it into the core syntax.
     pub fn synth_type(&mut self, file_id: usize, surface_term: &Term) -> (core::Term, Arc<Value>) {
         let range = surface_term.range();
+        let error_term = || core::Term::new(surface_term.range(), core::TermData::Error);
 
         match &surface_term.data {
-            TermData::Ann(surface_term, surface_type) => {
-                let core_type = self.is_type(file_id, surface_type);
-                let r#type = self.eval(&core_type);
-                let core_term = self.check_type(file_id, surface_term, &r#type);
-                let term_data = core::TermData::Ann(Arc::new(core_term), Arc::new(core_type));
-
-                (core::Term::new(surface_term.range(), term_data), r#type)
-            }
             TermData::Name(name) => {
                 if let Some((r#type, _)) = self.globals.get(name) {
                     let core_term = core::Term::new(range, core::TermData::Global(name.to_owned()));
@@ -422,37 +422,52 @@ impl<'me> Context<'me> {
                     name: name.clone(),
                     name_range: surface_term.range(),
                 });
-                (
-                    core::Term::new(range, core::TermData::Error),
-                    Arc::new(Value::Error),
-                )
+                (error_term(), Arc::new(Value::Error))
             }
-            TermData::TypeType | TermData::FormatType => {
+            TermData::Ann(surface_term, surface_type) => {
+                let (core_type, _) = self.is_type(file_id, surface_type);
+                match &core_type.data {
+                    core::TermData::Error => (error_term(), Arc::new(Value::Error)),
+                    _ => {
+                        let r#type = self.eval(&core_type);
+                        let term_data = core::TermData::Ann(
+                            Arc::new(self.check_type(file_id, surface_term, &r#type)),
+                            Arc::new(core_type),
+                        );
+
+                        (core::Term::new(surface_term.range(), term_data), r#type)
+                    }
+                }
+            }
+
+            TermData::KindType => {
                 self.push_message(SurfaceToCoreMessage::TermHasNoType {
                     file_id,
                     term_range: surface_term.range(),
                 });
-                (
-                    core::Term::new(range, core::TermData::Error),
-                    Arc::new(Value::Error),
-                )
+                (error_term(), Arc::new(Value::Error))
             }
-            TermData::FunctionType(param_type, body_type) => {
-                let core_param_type = self.is_type(file_id, param_type);
-                let core_body_type = self.is_type(file_id, body_type);
+            TermData::TypeType => (
+                core::Term::new(range, core::TermData::Sort(core::Sort::Type)),
+                Arc::new(Value::Sort(core::Sort::Kind)),
+            ),
 
-                match (&core_param_type.data, &core_body_type.data) {
-                    (core::TermData::Error, _) | (_, core::TermData::Error) => (
-                        core::Term::new(range, core::TermData::Error),
-                        Arc::new(Value::Error),
-                    ),
-                    (_, _) => {
+            TermData::FunctionType(param_type, body_type) => {
+                let (core_param_type, param_sort) = self.is_type(file_id, param_type);
+                let (core_body_type, body_sort) = self.is_type(file_id, body_type);
+
+                match (param_sort, body_sort) {
+                    (Some(param_sort), Some(body_sort)) => {
                         let term_data = core::TermData::FunctionType(
                             Arc::new(core_param_type),
                             Arc::new(core_body_type),
                         );
-                        (core::Term::new(range, term_data), Arc::new(Value::TypeType))
+                        (
+                            core::Term::new(range, term_data),
+                            Arc::new(Value::Sort(core::typing::rule(param_sort, body_sort))),
+                        )
                     }
+                    (_, _) => (error_term(), Arc::new(Value::Error)),
                 }
             }
             TermData::FunctionElim(head, arguments) => {
@@ -468,12 +483,7 @@ impl<'me> Context<'me> {
                             core_head = core::Term::new(range.clone(), term_data);
                             head_type = body_type.clone();
                         }
-                        Value::Error => {
-                            return (
-                                core::Term::new(range, core::TermData::Error),
-                                Arc::new(Value::Error),
-                            );
-                        }
+                        Value::Error => return (error_term(), Arc::new(Value::Error)),
                         head_type => {
                             let head_type = self.read_back_to_surface(head_type);
                             self.push_message(SurfaceToCoreMessage::NotAFunction {
@@ -482,10 +492,7 @@ impl<'me> Context<'me> {
                                 head_type,
                                 argument_range: argument.range(),
                             });
-                            return (
-                                core::Term::new(range, core::TermData::Error),
-                                Arc::new(Value::Error),
-                            );
+                            return (error_term(), Arc::new(Value::Error));
                         }
                     }
                 }
@@ -498,10 +505,7 @@ impl<'me> Context<'me> {
                     literal_range: surface_term.range(),
                 });
 
-                (
-                    core::Term::new(range, core::TermData::Error),
-                    Arc::new(Value::Error),
-                )
+                (error_term(), Arc::new(Value::Error))
             }
             TermData::If(surface_head, surface_if_true, surface_if_false) => {
                 // TODO: Lookup globals in environment
@@ -526,10 +530,7 @@ impl<'me> Context<'me> {
                         expected_type,
                         found_type,
                     });
-                    (
-                        core::Term::new(range, core::TermData::Error),
-                        Arc::new(Value::Error),
-                    )
+                    (error_term(), Arc::new(Value::Error))
                 }
             }
             TermData::Match(_, _) => {
@@ -537,15 +538,15 @@ impl<'me> Context<'me> {
                     file_id,
                     term_range: surface_term.range(),
                 });
-                (
-                    core::Term::new(range, core::TermData::Error),
-                    Arc::new(Value::Error),
-                )
+                (error_term(), Arc::new(Value::Error))
             }
-            TermData::Error => (
-                core::Term::new(range, core::TermData::Error),
-                Arc::new(Value::Error),
+
+            TermData::FormatType => (
+                core::Term::new(range, core::TermData::FormatType),
+                Arc::new(Value::Sort(core::Sort::Kind)),
             ),
+
+            TermData::Error => (error_term(), Arc::new(Value::Error)),
         }
     }
 

@@ -7,8 +7,26 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::lang::core::semantics::{self, Value};
-use crate::lang::core::{Constant, Globals, Item, ItemData, Module, Term, TermData};
+use crate::lang::core::{Constant, Globals, Item, ItemData, Module, Sort, Term, TermData};
 use crate::reporting::{CoreTypingMessage, Message};
+
+/// Returns the sorts of sorts.
+pub fn axiom(sort: Sort) -> Option<Sort> {
+    match sort {
+        Sort::Type => Some(Sort::Kind),
+        Sort::Kind => None,
+    }
+}
+
+/// Rule for finding the sort of a function type, given the sorts of its input an output types.
+pub fn rule(sort0: Sort, sort1: Sort) -> Sort {
+    match (sort0, sort1) {
+        (Sort::Type, Sort::Type) => Sort::Type,
+        (Sort::Type, Sort::Kind) => Sort::Kind,
+        (Sort::Kind, Sort::Type) => Sort::Kind,
+        (Sort::Kind, Sort::Kind) => Sort::Kind,
+    }
+}
 
 /// Contextual information to be used during validation.
 pub struct Context<'me> {
@@ -145,23 +163,17 @@ impl<'me> Context<'me> {
     }
 
     /// Validate that that a term is a well-formed type.
-    pub fn is_type(&mut self, file_id: usize, term: &Term) -> bool {
-        match &term.data {
-            TermData::FormatType | TermData::TypeType => true,
-            _ => {
-                let found_type = self.synth_type(file_id, term);
-                match found_type.as_ref() {
-                    Value::FormatType | Value::TypeType => true,
-                    Value::Error => false,
-                    _ => {
-                        self.push_message(CoreTypingMessage::UniverseMismatch {
-                            file_id,
-                            term_range: term.range(),
-                            found_type: self.read_back(&found_type),
-                        });
-                        false
-                    }
-                }
+    pub fn synth_sort(&mut self, file_id: usize, term: &Term) -> Option<Sort> {
+        match self.synth_type(file_id, term).as_ref() {
+            Value::Error => None,
+            Value::Sort(sort) => Some(*sort),
+            r#type => {
+                self.push_message(CoreTypingMessage::UniverseMismatch {
+                    file_id,
+                    term_range: term.range(),
+                    found_type: self.read_back(&r#type),
+                });
+                None
             }
         }
     }
@@ -221,28 +233,37 @@ impl<'me> Context<'me> {
                     Arc::new(Value::Error)
                 }
             },
-            TermData::Ann(term, r#type) => {
-                self.is_type(file_id, r#type);
-                let r#type = self.eval(r#type);
-                self.check_type(file_id, term, &r#type);
-                r#type
+            TermData::Ann(term, r#type) => match self.synth_sort(file_id, r#type) {
+                None => Arc::new(Value::Error),
+                Some(_) => {
+                    let r#type = self.eval(r#type);
+                    self.check_type(file_id, term, &r#type);
+                    r#type
+                }
+            },
+
+            TermData::Sort(sort) => match axiom(*sort) {
+                Some(sort) => Arc::new(Value::Sort(sort)),
+                None => {
+                    self.push_message(CoreTypingMessage::TermHasNoType {
+                        file_id,
+                        term_range: term.range(),
+                    });
+                    Arc::new(Value::Error)
+                }
+            },
+
+            TermData::FunctionType(param_type, body_type) => {
+                let param_sort = self.synth_sort(file_id, param_type);
+                let body_sort = self.synth_sort(file_id, body_type);
+
+                match (param_sort, body_sort) {
+                    (Some(param_sort), Some(body_sort)) => {
+                        Arc::new(Value::Sort(rule(param_sort, body_sort)))
+                    }
+                    (_, _) => Arc::new(Value::Error),
+                }
             }
-            TermData::FormatType | TermData::TypeType => {
-                self.push_message(CoreTypingMessage::TermHasNoType {
-                    file_id,
-                    term_range: term.range(),
-                });
-                Arc::new(Value::Error)
-            }
-            TermData::FunctionType(param_type, body_type) => Arc::new(
-                match (
-                    self.is_type(file_id, param_type),
-                    self.is_type(file_id, body_type),
-                ) {
-                    (true, true) => Value::TypeType,
-                    (_, _) => Value::Error,
-                },
-            ),
             TermData::FunctionElim(head, argument) => {
                 match self.synth_type(file_id, head).as_ref() {
                     Value::FunctionType(param_type, body_type) => {
@@ -261,6 +282,7 @@ impl<'me> Context<'me> {
                     }
                 }
             }
+
             TermData::Constant(constant) => match constant {
                 // TODO: Lookup globals in environment
                 Constant::Int(_) => Arc::new(Value::global("Int")),
@@ -293,6 +315,9 @@ impl<'me> Context<'me> {
                 });
                 Arc::new(Value::Error)
             }
+
+            TermData::FormatType => Arc::new(Value::Sort(Sort::Kind)),
+
             TermData::Error => Arc::new(Value::Error),
         }
     }

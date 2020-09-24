@@ -4,7 +4,7 @@
 //! The naming of this pass is not entirely standard, but was one of the better
 //! ones to emerge from [this twitter discussion](https://twitter.com/brendanzab/status/1173798146356342784).
 
-use crate::lang::core::{Constant, Item, ItemData, Module, Term, TermData};
+use crate::lang::core::{Constant, Item, ItemData, Module, Sort, Term, TermData};
 use crate::lang::{surface, Ranged};
 
 // TODO: name/keyword avoidance!
@@ -57,7 +57,10 @@ pub fn from_term(term: &Term) -> surface::Term {
         TermData::Ann(term, r#type) => {
             surface::TermData::Ann(Box::new(from_term(term)), Box::new(from_term(r#type)))
         }
-        TermData::TypeType => surface::TermData::TypeType,
+
+        TermData::Sort(Sort::Kind) => surface::TermData::KindType,
+        TermData::Sort(Sort::Type) => surface::TermData::TypeType,
+
         TermData::FunctionType(param_type, body_type) => surface::TermData::FunctionType(
             Box::new(from_term(param_type)),
             Box::new(from_term(body_type)),
@@ -66,6 +69,7 @@ pub fn from_term(term: &Term) -> surface::Term {
             Box::new(from_term(head)),
             vec![from_term(argument)], // TODO: flatten arguments
         ),
+
         TermData::Constant(constant) => match constant {
             Constant::Int(value) => surface::TermData::NumberLiteral(value.to_string()),
             Constant::F32(value) => surface::TermData::NumberLiteral(value.to_string()),
@@ -90,6 +94,7 @@ pub fn from_term(term: &Term) -> surface::Term {
                 )))
                 .collect(),
         ),
+
         TermData::FormatType => surface::TermData::FormatType,
 
         TermData::Error => surface::TermData::Error,

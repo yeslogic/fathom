@@ -30,6 +30,7 @@ extern {
         "int" => Token::Int,
         "int_elim" => Token::IntElim,
         "item" => Token::Item,
+        "Kind" => Token::Kind,
         "match" => Token::Match,
         "struct" => Token::Struct,
         "Type" => Token::Type,
@@ -134,6 +135,7 @@ AtomicTermData: TermData = {
     "(" <term: TermData> ")" => term,
     <name: Name> => TermData::Name(name),
     "Type" => TermData::TypeType,
+    "Kind" => TermData::KindType,
     <literal: "numeric literal"> => TermData::NumberLiteral(literal.to_owned()),
     "if" <head: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" => {
         TermData::If(Box::new(head), Box::new(if_true), Box::new(if_false))

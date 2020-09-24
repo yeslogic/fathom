@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::lang::core::{Constant, Globals, Item, ItemData, Term, TermData};
+use crate::lang::core::{Constant, Globals, Item, ItemData, Sort, Term, TermData};
 
 /// Values.
 #[derive(Debug, Clone)]
@@ -20,12 +20,15 @@ pub enum Value {
     /// abstract global, or an unsolved metavariable).
     Stuck(Head, Vec<Elim>),
 
-    /// Type of types.
-    TypeType,
+    /// Sorts.
+    Sort(Sort),
+
     /// Function types.
     FunctionType(Arc<Value>, Arc<Value>),
+
     /// Constants.
     Constant(Constant),
+
     /// Type of format types.
     FormatType,
 
@@ -84,7 +87,9 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
             },
         },
         TermData::Ann(term, _) => eval(globals, items, term),
-        TermData::TypeType => Arc::new(Value::TypeType),
+
+        TermData::Sort(sort) => Arc::new(Value::Sort(*sort)),
+
         TermData::FunctionType(param_type, body_type) => {
             let param_type = eval(globals, items, param_type);
             let body_type = eval(globals, items, body_type);
@@ -99,6 +104,7 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
             }
             _ => Arc::new(Value::Error),
         },
+
         TermData::Constant(constant) => Arc::new(Value::Constant(constant.clone())),
         TermData::BoolElim(head, if_true, if_false) => {
             match eval(globals, items, head).as_ref() {
@@ -176,13 +182,17 @@ fn read_back_neutral(head: &Head, elims: &[Elim]) -> Term {
 pub fn read_back(value: &Value) -> Term {
     match value {
         Value::Stuck(head, elims) => read_back_neutral(head, elims),
-        Value::TypeType => Term::from(TermData::TypeType),
+
+        Value::Sort(sort) => Term::from(TermData::Sort(*sort)),
+
         Value::FunctionType(param_type, body_type) => Term::from(TermData::FunctionType(
             Arc::new(read_back(param_type)),
             Arc::new(read_back(body_type)),
         )),
         Value::Constant(constant) => Term::from(TermData::Constant(constant.clone())),
+
         Value::FormatType => Term::from(TermData::FormatType),
+
         Value::Error => Term::from(TermData::Error),
     }
 }
@@ -273,7 +283,9 @@ pub fn is_equal(
         (Value::Stuck(head0, spine0), Value::Stuck(head1, spine1)) => {
             is_equal_head(head0, head1) && is_equal_spine(globals, items, spine0, spine1)
         }
-        (Value::TypeType, Value::TypeType) => true,
+
+        (Value::Sort(sort0), Value::Sort(sort1)) => sort0 == sort1,
+
         (
             Value::FunctionType(param_type0, body_type0),
             Value::FunctionType(param_type1, body_type1),
@@ -281,7 +293,9 @@ pub fn is_equal(
             is_equal(globals, items, param_type1, param_type0)
                 && is_equal(globals, items, body_type0, body_type1)
         }
+
         (Value::Constant(constant0), Value::Constant(constant1)) => constant0 == constant1,
+
         (Value::FormatType, Value::FormatType) => true,
 
         // Errors are always treated as equal
