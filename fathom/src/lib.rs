@@ -4,6 +4,5 @@ pub mod lang;
 pub mod pass;
 
 mod ieee754;
-pub mod lexer;
-pub mod literal;
+mod literal;
 pub mod reporting;

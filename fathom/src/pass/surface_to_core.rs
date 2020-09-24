@@ -17,6 +17,7 @@ use std::sync::Arc;
 use crate::lang::core;
 use crate::lang::core::semantics::{self, Head, Value};
 use crate::lang::surface::{ItemData, Module, Pattern, PatternData, Term, TermData};
+use crate::literal;
 use crate::pass::core_to_surface;
 use crate::reporting::{Message, SurfaceToCoreMessage};
 
@@ -270,21 +271,23 @@ impl<'me> Context<'me> {
         match (&surface_term.data, expected_type.as_ref()) {
             (TermData::Error, _) => core::Term::new(range, core::TermData::Error),
             (_, Value::Error) => core::Term::new(range, core::TermData::Error),
-            (TermData::NumberLiteral(literal), _) => {
+            (TermData::NumberLiteral(source), _) => {
+                let parse_state =
+                    literal::State::new(file_id, range.clone(), source, &mut self.messages);
                 let term_data = match expected_type.as_ref() {
                     // TODO: Lookup globals in environment
                     Value::Stuck(Head::Global(name), elims) if elims.is_empty() => {
                         match name.as_str() {
-                            "Int" => literal
-                                .parse_big_int(file_id, &mut self.messages)
+                            "Int" => parse_state
+                                .number_to_big_int()
                                 .map(core::Constant::Int)
                                 .map_or(core::TermData::Error, core::TermData::Constant),
-                            "F32" => literal
-                                .parse_float(file_id, &mut self.messages)
+                            "F32" => parse_state
+                                .number_to_float()
                                 .map(core::Constant::F32)
                                 .map_or(core::TermData::Error, core::TermData::Constant),
-                            "F64" => literal
-                                .parse_float(file_id, &mut self.messages)
+                            "F64" => parse_state
+                                .number_to_float()
                                 .map(core::Constant::F64)
                                 .map_or(core::TermData::Error, core::TermData::Constant),
                             _ => {
@@ -565,9 +568,11 @@ impl<'me> Context<'me> {
             };
 
             match &pattern.data {
-                PatternData::NumberLiteral(literal) => {
+                PatternData::NumberLiteral(source) => {
                     let core_term = self.check_type(file_id, surface_term, expected_type);
-                    match literal.parse_big_int(file_id, &mut self.messages) {
+                    let parse_state =
+                        literal::State::new(file_id, range.clone(), source, &mut self.messages);
+                    match parse_state.number_to_big_int() {
                         None => {} // Skipping - an error message should have already been recorded
                         Some(value) => match &default {
                             None => match branches.entry(value) {

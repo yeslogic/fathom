@@ -6,8 +6,9 @@ use std::sync::Arc;
 
 use crate::ieee754;
 use crate::lang::Ranged;
-use crate::lexer::SpannedToken;
-use crate::reporting::{LexerMessage, Message};
+use crate::reporting::Message;
+
+mod lexer;
 
 #[allow(clippy::style, clippy::complexity, clippy::perf)]
 mod grammar {
@@ -30,11 +31,8 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn parse(
-        file_id: usize,
-        tokens: impl IntoIterator<Item = Result<SpannedToken, LexerMessage>>,
-        messages: &mut Vec<Message>,
-    ) -> Module {
+    pub fn parse(file_id: usize, source: &str, messages: &mut Vec<Message>) -> Module {
+        let tokens = lexer::tokens(file_id, source);
         grammar::ModuleParser::new()
             .parse(file_id, messages, tokens)
             .unwrap_or_else(|error| {

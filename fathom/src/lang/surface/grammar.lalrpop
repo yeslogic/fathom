@@ -2,23 +2,23 @@ use std::sync::Arc;
 
 use crate::lang::Ranged;
 use crate::lang::surface::{Alias, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField};
-use crate::lexer::Token;
-use crate::literal;
+use crate::lang::surface::lexer::Token;
 use crate::reporting::LexerMessage;
 
-grammar(file_id: usize);
+grammar<'source>(file_id: usize);
 
 extern {
     type Location = usize;
     type Error = LexerMessage;
 
-    enum Token {
+    enum Token<'source> {
         "doc comment" => Token::DocComment(<String>),
         "inner doc comment" => Token::InnerDocComment(<String>),
-        "identifier" => Token::Identifier(<String>),
-        "numeric literal" => Token::NumberLiteral(<literal::Number>),
-        "string literal" => Token::StringLiteral(<literal::String>),
-        "character literal" => Token::CharLiteral(<literal::Char>),
+
+        "name" => Token::Name(<&'source str>),
+        "numeric literal" => Token::NumericLiteral(<&'source str>),
+        "string literal" => Token::StringLiteral(<&'source str>),
+        "character literal" => Token::CharLiteral(<&'source str>),
 
         "bool_elim" => Token::BoolElim,
         "else" => Token::Else,
@@ -53,41 +53,57 @@ pub Module: Module = {
     <doc: "inner doc comment"*> <items: Ranged<ItemData>*> => {
         let doc = Arc::from(doc);
 
-        Module { file_id, doc, items }
+        Module {
+            file_id,
+            doc: Arc::from(doc),
+            items,
+        }
     },
 };
 
 ItemData: ItemData = {
     <doc: "doc comment"*>
-    <name: Ranged<"identifier">> <type_: (":" <Term>)?> "=" <term: Term> ";" => {
+    <name: Ranged<Name>> <type_: (":" <Term>)?> "=" <term: Term> ";" => {
         let doc = Arc::from(doc);
 
-        ItemData::Alias(Alias { doc, name, type_, term })
+        ItemData::Alias(Alias {
+            doc: Arc::from(doc),
+            name,
+            type_,
+            term,
+        })
     },
     <doc: "doc comment"*>
-    "struct" <name: Ranged<"identifier">> "{"
+    "struct" <name: Ranged<Name>> "{"
         <mut fields: (<Field> ",")*>
         <last: Field?>
     "}" => {
-        let doc = Arc::from(doc);
         fields.extend(last);
 
-        ItemData::Struct(StructType { doc, name, fields })
+        ItemData::Struct(StructType {
+            doc: Arc::from(doc),
+            name,
+            fields,
+        })
     },
 };
 
 Field: TypeField = {
     <docs: "doc comment"*>
-    <name: Ranged<"identifier">> ":" <term: Term> => {
-        TypeField { doc: Arc::from(docs), name, term }
+    <name: Ranged<Name>> ":" <term: Term> => {
+        TypeField {
+            doc: Arc::from(docs),
+            name,
+            term,
+        }
     },
 };
 
 #[inline] Pattern: Pattern = Ranged<PatternData>;
 
 PatternData: PatternData = {
-    <name: "identifier"> => PatternData::Name(name),
-    <literal: "numeric literal"> => PatternData::NumberLiteral(literal),
+    <name: Name> => PatternData::Name(name),
+    <literal: "numeric literal"> => PatternData::NumberLiteral(literal.to_owned()),
 };
 
 #[inline] Term: Term = Ranged<TermData>;
@@ -116,9 +132,9 @@ AppTermData: TermData = {
 
 AtomicTermData: TermData = {
     "(" <term: TermData> ")" => term,
-    <name: "identifier"> => TermData::Name(name),
+    <name: Name> => TermData::Name(name),
     "Type" => TermData::TypeType,
-    <literal: "numeric literal"> => TermData::NumberLiteral(literal),
+    <literal: "numeric literal"> => TermData::NumberLiteral(literal.to_owned()),
     "if" <head: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" => {
         TermData::If(Box::new(head), Box::new(if_true), Box::new(if_false))
     },
@@ -129,6 +145,12 @@ AtomicTermData: TermData = {
     "Format" => TermData::FormatType,
 };
 
-#[inline] Ranged<T>: Ranged<T> = {
+#[inline]
+Name: String = {
+    <"name"> => (<>).to_owned(),
+}
+
+#[inline]
+Ranged<T>: Ranged<T> = {
     <start: @L> <data: T> <end: @R> => Ranged::new(start..end, data),
 };

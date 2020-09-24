@@ -18,9 +18,7 @@ macro_rules! core_module {
                 let file_id = files.add($path.to_string(), SOURCE.to_string());
 
                 let mut messages = Vec::new();
-                let keywords = &$crate::fathom::lexer::CORE_KEYWORDS;
-                let lexer = $crate::fathom::lexer::Lexer::new(&files, file_id, keywords);
-                $crate::fathom::lang::core::Module::parse(file_id, lexer, &mut messages) // FIXME: Log syntax errors?
+                $crate::fathom::lang::core::Module::parse(file_id, SOURCE, &mut messages) // FIXME: Log syntax errors?
             };
         }
     };
