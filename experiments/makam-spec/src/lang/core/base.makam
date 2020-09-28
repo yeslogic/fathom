@@ -63,7 +63,7 @@ format_intro_array : term -> term -> term.
 format_intro_record : list (string * term) -> term.
 format_intro_compute : term -> term -> term.
 format_intro_absorb : term -> term.
-format_elim : term -> term.
+format_repr : term -> term.     % Convert a format description into its host representation
 
 
 % Items

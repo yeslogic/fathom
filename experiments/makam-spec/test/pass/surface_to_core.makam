@@ -23,13 +23,20 @@
         (closure [] (core.function_type core.int_type core.type_type)).
 >> Elem :=
     core.function_intro core.type_type
-            (core.function_intro core.int_type
-                (core.array_type (core.local 1) (core.local 0))).
+        (core.function_intro core.int_type
+            (core.array_type (core.local 1) (core.local 0))).
 
 >> synth_type (surface.name "Format") Type Elem ?
 >> Yes:
 >> Type := kind_type.
 >> Elem := core.format_type.
+
+>> synth_type (surface.name "Repr") Type Elem ?
+>> Yes:
+>> Type := function_type format_type (closure [] core.type_type).
+>> Elem :=
+    core.function_intro core.format_type
+        (core.format_repr (core.local 0)).
 
 >> synth_type
     (context [ ( some "Boop", Level, _, format_type ) ])
@@ -294,6 +301,19 @@
                         (core.format_intro_array (core.local 1) (core.local 0))))
             core.format_intro_u32be)
         (core.int_intro 23).
+
+>> synth_type
+    (surface.function_elim (surface.name "Repr")
+        [ surface.name "U32Be"
+        ])
+    Type Elem ?
+>> Yes:
+>> Type := type_type.
+>> Elem :=
+    core.function_elim
+        (core.function_intro core.format_type
+            (core.format_repr (core.local 0)))
+        core.format_intro_u32be.
 
 
     % Records

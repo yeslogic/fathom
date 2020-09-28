@@ -102,6 +102,10 @@
         (core.function_intro core.format_type
             (core.function_intro core.int_type
                 (core.format_intro_array (core.local 1) (core.local 0)))).
+    lookup_global "Repr"
+        (core.function_type core.format_type core.type_type)
+        (core.function_intro core.format_type
+            (core.format_repr (core.local 0))).
 
 
     % Elaboration rules
@@ -200,7 +204,7 @@
     :-
         not (contains ( Label, _ ) SourceTypeFields),
         check_type Context SourceType format_type TargetType,
-        context.eval Context (core.format_elim TargetType) TargetType',
+        context.eval Context (core.format_repr TargetType) TargetType',
         context.add_param Context ( some Label, TargetType' ) Context',
         check_type Context' (surface.record_type SourceTypeFields) format_type
             (core.format_intro_record TargetTypeFields).
