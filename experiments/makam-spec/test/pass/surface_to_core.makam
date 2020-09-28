@@ -16,6 +16,16 @@
 >> Type := kind_type.
 >> Elem := core.type_type.
 
+>> synth_type (surface.name "Array") Type Elem ?
+>> Yes:
+>> Type :=
+    function_type type_type
+        (closure [] (core.function_type core.int_type core.type_type)).
+>> Elem :=
+    core.function_intro core.type_type
+            (core.function_intro core.int_type
+                (core.array_type (core.local 1) (core.local 0))).
+
 >> synth_type (surface.name "Format") Type Elem ?
 >> Yes:
 >> Type := kind_type.
@@ -34,16 +44,6 @@
     (surface.name "Bap")
     Type Elem ?
 >> Impossible.
-
->> synth_type (surface.name "Array") Type Elem ?
->> Yes:
->> Type :=
-    function_type type_type
-        (closure [] (core.function_type core.int_type core.type_type)).
->> Elem :=
-    core.function_intro core.type_type
-            (core.function_intro core.int_type
-                (core.array_type (core.local 1) (core.local 0))).
 
 
     % Annotated terms
