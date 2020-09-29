@@ -1,0 +1,21 @@
+{
+  "name": "book",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "author": {
+    "name": "YesLogic Pty. Ltd.",
+    "email": "info@yeslogic.com",
+    "url": "https://yeslogic.com"
+  },
+  "scripts": {
+    "dev": "parcel index.js --no-source-maps",
+    "build": "parcel build index.js --no-source-maps"
+  },
+  "devDependencies": {
+    "parcel-bundler": "^1.12.4"
+  },
+  "dependencies": {
+    "highlight.js": "^10.2.0"
+  }
+}

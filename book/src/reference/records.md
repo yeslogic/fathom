@@ -10,12 +10,12 @@ For example:
 
 ```fathom
 Point : Type = {
-    x : U32,
-    y : U32,
+    x : Int,
+    y : Int,
 };
 
 MyArray : Type = {
-    len : U32,
+    len : Int,
     data : Array len Point,
     //           ^ The type of the `data` field depends on `len`
 };
@@ -25,8 +25,8 @@ Record types can only contain unique fields:
 
 ```fathom
 Point : Type = {
-    x : U32,
-    x : U32, // error!
+    x : Int,
+    x : Int, // error!
 };
 ```
 
@@ -35,8 +35,8 @@ we need to explicitly annotate records with `Type` when the usage is ambiguous:
 
 ```fathom
 Point = { // error!
-    x : U32,
-    y : U32,
+    x : Int,
+    y : Int,
 };
 ```
 

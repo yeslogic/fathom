@@ -10,6 +10,9 @@ src = "src"
 build-dir = "build"
 
 [output.html]
+additional-js = [
+    "dist/index.js",
+]
 
 [output.linkcheck]
 exclude = [
