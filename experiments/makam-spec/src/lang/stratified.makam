@@ -111,7 +111,7 @@
     format_intro_record : list (string * term1) -> term1.
     format_intro_compute : term0 -> term1 -> term1.
     format_intro_absorb : term1 -> term1.
-    format_elim : term1 -> term2.
+    format_repr : term1 -> term2.               % Convert a format description into its host representation
 
 
     % The computation language.

@@ -317,36 +317,36 @@
 >> Yes:
 >> Term := format_intro_absorb format_intro_u8.
 
->> normalize [ stuck (local 0) ] (format_elim (local 0)) Term ?
+>> normalize [ stuck (local 0) ] (format_repr (local 0)) Term ?
 >> Yes:
->> Term := format_elim (local 0).
+>> Term := format_repr (local 0).
 
->> normalize (format_elim format_intro_void) Term ?
+>> normalize (format_repr format_intro_void) Term ?
 >> Yes:
 >> Term := enum_type [].
 
->> normalize (format_elim format_intro_unit) Term ?
+>> normalize (format_repr format_intro_unit) Term ?
 >> Yes:
 >> Term := record_type [].
 
->> normalize (format_elim format_intro_u8) Term ?
+>> normalize (format_repr format_intro_u8) Term ?
 >> Yes:
 >> Term := int_type.
 
->> normalize (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Term ?
+>> normalize (format_repr (format_intro_array format_intro_u8 (int_intro 3))) Term ?
 >> Yes:
 >> Term := array_type int_type (int_intro 3).
 
->> normalize (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Term ?
+>> normalize (format_repr (format_intro_array format_intro_u8 (int_intro 3))) Term ?
 >> Yes:
 >> Term := array_type int_type (int_intro 3).
 
->> normalize (format_elim (format_intro_record [])) Term ?
+>> normalize (format_repr (format_intro_record [])) Term ?
 >> Yes:
 >> Term := record_type [].
 
 >> normalize [ format_intro_u16be, format_intro_unit ]
-    (format_elim
+    (format_repr
         (format_intro_record
             [ ( "len", local 0 )
             , ( "data", format_intro_array (local 2) (local 0) )
@@ -360,13 +360,13 @@
         ].
 
 >> normalize [ int_type ]
-    (format_elim (format_intro_compute (int_intro 2) (local 0)))
+    (format_repr (format_intro_compute (int_intro 2) (local 0)))
     Term ?
 >> Yes:
 >> Term := int_type.
 
 >> normalize [ format_intro_u8 ]
-    (format_elim (format_intro_absorb (local 0)))
+    (format_repr (format_intro_absorb (local 0)))
     Term ?
 >> Yes:
 >> Term := record_type [].

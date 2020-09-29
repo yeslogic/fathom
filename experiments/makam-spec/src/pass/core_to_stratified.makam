@@ -168,7 +168,7 @@
         (term1 (stratified.format_intro_absorb TargetType))
     :-
         from_term Context SourceType (term1 TargetType).
-    from_term Context (core.format_elim SourceType) (term2 (stratified.format_elim TargetType)) :-
+    from_term Context (core.format_repr SourceType) (term2 (stratified.format_repr TargetType)) :-
         from_term Context SourceType (term1 TargetType).
 
 

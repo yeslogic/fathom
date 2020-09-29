@@ -95,7 +95,7 @@
     enum_elim : choice_closure -> stuck -> stuck.
     %  stage_elim : stuck -> stuck.
     %  array_elim : stuck -> value -> stuck.
-    format_elim : stuck -> stuck.
+    format_repr : stuck -> stuck.   % Convert a format description into its host representation
 
     closure : list value -> term -> closure.
     field_closure : list value -> list (string * term) -> field_closure.
@@ -112,7 +112,7 @@
     record_elim : value -> string -> value -> prop.
     %  stage_elim : value -> value -> prop.
     %  array_elim : value -> value -> stuck.
-    format_elim : value -> value -> prop.
+    format_repr : value -> value -> prop.
 
     eval Values (local Index) Value :-
         list.nth Values Index Value.
@@ -180,9 +180,9 @@
         eval Values Type Type'.
     eval Values (format_intro_absorb Type) (format_intro_absorb Type') :-
         eval Values Type Type'.
-    eval Values (format_elim Elem) Value' :-
+    eval Values (format_repr Elem) Value' :-
         eval Values Elem Value,
-        format_elim Value Value'.
+        format_repr Value Value'.
 
     % Closure operations
 
@@ -208,32 +208,32 @@
 
     % TODO: stage_elim
 
-    format_elim (stuck Neutral) (stuck (format_elim Neutral)).
-    format_elim format_intro_void (enum_type []).
-    format_elim format_intro_unit (record_type (field_closure [] [])).
-    format_elim format_intro_u8 int_type.
-    format_elim format_intro_u16le int_type.
-    format_elim format_intro_u16be int_type.
-    format_elim format_intro_u32le int_type.
-    format_elim format_intro_u32be int_type.
-    format_elim format_intro_u64le int_type.
-    format_elim format_intro_u64be int_type.
-    format_elim format_intro_s8 int_type.
-    format_elim format_intro_s16le int_type.
-    format_elim format_intro_s16be int_type.
-    format_elim format_intro_s32le int_type.
-    format_elim format_intro_s32be int_type.
-    format_elim format_intro_s64le int_type.
-    format_elim format_intro_s64be int_type.
-    format_elim (format_intro_array Elem Len) (array_type Elem' Len) :-
-        format_elim Elem Elem'.
-    format_elim
+    format_repr (stuck Neutral) (stuck (format_repr Neutral)).
+    format_repr format_intro_void (enum_type []).
+    format_repr format_intro_unit (record_type (field_closure [] [])).
+    format_repr format_intro_u8 int_type.
+    format_repr format_intro_u16le int_type.
+    format_repr format_intro_u16be int_type.
+    format_repr format_intro_u32le int_type.
+    format_repr format_intro_u32be int_type.
+    format_repr format_intro_u64le int_type.
+    format_repr format_intro_u64be int_type.
+    format_repr format_intro_s8 int_type.
+    format_repr format_intro_s16le int_type.
+    format_repr format_intro_s16be int_type.
+    format_repr format_intro_s32le int_type.
+    format_repr format_intro_s32be int_type.
+    format_repr format_intro_s64le int_type.
+    format_repr format_intro_s64be int_type.
+    format_repr (format_intro_array Elem Len) (array_type Elem' Len) :-
+        format_repr Elem Elem'.
+    format_repr
         (format_intro_record (field_closure Values TypeFields))
         (record_type (field_closure Values TypeFields'))
     :-
-        map (pfun ( Label, Elem ) ( Label, format_elim Elem ) => success) TypeFields TypeFields'.
-    format_elim (format_intro_compute Elem Type) Type.
-    format_elim (format_intro_absorb Type) (record_type (field_closure [] [])).
+        map (pfun ( Label, Elem ) ( Label, format_repr Elem ) => success) TypeFields TypeFields'.
+    format_repr (format_intro_compute Elem Type) Type.
+    format_repr (format_intro_absorb Type) (record_type (field_closure [] [])).
 
 
     % Find the type of a field in a record elimination, based on the given
@@ -274,7 +274,7 @@
         plus Length 1 Length1,
         readback Length1 OutputType' OutputType'',
         readback Length Neutral Elem.
-    readback Length (format_elim Neutral : stuck) (format_elim Elem) :-
+    readback Length (format_repr Neutral : stuck) (format_repr Elem) :-
         readback Length Neutral Elem.
 
     readback Length (stuck Neutral) Elem :-
@@ -398,7 +398,7 @@
         eval (stuck (local Length) :: Values2) OutputType2 OutputType2',
         is_equal Length OutputType1' OutputType2',
         is_equal Length Neutral1 Neutral2.
-    is_equal Length (format_elim Neutral1 : stuck) (format_elim Neutral2 : stuck) :-
+    is_equal Length (format_repr Neutral1 : stuck) (format_repr Neutral2 : stuck) :-
         is_equal Length Neutral1 Neutral2.
 
     is_equal Length (stuck Neutral1) (stuck Neutral2) :-

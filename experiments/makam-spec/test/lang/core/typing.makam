@@ -447,7 +447,7 @@
 >> Yes:
 >> Type := format_type.
 
->> synth_type (format_elim (format_intro_array format_intro_u8 (int_intro 3))) Type ?
+>> synth_type (format_repr (format_intro_array format_intro_u8 (int_intro 3))) Type ?
 >> Yes:
 >> Type := type_type.
 
