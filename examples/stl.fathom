@@ -1,0 +1,28 @@
+//! Binary STL File
+//!
+//! # References
+//!
+//! - [Wikipedia](https://en.wikipedia.org/wiki/STL_(file_format)#Binary_STL)
+
+// TODO: STL variants:
+// - VisCAM
+// - SolidView
+// - Materialise Magics
+
+struct Vec3d : Format {
+    x : F32Le,
+    y : F32Le,
+    z : F32Le,
+}
+
+struct Triangle : Format {
+    normal : Vec3d,
+    vertices : FormatArray Vec3d 3,
+    attribute_byte_count : U16Le,
+}
+
+struct Stl : Format {
+    header : FormatArray U8 80,
+    triangle_count : U32Le,
+    triangles : FormatArray Triangle triangle_count,
+}

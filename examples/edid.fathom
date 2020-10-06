@@ -1,0 +1,52 @@
+//! Extended Display Identification Data
+//! https://en.wikipedia.org/wiki/Extended_Display_Identification_Data
+
+// TODO: Versions 1.0-1.4
+
+struct Header : Format {
+    magic : U64Le,                          // TODO: where `magic == 0x00ffffffffffff00`
+    manufacturer_id : U16Le,                // TODO: bit patterns
+    product_code : U16Le,
+    serial : U32Le,
+    manufacturer_week : U8,
+    manufacturer_year_mod : U8,             // TODO: embed `mfg_year_mod + 1990`
+    edid_version_major : U8,
+    edid_version_minor : U8,
+}
+
+struct DisplayParameters : Format {
+    video_input_parameters : U8,            // TODO: bit patterns
+    screen_size_h : U8,
+    screen_size_v : U8,
+    gamma_mod : U8,                         // TODO: embed `(int_to_f32 gamma_mod + 100.0) / 100.0`
+    supported_features : U8,                // TODO: bit patterns
+}
+
+struct ChromacityCoordinates : Format {
+    red_green_lsb : U8,                     // TODO: bit patterns
+    blue_white_lsb : U8,                    // TODO: bit patterns
+    red_x_msb : U8,
+    red_y_msb : U8,
+    green_x_msb : U8,
+    green_y_msb : U8,
+    blue_x_msb : U8,
+    blue_y_msb : U8,
+    white_x_msb : U8,
+    white_y_msb : U8,
+}
+
+struct EstablishedTiming : Format {
+    mode_bitmap : FormatArray U8 3,         // TODO: bit patterns
+}
+
+struct StandardTimingInformation : Format {
+    // TODO: Standard timing information
+}
+
+struct Edid : Format {
+    header : Header,
+    display_parameters : DisplayParameters,
+    chromacity_coordinates : ChromacityCoordinates,
+    established_timing : EstablishedTiming,
+    standard_timing_information : StandardTimingInformation,
+}
