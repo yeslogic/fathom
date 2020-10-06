@@ -1,5 +1,13 @@
 //! Test annotated terms.
 
+TestInt = Int : Type;
+TestF32 = F32 : Type;
+TestF64 = F64 : Type;
+TestBool = Bool : Type;
+test_true = true : Bool;
+test_false = false : Bool;
+TestList = List : Type -> Type;
+
 TestU8 = U8 : Format;
 TestU16Le = U16Le : Format;
 TestU16Be = U16Be : Format;
@@ -19,11 +27,3 @@ TestF32Be = F32Be : Format;
 TestF64Le = F64Le : Format;
 TestF64Be = F64Be : Format;
 TestFormatArray = FormatArray : Int -> Format -> Format;
-
-TestList = List : Type -> Type;
-TestInt = Int : Type;
-TestF32 = F32 : Type;
-TestF64 = F64 : Type;
-TestBool = Bool : Type;
-test_true = true : Bool;
-test_false = false : Bool;

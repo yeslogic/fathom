@@ -1,5 +1,19 @@
 //! Test annotated terms.
 
+TestInt = global Int : Type;
+
+TestF32 = global F32 : Type;
+
+TestF64 = global F64 : Type;
+
+TestBool = global Bool : Type;
+
+test_true = global true : global Bool;
+
+test_false = global false : global Bool;
+
+TestList = global List : Type -> Type;
+
 TestU8 = global U8 : Format;
 
 TestU16Le = global U16Le : Format;
@@ -37,17 +51,3 @@ TestF64Le = global F64Le : Format;
 TestF64Be = global F64Be : Format;
 
 TestFormatArray = global FormatArray : global Int -> Format -> Format;
-
-TestList = global List : Type -> Type;
-
-TestInt = global Int : Type;
-
-TestF32 = global F32 : Type;
-
-TestF64 = global F64 : Type;
-
-TestBool = global Bool : Type;
-
-test_true = global true : global Bool;
-
-test_false = global false : global Bool;
