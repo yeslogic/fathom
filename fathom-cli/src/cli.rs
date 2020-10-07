@@ -11,12 +11,12 @@ pub struct Cli {
     /// Optional argument for specifying the name of the format
     /// description in the installed catalog, for example "opentype",
     /// that will be used to process the files.
-    #[structopt(long, group = "format_choice")]
+    #[structopt(long, group = "format_choice", name = "NAME")]
     format: Option<String>,
     /// Optional argument for specifying the file containing the
     /// format description, for example "path/to/myformat.ddl", that
     /// will be used to process the files.
-    #[structopt(long, group = "format_choice")]
+    #[structopt(long, group = "format_choice", name = "FORMAT-FILE")]
     format_file: Option<PathBuf>,
     // Output options, optional:
     /// Prints a brief summary of each file based on the format
@@ -33,11 +33,11 @@ pub struct Cli {
     dump: bool,
     /// Print the results of applying the specified format query to
     /// each input file.
-    #[structopt(long)]
+    #[structopt(long, name = "QUERY")]
     query: Option<String>,
     /// Read a query from file and print the results of applying the
     /// format query to each input file.
-    #[structopt(long)]
+    #[structopt(long, name = "QUERY-FILE")]
     query_file: Option<PathBuf>,
     // The (binary) input files to operate on:
     /// The path to the file(s) to parse
