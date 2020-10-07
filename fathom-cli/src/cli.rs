@@ -18,6 +18,7 @@ pub struct Cli {
     /// files.
     #[structopt(long, group = "format_choice")]
     format_file: Option<PathBuf>,
+    // The (binary) input files to operate on:
     /// The path to the file(s) to parse
     #[structopt(parse(from_os_str))]
     files: Vec<PathBuf>,
