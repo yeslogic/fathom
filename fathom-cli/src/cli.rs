@@ -5,7 +5,7 @@ use structopt::{clap::ArgGroup, StructOpt};
 
 /// Fathom DDL interpreter to provide tools to inspect and query binary files.
 #[derive(StructOpt, Debug)]
-#[structopt(group = ArgGroup::with_name("format_choice").required(false))]
+#[structopt(group = ArgGroup::with_name("format_choice"))]
 pub struct Cli {
     /// --format=NAME is an optional argument for specifying the name
     /// of the format description in the installed catalog, for
