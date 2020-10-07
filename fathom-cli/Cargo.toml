@@ -1,0 +1,12 @@
+[package]
+name = "fathom-cli"
+version = "0.1.0"
+authors = ["YesLogic Pty. Ltd. <info@yeslogic.com>"]
+edition = "2018"
+publish = false # TODO: Remove this when we are ready to publish to crates.io
+
+description = "CLI interface for Fathom"
+license = "Apache-2.0"
+
+[dependencies]
+structopt = { version = "0.3" }

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     './fathom',
+    './fathom-cli',
     './fathom-runtime',
     './fathom-test',
     './fathom-test-util',
