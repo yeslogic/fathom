@@ -3,7 +3,7 @@
 Binary format specifications are often described using natural language.
 For example, consider the following specification of a simple bitmap format:
 
-> A simple bitmap image format
+> ## A simple bitmap image format
 >
 > All numeric data is in big-endian.
 >
