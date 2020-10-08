@@ -35,7 +35,7 @@ Fathom aims to streamline this process for new and existing binary formats.
 Here is a very simple example of a binary format specified using Fathom:
 
 ```fathom
-Pixel : Format = {
+RgbPixel : Format = {
     red : U8,
     green : U8,
     blue : U8,

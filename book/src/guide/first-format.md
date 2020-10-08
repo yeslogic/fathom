@@ -34,7 +34,7 @@ The above natural language specification can be described using the following de
 //! A simple bitmap image format
 
 /// RGB pixel in the image
-Pixel : Format = {
+RgbPixel : Format = {
     /// Red channel
     red : U8,
     /// Green channel
@@ -54,7 +54,7 @@ Image : Format = {
 };
 ```
 
-We use the built-in format descriptions, `U8`, `U16Be`, and `FormatArray` to create the composite format descriptions, `Pixel` and `Image`.
+We use the built-in format descriptions, `U8`, `U16Be`, and `FormatArray` to create the composite format descriptions, `RgbPixel` and `Image`.
 
 Note in particular how the `data` field of `Format` depends on `width` and `height`.
 These data-dependencies are very important when parsing binary formats!
