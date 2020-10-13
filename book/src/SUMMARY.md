@@ -36,7 +36,7 @@
     - [Lexical Syntax](./specification/textual-representation/lexical-syntax.md)
     - [Concrete Syntax](./specification/textual-representation/concrete-syntax.md)
 
-- [Implementation]()
+- [Development]()
   - [Contributing](./implementation/contributing.md)
   - [Code of Conduct](./implementation/code-of-conduct.md)
   - [Architecture of the Compiler]()
