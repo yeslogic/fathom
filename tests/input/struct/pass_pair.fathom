@@ -1,7 +1,15 @@
-//! Test a pair struct.
+//! Test pair structs.
+
+/// A pair of integers.
+struct PairType : Type {
+    /// The first field.
+    first : Int,
+    /// The second field.
+    second : Int,
+}
 
 /// A pair of bytes.
-struct Pair {
+struct PairFormat : Format {
     /// The first field.
     first : U8,
     /// The second field.

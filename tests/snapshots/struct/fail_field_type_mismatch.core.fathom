@@ -1,4 +1,11 @@
-struct Foo {
+struct FooType : Type {
+    field_kind : !,
+    field_type : !,
+    field_format : !,
+    field_u32be : !,
+}
+
+struct FooFormat : Format {
     field_kind : !,
     field_type : !,
     field_format : !,

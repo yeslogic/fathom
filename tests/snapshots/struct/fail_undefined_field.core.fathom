@@ -1,4 +1,4 @@
-struct Pair {
+struct Pair : Format {
     first : !,
     second : !,
 }

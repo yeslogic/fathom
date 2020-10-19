@@ -1,6 +1,9 @@
 //! Test an empty struct with documentation.
 
 /// This is an empty struct.
+struct EmptyType : Type {}
+
+/// This is an empty struct format.
 ///
 /// It will not consume any input.
-struct Empty {}
+struct EmptyFormat : Format {}

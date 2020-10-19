@@ -79,9 +79,10 @@ mod r#struct {
 
     test!(fail_duplicate_fields, "struct/fail_duplicate_fields.fathom");
     test!(fail_field_type_mismatch, "struct/fail_field_type_mismatch.fathom");
+    test!(fail_invalid_ann, "struct/fail_invalid_ann.fathom");
+    test!(fail_missing_ann, "struct/fail_missing_ann.fathom");
     test!(fail_missing_closing_brace, "struct/fail_missing_closing_brace.fathom");
     test!(fail_missing_fields, "struct/fail_missing_fields.fathom");
     test!(fail_missing_name, "struct/fail_missing_name.fathom");
-    test!(fail_mixed_format_host, "struct/fail_mixed_format_host.fathom");
     test!(fail_undefined_field, "struct/fail_undefined_field.fathom");
 }

@@ -1,4 +1,11 @@
-struct Foo {
+struct FooType : Type {
+    field_kind : Kind, //~ error: term has no type
+    field_type : Type, //~ error: type mismatch
+    field_format : Format, //~ error: type mismatch
+    field_u32be : U32Be, //~ error: type mismatch
+}
+
+struct FooFormat : Format {
     field_kind : Kind, //~ error: term has no type
     field_type : Type, //~ error: type mismatch
     field_format : Format, //~ error: type mismatch

@@ -1,4 +1,12 @@
-struct Pair {
+struct PairType : Type {
+    first : Int,
+    second : Int,
+    first : Int, //~ error: field `first` is already declared
+    first : Int, //~ error: field `first` is already declared
+    second : Int, //~ error: field `second` is already declared
+}
+
+struct PairFormat : Format {
     first : U8,
     second : U8,
     first : U8, //~ error: field `first` is already declared

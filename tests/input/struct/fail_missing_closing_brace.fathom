@@ -1,1 +1,1 @@
-struct Empty { //~ error: unexpected end of file
+struct Empty : Format { //~ error: unexpected end of file

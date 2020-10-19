@@ -35,17 +35,17 @@ Fathom aims to streamline this process for new and existing binary formats.
 Here is a very simple example of a binary format specified using Fathom:
 
 ```fathom
-RgbPixel : Format = {
+struct RgbPixel : Format {
     red : U8,
     green : U8,
     blue : U8,
-};
+}
 
-Image : Format = {
+struct Image : Format {
     width : U16Be,
     height : U16Be,
     data : FormatArray (width * height) RgbPixel,
-};
+}
 ```
 
 For more information, read on in the [Fathom Language Guide](./guide.md)!

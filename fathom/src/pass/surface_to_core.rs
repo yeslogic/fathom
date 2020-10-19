@@ -14,9 +14,9 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::lang::core;
 use crate::lang::core::semantics::{self, Head, Value};
-use crate::lang::surface::{ItemData, Module, Pattern, PatternData, Term, TermData};
+use crate::lang::core::{self, Sort};
+use crate::lang::surface::{ItemData, Module, Pattern, PatternData, StructType, Term, TermData};
 use crate::literal;
 use crate::pass::core_to_surface;
 use crate::reporting::{Message, SurfaceToCoreMessage};
@@ -120,7 +120,7 @@ impl<'me> Context<'me> {
         for item in surface_module.items.iter() {
             use std::collections::hash_map::Entry;
 
-            match &item.data {
+            let (name, item_data, r#type) = match &item.data {
                 ItemData::Alias(alias) => {
                     let (core_term, r#type) = match &alias.type_ {
                         Some(surface_type) => {
@@ -144,89 +144,65 @@ impl<'me> Context<'me> {
                         None => self.synth_type(file_id, &alias.term),
                     };
 
-                    // FIXME: Avoid shadowing builtin definitions
-                    match self.items.entry(alias.name.data.clone()) {
-                        Entry::Vacant(entry) => {
-                            let item_data = core::ItemData::Alias(core::Alias {
-                                doc: alias.doc.clone(),
-                                name: alias.name.data.clone(),
-                                term: Arc::new(core_term),
-                            });
+                    let item_data = core::ItemData::Alias(core::Alias {
+                        doc: alias.doc.clone(),
+                        name: alias.name.data.clone(),
+                        term: Arc::new(core_term),
+                    });
 
-                            let core_item = core::Item::new(item.range(), item_data);
-                            core_items.push(core_item.clone());
-                            self.types.push((entry.key().clone(), r#type));
-                            entry.insert(core_item);
-                        }
-                        Entry::Occupied(entry) => {
-                            let original_range = entry.get().range();
-                            self.push_message(SurfaceToCoreMessage::ItemRedefinition {
-                                file_id,
-                                name: alias.name.data.clone(),
-                                found_range: item.range.clone(),
-                                original_range,
-                            })
-                        }
-                    }
+                    (&alias.name, item_data, r#type)
                 }
-                ItemData::Struct(struct_type) => {
-                    // Field names that have previously seen, along with the source
-                    // range where they were introduced (for diagnostic reporting).
-                    let mut seen_field_names = HashMap::new();
-                    // Fields that have been elaborated into the core syntax.
-                    let mut core_fields = Vec::with_capacity(struct_type.fields.len());
-
-                    for field in &struct_type.fields {
-                        let field_range = field.name.range().start..field.term.range().end;
-                        let format_type = Arc::new(Value::FormatType);
-                        let r#type = self.check_type(file_id, &field.term, &format_type);
-
-                        match seen_field_names.entry(field.name.data.clone()) {
-                            Entry::Vacant(entry) => {
-                                core_fields.push(core::TypeField {
-                                    doc: field.doc.clone(),
-                                    name: field.name.data.clone(),
-                                    term: Arc::new(r#type),
-                                });
-
-                                entry.insert(field_range);
-                            }
-                            Entry::Occupied(entry) => {
-                                self.push_message(SurfaceToCoreMessage::FieldRedeclaration {
-                                    file_id,
-                                    name: entry.key().clone(),
-                                    found_range: field_range,
-                                    original_range: entry.get().clone(),
-                                });
-                            }
-                        }
+                ItemData::StructType(struct_type) => match &struct_type.type_ {
+                    None => {
+                        self.push_message(SurfaceToCoreMessage::FieldMissingStructAnnotation {
+                            file_id,
+                            name: struct_type.name.data.clone(),
+                            name_range: struct_type.name.range(),
+                        });
+                        continue;
                     }
+                    Some(r#type) => {
+                        let (core_type, _) = self.is_type(file_id, &r#type);
+                        let r#type = self.eval(&core_type);
+                        let item_data = match r#type.as_ref() {
+                            Value::Sort(Sort::Type) => self.is_struct_type(file_id, struct_type),
+                            Value::FormatType => self.is_struct_format(file_id, struct_type),
+                            Value::Error => continue,
+                            r#type => {
+                                let ann_type = self.read_back_to_surface(r#type);
+                                self.push_message(
+                                    SurfaceToCoreMessage::FieldInvalidStructAnnotation {
+                                        file_id,
+                                        name: struct_type.name.data.clone(),
+                                        ann_type,
+                                        ann_range: core_type.range(),
+                                    },
+                                );
+                                continue;
+                            }
+                        };
 
-                    // FIXME: Avoid shadowing builtin definitions
-                    match self.items.entry(struct_type.name.data.clone()) {
-                        Entry::Vacant(entry) => {
-                            let item_data = core::ItemData::Struct(core::StructType {
-                                doc: struct_type.doc.clone(),
-                                name: struct_type.name.data.clone(),
-                                fields: core_fields,
-                            });
-
-                            let core_item = core::Item::new(item.range(), item_data);
-                            core_items.push(core_item.clone());
-                            self.types
-                                .push((entry.key().clone(), Arc::new(Value::FormatType)));
-                            entry.insert(core_item);
-                        }
-                        Entry::Occupied(entry) => {
-                            let original_range = entry.get().range();
-                            self.push_message(SurfaceToCoreMessage::ItemRedefinition {
-                                file_id,
-                                name: struct_type.name.data.clone(),
-                                found_range: item.range.clone(),
-                                original_range,
-                            });
-                        }
+                        (&struct_type.name, item_data, r#type)
                     }
+                },
+            };
+
+            // FIXME: Avoid shadowing builtin definitions
+            match self.items.entry(name.data.clone()) {
+                Entry::Vacant(entry) => {
+                    let core_item = core::Item::new(item.range(), item_data);
+                    core_items.push(core_item.clone());
+                    self.types.push((entry.key().clone(), r#type));
+                    entry.insert(core_item);
+                }
+                Entry::Occupied(entry) => {
+                    let original_range = entry.get().range();
+                    self.push_message(SurfaceToCoreMessage::ItemRedefinition {
+                        file_id,
+                        name: name.data.clone(),
+                        found_range: item.range.clone(),
+                        original_range,
+                    });
                 }
             }
         }
@@ -239,6 +215,90 @@ impl<'me> Context<'me> {
             doc: surface_module.doc.clone(),
             items: core_items,
         }
+    }
+
+    pub fn is_struct_type(&mut self, file_id: usize, struct_type: &StructType) -> core::ItemData {
+        use std::collections::hash_map::Entry;
+
+        // Field names that have previously seen, along with the source
+        // range where they were introduced (for diagnostic reporting).
+        let mut seen_field_names = HashMap::new();
+        // Fields that have been elaborated into the core syntax.
+        let mut core_fields = Vec::with_capacity(struct_type.fields.len());
+
+        for field in &struct_type.fields {
+            let field_range = field.name.range().start..field.term.range().end;
+            let format_type = Arc::new(Value::Sort(Sort::Type));
+            let r#type = self.check_type(file_id, &field.term, &format_type);
+
+            match seen_field_names.entry(field.name.data.clone()) {
+                Entry::Vacant(entry) => {
+                    core_fields.push(core::TypeField {
+                        doc: field.doc.clone(),
+                        name: field.name.data.clone(),
+                        term: Arc::new(r#type),
+                    });
+
+                    entry.insert(field_range);
+                }
+                Entry::Occupied(entry) => {
+                    self.push_message(SurfaceToCoreMessage::FieldRedeclaration {
+                        file_id,
+                        name: entry.key().clone(),
+                        found_range: field_range,
+                        original_range: entry.get().clone(),
+                    });
+                }
+            }
+        }
+
+        core::ItemData::StructType(core::StructType {
+            doc: struct_type.doc.clone(),
+            name: struct_type.name.data.clone(),
+            fields: core_fields,
+        })
+    }
+
+    pub fn is_struct_format(&mut self, file_id: usize, struct_type: &StructType) -> core::ItemData {
+        use std::collections::hash_map::Entry;
+
+        // Field names that have previously seen, along with the source
+        // range where they were introduced (for diagnostic reporting).
+        let mut seen_field_names = HashMap::new();
+        // Fields that have been elaborated into the core syntax.
+        let mut core_fields = Vec::with_capacity(struct_type.fields.len());
+
+        for field in &struct_type.fields {
+            let field_range = field.name.range().start..field.term.range().end;
+            let format_type = Arc::new(Value::FormatType);
+            let r#type = self.check_type(file_id, &field.term, &format_type);
+
+            match seen_field_names.entry(field.name.data.clone()) {
+                Entry::Vacant(entry) => {
+                    core_fields.push(core::TypeField {
+                        doc: field.doc.clone(),
+                        name: field.name.data.clone(),
+                        term: Arc::new(r#type),
+                    });
+
+                    entry.insert(field_range);
+                }
+                Entry::Occupied(entry) => {
+                    self.push_message(SurfaceToCoreMessage::FieldRedeclaration {
+                        file_id,
+                        name: entry.key().clone(),
+                        found_range: field_range,
+                        original_range: entry.get().clone(),
+                    });
+                }
+            }
+        }
+
+        core::ItemData::StructFormat(core::StructFormat {
+            doc: struct_type.doc.clone(),
+            name: struct_type.name.data.clone(),
+            fields: core_fields,
+        })
     }
 
     /// Validate that a surface term is a type, and translate it into the core syntax.
@@ -448,8 +508,8 @@ impl<'me> Context<'me> {
                 (error_term(), Arc::new(Value::Error))
             }
             TermData::TypeType => (
-                core::Term::new(range, core::TermData::Sort(core::Sort::Type)),
-                Arc::new(Value::Sort(core::Sort::Kind)),
+                core::Term::new(range, core::TermData::Sort(Sort::Type)),
+                Arc::new(Value::Sort(Sort::Kind)),
             ),
 
             TermData::FunctionType(param_type, body_type) => {
@@ -499,6 +559,7 @@ impl<'me> Context<'me> {
 
                 (core_head, head_type)
             }
+
             TermData::NumberLiteral(_) => {
                 self.push_message(SurfaceToCoreMessage::AmbiguousNumericLiteral {
                     file_id,
@@ -543,7 +604,7 @@ impl<'me> Context<'me> {
 
             TermData::FormatType => (
                 core::Term::new(range, core::TermData::FormatType),
-                Arc::new(Value::Sort(core::Sort::Kind)),
+                Arc::new(Value::Sort(Sort::Kind)),
             ),
 
             TermData::Error => (error_term(), Arc::new(Value::Error)),

@@ -75,28 +75,24 @@ ItemData: ItemData = {
         })
     },
     <doc: "doc comment"*>
-    "struct" <name: Ranged<Name>> "{"
-        <mut fields: (<Field> ",")*>
-        <last: Field?>
+    "struct" <name: Ranged<Name>> <type_: (":" <Term>)?> "{"
+        <mut fields: (<TypeField> ",")*>
+        <last: TypeField?>
     "}" => {
         fields.extend(last);
 
-        ItemData::Struct(StructType {
+        ItemData::StructType(StructType {
             doc: Arc::from(doc),
             name,
+            type_,
             fields,
         })
     },
 };
 
-Field: TypeField = {
-    <docs: "doc comment"*>
-    <name: Ranged<Name>> ":" <term: Term> => {
-        TypeField {
-            doc: Arc::from(docs),
-            name,
-            term,
-        }
+TypeField: TypeField = {
+    <docs: "doc comment"*> <name: Ranged<Name>> ":" <term: Term> => {
+        TypeField { doc: Arc::from(docs), name, term }
     },
 };
 

@@ -15,7 +15,7 @@ fn valid_empty() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match read_context.read_item(&FIXTURE, "Empty").unwrap() {
+    match read_context.read_item(&FIXTURE, "EmptyFormat").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(fields, BTreeMap::from_iter(vec![]));
         }
@@ -34,7 +34,7 @@ fn valid_empty_trailing() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match read_context.read_item(&FIXTURE, "Empty").unwrap() {
+    match read_context.read_item(&FIXTURE, "EmptyFormat").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(fields, BTreeMap::from_iter(vec![]));
         }

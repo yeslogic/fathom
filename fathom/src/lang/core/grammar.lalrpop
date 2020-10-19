@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::lang::Ranged;
-use crate::lang::core::{Alias, Constant, ItemData, Module, Sort, StructType, Term, TermData, TypeField};
+use crate::lang::core::{Alias, Constant, ItemData, Module, Sort, StructType, StructFormat, Term, TermData, TypeField};
 use crate::lang::core::lexer::Token;
 use crate::literal;
 use crate::reporting::{LexerMessage, Message};
@@ -67,13 +67,26 @@ ItemData: ItemData = {
         })
     },
     <docs: "doc comment"*>
-    "struct" <name: Name>  "{"
-        <mut fields: (<Field> ",")*>
-        <last: Field?>
+    "struct" <name: Name> ":" "Type" "{"
+        <mut fields: (<TypeField> ",")*>
+        <last: TypeField?>
     "}" => {
         fields.extend(last);
 
-        ItemData::Struct(StructType {
+        ItemData::StructType(StructType {
+            doc: Arc::from(docs),
+            name,
+            fields
+        })
+    },
+    <docs: "doc comment"*>
+    "struct" <name: Name> ":" "Format" "{"
+        <mut fields: (<TypeField> ",")*>
+        <last: TypeField?>
+    "}" => {
+        fields.extend(last);
+
+        ItemData::StructFormat(StructFormat {
             doc: Arc::from(docs),
             name,
             fields
@@ -81,7 +94,7 @@ ItemData: ItemData = {
     },
 };
 
-Field: TypeField = {
+TypeField: TypeField = {
     <doc: "doc comment"*> <name: Name> ":" <term: Term> => {
         TypeField {
             doc: Arc::from(doc),

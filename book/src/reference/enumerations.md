@@ -3,7 +3,7 @@
 ## Formation
 
 ```fathom
-Bool = enum {
+enum Bool : Type {
     true,
     false,
 };
@@ -12,7 +12,7 @@ Bool = enum {
 ## Introduction
 
 ```fathom
-enum true : Bool
+true : Bool
 ```
 
 ## Elimination

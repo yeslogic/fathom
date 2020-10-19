@@ -97,35 +97,41 @@ impl<'me> Context<'me> {
         for item in &module.items {
             use std::collections::hash_map::Entry;
 
-            match &item.data {
+            let (item_name, item_type) = match &item.data {
                 ItemData::Alias(alias) => {
-                    let r#type = self.synth_type(file_id, &alias.term);
+                    let alias_type = self.synth_type(file_id, &alias.term);
 
-                    // FIXME: Avoid shadowing builtin definitions
-                    match self.items.entry(alias.name.clone()) {
-                        Entry::Vacant(entry) => {
-                            self.types.push((entry.key().clone(), r#type));
-                            entry.insert(item.clone());
-                        }
-                        Entry::Occupied(entry) => {
-                            let original_range = entry.get().range();
-                            self.push_message(CoreTypingMessage::ItemRedefinition {
-                                file_id,
-                                name: alias.name.clone(),
-                                found_range: item.range(),
-                                original_range,
-                            });
-                        }
-                    }
+                    (alias.name.clone(), alias_type)
                 }
-                ItemData::Struct(struct_type) => {
+                ItemData::StructType(struct_type) => {
                     use std::collections::HashSet;
 
                     // Field names that have previously seen.
                     let mut seen_field_names = HashSet::new();
+                    let type_type = Arc::new(Value::Sort(Sort::Type));
 
                     for field in &struct_type.fields {
-                        let format_type = Arc::new(Value::FormatType);
+                        self.check_type(file_id, &field.term, &type_type);
+
+                        if !seen_field_names.insert(field.name.clone()) {
+                            self.push_message(CoreTypingMessage::FieldRedeclaration {
+                                file_id,
+                                field_name: field.name.clone(),
+                                record_range: item.range(),
+                            });
+                        }
+                    }
+
+                    (struct_type.name.clone(), type_type.clone())
+                }
+                ItemData::StructFormat(struct_format) => {
+                    use std::collections::HashSet;
+
+                    // Field names that have previously seen.
+                    let mut seen_field_names = HashSet::new();
+                    let format_type = Arc::new(Value::FormatType);
+
+                    for field in &struct_format.fields {
                         self.check_type(file_id, &field.term, &format_type);
 
                         if !seen_field_names.insert(field.name.clone()) {
@@ -137,23 +143,23 @@ impl<'me> Context<'me> {
                         }
                     }
 
-                    // FIXME: Avoid shadowing builtin definitions
-                    match self.items.entry(struct_type.name.clone()) {
-                        Entry::Vacant(entry) => {
-                            self.types
-                                .push((entry.key().clone(), Arc::new(Value::FormatType)));
-                            entry.insert(item.clone());
-                        }
-                        Entry::Occupied(entry) => {
-                            let original_range = entry.get().range();
-                            self.push_message(CoreTypingMessage::ItemRedefinition {
-                                file_id,
-                                name: struct_type.name.clone(),
-                                found_range: item.range.clone(),
-                                original_range,
-                            });
-                        }
-                    }
+                    (struct_format.name.clone(), format_type.clone())
+                }
+            };
+
+            match self.items.entry(item_name.clone()) {
+                Entry::Vacant(entry) => {
+                    self.types.push((item_name, item_type));
+                    entry.insert(item.clone());
+                }
+                Entry::Occupied(entry) => {
+                    let original_range = entry.get().range();
+                    self.push_message(CoreTypingMessage::ItemRedefinition {
+                        file_id,
+                        name: item_name,
+                        found_range: item.range(),
+                        original_range,
+                    });
                 }
             }
         }

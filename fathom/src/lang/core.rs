@@ -54,8 +54,10 @@ pub type Item = Ranged<ItemData>;
 pub enum ItemData {
     /// Alias definitions
     Alias(Alias),
-    /// Struct definitions.
-    Struct(StructType),
+    /// Struct type definitions.
+    StructType(StructType),
+    /// Struct format definitions.
+    StructFormat(StructFormat),
 }
 
 /// An alias definition.
@@ -72,6 +74,17 @@ pub struct Alias {
 /// A struct type definition.
 #[derive(Debug, Clone)]
 pub struct StructType {
+    /// Doc comment.
+    pub doc: Arc<[String]>,
+    /// Name of this definition.
+    pub name: String,
+    /// Fields in the struct.
+    pub fields: Vec<TypeField>,
+}
+
+/// A struct format definition.
+#[derive(Debug, Clone)]
+pub struct StructFormat {
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.

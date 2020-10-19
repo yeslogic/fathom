@@ -1,5 +1,9 @@
-//! Test a singleton struct.
+//! Test singleton structs.
 
-struct Byte {
+struct Singleton : Type {
+    inner : global Int,
+}
+
+struct Byte : Format {
     inner : global U8,
 }

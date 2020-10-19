@@ -32,9 +32,10 @@ pub fn from_item(item: &Item) -> surface::Item {
                 term,
             })
         }
-        ItemData::Struct(struct_type) => surface::ItemData::Struct(surface::StructType {
+        ItemData::StructType(struct_type) => surface::ItemData::StructType(surface::StructType {
             doc: struct_type.doc.clone(),
             name: Ranged::from(struct_type.name.clone()),
+            type_: Some(surface::Term::from(surface::TermData::TypeType)),
             fields: struct_type
                 .fields
                 .iter()
@@ -45,6 +46,22 @@ pub fn from_item(item: &Item) -> surface::Item {
                 })
                 .collect(),
         }),
+        ItemData::StructFormat(struct_format) => {
+            surface::ItemData::StructType(surface::StructType {
+                doc: struct_format.doc.clone(),
+                name: Ranged::from(struct_format.name.clone()),
+                type_: Some(surface::Term::from(surface::TermData::FormatType)),
+                fields: struct_format
+                    .fields
+                    .iter()
+                    .map(|type_field| surface::TypeField {
+                        doc: type_field.doc.clone(),
+                        name: Ranged::from(type_field.name.clone()),
+                        term: from_term(&type_field.term),
+                    })
+                    .collect(),
+            })
+        }
     };
 
     surface::Item::from(item_data)
