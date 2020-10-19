@@ -18,3 +18,12 @@ TestF32Le : Format = F32Le;
 TestF32Be : Format = F32Be;
 TestF64Le : Format = F64Le;
 TestF64Be : Format = F64Be;
+TestFormatArray : Int -> Format -> Format = FormatArray;
+
+TestList : Type -> Type = List;
+TestInt : Type = Int;
+TestF32 : Type = F32;
+TestF64 : Type = F64;
+TestBool : Type = Bool;
+test_true : Bool = true;
+test_false : Bool = false;

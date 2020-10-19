@@ -1,4 +1,0 @@
-//! Test globals.
-
-TestFormatArray = FormatArray;
-TestList = List;
