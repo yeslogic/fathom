@@ -77,7 +77,6 @@ mod r#struct {
     test!(pass_empty_doc, "struct/pass_empty_doc.fathom");
     test!(pass_if_else_type_item, "struct/pass_if_else_type_item.fathom");
     test!(pass_if_else_type_item_item, "struct/pass_if_else_type_item_item.fathom");
-    test!(pass_mixed_format_host, "struct/pass_mixed_format_host.fathom");
     test!(pass_pair, "struct/pass_pair.fathom");
     test!(pass_singleton, "struct/pass_singleton.fathom");
     test!(pass_var, "struct/pass_var.fathom");
@@ -87,5 +86,6 @@ mod r#struct {
     test!(fail_missing_closing_brace, "struct/fail_missing_closing_brace.fathom");
     test!(fail_missing_fields, "struct/fail_missing_fields.fathom");
     test!(fail_missing_name, "struct/fail_missing_name.fathom");
+    test!(fail_mixed_format_host, "struct/fail_mixed_format_host.fathom");
     test!(fail_undefined_field, "struct/fail_undefined_field.fathom");
 }
