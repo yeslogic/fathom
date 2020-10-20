@@ -3,7 +3,7 @@
 [![Actions Status][actions-badge]][actions-url]
 [![Matrix][matrix-badge]][matrix-lobby]
 [![License][license-badge]][license-url]
-[![GitHub forks][forks-badge]][github-url]
+[![GitHub stars][stars-badge]][github-url]
 
 [actions-badge]: https://github.com/yeslogic/fathom/workflows/ci/badge.svg
 [actions-url]: https://github.com/yeslogic/fathom/actions
@@ -11,7 +11,7 @@
 [matrix-lobby]: https://app.element.io/#/room/#fathom-lang:matrix.org
 [license-badge]: https://img.shields.io/github/license/yeslogic/fathom
 [license-url]: https://github.com/yeslogic/fathom/blob/master/LICENSE
-[forks-badge]: https://img.shields.io/github/forks/yeslogic/fathom?style=social
+[stars-badge]: https://img.shields.io/github/stars/yeslogic/fathom?style=social
 [github-url]: https://github.com/yeslogic/fathom
 
 > **NOTE**: This documentation is still a work in progress!

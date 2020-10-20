@@ -61,7 +61,7 @@ inspiration when writing the specification of Fathom:
 - [Swift Language Reference](https://docs.swift.org/swift-book/ReferenceManual/AboutTheLanguageReference.html)
 - [The Rust Reference](https://doc.rust-lang.org/reference/index.html)
 
-## Existing Binary data description languages:
+## Existing Binary data description languages
 
 [dloss/binary-parsing](https://github.com/dloss/binary-parsing):
 This is a a comprehensive list of tools for and links about parsing binary data structures,
