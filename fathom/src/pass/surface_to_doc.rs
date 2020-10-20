@@ -55,7 +55,7 @@ pub fn from_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
     for item in &module.items {
         let (name, item) = match &item.data {
             ItemData::Alias(alias) => context.from_alias(writer, alias)?,
-            ItemData::Struct(struct_type) => context.from_struct_type(writer, struct_type)?,
+            ItemData::StructType(struct_type) => context.from_struct_type(writer, struct_type)?,
         };
 
         context.items.insert(name, item);
@@ -140,16 +140,29 @@ impl Context {
     ) -> io::Result<(String, ItemMeta)> {
         let id = format!("items[{}]", struct_type.name.data);
 
-        write!(
+        writeln!(
             writer,
-            r##"        <dt id="{id}" class="item struct">
-          struct <a href="#{id}">{name}</a>
-        </dt>
-        <dd class="item struct">
-"##,
-            id = id,
-            name = struct_type.name.data,
+            r##"        <dt id="{id}" class="item struct">"##,
+            id = id
         )?;
+        match &struct_type.type_ {
+            None => writeln!(
+                writer,
+                r##"          struct <a href="#{id}">{name}</a>"##,
+                id = id,
+                name = struct_type.name.data,
+            )?,
+            Some(r#type) => writeln!(
+                writer,
+                r##"          struct <a href="#{id}">{name}</a> : {type_}"##,
+                id = id,
+                name = struct_type.name.data,
+                type_ = self.from_term_prec(&r#type, Prec::Term),
+            )?,
+        }
+
+        writeln!(writer, r##"        </dt>"##)?;
+        writeln!(writer, r##"        <dd class="item struct">"##)?;
 
         if !struct_type.doc.is_empty() {
             writeln!(writer, r##"          <section class="doc">"##)?;

@@ -1,3 +1,4 @@
-struct Empty {}
-struct Empty {} //~ error: the name `Empty` is defined multiple times
-struct Empty {} //~ error: the name `Empty` is defined multiple times
+struct Empty : Format {}
+struct Empty : Format {} //~ error: the name `Empty` is defined multiple times
+struct Empty : Format {} //~ error: the name `Empty` is defined multiple times
+Empty = 1 : Int; //~ error: the name `Empty` is defined multiple times

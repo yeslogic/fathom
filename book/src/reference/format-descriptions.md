@@ -35,10 +35,10 @@ but it may occasionally pop up in type errors when a `format` is unknown.
 For example:
 
 ```fathom
-Things (format : Format): Format = {
+struct Things (format : Format): Format = {
     thing : format,
     // `thing : repr format` is now in the typing context
-    another_thing : Array (thing.len) U32Be, // error: `len` is not a field of `repr format`
+    another_thing : FormatArray (thing.len) U32Be, // error: `len` is not a field of `repr format`
 };
 ```
 
@@ -133,9 +133,62 @@ repr CurrentPos         // normalizes to `Pos`
 
 > **TODO**: add documentation
 
-### Record formats
+### Struct formats
 
-> **TODO**: add documentation
+Struct formats are mappings of field names to format descriptions.
+When interpreted as a binary parser they are read in definition order:
+
+```fathom
+struct Point : Format {
+    x : U32Be,
+    y : U32Be,
+}
+```
+
+The fields of struct formats are available for use in subsequent field descriptions.
+This allows for data-dependent formats to be defined:
+
+```fathom
+struct MyArray : Format {
+    len : U32Be,
+    // `len : repr U32Be` is now available
+    data : FormatArray len U32Be,
+}
+```
+
+Representation:
+
+```fathom
+repr Point      // normalizes to `repr Point`
+repr MyArray    // normalizes to `repr MyArray`
+```
+
+The representation of struct formats are struct types,
+and so struct format representations be introduced with [struct terms]:
+
+```fathom
+struct { x = 2, y = 3 } : repr Point
+struct { len = 2, data = [ 2, 3 ] } : repr MyArray
+```
+
+[struct terms]: ./structs.md#introduction
+
+The representation of struct formats can also be eliminated with [field lookups]:
+
+```fathom
+struct Header : Format {
+    count : U32Be,
+}
+
+struct TestFormat {
+    header : Header,
+    // `header : repr Header` is now available.
+    // Because it is a structure type, we can eliminate it with `header.count`.
+    data : FormatArray header.count U32Be,
+}
+```
+
+[field lookups]: ./structs.md#elimination
 
 ### Enumeration formats
 

@@ -49,27 +49,53 @@ section.doc {
   <body>
     <section class="module">
       <section class="doc">
-        Test a pair struct.
+        Test pair structs.
       </section>
       <dl class="items">
-        <dt id="items[Pair]" class="item struct">
-          struct <a href="#items[Pair]">Pair</a>
+        <dt id="items[PairType]" class="item struct">
+          struct <a href="#items[PairType]">PairType</a> : Type
         </dt>
         <dd class="item struct">
           <section class="doc">
-            A pair of bytes.
+            A pair of integers.
           </section>
           <dl class="fields">
-            <dt id="items[Pair].fields[first]" class="field">
-              <a href="#items[Pair].fields[first]">first</a> : <var><a href="#">U8</a></var>
+            <dt id="items[PairType].fields[first]" class="field">
+              <a href="#items[PairType].fields[first]">first</a> : <var><a href="#">Int</a></var>
             </dt>
             <dd class="field">
               <section class="doc">
                 The first field.
               </section>
             </dd>
-            <dt id="items[Pair].fields[second]" class="field">
-              <a href="#items[Pair].fields[second]">second</a> : <var><a href="#">S8</a></var>
+            <dt id="items[PairType].fields[second]" class="field">
+              <a href="#items[PairType].fields[second]">second</a> : <var><a href="#">Int</a></var>
+            </dt>
+            <dd class="field">
+              <section class="doc">
+                The second field.
+              </section>
+            </dd>
+          </dl>
+        </dd>
+        <dt id="items[PairFormat]" class="item struct">
+          struct <a href="#items[PairFormat]">PairFormat</a> : Format
+        </dt>
+        <dd class="item struct">
+          <section class="doc">
+            A pair of bytes.
+          </section>
+          <dl class="fields">
+            <dt id="items[PairFormat].fields[first]" class="field">
+              <a href="#items[PairFormat].fields[first]">first</a> : <var><a href="#">U8</a></var>
+            </dt>
+            <dd class="field">
+              <section class="doc">
+                The first field.
+              </section>
+            </dd>
+            <dt id="items[PairFormat].fields[second]" class="field">
+              <a href="#items[PairFormat].fields[second]">second</a> : <var><a href="#">S8</a></var>
             </dt>
             <dd class="field">
               <section class="doc">

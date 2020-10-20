@@ -57,7 +57,6 @@ mod alias {
     test!(fail_ann_mismatch, "alias/fail_ann_mismatch.fathom");
     test!(fail_format_array_bad_elem, "alias/fail_format_array_bad_elem.fathom");
     test!(fail_format_array_bad_len, "alias/fail_format_array_bad_len.fathom");
-    test!(fail_globals, "alias/fail_globals.fathom");
     test!(fail_literals, "alias/fail_literals.fathom");
     test!(fail_if_else_term_mismatched_arms, "alias/fail_if_else_term_mismatched_arms.fathom");
     test!(fail_if_else_term_mismatched_condition, "alias/fail_if_else_term_mismatched_condition.fathom");
@@ -68,22 +67,20 @@ mod alias {
     test!(fail_match_int_term_mismatched_arms, "alias/fail_match_int_term_mismatched_arms.fathom");
     test!(fail_numeric_literal_ambiguous, "alias/fail_numeric_literal_ambiguous.fathom");
     test!(fail_numeric_literal_not_supported, "alias/fail_numeric_literal_not_supported.fathom");
-    test!(fail_unconstrained_int_type, "alias/fail_unconstrained_int_type.fathom");
 }
 
 #[rustfmt::skip]
 mod r#struct {
     test!(pass_empty, "struct/pass_empty.fathom");
     test!(pass_empty_doc, "struct/pass_empty_doc.fathom");
-    test!(pass_if_else_type_item, "struct/pass_if_else_type_item.fathom");
-    test!(pass_if_else_type_item_item, "struct/pass_if_else_type_item_item.fathom");
-    test!(pass_mixed_format_host, "struct/pass_mixed_format_host.fathom");
     test!(pass_pair, "struct/pass_pair.fathom");
     test!(pass_singleton, "struct/pass_singleton.fathom");
     test!(pass_var, "struct/pass_var.fathom");
 
     test!(fail_duplicate_fields, "struct/fail_duplicate_fields.fathom");
     test!(fail_field_type_mismatch, "struct/fail_field_type_mismatch.fathom");
+    test!(fail_invalid_ann, "struct/fail_invalid_ann.fathom");
+    test!(fail_missing_ann, "struct/fail_missing_ann.fathom");
     test!(fail_missing_closing_brace, "struct/fail_missing_closing_brace.fathom");
     test!(fail_missing_fields, "struct/fail_missing_fields.fathom");
     test!(fail_missing_name, "struct/fail_missing_name.fathom");

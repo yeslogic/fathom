@@ -1,4 +1,9 @@
-struct Pair {
+struct PairType : Type {
+    first : global Int,
+    second : global Int,
+}
+
+struct PairFormat : Format {
     first : global U8,
     second : global U8,
 }

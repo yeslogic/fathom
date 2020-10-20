@@ -477,6 +477,17 @@ impl CoreTypingMessage {
 /// [`pass::surface_to_core`]: crate::pass::surface_to_core
 #[derive(Debug, Clone)]
 pub enum SurfaceToCoreMessage {
+    FieldMissingStructAnnotation {
+        file_id: usize,
+        name: String,
+        name_range: Range<usize>,
+    },
+    FieldInvalidStructAnnotation {
+        file_id: usize,
+        name: String,
+        ann_type: surface::Term,
+        ann_range: Range<usize>,
+    },
     FieldRedeclaration {
         file_id: usize,
         name: String,
@@ -552,6 +563,39 @@ impl SurfaceToCoreMessage {
         let to_doc = |term| crate::pass::surface_to_pretty::from_term(pretty_alloc, term).1;
 
         match self {
+            SurfaceToCoreMessage::FieldMissingStructAnnotation {
+                file_id,
+                name,
+                name_range,
+            } => {
+                let expected_range = name_range.end..name_range.end;
+
+                Diagnostic::error()
+                    .with_message(format!("missing type annotation for struct `{}`", name))
+                    .with_labels(vec![Label::primary(*file_id, expected_range)
+                        .with_message("annotation expected here")])
+            }
+            SurfaceToCoreMessage::FieldInvalidStructAnnotation {
+                file_id,
+                name,
+                ann_type,
+                ann_range,
+            } => {
+                let ann_type = to_doc(ann_type);
+
+                Diagnostic::error()
+                    .with_message(format!("invalid type annotation for struct `{}`", name))
+                    .with_labels(vec![Label::primary(*file_id, ann_range.clone())
+                        .with_message(format!(
+                            "expected `Type` or `Format`, found `{}`",
+                            ann_type.pretty(std::usize::MAX),
+                        ))])
+                    .with_notes(vec![[
+                        format!("expected `Type` or `Format`"),
+                        format!("   found `{}`", ann_type.pretty(std::usize::MAX)),
+                    ]
+                    .join("\n")])
+            }
             SurfaceToCoreMessage::FieldRedeclaration {
                 file_id,
                 name,

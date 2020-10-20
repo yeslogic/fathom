@@ -1,5 +1,6 @@
 use crate::lang::core::{
-    Alias, Constant, Item, ItemData, Module, Sort, StructType, Term, TermData, TypeField,
+    Alias, Constant, Item, ItemData, Module, Sort, StructFormat, StructType, Term, TermData,
+    TypeField,
 };
 use pretty::{DocAllocator, DocBuilder};
 
@@ -40,7 +41,8 @@ where
 {
     match &item.data {
         ItemData::Alias(alias) => from_alias(alloc, alias),
-        ItemData::Struct(struct_type) => from_struct_type(alloc, struct_type),
+        ItemData::StructType(struct_type) => from_struct_type(alloc, struct_type),
+        ItemData::StructFormat(struct_format) => from_struct_format(alloc, struct_format),
     }
 }
 
@@ -86,6 +88,10 @@ where
         .append("struct")
         .append(alloc.space())
         .append(alloc.as_string(&struct_type.name))
+        .append(alloc.space())
+        .append(":")
+        .append(alloc.space())
+        .append("Type")
         .append(alloc.space());
 
     let struct_type = if struct_type.fields.is_empty() {
@@ -107,6 +113,48 @@ where
     };
 
     (alloc.nil()).append(docs).append(struct_type)
+}
+
+pub fn from_struct_format<'a, D>(alloc: &'a D, struct_format: &'a StructFormat) -> DocBuilder<'a, D>
+where
+    D: DocAllocator<'a>,
+    D::Doc: Clone,
+{
+    let docs = alloc.concat(struct_format.doc.iter().map(|line| {
+        (alloc.nil())
+            .append(format!("///{}", line))
+            .append(alloc.hardline())
+    }));
+
+    let struct_prefix = (alloc.nil())
+        .append("struct")
+        .append(alloc.space())
+        .append(alloc.as_string(&struct_format.name))
+        .append(alloc.space())
+        .append(":")
+        .append(alloc.space())
+        .append("Format")
+        .append(alloc.space());
+
+    let struct_format = if struct_format.fields.is_empty() {
+        (alloc.nil()).append(struct_prefix).append("{}").group()
+    } else {
+        (alloc.nil())
+            .append(struct_prefix)
+            .append("{")
+            .group()
+            .append(alloc.concat(struct_format.fields.iter().map(|field| {
+                (alloc.nil())
+                    .append(alloc.hardline())
+                    .append(from_ty_field(alloc, field))
+                    .nest(4)
+                    .group()
+            })))
+            .append(alloc.hardline())
+            .append("}")
+    };
+
+    (alloc.nil()).append(docs).append(struct_format)
 }
 
 pub fn from_ty_field<'a, D>(alloc: &'a D, ty_field: &'a TypeField) -> DocBuilder<'a, D>

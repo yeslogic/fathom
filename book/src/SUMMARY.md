@@ -17,7 +17,7 @@
   - [Sorts](./reference/sorts.md)
   - [Integers]()
   - [Functions]()
-  - [Records](./reference/records.md)
+  - [Structs](./reference/structs.md)
   - [Enumerations](./reference/enumerations.md)
   - [Arrays]()
   - [Pattern Matching]()

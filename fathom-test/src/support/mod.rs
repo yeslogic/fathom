@@ -596,11 +596,23 @@ fn is_equal_item(item0: &fathom::lang::core::Item, item1: &fathom::lang::core::I
                 && alias0.name == alias1.name
                 && is_equal_term(&alias0.term, &alias1.term)
         }
-        (ItemData::Struct(struct_ty0), ItemData::Struct(struct_ty1)) => {
-            struct_ty0.doc == struct_ty1.doc
-                && struct_ty0.name == struct_ty1.name
-                && struct_ty0.fields.len() == struct_ty1.fields.len()
-                && Iterator::zip(struct_ty0.fields.iter(), struct_ty1.fields.iter()).all(
+        (ItemData::StructType(struct_type0), ItemData::StructType(struct_type1)) => {
+            struct_type0.doc == struct_type1.doc
+                && struct_type0.name == struct_type1.name
+                && struct_type0.fields.len() == struct_type1.fields.len()
+                && Iterator::zip(struct_type0.fields.iter(), struct_type1.fields.iter()).all(
+                    |(field0, field1)| {
+                        field0.doc == field1.doc
+                            && field0.name == field1.name
+                            && is_equal_term(&field0.term, &field1.term)
+                    },
+                )
+        }
+        (ItemData::StructFormat(struct_format0), ItemData::StructFormat(struct_format1)) => {
+            struct_format0.doc == struct_format1.doc
+                && struct_format0.name == struct_format1.name
+                && struct_format0.fields.len() == struct_format1.fields.len()
+                && Iterator::zip(struct_format0.fields.iter(), struct_format1.fields.iter()).all(
                     |(field0, field1)| {
                         field0.doc == field1.doc
                             && field0.name == field1.name

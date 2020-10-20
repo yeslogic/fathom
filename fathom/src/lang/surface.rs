@@ -56,7 +56,7 @@ pub enum ItemData {
     /// ```text
     /// struct <name> {}
     /// ```
-    Struct(StructType),
+    StructType(StructType),
 }
 
 /// Alias definition.
@@ -80,11 +80,14 @@ pub struct StructType {
     pub doc: Arc<[String]>,
     /// Name of this definition.
     pub name: Ranged<String>,
+    /// Type of this struct definition.
+    // FIXME: can't use `r#type` in LALRPOP grammars
+    pub type_: Option<Term>,
     /// Fields in the struct.
     pub fields: Vec<TypeField>,
 }
 
-/// A field in a struct type definition.
+/// A field in a struct type.
 #[derive(Debug, Clone)]
 pub struct TypeField {
     pub doc: Arc<[String]>,

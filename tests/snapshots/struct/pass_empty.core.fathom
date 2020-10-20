@@ -1,3 +1,5 @@
 //! Test an empty struct.
 
-struct Empty {}
+struct EmptyType : Type {}
+
+struct EmptyFormat : Format {}

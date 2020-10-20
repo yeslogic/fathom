@@ -34,24 +34,24 @@ The above natural language specification can be described using the following de
 //! A simple bitmap image format
 
 /// RGB pixel in the image
-RgbPixel : Format = {
+struct RgbPixel : Format {
     /// Red channel
     red : U8,
     /// Green channel
     green : U8,
     /// Blue channel
     blue : U8,
-};
+}
 
 /// Top level image data
-Image : Format = {
+struct Image : Format {
     /// The width of the image, in pixels
     width : U16Be,
     /// The height of the image, in pixels
     height : U16Be,
     /// The uncompressed pixel data
     data : FormatArray (width * height) RgbPixel,
-};
+}
 ```
 
 We use the built-in format descriptions, `U8`, `U16Be`, and `FormatArray` to create the composite format descriptions, `RgbPixel` and `Image`.

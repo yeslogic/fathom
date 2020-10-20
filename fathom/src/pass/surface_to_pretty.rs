@@ -43,7 +43,7 @@ where
 {
     match &item.data {
         ItemData::Alias(alias) => from_alias(alloc, alias),
-        ItemData::Struct(struct_type) => from_struct_type(alloc, struct_type),
+        ItemData::StructType(struct_type) => from_struct_type(alloc, struct_type),
     }
 }
 
@@ -97,12 +97,26 @@ where
         .append("struct")
         .append(alloc.space())
         .append(&struct_type.name.data)
-        .append(alloc.space());
+        .append(alloc.space())
+        .append(":")
+        .append(match &struct_type.type_ {
+            None => alloc.nil(),
+            Some(r#type) => (alloc.nil())
+                .append(alloc.space())
+                .append(from_term_prec(alloc, r#type, Prec::Term))
+                .group()
+                .nest(4),
+        });
 
     let struct_type = if struct_type.fields.is_empty() {
-        (alloc.nil()).append(struct_prefix).append("{}").group()
+        (alloc.nil())
+            .append(alloc.space())
+            .append(struct_prefix)
+            .append("{}")
+            .group()
     } else {
         (alloc.nil())
+            .append(alloc.space())
             .append(struct_prefix)
             .append("{")
             .group()

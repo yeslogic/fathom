@@ -1,13 +1,13 @@
 //! Test referring to aliases in struct fields.
 
-struct Pair {
+struct Pair : Format {
     first : global U8,
     second : global U8,
 }
 
 MyPair = item Pair;
 
-struct PairPair {
+struct PairPair : Format {
     first : item Pair,
     second : item MyPair,
 }

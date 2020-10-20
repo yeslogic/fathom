@@ -1,0 +1,1 @@
+struct Test {} //~ error: missing type annotation for struct `Test`

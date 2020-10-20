@@ -15,7 +15,7 @@ fn eof_first() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match read_context.read_item(&FIXTURE, &"Pair") {
+    match read_context.read_item(&FIXTURE, &"PairFormat") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -27,13 +27,13 @@ fn eof_first() {
 #[test]
 fn eof_second() {
     let mut writer = FormatWriter::new(vec![]);
-    writer.write::<U8>(255); // Pair::first
+    writer.write::<U8>(255); // PairFormat::first
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match read_context.read_item(&FIXTURE, &"Pair") {
+    match read_context.read_item(&FIXTURE, &"PairFormat") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -45,14 +45,14 @@ fn eof_second() {
 #[test]
 fn valid_pair() {
     let mut writer = FormatWriter::new(vec![]);
-    writer.write::<U8>(31); // Pair::first
-    writer.write::<I8>(-30); // Pair::second
+    writer.write::<U8>(31); // PairFormat::first
+    writer.write::<I8>(-30); // PairFormat::second
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match read_context.read_item(&FIXTURE, &"Pair").unwrap() {
+    match read_context.read_item(&FIXTURE, &"PairFormat").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(
                 fields,
@@ -71,15 +71,15 @@ fn valid_pair() {
 #[test]
 fn valid_pair_trailing() {
     let mut writer = FormatWriter::new(vec![]);
-    writer.write::<U8>(255); // Pair::first
-    writer.write::<I8>(-30); // Pair::second
+    writer.write::<U8>(255); // PairFormat::first
+    writer.write::<I8>(-30); // PairFormat::second
     writer.write::<U8>(42);
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match read_context.read_item(&FIXTURE, &"Pair").unwrap() {
+    match read_context.read_item(&FIXTURE, &"PairFormat").unwrap() {
         binary::Term::Struct(fields) => {
             assert_eq!(
                 fields,

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::lang::core;
 use crate::lang::core::binary::Term;
 use crate::lang::core::semantics::{self, Elim, Head, Value};
-use crate::lang::core::{Constant, Globals, Item, ItemData, Module, StructType};
+use crate::lang::core::{Constant, Globals, Item, ItemData, Module, StructFormat};
 
 /// Contextual information to be used when parsing items.
 pub struct Context<'me> {
@@ -37,21 +37,19 @@ impl<'me> Context<'me> {
         name: &str,
     ) -> Result<Term, fathom_runtime::ReadError> {
         for item in &module.items {
-            match &item.data {
+            let name = match &item.data {
                 ItemData::Alias(alias) if alias.name == name => {
                     let value = self.eval(&alias.term);
                     return self.read_format(&value);
                 }
-                ItemData::Struct(struct_type) if struct_type.name == name => {
-                    return self.read_struct_format(struct_type);
+                ItemData::StructFormat(struct_format) if struct_format.name == name => {
+                    return self.read_struct_format(struct_format);
                 }
-                ItemData::Alias(alias) => {
-                    self.items.insert(alias.name.clone(), item.clone());
-                }
-                ItemData::Struct(struct_type) => {
-                    self.items.insert(struct_type.name.clone(), item.clone());
-                }
-            }
+                ItemData::Alias(alias) => alias.name.clone(),
+                ItemData::StructType(struct_type) => struct_type.name.clone(),
+                ItemData::StructFormat(struct_format) => struct_format.name.clone(),
+            };
+            self.items.insert(name, item.clone());
         }
 
         Err(fathom_runtime::ReadError::InvalidDataDescription)
@@ -63,7 +61,7 @@ impl<'me> Context<'me> {
 
     fn read_struct_format(
         &mut self,
-        struct_type: &StructType,
+        struct_type: &StructFormat,
     ) -> Result<Term, fathom_runtime::ReadError> {
         let fields = struct_type
             .fields
@@ -118,7 +116,9 @@ impl<'me> Context<'me> {
             Value::Stuck(Head::Item(name), elims) => {
                 match (self.items.get(name.as_str()).cloned(), elims.as_slice()) {
                     (Some(item), []) => match item.data {
-                        ItemData::Struct(struct_type) => self.read_struct_format(&struct_type),
+                        ItemData::StructFormat(struct_format) => {
+                            self.read_struct_format(&struct_format)
+                        }
                         _ => Err(fathom_runtime::ReadError::InvalidDataDescription),
                     },
                     (Some(_), _) | (None, _) => {
