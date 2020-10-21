@@ -603,7 +603,7 @@ fn is_equal_item(item0: &fathom::lang::core::Item, item1: &fathom::lang::core::I
                 && Iterator::zip(struct_type0.fields.iter(), struct_type1.fields.iter()).all(
                     |(field0, field1)| {
                         field0.doc == field1.doc
-                            && field0.name == field1.name
+                            && field0.name.data == field1.name.data
                             && is_equal_term(&field0.term, &field1.term)
                     },
                 )
@@ -615,7 +615,7 @@ fn is_equal_item(item0: &fathom::lang::core::Item, item1: &fathom::lang::core::I
                 && Iterator::zip(struct_format0.fields.iter(), struct_format1.fields.iter()).all(
                     |(field0, field1)| {
                         field0.doc == field1.doc
-                            && field0.name == field1.name
+                            && field0.name.data == field1.name.data
                             && is_equal_term(&field0.term, &field1.term)
                     },
                 )

@@ -97,7 +97,7 @@ ItemData: ItemData = {
 };
 
 TypeField: TypeField = {
-    <doc: "doc comment"*> <name: Name> ":" <term: Term> => {
+    <doc: "doc comment"*> <name: Ranged<Name>> ":" <term: Term> => {
         TypeField {
             doc: Arc::from(doc),
             name,

@@ -113,10 +113,10 @@ impl<'me> Context<'me> {
                     for field in &struct_type.fields {
                         self.check_type(file_id, &field.term, &type_type);
 
-                        if !seen_field_names.insert(field.name.clone()) {
+                        if !seen_field_names.insert(field.name.data.clone()) {
                             self.push_message(CoreTypingMessage::FieldRedeclaration {
                                 file_id,
-                                field_name: field.name.clone(),
+                                field_name: field.name.data.clone(),
                                 record_range: item.range(),
                             });
                         }
@@ -134,10 +134,10 @@ impl<'me> Context<'me> {
                     for field in &struct_format.fields {
                         self.check_type(file_id, &field.term, &format_type);
 
-                        if !seen_field_names.insert(field.name.clone()) {
+                        if !seen_field_names.insert(field.name.data.clone()) {
                             self.push_message(CoreTypingMessage::FieldRedeclaration {
                                 file_id,
-                                field_name: field.name.clone(),
+                                field_name: field.name.data.clone(),
                                 record_range: item.range(),
                             });
                         }

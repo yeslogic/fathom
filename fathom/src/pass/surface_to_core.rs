@@ -235,7 +235,7 @@ impl<'me> Context<'me> {
                 Entry::Vacant(entry) => {
                     core_fields.push(core::TypeField {
                         doc: field.doc.clone(),
-                        name: field.name.data.clone(),
+                        name: field.name.clone(),
                         term: Arc::new(r#type),
                     });
 
@@ -277,7 +277,7 @@ impl<'me> Context<'me> {
                 Entry::Vacant(entry) => {
                     core_fields.push(core::TypeField {
                         doc: field.doc.clone(),
-                        name: field.name.data.clone(),
+                        name: field.name.clone(),
                         term: Arc::new(r#type),
                     });
 

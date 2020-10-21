@@ -68,7 +68,7 @@ impl<'me> Context<'me> {
             .iter()
             .map(|field| {
                 let value = self.eval(&field.term);
-                Ok((field.name.clone(), self.read_format(&value)?))
+                Ok((field.name.data.clone(), self.read_format(&value)?))
             })
             .collect::<Result<_, fathom_runtime::ReadError>>()?;
 

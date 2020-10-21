@@ -174,7 +174,7 @@ where
         .append(docs)
         .append(
             (alloc.nil())
-                .append(alloc.as_string(&ty_field.name))
+                .append(alloc.as_string(&ty_field.name.data))
                 .append(alloc.space())
                 .append(":")
                 .group(),
