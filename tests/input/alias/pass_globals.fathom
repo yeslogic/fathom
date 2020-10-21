@@ -9,7 +9,7 @@ TestF64 = F64;
 TestBool = Bool;
 test_true = true;
 test_false = false;
-TestList = List;
+TestArray = Array;
 
 TestU8 = U8;
 TestU16Le = U16Le;

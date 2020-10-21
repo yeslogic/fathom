@@ -6,7 +6,7 @@ TestF64 : Type = F64;
 TestBool : Type = Bool;
 test_true : Bool = true;
 test_false : Bool = false;
-TestList : Type -> Type = List;
+TestArray : Int -> Type -> Type = Array;
 
 TestU8 : Format = U8;
 TestU16Le : Format = U16Le;

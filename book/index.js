@@ -4,7 +4,7 @@ hljs.registerLanguage("fathom", (hljs) => {
   const KEYWORDS = {
     keyword: "else enum Format if Kind match struct Type",
     built_in: [
-      "Int F32 F64 Bool true false Array List",
+      "Int F32 F64 Bool true false Array",
       "U8 U16Le U16Be U32Le U32Be U64Le U64Be",
       "S8 S16Le S16Be S32Le S32Be S64Le S64Be",
       "F32Le F32Be F64Le F64Be",

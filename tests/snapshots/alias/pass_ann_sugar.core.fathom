@@ -12,7 +12,7 @@ test_true = global true : global Bool;
 
 test_false = global false : global Bool;
 
-TestList = global List : Type -> Type;
+TestArray = global Array : global Int -> Type -> Type;
 
 TestU8 = global U8 : Format;
 

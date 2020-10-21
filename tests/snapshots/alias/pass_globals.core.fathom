@@ -16,7 +16,7 @@ test_true = global true;
 
 test_false = global false;
 
-TestList = global List;
+TestArray = global Array;
 
 TestU8 = global U8;
 

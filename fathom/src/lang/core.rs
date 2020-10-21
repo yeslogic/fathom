@@ -203,11 +203,14 @@ impl Default for Globals {
             (Arc::new(Term::from(Global("Bool".to_owned()))), None),
         );
         entries.insert(
-            "List".to_owned(),
+            "Array".to_owned(),
             (
                 Arc::new(Term::from(FunctionType(
-                    Arc::new(Term::from(Sort(Type))),
-                    Arc::new(Term::from(Sort(Type))),
+                    Arc::new(Term::from(Global("Int".to_owned()))),
+                    Arc::new(Term::from(FunctionType(
+                        Arc::new(Term::from(Sort(Type))),
+                        Arc::new(Term::from(Sort(Type))),
+                    ))),
                 ))),
                 None,
             ),
