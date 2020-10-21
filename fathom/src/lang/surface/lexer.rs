@@ -44,6 +44,8 @@ pub enum Token<'source> {
     Kind,
     #[token("match")]
     Match,
+    #[token("repr")]
+    Repr,
     #[token("struct")]
     Struct,
     #[token("Type")]
@@ -102,6 +104,7 @@ impl<'source> fmt::Display for Token<'source> {
             Token::Item => write!(f, "item"),
             Token::Kind => write!(f, "Kind"),
             Token::Match => write!(f, "match"),
+            Token::Repr => write!(f, "repr"),
             Token::Struct => write!(f, "struct"),
             Token::Type => write!(f, "Type"),
 

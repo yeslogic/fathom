@@ -607,6 +607,14 @@ impl<'me> Context<'me> {
                 Arc::new(Value::Sort(Sort::Kind)),
             ),
 
+            TermData::Repr => (
+                core::Term::new(range, core::TermData::Repr),
+                Arc::new(Value::FunctionType(
+                    Arc::new(Value::FormatType),
+                    Arc::new(Value::Sort(Sort::Type)),
+                )),
+            ),
+
             TermData::Error => (error_term(), Arc::new(Value::Error)),
         }
     }

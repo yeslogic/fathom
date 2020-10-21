@@ -160,6 +160,9 @@ pub enum TermData {
     /// Type of format types.
     FormatType,
 
+    /// Convert a format to its host representation.
+    Repr,
+
     /// Error sentinel.
     Error,
 }

@@ -30,6 +30,7 @@ extern {
         "int_elim" => Token::IntElim,
         "item" => Token::Item,
         "Kind" => Token::Kind,
+        "repr" => Token::Repr,
         "struct" => Token::Struct,
         "Type" => Token::Type,
 
@@ -135,6 +136,7 @@ AtomicTermData: TermData = {
     "item" <name: Name> => TermData::Item(name),
     "Type" => TermData::Sort(Sort::Type),
     "Kind" => TermData::Sort(Sort::Kind),
+    "repr" => TermData::Repr,
     "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" => {
         TermData::BoolElim(Arc::new(head), Arc::new(if_true), Arc::new(if_false))
     },

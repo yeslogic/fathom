@@ -32,6 +32,9 @@ pub enum Value {
     /// Type of format types.
     FormatType,
 
+    /// Convert a format to its host representation.
+    Repr,
+
     /// Error sentinel.
     Error,
 }
@@ -54,7 +57,8 @@ pub enum Head {
     Error,
 }
 
-/// An eliminator that cannot be reduced further is 'stuck' on some [`Head`].
+/// An eliminator that cannot be reduced further due to being stuck on some
+/// 'stuck' on some [`Head`].
 #[derive(Debug, Clone)]
 pub enum Elim {
     /// Function eliminatiors (function application).
@@ -64,6 +68,8 @@ pub enum Elim {
     Bool(Arc<Term>, Arc<Term>),
     /// Integer eliminators.
     Int(BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
+    /// Convert a format to its host representation.
+    Repr,
 }
 
 /// Evaluate a [`core::Term`] into a [`Value`].
@@ -99,6 +105,10 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
             Arc::new(Value::FunctionType(param_type, body_type))
         }
         TermData::FunctionElim(head, argument) => match eval(globals, items, head).as_ref() {
+            Value::Repr => {
+                let argument = eval(globals, items, argument);
+                apply_repr(argument)
+            }
             Value::Stuck(head, elims) => {
                 let mut elims = elims.clone(); // FIXME: clone?
                 elims.push(Elim::Function(eval(globals, items, argument)));
@@ -152,7 +162,50 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
 
         TermData::FormatType => Arc::new(Value::FormatType),
 
+        TermData::Repr => Arc::new(Value::Repr),
+
         TermData::Error => Arc::new(Value::Error),
+    }
+}
+
+fn apply_repr(argument: Arc<Value>) -> Arc<Value> {
+    match argument.as_ref() {
+        Value::Stuck(Head::Global(name), elims) => match (name.as_ref(), elims.as_slice()) {
+            ("U8", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U16Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U16Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U32Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U32Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U64Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U64Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S8", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S16Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S16Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S32Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S32Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S64Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S64Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("F32Le", []) => Arc::new(Value::Stuck(Head::Global("F32".to_owned()), Vec::new())),
+            ("F32Be", []) => Arc::new(Value::Stuck(Head::Global("F32".to_owned()), Vec::new())),
+            ("F64Le", []) => Arc::new(Value::Stuck(Head::Global("F64".to_owned()), Vec::new())),
+            ("F64Be", []) => Arc::new(Value::Stuck(Head::Global("F64".to_owned()), Vec::new())),
+            ("FormatArray", [Elim::Function(len), Elim::Function(elem_type)]) => {
+                Arc::new(Value::Stuck(
+                    Head::Global("Array".to_owned()),
+                    vec![
+                        Elim::Function(len.clone()),
+                        Elim::Function(apply_repr(elem_type.clone())),
+                    ],
+                ))
+            }
+            _ => Arc::new(Value::Error),
+        },
+        Value::Stuck(head, elims) => {
+            let mut elims = elims.clone(); // FIXME: clone?
+            elims.push(Elim::Repr);
+            Arc::new(Value::Stuck(head.clone(), elims))
+        }
+        _ => Arc::new(Value::Error),
     }
 }
 
@@ -175,6 +228,9 @@ fn read_back_neutral(head: &Head, elims: &[Elim]) -> Term {
                 Elim::Int(branches, default) => {
                     TermData::IntElim(Arc::new(head), branches.clone(), default.clone())
                 }
+                Elim::Repr => {
+                    TermData::FunctionElim(Arc::new(Term::from(TermData::Repr)), Arc::new(head))
+                }
             })
         },
     )
@@ -194,6 +250,8 @@ pub fn read_back(value: &Value) -> Term {
         Value::Constant(constant) => Term::from(TermData::Constant(constant.clone())),
 
         Value::FormatType => Term::from(TermData::FormatType),
+
+        Value::Repr => Term::from(TermData::Repr),
 
         Value::Error => Term::from(TermData::Error),
     }
@@ -263,6 +321,7 @@ fn is_equal_spine(
                     return false;
                 }
             }
+            (Elim::Repr, Elim::Repr) => {}
 
             (_, _) => return false,
         }
@@ -299,6 +358,8 @@ pub fn is_equal(
         (Value::Constant(constant0), Value::Constant(constant1)) => constant0 == constant1,
 
         (Value::FormatType, Value::FormatType) => true,
+
+        (Value::Repr, Value::Repr) => true,
 
         // Errors are always treated as equal
         (Value::Error, _) | (_, Value::Error) => true,

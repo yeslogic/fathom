@@ -129,6 +129,7 @@ impl<'me> Context<'me> {
             | Value::FunctionType(_, _)
             | Value::Constant(_)
             | Value::FormatType
+            | Value::Repr
             | Value::Error => Err(fathom_runtime::ReadError::InvalidDataDescription),
         }
     }

@@ -276,6 +276,8 @@ impl Context {
 
             TermData::FormatType => "Format".into(),
 
+            TermData::Repr => "repr".into(),
+
             TermData::Error => r##"<strong>(invalid data description)</strong>"##.into(),
         }
     }

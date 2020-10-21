@@ -319,6 +319,8 @@ where
 
         TermData::FormatType => alloc.text("Format"),
 
+        TermData::Repr => alloc.text("repr"),
+
         TermData::Error => alloc.text("!"),
     }
 }

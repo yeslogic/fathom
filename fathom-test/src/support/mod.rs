@@ -667,6 +667,8 @@ fn is_equal_term(term0: &fathom::lang::core::Term, term1: &fathom::lang::core::T
 
         (TermData::FormatType, TermData::FormatType) => true,
 
+        (TermData::Repr, TermData::Repr) => true,
+
         (TermData::Error, TermData::Error) => true,
         (_, _) => false,
     }
