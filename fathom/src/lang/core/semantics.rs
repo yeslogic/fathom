@@ -104,60 +104,20 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
 
             Arc::new(Value::FunctionType(param_type, body_type))
         }
-        TermData::FunctionElim(head, argument) => match eval(globals, items, head).as_ref() {
-            Value::Repr => {
-                let argument = eval(globals, items, argument);
-                apply_repr(argument)
-            }
-            Value::Stuck(head, elims) => {
-                let mut elims = elims.clone(); // FIXME: clone?
-                elims.push(Elim::Function(eval(globals, items, argument)));
-                Arc::new(Value::Stuck(head.clone(), elims))
-            }
-            _ => Arc::new(Value::Error),
-        },
+        TermData::FunctionElim(head, argument) => {
+            let head = eval(globals, items, head);
+            let argument = eval(globals, items, argument);
+            apply_fun_elim(head, argument)
+        }
 
         TermData::Constant(constant) => Arc::new(Value::Constant(constant.clone())),
         TermData::BoolElim(head, if_true, if_false) => {
-            match eval(globals, items, head).as_ref() {
-                Value::Stuck(Head::Global(name), elims) if elims.is_empty() => {
-                    match name.as_str() {
-                        "true" => eval(globals, items, if_true),
-                        "false" => eval(globals, items, if_false),
-                        _ => {
-                            let mut elims = elims.clone(); // FIXME: clone?
-                            elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
-                            Arc::new(Value::Stuck(Head::Global(name.clone()), elims))
-                        }
-                    }
-                }
-                Value::Stuck(head, elims) => {
-                    let mut elims = elims.clone(); // FIXME: clone?
-                    elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
-                    Arc::new(Value::Stuck(head.clone(), elims))
-                }
-                _ => Arc::new(Value::Stuck(
-                    Head::Error,
-                    vec![Elim::Bool(if_true.clone(), if_false.clone())],
-                )),
-            }
+            let head = eval(globals, items, head);
+            apply_bool_elim(globals, items, head, if_true, if_false)
         }
         TermData::IntElim(head, branches, default) => {
-            match eval(globals, items, head).as_ref() {
-                Value::Constant(Constant::Int(value)) => match branches.get(&value) {
-                    Some(term) => eval(globals, items, term),
-                    None => eval(globals, items, default),
-                },
-                Value::Stuck(head, elims) => {
-                    let mut elims = elims.clone(); // FIXME: clone?
-                    elims.push(Elim::Int(branches.clone(), default.clone()));
-                    Arc::new(Value::Stuck(head.clone(), elims))
-                }
-                _ => Arc::new(Value::Stuck(
-                    Head::Error,
-                    vec![Elim::Int(branches.clone(), default.clone())],
-                )),
-            }
+            let head = eval(globals, items, head);
+            apply_int_elim(globals, items, head, branches, default)
         }
 
         TermData::FormatType => Arc::new(Value::FormatType),
@@ -168,9 +128,61 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
     }
 }
 
-fn apply_repr(argument: Arc<Value>) -> Arc<Value> {
-    match argument.as_ref() {
-        Value::Stuck(Head::Global(name), elims) => match (name.as_ref(), elims.as_slice()) {
+fn apply_fun_elim(mut head: Arc<Value>, argument: Arc<Value>) -> Arc<Value> {
+    match Arc::make_mut(&mut head) {
+        Value::Repr => apply_repr(argument),
+        Value::Stuck(_, elims) => {
+            elims.push(Elim::Function(argument));
+            head
+        }
+        _ => Arc::new(Value::Error),
+    }
+}
+
+fn apply_bool_elim(
+    globals: &Globals,
+    items: &HashMap<String, Item>,
+    mut head: Arc<Value>,
+    if_true: &Arc<Term>,
+    if_false: &Arc<Term>,
+) -> Arc<Value> {
+    match Arc::make_mut(&mut head) {
+        Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
+            ("true", []) => eval(globals, items, if_true),
+            ("false", []) => eval(globals, items, if_false),
+            _ => Arc::new(Value::Error),
+        },
+        Value::Stuck(_, elims) => {
+            elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
+            head
+        }
+        _ => Arc::new(Value::Error),
+    }
+}
+
+fn apply_int_elim(
+    globals: &Globals,
+    items: &HashMap<String, Item>,
+    mut head: Arc<Value>,
+    branches: &BTreeMap<BigInt, Arc<Term>>,
+    default: &Arc<Term>,
+) -> Arc<Value> {
+    match Arc::make_mut(&mut head) {
+        Value::Constant(Constant::Int(value)) => match branches.get(&value) {
+            Some(term) => eval(globals, items, term),
+            None => eval(globals, items, default),
+        },
+        Value::Stuck(_, elims) => {
+            elims.push(Elim::Int(branches.clone(), default.clone()));
+            head
+        }
+        _ => Arc::new(Value::Error),
+    }
+}
+
+fn apply_repr(mut argument: Arc<Value>) -> Arc<Value> {
+    match Arc::make_mut(&mut argument) {
+        Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
             ("U8", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
             ("U16Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
             ("U16Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
@@ -200,10 +212,9 @@ fn apply_repr(argument: Arc<Value>) -> Arc<Value> {
             }
             _ => Arc::new(Value::Error),
         },
-        Value::Stuck(head, elims) => {
-            let mut elims = elims.clone(); // FIXME: clone?
+        Value::Stuck(_, elims) => {
             elims.push(Elim::Repr);
-            Arc::new(Value::Stuck(head.clone(), elims))
+            argument
         }
         _ => Arc::new(Value::Error),
     }
