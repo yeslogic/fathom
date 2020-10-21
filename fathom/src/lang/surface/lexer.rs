@@ -15,7 +15,7 @@ pub enum Token<'source> {
     Name(&'source str),
     #[regex(r#"'([^'\\]|\\.)*'"#)]
     CharLiteral(&'source str),
-    #[regex(r#""([^"\\]|\\.)*""#)] // workaround editor highlighting: "
+    #[regex(r#""([^"\\]|\\.)*""#)]
     StringLiteral(&'source str),
     #[regex(r"[-+]?[0-9][a-zA-Z0-9_\.]*")]
     NumericLiteral(&'source str),
