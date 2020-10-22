@@ -38,6 +38,8 @@ pub enum Token<'source> {
     Item,
     #[token("Kind")]
     Kind,
+    #[token("repr")]
+    Repr,
     #[token("struct")]
     Struct,
     #[token("Type")]
@@ -93,6 +95,7 @@ impl<'source> fmt::Display for Token<'source> {
             Token::IntElim => write!(f, "int_elim"),
             Token::Item => write!(f, "item"),
             Token::Kind => write!(f, "Kind"),
+            Token::Repr => write!(f, "repr"),
             Token::Struct => write!(f, "struct"),
             Token::Type => write!(f, "Type"),
 

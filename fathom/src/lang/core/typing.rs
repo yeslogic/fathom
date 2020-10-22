@@ -324,6 +324,11 @@ impl<'me> Context<'me> {
 
             TermData::FormatType => Arc::new(Value::Sort(Sort::Kind)),
 
+            TermData::Repr => Arc::new(Value::FunctionType(
+                Arc::new(Value::FormatType),
+                Arc::new(Value::Sort(Sort::Type)),
+            )),
+
             TermData::Error => Arc::new(Value::Error),
         }
     }

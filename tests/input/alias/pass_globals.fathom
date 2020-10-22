@@ -3,6 +3,14 @@
 TestType = Type;
 TestFormat = Format;
 
+TestInt = Int;
+TestF32 = F32;
+TestF64 = F64;
+TestBool = Bool;
+test_true = true;
+test_false = false;
+TestArray = Array;
+
 TestU8 = U8;
 TestU16Le = U16Le;
 TestU16Be = U16Be;
@@ -22,11 +30,3 @@ TestF32Be = F32Be;
 TestF64Le = F64Le;
 TestF64Be = F64Be;
 TestFormatArray = FormatArray;
-
-TestList = List;
-TestInt = Int;
-TestF32 = F32;
-TestF64 = F64;
-TestBool = Bool;
-test_true = true;
-test_false = false;

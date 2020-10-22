@@ -26,6 +26,8 @@ test!(fail_invalid_token, "fail_invalid_token.fathom");
 
 #[rustfmt::skip]
 mod alias {
+    test!(repr, "alias/repr.fathom");
+
     test!(pass_ann, "alias/pass_ann.fathom");
     test!(pass_alias_term, "alias/pass_alias_term.fathom");
     test!(pass_alias_type, "alias/pass_alias_type.fathom");

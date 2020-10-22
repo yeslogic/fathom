@@ -138,6 +138,9 @@ pub enum TermData {
     /// Type of format descriptions.
     FormatType,
 
+    /// Convert a format to its host representation.
+    Repr,
+
     /// Error sentinel terms.
     Error,
 }

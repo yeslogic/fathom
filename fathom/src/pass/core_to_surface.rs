@@ -114,6 +114,8 @@ pub fn from_term(term: &Term) -> surface::Term {
 
         TermData::FormatType => surface::TermData::FormatType,
 
+        TermData::Repr => surface::TermData::Repr,
+
         TermData::Error => surface::TermData::Error,
     };
 

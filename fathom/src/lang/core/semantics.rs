@@ -10,14 +10,13 @@ use crate::lang::core::{Constant, Globals, Item, ItemData, Sort, Term, TermData}
 /// Values.
 #[derive(Debug, Clone)]
 pub enum Value {
-    /// A suspended elimination.
+    /// A computation that is stuck on some [head value][`Head`] that cannot be
+    /// reduced further in the current scope. We maintain a 'spine' of
+    /// [eliminators][`Elim`], that can be applied if the head becomes unstuck
+    /// later on.
     ///
-    /// This is more commonly known as a 'neutral value' or sometimes as an
-    /// 'accumulator'.
-    ///
-    /// These eliminations cannot be reduced further as a result of being stuck
-    /// on some head that also cannot be reduced further (eg. a parameter, an
-    /// abstract global, or an unsolved metavariable).
+    /// This is more commonly known as a 'neutral value' in the type theory
+    /// literature.
     Stuck(Head, Vec<Elim>),
 
     /// Sorts.
@@ -32,6 +31,9 @@ pub enum Value {
     /// Type of format types.
     FormatType,
 
+    /// Convert a format to its host representation.
+    Repr,
+
     /// Error sentinel.
     Error,
 }
@@ -43,7 +45,9 @@ impl Value {
     }
 }
 
-/// The head of a stuck elimination.
+/// The head of a [stuck value][`Value::Stuck`].
+///
+/// This cannot currently be reduced in the current scope.
 #[derive(Debug, Clone)]
 pub enum Head {
     /// Global variables.
@@ -54,16 +58,25 @@ pub enum Head {
     Error,
 }
 
-/// An eliminator that cannot be reduced further is 'stuck' on some [`Head`].
+/// An eliminator that is part of the spine of a [stuck value][`Value::Stuck`].
 #[derive(Debug, Clone)]
 pub enum Elim {
-    /// Function eliminatiors (function application).
+    /// Function eliminators (function application).
+    ///
+    /// This can be applied with the [`apply_function_elim`] function.
     Function(Arc<Value>),
     /// Boolean eliminators.
-    // FIXME: environment?
-    Bool(Arc<Term>, Arc<Term>),
+    ///
+    /// This can be applied with the [`apply_bool_elim`] function.
+    Bool(Arc<Term>, Arc<Term>), // FIXME: turn this into a closure once we add local environments
     /// Integer eliminators.
-    Int(BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
+    ///
+    /// This can be applied with the [`apply_int_elim`] function.
+    Int(BTreeMap<BigInt, Arc<Term>>, Arc<Term>), // FIXME: turn this into a closure once we add local environments
+    /// Convert a format to its host representation.
+    ///
+    /// This can be applied with the [`apply_repr_elim`] function.
+    Repr,
 }
 
 /// Evaluate a [`core::Term`] into a [`Value`].
@@ -98,61 +111,119 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
 
             Arc::new(Value::FunctionType(param_type, body_type))
         }
-        TermData::FunctionElim(head, argument) => match eval(globals, items, head).as_ref() {
-            Value::Stuck(head, elims) => {
-                let mut elims = elims.clone(); // FIXME: clone?
-                elims.push(Elim::Function(eval(globals, items, argument)));
-                Arc::new(Value::Stuck(head.clone(), elims))
-            }
-            _ => Arc::new(Value::Error),
-        },
+        TermData::FunctionElim(head, argument) => {
+            let head = eval(globals, items, head);
+            let argument = eval(globals, items, argument);
+            apply_function_elim(head, argument)
+        }
 
         TermData::Constant(constant) => Arc::new(Value::Constant(constant.clone())),
         TermData::BoolElim(head, if_true, if_false) => {
-            match eval(globals, items, head).as_ref() {
-                Value::Stuck(Head::Global(name), elims) if elims.is_empty() => {
-                    match name.as_str() {
-                        "true" => eval(globals, items, if_true),
-                        "false" => eval(globals, items, if_false),
-                        _ => {
-                            let mut elims = elims.clone(); // FIXME: clone?
-                            elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
-                            Arc::new(Value::Stuck(Head::Global(name.clone()), elims))
-                        }
-                    }
-                }
-                Value::Stuck(head, elims) => {
-                    let mut elims = elims.clone(); // FIXME: clone?
-                    elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
-                    Arc::new(Value::Stuck(head.clone(), elims))
-                }
-                _ => Arc::new(Value::Stuck(
-                    Head::Error,
-                    vec![Elim::Bool(if_true.clone(), if_false.clone())],
-                )),
-            }
+            let head = eval(globals, items, head);
+            apply_bool_elim(globals, items, head, if_true, if_false)
         }
         TermData::IntElim(head, branches, default) => {
-            match eval(globals, items, head).as_ref() {
-                Value::Constant(Constant::Int(value)) => match branches.get(&value) {
-                    Some(term) => eval(globals, items, term),
-                    None => eval(globals, items, default),
-                },
-                Value::Stuck(head, elims) => {
-                    let mut elims = elims.clone(); // FIXME: clone?
-                    elims.push(Elim::Int(branches.clone(), default.clone()));
-                    Arc::new(Value::Stuck(head.clone(), elims))
-                }
-                _ => Arc::new(Value::Stuck(
-                    Head::Error,
-                    vec![Elim::Int(branches.clone(), default.clone())],
-                )),
-            }
+            let head = eval(globals, items, head);
+            apply_int_elim(globals, items, head, branches, default)
         }
 
         TermData::FormatType => Arc::new(Value::FormatType),
 
+        TermData::Repr => Arc::new(Value::Repr),
+
         TermData::Error => Arc::new(Value::Error),
+    }
+}
+
+fn apply_function_elim(mut head: Arc<Value>, argument: Arc<Value>) -> Arc<Value> {
+    match Arc::make_mut(&mut head) {
+        Value::Repr => apply_repr(argument),
+        Value::Stuck(_, elims) => {
+            elims.push(Elim::Function(argument));
+            head
+        }
+        _ => Arc::new(Value::Error),
+    }
+}
+
+fn apply_bool_elim(
+    globals: &Globals,
+    items: &HashMap<String, Item>,
+    mut head: Arc<Value>,
+    if_true: &Arc<Term>,
+    if_false: &Arc<Term>,
+) -> Arc<Value> {
+    match Arc::make_mut(&mut head) {
+        Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
+            ("true", []) => eval(globals, items, if_true),
+            ("false", []) => eval(globals, items, if_false),
+            _ => Arc::new(Value::Error),
+        },
+        Value::Stuck(_, elims) => {
+            elims.push(Elim::Bool(if_true.clone(), if_false.clone()));
+            head
+        }
+        _ => Arc::new(Value::Error),
+    }
+}
+
+fn apply_int_elim(
+    globals: &Globals,
+    items: &HashMap<String, Item>,
+    mut head: Arc<Value>,
+    branches: &BTreeMap<BigInt, Arc<Term>>,
+    default: &Arc<Term>,
+) -> Arc<Value> {
+    match Arc::make_mut(&mut head) {
+        Value::Constant(Constant::Int(value)) => match branches.get(&value) {
+            Some(term) => eval(globals, items, term),
+            None => eval(globals, items, default),
+        },
+        Value::Stuck(_, elims) => {
+            elims.push(Elim::Int(branches.clone(), default.clone()));
+            head
+        }
+        _ => Arc::new(Value::Error),
+    }
+}
+
+fn apply_repr(mut argument: Arc<Value>) -> Arc<Value> {
+    match Arc::make_mut(&mut argument) {
+        Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
+            ("U8", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U16Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U16Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U32Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U32Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U64Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("U64Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S8", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S16Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S16Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S32Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S32Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S64Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("S64Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
+            ("F32Le", []) => Arc::new(Value::Stuck(Head::Global("F32".to_owned()), Vec::new())),
+            ("F32Be", []) => Arc::new(Value::Stuck(Head::Global("F32".to_owned()), Vec::new())),
+            ("F64Le", []) => Arc::new(Value::Stuck(Head::Global("F64".to_owned()), Vec::new())),
+            ("F64Be", []) => Arc::new(Value::Stuck(Head::Global("F64".to_owned()), Vec::new())),
+            ("FormatArray", [Elim::Function(len), Elim::Function(elem_type)]) => {
+                Arc::new(Value::Stuck(
+                    Head::Global("Array".to_owned()),
+                    vec![
+                        Elim::Function(len.clone()),
+                        Elim::Function(apply_repr(elem_type.clone())),
+                    ],
+                ))
+            }
+            _ => Arc::new(Value::Error),
+        },
+        Value::Stuck(_, elims) => {
+            elims.push(Elim::Repr);
+            argument
+        }
+        _ => Arc::new(Value::Error),
     }
 }
 
@@ -175,6 +246,9 @@ fn read_back_neutral(head: &Head, elims: &[Elim]) -> Term {
                 Elim::Int(branches, default) => {
                     TermData::IntElim(Arc::new(head), branches.clone(), default.clone())
                 }
+                Elim::Repr => {
+                    TermData::FunctionElim(Arc::new(Term::from(TermData::Repr)), Arc::new(head))
+                }
             })
         },
     )
@@ -194,6 +268,8 @@ pub fn read_back(value: &Value) -> Term {
         Value::Constant(constant) => Term::from(TermData::Constant(constant.clone())),
 
         Value::FormatType => Term::from(TermData::FormatType),
+
+        Value::Repr => Term::from(TermData::Repr),
 
         Value::Error => Term::from(TermData::Error),
     }
@@ -263,6 +339,7 @@ fn is_equal_spine(
                     return false;
                 }
             }
+            (Elim::Repr, Elim::Repr) => {}
 
             (_, _) => return false,
         }
@@ -299,6 +376,8 @@ pub fn is_equal(
         (Value::Constant(constant0), Value::Constant(constant1)) => constant0 == constant1,
 
         (Value::FormatType, Value::FormatType) => true,
+
+        (Value::Repr, Value::Repr) => true,
 
         // Errors are always treated as equal
         (Value::Error, _) | (_, Value::Error) => true,

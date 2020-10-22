@@ -160,6 +160,9 @@ pub enum TermData {
     /// Type of format types.
     FormatType,
 
+    /// Convert a format to its host representation.
+    Repr,
+
     /// Error sentinel.
     Error,
 }
@@ -190,6 +193,32 @@ impl Default for Globals {
 
         let mut entries = BTreeMap::new();
 
+        entries.insert("Int".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
+        entries.insert("F32".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
+        entries.insert("F64".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
+        entries.insert("Bool".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
+        entries.insert(
+            "true".to_owned(),
+            (Arc::new(Term::from(Global("Bool".to_owned()))), None),
+        );
+        entries.insert(
+            "false".to_owned(),
+            (Arc::new(Term::from(Global("Bool".to_owned()))), None),
+        );
+        entries.insert(
+            "Array".to_owned(),
+            (
+                Arc::new(Term::from(FunctionType(
+                    Arc::new(Term::from(Global("Int".to_owned()))),
+                    Arc::new(Term::from(FunctionType(
+                        Arc::new(Term::from(Sort(Type))),
+                        Arc::new(Term::from(Sort(Type))),
+                    ))),
+                ))),
+                None,
+            ),
+        );
+
         entries.insert("U8".to_owned(), (Arc::new(Term::from(FormatType)), None));
         entries.insert("U16Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
         entries.insert("U16Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
@@ -208,19 +237,6 @@ impl Default for Globals {
         entries.insert("F32Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
         entries.insert("F64Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
         entries.insert("F64Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
-
-        entries.insert("Int".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
-        entries.insert("F32".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
-        entries.insert("F64".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
-        entries.insert("Bool".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
-        entries.insert(
-            "true".to_owned(),
-            (Arc::new(Term::from(Global("Bool".to_owned()))), None),
-        );
-        entries.insert(
-            "false".to_owned(),
-            (Arc::new(Term::from(Global("Bool".to_owned()))), None),
-        );
         entries.insert(
             "FormatArray".to_owned(),
             (
@@ -230,16 +246,6 @@ impl Default for Globals {
                         Arc::new(Term::from(FormatType)),
                         Arc::new(Term::from(FormatType)),
                     ))),
-                ))),
-                None,
-            ),
-        );
-        entries.insert(
-            "List".to_owned(),
-            (
-                Arc::new(Term::from(FunctionType(
-                    Arc::new(Term::from(Sort(Type))),
-                    Arc::new(Term::from(Sort(Type))),
                 ))),
                 None,
             ),

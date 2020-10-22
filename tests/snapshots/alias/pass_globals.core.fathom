@@ -4,6 +4,20 @@ TestType = Type;
 
 TestFormat = Format;
 
+TestInt = global Int;
+
+TestF32 = global F32;
+
+TestF64 = global F64;
+
+TestBool = global Bool;
+
+test_true = global true;
+
+test_false = global false;
+
+TestArray = global Array;
+
 TestU8 = global U8;
 
 TestU16Le = global U16Le;
@@ -41,17 +55,3 @@ TestF64Le = global F64Le;
 TestF64Be = global F64Be;
 
 TestFormatArray = global FormatArray;
-
-TestList = global List;
-
-TestInt = global Int;
-
-TestF32 = global F32;
-
-TestF64 = global F64;
-
-TestBool = global Bool;
-
-test_true = global true;
-
-test_false = global false;

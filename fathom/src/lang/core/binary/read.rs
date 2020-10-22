@@ -109,9 +109,7 @@ impl<'me> Context<'me> {
                         _ => Err(fathom_runtime::ReadError::InvalidDataDescription),
                     }
                 }
-                ("List", [Elim::Function(_)]) | (_, _) => {
-                    Err(fathom_runtime::ReadError::InvalidDataDescription)
-                }
+                (_, _) => Err(fathom_runtime::ReadError::InvalidDataDescription),
             },
             Value::Stuck(Head::Item(name), elims) => {
                 match (self.items.get(name.as_str()).cloned(), elims.as_slice()) {
@@ -131,6 +129,7 @@ impl<'me> Context<'me> {
             | Value::FunctionType(_, _)
             | Value::Constant(_)
             | Value::FormatType
+            | Value::Repr
             | Value::Error => Err(fathom_runtime::ReadError::InvalidDataDescription),
         }
     }
