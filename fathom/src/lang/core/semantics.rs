@@ -10,14 +10,13 @@ use crate::lang::core::{Constant, Globals, Item, ItemData, Sort, Term, TermData}
 /// Values.
 #[derive(Debug, Clone)]
 pub enum Value {
-    /// A suspended elimination.
+    /// A computation that is stuck on some [head value][`Head`] that cannot be
+    /// reduced further in the current scope. We maintain a 'spine' of
+    /// [eliminators][`Elim`], that can be applied if the head becomes unstuck
+    /// later on.
     ///
-    /// This is more commonly known as a 'neutral value' or sometimes as an
-    /// 'accumulator'.
-    ///
-    /// These eliminations cannot be reduced further as a result of being stuck
-    /// on some head that also cannot be reduced further (eg. a parameter, an
-    /// abstract global, or an unsolved metavariable).
+    /// This is more commonly known as a 'neutral value' in the type theory
+    /// literature.
     Stuck(Head, Vec<Elim>),
 
     /// Sorts.
@@ -46,7 +45,9 @@ impl Value {
     }
 }
 
-/// The head of a stuck elimination.
+/// The head of a [stuck value][`Value::Stuck`].
+///
+/// This cannot currently be reduced in the current scope.
 #[derive(Debug, Clone)]
 pub enum Head {
     /// Global variables.
@@ -57,18 +58,24 @@ pub enum Head {
     Error,
 }
 
-/// An eliminator that cannot be reduced further due to being stuck on some
-/// 'stuck' on some [`Head`].
+/// An eliminator that is part of the spine of a [stuck value][`Value::Stuck`].
 #[derive(Debug, Clone)]
 pub enum Elim {
-    /// Function eliminatiors (function application).
+    /// Function eliminators (function application).
+    ///
+    /// This can be applied with the [`apply_function_elim`] function.
     Function(Arc<Value>),
     /// Boolean eliminators.
-    // FIXME: environment?
-    Bool(Arc<Term>, Arc<Term>),
+    ///
+    /// This can be applied with the [`apply_bool_elim`] function.
+    Bool(Arc<Term>, Arc<Term>), // FIXME: turn this into a closure once we add local environments
     /// Integer eliminators.
-    Int(BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
+    ///
+    /// This can be applied with the [`apply_int_elim`] function.
+    Int(BTreeMap<BigInt, Arc<Term>>, Arc<Term>), // FIXME: turn this into a closure once we add local environments
     /// Convert a format to its host representation.
+    ///
+    /// This can be applied with the [`apply_repr_elim`] function.
     Repr,
 }
 
@@ -107,7 +114,7 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
         TermData::FunctionElim(head, argument) => {
             let head = eval(globals, items, head);
             let argument = eval(globals, items, argument);
-            apply_fun_elim(head, argument)
+            apply_function_elim(head, argument)
         }
 
         TermData::Constant(constant) => Arc::new(Value::Constant(constant.clone())),
@@ -128,7 +135,7 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
     }
 }
 
-fn apply_fun_elim(mut head: Arc<Value>, argument: Arc<Value>) -> Arc<Value> {
+fn apply_function_elim(mut head: Arc<Value>, argument: Arc<Value>) -> Arc<Value> {
     match Arc::make_mut(&mut head) {
         Value::Repr => apply_repr(argument),
         Value::Stuck(_, elims) => {
