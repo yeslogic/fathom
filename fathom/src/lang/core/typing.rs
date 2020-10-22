@@ -202,6 +202,7 @@ impl<'me> Context<'me> {
                 }
                 self.check_type(file_id, default, expected_type);
             }
+
             (_, expected_type) => match self.synth_type(file_id, term) {
                 found_type if self.is_equal(&found_type, expected_type) => {}
                 found_type => self.push_message(CoreTypingMessage::TypeMismatch {

@@ -338,6 +338,7 @@ impl<'me> Context<'me> {
         match (&surface_term.data, expected_type.as_ref()) {
             (TermData::Error, _) => core::Term::new(range, core::TermData::Error),
             (_, Value::Error) => core::Term::new(range, core::TermData::Error),
+
             (TermData::NumberLiteral(source), _) => {
                 let parse_state =
                     literal::State::new(file_id, range.clone(), source, &mut self.messages);
@@ -444,6 +445,7 @@ impl<'me> Context<'me> {
 
                 core::Term::new(range, term_data)
             }
+
             (_, expected_type) => match self.synth_type(file_id, surface_term) {
                 (core_term, found_type) if self.is_equal(&found_type, expected_type) => core_term,
                 (_, found_type) => {
@@ -484,6 +486,7 @@ impl<'me> Context<'me> {
                 });
                 (error_term(), Arc::new(Value::Error))
             }
+
             TermData::Ann(surface_term, surface_type) => {
                 let (core_type, _) = self.is_type(file_id, surface_type);
                 match &core_type.data {
