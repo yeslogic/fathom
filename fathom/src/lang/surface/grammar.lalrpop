@@ -21,6 +21,7 @@ extern {
         "character literal" => Token::CharLiteral(<&'source str>),
 
         "bool_elim" => Token::BoolElim,
+        "const" => Token::Const,
         "else" => Token::Else,
         "f32" => Token::F32,
         "f64" => Token::F64,
@@ -65,7 +66,7 @@ pub Module: Module = {
 
 ItemData: ItemData = {
     <doc: "doc comment"*>
-    <name: Ranged<Name>> <type_: (":" <Term>)?> "=" <term: Term> ";" => {
+    "const" <name: Ranged<Name>> <type_: (":" <Term>)?> "=" <term: Term> ";" => {
         let doc = Arc::from(doc);
 
         ItemData::Alias(Alias {
