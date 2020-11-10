@@ -1,10 +1,10 @@
-foo : Int = 33;
+const foo : Int = 33;
 
-bar : Bool =
+const bar : Bool =
     match foo {
         33 => true,
         42 => false,
         _ => false,
     };
 
-baz = bar;
+const baz = bar;

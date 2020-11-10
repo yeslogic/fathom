@@ -1,4 +1,4 @@
-Test : Type =
+const Test : Type =
     if true {
         F64
     } else {

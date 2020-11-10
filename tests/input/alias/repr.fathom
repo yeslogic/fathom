@@ -1,27 +1,27 @@
 //! Test the `repr` operator.
 
-TestType = repr Type; //~ error: type mismatch
-TestFormat = repr Format; //~ error: type mismatch
+const TestType = repr Type; //~ error: type mismatch
+const TestFormat = repr Format; //~ error: type mismatch
 
-TestU8 : repr U8 = 0 : Int;
-TestU16Le : repr U16Le = 0 : Int;
-TestU16Be : repr U16Be = 0 : Int;
-TestU32Le : repr U32Le = 0 : Int;
-TestU32Be : repr U32Be = 0 : Int;
-TestU64Le : repr U64Le = 0 : Int;
-TestU64Be : repr U64Be = 0 : Int;
-TestS8 : repr S8 = 0 : Int;
-TestS16Le : repr S16Le = 0 : Int;
-TestS16Be : repr S16Be = 0 : Int;
-TestS32Le : repr S32Le = 0 : Int;
-TestS32Be : repr S32Be = 0 : Int;
-TestS64Le : repr S64Le = 0 : Int;
-TestS64Be : repr S64Be = 0 : Int;
-TestF32Le : repr F32Le = 0.0 : F32;
-TestF32Be : repr F32Be = 0.0 : F32;
-TestF64Le : repr F64Le = 0.0 : F64;
-TestF64Be : repr F64Be = 0.0 : F64;
-TestFormatArray : Type = repr (FormatArray 2 U32Be);
+const TestU8 : repr U8 = 0 : Int;
+const TestU16Le : repr U16Le = 0 : Int;
+const TestU16Be : repr U16Be = 0 : Int;
+const TestU32Le : repr U32Le = 0 : Int;
+const TestU32Be : repr U32Be = 0 : Int;
+const TestU64Le : repr U64Le = 0 : Int;
+const TestU64Be : repr U64Be = 0 : Int;
+const TestS8 : repr S8 = 0 : Int;
+const TestS16Le : repr S16Le = 0 : Int;
+const TestS16Be : repr S16Be = 0 : Int;
+const TestS32Le : repr S32Le = 0 : Int;
+const TestS32Be : repr S32Be = 0 : Int;
+const TestS64Le : repr S64Le = 0 : Int;
+const TestS64Be : repr S64Be = 0 : Int;
+const TestF32Le : repr F32Le = 0.0 : F32;
+const TestF32Be : repr F32Be = 0.0 : F32;
+const TestF64Le : repr F64Le = 0.0 : F64;
+const TestF64Be : repr F64Be = 0.0 : F64;
+const TestFormatArray : Type = repr (FormatArray 2 U32Be);
 
 struct PointFormat : Format {
     x : F32Be,
@@ -33,13 +33,13 @@ struct PointType : Type {
     y : F32,
 }
 
-TestPointFormat : Type = repr PointFormat;
-TestPointType = repr PointType; //~ error: type mismatch
+const TestPointFormat : Type = repr PointFormat;
+const TestPointType = repr PointType; //~ error: type mismatch
 
-TestInt = repr Int; //~ error: type mismatch
-TestF32 = repr F32; //~ error: type mismatch
-TestF64 = repr F64; //~ error: type mismatch
-TestBool = repr Bool; //~ error: type mismatch
-test_true = repr true; //~ error: type mismatch
-test_false = repr false; //~ error: type mismatch
-TestArray = repr (Array 3 Int); //~ error: type mismatch
+const TestInt = repr Int; //~ error: type mismatch
+const TestF32 = repr F32; //~ error: type mismatch
+const TestF64 = repr F64; //~ error: type mismatch
+const TestBool = repr Bool; //~ error: type mismatch
+const test_true = repr true; //~ error: type mismatch
+const test_false = repr false; //~ error: type mismatch
+const TestArray = repr (Array 3 Int); //~ error: type mismatch

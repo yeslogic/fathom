@@ -1,5 +1,5 @@
-foo =
+const foo =
     true;
 
-Test : Format =
+const Test : Format =
     if foo { F64Be } else { F32Be };

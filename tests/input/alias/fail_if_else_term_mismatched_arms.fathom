@@ -1,6 +1,6 @@
-Foo : F32 = 33.4;
+const Foo : F32 = 33.4;
 
-test : Bool =
+const test : Bool =
     if true {
         true
     } else {

@@ -1,2 +1,2 @@
-test : Bool =
+const test : Bool =
     if true { true } else { false };

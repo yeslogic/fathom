@@ -1,7 +1,7 @@
-foo =
+const foo =
     true;
 
-bar : Bool =
+const bar : Bool =
     if foo { true } else { false };
 
-baz = bar;
+const baz = bar;

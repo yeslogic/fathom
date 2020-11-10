@@ -1,1 +1,1 @@
-Test = 1; //~ error: ambiguous numeric literal
+const Test = 1; //~ error: ambiguous numeric literal

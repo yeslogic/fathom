@@ -5,7 +5,7 @@ struct Pair: Format {
     second : U8,
 }
 
-MyPair = Pair;
+const MyPair = Pair;
 
 struct PairPair : Format {
     first : Pair,
