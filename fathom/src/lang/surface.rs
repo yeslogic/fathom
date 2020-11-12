@@ -122,6 +122,8 @@ pub enum TermData {
 
     /// Struct terms.
     StructTerm(Vec<FieldDefinition>),
+    /// Struct term eliminations (field lookup).
+    StructElim(Box<Term>, Ranged<String>),
 
     /// Numeric literals.
     NumberLiteral(String),

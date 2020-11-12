@@ -50,6 +50,7 @@ extern {
         "," => Token::Comma,
         "=" => Token::Equals,
         "=>" => Token::EqualsGreater,
+        "." => Token::FullStop,
         "->" => Token::HyphenGreater,
         ";" => Token::Semi,
     }
@@ -136,6 +137,7 @@ AtomicTermData: TermData = {
         fields.extend(last);
         TermData::StructTerm(fields)
     },
+    <term: AtomicTerm> "." <name: Ranged<Name>> => TermData::StructElim(Box::new(term), name),
     <literal: "numeric literal"> => TermData::NumberLiteral(literal.to_owned()),
     "if" <head: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" => {
         TermData::If(Box::new(head), Box::new(if_true), Box::new(if_false))

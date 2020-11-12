@@ -1,0 +1,15 @@
+struct Point : Type {
+    x : Int,
+    y : Int,
+}
+
+const origin : Point = struct {
+    x = 0,
+    y = 0,
+};
+
+const origin_x = origin.x;
+const origin_y = origin.y;
+
+const origin_x_x = origin.x.x; //~ error: could not find field `x` on type `Int`
+const origin_z = origin.z; //~ error: could not find field `z` on type `Point`

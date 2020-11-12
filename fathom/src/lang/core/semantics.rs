@@ -71,6 +71,10 @@ pub enum Elim {
     ///
     /// This can be applied with the [`apply_function_elim`] function.
     Function(Arc<Value>),
+    /// Struct eliminators.
+    ///
+    /// This can be applied with the [`apply_struct_elim`] function.
+    Struct(String),
     /// Boolean eliminators.
     ///
     /// This can be applied with the [`apply_bool_elim`] function.
@@ -136,6 +140,10 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
 
             Arc::new(Value::StructTerm(field_definitions))
         }
+        TermData::StructElim(head, field) => {
+            let head = eval(globals, items, head);
+            apply_struct_elim(head, field)
+        }
 
         TermData::Primitive(primitive) => Arc::new(Value::Primitive(primitive.clone())),
         TermData::BoolElim(head, if_true, if_false) => {
@@ -160,6 +168,20 @@ fn apply_function_elim(mut head: Arc<Value>, argument: Arc<Value>) -> Arc<Value>
         Value::Repr => apply_repr(argument),
         Value::Stuck(_, elims) => {
             elims.push(Elim::Function(argument));
+            head
+        }
+        _ => Arc::new(Value::Error),
+    }
+}
+
+fn apply_struct_elim(mut head: Arc<Value>, field_name: &str) -> Arc<Value> {
+    match Arc::make_mut(&mut head) {
+        Value::StructTerm(fields) => match fields.get(field_name) {
+            Some(field) => field.clone(),
+            None => Arc::new(Value::Error),
+        },
+        Value::Stuck(_, elims) => {
+            elims.push(Elim::Struct(field_name.to_owned()));
             head
         }
         _ => Arc::new(Value::Error),
@@ -259,6 +281,9 @@ fn read_back_neutral(head: &Head, elims: &[Elim]) -> Term {
             Term::from(match elim {
                 Elim::Function(argument) => {
                     TermData::FunctionElim(Arc::new(head), Arc::new(read_back(argument)))
+                }
+                Elim::Struct(field_name) => {
+                    TermData::StructElim(Arc::new(head), field_name.clone())
                 }
                 Elim::Bool(if_true, if_false) => {
                     TermData::BoolElim(Arc::new(head), if_true.clone(), if_false.clone())

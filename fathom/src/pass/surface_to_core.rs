@@ -76,6 +76,20 @@ impl<'me> Context<'me> {
         }
     }
 
+    /// Force a value to resolve to a struct type, returning `None` if the value did
+    /// not refer to an item.
+    fn force_struct_type<'context, 'value>(
+        &'context self,
+        value: &'value Value,
+    ) -> Option<(Range<usize>, &'context core::StructType, &'value [Elim])> {
+        match self.force_item(value) {
+            Some((ref range, core::ItemData::StructType(struct_type), elims)) => {
+                Some((range.clone(), struct_type, elims))
+            }
+            Some(_) | None => None,
+        }
+    }
+
     /// Evaluate a [`core::Term`] into a [`Value`] in the current elaboration context.
     ///
     /// [`Value`]: crate::lang::core::semantics::Value
@@ -356,17 +370,17 @@ impl<'me> Context<'me> {
                 use std::collections::btree_map::Entry;
 
                 // Resolve the struct type definition in the context.
-                let struct_type = match self.force_item(expected_type) {
-                    Some((_, core::ItemData::StructType(struct_type), [])) => struct_type.clone(),
-                    Some((_, core::ItemData::StructType(_), _)) => {
+                let struct_type = match self.force_struct_type(expected_type) {
+                    Some((_, struct_type, [])) => struct_type.clone(),
+                    Some((_, _, _)) => {
                         self.push_message(crate::reporting::Message::NotYetImplemented {
                             file_id,
                             range: range.clone(),
-                            feature_name: "struct eliminations",
+                            feature_name: "struct parameters",
                         });
                         return core::Term::new(range, core::TermData::Error);
                     }
-                    Some(_) | None => {
+                    None => {
                         let expected_type = self.read_back_to_surface(expected_type);
                         self.push_message(SurfaceToCoreMessage::UnexpectedStructTerm {
                             file_id,
@@ -393,9 +407,8 @@ impl<'me> Context<'me> {
                 for field_declaration in &struct_type.fields {
                     match pending_field_definitions.remove(&field_declaration.label.data) {
                         Some(field_definition) => {
-                            // NOTE: It should be safe to evaluate here because
-                            // we trust that struct items have been checked
-                            // prior to their addition to the context.
+                            // NOTE: It should be safe to evaluate the field type
+                            // because we trust that struct items have been checked.
                             let field_type = self.eval(&field_declaration.term);
                             let core_term =
                                 self.check_type(file_id, &field_definition.term, &field_type);
@@ -677,6 +690,50 @@ impl<'me> Context<'me> {
                     term_range: surface_term.range(),
                 });
                 (error_term(), Arc::new(Value::Error))
+            }
+            TermData::StructElim(head, label) => {
+                let (head, head_type) = self.synth_type(file_id, head);
+                if let Value::Error = head_type.as_ref() {
+                    return (error_term(), Arc::new(Value::Error));
+                }
+
+                let field = match self.force_struct_type(&head_type) {
+                    Some((_, struct_type, [])) => struct_type
+                        .fields
+                        .iter()
+                        .find(|field| field.label.data == label.data)
+                        .cloned(),
+                    Some((_, _, _)) => {
+                        self.push_message(crate::reporting::Message::NotYetImplemented {
+                            file_id,
+                            range: range.clone(),
+                            feature_name: "struct parameters",
+                        });
+                        return (error_term(), Arc::new(Value::Error));
+                    }
+                    None => None,
+                };
+
+                let field_type = match field {
+                    // NOTE: It should be safe to evaluate the field type
+                    // because we trust that struct items have been checked.
+                    Some(field) => self.eval(&field.term),
+                    None => {
+                        let head_type = self.read_back_to_surface(&head_type);
+                        self.push_message(SurfaceToCoreMessage::FieldNotFound {
+                            file_id,
+                            head_range: head.range(),
+                            head_type,
+                            label: label.clone(),
+                        });
+                        return (error_term(), Arc::new(Value::Error));
+                    }
+                };
+
+                let label = label.data.clone();
+                let term_data = core::TermData::StructElim(Arc::new(head), label);
+
+                (core::Term::new(range, term_data), field_type)
             }
 
             TermData::NumberLiteral(_) => {

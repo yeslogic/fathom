@@ -48,6 +48,7 @@ extern {
         "," => Token::Comma,
         "=" => Token::Equals,
         "=>" => Token::EqualsGreater,
+        "." => Token::FullStop,
         "->" => Token::HyphenGreater,
         ";" => Token::Semi,
     }
@@ -136,6 +137,7 @@ AtomicTermData: TermData = {
 
         TermData::StructTerm(fields)
     },
+    <term: AtomicTerm> "." <name: Name> => TermData::StructElim(Arc::new(term), name),
     "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" => {
         TermData::BoolElim(Arc::new(head), Arc::new(if_true), Arc::new(if_false))
     },

@@ -290,6 +290,10 @@ where
         ),
 
         TermData::StructTerm(field_definitions) => from_struct_term(alloc, field_definitions),
+        TermData::StructElim(head, label) => (alloc.nil())
+            .append(from_term_prec(alloc, head, Prec::Atomic))
+            .append(".")
+            .append(alloc.as_string(&label.data)),
 
         TermData::NumberLiteral(literal) => alloc.as_string(literal),
         TermData::If(head, if_true, if_false) => (alloc.nil())

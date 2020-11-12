@@ -96,6 +96,9 @@ pub fn from_term(term: &Term) -> surface::Term {
                 })
                 .collect(),
         ),
+        TermData::StructElim(head, field) => {
+            surface::TermData::StructElim(Box::new(from_term(head)), Ranged::from(field.clone()))
+        }
 
         TermData::Primitive(primitive) => match primitive {
             Primitive::Int(value) => surface::TermData::NumberLiteral(value.to_string()),

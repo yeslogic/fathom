@@ -343,6 +343,10 @@ where
         ),
 
         TermData::StructTerm(field_definitions) => from_struct_term(alloc, field_definitions),
+        TermData::StructElim(head, label) => (alloc.nil())
+            .append(paren(alloc, true, from_term(alloc, head)))
+            .append(".")
+            .append(alloc.as_string(label)),
 
         TermData::Primitive(primitive) => from_primitive(alloc, primitive),
         TermData::BoolElim(head, if_true, if_false) => (alloc.nil())

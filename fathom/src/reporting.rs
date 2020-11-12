@@ -324,6 +324,12 @@ pub enum CoreTypingMessage {
         head_type: core::Term,
         argument_range: Range<usize>,
     },
+    FieldNotFound {
+        file_id: usize,
+        head_range: Range<usize>,
+        head_type: core::Term,
+        label: String,
+    },
     AmbiguousStructTerm {
         file_id: usize,
         term_range: Range<usize>,
@@ -483,6 +489,23 @@ impl CoreTypingMessage {
                     ]
                     .join("\n")])
             }
+            CoreTypingMessage::FieldNotFound {
+                file_id,
+                head_range,
+                head_type,
+                label,
+            } => {
+                let head_type = to_doc(head_type);
+
+                Diagnostic::bug()
+                    .with_message(format!(
+                        "could not find field `{}` on type `{}`",
+                        &label,
+                        head_type.pretty(std::usize::MAX),
+                    ))
+                    .with_labels(vec![Label::primary(*file_id, head_range.clone())
+                        .with_message("field not found in this term")])
+            }
             CoreTypingMessage::AmbiguousStructTerm {
                 file_id,
                 term_range,
@@ -615,6 +638,12 @@ pub enum SurfaceToCoreMessage {
         head_range: Range<usize>,
         head_type: surface::Term,
         argument_range: Range<usize>,
+    },
+    FieldNotFound {
+        file_id: usize,
+        head_range: Range<usize>,
+        head_type: surface::Term,
+        label: Ranged<String>,
     },
     AmbiguousMatchExpression {
         file_id: usize,
@@ -820,6 +849,26 @@ impl SurfaceToCoreMessage {
                         format!("   found `{}`", head_type.pretty(std::usize::MAX)),
                     ]
                     .join("\n")])
+            }
+            SurfaceToCoreMessage::FieldNotFound {
+                file_id,
+                head_range,
+                head_type,
+                label,
+            } => {
+                let head_type = to_doc(head_type);
+
+                Diagnostic::error()
+                    .with_message(format!(
+                        "could not find field `{}` on type `{}`",
+                        &label.data,
+                        head_type.pretty(std::usize::MAX),
+                    ))
+                    .with_labels(vec![
+                        Label::primary(*file_id, label.range()).with_message("non-existent field"),
+                        Label::secondary(*file_id, head_range.clone())
+                            .with_message("field not found in this term"),
+                    ])
             }
             SurfaceToCoreMessage::AmbiguousMatchExpression {
                 file_id,

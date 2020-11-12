@@ -1,0 +1,11 @@
+struct Header : Type {
+    count : Int,
+}
+
+const header_example : Header = struct {
+    count = 4,
+};
+
+const Data : Type = Array header_example.count Int;
+
+// TODO: data : Data = [0, 1, 2, 3];

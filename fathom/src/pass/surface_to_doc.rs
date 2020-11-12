@@ -267,6 +267,12 @@ impl Context {
                     .format(", "),
             )
             .into(),
+            TermData::StructElim(head, label) => format!(
+                "{head}.{label}",
+                head = self.from_term_prec(head, Prec::Atomic),
+                label = &label.data,
+            )
+            .into(),
 
             TermData::NumberLiteral(literal) => format!("{}", literal).into(),
             TermData::If(head, if_true, if_false) => format!(

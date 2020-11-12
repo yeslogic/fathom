@@ -151,6 +151,8 @@ pub enum TermData {
 
     /// Struct terms.
     StructTerm(Vec<FieldDefinition>),
+    /// Struct term eliminations (field lookup).
+    StructElim(Arc<Term>, String),
 
     /// Primitives.
     Primitive(Primitive),
