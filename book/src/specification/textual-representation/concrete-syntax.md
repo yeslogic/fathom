@@ -69,7 +69,7 @@ Modules are lists of zero-or-more definitions. Definitions within a module must 
 > <sub>Grammar:</sub>
 >
 > _item_ ::=\
-> &emsp;|&ensp;_constant-type-definition_\
+> &emsp;|&ensp;_constant-definition_\
 > &emsp;|&ensp;_struct-type-definition_
 >
 > _module_ ::=\
