@@ -1,0 +1,5 @@
+const foo = int 33 : global Int;
+
+const bar = int_elim item foo { 33 => global true, 42 => global false, global false } : global Bool;
+
+const baz = item bar;

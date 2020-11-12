@@ -38,14 +38,14 @@ impl<'me> Context<'me> {
     ) -> Result<Term, fathom_runtime::ReadError> {
         for item in &module.items {
             let name = match &item.data {
-                ItemData::Alias(alias) if alias.name == name => {
-                    let value = self.eval(&alias.term);
+                ItemData::Constant(constant) if constant.name == name => {
+                    let value = self.eval(&constant.term);
                     return self.read_format(&value);
                 }
                 ItemData::StructFormat(struct_format) if struct_format.name == name => {
                     return self.read_struct_format(struct_format);
                 }
-                ItemData::Alias(alias) => alias.name.clone(),
+                ItemData::Constant(constant) => constant.name.clone(),
                 ItemData::StructType(struct_type) => struct_type.name.clone(),
                 ItemData::StructFormat(struct_format) => struct_format.name.clone(),
             };

@@ -30,7 +30,7 @@ a:hover {
 
 dl.items > dt.item,
 dl.fields > dt.field,
-dd.alias > section.term {
+dd.constant > section.term {
     border-top: 1px solid #eee;
     padding: 0.5em 0 0.5em 0;
 }
@@ -49,7 +49,7 @@ section.doc {
   <body>
     <section class="module">
       <section class="doc">
-        Test referring to aliases in struct fields.
+        Test referring to constants in struct fields.
       </section>
       <dl class="items">
         <dt id="items[Pair]" class="item struct">
@@ -73,10 +73,10 @@ section.doc {
             </dd>
           </dl>
         </dd>
-        <dt id="items[MyPair]" class="item alias">
+        <dt id="items[MyPair]" class="item constant">
           <a href="#items[MyPair]">MyPair</a>
         </dt>
-        <dd class="item alias">
+        <dd class="item constant">
           <section class="term">
             <var><a href="#items[Pair]">Pair</a></var>
           </section>

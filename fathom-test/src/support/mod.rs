@@ -591,10 +591,10 @@ fn is_equal_item(item0: &fathom::lang::core::Item, item1: &fathom::lang::core::I
     use fathom::lang::core::ItemData;
 
     match (&item0.data, &item1.data) {
-        (ItemData::Alias(alias0), ItemData::Alias(alias1)) => {
-            alias0.doc == alias1.doc
-                && alias0.name == alias1.name
-                && is_equal_term(&alias0.term, &alias1.term)
+        (ItemData::Constant(constant0), ItemData::Constant(constant1)) => {
+            constant0.doc == constant1.doc
+                && constant0.name == constant1.name
+                && is_equal_term(&constant0.term, &constant1.term)
         }
         (ItemData::StructType(struct_type0), ItemData::StructType(struct_type1)) => {
             struct_type0.doc == struct_type1.doc

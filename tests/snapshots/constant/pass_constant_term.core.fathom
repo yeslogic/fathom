@@ -1,0 +1,4 @@
+/// Test that one can refer to local term aliases in aliases.
+const Foo = global true;
+
+const Bar = item Foo;

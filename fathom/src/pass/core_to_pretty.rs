@@ -1,5 +1,5 @@
 use crate::lang::core::{
-    Alias, Item, ItemData, Module, Primitive, Sort, StructFormat, StructType, Term, TermData,
+    Constant, Item, ItemData, Module, Primitive, Sort, StructFormat, StructType, Term, TermData,
     TypeField,
 };
 use pretty::{DocAllocator, DocBuilder};
@@ -40,18 +40,18 @@ where
     D::Doc: Clone,
 {
     match &item.data {
-        ItemData::Alias(alias) => from_alias(alloc, alias),
+        ItemData::Constant(constant) => from_constant(alloc, constant),
         ItemData::StructType(struct_type) => from_struct_type(alloc, struct_type),
         ItemData::StructFormat(struct_format) => from_struct_format(alloc, struct_format),
     }
 }
 
-pub fn from_alias<'a, D>(alloc: &'a D, alias: &'a Alias) -> DocBuilder<'a, D>
+pub fn from_constant<'a, D>(alloc: &'a D, constant: &'a Constant) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
-    let docs = alloc.concat(alias.doc.iter().map(|line| {
+    let docs = alloc.concat(constant.doc.iter().map(|line| {
         (alloc.nil())
             .append(format!("///{}", line))
             .append(alloc.hardline())
@@ -59,14 +59,16 @@ where
 
     (alloc.nil())
         .append(docs)
-        .append(alloc.as_string(&alias.name))
+        .append("const")
+        .append(alloc.space())
+        .append(alloc.as_string(&constant.name))
         .append(alloc.space())
         .append("=")
         .group()
         .append(
             (alloc.nil())
                 .append(alloc.space())
-                .append(from_term_prec(alloc, &alias.term, Prec::Term))
+                .append(from_term_prec(alloc, &constant.term, Prec::Term))
                 .group()
                 .append(";")
                 .nest(4),

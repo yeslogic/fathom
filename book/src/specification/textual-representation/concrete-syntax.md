@@ -23,7 +23,7 @@ Constant definitions are used to give names to terms that can be later used in
 other places in the binary description. For example:
 
 ```fathom
-Byte = U8;
+const Byte = U8;
 ```
 
 Constants are bound using the `const` keyword followed by an

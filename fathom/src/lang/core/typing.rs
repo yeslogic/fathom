@@ -98,10 +98,10 @@ impl<'me> Context<'me> {
             use std::collections::hash_map::Entry;
 
             let (item_name, item_type) = match &item.data {
-                ItemData::Alias(alias) => {
-                    let alias_type = self.synth_type(file_id, &alias.term);
+                ItemData::Constant(constant) => {
+                    let constant_type = self.synth_type(file_id, &constant.term);
 
-                    (alias.name.clone(), alias_type)
+                    (constant.name.clone(), constant_type)
                 }
                 ItemData::StructType(struct_type) => {
                     use std::collections::HashSet;

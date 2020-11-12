@@ -1,0 +1,53 @@
+//! Test annotated terms.
+
+const TestInt = global Int : Type;
+
+const TestF32 = global F32 : Type;
+
+const TestF64 = global F64 : Type;
+
+const TestBool = global Bool : Type;
+
+const test_true = global true : global Bool;
+
+const test_false = global false : global Bool;
+
+const TestArray = global Array : global Int -> Type -> Type;
+
+const TestU8 = global U8 : Format;
+
+const TestU16Le = global U16Le : Format;
+
+const TestU16Be = global U16Be : Format;
+
+const TestU32Le = global U32Le : Format;
+
+const TestU32Be = global U32Be : Format;
+
+const TestU64Le = global U64Le : Format;
+
+const TestU64Be = global U64Be : Format;
+
+const TestS8 = global S8 : Format;
+
+const TestS16Le = global S16Le : Format;
+
+const TestS16Be = global S16Be : Format;
+
+const TestS32Le = global S32Le : Format;
+
+const TestS32Be = global S32Be : Format;
+
+const TestS64Le = global S64Le : Format;
+
+const TestS64Be = global S64Be : Format;
+
+const TestF32Le = global F32Le : Format;
+
+const TestF32Be = global F32Be : Format;
+
+const TestF64Le = global F64Le : Format;
+
+const TestF64Be = global F64Be : Format;
+
+const TestFormatArray = global FormatArray : global Int -> Format -> Format;

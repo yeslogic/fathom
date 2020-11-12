@@ -45,12 +45,12 @@ pub type Item = Ranged<ItemData>;
 /// Items in a module.
 #[derive(Debug, Clone)]
 pub enum ItemData {
-    /// Alias definitions.
+    /// Constant definitions.
     ///
     /// ```text
     /// alias <name> = <term>;
     /// ```
-    Alias(Alias),
+    Constant(Constant),
     /// Struct definitions.
     ///
     /// ```text
@@ -59,9 +59,9 @@ pub enum ItemData {
     StructType(StructType),
 }
 
-/// Alias definition.
+/// Constant definition.
 #[derive(Debug, Clone)]
-pub struct Alias {
+pub struct Constant {
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.

@@ -75,6 +75,6 @@ point.x // normalizes to `23`
 When synthesizing the type of field lookups we need to be careful about data dependencies:
 
 ```fathom
-foo (array : MyArray) =
+const foo (array : MyArray) =
     array.data; // type of body is `Array array.len Point`
 ```

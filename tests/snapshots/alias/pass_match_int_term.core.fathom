@@ -1,1 +1,0 @@
-test = int_elim int 33 : global Int { 33 => global true, 42 => global false, global false } : global Bool;

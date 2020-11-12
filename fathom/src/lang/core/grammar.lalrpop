@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::lang::Ranged;
-use crate::lang::core::{Alias, Primitive, ItemData, Module, Sort, StructType, StructFormat, Term, TermData, TypeField};
+use crate::lang::core::{Constant, ItemData, Module, Primitive, Sort, StructType, StructFormat, Term, TermData, TypeField};
 use crate::lang::core::lexer::Token;
 use crate::literal;
 use crate::reporting::{LexerMessage, Message};
@@ -22,6 +22,7 @@ extern {
         "character literal" => Token::CharLiteral(<&'source str>),
 
         "bool_elim" => Token::BoolElim,
+        "const" => Token::Const,
         "f32" => Token::F32,
         "f64" => Token::F64,
         "Format" => Token::Format,
@@ -60,8 +61,8 @@ pub Module: Module = {
 };
 
 ItemData: ItemData = {
-    <doc: "doc comment"*> <name: Name> "=" <term: Term> ";" => {
-        ItemData::Alias(Alias {
+    <doc: "doc comment"*> "const" <name: Name> "=" <term: Term> ";" => {
+        ItemData::Constant(Constant {
             doc: Arc::from(doc),
             name,
             term: Arc::new(term),

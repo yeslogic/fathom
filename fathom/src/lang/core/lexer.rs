@@ -22,6 +22,8 @@ pub enum Token<'source> {
 
     #[token("bool_elim")]
     BoolElim,
+    #[token("const")]
+    Const,
     #[token("f32")]
     F32,
     #[token("f64")]
@@ -87,6 +89,7 @@ impl<'source> fmt::Display for Token<'source> {
             Token::NumericLiteral(source) => write!(f, "{}", source),
 
             Token::BoolElim => write!(f, "bool_elim"),
+            Token::Const => write!(f, "const"),
             Token::F32 => write!(f, "f32"),
             Token::F64 => write!(f, "f64"),
             Token::Format => write!(f, "Format"),

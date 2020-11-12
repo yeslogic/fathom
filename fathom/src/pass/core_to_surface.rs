@@ -19,15 +19,15 @@ pub fn from_module(module: &Module) -> surface::Module {
 
 pub fn from_item(item: &Item) -> surface::Item {
     let item_data = match &item.data {
-        ItemData::Alias(alias) => {
-            let (term, r#type) = match &alias.term.data {
+        ItemData::Constant(constant) => {
+            let (term, r#type) = match &constant.term.data {
                 TermData::Ann(term, r#type) => (from_term(term), Some(from_term(r#type))),
-                _ => (from_term(&alias.term), None),
+                _ => (from_term(&constant.term), None),
             };
 
-            surface::ItemData::Alias(surface::Alias {
-                doc: alias.doc.clone(),
-                name: Ranged::from(alias.name.clone()),
+            surface::ItemData::Constant(surface::Constant {
+                doc: constant.doc.clone(),
+                name: Ranged::from(constant.name.clone()),
                 type_: r#type,
                 term,
             })

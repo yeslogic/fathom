@@ -1,4 +1,4 @@
-//! Test referring to aliases in struct fields.
+//! Test referring to constants in struct fields.
 
 struct Pair: Format {
     first : U8,

@@ -1,0 +1,71 @@
+//! Test the `repr` operator.
+
+const TestType = repr !;
+
+const TestFormat = repr !;
+
+const TestU8 = (int 0 : global Int) : repr global U8;
+
+const TestU16Le = (int 0 : global Int) : repr global U16Le;
+
+const TestU16Be = (int 0 : global Int) : repr global U16Be;
+
+const TestU32Le = (int 0 : global Int) : repr global U32Le;
+
+const TestU32Be = (int 0 : global Int) : repr global U32Be;
+
+const TestU64Le = (int 0 : global Int) : repr global U64Le;
+
+const TestU64Be = (int 0 : global Int) : repr global U64Be;
+
+const TestS8 = (int 0 : global Int) : repr global S8;
+
+const TestS16Le = (int 0 : global Int) : repr global S16Le;
+
+const TestS16Be = (int 0 : global Int) : repr global S16Be;
+
+const TestS32Le = (int 0 : global Int) : repr global S32Le;
+
+const TestS32Be = (int 0 : global Int) : repr global S32Be;
+
+const TestS64Le = (int 0 : global Int) : repr global S64Le;
+
+const TestS64Be = (int 0 : global Int) : repr global S64Be;
+
+const TestF32Le = (f32 0 : global F32) : repr global F32Le;
+
+const TestF32Be = (f32 0 : global F32) : repr global F32Be;
+
+const TestF64Le = (f64 0 : global F64) : repr global F64Le;
+
+const TestF64Be = (f64 0 : global F64) : repr global F64Be;
+
+const TestFormatArray = repr ((global FormatArray int 2) global U32Be) : Type;
+
+struct PointFormat : Format {
+    x : global F32Be,
+    y : global F32Be,
+}
+
+struct PointType : Type {
+    x : global F32,
+    y : global F32,
+}
+
+const TestPointFormat = repr item PointFormat : Type;
+
+const TestPointType = repr !;
+
+const TestInt = repr !;
+
+const TestF32 = repr !;
+
+const TestF64 = repr !;
+
+const TestBool = repr !;
+
+const test_true = repr !;
+
+const test_false = repr !;
+
+const TestArray = repr !;

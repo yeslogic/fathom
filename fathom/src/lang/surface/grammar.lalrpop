@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::lang::Ranged;
-use crate::lang::surface::{Alias, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField};
+use crate::lang::surface::{Constant, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField};
 use crate::lang::surface::lexer::Token;
 use crate::reporting::LexerMessage;
 
@@ -69,7 +69,7 @@ ItemData: ItemData = {
     "const" <name: Ranged<Name>> <type_: (":" <Term>)?> "=" <term: Term> ";" => {
         let doc = Arc::from(doc);
 
-        ItemData::Alias(Alias {
+        ItemData::Constant(Constant {
             doc: Arc::from(doc),
             name,
             type_,

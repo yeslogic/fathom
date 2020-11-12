@@ -95,7 +95,7 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
         TermData::Item(name) => match items.get(name.as_str()) {
             None => Arc::new(Value::Error),
             Some(item) => match &item.data {
-                ItemData::Alias(alias) => eval(globals, items, &alias.term),
+                ItemData::Constant(constant) => eval(globals, items, &constant.term),
                 ItemData::StructType(_) | ItemData::StructFormat(_) => {
                     Arc::new(Value::Stuck(Head::Item(name.clone()), Vec::new()))
                 }

@@ -1,0 +1,3 @@
+//! Test annotated annotations.
+
+const Test = (global U8 : Format) : Format;

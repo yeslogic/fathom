@@ -121,36 +121,36 @@ impl<'me> Context<'me> {
             use std::collections::hash_map::Entry;
 
             let (name, item_data, r#type) = match &item.data {
-                ItemData::Alias(alias) => {
-                    let (core_term, r#type) = match &alias.type_ {
+                ItemData::Constant(constant) => {
+                    let (core_term, r#type) = match &constant.type_ {
                         Some(surface_type) => {
                             let (core_type, _) = self.is_type(file_id, surface_type);
                             match &core_type.data {
                                 core::TermData::Error => (
-                                    core::Term::new(alias.term.range(), core::TermData::Error),
+                                    core::Term::new(constant.term.range(), core::TermData::Error),
                                     Arc::new(Value::Error),
                                 ),
                                 _ => {
                                     let r#type = self.eval(&core_type);
                                     let term_data = core::TermData::Ann(
-                                        Arc::new(self.check_type(file_id, &alias.term, &r#type)),
+                                        Arc::new(self.check_type(file_id, &constant.term, &r#type)),
                                         Arc::new(core_type),
                                     );
 
-                                    (core::Term::new(alias.term.range(), term_data), r#type)
+                                    (core::Term::new(constant.term.range(), term_data), r#type)
                                 }
                             }
                         }
-                        None => self.synth_type(file_id, &alias.term),
+                        None => self.synth_type(file_id, &constant.term),
                     };
 
-                    let item_data = core::ItemData::Alias(core::Alias {
-                        doc: alias.doc.clone(),
-                        name: alias.name.data.clone(),
+                    let item_data = core::ItemData::Constant(core::Constant {
+                        doc: constant.doc.clone(),
+                        name: constant.name.data.clone(),
                         term: Arc::new(core_term),
                     });
 
-                    (&alias.name, item_data, r#type)
+                    (&constant.name, item_data, r#type)
                 }
                 ItemData::StructType(struct_type) => match &struct_type.type_ {
                     None => {
