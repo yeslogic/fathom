@@ -46,11 +46,18 @@ impl Module {
     }
 }
 
+impl PartialEq for Module {
+    /// Ignores source location metadata.
+    fn eq(&self, other: &Module) -> bool {
+        self.doc == other.doc && self.items == other.items
+    }
+}
+
 /// Items in the core language.
 pub type Item = Ranged<ItemData>;
 
 /// Items in a module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ItemData {
     /// Constant definitions
     Constant(Constant),
@@ -60,8 +67,8 @@ pub enum ItemData {
     StructFormat(StructFormat),
 }
 
-/// An constant definition.
-#[derive(Debug, Clone)]
+/// A constant definition.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Constant {
     /// Doc comment.
     pub doc: Arc<[String]>,
@@ -72,7 +79,7 @@ pub struct Constant {
 }
 
 /// A struct type definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StructType {
     /// Doc comment.
     pub doc: Arc<[String]>,
@@ -83,7 +90,7 @@ pub struct StructType {
 }
 
 /// A struct format definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StructFormat {
     /// Doc comment.
     pub doc: Arc<[String]>,
@@ -94,7 +101,7 @@ pub struct StructFormat {
 }
 
 /// A field in a struct type definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TypeField {
     pub doc: Arc<[String]>,
     pub name: Ranged<String>,
@@ -133,7 +140,7 @@ impl PartialEq for Primitive {
 pub type Term = Ranged<TermData>;
 
 /// Terms.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TermData {
     /// Global variables.
     Global(String),

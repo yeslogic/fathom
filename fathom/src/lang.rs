@@ -25,6 +25,13 @@ impl<Data> Ranged<Data> {
     }
 }
 
+impl<Data: PartialEq> PartialEq for Ranged<Data> {
+    /// Ignores source location metadata.
+    fn eq(&self, other: &Ranged<Data>) -> bool {
+        self.data == other.data
+    }
+}
+
 impl<Data> From<Data> for Ranged<Data> {
     #![allow(clippy::reversed_empty_ranges)]
     fn from(data: Data) -> Ranged<Data> {
