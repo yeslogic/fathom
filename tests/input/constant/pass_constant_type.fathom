@@ -1,0 +1,4 @@
+/// Test that one can refer to local type aliases in aliases.
+
+const Foo = U32Be;
+const Bar = Foo;

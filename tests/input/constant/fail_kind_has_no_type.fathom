@@ -1,0 +1,3 @@
+const TestKind = Kind; //~ error: term has no type
+const TestType : Kind = Type; //~ error: term has no type
+const TestFormat : Kind = Format; //~ error: term has no type

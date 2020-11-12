@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::lang::core;
 use crate::lang::core::binary::Term;
 use crate::lang::core::semantics::{self, Elim, Head, Value};
-use crate::lang::core::{Constant, Globals, Item, ItemData, Module, StructFormat};
+use crate::lang::core::{Globals, Item, ItemData, Module, Primitive, StructFormat};
 
 /// Contextual information to be used when parsing items.
 pub struct Context<'me> {
@@ -38,14 +38,14 @@ impl<'me> Context<'me> {
     ) -> Result<Term, fathom_runtime::ReadError> {
         for item in &module.items {
             let name = match &item.data {
-                ItemData::Alias(alias) if alias.name == name => {
-                    let value = self.eval(&alias.term);
+                ItemData::Constant(constant) if constant.name == name => {
+                    let value = self.eval(&constant.term);
                     return self.read_format(&value);
                 }
                 ItemData::StructFormat(struct_format) if struct_format.name == name => {
                     return self.read_struct_format(struct_format);
                 }
-                ItemData::Alias(alias) => alias.name.clone(),
+                ItemData::Constant(constant) => constant.name.clone(),
                 ItemData::StructType(struct_type) => struct_type.name.clone(),
                 ItemData::StructFormat(struct_format) => struct_format.name.clone(),
             };
@@ -98,7 +98,7 @@ impl<'me> Context<'me> {
                 ("F64Be", []) => Ok(Term::F64(self.read::<fathom_runtime::F64Be>()?)),
                 ("FormatArray", [Elim::Function(len), Elim::Function(elem_type)]) => {
                     match len.as_ref() {
-                        Value::Constant(Constant::Int(len)) => match len.to_usize() {
+                        Value::Primitive(Primitive::Int(len)) => match len.to_usize() {
                             Some(len) => Ok(Term::Seq(
                                 (0..len)
                                     .map(|_| self.read_format(elem_type))
@@ -127,7 +127,7 @@ impl<'me> Context<'me> {
             Value::Stuck(Head::Error, _)
             | Value::Sort(_)
             | Value::FunctionType(_, _)
-            | Value::Constant(_)
+            | Value::Primitive(_)
             | Value::FormatType
             | Value::Repr
             | Value::Error => Err(fathom_runtime::ReadError::InvalidDataDescription),

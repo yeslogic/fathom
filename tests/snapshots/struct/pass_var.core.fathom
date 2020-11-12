@@ -1,11 +1,11 @@
-//! Test referring to aliases in struct fields.
+//! Test referring to constants in struct fields.
 
 struct Pair : Format {
     first : global U8,
     second : global U8,
 }
 
-MyPair = item Pair;
+const MyPair = item Pair;
 
 struct PairPair : Format {
     first : item Pair,

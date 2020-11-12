@@ -17,22 +17,23 @@ process.
 
 ## Items
 
-### Alias definitions
+### Constant definitions
 
-Alias definitions are used to give names to terms that can be later used in
+Constant definitions are used to give names to terms that can be later used in
 other places in the binary description. For example:
 
 ```fathom
-Byte = U8;
+const Byte = U8;
 ```
 
-Aliases are made up of an identifier and the term that they are assigned to,
-followed by a semicolon:
+Constants are bound using the `const` keyword followed by an
+identifier and the term that they are assigned to, terminated by a
+semicolon:
 
 > <sub>Grammar:</sub>
 >
-> _alias-definition_ ::=\
-> &emsp;|&ensp;_doc-comment_<sup>?</sup> _ident_ `=` _term_ `;`
+> _constant-definition_ ::=\
+> &emsp;|&ensp;_doc-comment_<sup>?</sup> `const` _ident_ `=` _term_ `;`
 
 ### Structure type definitions
 
@@ -68,7 +69,7 @@ Modules are lists of zero-or-more definitions. Definitions within a module must 
 > <sub>Grammar:</sub>
 >
 > _item_ ::=\
-> &emsp;|&ensp;_alias-type-definition_\
+> &emsp;|&ensp;_constant-definition_\
 > &emsp;|&ensp;_struct-type-definition_
 >
 > _module_ ::=\

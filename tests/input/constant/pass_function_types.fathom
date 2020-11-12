@@ -1,0 +1,13 @@
+// PTS rules
+
+const TypeType = Int -> Int : Type;   // (Type, Type, Type)
+const TypeKind = Int -> Type;         // (Type, Kind, Kind)
+const KindType = Type -> Int;         // (Kind, Type, Kind)
+const KindKind = Type -> Type;        // (Kind, Kind, Kind)
+
+// Common types
+
+const ListType = Type -> Type;
+const ArrayType = Int -> Type -> Type;
+const ListFormat = Format -> Format;
+const ArrayFormat = Int -> Format -> Format;

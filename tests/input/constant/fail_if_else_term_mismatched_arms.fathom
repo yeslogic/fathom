@@ -1,0 +1,8 @@
+const Foo : F32 = 33.4;
+
+const test : Bool =
+    if true {
+        true
+    } else {
+        Foo //~ error: type mismatch
+    };

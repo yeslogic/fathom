@@ -1,0 +1,29 @@
+//! Test sugared annotation style.
+
+const TestInt : Type = Int;
+const TestF32 : Type = F32;
+const TestF64 : Type = F64;
+const TestBool : Type = Bool;
+const test_true : Bool = true;
+const test_false : Bool = false;
+const TestArray : Int -> Type -> Type = Array;
+
+const TestU8 : Format = U8;
+const TestU16Le : Format = U16Le;
+const TestU16Be : Format = U16Be;
+const TestU32Le : Format = U32Le;
+const TestU32Be : Format = U32Be;
+const TestU64Le : Format = U64Le;
+const TestU64Be : Format = U64Be;
+const TestS8 : Format = S8;
+const TestS16Le : Format = S16Le;
+const TestS16Be : Format = S16Be;
+const TestS32Le : Format = S32Le;
+const TestS32Be : Format = S32Be;
+const TestS64Le : Format = S64Le;
+const TestS64Be : Format = S64Be;
+const TestF32Le : Format = F32Le;
+const TestF32Be : Format = F32Be;
+const TestF64Le : Format = F64Le;
+const TestF64Be : Format = F64Be;
+const TestFormatArray : Int -> Format -> Format = FormatArray;

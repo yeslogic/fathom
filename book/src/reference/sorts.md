@@ -10,5 +10,5 @@ Type : Kind
 For example it cannot be used in top-level definitions:
 
 ```fathom
-MyKind = Kind; // error!
+const MyKind = Kind; // error!
 ```

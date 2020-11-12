@@ -1,0 +1,3 @@
+//! Test simple aliases.
+
+const Byte = U8;

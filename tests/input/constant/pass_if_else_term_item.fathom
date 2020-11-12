@@ -1,0 +1,7 @@
+const foo =
+    true;
+
+const bar : Bool =
+    if foo { true } else { false };
+
+const baz = bar;

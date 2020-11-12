@@ -1,0 +1,15 @@
+const TypeType = global Int -> global Int : Type;
+
+const TypeKind = global Int -> Type;
+
+const KindType = Type -> global Int;
+
+const KindKind = Type -> Type;
+
+const ListType = Type -> Type;
+
+const ArrayType = global Int -> Type -> Type;
+
+const ListFormat = Format -> Format;
+
+const ArrayFormat = global Int -> Format -> Format;

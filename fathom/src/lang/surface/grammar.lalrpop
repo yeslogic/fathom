@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::lang::Ranged;
-use crate::lang::surface::{Alias, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField};
+use crate::lang::surface::{Constant, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField};
 use crate::lang::surface::lexer::Token;
 use crate::reporting::LexerMessage;
 
@@ -21,6 +21,7 @@ extern {
         "character literal" => Token::CharLiteral(<&'source str>),
 
         "bool_elim" => Token::BoolElim,
+        "const" => Token::Const,
         "else" => Token::Else,
         "f32" => Token::F32,
         "f64" => Token::F64,
@@ -65,10 +66,10 @@ pub Module: Module = {
 
 ItemData: ItemData = {
     <doc: "doc comment"*>
-    <name: Ranged<Name>> <type_: (":" <Term>)?> "=" <term: Term> ";" => {
+    "const" <name: Ranged<Name>> <type_: (":" <Term>)?> "=" <term: Term> ";" => {
         let doc = Arc::from(doc);
 
-        ItemData::Alias(Alias {
+        ItemData::Constant(Constant {
             doc: Arc::from(doc),
             name,
             type_,

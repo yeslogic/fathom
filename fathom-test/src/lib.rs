@@ -25,50 +25,50 @@ test!(fail_unexpected_token, "fail_unexpected_token.fathom");
 test!(fail_invalid_token, "fail_invalid_token.fathom");
 
 #[rustfmt::skip]
-mod alias {
-    test!(repr, "alias/repr.fathom");
+mod constant {
+    test!(repr, "constant/repr.fathom");
 
-    test!(pass_ann, "alias/pass_ann.fathom");
-    test!(pass_alias_term, "alias/pass_alias_term.fathom");
-    test!(pass_alias_type, "alias/pass_alias_type.fathom");
-    test!(pass_ann_ann, "alias/pass_ann_ann.fathom");
-    test!(pass_ann_sugar, "alias/pass_ann_sugar.fathom");
-    test!(pass_format_array, "alias/pass_format_array.fathom");
-    test!(pass_function_types, "alias/pass_function_types.fathom");
-    test!(pass_globals, "alias/pass_globals.fathom");
-    test!(pass_if_else_ann_type, "alias/pass_if_else_ann_type.fathom");
-    test!(pass_if_else_format_type, "alias/pass_if_else_format_type.fathom");
-    test!(pass_if_else_format_type_item, "alias/pass_if_else_format_type_item.fathom");
-    test!(pass_if_else_host_type, "alias/pass_if_else_host_type.fathom");
-    test!(pass_if_else_host_type_item, "alias/pass_if_else_host_type_item.fathom");
-    test!(pass_if_else_if_else_format_type, "alias/pass_if_else_if_else_format_type.fathom");
-    test!(pass_if_else_term, "alias/pass_if_else_term.fathom");
-    test!(pass_if_else_term_item, "alias/pass_if_else_term_item.fathom");
-    test!(pass_literals, "alias/pass_literals.fathom");
-    test!(pass_match_int_ann_type, "alias/pass_match_int_ann_type.fathom");
-    test!(pass_match_int_format_type, "alias/pass_match_int_format_type.fathom");
-    test!(pass_match_int_format_type_item, "alias/pass_match_int_format_type_item.fathom");
-    test!(pass_match_int_host_type, "alias/pass_match_int_host_type.fathom");
-    test!(pass_match_int_host_type_item, "alias/pass_match_int_host_type_item.fathom");
-    test!(pass_match_int_term, "alias/pass_match_int_term.fathom");
-    test!(pass_match_int_term_item, "alias/pass_match_int_term_item.fathom");
-    test!(pass_match_int_term_unreachable, "alias/pass_match_int_term_unreachable.fathom");
-    test!(pass_simple, "alias/pass_simple.fathom");
-    test!(pass_simple_doc, "alias/pass_simple_doc.fathom");
+    test!(pass_ann, "constant/pass_ann.fathom");
+    test!(pass_constant_term, "constant/pass_constant_term.fathom");
+    test!(pass_constant_type, "constant/pass_constant_type.fathom");
+    test!(pass_ann_ann, "constant/pass_ann_ann.fathom");
+    test!(pass_ann_sugar, "constant/pass_ann_sugar.fathom");
+    test!(pass_format_array, "constant/pass_format_array.fathom");
+    test!(pass_function_types, "constant/pass_function_types.fathom");
+    test!(pass_globals, "constant/pass_globals.fathom");
+    test!(pass_if_else_ann_type, "constant/pass_if_else_ann_type.fathom");
+    test!(pass_if_else_format_type, "constant/pass_if_else_format_type.fathom");
+    test!(pass_if_else_format_type_item, "constant/pass_if_else_format_type_item.fathom");
+    test!(pass_if_else_host_type, "constant/pass_if_else_host_type.fathom");
+    test!(pass_if_else_host_type_item, "constant/pass_if_else_host_type_item.fathom");
+    test!(pass_if_else_if_else_format_type, "constant/pass_if_else_if_else_format_type.fathom");
+    test!(pass_if_else_term, "constant/pass_if_else_term.fathom");
+    test!(pass_if_else_term_item, "constant/pass_if_else_term_item.fathom");
+    test!(pass_literals, "constant/pass_literals.fathom");
+    test!(pass_match_int_ann_type, "constant/pass_match_int_ann_type.fathom");
+    test!(pass_match_int_format_type, "constant/pass_match_int_format_type.fathom");
+    test!(pass_match_int_format_type_item, "constant/pass_match_int_format_type_item.fathom");
+    test!(pass_match_int_host_type, "constant/pass_match_int_host_type.fathom");
+    test!(pass_match_int_host_type_item, "constant/pass_match_int_host_type_item.fathom");
+    test!(pass_match_int_term, "constant/pass_match_int_term.fathom");
+    test!(pass_match_int_term_item, "constant/pass_match_int_term_item.fathom");
+    test!(pass_match_int_term_unreachable, "constant/pass_match_int_term_unreachable.fathom");
+    test!(pass_simple, "constant/pass_simple.fathom");
+    test!(pass_simple_doc, "constant/pass_simple_doc.fathom");
 
-    test!(fail_ann_mismatch, "alias/fail_ann_mismatch.fathom");
-    test!(fail_format_array_bad_elem, "alias/fail_format_array_bad_elem.fathom");
-    test!(fail_format_array_bad_len, "alias/fail_format_array_bad_len.fathom");
-    test!(fail_literals, "alias/fail_literals.fathom");
-    test!(fail_if_else_term_mismatched_arms, "alias/fail_if_else_term_mismatched_arms.fathom");
-    test!(fail_if_else_term_mismatched_condition, "alias/fail_if_else_term_mismatched_condition.fathom");
-    test!(fail_kind_has_no_type, "alias/fail_kind_has_no_type.fathom");
-    test!(fail_match_ambiguous_scrutinee, "alias/fail_match_ambiguous_scrutinee.fathom");
-    test!(fail_match_int_missing_default, "alias/fail_match_int_missing_default.fathom");
-    test!(fail_match_int_ambiguous, "alias/fail_match_int_ambiguous.fathom");
-    test!(fail_match_int_term_mismatched_arms, "alias/fail_match_int_term_mismatched_arms.fathom");
-    test!(fail_numeric_literal_ambiguous, "alias/fail_numeric_literal_ambiguous.fathom");
-    test!(fail_numeric_literal_not_supported, "alias/fail_numeric_literal_not_supported.fathom");
+    test!(fail_ann_mismatch, "constant/fail_ann_mismatch.fathom");
+    test!(fail_format_array_bad_elem, "constant/fail_format_array_bad_elem.fathom");
+    test!(fail_format_array_bad_len, "constant/fail_format_array_bad_len.fathom");
+    test!(fail_literals, "constant/fail_literals.fathom");
+    test!(fail_if_else_term_mismatched_arms, "constant/fail_if_else_term_mismatched_arms.fathom");
+    test!(fail_if_else_term_mismatched_condition, "constant/fail_if_else_term_mismatched_condition.fathom");
+    test!(fail_kind_has_no_type, "constant/fail_kind_has_no_type.fathom");
+    test!(fail_match_ambiguous_scrutinee, "constant/fail_match_ambiguous_scrutinee.fathom");
+    test!(fail_match_int_missing_default, "constant/fail_match_int_missing_default.fathom");
+    test!(fail_match_int_ambiguous, "constant/fail_match_int_ambiguous.fathom");
+    test!(fail_match_int_term_mismatched_arms, "constant/fail_match_int_term_mismatched_arms.fathom");
+    test!(fail_numeric_literal_ambiguous, "constant/fail_numeric_literal_ambiguous.fathom");
+    test!(fail_numeric_literal_not_supported, "constant/fail_numeric_literal_not_supported.fathom");
 }
 
 #[rustfmt::skip]

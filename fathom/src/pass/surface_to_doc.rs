@@ -4,7 +4,7 @@ use std::io;
 use std::io::prelude::*;
 
 use crate::lang::surface::{
-    Alias, ItemData, Module, Pattern, PatternData, StructType, Term, TermData,
+    Constant, ItemData, Module, Pattern, PatternData, StructType, Term, TermData,
 };
 use crate::pass::surface_to_pretty::Prec;
 
@@ -54,7 +54,7 @@ pub fn from_module(writer: &mut impl Write, module: &Module) -> io::Result<()> {
 
     for item in &module.items {
         let (name, item) = match &item.data {
-            ItemData::Alias(alias) => context.from_alias(writer, alias)?,
+            ItemData::Constant(constant) => context.from_constant(writer, constant)?,
             ItemData::StructType(struct_type) => context.from_struct_type(writer, struct_type)?,
         };
 
@@ -82,43 +82,47 @@ struct ItemMeta {
 }
 
 impl Context {
-    fn from_alias(&self, writer: &mut impl Write, alias: &Alias) -> io::Result<(String, ItemMeta)> {
-        let id = format!("items[{}]", alias.name.data);
+    fn from_constant(
+        &self,
+        writer: &mut impl Write,
+        constant: &Constant,
+    ) -> io::Result<(String, ItemMeta)> {
+        let id = format!("items[{}]", constant.name.data);
 
         writeln!(
             writer,
-            r##"        <dt id="{id}" class="item alias">"##,
+            r##"        <dt id="{id}" class="item constant">"##,
             id = id,
         )?;
-        match &alias.type_ {
+        match &constant.type_ {
             None => writeln!(
                 writer,
                 r##"          <a href="#{id}">{name}</a>"##,
                 id = id,
-                name = alias.name.data,
+                name = constant.name.data,
             )?,
             Some(r#type) => writeln!(
                 writer,
-                r##"          <a href="#{id}">{name}</a> : {type_}"##,
+                r##"          const <a href="#{id}">{name}</a> : {type_}"##,
                 id = id,
-                name = alias.name.data,
+                name = constant.name.data,
                 type_ = self.from_term_prec(r#type, Prec::Term),
             )?,
         }
         write!(
             writer,
             r##"        </dt>
-        <dd class="item alias">
+        <dd class="item constant">
 "##
         )?;
 
-        if !alias.doc.is_empty() {
+        if !constant.doc.is_empty() {
             writeln!(writer, r##"          <section class="doc">"##)?;
-            from_doc_lines(writer, "            ", &alias.doc)?;
+            from_doc_lines(writer, "            ", &constant.doc)?;
             writeln!(writer, r##"          </section>"##)?;
         }
 
-        let term = self.from_term_prec(&alias.term, Prec::Term);
+        let term = self.from_term_prec(&constant.term, Prec::Term);
 
         write!(
             writer,
@@ -130,7 +134,7 @@ impl Context {
             term
         )?;
 
-        Ok((alias.name.data.clone(), ItemMeta { id }))
+        Ok((constant.name.data.clone(), ItemMeta { id }))
     }
 
     fn from_struct_type(

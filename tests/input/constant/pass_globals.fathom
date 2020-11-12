@@ -1,0 +1,32 @@
+//! Test globals.
+
+const TestType = Type;
+const TestFormat = Format;
+
+const TestInt = Int;
+const TestF32 = F32;
+const TestF64 = F64;
+const TestBool = Bool;
+const test_true = true;
+const test_false = false;
+const TestArray = Array;
+
+const TestU8 = U8;
+const TestU16Le = U16Le;
+const TestU16Be = U16Be;
+const TestU32Le = U32Le;
+const TestU32Be = U32Be;
+const TestU64Le = U64Le;
+const TestU64Be = U64Be;
+const TestS8 = S8;
+const TestS16Le = S16Le;
+const TestS16Be = S16Be;
+const TestS32Le = S32Le;
+const TestS32Be = S32Be;
+const TestS64Le = S64Le;
+const TestS64Be = S64Be;
+const TestF32Le = F32Le;
+const TestF32Be = F32Be;
+const TestF64Le = F64Le;
+const TestF64Be = F64Be;
+const TestFormatArray = FormatArray;

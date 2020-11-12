@@ -1,0 +1,9 @@
+const foo =
+    true;
+
+const Test : Type =
+    if foo {
+        F64
+    } else {
+        F32
+    };

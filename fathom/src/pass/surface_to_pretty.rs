@@ -3,7 +3,7 @@
 use pretty::{DocAllocator, DocBuilder};
 
 use crate::lang::surface::{
-    Alias, Item, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField,
+    Constant, Item, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -42,17 +42,17 @@ where
     D::Doc: Clone,
 {
     match &item.data {
-        ItemData::Alias(alias) => from_alias(alloc, alias),
+        ItemData::Constant(constant) => from_constant(alloc, constant),
         ItemData::StructType(struct_type) => from_struct_type(alloc, struct_type),
     }
 }
 
-pub fn from_alias<'a, D>(alloc: &'a D, alias: &'a Alias) -> DocBuilder<'a, D>
+pub fn from_constant<'a, D>(alloc: &'a D, constant: &'a Constant) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
-    let docs = alloc.concat(alias.doc.iter().map(|line| {
+    let docs = alloc.concat(constant.doc.iter().map(|line| {
         (alloc.nil())
             .append(format!("///{}", line))
             .append(alloc.hardline())
@@ -60,11 +60,11 @@ where
 
     (alloc.nil())
         .append(docs)
-        .append(&alias.name.data)
+        .append(&constant.name.data)
         .append(alloc.space())
         .append("=")
         .group()
-        .append(match &alias.type_ {
+        .append(match &constant.type_ {
             None => alloc.nil(),
             Some(r#type) => (alloc.nil())
                 .append(alloc.space())
@@ -75,7 +75,7 @@ where
         .append(
             (alloc.nil())
                 .append(alloc.space())
-                .append(from_term_prec(alloc, &alias.term, Prec::Term))
+                .append(from_term_prec(alloc, &constant.term, Prec::Term))
                 .group()
                 .append(";")
                 .nest(4),

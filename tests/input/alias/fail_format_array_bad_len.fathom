@@ -1,1 +1,0 @@
-SimpleFormatArray = FormatArray 0.35 U32Be; //~ error: expected a base 10 digit or digit separator

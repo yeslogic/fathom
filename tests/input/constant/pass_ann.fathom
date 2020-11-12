@@ -1,0 +1,29 @@
+//! Test annotated terms.
+
+const TestInt = Int : Type;
+const TestF32 = F32 : Type;
+const TestF64 = F64 : Type;
+const TestBool = Bool : Type;
+const test_true = true : Bool;
+const test_false = false : Bool;
+const TestArray = Array : Int -> Type -> Type;
+
+const TestU8 = U8 : Format;
+const TestU16Le = U16Le : Format;
+const TestU16Be = U16Be : Format;
+const TestU32Le = U32Le : Format;
+const TestU32Be = U32Be : Format;
+const TestU64Le = U64Le : Format;
+const TestU64Be = U64Be : Format;
+const TestS8 = S8 : Format;
+const TestS16Le = S16Le : Format;
+const TestS16Be = S16Be : Format;
+const TestS32Le = S32Le : Format;
+const TestS32Be = S32Be : Format;
+const TestS64Le = S64Le : Format;
+const TestS64Be = S64Be : Format;
+const TestF32Le = F32Le : Format;
+const TestF32Be = F32Be : Format;
+const TestF64Le = F64Le : Format;
+const TestF64Be = F64Be : Format;
+const TestFormatArray = FormatArray : Int -> Format -> Format;

@@ -1,3 +1,0 @@
-TestKind = Kind; //~ error: term has no type
-TestType : Kind = Type; //~ error: term has no type
-TestFormat : Kind = Format; //~ error: term has no type

@@ -1,6 +1,0 @@
-test : Bool =
-    match 33 : Int {
-        33 => true,
-        42 => false,
-        _ => false,
-    };

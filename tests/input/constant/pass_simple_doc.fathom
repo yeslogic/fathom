@@ -1,0 +1,4 @@
+//! Test constants with doc comments.
+
+/// A 8-bit long unit of information.
+const Byte = U8;

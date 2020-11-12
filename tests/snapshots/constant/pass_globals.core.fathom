@@ -1,0 +1,57 @@
+//! Test globals.
+
+const TestType = Type;
+
+const TestFormat = Format;
+
+const TestInt = global Int;
+
+const TestF32 = global F32;
+
+const TestF64 = global F64;
+
+const TestBool = global Bool;
+
+const test_true = global true;
+
+const test_false = global false;
+
+const TestArray = global Array;
+
+const TestU8 = global U8;
+
+const TestU16Le = global U16Le;
+
+const TestU16Be = global U16Be;
+
+const TestU32Le = global U32Le;
+
+const TestU32Be = global U32Be;
+
+const TestU64Le = global U64Le;
+
+const TestU64Be = global U64Be;
+
+const TestS8 = global S8;
+
+const TestS16Le = global S16Le;
+
+const TestS16Be = global S16Be;
+
+const TestS32Le = global S32Le;
+
+const TestS32Be = global S32Be;
+
+const TestS64Le = global S64Le;
+
+const TestS64Be = global S64Be;
+
+const TestF32Le = global F32Le;
+
+const TestF32Be = global F32Be;
+
+const TestF64Le = global F64Le;
+
+const TestF64Be = global F64Be;
+
+const TestFormatArray = global FormatArray;

@@ -52,17 +52,17 @@ pub type Item = Ranged<ItemData>;
 /// Items in a module.
 #[derive(Debug, Clone)]
 pub enum ItemData {
-    /// Alias definitions
-    Alias(Alias),
+    /// Constant definitions
+    Constant(Constant),
     /// Struct type definitions.
     StructType(StructType),
     /// Struct format definitions.
     StructFormat(StructFormat),
 }
 
-/// An alias definition.
+/// An constant definition.
 #[derive(Debug, Clone)]
-pub struct Alias {
+pub struct Constant {
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
@@ -107,9 +107,9 @@ pub enum Sort {
     Kind,
 }
 
-/// Constants.
+/// Primitives.
 #[derive(Debug, Clone)]
-pub enum Constant {
+pub enum Primitive {
     /// Integer constants.
     Int(BigInt),
     /// IEEE-754 single-precision floating point constants.
@@ -118,12 +118,12 @@ pub enum Constant {
     F64(f64),
 }
 
-impl PartialEq for Constant {
-    fn eq(&self, other: &Constant) -> bool {
+impl PartialEq for Primitive {
+    fn eq(&self, other: &Primitive) -> bool {
         match (self, other) {
-            (Constant::Int(val0), Constant::Int(val1)) => val0 == val1,
-            (Constant::F32(val0), Constant::F32(val1)) => ieee754::logical_eq(*val0, *val1),
-            (Constant::F64(val0), Constant::F64(val1)) => ieee754::logical_eq(*val0, *val1),
+            (Primitive::Int(val0), Primitive::Int(val1)) => val0 == val1,
+            (Primitive::F32(val0), Primitive::F32(val1)) => ieee754::logical_eq(*val0, *val1),
+            (Primitive::F64(val0), Primitive::F64(val1)) => ieee754::logical_eq(*val0, *val1),
             (_, _) => false,
         }
     }
@@ -150,8 +150,8 @@ pub enum TermData {
     /// Function eliminations (function application).
     FunctionElim(Arc<Term>, Arc<Term>),
 
-    /// Constants.
-    Constant(Constant),
+    /// Primitives.
+    Primitive(Primitive),
     /// A boolean elimination.
     BoolElim(Arc<Term>, Arc<Term>, Arc<Term>),
     /// A integer elimination.

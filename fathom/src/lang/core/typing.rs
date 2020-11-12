@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::lang::core::semantics::{self, Value};
-use crate::lang::core::{Constant, Globals, Item, ItemData, Module, Sort, Term, TermData};
+use crate::lang::core::{Globals, Item, ItemData, Module, Primitive, Sort, Term, TermData};
 use crate::reporting::{CoreTypingMessage, Message};
 
 /// Returns the sorts of sorts.
@@ -98,10 +98,10 @@ impl<'me> Context<'me> {
             use std::collections::hash_map::Entry;
 
             let (item_name, item_type) = match &item.data {
-                ItemData::Alias(alias) => {
-                    let alias_type = self.synth_type(file_id, &alias.term);
+                ItemData::Constant(constant) => {
+                    let constant_type = self.synth_type(file_id, &constant.term);
 
-                    (alias.name.clone(), alias_type)
+                    (constant.name.clone(), constant_type)
                 }
                 ItemData::StructType(struct_type) => {
                     use std::collections::HashSet;
@@ -289,11 +289,11 @@ impl<'me> Context<'me> {
                 }
             }
 
-            TermData::Constant(constant) => match constant {
+            TermData::Primitive(primitive) => match primitive {
                 // TODO: Lookup globals in environment
-                Constant::Int(_) => Arc::new(Value::global("Int")),
-                Constant::F32(_) => Arc::new(Value::global("F32")),
-                Constant::F64(_) => Arc::new(Value::global("F64")),
+                Primitive::Int(_) => Arc::new(Value::global("Int")),
+                Primitive::F32(_) => Arc::new(Value::global("F32")),
+                Primitive::F64(_) => Arc::new(Value::global("F64")),
             },
             TermData::BoolElim(head, if_true, if_false) => {
                 // TODO: Lookup globals in environment

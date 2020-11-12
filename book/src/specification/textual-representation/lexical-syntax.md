@@ -65,6 +65,7 @@
 > <sub>Grammar:</sub>
 >
 > _keyword_ ::=\
+> &emsp;|&ensp; `const`
 > &emsp;|&ensp; `struct`
 >
 > _ident-or-keyword_ ::=\
