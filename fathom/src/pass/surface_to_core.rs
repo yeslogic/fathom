@@ -347,16 +347,16 @@ impl<'me> Context<'me> {
                         match name.as_str() {
                             "Int" => parse_state
                                 .number_to_big_int()
-                                .map(core::Constant::Int)
-                                .map_or(core::TermData::Error, core::TermData::Constant),
+                                .map(core::Primitive::Int)
+                                .map_or(core::TermData::Error, core::TermData::Primitive),
                             "F32" => parse_state
                                 .number_to_float()
-                                .map(core::Constant::F32)
-                                .map_or(core::TermData::Error, core::TermData::Constant),
+                                .map(core::Primitive::F32)
+                                .map_or(core::TermData::Error, core::TermData::Primitive),
                             "F64" => parse_state
                                 .number_to_float()
-                                .map(core::Constant::F64)
-                                .map_or(core::TermData::Error, core::TermData::Constant),
+                                .map(core::Primitive::F64)
+                                .map_or(core::TermData::Error, core::TermData::Primitive),
                             _ => {
                                 let expected_type = self.read_back_to_surface(expected_type);
                                 self.push_message(

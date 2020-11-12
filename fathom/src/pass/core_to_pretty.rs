@@ -1,5 +1,5 @@
 use crate::lang::core::{
-    Alias, Constant, Item, ItemData, Module, Sort, StructFormat, StructType, Term, TermData,
+    Alias, Item, ItemData, Module, Primitive, Sort, StructFormat, StructType, Term, TermData,
     TypeField,
 };
 use pretty::{DocAllocator, DocBuilder};
@@ -185,7 +185,7 @@ where
         )
 }
 
-pub fn from_constant<'a, D>(alloc: &'a D, constant: &'a Constant) -> DocBuilder<'a, D>
+pub fn from_primitive<'a, D>(alloc: &'a D, primitive: &'a Primitive) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
@@ -202,16 +202,16 @@ where
         }
     }
 
-    match constant {
-        Constant::Int(value) => (alloc.nil())
+    match primitive {
+        Primitive::Int(value) => (alloc.nil())
             .append("int")
             .append(alloc.space())
             .append(alloc.as_string(value)),
-        Constant::F32(value) => (alloc.nil())
+        Primitive::F32(value) => (alloc.nil())
             .append("f32")
             .append(alloc.space())
             .append(format_float(*value)),
-        Constant::F64(value) => (alloc.nil())
+        Primitive::F64(value) => (alloc.nil())
             .append("f64")
             .append(alloc.space())
             .append(format_float(*value)),
@@ -282,7 +282,7 @@ where
                 ),
         ),
 
-        TermData::Constant(constant) => from_constant(alloc, constant),
+        TermData::Primitive(primitive) => from_primitive(alloc, primitive),
         TermData::BoolElim(head, if_true, if_false) => (alloc.nil())
             .append("bool_elim")
             .append(alloc.space())

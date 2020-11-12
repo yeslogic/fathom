@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::lang::core::{Constant, Globals, Item, ItemData, Sort, Term, TermData};
+use crate::lang::core::{Globals, Item, ItemData, Primitive, Sort, Term, TermData};
 
 /// Values.
 #[derive(Debug, Clone)]
@@ -25,8 +25,8 @@ pub enum Value {
     /// Function types.
     FunctionType(Arc<Value>, Arc<Value>),
 
-    /// Constants.
-    Constant(Constant),
+    /// Primitives.
+    Primitive(Primitive),
 
     /// Type of format types.
     FormatType,
@@ -117,7 +117,7 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
             apply_function_elim(head, argument)
         }
 
-        TermData::Constant(constant) => Arc::new(Value::Constant(constant.clone())),
+        TermData::Primitive(primitive) => Arc::new(Value::Primitive(primitive.clone())),
         TermData::BoolElim(head, if_true, if_false) => {
             let head = eval(globals, items, head);
             apply_bool_elim(globals, items, head, if_true, if_false)
@@ -175,7 +175,7 @@ fn apply_int_elim(
     default: &Arc<Term>,
 ) -> Arc<Value> {
     match Arc::make_mut(&mut head) {
-        Value::Constant(Constant::Int(value)) => match branches.get(&value) {
+        Value::Primitive(Primitive::Int(value)) => match branches.get(&value) {
             Some(term) => eval(globals, items, term),
             None => eval(globals, items, default),
         },
@@ -265,7 +265,7 @@ pub fn read_back(value: &Value) -> Term {
             Arc::new(read_back(param_type)),
             Arc::new(read_back(body_type)),
         )),
-        Value::Constant(constant) => Term::from(TermData::Constant(constant.clone())),
+        Value::Primitive(primitive) => Term::from(TermData::Primitive(primitive.clone())),
 
         Value::FormatType => Term::from(TermData::FormatType),
 
@@ -373,7 +373,7 @@ pub fn is_equal(
                 && is_equal(globals, items, body_type0, body_type1)
         }
 
-        (Value::Constant(constant0), Value::Constant(constant1)) => constant0 == constant1,
+        (Value::Primitive(primitive0), Value::Primitive(primitive1)) => primitive0 == primitive1,
 
         (Value::FormatType, Value::FormatType) => true,
 

@@ -644,7 +644,9 @@ fn is_equal_term(term0: &fathom::lang::core::Term, term1: &fathom::lang::core::T
             is_equal_term(head0, head1) && is_equal_term(argument0, argument1)
         }
 
-        (TermData::Constant(constant0), TermData::Constant(constant1)) => constant0 == constant1,
+        (TermData::Primitive(primitive0), TermData::Primitive(primitive1)) => {
+            primitive0 == primitive1
+        }
         (
             TermData::BoolElim(head0, if_true0, if_false0),
             TermData::BoolElim(head1, if_true1, if_false1),

@@ -4,7 +4,7 @@
 //! The naming of this pass is not entirely standard, but was one of the better
 //! ones to emerge from [this twitter discussion](https://twitter.com/brendanzab/status/1173798146356342784).
 
-use crate::lang::core::{Constant, Item, ItemData, Module, Sort, Term, TermData};
+use crate::lang::core::{Item, ItemData, Module, Primitive, Sort, Term, TermData};
 use crate::lang::{surface, Ranged};
 
 // TODO: name/keyword avoidance!
@@ -87,10 +87,10 @@ pub fn from_term(term: &Term) -> surface::Term {
             vec![from_term(argument)], // TODO: flatten arguments
         ),
 
-        TermData::Constant(constant) => match constant {
-            Constant::Int(value) => surface::TermData::NumberLiteral(value.to_string()),
-            Constant::F32(value) => surface::TermData::NumberLiteral(value.to_string()),
-            Constant::F64(value) => surface::TermData::NumberLiteral(value.to_string()),
+        TermData::Primitive(primitive) => match primitive {
+            Primitive::Int(value) => surface::TermData::NumberLiteral(value.to_string()),
+            Primitive::F32(value) => surface::TermData::NumberLiteral(value.to_string()),
+            Primitive::F64(value) => surface::TermData::NumberLiteral(value.to_string()),
         },
         TermData::BoolElim(head, if_true, if_false) => surface::TermData::If(
             Box::new(from_term(head)),
