@@ -106,17 +106,17 @@ impl<'me> Context<'me> {
                 ItemData::StructType(struct_type) => {
                     use std::collections::HashSet;
 
-                    // Field names that have previously seen.
-                    let mut seen_field_names = HashSet::new();
+                    // Field labels that have previously seen.
+                    let mut seen_field_labels = HashSet::new();
                     let type_type = Arc::new(Value::Sort(Sort::Type));
 
                     for field in &struct_type.fields {
                         self.check_type(file_id, &field.term, &type_type);
 
-                        if !seen_field_names.insert(field.name.data.clone()) {
+                        if !seen_field_labels.insert(field.label.data.clone()) {
                             self.push_message(CoreTypingMessage::FieldRedeclaration {
                                 file_id,
-                                field_name: field.name.data.clone(),
+                                field_name: field.label.data.clone(),
                                 record_range: item.range(),
                             });
                         }
@@ -127,17 +127,17 @@ impl<'me> Context<'me> {
                 ItemData::StructFormat(struct_format) => {
                     use std::collections::HashSet;
 
-                    // Field names that have previously seen.
-                    let mut seen_field_names = HashSet::new();
+                    // Field labels that have previously seen.
+                    let mut seen_field_labels = HashSet::new();
                     let format_type = Arc::new(Value::FormatType);
 
                     for field in &struct_format.fields {
                         self.check_type(file_id, &field.term, &format_type);
 
-                        if !seen_field_names.insert(field.name.data.clone()) {
+                        if !seen_field_labels.insert(field.label.data.clone()) {
                             self.push_message(CoreTypingMessage::FieldRedeclaration {
                                 file_id,
-                                field_name: field.name.data.clone(),
+                                field_name: field.label.data.clone(),
                                 record_range: item.range(),
                             });
                         }

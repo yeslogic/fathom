@@ -84,14 +84,14 @@ pub struct StructType {
     // FIXME: can't use `r#type` in LALRPOP grammars
     pub type_: Option<Term>,
     /// Fields in the struct.
-    pub fields: Vec<TypeField>,
+    pub fields: Vec<FieldDeclaration>,
 }
 
 /// A field in a struct type.
 #[derive(Debug, Clone)]
-pub struct TypeField {
+pub struct FieldDeclaration {
     pub doc: Arc<[String]>,
-    pub name: Ranged<String>,
+    pub label: Ranged<String>,
     pub term: Term,
 }
 

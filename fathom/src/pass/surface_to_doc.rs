@@ -177,7 +177,7 @@ impl Context {
         if !struct_type.fields.is_empty() {
             writeln!(writer, r##"          <dl class="fields">"##)?;
             for field in &struct_type.fields {
-                let field_id = format!("{}.fields[{}]", id, field.name.data);
+                let field_id = format!("{}.fields[{}]", id, field.label.data);
                 let r#type = self.from_term_prec(&field.term, Prec::Term);
 
                 write!(
@@ -189,7 +189,7 @@ impl Context {
               <section class="doc">
 "##,
                     id = field_id,
-                    name = field.name.data,
+                    name = field.label.data,
                     type_ = r#type,
                 )?;
                 from_doc_lines(writer, "                ", &field.doc)?;

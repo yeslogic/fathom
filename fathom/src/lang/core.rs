@@ -86,7 +86,7 @@ pub struct StructType {
     /// Name of this definition.
     pub name: String,
     /// Fields in the struct.
-    pub fields: Vec<TypeField>,
+    pub fields: Vec<FieldDeclaration>,
 }
 
 /// A struct format definition.
@@ -97,14 +97,14 @@ pub struct StructFormat {
     /// Name of this definition.
     pub name: String,
     /// Fields in the struct.
-    pub fields: Vec<TypeField>,
+    pub fields: Vec<FieldDeclaration>,
 }
 
 /// A field in a struct type definition.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TypeField {
+pub struct FieldDeclaration {
     pub doc: Arc<[String]>,
-    pub name: Ranged<String>,
+    pub label: Ranged<String>,
     pub term: Arc<Term>,
 }
 

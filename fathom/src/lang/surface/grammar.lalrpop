@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::lang::Ranged;
-use crate::lang::surface::{Constant, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField};
+use crate::lang::surface::{
+    Constant, FieldDeclaration, ItemData, Module, Pattern, PatternData, StructType, Term, TermData,
+};
 use crate::lang::surface::lexer::Token;
 use crate::reporting::LexerMessage;
 
@@ -78,8 +80,8 @@ ItemData: ItemData = {
     },
     <doc: "doc comment"*>
     "struct" <name: Ranged<Name>> <type_: (":" <Term>)?> "{"
-        <mut fields: (<TypeField> ",")*>
-        <last: TypeField?>
+        <mut fields: (<FieldDeclaration> ",")*>
+        <last: FieldDeclaration?>
     "}" => {
         fields.extend(last);
 
@@ -92,9 +94,10 @@ ItemData: ItemData = {
     },
 };
 
-TypeField: TypeField = {
-    <docs: "doc comment"*> <name: Ranged<Name>> ":" <term: Term> => {
-        TypeField { doc: Arc::from(docs), name, term }
+#[inline]
+FieldDeclaration: FieldDeclaration = {
+    <docs: "doc comment"*> <label: Ranged<Name>> ":" <term: Term> => {
+        FieldDeclaration { doc: Arc::from(docs), label, term }
     },
 };
 

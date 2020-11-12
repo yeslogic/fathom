@@ -477,12 +477,12 @@ impl CoreTypingMessage {
 /// [`pass::surface_to_core`]: crate::pass::surface_to_core
 #[derive(Debug, Clone)]
 pub enum SurfaceToCoreMessage {
-    FieldMissingStructAnnotation {
+    MissingStructAnnotation {
         file_id: usize,
         name: String,
         name_range: Range<usize>,
     },
-    FieldInvalidStructAnnotation {
+    InvalidStructAnnotation {
         file_id: usize,
         name: String,
         ann_type: surface::Term,
@@ -563,7 +563,7 @@ impl SurfaceToCoreMessage {
         let to_doc = |term| crate::pass::surface_to_pretty::from_term(pretty_alloc, term).1;
 
         match self {
-            SurfaceToCoreMessage::FieldMissingStructAnnotation {
+            SurfaceToCoreMessage::MissingStructAnnotation {
                 file_id,
                 name,
                 name_range,
@@ -575,7 +575,7 @@ impl SurfaceToCoreMessage {
                     .with_labels(vec![Label::primary(*file_id, expected_range)
                         .with_message("annotation expected here")])
             }
-            SurfaceToCoreMessage::FieldInvalidStructAnnotation {
+            SurfaceToCoreMessage::InvalidStructAnnotation {
                 file_id,
                 name,
                 ann_type,

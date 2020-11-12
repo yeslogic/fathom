@@ -154,7 +154,7 @@ impl<'me> Context<'me> {
                 }
                 ItemData::StructType(struct_type) => match &struct_type.type_ {
                     None => {
-                        self.push_message(SurfaceToCoreMessage::FieldMissingStructAnnotation {
+                        self.push_message(SurfaceToCoreMessage::MissingStructAnnotation {
                             file_id,
                             name: struct_type.name.data.clone(),
                             name_range: struct_type.name.range(),
@@ -170,14 +170,12 @@ impl<'me> Context<'me> {
                             Value::Error => continue,
                             r#type => {
                                 let ann_type = self.read_back_to_surface(r#type);
-                                self.push_message(
-                                    SurfaceToCoreMessage::FieldInvalidStructAnnotation {
-                                        file_id,
-                                        name: struct_type.name.data.clone(),
-                                        ann_type,
-                                        ann_range: core_type.range(),
-                                    },
-                                );
+                                self.push_message(SurfaceToCoreMessage::InvalidStructAnnotation {
+                                    file_id,
+                                    name: struct_type.name.data.clone(),
+                                    ann_type,
+                                    ann_range: core_type.range(),
+                                });
                                 continue;
                             }
                         };
@@ -220,22 +218,22 @@ impl<'me> Context<'me> {
     pub fn is_struct_type(&mut self, file_id: usize, struct_type: &StructType) -> core::ItemData {
         use std::collections::hash_map::Entry;
 
-        // Field names that have previously seen, along with the source
+        // Field labels that have previously seen, along with the source
         // range where they were introduced (for diagnostic reporting).
-        let mut seen_field_names = HashMap::new();
+        let mut seen_field_labels = HashMap::new();
         // Fields that have been elaborated into the core syntax.
         let mut core_fields = Vec::with_capacity(struct_type.fields.len());
 
         for field in &struct_type.fields {
-            let field_range = field.name.range().start..field.term.range().end;
+            let field_range = field.label.range().start..field.term.range().end;
             let format_type = Arc::new(Value::Sort(Sort::Type));
             let r#type = self.check_type(file_id, &field.term, &format_type);
 
-            match seen_field_names.entry(field.name.data.clone()) {
+            match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
-                    core_fields.push(core::TypeField {
+                    core_fields.push(core::FieldDeclaration {
                         doc: field.doc.clone(),
-                        name: field.name.clone(),
+                        label: field.label.clone(),
                         term: Arc::new(r#type),
                     });
 
@@ -264,20 +262,20 @@ impl<'me> Context<'me> {
 
         // Field names that have previously seen, along with the source
         // range where they were introduced (for diagnostic reporting).
-        let mut seen_field_names = HashMap::new();
+        let mut seen_field_labels = HashMap::new();
         // Fields that have been elaborated into the core syntax.
         let mut core_fields = Vec::with_capacity(struct_type.fields.len());
 
         for field in &struct_type.fields {
-            let field_range = field.name.range().start..field.term.range().end;
+            let field_range = field.label.range().start..field.term.range().end;
             let format_type = Arc::new(Value::FormatType);
             let r#type = self.check_type(file_id, &field.term, &format_type);
 
-            match seen_field_names.entry(field.name.data.clone()) {
+            match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
-                    core_fields.push(core::TypeField {
+                    core_fields.push(core::FieldDeclaration {
                         doc: field.doc.clone(),
-                        name: field.name.clone(),
+                        label: field.label.clone(),
                         term: Arc::new(r#type),
                     });
 

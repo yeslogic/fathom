@@ -1,6 +1,6 @@
 use crate::lang::core::{
-    Constant, Item, ItemData, Module, Primitive, Sort, StructFormat, StructType, Term, TermData,
-    TypeField,
+    Constant, FieldDeclaration, Item, ItemData, Module, Primitive, Sort, StructFormat, StructType,
+    Term, TermData,
 };
 use pretty::{DocAllocator, DocBuilder};
 
@@ -106,7 +106,7 @@ where
             .append(alloc.concat(struct_type.fields.iter().map(|field| {
                 (alloc.nil())
                     .append(alloc.hardline())
-                    .append(from_ty_field(alloc, field))
+                    .append(from_field_declaration(alloc, field))
                     .nest(4)
                     .group()
             })))
@@ -148,7 +148,7 @@ where
             .append(alloc.concat(struct_format.fields.iter().map(|field| {
                 (alloc.nil())
                     .append(alloc.hardline())
-                    .append(from_ty_field(alloc, field))
+                    .append(from_field_declaration(alloc, field))
                     .nest(4)
                     .group()
             })))
@@ -159,12 +159,15 @@ where
     (alloc.nil()).append(docs).append(struct_format)
 }
 
-pub fn from_ty_field<'a, D>(alloc: &'a D, ty_field: &'a TypeField) -> DocBuilder<'a, D>
+pub fn from_field_declaration<'a, D>(
+    alloc: &'a D,
+    field_declaration: &'a FieldDeclaration,
+) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
-    let docs = alloc.concat(ty_field.doc.iter().map(|line| {
+    let docs = alloc.concat(field_declaration.doc.iter().map(|line| {
         (alloc.nil())
             .append(format!("///{}", line))
             .append(alloc.hardline())
@@ -174,7 +177,7 @@ where
         .append(docs)
         .append(
             (alloc.nil())
-                .append(alloc.as_string(&ty_field.name.data))
+                .append(alloc.as_string(&field_declaration.label.data))
                 .append(alloc.space())
                 .append(":")
                 .group(),
@@ -182,7 +185,7 @@ where
         .append(
             (alloc.nil())
                 .append(alloc.space())
-                .append(from_term_prec(alloc, &ty_field.term, Prec::Term))
+                .append(from_term_prec(alloc, &field_declaration.term, Prec::Term))
                 .append(","),
         )
 }

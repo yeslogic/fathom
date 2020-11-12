@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use crate::lang::Ranged;
-use crate::lang::core::{Constant, ItemData, Module, Primitive, Sort, StructType, StructFormat, Term, TermData, TypeField};
+use crate::lang::core::{
+    Constant, FieldDeclaration, ItemData, Module, Primitive, Sort, StructType, StructFormat, Term,
+    TermData,
+};
 use crate::lang::core::lexer::Token;
 use crate::literal;
 use crate::reporting::{LexerMessage, Message};
@@ -70,8 +73,8 @@ ItemData: ItemData = {
     },
     <docs: "doc comment"*>
     "struct" <name: Name> ":" "Type" "{"
-        <mut fields: (<TypeField> ",")*>
-        <last: TypeField?>
+        <mut fields: (<FieldDeclaration> ",")*>
+        <last: FieldDeclaration?>
     "}" => {
         fields.extend(last);
 
@@ -83,8 +86,8 @@ ItemData: ItemData = {
     },
     <docs: "doc comment"*>
     "struct" <name: Name> ":" "Format" "{"
-        <mut fields: (<TypeField> ",")*>
-        <last: TypeField?>
+        <mut fields: (<FieldDeclaration> ",")*>
+        <last: FieldDeclaration?>
     "}" => {
         fields.extend(last);
 
@@ -96,11 +99,12 @@ ItemData: ItemData = {
     },
 };
 
-TypeField: TypeField = {
-    <doc: "doc comment"*> <name: Ranged<Name>> ":" <term: Term> => {
-        TypeField {
+#[inline]
+FieldDeclaration: FieldDeclaration = {
+    <doc: "doc comment"*> <label: Ranged<Name>> ":" <term: Term> => {
+        FieldDeclaration {
             doc: Arc::from(doc),
-            name,
+            label,
             term: Arc::new(term),
         }
     },
@@ -172,6 +176,11 @@ AtomicTermData: TermData = {
         }
     },
     "Format" => TermData::FormatType,
+};
+
+#[inline]
+FieldDefinition: (String, Arc<Term>) = {
+    <label: Name> "=" <term: Term> => (label, Arc::new(term)),
 };
 
 #[inline]
