@@ -1,0 +1,30 @@
+struct Point : Type {
+    x : Int,
+    y : Int,
+}
+
+const origin : Point = struct {
+    x = 0,
+    y = 0,
+};
+
+const origin_duplicate_fields : Point = struct {
+    x = 0,
+    x = 1, //~ error: duplicate fields found in struct
+    y = 0,
+};
+
+const origin_invalid_term : Point = struct {
+    y = 11.1, //~ error: expected a base 10 digit or digit separator
+    x = 0,
+};
+
+const origin_missing_fields : Point = struct { y = 0 }; //~ error: missing fields
+
+const origin_unexpected_field : Point = struct {
+    y = 0,
+    x = 0,
+    z = 0, //~ error: unexpected field
+};
+
+const ambiguous_struct_term = struct { count = 4 }; //~ error: ambiguous struct term

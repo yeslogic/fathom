@@ -87,14 +87,6 @@ pub struct StructType {
     pub fields: Vec<FieldDeclaration>,
 }
 
-/// A field in a struct type.
-#[derive(Debug, Clone)]
-pub struct FieldDeclaration {
-    pub doc: Arc<[String]>,
-    pub label: Ranged<String>,
-    pub term: Term,
-}
-
 /// Patterns in the surface language.
 pub type Pattern = Ranged<PatternData>;
 
@@ -128,6 +120,9 @@ pub enum TermData {
     /// Function eliminations (function application).
     FunctionElim(Box<Term>, Vec<Term>),
 
+    /// Struct terms.
+    StructTerm(Vec<FieldDefinition>),
+
     /// Numeric literals.
     NumberLiteral(String),
     /// If-else expressions.
@@ -143,4 +138,19 @@ pub enum TermData {
 
     /// Error sentinel terms.
     Error,
+}
+
+/// A field in a struct type.
+#[derive(Debug, Clone)]
+pub struct FieldDeclaration {
+    pub doc: Arc<[String]>,
+    pub label: Ranged<String>,
+    pub term: Term,
+}
+
+/// A field in a struct term.
+#[derive(Debug, Clone)]
+pub struct FieldDefinition {
+    pub label: Ranged<String>,
+    pub term: Term,
 }

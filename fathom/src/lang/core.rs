@@ -100,14 +100,6 @@ pub struct StructFormat {
     pub fields: Vec<FieldDeclaration>,
 }
 
-/// A field in a struct type definition.
-#[derive(Debug, Clone, PartialEq)]
-pub struct FieldDeclaration {
-    pub doc: Arc<[String]>,
-    pub label: Ranged<String>,
-    pub term: Arc<Term>,
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Sort {
     Type,
@@ -157,6 +149,9 @@ pub enum TermData {
     /// Function eliminations (function application).
     FunctionElim(Arc<Term>, Arc<Term>),
 
+    /// Struct terms.
+    StructTerm(Vec<FieldDefinition>),
+
     /// Primitives.
     Primitive(Primitive),
     /// A boolean elimination.
@@ -172,6 +167,21 @@ pub enum TermData {
 
     /// Error sentinel.
     Error,
+}
+
+/// A field in a struct type definition.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldDeclaration {
+    pub doc: Arc<[String]>,
+    pub label: Ranged<String>,
+    pub term: Arc<Term>,
+}
+
+/// A field in a struct term.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldDefinition {
+    pub label: Ranged<String>,
+    pub term: Arc<Term>,
 }
 
 /// An environment of global definitions.

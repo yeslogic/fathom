@@ -73,6 +73,8 @@ mod constant {
 
 #[rustfmt::skip]
 mod r#struct {
+    test!(struct_term, "struct/struct_term.fathom");
+
     test!(pass_empty, "struct/pass_empty.fathom");
     test!(pass_empty_doc, "struct/pass_empty_doc.fathom");
     test!(pass_pair, "struct/pass_pair.fathom");

@@ -3,8 +3,8 @@
 use pretty::{DocAllocator, DocBuilder};
 
 use crate::lang::surface::{
-    Constant, FieldDeclaration, Item, ItemData, Module, Pattern, PatternData, StructType, Term,
-    TermData,
+    Constant, FieldDeclaration, FieldDefinition, Item, ItemData, Module, Pattern, PatternData,
+    StructType, Term, TermData,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -135,6 +135,37 @@ where
     (alloc.nil()).append(docs).append(struct_type)
 }
 
+pub fn from_struct_term<'a, D>(
+    alloc: &'a D,
+    field_definitions: &'a [FieldDefinition],
+) -> DocBuilder<'a, D>
+where
+    D: DocAllocator<'a>,
+    D::Doc: Clone,
+{
+    let struct_prefix = (alloc.nil()).append("struct").append(alloc.space());
+
+    if field_definitions.is_empty() {
+        (alloc.nil()).append(struct_prefix).append("{}").group()
+    } else {
+        (alloc.nil())
+            .append(struct_prefix)
+            .append("{")
+            .group()
+            .append(
+                alloc.concat(field_definitions.iter().map(|field_definition| {
+                    (alloc.nil())
+                        .append(alloc.hardline())
+                        .append(from_field_definition(alloc, field_definition))
+                        .nest(4)
+                        .group()
+                })),
+            )
+            .append(alloc.hardline())
+            .append("}")
+    }
+}
+
 pub fn from_field_declaration<'a, D>(
     alloc: &'a D,
     field_declaration: &'a FieldDeclaration,
@@ -162,6 +193,30 @@ where
             (alloc.nil())
                 .append(alloc.space())
                 .append(from_term_prec(alloc, &field_declaration.term, Prec::Term))
+                .append(","),
+        )
+}
+
+pub fn from_field_definition<'a, D>(
+    alloc: &'a D,
+    field_definition: &'a FieldDefinition,
+) -> DocBuilder<'a, D>
+where
+    D: DocAllocator<'a>,
+    D::Doc: Clone,
+{
+    (alloc.nil())
+        .append(
+            (alloc.nil())
+                .append(alloc.as_string(&field_definition.label.data))
+                .append(alloc.space())
+                .append("=")
+                .group(),
+        )
+        .append(
+            (alloc.nil())
+                .append(alloc.space())
+                .append(from_term_prec(alloc, &field_definition.term, Prec::Term))
                 .append(","),
         )
 }
@@ -233,6 +288,8 @@ where
                     .nest(4),
             ),
         ),
+
+        TermData::StructTerm(field_definitions) => from_struct_term(alloc, field_definitions),
 
         TermData::NumberLiteral(literal) => alloc.as_string(literal),
         TermData::If(head, if_true, if_false) => (alloc.nil())

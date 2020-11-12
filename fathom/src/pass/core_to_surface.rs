@@ -87,6 +87,16 @@ pub fn from_term(term: &Term) -> surface::Term {
             vec![from_term(argument)], // TODO: flatten arguments
         ),
 
+        TermData::StructTerm(field_definitions) => surface::TermData::StructTerm(
+            field_definitions
+                .iter()
+                .map(|field_definition| surface::FieldDefinition {
+                    label: Ranged::from(field_definition.label.clone()),
+                    term: from_term(&field_definition.term),
+                })
+                .collect(),
+        ),
+
         TermData::Primitive(primitive) => match primitive {
             Primitive::Int(value) => surface::TermData::NumberLiteral(value.to_string()),
             Primitive::F32(value) => surface::TermData::NumberLiteral(value.to_string()),

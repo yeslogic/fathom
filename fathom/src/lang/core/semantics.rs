@@ -5,7 +5,10 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::lang::core::{Globals, Item, ItemData, Primitive, Sort, Term, TermData};
+use crate::lang::core::{
+    FieldDefinition, Globals, Item, ItemData, Primitive, Sort, Term, TermData,
+};
+use crate::lang::Ranged;
 
 /// Values.
 #[derive(Debug, Clone)]
@@ -24,6 +27,9 @@ pub enum Value {
 
     /// Function types.
     FunctionType(Arc<Value>, Arc<Value>),
+
+    /// Struct terms.
+    StructTerm(BTreeMap<String, Arc<Value>>),
 
     /// Primitives.
     Primitive(Primitive),
@@ -115,6 +121,20 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
             let head = eval(globals, items, head);
             let argument = eval(globals, items, argument);
             apply_function_elim(head, argument)
+        }
+
+        TermData::StructTerm(field_definitions) => {
+            let field_definitions = field_definitions
+                .iter()
+                .map(|field_definition| {
+                    (
+                        field_definition.label.data.clone(),
+                        eval(globals, items, &field_definition.term),
+                    )
+                })
+                .collect();
+
+            Arc::new(Value::StructTerm(field_definitions))
         }
 
         TermData::Primitive(primitive) => Arc::new(Value::Primitive(primitive.clone())),
@@ -265,6 +285,17 @@ pub fn read_back(value: &Value) -> Term {
             Arc::new(read_back(param_type)),
             Arc::new(read_back(body_type)),
         )),
+
+        Value::StructTerm(field_definitions) => Term::from(TermData::StructTerm(
+            field_definitions
+                .iter()
+                .map(|(label, value)| FieldDefinition {
+                    label: Ranged::from(label.clone()),
+                    term: Arc::new(read_back(value)),
+                })
+                .collect(),
+        )),
+
         Value::Primitive(primitive) => Term::from(TermData::Primitive(primitive.clone())),
 
         Value::FormatType => Term::from(TermData::FormatType),

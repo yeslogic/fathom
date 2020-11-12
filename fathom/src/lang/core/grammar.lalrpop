@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::lang::Ranged;
 use crate::lang::core::{
-    Constant, FieldDeclaration, ItemData, Module, Primitive, Sort, StructType, StructFormat, Term,
-    TermData,
+    Constant, FieldDeclaration, FieldDefinition, ItemData, Module, Primitive, Sort, StructType,
+    StructFormat, Term, TermData,
 };
 use crate::lang::core::lexer::Token;
 use crate::literal;
@@ -99,17 +99,6 @@ ItemData: ItemData = {
     },
 };
 
-#[inline]
-FieldDeclaration: FieldDeclaration = {
-    <doc: "doc comment"*> <label: Ranged<Name>> ":" <term: Term> => {
-        FieldDeclaration {
-            doc: Arc::from(doc),
-            label,
-            term: Arc::new(term),
-        }
-    },
-};
-
 #[inline] Term: Term = Ranged<TermData>;
 #[inline] ArrowTerm: Term = Ranged<ArrowTermData>;
 #[inline] AppTerm: Term = Ranged<AppTermData>;
@@ -142,6 +131,11 @@ AtomicTermData: TermData = {
     "Type" => TermData::Sort(Sort::Type),
     "Kind" => TermData::Sort(Sort::Kind),
     "repr" => TermData::Repr,
+    "struct" "{" <mut fields: (<FieldDefinition> ",")*> <last: FieldDefinition?> "}" => {
+        fields.extend(last);
+
+        TermData::StructTerm(fields)
+    },
     "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" => {
         TermData::BoolElim(Arc::new(head), Arc::new(if_true), Arc::new(if_false))
     },
@@ -179,8 +173,21 @@ AtomicTermData: TermData = {
 };
 
 #[inline]
-FieldDefinition: (String, Arc<Term>) = {
-    <label: Name> "=" <term: Term> => (label, Arc::new(term)),
+FieldDeclaration: FieldDeclaration = {
+    <doc: "doc comment"*> <label: Ranged<Name>> ":" <term: Term> => {
+        FieldDeclaration {
+            doc: Arc::from(doc),
+            label,
+            term: Arc::new(term),
+        }
+    },
+};
+
+#[inline]
+FieldDefinition: FieldDefinition = {
+    <label: Ranged<Name>> "=" <term: Term> => {
+        FieldDefinition { label, term: Arc::new(term) }
+    },
 };
 
 #[inline]

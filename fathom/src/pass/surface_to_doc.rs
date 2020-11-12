@@ -254,6 +254,20 @@ impl Context {
             )
             .into(),
 
+            TermData::StructTerm(field_definitions) => format!(
+                // TODO: multiline formatting!
+                "struct {{ {field_definitions} }}",
+                field_definitions = field_definitions
+                    .iter()
+                    .map(|field_definition| format!(
+                        "{} = {}",
+                        &field_definition.label.data,
+                        self.from_term_prec(&field_definition.term, Prec::Term)
+                    ))
+                    .format(", "),
+            )
+            .into(),
+
             TermData::NumberLiteral(literal) => format!("{}", literal).into(),
             TermData::If(head, if_true, if_false) => format!(
                 // TODO: multiline formatting!
