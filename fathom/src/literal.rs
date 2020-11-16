@@ -5,8 +5,8 @@
 use logos::Logos;
 use num_bigint::BigInt;
 use num_traits::Float;
-use std::ops::Range;
 
+use crate::lang::Range;
 use crate::reporting::LiteralParseMessage::*;
 use crate::reporting::Message;
 
@@ -101,7 +101,7 @@ enum Digit10 {
 /// Literal parser state.
 pub struct State<'source, 'messages> {
     file_id: usize,
-    range: Range<usize>,
+    range: Range,
     source: &'source str,
     messages: &'messages mut Vec<Message>,
 }
@@ -109,7 +109,7 @@ pub struct State<'source, 'messages> {
 impl<'source, 'messages> State<'source, 'messages> {
     pub fn new(
         file_id: usize,
-        range: Range<usize>,
+        range: Range,
         source: &'source str,
         messages: &'messages mut Vec<Message>,
     ) -> State<'source, 'messages> {
@@ -127,18 +127,13 @@ impl<'source, 'messages> State<'source, 'messages> {
         None
     }
 
-    /// The range of the entire literal.
-    fn range(&self) -> Range<usize> {
-        self.range.clone()
-    }
-
     /// Get the file-relative range of the current token.
-    fn token_range<Token>(&self, lexer: &logos::Lexer<'source, Token>) -> Range<usize>
+    fn token_range<Token>(&self, lexer: &logos::Lexer<'source, Token>) -> Range
     where
         Token: Logos<'source>,
     {
         let span = lexer.span();
-        (self.range.start + span.start)..(self.range.start + span.end)
+        Range::from((self.range.start + span.start)..(self.range.start + span.end))
     }
 
     /// Expect another token to be present in the lexer, reporting an error if not.
@@ -325,7 +320,7 @@ impl<'source, 'messages> State<'source, 'messages> {
 
             Some(float)
         } else {
-            self.report(UnsupportedFloatLiteralBase(file_id, self.range(), base))
+            self.report(UnsupportedFloatLiteralBase(file_id, self.range, base))
         }
     }
 

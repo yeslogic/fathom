@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::lang::Ranged;
+use crate::lang::{Range, Ranged};
 use crate::lang::surface::{
     Constant, FieldDeclaration, FieldDefinition, ItemData, Module, Pattern, PatternData, StructType,
     Term, TermData,
@@ -168,5 +168,5 @@ Name: String = {
 
 #[inline]
 Ranged<T>: Ranged<T> = {
-    <start: @L> <data: T> <end: @R> => Ranged::new(start..end, data),
+    <start: @L> <data: T> <end: @R> => Ranged::new(Range::from(start..end), data),
 };

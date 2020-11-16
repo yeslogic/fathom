@@ -9,9 +9,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use itertools::Itertools;
 use pretty::DocAllocator;
-use std::ops::Range;
 
-use crate::lang::{core, surface, Ranged};
+use crate::lang::{core, surface, Range, Ranged};
 use crate::literal;
 
 /// Global diagnostic messages
@@ -19,7 +18,7 @@ use crate::literal;
 pub enum Message {
     NotYetImplemented {
         file_id: usize,
-        range: Range<usize>,
+        range: Range,
         feature_name: &'static str,
     },
     Lexer(LexerMessage),
@@ -69,12 +68,12 @@ impl Message {
         match error {
             InvalidToken { location } => Message::from(LexerMessage::InvalidToken {
                 file_id,
-                range: location..location,
+                range: Range::from(location..location),
             }),
             UnrecognizedEOF { location, expected } => {
                 Message::from(ParseMessage::UnrecognizedEof {
                     file_id,
-                    range: location..location,
+                    range: Range::from(location..location),
                     expected,
                 })
             }
@@ -83,7 +82,7 @@ impl Message {
                 expected,
             } => Message::from(ParseMessage::UnrecognizedToken {
                 file_id,
-                range: start..end,
+                range: Range::from(start..end),
                 token: token.to_string(),
                 expected,
             }),
@@ -91,7 +90,7 @@ impl Message {
                 token: (start, token, end),
             } => Message::from(ParseMessage::ExtraToken {
                 file_id,
-                range: start..end,
+                range: Range::from(start..end),
                 token: token.to_string(),
             }),
             User { error } => Message::from(error),
@@ -110,7 +109,7 @@ impl Message {
                 feature_name,
             } => Diagnostic::bug()
                 .with_message(format!("not yet implemented: {}", feature_name))
-                .with_labels(vec![Label::primary(*file_id, range.clone())
+                .with_labels(vec![Label::primary(*file_id, *range)
                     .with_message("relies on an unimplemented language feature")]),
             Message::Lexer(message) => message.to_diagnostic(),
             Message::Parse(message) => message.to_diagnostic(),
@@ -124,7 +123,7 @@ impl Message {
 /// Messages produced during lexing
 #[derive(Debug, Clone)]
 pub enum LexerMessage {
-    InvalidToken { file_id: usize, range: Range<usize> },
+    InvalidToken { file_id: usize, range: Range },
 }
 
 impl LexerMessage {
@@ -132,7 +131,7 @@ impl LexerMessage {
         match self {
             LexerMessage::InvalidToken { file_id, range } => Diagnostic::error()
                 .with_message("invalid token")
-                .with_labels(vec![Label::primary(*file_id, range.clone())]),
+                .with_labels(vec![Label::primary(*file_id, *range)]),
         }
     }
 }
@@ -142,18 +141,18 @@ impl LexerMessage {
 pub enum ParseMessage {
     UnrecognizedEof {
         file_id: usize,
-        range: Range<usize>,
+        range: Range,
         expected: Vec<String>,
     },
     UnrecognizedToken {
         file_id: usize,
-        range: Range<usize>,
+        range: Range,
         token: String,
         expected: Vec<String>,
     },
     ExtraToken {
         file_id: usize,
-        range: Range<usize>,
+        range: Range,
         token: String,
     },
 }
@@ -168,7 +167,7 @@ impl ParseMessage {
             } => Diagnostic::error()
                 .with_message("unexpected end of file")
                 .with_labels(vec![
-                    Label::primary(*file_id, range.clone()).with_message("unexpected end of file")
+                    Label::primary(*file_id, *range).with_message("unexpected end of file")
                 ])
                 .with_notes(format_expected(expected).map_or(Vec::new(), |message| vec![message])),
             ParseMessage::UnrecognizedToken {
@@ -179,7 +178,7 @@ impl ParseMessage {
             } => Diagnostic::error()
                 .with_message(format!("unexpected token {}", token))
                 .with_labels(vec![
-                    Label::primary(*file_id, range.clone()).with_message("unexpected token")
+                    Label::primary(*file_id, *range).with_message("unexpected token")
                 ])
                 .with_notes(format_expected(expected).map_or(Vec::new(), |message| vec![message])),
             ParseMessage::ExtraToken {
@@ -189,7 +188,7 @@ impl ParseMessage {
             } => Diagnostic::error()
                 .with_message(format!("extra token {}", token))
                 .with_labels(vec![
-                    Label::primary(*file_id, range.clone()).with_message("extra token")
+                    Label::primary(*file_id, *range).with_message("extra token")
                 ]),
         }
     }
@@ -205,15 +204,15 @@ fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
 
 #[derive(Clone, Debug)]
 pub enum LiteralParseMessage {
-    ExpectedRadixOrDecimalDigit(usize, Range<usize>),
-    ExpectedStartOfNumericLiteral(usize, Range<usize>),
-    ExpectedDigit(usize, Range<usize>, literal::Base),
-    ExpectedDigitOrSeparator(usize, Range<usize>, literal::Base),
-    ExpectedDigitSeparatorOrExp(usize, Range<usize>, literal::Base),
-    ExpectedDigitSeparatorFracOrExp(usize, Range<usize>, literal::Base),
-    FloatLiteralExponentNotSupported(usize, Range<usize>),
-    UnsupportedFloatLiteralBase(usize, Range<usize>, literal::Base),
-    UnexpectedEndOfLiteral(usize, Range<usize>),
+    ExpectedRadixOrDecimalDigit(usize, Range),
+    ExpectedStartOfNumericLiteral(usize, Range),
+    ExpectedDigit(usize, Range, literal::Base),
+    ExpectedDigitOrSeparator(usize, Range, literal::Base),
+    ExpectedDigitSeparatorOrExp(usize, Range, literal::Base),
+    ExpectedDigitSeparatorFracOrExp(usize, Range, literal::Base),
+    FloatLiteralExponentNotSupported(usize, Range),
+    UnsupportedFloatLiteralBase(usize, Range, literal::Base),
+    UnexpectedEndOfLiteral(usize, Range),
 }
 
 impl LiteralParseMessage {
@@ -221,22 +220,22 @@ impl LiteralParseMessage {
         match self {
             LiteralParseMessage::ExpectedRadixOrDecimalDigit(file_id, range) => Diagnostic::error()
                 .with_message("expected a radix or decimal digit")
-                .with_labels(vec![Label::primary(*file_id, range.clone())]),
+                .with_labels(vec![Label::primary(*file_id, *range)]),
             LiteralParseMessage::ExpectedStartOfNumericLiteral(file_id, range) => {
                 Diagnostic::error()
                     .with_message("expected the start of a numeric literal")
-                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+                    .with_labels(vec![Label::primary(*file_id, *range)])
             }
             LiteralParseMessage::ExpectedDigit(file_id, range, base) => Diagnostic::error()
                 .with_message(format!("expected a base {} digit", base.to_u8()))
-                .with_labels(vec![Label::primary(*file_id, range.clone())]),
+                .with_labels(vec![Label::primary(*file_id, *range)]),
             LiteralParseMessage::ExpectedDigitOrSeparator(file_id, range, base) => {
                 Diagnostic::error()
                     .with_message(format!(
                         "expected a base {} digit or digit separator",
                         base.to_u8(),
                     ))
-                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+                    .with_labels(vec![Label::primary(*file_id, *range)])
             }
             LiteralParseMessage::ExpectedDigitSeparatorOrExp(file_id, range, base) => {
                 Diagnostic::error()
@@ -244,7 +243,7 @@ impl LiteralParseMessage {
                         "expected a base {} digit, digit separator, or exponent",
                         base.to_u8(),
                     ))
-                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+                    .with_labels(vec![Label::primary(*file_id, *range)])
             }
             LiteralParseMessage::ExpectedDigitSeparatorFracOrExp(file_id, range, base) => {
                 Diagnostic::error()
@@ -252,12 +251,12 @@ impl LiteralParseMessage {
                         "expected a base {} digit, digit separator, period, or exponent",
                         base.to_u8(),
                     ))
-                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+                    .with_labels(vec![Label::primary(*file_id, *range)])
             }
             LiteralParseMessage::FloatLiteralExponentNotSupported(file_id, range) => {
                 Diagnostic::error()
                     .with_message("exponents are not yet supported for float literals")
-                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+                    .with_labels(vec![Label::primary(*file_id, *range)])
             }
             LiteralParseMessage::UnsupportedFloatLiteralBase(file_id, range, base) => {
                 Diagnostic::error()
@@ -265,14 +264,14 @@ impl LiteralParseMessage {
                         "base {} float literals are not yet supported",
                         base.to_u8(),
                     ))
-                    .with_labels(vec![Label::primary(*file_id, range.clone())])
+                    .with_labels(vec![Label::primary(*file_id, *range)])
                     .with_notes(vec![
                         "only base 10 float literals are currently supported".to_owned()
                     ])
             }
             LiteralParseMessage::UnexpectedEndOfLiteral(file_id, range) => Diagnostic::error()
                 .with_message("unexpected end of literal")
-                .with_labels(vec![Label::primary(*file_id, range.clone())]),
+                .with_labels(vec![Label::primary(*file_id, *range)]),
         }
     }
 }
@@ -285,58 +284,58 @@ pub enum CoreTypingMessage {
     GlobalNameNotFound {
         file_id: usize,
         name: String,
-        name_range: Range<usize>,
+        name_range: Range,
     },
     ItemNameNotFound {
         file_id: usize,
         name: String,
-        name_range: Range<usize>,
+        name_range: Range,
     },
     FieldRedeclaration {
         file_id: usize,
         field_name: String,
-        record_range: Range<usize>,
+        record_range: Range,
     },
     ItemRedefinition {
         file_id: usize,
         name: String,
-        found_range: Range<usize>,
-        original_range: Range<usize>,
+        found_range: Range,
+        original_range: Range,
     },
     TypeMismatch {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
         expected_type: core::Term,
         found_type: core::Term,
     },
     UniverseMismatch {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
         found_type: core::Term,
     },
     TermHasNoType {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
     },
     NotAFunction {
         file_id: usize,
-        head_range: Range<usize>,
+        head_range: Range,
         head_type: core::Term,
-        argument_range: Range<usize>,
+        argument_range: Range,
     },
     FieldNotFound {
         file_id: usize,
-        head_range: Range<usize>,
+        head_range: Range,
         head_type: core::Term,
         label: String,
     },
     AmbiguousStructTerm {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
     },
     AmbiguousIntElim {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
     },
     DuplicateStructFields {
         file_id: usize,
@@ -344,17 +343,17 @@ pub enum CoreTypingMessage {
     },
     MissingStructFields {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
         missing_labels: Vec<Ranged<String>>,
     },
     UnexpectedStructFields {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
         unexpected_labels: Vec<Ranged<String>>,
     },
     UnexpectedStructTerm {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
         expected_type: core::Term,
     },
 }
@@ -374,15 +373,16 @@ impl CoreTypingMessage {
                 name_range,
             } => Diagnostic::bug()
                 .with_message(format!("global `{}` is not defined", name))
-                .with_labels(vec![Label::primary(*file_id, name_range.clone())
-                    .with_message("global is not defined")]),
+                .with_labels(vec![
+                    Label::primary(*file_id, *name_range).with_message("global is not defined")
+                ]),
             CoreTypingMessage::ItemNameNotFound {
                 file_id,
                 name,
                 name_range,
             } => Diagnostic::bug()
                 .with_message(format!("cannot find item `{}` in this scope", name))
-                .with_labels(vec![Label::primary(*file_id, name_range.clone())
+                .with_labels(vec![Label::primary(*file_id, *name_range)
                     .with_message("item not found in this scope")]),
             CoreTypingMessage::FieldRedeclaration {
                 file_id,
@@ -390,7 +390,7 @@ impl CoreTypingMessage {
                 record_range,
             } => Diagnostic::bug()
                 .with_message(format!("field `{}` is already declared", field_name))
-                .with_labels(vec![Label::primary(*file_id, record_range.clone())
+                .with_labels(vec![Label::primary(*file_id, *record_range)
                     .with_message(format!("field `{}` declared twice", field_name))])
                 .with_notes(vec![format!(
                     "`{}` must be defined only per struct",
@@ -404,8 +404,8 @@ impl CoreTypingMessage {
             } => Diagnostic::bug()
                 .with_message(format!("the name `{}` is defined multiple times", name))
                 .with_labels(vec![
-                    Label::primary(*file_id, found_range.clone()).with_message("redefined here"),
-                    Label::secondary(*file_id, original_range.clone())
+                    Label::primary(*file_id, *found_range).with_message("redefined here"),
+                    Label::secondary(*file_id, *original_range)
                         .with_message("previous definition here"),
                 ])
                 .with_notes(vec![format!(
@@ -423,12 +423,13 @@ impl CoreTypingMessage {
 
                 Diagnostic::bug()
                     .with_message("type mismatch")
-                    .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                        .with_message(format!(
+                    .with_labels(vec![Label::primary(*file_id, *term_range).with_message(
+                        format!(
                             "expected `{}`, found `{}`",
                             expected_type.pretty(std::usize::MAX),
                             found_type.pretty(std::usize::MAX),
-                        ))])
+                        ),
+                    )])
                     .with_notes(vec![[
                         format!("expected `{}`", expected_type.pretty(std::usize::MAX)),
                         format!("   found `{}`", found_type.pretty(std::usize::MAX)),
@@ -444,11 +445,12 @@ impl CoreTypingMessage {
 
                 Diagnostic::bug()
                     .with_message("universe mismatch")
-                    .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                        .with_message(format!(
+                    .with_labels(vec![Label::primary(*file_id, *term_range).with_message(
+                        format!(
                             "expected a universe, found `{}`",
                             found_type.pretty(std::usize::MAX),
-                        ))])
+                        ),
+                    )])
                     .with_notes(vec![[
                         format!("expected a universe"),
                         format!("   found `{}`", found_type.pretty(std::usize::MAX)),
@@ -460,8 +462,9 @@ impl CoreTypingMessage {
                 term_range,
             } => Diagnostic::bug()
                 .with_message("term has no type")
-                .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                    .with_message("cannot synthesize type")])
+                .with_labels(vec![
+                    Label::primary(*file_id, *term_range).with_message("cannot synthesize type")
+                ])
                 .with_notes(vec![format!("term has no type")]),
             CoreTypingMessage::NotAFunction {
                 file_id,
@@ -476,11 +479,11 @@ impl CoreTypingMessage {
                         "applied something that is not a function to an argument"
                     ))
                     .with_labels(vec![
-                        Label::primary(*file_id, head_range.clone()).with_message(format!(
+                        Label::primary(*file_id, *head_range).with_message(format!(
                             "expected a function, found `{}`",
                             head_type.pretty(std::usize::MAX),
                         )),
-                        Label::secondary(*file_id, argument_range.clone())
+                        Label::secondary(*file_id, *argument_range)
                             .with_message("applied to this argument"),
                     ])
                     .with_notes(vec![[
@@ -503,7 +506,7 @@ impl CoreTypingMessage {
                         &label,
                         head_type.pretty(std::usize::MAX),
                     ))
-                    .with_labels(vec![Label::primary(*file_id, head_range.clone())
+                    .with_labels(vec![Label::primary(*file_id, *head_range)
                         .with_message("field not found in this term")])
             }
             CoreTypingMessage::AmbiguousStructTerm {
@@ -511,15 +514,17 @@ impl CoreTypingMessage {
                 term_range,
             } => Diagnostic::bug()
                 .with_message("ambiguous struct term")
-                .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                    .with_message("type annotation required")]),
+                .with_labels(vec![
+                    Label::primary(*file_id, *term_range).with_message("type annotation required")
+                ]),
             CoreTypingMessage::AmbiguousIntElim {
                 file_id,
                 term_range,
             } => Diagnostic::bug()
                 .with_message("ambiguous integer elimination")
-                .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                    .with_message("type annotation required")]),
+                .with_labels(vec![
+                    Label::primary(*file_id, *term_range).with_message("type annotation required")
+                ]),
             CoreTypingMessage::DuplicateStructFields {
                 file_id,
                 duplicate_labels,
@@ -529,7 +534,7 @@ impl CoreTypingMessage {
                     duplicate_labels
                         .iter()
                         .map(|label| {
-                            Label::primary(*file_id, label.range())
+                            Label::primary(*file_id, label.range)
                                 .with_message("field already defined")
                         })
                         .collect(),
@@ -541,14 +546,12 @@ impl CoreTypingMessage {
             } => Diagnostic::bug()
                 .with_message("missing fields for struct")
                 .with_labels(
-                    std::iter::once(Label::primary(*file_id, term_range.clone()).with_message(
-                        format!(
-                            "missing fields {}",
-                            missing_labels.iter().map(|label| &label.data).format(", ")
-                        ),
-                    ))
+                    std::iter::once(Label::primary(*file_id, *term_range).with_message(format!(
+                        "missing fields {}",
+                        missing_labels.iter().map(|label| &label.data).format(", ")
+                    )))
                     .chain(missing_labels.iter().map(|label| {
-                        Label::secondary(*file_id, label.range())
+                        Label::secondary(*file_id, label.range)
                             .with_message("field defined on struct here")
                     }))
                     .collect(),
@@ -563,10 +566,10 @@ impl CoreTypingMessage {
                     unexpected_labels
                         .iter()
                         .map(|label| {
-                            Label::primary(*file_id, label.range()).with_message("unexpected field")
+                            Label::primary(*file_id, label.range).with_message("unexpected field")
                         })
                         .chain(std::iter::once(
-                            Label::secondary(*file_id, term_range.clone())
+                            Label::secondary(*file_id, *term_range)
                                 .with_message("struct instantiated here"),
                         ))
                         .collect(),
@@ -580,11 +583,12 @@ impl CoreTypingMessage {
 
                 Diagnostic::bug()
                     .with_message("unexpected struct term")
-                    .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                        .with_message(format!(
+                    .with_labels(vec![Label::primary(*file_id, *term_range).with_message(
+                        format!(
                             "expected `{}`, found struct",
                             expected_type.pretty(std::usize::MAX)
-                        ))])
+                        ),
+                    )])
             }
         }
     }
@@ -598,87 +602,87 @@ pub enum SurfaceToCoreMessage {
     MissingStructAnnotation {
         file_id: usize,
         name: String,
-        name_range: Range<usize>,
+        name_range: Range,
     },
     InvalidStructAnnotation {
         file_id: usize,
         name: String,
         ann_type: surface::Term,
-        ann_range: Range<usize>,
+        ann_range: Range,
     },
     FieldRedeclaration {
         file_id: usize,
         name: String,
-        found_range: Range<usize>,
-        original_range: Range<usize>,
+        found_range: Range,
+        original_range: Range,
     },
     ItemRedefinition {
         file_id: usize,
         name: String,
-        found_range: Range<usize>,
-        original_range: Range<usize>,
+        found_range: Range,
+        original_range: Range,
     },
     TypeMismatch {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
         expected_type: surface::Term,
         found_type: surface::Term,
     },
     UniverseMismatch {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
         found_type: surface::Term,
     },
     TermHasNoType {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
     },
     NotAFunction {
         file_id: usize,
-        head_range: Range<usize>,
+        head_range: Range,
         head_type: surface::Term,
-        argument_range: Range<usize>,
+        argument_range: Range,
     },
     FieldNotFound {
         file_id: usize,
-        head_range: Range<usize>,
+        head_range: Range,
         head_type: surface::Term,
         label: Ranged<String>,
     },
     AmbiguousMatchExpression {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
     },
     VarNameNotFound {
         file_id: usize,
         name: String,
-        name_range: Range<usize>,
+        name_range: Range,
     },
     NumericLiteralNotSupported {
         file_id: usize,
-        literal_range: Range<usize>,
+        literal_range: Range,
         expected_type: surface::Term,
     },
     AmbiguousNumericLiteral {
         file_id: usize,
-        literal_range: Range<usize>,
+        literal_range: Range,
     },
     AmbiguousStructTerm {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
     },
     UnsupportedPatternType {
         file_id: usize,
-        scrutinee_range: Range<usize>,
+        scrutinee_range: Range,
         found_type: surface::Term,
     },
     NoDefaultPattern {
         file_id: usize,
-        match_range: Range<usize>,
+        match_range: Range,
     },
     UnreachablePattern {
         file_id: usize,
-        pattern_range: Range<usize>,
+        pattern_range: Range,
     },
     DuplicateStructFields {
         file_id: usize,
@@ -686,17 +690,17 @@ pub enum SurfaceToCoreMessage {
     },
     MissingStructFields {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
         missing_labels: Vec<Ranged<String>>,
     },
     UnexpectedStructFields {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
         unexpected_labels: Vec<Ranged<String>>,
     },
     UnexpectedStructTerm {
         file_id: usize,
-        term_range: Range<usize>,
+        term_range: Range,
         expected_type: surface::Term,
     },
 }
@@ -732,11 +736,12 @@ impl SurfaceToCoreMessage {
 
                 Diagnostic::error()
                     .with_message(format!("invalid type annotation for struct `{}`", name))
-                    .with_labels(vec![Label::primary(*file_id, ann_range.clone())
-                        .with_message(format!(
+                    .with_labels(vec![Label::primary(*file_id, *ann_range).with_message(
+                        format!(
                             "expected `Type` or `Format`, found `{}`",
                             ann_type.pretty(std::usize::MAX),
-                        ))])
+                        ),
+                    )])
                     .with_notes(vec![[
                         format!("expected `Type` or `Format`"),
                         format!("   found `{}`", ann_type.pretty(std::usize::MAX)),
@@ -751,9 +756,8 @@ impl SurfaceToCoreMessage {
             } => Diagnostic::error()
                 .with_message(format!("field `{}` is already declared", name))
                 .with_labels(vec![
-                    Label::primary(*file_id, found_range.clone())
-                        .with_message("field already declared"),
-                    Label::secondary(*file_id, original_range.clone())
+                    Label::primary(*file_id, *found_range).with_message("field already declared"),
+                    Label::secondary(*file_id, *original_range)
                         .with_message("previous field declaration here"),
                 ])
                 .with_notes(vec![format!("`{}` must be defined only per struct", name)]),
@@ -765,8 +769,8 @@ impl SurfaceToCoreMessage {
             } => Diagnostic::error()
                 .with_message(format!("the name `{}` is defined multiple times", name))
                 .with_labels(vec![
-                    Label::primary(*file_id, found_range.clone()).with_message("redefined here"),
-                    Label::secondary(*file_id, original_range.clone())
+                    Label::primary(*file_id, *found_range).with_message("redefined here"),
+                    Label::secondary(*file_id, *original_range)
                         .with_message("previous definition here"),
                 ])
                 .with_notes(vec![format!(
@@ -784,12 +788,13 @@ impl SurfaceToCoreMessage {
 
                 Diagnostic::error()
                     .with_message("type mismatch")
-                    .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                        .with_message(format!(
+                    .with_labels(vec![Label::primary(*file_id, *term_range).with_message(
+                        format!(
                             "expected `{}`, found `{}`",
                             expected_type.pretty(std::usize::MAX),
                             found_type.pretty(std::usize::MAX),
-                        ))])
+                        ),
+                    )])
                     .with_notes(vec![[
                         format!("expected `{}`", expected_type.pretty(std::usize::MAX)),
                         format!("   found `{}`", found_type.pretty(std::usize::MAX)),
@@ -805,11 +810,12 @@ impl SurfaceToCoreMessage {
 
                 Diagnostic::error()
                     .with_message("universe mismatch")
-                    .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                        .with_message(format!(
+                    .with_labels(vec![Label::primary(*file_id, *term_range).with_message(
+                        format!(
                             "expected a universe, found `{}`",
                             found_type.pretty(std::usize::MAX),
-                        ))])
+                        ),
+                    )])
                     .with_notes(vec![[
                         format!("expected a universe"),
                         format!("   found `{}`", found_type.pretty(std::usize::MAX)),
@@ -821,8 +827,9 @@ impl SurfaceToCoreMessage {
                 term_range,
             } => Diagnostic::error()
                 .with_message("term has no type")
-                .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                    .with_message("cannot synthesize type")])
+                .with_labels(vec![
+                    Label::primary(*file_id, *term_range).with_message("cannot synthesize type")
+                ])
                 .with_notes(vec![format!("term has no type")]),
             SurfaceToCoreMessage::NotAFunction {
                 file_id,
@@ -837,11 +844,11 @@ impl SurfaceToCoreMessage {
                         "applied something that is not a function to an argument"
                     ))
                     .with_labels(vec![
-                        Label::primary(*file_id, head_range.clone()).with_message(format!(
+                        Label::primary(*file_id, *head_range).with_message(format!(
                             "expected a function, found `{}`",
                             head_type.pretty(std::usize::MAX),
                         )),
-                        Label::secondary(*file_id, argument_range.clone())
+                        Label::secondary(*file_id, *argument_range)
                             .with_message("applied to this argument"),
                     ])
                     .with_notes(vec![[
@@ -865,8 +872,8 @@ impl SurfaceToCoreMessage {
                         head_type.pretty(std::usize::MAX),
                     ))
                     .with_labels(vec![
-                        Label::primary(*file_id, label.range()).with_message("non-existent field"),
-                        Label::secondary(*file_id, head_range.clone())
+                        Label::primary(*file_id, label.range).with_message("non-existent field"),
+                        Label::secondary(*file_id, *head_range)
                             .with_message("field not found in this term"),
                     ])
             }
@@ -875,16 +882,18 @@ impl SurfaceToCoreMessage {
                 term_range,
             } => Diagnostic::error()
                 .with_message("ambiguous match expression")
-                .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                    .with_message("type annotation required")]),
+                .with_labels(vec![
+                    Label::primary(*file_id, *term_range).with_message("type annotation required")
+                ]),
             SurfaceToCoreMessage::VarNameNotFound {
                 file_id,
                 name,
                 name_range,
             } => Diagnostic::error()
                 .with_message(format!("cannot find `{}` in this scope", name))
-                .with_labels(vec![Label::primary(*file_id, name_range.clone())
-                    .with_message("not found in this scope")]),
+                .with_labels(vec![
+                    Label::primary(*file_id, *name_range).with_message("not found in this scope")
+                ]),
             SurfaceToCoreMessage::NumericLiteralNotSupported {
                 file_id,
                 literal_range,
@@ -897,26 +906,28 @@ impl SurfaceToCoreMessage {
                         "cannot construct a `{}` from a numeric literal",
                         expected_type.pretty(std::usize::MAX),
                     ))
-                    .with_labels(vec![Label::primary(*file_id, literal_range.clone())
-                        .with_message(format!(
+                    .with_labels(vec![Label::primary(*file_id, *literal_range).with_message(
+                        format!(
                             "numeric literals not supported for type `{}`",
                             expected_type.pretty(std::usize::MAX),
-                        ))])
+                        ),
+                    )])
             }
             SurfaceToCoreMessage::AmbiguousNumericLiteral {
                 file_id,
                 literal_range,
             } => Diagnostic::error()
                 .with_message("ambiguous numeric literal")
-                .with_labels(vec![Label::primary(*file_id, literal_range.clone())
+                .with_labels(vec![Label::primary(*file_id, *literal_range)
                     .with_message("type annotation required")]),
             SurfaceToCoreMessage::AmbiguousStructTerm {
                 file_id,
                 term_range,
             } => Diagnostic::error()
                 .with_message("ambiguous struct term")
-                .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                    .with_message("type annotation required")]),
+                .with_labels(vec![
+                    Label::primary(*file_id, *term_range).with_message("type annotation required")
+                ]),
             SurfaceToCoreMessage::UnsupportedPatternType {
                 file_id,
                 scrutinee_range,
@@ -929,7 +940,7 @@ impl SurfaceToCoreMessage {
                         "unsupported pattern type: `{}`",
                         found_type.pretty(std::usize::MAX)
                     ))
-                    .with_labels(vec![Label::primary(*file_id, scrutinee_range.clone())
+                    .with_labels(vec![Label::primary(*file_id, *scrutinee_range)
                         .with_message(format!("unsupported pattern type"))])
                     .with_notes(vec![
                         format!(
@@ -944,15 +955,17 @@ impl SurfaceToCoreMessage {
                 match_range,
             } => Diagnostic::error()
                 .with_message("non-exhaustive patterns")
-                .with_labels(vec![Label::primary(*file_id, match_range.clone())
-                    .with_message("missing default pattern")]),
+                .with_labels(vec![
+                    Label::primary(*file_id, *match_range).with_message("missing default pattern")
+                ]),
             SurfaceToCoreMessage::UnreachablePattern {
                 file_id,
                 pattern_range,
             } => Diagnostic::warning()
                 .with_message("unreachable pattern")
-                .with_labels(vec![Label::primary(*file_id, pattern_range.clone())
-                    .with_message("unreachable pattern")]),
+                .with_labels(vec![
+                    Label::primary(*file_id, *pattern_range).with_message("unreachable pattern")
+                ]),
             SurfaceToCoreMessage::DuplicateStructFields {
                 file_id,
                 duplicate_labels,
@@ -962,7 +975,7 @@ impl SurfaceToCoreMessage {
                     duplicate_labels
                         .iter()
                         .map(|label| {
-                            Label::primary(*file_id, label.range())
+                            Label::primary(*file_id, label.range)
                                 .with_message("field already defined")
                         })
                         .collect(),
@@ -974,14 +987,12 @@ impl SurfaceToCoreMessage {
             } => Diagnostic::error()
                 .with_message("missing fields for struct")
                 .with_labels(
-                    std::iter::once(Label::primary(*file_id, term_range.clone()).with_message(
-                        format!(
-                            "missing fields {}",
-                            missing_labels.iter().map(|label| &label.data).format(", ")
-                        ),
-                    ))
+                    std::iter::once(Label::primary(*file_id, *term_range).with_message(format!(
+                        "missing fields {}",
+                        missing_labels.iter().map(|label| &label.data).format(", ")
+                    )))
                     .chain(missing_labels.iter().map(|label| {
-                        Label::secondary(*file_id, label.range())
+                        Label::secondary(*file_id, label.range)
                             .with_message("field defined on struct here")
                     }))
                     .collect(),
@@ -996,10 +1007,10 @@ impl SurfaceToCoreMessage {
                     unexpected_labels
                         .iter()
                         .map(|label| {
-                            Label::primary(*file_id, label.range()).with_message("unexpected field")
+                            Label::primary(*file_id, label.range).with_message("unexpected field")
                         })
                         .chain(std::iter::once(
-                            Label::secondary(*file_id, term_range.clone())
+                            Label::secondary(*file_id, *term_range)
                                 .with_message("struct instantiated here"),
                         ))
                         .collect(),
@@ -1013,11 +1024,12 @@ impl SurfaceToCoreMessage {
 
                 Diagnostic::error()
                     .with_message("unexpected struct term")
-                    .with_labels(vec![Label::primary(*file_id, term_range.clone())
-                        .with_message(format!(
+                    .with_labels(vec![Label::primary(*file_id, *term_range).with_message(
+                        format!(
                             "expected `{}`, found struct",
                             expected_type.pretty(std::usize::MAX)
-                        ))])
+                        ),
+                    )])
             }
         }
     }
