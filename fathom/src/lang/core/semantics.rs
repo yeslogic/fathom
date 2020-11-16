@@ -46,8 +46,35 @@ pub enum Value {
 
 impl Value {
     /// Create a global variable.
-    pub fn global(name: impl Into<String>) -> Value {
-        Value::Stuck(Head::Global(name.into()), Vec::new())
+    pub fn global(name: impl Into<String>, elims: impl Into<Vec<Elim>>) -> Value {
+        Value::Stuck(Head::Global(name.into()), elims.into())
+    }
+
+    /// Create an item variable.
+    pub fn item(name: impl Into<String>, elims: impl Into<Vec<Elim>>) -> Value {
+        Value::Stuck(Head::Item(name.into()), elims.into())
+    }
+
+    /// Attempt to match against a stuck global.
+    ///
+    /// This can help to clean up pattern matches in lieu of
+    /// [`match_default_bindings`](https://github.com/rust-lang/rust/issues/42640).
+    pub fn try_global(&self) -> Option<(&str, &[Elim])> {
+        match self {
+            Value::Stuck(Head::Global(name), elims) => Some((name, elims)),
+            _ => None,
+        }
+    }
+
+    /// Attempt to match against a stuck item.
+    ///
+    /// This can help to clean up pattern matches in lieu of
+    /// [`match_default_bindings`](https://github.com/rust-lang/rust/issues/42640).
+    pub fn try_item(&self) -> Option<(&str, &[Elim])> {
+        match self {
+            Value::Stuck(Head::Item(name), elims) => Some((name, elims)),
+            _ => None,
+        }
     }
 }
 
@@ -99,7 +126,7 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
             None => Arc::new(Value::Error),
             Some((_, global_term)) => match global_term {
                 Some(global_term) => eval(globals, items, global_term),
-                None => Arc::new(Value::Stuck(Head::Global(name.clone()), Vec::new())),
+                None => Arc::new(Value::global(name.clone(), Vec::new())),
             },
         },
         TermData::Item(name) => match items.get(name.as_str()) {
@@ -107,7 +134,7 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
             Some(item) => match &item.data {
                 ItemData::Constant(constant) => eval(globals, items, &constant.term),
                 ItemData::StructType(_) | ItemData::StructFormat(_) => {
-                    Arc::new(Value::Stuck(Head::Item(name.clone()), Vec::new()))
+                    Arc::new(Value::item(name.clone(), Vec::new()))
                 }
             },
         },
@@ -232,27 +259,27 @@ fn apply_int_elim(
 fn apply_repr(mut argument: Arc<Value>) -> Arc<Value> {
     match Arc::make_mut(&mut argument) {
         Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
-            ("U8", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("U16Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("U16Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("U32Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("U32Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("U64Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("U64Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("S8", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("S16Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("S16Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("S32Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("S32Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("S64Le", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("S64Be", []) => Arc::new(Value::Stuck(Head::Global("Int".to_owned()), Vec::new())),
-            ("F32Le", []) => Arc::new(Value::Stuck(Head::Global("F32".to_owned()), Vec::new())),
-            ("F32Be", []) => Arc::new(Value::Stuck(Head::Global("F32".to_owned()), Vec::new())),
-            ("F64Le", []) => Arc::new(Value::Stuck(Head::Global("F64".to_owned()), Vec::new())),
-            ("F64Be", []) => Arc::new(Value::Stuck(Head::Global("F64".to_owned()), Vec::new())),
+            ("U8", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("U16Be", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("U16Le", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("U32Le", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("U32Be", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("U64Le", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("U64Be", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("S8", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("S16Le", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("S16Be", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("S32Le", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("S32Be", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("S64Le", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("S64Be", []) => Arc::new(Value::global("Int", Vec::new())),
+            ("F32Le", []) => Arc::new(Value::global("F32", Vec::new())),
+            ("F32Be", []) => Arc::new(Value::global("F32", Vec::new())),
+            ("F64Le", []) => Arc::new(Value::global("F64", Vec::new())),
+            ("F64Be", []) => Arc::new(Value::global("F64", Vec::new())),
             ("FormatArray", [Elim::Function(len), Elim::Function(elem_type)]) => {
-                Arc::new(Value::Stuck(
-                    Head::Global("Array".to_owned()),
+                Arc::new(Value::global(
+                    "Array",
                     vec![
                         Elim::Function(len.clone()),
                         Elim::Function(apply_repr(elem_type.clone())),

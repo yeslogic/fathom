@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::lang::core::semantics::{self, Elim, Head, Value};
+use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{
     Globals, Item, ItemData, Module, Primitive, Sort, StructType, Term, TermData,
 };
@@ -77,12 +77,10 @@ impl<'me> Context<'me> {
         &'context self,
         value: &'value Value,
     ) -> Option<(Range, &'context ItemData, &'value [Elim])> {
-        match value {
-            Value::Stuck(Head::Item(name), elims) => match self.items.get(name) {
-                Some(item) => Some((item.range, &item.data, elims)),
-                None => panic!("could not find an item called `{}` in the context", name),
-            },
-            _ => None,
+        let (name, elims) = value.try_item()?;
+        match self.items.get(name) {
+            Some(item) => Some((item.range, &item.data, elims)),
+            None => panic!("could not find an item called `{}` in the context", name),
         }
     }
 
@@ -302,13 +300,13 @@ impl<'me> Context<'me> {
             }
 
             (TermData::BoolElim(term, if_true, if_false), _) => {
-                let bool_type = Arc::new(Value::global("Bool"));
+                let bool_type = Arc::new(Value::global("Bool", Vec::new()));
                 self.check_type(file_id, term, &bool_type);
                 self.check_type(file_id, if_true, expected_type);
                 self.check_type(file_id, if_false, expected_type);
             }
             (TermData::IntElim(head, branches, default), _) => {
-                let int_type = Arc::new(Value::global("Int"));
+                let int_type = Arc::new(Value::global("Int", Vec::new()));
                 self.check_type(file_id, head, &int_type);
                 for term in branches.values() {
                     self.check_type(file_id, term, expected_type);
@@ -451,14 +449,12 @@ impl<'me> Context<'me> {
             }
 
             TermData::Primitive(primitive) => match primitive {
-                // TODO: Lookup globals in environment
-                Primitive::Int(_) => Arc::new(Value::global("Int")),
-                Primitive::F32(_) => Arc::new(Value::global("F32")),
-                Primitive::F64(_) => Arc::new(Value::global("F64")),
+                Primitive::Int(_) => Arc::new(Value::global("Int", Vec::new())),
+                Primitive::F32(_) => Arc::new(Value::global("F32", Vec::new())),
+                Primitive::F64(_) => Arc::new(Value::global("F64", Vec::new())),
             },
             TermData::BoolElim(head, if_true, if_false) => {
-                // TODO: Lookup globals in environment
-                let bool_type = Arc::new(Value::global("Bool"));
+                let bool_type = Arc::new(Value::global("Bool", Vec::new()));
                 self.check_type(file_id, head, &bool_type);
                 let if_true_type = self.synth_type(file_id, if_true);
                 let if_false_type = self.synth_type(file_id, if_false);

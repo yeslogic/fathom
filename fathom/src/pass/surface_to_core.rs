@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::lang::core::semantics::{self, Elim, Head, Value};
+use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{self, Sort};
 use crate::lang::surface::{ItemData, Module, Pattern, PatternData, StructType, Term, TermData};
 use crate::lang::Range;
@@ -67,12 +67,10 @@ impl<'me> Context<'me> {
         &'context self,
         value: &'value Value,
     ) -> Option<(Range, &'context core::ItemData, &'value [Elim])> {
-        match value {
-            Value::Stuck(Head::Item(name), elims) => match self.items.get(name) {
-                Some(item) => Some((item.range, &item.data, elims)),
-                None => panic!("could not find an item called `{}` in the context", name),
-            },
-            _ => None,
+        let (name, elims) = value.try_item()?;
+        match self.items.get(name) {
+            Some(item) => Some((item.range, &item.data, elims)),
+            None => panic!("could not find an item called `{}` in the context", name),
         }
     }
 
@@ -468,36 +466,19 @@ impl<'me> Context<'me> {
             (TermData::NumberLiteral(source), _) => {
                 let parse_state =
                     literal::State::new(file_id, surface_term.range, source, &mut self.messages);
-                let term_data = match expected_type.as_ref() {
-                    // TODO: Lookup globals in environment
-                    Value::Stuck(Head::Global(name), elims) if elims.is_empty() => {
-                        match name.as_str() {
-                            "Int" => parse_state
-                                .number_to_big_int()
-                                .map(core::Primitive::Int)
-                                .map_or(core::TermData::Error, core::TermData::Primitive),
-                            "F32" => parse_state
-                                .number_to_float()
-                                .map(core::Primitive::F32)
-                                .map_or(core::TermData::Error, core::TermData::Primitive),
-                            "F64" => parse_state
-                                .number_to_float()
-                                .map(core::Primitive::F64)
-                                .map_or(core::TermData::Error, core::TermData::Primitive),
-                            _ => {
-                                let expected_type = self.read_back_to_surface(expected_type);
-                                self.push_message(
-                                    SurfaceToCoreMessage::NumericLiteralNotSupported {
-                                        file_id,
-                                        literal_range: surface_term.range,
-                                        expected_type,
-                                    },
-                                );
-                                core::TermData::Error
-                            }
-                        }
-                    }
-                    Value::Error => core::TermData::Error,
+                let term_data = match expected_type.try_global() {
+                    Some(("Int", [])) => parse_state
+                        .number_to_big_int()
+                        .map(core::Primitive::Int)
+                        .map_or(core::TermData::Error, core::TermData::Primitive),
+                    Some(("F32", [])) => parse_state
+                        .number_to_float()
+                        .map(core::Primitive::F32)
+                        .map_or(core::TermData::Error, core::TermData::Primitive),
+                    Some(("F64", [])) => parse_state
+                        .number_to_float()
+                        .map(core::Primitive::F64)
+                        .map_or(core::TermData::Error, core::TermData::Primitive),
                     _ => {
                         let expected_type = self.read_back_to_surface(expected_type);
                         self.push_message(SurfaceToCoreMessage::NumericLiteralNotSupported {
@@ -512,8 +493,7 @@ impl<'me> Context<'me> {
                 core::Term::new(surface_term.range, term_data)
             }
             (TermData::If(surface_head, surface_if_true, surface_if_false), _) => {
-                // TODO: Lookup globals in environment
-                let bool_type = Arc::new(Value::global("Bool"));
+                let bool_type = Arc::new(Value::global("Bool", Vec::new()));
                 let term_data = core::TermData::BoolElim(
                     Arc::new(self.check_type(file_id, surface_head, &bool_type)),
                     Arc::new(self.check_type(file_id, surface_if_true, expected_type)),
@@ -524,40 +504,32 @@ impl<'me> Context<'me> {
             }
             (TermData::Match(surface_head, surface_branches), _) => {
                 let (head, head_type) = self.synth_type(file_id, surface_head);
+                if let Value::Error = head_type.as_ref() {
+                    return core::Term::new(surface_term.range, core::TermData::Error);
+                }
 
-                let term_data = match head_type.as_ref() {
-                    Value::Stuck(Head::Global(name), elims) if elims.is_empty() => {
-                        // TODO: Lookup globals in environment
-                        match name.as_str() {
-                            "Bool" => {
-                                self.push_message(Message::NotYetImplemented {
-                                    file_id,
-                                    range: surface_term.range,
-                                    feature_name: "boolean patterns",
-                                });
-                                core::TermData::Error
-                            }
-                            "Int" => {
-                                let (branches, default) = self.from_int_branches(
-                                    file_id,
-                                    surface_head.range,
-                                    surface_branches,
-                                    expected_type,
-                                );
-                                core::TermData::IntElim(Arc::new(head), branches, default)
-                            }
-                            _ => {
-                                let found_type = self.read_back_to_surface(&head_type);
-                                self.push_message(SurfaceToCoreMessage::UnsupportedPatternType {
-                                    file_id,
-                                    scrutinee_range: surface_head.range,
-                                    found_type,
-                                });
-                                core::TermData::Error
-                            }
-                        }
+                match head_type.try_global() {
+                    Some(("Bool", [])) => {
+                        self.push_message(Message::NotYetImplemented {
+                            file_id,
+                            range: surface_term.range,
+                            feature_name: "boolean patterns",
+                        });
+                        core::Term::new(surface_term.range, core::TermData::Error)
                     }
-                    Value::Error => core::TermData::Error,
+                    Some(("Int", [])) => {
+                        let (branches, default) = self.from_int_branches(
+                            file_id,
+                            surface_head.range,
+                            surface_branches,
+                            expected_type,
+                        );
+
+                        core::Term::new(
+                            surface_term.range,
+                            core::TermData::IntElim(Arc::new(head), branches, default),
+                        )
+                    }
                     _ => {
                         let found_type = self.read_back_to_surface(&head_type);
                         self.push_message(SurfaceToCoreMessage::UnsupportedPatternType {
@@ -565,11 +537,9 @@ impl<'me> Context<'me> {
                             scrutinee_range: surface_head.range,
                             found_type,
                         });
-                        core::TermData::Error
+                        core::Term::new(surface_term.range, core::TermData::Error)
                     }
-                };
-
-                core::Term::new(surface_term.range, term_data)
+                }
             }
 
             (_, expected_type) => match self.synth_type(file_id, surface_term) {
@@ -785,8 +755,7 @@ impl<'me> Context<'me> {
                 )
             }
             TermData::If(surface_head, surface_if_true, surface_if_false) => {
-                // TODO: Lookup globals in environment
-                let bool_type = Arc::new(Value::global("Bool"));
+                let bool_type = Arc::new(Value::global("Bool", Vec::new()));
                 let head = self.check_type(file_id, surface_head, &bool_type);
                 let (if_true, if_true_type) = self.synth_type(file_id, surface_if_true);
                 let (if_false, if_false_type) = self.synth_type(file_id, surface_if_false);
