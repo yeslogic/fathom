@@ -26,6 +26,7 @@ test!(fail_invalid_token, "fail_invalid_token.fathom");
 
 #[rustfmt::skip]
 mod constant {
+    test!(sequence_term, "constant/sequence_term.fathom");
     test!(repr, "constant/repr.fathom");
 
     test!(pass_ann, "constant/pass_ann.fathom");

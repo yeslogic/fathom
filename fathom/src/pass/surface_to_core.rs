@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::lang::core::semantics::{self, Elim, Value};
-use crate::lang::core::{self, Sort};
+use crate::lang::core::{self, Primitive, Sort};
 use crate::lang::surface::{ItemData, Module, Pattern, PatternData, StructType, Term, TermData};
 use crate::lang::Range;
 use crate::literal;
@@ -463,21 +463,62 @@ impl<'me> Context<'me> {
                 )
             }
 
+            (TermData::SequenceTerm(surface_elem_terms), _) => match expected_type.try_global() {
+                Some(("Array", [Elim::Function(len), Elim::Function(elem_type)])) => {
+                    let elem_terms = surface_elem_terms
+                        .iter()
+                        .map(|surface_elem_term| {
+                            Arc::new(self.check_type(file_id, surface_elem_term, elem_type))
+                        })
+                        .collect();
+
+                    match len.as_ref() {
+                        Value::Primitive(Primitive::Int(len))
+                            if *len == surface_elem_terms.len().into() =>
+                        {
+                            core::Term::new(
+                                surface_term.range,
+                                core::TermData::ArrayTerm(elem_terms),
+                            )
+                        }
+                        len => {
+                            let expected_len = self.read_back_to_surface(&len);
+                            self.push_message(SurfaceToCoreMessage::MismatchedSequenceLength {
+                                file_id,
+                                term_range: surface_term.range,
+                                found_len: elem_terms.len(),
+                                expected_len,
+                            });
+                            core::Term::new(surface_term.range, core::TermData::Error)
+                        }
+                    }
+                }
+                Some(_) | None => {
+                    let expected_type = self.read_back_to_surface(expected_type);
+                    self.push_message(SurfaceToCoreMessage::UnexpectedSequenceTerm {
+                        file_id,
+                        term_range: surface_term.range,
+                        expected_type,
+                    });
+                    core::Term::new(surface_term.range, core::TermData::Error)
+                }
+            },
+
             (TermData::NumberLiteral(source), _) => {
                 let parse_state =
                     literal::State::new(file_id, surface_term.range, source, &mut self.messages);
                 let term_data = match expected_type.try_global() {
                     Some(("Int", [])) => parse_state
                         .number_to_big_int()
-                        .map(core::Primitive::Int)
+                        .map(Primitive::Int)
                         .map_or(core::TermData::Error, core::TermData::Primitive),
                     Some(("F32", [])) => parse_state
                         .number_to_float()
-                        .map(core::Primitive::F32)
+                        .map(Primitive::F32)
                         .map_or(core::TermData::Error, core::TermData::Primitive),
                     Some(("F64", [])) => parse_state
                         .number_to_float()
-                        .map(core::Primitive::F64)
+                        .map(Primitive::F64)
                         .map_or(core::TermData::Error, core::TermData::Primitive),
                     _ => {
                         let expected_type = self.read_back_to_surface(expected_type);
@@ -742,6 +783,17 @@ impl<'me> Context<'me> {
                 let term_data = core::TermData::StructElim(Arc::new(head), label);
 
                 (core::Term::new(surface_term.range, term_data), field_type)
+            }
+
+            TermData::SequenceTerm(_) => {
+                self.push_message(SurfaceToCoreMessage::AmbiguousSequenceTerm {
+                    file_id,
+                    range: surface_term.range,
+                });
+                (
+                    core::Term::new(surface_term.range, core::TermData::Error),
+                    Arc::new(Value::Error),
+                )
             }
 
             TermData::NumberLiteral(_) => {

@@ -295,6 +295,18 @@ where
             .append(".")
             .append(alloc.as_string(&label.data)),
 
+        TermData::SequenceTerm(elem_terms) => (alloc.nil())
+            .append("[")
+            .append(
+                alloc.intersperse(
+                    elem_terms
+                        .iter()
+                        .map(|elem_term| from_term(alloc, elem_term)),
+                    alloc.text(",").append(alloc.space()),
+                ),
+            )
+            .append("]"),
+
         TermData::NumberLiteral(literal) => alloc.as_string(literal),
         TermData::If(head, if_true, if_false) => (alloc.nil())
             .append("if")

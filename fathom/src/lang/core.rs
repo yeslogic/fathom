@@ -154,6 +154,9 @@ pub enum TermData {
     /// Struct term eliminations (field lookup).
     StructElim(Arc<Term>, String),
 
+    /// Array terms.
+    ArrayTerm(Vec<Arc<Term>>),
+
     /// Primitives.
     Primitive(Primitive),
     /// A boolean elimination.

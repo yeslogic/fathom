@@ -299,6 +299,42 @@ impl<'me> Context<'me> {
                 }
             }
 
+            (TermData::ArrayTerm(elem_terms), _) => match expected_type.try_global() {
+                Some(("Array", [Elim::Function(len), Elim::Function(elem_type)])) => {
+                    for elem_term in elem_terms {
+                        self.check_type(file_id, elem_term, elem_type);
+                    }
+
+                    match len.as_ref() {
+                        Value::Primitive(Primitive::Int(len))
+                            if *len == elem_terms.len().into() => {}
+                        _ => {
+                            let found_len =
+                                Arc::new(Value::Primitive(Primitive::Int(elem_terms.len().into())));
+                            self.push_message(CoreTypingMessage::TypeMismatch {
+                                file_id,
+                                term_range: term.range,
+                                expected_type: self.read_back(expected_type),
+                                found_type: self.read_back(&Value::global(
+                                    "Array",
+                                    vec![
+                                        Elim::Function(found_len),
+                                        Elim::Function(elem_type.clone()),
+                                    ],
+                                )),
+                            });
+                        }
+                    }
+                }
+                Some(_) | None => {
+                    self.push_message(CoreTypingMessage::UnexpectedArrayTerm {
+                        file_id,
+                        term_range: term.range,
+                        expected_type: self.read_back(expected_type),
+                    });
+                }
+            },
+
             (TermData::BoolElim(term, if_true, if_false), _) => {
                 let bool_type = Arc::new(Value::global("Bool", Vec::new()));
                 self.check_type(file_id, term, &bool_type);
@@ -402,7 +438,7 @@ impl<'me> Context<'me> {
             }
 
             TermData::StructTerm(_) => {
-                self.push_message(CoreTypingMessage::AmbiguousStructTerm {
+                self.push_message(CoreTypingMessage::AmbiguousTerm {
                     file_id,
                     term_range: term.range,
                 });
@@ -448,6 +484,14 @@ impl<'me> Context<'me> {
                 }
             }
 
+            TermData::ArrayTerm(_) => {
+                self.push_message(CoreTypingMessage::AmbiguousTerm {
+                    file_id,
+                    term_range: term.range,
+                });
+                Arc::new(Value::Error)
+            }
+
             TermData::Primitive(primitive) => match primitive {
                 Primitive::Int(_) => Arc::new(Value::global("Int", Vec::new())),
                 Primitive::F32(_) => Arc::new(Value::global("F32", Vec::new())),
@@ -472,7 +516,7 @@ impl<'me> Context<'me> {
                 }
             }
             TermData::IntElim(_, _, _) => {
-                self.push_message(CoreTypingMessage::AmbiguousIntElim {
+                self.push_message(CoreTypingMessage::AmbiguousTerm {
                     file_id,
                     term_range: term.range,
                 });
