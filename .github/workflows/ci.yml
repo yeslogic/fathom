@@ -11,7 +11,7 @@ on:
 
 jobs:
   spec:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: Check Makam Specification
     steps:
       - uses: actions/checkout@v2
@@ -23,7 +23,7 @@ jobs:
         working-directory: ./experiments/makam-spec
 
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         rust: ["1.42.0", "stable", "beta", "nightly"]
@@ -42,7 +42,7 @@ jobs:
           command: check
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         rust: ["1.42.0", "stable", "beta", "nightly"]
@@ -61,7 +61,7 @@ jobs:
           command: test
 
   fmt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         rust: ["1.42.0", "stable", "beta", "nightly"]
@@ -82,7 +82,7 @@ jobs:
           args: --all -- --check
 
 #   clippy:
-#     runs-on: ubuntu-latest
+#     runs-on: ubuntu-20.04
 #     strategy:
 #       matrix:
 #         rust: ["1.42.0", "stable", "beta", "nightly"]
@@ -103,7 +103,7 @@ jobs:
 #           args: -- -D warnings
 
   book:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: Build and Test Book
     env:
       MDBOOK_VERSION: '0.4.4'
