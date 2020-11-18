@@ -11,7 +11,7 @@ on:
 
 jobs:
   spec:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: Check Makam Specification
     steps:
       - uses: actions/checkout@v2
@@ -23,7 +23,7 @@ jobs:
         working-directory: ./experiments/makam-spec
 
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         rust: ["1.42.0", "stable", "beta", "nightly"]
@@ -42,7 +42,7 @@ jobs:
           command: check
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         rust: ["1.42.0", "stable", "beta", "nightly"]
@@ -61,7 +61,7 @@ jobs:
           command: test
 
   fmt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         rust: ["1.42.0", "stable", "beta", "nightly"]
@@ -82,7 +82,7 @@ jobs:
           args: --all -- --check
 
 #   clippy:
-#     runs-on: ubuntu-latest
+#     runs-on: ubuntu-20.04
 #     strategy:
 #       matrix:
 #         rust: ["1.42.0", "stable", "beta", "nightly"]
@@ -103,22 +103,22 @@ jobs:
 #           args: -- -D warnings
 
   book:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: Build and Test Book
     env:
-      MDBOOK_VERSION: '0.4.2'
+      MDBOOK_VERSION: '0.4.4'
       MDBOOK_LINKCHECK_VERSION: '0.7.0'
     steps:
       - uses: actions/checkout@v2
       - name: Install mdBook
         # Install prebuilt binaries where possible to improve CI performance
         run: |
-          mkdir -p $HOME/mdbook
-          curl -L https://github.com/rust-lang/mdBook/releases/download/v$MDBOOK_VERSION/mdbook-v$MDBOOK_VERSION-x86_64-unknown-linux-gnu.tar.gz | tar xz -C $HOME/mdbook
-          echo "::add-path::${HOME}/mdbook/"
-          mkdir -p $HOME/mdbook-linkcheck
-          curl -L https://github.com/Michael-F-Bryan/mdbook-linkcheck/releases/download/v$MDBOOK_LINKCHECK_VERSION/mdbook-linkcheck-v$MDBOOK_LINKCHECK_VERSION-x86_64-unknown-linux-gnu.tar.gz | tar xz -C $HOME/mdbook-linkcheck
-          echo "::add-path::${HOME}/mdbook-linkcheck/"
+          mkdir -p "$HOME/mdbook"
+          curl -L "https://github.com/rust-lang/mdBook/releases/download/v$MDBOOK_VERSION/mdbook-v$MDBOOK_VERSION-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C "$HOME/mdbook"
+          echo "$HOME/mdbook/" >> $GITHUB_PATH
+          mkdir -p "$HOME/mdbook-linkcheck"
+          curl -L "https://github.com/Michael-F-Bryan/mdbook-linkcheck/releases/download/v$MDBOOK_LINKCHECK_VERSION/mdbook-linkcheck-v$MDBOOK_LINKCHECK_VERSION-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C "$HOME/mdbook-linkcheck"
+          echo "$HOME/mdbook-linkcheck/" >> $GITHUB_PATH
       - name: Install Javascript dependencies
         run: yarn install
         working-directory: book

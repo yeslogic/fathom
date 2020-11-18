@@ -15,6 +15,7 @@ additional-js = [
 ]
 
 [output.linkcheck]
+follow-web-links = false # Avoid intermittent failures on CI from transient network errors
 exclude = [
     '\./code-of-conduct\.md', # Bypass `traverse-parent-directories` for this symlink
 ]
