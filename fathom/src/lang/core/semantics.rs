@@ -5,7 +5,10 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::lang::core::{Globals, Item, ItemData, Primitive, Sort, Term, TermData};
+use crate::lang::core::{
+    FieldDefinition, Globals, Item, ItemData, Primitive, Sort, Term, TermData,
+};
+use crate::lang::Ranged;
 
 /// Values.
 #[derive(Debug, Clone)]
@@ -24,6 +27,9 @@ pub enum Value {
 
     /// Function types.
     FunctionType(Arc<Value>, Arc<Value>),
+
+    /// Struct terms.
+    StructTerm(BTreeMap<String, Arc<Value>>),
 
     /// Primitives.
     Primitive(Primitive),
@@ -65,6 +71,10 @@ pub enum Elim {
     ///
     /// This can be applied with the [`apply_function_elim`] function.
     Function(Arc<Value>),
+    /// Struct eliminators.
+    ///
+    /// This can be applied with the [`apply_struct_elim`] function.
+    Struct(String),
     /// Boolean eliminators.
     ///
     /// This can be applied with the [`apply_bool_elim`] function.
@@ -117,6 +127,24 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
             apply_function_elim(head, argument)
         }
 
+        TermData::StructTerm(field_definitions) => {
+            let field_definitions = field_definitions
+                .iter()
+                .map(|field_definition| {
+                    (
+                        field_definition.label.data.clone(),
+                        eval(globals, items, &field_definition.term),
+                    )
+                })
+                .collect();
+
+            Arc::new(Value::StructTerm(field_definitions))
+        }
+        TermData::StructElim(head, field) => {
+            let head = eval(globals, items, head);
+            apply_struct_elim(head, field)
+        }
+
         TermData::Primitive(primitive) => Arc::new(Value::Primitive(primitive.clone())),
         TermData::BoolElim(head, if_true, if_false) => {
             let head = eval(globals, items, head);
@@ -140,6 +168,20 @@ fn apply_function_elim(mut head: Arc<Value>, argument: Arc<Value>) -> Arc<Value>
         Value::Repr => apply_repr(argument),
         Value::Stuck(_, elims) => {
             elims.push(Elim::Function(argument));
+            head
+        }
+        _ => Arc::new(Value::Error),
+    }
+}
+
+fn apply_struct_elim(mut head: Arc<Value>, field_name: &str) -> Arc<Value> {
+    match Arc::make_mut(&mut head) {
+        Value::StructTerm(fields) => match fields.get(field_name) {
+            Some(field) => field.clone(),
+            None => Arc::new(Value::Error),
+        },
+        Value::Stuck(_, elims) => {
+            elims.push(Elim::Struct(field_name.to_owned()));
             head
         }
         _ => Arc::new(Value::Error),
@@ -240,6 +282,9 @@ fn read_back_neutral(head: &Head, elims: &[Elim]) -> Term {
                 Elim::Function(argument) => {
                     TermData::FunctionElim(Arc::new(head), Arc::new(read_back(argument)))
                 }
+                Elim::Struct(field_name) => {
+                    TermData::StructElim(Arc::new(head), field_name.clone())
+                }
                 Elim::Bool(if_true, if_false) => {
                     TermData::BoolElim(Arc::new(head), if_true.clone(), if_false.clone())
                 }
@@ -265,6 +310,17 @@ pub fn read_back(value: &Value) -> Term {
             Arc::new(read_back(param_type)),
             Arc::new(read_back(body_type)),
         )),
+
+        Value::StructTerm(field_definitions) => Term::from(TermData::StructTerm(
+            field_definitions
+                .iter()
+                .map(|(label, value)| FieldDefinition {
+                    label: Ranged::from(label.clone()),
+                    term: Arc::new(read_back(value)),
+                })
+                .collect(),
+        )),
+
         Value::Primitive(primitive) => Term::from(TermData::Primitive(primitive.clone())),
 
         Value::FormatType => Term::from(TermData::FormatType),

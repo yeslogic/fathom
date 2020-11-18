@@ -3,7 +3,8 @@
 use pretty::{DocAllocator, DocBuilder};
 
 use crate::lang::surface::{
-    Constant, Item, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField,
+    Constant, FieldDeclaration, FieldDefinition, Item, ItemData, Module, Pattern, PatternData,
+    StructType, Term, TermData,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -123,7 +124,7 @@ where
             .append(alloc.concat(struct_type.fields.iter().map(|field| {
                 (alloc.nil())
                     .append(alloc.hardline())
-                    .append(from_ty_field(alloc, field))
+                    .append(from_field_declaration(alloc, field))
                     .nest(4)
                     .group()
             })))
@@ -134,12 +135,46 @@ where
     (alloc.nil()).append(docs).append(struct_type)
 }
 
-pub fn from_ty_field<'a, D>(alloc: &'a D, ty_field: &'a TypeField) -> DocBuilder<'a, D>
+pub fn from_struct_term<'a, D>(
+    alloc: &'a D,
+    field_definitions: &'a [FieldDefinition],
+) -> DocBuilder<'a, D>
 where
     D: DocAllocator<'a>,
     D::Doc: Clone,
 {
-    let docs = alloc.concat(ty_field.doc.iter().map(|line| {
+    let struct_prefix = (alloc.nil()).append("struct").append(alloc.space());
+
+    if field_definitions.is_empty() {
+        (alloc.nil()).append(struct_prefix).append("{}").group()
+    } else {
+        (alloc.nil())
+            .append(struct_prefix)
+            .append("{")
+            .group()
+            .append(
+                alloc.concat(field_definitions.iter().map(|field_definition| {
+                    (alloc.nil())
+                        .append(alloc.hardline())
+                        .append(from_field_definition(alloc, field_definition))
+                        .nest(4)
+                        .group()
+                })),
+            )
+            .append(alloc.hardline())
+            .append("}")
+    }
+}
+
+pub fn from_field_declaration<'a, D>(
+    alloc: &'a D,
+    field_declaration: &'a FieldDeclaration,
+) -> DocBuilder<'a, D>
+where
+    D: DocAllocator<'a>,
+    D::Doc: Clone,
+{
+    let docs = alloc.concat(field_declaration.doc.iter().map(|line| {
         (alloc.nil())
             .append(format!("///{}", line))
             .append(alloc.hardline())
@@ -149,7 +184,7 @@ where
         .append(docs)
         .append(
             (alloc.nil())
-                .append(&ty_field.name.data)
+                .append(&field_declaration.label.data)
                 .append(alloc.space())
                 .append(":")
                 .group(),
@@ -157,7 +192,31 @@ where
         .append(
             (alloc.nil())
                 .append(alloc.space())
-                .append(from_term_prec(alloc, &ty_field.term, Prec::Term))
+                .append(from_term_prec(alloc, &field_declaration.term, Prec::Term))
+                .append(","),
+        )
+}
+
+pub fn from_field_definition<'a, D>(
+    alloc: &'a D,
+    field_definition: &'a FieldDefinition,
+) -> DocBuilder<'a, D>
+where
+    D: DocAllocator<'a>,
+    D::Doc: Clone,
+{
+    (alloc.nil())
+        .append(
+            (alloc.nil())
+                .append(alloc.as_string(&field_definition.label.data))
+                .append(alloc.space())
+                .append("=")
+                .group(),
+        )
+        .append(
+            (alloc.nil())
+                .append(alloc.space())
+                .append(from_term_prec(alloc, &field_definition.term, Prec::Term))
                 .append(","),
         )
 }
@@ -229,6 +288,12 @@ where
                     .nest(4),
             ),
         ),
+
+        TermData::StructTerm(field_definitions) => from_struct_term(alloc, field_definitions),
+        TermData::StructElim(head, label) => (alloc.nil())
+            .append(from_term_prec(alloc, head, Prec::Atomic))
+            .append(".")
+            .append(alloc.as_string(&label.data)),
 
         TermData::NumberLiteral(literal) => alloc.as_string(literal),
         TermData::If(head, if_true, if_false) => (alloc.nil())

@@ -66,9 +66,12 @@ impl<'me> Context<'me> {
         let fields = struct_type
             .fields
             .iter()
-            .map(|field| {
-                let value = self.eval(&field.term);
-                Ok((field.name.clone(), self.read_format(&value)?))
+            .map(|field_declaration| {
+                let value = self.eval(&field_declaration.term);
+                Ok((
+                    field_declaration.label.data.clone(),
+                    self.read_format(&value)?,
+                ))
             })
             .collect::<Result<_, fathom_runtime::ReadError>>()?;
 
@@ -127,6 +130,7 @@ impl<'me> Context<'me> {
             Value::Stuck(Head::Error, _)
             | Value::Sort(_)
             | Value::FunctionType(_, _)
+            | Value::StructTerm(_)
             | Value::Primitive(_)
             | Value::FormatType
             | Value::Repr

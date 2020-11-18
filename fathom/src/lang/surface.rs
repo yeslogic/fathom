@@ -84,15 +84,7 @@ pub struct StructType {
     // FIXME: can't use `r#type` in LALRPOP grammars
     pub type_: Option<Term>,
     /// Fields in the struct.
-    pub fields: Vec<TypeField>,
-}
-
-/// A field in a struct type.
-#[derive(Debug, Clone)]
-pub struct TypeField {
-    pub doc: Arc<[String]>,
-    pub name: Ranged<String>,
-    pub term: Term,
+    pub fields: Vec<FieldDeclaration>,
 }
 
 /// Patterns in the surface language.
@@ -128,6 +120,11 @@ pub enum TermData {
     /// Function eliminations (function application).
     FunctionElim(Box<Term>, Vec<Term>),
 
+    /// Struct terms.
+    StructTerm(Vec<FieldDefinition>),
+    /// Struct term eliminations (field lookup).
+    StructElim(Box<Term>, Ranged<String>),
+
     /// Numeric literals.
     NumberLiteral(String),
     /// If-else expressions.
@@ -143,4 +140,19 @@ pub enum TermData {
 
     /// Error sentinel terms.
     Error,
+}
+
+/// A field in a struct type.
+#[derive(Debug, Clone)]
+pub struct FieldDeclaration {
+    pub doc: Arc<[String]>,
+    pub label: Ranged<String>,
+    pub term: Term,
+}
+
+/// A field in a struct term.
+#[derive(Debug, Clone)]
+pub struct FieldDefinition {
+    pub label: Ranged<String>,
+    pub term: Term,
 }

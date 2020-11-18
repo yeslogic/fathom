@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use crate::lang::Ranged;
-use crate::lang::surface::{Constant, ItemData, Module, Pattern, PatternData, StructType, Term, TermData, TypeField};
+use crate::lang::surface::{
+    Constant, FieldDeclaration, FieldDefinition, ItemData, Module, Pattern, PatternData, StructType,
+    Term, TermData,
+};
 use crate::lang::surface::lexer::Token;
 use crate::reporting::LexerMessage;
 
@@ -47,6 +50,7 @@ extern {
         "," => Token::Comma,
         "=" => Token::Equals,
         "=>" => Token::EqualsGreater,
+        "." => Token::FullStop,
         "->" => Token::HyphenGreater,
         ";" => Token::Semi,
     }
@@ -78,8 +82,8 @@ ItemData: ItemData = {
     },
     <doc: "doc comment"*>
     "struct" <name: Ranged<Name>> <type_: (":" <Term>)?> "{"
-        <mut fields: (<TypeField> ",")*>
-        <last: TypeField?>
+        <mut fields: (<FieldDeclaration> ",")*>
+        <last: FieldDeclaration?>
     "}" => {
         fields.extend(last);
 
@@ -89,12 +93,6 @@ ItemData: ItemData = {
             type_,
             fields,
         })
-    },
-};
-
-TypeField: TypeField = {
-    <docs: "doc comment"*> <name: Ranged<Name>> ":" <term: Term> => {
-        TypeField { doc: Arc::from(docs), name, term }
     },
 };
 
@@ -135,6 +133,11 @@ AtomicTermData: TermData = {
     "Type" => TermData::TypeType,
     "Kind" => TermData::KindType,
     "repr" => TermData::Repr,
+    "struct" "{" <mut fields: (<FieldDefinition> ",")*> <last: FieldDefinition?> "}" => {
+        fields.extend(last);
+        TermData::StructTerm(fields)
+    },
+    <term: AtomicTerm> "." <name: Ranged<Name>> => TermData::StructElim(Box::new(term), name),
     <literal: "numeric literal"> => TermData::NumberLiteral(literal.to_owned()),
     "if" <head: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" => {
         TermData::If(Box::new(head), Box::new(if_true), Box::new(if_false))
@@ -144,6 +147,18 @@ AtomicTermData: TermData = {
         TermData::Match(Box::new(head), branches)
     },
     "Format" => TermData::FormatType,
+};
+
+#[inline]
+FieldDeclaration: FieldDeclaration = {
+    <docs: "doc comment"*> <label: Ranged<Name>> ":" <term: Term> => {
+        FieldDeclaration { doc: Arc::from(docs), label, term }
+    },
+};
+
+#[inline]
+FieldDefinition: FieldDefinition = {
+    <label: Ranged<Name>> "=" <term: Term> => FieldDefinition { label, term },
 };
 
 #[inline]

@@ -1,0 +1,17 @@
+struct Point : Type {
+    x : global Int,
+    y : global Int,
+}
+
+const origin = struct {
+        x = int 0,
+        y = int 0,
+    } : item Point;
+
+const origin_x = (item origin).x;
+
+const origin_y = (item origin).y;
+
+const origin_x_x = !;
+
+const origin_z = !;

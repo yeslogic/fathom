@@ -177,7 +177,7 @@ impl Context {
         if !struct_type.fields.is_empty() {
             writeln!(writer, r##"          <dl class="fields">"##)?;
             for field in &struct_type.fields {
-                let field_id = format!("{}.fields[{}]", id, field.name.data);
+                let field_id = format!("{}.fields[{}]", id, field.label.data);
                 let r#type = self.from_term_prec(&field.term, Prec::Term);
 
                 write!(
@@ -189,7 +189,7 @@ impl Context {
               <section class="doc">
 "##,
                     id = field_id,
-                    name = field.name.data,
+                    name = field.label.data,
                     type_ = r#type,
                 )?;
                 from_doc_lines(writer, "                ", &field.doc)?;
@@ -251,6 +251,26 @@ impl Context {
                     .iter()
                     .map(|argument| self.from_term_prec(argument, Prec::Atomic))
                     .format(" "),
+            )
+            .into(),
+
+            TermData::StructTerm(field_definitions) => format!(
+                // TODO: multiline formatting!
+                "struct {{ {field_definitions} }}",
+                field_definitions = field_definitions
+                    .iter()
+                    .map(|field_definition| format!(
+                        "{} = {}",
+                        &field_definition.label.data,
+                        self.from_term_prec(&field_definition.term, Prec::Term)
+                    ))
+                    .format(", "),
+            )
+            .into(),
+            TermData::StructElim(head, label) => format!(
+                "{head}.{label}",
+                head = self.from_term_prec(head, Prec::Atomic),
+                label = &label.data,
             )
             .into(),
 

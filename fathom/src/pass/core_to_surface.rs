@@ -39,10 +39,10 @@ pub fn from_item(item: &Item) -> surface::Item {
             fields: struct_type
                 .fields
                 .iter()
-                .map(|type_field| surface::TypeField {
-                    doc: type_field.doc.clone(),
-                    name: Ranged::from(type_field.name.clone()),
-                    term: from_term(&type_field.term),
+                .map(|field_declaration| surface::FieldDeclaration {
+                    doc: field_declaration.doc.clone(),
+                    label: Ranged::from(field_declaration.label.clone()),
+                    term: from_term(&field_declaration.term),
                 })
                 .collect(),
         }),
@@ -54,10 +54,10 @@ pub fn from_item(item: &Item) -> surface::Item {
                 fields: struct_format
                     .fields
                     .iter()
-                    .map(|type_field| surface::TypeField {
-                        doc: type_field.doc.clone(),
-                        name: Ranged::from(type_field.name.clone()),
-                        term: from_term(&type_field.term),
+                    .map(|field_declaration| surface::FieldDeclaration {
+                        doc: field_declaration.doc.clone(),
+                        label: Ranged::from(field_declaration.label.clone()),
+                        term: from_term(&field_declaration.term),
                     })
                     .collect(),
             })
@@ -86,6 +86,19 @@ pub fn from_term(term: &Term) -> surface::Term {
             Box::new(from_term(head)),
             vec![from_term(argument)], // TODO: flatten arguments
         ),
+
+        TermData::StructTerm(field_definitions) => surface::TermData::StructTerm(
+            field_definitions
+                .iter()
+                .map(|field_definition| surface::FieldDefinition {
+                    label: Ranged::from(field_definition.label.clone()),
+                    term: from_term(&field_definition.term),
+                })
+                .collect(),
+        ),
+        TermData::StructElim(head, field) => {
+            surface::TermData::StructElim(Box::new(from_term(head)), Ranged::from(field.clone()))
+        }
 
         TermData::Primitive(primitive) => match primitive {
             Primitive::Int(value) => surface::TermData::NumberLiteral(value.to_string()),

@@ -1,0 +1,22 @@
+struct Point : Type {
+    x : global Int,
+    y : global Int,
+}
+
+const origin = struct {
+        x = int 0,
+        y = int 0,
+    } : item Point;
+
+const origin_duplicate_fields = ! : item Point;
+
+const origin_invalid_term = struct {
+        x = int 0,
+        y = !,
+    } : item Point;
+
+const origin_missing_fields = ! : item Point;
+
+const origin_unexpected_field = ! : item Point;
+
+const ambiguous_struct_term = !;

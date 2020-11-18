@@ -199,7 +199,7 @@ impl Test {
             eprintln!();
         }
 
-        if !is_equal_module(&delaborated_module, core_module) {
+        if delaborated_module != *core_module {
             let arena = pretty::Arena::new();
 
             let pretty_core_module = {
@@ -290,7 +290,7 @@ impl Test {
             eprintln!();
         }
 
-        if !is_equal_module(core_module, &parsed_core_module) {
+        if parsed_core_module != *core_module {
             self.failed_checks
                 .push("roundtrip_pretty_core: core != parse(pretty(core))");
 
@@ -574,104 +574,5 @@ fn eprintln_indented(indent: usize, prefix: &str, output: &str) {
             prefix = prefix,
             line = line,
         );
-    }
-}
-
-fn is_equal_module(
-    module0: &fathom::lang::core::Module,
-    module1: &fathom::lang::core::Module,
-) -> bool {
-    module0.doc == module1.doc
-        && module0.items.len() == module0.items.len()
-        && Iterator::zip(module0.items.iter(), module0.items.iter())
-            .all(|(item0, item1)| is_equal_item(item0, item1))
-}
-
-fn is_equal_item(item0: &fathom::lang::core::Item, item1: &fathom::lang::core::Item) -> bool {
-    use fathom::lang::core::ItemData;
-
-    match (&item0.data, &item1.data) {
-        (ItemData::Constant(constant0), ItemData::Constant(constant1)) => {
-            constant0.doc == constant1.doc
-                && constant0.name == constant1.name
-                && is_equal_term(&constant0.term, &constant1.term)
-        }
-        (ItemData::StructType(struct_type0), ItemData::StructType(struct_type1)) => {
-            struct_type0.doc == struct_type1.doc
-                && struct_type0.name == struct_type1.name
-                && struct_type0.fields.len() == struct_type1.fields.len()
-                && Iterator::zip(struct_type0.fields.iter(), struct_type1.fields.iter()).all(
-                    |(field0, field1)| {
-                        field0.doc == field1.doc
-                            && field0.name == field1.name
-                            && is_equal_term(&field0.term, &field1.term)
-                    },
-                )
-        }
-        (ItemData::StructFormat(struct_format0), ItemData::StructFormat(struct_format1)) => {
-            struct_format0.doc == struct_format1.doc
-                && struct_format0.name == struct_format1.name
-                && struct_format0.fields.len() == struct_format1.fields.len()
-                && Iterator::zip(struct_format0.fields.iter(), struct_format1.fields.iter()).all(
-                    |(field0, field1)| {
-                        field0.doc == field1.doc
-                            && field0.name == field1.name
-                            && is_equal_term(&field0.term, &field1.term)
-                    },
-                )
-        }
-        (_, _) => false,
-    }
-}
-
-fn is_equal_term(term0: &fathom::lang::core::Term, term1: &fathom::lang::core::Term) -> bool {
-    use fathom::lang::core::TermData;
-
-    match (&term0.data, &term1.data) {
-        (TermData::Global(name0), TermData::Global(name1)) => name0 == name1,
-        (TermData::Item(name0), TermData::Item(name1)) => name0 == name1,
-        (TermData::Ann(term0, type0), TermData::Ann(term1, type1)) => {
-            is_equal_term(term0, term1) && is_equal_term(type0, type1)
-        }
-
-        (TermData::Sort(sort0), TermData::Sort(sort1)) => sort0 == sort1,
-
-        (
-            TermData::FunctionType(param_type0, body_type0),
-            TermData::FunctionType(param_type1, body_type1),
-        ) => is_equal_term(param_type0, param_type1) && is_equal_term(body_type0, body_type1),
-        (TermData::FunctionElim(head0, argument0), TermData::FunctionElim(head1, argument1)) => {
-            is_equal_term(head0, head1) && is_equal_term(argument0, argument1)
-        }
-
-        (TermData::Primitive(primitive0), TermData::Primitive(primitive1)) => {
-            primitive0 == primitive1
-        }
-        (
-            TermData::BoolElim(head0, if_true0, if_false0),
-            TermData::BoolElim(head1, if_true1, if_false1),
-        ) => {
-            is_equal_term(head0, head1)
-                && is_equal_term(if_true0, if_true1)
-                && is_equal_term(if_false0, if_false1)
-        }
-        (
-            TermData::IntElim(head0, branches0, default0),
-            TermData::IntElim(head1, branches1, default1),
-        ) => {
-            is_equal_term(head0, head1)
-                && branches0.len() == branches1.len()
-                && Iterator::zip(branches0.iter(), branches1.iter()).all(
-                    |((int0, body0), (int1, body1))| int0 == int1 && is_equal_term(body0, body1),
-                )
-                && is_equal_term(default0, default1)
-        }
-
-        (TermData::FormatType, TermData::FormatType) => true,
-
-        (TermData::Repr, TermData::Repr) => true,
-
-        (TermData::Error, TermData::Error) => true,
-        (_, _) => false,
     }
 }

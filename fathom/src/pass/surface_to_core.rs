@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::lang::core::semantics::{self, Head, Value};
+use crate::lang::core::semantics::{self, Elim, Head, Value};
 use crate::lang::core::{self, Sort};
 use crate::lang::surface::{ItemData, Module, Pattern, PatternData, StructType, Term, TermData};
 use crate::literal;
@@ -59,6 +59,35 @@ impl<'me> Context<'me> {
     /// returning `None` if `name` was not yet bound.
     pub fn lookup_type(&self, name: &str) -> Option<&Arc<Value>> {
         Some(&self.types.iter().rev().find(|(n, _)| *n == name)?.1)
+    }
+
+    /// Force a value to resolve to an item, returning `None` if the value did
+    /// not refer to an item.
+    fn force_item<'context, 'value>(
+        &'context self,
+        value: &'value Value,
+    ) -> Option<(Range<usize>, &'context core::ItemData, &'value [Elim])> {
+        match value {
+            Value::Stuck(Head::Item(name), elims) => match self.items.get(name) {
+                Some(item) => Some((item.range(), &item.data, elims)),
+                None => panic!("could not find an item called `{}` in the context", name),
+            },
+            _ => None,
+        }
+    }
+
+    /// Force a value to resolve to a struct type, returning `None` if the value did
+    /// not refer to an item.
+    fn force_struct_type<'context, 'value>(
+        &'context self,
+        value: &'value Value,
+    ) -> Option<(Range<usize>, &'context core::StructType, &'value [Elim])> {
+        match self.force_item(value) {
+            Some((ref range, core::ItemData::StructType(struct_type), elims)) => {
+                Some((range.clone(), struct_type, elims))
+            }
+            Some(_) | None => None,
+        }
     }
 
     /// Evaluate a [`core::Term`] into a [`Value`] in the current elaboration context.
@@ -154,7 +183,7 @@ impl<'me> Context<'me> {
                 }
                 ItemData::StructType(struct_type) => match &struct_type.type_ {
                     None => {
-                        self.push_message(SurfaceToCoreMessage::FieldMissingStructAnnotation {
+                        self.push_message(SurfaceToCoreMessage::MissingStructAnnotation {
                             file_id,
                             name: struct_type.name.data.clone(),
                             name_range: struct_type.name.range(),
@@ -170,14 +199,12 @@ impl<'me> Context<'me> {
                             Value::Error => continue,
                             r#type => {
                                 let ann_type = self.read_back_to_surface(r#type);
-                                self.push_message(
-                                    SurfaceToCoreMessage::FieldInvalidStructAnnotation {
-                                        file_id,
-                                        name: struct_type.name.data.clone(),
-                                        ann_type,
-                                        ann_range: core_type.range(),
-                                    },
-                                );
+                                self.push_message(SurfaceToCoreMessage::InvalidStructAnnotation {
+                                    file_id,
+                                    name: struct_type.name.data.clone(),
+                                    ann_type,
+                                    ann_range: core_type.range(),
+                                });
                                 continue;
                             }
                         };
@@ -220,22 +247,22 @@ impl<'me> Context<'me> {
     pub fn is_struct_type(&mut self, file_id: usize, struct_type: &StructType) -> core::ItemData {
         use std::collections::hash_map::Entry;
 
-        // Field names that have previously seen, along with the source
+        // Field labels that have previously seen, along with the source
         // range where they were introduced (for diagnostic reporting).
-        let mut seen_field_names = HashMap::new();
+        let mut seen_field_labels = HashMap::new();
         // Fields that have been elaborated into the core syntax.
         let mut core_fields = Vec::with_capacity(struct_type.fields.len());
 
         for field in &struct_type.fields {
-            let field_range = field.name.range().start..field.term.range().end;
+            let field_range = field.label.range().start..field.term.range().end;
             let format_type = Arc::new(Value::Sort(Sort::Type));
             let r#type = self.check_type(file_id, &field.term, &format_type);
 
-            match seen_field_names.entry(field.name.data.clone()) {
+            match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
-                    core_fields.push(core::TypeField {
+                    core_fields.push(core::FieldDeclaration {
                         doc: field.doc.clone(),
-                        name: field.name.data.clone(),
+                        label: field.label.clone(),
                         term: Arc::new(r#type),
                     });
 
@@ -264,20 +291,20 @@ impl<'me> Context<'me> {
 
         // Field names that have previously seen, along with the source
         // range where they were introduced (for diagnostic reporting).
-        let mut seen_field_names = HashMap::new();
+        let mut seen_field_labels = HashMap::new();
         // Fields that have been elaborated into the core syntax.
         let mut core_fields = Vec::with_capacity(struct_type.fields.len());
 
         for field in &struct_type.fields {
-            let field_range = field.name.range().start..field.term.range().end;
+            let field_range = field.label.range().start..field.term.range().end;
             let format_type = Arc::new(Value::FormatType);
             let r#type = self.check_type(file_id, &field.term, &format_type);
 
-            match seen_field_names.entry(field.name.data.clone()) {
+            match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
-                    core_fields.push(core::TypeField {
+                    core_fields.push(core::FieldDeclaration {
                         doc: field.doc.clone(),
-                        name: field.name.data.clone(),
+                        label: field.label.clone(),
                         term: Arc::new(r#type),
                     });
 
@@ -338,6 +365,101 @@ impl<'me> Context<'me> {
         match (&surface_term.data, expected_type.as_ref()) {
             (TermData::Error, _) => core::Term::new(range, core::TermData::Error),
             (_, Value::Error) => core::Term::new(range, core::TermData::Error),
+
+            (TermData::StructTerm(surface_field_definitions), _) => {
+                use std::collections::btree_map::Entry;
+
+                // Resolve the struct type definition in the context.
+                let struct_type = match self.force_struct_type(expected_type) {
+                    Some((_, struct_type, [])) => struct_type.clone(),
+                    Some((_, _, _)) => {
+                        self.push_message(crate::reporting::Message::NotYetImplemented {
+                            file_id,
+                            range: range.clone(),
+                            feature_name: "struct parameters",
+                        });
+                        return core::Term::new(range, core::TermData::Error);
+                    }
+                    None => {
+                        let expected_type = self.read_back_to_surface(expected_type);
+                        self.push_message(SurfaceToCoreMessage::UnexpectedStructTerm {
+                            file_id,
+                            term_range: range.clone(),
+                            expected_type,
+                        });
+                        return core::Term::new(range, core::TermData::Error);
+                    }
+                };
+
+                // Initial pass over the fields, looking for duplicate fields.
+                let mut pending_field_definitions = BTreeMap::new();
+                let mut duplicate_labels = Vec::new();
+                for field_definition in surface_field_definitions {
+                    match pending_field_definitions.entry(&field_definition.label.data) {
+                        Entry::Vacant(entry) => drop(entry.insert(field_definition)),
+                        Entry::Occupied(_) => duplicate_labels.push(field_definition.label.clone()),
+                    }
+                }
+
+                // Check that the fields match the types from the type definition.
+                let mut core_field_definitions = Vec::new();
+                let mut missing_labels = Vec::new();
+                for field_declaration in &struct_type.fields {
+                    match pending_field_definitions.remove(&field_declaration.label.data) {
+                        Some(field_definition) => {
+                            // NOTE: It should be safe to evaluate the field type
+                            // because we trust that struct items have been checked.
+                            let field_type = self.eval(&field_declaration.term);
+                            let core_term =
+                                self.check_type(file_id, &field_definition.term, &field_type);
+                            core_field_definitions.push(core::FieldDefinition {
+                                label: field_definition.label.clone(),
+                                term: Arc::new(core_term),
+                            });
+                        }
+                        None => missing_labels.push(field_declaration.label.clone()),
+                    }
+                }
+
+                // Collect unexpected fields that were defined in the term but
+                // were not declared in the type.
+                let unexpected_labels = pending_field_definitions
+                    .into_iter()
+                    .map(|(_, field)| field.label.clone())
+                    .collect::<Vec<_>>();
+
+                // Record any errors in the context.
+                let mut has_problems = false;
+                if !duplicate_labels.is_empty() {
+                    has_problems = true;
+                    self.push_message(SurfaceToCoreMessage::DuplicateStructFields {
+                        file_id,
+                        duplicate_labels,
+                    });
+                }
+                if !missing_labels.is_empty() {
+                    has_problems = true;
+                    self.push_message(SurfaceToCoreMessage::MissingStructFields {
+                        file_id,
+                        term_range: range.clone(),
+                        missing_labels,
+                    });
+                }
+                if !unexpected_labels.is_empty() {
+                    has_problems = true;
+                    self.push_message(SurfaceToCoreMessage::UnexpectedStructFields {
+                        file_id,
+                        term_range: range.clone(),
+                        unexpected_labels,
+                    });
+                }
+                if has_problems {
+                    return core::Term::new(range, core::TermData::Error);
+                }
+
+                core::Term::new(range, core::TermData::StructTerm(core_field_definitions))
+            }
+
             (TermData::NumberLiteral(source), _) => {
                 let parse_state =
                     literal::State::new(file_id, range.clone(), source, &mut self.messages);
@@ -444,6 +566,7 @@ impl<'me> Context<'me> {
 
                 core::Term::new(range, term_data)
             }
+
             (_, expected_type) => match self.synth_type(file_id, surface_term) {
                 (core_term, found_type) if self.is_equal(&found_type, expected_type) => core_term,
                 (_, found_type) => {
@@ -484,6 +607,7 @@ impl<'me> Context<'me> {
                 });
                 (error_term(), Arc::new(Value::Error))
             }
+
             TermData::Ann(surface_term, surface_type) => {
                 let (core_type, _) = self.is_type(file_id, surface_type);
                 match &core_type.data {
@@ -560,12 +684,63 @@ impl<'me> Context<'me> {
                 (core_head, head_type)
             }
 
+            TermData::StructTerm(_) => {
+                self.push_message(SurfaceToCoreMessage::AmbiguousStructTerm {
+                    file_id,
+                    term_range: surface_term.range(),
+                });
+                (error_term(), Arc::new(Value::Error))
+            }
+            TermData::StructElim(head, label) => {
+                let (head, head_type) = self.synth_type(file_id, head);
+                if let Value::Error = head_type.as_ref() {
+                    return (error_term(), Arc::new(Value::Error));
+                }
+
+                let field = match self.force_struct_type(&head_type) {
+                    Some((_, struct_type, [])) => struct_type
+                        .fields
+                        .iter()
+                        .find(|field| field.label.data == label.data)
+                        .cloned(),
+                    Some((_, _, _)) => {
+                        self.push_message(crate::reporting::Message::NotYetImplemented {
+                            file_id,
+                            range: range.clone(),
+                            feature_name: "struct parameters",
+                        });
+                        return (error_term(), Arc::new(Value::Error));
+                    }
+                    None => None,
+                };
+
+                let field_type = match field {
+                    // NOTE: It should be safe to evaluate the field type
+                    // because we trust that struct items have been checked.
+                    Some(field) => self.eval(&field.term),
+                    None => {
+                        let head_type = self.read_back_to_surface(&head_type);
+                        self.push_message(SurfaceToCoreMessage::FieldNotFound {
+                            file_id,
+                            head_range: head.range(),
+                            head_type,
+                            label: label.clone(),
+                        });
+                        return (error_term(), Arc::new(Value::Error));
+                    }
+                };
+
+                let label = label.data.clone();
+                let term_data = core::TermData::StructElim(Arc::new(head), label);
+
+                (core::Term::new(range, term_data), field_type)
+            }
+
             TermData::NumberLiteral(_) => {
                 self.push_message(SurfaceToCoreMessage::AmbiguousNumericLiteral {
                     file_id,
                     literal_range: surface_term.range(),
                 });
-
                 (error_term(), Arc::new(Value::Error))
             }
             TermData::If(surface_head, surface_if_true, surface_if_false) => {

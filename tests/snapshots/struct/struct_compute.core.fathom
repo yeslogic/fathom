@@ -1,0 +1,9 @@
+struct Header : Type {
+    count : global Int,
+}
+
+const header_example = struct {
+        count = int 4,
+    } : item Header;
+
+const Data = (global Array (item header_example).count) global Int : Type;

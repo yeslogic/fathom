@@ -46,11 +46,18 @@ impl Module {
     }
 }
 
+impl PartialEq for Module {
+    /// Ignores source location metadata.
+    fn eq(&self, other: &Module) -> bool {
+        self.doc == other.doc && self.items == other.items
+    }
+}
+
 /// Items in the core language.
 pub type Item = Ranged<ItemData>;
 
 /// Items in a module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ItemData {
     /// Constant definitions
     Constant(Constant),
@@ -60,8 +67,8 @@ pub enum ItemData {
     StructFormat(StructFormat),
 }
 
-/// An constant definition.
-#[derive(Debug, Clone)]
+/// A constant definition.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Constant {
     /// Doc comment.
     pub doc: Arc<[String]>,
@@ -72,33 +79,25 @@ pub struct Constant {
 }
 
 /// A struct type definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StructType {
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
     pub name: String,
     /// Fields in the struct.
-    pub fields: Vec<TypeField>,
+    pub fields: Vec<FieldDeclaration>,
 }
 
 /// A struct format definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StructFormat {
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// Name of this definition.
     pub name: String,
     /// Fields in the struct.
-    pub fields: Vec<TypeField>,
-}
-
-/// A field in a struct type definition.
-#[derive(Debug, Clone)]
-pub struct TypeField {
-    pub doc: Arc<[String]>,
-    pub name: String,
-    pub term: Arc<Term>,
+    pub fields: Vec<FieldDeclaration>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -133,7 +132,7 @@ impl PartialEq for Primitive {
 pub type Term = Ranged<TermData>;
 
 /// Terms.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TermData {
     /// Global variables.
     Global(String),
@@ -150,6 +149,11 @@ pub enum TermData {
     /// Function eliminations (function application).
     FunctionElim(Arc<Term>, Arc<Term>),
 
+    /// Struct terms.
+    StructTerm(Vec<FieldDefinition>),
+    /// Struct term eliminations (field lookup).
+    StructElim(Arc<Term>, String),
+
     /// Primitives.
     Primitive(Primitive),
     /// A boolean elimination.
@@ -165,6 +169,21 @@ pub enum TermData {
 
     /// Error sentinel.
     Error,
+}
+
+/// A field in a struct type definition.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldDeclaration {
+    pub doc: Arc<[String]>,
+    pub label: Ranged<String>,
+    pub term: Arc<Term>,
+}
+
+/// A field in a struct term.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldDefinition {
+    pub label: Ranged<String>,
+    pub term: Arc<Term>,
 }
 
 /// An environment of global definitions.

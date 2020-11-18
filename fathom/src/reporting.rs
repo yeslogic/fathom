@@ -7,10 +7,11 @@
 #![allow(clippy::useless_format)]
 
 use codespan_reporting::diagnostic::{Diagnostic, Label};
+use itertools::Itertools;
 use pretty::DocAllocator;
 use std::ops::Range;
 
-use crate::lang::{core, surface};
+use crate::lang::{core, surface, Ranged};
 use crate::literal;
 
 /// Global diagnostic messages
@@ -195,8 +196,6 @@ impl ParseMessage {
 }
 
 fn format_expected(expected: &[impl std::fmt::Display]) -> Option<String> {
-    use itertools::Itertools;
-
     expected.split_last().map(|items| match items {
         // TODO: Improve token formatting
         (last, []) => format!("expected {}", last),
@@ -325,9 +324,38 @@ pub enum CoreTypingMessage {
         head_type: core::Term,
         argument_range: Range<usize>,
     },
+    FieldNotFound {
+        file_id: usize,
+        head_range: Range<usize>,
+        head_type: core::Term,
+        label: String,
+    },
+    AmbiguousStructTerm {
+        file_id: usize,
+        term_range: Range<usize>,
+    },
     AmbiguousIntElim {
         file_id: usize,
         term_range: Range<usize>,
+    },
+    DuplicateStructFields {
+        file_id: usize,
+        duplicate_labels: Vec<Ranged<String>>,
+    },
+    MissingStructFields {
+        file_id: usize,
+        term_range: Range<usize>,
+        missing_labels: Vec<Ranged<String>>,
+    },
+    UnexpectedStructFields {
+        file_id: usize,
+        term_range: Range<usize>,
+        unexpected_labels: Vec<Ranged<String>>,
+    },
+    UnexpectedStructTerm {
+        file_id: usize,
+        term_range: Range<usize>,
+        expected_type: core::Term,
     },
 }
 
@@ -461,6 +489,30 @@ impl CoreTypingMessage {
                     ]
                     .join("\n")])
             }
+            CoreTypingMessage::FieldNotFound {
+                file_id,
+                head_range,
+                head_type,
+                label,
+            } => {
+                let head_type = to_doc(head_type);
+
+                Diagnostic::bug()
+                    .with_message(format!(
+                        "could not find field `{}` on type `{}`",
+                        &label,
+                        head_type.pretty(std::usize::MAX),
+                    ))
+                    .with_labels(vec![Label::primary(*file_id, head_range.clone())
+                        .with_message("field not found in this term")])
+            }
+            CoreTypingMessage::AmbiguousStructTerm {
+                file_id,
+                term_range,
+            } => Diagnostic::bug()
+                .with_message("ambiguous struct term")
+                .with_labels(vec![Label::primary(*file_id, term_range.clone())
+                    .with_message("type annotation required")]),
             CoreTypingMessage::AmbiguousIntElim {
                 file_id,
                 term_range,
@@ -468,6 +520,72 @@ impl CoreTypingMessage {
                 .with_message("ambiguous integer elimination")
                 .with_labels(vec![Label::primary(*file_id, term_range.clone())
                     .with_message("type annotation required")]),
+            CoreTypingMessage::DuplicateStructFields {
+                file_id,
+                duplicate_labels,
+            } => Diagnostic::error()
+                .with_message("duplicate fields found in struct")
+                .with_labels(
+                    duplicate_labels
+                        .iter()
+                        .map(|label| {
+                            Label::primary(*file_id, label.range())
+                                .with_message("field already defined")
+                        })
+                        .collect(),
+                ),
+            CoreTypingMessage::MissingStructFields {
+                file_id,
+                term_range,
+                missing_labels,
+            } => Diagnostic::bug()
+                .with_message("missing fields for struct")
+                .with_labels(
+                    std::iter::once(Label::primary(*file_id, term_range.clone()).with_message(
+                        format!(
+                            "missing fields {}",
+                            missing_labels.iter().map(|label| &label.data).format(", ")
+                        ),
+                    ))
+                    .chain(missing_labels.iter().map(|label| {
+                        Label::secondary(*file_id, label.range())
+                            .with_message("field defined on struct here")
+                    }))
+                    .collect(),
+                ),
+            CoreTypingMessage::UnexpectedStructFields {
+                file_id,
+                term_range,
+                unexpected_labels,
+            } => Diagnostic::bug()
+                .with_message("unexpected fields found in struct")
+                .with_labels(
+                    unexpected_labels
+                        .iter()
+                        .map(|label| {
+                            Label::primary(*file_id, label.range()).with_message("unexpected field")
+                        })
+                        .chain(std::iter::once(
+                            Label::secondary(*file_id, term_range.clone())
+                                .with_message("struct instantiated here"),
+                        ))
+                        .collect(),
+                ),
+            CoreTypingMessage::UnexpectedStructTerm {
+                file_id,
+                term_range,
+                expected_type,
+            } => {
+                let expected_type = to_doc(expected_type);
+
+                Diagnostic::bug()
+                    .with_message("unexpected struct term")
+                    .with_labels(vec![Label::primary(*file_id, term_range.clone())
+                        .with_message(format!(
+                            "expected `{}`, found struct",
+                            expected_type.pretty(std::usize::MAX)
+                        ))])
+            }
         }
     }
 }
@@ -477,12 +595,12 @@ impl CoreTypingMessage {
 /// [`pass::surface_to_core`]: crate::pass::surface_to_core
 #[derive(Debug, Clone)]
 pub enum SurfaceToCoreMessage {
-    FieldMissingStructAnnotation {
+    MissingStructAnnotation {
         file_id: usize,
         name: String,
         name_range: Range<usize>,
     },
-    FieldInvalidStructAnnotation {
+    InvalidStructAnnotation {
         file_id: usize,
         name: String,
         ann_type: surface::Term,
@@ -521,6 +639,12 @@ pub enum SurfaceToCoreMessage {
         head_type: surface::Term,
         argument_range: Range<usize>,
     },
+    FieldNotFound {
+        file_id: usize,
+        head_range: Range<usize>,
+        head_type: surface::Term,
+        label: Ranged<String>,
+    },
     AmbiguousMatchExpression {
         file_id: usize,
         term_range: Range<usize>,
@@ -539,6 +663,10 @@ pub enum SurfaceToCoreMessage {
         file_id: usize,
         literal_range: Range<usize>,
     },
+    AmbiguousStructTerm {
+        file_id: usize,
+        term_range: Range<usize>,
+    },
     UnsupportedPatternType {
         file_id: usize,
         scrutinee_range: Range<usize>,
@@ -552,6 +680,25 @@ pub enum SurfaceToCoreMessage {
         file_id: usize,
         pattern_range: Range<usize>,
     },
+    DuplicateStructFields {
+        file_id: usize,
+        duplicate_labels: Vec<Ranged<String>>,
+    },
+    MissingStructFields {
+        file_id: usize,
+        term_range: Range<usize>,
+        missing_labels: Vec<Ranged<String>>,
+    },
+    UnexpectedStructFields {
+        file_id: usize,
+        term_range: Range<usize>,
+        unexpected_labels: Vec<Ranged<String>>,
+    },
+    UnexpectedStructTerm {
+        file_id: usize,
+        term_range: Range<usize>,
+        expected_type: surface::Term,
+    },
 }
 
 impl SurfaceToCoreMessage {
@@ -563,7 +710,7 @@ impl SurfaceToCoreMessage {
         let to_doc = |term| crate::pass::surface_to_pretty::from_term(pretty_alloc, term).1;
 
         match self {
-            SurfaceToCoreMessage::FieldMissingStructAnnotation {
+            SurfaceToCoreMessage::MissingStructAnnotation {
                 file_id,
                 name,
                 name_range,
@@ -575,7 +722,7 @@ impl SurfaceToCoreMessage {
                     .with_labels(vec![Label::primary(*file_id, expected_range)
                         .with_message("annotation expected here")])
             }
-            SurfaceToCoreMessage::FieldInvalidStructAnnotation {
+            SurfaceToCoreMessage::InvalidStructAnnotation {
                 file_id,
                 name,
                 ann_type,
@@ -703,6 +850,26 @@ impl SurfaceToCoreMessage {
                     ]
                     .join("\n")])
             }
+            SurfaceToCoreMessage::FieldNotFound {
+                file_id,
+                head_range,
+                head_type,
+                label,
+            } => {
+                let head_type = to_doc(head_type);
+
+                Diagnostic::error()
+                    .with_message(format!(
+                        "could not find field `{}` on type `{}`",
+                        &label.data,
+                        head_type.pretty(std::usize::MAX),
+                    ))
+                    .with_labels(vec![
+                        Label::primary(*file_id, label.range()).with_message("non-existent field"),
+                        Label::secondary(*file_id, head_range.clone())
+                            .with_message("field not found in this term"),
+                    ])
+            }
             SurfaceToCoreMessage::AmbiguousMatchExpression {
                 file_id,
                 term_range,
@@ -743,6 +910,13 @@ impl SurfaceToCoreMessage {
                 .with_message("ambiguous numeric literal")
                 .with_labels(vec![Label::primary(*file_id, literal_range.clone())
                     .with_message("type annotation required")]),
+            SurfaceToCoreMessage::AmbiguousStructTerm {
+                file_id,
+                term_range,
+            } => Diagnostic::error()
+                .with_message("ambiguous struct term")
+                .with_labels(vec![Label::primary(*file_id, term_range.clone())
+                    .with_message("type annotation required")]),
             SurfaceToCoreMessage::UnsupportedPatternType {
                 file_id,
                 scrutinee_range,
@@ -779,6 +953,72 @@ impl SurfaceToCoreMessage {
                 .with_message("unreachable pattern")
                 .with_labels(vec![Label::primary(*file_id, pattern_range.clone())
                     .with_message("unreachable pattern")]),
+            SurfaceToCoreMessage::DuplicateStructFields {
+                file_id,
+                duplicate_labels,
+            } => Diagnostic::error()
+                .with_message("duplicate fields found in struct")
+                .with_labels(
+                    duplicate_labels
+                        .iter()
+                        .map(|label| {
+                            Label::primary(*file_id, label.range())
+                                .with_message("field already defined")
+                        })
+                        .collect(),
+                ),
+            SurfaceToCoreMessage::MissingStructFields {
+                file_id,
+                term_range,
+                missing_labels,
+            } => Diagnostic::error()
+                .with_message("missing fields for struct")
+                .with_labels(
+                    std::iter::once(Label::primary(*file_id, term_range.clone()).with_message(
+                        format!(
+                            "missing fields {}",
+                            missing_labels.iter().map(|label| &label.data).format(", ")
+                        ),
+                    ))
+                    .chain(missing_labels.iter().map(|label| {
+                        Label::secondary(*file_id, label.range())
+                            .with_message("field defined on struct here")
+                    }))
+                    .collect(),
+                ),
+            SurfaceToCoreMessage::UnexpectedStructFields {
+                file_id,
+                term_range,
+                unexpected_labels,
+            } => Diagnostic::error()
+                .with_message("unexpected fields found in struct")
+                .with_labels(
+                    unexpected_labels
+                        .iter()
+                        .map(|label| {
+                            Label::primary(*file_id, label.range()).with_message("unexpected field")
+                        })
+                        .chain(std::iter::once(
+                            Label::secondary(*file_id, term_range.clone())
+                                .with_message("struct instantiated here"),
+                        ))
+                        .collect(),
+                ),
+            SurfaceToCoreMessage::UnexpectedStructTerm {
+                file_id,
+                term_range,
+                expected_type,
+            } => {
+                let expected_type = to_doc(expected_type);
+
+                Diagnostic::error()
+                    .with_message("unexpected struct term")
+                    .with_labels(vec![Label::primary(*file_id, term_range.clone())
+                        .with_message(format!(
+                            "expected `{}`, found struct",
+                            expected_type.pretty(std::usize::MAX)
+                        ))])
+            }
         }
     }
 }

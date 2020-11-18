@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use crate::lang::Ranged;
-use crate::lang::core::{Constant, ItemData, Module, Primitive, Sort, StructType, StructFormat, Term, TermData, TypeField};
+use crate::lang::core::{
+    Constant, FieldDeclaration, FieldDefinition, ItemData, Module, Primitive, Sort, StructType,
+    StructFormat, Term, TermData,
+};
 use crate::lang::core::lexer::Token;
 use crate::literal;
 use crate::reporting::{LexerMessage, Message};
@@ -45,6 +48,7 @@ extern {
         "," => Token::Comma,
         "=" => Token::Equals,
         "=>" => Token::EqualsGreater,
+        "." => Token::FullStop,
         "->" => Token::HyphenGreater,
         ";" => Token::Semi,
     }
@@ -70,8 +74,8 @@ ItemData: ItemData = {
     },
     <docs: "doc comment"*>
     "struct" <name: Name> ":" "Type" "{"
-        <mut fields: (<TypeField> ",")*>
-        <last: TypeField?>
+        <mut fields: (<FieldDeclaration> ",")*>
+        <last: FieldDeclaration?>
     "}" => {
         fields.extend(last);
 
@@ -83,8 +87,8 @@ ItemData: ItemData = {
     },
     <docs: "doc comment"*>
     "struct" <name: Name> ":" "Format" "{"
-        <mut fields: (<TypeField> ",")*>
-        <last: TypeField?>
+        <mut fields: (<FieldDeclaration> ",")*>
+        <last: FieldDeclaration?>
     "}" => {
         fields.extend(last);
 
@@ -93,16 +97,6 @@ ItemData: ItemData = {
             name,
             fields
         })
-    },
-};
-
-TypeField: TypeField = {
-    <doc: "doc comment"*> <name: Name> ":" <term: Term> => {
-        TypeField {
-            doc: Arc::from(doc),
-            name,
-            term: Arc::new(term),
-        }
     },
 };
 
@@ -138,6 +132,12 @@ AtomicTermData: TermData = {
     "Type" => TermData::Sort(Sort::Type),
     "Kind" => TermData::Sort(Sort::Kind),
     "repr" => TermData::Repr,
+    "struct" "{" <mut fields: (<FieldDefinition> ",")*> <last: FieldDefinition?> "}" => {
+        fields.extend(last);
+
+        TermData::StructTerm(fields)
+    },
+    <term: AtomicTerm> "." <name: Name> => TermData::StructElim(Arc::new(term), name),
     "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" => {
         TermData::BoolElim(Arc::new(head), Arc::new(if_true), Arc::new(if_false))
     },
@@ -172,6 +172,24 @@ AtomicTermData: TermData = {
         }
     },
     "Format" => TermData::FormatType,
+};
+
+#[inline]
+FieldDeclaration: FieldDeclaration = {
+    <doc: "doc comment"*> <label: Ranged<Name>> ":" <term: Term> => {
+        FieldDeclaration {
+            doc: Arc::from(doc),
+            label,
+            term: Arc::new(term),
+        }
+    },
+};
+
+#[inline]
+FieldDefinition: FieldDefinition = {
+    <label: Ranged<Name>> "=" <term: Term> => {
+        FieldDefinition { label, term: Arc::new(term) }
+    },
 };
 
 #[inline]
