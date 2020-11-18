@@ -4,13 +4,13 @@
 //! debugging purposes.
 
 use std::collections::HashMap;
-use std::ops::Range;
 use std::sync::Arc;
 
-use crate::lang::core::semantics::{self, Elim, Head, Value};
+use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{
     Globals, Item, ItemData, Module, Primitive, Sort, StructType, Term, TermData,
 };
+use crate::lang::Range;
 use crate::reporting::{CoreTypingMessage, Message};
 
 /// Returns the sorts of sorts.
@@ -76,13 +76,11 @@ impl<'me> Context<'me> {
     fn force_item<'context, 'value>(
         &'context self,
         value: &'value Value,
-    ) -> Option<(Range<usize>, &'context ItemData, &'value [Elim])> {
-        match value {
-            Value::Stuck(Head::Item(name), elims) => match self.items.get(name) {
-                Some(item) => Some((item.range(), &item.data, elims)),
-                None => panic!("could not find an item called `{}` in the context", name),
-            },
-            _ => None,
+    ) -> Option<(Range, &'context ItemData, &'value [Elim])> {
+        let (name, elims) = value.try_item()?;
+        match self.items.get(name) {
+            Some(item) => Some((item.range, &item.data, elims)),
+            None => panic!("could not find an item called `{}` in the context", name),
         }
     }
 
@@ -91,10 +89,10 @@ impl<'me> Context<'me> {
     fn force_struct_type<'context, 'value>(
         &'context self,
         value: &'value Value,
-    ) -> Option<(Range<usize>, &'context StructType, &'value [Elim])> {
+    ) -> Option<(Range, &'context StructType, &'value [Elim])> {
         match self.force_item(value) {
-            Some((ref range, ItemData::StructType(struct_type), elims)) => {
-                Some((range.clone(), struct_type, elims))
+            Some((range, ItemData::StructType(struct_type), elims)) => {
+                Some((range, struct_type, elims))
             }
             Some(_) | None => None,
         }
@@ -149,7 +147,7 @@ impl<'me> Context<'me> {
                             self.push_message(CoreTypingMessage::FieldRedeclaration {
                                 file_id,
                                 field_name: field.label.data.clone(),
-                                record_range: item.range(),
+                                record_range: item.range,
                             });
                         }
                     }
@@ -170,7 +168,7 @@ impl<'me> Context<'me> {
                             self.push_message(CoreTypingMessage::FieldRedeclaration {
                                 file_id,
                                 field_name: field.label.data.clone(),
-                                record_range: item.range(),
+                                record_range: item.range,
                             });
                         }
                     }
@@ -185,11 +183,11 @@ impl<'me> Context<'me> {
                     entry.insert(item.clone());
                 }
                 Entry::Occupied(entry) => {
-                    let original_range = entry.get().range();
+                    let original_range = entry.get().range;
                     self.push_message(CoreTypingMessage::ItemRedefinition {
                         file_id,
                         name: item_name,
-                        found_range: item.range(),
+                        found_range: item.range,
                         original_range,
                     });
                 }
@@ -208,7 +206,7 @@ impl<'me> Context<'me> {
             r#type => {
                 self.push_message(CoreTypingMessage::UniverseMismatch {
                     file_id,
-                    term_range: term.range(),
+                    term_range: term.range,
                     found_type: self.read_back(&r#type),
                 });
                 None
@@ -231,7 +229,7 @@ impl<'me> Context<'me> {
                     Some((_, _, _)) => {
                         self.push_message(crate::reporting::Message::NotYetImplemented {
                             file_id,
-                            range: term.range(),
+                            range: term.range,
                             feature_name: "struct parameters",
                         });
                         return;
@@ -240,7 +238,7 @@ impl<'me> Context<'me> {
                         let expected_type = self.read_back(expected_type);
                         self.push_message(CoreTypingMessage::UnexpectedStructTerm {
                             file_id,
-                            term_range: term.range(),
+                            term_range: term.range,
                             expected_type,
                         });
                         return;
@@ -288,27 +286,27 @@ impl<'me> Context<'me> {
                 if !missing_labels.is_empty() {
                     self.push_message(CoreTypingMessage::MissingStructFields {
                         file_id,
-                        term_range: term.range(),
+                        term_range: term.range,
                         missing_labels,
                     });
                 }
                 if !unexpected_labels.is_empty() {
                     self.push_message(CoreTypingMessage::UnexpectedStructFields {
                         file_id,
-                        term_range: term.range(),
+                        term_range: term.range,
                         unexpected_labels,
                     });
                 }
             }
 
             (TermData::BoolElim(term, if_true, if_false), _) => {
-                let bool_type = Arc::new(Value::global("Bool"));
+                let bool_type = Arc::new(Value::global("Bool", Vec::new()));
                 self.check_type(file_id, term, &bool_type);
                 self.check_type(file_id, if_true, expected_type);
                 self.check_type(file_id, if_false, expected_type);
             }
             (TermData::IntElim(head, branches, default), _) => {
-                let int_type = Arc::new(Value::global("Int"));
+                let int_type = Arc::new(Value::global("Int", Vec::new()));
                 self.check_type(file_id, head, &int_type);
                 for term in branches.values() {
                     self.check_type(file_id, term, expected_type);
@@ -320,7 +318,7 @@ impl<'me> Context<'me> {
                 found_type if self.is_equal(&found_type, expected_type) => {}
                 found_type => self.push_message(CoreTypingMessage::TypeMismatch {
                     file_id,
-                    term_range: term.range(),
+                    term_range: term.range,
                     expected_type: self.read_back(expected_type),
                     found_type: self.read_back(&found_type),
                 }),
@@ -337,7 +335,7 @@ impl<'me> Context<'me> {
                     self.push_message(CoreTypingMessage::GlobalNameNotFound {
                         file_id,
                         name: name.clone(),
-                        name_range: term.range(),
+                        name_range: term.range,
                     });
                     Arc::new(Value::Error)
                 }
@@ -348,7 +346,7 @@ impl<'me> Context<'me> {
                     self.push_message(CoreTypingMessage::ItemNameNotFound {
                         file_id,
                         name: name.clone(),
-                        name_range: term.range(),
+                        name_range: term.range,
                     });
                     Arc::new(Value::Error)
                 }
@@ -367,7 +365,7 @@ impl<'me> Context<'me> {
                 None => {
                     self.push_message(CoreTypingMessage::TermHasNoType {
                         file_id,
-                        term_range: term.range(),
+                        term_range: term.range,
                     });
                     Arc::new(Value::Error)
                 }
@@ -394,9 +392,9 @@ impl<'me> Context<'me> {
                     head_type => {
                         self.push_message(CoreTypingMessage::NotAFunction {
                             file_id,
-                            head_range: head.range(),
+                            head_range: head.range,
                             head_type: self.read_back(head_type),
-                            argument_range: argument.range(),
+                            argument_range: argument.range,
                         });
                         Arc::new(Value::Error)
                     }
@@ -406,7 +404,7 @@ impl<'me> Context<'me> {
             TermData::StructTerm(_) => {
                 self.push_message(CoreTypingMessage::AmbiguousStructTerm {
                     file_id,
-                    term_range: term.range(),
+                    term_range: term.range,
                 });
                 Arc::new(Value::Error)
             }
@@ -425,7 +423,7 @@ impl<'me> Context<'me> {
                     Some((_, _, _)) => {
                         self.push_message(crate::reporting::Message::NotYetImplemented {
                             file_id,
-                            range: term.range.clone(),
+                            range: term.range,
                             feature_name: "struct parameters",
                         });
                         return Arc::new(Value::Error);
@@ -441,7 +439,7 @@ impl<'me> Context<'me> {
                         let head_type = self.read_back(&head_type);
                         self.push_message(CoreTypingMessage::FieldNotFound {
                             file_id,
-                            head_range: head.range(),
+                            head_range: head.range,
                             head_type,
                             label: label.clone(),
                         });
@@ -451,14 +449,12 @@ impl<'me> Context<'me> {
             }
 
             TermData::Primitive(primitive) => match primitive {
-                // TODO: Lookup globals in environment
-                Primitive::Int(_) => Arc::new(Value::global("Int")),
-                Primitive::F32(_) => Arc::new(Value::global("F32")),
-                Primitive::F64(_) => Arc::new(Value::global("F64")),
+                Primitive::Int(_) => Arc::new(Value::global("Int", Vec::new())),
+                Primitive::F32(_) => Arc::new(Value::global("F32", Vec::new())),
+                Primitive::F64(_) => Arc::new(Value::global("F64", Vec::new())),
             },
             TermData::BoolElim(head, if_true, if_false) => {
-                // TODO: Lookup globals in environment
-                let bool_type = Arc::new(Value::global("Bool"));
+                let bool_type = Arc::new(Value::global("Bool", Vec::new()));
                 self.check_type(file_id, head, &bool_type);
                 let if_true_type = self.synth_type(file_id, if_true);
                 let if_false_type = self.synth_type(file_id, if_false);
@@ -468,7 +464,7 @@ impl<'me> Context<'me> {
                 } else {
                     self.push_message(CoreTypingMessage::TypeMismatch {
                         file_id,
-                        term_range: if_false.range(),
+                        term_range: if_false.range,
                         expected_type: self.read_back(&if_true_type),
                         found_type: self.read_back(&if_false_type),
                     });
@@ -478,7 +474,7 @@ impl<'me> Context<'me> {
             TermData::IntElim(_, _, _) => {
                 self.push_message(CoreTypingMessage::AmbiguousIntElim {
                     file_id,
-                    term_range: term.range(),
+                    term_range: term.range,
                 });
                 Arc::new(Value::Error)
             }

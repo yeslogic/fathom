@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::lang::Ranged;
+use crate::lang::{Range, Ranged};
 use crate::lang::core::{
     Constant, FieldDeclaration, FieldDefinition, ItemData, Module, Primitive, Sort, StructType,
     StructFormat, Term, TermData,
@@ -147,26 +147,26 @@ AtomicTermData: TermData = {
         let branches = branches
             .into_iter()
             .filter_map(|(start, literal, end, term)| Some((
-                literal::State::new(file_id, start..end, literal, messages).number_to_big_int()?,
+                literal::State::new(file_id, Range::from(start..end), literal, messages).number_to_big_int()?,
                 Arc::new(term),
             ))).collect();
 
         TermData::IntElim(Arc::new(head), branches, Arc::new(default))
     },
     "int" <start: @L> <literal: "numeric literal"> <end: @R> => {
-        match literal::State::new(file_id, start..end, literal, messages).number_to_big_int() {
+        match literal::State::new(file_id, Range::from(start..end), literal, messages).number_to_big_int() {
             Some(value) => TermData::Primitive(Primitive::Int(value)),
             None => TermData::Error,
         }
     },
     "f32" <start: @L> <literal: "numeric literal"> <end: @R> => {
-        match literal::State::new(file_id, start..end, literal, messages).number_to_float() {
+        match literal::State::new(file_id, Range::from(start..end), literal, messages).number_to_float() {
             Some(value) => TermData::Primitive(Primitive::F32(value)),
             None => TermData::Error,
         }
     },
     "f64" <start: @L> <literal: "numeric literal"> <end: @R> => {
-        match literal::State::new(file_id, start..end, literal, messages).number_to_float() {
+        match literal::State::new(file_id, Range::from(start..end), literal, messages).number_to_float() {
             Some(value) => TermData::Primitive(Primitive::F64(value)),
             None => TermData::Error,
         }
@@ -199,5 +199,5 @@ Name: String = {
 
 #[inline]
 Ranged<T>: Ranged<T> = {
-    <start: @L> <data: T> <end: @R> => Ranged::new(start..end, data),
+    <start: @L> <data: T> <end: @R> => Ranged::new(Range::from(start..end), data),
 };
