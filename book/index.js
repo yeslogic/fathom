@@ -2,7 +2,7 @@ import hljs from "highlight.js/lib/core";
 
 hljs.registerLanguage("fathom", (hljs) => {
   const KEYWORDS = {
-    keyword: "else enum Format if Kind match repr struct Type",
+    keyword: "const else enum Format if Kind match repr struct Type",
     built_in: [
       "Int F32 F64 Bool true false Array",
       "U8 U16Le U16Be U32Le U32Be U64Le U64Be",
