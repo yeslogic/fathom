@@ -1,0 +1,19 @@
+struct ArrayType : Type {
+    len : global Int,
+    data : (global Array local 0) global Int,
+}
+
+struct ArrayFormat : Format {
+    len : global U32Be,
+    data : (global FormatArray local 0) global U32Be,
+}
+
+struct BadArrayType : Type {
+    len : global Bool,
+    data : (global Array !) global Int,
+}
+
+struct BadArrayFormat : Format {
+    len : global F32Be,
+    data : (global FormatArray !) global U32Be,
+}

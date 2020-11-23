@@ -8,6 +8,7 @@
 //! - bidirectional type checking (TODO)
 //! - unification (TODO)
 
+use contracts::debug_ensures;
 use num_bigint::BigInt;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -25,12 +26,19 @@ use crate::reporting::{Message, SurfaceToCoreMessage};
 pub struct Context<'me> {
     /// The global environment.
     globals: &'me core::Globals,
-    /// Labels that have previously been used for items.
-    items: HashMap<String, core::Item>,
-    /// List of types currently bound in this context.
-    /// These could either refer to items or local bindings.
-    types: Vec<(String, Arc<Value>)>,
-    /// Diagnostic messages collected during type checking.
+    /// Top-level item declarations.
+    item_declarations: HashMap<String, Arc<Value>>,
+    /// Top-level item definitions.
+    item_definitions: HashMap<String, core::Item>,
+    /// Substitutions from local names to the level in which they were bound.
+    local_levels: Vec<(String, core::LocalLevel)>,
+    /// Local variable declarations.
+    local_declarations: core::Locals<Arc<Value>>,
+    /// Local variable definitions.
+    local_definitions: core::Locals<Arc<Value>>,
+    /// Core-to-surface distillation context.
+    core_to_surface: core_to_surface::Context,
+    /// Diagnostic messages collected during elaboration.
     messages: Vec<Message>,
 }
 
@@ -39,10 +47,63 @@ impl<'me> Context<'me> {
     pub fn new(globals: &'me core::Globals) -> Context<'me> {
         Context {
             globals,
-            items: HashMap::new(),
-            types: Vec::new(),
+            item_declarations: HashMap::new(),
+            item_definitions: HashMap::new(),
+            local_levels: Vec::new(),
+            local_declarations: core::Locals::new(),
+            local_definitions: core::Locals::new(),
+            core_to_surface: core_to_surface::Context::new(),
             messages: Vec::new(),
         }
+    }
+
+    /// Get the next level to be used for a local entry.
+    fn next_level(&self) -> core::LocalLevel {
+        self.local_declarations.size().next_level()
+    }
+
+    /// Get the most recently bound local variable of a given name.
+    ///
+    /// Returns the [`core::LocalIndex`] of the variable at the current binding
+    /// depth and the type that the variable was bound with.
+    fn get_local(&self, name: &str) -> Option<(core::LocalIndex, &Arc<Value>)> {
+        let (_, level) = self.local_levels.iter().rev().find(|(n, _)| n == name)?;
+        let index = level.to_index(self.local_declarations.size()).unwrap();
+        let r#type = self.local_declarations.get(index)?;
+        Some((index, r#type))
+    }
+
+    /// Push a local entry.
+    fn push_local(&mut self, name: String, value: Arc<Value>, r#type: Arc<Value>) {
+        self.local_levels.push((name.clone(), self.next_level()));
+        self.local_declarations.push(r#type);
+        self.local_definitions.push(value);
+        self.core_to_surface.push_local(name);
+    }
+
+    /// Push a local parameter.
+    fn push_local_param(&mut self, name: String, r#type: Arc<Value>) -> Arc<Value> {
+        let value = Arc::new(Value::local(self.next_level(), Vec::new()));
+        self.push_local(name, value.clone(), r#type);
+        value
+    }
+
+    /// Pop a local entry.
+    #[allow(dead_code)]
+    fn pop_local(&mut self) {
+        self.local_levels.pop();
+        self.local_declarations.pop();
+        self.local_definitions.pop();
+        self.core_to_surface.pop_local();
+    }
+
+    /// Pop the given number of local entries.
+    fn pop_many_locals(&mut self, count: usize) {
+        self.local_levels
+            .truncate(self.local_levels.len().saturating_sub(count));
+        self.local_declarations.pop_many(count);
+        self.local_definitions.pop_many(count);
+        self.core_to_surface.pop_many_locals(count);
     }
 
     /// Store a diagnostic message in the context for later reporting.
@@ -55,12 +116,6 @@ impl<'me> Context<'me> {
         self.messages.drain(..)
     }
 
-    /// Lookup the type of a binding corresponding to `name` in the context,
-    /// returning `None` if `name` was not yet bound.
-    pub fn lookup_type(&self, name: &str) -> Option<&Arc<Value>> {
-        Some(&self.types.iter().rev().find(|(n, _)| *n == name)?.1)
-    }
-
     /// Force a value to resolve to an item, returning `None` if the value did
     /// not refer to an item.
     fn force_item<'context, 'value>(
@@ -68,7 +123,7 @@ impl<'me> Context<'me> {
         value: &'value Value,
     ) -> Option<(Range, &'context core::ItemData, &'value [Elim])> {
         let (name, elims) = value.try_item()?;
-        match self.items.get(name) {
+        match self.item_definitions.get(name) {
             Some(item) => Some((item.range, &item.data, elims)),
             None => panic!("could not find an item called `{}` in the context", name),
         }
@@ -92,8 +147,13 @@ impl<'me> Context<'me> {
     ///
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [`core::Term`]: crate::lang::core::Term
-    pub fn eval(&self, term: &core::Term) -> Arc<Value> {
-        semantics::eval(self.globals, &self.items, term)
+    pub fn eval(&mut self, term: &core::Term) -> Arc<Value> {
+        semantics::eval(
+            self.globals,
+            &self.item_definitions,
+            &mut self.local_definitions,
+            term,
+        )
     }
 
     /// Read back a [`Value`] to a [`core::Term`] using the current
@@ -105,7 +165,12 @@ impl<'me> Context<'me> {
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [`core::Term`]: crate::lang::core::Term
     pub fn read_back(&self, value: &Value) -> core::Term {
-        semantics::read_back(value)
+        semantics::read_back(
+            self.globals,
+            &self.item_definitions,
+            self.local_definitions.size(),
+            value,
+        )
     }
 
     /// Check that one [`Value`] is [computationally equal]
@@ -114,7 +179,7 @@ impl<'me> Context<'me> {
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
     pub fn is_equal(&self, value0: &Value, value1: &Value) -> bool {
-        semantics::is_equal(self.globals, &self.items, value0, value1)
+        semantics::is_equal(self.globals, &self.item_definitions, value0, value1)
     }
 
     /// Distill a [`core::Term`] into a [`surface::Term`].
@@ -122,7 +187,7 @@ impl<'me> Context<'me> {
     /// [`core::Term`]: crate::lang::core::Term
     /// [`surface::Term`]: crate::lang::surface::Term
     pub fn core_to_surface(&mut self, core_term: &core::Term) -> Term {
-        core_to_surface::from_term(&core_term)
+        self.core_to_surface.from_term(&core_term)
     }
 
     /// Read back a [`Value`] into a [`surface::Term`] using the
@@ -140,6 +205,11 @@ impl<'me> Context<'me> {
 
     /// Translate a surface module into a core module,
     /// while validating that it is well-formed.
+    #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
+    #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
+    #[debug_ensures(self.local_levels.len() == old(self.local_levels.len()))]
+    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn from_module(&mut self, surface_module: &Module) -> core::Module {
         let file_id = surface_module.file_id;
         let mut core_items = Vec::new();
@@ -213,11 +283,11 @@ impl<'me> Context<'me> {
             };
 
             // FIXME: Avoid shadowing builtin definitions
-            match self.items.entry(name.data.clone()) {
+            match self.item_definitions.entry(name.data.clone()) {
                 Entry::Vacant(entry) => {
                     let core_item = core::Item::new(item.range, item_data);
                     core_items.push(core_item.clone());
-                    self.types.push((entry.key().clone(), r#type));
+                    self.item_declarations.insert(entry.key().clone(), r#type);
                     entry.insert(core_item);
                 }
                 Entry::Occupied(entry) => {
@@ -232,8 +302,8 @@ impl<'me> Context<'me> {
             }
         }
 
-        self.items.clear();
-        self.types.clear();
+        self.item_definitions.clear();
+        self.item_declarations.clear();
 
         core::Module {
             file_id,
@@ -242,7 +312,7 @@ impl<'me> Context<'me> {
         }
     }
 
-    pub fn is_struct_type(&mut self, file_id: usize, struct_type: &StructType) -> core::ItemData {
+    fn is_struct_type(&mut self, file_id: usize, struct_type: &StructType) -> core::ItemData {
         use std::collections::hash_map::Entry;
 
         // Field labels that have previously seen, along with the source
@@ -254,15 +324,20 @@ impl<'me> Context<'me> {
         for field in &struct_type.fields {
             let field_range = Range::from(field.label.range.start..field.term.range.end);
             let format_type = Arc::new(Value::Sort(Sort::Type));
-            let r#type = self.check_type(file_id, &field.term, &format_type);
+            let core_type = self.check_type(file_id, &field.term, &format_type);
 
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
-                    core_fields.push(core::FieldDeclaration {
+                    let core_type = Arc::new(core_type);
+                    let r#type = self.eval(&core_type);
+                    let type_field = core::FieldDeclaration {
                         doc: field.doc.clone(),
                         label: field.label.clone(),
-                        term: Arc::new(r#type),
-                    });
+                        term: core_type,
+                    };
+
+                    core_fields.push(type_field);
+                    self.push_local_param(field.label.data.clone(), r#type);
 
                     entry.insert(field_range);
                 }
@@ -277,6 +352,8 @@ impl<'me> Context<'me> {
             }
         }
 
+        self.pop_many_locals(seen_field_labels.len());
+
         core::ItemData::StructType(core::StructType {
             doc: struct_type.doc.clone(),
             name: struct_type.name.data.clone(),
@@ -284,7 +361,7 @@ impl<'me> Context<'me> {
         })
     }
 
-    pub fn is_struct_format(&mut self, file_id: usize, struct_type: &StructType) -> core::ItemData {
+    fn is_struct_format(&mut self, file_id: usize, struct_type: &StructType) -> core::ItemData {
         use std::collections::hash_map::Entry;
 
         // Field names that have previously seen, along with the source
@@ -296,15 +373,20 @@ impl<'me> Context<'me> {
         for field in &struct_type.fields {
             let field_range = Range::from(field.label.range.start..field.term.range.end);
             let format_type = Arc::new(Value::FormatType);
-            let r#type = self.check_type(file_id, &field.term, &format_type);
+            let core_type = self.check_type(file_id, &field.term, &format_type);
 
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
-                    core_fields.push(core::FieldDeclaration {
+                    let core_type = Arc::new(core_type);
+                    let r#type = semantics::apply_repr(self.eval(&core_type));
+                    let type_field = core::FieldDeclaration {
                         doc: field.doc.clone(),
                         label: field.label.clone(),
-                        term: Arc::new(r#type),
-                    });
+                        term: core_type,
+                    };
+
+                    core_fields.push(type_field);
+                    self.push_local_param(field.label.data.clone(), r#type);
 
                     entry.insert(field_range);
                 }
@@ -319,6 +401,8 @@ impl<'me> Context<'me> {
             }
         }
 
+        self.pop_many_locals(seen_field_labels.len());
+
         core::ItemData::StructFormat(core::StructFormat {
             doc: struct_type.doc.clone(),
             name: struct_type.name.data.clone(),
@@ -327,6 +411,11 @@ impl<'me> Context<'me> {
     }
 
     /// Validate that a surface term is a type, and translate it into the core syntax.
+    #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
+    #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
+    #[debug_ensures(self.local_levels.len() == old(self.local_levels.len()))]
+    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn is_type(
         &mut self,
         file_id: usize,
@@ -356,6 +445,11 @@ impl<'me> Context<'me> {
 
     /// Check that a surface term is an element of a type, and translate it into the
     /// core syntax.
+    #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
+    #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
+    #[debug_ensures(self.local_levels.len() == old(self.local_levels.len()))]
+    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn check_type(
         &mut self,
         file_id: usize,
@@ -416,10 +510,13 @@ impl<'me> Context<'me> {
                                 label: field_definition.label.clone(),
                                 term: Arc::new(core_term),
                             });
+                            // TODO: pop field
                         }
                         None => missing_labels.push(field_declaration.label.clone()),
                     }
                 }
+
+                // TODO: pop field
 
                 // Collect unexpected fields that were defined in the term but
                 // were not declared in the type.
@@ -601,20 +698,28 @@ impl<'me> Context<'me> {
     }
 
     /// Synthesize the type of a surface term, and elaborate it into the core syntax.
+    #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
+    #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
+    #[debug_ensures(self.local_levels.len() == old(self.local_levels.len()))]
+    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn synth_type(&mut self, file_id: usize, surface_term: &Term) -> (core::Term, Arc<Value>) {
         match &surface_term.data {
             TermData::Name(name) => {
-                if let Some((r#type, _)) = self.globals.get(name) {
-                    let core_term = core::Term::new(
-                        surface_term.range,
-                        core::TermData::Global(name.to_owned()),
-                    );
-                    return (core_term, self.eval(r#type));
-                }
-                if let Some(r#type) = self.lookup_type(name) {
-                    let core_term =
-                        core::Term::new(surface_term.range, core::TermData::Item(name.to_owned()));
+                if let Some((index, r#type)) = self.get_local(name) {
+                    let term_data = core::TermData::Local(index);
+                    let core_term = core::Term::new(surface_term.range, term_data);
                     return (core_term, r#type.clone());
+                }
+                if let Some(r#type) = self.item_declarations.get(name) {
+                    let term_data = core::TermData::Item(name.to_owned());
+                    let core_term = core::Term::new(surface_term.range, term_data);
+                    return (core_term, r#type.clone());
+                }
+                if let Some((r#type, _)) = self.globals.get(name) {
+                    let term_data = core::TermData::Global(name.to_owned());
+                    let core_term = core::Term::new(surface_term.range, term_data);
+                    return (core_term, self.eval(r#type));
                 }
 
                 self.push_message(SurfaceToCoreMessage::VarNameNotFound {
@@ -744,6 +849,7 @@ impl<'me> Context<'me> {
                     Some((_, struct_type, [])) => struct_type
                         .fields
                         .iter()
+                        // TODO: push field bindings
                         .find(|field| field.label.data == label.data)
                         .cloned(),
                     Some((_, _, _)) => {
@@ -759,6 +865,7 @@ impl<'me> Context<'me> {
                     }
                     None => None,
                 };
+                // TODO: pop fields
 
                 let field_type = match field {
                     // NOTE: It should be safe to evaluate the field type

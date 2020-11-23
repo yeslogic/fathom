@@ -292,14 +292,19 @@ where
     D::Doc: Clone,
 {
     match &term.data {
-        TermData::Global(name) => (alloc.nil())
+        TermData::Global(global_name) => (alloc.nil())
             .append("global")
             .append(alloc.space())
-            .append(alloc.as_string(name)),
-        TermData::Item(name) => (alloc.nil())
+            .append(alloc.as_string(global_name)),
+        TermData::Item(item_name) => (alloc.nil())
             .append("item")
             .append(alloc.space())
-            .append(alloc.as_string(name)),
+            .append(alloc.as_string(item_name)),
+        TermData::Local(local_index) => (alloc.nil())
+            .append("local")
+            .append(alloc.space())
+            .append(local_index.0.to_string()),
+
         TermData::Ann(term, r#type) => paren(
             alloc,
             prec > Prec::Term,
@@ -315,7 +320,6 @@ where
                         .nest(4),
                 ),
         ),
-
         TermData::Sort(Sort::Type) => alloc.text("Type"),
         TermData::Sort(Sort::Kind) => alloc.text("Kind"),
 

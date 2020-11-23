@@ -283,13 +283,18 @@ impl LiteralParseMessage {
 pub enum CoreTypingMessage {
     GlobalNameNotFound {
         file_id: usize,
-        name: String,
-        name_range: Range,
+        global_name: String,
+        global_name_range: Range,
     },
     ItemNameNotFound {
         file_id: usize,
-        name: String,
-        name_range: Range,
+        item_name: String,
+        item_name_range: Range,
+    },
+    LocalIndexNotFound {
+        file_id: usize,
+        local_index: core::LocalIndex,
+        local_index_range: Range,
     },
     FieldRedeclaration {
         file_id: usize,
@@ -370,21 +375,31 @@ impl CoreTypingMessage {
         match self {
             CoreTypingMessage::GlobalNameNotFound {
                 file_id,
-                name,
-                name_range,
+                global_name,
+                global_name_range,
             } => Diagnostic::bug()
-                .with_message(format!("global `{}` is not defined", name))
-                .with_labels(vec![
-                    Label::primary(*file_id, *name_range).with_message("global is not defined")
-                ]),
+                .with_message(format!("global `{}` is not defined", global_name))
+                .with_labels(vec![Label::primary(*file_id, *global_name_range)
+                    .with_message("global is not defined")]),
             CoreTypingMessage::ItemNameNotFound {
                 file_id,
-                name,
-                name_range,
+                item_name,
+                item_name_range,
             } => Diagnostic::bug()
-                .with_message(format!("cannot find item `{}` in this scope", name))
-                .with_labels(vec![Label::primary(*file_id, *name_range)
+                .with_message(format!("cannot find item `{}` in this scope", item_name))
+                .with_labels(vec![Label::primary(*file_id, *item_name_range)
                     .with_message("item not found in this scope")]),
+            CoreTypingMessage::LocalIndexNotFound {
+                file_id,
+                local_index,
+                local_index_range,
+            } => Diagnostic::bug()
+                .with_message(format!(
+                    "cannot find local `{}` in this scope",
+                    local_index.0,
+                ))
+                .with_labels(vec![Label::primary(*file_id, local_index_range.clone())
+                    .with_message("local not found in this scope")]),
             CoreTypingMessage::FieldRedeclaration {
                 file_id,
                 field_name,

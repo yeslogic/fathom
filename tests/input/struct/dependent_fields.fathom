@@ -1,0 +1,32 @@
+struct ArrayType : Type {
+    len : Int,
+    data : Array len Int,
+}
+
+const test_array_1 : ArrayType = struct {
+    len = 2,
+    data = [1, 2],
+};
+
+const test_array_1_data =
+    test_array_1.data : Array test_array_1.len Int;
+
+const test_array_2 : ArrayType = struct {
+    len = 2,
+    data = [1, 2, 3], //~ error: unexpected array length
+};
+
+struct ArrayFormat : Format {
+    len : U32Be,
+    data : FormatArray len U32Be,
+}
+
+struct BadArrayType : Type {
+    len : Bool,
+    data : Array len Int, //~ error: type mismatch
+}
+
+struct BadArrayFormat : Format {
+    len : F32Be,
+    data : FormatArray len U32Be, //~ error: type mismatch
+}

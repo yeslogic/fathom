@@ -1,6 +1,6 @@
 use fathom_runtime::{FormatReader, ReadError, ReadFormat};
 use num_traits::ToPrimitive;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use crate::lang::core;
@@ -11,6 +11,7 @@ use crate::lang::core::{Globals, Item, ItemData, Module, Primitive, StructFormat
 pub struct Context<'me> {
     globals: &'me Globals,
     items: HashMap<String, Item>,
+    locals: core::Locals<Arc<Value>>,
     reader: FormatReader<'me>,
 }
 
@@ -20,24 +21,28 @@ impl<'me> Context<'me> {
         Context {
             globals,
             items: HashMap::new(),
+            locals: core::Locals::new(),
             reader,
         }
     }
 
     /// Evaluate a term in the parser context.
-    fn eval(&self, term: &core::Term) -> Arc<Value> {
-        semantics::eval(self.globals, &self.items, term)
+    fn eval(&mut self, term: &core::Term) -> Arc<Value> {
+        semantics::eval(self.globals, &self.items, &mut self.locals, term)
     }
 
     /// Read a module item in the context.
+    // TODO: contracts
     pub fn read_item(&mut self, module: &'me Module, name: &str) -> Result<Value, ReadError> {
         for item in &module.items {
             let name = match &item.data {
                 ItemData::Constant(constant) if constant.name == name => {
                     let value = self.eval(&constant.term);
+                    self.items.clear();
                     return self.read_format(&value);
                 }
                 ItemData::StructFormat(struct_format) if struct_format.name == name => {
+                    self.items.clear();
                     return self.read_struct_format(struct_format);
                 }
                 ItemData::Constant(constant) => constant.name.clone(),
@@ -47,6 +52,8 @@ impl<'me> Context<'me> {
             self.items.insert(name, item.clone());
         }
 
+        self.items.clear();
+
         Err(ReadError::InvalidDataDescription)
     }
 
@@ -54,22 +61,32 @@ impl<'me> Context<'me> {
         self.reader.read::<T>()
     }
 
-    fn read_struct_format(&mut self, struct_type: &StructFormat) -> Result<Value, ReadError> {
-        let fields = struct_type
-            .fields
-            .iter()
-            .map(|field_declaration| {
-                let value = self.eval(&field_declaration.term);
-                Ok((
-                    field_declaration.label.data.clone(),
-                    Arc::new(self.read_format(&value)?),
-                ))
-            })
-            .collect::<Result<_, ReadError>>()?;
+    // TODO: contracts
+    fn read_struct_format(&mut self, struct_format: &StructFormat) -> Result<Value, ReadError> {
+        let mut fields = BTreeMap::new();
+
+        for field_declaration in &struct_format.fields {
+            let format = self.eval(&field_declaration.term);
+            match self.read_format(&format) {
+                Ok(value) => {
+                    let label = field_declaration.label.data.clone();
+                    let value = Arc::new(value);
+                    self.locals.push(value.clone());
+                    fields.insert(label, value);
+                }
+                Err(error) => {
+                    self.locals.pop_many(fields.len());
+                    return Err(error);
+                }
+            }
+        }
+
+        self.locals.pop_many(fields.len());
 
         Ok(Value::StructTerm(fields))
     }
 
+    // TODO: contracts
     fn read_format(&mut self, format: &Value) -> Result<Value, ReadError> {
         match format {
             Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
@@ -106,8 +123,8 @@ impl<'me> Context<'me> {
                 }
                 (_, _) => Err(ReadError::InvalidDataDescription),
             },
-            Value::Stuck(Head::Item(name), elims) => {
-                match (self.items.get(name.as_str()).cloned(), elims.as_slice()) {
+            Value::Stuck(Head::Item(item_name), elims) => {
+                match (self.items.get(item_name).cloned(), elims.as_slice()) {
                     (Some(item), []) => match item.data {
                         ItemData::StructFormat(struct_format) => {
                             self.read_struct_format(&struct_format)
@@ -119,6 +136,13 @@ impl<'me> Context<'me> {
                             Err(ReadError::InvalidDataDescription)
                         }
                     },
+                    (Some(_), _) | (None, _) => Err(ReadError::InvalidDataDescription),
+                }
+            }
+            Value::Stuck(Head::Local(local_level), elims) => {
+                let local_index = local_level.to_index(self.locals.size()).unwrap();
+                match (self.locals.get(local_index).cloned(), elims.as_slice()) {
+                    (Some(value), []) => self.read_format(&value),
                     (Some(_), _) | (None, _) => Err(ReadError::InvalidDataDescription),
                 }
             }

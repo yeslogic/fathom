@@ -177,7 +177,8 @@ impl Test {
         core_module: &fathom::lang::core::Module,
     ) {
         let mut context = surface_to_core::Context::new(&GLOBALS);
-        let delaborated_module = context.from_module(&core_to_surface::from_module(core_module));
+        let mut core_to_surface_context = core_to_surface::Context::new();
+        let surface_module = context.from_module(&core_to_surface_context.from_module(core_module));
         let elaboration_messages = context.drain_messages().collect::<Vec<_>>();
 
         if !elaboration_messages.is_empty() {
@@ -199,16 +200,16 @@ impl Test {
             eprintln!();
         }
 
-        if delaborated_module != *core_module {
+        if surface_module != *core_module {
             let arena = pretty::Arena::new();
 
             let pretty_core_module = {
                 let pretty::DocBuilder(_, doc) = core_to_pretty::from_module(&arena, core_module);
                 doc.pretty(100).to_string()
             };
-            let pretty_delaborated_module = {
+            let pretty_surface_module = {
                 let pretty::DocBuilder(_, doc) =
-                    core_to_pretty::from_module(&arena, &delaborated_module);
+                    core_to_pretty::from_module(&arena, &surface_module);
                 doc.pretty(100).to_string()
             };
 
@@ -225,7 +226,7 @@ impl Test {
             }
             eprintln!();
             eprintln_indented(4, "", "---- surface_to_core(core_to_surface(core)) ----");
-            for line in pretty_delaborated_module.lines() {
+            for line in pretty_surface_module.lines() {
                 eprintln_indented(4, "| ", line);
             }
             eprintln!();
@@ -429,7 +430,9 @@ impl Test {
 
     fn compile_doc(&mut self, surface_module: &fathom::lang::surface::Module) {
         let mut output = Vec::new();
-        surface_to_doc::from_module(&mut output, surface_module).unwrap();
+        surface_to_doc::Context::new()
+            .from_module(&mut output, surface_module)
+            .unwrap();
 
         if let Err(error) =
             snapshot::compare(&self.snapshot_filename.with_extension("html"), &output)
