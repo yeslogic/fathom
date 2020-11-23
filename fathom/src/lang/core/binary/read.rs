@@ -1,4 +1,4 @@
-use fathom_runtime::ReadFormat;
+use fathom_runtime::{FormatReader, ReadError, ReadFormat};
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -11,12 +11,12 @@ use crate::lang::core::{Globals, Item, ItemData, Module, Primitive, StructFormat
 pub struct Context<'me> {
     globals: &'me Globals,
     items: HashMap<String, Item>,
-    reader: fathom_runtime::FormatReader<'me>,
+    reader: FormatReader<'me>,
 }
 
 impl<'me> Context<'me> {
     /// Create a new context.
-    pub fn new(globals: &'me Globals, reader: fathom_runtime::FormatReader<'me>) -> Context<'me> {
+    pub fn new(globals: &'me Globals, reader: FormatReader<'me>) -> Context<'me> {
         Context {
             globals,
             items: HashMap::new(),
@@ -30,11 +30,7 @@ impl<'me> Context<'me> {
     }
 
     /// Read a module item in the context.
-    pub fn read_item(
-        &mut self,
-        module: &'me Module,
-        name: &str,
-    ) -> Result<Value, fathom_runtime::ReadError> {
+    pub fn read_item(&mut self, module: &'me Module, name: &str) -> Result<Value, ReadError> {
         for item in &module.items {
             let name = match &item.data {
                 ItemData::Constant(constant) if constant.name == name => {
@@ -51,17 +47,14 @@ impl<'me> Context<'me> {
             self.items.insert(name, item.clone());
         }
 
-        Err(fathom_runtime::ReadError::InvalidDataDescription)
+        Err(ReadError::InvalidDataDescription)
     }
 
-    fn read<T: ReadFormat<'me>>(&mut self) -> Result<T::Host, fathom_runtime::ReadError> {
+    fn read<T: ReadFormat<'me>>(&mut self) -> Result<T::Host, ReadError> {
         self.reader.read::<T>()
     }
 
-    fn read_struct_format(
-        &mut self,
-        struct_type: &StructFormat,
-    ) -> Result<Value, fathom_runtime::ReadError> {
+    fn read_struct_format(&mut self, struct_type: &StructFormat) -> Result<Value, ReadError> {
         let fields = struct_type
             .fields
             .iter()
@@ -72,12 +65,12 @@ impl<'me> Context<'me> {
                     Arc::new(self.read_format(&value)?),
                 ))
             })
-            .collect::<Result<_, fathom_runtime::ReadError>>()?;
+            .collect::<Result<_, ReadError>>()?;
 
         Ok(Value::StructTerm(fields))
     }
 
-    fn read_format(&mut self, format: &Value) -> Result<Value, fathom_runtime::ReadError> {
+    fn read_format(&mut self, format: &Value) -> Result<Value, ReadError> {
         match format {
             Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
                 ("U8", []) => Ok(Value::int(self.read::<fathom_runtime::U8>()?)),
@@ -104,14 +97,14 @@ impl<'me> Context<'me> {
                             Some(len) => Ok(Value::ArrayTerm(
                                 (0..len)
                                     .map(|_| Ok(Arc::new(self.read_format(elem_type)?)))
-                                    .collect::<Result<_, fathom_runtime::ReadError>>()?,
+                                    .collect::<Result<_, ReadError>>()?,
                             )),
-                            None => Err(fathom_runtime::ReadError::InvalidDataDescription),
+                            None => Err(ReadError::InvalidDataDescription),
                         },
-                        _ => Err(fathom_runtime::ReadError::InvalidDataDescription),
+                        _ => Err(ReadError::InvalidDataDescription),
                     }
                 }
-                (_, _) => Err(fathom_runtime::ReadError::InvalidDataDescription),
+                (_, _) => Err(ReadError::InvalidDataDescription),
             },
             Value::Stuck(Head::Item(name), elims) => {
                 match (self.items.get(name.as_str()).cloned(), elims.as_slice()) {
@@ -119,11 +112,9 @@ impl<'me> Context<'me> {
                         ItemData::StructFormat(struct_format) => {
                             self.read_struct_format(&struct_format)
                         }
-                        _ => Err(fathom_runtime::ReadError::InvalidDataDescription),
+                        _ => Err(ReadError::InvalidDataDescription),
                     },
-                    (Some(_), _) | (None, _) => {
-                        Err(fathom_runtime::ReadError::InvalidDataDescription)
-                    }
+                    (Some(_), _) | (None, _) => Err(ReadError::InvalidDataDescription),
                 }
             }
             Value::Stuck(Head::Error, _)
@@ -134,7 +125,7 @@ impl<'me> Context<'me> {
             | Value::Primitive(_)
             | Value::FormatType
             | Value::Repr
-            | Value::Error => Err(fathom_runtime::ReadError::InvalidDataDescription),
+            | Value::Error => Err(ReadError::InvalidDataDescription),
         }
     }
 }
