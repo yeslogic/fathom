@@ -31,6 +31,9 @@ pub enum Value {
     /// Struct terms.
     StructTerm(BTreeMap<String, Arc<Value>>),
 
+    /// Array terms.
+    ArrayTerm(Vec<Arc<Value>>),
+
     /// Primitives.
     Primitive(Primitive),
 
@@ -170,6 +173,15 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
         TermData::StructElim(head, field) => {
             let head = eval(globals, items, head);
             apply_struct_elim(head, field)
+        }
+
+        TermData::ArrayTerm(elem_terms) => {
+            let elem_values = elem_terms
+                .iter()
+                .map(|elem_term| eval(globals, items, elem_term))
+                .collect();
+
+            Arc::new(Value::ArrayTerm(elem_values))
         }
 
         TermData::Primitive(primitive) => Arc::new(Value::Primitive(primitive.clone())),
@@ -345,6 +357,13 @@ pub fn read_back(value: &Value) -> Term {
                     label: Ranged::from(label.clone()),
                     term: Arc::new(read_back(value)),
                 })
+                .collect(),
+        )),
+
+        Value::ArrayTerm(elem_values) => Term::from(TermData::ArrayTerm(
+            elem_values
+                .iter()
+                .map(|elem_value| Arc::new(read_back(elem_value)))
                 .collect(),
         )),
 

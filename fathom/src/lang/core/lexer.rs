@@ -21,6 +21,8 @@ pub enum Token<'source> {
     #[regex(r"[-+]?[0-9][a-zA-Z0-9_\.]*")]
     NumericLiteral(&'source str),
 
+    #[token("array")]
+    Array,
     #[token("bool_elim")]
     BoolElim,
     #[token("const")]
@@ -52,6 +54,10 @@ pub enum Token<'source> {
     OpenBrace,
     #[token("}")]
     CloseBrace,
+    #[token("[")]
+    OpenBracket,
+    #[token("]")]
+    CloseBracket,
     #[token("(")]
     OpenParen,
     #[token(")")]
@@ -91,6 +97,7 @@ impl<'source> fmt::Display for Token<'source> {
             Token::StringLiteral(source) => write!(f, "{}", source),
             Token::NumericLiteral(source) => write!(f, "{}", source),
 
+            Token::Array => write!(f, "array"),
             Token::BoolElim => write!(f, "bool_elim"),
             Token::Const => write!(f, "const"),
             Token::F32 => write!(f, "f32"),
@@ -107,6 +114,8 @@ impl<'source> fmt::Display for Token<'source> {
 
             Token::OpenBrace => write!(f, "{{"),
             Token::CloseBrace => write!(f, "}}"),
+            Token::OpenBracket => write!(f, "["),
+            Token::CloseBracket => write!(f, "]"),
             Token::OpenParen => write!(f, "("),
             Token::CloseParen => write!(f, ")"),
 

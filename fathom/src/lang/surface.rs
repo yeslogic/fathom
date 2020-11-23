@@ -125,6 +125,9 @@ pub enum TermData {
     /// Struct term eliminations (field lookup).
     StructElim(Box<Term>, Ranged<String>),
 
+    /// Sequence terms.
+    SequenceTerm(Vec<Term>),
+
     /// Numeric literals.
     NumberLiteral(String),
     /// If-else expressions.

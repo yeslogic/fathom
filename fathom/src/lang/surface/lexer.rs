@@ -58,6 +58,10 @@ pub enum Token<'source> {
     OpenBrace,
     #[token("}")]
     CloseBrace,
+    #[token("[")]
+    OpenBracket,
+    #[token("]")]
+    CloseBracket,
     #[token("(")]
     OpenParen,
     #[token(")")]
@@ -116,6 +120,8 @@ impl<'source> fmt::Display for Token<'source> {
 
             Token::OpenBrace => write!(f, "{{"),
             Token::CloseBrace => write!(f, "}}"),
+            Token::OpenBracket => write!(f, "["),
+            Token::CloseBracket => write!(f, "]"),
             Token::OpenParen => write!(f, "("),
             Token::CloseParen => write!(f, ")"),
 

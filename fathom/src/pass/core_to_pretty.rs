@@ -348,6 +348,20 @@ where
             .append(".")
             .append(alloc.as_string(label)),
 
+        TermData::ArrayTerm(elem_terms) => (alloc.nil())
+            .append("array")
+            .append(alloc.space())
+            .append("[")
+            .append(
+                alloc.intersperse(
+                    elem_terms
+                        .iter()
+                        .map(|elem_term| from_term(alloc, elem_term)),
+                    alloc.text(",").append(alloc.space()),
+                ),
+            )
+            .append("]"),
+
         TermData::Primitive(primitive) => from_primitive(alloc, primitive),
         TermData::BoolElim(head, if_true, if_false) => (alloc.nil())
             .append("bool_elim")

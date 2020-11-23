@@ -274,6 +274,16 @@ impl Context {
             )
             .into(),
 
+            TermData::SequenceTerm(elem_terms) => format!(
+                // TODO: multiline formatting!
+                "[{elems}]",
+                elems = elem_terms
+                    .iter()
+                    .map(|elem_term| self.from_term_prec(elem_term, Prec::Term))
+                    .format(", "),
+            )
+            .into(),
+
             TermData::NumberLiteral(literal) => format!("{}", literal).into(),
             TermData::If(head, if_true, if_false) => format!(
                 // TODO: multiline formatting!

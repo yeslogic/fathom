@@ -131,6 +131,7 @@ impl<'me> Context<'me> {
             | Value::Sort(_)
             | Value::FunctionType(_, _)
             | Value::StructTerm(_)
+            | Value::ArrayTerm(_)
             | Value::Primitive(_)
             | Value::FormatType
             | Value::Repr

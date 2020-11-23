@@ -13,7 +13,8 @@ process.
 >
 > _term-atomic_ ::=\
 > &emsp;|&ensp;`(` _term_ `)`\
-> &emsp;|&ensp;_ident_
+> &emsp;|&ensp;_ident_\
+> &emsp;|&ensp;`[` _term_<sup>\*</sup> _term_<sup>?</sup> `]`
 
 ## Items
 

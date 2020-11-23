@@ -42,6 +42,8 @@ extern {
 
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
+        "[" => Token::OpenBracket,
+        "]" => Token::CloseBracket,
         "(" => Token::OpenParen,
         ")" => Token::CloseParen,
 
@@ -71,8 +73,6 @@ pub Module: Module = {
 ItemData: ItemData = {
     <doc: "doc comment"*>
     "const" <name: Ranged<Name>> <type_: (":" <Term>)?> "=" <term: Term> ";" => {
-        let doc = Arc::from(doc);
-
         ItemData::Constant(Constant {
             doc: Arc::from(doc),
             name,
@@ -82,11 +82,8 @@ ItemData: ItemData = {
     },
     <doc: "doc comment"*>
     "struct" <name: Ranged<Name>> <type_: (":" <Term>)?> "{"
-        <mut fields: (<FieldDeclaration> ",")*>
-        <last: FieldDeclaration?>
+        <fields: Separated<FieldDeclaration, ",">>
     "}" => {
-        fields.extend(last);
-
         ItemData::StructType(StructType {
             doc: Arc::from(doc),
             name,
@@ -133,11 +130,9 @@ AtomicTermData: TermData = {
     "Type" => TermData::TypeType,
     "Kind" => TermData::KindType,
     "repr" => TermData::Repr,
-    "struct" "{" <mut fields: (<FieldDefinition> ",")*> <last: FieldDefinition?> "}" => {
-        fields.extend(last);
-        TermData::StructTerm(fields)
-    },
+    "struct" "{" <fields: Separated<FieldDefinition, ",">> "}" => TermData::StructTerm(fields),
     <term: AtomicTerm> "." <name: Ranged<Name>> => TermData::StructElim(Box::new(term), name),
+    "[" <elem_terms: Separated<Term, ",">> "]" => TermData::SequenceTerm(elem_terms),
     <literal: "numeric literal"> => TermData::NumberLiteral(literal.to_owned()),
     "if" <head: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" => {
         TermData::If(Box::new(head), Box::new(if_true), Box::new(if_false))
@@ -165,6 +160,14 @@ FieldDefinition: FieldDefinition = {
 Name: String = {
     <"name"> => (<>).to_owned(),
 }
+
+#[inline]
+Separated<Elem, Separator>: Vec<Elem> = {
+    <mut elems: (<Elem> Separator)*> <last: Elem?> => {
+        elems.extend(last);
+        elems
+    },
+};
 
 #[inline]
 Ranged<T>: Ranged<T> = {

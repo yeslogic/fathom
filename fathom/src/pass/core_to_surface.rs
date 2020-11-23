@@ -100,6 +100,13 @@ pub fn from_term(term: &Term) -> surface::Term {
             surface::TermData::StructElim(Box::new(from_term(head)), Ranged::from(field.clone()))
         }
 
+        TermData::ArrayTerm(elem_terms) => surface::TermData::SequenceTerm(
+            elem_terms
+                .iter()
+                .map(|elem_term| from_term(elem_term))
+                .collect(),
+        ),
+
         TermData::Primitive(primitive) => match primitive {
             Primitive::Int(value) => surface::TermData::NumberLiteral(value.to_string()),
             Primitive::F32(value) => surface::TermData::NumberLiteral(value.to_string()),

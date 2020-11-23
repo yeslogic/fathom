@@ -24,6 +24,7 @@ extern {
         "string literal" => Token::StringLiteral(<&'source str>),
         "character literal" => Token::CharLiteral(<&'source str>),
 
+        "array" => Token::Array,
         "bool_elim" => Token::BoolElim,
         "const" => Token::Const,
         "f32" => Token::F32,
@@ -40,6 +41,8 @@ extern {
 
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
+        "[" => Token::OpenBracket,
+        "]" => Token::CloseBracket,
         "(" => Token::OpenParen,
         ")" => Token::CloseParen,
 
@@ -74,11 +77,8 @@ ItemData: ItemData = {
     },
     <docs: "doc comment"*>
     "struct" <name: Name> ":" "Type" "{"
-        <mut fields: (<FieldDeclaration> ",")*>
-        <last: FieldDeclaration?>
+        <fields: Separated<FieldDeclaration, ",">>
     "}" => {
-        fields.extend(last);
-
         ItemData::StructType(StructType {
             doc: Arc::from(docs),
             name,
@@ -87,11 +87,8 @@ ItemData: ItemData = {
     },
     <docs: "doc comment"*>
     "struct" <name: Name> ":" "Format" "{"
-        <mut fields: (<FieldDeclaration> ",")*>
-        <last: FieldDeclaration?>
+        <fields: Separated<FieldDeclaration, ",">>
     "}" => {
-        fields.extend(last);
-
         ItemData::StructFormat(StructFormat {
             doc: Arc::from(docs),
             name,
@@ -132,12 +129,11 @@ AtomicTermData: TermData = {
     "Type" => TermData::Sort(Sort::Type),
     "Kind" => TermData::Sort(Sort::Kind),
     "repr" => TermData::Repr,
-    "struct" "{" <mut fields: (<FieldDefinition> ",")*> <last: FieldDefinition?> "}" => {
-        fields.extend(last);
-
-        TermData::StructTerm(fields)
-    },
+    "struct" "{" <fields: Separated<FieldDefinition, ",">> "}" => TermData::StructTerm(fields),
     <term: AtomicTerm> "." <name: Name> => TermData::StructElim(Arc::new(term), name),
+    "array" "[" <elem_terms: Separated<Term, ",">> "]" => {
+        TermData::ArrayTerm(elem_terms.into_iter().map(Arc::new).collect())
+    },
     "bool_elim" <head: Term> "{" <if_true: Term> "," <if_false: Term> "}" => {
         TermData::BoolElim(Arc::new(head), Arc::new(if_true), Arc::new(if_false))
     },
@@ -195,6 +191,14 @@ FieldDefinition: FieldDefinition = {
 #[inline]
 Name: String = {
     <"name"> => (<>).to_owned(),
+};
+
+#[inline]
+Separated<Elem, Separator>: Vec<Elem> = {
+    <mut elems: (<Elem> Separator)*> <last: Elem?> => {
+        elems.extend(last);
+        elems
+    },
 };
 
 #[inline]

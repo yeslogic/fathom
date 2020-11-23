@@ -329,13 +329,14 @@ pub enum CoreTypingMessage {
         head_type: core::Term,
         label: String,
     },
-    AmbiguousStructTerm {
+    AmbiguousTerm {
         file_id: usize,
         term_range: Range,
     },
-    AmbiguousIntElim {
+    UnexpectedArrayTerm {
         file_id: usize,
         term_range: Range,
+        expected_type: core::Term,
     },
     DuplicateStructFields {
         file_id: usize,
@@ -509,22 +510,30 @@ impl CoreTypingMessage {
                     .with_labels(vec![Label::primary(*file_id, *head_range)
                         .with_message("field not found in this term")])
             }
-            CoreTypingMessage::AmbiguousStructTerm {
+            CoreTypingMessage::AmbiguousTerm {
                 file_id,
                 term_range,
             } => Diagnostic::bug()
-                .with_message("ambiguous struct term")
+                .with_message("ambiguous term")
                 .with_labels(vec![
                     Label::primary(*file_id, *term_range).with_message("type annotation required")
                 ]),
-            CoreTypingMessage::AmbiguousIntElim {
+            CoreTypingMessage::UnexpectedArrayTerm {
                 file_id,
                 term_range,
-            } => Diagnostic::bug()
-                .with_message("ambiguous integer elimination")
-                .with_labels(vec![
-                    Label::primary(*file_id, *term_range).with_message("type annotation required")
-                ]),
+                expected_type,
+            } => {
+                let expected_type = to_doc(expected_type);
+
+                Diagnostic::bug()
+                    .with_message("unexpected array term")
+                    .with_labels(vec![Label::primary(*file_id, *term_range).with_message(
+                        format!(
+                            "expected `{}`, found array term",
+                            expected_type.pretty(std::usize::MAX),
+                        ),
+                    )])
+            }
             CoreTypingMessage::DuplicateStructFields {
                 file_id,
                 duplicate_labels,
@@ -586,7 +595,7 @@ impl CoreTypingMessage {
                     .with_labels(vec![Label::primary(*file_id, *term_range).with_message(
                         format!(
                             "expected `{}`, found struct",
-                            expected_type.pretty(std::usize::MAX)
+                            expected_type.pretty(std::usize::MAX),
                         ),
                     )])
             }
@@ -658,10 +667,25 @@ pub enum SurfaceToCoreMessage {
         name: String,
         name_range: Range,
     },
+    MismatchedSequenceLength {
+        file_id: usize,
+        term_range: Range,
+        found_len: usize,
+        expected_len: surface::Term,
+    },
+    UnexpectedSequenceTerm {
+        file_id: usize,
+        term_range: Range,
+        expected_type: surface::Term,
+    },
     NumericLiteralNotSupported {
         file_id: usize,
         literal_range: Range,
         expected_type: surface::Term,
+    },
+    AmbiguousSequenceTerm {
+        file_id: usize,
+        range: Range,
     },
     AmbiguousNumericLiteral {
         file_id: usize,
@@ -894,6 +918,36 @@ impl SurfaceToCoreMessage {
                 .with_labels(vec![
                     Label::primary(*file_id, *name_range).with_message("not found in this scope")
                 ]),
+            SurfaceToCoreMessage::MismatchedSequenceLength {
+                file_id,
+                term_range: range,
+                found_len,
+                expected_len,
+            } => Diagnostic::error()
+                .with_message("mismatched sequence length")
+                .with_labels(vec![Label::primary(*file_id, *range).with_message(
+                    format!(
+                        "expected `{}` entries, found `{}` entries",
+                        to_doc(&expected_len).pretty(std::usize::MAX),
+                        found_len,
+                    ),
+                )]),
+            SurfaceToCoreMessage::UnexpectedSequenceTerm {
+                file_id,
+                term_range,
+                expected_type,
+            } => {
+                let expected_type = to_doc(expected_type);
+
+                Diagnostic::error()
+                    .with_message("unexpected sequence term")
+                    .with_labels(vec![Label::primary(*file_id, *term_range).with_message(
+                        format!(
+                            "expected `{}`, found sequence term",
+                            expected_type.pretty(std::usize::MAX),
+                        ),
+                    )])
+            }
             SurfaceToCoreMessage::NumericLiteralNotSupported {
                 file_id,
                 literal_range,
@@ -913,6 +967,11 @@ impl SurfaceToCoreMessage {
                         ),
                     )])
             }
+            SurfaceToCoreMessage::AmbiguousSequenceTerm { file_id, range } => Diagnostic::error()
+                .with_message("ambiguous sequence term")
+                .with_labels(vec![
+                    Label::primary(*file_id, *range).with_message("type annotation required")
+                ]),
             SurfaceToCoreMessage::AmbiguousNumericLiteral {
                 file_id,
                 literal_range,

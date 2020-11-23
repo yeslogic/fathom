@@ -81,6 +81,8 @@
 > _punctuation_ ::=\
 > &emsp;|&ensp;`{`\
 > &emsp;|&ensp;`}`\
+> &emsp;|&ensp;`[`\
+> &emsp;|&ensp;`]`\
 > &emsp;|&ensp;`(`\
 > &emsp;|&ensp;`)`\
 > &emsp;|&ensp;`:`\

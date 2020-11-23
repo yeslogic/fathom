@@ -1,0 +1,7 @@
+const good_array = array [int 0, int 0, int 0] : (global Array int 3) global Int;
+
+const mismatched_array_length = ! : (global Array int 3) global Int;
+
+const no_sequence_term = ! : global Int;
+
+const ambiguous_sequence = !;
