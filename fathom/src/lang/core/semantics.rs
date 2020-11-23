@@ -58,6 +58,21 @@ impl Value {
         Value::Stuck(Head::Item(name.into()), elims.into())
     }
 
+    /// Create an integer primitive.
+    pub fn int(data: impl Into<BigInt>) -> Value {
+        Value::Primitive(Primitive::Int(data.into()))
+    }
+
+    /// Create a 32-bit float primitive.
+    pub fn f32(data: impl Into<f32>) -> Value {
+        Value::Primitive(Primitive::F32(data.into()))
+    }
+
+    /// Create a 64-bit float primitive.
+    pub fn f64(data: impl Into<f64>) -> Value {
+        Value::Primitive(Primitive::F64(data.into()))
+    }
+
     /// Attempt to match against a stuck global.
     ///
     /// This can help to clean up pattern matches in lieu of
@@ -473,6 +488,23 @@ pub fn is_equal(
         ) => {
             is_equal(globals, items, param_type1, param_type0)
                 && is_equal(globals, items, body_type0, body_type1)
+        }
+
+        (Value::StructTerm(field_definitions0), Value::StructTerm(field_definitions1)) => {
+            field_definitions0.len() == field_definitions1.len()
+                && field_definitions0.keys().all(|label| {
+                    match (field_definitions1.get(label), field_definitions0.get(label)) {
+                        (Some(value0), Some(value1)) => is_equal(globals, items, value0, value1),
+                        (_, _) => false,
+                    }
+                })
+        }
+
+        (Value::ArrayTerm(elem_values0), Value::ArrayTerm(elem_values1)) => {
+            elem_values0.len() == elem_values1.len()
+                && Iterator::zip(elem_values0.iter(), elem_values1.iter()).all(
+                    |(elem_value0, elem_value1)| is_equal(globals, items, elem_value0, elem_value1),
+                )
         }
 
         (Value::Primitive(primitive0), Value::Primitive(primitive1)) => primitive0 == primitive1,

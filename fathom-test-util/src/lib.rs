@@ -7,6 +7,17 @@ pub use fathom;
 pub use lazy_static;
 
 #[macro_export]
+macro_rules! assert_is_equal {
+    ($globals:expr, $value0:expr, $value1:expr $(,)?) => {{
+        let items = std::collections::HashMap::new();
+        // TODO: better error reporting?
+        assert!($crate::fathom::lang::core::semantics::is_equal(
+            &$globals, &items, &$value0, &$value1,
+        ));
+    }};
+}
+
+#[macro_export]
 macro_rules! core_module {
     ($IDENT:ident, $path:literal) => {
         $crate::lazy_static::lazy_static! {

@@ -1,9 +1,11 @@
 #![cfg(test)]
 
 use fathom_runtime::{FormatWriter, ReadError, ReadScope, U8};
+use fathom_test_util::fathom::lang::core::semantics::Value;
 use fathom_test_util::fathom::lang::core::{self, binary};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
+use std::sync::Arc;
 
 fathom_test_util::core_module!(FIXTURE, "../../snapshots/struct/pass_singleton.core.fathom");
 
@@ -33,15 +35,14 @@ fn valid_singleton() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match read_context.read_item(&FIXTURE, &"Byte").unwrap() {
-        binary::Term::Struct(fields) => {
-            assert_eq!(
-                fields,
-                BTreeMap::from_iter(vec![("inner".to_owned(), binary::Term::int(31))]),
-            );
-        }
-        _ => panic!("struct expected"),
-    }
+    fathom_test_util::assert_is_equal!(
+        globals,
+        read_context.read_item(&FIXTURE, &"Byte").unwrap(),
+        Value::StructTerm(BTreeMap::from_iter(vec![(
+            "inner".to_owned(),
+            Arc::new(Value::int(31)),
+        )])),
+    );
 
     // TODO: Check remaining
 }
@@ -56,15 +57,14 @@ fn valid_singleton_trailing() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match read_context.read_item(&FIXTURE, &"Byte").unwrap() {
-        binary::Term::Struct(fields) => {
-            assert_eq!(
-                fields,
-                BTreeMap::from_iter(vec![("inner".to_owned(), binary::Term::int(255))]),
-            );
-        }
-        _ => panic!("struct expected"),
-    }
+    fathom_test_util::assert_is_equal!(
+        globals,
+        read_context.read_item(&FIXTURE, &"Byte").unwrap(),
+        Value::StructTerm(BTreeMap::from_iter(vec![(
+            "inner".to_owned(),
+            Arc::new(Value::int(255)),
+        )])),
+    );
 
     // TODO: Check remaining
 }

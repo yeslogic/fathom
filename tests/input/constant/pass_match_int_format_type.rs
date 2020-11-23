@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use fathom_runtime::{F64Le, FormatWriter, ReadError, ReadScope, U8};
+use fathom_test_util::fathom::lang::core::semantics::Value;
 use fathom_test_util::fathom::lang::core::{self, binary};
 
 fathom_test_util::core_module!(
@@ -35,7 +36,7 @@ fn valid_test() {
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let test = read_context.read_item(&FIXTURE, &"Test").unwrap();
-    assert_eq!(test, binary::Term::F64(23.64e10));
+    fathom_test_util::assert_is_equal!(globals, test, Value::f64(23.64e10));
 
     // TODO: Check remaining
 }
@@ -51,7 +52,7 @@ fn valid_test_trailing() {
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
     let test = read_context.read_item(&FIXTURE, &"Test").unwrap();
-    assert_eq!(test, binary::Term::F64(781.453298));
+    fathom_test_util::assert_is_equal!(globals, test, Value::f64(781.453298));
 
     // TODO: Check remaining
 }
