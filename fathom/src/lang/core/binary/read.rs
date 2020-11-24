@@ -128,7 +128,12 @@ impl<'me> Context<'me> {
                         semantics::ItemData::StructFormat(field_declarations) => {
                             self.read_struct_format(&field_declarations)
                         }
-                        _ => Err(ReadError::InvalidDataDescription),
+                        // NOTE: We expect that all constants should be reduced
+                        // during evaluation, but this assumption could be
+                        // invalidated if we ever introduce 'opaque' constants.
+                        ItemData::Constant(_) | ItemData::StructType(_) => {
+                            Err(ReadError::InvalidDataDescription)
+                        }
                     },
                     (Some(_), _) | (None, _) => Err(ReadError::InvalidDataDescription),
                 }
