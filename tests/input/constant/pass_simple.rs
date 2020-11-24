@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use fathom_runtime::{FormatWriter, ReadError, ReadScope, U8};
+use fathom_test_util::fathom::lang::core::semantics::Value;
 use fathom_test_util::fathom::lang::core::{self, binary};
 
 fathom_test_util::core_module!(FIXTURE, "../../snapshots/constant/pass_simple.core.fathom");
@@ -33,7 +34,7 @@ fn valid_singleton() {
 
     let byte = read_context.read_item(&FIXTURE, &"Byte").unwrap();
 
-    assert_eq!(byte, binary::Term::int(31));
+    fathom_test_util::assert_is_equal!(globals, byte, Value::int(31));
 
     // TODO: Check remaining
 }
@@ -50,7 +51,7 @@ fn valid_singleton_trailing() {
 
     let byte = read_context.read_item(&FIXTURE, &"Byte").unwrap();
 
-    assert_eq!(byte, binary::Term::int(255));
+    fathom_test_util::assert_is_equal!(globals, byte, Value::int(255));
 
     // TODO: Check remaining
 }

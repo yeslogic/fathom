@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use fathom_runtime::{FormatWriter, ReadScope, U8};
+use fathom_test_util::fathom::lang::core::semantics::Value;
 use fathom_test_util::fathom::lang::core::{self, binary};
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
@@ -15,12 +16,11 @@ fn valid_empty() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match read_context.read_item(&FIXTURE, "EmptyFormat").unwrap() {
-        binary::Term::Struct(fields) => {
-            assert_eq!(fields, BTreeMap::from_iter(vec![]));
-        }
-        _ => panic!("struct expected"),
-    }
+    fathom_test_util::assert_is_equal!(
+        globals,
+        read_context.read_item(&FIXTURE, "EmptyFormat").unwrap(),
+        Value::StructTerm(BTreeMap::from_iter(vec![])),
+    );
 
     // TODO: Check remaining
 }
@@ -34,12 +34,11 @@ fn valid_empty_trailing() {
     let read_scope = ReadScope::new(writer.buffer());
     let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
 
-    match read_context.read_item(&FIXTURE, "EmptyFormat").unwrap() {
-        binary::Term::Struct(fields) => {
-            assert_eq!(fields, BTreeMap::from_iter(vec![]));
-        }
-        _ => panic!("struct expected"),
-    }
+    fathom_test_util::assert_is_equal!(
+        globals,
+        read_context.read_item(&FIXTURE, "EmptyFormat").unwrap(),
+        Value::StructTerm(BTreeMap::from_iter(vec![])),
+    );
 
     // TODO: Check remaining
 }

@@ -1,7 +1,9 @@
 #![cfg(test)]
 
 use fathom_runtime::{FormatWriter, ReadError, ReadScope, U32Be, U8};
+use fathom_test_util::fathom::lang::core::semantics::Value;
 use fathom_test_util::fathom::lang::core::{self, binary};
+use std::sync::Arc;
 
 fathom_test_util::core_module!(
     FIXTURE,
@@ -42,15 +44,16 @@ fn valid_test() {
     let simple_array = read_context
         .read_item(&FIXTURE, &"SimpleFormatArray")
         .unwrap();
-    assert_eq!(
+    fathom_test_util::assert_is_equal!(
+        globals,
         simple_array,
-        binary::Term::Seq(vec![
-            binary::Term::int(1),
-            binary::Term::int(2),
-            binary::Term::int(3),
-            binary::Term::int(4),
-            binary::Term::int(5),
-            binary::Term::int(6),
+        Value::ArrayTerm(vec![
+            Arc::new(Value::int(1)),
+            Arc::new(Value::int(2)),
+            Arc::new(Value::int(3)),
+            Arc::new(Value::int(4)),
+            Arc::new(Value::int(5)),
+            Arc::new(Value::int(6)),
         ]),
     );
 
@@ -98,15 +101,16 @@ fn valid_test_trailing() {
     let simple_array = read_context
         .read_item(&FIXTURE, &"SimpleFormatArray")
         .unwrap();
-    assert_eq!(
+    fathom_test_util::assert_is_equal!(
+        globals,
         simple_array,
-        binary::Term::Seq(vec![
-            binary::Term::int(1),
-            binary::Term::int(2),
-            binary::Term::int(3),
-            binary::Term::int(4),
-            binary::Term::int(5),
-            binary::Term::int(6),
+        Value::ArrayTerm(vec![
+            Arc::new(Value::int(1)),
+            Arc::new(Value::int(2)),
+            Arc::new(Value::int(3)),
+            Arc::new(Value::int(4)),
+            Arc::new(Value::int(5)),
+            Arc::new(Value::int(6)),
         ]),
     );
 
