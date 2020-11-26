@@ -82,7 +82,7 @@ ItemData: ItemData = {
         ItemData::StructType(StructType {
             doc: Arc::from(docs),
             name,
-            fields
+            fields: fields.into(),
         })
     },
     <docs: "doc comment"*>
@@ -92,7 +92,7 @@ ItemData: ItemData = {
         ItemData::StructFormat(StructFormat {
             doc: Arc::from(docs),
             name,
-            fields
+            fields: fields.into(),
         })
     },
 };

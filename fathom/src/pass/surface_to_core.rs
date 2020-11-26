@@ -242,7 +242,7 @@ impl<'me> Context<'me> {
         // range where they were introduced (for diagnostic reporting).
         let mut seen_field_labels = HashMap::new();
         // Fields that have been elaborated into the core syntax.
-        let mut core_fields = Vec::with_capacity(struct_type.fields.len());
+        let mut core_field_declarations = Vec::with_capacity(struct_type.fields.len());
 
         for field in &struct_type.fields {
             let field_range = Range::from(field.label.range.start..field.type_.range.end);
@@ -251,7 +251,7 @@ impl<'me> Context<'me> {
 
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
-                    core_fields.push(core::FieldDeclaration {
+                    core_field_declarations.push(core::FieldDeclaration {
                         doc: field.doc.clone(),
                         label: field.label.clone(),
                         type_: Arc::new(r#type),
@@ -273,7 +273,7 @@ impl<'me> Context<'me> {
         core::ItemData::StructType(core::StructType {
             doc: struct_type.doc.clone(),
             name: struct_type.name.data.clone(),
-            fields: core_fields,
+            fields: core_field_declarations.into(),
         })
     }
 
@@ -284,7 +284,7 @@ impl<'me> Context<'me> {
         // range where they were introduced (for diagnostic reporting).
         let mut seen_field_labels = HashMap::new();
         // Fields that have been elaborated into the core syntax.
-        let mut core_fields = Vec::with_capacity(struct_type.fields.len());
+        let mut core_field_declarations = Vec::with_capacity(struct_type.fields.len());
 
         for field in &struct_type.fields {
             let field_range = Range::from(field.label.range.start..field.type_.range.end);
@@ -293,7 +293,7 @@ impl<'me> Context<'me> {
 
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
-                    core_fields.push(core::FieldDeclaration {
+                    core_field_declarations.push(core::FieldDeclaration {
                         doc: field.doc.clone(),
                         label: field.label.clone(),
                         type_: Arc::new(r#type),
@@ -315,7 +315,7 @@ impl<'me> Context<'me> {
         core::ItemData::StructFormat(core::StructFormat {
             doc: struct_type.doc.clone(),
             name: struct_type.name.data.clone(),
-            fields: core_fields,
+            fields: core_field_declarations.into(),
         })
     }
 
@@ -363,8 +363,8 @@ impl<'me> Context<'me> {
                 use std::collections::btree_map::Entry;
 
                 // Resolve the struct type definition in the context.
-                let struct_type = match self.force_struct_type(expected_type) {
-                    Some((_, struct_type, [])) => struct_type.clone(),
+                let field_declarations = match self.force_struct_type(expected_type) {
+                    Some((_, struct_type, [])) => struct_type.fields.clone(),
                     Some((_, _, _)) => {
                         self.push_message(crate::reporting::Message::NotYetImplemented {
                             file_id,
@@ -397,7 +397,7 @@ impl<'me> Context<'me> {
                 // Check that the fields match the item_declarations from the type definition.
                 let mut core_field_definitions = Vec::new();
                 let mut missing_labels = Vec::new();
-                for field_declaration in &struct_type.fields {
+                for field_declaration in field_declarations.iter() {
                     match pending_field_definitions.remove(&field_declaration.label.data) {
                         Some(field_definition) => {
                             // NOTE: It should be safe to evaluate the field type

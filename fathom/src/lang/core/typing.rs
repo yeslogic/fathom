@@ -133,7 +133,7 @@ impl<'me> Context<'me> {
                     let mut seen_field_labels = HashSet::new();
                     let type_type = Arc::new(Value::Sort(Sort::Type));
 
-                    for field in &struct_type.fields {
+                    for field in struct_type.fields.iter() {
                         self.check_type(file_id, &field.type_, &type_type);
 
                         if !seen_field_labels.insert(field.label.data.clone()) {
@@ -154,7 +154,7 @@ impl<'me> Context<'me> {
                     let mut seen_field_labels = HashSet::new();
                     let format_type = Arc::new(Value::FormatType);
 
-                    for field in &struct_format.fields {
+                    for field in struct_format.fields.iter() {
                         self.check_type(file_id, &field.type_, &format_type);
 
                         if !seen_field_labels.insert(field.label.data.clone()) {
@@ -217,8 +217,8 @@ impl<'me> Context<'me> {
                 use std::collections::BTreeMap;
 
                 // Resolve the struct type definition in the context.
-                let struct_type = match self.force_struct_type(expected_type) {
-                    Some((_, struct_type, [])) => struct_type.clone(),
+                let field_declarations = match self.force_struct_type(expected_type) {
+                    Some((_, struct_type, [])) => struct_type.fields.clone(),
                     Some((_, _, _)) => {
                         self.push_message(crate::reporting::Message::NotYetImplemented {
                             file_id,
@@ -250,7 +250,7 @@ impl<'me> Context<'me> {
 
                 // Check that the fields match the types from the type definition.
                 let mut missing_labels = Vec::new();
-                for field_declaration in &struct_type.fields {
+                for field_declaration in field_declarations.iter() {
                     // NOTE: It should be safe to evaluate the field type
                     // because we trust that struct items have been checked.
                     let field_type = self.eval(&field_declaration.type_);
