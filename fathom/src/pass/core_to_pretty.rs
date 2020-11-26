@@ -216,7 +216,7 @@ where
         .append(
             (alloc.nil())
                 .append(alloc.space())
-                .append(from_term_prec(alloc, &field_declaration.term, Prec::Term))
+                .append(from_term_prec(alloc, &field_declaration.type_, Prec::Term))
                 .append(","),
         )
 }

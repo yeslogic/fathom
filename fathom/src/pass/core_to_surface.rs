@@ -42,7 +42,7 @@ pub fn from_item(item: &Item) -> surface::Item {
                 .map(|field_declaration| surface::FieldDeclaration {
                     doc: field_declaration.doc.clone(),
                     label: Ranged::from(field_declaration.label.clone()),
-                    term: from_term(&field_declaration.term),
+                    type_: from_term(&field_declaration.type_),
                 })
                 .collect(),
         }),
@@ -57,7 +57,7 @@ pub fn from_item(item: &Item) -> surface::Item {
                     .map(|field_declaration| surface::FieldDeclaration {
                         doc: field_declaration.doc.clone(),
                         label: Ranged::from(field_declaration.label.clone()),
-                        term: from_term(&field_declaration.term),
+                        type_: from_term(&field_declaration.type_),
                     })
                     .collect(),
             })

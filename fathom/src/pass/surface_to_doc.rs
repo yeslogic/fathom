@@ -178,7 +178,7 @@ impl Context {
             writeln!(writer, r##"          <dl class="fields">"##)?;
             for field in &struct_type.fields {
                 let field_id = format!("{}.fields[{}]", id, field.label.data);
-                let r#type = self.from_term_prec(&field.term, Prec::Term);
+                let r#type = self.from_term_prec(&field.type_, Prec::Term);
 
                 write!(
                     writer,

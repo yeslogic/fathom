@@ -245,16 +245,16 @@ impl<'me> Context<'me> {
         let mut core_fields = Vec::with_capacity(struct_type.fields.len());
 
         for field in &struct_type.fields {
-            let field_range = Range::from(field.label.range.start..field.term.range.end);
+            let field_range = Range::from(field.label.range.start..field.type_.range.end);
             let format_type = Arc::new(Value::Sort(Sort::Type));
-            let r#type = self.check_type(file_id, &field.term, &format_type);
+            let r#type = self.check_type(file_id, &field.type_, &format_type);
 
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
                     core_fields.push(core::FieldDeclaration {
                         doc: field.doc.clone(),
                         label: field.label.clone(),
-                        term: Arc::new(r#type),
+                        type_: Arc::new(r#type),
                     });
 
                     entry.insert(field_range);
@@ -287,16 +287,16 @@ impl<'me> Context<'me> {
         let mut core_fields = Vec::with_capacity(struct_type.fields.len());
 
         for field in &struct_type.fields {
-            let field_range = Range::from(field.label.range.start..field.term.range.end);
+            let field_range = Range::from(field.label.range.start..field.type_.range.end);
             let format_type = Arc::new(Value::FormatType);
-            let r#type = self.check_type(file_id, &field.term, &format_type);
+            let r#type = self.check_type(file_id, &field.type_, &format_type);
 
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
                     core_fields.push(core::FieldDeclaration {
                         doc: field.doc.clone(),
                         label: field.label.clone(),
-                        term: Arc::new(r#type),
+                        type_: Arc::new(r#type),
                     });
 
                     entry.insert(field_range);
@@ -402,7 +402,7 @@ impl<'me> Context<'me> {
                         Some(field_definition) => {
                             // NOTE: It should be safe to evaluate the field type
                             // because we trust that struct items have been checked.
-                            let field_type = self.eval(&field_declaration.term);
+                            let field_type = self.eval(&field_declaration.type_);
                             let core_term =
                                 self.check_type(file_id, &field_definition.term, &field_type);
                             core_field_definitions.push(core::FieldDefinition {
@@ -756,7 +756,7 @@ impl<'me> Context<'me> {
                 let field_type = match field {
                     // NOTE: It should be safe to evaluate the field type
                     // because we trust that struct items have been checked.
-                    Some(field) => self.eval(&field.term),
+                    Some(field) => self.eval(&field.type_),
                     None => {
                         let head_type = self.read_back_to_surface(&head_type);
                         self.push_message(SurfaceToCoreMessage::FieldNotFound {

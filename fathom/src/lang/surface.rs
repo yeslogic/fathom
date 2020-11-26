@@ -150,7 +150,8 @@ pub enum TermData {
 pub struct FieldDeclaration {
     pub doc: Arc<[String]>,
     pub label: Ranged<String>,
-    pub term: Term,
+    // FIXME: can't use `r#type` in LALRPOP grammars
+    pub type_: Term,
 }
 
 /// A field in a struct term.

@@ -59,7 +59,7 @@ impl<'me> Context<'me> {
             .fields
             .iter()
             .map(|field_declaration| {
-                let value = self.eval(&field_declaration.term);
+                let value = self.eval(&field_declaration.type_);
                 Ok((
                     field_declaration.label.data.clone(),
                     Arc::new(self.read_format(&value)?),

@@ -172,11 +172,11 @@ AtomicTermData: TermData = {
 
 #[inline]
 FieldDeclaration: FieldDeclaration = {
-    <doc: "doc comment"*> <label: Ranged<Name>> ":" <term: Term> => {
+    <doc: "doc comment"*> <label: Ranged<Name>> ":" <type_: Term> => {
         FieldDeclaration {
             doc: Arc::from(doc),
             label,
-            term: Arc::new(term),
+            type_: Arc::new(type_),
         }
     },
 };

@@ -134,7 +134,7 @@ impl<'me> Context<'me> {
                     let type_type = Arc::new(Value::Sort(Sort::Type));
 
                     for field in &struct_type.fields {
-                        self.check_type(file_id, &field.term, &type_type);
+                        self.check_type(file_id, &field.type_, &type_type);
 
                         if !seen_field_labels.insert(field.label.data.clone()) {
                             self.push_message(CoreTypingMessage::FieldRedeclaration {
@@ -155,7 +155,7 @@ impl<'me> Context<'me> {
                     let format_type = Arc::new(Value::FormatType);
 
                     for field in &struct_format.fields {
-                        self.check_type(file_id, &field.term, &format_type);
+                        self.check_type(file_id, &field.type_, &format_type);
 
                         if !seen_field_labels.insert(field.label.data.clone()) {
                             self.push_message(CoreTypingMessage::FieldRedeclaration {
@@ -253,7 +253,7 @@ impl<'me> Context<'me> {
                 for field_declaration in &struct_type.fields {
                     // NOTE: It should be safe to evaluate the field type
                     // because we trust that struct items have been checked.
-                    let field_type = self.eval(&field_declaration.term);
+                    let field_type = self.eval(&field_declaration.type_);
                     match pending_field_definitions.remove(&field_declaration.label.data) {
                         Some(field_definition) => {
                             self.check_type(file_id, &field_definition.term, &field_type)
@@ -463,7 +463,7 @@ impl<'me> Context<'me> {
                 match field {
                     // NOTE: It should be safe to evaluate the field type
                     // because we trust that struct items have been checked.
-                    Some(field) => self.eval(&field.term),
+                    Some(field) => self.eval(&field.type_),
                     None => {
                         let head_type = self.read_back(&head_type);
                         self.push_message(CoreTypingMessage::FieldNotFound {
