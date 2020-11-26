@@ -35,11 +35,10 @@ pub fn rule(sort0: Sort, sort1: Sort) -> Sort {
 pub struct Context<'me> {
     /// The global environment.
     globals: &'me Globals,
-    /// Labels that have previously been used for items.
-    items: HashMap<String, Item>,
-    /// List of types currently bound in this context.
-    /// These could either refer to items or local bindings.
-    types: Vec<(String, Arc<Value>)>,
+    /// Top-level item declarations.
+    item_declarations: HashMap<String, Arc<Value>>,
+    /// Top-level item definitions.
+    item_definitions: HashMap<String, Item>,
     /// Diagnostic messages collected during type checking.
     messages: Vec<Message>,
 }
@@ -49,8 +48,8 @@ impl<'me> Context<'me> {
     pub fn new(globals: &'me Globals) -> Context<'me> {
         Context {
             globals,
-            items: HashMap::new(),
-            types: Vec::new(),
+            item_declarations: HashMap::new(),
+            item_definitions: HashMap::new(),
             messages: Vec::new(),
         }
     }
@@ -65,12 +64,6 @@ impl<'me> Context<'me> {
         self.messages.drain(..)
     }
 
-    /// Lookup the type of a binding corresponding to `name` in the context,
-    /// returning `None` if `name` was not yet bound.
-    pub fn lookup_type(&self, name: &str) -> Option<&Arc<Value>> {
-        Some(&self.types.iter().rev().find(|(n, _)| *n == name)?.1)
-    }
-
     /// Force a value to resolve to an item, returning `None` if the value did
     /// not refer to an item.
     fn force_item<'context, 'value>(
@@ -78,7 +71,7 @@ impl<'me> Context<'me> {
         value: &'value Value,
     ) -> Option<(Range, &'context ItemData, &'value [Elim])> {
         let (name, elims) = value.try_item()?;
-        match self.items.get(name) {
+        match self.item_definitions.get(name) {
             Some(item) => Some((item.range, &item.data, elims)),
             None => panic!("could not find an item called `{}` in the context", name),
         }
@@ -103,7 +96,7 @@ impl<'me> Context<'me> {
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [`core::Term`]: crate::lang::core::Term
     pub fn eval(&self, term: &Term) -> Arc<Value> {
-        semantics::eval(self.globals, &self.items, term)
+        semantics::eval(self.globals, &self.item_definitions, term)
     }
 
     /// Read back a value into normal form using the current state of the elaborator.
@@ -117,7 +110,7 @@ impl<'me> Context<'me> {
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
     pub fn is_equal(&self, value0: &Value, value1: &Value) -> bool {
-        semantics::is_equal(self.globals, &self.items, value0, value1)
+        semantics::is_equal(self.globals, &self.item_definitions, value0, value1)
     }
 
     /// Validate that a module is well-formed.
@@ -177,9 +170,9 @@ impl<'me> Context<'me> {
                 }
             };
 
-            match self.items.entry(item_name.clone()) {
+            match self.item_definitions.entry(item_name.clone()) {
                 Entry::Vacant(entry) => {
-                    self.types.push((item_name, item_type));
+                    self.item_declarations.insert(item_name, item_type);
                     entry.insert(item.clone());
                 }
                 Entry::Occupied(entry) => {
@@ -194,8 +187,8 @@ impl<'me> Context<'me> {
             }
         }
 
-        self.items.clear();
-        self.types.clear();
+        self.item_definitions.clear();
+        self.item_declarations.clear();
     }
 
     /// Validate that that a term is a well-formed type.
@@ -376,7 +369,7 @@ impl<'me> Context<'me> {
                     Arc::new(Value::Error)
                 }
             },
-            TermData::Item(name) => match self.lookup_type(name) {
+            TermData::Item(name) => match self.item_declarations.get(name) {
                 Some(r#type) => r#type.clone(),
                 None => {
                     self.push_message(CoreTypingMessage::ItemNameNotFound {

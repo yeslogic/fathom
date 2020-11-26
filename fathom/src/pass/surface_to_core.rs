@@ -25,11 +25,10 @@ use crate::reporting::{Message, SurfaceToCoreMessage};
 pub struct Context<'me> {
     /// The global environment.
     globals: &'me core::Globals,
-    /// Labels that have previously been used for items.
-    items: HashMap<String, core::Item>,
-    /// List of types currently bound in this context.
-    /// These could either refer to items or local bindings.
-    types: Vec<(String, Arc<Value>)>,
+    /// Top-level item declarations.
+    item_declarations: HashMap<String, Arc<Value>>,
+    /// Top-level item definitions.
+    item_definitions: HashMap<String, core::Item>,
     /// Diagnostic messages collected during type checking.
     messages: Vec<Message>,
 }
@@ -39,8 +38,8 @@ impl<'me> Context<'me> {
     pub fn new(globals: &'me core::Globals) -> Context<'me> {
         Context {
             globals,
-            items: HashMap::new(),
-            types: Vec::new(),
+            item_declarations: HashMap::new(),
+            item_definitions: HashMap::new(),
             messages: Vec::new(),
         }
     }
@@ -55,12 +54,6 @@ impl<'me> Context<'me> {
         self.messages.drain(..)
     }
 
-    /// Lookup the type of a binding corresponding to `name` in the context,
-    /// returning `None` if `name` was not yet bound.
-    pub fn lookup_type(&self, name: &str) -> Option<&Arc<Value>> {
-        Some(&self.types.iter().rev().find(|(n, _)| *n == name)?.1)
-    }
-
     /// Force a value to resolve to an item, returning `None` if the value did
     /// not refer to an item.
     fn force_item<'context, 'value>(
@@ -68,7 +61,7 @@ impl<'me> Context<'me> {
         value: &'value Value,
     ) -> Option<(Range, &'context core::ItemData, &'value [Elim])> {
         let (name, elims) = value.try_item()?;
-        match self.items.get(name) {
+        match self.item_definitions.get(name) {
             Some(item) => Some((item.range, &item.data, elims)),
             None => panic!("could not find an item called `{}` in the context", name),
         }
@@ -93,14 +86,14 @@ impl<'me> Context<'me> {
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [`core::Term`]: crate::lang::core::Term
     pub fn eval(&self, term: &core::Term) -> Arc<Value> {
-        semantics::eval(self.globals, &self.items, term)
+        semantics::eval(self.globals, &self.item_definitions, term)
     }
 
     /// Read back a [`Value`] to a [`core::Term`] using the current
     /// state of the elaborator.
     ///
     /// Unstuck eliminations are not unfolded, making this useful for printing
-    /// terms and types in user-facing diagnostics.
+    /// terms and item_declarations in user-facing diagnostics.
     ///
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [`core::Term`]: crate::lang::core::Term
@@ -114,7 +107,7 @@ impl<'me> Context<'me> {
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [computationally equal]: https://ncatlab.org/nlab/show/equality#computational_equality
     pub fn is_equal(&self, value0: &Value, value1: &Value) -> bool {
-        semantics::is_equal(self.globals, &self.items, value0, value1)
+        semantics::is_equal(self.globals, &self.item_definitions, value0, value1)
     }
 
     /// Distill a [`core::Term`] into a [`surface::Term`].
@@ -129,7 +122,7 @@ impl<'me> Context<'me> {
     /// current state of the elaborator.
     ///
     /// Unstuck eliminations are not unfolded, making this useful for printing
-    /// terms and types in user-facing diagnostics.
+    /// terms and item_declarations in user-facing diagnostics.
     ///
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [`surface::Term`]: crate::lang::surface::Term
@@ -213,11 +206,11 @@ impl<'me> Context<'me> {
             };
 
             // FIXME: Avoid shadowing builtin definitions
-            match self.items.entry(name.data.clone()) {
+            match self.item_definitions.entry(name.data.clone()) {
                 Entry::Vacant(entry) => {
                     let core_item = core::Item::new(item.range, item_data);
                     core_items.push(core_item.clone());
-                    self.types.push((entry.key().clone(), r#type));
+                    self.item_declarations.insert(entry.key().clone(), r#type);
                     entry.insert(core_item);
                 }
                 Entry::Occupied(entry) => {
@@ -232,8 +225,8 @@ impl<'me> Context<'me> {
             }
         }
 
-        self.items.clear();
-        self.types.clear();
+        self.item_definitions.clear();
+        self.item_declarations.clear();
 
         core::Module {
             file_id,
@@ -401,7 +394,7 @@ impl<'me> Context<'me> {
                     }
                 }
 
-                // Check that the fields match the types from the type definition.
+                // Check that the fields match the item_declarations from the type definition.
                 let mut core_field_definitions = Vec::new();
                 let mut missing_labels = Vec::new();
                 for field_declaration in &struct_type.fields {
@@ -611,9 +604,9 @@ impl<'me> Context<'me> {
                     );
                     return (core_term, self.eval(r#type));
                 }
-                if let Some(r#type) = self.lookup_type(name) {
-                    let core_term =
-                        core::Term::new(surface_term.range, core::TermData::Item(name.to_owned()));
+                if let Some(r#type) = self.item_declarations.get(name) {
+                    let term_data = core::TermData::Item(name.to_owned());
+                    let core_term = core::Term::new(surface_term.range, term_data);
                     return (core_term, r#type.clone());
                 }
 
