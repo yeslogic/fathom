@@ -13,7 +13,9 @@ license = "Apache-2.0"
 
 [dependencies]
 codespan-reporting = "0.9.4"
+contracts = "0.6"
 fathom-runtime = { version = "0.1.0", path="../fathom-runtime" }
+im = "15"
 itertools = "0.9"
 lalrpop-util = "0.19"
 logos = "0.11"

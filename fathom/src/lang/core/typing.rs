@@ -3,12 +3,14 @@
 //! This is used to verify that the core syntax is correctly formed, for
 //! debugging purposes.
 
+use contracts::debug_ensures;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{
-    FieldDeclaration, Globals, ItemData, Module, Primitive, Sort, Term, TermData,
+    FieldDeclaration, Globals, ItemData, LocalLevel, Locals, Module, Primitive, Sort, Term,
+    TermData,
 };
 use crate::lang::Range;
 use crate::reporting::{CoreTypingMessage, Message};
@@ -39,6 +41,10 @@ pub struct Context<'me> {
     item_declarations: HashMap<String, Arc<Value>>,
     /// Top-level item definitions.
     item_definitions: HashMap<String, semantics::Item>,
+    /// Local variable declarations.
+    local_declarations: Locals<Arc<Value>>,
+    /// Local variable definitions.
+    local_definitions: Locals<Arc<Value>>,
     /// Diagnostic messages collected during type checking.
     messages: Vec<Message>,
 }
@@ -50,8 +56,41 @@ impl<'me> Context<'me> {
             globals,
             item_declarations: HashMap::new(),
             item_definitions: HashMap::new(),
+            local_declarations: Locals::new(),
+            local_definitions: Locals::new(),
             messages: Vec::new(),
         }
+    }
+
+    /// Get the next level to be used for a local entry.
+    fn next_level(&self) -> LocalLevel {
+        self.local_declarations.size().next_level()
+    }
+
+    /// Push a local entry.
+    fn push_local(&mut self, value: Arc<Value>, r#type: Arc<Value>) {
+        self.local_declarations.push(r#type);
+        self.local_definitions.push(value);
+    }
+
+    /// Push a local parameter.
+    fn push_local_param(&mut self, r#type: Arc<Value>) -> Arc<Value> {
+        let value = Arc::new(Value::local(self.next_level(), Vec::new()));
+        self.push_local(value.clone(), r#type);
+        value
+    }
+
+    /// Pop a local entry.
+    #[allow(dead_code)]
+    fn pop_local(&mut self) {
+        self.local_declarations.pop();
+        self.local_definitions.pop();
+    }
+
+    /// Pop the given number of local entries.
+    fn pop_many_locals(&mut self, count: usize) {
+        self.local_declarations.pop_many(count);
+        self.local_definitions.pop_many(count);
     }
 
     /// Store a diagnostic message in the context for later reporting.
@@ -95,13 +134,23 @@ impl<'me> Context<'me> {
     ///
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [`core::Term`]: crate::lang::core::Term
-    pub fn eval(&self, term: &Term) -> Arc<Value> {
-        semantics::eval(self.globals, &self.item_definitions, term)
+    pub fn eval(&mut self, term: &Term) -> Arc<Value> {
+        semantics::eval(
+            self.globals,
+            &self.item_definitions,
+            &mut self.local_definitions,
+            term,
+        )
     }
 
     /// Read back a value into normal form using the current state of the elaborator.
     pub fn read_back(&self, value: &Value) -> Term {
-        semantics::read_back(value)
+        semantics::read_back(
+            self.globals,
+            &self.item_definitions,
+            self.local_definitions.size(),
+            value,
+        )
     }
 
     /// Check that one [`Value`] is [computationally equal]
@@ -114,6 +163,10 @@ impl<'me> Context<'me> {
     }
 
     /// Validate that a module is well-formed.
+    #[debug_ensures(self.item_declarations.is_empty())]
+    #[debug_ensures(self.item_definitions.is_empty())]
+    #[debug_ensures(self.local_declarations.is_empty())]
+    #[debug_ensures(self.local_definitions.is_empty())]
     pub fn is_module(&mut self, module: &Module) {
         let file_id = module.file_id;
 
@@ -140,8 +193,11 @@ impl<'me> Context<'me> {
 
                     for field in struct_type.fields.iter() {
                         self.check_type(file_id, &field.type_, &type_type);
+                        let field_type = self.eval(&field.type_);
 
-                        if !seen_field_labels.insert(field.label.data.clone()) {
+                        if seen_field_labels.insert(field.label.data.clone()) {
+                            self.push_local_param(field_type);
+                        } else {
                             self.push_message(CoreTypingMessage::FieldRedeclaration {
                                 file_id,
                                 field_name: field.label.data.clone(),
@@ -149,6 +205,8 @@ impl<'me> Context<'me> {
                             });
                         }
                     }
+
+                    self.pop_many_locals(seen_field_labels.len());
 
                     (
                         struct_type.name.clone(),
@@ -165,8 +223,11 @@ impl<'me> Context<'me> {
 
                     for field in struct_format.fields.iter() {
                         self.check_type(file_id, &field.type_, &format_type);
+                        let field_type = semantics::apply_repr(self.eval(&field.type_));
 
-                        if !seen_field_labels.insert(field.label.data.clone()) {
+                        if seen_field_labels.insert(field.label.data.clone()) {
+                            self.push_local_param(field_type);
+                        } else {
                             self.push_message(CoreTypingMessage::FieldRedeclaration {
                                 file_id,
                                 field_name: field.label.data.clone(),
@@ -174,6 +235,8 @@ impl<'me> Context<'me> {
                             });
                         }
                     }
+
+                    self.pop_many_locals(seen_field_labels.len());
 
                     (
                         struct_format.name.clone(),
@@ -200,11 +263,15 @@ impl<'me> Context<'me> {
             }
         }
 
-        self.item_definitions.clear();
         self.item_declarations.clear();
+        self.item_definitions.clear();
     }
 
     /// Validate that that a term is a well-formed type.
+    #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
+    #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
+    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn synth_sort(&mut self, file_id: usize, term: &Term) -> Option<Sort> {
         match self.synth_type(file_id, term).as_ref() {
             Value::Error => None,
@@ -221,6 +288,10 @@ impl<'me> Context<'me> {
     }
 
     /// Validate that a term is an element of the given type.
+    #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
+    #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
+    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn check_type(&mut self, file_id: usize, term: &Term, expected_type: &Arc<Value>) {
         match (&term.data, expected_type.as_ref()) {
             (TermData::Error, _) | (_, Value::Error) => {}
@@ -263,13 +334,25 @@ impl<'me> Context<'me> {
 
                 // Check that the fields match the types from the type definition.
                 let mut missing_labels = Vec::new();
+                // Local environment for evaluating the field types with the
+                // values defined in the terms.
+                let mut type_locals = Locals::new();
                 for field_declaration in field_declarations.iter() {
-                    // NOTE: It should be safe to evaluate the field type
-                    // because we trust that struct items have been checked.
-                    let field_type = self.eval(&field_declaration.type_);
                     match pending_field_definitions.remove(&field_declaration.label.data) {
                         Some(field_definition) => {
-                            self.check_type(file_id, &field_definition.term, &field_type)
+                            // NOTE: It should be safe to evaluate the field type
+                            // because we trust that struct items have been checked.
+                            let r#type = semantics::eval(
+                                self.globals,
+                                &self.item_definitions,
+                                &mut type_locals,
+                                &field_declaration.type_,
+                            );
+                            // TODO: stop on errors
+                            self.check_type(file_id, &field_definition.term, &r#type);
+                            let value = self.eval(&field_definition.term);
+
+                            type_locals.push(value);
                         }
                         None => missing_labels.push(field_declaration.label.clone()),
                     }
@@ -369,30 +452,46 @@ impl<'me> Context<'me> {
     }
 
     /// Synthesize the type of a term.
+    #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
+    #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
+    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn synth_type(&mut self, file_id: usize, term: &Term) -> Arc<Value> {
         match &term.data {
-            TermData::Global(name) => match self.globals.get(name) {
+            TermData::Global(global_name) => match self.globals.get(global_name) {
                 Some((r#type, _)) => self.eval(r#type),
                 None => {
                     self.push_message(CoreTypingMessage::GlobalNameNotFound {
                         file_id,
-                        name: name.clone(),
-                        name_range: term.range,
+                        global_name: global_name.clone(),
+                        global_name_range: term.range,
                     });
                     Arc::new(Value::Error)
                 }
             },
-            TermData::Item(name) => match self.item_declarations.get(name) {
+            TermData::Item(item_name) => match self.item_declarations.get(item_name) {
                 Some(r#type) => r#type.clone(),
                 None => {
                     self.push_message(CoreTypingMessage::ItemNameNotFound {
                         file_id,
-                        name: name.clone(),
-                        name_range: term.range,
+                        item_name: item_name.clone(),
+                        item_name_range: term.range,
                     });
                     Arc::new(Value::Error)
                 }
             },
+            TermData::Local(local_index) => match self.local_declarations.get(*local_index) {
+                Some(r#type) => r#type.clone(),
+                None => {
+                    self.push_message(CoreTypingMessage::LocalIndexNotFound {
+                        file_id,
+                        local_index: *local_index,
+                        local_index_range: term.range,
+                    });
+                    Arc::new(Value::Error)
+                }
+            },
+
             TermData::Ann(term, r#type) => match self.synth_sort(file_id, r#type) {
                 None => Arc::new(Value::Error),
                 Some(_) => {
@@ -401,7 +500,6 @@ impl<'me> Context<'me> {
                     r#type
                 }
             },
-
             TermData::Sort(sort) => match axiom(*sort) {
                 Some(sort) => Arc::new(Value::Sort(sort)),
                 None => {
@@ -456,11 +554,32 @@ impl<'me> Context<'me> {
                     return Arc::new(Value::Error);
                 }
 
-                let field = match self.force_struct_type(&head_type) {
-                    Some((_, field_declarations, [])) => field_declarations
-                        .iter()
-                        .find(|field| field.label.data == *label)
-                        .cloned(),
+                match self.force_struct_type(&head_type) {
+                    Some((_, field_declarations, [])) => {
+                        // This head value will be used when adding the dependent
+                        // fields to the context.
+                        let head_value = self.eval(&head);
+                        // Local environment where the field types will be evaluated.
+                        let mut type_locals = Locals::new();
+
+                        for field_declaration in field_declarations.iter() {
+                            if field_declaration.label.data == *label {
+                                // NOTE: It should be safe to evaluate the field type
+                                // because we trust that struct items have been checked.
+                                return semantics::eval(
+                                    self.globals,
+                                    &self.item_definitions,
+                                    &mut type_locals,
+                                    &field_declaration.type_,
+                                );
+                            } else {
+                                type_locals.push(semantics::apply_struct_elim(
+                                    head_value.clone(),
+                                    &field_declaration.label.data,
+                                ));
+                            }
+                        }
+                    }
                     Some((_, _, _)) => {
                         self.push_message(crate::reporting::Message::NotYetImplemented {
                             file_id,
@@ -469,24 +588,17 @@ impl<'me> Context<'me> {
                         });
                         return Arc::new(Value::Error);
                     }
-                    None => None,
-                };
-
-                match field {
-                    // NOTE: It should be safe to evaluate the field type
-                    // because we trust that struct items have been checked.
-                    Some(field) => self.eval(&field.type_),
-                    None => {
-                        let head_type = self.read_back(&head_type);
-                        self.push_message(CoreTypingMessage::FieldNotFound {
-                            file_id,
-                            head_range: head.range,
-                            head_type,
-                            label: label.clone(),
-                        });
-                        return Arc::new(Value::Error);
-                    }
+                    None => {}
                 }
+
+                let head_type = self.read_back(&head_type);
+                self.push_message(CoreTypingMessage::FieldNotFound {
+                    file_id,
+                    head_range: head.range,
+                    head_type,
+                    label: label.clone(),
+                });
+                Arc::new(Value::Error)
             }
 
             TermData::ArrayTerm(_) => {

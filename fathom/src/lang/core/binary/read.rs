@@ -1,6 +1,7 @@
+use contracts::debug_ensures;
 use fathom_runtime::{FormatReader, ReadError, ReadFormat};
 use num_traits::ToPrimitive;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use crate::lang::core;
@@ -11,6 +12,7 @@ use crate::lang::core::{FieldDeclaration, Globals, ItemData, Module, Primitive};
 pub struct Context<'me> {
     globals: &'me Globals,
     items: HashMap<String, semantics::Item>,
+    locals: core::Locals<Arc<Value>>,
     reader: FormatReader<'me>,
 }
 
@@ -20,28 +22,35 @@ impl<'me> Context<'me> {
         Context {
             globals,
             items: HashMap::new(),
+            locals: core::Locals::new(),
             reader,
         }
     }
 
     /// Evaluate a term in the parser context.
-    fn eval(&self, term: &core::Term) -> Arc<Value> {
-        semantics::eval(self.globals, &self.items, term)
+    fn eval(&mut self, term: &core::Term) -> Arc<Value> {
+        semantics::eval(self.globals, &self.items, &mut self.locals, term)
     }
 
     /// Read a module item in the context.
+    #[debug_ensures(self.items.is_empty())]
+    #[debug_ensures(self.locals.is_empty())]
     pub fn read_item(&mut self, module: &'me Module, name: &str) -> Result<Value, ReadError> {
         for item in &module.items {
             let (name, item_data) = match &item.data {
                 ItemData::Constant(constant) if constant.name == name => {
-                    let value = self.eval(&constant.term);
-                    return self.read_format(&value);
+                    let format = self.eval(&constant.term);
+                    let value = self.read_format(&format);
+                    self.items.clear();
+                    return value;
                 }
                 ItemData::StructType(struct_type) if struct_type.name == name => {
                     return Err(ReadError::InvalidDataDescription);
                 }
                 ItemData::StructFormat(struct_format) if struct_format.name == name => {
-                    return self.read_struct_format(&struct_format.fields);
+                    let value = self.read_struct_format(&struct_format.fields);
+                    self.items.clear();
+                    return value;
                 }
                 ItemData::Constant(constant) => (
                     constant.name.clone(),
@@ -61,6 +70,8 @@ impl<'me> Context<'me> {
             self.items.insert(name, item);
         }
 
+        self.items.clear();
+
         Err(ReadError::InvalidDataDescription)
     }
 
@@ -68,24 +79,36 @@ impl<'me> Context<'me> {
         self.reader.read::<T>()
     }
 
+    #[debug_ensures(self.items.len() == old(self.items.len()))]
+    #[debug_ensures(self.locals.size() == old(self.locals.size()))]
     fn read_struct_format(
         &mut self,
         field_declarations: &[FieldDeclaration],
     ) -> Result<Value, ReadError> {
-        let fields = field_declarations
-            .iter()
-            .map(|field_declaration| {
-                let value = self.eval(&field_declaration.type_);
-                Ok((
-                    field_declaration.label.data.clone(),
-                    Arc::new(self.read_format(&value)?),
-                ))
-            })
-            .collect::<Result<_, ReadError>>()?;
+        let mut fields = BTreeMap::new();
+        // Local environment for evaluating the field formats with the
+        // values that have been parsed from the binary data.
+        let mut format_locals = core::Locals::new();
+
+        for field_declaration in field_declarations.iter() {
+            let format = semantics::eval(
+                self.globals,
+                &self.items,
+                &mut format_locals,
+                &field_declaration.type_,
+            );
+
+            let label = field_declaration.label.data.clone();
+            let value = Arc::new(self.read_format(&format)?);
+            format_locals.push(value.clone());
+            fields.insert(label, value);
+        }
 
         Ok(Value::StructTerm(fields))
     }
 
+    #[debug_ensures(self.items.len() == old(self.items.len()))]
+    #[debug_ensures(self.locals.size() == old(self.locals.size()))]
     fn read_format(&mut self, format: &Value) -> Result<Value, ReadError> {
         match format {
             Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
@@ -122,8 +145,8 @@ impl<'me> Context<'me> {
                 }
                 (_, _) => Err(ReadError::InvalidDataDescription),
             },
-            Value::Stuck(Head::Item(name), elims) => {
-                match (self.items.get(name.as_str()).cloned(), elims.as_slice()) {
+            Value::Stuck(Head::Item(item_name), elims) => {
+                match (self.items.get(item_name).cloned(), elims.as_slice()) {
                     (Some(item), []) => match item.data {
                         semantics::ItemData::StructFormat(field_declarations) => {
                             self.read_struct_format(&field_declarations)
@@ -131,10 +154,17 @@ impl<'me> Context<'me> {
                         // NOTE: We expect that all constants should be reduced
                         // during evaluation, but this assumption could be
                         // invalidated if we ever introduce 'opaque' constants.
-                        ItemData::Constant(_) | ItemData::StructType(_) => {
+                        semantics::ItemData::Constant(_) | semantics::ItemData::StructType(_) => {
                             Err(ReadError::InvalidDataDescription)
                         }
                     },
+                    (Some(_), _) | (None, _) => Err(ReadError::InvalidDataDescription),
+                }
+            }
+            Value::Stuck(Head::Local(local_level), elims) => {
+                let local_index = local_level.to_index(self.locals.size()).unwrap();
+                match (self.locals.get(local_index).cloned(), elims.as_slice()) {
+                    (Some(value), []) => self.read_format(&value),
                     (Some(_), _) | (None, _) => Err(ReadError::InvalidDataDescription),
                 }
             }

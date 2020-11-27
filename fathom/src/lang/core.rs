@@ -2,6 +2,7 @@
 
 use num_bigint::BigInt;
 use std::collections::BTreeMap;
+use std::fmt;
 use std::sync::Arc;
 
 use crate::ieee754;
@@ -138,6 +139,8 @@ pub enum TermData {
     Global(String),
     /// Item variables.
     Item(String),
+    /// Local variables
+    Local(LocalIndex),
 
     /// Terms annotated with types.
     Ann(Arc<Term>, Arc<Term>),
@@ -275,5 +278,146 @@ impl Default for Globals {
         );
 
         Globals::new(entries)
+    }
+}
+
+/// A [de Bruijn index][de-bruijn-index] in the local environment.
+///
+/// De Bruijn indices describe an occurrence of a variable in terms of the
+/// number of binders between the occurrence and its associated binder.
+/// For example:
+///
+/// | Representation    | Example (S combinator)  |
+/// | ----------------- | ----------------------- |
+/// | Named             | `λx. λy. λz. x z (y z)` |
+/// | De Bruijn indices | `λ_. λ_. λ_. 2 0 (1 0)` |
+///
+/// This is a helpful representation because it allows us to easily compare
+/// terms for equivalence based on their binding structure without maintaining a
+/// list of name substitutions. For example we want `λx. x` to be the same as
+/// `λy. y`. With de Bruijn indices these would both be described as `λ 0`.
+///
+/// [de-bruijn-index]: https://en.wikipedia.org/wiki/De_Bruijn_index
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct LocalIndex(pub u32);
+
+impl LocalIndex {
+    /// Convert a local index to a local level in the current environment.
+    ///
+    /// `None` is returned if the local environment is not large enough to
+    /// contain the local variable.
+    pub fn to_level(self, size: LocalSize) -> Option<LocalLevel> {
+        Some(LocalLevel(u32::checked_sub(size.0, self.0 + 1)?))
+    }
+}
+
+/// A de Bruijn level in the local environment.
+///
+/// This describes an occurrence of a variable by counting the binders inwards
+/// from the top of the term until the occurrence is reached. For example:
+///
+/// | Representation    | Example (S combinator)  |
+/// | ----------------- | ----------------------- |
+/// | Named             | `λx. λy. λz. x z (y z)` |
+/// | De Bruijn levels  | `λ_. λ_. λ_. 0 2 (1 2)` |
+///
+/// Levels are used in [values][semantics::Value] because they are not context-
+/// dependent (this is in contrast to [indices][LocalIndex]). Because of this,
+/// we're able to sidestep the need for expensive variable shifting in the
+/// semantics. More information can be found in Soham Chowdhury's blog post,
+/// “[Real-world type theory I: untyped normalisation by evaluation for λ-calculus][untyped-nbe-for-lc]”.
+///
+/// [untyped-nbe-for-lc]: https://colimit.net/posts/normalisation-by-evaluation/
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct LocalLevel(u32);
+
+impl LocalLevel {
+    /// Convert a local level to a local index in the current environment.
+    ///
+    /// `None` is returned if the local environment is not large enough to
+    /// contain the local variable.
+    pub fn to_index(self, size: LocalSize) -> Option<LocalIndex> {
+        Some(LocalIndex(u32::checked_sub(size.0, self.0 + 1)?))
+    }
+}
+
+/// The size, or 'binding depth', of the local environment.
+///
+/// This is used for index-to-level conversions.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct LocalSize(u32);
+
+impl LocalSize {
+    /// Increments the local environment size by one.
+    ///
+    /// This is usually used for 'stepping inside a binder' during read-back.
+    pub fn increment(self) -> LocalSize {
+        LocalSize(self.0 + 1)
+    }
+
+    /// Return the level of the next variable to be added to the environment.
+    pub fn next_level(self) -> LocalLevel {
+        LocalLevel(self.0)
+    }
+}
+
+/// A local environment.
+#[derive(Clone)]
+pub struct Locals<Entry> {
+    /// The local entries that are currently defined in the environment.
+    entries: im::Vector<Entry>,
+}
+
+impl<Entry: Clone> Locals<Entry> {
+    /// Create a new local environment.
+    pub fn new() -> Locals<Entry> {
+        Locals {
+            entries: im::Vector::new(),
+        }
+    }
+
+    /// Get the size of the environment.
+    pub fn size(&self) -> LocalSize {
+        LocalSize(self.entries.len() as u32) // FIXME: Check for overflow?
+    }
+
+    /// Returns `true` if there are no entries in the environment.
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// Lookup an entry in the environment.
+    pub fn get(&self, index: LocalIndex) -> Option<&Entry> {
+        let index = index.to_level(self.size())?;
+        self.entries.get(index.0 as usize)
+    }
+
+    /// Push an entry onto the environment.
+    pub fn push(&mut self, entry: Entry) {
+        self.entries.push_back(entry);
+    }
+
+    /// Pop an entry off the environment.
+    pub fn pop(&mut self) -> Option<Entry> {
+        self.entries.pop_back()
+    }
+
+    /// Pop a number of entries off the environment.
+    pub fn pop_many(&mut self, count: usize) {
+        let count = self.entries.len().saturating_sub(count);
+        self.entries.truncate(count);
+    }
+
+    /// Clear the entries from the environment.
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
+}
+
+impl<Entry: Clone + fmt::Debug> fmt::Debug for Locals<Entry> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Locals")
+            .field("entries", &self.entries)
+            .finish()
     }
 }
