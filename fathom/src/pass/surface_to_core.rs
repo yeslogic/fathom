@@ -28,7 +28,7 @@ pub struct Context<'me> {
     /// Top-level item declarations.
     item_declarations: HashMap<String, Arc<Value>>,
     /// Top-level item definitions.
-    item_definitions: HashMap<String, core::Item>,
+    item_definitions: HashMap<String, semantics::Item>,
     /// Diagnostic messages collected during type checking.
     messages: Vec<Message>,
 }
@@ -59,7 +59,7 @@ impl<'me> Context<'me> {
     fn force_item<'context, 'value>(
         &'context self,
         value: &'value Value,
-    ) -> Option<(Range, &'context core::ItemData, &'value [Elim])> {
+    ) -> Option<(Range, &'context semantics::ItemData, &'value [Elim])> {
         let (name, elims) = value.try_item()?;
         match self.item_definitions.get(name) {
             Some(item) => Some((item.range, &item.data, elims)),
@@ -72,10 +72,10 @@ impl<'me> Context<'me> {
     fn force_struct_type<'context, 'value>(
         &'context self,
         value: &'value Value,
-    ) -> Option<(Range, &'context core::StructType, &'value [Elim])> {
+    ) -> Option<(Range, Arc<[core::FieldDeclaration]>, &'value [Elim])> {
         match self.force_item(value) {
-            Some((range, core::ItemData::StructType(struct_type), elims)) => {
-                Some((range, struct_type, elims))
+            Some((range, semantics::ItemData::StructType(field_declarations), elims)) => {
+                Some((range, field_declarations.clone(), elims))
             }
             Some(_) | None => None,
         }
@@ -140,7 +140,7 @@ impl<'me> Context<'me> {
         for item in surface_module.items.iter() {
             use std::collections::hash_map::Entry;
 
-            let (name, item_data, r#type) = match &item.data {
+            let (name, core_item_data, item_data, r#type) = match &item.data {
                 ItemData::Constant(constant) => {
                     let (core_term, r#type) = match &constant.type_ {
                         Some(surface_type) => {
@@ -164,13 +164,14 @@ impl<'me> Context<'me> {
                         None => self.synth_type(file_id, &constant.term),
                     };
 
-                    let item_data = core::ItemData::Constant(core::Constant {
+                    let item_data = semantics::ItemData::Constant(self.eval(&core_term));
+                    let core_item_data = core::ItemData::Constant(core::Constant {
                         doc: constant.doc.clone(),
                         name: constant.name.data.clone(),
                         term: Arc::new(core_term),
                     });
 
-                    (&constant.name, item_data, r#type)
+                    (&constant.name, core_item_data, item_data, r#type)
                 }
                 ItemData::StructType(struct_type) => match &struct_type.type_ {
                     None => {
@@ -184,7 +185,7 @@ impl<'me> Context<'me> {
                     Some(r#type) => {
                         let (core_type, _) = self.is_type(file_id, &r#type);
                         let r#type = self.eval(&core_type);
-                        let item_data = match r#type.as_ref() {
+                        let (core_item_data, item_data) = match r#type.as_ref() {
                             Value::Sort(Sort::Type) => self.is_struct_type(file_id, struct_type),
                             Value::FormatType => self.is_struct_format(file_id, struct_type),
                             Value::Error => continue,
@@ -200,7 +201,7 @@ impl<'me> Context<'me> {
                             }
                         };
 
-                        (&struct_type.name, item_data, r#type)
+                        (&struct_type.name, core_item_data, item_data, r#type)
                     }
                 },
             };
@@ -208,10 +209,10 @@ impl<'me> Context<'me> {
             // FIXME: Avoid shadowing builtin definitions
             match self.item_definitions.entry(name.data.clone()) {
                 Entry::Vacant(entry) => {
-                    let core_item = core::Item::new(item.range, item_data);
+                    let core_item = core::Item::new(item.range, core_item_data);
                     core_items.push(core_item.clone());
                     self.item_declarations.insert(entry.key().clone(), r#type);
-                    entry.insert(core_item);
+                    entry.insert(semantics::Item::new(item.range, item_data));
                 }
                 Entry::Occupied(entry) => {
                     let original_range = entry.get().range;
@@ -235,7 +236,11 @@ impl<'me> Context<'me> {
         }
     }
 
-    pub fn is_struct_type(&mut self, file_id: usize, struct_type: &StructType) -> core::ItemData {
+    pub fn is_struct_type(
+        &mut self,
+        file_id: usize,
+        struct_type: &StructType,
+    ) -> (core::ItemData, semantics::ItemData) {
         use std::collections::hash_map::Entry;
 
         // Field labels that have previously seen, along with the source
@@ -270,14 +275,22 @@ impl<'me> Context<'me> {
             }
         }
 
-        core::ItemData::StructType(core::StructType {
+        let core_field_declarations: Arc<[_]> = core_field_declarations.into();
+        let item_data = semantics::ItemData::StructType(core_field_declarations.clone());
+        let core_item_data = core::ItemData::StructType(core::StructType {
             doc: struct_type.doc.clone(),
             name: struct_type.name.data.clone(),
-            fields: core_field_declarations.into(),
-        })
+            fields: core_field_declarations,
+        });
+
+        (core_item_data, item_data)
     }
 
-    pub fn is_struct_format(&mut self, file_id: usize, struct_type: &StructType) -> core::ItemData {
+    pub fn is_struct_format(
+        &mut self,
+        file_id: usize,
+        struct_type: &StructType,
+    ) -> (core::ItemData, semantics::ItemData) {
         use std::collections::hash_map::Entry;
 
         // Field names that have previously seen, along with the source
@@ -312,11 +325,15 @@ impl<'me> Context<'me> {
             }
         }
 
-        core::ItemData::StructFormat(core::StructFormat {
+        let core_field_declarations: Arc<[_]> = core_field_declarations.into();
+        let item_data = semantics::ItemData::StructFormat(core_field_declarations.clone());
+        let core_item_data = core::ItemData::StructFormat(core::StructFormat {
             doc: struct_type.doc.clone(),
             name: struct_type.name.data.clone(),
-            fields: core_field_declarations.into(),
-        })
+            fields: core_field_declarations,
+        });
+
+        (core_item_data, item_data)
     }
 
     /// Validate that a surface term is a type, and translate it into the core syntax.
@@ -364,7 +381,7 @@ impl<'me> Context<'me> {
 
                 // Resolve the struct type definition in the context.
                 let field_declarations = match self.force_struct_type(expected_type) {
-                    Some((_, struct_type, [])) => struct_type.fields.clone(),
+                    Some((_, field_declarations, [])) => field_declarations,
                     Some((_, _, _)) => {
                         self.push_message(crate::reporting::Message::NotYetImplemented {
                             file_id,
@@ -734,8 +751,7 @@ impl<'me> Context<'me> {
                 }
 
                 let field = match self.force_struct_type(&head_type) {
-                    Some((_, struct_type, [])) => struct_type
-                        .fields
+                    Some((_, field_declarations, [])) => field_declarations
                         .iter()
                         .find(|field| field.label.data == label.data)
                         .cloned(),

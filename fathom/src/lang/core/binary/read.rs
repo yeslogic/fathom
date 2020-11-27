@@ -5,12 +5,12 @@ use std::sync::Arc;
 
 use crate::lang::core;
 use crate::lang::core::semantics::{self, Elim, Head, Value};
-use crate::lang::core::{Globals, Item, ItemData, Module, Primitive, StructFormat};
+use crate::lang::core::{FieldDeclaration, Globals, ItemData, Module, Primitive};
 
 /// Contextual information to be used when parsing items.
 pub struct Context<'me> {
     globals: &'me Globals,
-    items: HashMap<String, Item>,
+    items: HashMap<String, semantics::Item>,
     reader: FormatReader<'me>,
 }
 
@@ -32,19 +32,33 @@ impl<'me> Context<'me> {
     /// Read a module item in the context.
     pub fn read_item(&mut self, module: &'me Module, name: &str) -> Result<Value, ReadError> {
         for item in &module.items {
-            let name = match &item.data {
+            let (name, item_data) = match &item.data {
                 ItemData::Constant(constant) if constant.name == name => {
                     let value = self.eval(&constant.term);
                     return self.read_format(&value);
                 }
-                ItemData::StructFormat(struct_format) if struct_format.name == name => {
-                    return self.read_struct_format(struct_format);
+                ItemData::StructType(struct_type) if struct_type.name == name => {
+                    return Err(ReadError::InvalidDataDescription);
                 }
-                ItemData::Constant(constant) => constant.name.clone(),
-                ItemData::StructType(struct_type) => struct_type.name.clone(),
-                ItemData::StructFormat(struct_format) => struct_format.name.clone(),
+                ItemData::StructFormat(struct_format) if struct_format.name == name => {
+                    return self.read_struct_format(&struct_format.fields);
+                }
+                ItemData::Constant(constant) => (
+                    constant.name.clone(),
+                    semantics::ItemData::Constant(self.eval(&constant.term)),
+                ),
+                ItemData::StructType(struct_type) => (
+                    struct_type.name.clone(),
+                    semantics::ItemData::StructType(struct_type.fields.clone()),
+                ),
+                ItemData::StructFormat(struct_format) => (
+                    struct_format.name.clone(),
+                    semantics::ItemData::StructFormat(struct_format.fields.clone()),
+                ),
             };
-            self.items.insert(name, item.clone());
+
+            let item = semantics::Item::new(item.range, item_data);
+            self.items.insert(name, item);
         }
 
         Err(ReadError::InvalidDataDescription)
@@ -54,9 +68,11 @@ impl<'me> Context<'me> {
         self.reader.read::<T>()
     }
 
-    fn read_struct_format(&mut self, struct_type: &StructFormat) -> Result<Value, ReadError> {
-        let fields = struct_type
-            .fields
+    fn read_struct_format(
+        &mut self,
+        field_declarations: &[FieldDeclaration],
+    ) -> Result<Value, ReadError> {
+        let fields = field_declarations
             .iter()
             .map(|field_declaration| {
                 let value = self.eval(&field_declaration.type_);
@@ -109,8 +125,8 @@ impl<'me> Context<'me> {
             Value::Stuck(Head::Item(name), elims) => {
                 match (self.items.get(name.as_str()).cloned(), elims.as_slice()) {
                     (Some(item), []) => match item.data {
-                        ItemData::StructFormat(struct_format) => {
-                            self.read_struct_format(&struct_format)
+                        semantics::ItemData::StructFormat(field_declarations) => {
+                            self.read_struct_format(&field_declarations)
                         }
                         _ => Err(ReadError::InvalidDataDescription),
                     },

@@ -6,9 +6,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::lang::core::{
-    FieldDefinition, Globals, Item, ItemData, Primitive, Sort, Term, TermData,
+    FieldDeclaration, FieldDefinition, Globals, Primitive, Sort, Term, TermData,
 };
 use crate::lang::Ranged;
+
+/// Evaluated items.
+pub type Item = Ranged<ItemData>;
+
+/// Evaluated item data.
+#[derive(Debug, Clone)]
+pub enum ItemData {
+    Constant(Arc<Value>),
+    StructType(Arc<[FieldDeclaration]>),
+    StructFormat(Arc<[FieldDeclaration]>),
+}
 
 /// Values.
 #[derive(Debug, Clone)]
@@ -150,7 +161,7 @@ pub fn eval(globals: &Globals, items: &HashMap<String, Item>, term: &Term) -> Ar
         TermData::Item(name) => match items.get(name.as_str()) {
             None => Arc::new(Value::Error),
             Some(item) => match &item.data {
-                ItemData::Constant(constant) => eval(globals, items, &constant.term),
+                ItemData::Constant(value) => value.clone(),
                 ItemData::StructType(_) | ItemData::StructFormat(_) => {
                     Arc::new(Value::item(name.clone(), Vec::new()))
                 }

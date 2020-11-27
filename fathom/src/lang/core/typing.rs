@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{
-    Globals, Item, ItemData, Module, Primitive, Sort, StructType, Term, TermData,
+    FieldDeclaration, Globals, ItemData, Module, Primitive, Sort, Term, TermData,
 };
 use crate::lang::Range;
 use crate::reporting::{CoreTypingMessage, Message};
@@ -38,7 +38,7 @@ pub struct Context<'me> {
     /// Top-level item declarations.
     item_declarations: HashMap<String, Arc<Value>>,
     /// Top-level item definitions.
-    item_definitions: HashMap<String, Item>,
+    item_definitions: HashMap<String, semantics::Item>,
     /// Diagnostic messages collected during type checking.
     messages: Vec<Message>,
 }
@@ -69,7 +69,7 @@ impl<'me> Context<'me> {
     fn force_item<'context, 'value>(
         &'context self,
         value: &'value Value,
-    ) -> Option<(Range, &'context ItemData, &'value [Elim])> {
+    ) -> Option<(Range, &'context semantics::ItemData, &'value [Elim])> {
         let (name, elims) = value.try_item()?;
         match self.item_definitions.get(name) {
             Some(item) => Some((item.range, &item.data, elims)),
@@ -82,10 +82,10 @@ impl<'me> Context<'me> {
     fn force_struct_type<'context, 'value>(
         &'context self,
         value: &'value Value,
-    ) -> Option<(Range, &'context StructType, &'value [Elim])> {
+    ) -> Option<(Range, Arc<[FieldDeclaration]>, &'value [Elim])> {
         match self.force_item(value) {
-            Some((range, ItemData::StructType(struct_type), elims)) => {
-                Some((range, struct_type, elims))
+            Some((range, semantics::ItemData::StructType(field_declarations), elims)) => {
+                Some((range, field_declarations.clone(), elims))
             }
             Some(_) | None => None,
         }
@@ -120,11 +120,16 @@ impl<'me> Context<'me> {
         for item in &module.items {
             use std::collections::hash_map::Entry;
 
-            let (item_name, item_type) = match &item.data {
+            let (item_name, item_data, item_type) = match &item.data {
                 ItemData::Constant(constant) => {
-                    let constant_type = self.synth_type(file_id, &constant.term);
+                    let r#type = self.synth_type(file_id, &constant.term);
+                    let value = self.eval(&constant.term);
 
-                    (constant.name.clone(), constant_type)
+                    (
+                        constant.name.clone(),
+                        semantics::ItemData::Constant(value),
+                        r#type,
+                    )
                 }
                 ItemData::StructType(struct_type) => {
                     use std::collections::HashSet;
@@ -145,7 +150,11 @@ impl<'me> Context<'me> {
                         }
                     }
 
-                    (struct_type.name.clone(), type_type.clone())
+                    (
+                        struct_type.name.clone(),
+                        semantics::ItemData::StructType(struct_type.fields.clone()),
+                        type_type.clone(),
+                    )
                 }
                 ItemData::StructFormat(struct_format) => {
                     use std::collections::HashSet;
@@ -166,14 +175,18 @@ impl<'me> Context<'me> {
                         }
                     }
 
-                    (struct_format.name.clone(), format_type.clone())
+                    (
+                        struct_format.name.clone(),
+                        semantics::ItemData::StructFormat(struct_format.fields.clone()),
+                        format_type.clone(),
+                    )
                 }
             };
 
             match self.item_definitions.entry(item_name.clone()) {
                 Entry::Vacant(entry) => {
                     self.item_declarations.insert(item_name, item_type);
-                    entry.insert(item.clone());
+                    entry.insert(semantics::Item::new(item.range, item_data));
                 }
                 Entry::Occupied(entry) => {
                     let original_range = entry.get().range;
@@ -218,7 +231,7 @@ impl<'me> Context<'me> {
 
                 // Resolve the struct type definition in the context.
                 let field_declarations = match self.force_struct_type(expected_type) {
-                    Some((_, struct_type, [])) => struct_type.fields.clone(),
+                    Some((_, field_declarations, [])) => field_declarations,
                     Some((_, _, _)) => {
                         self.push_message(crate::reporting::Message::NotYetImplemented {
                             file_id,
@@ -444,8 +457,7 @@ impl<'me> Context<'me> {
                 }
 
                 let field = match self.force_struct_type(&head_type) {
-                    Some((_, struct_type, [])) => struct_type
-                        .fields
+                    Some((_, field_declarations, [])) => field_declarations
                         .iter()
                         .find(|field| field.label.data == *label)
                         .cloned(),
