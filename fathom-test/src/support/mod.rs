@@ -2,6 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, LabelStyle, Severity};
 use codespan_reporting::files::{Files, SimpleFiles};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
+use fathom::driver::compiler;
 use fathom::pass::{core_to_pretty, core_to_surface, surface_to_core, surface_to_doc};
 use std::fs;
 use std::path::PathBuf;
@@ -45,6 +46,12 @@ lazy_static::lazy_static! {
 pub fn run_integration_test(test_name: &str, fathom_path: &str) {
     let mut files = SimpleFiles::new();
     let mut test = Test::setup(&mut files, test_name, fathom_path);
+
+    let mut compiler = compiler::Compiler::setup(
+        &mut files,
+        test_name,
+        INPUT_DIR.join(fathom_path).to_str().unwrap(),
+    );
 
     // Run stages
 
