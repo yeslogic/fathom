@@ -93,8 +93,9 @@ impl Test {
         });
         let input_fathom_file_id = files.add(input_fathom_path.display().to_string(), source);
 
-        // Extract the directives from the source code
-
+        // Extract the directives from the source code.  Directives
+        // are the annotations on test inputs such as "// ~error:..."
+        // to express that the test case expects a particular error.
         let directives = {
             let (directives, diagnostics) = {
                 let lexer = directives::Lexer::new(&files, input_fathom_file_id);
