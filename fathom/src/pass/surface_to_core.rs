@@ -156,6 +156,15 @@ impl<'me> Context<'me> {
         )
     }
 
+    /// Evaluate a term using the supplied local environment.
+    fn eval_with_locals(
+        &mut self,
+        locals: &mut core::Locals<Arc<Value>>,
+        term: &core::Term,
+    ) -> Arc<Value> {
+        semantics::eval(self.globals, &self.item_definitions, locals, term)
+    }
+
     /// Read back a [`Value`] to a [`core::Term`] using the current
     /// state of the elaborator.
     ///
@@ -522,12 +531,8 @@ impl<'me> Context<'me> {
 
                             // NOTE: It should be safe to evaluate the field type
                             // because we trust that struct items have been checked.
-                            let r#type = semantics::eval(
-                                self.globals,
-                                &self.item_definitions,
-                                &mut type_locals,
-                                &field_declaration.type_,
-                            );
+                            let r#type =
+                                self.eval_with_locals(&mut type_locals, &field_declaration.type_);
                             // TODO: stop on errors
                             let core_term = Arc::new(self.check_type(file_id, &term, &r#type));
                             let value = self.eval(&core_term);
@@ -888,12 +893,8 @@ impl<'me> Context<'me> {
                                 );
                                 // NOTE: It should be safe to evaluate the field type
                                 // because we trust that struct items have been checked.
-                                let r#type = semantics::eval(
-                                    self.globals,
-                                    &self.item_definitions,
-                                    &mut type_locals,
-                                    &field_declaration.type_,
-                                );
+                                let r#type = self
+                                    .eval_with_locals(&mut type_locals, &field_declaration.type_);
 
                                 return (core_term, r#type);
                             } else {

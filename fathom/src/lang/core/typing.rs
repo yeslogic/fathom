@@ -143,6 +143,11 @@ impl<'me> Context<'me> {
         )
     }
 
+    /// Evaluate a term using the supplied local environment.
+    fn eval_with_locals(&mut self, locals: &mut Locals<Arc<Value>>, term: &Term) -> Arc<Value> {
+        semantics::eval(self.globals, &self.item_definitions, locals, term)
+    }
+
     /// Read back a value into normal form using the current state of the elaborator.
     pub fn read_back(&self, value: &Value) -> Term {
         semantics::read_back(
@@ -342,12 +347,8 @@ impl<'me> Context<'me> {
                         Some(field_definition) => {
                             // NOTE: It should be safe to evaluate the field type
                             // because we trust that struct items have been checked.
-                            let r#type = semantics::eval(
-                                self.globals,
-                                &self.item_definitions,
-                                &mut type_locals,
-                                &field_declaration.type_,
-                            );
+                            let r#type =
+                                self.eval_with_locals(&mut type_locals, &field_declaration.type_);
                             // TODO: stop on errors
                             self.check_type(file_id, &field_definition.term, &r#type);
                             let value = self.eval(&field_definition.term);
@@ -566,12 +567,8 @@ impl<'me> Context<'me> {
                             if field_declaration.label.data == *label {
                                 // NOTE: It should be safe to evaluate the field type
                                 // because we trust that struct items have been checked.
-                                return semantics::eval(
-                                    self.globals,
-                                    &self.item_definitions,
-                                    &mut type_locals,
-                                    &field_declaration.type_,
-                                );
+                                return self
+                                    .eval_with_locals(&mut type_locals, &field_declaration.type_);
                             } else {
                                 type_locals.push(semantics::apply_struct_elim(
                                     head_value.clone(),

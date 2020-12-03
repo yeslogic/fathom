@@ -32,6 +32,15 @@ impl<'me> Context<'me> {
         semantics::eval(self.globals, &self.items, &mut self.locals, term)
     }
 
+    /// Evaluate a term using the supplied local environment.
+    fn eval_with_locals(
+        &mut self,
+        locals: &mut core::Locals<Arc<Value>>,
+        term: &core::Term,
+    ) -> Arc<Value> {
+        semantics::eval(self.globals, &self.items, locals, term)
+    }
+
     /// Read a module item in the context.
     #[debug_ensures(self.items.is_empty())]
     #[debug_ensures(self.locals.is_empty())]
@@ -91,14 +100,8 @@ impl<'me> Context<'me> {
         let mut format_locals = core::Locals::new();
 
         for field_declaration in field_declarations.iter() {
-            let format = semantics::eval(
-                self.globals,
-                &self.items,
-                &mut format_locals,
-                &field_declaration.type_,
-            );
-
             let label = field_declaration.label.data.clone();
+            let format = self.eval_with_locals(&mut format_locals, &field_declaration.type_);
             let value = Arc::new(self.read_format(&format)?);
             format_locals.push(value.clone());
             fields.insert(label, value);
