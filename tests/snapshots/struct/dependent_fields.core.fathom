@@ -1,0 +1,33 @@
+struct ArrayType : Type {
+    len : global Int,
+    data : (global Array local 0) global Int,
+}
+
+const test_array_1 = struct {
+        len = int 2,
+        data = array [int 1, int 2],
+    } : item ArrayType;
+
+const test_array_1_data = (item test_array_1).data;
+
+const test_array_1_data_type = (item test_array_1).data : (global Array (item test_array_1).len) global Int;
+
+const test_array_2 = struct {
+        len = int 2,
+        data = !,
+    } : item ArrayType;
+
+struct ArrayFormat : Format {
+    len : global U32Be,
+    data : (global FormatArray local 0) global U32Be,
+}
+
+struct BadArrayType : Type {
+    len : global Bool,
+    data : (global Array !) global Int,
+}
+
+struct BadArrayFormat : Format {
+    len : global F32Be,
+    data : (global FormatArray !) global U32Be,
+}

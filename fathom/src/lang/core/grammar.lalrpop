@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::lang::{Range, Ranged};
 use crate::lang::core::{
-    Constant, FieldDeclaration, FieldDefinition, ItemData, Module, Primitive, Sort, StructType,
-    StructFormat, Term, TermData,
+    Constant, FieldDeclaration, FieldDefinition, ItemData, LocalIndex, Module, Primitive, Sort,
+    StructType, StructFormat, Term, TermData,
 };
 use crate::lang::core::lexer::Token;
 use crate::literal;
@@ -35,6 +35,7 @@ extern {
         "int_elim" => Token::IntElim,
         "item" => Token::Item,
         "Kind" => Token::Kind,
+        "local" => Token::Local,
         "repr" => Token::Repr,
         "struct" => Token::Struct,
         "Type" => Token::Type,
@@ -82,7 +83,7 @@ ItemData: ItemData = {
         ItemData::StructType(StructType {
             doc: Arc::from(docs),
             name,
-            fields
+            fields: fields.into(),
         })
     },
     <docs: "doc comment"*>
@@ -92,7 +93,7 @@ ItemData: ItemData = {
         ItemData::StructFormat(StructFormat {
             doc: Arc::from(docs),
             name,
-            fields
+            fields: fields.into(),
         })
     },
 };
@@ -124,8 +125,12 @@ AppTermData: TermData = {
 AtomicTermData: TermData = {
     "(" <term: TermData> ")" => term,
     "!" => TermData::Error,
-    "global" <name: Name> => TermData::Global(name),
-    "item" <name: Name> => TermData::Item(name),
+    "global" <global_name: Name> => TermData::Global(global_name),
+    "item" <item_name: Name> => TermData::Item(item_name),
+    "local" <local_index: "numeric literal"> => {
+        // TODO: Handle parse errors properly
+        TermData::Local(LocalIndex(local_index.parse().unwrap()))
+    },
     "Type" => TermData::Sort(Sort::Type),
     "Kind" => TermData::Sort(Sort::Kind),
     "repr" => TermData::Repr,
@@ -172,11 +177,11 @@ AtomicTermData: TermData = {
 
 #[inline]
 FieldDeclaration: FieldDeclaration = {
-    <doc: "doc comment"*> <label: Ranged<Name>> ":" <term: Term> => {
+    <doc: "doc comment"*> <label: Ranged<Name>> ":" <type_: Term> => {
         FieldDeclaration {
             doc: Arc::from(doc),
             label,
-            term: Arc::new(term),
+            type_: Arc::new(type_),
         }
     },
 };

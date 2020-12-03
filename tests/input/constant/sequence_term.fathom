@@ -1,5 +1,5 @@
 const good_array : Array 3 Int = [0, 0, 0];
 
-const mismatched_array_length : Array 3 Int = [0, 0]; //~ error: mismatched sequence length
+const mismatched_array_length : Array 3 Int = [0, 0]; //~ error: mismatched array length
 const no_sequence_term : Int = [0, 0]; //~ error: unexpected sequence term
 const ambiguous_sequence = []; //~ error: ambiguous sequence term

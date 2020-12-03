@@ -78,6 +78,8 @@ mod r#struct {
     test!(struct_elim, "struct/struct_elim.fathom");
     test!(struct_compute, "struct/struct_compute.fathom");
 
+    test!(dependent_fields, "struct/dependent_fields.fathom");
+
     test!(pass_empty, "struct/pass_empty.fathom");
     test!(pass_empty_doc, "struct/pass_empty_doc.fathom");
     test!(pass_pair, "struct/pass_pair.fathom");
