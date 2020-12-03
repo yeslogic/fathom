@@ -39,6 +39,7 @@ lazy_static::lazy_static! {
 
     static ref INPUT_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("input");
     static ref SNAPSHOTS_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("snapshots");
+    static ref GLOBALS: fathom::lang::core::Globals = fathom::lang::core::Globals::default();
 
 }
 
