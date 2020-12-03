@@ -14,11 +14,13 @@ fn valid_empty() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
     fathom_test_util::assert_is_equal!(
         globals,
-        read_context.read_item(&FIXTURE, "EmptyFormat").unwrap(),
+        read_context
+            .read_item(&mut read_scope.reader(), &FIXTURE, "EmptyFormat")
+            .unwrap(),
         Value::StructTerm(BTreeMap::from_iter(vec![])),
     );
 
@@ -32,11 +34,13 @@ fn valid_empty_trailing() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
     fathom_test_util::assert_is_equal!(
         globals,
-        read_context.read_item(&FIXTURE, "EmptyFormat").unwrap(),
+        read_context
+            .read_item(&mut read_scope.reader(), &FIXTURE, "EmptyFormat")
+            .unwrap(),
         Value::StructTerm(BTreeMap::from_iter(vec![])),
     );
 

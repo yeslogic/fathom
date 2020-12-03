@@ -16,9 +16,9 @@ fn eof_inner() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
-    match read_context.read_item(&FIXTURE, &"SimpleFormatArray") {
+    match read_context.read_item(&mut read_scope.reader(), &FIXTURE, &"SimpleFormatArray") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -39,14 +39,13 @@ fn valid_test() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
-    let simple_array = read_context
-        .read_item(&FIXTURE, &"SimpleFormatArray")
-        .unwrap();
     fathom_test_util::assert_is_equal!(
         globals,
-        simple_array,
+        read_context
+            .read_item(&mut read_scope.reader(), &FIXTURE, &"SimpleFormatArray")
+            .unwrap(),
         Value::ArrayTerm(vec![
             Arc::new(Value::int(1)),
             Arc::new(Value::int(2)),
@@ -72,9 +71,9 @@ fn invalid_test_trailing() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
-    match read_context.read_item(&FIXTURE, &"SimpleFormatArray") {
+    match read_context.read_item(&mut read_scope.reader(), &FIXTURE, &"SimpleFormatArray") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -96,14 +95,13 @@ fn valid_test_trailing() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
-    let simple_array = read_context
-        .read_item(&FIXTURE, &"SimpleFormatArray")
-        .unwrap();
     fathom_test_util::assert_is_equal!(
         globals,
-        simple_array,
+        read_context
+            .read_item(&mut read_scope.reader(), &FIXTURE, &"SimpleFormatArray")
+            .unwrap(),
         Value::ArrayTerm(vec![
             Arc::new(Value::int(1)),
             Arc::new(Value::int(2)),

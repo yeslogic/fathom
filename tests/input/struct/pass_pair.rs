@@ -15,9 +15,9 @@ fn eof_first() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
-    match read_context.read_item(&FIXTURE, &"PairFormat") {
+    match read_context.read_item(&mut read_scope.reader(), &FIXTURE, &"PairFormat") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -33,9 +33,9 @@ fn eof_second() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
-    match read_context.read_item(&FIXTURE, &"PairFormat") {
+    match read_context.read_item(&mut read_scope.reader(), &FIXTURE, &"PairFormat") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -52,11 +52,13 @@ fn valid_pair() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
     fathom_test_util::assert_is_equal!(
         globals,
-        read_context.read_item(&FIXTURE, &"PairFormat").unwrap(),
+        read_context
+            .read_item(&mut read_scope.reader(), &FIXTURE, &"PairFormat")
+            .unwrap(),
         Value::StructTerm(BTreeMap::from_iter(vec![
             ("first".to_owned(), Arc::new(Value::int(31))),
             ("second".to_owned(), Arc::new(Value::int(-30))),
@@ -75,11 +77,13 @@ fn valid_pair_trailing() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
     fathom_test_util::assert_is_equal!(
         globals,
-        read_context.read_item(&FIXTURE, &"PairFormat").unwrap(),
+        read_context
+            .read_item(&mut read_scope.reader(), &FIXTURE, &"PairFormat")
+            .unwrap(),
         Value::StructTerm(BTreeMap::from_iter(vec![
             ("first".to_owned(), Arc::new(Value::int(255))),
             ("second".to_owned(), Arc::new(Value::int(-30))),

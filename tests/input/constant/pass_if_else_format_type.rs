@@ -15,9 +15,9 @@ fn eof_inner() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
-    match read_context.read_item(&FIXTURE, &"Test") {
+    match read_context.read_item(&mut read_scope.reader(), &FIXTURE, &"Test") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -33,10 +33,15 @@ fn valid_test() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
-    let test = read_context.read_item(&FIXTURE, &"Test").unwrap();
-    fathom_test_util::assert_is_equal!(globals, test, Value::f64(23.64e10));
+    fathom_test_util::assert_is_equal!(
+        globals,
+        read_context
+            .read_item(&mut read_scope.reader(), &FIXTURE, &"Test")
+            .unwrap(),
+        Value::f64(23.64e10),
+    );
 
     // TODO: Check remaining
 }
@@ -49,10 +54,15 @@ fn valid_test_trailing() {
 
     let globals = core::Globals::default();
     let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut read_context = binary::read::Context::new(&globals);
 
-    let test = read_context.read_item(&FIXTURE, &"Test").unwrap();
-    fathom_test_util::assert_is_equal!(globals, test, Value::f64(781.453298));
+    fathom_test_util::assert_is_equal!(
+        globals,
+        read_context
+            .read_item(&mut read_scope.reader(), &FIXTURE, &"Test")
+            .unwrap(),
+        Value::f64(781.453298),
+    );
 
     // TODO: Check remaining
 }

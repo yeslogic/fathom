@@ -1,5 +1,5 @@
 use contracts::debug_ensures;
-use fathom_runtime::{FormatReader, ReadError, ReadFormat};
+use fathom_runtime::{FormatReader, ReadError};
 use num_traits::ToPrimitive;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
@@ -13,17 +13,15 @@ pub struct Context<'me> {
     globals: &'me Globals,
     items: HashMap<String, semantics::Item>,
     locals: core::Locals<Arc<Value>>,
-    reader: FormatReader<'me>,
 }
 
 impl<'me> Context<'me> {
     /// Create a new context.
-    pub fn new(globals: &'me Globals, reader: FormatReader<'me>) -> Context<'me> {
+    pub fn new(globals: &'me Globals) -> Context<'me> {
         Context {
             globals,
             items: HashMap::new(),
             locals: core::Locals::new(),
-            reader,
         }
     }
 
@@ -44,12 +42,17 @@ impl<'me> Context<'me> {
     /// Read a module item in the context.
     #[debug_ensures(self.items.is_empty())]
     #[debug_ensures(self.locals.is_empty())]
-    pub fn read_item(&mut self, module: &'me Module, name: &str) -> Result<Value, ReadError> {
+    pub fn read_item(
+        &mut self,
+        reader: &mut FormatReader<'_>,
+        module: &'me Module,
+        name: &str,
+    ) -> Result<Value, ReadError> {
         for item in &module.items {
             let (name, item_data) = match &item.data {
                 ItemData::Constant(constant) if constant.name == name => {
                     let format = self.eval(&constant.term);
-                    let value = self.read_format(&format);
+                    let value = self.read_format(reader, &format);
                     self.items.clear();
                     return value;
                 }
@@ -57,7 +60,7 @@ impl<'me> Context<'me> {
                     return Err(ReadError::InvalidDataDescription);
                 }
                 ItemData::StructFormat(struct_format) if struct_format.name == name => {
-                    let value = self.read_struct_format(&struct_format.fields);
+                    let value = self.read_struct_format(reader, &struct_format.fields);
                     self.items.clear();
                     return value;
                 }
@@ -84,14 +87,11 @@ impl<'me> Context<'me> {
         Err(ReadError::InvalidDataDescription)
     }
 
-    fn read<T: ReadFormat<'me>>(&mut self) -> Result<T::Host, ReadError> {
-        self.reader.read::<T>()
-    }
-
     #[debug_ensures(self.items.len() == old(self.items.len()))]
     #[debug_ensures(self.locals.size() == old(self.locals.size()))]
     fn read_struct_format(
         &mut self,
+        reader: &mut FormatReader<'_>,
         field_declarations: &[FieldDeclaration],
     ) -> Result<Value, ReadError> {
         let mut fields = BTreeMap::new();
@@ -102,7 +102,7 @@ impl<'me> Context<'me> {
         for field_declaration in field_declarations.iter() {
             let label = field_declaration.label.data.clone();
             let format = self.eval_with_locals(&mut format_locals, &field_declaration.type_);
-            let value = Arc::new(self.read_format(&format)?);
+            let value = Arc::new(self.read_format(reader, &format)?);
             format_locals.push(value.clone());
             fields.insert(label, value);
         }
@@ -112,33 +112,37 @@ impl<'me> Context<'me> {
 
     #[debug_ensures(self.items.len() == old(self.items.len()))]
     #[debug_ensures(self.locals.size() == old(self.locals.size()))]
-    fn read_format(&mut self, format: &Value) -> Result<Value, ReadError> {
+    fn read_format(
+        &mut self,
+        reader: &mut FormatReader<'_>,
+        format: &Value,
+    ) -> Result<Value, ReadError> {
         match format {
             Value::Stuck(Head::Global(name), elims) => match (name.as_str(), elims.as_slice()) {
-                ("U8", []) => Ok(Value::int(self.read::<fathom_runtime::U8>()?)),
-                ("U16Le", []) => Ok(Value::int(self.read::<fathom_runtime::U16Le>()?)),
-                ("U16Be", []) => Ok(Value::int(self.read::<fathom_runtime::U16Be>()?)),
-                ("U32Le", []) => Ok(Value::int(self.read::<fathom_runtime::U32Le>()?)),
-                ("U32Be", []) => Ok(Value::int(self.read::<fathom_runtime::U32Be>()?)),
-                ("U64Le", []) => Ok(Value::int(self.read::<fathom_runtime::U64Le>()?)),
-                ("U64Be", []) => Ok(Value::int(self.read::<fathom_runtime::U64Be>()?)),
-                ("S8", []) => Ok(Value::int(self.read::<fathom_runtime::I8>()?)),
-                ("S16Le", []) => Ok(Value::int(self.read::<fathom_runtime::I16Le>()?)),
-                ("S16Be", []) => Ok(Value::int(self.read::<fathom_runtime::I16Be>()?)),
-                ("S32Le", []) => Ok(Value::int(self.read::<fathom_runtime::I32Le>()?)),
-                ("S32Be", []) => Ok(Value::int(self.read::<fathom_runtime::I32Be>()?)),
-                ("S64Le", []) => Ok(Value::int(self.read::<fathom_runtime::I64Le>()?)),
-                ("S64Be", []) => Ok(Value::int(self.read::<fathom_runtime::I64Be>()?)),
-                ("F32Le", []) => Ok(Value::f32(self.read::<fathom_runtime::F32Le>()?)),
-                ("F32Be", []) => Ok(Value::f32(self.read::<fathom_runtime::F32Be>()?)),
-                ("F64Le", []) => Ok(Value::f64(self.read::<fathom_runtime::F64Le>()?)),
-                ("F64Be", []) => Ok(Value::f64(self.read::<fathom_runtime::F64Be>()?)),
+                ("U8", []) => Ok(Value::int(reader.read::<fathom_runtime::U8>()?)),
+                ("U16Le", []) => Ok(Value::int(reader.read::<fathom_runtime::U16Le>()?)),
+                ("U16Be", []) => Ok(Value::int(reader.read::<fathom_runtime::U16Be>()?)),
+                ("U32Le", []) => Ok(Value::int(reader.read::<fathom_runtime::U32Le>()?)),
+                ("U32Be", []) => Ok(Value::int(reader.read::<fathom_runtime::U32Be>()?)),
+                ("U64Le", []) => Ok(Value::int(reader.read::<fathom_runtime::U64Le>()?)),
+                ("U64Be", []) => Ok(Value::int(reader.read::<fathom_runtime::U64Be>()?)),
+                ("S8", []) => Ok(Value::int(reader.read::<fathom_runtime::I8>()?)),
+                ("S16Le", []) => Ok(Value::int(reader.read::<fathom_runtime::I16Le>()?)),
+                ("S16Be", []) => Ok(Value::int(reader.read::<fathom_runtime::I16Be>()?)),
+                ("S32Le", []) => Ok(Value::int(reader.read::<fathom_runtime::I32Le>()?)),
+                ("S32Be", []) => Ok(Value::int(reader.read::<fathom_runtime::I32Be>()?)),
+                ("S64Le", []) => Ok(Value::int(reader.read::<fathom_runtime::I64Le>()?)),
+                ("S64Be", []) => Ok(Value::int(reader.read::<fathom_runtime::I64Be>()?)),
+                ("F32Le", []) => Ok(Value::f32(reader.read::<fathom_runtime::F32Le>()?)),
+                ("F32Be", []) => Ok(Value::f32(reader.read::<fathom_runtime::F32Be>()?)),
+                ("F64Le", []) => Ok(Value::f64(reader.read::<fathom_runtime::F64Le>()?)),
+                ("F64Be", []) => Ok(Value::f64(reader.read::<fathom_runtime::F64Be>()?)),
                 ("FormatArray", [Elim::Function(len), Elim::Function(elem_type)]) => {
                     match len.as_ref() {
                         Value::Primitive(Primitive::Int(len)) => match len.to_usize() {
                             Some(len) => Ok(Value::ArrayTerm(
                                 (0..len)
-                                    .map(|_| Ok(Arc::new(self.read_format(elem_type)?)))
+                                    .map(|_| Ok(Arc::new(self.read_format(reader, elem_type)?)))
                                     .collect::<Result<_, ReadError>>()?,
                             )),
                             None => Err(ReadError::InvalidDataDescription),
@@ -152,7 +156,7 @@ impl<'me> Context<'me> {
                 match (self.items.get(item_name).cloned(), elims.as_slice()) {
                     (Some(item), []) => match item.data {
                         semantics::ItemData::StructFormat(field_declarations) => {
-                            self.read_struct_format(&field_declarations)
+                            self.read_struct_format(reader, &field_declarations)
                         }
                         // NOTE: We expect that all constants should be reduced
                         // during evaluation, but this assumption could be
@@ -167,7 +171,7 @@ impl<'me> Context<'me> {
             Value::Stuck(Head::Local(local_level), elims) => {
                 let local_index = local_level.to_index(self.locals.size()).unwrap();
                 match (self.locals.get(local_index).cloned(), elims.as_slice()) {
-                    (Some(value), []) => self.read_format(&value),
+                    (Some(value), []) => self.read_format(reader, &value),
                     (Some(_), _) | (None, _) => Err(ReadError::InvalidDataDescription),
                 }
             }
