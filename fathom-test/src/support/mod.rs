@@ -40,7 +40,6 @@ lazy_static::lazy_static! {
     static ref INPUT_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("input");
     static ref SNAPSHOTS_DIR: PathBuf = CARGO_WORKSPACE_ROOT.join("tests").join("snapshots");
 
-    static ref GLOBALS: fathom::lang::core::Globals = fathom::lang::core::Globals::default();
 }
 
 pub fn run_integration_test(test_name: &str, fathom_path: &str) {
@@ -63,9 +62,9 @@ pub fn run_integration_test(test_name: &str, fathom_path: &str) {
         return;
     }
 
-    let surface_module = test.parse_surface(&files);
+    let surface_module = compiler.parse_surface(&files);
     test.compile_doc(&surface_module);
-    let core_module = test.elaborate(&files, &surface_module);
+    let core_module = compiler.elaborate(&files, &surface_module);
     test.roundtrip_surface_to_core(&files, &core_module);
     test.roundtrip_pretty_core(&mut files, &core_module);
     test.binary_parse_tests();
@@ -133,50 +132,6 @@ impl Test {
             failed_checks: Vec::new(),
             found_messages: Vec::new(),
         }
-    }
-
-    fn parse_surface(
-        &mut self,
-        files: &SimpleFiles<String, String>,
-    ) -> fathom::lang::surface::Module {
-        let file_id = self.input_fathom_file_id;
-        let source = files.source(file_id).unwrap();
-        fathom::lang::surface::Module::parse(file_id, source, &mut self.found_messages)
-    }
-
-    fn elaborate(
-        &mut self,
-        files: &SimpleFiles<String, String>,
-        surface_module: &fathom::lang::surface::Module,
-    ) -> fathom::lang::core::Module {
-        let mut context = surface_to_core::Context::new(&GLOBALS);
-        let core_module = context.from_module(&surface_module);
-        self.found_messages.extend(context.drain_messages());
-
-        // The core syntax from the elaborator should always be well-formed!
-        let mut context = fathom::lang::core::typing::Context::new(&GLOBALS);
-        context.is_module(&core_module);
-        let validation_messages = context.drain_messages().collect::<Vec<_>>();
-
-        if !validation_messages.is_empty() {
-            self.failed_checks.push("elaborate: validate");
-
-            let pretty_arena = pretty::Arena::new();
-            let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
-
-            for message in &validation_messages {
-                let diagnostic = message.to_diagnostic(&pretty_arena);
-                term::emit(&mut buffer, &self.term_config, files, &diagnostic).unwrap();
-            }
-
-            eprintln!("  • elaborate: validate");
-            eprintln!();
-            eprintln_indented(4, "", "---- found diagnostics ----");
-            eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
-            eprintln!();
-        }
-
-        core_module
     }
 
     fn roundtrip_surface_to_core(
