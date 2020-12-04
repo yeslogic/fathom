@@ -15,10 +15,10 @@ fn eof_inner() {
     let writer = FormatWriter::new(vec![]);
 
     let globals = core::Globals::default();
-    let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals);
+    let mut reader = ReadScope::new(writer.buffer()).reader();
+    let mut read_context = binary::read::Context::new(&globals, &FIXTURE);
 
-    match read_context.read_item(&mut read_scope.reader(), &FIXTURE, &"SimpleFormatArray") {
+    match read_context.read_item(&mut reader, &"SimpleFormatArray") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -38,13 +38,13 @@ fn valid_test() {
     writer.write::<U32Be>(6); // SimpleFormatArray::inner[5]
 
     let globals = core::Globals::default();
-    let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals);
+    let mut reader = ReadScope::new(writer.buffer()).reader();
+    let mut read_context = binary::read::Context::new(&globals, &FIXTURE);
 
     fathom_test_util::assert_is_equal!(
         globals,
         read_context
-            .read_item(&mut read_scope.reader(), &FIXTURE, &"SimpleFormatArray")
+            .read_item(&mut reader, &"SimpleFormatArray")
             .unwrap(),
         Value::ArrayTerm(vec![
             Arc::new(Value::int(1)),
@@ -70,10 +70,10 @@ fn invalid_test_trailing() {
     writer.write::<U8>(42);
 
     let globals = core::Globals::default();
-    let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals);
+    let mut reader = ReadScope::new(writer.buffer()).reader();
+    let mut read_context = binary::read::Context::new(&globals, &FIXTURE);
 
-    match read_context.read_item(&mut read_scope.reader(), &FIXTURE, &"SimpleFormatArray") {
+    match read_context.read_item(&mut reader, &"SimpleFormatArray") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -94,13 +94,13 @@ fn valid_test_trailing() {
     writer.write::<U8>(42);
 
     let globals = core::Globals::default();
-    let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals);
+    let mut reader = ReadScope::new(writer.buffer()).reader();
+    let mut read_context = binary::read::Context::new(&globals, &FIXTURE);
 
     fathom_test_util::assert_is_equal!(
         globals,
         read_context
-            .read_item(&mut read_scope.reader(), &FIXTURE, &"SimpleFormatArray")
+            .read_item(&mut reader, &"SimpleFormatArray")
             .unwrap(),
         Value::ArrayTerm(vec![
             Arc::new(Value::int(1)),

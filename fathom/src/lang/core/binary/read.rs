@@ -17,12 +17,34 @@ pub struct Context<'me> {
 
 impl<'me> Context<'me> {
     /// Create a new context.
-    pub fn new(globals: &'me Globals) -> Context<'me> {
-        Context {
+    pub fn new(globals: &'me Globals, module: &Module) -> Context<'me> {
+        let mut context = Context {
             globals,
             items: HashMap::new(),
             locals: core::Locals::new(),
+        };
+
+        for item in &module.items {
+            let (name, item_data) = match &item.data {
+                ItemData::Constant(constant) => (
+                    constant.name.clone(),
+                    semantics::ItemData::Constant(context.eval(&constant.term)),
+                ),
+                ItemData::StructType(struct_type) => (
+                    struct_type.name.clone(),
+                    semantics::ItemData::StructType(struct_type.fields.clone()),
+                ),
+                ItemData::StructFormat(struct_format) => (
+                    struct_format.name.clone(),
+                    semantics::ItemData::StructFormat(struct_format.fields.clone()),
+                ),
+            };
+
+            let item = semantics::Item::new(item.range, item_data);
+            context.items.insert(name, item);
         }
+
+        context
     }
 
     /// Evaluate a term in the parser context.
@@ -40,51 +62,21 @@ impl<'me> Context<'me> {
     }
 
     /// Read a module item in the context.
-    #[debug_ensures(self.items.is_empty())]
     #[debug_ensures(self.locals.is_empty())]
     pub fn read_item(
         &mut self,
         reader: &mut FormatReader<'_>,
-        module: &'me Module,
         name: &str,
     ) -> Result<Value, ReadError> {
-        for item in &module.items {
-            let (name, item_data) = match &item.data {
-                ItemData::Constant(constant) if constant.name == name => {
-                    let format = self.eval(&constant.term);
-                    let value = self.read_format(reader, &format);
-                    self.items.clear();
-                    return value;
-                }
-                ItemData::StructType(struct_type) if struct_type.name == name => {
-                    return Err(ReadError::InvalidDataDescription);
-                }
-                ItemData::StructFormat(struct_format) if struct_format.name == name => {
-                    let value = self.read_struct_format(reader, &struct_format.fields);
-                    self.items.clear();
-                    return value;
-                }
-                ItemData::Constant(constant) => (
-                    constant.name.clone(),
-                    semantics::ItemData::Constant(self.eval(&constant.term)),
-                ),
-                ItemData::StructType(struct_type) => (
-                    struct_type.name.clone(),
-                    semantics::ItemData::StructType(struct_type.fields.clone()),
-                ),
-                ItemData::StructFormat(struct_format) => (
-                    struct_format.name.clone(),
-                    semantics::ItemData::StructFormat(struct_format.fields.clone()),
-                ),
-            };
-
-            let item = semantics::Item::new(item.range, item_data);
-            self.items.insert(name, item);
+        match self.items.get(name).cloned().map(|item| item.data) {
+            Some(semantics::ItemData::Constant(value)) => self.read_format(reader, &value),
+            Some(semantics::ItemData::StructFormat(field_declarations)) => {
+                self.read_struct_format(reader, &field_declarations)
+            }
+            Some(semantics::ItemData::StructType(_)) | None => {
+                Err(ReadError::InvalidDataDescription)
+            }
         }
-
-        self.items.clear();
-
-        Err(ReadError::InvalidDataDescription)
     }
 
     #[debug_ensures(self.items.len() == old(self.items.len()))]
