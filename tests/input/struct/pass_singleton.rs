@@ -38,10 +38,13 @@ fn valid_singleton() {
     fathom_test_util::assert_is_equal!(
         globals,
         read_context.read_item(&mut reader, &"Byte").unwrap(),
-        Value::StructTerm(BTreeMap::from_iter(vec![(
-            "inner".to_owned(),
-            Arc::new(Value::int(31)),
-        )])),
+        (
+            Value::StructTerm(BTreeMap::from_iter(vec![(
+                "inner".to_owned(),
+                Arc::new(Value::int(31)),
+            )])),
+            Vec::new(),
+        ),
     );
 
     // TODO: Check remaining
@@ -60,10 +63,13 @@ fn valid_singleton_trailing() {
     fathom_test_util::assert_is_equal!(
         globals,
         read_context.read_item(&mut reader, &"Byte").unwrap(),
-        Value::StructTerm(BTreeMap::from_iter(vec![(
-            "inner".to_owned(),
-            Arc::new(Value::int(255)),
-        )])),
+        (
+            Value::StructTerm(BTreeMap::from_iter(vec![(
+                "inner".to_owned(),
+                Arc::new(Value::int(255)),
+            )])),
+            Vec::new(),
+        ),
     );
 
     // TODO: Check remaining

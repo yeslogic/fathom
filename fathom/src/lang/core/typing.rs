@@ -610,6 +610,7 @@ impl<'me> Context<'me> {
                 Primitive::Int(_) => Arc::new(Value::global("Int", Vec::new())),
                 Primitive::F32(_) => Arc::new(Value::global("F32", Vec::new())),
                 Primitive::F64(_) => Arc::new(Value::global("F64", Vec::new())),
+                Primitive::Pos(_) => Arc::new(Value::global("Pos", Vec::new())),
             },
             TermData::BoolElim(head, if_true, if_false) => {
                 let bool_type = Arc::new(Value::global("Bool", Vec::new()));

@@ -1,7 +1,7 @@
 use contracts::debug_ensures;
 use fathom_runtime::{FormatReader, ReadError};
 use num_traits::ToPrimitive;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::Arc;
 
 use crate::lang::core;
@@ -13,6 +13,7 @@ pub struct Context<'me> {
     globals: &'me Globals,
     items: HashMap<String, semantics::Item>,
     locals: core::Locals<Arc<Value>>,
+    pending_links: VecDeque<(usize, Arc<Value>)>,
 }
 
 impl<'me> Context<'me> {
@@ -22,6 +23,7 @@ impl<'me> Context<'me> {
             globals,
             items: HashMap::new(),
             locals: core::Locals::new(),
+            pending_links: VecDeque::new(),
         };
 
         for item in &module.items {
@@ -63,12 +65,14 @@ impl<'me> Context<'me> {
 
     /// Read a module item in the context.
     #[debug_ensures(self.locals.is_empty())]
+    #[debug_ensures(self.pending_links.is_empty())]
     pub fn read_item(
         &mut self,
         reader: &mut FormatReader<'_>,
         name: &str,
-    ) -> Result<Value, ReadError> {
-        match self.items.get(name).cloned().map(|item| item.data) {
+    ) -> Result<(Value, HashMap<usize, Arc<Value>>), ReadError> {
+        let root_scope = reader.scope();
+        let parsed_value = match self.items.get(name).cloned().map(|item| item.data) {
             Some(semantics::ItemData::Constant(value)) => self.read_format(reader, &value),
             Some(semantics::ItemData::StructFormat(field_declarations)) => {
                 self.read_struct_format(reader, &field_declarations)
@@ -76,7 +80,45 @@ impl<'me> Context<'me> {
             Some(semantics::ItemData::StructType(_)) | None => {
                 Err(ReadError::InvalidDataDescription)
             }
-        }
+        };
+
+        let result = match parsed_value {
+            Err(error) => Err(error),
+            Ok(parsed_value) => {
+                let mut parsed_links = HashMap::new();
+
+                // Follow pending offsets until exhausted (ᴗ˳ᴗ) ..zzZ
+                while let Some((offset, format)) = self.pending_links.pop_front() {
+                    use std::collections::hash_map::Entry;
+
+                    match parsed_links.entry(offset) {
+                        // The offset has not yet been parsed...
+                        Entry::Vacant(parsed_entry) => {
+                            let mut inner_reader = root_scope.offset(offset).reader();
+                            let value = match self.read_format(&mut inner_reader, &format) {
+                                Ok(value) => value,
+                                Err(error) => {
+                                    self.pending_links.clear();
+                                    return Err(error);
+                                }
+                            };
+                            parsed_entry.insert(Arc::new(value));
+                        }
+                        // The offset has already been parsed!
+                        Entry::Occupied(_) => {
+                            self.pending_links.clear();
+                            return Err(ReadError::DuplicatePosition { offset });
+                        }
+                    }
+                }
+
+                Ok((parsed_value, parsed_links))
+            }
+        };
+
+        self.pending_links.clear();
+
+        result
     }
 
     #[debug_ensures(self.items.len() == old(self.items.len()))]
@@ -95,6 +137,7 @@ impl<'me> Context<'me> {
             let label = field_declaration.label.data.clone();
             let format = self.eval_with_locals(&mut format_locals, &field_declaration.type_);
             let value = Arc::new(self.read_format(reader, &format)?);
+
             format_locals.push(value.clone());
             fields.insert(label, value);
         }
@@ -141,6 +184,30 @@ impl<'me> Context<'me> {
                         },
                         _ => Err(ReadError::InvalidDataDescription),
                     }
+                }
+                ("CurrentPos", []) => match reader.current_pos() {
+                    Some(offset) => Ok(Value::Primitive(Primitive::Pos(offset))),
+                    None => Err(ReadError::OverflowingPosition),
+                },
+                (
+                    "Link",
+                    [Elim::Function(base), Elim::Function(offset), Elim::Function(format)],
+                ) => {
+                    let (base, offset) = match (base.as_ref(), offset.as_ref()) {
+                        (
+                            Value::Primitive(Primitive::Pos(base)),
+                            Value::Primitive(Primitive::Int(offset)),
+                        ) => (base, offset),
+                        (_, _) => return Err(ReadError::InvalidDataDescription),
+                    };
+
+                    let position = (offset + base)
+                        .to_usize()
+                        .ok_or(ReadError::OverflowingPosition)?;
+
+                    self.pending_links.push_back((position, format.clone()));
+
+                    Ok(Value::Primitive(Primitive::Pos(position)))
                 }
                 (_, _) => Err(ReadError::InvalidDataDescription),
             },

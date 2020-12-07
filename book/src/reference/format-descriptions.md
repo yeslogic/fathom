@@ -115,7 +115,7 @@ Representation, assuming `len : Int` and `format : Format`:
 repr (FormatArray len format) // normalizes to `Array len (repr format)`
 ```
 
-### Position formats
+### Current position formats
 
 The current position of the binary stream can be accessed using the `CurrentPos` format:
 
@@ -129,9 +129,23 @@ Representation:
 repr CurrentPos         // normalizes to `Pos`
 ```
 
-### Offset formats
+This evaluates to the current position of the binary parser during parsing.
 
-> **TODO**: add documentation
+### Link formats
+
+Links allow binary formats to refer to other positions in the binary stream:
+
+```fathom
+Link : Pos -> Int -> Format -> Format
+```
+
+Representation, assuming `base : Pos`, `offset : Int`, `format : Format`:
+
+```fathom
+repr Link base offset format    // normalizes to `Pos`
+```
+
+This evaluates to `base` with `offset` added to it during parsing.
 
 ### Struct formats
 

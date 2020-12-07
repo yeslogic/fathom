@@ -8,12 +8,24 @@ pub use lazy_static;
 
 #[macro_export]
 macro_rules! assert_is_equal {
-    ($globals:expr, $value0:expr, $value1:expr $(,)?) => {{
+    ($globals:expr, $result0:expr, $result1:expr $(,)?) => {{
+        let (value0, links0) = $result0;
+        let (value1, links1) = $result1;
+
         let items = std::collections::HashMap::new();
+
         // TODO: better error reporting?
         assert!($crate::fathom::lang::core::semantics::is_equal(
-            &$globals, &items, &$value0, &$value1,
+            &$globals, &items, &value0, &value1,
         ));
+        for (offset, offset_value1) in links1 {
+            assert!($crate::fathom::lang::core::semantics::is_equal(
+                &$globals,
+                &items,
+                &links0[&offset],
+                &offset_value1,
+            ));
+        }
     }};
 }
 

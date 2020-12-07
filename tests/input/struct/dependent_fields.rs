@@ -63,17 +63,20 @@ fn valid_array_format() {
     fathom_test_util::assert_is_equal!(
         globals,
         read_context.read_item(&mut reader, &"ArrayFormat").unwrap(),
-        Value::StructTerm(BTreeMap::from_iter(vec![
-            ("len".to_owned(), Arc::new(Value::int(3))),
-            (
-                "data".to_owned(),
-                Arc::new(Value::ArrayTerm(vec![
-                    Arc::new(Value::int(1)),
-                    Arc::new(Value::int(2)),
-                    Arc::new(Value::int(3)),
-                ])),
-            ),
-        ]),),
+        (
+            Value::StructTerm(BTreeMap::from_iter(vec![
+                ("len".to_owned(), Arc::new(Value::int(3))),
+                (
+                    "data".to_owned(),
+                    Arc::new(Value::ArrayTerm(vec![
+                        Arc::new(Value::int(1)),
+                        Arc::new(Value::int(2)),
+                        Arc::new(Value::int(3)),
+                    ])),
+                ),
+            ])),
+            Vec::new(),
+        ),
     );
 
     // TODO: Check remaining
@@ -92,10 +95,13 @@ fn valid_array_format_trailing() {
     fathom_test_util::assert_is_equal!(
         globals,
         read_context.read_item(&mut reader, &"ArrayFormat").unwrap(),
-        Value::StructTerm(BTreeMap::from_iter(vec![
-            ("len".to_owned(), Arc::new(Value::int(0))),
-            ("data".to_owned(), Arc::new(Value::ArrayTerm(Vec::new()))),
-        ])),
+        (
+            Value::StructTerm(BTreeMap::from_iter(vec![
+                ("len".to_owned(), Arc::new(Value::int(0))),
+                ("data".to_owned(), Arc::new(Value::ArrayTerm(Vec::new()))),
+            ])),
+            Vec::new(),
+        ),
     );
 
     // TODO: Check remaining

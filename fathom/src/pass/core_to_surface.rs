@@ -174,6 +174,7 @@ impl Context {
                 Primitive::Int(value) => surface::TermData::NumberLiteral(value.to_string()),
                 Primitive::F32(value) => surface::TermData::NumberLiteral(value.to_string()),
                 Primitive::F64(value) => surface::TermData::NumberLiteral(value.to_string()),
+                Primitive::Pos(_) => surface::TermData::Error, // TODO: Warning?
             },
             TermData::BoolElim(head, if_true, if_false) => surface::TermData::If(
                 Box::new(self.from_term(head)),

@@ -46,14 +46,17 @@ fn valid_test() {
         read_context
             .read_item(&mut reader, &"SimpleFormatArray")
             .unwrap(),
-        Value::ArrayTerm(vec![
-            Arc::new(Value::int(1)),
-            Arc::new(Value::int(2)),
-            Arc::new(Value::int(3)),
-            Arc::new(Value::int(4)),
-            Arc::new(Value::int(5)),
-            Arc::new(Value::int(6)),
-        ]),
+        (
+            Value::ArrayTerm(vec![
+                Arc::new(Value::int(1)),
+                Arc::new(Value::int(2)),
+                Arc::new(Value::int(3)),
+                Arc::new(Value::int(4)),
+                Arc::new(Value::int(5)),
+                Arc::new(Value::int(6)),
+            ]),
+            Vec::new(),
+        ),
     );
 
     // TODO: Check remaining
@@ -102,14 +105,17 @@ fn valid_test_trailing() {
         read_context
             .read_item(&mut reader, &"SimpleFormatArray")
             .unwrap(),
-        Value::ArrayTerm(vec![
-            Arc::new(Value::int(1)),
-            Arc::new(Value::int(2)),
-            Arc::new(Value::int(3)),
-            Arc::new(Value::int(4)),
-            Arc::new(Value::int(5)),
-            Arc::new(Value::int(6)),
-        ]),
+        (
+            Value::ArrayTerm(vec![
+                Arc::new(Value::int(1)),
+                Arc::new(Value::int(2)),
+                Arc::new(Value::int(3)),
+                Arc::new(Value::int(4)),
+                Arc::new(Value::int(5)),
+                Arc::new(Value::int(6)),
+            ]),
+            Vec::new(),
+        ),
     );
 
     // TODO: Check remaining

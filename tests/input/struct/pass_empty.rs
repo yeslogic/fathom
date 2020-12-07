@@ -19,7 +19,7 @@ fn valid_empty() {
     fathom_test_util::assert_is_equal!(
         globals,
         read_context.read_item(&mut reader, "EmptyFormat").unwrap(),
-        Value::StructTerm(BTreeMap::from_iter(vec![])),
+        (Value::StructTerm(BTreeMap::from_iter(vec![])), Vec::new()),
     );
 
     // TODO: Check remaining
@@ -37,7 +37,7 @@ fn valid_empty_trailing() {
     fathom_test_util::assert_is_equal!(
         globals,
         read_context.read_item(&mut reader, "EmptyFormat").unwrap(),
-        Value::StructTerm(BTreeMap::from_iter(vec![])),
+        (Value::StructTerm(BTreeMap::from_iter(vec![])), Vec::new()),
     );
 
     // TODO: Check remaining
