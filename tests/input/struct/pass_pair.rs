@@ -14,10 +14,10 @@ fn eof_first() {
     let writer = FormatWriter::new(vec![]);
 
     let globals = core::Globals::default();
-    let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut reader = ReadScope::new(writer.buffer()).reader();
+    let mut read_context = binary::read::Context::new(&globals, &FIXTURE);
 
-    match read_context.read_item(&FIXTURE, &"PairFormat") {
+    match read_context.read_item(&mut reader, &"PairFormat") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -32,10 +32,10 @@ fn eof_second() {
     writer.write::<U8>(255); // PairFormat::first
 
     let globals = core::Globals::default();
-    let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut reader = ReadScope::new(writer.buffer()).reader();
+    let mut read_context = binary::read::Context::new(&globals, &FIXTURE);
 
-    match read_context.read_item(&FIXTURE, &"PairFormat") {
+    match read_context.read_item(&mut reader, &"PairFormat") {
         Err(ReadError::Eof(_)) => {}
         Err(err) => panic!("eof error expected, found: {:?}", err),
         Ok(_) => panic!("error expected, found: Ok(_)"),
@@ -51,12 +51,12 @@ fn valid_pair() {
     writer.write::<I8>(-30); // PairFormat::second
 
     let globals = core::Globals::default();
-    let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut reader = ReadScope::new(writer.buffer()).reader();
+    let mut read_context = binary::read::Context::new(&globals, &FIXTURE);
 
     fathom_test_util::assert_is_equal!(
         globals,
-        read_context.read_item(&FIXTURE, &"PairFormat").unwrap(),
+        read_context.read_item(&mut reader, &"PairFormat").unwrap(),
         Value::StructTerm(BTreeMap::from_iter(vec![
             ("first".to_owned(), Arc::new(Value::int(31))),
             ("second".to_owned(), Arc::new(Value::int(-30))),
@@ -74,12 +74,12 @@ fn valid_pair_trailing() {
     writer.write::<U8>(42);
 
     let globals = core::Globals::default();
-    let read_scope = ReadScope::new(writer.buffer());
-    let mut read_context = binary::read::Context::new(&globals, read_scope.reader());
+    let mut reader = ReadScope::new(writer.buffer()).reader();
+    let mut read_context = binary::read::Context::new(&globals, &FIXTURE);
 
     fathom_test_util::assert_is_equal!(
         globals,
-        read_context.read_item(&FIXTURE, &"PairFormat").unwrap(),
+        read_context.read_item(&mut reader, &"PairFormat").unwrap(),
         Value::StructTerm(BTreeMap::from_iter(vec![
             ("first".to_owned(), Arc::new(Value::int(255))),
             ("second".to_owned(), Arc::new(Value::int(-30))),
