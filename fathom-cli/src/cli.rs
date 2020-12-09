@@ -7,17 +7,12 @@ use structopt::{clap::ArgGroup, StructOpt};
 #[derive(StructOpt, Debug)]
 #[structopt(group = ArgGroup::with_name("format_choice"), after_help = "If no output option is specified it defaults to --summary.")]
 pub struct Cli {
-    // Format choice, optional:
-    /// Optional argument for specifying the name of the format
-    /// description in the installed catalog, for example "opentype",
-    /// that will be used to process the files.
-    #[structopt(long, group = "format_choice", name = "NAME")]
-    pub format: Option<String>,
-    /// Optional argument for specifying the file containing the
+    // Format choice:
+    /// Argument for specifying the file containing the
     /// format description, for example "path/to/myformat.ddl", that
     /// will be used to process the files.
     #[structopt(long, group = "format_choice", name = "FORMAT-FILE")]
-    pub format_file: Option<PathBuf>,
+    pub format_file: PathBuf,
     // Output options, optional:
     /// Prints a brief summary of each file based on the format
     /// description. This may include printing the type or version or
