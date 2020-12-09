@@ -28,11 +28,11 @@ pub struct Cli {
     pub dump: bool,
     /// Print the results of applying the specified format query to
     /// each input file.
-    #[structopt(long, name = "QUERY")]
+    #[structopt(long, name = "QUERY", required_unless_all(&["QUERY_FILE"]))]
     pub query: Option<String>,
     /// Read a query from file and print the results of applying the
     /// format query to each input file.
-    #[structopt(long, name = "QUERY-FILE")]
+    #[structopt(long, name = "QUERY-FILE", required_unless_all(&["QUERY"]))]
     pub query_file: Option<PathBuf>,
     // The (binary) input files to operate on:
     /// The path to the file(s) to parse
