@@ -14,7 +14,7 @@ lazy_static::lazy_static! {
     static ref GLOBALS: lang::core::Globals = lang::core::Globals::default();
 }
 
-pub fn run_compiler(module_name: &str, fathom_path: &PathBuf) {
+pub fn run_compiler(module_name: &str, fathom_path: &PathBuf) -> lang::core::Module {
     let mut files = SimpleFiles::new();
     let mut compiler = Compiler::setup(
         &mut files,
@@ -34,6 +34,8 @@ pub fn run_compiler(module_name: &str, fathom_path: &PathBuf) {
     // compiler.binary_parse_tests();
 
     // compiler.finish(&files);
+    //todo return diagnostics
+    core_module
 }
 
 pub struct Compiler {
