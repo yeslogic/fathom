@@ -1,13 +1,13 @@
-use codespan_reporting::diagnostic::{Diagnostic, LabelStyle, Severity};
+use codespan_reporting::diagnostic::Diagnostic;
 use codespan_reporting::files::{Files, SimpleFiles};
 use codespan_reporting::term;
-use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
+use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 
 use crate::lang;
-use crate::pass::{core_to_pretty, core_to_surface, surface_to_core, surface_to_doc};
+use crate::pass::surface_to_core;
 use crate::reporting;
 
 lazy_static::lazy_static! {
@@ -26,23 +26,17 @@ pub fn run_compiler(module_name: &str, fathom_path: &PathBuf) -> lang::core::Mod
     // Run stages
 
     let surface_module = compiler.parse_surface(&files);
-    // compiler.compile_doc(&surface_module);
     let core_module = compiler.elaborate(&files, &surface_module);
-    // compiler.roundtrip_surface_to_core(&files, &core_module);
-    // compiler.roundtrip_pretty_core(&mut files, &core_module);
-    // compiler.binary_parse_tests();
 
     &compiler.finish(&files);
     core_module
 }
 
 pub struct Compiler {
-    module_name: String,
+    pub module_name: String,
     term_config: codespan_reporting::term::Config,
-    input_fathom_path: PathBuf,
+    pub input_fathom_path: PathBuf,
     input_fathom_file_id: usize,
-    // snapshot_filename: PathBuf,
-    // directives: directives::Directives,
     failed_checks: Vec<&'static str>,
     pub found_messages: Vec<reporting::Message>,
     surface_module: Option<lang::surface::Module>,
@@ -62,7 +56,6 @@ impl Compiler {
         // Set up output streams
 
         let term_config = term::Config::default();
-        let stdout = StandardStream::stdout(ColorChoice::Auto);
 
         // Set up files
 
@@ -77,8 +70,6 @@ impl Compiler {
             term_config,
             input_fathom_path,
             input_fathom_file_id,
-            // snapshot_filename,
-            // directives,
             failed_checks: Vec::new(),
             found_messages: Vec::new(),
             surface_module: None,
@@ -142,7 +133,7 @@ impl Compiler {
         if !found_diagnostics.is_empty() {
             self.failed_checks.push("unexpected_diagnostics");
 
-            eprintln!("Unexpected diagnostics found:");
+            eprintln!("Unexpected errors found:");
             eprintln!();
 
             // Use a buffer so that this doesn't get printed interleaved with the

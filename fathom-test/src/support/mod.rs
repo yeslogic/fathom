@@ -44,11 +44,12 @@ lazy_static::lazy_static! {
 }
 
 pub fn run_integration_test(test_name: &str, fathom_path: &str) {
-    let mut files = SimpleFiles::new();
-    let mut test = Test::setup(&mut files, test_name, fathom_path);
+    let mut test_files = SimpleFiles::new();
+    let mut compiler_files = SimpleFiles::new();
+    let mut test = Test::setup(&mut test_files, test_name, fathom_path);
 
     let mut compiler = compiler::Compiler::setup(
-        &mut files,
+        &mut compiler_files,
         test_name,
         INPUT_DIR.join(fathom_path).to_str().unwrap(),
     );
@@ -63,25 +64,23 @@ pub fn run_integration_test(test_name: &str, fathom_path: &str) {
         return;
     }
 
-    let surface_module = compiler.parse_surface(&files);
+    let surface_module = compiler.parse_surface(&compiler_files);
     test.compile_doc(&surface_module);
-    let core_module = compiler.elaborate(&files, &surface_module);
-    test.roundtrip_surface_to_core(&files, &core_module);
-    test.roundtrip_pretty_core(&mut files, &core_module);
+    let core_module = compiler.elaborate(&compiler_files, &surface_module);
+    test.roundtrip_surface_to_core(&test_files, &core_module);
+    test.roundtrip_pretty_core(&mut test_files, &core_module);
     test.binary_parse_tests();
 
-    test.finish(&files);
+    test.finish(&test_files, &compiler.found_messages);
 }
 
 struct Test {
     test_name: String,
     term_config: codespan_reporting::term::Config,
     input_fathom_path: PathBuf,
-    input_fathom_file_id: usize,
     snapshot_filename: PathBuf,
     directives: directives::Directives,
     failed_checks: Vec<&'static str>,
-    found_messages: Vec<fathom::reporting::Message>,
 }
 
 impl Test {
@@ -127,11 +126,9 @@ impl Test {
             test_name: test_name.to_owned(),
             term_config,
             input_fathom_path,
-            input_fathom_file_id,
             snapshot_filename,
             directives,
             failed_checks: Vec::new(),
-            found_messages: Vec::new(),
         }
     }
 
@@ -411,12 +408,15 @@ impl Test {
         }
     }
 
-    fn finish(mut self, files: &SimpleFiles<String, String>) {
+    fn finish(
+        mut self,
+        files: &SimpleFiles<String, String>,
+        found_messages: &Vec<fathom::reporting::Message>,
+    ) {
         // Ensure that no unexpected diagnostics and no expected diagnostics remain
 
         let pretty_arena = pretty::Arena::new();
-        let mut found_diagnostics = self
-            .found_messages
+        let mut found_diagnostics = found_messages
             .iter()
             .map(|message| message.to_diagnostic(&pretty_arena))
             .collect();
@@ -496,6 +496,9 @@ fn retain_unexpected(
     let mut found_removals = BTreeSet::new();
     let mut expected_removals = BTreeSet::new();
 
+    eprintln!("found_diagnostics: {}", found_diagnostics.len());
+    eprintln!("expected_diagnostics: {}", expected_diagnostics.len());
+
     for (found_index, found_diagnostic) in found_diagnostics.iter().enumerate() {
         for (expected_index, expected_diagnostic) in expected_diagnostics.iter().enumerate() {
             if is_expected(files, found_diagnostic, expected_diagnostic) {
@@ -505,13 +508,16 @@ fn retain_unexpected(
         }
     }
 
-    for index in found_removals.into_iter().rev() {
+    for index in found_removals.clone().into_iter().rev() {
         found_diagnostics.remove(index);
     }
 
-    for index in expected_removals.into_iter().rev() {
+    for index in expected_removals.clone().into_iter().rev() {
         expected_diagnostics.remove(index);
     }
+
+    eprintln!("found_removals: {}", found_removals.len());
+    eprintln!("expected_removals: {}", expected_removals.len());
 }
 
 fn is_expected(
@@ -520,10 +526,29 @@ fn is_expected(
     expected_diagnostic: &ExpectedDiagnostic,
 ) -> bool {
     // TODO: higher quality diagnostic message matching
+    eprintln!("is_expected");
+    eprintln!("{:?}", found_diagnostic.labels);
+    eprintln!("{:?}", expected_diagnostic);
     found_diagnostic.labels.iter().any(|label| {
         label.style == LabelStyle::Primary && label.file_id == expected_diagnostic.file_id && {
             let found_line_index = files.line_index(label.file_id, label.range.start).unwrap();
             let found_message = &found_diagnostic.message;
+
+            if !(found_line_index == expected_diagnostic.line_index
+                && found_diagnostic.severity == expected_diagnostic.severity
+                && expected_diagnostic.pattern.is_match(found_message))
+            {
+                eprintln!("danger, not equal!");
+                if found_line_index != expected_diagnostic.line_index {
+                    eprintln!("it's the line_index")
+                }
+                if found_diagnostic.severity != expected_diagnostic.severity {
+                    eprintln!("it's the severity")
+                }
+                if !expected_diagnostic.pattern.is_match(found_message) {
+                    eprintln!("it's the pattern!")
+                }
+            }
 
             found_line_index == expected_diagnostic.line_index
                 && found_diagnostic.severity == expected_diagnostic.severity
