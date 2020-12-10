@@ -1,3 +1,4 @@
+use codespan_reporting::diagnostic::{Diagnostic, LabelStyle, Severity};
 use codespan_reporting::files::{Files, SimpleFiles};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
@@ -24,8 +25,6 @@ pub fn run_compiler(module_name: &str, fathom_path: &PathBuf) -> lang::core::Mod
 
     // Run stages
 
-    eprintln!("trying to compile");
-
     let surface_module = compiler.parse_surface(&files);
     // compiler.compile_doc(&surface_module);
     let core_module = compiler.elaborate(&files, &surface_module);
@@ -33,8 +32,7 @@ pub fn run_compiler(module_name: &str, fathom_path: &PathBuf) -> lang::core::Mod
     // compiler.roundtrip_pretty_core(&mut files, &core_module);
     // compiler.binary_parse_tests();
 
-    // compiler.finish(&files);
-    //todo return diagnostics
+    &compiler.finish(&files);
     core_module
 }
 
@@ -45,13 +43,17 @@ pub struct Compiler {
     input_fathom_file_id: usize,
     // snapshot_filename: PathBuf,
     // directives: directives::Directives,
-    // failed_checks: Vec<&'static str>,
-    found_messages: Vec<reporting::Message>,
+    failed_checks: Vec<&'static str>,
+    pub found_messages: Vec<reporting::Message>,
     surface_module: Option<lang::surface::Module>,
-    core_module: Option<lang::core::Module>,
+    pub core_module: Option<lang::core::Module>,
 }
 
 impl Compiler {
+    pub fn messages(self) -> Vec<reporting::Message> {
+        return self.found_messages;
+    }
+
     pub fn setup(
         files: &mut SimpleFiles<String, String>,
         module_name: &str,
@@ -70,7 +72,6 @@ impl Compiler {
             panic!("error reading `{}`: {}", input_fathom_path.display(), error)
         });
         let input_fathom_file_id = files.add(input_fathom_path.display().to_string(), source);
-
         Compiler {
             module_name: module_name.to_owned(),
             term_config,
@@ -78,7 +79,7 @@ impl Compiler {
             input_fathom_file_id,
             // snapshot_filename,
             // directives,
-            // failed_checks: Vec::new(),
+            failed_checks: Vec::new(),
             found_messages: Vec::new(),
             surface_module: None,
             core_module: None,
@@ -105,6 +106,7 @@ impl Compiler {
         self.found_messages.extend(context.drain_messages());
 
         // The core syntax from the elaborator should always be well-formed!
+        // store context in Compiler object?
         let mut context = lang::core::typing::Context::new(&GLOBALS);
         context.is_module(&core_module);
         let validation_messages = context.drain_messages().collect::<Vec<_>>();
@@ -127,6 +129,34 @@ impl Compiler {
         self.core_module = Some(core_module.clone());
 
         core_module
+    }
+
+    pub fn finish(mut self, files: &SimpleFiles<String, String>) {
+        let pretty_arena = pretty::Arena::new();
+        let found_diagnostics: Vec<Diagnostic<usize>> = self
+            .found_messages
+            .iter()
+            .map(|message| message.to_diagnostic(&pretty_arena))
+            .collect();
+
+        if !found_diagnostics.is_empty() {
+            self.failed_checks.push("unexpected_diagnostics");
+
+            eprintln!("Unexpected diagnostics found:");
+            eprintln!();
+
+            // Use a buffer so that this doesn't get printed interleaved with the
+            // test status output.
+
+            let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
+            for diagnostic in &found_diagnostics {
+                term::emit(&mut buffer, &self.term_config, files, diagnostic).unwrap();
+            }
+
+            eprintln_indented(4, "", "---- found diagnostics ----");
+            eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
+            eprintln!();
+        }
     }
 }
 
