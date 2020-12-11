@@ -1,0 +1,18 @@
+//! A chunky format.
+//!
+//! Tests `CurrentPos` and `Link`.
+
+struct Chunk : Format {
+    start : global CurrentPos,
+    width : global U16Be,
+    height : global U16Be,
+}
+
+struct Root : Format {
+    start : global CurrentPos,
+    magic : (global FormatArray int 4) global U8,
+    offset1 : global U16Be,
+    offset2 : global U16Be,
+    position1 : ((global Link local 3) local 1) item Chunk,
+    position2 : ((global Link local 4) local 1) item Chunk,
+}

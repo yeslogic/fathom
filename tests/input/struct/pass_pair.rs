@@ -57,10 +57,13 @@ fn valid_pair() {
     fathom_test_util::assert_is_equal!(
         globals,
         read_context.read_item(&mut reader, &"PairFormat").unwrap(),
-        Value::StructTerm(BTreeMap::from_iter(vec![
-            ("first".to_owned(), Arc::new(Value::int(31))),
-            ("second".to_owned(), Arc::new(Value::int(-30))),
-        ])),
+        (
+            Value::StructTerm(BTreeMap::from_iter(vec![
+                ("first".to_owned(), Arc::new(Value::int(31))),
+                ("second".to_owned(), Arc::new(Value::int(-30))),
+            ])),
+            Vec::new(),
+        ),
     );
 
     // TODO: Check remaining
@@ -80,10 +83,13 @@ fn valid_pair_trailing() {
     fathom_test_util::assert_is_equal!(
         globals,
         read_context.read_item(&mut reader, &"PairFormat").unwrap(),
-        Value::StructTerm(BTreeMap::from_iter(vec![
-            ("first".to_owned(), Arc::new(Value::int(255))),
-            ("second".to_owned(), Arc::new(Value::int(-30))),
-        ])),
+        (
+            Value::StructTerm(BTreeMap::from_iter(vec![
+                ("first".to_owned(), Arc::new(Value::int(255))),
+                ("second".to_owned(), Arc::new(Value::int(-30))),
+            ])),
+            Vec::new(),
+        ),
     );
 
     // TODO: Check remaining

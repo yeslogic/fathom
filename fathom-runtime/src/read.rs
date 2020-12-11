@@ -10,6 +10,10 @@ use crate::Format;
 pub enum ReadError {
     /// Tried to read a broken data description.
     InvalidDataDescription,
+    /// Tried to read from the same position multiple times.
+    DuplicatePosition { offset: usize },
+    /// Position overflowed maximum allowed size.
+    OverflowingPosition,
     /// An end of file error.
     Eof(ReadEofError),
 }
@@ -20,6 +24,14 @@ impl fmt::Display for ReadError {
             ReadError::InvalidDataDescription => {
                 write!(f, "attempted to read improperly specified data")
             }
+            ReadError::DuplicatePosition { offset } => write!(
+                f,
+                "encountered the same position ({:x}) multiple times",
+                offset,
+            ),
+            ReadError::OverflowingPosition => {
+                write!(f, "position overflowed maximum allowed size")
+            }
             ReadError::Eof(error) => error.fmt(f),
         }
     }
@@ -28,7 +40,9 @@ impl fmt::Display for ReadError {
 impl Error for ReadError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            ReadError::InvalidDataDescription => None,
+            ReadError::InvalidDataDescription
+            | ReadError::DuplicatePosition { .. }
+            | ReadError::OverflowingPosition => None,
             ReadError::Eof(error) => Some(error),
         }
     }
@@ -121,6 +135,11 @@ impl<'data> FormatReader<'data> {
     #[inline]
     pub fn scope(&self) -> ReadScope<'data> {
         self.scope.offset(self.offset)
+    }
+
+    /// The current position of the reader.
+    pub fn current_pos(&self) -> Option<usize> {
+        usize::checked_add(self.scope.base, self.offset)
     }
 
     /// Read some binary data in the context.

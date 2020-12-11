@@ -34,7 +34,7 @@ fn valid_singleton() {
 
     let byte = read_context.read_item(&mut reader, &"Byte").unwrap();
 
-    fathom_test_util::assert_is_equal!(globals, byte, Value::int(31));
+    fathom_test_util::assert_is_equal!(globals, byte, (Value::int(31), Vec::new()));
 
     // TODO: Check remaining
 }
@@ -51,7 +51,7 @@ fn valid_singleton_trailing() {
 
     let byte = read_context.read_item(&mut reader, &"Byte").unwrap();
 
-    fathom_test_util::assert_is_equal!(globals, byte, Value::int(255));
+    fathom_test_util::assert_is_equal!(globals, byte, (Value::int(255), Vec::new()));
 
     // TODO: Check remaining
 }

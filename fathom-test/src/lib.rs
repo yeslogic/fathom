@@ -74,6 +74,7 @@ mod constant {
 
 #[rustfmt::skip]
 mod r#struct {
+    test!(positions, "struct/positions.fathom");
     test!(struct_term, "struct/struct_term.fathom");
     test!(struct_elim, "struct/struct_elim.fathom");
     test!(struct_compute, "struct/struct_compute.fathom");

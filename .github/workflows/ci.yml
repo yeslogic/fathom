@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        rust: ["1.42.0", "stable", "beta", "nightly"]
+        rust: ["stable"]
     name: Rustfmt (${{ matrix.rust }})
     steps:
       - uses: actions/checkout@v2

@@ -38,7 +38,7 @@ fn valid_test() {
     fathom_test_util::assert_is_equal!(
         globals,
         read_context.read_item(&mut reader, &"Test").unwrap(),
-        Value::f64(23.64e10),
+        (Value::f64(23.64e10), Vec::new()),
     );
 
     // TODO: Check remaining
@@ -57,7 +57,7 @@ fn valid_test_trailing() {
     fathom_test_util::assert_is_equal!(
         globals,
         read_context.read_item(&mut reader, &"Test").unwrap(),
-        Value::f64(781.453298),
+        (Value::f64(781.453298), Vec::new()),
     );
 
     // TODO: Check remaining

@@ -116,6 +116,10 @@ pub enum Primitive {
     F32(f32),
     /// IEEE-754 double-precision floating point constants.
     F64(f64),
+    /// Positions in the byte stream.
+    ///
+    /// These should only appear when using the binary interpreter.
+    Pos(usize),
 }
 
 impl PartialEq for Primitive {
@@ -124,6 +128,7 @@ impl PartialEq for Primitive {
             (Primitive::Int(val0), Primitive::Int(val1)) => val0 == val1,
             (Primitive::F32(val0), Primitive::F32(val1)) => ieee754::logical_eq(*val0, *val1),
             (Primitive::F64(val0), Primitive::F64(val1)) => ieee754::logical_eq(*val0, *val1),
+            (Primitive::Pos(val0), Primitive::Pos(val1)) => val0 == val1,
             (_, _) => false,
         }
     }
@@ -244,6 +249,7 @@ impl Default for Globals {
                 None,
             ),
         );
+        entries.insert("Pos".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
 
         entries.insert("U8".to_owned(), (Arc::new(Term::from(FormatType)), None));
         entries.insert("U16Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
@@ -271,6 +277,26 @@ impl Default for Globals {
                     Arc::new(Term::from(FunctionType(
                         Arc::new(Term::from(FormatType)),
                         Arc::new(Term::from(FormatType)),
+                    ))),
+                ))),
+                None,
+            ),
+        );
+        entries.insert(
+            "CurrentPos".to_owned(),
+            (Arc::new(Term::from(FormatType)), None),
+        );
+        entries.insert(
+            "Link".to_owned(),
+            (
+                Arc::new(Term::from(FunctionType(
+                    Arc::new(Term::from(Global("Pos".to_owned()))),
+                    Arc::new(Term::from(FunctionType(
+                        Arc::new(Term::from(Global("Int".to_owned()))),
+                        Arc::new(Term::from(FunctionType(
+                            Arc::new(Term::from(FormatType)),
+                            Arc::new(Term::from(FormatType)),
+                        ))),
                     ))),
                 ))),
                 None,

@@ -275,6 +275,10 @@ where
             .append("f64")
             .append(alloc.space())
             .append(format_float(*value)),
+        Primitive::Pos(value) => (alloc.nil())
+            .append("pos")
+            .append(alloc.space())
+            .append(format!("{:0x}", value)),
     }
 }
 

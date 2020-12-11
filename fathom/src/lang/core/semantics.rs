@@ -91,6 +91,11 @@ impl Value {
         Value::Primitive(Primitive::F64(data.into()))
     }
 
+    /// Create a stream position.
+    pub fn pos(data: usize) -> Value {
+        Value::Primitive(Primitive::Pos(data))
+    }
+
     /// Attempt to match against a stuck global.
     ///
     /// This can help to clean up pattern matches in lieu of
@@ -368,6 +373,12 @@ pub fn apply_repr(mut argument: Arc<Value>) -> Arc<Value> {
                         Elim::Function(apply_repr(elem_type.clone())),
                     ],
                 ))
+            }
+            ("CurrentPos", []) => {
+                Arc::new(Value::Stuck(Head::Global("Pos".to_owned()), Vec::new()))
+            }
+            ("Link", [Elim::Function(_), Elim::Function(_), Elim::Function(_)]) => {
+                Arc::new(Value::Stuck(Head::Global("Pos".to_owned()), Vec::new()))
             }
             _ => Arc::new(Value::Error),
         },
