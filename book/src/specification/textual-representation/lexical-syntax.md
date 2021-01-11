@@ -1,102 +1,137 @@
 # Lexical Syntax
 
-## Whitespace and comments
+## Characters
 
-> <sub>Grammar:</sub>
->
-> _horizontal-tab_ ::=\
-> &emsp;|&ensp;U+0009
->
-> _line-feed_ ::=\
-> &emsp;|&ensp;U+000A
->
-> _vertical-tab_ ::=\
-> &emsp;|&ensp;U+000B
->
-> _form-feed_ ::=\
-> &emsp;|&ensp;U+000C
->
-> _carriage-return_ ::=\
-> &emsp;|&ensp;U+000D
->
-> _next-line_ ::=\
-> &emsp;|&ensp;U+0085
->
-> _left-to-right-mark_ ::=\
-> &emsp;|&ensp;U+200E
->
-> _right-to-left-mark_ ::=\
-> &emsp;|&ensp;U+200F
->
-> _line-separator_ ::=\
-> &emsp;|&ensp;U+2028
->
-> _paragraph-separator_ ::=\
-> &emsp;|&ensp;U+2029
->
-> _line-break_ ::=\
-> &emsp;|&ensp;_line-feed_\
-> &emsp;|&ensp;_carriage-return_\
-> &emsp;|&ensp;_carriage-return_ _line-feed_
->
-> _comment-text_ ::=\
-> &emsp;|&ensp;Any Unicode scalar value except _line-feed_ or _carriage-return_
->
-> _comment_ ::=\
-> &emsp;|&ensp;`//` (Any _comment-text_ not starting with `/`) _line-break_
->
-> _doc-comment_ ::=\
-> &emsp;|&ensp;`///` _comment-text_ _line-break_
->
-> _white-space_ ::=\
-> &emsp;|&ensp;_horizontal-tab_\
-> &emsp;|&ensp;_comment_\
-> &emsp;|&ensp;_vertical-tab_\
-> &emsp;|&ensp;_form-feed_\
-> &emsp;|&ensp;_line-break_\
-> &emsp;|&ensp;_next-line_\
-> &emsp;|&ensp;_left-to-right-mark_\
-> &emsp;|&ensp;_right-to-left-mark_\
-> &emsp;|&ensp;_line-separator_\
-> &emsp;|&ensp;_paragraph-separator_
+The textual surface language assigns meaning to a source string,
+which consists of a sequence of _Unicode scalar values_
+(as defined in Section 3.4 of [the Unicode Standard](https://www.unicode.org/versions/latest/)),
+terminated with a virtual end-of-file symbol, `"\0"`:
 
-## Keywords and identifiers
+```term
+unicode-scalar-value ::=
+  | "\u{00}" ... "\u{D7FF}"
+  | "\u{E000}" ... "\u{10FFF}"
 
-> <sub>Grammar:</sub>
->
-> _keyword_ ::=\
-> &emsp;|&ensp; `const`
-> &emsp;|&ensp; `struct`
->
-> _ident-or-keyword_ ::=\
-> &emsp;|&ensp;\[`a`-`z` `A`-`Z` `_`\] \[`a`-`z` `A`-`Z` `0`-`9` `_`\]<sup>\*</sup>
->
-> _ident_ ::=\
-> &emsp;|&ensp;Any _ident-or-keyword_ except _keyword_
+source ::=
+  | unicode-scalar-value* "\0"
+```
 
-## Punctuation
+For convenience, we define a number of special values within the above `unicode-scalar-value` definition:
 
-> <sub>Grammar:</sub>
->
-> _punctuation_ ::=\
-> &emsp;|&ensp;`{`\
-> &emsp;|&ensp;`}`\
-> &emsp;|&ensp;`[`\
-> &emsp;|&ensp;`]`\
-> &emsp;|&ensp;`(`\
-> &emsp;|&ensp;`)`\
-> &emsp;|&ensp;`:`\
-> &emsp;|&ensp;`,`\
-> &emsp;|&ensp;`=`\
-> &emsp;|&ensp;`;`
+```text
+horizontal-tab        ::= "\u{0009}"
+line-feed             ::= "\u{000A}"
+vertical-tab          ::= "\u{000B}"
+form-feed             ::= "\u{000C}"
+carriage-return       ::= "\u{000D}"
+next-line             ::= "\u{0085}"
+left-to-right-mark    ::= "\u{200E}"
+right-to-left-mark    ::= "\u{200F}"
+line-separator        ::= "\u{2028}"
+paragraph-separator   ::= "\u{2029}"
+```
 
 ## Tokens
 
-> <sub>Grammar:</sub>
->
-> _token_ ::=\
-> &emsp;|&ensp;_white-space_\
-> &emsp;|&ensp;_doc-comment_\
-> &emsp;|&ensp;_keyword_\
-> &emsp;|&ensp;_ident_\
-> &emsp;|&ensp;_punctuation_
+```term
+token ::=
+  | white-space
+  | doc-comment
+  | comment
+  | keyword
+  | name
+  | numeric-literal
+  | punctuation
+```
+
+## Whitespace
+
+```term
+line-break ::=
+  | line-feed
+  | carriage-return
+  | carriage-return line-feed
+  | "\0"
+
+white-space ::=
+  | horizontal-tab
+  | comment
+  | vertical-tab
+  | form-feed
+  | line-break
+  | next-line
+  | left-to-right-mark
+  | right-to-left-mark
+  | line-separator
+  | paragraph-separator
+```
+
+## Comments
+
+```term
+comment-text  ::= unicode-scalar-value - line-break
+
+comment       ::= "//" (comment-text - "/" comment-text*)? line-break
+doc-comment   ::= "///" comment-text* line-break
+```
+
+## Keywords
+
+```term
+keyword ::=
+  | "const"
+  | "else"
+  | "Format"
+  | "Kind"
+  | "if"
+  | "match"
+  | "repr"
+  | "struct"
+  | "Type"
+```
+
+## Names
+
+```term
+name-start       ::= "a" ... z" | "A" ... "Z" | "_"
+name-continue    ::= "a" ... z" | "A" ... "Z" | "0" ... "9" | "_"
+
+name ::=
+  | (name-start name-continue*) - keyword
+```
+
+### Numeric literals
+
+```text
+sign           ::= "+" | "-"
+digit-start    ::= "0" ... "9"
+digit-continue ::= "a" ... "z" | "A" ... "Z" | "0" ... "9" | "."
+
+numeric-literal ::=
+  | sign? digit-start digit-continue*
+```
+
+## Punctuation
+
+```term
+delimiters ::=
+  | "{"
+  | "}"
+  | "["
+  | "]"
+  | "("
+  | ")"
+
+symbol ::=
+  | ":"
+  | ","
+  | "="
+  | "=>"
+  | "."
+  | "->"
+  | ";"
+
+punctuation ::=
+  | delimiter
+  | symbol
+```

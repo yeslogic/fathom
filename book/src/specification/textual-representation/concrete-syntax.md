@@ -1,27 +1,30 @@
 # Concrete Syntax
 
-The surface syntax matches on any _token_, filtering out _white-space_ in the
-process.
+The surface syntax matches on any `token`, filtering out `white-space` and
+`comment`s in the process.
 
-## Terms
+## Modules
 
-> <sub>Grammar:</sub>
->
-> _term_ ::=\
-> &emsp;|&ensp;_term-atomic_\
-> &emsp;|&ensp;_term-atomic_ `:` _term_
->
-> _term-atomic_ ::=\
-> &emsp;|&ensp;`(` _term_ `)`\
-> &emsp;|&ensp;_ident_\
-> &emsp;|&ensp;`[` _term_<sup>\*</sup> _term_<sup>?</sup> `]`
+Modules are made up of a list of zero-or-more items.
+
+```text
+module ::= item*
+```
 
 ## Items
+
+Items can be either constant definitions or structure definitions.
+
+```text
+item ::=
+  | constant-definition
+  | struct-type-definition
+```
 
 ### Constant definitions
 
 Constant definitions are used to give names to terms that can be later used in
-other places in the binary description. For example:
+other places in the binary description, for example:
 
 ```fathom
 const Byte = U8;
@@ -31,10 +34,10 @@ Constants are bound using the `const` keyword followed by an
 identifier and the term that they are assigned to, terminated by a
 semicolon:
 
-> <sub>Grammar:</sub>
->
-> _constant-definition_ ::=\
-> &emsp;|&ensp;_doc-comment_<sup>?</sup> `const` _ident_ `=` _term_ `;`
+```text
+constant-definition ::=
+  | doc-comment* "const" name "=" term ";"
+```
 
 ### Structure type definitions
 
@@ -42,7 +45,7 @@ Structure types are used to describe ordered sequences of binary data.
 They are defined using the `struct` keyword, for example:
 
 ```fathom
-struct Point3 {
+struct Point3 : Format {
     x : F32Be,
     y : F32Be,
     z : F32Be,
@@ -52,26 +55,49 @@ struct Point3 {
 Structures are composite types that have a name and a list of fields. The
 fields within a structure must have unique names.
 
-> <sub>Grammar:</sub>
->
-> _struct-type-field_ ::=\
-> &emsp;|&ensp;_doc-comment_<sup>?</sup> _ident_ `:` _term_
->
-> _struct-type-fields_ ::=\
-> &emsp;|&ensp;(_struct-type-field_ `,`)<sup>\*</sup> _struct-type-field_<sup>?</sup>
->
-> _struct-type-definition_ ::=\
-> &emsp;|&ensp;_doc-comment_<sup>?</sup> `struct` _ident_ `{` _struct-type-fields_ `}`
+```text
+struct-type-field ::=
+  | doc-comment* name ":" term
 
-## Modules
+struct-type-definition ::=
+  | doc-comment* "struct" name (":" term)? "{" separated(struct-type-field) "}"
+```
 
-Modules are lists of zero-or-more definitions. Definitions within a module must have unique names.
+## Terms
 
-> <sub>Grammar:</sub>
->
-> _item_ ::=\
-> &emsp;|&ensp;_constant-definition_\
-> &emsp;|&ensp;_struct-type-definition_
->
-> _module_ ::=\
-> &emsp;|&ensp;_item_<sup>\*</sup>
+```text
+term ::=
+  | arrow-term
+  | arrow-term ":" term
+
+arrow-term ::=
+  | arrow-term
+  | app-term "->" arrow-term
+
+app-term ::=
+  | atomic-term
+  | atomic-term atomic-tem*
+
+atomic-term ::=
+  | "(" term ")"
+  | name
+  | "Type"
+  | "Kind"
+  | "repr"
+  | "struct" "{" separated(name "=" term) "}"
+  | atomic-term "." name
+  | "[" separated(term) "]"
+  | numeric-literal
+  | "if" tern "{" term "}" "else" "{" term "}"
+  | "match" term "{" separated(pattern "=>" term) "}"
+  | "Format"
+```
+
+## Separated lists
+
+Lists of zero-or-more elements with optional trailing separators.
+
+```text
+separated(element) ::=
+    | (element ",")* element?
+```
