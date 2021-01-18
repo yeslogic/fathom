@@ -30,10 +30,8 @@ pub struct Context<'me> {
     item_declarations: HashMap<String, Arc<Value>>,
     /// Top-level item definitions.
     item_definitions: HashMap<String, semantics::Item>,
-    /// Substitutions from local names to the level in which they were bound.
-    local_levels: Vec<(String, core::LocalLevel)>,
     /// Local variable declarations.
-    local_declarations: core::Locals<Arc<Value>>,
+    local_declarations: core::Locals<(String, Arc<Value>)>,
     /// Local variable definitions.
     local_definitions: core::Locals<Arc<Value>>,
     /// Core-to-surface distillation context.
@@ -49,7 +47,6 @@ impl<'me> Context<'me> {
             globals,
             item_declarations: HashMap::new(),
             item_definitions: HashMap::new(),
-            local_levels: Vec::new(),
             local_declarations: core::Locals::new(),
             local_definitions: core::Locals::new(),
             core_to_surface: core_to_surface::Context::new(),
@@ -67,16 +64,17 @@ impl<'me> Context<'me> {
     /// Returns the [`core::LocalIndex`] of the variable at the current binding
     /// depth and the type that the variable was bound with.
     fn get_local(&self, name: &str) -> Option<(core::LocalIndex, &Arc<Value>)> {
-        let (_, level) = self.local_levels.iter().rev().find(|(n, _)| n == name)?;
-        let index = level.to_index(self.local_declarations.size()).unwrap();
-        let r#type = self.local_declarations.get(index)?;
-        Some((index, r#type))
+        for (local_index, (decl_name, r#type)) in self.local_declarations.iter_rev() {
+            if decl_name == name {
+                return Some((local_index, r#type));
+            }
+        }
+        None
     }
 
     /// Push a local entry.
     fn push_local(&mut self, name: String, value: Arc<Value>, r#type: Arc<Value>) {
-        self.local_levels.push((name.clone(), self.next_level()));
-        self.local_declarations.push(r#type);
+        self.local_declarations.push((name.clone(), r#type));
         self.local_definitions.push(value);
         self.core_to_surface.push_local(name);
     }
@@ -91,7 +89,6 @@ impl<'me> Context<'me> {
     /// Pop a local entry.
     #[allow(dead_code)]
     fn pop_local(&mut self) {
-        self.local_levels.pop();
         self.local_declarations.pop();
         self.local_definitions.pop();
         self.core_to_surface.pop_local();
@@ -99,8 +96,6 @@ impl<'me> Context<'me> {
 
     /// Pop the given number of local entries.
     fn pop_many_locals(&mut self, count: usize) {
-        self.local_levels
-            .truncate(self.local_levels.len().saturating_sub(count));
         self.local_declarations.pop_many(count);
         self.local_definitions.pop_many(count);
         self.core_to_surface.pop_many_locals(count);
@@ -216,7 +211,6 @@ impl<'me> Context<'me> {
     /// while validating that it is well-formed.
     #[debug_ensures(self.item_declarations.is_empty())]
     #[debug_ensures(self.item_definitions.is_empty())]
-    #[debug_ensures(self.local_levels.is_empty())]
     #[debug_ensures(self.local_declarations.is_empty())]
     #[debug_ensures(self.local_definitions.is_empty())]
     pub fn from_module(&mut self, surface_module: &Module) -> core::Module {
@@ -435,7 +429,6 @@ impl<'me> Context<'me> {
     /// Validate that a surface term is a type, and translate it into the core syntax.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_levels.len() == old(self.local_levels.len()))]
     #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn is_type(
@@ -469,7 +462,6 @@ impl<'me> Context<'me> {
     /// core syntax.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_levels.len() == old(self.local_levels.len()))]
     #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn check_type(
@@ -729,7 +721,6 @@ impl<'me> Context<'me> {
     /// Synthesize the type of a surface term, and elaborate it into the core syntax.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_levels.len() == old(self.local_levels.len()))]
     #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn synth_type(&mut self, file_id: usize, surface_term: &Term) -> (core::Term, Arc<Value>) {
