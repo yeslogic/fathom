@@ -58,9 +58,9 @@ pub fn run_integration_test(test_name: &str, fathom_path: &str) {
 
     let surface_module = test.parse_surface(&files);
     test.compile_doc(&surface_module);
-    let core_module = test.elaborate(&files, &surface_module);
+    let core_module = test.surface_to_core(&files, &surface_module);
     test.roundtrip_surface_to_core(&files, &core_module);
-    test.roundtrip_pretty_core(&mut files, &core_module);
+    test.roundtrip_core_to_pretty(&mut files, &core_module);
     test.binary_parse_tests();
 
     test.finish(&files);
@@ -136,7 +136,7 @@ impl Test {
         fathom::lang::surface::Module::parse(file_id, source, &mut self.found_messages)
     }
 
-    fn elaborate(
+    fn surface_to_core(
         &mut self,
         files: &SimpleFiles<String, String>,
         surface_module: &fathom::lang::surface::Module,
@@ -151,7 +151,7 @@ impl Test {
         let validation_messages = context.drain_messages().collect::<Vec<_>>();
 
         if !validation_messages.is_empty() {
-            self.failed_checks.push("elaborate: validate");
+            self.failed_checks.push("surface_to_core: typing");
 
             let pretty_arena = pretty::Arena::new();
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
@@ -161,7 +161,7 @@ impl Test {
                 term::emit(&mut buffer, &self.term_config, files, &diagnostic).unwrap();
             }
 
-            eprintln!("  • elaborate: validate");
+            eprintln!("  • surface_to_core: typing");
             eprintln!();
             eprintln_indented(4, "", "---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
@@ -183,7 +183,7 @@ impl Test {
 
         if !elaboration_messages.is_empty() {
             self.failed_checks
-                .push("roundtrip_surface_to_core: elaborate surface");
+                .push("roundtrip_surface_to_core: surface_to_core");
 
             let pretty_arena = pretty::Arena::new();
             let mut buffer = BufferWriter::stderr(ColorChoice::Auto).buffer();
@@ -193,7 +193,7 @@ impl Test {
                 term::emit(&mut buffer, &self.term_config, files, &diagnostic).unwrap();
             }
 
-            eprintln!("  • roundtrip_surface_to_core: elaborate surface");
+            eprintln!("  • roundtrip_surface_to_core: surface_to_core");
             eprintln!();
             eprintln_indented(4, "", "---- found diagnostics ----");
             eprintln_indented(4, "| ", &String::from_utf8_lossy(buffer.as_slice()));
@@ -233,7 +233,7 @@ impl Test {
         }
     }
 
-    fn roundtrip_pretty_core(
+    fn roundtrip_core_to_pretty(
         &mut self,
         files: &mut SimpleFiles<String, String>,
         core_module: &fathom::lang::core::Module,
