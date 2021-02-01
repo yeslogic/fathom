@@ -78,7 +78,7 @@ impl<'me> Context<'me> {
                 self.read_struct_format(reader, &field_declarations)
             }
             Some(semantics::ItemData::StructType(_)) | None => {
-                Err(ReadError::InvalidDataDescription)
+                Err(ReadError::InvalidDataDescription) // TODO: Improve error!
             }
         };
 
