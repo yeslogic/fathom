@@ -9,6 +9,7 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use itertools::Itertools;
 use pretty::DocAllocator;
+use std::path::PathBuf;
 
 use crate::lang::{core, surface, Range, Ranged};
 use crate::literal;
@@ -20,6 +21,10 @@ pub enum Message {
         file_id: usize,
         range: Range,
         feature_name: &'static str,
+    },
+    ReadFile {
+        path: PathBuf,
+        error: String,
     },
     Lexer(LexerMessage),
     LiteralParse(LiteralParseMessage),
@@ -111,6 +116,10 @@ impl Message {
                 .with_message(format!("not yet implemented: {}", feature_name))
                 .with_labels(vec![Label::primary(*file_id, *range)
                     .with_message("relies on an unimplemented language feature")]),
+            Message::ReadFile { path, error } => Diagnostic::error()
+                .with_message(format!("failed to read file `{}`", path.display(),))
+                // TODO: add user-friendly suggestions
+                .with_notes(vec![format!("{}", error.to_lowercase())]),
             Message::Lexer(message) => message.to_diagnostic(),
             Message::Parse(message) => message.to_diagnostic(),
             Message::LiteralParse(message) => message.to_diagnostic(),

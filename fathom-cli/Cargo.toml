@@ -8,5 +8,18 @@ publish = false # TODO: Remove this when we are ready to publish to crates.io
 description = "CLI interface for Fathom"
 license = "Apache-2.0"
 
+[[bin]]
+name = "fathom"
+path = "src/main.rs"
+
 [dependencies]
+anyhow = "1.0"
+codespan-reporting = "0.11"
+fathom = { version = "0.1.0", path = "../fathom" }
+pretty = "0.10"
 structopt = "0.3"
+exitcode = "1.1.2"
+
+[dev-dependencies]
+assert_cmd = "1"
+predicates = "1"

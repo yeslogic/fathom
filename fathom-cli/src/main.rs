@@ -1,10 +1,5 @@
 use structopt::StructOpt;
 
-mod cli;
-
-fn main() {
-    let args = cli::Cli::from_args();
-    println!("Hello, world!");
-
-    println!("debug: {:?}", args);
+fn main() -> anyhow::Result<()> {
+    fathom_cli::run(fathom_cli::Options::from_args())
 }
