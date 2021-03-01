@@ -16,17 +16,17 @@ codespan-reporting = "0.11"
 contracts = "0.6"
 fathom-runtime = { version = "0.1.0", path="../fathom-runtime" }
 im = "15"
-itertools = "0.9"
+itertools = "0.10"
 lalrpop-util = "0.19"
 lazy_static = "1.4"
-logos = "0.11"
+logos = "0.12"
 num-bigint = "0.3"
 num-traits = "0.2"
 pretty = "0.10"
 termsize = "0.1"
 
 [dev-dependencies]
-proptest = "0.10"
+proptest = "1"
 
 [build-dependencies]
 lalrpop = "0.19"
