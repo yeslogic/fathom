@@ -1,5 +1,6 @@
 use codespan_reporting::diagnostic::Severity;
 use codespan_reporting::files::Location;
+use fathom::lang::FileId;
 use regex::Regex;
 use std::fmt;
 use std::ops::Range;
@@ -42,7 +43,7 @@ impl Default for Directives {
 
 #[derive(Clone, Debug)]
 pub struct ExpectedDiagnostic {
-    pub file_id: usize,
+    pub file_id: FileId,
     pub line_index: usize,
     pub location: Location,
     pub severity: Severity,

@@ -1,7 +1,7 @@
 use logos::Logos;
 use std::fmt;
 
-use crate::lang::Range;
+use crate::lang::{FileId, Range};
 use crate::reporting::LexerMessage;
 
 /// Tokens in the surface language.
@@ -142,7 +142,7 @@ impl<'source> fmt::Display for Token<'source> {
 pub type Spanned<Tok, Loc> = (Loc, Tok, Loc);
 
 pub fn tokens<'source>(
-    file_id: usize,
+    file_id: FileId,
     source: &'source str,
 ) -> impl 'source + Iterator<Item = Result<Spanned<Token<'source>, usize>, LexerMessage>> {
     Token::lexer(source)

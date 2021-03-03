@@ -6,6 +6,9 @@ pub mod core;
 //       🠃
 //      ...
 
+/// File identifier
+pub type FileId = usize;
+
 /// A range of source code.
 ///
 /// This is added to simplify working with ranges, because [`std::ops::Range`]

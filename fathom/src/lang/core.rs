@@ -6,7 +6,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::ieee754;
-use crate::lang::Ranged;
+use crate::lang::{FileId, Ranged};
 use crate::reporting::Message;
 
 mod lexer;
@@ -24,7 +24,7 @@ pub mod typing;
 #[derive(Debug, Clone)]
 pub struct Module {
     /// The file in which this module was defined.
-    pub file_id: usize,
+    pub file_id: FileId,
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// The items in this module.
@@ -32,7 +32,7 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn parse(file_id: usize, source: &str, messages: &mut Vec<Message>) -> Module {
+    pub fn parse(file_id: FileId, source: &str, messages: &mut Vec<Message>) -> Module {
         let tokens = lexer::tokens(file_id, source);
         grammar::ModuleParser::new()
             .parse(file_id, messages, tokens)

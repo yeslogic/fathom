@@ -17,7 +17,7 @@ use std::sync::Arc;
 use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{self, Primitive, Sort};
 use crate::lang::surface::{ItemData, Module, Pattern, PatternData, StructType, Term, TermData};
-use crate::lang::Range;
+use crate::lang::{FileId, Range};
 use crate::literal;
 use crate::pass::core_to_surface;
 use crate::reporting::{Message, SurfaceToCoreMessage};
@@ -318,7 +318,7 @@ impl<'me> Context<'me> {
 
     fn is_struct_type(
         &mut self,
-        file_id: usize,
+        file_id: FileId,
         struct_type: &StructType,
     ) -> (core::ItemData, semantics::ItemData) {
         use std::collections::hash_map::Entry;
@@ -373,7 +373,7 @@ impl<'me> Context<'me> {
 
     pub fn is_struct_format(
         &mut self,
-        file_id: usize,
+        file_id: FileId,
         struct_type: &StructType,
     ) -> (core::ItemData, semantics::ItemData) {
         use std::collections::hash_map::Entry;
@@ -433,7 +433,7 @@ impl<'me> Context<'me> {
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn is_type(
         &mut self,
-        file_id: usize,
+        file_id: FileId,
         surface_term: &Term,
     ) -> (core::Term, Option<core::Sort>) {
         let (core_term, core_type) = self.synth_type(file_id, surface_term);
@@ -466,7 +466,7 @@ impl<'me> Context<'me> {
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn check_type(
         &mut self,
-        file_id: usize,
+        file_id: FileId,
         surface_term: &Term,
         expected_type: &Arc<Value>,
     ) -> core::Term {
@@ -723,7 +723,7 @@ impl<'me> Context<'me> {
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
     #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
-    pub fn synth_type(&mut self, file_id: usize, surface_term: &Term) -> (core::Term, Arc<Value>) {
+    pub fn synth_type(&mut self, file_id: FileId, surface_term: &Term) -> (core::Term, Arc<Value>) {
         match &surface_term.data {
             TermData::Name(name) => {
                 if let Some((index, r#type)) = self.get_local(name) {
@@ -1006,7 +1006,7 @@ impl<'me> Context<'me> {
 
     fn from_int_branches(
         &mut self,
-        file_id: usize,
+        file_id: FileId,
         range: Range,
         surface_branches: &[(Pattern, Term)],
         expected_type: &Arc<Value>,

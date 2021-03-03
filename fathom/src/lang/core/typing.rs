@@ -12,7 +12,7 @@ use crate::lang::core::{
     FieldDeclaration, Globals, ItemData, LocalLevel, Locals, Module, Primitive, Sort, Term,
     TermData,
 };
-use crate::lang::Range;
+use crate::lang::{FileId, Range};
 use crate::reporting::{CoreTypingMessage, Message};
 
 /// Returns the sorts of sorts.
@@ -277,7 +277,7 @@ impl<'me> Context<'me> {
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
     #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
-    pub fn synth_sort(&mut self, file_id: usize, term: &Term) -> Option<Sort> {
+    pub fn synth_sort(&mut self, file_id: FileId, term: &Term) -> Option<Sort> {
         match self.synth_type(file_id, term).as_ref() {
             Value::Error => None,
             Value::Sort(sort) => Some(*sort),
@@ -297,7 +297,7 @@ impl<'me> Context<'me> {
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
     #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
-    pub fn check_type(&mut self, file_id: usize, term: &Term, expected_type: &Arc<Value>) {
+    pub fn check_type(&mut self, file_id: FileId, term: &Term, expected_type: &Arc<Value>) {
         match (&term.data, expected_type.as_ref()) {
             (TermData::Error, _) | (_, Value::Error) => {}
 
@@ -457,7 +457,7 @@ impl<'me> Context<'me> {
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
     #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
-    pub fn synth_type(&mut self, file_id: usize, term: &Term) -> Arc<Value> {
+    pub fn synth_type(&mut self, file_id: FileId, term: &Term) -> Arc<Value> {
         match &term.data {
             TermData::Global(global_name) => match self.globals.get(global_name) {
                 Some((r#type, _)) => self.eval(r#type),

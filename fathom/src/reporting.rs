@@ -11,14 +11,14 @@ use itertools::Itertools;
 use pretty::DocAllocator;
 use std::path::PathBuf;
 
-use crate::lang::{core, surface, Range, Ranged};
+use crate::lang::{core, surface, FileId, Range, Ranged};
 use crate::literal;
 
 /// Global diagnostic messages
 #[derive(Debug, Clone)]
 pub enum Message {
     NotYetImplemented {
-        file_id: usize,
+        file_id: FileId,
         range: Range,
         feature_name: &'static str,
     },
@@ -65,7 +65,7 @@ impl From<SurfaceToCoreMessage> for Message {
 
 impl Message {
     pub fn from_lalrpop<T: std::fmt::Display>(
-        file_id: usize,
+        file_id: FileId,
         error: lalrpop_util::ParseError<usize, T, LexerMessage>,
     ) -> Message {
         use lalrpop_util::ParseError::*;
@@ -102,7 +102,7 @@ impl Message {
         }
     }
 
-    pub fn to_diagnostic<'a, D>(&'a self, pretty_alloc: &'a D) -> Diagnostic<usize>
+    pub fn to_diagnostic<'a, D>(&'a self, pretty_alloc: &'a D) -> Diagnostic<FileId>
     where
         D: DocAllocator<'a>,
         D::Doc: Clone,
@@ -132,11 +132,11 @@ impl Message {
 /// Messages produced during lexing
 #[derive(Debug, Clone)]
 pub enum LexerMessage {
-    InvalidToken { file_id: usize, range: Range },
+    InvalidToken { file_id: FileId, range: Range },
 }
 
 impl LexerMessage {
-    pub fn to_diagnostic(&self) -> Diagnostic<usize> {
+    pub fn to_diagnostic(&self) -> Diagnostic<FileId> {
         match self {
             LexerMessage::InvalidToken { file_id, range } => Diagnostic::error()
                 .with_message("invalid token")
@@ -149,25 +149,25 @@ impl LexerMessage {
 #[derive(Clone, Debug)]
 pub enum ParseMessage {
     UnrecognizedEof {
-        file_id: usize,
+        file_id: FileId,
         range: Range,
         expected: Vec<String>,
     },
     UnrecognizedToken {
-        file_id: usize,
+        file_id: FileId,
         range: Range,
         token: String,
         expected: Vec<String>,
     },
     ExtraToken {
-        file_id: usize,
+        file_id: FileId,
         range: Range,
         token: String,
     },
 }
 
 impl ParseMessage {
-    pub fn to_diagnostic(&self) -> Diagnostic<usize> {
+    pub fn to_diagnostic(&self) -> Diagnostic<FileId> {
         match self {
             ParseMessage::UnrecognizedEof {
                 file_id,
@@ -225,7 +225,7 @@ pub enum LiteralParseMessage {
 }
 
 impl LiteralParseMessage {
-    pub fn to_diagnostic(&self) -> Diagnostic<usize> {
+    pub fn to_diagnostic(&self) -> Diagnostic<FileId> {
         match self {
             LiteralParseMessage::ExpectedRadixOrDecimalDigit(file_id, range) => Diagnostic::error()
                 .with_message("expected a radix or decimal digit")
@@ -291,90 +291,90 @@ impl LiteralParseMessage {
 #[derive(Debug, Clone)]
 pub enum CoreTypingMessage {
     GlobalNameNotFound {
-        file_id: usize,
+        file_id: FileId,
         global_name: String,
         global_name_range: Range,
     },
     ItemNameNotFound {
-        file_id: usize,
+        file_id: FileId,
         item_name: String,
         item_name_range: Range,
     },
     LocalIndexNotFound {
-        file_id: usize,
+        file_id: FileId,
         local_index: core::LocalIndex,
         local_index_range: Range,
     },
     FieldRedeclaration {
-        file_id: usize,
+        file_id: FileId,
         field_name: String,
         record_range: Range,
     },
     ItemRedefinition {
-        file_id: usize,
+        file_id: FileId,
         name: String,
         found_range: Range,
         original_range: Range,
     },
     TypeMismatch {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         expected_type: core::Term,
         found_type: core::Term,
     },
     UniverseMismatch {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         found_type: core::Term,
     },
     TermHasNoType {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
     },
     NotAFunction {
-        file_id: usize,
+        file_id: FileId,
         head_range: Range,
         head_type: core::Term,
         argument_range: Range,
     },
     FieldNotFound {
-        file_id: usize,
+        file_id: FileId,
         head_range: Range,
         head_type: core::Term,
         label: String,
     },
     AmbiguousTerm {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
     },
     UnexpectedArrayTerm {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         expected_type: core::Term,
     },
     DuplicateStructFields {
-        file_id: usize,
+        file_id: FileId,
         duplicate_labels: Vec<Ranged<String>>,
     },
     MissingStructFields {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         missing_labels: Vec<Ranged<String>>,
     },
     UnexpectedStructFields {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         unexpected_labels: Vec<Ranged<String>>,
     },
     UnexpectedStructTerm {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         expected_type: core::Term,
     },
 }
 
 impl CoreTypingMessage {
-    pub fn to_diagnostic<'a, D>(&'a self, pretty_alloc: &'a D) -> Diagnostic<usize>
+    pub fn to_diagnostic<'a, D>(&'a self, pretty_alloc: &'a D) -> Diagnostic<FileId>
     where
         D: DocAllocator<'a>,
         D::Doc: Clone,
@@ -633,128 +633,128 @@ impl CoreTypingMessage {
 #[derive(Debug, Clone)]
 pub enum SurfaceToCoreMessage {
     MissingStructAnnotation {
-        file_id: usize,
+        file_id: FileId,
         name: String,
         name_range: Range,
     },
     InvalidStructAnnotation {
-        file_id: usize,
+        file_id: FileId,
         name: String,
         ann_type: surface::Term,
         ann_range: Range,
     },
     FieldRedeclaration {
-        file_id: usize,
+        file_id: FileId,
         name: String,
         found_range: Range,
         original_range: Range,
     },
     ItemRedefinition {
-        file_id: usize,
+        file_id: FileId,
         name: String,
         found_range: Range,
         original_range: Range,
     },
     TypeMismatch {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         expected_type: surface::Term,
         found_type: surface::Term,
     },
     UniverseMismatch {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         found_type: surface::Term,
     },
     TermHasNoType {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
     },
     NotAFunction {
-        file_id: usize,
+        file_id: FileId,
         head_range: Range,
         head_type: surface::Term,
         argument_range: Range,
     },
     FieldNotFound {
-        file_id: usize,
+        file_id: FileId,
         head_range: Range,
         head_type: surface::Term,
         label: Ranged<String>,
     },
     AmbiguousMatchExpression {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
     },
     VarNameNotFound {
-        file_id: usize,
+        file_id: FileId,
         name: String,
         name_range: Range,
     },
     MismatchedArrayLength {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         found_len: usize,
         expected_len: surface::Term,
     },
     UnexpectedSequenceTerm {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         expected_type: surface::Term,
     },
     NumericLiteralNotSupported {
-        file_id: usize,
+        file_id: FileId,
         literal_range: Range,
         expected_type: surface::Term,
     },
     AmbiguousSequenceTerm {
-        file_id: usize,
+        file_id: FileId,
         range: Range,
     },
     AmbiguousNumericLiteral {
-        file_id: usize,
+        file_id: FileId,
         literal_range: Range,
     },
     AmbiguousStructTerm {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
     },
     UnsupportedPatternType {
-        file_id: usize,
+        file_id: FileId,
         scrutinee_range: Range,
         found_type: surface::Term,
     },
     NoDefaultPattern {
-        file_id: usize,
+        file_id: FileId,
         match_range: Range,
     },
     UnreachablePattern {
-        file_id: usize,
+        file_id: FileId,
         pattern_range: Range,
     },
     DuplicateStructFields {
-        file_id: usize,
+        file_id: FileId,
         duplicate_labels: Vec<Ranged<String>>,
     },
     MissingStructFields {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         missing_labels: Vec<Ranged<String>>,
     },
     UnexpectedStructFields {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         unexpected_labels: Vec<Ranged<String>>,
     },
     UnexpectedStructTerm {
-        file_id: usize,
+        file_id: FileId,
         term_range: Range,
         expected_type: surface::Term,
     },
 }
 
 impl SurfaceToCoreMessage {
-    pub fn to_diagnostic<'a, D>(&'a self, pretty_alloc: &'a D) -> Diagnostic<usize>
+    pub fn to_diagnostic<'a, D>(&'a self, pretty_alloc: &'a D) -> Diagnostic<FileId>
     where
         D: DocAllocator<'a>,
         D::Doc: Clone,

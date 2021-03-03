@@ -6,7 +6,7 @@ use logos::Logos;
 use num_bigint::BigInt;
 use num_traits::Float;
 
-use crate::lang::Range;
+use crate::lang::{FileId, Range};
 use crate::reporting::LiteralParseMessage::*;
 use crate::reporting::Message;
 
@@ -100,7 +100,7 @@ enum Digit10 {
 
 /// Literal parser state.
 pub struct State<'source, 'messages> {
-    file_id: usize,
+    file_id: FileId,
     range: Range,
     source: &'source str,
     messages: &'messages mut Vec<Message>,
@@ -108,7 +108,7 @@ pub struct State<'source, 'messages> {
 
 impl<'source, 'messages> State<'source, 'messages> {
     pub fn new(
-        file_id: usize,
+        file_id: FileId,
         range: Range,
         source: &'source str,
         messages: &'messages mut Vec<Message>,

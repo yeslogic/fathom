@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::lang::{Range, Ranged};
+use crate::lang::{FileId, Range, Ranged};
 use crate::lang::surface::{
     Constant, FieldDeclaration, FieldDefinition, ItemData, Module, Pattern, PatternData, StructType,
     Term, TermData,
@@ -8,7 +8,7 @@ use crate::lang::surface::{
 use crate::lang::surface::lexer::Token;
 use crate::reporting::LexerMessage;
 
-grammar<'source>(file_id: usize);
+grammar<'source>(file_id: FileId);
 
 extern {
     type Location = usize;

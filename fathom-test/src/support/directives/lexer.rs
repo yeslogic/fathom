@@ -1,5 +1,6 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::{Files, SimpleFiles};
+use fathom::lang::FileId;
 use std::ops::Range;
 
 use super::SpannedString;
@@ -23,13 +24,13 @@ pub type Token = (Range<usize>, SpannedString, Option<SpannedString>);
 /// eol         ::= "\n"
 /// ```
 pub struct Lexer<'input> {
-    file_id: usize,
+    file_id: FileId,
     eof: usize,
     chars: std::str::CharIndices<'input>,
 }
 
 impl<'input> Lexer<'input> {
-    pub fn new(files: &'input SimpleFiles<String, String>, file_id: usize) -> Lexer<'input> {
+    pub fn new(files: &'input SimpleFiles<String, String>, file_id: FileId) -> Lexer<'input> {
         let source = files.source(file_id).unwrap();
         Lexer {
             file_id,
