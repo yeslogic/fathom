@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::lang::{FileId, Range, Ranged};
+use crate::lang::{FileId, Location, Located};
 use crate::lang::core::{
     Constant, FieldDeclaration, FieldDefinition, ItemData, LocalIndex, Module, Primitive, Sort,
     StructType, StructFormat, Term, TermData,
@@ -59,9 +59,8 @@ extern {
 }
 
 pub Module: Module = {
-    <doc: "inner doc comment"*> <items: Ranged<ItemData>*> => {
+    <doc: "inner doc comment"*> <items: Located<ItemData>*> => {
         Module {
-            file_id,
             doc: Arc::from(doc),
             items,
         }
@@ -98,10 +97,10 @@ ItemData: ItemData = {
     },
 };
 
-#[inline] Term: Term = Ranged<TermData>;
-#[inline] ArrowTerm: Term = Ranged<ArrowTermData>;
-#[inline] AppTerm: Term = Ranged<AppTermData>;
-#[inline] AtomicTerm: Term = Ranged<AtomicTermData>;
+#[inline] Term: Term = Located<TermData>;
+#[inline] ArrowTerm: Term = Located<ArrowTermData>;
+#[inline] AppTerm: Term = Located<AppTermData>;
+#[inline] AtomicTerm: Term = Located<AtomicTermData>;
 
 TermData: TermData = {
     ArrowTermData,
@@ -148,26 +147,26 @@ AtomicTermData: TermData = {
         let branches = branches
             .into_iter()
             .filter_map(|(start, literal, end, term)| Some((
-                literal::State::new(file_id, Range::from(start..end), literal, messages).number_to_big_int()?,
+                literal::State::new(Location::file_range(file_id, start..end), literal, messages).number_to_big_int()?,
                 Arc::new(term),
             ))).collect();
 
         TermData::IntElim(Arc::new(head), branches, Arc::new(default))
     },
     "int" <start: @L> <literal: "numeric literal"> <end: @R> => {
-        match literal::State::new(file_id, Range::from(start..end), literal, messages).number_to_big_int() {
+        match literal::State::new(Location::file_range(file_id, start..end), literal, messages).number_to_big_int() {
             Some(value) => TermData::Primitive(Primitive::Int(value)),
             None => TermData::Error,
         }
     },
     "f32" <start: @L> <literal: "numeric literal"> <end: @R> => {
-        match literal::State::new(file_id, Range::from(start..end), literal, messages).number_to_float() {
+        match literal::State::new(Location::file_range(file_id, start..end), literal, messages).number_to_float() {
             Some(value) => TermData::Primitive(Primitive::F32(value)),
             None => TermData::Error,
         }
     },
     "f64" <start: @L> <literal: "numeric literal"> <end: @R> => {
-        match literal::State::new(file_id, Range::from(start..end), literal, messages).number_to_float() {
+        match literal::State::new(Location::file_range(file_id, start..end), literal, messages).number_to_float() {
             Some(value) => TermData::Primitive(Primitive::F64(value)),
             None => TermData::Error,
         }
@@ -177,7 +176,7 @@ AtomicTermData: TermData = {
 
 #[inline]
 FieldDeclaration: FieldDeclaration = {
-    <doc: "doc comment"*> <label: Ranged<Name>> ":" <type_: Term> => {
+    <doc: "doc comment"*> <label: Located<Name>> ":" <type_: Term> => {
         FieldDeclaration {
             doc: Arc::from(doc),
             label,
@@ -188,7 +187,7 @@ FieldDeclaration: FieldDeclaration = {
 
 #[inline]
 FieldDefinition: FieldDefinition = {
-    <label: Ranged<Name>> "=" <term: Term> => {
+    <label: Located<Name>> "=" <term: Term> => {
         FieldDefinition { label, term: Arc::new(term) }
     },
 };
@@ -207,6 +206,6 @@ Separated<Elem, Separator>: Vec<Elem> = {
 };
 
 #[inline]
-Ranged<T>: Ranged<T> = {
-    <start: @L> <data: T> <end: @R> => Ranged::new(Range::from(start..end), data),
+Located<T>: Located<T> = {
+    <start: @L> <data: T> <end: @R> => Located::new(Location::file_range(file_id, start..end), data),
 };

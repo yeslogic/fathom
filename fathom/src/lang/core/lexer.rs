@@ -1,7 +1,7 @@
 use logos::Logos;
 use std::fmt;
 
-use crate::lang::{FileId, Range};
+use crate::lang::{FileId, Location};
 use crate::reporting::LexerMessage;
 
 /// Tokens in the core language.
@@ -146,8 +146,7 @@ pub fn tokens<'source>(
         .spanned()
         .map(move |(token, range)| match token {
             Token::Error => Err(LexerMessage::InvalidToken {
-                file_id,
-                range: Range::from(range),
+                location: Location::file_range(file_id, range),
             }),
             token => Ok((range.start, token, range.end)),
         })

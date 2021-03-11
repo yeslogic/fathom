@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::lang::{FileId, Range, Ranged};
+use crate::lang::{FileId, Location, Located};
 use crate::lang::surface::{
     Constant, FieldDeclaration, FieldDefinition, ItemData, Module, Pattern, PatternData, StructType,
     Term, TermData,
@@ -59,11 +59,10 @@ extern {
 }
 
 pub Module: Module = {
-    <doc: "inner doc comment"*> <items: Ranged<ItemData>*> => {
+    <doc: "inner doc comment"*> <items: Located<ItemData>*> => {
         let doc = Arc::from(doc);
 
         Module {
-            file_id,
             doc: Arc::from(doc),
             items,
         }
@@ -72,7 +71,7 @@ pub Module: Module = {
 
 ItemData: ItemData = {
     <doc: "doc comment"*>
-    "const" <name: Ranged<Name>> <type_: (":" <Term>)?> "=" <term: Term> ";" => {
+    "const" <name: Located<Name>> <type_: (":" <Term>)?> "=" <term: Term> ";" => {
         ItemData::Constant(Constant {
             doc: Arc::from(doc),
             name,
@@ -81,7 +80,7 @@ ItemData: ItemData = {
         })
     },
     <doc: "doc comment"*>
-    "struct" <name: Ranged<Name>> <type_: (":" <Term>)?> "{"
+    "struct" <name: Located<Name>> <type_: (":" <Term>)?> "{"
         <fields: Separated<FieldDeclaration, ",">>
     "}" => {
         ItemData::StructType(StructType {
@@ -93,17 +92,17 @@ ItemData: ItemData = {
     },
 };
 
-#[inline] Pattern: Pattern = Ranged<PatternData>;
+#[inline] Pattern: Pattern = Located<PatternData>;
 
 PatternData: PatternData = {
     <name: Name> => PatternData::Name(name),
     <literal: "numeric literal"> => PatternData::NumberLiteral(literal.to_owned()),
 };
 
-#[inline] Term: Term = Ranged<TermData>;
-#[inline] ArrowTerm: Term = Ranged<ArrowTermData>;
-#[inline] AppTerm: Term = Ranged<AppTermData>;
-#[inline] AtomicTerm: Term = Ranged<AtomicTermData>;
+#[inline] Term: Term = Located<TermData>;
+#[inline] ArrowTerm: Term = Located<ArrowTermData>;
+#[inline] AppTerm: Term = Located<AppTermData>;
+#[inline] AtomicTerm: Term = Located<AtomicTermData>;
 
 TermData: TermData = {
     ArrowTermData,
@@ -131,7 +130,7 @@ AtomicTermData: TermData = {
     "Kind" => TermData::KindType,
     "repr" => TermData::Repr,
     "struct" "{" <fields: Separated<FieldDefinition, ",">> "}" => TermData::StructTerm(fields),
-    <term: AtomicTerm> "." <name: Ranged<Name>> => TermData::StructElim(Box::new(term), name),
+    <term: AtomicTerm> "." <name: Located<Name>> => TermData::StructElim(Box::new(term), name),
     "[" <elem_terms: Separated<Term, ",">> "]" => TermData::SequenceTerm(elem_terms),
     <literal: "numeric literal"> => TermData::NumberLiteral(literal.to_owned()),
     "if" <head: Term> "{" <if_true: Term> "}" "else" "{" <if_false: Term> "}" => {
@@ -146,14 +145,14 @@ AtomicTermData: TermData = {
 
 #[inline]
 FieldDeclaration: FieldDeclaration = {
-    <docs: "doc comment"*> <label: Ranged<Name>> ":" <type_: Term> => {
+    <docs: "doc comment"*> <label: Located<Name>> ":" <type_: Term> => {
         FieldDeclaration { doc: Arc::from(docs), label, type_ }
     },
 };
 
 #[inline]
 FieldDefinition: FieldDefinition = {
-    <label: Ranged<Name>> "=" <term: Term> => FieldDefinition { label, term },
+    <label: Located<Name>> "=" <term: Term> => FieldDefinition { label, term },
 };
 
 #[inline]
@@ -170,6 +169,6 @@ Separated<Elem, Separator>: Vec<Elem> = {
 };
 
 #[inline]
-Ranged<T>: Ranged<T> = {
-    <start: @L> <data: T> <end: @R> => Ranged::new(Range::from(start..end), data),
+Located<T>: Located<T> = {
+    <start: @L> <data: T> <end: @R> => Located::new(Location::file_range(file_id, start..end), data),
 };

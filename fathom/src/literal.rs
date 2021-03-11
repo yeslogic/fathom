@@ -6,7 +6,7 @@ use logos::Logos;
 use num_bigint::BigInt;
 use num_traits::Float;
 
-use crate::lang::{FileId, Range};
+use crate::lang::Location;
 use crate::reporting::LiteralParseMessage::*;
 use crate::reporting::Message;
 
@@ -100,22 +100,19 @@ enum Digit10 {
 
 /// Literal parser state.
 pub struct State<'source, 'messages> {
-    file_id: FileId,
-    range: Range,
+    location: Location,
     source: &'source str,
     messages: &'messages mut Vec<Message>,
 }
 
 impl<'source, 'messages> State<'source, 'messages> {
     pub fn new(
-        file_id: FileId,
-        range: Range,
+        location: Location,
         source: &'source str,
         messages: &'messages mut Vec<Message>,
     ) -> State<'source, 'messages> {
         State {
-            file_id,
-            range,
+            location,
             source,
             messages,
         }
@@ -127,13 +124,19 @@ impl<'source, 'messages> State<'source, 'messages> {
         None
     }
 
-    /// Get the file-relative range of the current token.
-    fn token_range<Token>(&self, lexer: &logos::Lexer<'source, Token>) -> Range
+    /// Get the file-relative location of the current token.
+    fn token_location<Token>(&self, lexer: &logos::Lexer<'source, Token>) -> Location
     where
         Token: Logos<'source>,
     {
-        let span = lexer.span();
-        Range::from((self.range.start + span.start)..(self.range.start + span.end))
+        match self.location {
+            Location::Generated => Location::Generated,
+            Location::FileRange(file_id, range) => {
+                let span = lexer.span();
+                let range = (range.start + span.start)..(range.start + span.end);
+                Location::file_range(file_id, range)
+            }
+        }
     }
 
     /// Expect another token to be present in the lexer, reporting an error if not.
@@ -149,8 +152,8 @@ impl<'source, 'messages> State<'source, 'messages> {
         match lexer.next() {
             Some(token) => Some(token),
             None => {
-                let range = self.token_range(&lexer);
-                self.report(UnexpectedEndOfLiteral(self.file_id, range))
+                let location = self.token_location(&lexer);
+                self.report(UnexpectedEndOfLiteral(location))
             }
         }
     }
@@ -163,7 +166,6 @@ impl<'source, 'messages> State<'source, 'messages> {
     /// - `None`: If a fatal error when parsing the literal.
     pub fn number_to_big_int(mut self) -> Option<BigInt> {
         let mut lexer = NumericLiteral::lexer(self.source.as_bytes());
-        let file_id = self.file_id;
 
         let (sign, base, start_digit) = self.expect_numeric_literal_start(&mut lexer)?;
 
@@ -185,25 +187,25 @@ impl<'source, 'messages> State<'source, 'messages> {
         }
 
         while let Some(token) = lexer.next() {
-            let range = self.token_range(&lexer);
+            let location = self.token_location(&lexer);
             match token {
                 Digit36::Digit(digit) if digit < base.to_u8() => {
                     add_digit(sign, base, &mut integer, digit);
                     num_digits += 1;
                 }
                 Digit36::Separator => match num_digits {
-                    0 => return self.report(ExpectedDigit(file_id, range, base)),
+                    0 => return self.report(ExpectedDigit(location, base)),
                     _ => {}
                 },
                 Digit36::Digit(_) | Digit36::Error => match num_digits {
-                    0 => return self.report(ExpectedDigit(file_id, range, base)),
-                    _ => return self.report(ExpectedDigitOrSeparator(file_id, range, base)),
+                    0 => return self.report(ExpectedDigit(location, base)),
+                    _ => return self.report(ExpectedDigitOrSeparator(location, base)),
                 },
             }
         }
 
         if num_digits == 0 {
-            return self.report(UnexpectedEndOfLiteral(file_id, self.token_range(&lexer)));
+            return self.report(UnexpectedEndOfLiteral(self.token_location(&lexer)));
         }
 
         Some(integer)
@@ -221,7 +223,6 @@ impl<'source, 'messages> State<'source, 'messages> {
         // to implementing our own parser: https://github.com/Alexhuszagh/rust-lexical/
 
         let mut lexer = NumericLiteral::lexer(self.source.as_bytes());
-        let file_id = self.file_id;
 
         let add_digit = |sign, base: Base, float: T, digit: u8| match sign {
             Sign::Positive => float * base.to_u8().into() + digit.into(),
@@ -244,14 +245,14 @@ impl<'source, 'messages> State<'source, 'messages> {
             let mut has_exponent = false;
 
             while let Some(token) = lexer.next() {
-                let range = self.token_range(&lexer);
+                let location = self.token_location(&lexer);
                 match token {
                     Digit10::Digit(digit) if digit < base.to_u8() => {
                         float = add_digit(sign, base, float, digit);
                         num_integer_digits += 1;
                     }
                     Digit10::Separator if num_integer_digits != 0 => {}
-                    Digit10::Separator => return self.report(ExpectedDigit(file_id, range, base)),
+                    Digit10::Separator => return self.report(ExpectedDigit(location, base)),
                     Digit10::StartFractional => {
                         has_fractional = true;
                         break;
@@ -261,18 +262,17 @@ impl<'source, 'messages> State<'source, 'messages> {
                         break;
                     }
                     Digit10::Digit(_) | Digit10::Error => match num_integer_digits {
-                        0 => return self.report(ExpectedDigit(file_id, range, base)),
+                        0 => return self.report(ExpectedDigit(location, base)),
                         _ => {
-                            return self
-                                .report(ExpectedDigitSeparatorFracOrExp(file_id, range, base));
+                            return self.report(ExpectedDigitSeparatorFracOrExp(location, base));
                         }
                     },
                 }
             }
 
             if num_integer_digits == 0 {
-                let range = self.token_range(&lexer);
-                return self.report(ExpectedDigit(file_id, range, base));
+                let location = self.token_location(&lexer);
+                return self.report(ExpectedDigit(location, base));
             }
 
             if has_fractional {
@@ -280,7 +280,7 @@ impl<'source, 'messages> State<'source, 'messages> {
                 let mut num_frac_digits = 0;
 
                 while let Some(token) = lexer.next() {
-                    let range = self.token_range(&lexer);
+                    let location = self.token_location(&lexer);
                     match token {
                         Digit10::Digit(digit) if digit < base.to_u8() => {
                             frac = add_digit(sign, base, frac, digit);
@@ -288,7 +288,7 @@ impl<'source, 'messages> State<'source, 'messages> {
                         }
                         Digit10::Separator if num_frac_digits != 0 => {}
                         Digit10::Separator => {
-                            return self.report(ExpectedDigit(file_id, range, base));
+                            return self.report(ExpectedDigit(location, base));
                         }
                         Digit10::StartExponent => {
                             has_exponent = true;
@@ -296,10 +296,9 @@ impl<'source, 'messages> State<'source, 'messages> {
                         }
                         Digit10::Digit(_) | Digit10::StartFractional | Digit10::Error => {
                             match num_frac_digits {
-                                0 => return self.report(ExpectedDigit(file_id, range, base)),
+                                0 => return self.report(ExpectedDigit(location, base)),
                                 _ => {
-                                    return self
-                                        .report(ExpectedDigitSeparatorOrExp(file_id, range, base))
+                                    return self.report(ExpectedDigitSeparatorOrExp(location, base))
                                 }
                             }
                         }
@@ -307,20 +306,20 @@ impl<'source, 'messages> State<'source, 'messages> {
                 }
 
                 if num_frac_digits == 0 {
-                    return self.report(ExpectedDigit(file_id, self.token_range(&lexer), base));
+                    return self.report(ExpectedDigit(self.token_location(&lexer), base));
                 }
 
                 float = float + frac / T::powi(base.to_u8().into(), num_frac_digits);
             }
 
             if has_exponent {
-                let range = self.token_range(&lexer);
-                return self.report(FloatLiteralExponentNotSupported(file_id, range));
+                let location = self.token_location(&lexer);
+                return self.report(FloatLiteralExponentNotSupported(location));
             }
 
             Some(float)
         } else {
-            self.report(UnsupportedFloatLiteralBase(file_id, self.range, base))
+            self.report(UnsupportedFloatLiteralBase(self.location, base))
         }
     }
 
@@ -333,15 +332,15 @@ impl<'source, 'messages> State<'source, 'messages> {
                 NumericLiteral::Base(base) => Some((sign, base, None)),
                 NumericLiteral::Digit(digit) => Some((sign, Base::Decimal, Some(digit))),
                 NumericLiteral::Sign(_) | NumericLiteral::Error => {
-                    let range = self.token_range(&lexer);
-                    self.report(ExpectedRadixOrDecimalDigit(self.file_id, range))
+                    let location = self.token_location(&lexer);
+                    self.report(ExpectedRadixOrDecimalDigit(location))
                 }
             },
             NumericLiteral::Base(base) => Some((Sign::Positive, base, None)),
             NumericLiteral::Digit(digit) => Some((Sign::Positive, Base::Decimal, Some(digit))),
             NumericLiteral::Error => {
-                let range = self.token_range(&lexer);
-                self.report(ExpectedStartOfNumericLiteral(self.file_id, range))
+                let location = self.token_location(&lexer);
+                self.report(ExpectedStartOfNumericLiteral(location))
             }
         }
     }
