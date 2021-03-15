@@ -42,7 +42,7 @@ impl<'me> Context<'me> {
                 ),
             };
 
-            let item = semantics::Item::new(item.range, item_data);
+            let item = semantics::Item::new(item.location, item_data);
             context.items.insert(name, item);
         }
 

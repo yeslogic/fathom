@@ -6,7 +6,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::ieee754;
-use crate::lang::Ranged;
+use crate::lang::{FileId, Located};
 use crate::reporting::Message;
 
 mod lexer;
@@ -23,8 +23,6 @@ pub mod typing;
 /// A module of items.
 #[derive(Debug, Clone)]
 pub struct Module {
-    /// The file in which this module was defined.
-    pub file_id: usize,
     /// Doc comment.
     pub doc: Arc<[String]>,
     /// The items in this module.
@@ -32,14 +30,13 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn parse(file_id: usize, source: &str, messages: &mut Vec<Message>) -> Module {
+    pub fn parse(file_id: FileId, source: &str, messages: &mut Vec<Message>) -> Module {
         let tokens = lexer::tokens(file_id, source);
         grammar::ModuleParser::new()
             .parse(file_id, messages, tokens)
             .unwrap_or_else(|error| {
                 messages.push(Message::from_lalrpop(file_id, error));
                 Module {
-                    file_id,
                     doc: Arc::new([]),
                     items: Vec::new(),
                 }
@@ -55,7 +52,7 @@ impl PartialEq for Module {
 }
 
 /// Items in the core language.
-pub type Item = Ranged<ItemData>;
+pub type Item = Located<ItemData>;
 
 /// Items in a module.
 #[derive(Debug, Clone, PartialEq)]
@@ -135,7 +132,7 @@ impl PartialEq for Primitive {
 }
 
 /// Terms in the core language.
-pub type Term = Ranged<TermData>;
+pub type Term = Located<TermData>;
 
 /// Terms.
 #[derive(Debug, Clone, PartialEq)]
@@ -186,7 +183,7 @@ pub enum TermData {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldDeclaration {
     pub doc: Arc<[String]>,
-    pub label: Ranged<String>,
+    pub label: Located<String>,
     // FIXME: can't use `r#type` in LALRPOP grammars
     pub type_: Arc<Term>,
 }
@@ -194,7 +191,7 @@ pub struct FieldDeclaration {
 /// A field in a struct term.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldDefinition {
-    pub label: Ranged<String>,
+    pub label: Located<String>,
     pub term: Arc<Term>,
 }
 
@@ -222,80 +219,79 @@ impl Default for Globals {
         use self::Sort::*;
         use self::TermData::*;
 
+        let term = Term::generated;
+
         let mut entries = BTreeMap::new();
 
-        entries.insert("Int".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
-        entries.insert("F32".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
-        entries.insert("F64".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
-        entries.insert("Bool".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
+        entries.insert("Int".to_owned(), (Arc::new(term(Sort(Type))), None));
+        entries.insert("F32".to_owned(), (Arc::new(term(Sort(Type))), None));
+        entries.insert("F64".to_owned(), (Arc::new(term(Sort(Type))), None));
+        entries.insert("Bool".to_owned(), (Arc::new(term(Sort(Type))), None));
         entries.insert(
             "true".to_owned(),
-            (Arc::new(Term::from(Global("Bool".to_owned()))), None),
+            (Arc::new(term(Global("Bool".to_owned()))), None),
         );
         entries.insert(
             "false".to_owned(),
-            (Arc::new(Term::from(Global("Bool".to_owned()))), None),
+            (Arc::new(term(Global("Bool".to_owned()))), None),
         );
         entries.insert(
             "Array".to_owned(),
             (
-                Arc::new(Term::from(FunctionType(
-                    Arc::new(Term::from(Global("Int".to_owned()))),
-                    Arc::new(Term::from(FunctionType(
-                        Arc::new(Term::from(Sort(Type))),
-                        Arc::new(Term::from(Sort(Type))),
+                Arc::new(term(FunctionType(
+                    Arc::new(term(Global("Int".to_owned()))),
+                    Arc::new(term(FunctionType(
+                        Arc::new(term(Sort(Type))),
+                        Arc::new(term(Sort(Type))),
                     ))),
                 ))),
                 None,
             ),
         );
-        entries.insert("Pos".to_owned(), (Arc::new(Term::from(Sort(Type))), None));
+        entries.insert("Pos".to_owned(), (Arc::new(term(Sort(Type))), None));
 
-        entries.insert("U8".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("U16Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("U16Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("U32Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("U32Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("U64Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("U64Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("S8".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("S16Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("S16Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("S32Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("S32Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("S64Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("S64Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("F32Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("F32Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("F64Le".to_owned(), (Arc::new(Term::from(FormatType)), None));
-        entries.insert("F64Be".to_owned(), (Arc::new(Term::from(FormatType)), None));
+        entries.insert("U8".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("U16Le".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("U16Be".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("U32Le".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("U32Be".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("U64Le".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("U64Be".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("S8".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("S16Le".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("S16Be".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("S32Le".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("S32Be".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("S64Le".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("S64Be".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("F32Le".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("F32Be".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("F64Le".to_owned(), (Arc::new(term(FormatType)), None));
+        entries.insert("F64Be".to_owned(), (Arc::new(term(FormatType)), None));
         entries.insert(
             "FormatArray".to_owned(),
             (
-                Arc::new(Term::from(FunctionType(
-                    Arc::new(Term::from(Global("Int".to_owned()))),
-                    Arc::new(Term::from(FunctionType(
-                        Arc::new(Term::from(FormatType)),
-                        Arc::new(Term::from(FormatType)),
+                Arc::new(term(FunctionType(
+                    Arc::new(term(Global("Int".to_owned()))),
+                    Arc::new(term(FunctionType(
+                        Arc::new(term(FormatType)),
+                        Arc::new(term(FormatType)),
                     ))),
                 ))),
                 None,
             ),
         );
-        entries.insert(
-            "CurrentPos".to_owned(),
-            (Arc::new(Term::from(FormatType)), None),
-        );
+        entries.insert("CurrentPos".to_owned(), (Arc::new(term(FormatType)), None));
         entries.insert(
             "Link".to_owned(),
             (
-                Arc::new(Term::from(FunctionType(
-                    Arc::new(Term::from(Global("Pos".to_owned()))),
-                    Arc::new(Term::from(FunctionType(
-                        Arc::new(Term::from(Global("Int".to_owned()))),
-                        Arc::new(Term::from(FunctionType(
-                            Arc::new(Term::from(FormatType)),
-                            Arc::new(Term::from(FormatType)),
+                Arc::new(term(FunctionType(
+                    Arc::new(term(Global("Pos".to_owned()))),
+                    Arc::new(term(FunctionType(
+                        Arc::new(term(Global("Int".to_owned()))),
+                        Arc::new(term(FunctionType(
+                            Arc::new(term(FormatType)),
+                            Arc::new(term(FormatType)),
                         ))),
                     ))),
                 ))),

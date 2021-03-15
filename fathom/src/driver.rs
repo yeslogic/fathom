@@ -7,7 +7,7 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 
-use crate::lang::{core, surface};
+use crate::lang::{core, surface, FileId};
 use crate::pass::{core_to_pretty, surface_to_core, surface_to_doc, surface_to_pretty};
 use crate::reporting::Message;
 
@@ -231,7 +231,7 @@ impl Driver {
         }
     }
 
-    fn parse_surface_module(&mut self, file_id: usize) -> surface::Module {
+    fn parse_surface_module(&mut self, file_id: FileId) -> surface::Module {
         let file = self.files.get(file_id).unwrap();
         surface::Module::parse(file_id, file.source(), &mut self.messages)
     }

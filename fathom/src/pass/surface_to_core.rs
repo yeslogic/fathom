@@ -17,7 +17,7 @@ use std::sync::Arc;
 use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{self, Primitive, Sort};
 use crate::lang::surface::{ItemData, Module, Pattern, PatternData, StructType, Term, TermData};
-use crate::lang::Range;
+use crate::lang::Location;
 use crate::literal;
 use crate::pass::core_to_surface;
 use crate::reporting::{Message, SurfaceToCoreMessage};
@@ -116,10 +116,10 @@ impl<'me> Context<'me> {
     fn force_item<'context, 'value>(
         &'context self,
         value: &'value Value,
-    ) -> Option<(Range, &'context semantics::ItemData, &'value [Elim])> {
+    ) -> Option<(Location, &'context semantics::ItemData, &'value [Elim])> {
         let (name, elims) = value.try_item()?;
         match self.item_definitions.get(name) {
-            Some(item) => Some((item.range, &item.data, elims)),
+            Some(item) => Some((item.location, &item.data, elims)),
             None => panic!("could not find an item called `{}` in the context", name),
         }
     }
@@ -129,10 +129,10 @@ impl<'me> Context<'me> {
     fn force_struct_type<'context, 'value>(
         &'context self,
         value: &'value Value,
-    ) -> Option<(Range, Arc<[core::FieldDeclaration]>, &'value [Elim])> {
+    ) -> Option<(Location, Arc<[core::FieldDeclaration]>, &'value [Elim])> {
         match self.force_item(value) {
-            Some((range, semantics::ItemData::StructType(field_declarations), elims)) => {
-                Some((range, field_declarations.clone(), elims))
+            Some((location, semantics::ItemData::StructType(field_declarations), elims)) => {
+                Some((location, field_declarations.clone(), elims))
             }
             Some(_) | None => None,
         }
@@ -214,7 +214,6 @@ impl<'me> Context<'me> {
     #[debug_ensures(self.local_declarations.is_empty())]
     #[debug_ensures(self.local_definitions.is_empty())]
     pub fn from_module(&mut self, surface_module: &Module) -> core::Module {
-        let file_id = surface_module.file_id;
         let mut core_items = Vec::new();
 
         for item in surface_module.items.iter() {
@@ -224,24 +223,24 @@ impl<'me> Context<'me> {
                 ItemData::Constant(constant) => {
                     let (core_term, r#type) = match &constant.type_ {
                         Some(surface_type) => {
-                            let (core_type, _) = self.is_type(file_id, surface_type);
+                            let (core_type, _) = self.is_type(surface_type);
                             match &core_type.data {
                                 core::TermData::Error => (
-                                    core::Term::new(constant.term.range, core::TermData::Error),
+                                    core::Term::new(constant.term.location, core::TermData::Error),
                                     Arc::new(Value::Error),
                                 ),
                                 _ => {
                                     let r#type = self.eval(&core_type);
                                     let term_data = core::TermData::Ann(
-                                        Arc::new(self.check_type(file_id, &constant.term, &r#type)),
+                                        Arc::new(self.check_type(&constant.term, &r#type)),
                                         Arc::new(core_type),
                                     );
 
-                                    (core::Term::new(constant.term.range, term_data), r#type)
+                                    (core::Term::new(constant.term.location, term_data), r#type)
                                 }
                             }
                         }
-                        None => self.synth_type(file_id, &constant.term),
+                        None => self.synth_type(&constant.term),
                     };
 
                     let item_data = semantics::ItemData::Constant(self.eval(&core_term));
@@ -256,26 +255,24 @@ impl<'me> Context<'me> {
                 ItemData::StructType(struct_type) => match &struct_type.type_ {
                     None => {
                         self.push_message(SurfaceToCoreMessage::MissingStructAnnotation {
-                            file_id,
                             name: struct_type.name.data.clone(),
-                            name_range: struct_type.name.range,
+                            name_location: struct_type.name.location,
                         });
                         continue;
                     }
                     Some(r#type) => {
-                        let (core_type, _) = self.is_type(file_id, &r#type);
+                        let (core_type, _) = self.is_type(&r#type);
                         let r#type = self.eval(&core_type);
                         let (core_item_data, item_data) = match r#type.as_ref() {
-                            Value::Sort(Sort::Type) => self.is_struct_type(file_id, struct_type),
-                            Value::FormatType => self.is_struct_format(file_id, struct_type),
+                            Value::Sort(Sort::Type) => self.is_struct_type(struct_type),
+                            Value::FormatType => self.is_struct_format(struct_type),
                             Value::Error => continue,
                             r#type => {
                                 let ann_type = self.read_back_to_surface(r#type);
                                 self.push_message(SurfaceToCoreMessage::InvalidStructAnnotation {
-                                    file_id,
                                     name: struct_type.name.data.clone(),
                                     ann_type,
-                                    ann_range: core_type.range,
+                                    ann_location: core_type.location,
                                 });
                                 continue;
                             }
@@ -289,18 +286,17 @@ impl<'me> Context<'me> {
             // FIXME: Avoid shadowing builtin definitions
             match self.item_definitions.entry(name.data.clone()) {
                 Entry::Vacant(entry) => {
-                    let core_item = core::Item::new(item.range, core_item_data);
+                    let core_item = core::Item::new(item.location, core_item_data);
                     core_items.push(core_item.clone());
                     self.item_declarations.insert(entry.key().clone(), r#type);
-                    entry.insert(semantics::Item::new(item.range, item_data));
+                    entry.insert(semantics::Item::new(item.location, item_data));
                 }
                 Entry::Occupied(entry) => {
-                    let original_range = entry.get().range;
+                    let original_location = entry.get().location;
                     self.push_message(SurfaceToCoreMessage::ItemRedefinition {
-                        file_id,
                         name: name.data.clone(),
-                        found_range: item.range,
-                        original_range,
+                        found_location: item.location,
+                        original_location,
                     });
                 }
             }
@@ -310,7 +306,6 @@ impl<'me> Context<'me> {
         self.item_declarations.clear();
 
         core::Module {
-            file_id,
             doc: surface_module.doc.clone(),
             items: core_items,
         }
@@ -318,21 +313,20 @@ impl<'me> Context<'me> {
 
     fn is_struct_type(
         &mut self,
-        file_id: usize,
         struct_type: &StructType,
     ) -> (core::ItemData, semantics::ItemData) {
         use std::collections::hash_map::Entry;
 
         // Field labels that have previously seen, along with the source
-        // range where they were introduced (for diagnostic reporting).
+        // location where they were introduced (for diagnostic reporting).
         let mut seen_field_labels = HashMap::new();
         // Fields that have been elaborated into the core syntax.
         let mut core_field_declarations = Vec::with_capacity(struct_type.fields.len());
 
         for field in &struct_type.fields {
-            let field_range = Range::from(field.label.range.start..field.type_.range.end);
+            let field_location = Location::merge(field.label.location, field.type_.location);
             let format_type = Arc::new(Value::Sort(Sort::Type));
-            let core_type = self.check_type(file_id, &field.type_, &format_type);
+            let core_type = self.check_type(&field.type_, &format_type);
 
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
@@ -345,14 +339,13 @@ impl<'me> Context<'me> {
                         type_: core_type,
                     });
                     self.push_local_param(field.label.data.clone(), r#type);
-                    entry.insert(field_range);
+                    entry.insert(field_location);
                 }
                 Entry::Occupied(entry) => {
                     self.push_message(SurfaceToCoreMessage::FieldRedeclaration {
-                        file_id,
                         name: entry.key().clone(),
-                        found_range: field_range,
-                        original_range: *entry.get(),
+                        found_location: field_location,
+                        original_location: *entry.get(),
                     });
                 }
             }
@@ -373,21 +366,20 @@ impl<'me> Context<'me> {
 
     pub fn is_struct_format(
         &mut self,
-        file_id: usize,
         struct_type: &StructType,
     ) -> (core::ItemData, semantics::ItemData) {
         use std::collections::hash_map::Entry;
 
         // Field names that have previously seen, along with the source
-        // range where they were introduced (for diagnostic reporting).
+        // location where they were introduced (for diagnostic reporting).
         let mut seen_field_labels = HashMap::new();
         // Fields that have been elaborated into the core syntax.
         let mut core_field_declarations = Vec::with_capacity(struct_type.fields.len());
 
         for field in &struct_type.fields {
-            let field_range = Range::from(field.label.range.start..field.type_.range.end);
+            let field_location = Location::merge(field.label.location, field.type_.location);
             let format_type = Arc::new(Value::FormatType);
-            let core_type = self.check_type(file_id, &field.type_, &format_type);
+            let core_type = self.check_type(&field.type_, &format_type);
 
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
@@ -400,14 +392,13 @@ impl<'me> Context<'me> {
                         type_: core_type,
                     });
                     self.push_local_param(field.label.data.clone(), r#type);
-                    entry.insert(field_range);
+                    entry.insert(field_location);
                 }
                 Entry::Occupied(entry) => {
                     self.push_message(SurfaceToCoreMessage::FieldRedeclaration {
-                        file_id,
                         name: entry.key().clone(),
-                        found_range: field_range,
-                        original_range: *entry.get(),
+                        found_location: field_location,
+                        original_location: *entry.get(),
                     });
                 }
             }
@@ -431,27 +422,22 @@ impl<'me> Context<'me> {
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
     #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
-    pub fn is_type(
-        &mut self,
-        file_id: usize,
-        surface_term: &Term,
-    ) -> (core::Term, Option<core::Sort>) {
-        let (core_term, core_type) = self.synth_type(file_id, surface_term);
+    pub fn is_type(&mut self, surface_term: &Term) -> (core::Term, Option<core::Sort>) {
+        let (core_term, core_type) = self.synth_type(surface_term);
         match core_type.as_ref() {
             Value::Error => (
-                core::Term::new(surface_term.range, core::TermData::Error),
+                core::Term::new(surface_term.location, core::TermData::Error),
                 None,
             ),
             Value::Sort(sort) => (core_term, Some(*sort)),
             core_type => {
                 let found_type = self.read_back_to_surface(core_type);
                 self.push_message(SurfaceToCoreMessage::UniverseMismatch {
-                    file_id,
-                    term_range: surface_term.range,
+                    term_location: surface_term.location,
                     found_type,
                 });
                 (
-                    core::Term::new(surface_term.range, core::TermData::Error),
+                    core::Term::new(surface_term.location, core::TermData::Error),
                     None,
                 )
             }
@@ -464,15 +450,10 @@ impl<'me> Context<'me> {
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
     #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
-    pub fn check_type(
-        &mut self,
-        file_id: usize,
-        surface_term: &Term,
-        expected_type: &Arc<Value>,
-    ) -> core::Term {
+    pub fn check_type(&mut self, surface_term: &Term, expected_type: &Arc<Value>) -> core::Term {
         match (&surface_term.data, expected_type.as_ref()) {
-            (TermData::Error, _) => core::Term::new(surface_term.range, core::TermData::Error),
-            (_, Value::Error) => core::Term::new(surface_term.range, core::TermData::Error),
+            (TermData::Error, _) => core::Term::new(surface_term.location, core::TermData::Error),
+            (_, Value::Error) => core::Term::new(surface_term.location, core::TermData::Error),
 
             (TermData::StructTerm(surface_field_definitions), _) => {
                 use std::collections::btree_map::Entry;
@@ -482,20 +463,18 @@ impl<'me> Context<'me> {
                     Some((_, field_declarations, [])) => field_declarations,
                     Some((_, _, _)) => {
                         self.push_message(crate::reporting::Message::NotYetImplemented {
-                            file_id,
-                            range: surface_term.range,
+                            location: surface_term.location,
                             feature_name: "struct parameters",
                         });
-                        return core::Term::new(surface_term.range, core::TermData::Error);
+                        return core::Term::new(surface_term.location, core::TermData::Error);
                     }
                     None => {
                         let expected_type = self.read_back_to_surface(expected_type);
                         self.push_message(SurfaceToCoreMessage::UnexpectedStructTerm {
-                            file_id,
-                            term_range: surface_term.range,
+                            term_location: surface_term.location,
                             expected_type,
                         });
-                        return core::Term::new(surface_term.range, core::TermData::Error);
+                        return core::Term::new(surface_term.location, core::TermData::Error);
                     }
                 };
 
@@ -526,7 +505,7 @@ impl<'me> Context<'me> {
                             let r#type =
                                 self.eval_with_locals(&mut type_locals, &field_declaration.type_);
                             // TODO: stop on errors
-                            let core_term = Arc::new(self.check_type(file_id, &term, &r#type));
+                            let core_term = Arc::new(self.check_type(&term, &r#type));
                             let value = self.eval(&core_term);
 
                             type_locals.push(value);
@@ -551,32 +530,29 @@ impl<'me> Context<'me> {
                 if !duplicate_labels.is_empty() {
                     has_problems = true;
                     self.push_message(SurfaceToCoreMessage::DuplicateStructFields {
-                        file_id,
                         duplicate_labels,
                     });
                 }
                 if !missing_labels.is_empty() {
                     has_problems = true;
                     self.push_message(SurfaceToCoreMessage::MissingStructFields {
-                        file_id,
-                        term_range: surface_term.range,
+                        term_location: surface_term.location,
                         missing_labels,
                     });
                 }
                 if !unexpected_labels.is_empty() {
                     has_problems = true;
                     self.push_message(SurfaceToCoreMessage::UnexpectedStructFields {
-                        file_id,
-                        term_range: surface_term.range,
+                        term_location: surface_term.location,
                         unexpected_labels,
                     });
                 }
                 if has_problems {
-                    return core::Term::new(surface_term.range, core::TermData::Error);
+                    return core::Term::new(surface_term.location, core::TermData::Error);
                 }
 
                 core::Term::new(
-                    surface_term.range,
+                    surface_term.location,
                     core::TermData::StructTerm(core_field_definitions),
                 )
             }
@@ -586,7 +562,7 @@ impl<'me> Context<'me> {
                     let elem_terms = surface_elem_terms
                         .iter()
                         .map(|surface_elem_term| {
-                            Arc::new(self.check_type(file_id, surface_elem_term, elem_type))
+                            Arc::new(self.check_type(surface_elem_term, elem_type))
                         })
                         .collect();
 
@@ -595,36 +571,34 @@ impl<'me> Context<'me> {
                             if *len == surface_elem_terms.len().into() =>
                         {
                             core::Term::new(
-                                surface_term.range,
+                                surface_term.location,
                                 core::TermData::ArrayTerm(elem_terms),
                             )
                         }
                         len => {
                             let expected_len = self.read_back_to_surface(&len);
                             self.push_message(SurfaceToCoreMessage::MismatchedArrayLength {
-                                file_id,
-                                term_range: surface_term.range,
+                                term_location: surface_term.location,
                                 found_len: elem_terms.len(),
                                 expected_len,
                             });
-                            core::Term::new(surface_term.range, core::TermData::Error)
+                            core::Term::new(surface_term.location, core::TermData::Error)
                         }
                     }
                 }
                 Some(_) | None => {
                     let expected_type = self.read_back_to_surface(expected_type);
                     self.push_message(SurfaceToCoreMessage::UnexpectedSequenceTerm {
-                        file_id,
-                        term_range: surface_term.range,
+                        term_location: surface_term.location,
                         expected_type,
                     });
-                    core::Term::new(surface_term.range, core::TermData::Error)
+                    core::Term::new(surface_term.location, core::TermData::Error)
                 }
             },
 
             (TermData::NumberLiteral(source), _) => {
                 let parse_state =
-                    literal::State::new(file_id, surface_term.range, source, &mut self.messages);
+                    literal::State::new(surface_term.location, source, &mut self.messages);
                 let term_data = match expected_type.try_global() {
                     Some(("Int", [])) => parse_state
                         .number_to_big_int()
@@ -641,78 +615,73 @@ impl<'me> Context<'me> {
                     _ => {
                         let expected_type = self.read_back_to_surface(expected_type);
                         self.push_message(SurfaceToCoreMessage::NumericLiteralNotSupported {
-                            file_id,
-                            literal_range: surface_term.range,
+                            literal_location: surface_term.location,
                             expected_type,
                         });
                         core::TermData::Error
                     }
                 };
 
-                core::Term::new(surface_term.range, term_data)
+                core::Term::new(surface_term.location, term_data)
             }
             (TermData::If(surface_head, surface_if_true, surface_if_false), _) => {
                 let bool_type = Arc::new(Value::global("Bool", Vec::new()));
                 let term_data = core::TermData::BoolElim(
-                    Arc::new(self.check_type(file_id, surface_head, &bool_type)),
-                    Arc::new(self.check_type(file_id, surface_if_true, expected_type)),
-                    Arc::new(self.check_type(file_id, surface_if_false, expected_type)),
+                    Arc::new(self.check_type(surface_head, &bool_type)),
+                    Arc::new(self.check_type(surface_if_true, expected_type)),
+                    Arc::new(self.check_type(surface_if_false, expected_type)),
                 );
 
-                core::Term::new(surface_term.range, term_data)
+                core::Term::new(surface_term.location, term_data)
             }
             (TermData::Match(surface_head, surface_branches), _) => {
-                let (head, head_type) = self.synth_type(file_id, surface_head);
+                let (head, head_type) = self.synth_type(surface_head);
                 if let Value::Error = head_type.as_ref() {
-                    return core::Term::new(surface_term.range, core::TermData::Error);
+                    return core::Term::new(surface_term.location, core::TermData::Error);
                 }
 
                 match head_type.try_global() {
                     Some(("Bool", [])) => {
                         self.push_message(Message::NotYetImplemented {
-                            file_id,
-                            range: surface_term.range,
+                            location: surface_term.location,
                             feature_name: "boolean patterns",
                         });
-                        core::Term::new(surface_term.range, core::TermData::Error)
+                        core::Term::new(surface_term.location, core::TermData::Error)
                     }
                     Some(("Int", [])) => {
                         let (branches, default) = self.from_int_branches(
-                            file_id,
-                            surface_head.range,
+                            surface_head.location,
                             surface_branches,
                             expected_type,
                         );
 
                         core::Term::new(
-                            surface_term.range,
+                            surface_term.location,
                             core::TermData::IntElim(Arc::new(head), branches, default),
                         )
                     }
                     _ => {
                         let found_type = self.read_back_to_surface(&head_type);
                         self.push_message(SurfaceToCoreMessage::UnsupportedPatternType {
-                            file_id,
-                            scrutinee_range: surface_head.range,
+                            scrutinee_location: surface_head.location,
                             found_type,
                         });
-                        core::Term::new(surface_term.range, core::TermData::Error)
+                        core::Term::new(surface_term.location, core::TermData::Error)
                     }
                 }
             }
 
-            (_, expected_type) => match self.synth_type(file_id, surface_term) {
+            (_, expected_type) => match self.synth_type(surface_term) {
                 (core_term, found_type) if self.is_equal(&found_type, expected_type) => core_term,
                 (_, found_type) => {
                     let expected_type = self.read_back_to_surface(expected_type);
                     let found_type = self.read_back_to_surface(&found_type);
                     self.push_message(SurfaceToCoreMessage::TypeMismatch {
-                        file_id,
-                        term_range: surface_term.range,
+                        term_location: surface_term.location,
                         expected_type,
                         found_type,
                     });
-                    core::Term::new(surface_term.range, core::TermData::Error)
+                    core::Term::new(surface_term.location, core::TermData::Error)
                 }
             },
         }
@@ -723,73 +692,71 @@ impl<'me> Context<'me> {
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
     #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
-    pub fn synth_type(&mut self, file_id: usize, surface_term: &Term) -> (core::Term, Arc<Value>) {
+    pub fn synth_type(&mut self, surface_term: &Term) -> (core::Term, Arc<Value>) {
         match &surface_term.data {
             TermData::Name(name) => {
                 if let Some((index, r#type)) = self.get_local(name) {
                     let term_data = core::TermData::Local(index);
-                    let core_term = core::Term::new(surface_term.range, term_data);
+                    let core_term = core::Term::new(surface_term.location, term_data);
                     return (core_term, r#type.clone());
                 }
                 if let Some(r#type) = self.item_declarations.get(name) {
                     let term_data = core::TermData::Item(name.to_owned());
-                    let core_term = core::Term::new(surface_term.range, term_data);
+                    let core_term = core::Term::new(surface_term.location, term_data);
                     return (core_term, r#type.clone());
                 }
                 if let Some((r#type, _)) = self.globals.get(name) {
                     let term_data = core::TermData::Global(name.to_owned());
-                    let core_term = core::Term::new(surface_term.range, term_data);
+                    let core_term = core::Term::new(surface_term.location, term_data);
                     return (core_term, self.eval(r#type));
                 }
 
                 self.push_message(SurfaceToCoreMessage::VarNameNotFound {
-                    file_id,
                     name: name.clone(),
-                    name_range: surface_term.range,
+                    name_location: surface_term.location,
                 });
                 (
-                    core::Term::new(surface_term.range, core::TermData::Error),
+                    core::Term::new(surface_term.location, core::TermData::Error),
                     Arc::new(Value::Error),
                 )
             }
 
             TermData::Ann(surface_term, surface_type) => {
-                let (core_type, _) = self.is_type(file_id, surface_type);
+                let (core_type, _) = self.is_type(surface_type);
                 match &core_type.data {
                     core::TermData::Error => (
-                        core::Term::new(surface_term.range, core::TermData::Error),
+                        core::Term::new(surface_term.location, core::TermData::Error),
                         Arc::new(Value::Error),
                     ),
                     _ => {
                         let r#type = self.eval(&core_type);
                         let term_data = core::TermData::Ann(
-                            Arc::new(self.check_type(file_id, surface_term, &r#type)),
+                            Arc::new(self.check_type(surface_term, &r#type)),
                             Arc::new(core_type),
                         );
 
-                        (core::Term::new(surface_term.range, term_data), r#type)
+                        (core::Term::new(surface_term.location, term_data), r#type)
                     }
                 }
             }
 
             TermData::KindType => {
                 self.push_message(SurfaceToCoreMessage::TermHasNoType {
-                    file_id,
-                    term_range: surface_term.range,
+                    term_location: surface_term.location,
                 });
                 (
-                    core::Term::new(surface_term.range, core::TermData::Error),
+                    core::Term::new(surface_term.location, core::TermData::Error),
                     Arc::new(Value::Error),
                 )
             }
             TermData::TypeType => (
-                core::Term::new(surface_term.range, core::TermData::Sort(Sort::Type)),
+                core::Term::new(surface_term.location, core::TermData::Sort(Sort::Type)),
                 Arc::new(Value::Sort(Sort::Kind)),
             ),
 
             TermData::FunctionType(param_type, body_type) => {
-                let (core_param_type, param_sort) = self.is_type(file_id, param_type);
-                let (core_body_type, body_sort) = self.is_type(file_id, body_type);
+                let (core_param_type, param_sort) = self.is_type(param_type);
+                let (core_body_type, body_sort) = self.is_type(body_type);
 
                 match (param_sort, body_sort) {
                     (Some(param_sort), Some(body_sort)) => {
@@ -798,45 +765,44 @@ impl<'me> Context<'me> {
                             Arc::new(core_body_type),
                         );
                         (
-                            core::Term::new(surface_term.range, term_data),
+                            core::Term::new(surface_term.location, term_data),
                             Arc::new(Value::Sort(core::typing::rule(param_sort, body_sort))),
                         )
                     }
                     (_, _) => (
-                        core::Term::new(surface_term.range, core::TermData::Error),
+                        core::Term::new(surface_term.location, core::TermData::Error),
                         Arc::new(Value::Error),
                     ),
                 }
             }
             TermData::FunctionElim(head, arguments) => {
-                let (mut core_head, mut head_type) = self.synth_type(file_id, head);
+                let (mut core_head, mut head_type) = self.synth_type(head);
 
                 for argument in arguments {
                     match head_type.as_ref() {
                         Value::FunctionType(param_type, body_type) => {
                             let term_data = core::TermData::FunctionElim(
                                 Arc::new(core_head),
-                                Arc::new(self.check_type(file_id, argument, &param_type)),
+                                Arc::new(self.check_type(argument, &param_type)),
                             );
-                            core_head = core::Term::new(surface_term.range, term_data);
+                            core_head = core::Term::new(surface_term.location, term_data);
                             head_type = body_type.clone();
                         }
                         Value::Error => {
                             return (
-                                core::Term::new(surface_term.range, core::TermData::Error),
+                                core::Term::new(surface_term.location, core::TermData::Error),
                                 Arc::new(Value::Error),
                             );
                         }
                         head_type => {
                             let head_type = self.read_back_to_surface(head_type);
                             self.push_message(SurfaceToCoreMessage::NotAFunction {
-                                file_id,
-                                head_range: head.range,
+                                head_location: head.location,
                                 head_type,
-                                argument_range: argument.range,
+                                argument_location: argument.location,
                             });
                             return (
-                                core::Term::new(surface_term.range, core::TermData::Error),
+                                core::Term::new(surface_term.location, core::TermData::Error),
                                 Arc::new(Value::Error),
                             );
                         }
@@ -848,19 +814,18 @@ impl<'me> Context<'me> {
 
             TermData::StructTerm(_) => {
                 self.push_message(SurfaceToCoreMessage::AmbiguousStructTerm {
-                    file_id,
-                    term_range: surface_term.range,
+                    term_location: surface_term.location,
                 });
                 (
-                    core::Term::new(surface_term.range, core::TermData::Error),
+                    core::Term::new(surface_term.location, core::TermData::Error),
                     Arc::new(Value::Error),
                 )
             }
             TermData::StructElim(head, label) => {
-                let (core_head, head_type) = self.synth_type(file_id, head);
+                let (core_head, head_type) = self.synth_type(head);
                 if let Value::Error = head_type.as_ref() {
                     return (
-                        core::Term::new(surface_term.range, core::TermData::Error),
+                        core::Term::new(surface_term.location, core::TermData::Error),
                         Arc::new(Value::Error),
                     );
                 }
@@ -876,7 +841,7 @@ impl<'me> Context<'me> {
                         for field_declaration in field_declarations.iter() {
                             if field_declaration.label == *label {
                                 let core_term = core::Term::new(
-                                    surface_term.range,
+                                    surface_term.location,
                                     core::TermData::StructElim(
                                         Arc::new(core_head),
                                         field_declaration.label.data.clone(),
@@ -898,12 +863,11 @@ impl<'me> Context<'me> {
                     }
                     Some((_, _, _)) => {
                         self.push_message(crate::reporting::Message::NotYetImplemented {
-                            file_id,
-                            range: surface_term.range,
+                            location: surface_term.location,
                             feature_name: "struct parameters",
                         });
                         return (
-                            core::Term::new(surface_term.range, core::TermData::Error),
+                            core::Term::new(surface_term.location, core::TermData::Error),
                             Arc::new(Value::Error),
                         );
                     }
@@ -913,43 +877,40 @@ impl<'me> Context<'me> {
                 // If we could not find a matching field, it's a type error.
                 let head_type = self.read_back_to_surface(&head_type);
                 self.push_message(SurfaceToCoreMessage::FieldNotFound {
-                    file_id,
-                    head_range: head.range,
+                    head_location: head.location,
                     head_type,
                     label: label.clone(),
                 });
                 (
-                    core::Term::new(surface_term.range, core::TermData::Error),
+                    core::Term::new(surface_term.location, core::TermData::Error),
                     Arc::new(Value::Error),
                 )
             }
 
             TermData::SequenceTerm(_) => {
                 self.push_message(SurfaceToCoreMessage::AmbiguousSequenceTerm {
-                    file_id,
-                    range: surface_term.range,
+                    location: surface_term.location,
                 });
                 (
-                    core::Term::new(surface_term.range, core::TermData::Error),
+                    core::Term::new(surface_term.location, core::TermData::Error),
                     Arc::new(Value::Error),
                 )
             }
 
             TermData::NumberLiteral(_) => {
                 self.push_message(SurfaceToCoreMessage::AmbiguousNumericLiteral {
-                    file_id,
-                    literal_range: surface_term.range,
+                    literal_location: surface_term.location,
                 });
                 (
-                    core::Term::new(surface_term.range, core::TermData::Error),
+                    core::Term::new(surface_term.location, core::TermData::Error),
                     Arc::new(Value::Error),
                 )
             }
             TermData::If(surface_head, surface_if_true, surface_if_false) => {
                 let bool_type = Arc::new(Value::global("Bool", Vec::new()));
-                let head = self.check_type(file_id, surface_head, &bool_type);
-                let (if_true, if_true_type) = self.synth_type(file_id, surface_if_true);
-                let (if_false, if_false_type) = self.synth_type(file_id, surface_if_false);
+                let head = self.check_type(surface_head, &bool_type);
+                let (if_true, if_true_type) = self.synth_type(surface_if_true);
+                let (if_false, if_false_type) = self.synth_type(surface_if_false);
 
                 if self.is_equal(&if_true_type, &if_false_type) {
                     let term_data = core::TermData::BoolElim(
@@ -957,40 +918,41 @@ impl<'me> Context<'me> {
                         Arc::new(if_true),
                         Arc::new(if_false),
                     );
-                    (core::Term::new(surface_term.range, term_data), if_true_type)
+                    (
+                        core::Term::new(surface_term.location, term_data),
+                        if_true_type,
+                    )
                 } else {
                     let expected_type = self.read_back_to_surface(&if_true_type);
                     let found_type = self.read_back_to_surface(&if_false_type);
                     self.push_message(SurfaceToCoreMessage::TypeMismatch {
-                        file_id,
-                        term_range: surface_if_false.range,
+                        term_location: surface_if_false.location,
                         expected_type,
                         found_type,
                     });
                     (
-                        core::Term::new(surface_term.range, core::TermData::Error),
+                        core::Term::new(surface_term.location, core::TermData::Error),
                         Arc::new(Value::Error),
                     )
                 }
             }
             TermData::Match(_, _) => {
                 self.push_message(SurfaceToCoreMessage::AmbiguousMatchExpression {
-                    file_id,
-                    term_range: surface_term.range,
+                    term_location: surface_term.location,
                 });
                 (
-                    core::Term::new(surface_term.range, core::TermData::Error),
+                    core::Term::new(surface_term.location, core::TermData::Error),
                     Arc::new(Value::Error),
                 )
             }
 
             TermData::FormatType => (
-                core::Term::new(surface_term.range, core::TermData::FormatType),
+                core::Term::new(surface_term.location, core::TermData::FormatType),
                 Arc::new(Value::Sort(Sort::Kind)),
             ),
 
             TermData::Repr => (
-                core::Term::new(surface_term.range, core::TermData::Repr),
+                core::Term::new(surface_term.location, core::TermData::Repr),
                 Arc::new(Value::FunctionType(
                     Arc::new(Value::FormatType),
                     Arc::new(Value::Sort(Sort::Type)),
@@ -998,7 +960,7 @@ impl<'me> Context<'me> {
             ),
 
             TermData::Error => (
-                core::Term::new(surface_term.range, core::TermData::Error),
+                core::Term::new(surface_term.location, core::TermData::Error),
                 Arc::new(Value::Error),
             ),
         }
@@ -1006,8 +968,7 @@ impl<'me> Context<'me> {
 
     fn from_int_branches(
         &mut self,
-        file_id: usize,
-        range: Range,
+        location: Location,
         surface_branches: &[(Pattern, Term)],
         expected_type: &Arc<Value>,
     ) -> (BTreeMap<BigInt, Arc<core::Term>>, Arc<core::Term>) {
@@ -1018,15 +979,13 @@ impl<'me> Context<'me> {
 
         for (pattern, surface_term) in surface_branches {
             let unreachable_pattern = || SurfaceToCoreMessage::UnreachablePattern {
-                file_id,
-                pattern_range: pattern.range,
+                pattern_location: pattern.location,
             };
 
             match &pattern.data {
                 PatternData::NumberLiteral(source) => {
-                    let core_term = self.check_type(file_id, surface_term, expected_type);
-                    let parse_state =
-                        literal::State::new(file_id, range, source, &mut self.messages);
+                    let core_term = self.check_type(surface_term, expected_type);
+                    let parse_state = literal::State::new(location, source, &mut self.messages);
                     match parse_state.number_to_big_int() {
                         None => {} // Skipping - an error message should have already been recorded
                         Some(value) => match &default {
@@ -1044,7 +1003,7 @@ impl<'me> Context<'me> {
                     // TODO: check if name is bound
                     // - if so compare for equality
                     // - otherwise bind local variable
-                    let core_term = self.check_type(file_id, surface_term, expected_type);
+                    let core_term = self.check_type(surface_term, expected_type);
                     match &default {
                         None => default = Some(Arc::new(core_term)),
                         Some(_) => self.push_message(unreachable_pattern()),
@@ -1055,10 +1014,9 @@ impl<'me> Context<'me> {
 
         let default = default.unwrap_or_else(|| {
             self.push_message(SurfaceToCoreMessage::NoDefaultPattern {
-                file_id,
-                match_range: range,
+                match_location: location,
             });
-            Arc::new(core::Term::new(range, core::TermData::Error))
+            Arc::new(core::Term::new(location, core::TermData::Error))
         });
 
         (branches, default)

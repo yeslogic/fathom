@@ -1,18 +1,19 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use codespan_reporting::files::{Files, SimpleFiles};
+use fathom::lang::FileId;
 use std::ops::Range;
 
 use super::{Directives, ExpectedDiagnostic, SpannedString, Token};
 
 pub struct Parser<'a> {
     files: &'a SimpleFiles<String, String>,
-    file_id: usize,
+    file_id: FileId,
     directives: Directives,
     diagnostics: Vec<Diagnostic<usize>>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(files: &'a SimpleFiles<String, String>, file_id: usize) -> Parser<'a> {
+    pub fn new(files: &'a SimpleFiles<String, String>, file_id: FileId) -> Parser<'a> {
         Parser {
             files,
             file_id,

@@ -10,10 +10,10 @@ use crate::lang::core::{
     FieldDeclaration, FieldDefinition, Globals, LocalLevel, LocalSize, Locals, Primitive, Sort,
     Term, TermData,
 };
-use crate::lang::Ranged;
+use crate::lang::Located;
 
 /// Evaluated items.
-pub type Item = Ranged<ItemData>;
+pub type Item = Located<ItemData>;
 
 /// Evaluated item data.
 #[derive(Debug, Clone)]
@@ -399,16 +399,16 @@ fn read_back_neutral(
     elims: &[Elim],
 ) -> Term {
     let head = match head {
-        Head::Global(global_name) => Term::from(TermData::Global(global_name.clone())),
-        Head::Item(item_name) => Term::from(TermData::Item(item_name.clone())),
+        Head::Global(global_name) => Term::generated(TermData::Global(global_name.clone())),
+        Head::Item(item_name) => Term::generated(TermData::Item(item_name.clone())),
         Head::Local(local_level) => {
-            Term::from(TermData::Local(local_level.to_index(local_size).unwrap()))
+            Term::generated(TermData::Local(local_level.to_index(local_size).unwrap()))
         }
-        Head::Error => Term::from(TermData::Error),
+        Head::Error => Term::generated(TermData::Error),
     };
 
     elims.iter().fold(head, |head, elim| {
-        Term::from(match elim {
+        Term::generated(match elim {
             Elim::Function(argument) => TermData::FunctionElim(
                 Arc::new(head),
                 Arc::new(read_back(globals, items, local_size, argument)),
@@ -435,7 +435,7 @@ fn read_back_neutral(
                 TermData::IntElim(Arc::new(head), branches, Arc::new(default))
             }
             Elim::Repr => {
-                TermData::FunctionElim(Arc::new(Term::from(TermData::Repr)), Arc::new(head))
+                TermData::FunctionElim(Arc::new(Term::generated(TermData::Repr)), Arc::new(head))
             }
         })
     })
@@ -454,37 +454,37 @@ pub fn read_back(
     match value {
         Value::Stuck(head, elims) => read_back_neutral(globals, items, local_size, head, elims),
 
-        Value::Sort(sort) => Term::from(TermData::Sort(*sort)),
+        Value::Sort(sort) => Term::generated(TermData::Sort(*sort)),
 
-        Value::FunctionType(param_type, body_type) => Term::from(TermData::FunctionType(
+        Value::FunctionType(param_type, body_type) => Term::generated(TermData::FunctionType(
             Arc::new(read_back(globals, items, local_size, param_type)),
             Arc::new(read_back(globals, items, local_size, body_type)),
         )),
 
-        Value::StructTerm(field_definitions) => Term::from(TermData::StructTerm(
+        Value::StructTerm(field_definitions) => Term::generated(TermData::StructTerm(
             field_definitions
                 .iter()
                 .map(|(label, value)| FieldDefinition {
-                    label: Ranged::from(label.clone()),
+                    label: Located::generated(label.clone()),
                     term: Arc::new(read_back(globals, items, local_size, value)),
                 })
                 .collect(),
         )),
 
-        Value::ArrayTerm(elem_values) => Term::from(TermData::ArrayTerm(
+        Value::ArrayTerm(elem_values) => Term::generated(TermData::ArrayTerm(
             elem_values
                 .iter()
                 .map(|elem_value| Arc::new(read_back(globals, items, local_size, elem_value)))
                 .collect(),
         )),
 
-        Value::Primitive(primitive) => Term::from(TermData::Primitive(primitive.clone())),
+        Value::Primitive(primitive) => Term::generated(TermData::Primitive(primitive.clone())),
 
-        Value::FormatType => Term::from(TermData::FormatType),
+        Value::FormatType => Term::generated(TermData::FormatType),
 
-        Value::Repr => Term::from(TermData::Repr),
+        Value::Repr => Term::generated(TermData::Repr),
 
-        Value::Error => Term::from(TermData::Error),
+        Value::Error => Term::generated(TermData::Error),
     }
 }
 

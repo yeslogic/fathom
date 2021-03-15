@@ -2,6 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, LabelStyle, Severity};
 use codespan_reporting::files::{Files, SimpleFiles};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{BufferWriter, ColorChoice, StandardStream};
+use fathom::lang::FileId;
 use fathom::pass::{core_to_pretty, core_to_surface, surface_to_core, surface_to_doc};
 use std::fs;
 use std::path::PathBuf;
@@ -70,7 +71,7 @@ struct Test {
     test_name: String,
     term_config: codespan_reporting::term::Config,
     input_fathom_path: PathBuf,
-    input_fathom_file_id: usize,
+    input_fathom_file_id: FileId,
     snapshot_filename: PathBuf,
     directives: directives::Directives,
     failed_checks: Vec<&'static str>,
@@ -524,7 +525,7 @@ impl Test {
 
 fn retain_unexpected(
     files: &SimpleFiles<String, String>,
-    found_diagnostics: &mut Vec<Diagnostic<usize>>,
+    found_diagnostics: &mut Vec<Diagnostic<FileId>>,
     expected_diagnostics: &mut Vec<ExpectedDiagnostic>,
 ) {
     use std::collections::BTreeSet;
@@ -552,7 +553,7 @@ fn retain_unexpected(
 
 fn is_expected(
     files: &SimpleFiles<String, String>,
-    found_diagnostic: &Diagnostic<usize>,
+    found_diagnostic: &Diagnostic<FileId>,
     expected_diagnostic: &ExpectedDiagnostic,
 ) -> bool {
     // TODO: higher quality diagnostic message matching

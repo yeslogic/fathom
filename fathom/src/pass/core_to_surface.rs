@@ -7,7 +7,7 @@
 use crate::lang::core::{
     Item, ItemData, LocalIndex, Locals, Module, Primitive, Sort, Term, TermData,
 };
-use crate::lang::{surface, Ranged};
+use crate::lang::{surface, Located};
 
 /// Distillation context.
 pub struct Context {
@@ -46,7 +46,6 @@ impl Context {
 
     pub fn from_module(&mut self, module: &Module) -> surface::Module {
         surface::Module {
-            file_id: module.file_id,
             doc: module.doc.clone(),
             items: module
                 .items
@@ -68,7 +67,7 @@ impl Context {
 
                 surface::ItemData::Constant(surface::Constant {
                     doc: constant.doc.clone(),
-                    name: Ranged::from(constant.name.clone()),
+                    name: Located::generated(constant.name.clone()),
                     type_: r#type,
                     term,
                 })
@@ -82,7 +81,7 @@ impl Context {
                         self.push_local(field_declaration.label.data.clone());
                         surface::FieldDeclaration {
                             doc: field_declaration.doc.clone(),
-                            label: Ranged::from(field_declaration.label.clone()),
+                            label: field_declaration.label.clone(),
                             type_: r#type,
                         }
                     })
@@ -91,8 +90,8 @@ impl Context {
 
                 surface::ItemData::StructType(surface::StructType {
                     doc: struct_type.doc.clone(),
-                    name: Ranged::from(struct_type.name.clone()),
-                    type_: Some(surface::Term::from(surface::TermData::TypeType)),
+                    name: Located::generated(struct_type.name.clone()),
+                    type_: Some(surface::Term::generated(surface::TermData::TypeType)),
                     fields: field_declarations,
                 })
             }
@@ -105,7 +104,7 @@ impl Context {
                         self.push_local(field_declaration.label.data.clone());
                         surface::FieldDeclaration {
                             doc: field_declaration.doc.clone(),
-                            label: Ranged::from(field_declaration.label.clone()),
+                            label: field_declaration.label.clone(),
                             type_: r#type,
                         }
                     })
@@ -114,14 +113,14 @@ impl Context {
 
                 surface::ItemData::StructType(surface::StructType {
                     doc: struct_format.doc.clone(),
-                    name: Ranged::from(struct_format.name.clone()),
-                    type_: Some(surface::Term::from(surface::TermData::FormatType)),
+                    name: Located::generated(struct_format.name.clone()),
+                    type_: Some(surface::Term::generated(surface::TermData::FormatType)),
                     fields: field_declarations,
                 })
             }
         };
 
-        surface::Item::from(item_data)
+        surface::Item::generated(item_data)
     }
 
     pub fn from_term(&mut self, term: &Term) -> surface::Term {
@@ -153,14 +152,14 @@ impl Context {
                 field_definitions
                     .iter()
                     .map(|field_definition| surface::FieldDefinition {
-                        label: Ranged::from(field_definition.label.clone()),
+                        label: field_definition.label.clone(),
                         term: self.from_term(&field_definition.term),
                     })
                     .collect(),
             ),
             TermData::StructElim(head, field) => surface::TermData::StructElim(
                 Box::new(self.from_term(head)),
-                Ranged::from(field.clone()),
+                Located::generated(field.clone()),
             ),
 
             TermData::ArrayTerm(elem_terms) => surface::TermData::SequenceTerm(
@@ -191,10 +190,13 @@ impl Context {
                         .map(|(value, term)| {
                             let pattern_data =
                                 surface::PatternData::NumberLiteral(value.to_string());
-                            (surface::Pattern::from(pattern_data), self.from_term(term))
+                            (
+                                surface::Pattern::generated(pattern_data),
+                                self.from_term(term),
+                            )
                         })
                         .chain(std::iter::once((
-                            surface::Pattern::from(surface::PatternData::Name("_".to_owned())),
+                            surface::Pattern::generated(surface::PatternData::Name("_".to_owned())),
                             default,
                         )))
                         .collect(),
@@ -208,6 +210,6 @@ impl Context {
             TermData::Error => surface::TermData::Error,
         };
 
-        surface::Term::from(term_data)
+        surface::Term::generated(term_data)
     }
 }
