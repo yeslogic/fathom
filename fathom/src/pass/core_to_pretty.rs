@@ -86,15 +86,21 @@ where
             .append(alloc.hardline())
     }));
 
-    let struct_prefix = (alloc.nil())
-        .append("struct")
-        .append(alloc.space())
-        .append(alloc.as_string(&struct_type.name))
-        .append(alloc.space())
-        .append(":")
-        .append(alloc.space())
-        .append("Type")
-        .append(alloc.space());
+    let struct_prefix =
+        (alloc.nil())
+            .append("struct")
+            .append(alloc.space())
+            .append(alloc.as_string(&struct_type.name))
+            .append(alloc.space())
+            .append(alloc.concat(
+                struct_type.params.iter().map(|(name, r#type)| {
+                    from_param(alloc, &name.data, r#type).append(alloc.space())
+                }),
+            ))
+            .append(":")
+            .append(alloc.space())
+            .append("Type")
+            .append(alloc.space());
 
     let struct_type = if struct_type.fields.is_empty() {
         (alloc.nil()).append(struct_prefix).append("{}").group()
@@ -128,15 +134,21 @@ where
             .append(alloc.hardline())
     }));
 
-    let struct_prefix = (alloc.nil())
-        .append("struct")
-        .append(alloc.space())
-        .append(alloc.as_string(&struct_format.name))
-        .append(alloc.space())
-        .append(":")
-        .append(alloc.space())
-        .append("Format")
-        .append(alloc.space());
+    let struct_prefix =
+        (alloc.nil())
+            .append("struct")
+            .append(alloc.space())
+            .append(alloc.as_string(&struct_format.name))
+            .append(alloc.space())
+            .append(alloc.concat(
+                struct_format.params.iter().map(|(name, r#type)| {
+                    from_param(alloc, &name.data, r#type).append(alloc.space())
+                }),
+            ))
+            .append(":")
+            .append(alloc.space())
+            .append("Format")
+            .append(alloc.space());
 
     let struct_format = if struct_format.fields.is_empty() {
         (alloc.nil()).append(struct_prefix).append("{}").group()
@@ -280,6 +292,26 @@ where
             .append(alloc.space())
             .append(format!("{:0x}", value)),
     }
+}
+
+pub fn from_param<'a, D>(alloc: &'a D, name: &'a str, r#type: &'a Term) -> DocBuilder<'a, D>
+where
+    D: DocAllocator<'a>,
+    D::Doc: Clone,
+{
+    (alloc.nil())
+        .append("(")
+        .append(alloc.as_string(name))
+        .append(alloc.space())
+        .append(":")
+        .group()
+        .append(
+            (alloc.space())
+                .append(from_term(alloc, r#type))
+                .group()
+                .nest(4),
+        )
+        .append(")")
 }
 
 pub fn from_term<'a, D>(alloc: &'a D, term: &'a Term) -> DocBuilder<'a, D>

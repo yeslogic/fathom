@@ -94,20 +94,26 @@ where
             .append(alloc.hardline())
     }));
 
-    let struct_prefix = (alloc.nil())
-        .append("struct")
-        .append(alloc.space())
-        .append(&struct_type.name.data)
-        .append(alloc.space())
-        .append(":")
-        .append(match &struct_type.type_ {
-            None => alloc.nil(),
-            Some(r#type) => (alloc.nil())
-                .append(alloc.space())
-                .append(from_term_prec(alloc, r#type, Prec::Term))
-                .group()
-                .nest(4),
-        });
+    let struct_prefix =
+        (alloc.nil())
+            .append("struct")
+            .append(alloc.space())
+            .append(&struct_type.name.data)
+            .append(alloc.space())
+            .append(alloc.concat(
+                struct_type.params.iter().map(|(name, r#type)| {
+                    from_param(alloc, &name.data, r#type).append(alloc.space())
+                }),
+            ))
+            .append(":")
+            .append(match &struct_type.type_ {
+                None => alloc.nil(),
+                Some(r#type) => (alloc.nil())
+                    .append(alloc.space())
+                    .append(from_term_prec(alloc, r#type, Prec::Term))
+                    .group()
+                    .nest(4),
+            });
 
     let struct_type = if struct_type.fields.is_empty() {
         (alloc.nil())
@@ -230,6 +236,26 @@ where
         PatternData::Name(name) => alloc.text(name),
         PatternData::NumberLiteral(literal) => alloc.as_string(literal),
     }
+}
+
+pub fn from_param<'a, D>(alloc: &'a D, name: &'a str, r#type: &'a Term) -> DocBuilder<'a, D>
+where
+    D: DocAllocator<'a>,
+    D::Doc: Clone,
+{
+    (alloc.nil())
+        .append("(")
+        .append(alloc.as_string(name))
+        .append(alloc.space())
+        .append(":")
+        .group()
+        .append(
+            (alloc.space())
+                .append(from_term(alloc, r#type))
+                .group()
+                .nest(4),
+        )
+        .append(")")
 }
 
 pub fn from_term<'a, D>(alloc: &'a D, term: &'a Term) -> DocBuilder<'a, D>

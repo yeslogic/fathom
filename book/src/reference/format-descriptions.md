@@ -170,11 +170,27 @@ struct MyArray : Format {
 }
 ```
 
+Struct formats can also be parameterized:
+
+```fathom
+struct GenericPoint (Coordinate : Format) : Format {
+    x : Coordinate,
+    y : Coordinate,
+}
+
+struct MyGenericArray (len : Int) (Coordinate : Format) : Format {
+    data : FormatArray len (GenericPoint Coordinate),
+}
+```
+
 Representation:
 
 ```fathom
-repr Point      // normalizes to `repr Point`
-repr MyArray    // normalizes to `repr MyArray`
+repr Point                        // normalizes to `repr Point`
+repr MyArray                      // normalizes to `repr MyArray`
+
+repr (GenericPoint F32Be)         // normalizes to `repr (GenericPoint F32Be)`
+repr (MyGenericArray 3 U32Be)     // normalizes to `repr (MyGenericArray 3 U32Be)`
 ```
 
 The representation of struct formats are struct types,

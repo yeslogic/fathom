@@ -1,0 +1,68 @@
+struct Unit : Type {}
+
+
+struct Point (Coordinate : Type) : Type {
+    x : Coordinate,
+    y : Coordinate,
+}
+
+const test_point_type : Type -> Type = Point;
+
+const test_point_int_intro : Point Int = struct { x = 0, y = 0 };
+const test_point_int_elim_x_synth = test_point_int_intro.x;
+const test_point_int_elim_x_check = test_point_int_intro.x : Int;
+const test_point_int_elim_y_synth = test_point_int_intro.y;
+const test_point_int_elim_y_check = test_point_int_intro.y : Int;
+
+const test_point_unit_intro : Point Unit = struct { x = struct {}, y = struct {} };
+const test_point_unit_elim_x_synth = test_point_unit_intro.x;
+const test_point_unit_elim_x_check = test_point_unit_intro.x : Unit;
+const test_point_unit_elim_y_synth = test_point_unit_intro.y;
+const test_point_unit_elim_y_check = test_point_unit_intro.y : Unit;
+
+
+struct Pair (First : Type) (Second : Type) : Type {
+    first : First,
+    second : Second,
+}
+
+const test_pair_type : Type -> Type -> Type = Pair;
+const test_pair_intro : Pair Unit Int = struct {
+    first = struct {},
+    second = 3,
+};
+const test_pair_elim_first_synth = test_pair_intro.first;
+const test_pair_elim_first_check = test_pair_intro.first : Unit;
+const test_pair_elim_second_synth = test_pair_intro.second;
+const test_pair_elim_second_check = test_pair_intro.second : Int;
+
+
+struct MyArray (len : Int) (Elem : Type) : Type {
+    inner : Array len Elem,
+}
+
+const test_my_array_type : Int -> Type -> Type = MyArray;
+const test_my_array_intro : MyArray 3 Int = struct {
+    inner = [1, 2, 3],
+};
+const test_my_array_intro_error : MyArray 3 Int = struct {
+    inner = [1, 2], //~ error: mismatched array length
+};
+const test_my_array_elim_inner_synth = test_my_array_intro.inner;
+const test_my_array_elim_inner_check = test_my_array_intro.inner : Array 3 Int;
+
+
+struct PairFormat (First : Format) (Second : Format) : Format {
+    first : First,
+    second : Second,
+}
+
+const test_pair_format_type : Format -> Format -> Format = PairFormat;
+const test_pair_format_repr : repr (PairFormat S32Be F32Be) = struct {
+    first = 1,
+    second = 2.3,
+};
+const test_pair_format_elim_first_synth = test_pair_format_repr.first;
+const test_pair_format_elim_first_check = test_pair_format_repr.first : Int;
+const test_pair_format_elim_second_synth = test_pair_format_repr.second;
+const test_pair_format_elim_second_check = test_pair_format_repr.second : F32;

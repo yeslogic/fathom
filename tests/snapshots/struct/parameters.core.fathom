@@ -1,0 +1,92 @@
+struct Unit : Type {}
+
+struct Point (Coordinate : Type) : Type {
+    x : local 0,
+    y : local 1,
+}
+
+const test_point_type = item Point : Type -> Type;
+
+const test_point_int_intro = struct {
+        x = int 0,
+        y = int 0,
+    } : item Point global Int;
+
+const test_point_int_elim_x_synth = (item test_point_int_intro).x;
+
+const test_point_int_elim_x_check = (item test_point_int_intro).x : global Int;
+
+const test_point_int_elim_y_synth = (item test_point_int_intro).y;
+
+const test_point_int_elim_y_check = (item test_point_int_intro).y : global Int;
+
+const test_point_unit_intro = struct {
+        x = struct {},
+        y = struct {},
+    } : item Point item Unit;
+
+const test_point_unit_elim_x_synth = (item test_point_unit_intro).x;
+
+const test_point_unit_elim_x_check = (item test_point_unit_intro).x : item Unit;
+
+const test_point_unit_elim_y_synth = (item test_point_unit_intro).y;
+
+const test_point_unit_elim_y_check = (item test_point_unit_intro).y : item Unit;
+
+struct Pair (First : Type) (Second : Type) : Type {
+    first : local 1,
+    second : local 1,
+}
+
+const test_pair_type = item Pair : Type -> Type -> Type;
+
+const test_pair_intro = struct {
+        first = struct {},
+        second = int 3,
+    } : (item Pair item Unit) global Int;
+
+const test_pair_elim_first_synth = (item test_pair_intro).first;
+
+const test_pair_elim_first_check = (item test_pair_intro).first : item Unit;
+
+const test_pair_elim_second_synth = (item test_pair_intro).second;
+
+const test_pair_elim_second_check = (item test_pair_intro).second : global Int;
+
+struct MyArray (len : global Int) (Elem : Type) : Type {
+    inner : (global Array local 1) local 0,
+}
+
+const test_my_array_type = item MyArray : global Int -> Type -> Type;
+
+const test_my_array_intro = struct {
+        inner = array [int 1, int 2, int 3],
+    } : (item MyArray int 3) global Int;
+
+const test_my_array_intro_error = struct {
+        inner = !,
+    } : (item MyArray int 3) global Int;
+
+const test_my_array_elim_inner_synth = (item test_my_array_intro).inner;
+
+const test_my_array_elim_inner_check = (item test_my_array_intro).inner : (global Array int 3) global Int;
+
+struct PairFormat (First : Format) (Second : Format) : Format {
+    first : local 1,
+    second : local 1,
+}
+
+const test_pair_format_type = item PairFormat : Format -> Format -> Format;
+
+const test_pair_format_repr = struct {
+        first = int 1,
+        second = f32 2.3,
+    } : repr ((item PairFormat global S32Be) global F32Be);
+
+const test_pair_format_elim_first_synth = (item test_pair_format_repr).first;
+
+const test_pair_format_elim_first_check = (item test_pair_format_repr).first : global Int;
+
+const test_pair_format_elim_second_synth = (item test_pair_format_repr).second;
+
+const test_pair_format_elim_second_check = (item test_pair_format_repr).second : global F32;

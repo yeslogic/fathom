@@ -74,11 +74,11 @@ mod constant {
 
 #[rustfmt::skip]
 mod r#struct {
+    test!(parameters, "struct/parameters.fathom");
     test!(positions, "struct/positions.fathom");
     test!(struct_term, "struct/struct_term.fathom");
     test!(struct_elim, "struct/struct_elim.fathom");
     test!(struct_compute, "struct/struct_compute.fathom");
-
     test!(dependent_fields, "struct/dependent_fields.fathom");
 
     test!(pass_empty, "struct/pass_empty.fathom");

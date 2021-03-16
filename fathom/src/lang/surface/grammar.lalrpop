@@ -80,15 +80,13 @@ ItemData: ItemData = {
         })
     },
     <doc: "doc comment"*>
-    "struct" <name: Located<Name>> <type_: (":" <Term>)?> "{"
+    "struct" <name: Located<Name>> <params: Param*> <type_: (":" <Term>)?> "{"
         <fields: Separated<FieldDeclaration, ",">>
     "}" => {
-        ItemData::StructType(StructType {
-            doc: Arc::from(doc),
-            name,
-            type_,
-            fields: fields.into(),
-        })
+        let doc = Arc::from(doc);
+        let fields = fields.into();
+
+        ItemData::StructType(StructType { doc, name, params, type_, fields })
     },
 };
 
@@ -141,6 +139,11 @@ AtomicTermData: TermData = {
         TermData::Match(Box::new(head), branches)
     },
     "Format" => TermData::FormatType,
+};
+
+#[inline]
+Param: (Located<String>, Term) = {
+    "(" <Located<Name>> ":" <Term> ")",
 };
 
 #[inline]

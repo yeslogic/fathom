@@ -75,25 +75,23 @@ ItemData: ItemData = {
             term: Arc::new(term),
         })
     },
-    <docs: "doc comment"*>
-    "struct" <name: Name> ":" "Type" "{"
+    <doc: "doc comment"*>
+    "struct" <name: Name> <params: Param*> ":" "Type" "{"
         <fields: Separated<FieldDeclaration, ",">>
     "}" => {
-        ItemData::StructType(StructType {
-            doc: Arc::from(docs),
-            name,
-            fields: fields.into(),
-        })
+        let doc = Arc::from(doc);
+        let fields = fields.into();
+
+        ItemData::StructType(StructType { doc, name, params, fields })
     },
-    <docs: "doc comment"*>
-    "struct" <name: Name> ":" "Format" "{"
+    <doc: "doc comment"*>
+    "struct" <name: Name> <params: Param*> ":" "Format" "{"
         <fields: Separated<FieldDeclaration, ",">>
     "}" => {
-        ItemData::StructFormat(StructFormat {
-            doc: Arc::from(docs),
-            name,
-            fields: fields.into(),
-        })
+        let doc = Arc::from(doc);
+        let fields = fields.into();
+
+        ItemData::StructFormat(StructFormat { doc, name, params, fields })
     },
 };
 
@@ -183,6 +181,11 @@ FieldDeclaration: FieldDeclaration = {
             type_: Arc::new(type_),
         }
     },
+};
+
+#[inline]
+Param: (Located<String>, Arc<Term>) = {
+    "(" <name: Located<Name>> ":" <type_: Term> ")" => (name, Arc::new(type_)),
 };
 
 #[inline]

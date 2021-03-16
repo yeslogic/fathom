@@ -171,6 +171,7 @@ impl Context {
             r##"        <dt id="{id}" class="item struct">"##,
             id = id
         )?;
+        // TODO: params
         match &struct_type.type_ {
             None => writeln!(
                 writer,

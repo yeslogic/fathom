@@ -73,47 +73,61 @@ impl Context {
                 })
             }
             ItemData::StructType(struct_type) => {
-                let field_declarations = struct_type
-                    .fields
-                    .iter()
-                    .map(|field_declaration| {
-                        let r#type = self.from_term(&field_declaration.type_);
-                        self.push_local(field_declaration.label.data.clone());
-                        surface::FieldDeclaration {
-                            doc: field_declaration.doc.clone(),
-                            label: field_declaration.label.clone(),
-                            type_: r#type,
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                self.pop_many_locals(field_declarations.len());
+                let mut params = Vec::with_capacity(struct_type.params.len());
+                for (param_name, param_type) in struct_type.params.iter() {
+                    params.push((param_name.clone(), self.from_term(param_type)));
+                }
+                for (param_name, _) in &params {
+                    self.push_local(param_name.data.clone());
+                }
+
+                let mut field_declarations = Vec::with_capacity(struct_type.fields.len());
+                for field_declaration in struct_type.fields.iter() {
+                    let r#type = self.from_term(&field_declaration.type_);
+                    self.push_local(field_declaration.label.data.clone());
+                    field_declarations.push(surface::FieldDeclaration {
+                        doc: field_declaration.doc.clone(),
+                        label: field_declaration.label.clone(),
+                        type_: r#type,
+                    });
+                }
+
+                self.pop_many_locals(params.len() + field_declarations.len());
 
                 surface::ItemData::StructType(surface::StructType {
                     doc: struct_type.doc.clone(),
                     name: Located::generated(struct_type.name.clone()),
+                    params,
                     type_: Some(surface::Term::generated(surface::TermData::TypeType)),
                     fields: field_declarations,
                 })
             }
             ItemData::StructFormat(struct_format) => {
-                let field_declarations = struct_format
-                    .fields
-                    .iter()
-                    .map(|field_declaration| {
-                        let r#type = self.from_term(&field_declaration.type_);
-                        self.push_local(field_declaration.label.data.clone());
-                        surface::FieldDeclaration {
-                            doc: field_declaration.doc.clone(),
-                            label: field_declaration.label.clone(),
-                            type_: r#type,
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                self.pop_many_locals(field_declarations.len());
+                let mut params = Vec::with_capacity(struct_format.params.len());
+                for (param_name, param_type) in struct_format.params.iter() {
+                    params.push((param_name.clone(), self.from_term(param_type)));
+                }
+                for (param_name, _) in &params {
+                    self.push_local(param_name.data.clone());
+                }
+
+                let mut field_declarations = Vec::with_capacity(struct_format.fields.len());
+                for field_declaration in struct_format.fields.iter() {
+                    let r#type = self.from_term(&field_declaration.type_);
+                    self.push_local(field_declaration.label.data.clone());
+                    field_declarations.push(surface::FieldDeclaration {
+                        doc: field_declaration.doc.clone(),
+                        label: field_declaration.label.clone(),
+                        type_: r#type,
+                    });
+                }
+
+                self.pop_many_locals(params.len() + field_declarations.len());
 
                 surface::ItemData::StructType(surface::StructType {
                     doc: struct_format.doc.clone(),
                     name: Located::generated(struct_format.name.clone()),
+                    params,
                     type_: Some(surface::Term::generated(surface::TermData::FormatType)),
                     fields: field_declarations,
                 })

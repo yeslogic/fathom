@@ -8,10 +8,36 @@ const origin = struct {
         y = int 0,
     } : item Point;
 
-const origin_x = (item origin).x;
+const origin_x_synth = (item origin).x;
 
-const origin_y = (item origin).y;
+const origin_x_check = (item origin).x : global Int;
+
+const origin_y_synth = (item origin).y;
+
+const origin_y_check = (item origin).y : global Int;
 
 const origin_x_x = !;
 
 const origin_z = !;
+
+struct PointFormat : Format {
+    x : global S32Be,
+    y : global S32Be,
+}
+
+const format_origin = struct {
+        x = int 0,
+        y = int 0,
+    } : repr item PointFormat;
+
+const format_origin_x_synth = (item format_origin).x;
+
+const format_origin_x_check = (item format_origin).x : global Int;
+
+const format_origin_y_synth = (item format_origin).y;
+
+const format_origin_y_check = (item format_origin).y : global Int;
+
+const format_origin_x_x = !;
+
+const format_origin_z = !;

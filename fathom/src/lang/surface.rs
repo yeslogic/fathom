@@ -77,6 +77,8 @@ pub struct StructType {
     pub doc: Arc<[String]>,
     /// Name of this definition.
     pub name: Located<String>,
+    /// Parameter telescope.
+    pub params: Vec<(Located<String>, Term)>,
     /// Type of this struct definition.
     // FIXME: can't use `r#type` in LALRPOP grammars
     pub type_: Option<Term>,

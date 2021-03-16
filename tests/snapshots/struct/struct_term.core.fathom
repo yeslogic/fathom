@@ -19,4 +19,25 @@ const origin_missing_fields = ! : item Point;
 
 const origin_unexpected_field = ! : item Point;
 
+struct PointFormat : Format {
+    x : global S32Be,
+    y : global S32Be,
+}
+
+const format_origin = struct {
+        x = int 0,
+        y = int 0,
+    } : repr item PointFormat;
+
+const format_origin_duplicate_fields = ! : repr item PointFormat;
+
+const format_origin_invalid_term = struct {
+        x = int 0,
+        y = !,
+    } : repr item PointFormat;
+
+const format_origin_missing_fields = ! : repr item PointFormat;
+
+const format_origin_unexpected_field = ! : repr item PointFormat;
+
 const ambiguous_struct_term = !;

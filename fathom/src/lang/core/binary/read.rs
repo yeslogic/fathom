@@ -34,11 +34,17 @@ impl<'me> Context<'me> {
                 ),
                 ItemData::StructType(struct_type) => (
                     struct_type.name.clone(),
-                    semantics::ItemData::StructType(struct_type.fields.clone()),
+                    semantics::ItemData::StructType(
+                        struct_type.params.len(),
+                        struct_type.fields.clone(),
+                    ),
                 ),
                 ItemData::StructFormat(struct_format) => (
                     struct_format.name.clone(),
-                    semantics::ItemData::StructFormat(struct_format.fields.clone()),
+                    semantics::ItemData::StructFormat(
+                        struct_format.params.len(),
+                        struct_format.fields.clone(),
+                    ),
                 ),
             };
 
@@ -74,12 +80,12 @@ impl<'me> Context<'me> {
         let root_scope = reader.scope();
         let parsed_value = match self.items.get(name).cloned().map(|item| item.data) {
             Some(semantics::ItemData::Constant(value)) => self.read_format(reader, &value),
-            Some(semantics::ItemData::StructFormat(field_declarations)) => {
-                self.read_struct_format(reader, &field_declarations)
+            Some(semantics::ItemData::StructFormat(0, field_declarations)) => {
+                self.read_struct_format(reader, &field_declarations, &[])
             }
-            Some(semantics::ItemData::StructType(_)) | None => {
-                Err(ReadError::InvalidDataDescription) // TODO: Improve error!
-            }
+            Some(semantics::ItemData::StructFormat(_, _))
+            | Some(semantics::ItemData::StructType(_, _))
+            | None => Err(ReadError::InvalidDataDescription), // TODO: Improve error!
         };
 
         let result = match parsed_value {
@@ -127,11 +133,19 @@ impl<'me> Context<'me> {
         &mut self,
         reader: &mut FormatReader<'_>,
         field_declarations: &[FieldDeclaration],
+        elims: &[Elim],
     ) -> Result<Value, ReadError> {
         let mut fields = BTreeMap::new();
         // Local environment for evaluating the field formats with the
         // values that have been parsed from the binary data.
         let mut format_locals = core::Locals::new();
+
+        for elim in elims {
+            match elim {
+                Elim::Function(value) => format_locals.push(value.clone()),
+                _ => panic!("invalid elimination"),
+            }
+        }
 
         for field_declaration in field_declarations.iter() {
             let label = field_declaration.label.data.clone();
@@ -213,18 +227,19 @@ impl<'me> Context<'me> {
             },
             Value::Stuck(Head::Item(item_name), elims) => {
                 match (self.items.get(item_name).cloned(), elims.as_slice()) {
-                    (Some(item), []) => match item.data {
-                        semantics::ItemData::StructFormat(field_declarations) => {
-                            self.read_struct_format(reader, &field_declarations)
+                    (Some(item), elims) => match item.data {
+                        semantics::ItemData::StructFormat(arity, field_declarations) => {
+                            self.read_struct_format(reader, &field_declarations, &elims[..arity])
                         }
                         // NOTE: We expect that all constants should be reduced
                         // during evaluation, but this assumption could be
                         // invalidated if we ever introduce 'opaque' constants.
-                        semantics::ItemData::Constant(_) | semantics::ItemData::StructType(_) => {
+                        semantics::ItemData::Constant(_)
+                        | semantics::ItemData::StructType(_, _) => {
                             Err(ReadError::InvalidDataDescription)
                         }
                     },
-                    (Some(_), _) | (None, _) => Err(ReadError::InvalidDataDescription),
+                    (None, _) => Err(ReadError::InvalidDataDescription),
                 }
             }
             Value::Stuck(Head::Local(local_level), elims) => {

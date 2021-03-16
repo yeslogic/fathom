@@ -124,18 +124,11 @@ impl<'me> Context<'me> {
         }
     }
 
-    /// Force a value to resolve to a struct type, returning `None` if the value did
-    /// not refer to an item.
-    fn force_struct_type<'context, 'value>(
-        &'context self,
-        value: &'value Value,
-    ) -> Option<(Location, Arc<[core::FieldDeclaration]>, &'value [Elim])> {
-        match self.force_item(value) {
-            Some((location, semantics::ItemData::StructType(field_declarations), elims)) => {
-                Some((location, field_declarations.clone(), elims))
-            }
-            Some(_) | None => None,
-        }
+    /// Force a value to resolve to some field declarations, returning `None`
+    /// if the value did not refer to a valid struct type or struct format.
+    fn force_field_declarations(&self, value: &Value) -> Option<semantics::FieldDeclarations> {
+        let (_, item, elims) = self.force_item(value)?;
+        item.try_field_declarations(&elims)
     }
 
     /// Evaluate a [`core::Term`] into a [`Value`] in the current elaboration context.
@@ -149,15 +142,6 @@ impl<'me> Context<'me> {
             &mut self.local_definitions,
             term,
         )
-    }
-
-    /// Evaluate a term using the supplied local environment.
-    fn eval_with_locals(
-        &mut self,
-        locals: &mut core::Locals<Arc<Value>>,
-        term: &core::Term,
-    ) -> Arc<Value> {
-        semantics::eval(self.globals, &self.item_definitions, locals, term)
     }
 
     /// Read back a [`Value`] to a [`core::Term`] using the current
@@ -261,9 +245,12 @@ impl<'me> Context<'me> {
                         continue;
                     }
                     Some(r#type) => {
+                        // Elaborate the return type of the struct
                         let (core_type, _) = self.is_type(&r#type);
                         let r#type = self.eval(&core_type);
-                        let (core_item_data, item_data) = match r#type.as_ref() {
+
+                        // Check the return type of the struct
+                        let (core_item_data, item_data, r#type) = match r#type.as_ref() {
                             Value::Sort(Sort::Type) => self.is_struct_type(struct_type),
                             Value::FormatType => self.is_struct_format(struct_type),
                             Value::Error => continue,
@@ -278,6 +265,7 @@ impl<'me> Context<'me> {
                             }
                         };
 
+                        // TODO: Dependent function type??
                         (&struct_type.name, core_item_data, item_data, r#type)
                     }
                 },
@@ -314,19 +302,33 @@ impl<'me> Context<'me> {
     fn is_struct_type(
         &mut self,
         struct_type: &StructType,
-    ) -> (core::ItemData, semantics::ItemData) {
+    ) -> (core::ItemData, semantics::ItemData, Arc<Value>) {
         use std::collections::hash_map::Entry;
+
+        // Elaborate the parameters into the core language
+        let mut params = Vec::with_capacity(struct_type.params.len());
+        for (param_name, param_type) in &struct_type.params {
+            let (param_type, _) = self.is_type(&param_type);
+            params.push((param_name.clone(), Arc::new(param_type)));
+        }
+        // Add the parameters to the context in preparation for
+        // checking the body of the struct type.
+        for (param_name, param_type) in &params {
+            let param_type = self.eval(param_type);
+            self.push_local_param(param_name.data.clone(), param_type);
+        }
 
         // Field labels that have previously seen, along with the source
         // location where they were introduced (for diagnostic reporting).
         let mut seen_field_labels = HashMap::new();
         // Fields that have been elaborated into the core syntax.
         let mut core_field_declarations = Vec::with_capacity(struct_type.fields.len());
+        let type_type = Arc::new(Value::Sort(Sort::Type));
 
+        // Elaborate the field declarations
         for field in &struct_type.fields {
             let field_location = Location::merge(field.label.location, field.type_.location);
-            let format_type = Arc::new(Value::Sort(Sort::Type));
-            let core_type = self.check_type(&field.type_, &format_type);
+            let core_type = self.check_type(&field.type_, &type_type);
 
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
@@ -351,34 +353,59 @@ impl<'me> Context<'me> {
             }
         }
 
-        self.pop_many_locals(seen_field_labels.len());
+        // Clean up the elaboration context
+        self.pop_many_locals(params.len() + seen_field_labels.len());
 
+        // Build up the return type
+        let mut r#type = type_type;
+        for (_, param_type) in params.iter().rev() {
+            let param_type = self.eval(param_type);
+            r#type = Arc::new(Value::FunctionType(param_type, r#type));
+        }
+
+        let arity = params.len();
         let core_field_declarations: Arc<[_]> = core_field_declarations.into();
-        let item_data = semantics::ItemData::StructType(core_field_declarations.clone());
+
         let core_item_data = core::ItemData::StructType(core::StructType {
             doc: struct_type.doc.clone(),
+            params,
             name: struct_type.name.data.clone(),
-            fields: core_field_declarations,
+            fields: core_field_declarations.clone(),
         });
+        let item_data = semantics::ItemData::StructType(arity, core_field_declarations);
 
-        (core_item_data, item_data)
+        (core_item_data, item_data, r#type)
     }
 
     pub fn is_struct_format(
         &mut self,
         struct_type: &StructType,
-    ) -> (core::ItemData, semantics::ItemData) {
+    ) -> (core::ItemData, semantics::ItemData, Arc<Value>) {
         use std::collections::hash_map::Entry;
+
+        // Elaborate the parameters into the core language
+        let mut params = Vec::with_capacity(struct_type.params.len());
+        for (param_name, param_type) in &struct_type.params {
+            let (param_type, _) = self.is_type(&param_type);
+            params.push((param_name.clone(), Arc::new(param_type)));
+        }
+        // Add the parameters to the context in preparation for
+        // checking the body of the struct type.
+        for (param_name, param_type) in &params {
+            let param_type = self.eval(param_type);
+            self.push_local_param(param_name.data.clone(), param_type);
+        }
 
         // Field names that have previously seen, along with the source
         // location where they were introduced (for diagnostic reporting).
         let mut seen_field_labels = HashMap::new();
         // Fields that have been elaborated into the core syntax.
         let mut core_field_declarations = Vec::with_capacity(struct_type.fields.len());
+        let format_type = Arc::new(Value::FormatType);
 
+        // Elaborate the field declarations
         for field in &struct_type.fields {
             let field_location = Location::merge(field.label.location, field.type_.location);
-            let format_type = Arc::new(Value::FormatType);
             let core_type = self.check_type(&field.type_, &format_type);
 
             match seen_field_labels.entry(field.label.data.clone()) {
@@ -404,17 +431,28 @@ impl<'me> Context<'me> {
             }
         }
 
-        self.pop_many_locals(seen_field_labels.len());
+        // Clean up the elaboration context
+        self.pop_many_locals(params.len() + seen_field_labels.len());
 
+        // Build up the return type
+        let mut r#type = format_type;
+        for (_, param_type) in params.iter().rev() {
+            let param_type = self.eval(param_type);
+            r#type = Arc::new(Value::FunctionType(param_type, r#type));
+        }
+
+        let arity = params.len();
         let core_field_declarations: Arc<[_]> = core_field_declarations.into();
-        let item_data = semantics::ItemData::StructFormat(core_field_declarations.clone());
+
         let core_item_data = core::ItemData::StructFormat(core::StructFormat {
             doc: struct_type.doc.clone(),
+            params,
             name: struct_type.name.data.clone(),
-            fields: core_field_declarations,
+            fields: core_field_declarations.clone(),
         });
+        let item_data = semantics::ItemData::StructFormat(arity, core_field_declarations);
 
-        (core_item_data, item_data)
+        (core_item_data, item_data, r#type)
     }
 
     /// Validate that a surface term is a type, and translate it into the core syntax.
@@ -459,15 +497,8 @@ impl<'me> Context<'me> {
                 use std::collections::btree_map::Entry;
 
                 // Resolve the struct type definition in the context.
-                let field_declarations = match self.force_struct_type(expected_type) {
-                    Some((_, field_declarations, [])) => field_declarations,
-                    Some((_, _, _)) => {
-                        self.push_message(crate::reporting::Message::NotYetImplemented {
-                            location: surface_term.location,
-                            feature_name: "struct parameters",
-                        });
-                        return core::Term::new(surface_term.location, core::TermData::Error);
-                    }
+                let field_declarations = match self.force_field_declarations(expected_type) {
+                    Some(field_declarations) => field_declarations,
                     None => {
                         let expected_type = self.read_back_to_surface(expected_type);
                         self.push_message(SurfaceToCoreMessage::UnexpectedStructTerm {
@@ -489,34 +520,32 @@ impl<'me> Context<'me> {
                 }
 
                 // Check that the fields match the item_declarations from the type definition.
-                let mut core_field_definitions = Vec::new();
+                let mut core_field_definitions =
+                    Vec::with_capacity(surface_field_definitions.len());
                 let mut missing_labels = Vec::new();
-                // Local environment for evaluating the field types with the
-                // values defined in the terms.
-                let mut type_locals = core::Locals::new();
-                for field_declaration in field_declarations.iter() {
-                    match pending_field_definitions.remove(&field_declaration.label.data) {
-                        Some(field_definition) => {
-                            let label = &field_definition.label;
-                            let term = &field_definition.term;
 
-                            // NOTE: It should be safe to evaluate the field type
-                            // because we trust that struct items have been checked.
-                            let r#type =
-                                self.eval_with_locals(&mut type_locals, &field_declaration.type_);
-                            // TODO: stop on errors
-                            let core_term = Arc::new(self.check_type(&term, &r#type));
+                field_declarations.for_each_field(
+                    self.globals,
+                    &self.item_definitions.clone(), // FIXME: avoid clone
+                    |label, r#type| match (pending_field_definitions.remove(&label.data), r#type) {
+                        (Some(field_definition), Some(r#type)) => {
+                            let core_term = self.check_type(&field_definition.term, &r#type);
                             let value = self.eval(&core_term);
 
-                            type_locals.push(value);
                             core_field_definitions.push(core::FieldDefinition {
-                                label: label.clone(),
-                                term: core_term,
+                                label: field_definition.label.clone(),
+                                term: Arc::new(core_term),
                             });
+
+                            value
                         }
-                        None => missing_labels.push(field_declaration.label.clone()),
-                    }
-                }
+                        (Some(_), _) => Arc::new(Value::Error),
+                        (None, _) => {
+                            missing_labels.push(label.clone());
+                            Arc::new(Value::Error)
+                        }
+                    },
+                );
 
                 // Collect unexpected fields that were defined in the term but
                 // were not declared in the type.
@@ -830,49 +859,27 @@ impl<'me> Context<'me> {
                     );
                 }
 
-                match self.force_struct_type(&head_type) {
-                    Some((_, field_declarations, [])) => {
-                        // This head value will be used when adding the dependent
-                        // fields to the context.
-                        let head_value = self.eval(&core_head);
-                        // Local environment where the field types will be evaluated.
-                        let mut type_locals = core::Locals::new();
+                if let Some(field_declarations) = self.force_field_declarations(&head_type) {
+                    let head_value = self.eval(&core_head);
 
-                        for field_declaration in field_declarations.iter() {
-                            if field_declaration.label == *label {
-                                let core_term = core::Term::new(
-                                    surface_term.location,
-                                    core::TermData::StructElim(
-                                        Arc::new(core_head),
-                                        field_declaration.label.data.clone(),
-                                    ),
-                                );
-                                // NOTE: It should be safe to evaluate the field type
-                                // because we trust that struct items have been checked.
-                                let r#type = self
-                                    .eval_with_locals(&mut type_locals, &field_declaration.type_);
+                    let field_type = field_declarations.get_field_type(
+                        self.globals,
+                        &self.item_definitions,
+                        head_value,
+                        &label.data,
+                    );
 
-                                return (core_term, r#type);
-                            } else {
-                                type_locals.push(semantics::apply_struct_elim(
-                                    head_value.clone(),
-                                    &field_declaration.label.data,
-                                ));
-                            }
-                        }
-                    }
-                    Some((_, _, _)) => {
-                        self.push_message(crate::reporting::Message::NotYetImplemented {
-                            location: surface_term.location,
-                            feature_name: "struct parameters",
-                        });
-                        return (
-                            core::Term::new(surface_term.location, core::TermData::Error),
-                            Arc::new(Value::Error),
+                    if let Some(field_type) = field_type {
+                        let core_term = core::Term::new(
+                            surface_term.location,
+                            core::TermData::StructElim(
+                                Arc::new(core_head.clone()),
+                                label.data.clone(),
+                            ),
                         );
+                        return (core_term, field_type);
                     }
-                    None => {}
-                };
+                }
 
                 // If we could not find a matching field, it's a type error.
                 let head_type = self.read_back_to_surface(&head_type);
