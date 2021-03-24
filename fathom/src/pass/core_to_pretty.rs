@@ -290,7 +290,7 @@ where
         Primitive::Pos(value) => (alloc.nil())
             .append("pos")
             .append(alloc.space())
-            .append(format!("{:0x}", value)),
+            .append(format!("{:#x}", value)),
     }
 }
 
