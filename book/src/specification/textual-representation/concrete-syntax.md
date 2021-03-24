@@ -52,15 +52,21 @@ struct Point3 : Format {
 }
 ```
 
-Structures are composite types that have a name and a list of fields. The
-fields within a structure must have unique names.
+Structures types can also be parameterized:
+
+```fathom
+struct Point3 (A : Format) : Format {
+    x : A,
+    y : A,
+    z : A,
+}
+```
 
 ```text
-struct-type-field ::=
-  | doc-comment* name ":" term
-
 struct-type-definition ::=
-  | doc-comment* "struct" name (":" term)? "{" separated(struct-type-field) "}"
+  | doc-comment* "struct" name parameter* (":" term)? "{"
+      separated(field-declaration)
+    "}"
 ```
 
 ## Terms
@@ -84,13 +90,26 @@ atomic-term ::=
   | "Type"
   | "Kind"
   | "repr"
-  | "struct" "{" separated(name "=" term) "}"
+  | "struct" "{" separated(field-definition) "}"
   | atomic-term "." name
   | "[" separated(term) "]"
   | numeric-literal
   | "if" tern "{" term "}" "else" "{" term "}"
   | "match" term "{" separated(pattern "=>" term) "}"
   | "Format"
+```
+
+## Parameters
+
+```text
+parameter ::= "(" name ":" term ")"
+```
+
+## Fields
+
+```text
+field-definition  ::= name "=" term
+field-declaration ::= doc-comment* name ":" term
 ```
 
 ## Separated lists

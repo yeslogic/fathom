@@ -21,6 +21,19 @@ struct MyArray : Type {
 }
 ```
 
+Structure types can also be parameterized by types and terms:
+
+```fathom
+struct GenericPoint (Coordinate : Type): Type {
+    x : Coordinate,
+    y : Coordinate,
+}
+
+struct MyGenericArray (len : Int) (Coordinate : Type) : Type {
+    data : Array len (GenericPoint Coordinate),
+}
+```
+
 Struct types can only contain unique fields:
 
 ```fathom
@@ -57,6 +70,13 @@ These can be introduced in with sequences of labelled terms:
 
 ```fathom
 struct { x = 23, y = 42 } : Point
+struct { x = 23, y = 42 } : GenericPoint Int
+```
+
+Mentioning a struct introduction without a type parameter is an error:
+
+```fathom
+struct { x = 23, y = 42 } // error!
 ```
 
 ## Elimination

@@ -1,0 +1,148 @@
+/// # OpenType Font File Format
+///
+/// OpenType is a file format that is used for storing information relevant to
+/// the shaping and rendering of text.
+///
+/// ## References
+///
+/// - https://docs.microsoft.com/en-us/typography/opentype/spec/otff
+/// - https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html
+
+
+// # Data Types
+//
+// ## References
+//
+// - https://docs.microsoft.com/en-us/typography/opentype/spec/otff#data-types
+// - https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Types
+
+/// 32-bit signed fixed-point number (16.16)
+const Fixed : Format = U32Be;
+
+/// `S16Be` that describes a quantity in font design units.
+const FWord : Format = S16Be;
+
+/// `U16Be` that describes a quantity in font design units.
+const UfWord : Format = U16Be;
+
+/// 16-bit signed fixed number with the low 14 bits of fraction (2.14).
+const F2Dot14 : Format = S16Be;
+
+/// Date represented in number of seconds since 12:00 midnight, January 1, 1904.
+const LongDateTime : Format = S64Be;
+
+/// Array of four `U8`s (length = 32 bits) used to identify a script, language
+/// system, feature, or baseline.
+const Tag : Format = FormatArray 4 U8;
+
+/// A format that consumes no input.
+struct Empty : Format {}
+
+/// 16-bit offset to a `format`, relative to some `base` position.
+struct Offset16 (base : Pos) (format : Format) : Format {
+    offset : U16Be,     // TODO: NULL offset = 0x00000000
+    link : match offset {
+        0 => Empty,
+        _ => Link base offset format, // TODO: Use an option type?
+    },
+}
+
+/// 32-bit offset to a `format`, relative to some `base` position.
+struct Offset32 (base : Pos) (format : Format) : Format {
+    offset : U32Be,     // TODO: NULL offset = 0x00000000
+    link : match offset {
+        0 => Empty,
+        _ => Link base offset format, // TODO: Use an option type?
+    },
+}
+
+
+// # OpenType Top Level Organization
+//
+// ## References
+//
+// - https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font
+// - https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview
+
+/// # Font Table
+///
+/// Defines a mapping between a given `tag` and the format description of its
+/// corresponding font table.
+///
+/// ## References
+///
+/// - https://docs.microsoft.com/en-us/typography/opentype/spec/otff#font-tables
+/// - https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview
+struct FontTable (tag : repr Tag) (length : Int) : Format {
+    // TODO: match on `tag`
+}
+
+/// # Table Record
+///
+/// A record that stores an offset to another table in the font file.
+///
+/// ## References
+///
+/// - https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-directory
+/// - https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Directory
+struct TableRecord (file_start : Pos) : Format {
+    /// Table identifier.
+    tag : Tag,
+    /// CheckSum for this table.
+    ///
+    /// ## References
+    ///
+    /// https://docs.microsoft.com/en-us/typography/opentype/spec/otff#calculating-checksums
+    checksum : U32Be,
+    /// Offset from the beginning of the TrueType font file.
+    offset : U32Be,
+    /// Length of this table.
+    length : U32Be,
+    /// The computed position of this table.
+    link : Link file_start offset (FontTable tag length)
+}
+
+/// # Table Directory
+///
+/// A directory of the top-level tables in the font.
+///
+/// ## References
+///
+/// - https://docs.microsoft.com/en-us/typography/opentype/spec/otff#table-directory
+/// - https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Directory
+struct TableDirectory (file_start : Pos) : Format {
+    /// Version of the font.
+    ///
+    /// - `0x00010000` for fonts containing TrueType outlines
+    /// - `0x4F54544F` (`'OTTO'`) for fonts containing CFF data
+    ///
+    /// Apple allows 'true' and 'typ1', but this should not be found in OpenType files.
+    sfnt_version : U32Be,       // TODO: where sfnt_version == 0x00010000 || sfnt_version == 'OTTO',
+    /// Number of tables in the directory.
+    num_tables : U16Be,
+    /// For enabling quick binary searches.
+    search_range : U16Be,       // TODO: (Maximum power of 2 <= num_tables) x 16
+    /// For enabling quick binary searches.
+    entry_selector : U16Be,     // TODO: Log2(maximum power of 2 <= num_tables)
+    /// For enabling quick binary searches.
+    range_shift : U16Be,        // TODO: NumTables x 16-searchRange
+    /// An array of table records
+    // FIXME: sorted in ascending order by tag
+    table_records : FormatArray num_tables (TableRecord file_start),
+}
+
+
+/// # OpenType file
+///
+/// The main entrypoint of an OpenType font file.
+///
+/// ## References
+///
+/// - https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font
+/// - https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview
+struct Main : Format {
+    /// The start of the font file.
+    start : CurrentPos,
+    /// The directory of tables in the font.
+    directory : TableDirectory start,
+}

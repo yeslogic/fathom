@@ -19,8 +19,100 @@ pub type Item = Located<ItemData>;
 #[derive(Debug, Clone)]
 pub enum ItemData {
     Constant(Arc<Value>),
-    StructType(Arc<[FieldDeclaration]>),
-    StructFormat(Arc<[FieldDeclaration]>),
+    StructType(usize, Arc<[FieldDeclaration]>),
+    StructFormat(usize, Arc<[FieldDeclaration]>),
+}
+
+impl ItemData {
+    pub fn try_field_declarations(&self, elims: &[Elim]) -> Option<FieldDeclarations> {
+        let (is_format, arity, field_declarations) = match self {
+            ItemData::StructType(arity, fields) => (false, *arity, fields),
+            ItemData::StructFormat(arity, fields) => (true, *arity, fields),
+            _ => return None,
+        };
+
+        let mut locals = Locals::new();
+        for elim in elims.get(..arity)? {
+            match elim {
+                Elim::Function(argument) => locals.push(argument.clone()),
+                _ => panic!("invalid elimination"),
+            }
+        }
+
+        Some(FieldDeclarations {
+            is_format,
+            locals,
+            fields: field_declarations.clone(),
+        })
+    }
+}
+
+/// Allows field declarations to be iterated over.
+pub struct FieldDeclarations {
+    is_format: bool,
+    locals: Locals<Arc<Value>>,
+    fields: Arc<[FieldDeclaration]>,
+}
+
+impl FieldDeclarations {
+    /// Apply a callback to each of the entries in the record closure.
+    pub fn for_each_field(
+        self,
+        globals: &Globals,
+        items: &HashMap<String, Item>,
+        mut on_field: impl FnMut(&Located<String>, Option<Arc<Value>>) -> Arc<Value>,
+    ) {
+        let mut has_errors = false;
+        let mut locals = self.locals;
+
+        for field_declaration in self.fields.iter() {
+            if has_errors {
+                // Run the callback in a degraded state
+                on_field(&field_declaration.label, None);
+            } else {
+                let r#type = eval(globals, items, &mut locals, &field_declaration.type_);
+                // Run the callback on the type, applying `repr` if necessary
+                let value = match self.is_format {
+                    false => on_field(&field_declaration.label, Some(r#type)),
+                    true => on_field(&field_declaration.label, Some(apply_repr(r#type))),
+                };
+                match value.as_ref() {
+                    // An error was seen! Switch to a degraded state.
+                    Value::Error => has_errors = true,
+                    // Add the value of the field to the local context
+                    _ => locals.push(value),
+                }
+            }
+        }
+    }
+
+    /// Get the type of a field declaration.
+    pub fn get_field_type(
+        self,
+        globals: &Globals,
+        items: &HashMap<String, Item>,
+        head: Arc<Value>,
+        label: &str,
+    ) -> Option<Arc<Value>> {
+        let mut locals = self.locals;
+
+        for field_declaration in self.fields.iter() {
+            if field_declaration.label.data == label {
+                let r#type = eval(globals, items, &mut locals, &field_declaration.type_);
+                return match self.is_format {
+                    true => Some(apply_repr(r#type)),
+                    false => Some(r#type),
+                };
+            } else {
+                locals.push(apply_struct_elim(
+                    head.clone(),
+                    &field_declaration.label.data,
+                ));
+            }
+        }
+
+        None
+    }
 }
 
 /// Values.
@@ -155,7 +247,7 @@ pub enum Elim {
     Int(Locals<Arc<Value>>, BTreeMap<BigInt, Arc<Term>>, Arc<Term>),
     /// Convert a format to its host representation.
     ///
-    /// This can be applied with the [`apply_repr_elim`] function.
+    /// This can be applied with the [`is_format_elim`] function.
     Repr,
 }
 
@@ -197,7 +289,7 @@ pub fn eval(
             None => Arc::new(Value::Error),
             Some(item) => match &item.data {
                 ItemData::Constant(value) => value.clone(),
-                ItemData::StructType(_) | ItemData::StructFormat(_) => {
+                ItemData::StructType(_, _) | ItemData::StructFormat(_, _) => {
                     Arc::new(Value::item(item_name.clone(), Vec::new()))
                 }
             },

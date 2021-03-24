@@ -110,6 +110,67 @@ section.doc {
             struct { y = 0, x = 0, z = 0 }
           </section>
         </dd>
+        <dt id="items[PointFormat]" class="item struct">
+          struct <a href="#items[PointFormat]">PointFormat</a> : Format
+        </dt>
+        <dd class="item struct">
+          <dl class="fields">
+            <dt id="items[PointFormat].fields[x]" class="field">
+              <a href="#items[PointFormat].fields[x]">x</a> : <var><a href="#">S32Be</a></var>
+            </dt>
+            <dd class="field">
+              <section class="doc">
+              </section>
+            </dd>
+            <dt id="items[PointFormat].fields[y]" class="field">
+              <a href="#items[PointFormat].fields[y]">y</a> : <var><a href="#">S32Be</a></var>
+            </dt>
+            <dd class="field">
+              <section class="doc">
+              </section>
+            </dd>
+          </dl>
+        </dd>
+        <dt id="items[format_origin]" class="item constant">
+          const <a href="#items[format_origin]">format_origin</a> : repr <var><a href="#items[PointFormat]">PointFormat</a></var>
+        </dt>
+        <dd class="item constant">
+          <section class="term">
+            struct { x = 0, y = 0 }
+          </section>
+        </dd>
+        <dt id="items[format_origin_duplicate_fields]" class="item constant">
+          const <a href="#items[format_origin_duplicate_fields]">format_origin_duplicate_fields</a> : repr <var><a href="#items[PointFormat]">PointFormat</a></var>
+        </dt>
+        <dd class="item constant">
+          <section class="term">
+            struct { x = 0, x = 1, y = 0 }
+          </section>
+        </dd>
+        <dt id="items[format_origin_invalid_term]" class="item constant">
+          const <a href="#items[format_origin_invalid_term]">format_origin_invalid_term</a> : repr <var><a href="#items[PointFormat]">PointFormat</a></var>
+        </dt>
+        <dd class="item constant">
+          <section class="term">
+            struct { y = 11.1, x = 0 }
+          </section>
+        </dd>
+        <dt id="items[format_origin_missing_fields]" class="item constant">
+          const <a href="#items[format_origin_missing_fields]">format_origin_missing_fields</a> : repr <var><a href="#items[PointFormat]">PointFormat</a></var>
+        </dt>
+        <dd class="item constant">
+          <section class="term">
+            struct { y = 0 }
+          </section>
+        </dd>
+        <dt id="items[format_origin_unexpected_field]" class="item constant">
+          const <a href="#items[format_origin_unexpected_field]">format_origin_unexpected_field</a> : repr <var><a href="#items[PointFormat]">PointFormat</a></var>
+        </dt>
+        <dd class="item constant">
+          <section class="term">
+            struct { y = 0, x = 0, z = 0 }
+          </section>
+        </dd>
         <dt id="items[ambiguous_struct_term]" class="item constant">
           <a href="#items[ambiguous_struct_term]">ambiguous_struct_term</a>
         </dt>

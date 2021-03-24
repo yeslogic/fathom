@@ -9,8 +9,7 @@ use std::sync::Arc;
 
 use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{
-    FieldDeclaration, Globals, ItemData, LocalLevel, Locals, Module, Primitive, Sort, Term,
-    TermData,
+    Globals, ItemData, LocalLevel, Locals, Module, Primitive, Sort, Term, TermData,
 };
 use crate::lang::Location;
 use crate::reporting::{CoreTypingMessage, Message};
@@ -116,18 +115,11 @@ impl<'me> Context<'me> {
         }
     }
 
-    /// Force a value to resolve to a struct type, returning `None` if the value did
-    /// not refer to an item.
-    fn force_struct_type<'context, 'value>(
-        &'context self,
-        value: &'value Value,
-    ) -> Option<(Location, Arc<[FieldDeclaration]>, &'value [Elim])> {
-        match self.force_item(value) {
-            Some((location, semantics::ItemData::StructType(field_declarations), elims)) => {
-                Some((location, field_declarations.clone(), elims))
-            }
-            Some(_) | None => None,
-        }
+    /// Force a value to resolve to some field declarations, returning `None`
+    /// if the value did not refer to a valid struct type or struct format.
+    fn force_field_declarations(&self, value: &Value) -> Option<semantics::FieldDeclarations> {
+        let (_, item, elims) = self.force_item(value)?;
+        item.try_field_declarations(&elims)
     }
 
     /// Evaluate a [`core::Term`] into a [`Value`] in the current typing context.
@@ -141,11 +133,6 @@ impl<'me> Context<'me> {
             &mut self.local_definitions,
             term,
         )
-    }
-
-    /// Evaluate a term using the supplied local environment.
-    fn eval_with_locals(&mut self, locals: &mut Locals<Arc<Value>>, term: &Term) -> Arc<Value> {
-        semantics::eval(self.globals, &self.item_definitions, locals, term)
     }
 
     /// Read back a value into normal form using the current state of the elaborator.
@@ -190,10 +177,21 @@ impl<'me> Context<'me> {
                 ItemData::StructType(struct_type) => {
                     use std::collections::HashSet;
 
+                    // Check parameters
+                    for (_, param_type) in struct_type.params.iter() {
+                        self.synth_sort(param_type);
+                    }
+                    // Add parameters to the context
+                    for (_, param_type) in struct_type.params.iter() {
+                        let param_type = self.eval(param_type);
+                        self.push_local_param(param_type);
+                    }
+
                     // Field labels that have previously seen.
                     let mut seen_field_labels = HashSet::new();
                     let type_type = Arc::new(Value::Sort(Sort::Type));
 
+                    // Check the field declarations
                     for field in struct_type.fields.iter() {
                         self.check_type(&field.type_, &type_type);
                         let field_type = self.eval(&field.type_);
@@ -208,21 +206,41 @@ impl<'me> Context<'me> {
                         }
                     }
 
-                    self.pop_many_locals(seen_field_labels.len());
+                    // Clean up the type checking context
+                    self.pop_many_locals(struct_type.params.len() + seen_field_labels.len());
 
-                    (
-                        struct_type.name.clone(),
-                        semantics::ItemData::StructType(struct_type.fields.clone()),
-                        type_type.clone(),
-                    )
+                    // Build up the return type
+                    let mut r#type = type_type;
+                    for (_, param_type) in struct_type.params.iter().rev() {
+                        let param_type = self.eval(param_type);
+                        r#type = Arc::new(Value::FunctionType(param_type, r#type));
+                    }
+
+                    let item_data = semantics::ItemData::StructType(
+                        struct_type.params.len(),
+                        struct_type.fields.clone(),
+                    );
+
+                    (struct_type.name.clone(), item_data, r#type)
                 }
                 ItemData::StructFormat(struct_format) => {
                     use std::collections::HashSet;
+
+                    // Check parameters
+                    for (_, param_type) in struct_format.params.iter() {
+                        self.synth_sort(param_type);
+                    }
+                    // Add parameters to the context
+                    for (_, param_type) in struct_format.params.iter() {
+                        let param_type = self.eval(param_type);
+                        self.push_local_param(param_type);
+                    }
 
                     // Field labels that have previously seen.
                     let mut seen_field_labels = HashSet::new();
                     let format_type = Arc::new(Value::FormatType);
 
+                    // Check the field declarations
                     for field in struct_format.fields.iter() {
                         self.check_type(&field.type_, &format_type);
                         let field_type = semantics::apply_repr(self.eval(&field.type_));
@@ -237,13 +255,22 @@ impl<'me> Context<'me> {
                         }
                     }
 
-                    self.pop_many_locals(seen_field_labels.len());
+                    // Clean up the type checking context
+                    self.pop_many_locals(struct_format.params.len() + seen_field_labels.len());
 
-                    (
-                        struct_format.name.clone(),
-                        semantics::ItemData::StructFormat(struct_format.fields.clone()),
-                        format_type.clone(),
-                    )
+                    // Build up the return type
+                    let mut r#type = format_type;
+                    for (_, param_type) in struct_format.params.iter().rev() {
+                        let param_type = self.eval(param_type);
+                        r#type = Arc::new(Value::FunctionType(param_type, r#type));
+                    }
+
+                    let item_data = semantics::ItemData::StructFormat(
+                        struct_format.params.len(),
+                        struct_format.fields.clone(),
+                    );
+
+                    (struct_format.name.clone(), item_data, r#type)
                 }
             };
 
@@ -300,15 +327,8 @@ impl<'me> Context<'me> {
                 use std::collections::BTreeMap;
 
                 // Resolve the struct type definition in the context.
-                let field_declarations = match self.force_struct_type(expected_type) {
-                    Some((_, field_declarations, [])) => field_declarations,
-                    Some((_, _, _)) => {
-                        self.push_message(crate::reporting::Message::NotYetImplemented {
-                            location: term.location,
-                            feature_name: "struct parameters",
-                        });
-                        return;
-                    }
+                let field_declarations = match self.force_field_declarations(expected_type) {
+                    Some(field_declarations) => field_declarations,
                     None => {
                         let expected_type = self.read_back(expected_type);
                         self.push_message(CoreTypingMessage::UnexpectedStructTerm {
@@ -331,25 +351,22 @@ impl<'me> Context<'me> {
 
                 // Check that the fields match the types from the type definition.
                 let mut missing_labels = Vec::new();
-                // Local environment for evaluating the field types with the
-                // values defined in the terms.
-                let mut type_locals = Locals::new();
-                for field_declaration in field_declarations.iter() {
-                    match pending_field_definitions.remove(&field_declaration.label.data) {
-                        Some(field_definition) => {
-                            // NOTE: It should be safe to evaluate the field type
-                            // because we trust that struct items have been checked.
-                            let r#type =
-                                self.eval_with_locals(&mut type_locals, &field_declaration.type_);
-                            // TODO: stop on errors
-                            self.check_type(&field_definition.term, &r#type);
-                            let value = self.eval(&field_definition.term);
 
-                            type_locals.push(value);
+                field_declarations.for_each_field(
+                    self.globals,
+                    &self.item_definitions.clone(), // FIXME: avoid clone
+                    |label, r#type| match (pending_field_definitions.remove(&label.data), r#type) {
+                        (Some(field_definition), Some(r#type)) => {
+                            self.check_type(&field_definition.term, &r#type);
+                            self.eval(&field_definition.term)
                         }
-                        None => missing_labels.push(field_declaration.label.clone()),
-                    }
-                }
+                        (Some(_), None) => Arc::new(Value::Error),
+                        (None, _) => {
+                            missing_labels.push(label.clone());
+                            Arc::new(Value::Error)
+                        }
+                    },
+                );
 
                 // Collect unexpected fields that were defined in the term but
                 // were not declared in the type.
@@ -535,36 +552,19 @@ impl<'me> Context<'me> {
                     return Arc::new(Value::Error);
                 }
 
-                match self.force_struct_type(&head_type) {
-                    Some((_, field_declarations, [])) => {
-                        // This head value will be used when adding the dependent
-                        // fields to the context.
-                        let head_value = self.eval(&head);
-                        // Local environment where the field types will be evaluated.
-                        let mut type_locals = Locals::new();
+                if let Some(field_declarations) = self.force_field_declarations(&head_type) {
+                    let head_value = self.eval(&head);
 
-                        for field_declaration in field_declarations.iter() {
-                            if field_declaration.label.data == *label {
-                                // NOTE: It should be safe to evaluate the field type
-                                // because we trust that struct items have been checked.
-                                return self
-                                    .eval_with_locals(&mut type_locals, &field_declaration.type_);
-                            } else {
-                                type_locals.push(semantics::apply_struct_elim(
-                                    head_value.clone(),
-                                    &field_declaration.label.data,
-                                ));
-                            }
-                        }
+                    let field_type = field_declarations.get_field_type(
+                        self.globals,
+                        &self.item_definitions,
+                        head_value,
+                        label,
+                    );
+
+                    if let Some(field_type) = field_type {
+                        return field_type;
                     }
-                    Some((_, _, _)) => {
-                        self.push_message(crate::reporting::Message::NotYetImplemented {
-                            location: term.location,
-                            feature_name: "struct parameters",
-                        });
-                        return Arc::new(Value::Error);
-                    }
-                    None => {}
                 }
 
                 let head_type = self.read_back(&head_type);

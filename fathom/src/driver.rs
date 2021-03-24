@@ -134,7 +134,7 @@ impl Driver {
         let main_term = self.surface_to_core.read_back_to_surface(&main_value);
         let pretty::DocBuilder(_, doc) = surface_to_pretty::from_term(&pretty_arena, &main_term);
 
-        write!(
+        writeln!(
             &mut self.emit_writer,
             "{name} = {term}",
             name = item_name,
@@ -148,9 +148,9 @@ impl Driver {
             let pretty::DocBuilder(_, doc) =
                 surface_to_pretty::from_term(&pretty_arena, &link_term);
 
-            write!(
+            writeln!(
                 &mut self.emit_writer,
-                "{pos} = {term}",
+                "{pos:#x} = {term}",
                 pos = link_pos,
                 term = doc.pretty(self.emit_width.compute())
             )?;

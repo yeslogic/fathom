@@ -83,6 +83,8 @@ pub struct StructType {
     pub doc: Arc<[String]>,
     /// Name of this definition.
     pub name: String,
+    /// Parameter telescope.
+    pub params: Vec<(Located<String>, Arc<Term>)>,
     /// Fields in the struct.
     pub fields: Arc<[FieldDeclaration]>,
 }
@@ -94,6 +96,8 @@ pub struct StructFormat {
     pub doc: Arc<[String]>,
     /// Name of this definition.
     pub name: String,
+    /// Parameter telescope.
+    pub params: Vec<(Located<String>, Arc<Term>)>,
     /// Fields in the struct.
     pub fields: Arc<[FieldDeclaration]>,
 }
