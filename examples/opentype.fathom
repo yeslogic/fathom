@@ -1,12 +1,12 @@
-/// # OpenType Font File Format
-///
-/// OpenType is a file format that is used for storing information relevant to
-/// the shaping and rendering of text.
-///
-/// ## References
-///
-/// - https://docs.microsoft.com/en-us/typography/opentype/spec/otff
-/// - https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html
+//! # OpenType Font File Format
+//!
+//! OpenType is a file format that is used for storing information relevant to
+//! the shaping and rendering of text.
+//!
+//! ## References
+//!
+//! - [Microsoft's OpenType Specification](https://docs.microsoft.com/en-us/typography/opentype/spec/)
+//! - [Apple's TrueType Reference Manual](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html)
 
 
 // # Data Types

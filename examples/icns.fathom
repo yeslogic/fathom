@@ -1,0 +1,23 @@
+//! # Apple Icon Image format
+//!
+//! ## References
+//!
+//! - [Wikipedia](https://en.wikipedia.org/wiki/Apple_Icon_Image_format)
+
+struct Header : Format {
+    magic : U32Be,                  // TODO: if `magic == ascii "icns"`
+    file_length : U32Be,
+}
+
+struct IconData : Format {
+    icon_type : U32Be,              // TODO: bit patterns
+    icon_data_length : U32Be,
+    // TODO: decode data based on `icon_type`
+    // TODO: while `current_pos < data_start + icon_data_length`
+    data : FormatArray 0 U8,
+}
+
+struct Main : Format {
+    header : Header,
+    icons : FormatArray 0 IconData, // TODO: while not EOF
+}
