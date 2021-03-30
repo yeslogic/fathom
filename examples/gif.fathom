@@ -1,0 +1,58 @@
+//! # Graphics Interchange Format
+//!
+//! ## References
+//!
+//! - [GIF89a Specification](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+//! - [Wikipedia](https://en.wikipedia.org/wiki/GIF)
+//! - [Kaitai Format](https://formats.kaitai.io/gif/)
+
+/// # Logical Screen Descriptor
+///
+/// ## References
+///
+/// - [GIF89a Specification: Section 18](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+struct LogicalScreenDescriptor : Format {
+    image_width : U16Le,
+    image_height : U16Le,
+    flags : U8,                     // TODO: interpret flags
+    bg_color_index : U8,
+    pixel_aspect_ratio : U8,
+}
+
+/// # Header
+///
+/// ## References
+///
+/// - [GIF89a Specification: Section 17](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+struct Header : Format {
+    magic : FormatArray 3 U8,       // TODO: if `magic == ascii "GIF"`,
+    version : FormatArray 3 U8,
+}
+
+/// # Global Color Table Entry
+///
+/// ## References
+///
+/// - [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+struct ColorTableEntry : Format {
+    red : U8,
+    green : U8,
+    blue : U8,
+}
+
+/// # Global Color Table
+///
+/// ## References
+///
+/// [GIF89a Specification: Section 19](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+struct GlobalColorTable (len : Int) : Format {
+    // TODO: use a function rather than a struct
+    entries : FormatArray len ColorTableEntry,
+}
+
+struct Main : Format {
+    header : Header,
+    screen : LogicalScreenDescriptor,
+    // global_color_table : GlobalColorTable screen.color_table_size    // TODO: if `screen.has_color_table,`
+    // blocks : FormatArray 0 Block,                                    // TODO: while not EOF or BlockTerminator
+}

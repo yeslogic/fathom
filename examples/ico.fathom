@@ -1,0 +1,29 @@
+//! # Windows Icon format (ICO)
+//!
+//! ## References
+//!
+//! - [Wikipedia](https://en.wikipedia.org/wiki/ICO_(file_format))
+
+// enum ImageType : Type {
+//     icon,
+//     cursor,
+// }
+
+struct Header : Format {
+    reserved : U16Le,           // TODO: reserved 0
+    image_type : U16Le,         // TODO: 1 => .icon, 2 => .cursor
+    image_count : U16Le,
+}
+
+struct Image (image_type : Int) : Format {
+    width : U8,                 // TODO: `match width { 0 => 256, _ => width }`
+    height : U8,                // TODO: `match height { 0 => 256, _ => height }`
+    color_count : U8,
+    reserved : U16Le,           // TODO: reserved 0
+    // TODO: rest of image data
+}
+
+struct Main : Format {
+    header : Header,
+    images : FormatArray header.image_count (Image header.image_type),  // TODO: while not EOF
+}
