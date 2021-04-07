@@ -8,7 +8,9 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::lang::{core, surface, FileId};
-use crate::pass::{core_to_pretty, surface_to_core, surface_to_doc, surface_to_pretty};
+use crate::pass::{
+    core_to_pretty, core_to_rust, surface_to_core, surface_to_doc, surface_to_pretty,
+};
 use crate::reporting::Message;
 
 lazy_static::lazy_static! {
@@ -49,6 +51,7 @@ pub struct Driver {
     surface_to_core: surface_to_core::Context<'static>,
     surface_to_doc: surface_to_doc::Context,
     core_typing: core::typing::Context<'static>,
+    core_to_rust: core_to_rust::Context,
     messages: Vec<Message>,
 }
 
@@ -67,6 +70,7 @@ impl Driver {
             surface_to_core: surface_to_core::Context::new(&GLOBALS),
             surface_to_doc: surface_to_doc::Context::new(),
             core_typing: core::typing::Context::new(&GLOBALS),
+            core_to_rust: core_to_rust::Context::new(),
             messages: Vec::new(),
         }
     }
@@ -108,7 +112,7 @@ impl Driver {
             None => return Ok(()),
         };
 
-        let core_module = self.surface_to_core_module(&surface_module);
+        let core_module = self.surface_to_core_module(&surface_module)?;
         let mut core_binary_read = core::binary::read::Context::new(&GLOBALS, &core_module);
 
         // TODO: Avoid needing to read the buffer all at once
@@ -167,16 +171,7 @@ impl Driver {
             None => return Ok(()),
         };
 
-        let core_module = self.surface_to_core_module(&surface_module);
-
-        if self.emit_core {
-            let pretty_arena = pretty::Arena::new();
-            let pretty::DocBuilder(_, doc) =
-                core_to_pretty::from_module(&pretty_arena, &core_module);
-            let emit_width = self.emit_width.compute();
-            write!(&mut self.emit_writer, "{}", doc.pretty(emit_width))?;
-            self.emit_writer.flush()?;
-        }
+        self.surface_to_core_module(&surface_module)?;
 
         Ok(())
     }
@@ -188,8 +183,25 @@ impl Driver {
             None => return Ok(()),
         };
 
+        // TODO: allow for writer to be customised?
         self.surface_to_doc
-            .from_module(&mut io::stdout().lock(), &surface_module)?; // TODO: allow for writer to be customised?
+            .from_module(&mut io::stdout(), &surface_module)?;
+
+        Ok(())
+    }
+
+    /// Compile a format module using the rust backend
+    pub fn write_rust(&mut self, format_path: &Path) -> Result<(), io::Error> {
+        let surface_module = match self.add_source_file(format_path) {
+            Some(file_id) => self.parse_surface_module(file_id),
+            None => return Ok(()),
+        };
+
+        let core_module = self.surface_to_core_module(&surface_module)?;
+
+        // TODO: allow for writer to be customised?
+        self.core_to_rust
+            .emit_module(&mut io::stdout(), &core_module)?;
 
         Ok(())
     }
@@ -236,7 +248,10 @@ impl Driver {
         surface::Module::parse(file_id, file.source(), &mut self.messages)
     }
 
-    fn surface_to_core_module(&mut self, surface_module: &surface::Module) -> core::Module {
+    fn surface_to_core_module(
+        &mut self,
+        surface_module: &surface::Module,
+    ) -> Result<core::Module, io::Error> {
         let core_module = self.surface_to_core.from_module(&surface_module);
         self.messages.extend(self.surface_to_core.drain_messages());
 
@@ -245,7 +260,16 @@ impl Driver {
             self.messages.extend(self.core_typing.drain_messages());
         }
 
-        core_module
+        if self.emit_core {
+            let pretty_arena = pretty::Arena::new();
+            let pretty::DocBuilder(_, doc) =
+                core_to_pretty::from_module(&pretty_arena, &core_module);
+            let emit_width = self.emit_width.compute();
+            write!(&mut self.emit_writer, "{}", doc.pretty(emit_width))?;
+            self.emit_writer.flush()?;
+        }
+
+        Ok(core_module)
     }
 }
 
