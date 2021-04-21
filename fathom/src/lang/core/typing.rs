@@ -243,7 +243,7 @@ impl<'me> Context<'me> {
                     // Check the field declarations
                     for field in struct_format.fields.iter() {
                         self.check_type(&field.type_, &format_type);
-                        let field_type = semantics::apply_repr(self.eval(&field.type_));
+                        let field_type = semantics::repr(self.eval(&field.type_));
 
                         if seen_field_labels.insert(field.label.data.clone()) {
                             self.push_local_param(field_type);

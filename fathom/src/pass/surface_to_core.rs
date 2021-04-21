@@ -411,7 +411,7 @@ impl<'me> Context<'me> {
             match seen_field_labels.entry(field.label.data.clone()) {
                 Entry::Vacant(entry) => {
                     let core_type = Arc::new(core_type);
-                    let r#type = semantics::apply_repr(self.eval(&core_type));
+                    let r#type = semantics::repr(self.eval(&core_type));
 
                     core_field_declarations.push(core::FieldDeclaration {
                         doc: field.doc.clone(),
