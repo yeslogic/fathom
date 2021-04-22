@@ -330,10 +330,9 @@ impl<'me> Context<'me> {
                 let field_declarations = match self.force_field_declarations(expected_type) {
                     Some(field_declarations) => field_declarations,
                     None => {
-                        let expected_type = self.read_back(expected_type);
                         self.push_message(CoreTypingMessage::UnexpectedStructTerm {
                             term_location: term.location,
-                            expected_type,
+                            expected_type: self.read_back(expected_type),
                         });
                         return;
                     }
@@ -567,10 +566,9 @@ impl<'me> Context<'me> {
                     }
                 }
 
-                let head_type = self.read_back(&head_type);
                 self.push_message(CoreTypingMessage::FieldNotFound {
                     head_location: head.location,
-                    head_type,
+                    head_type: self.read_back(&head_type),
                     label: label.clone(),
                 });
                 Arc::new(Value::Error)

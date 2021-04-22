@@ -187,8 +187,7 @@ impl<'me> Context<'me> {
     /// [`Value`]: crate::lang::core::semantics::Value
     /// [`surface::Term`]: crate::lang::surface::Term
     pub fn read_back_to_surface(&mut self, value: &Value) -> Term {
-        let core_term = self.read_back(value);
-        self.core_to_surface(&core_term)
+        self.core_to_surface(&self.read_back(value))
     }
 
     /// Translate a surface module into a core module,

@@ -57,20 +57,19 @@ pub struct FieldDeclarations {
 impl FieldDeclarations {
     /// Apply a callback to each of the entries in the record closure.
     pub fn for_each_field(
-        self,
+        mut self,
         globals: &Globals,
         items: &HashMap<String, Item>,
         mut on_field: impl FnMut(&Located<String>, Option<Arc<Value>>) -> Arc<Value>,
     ) {
         let mut has_errors = false;
-        let mut locals = self.locals;
 
         for field_declaration in self.fields.iter() {
             if has_errors {
                 // Run the callback in a degraded state
                 on_field(&field_declaration.label, None);
             } else {
-                let r#type = eval(globals, items, &mut locals, &field_declaration.type_);
+                let r#type = eval(globals, items, &mut self.locals, &field_declaration.type_);
                 // Run the callback on the type, applying `repr` if necessary
                 let value = match self.is_format {
                     false => on_field(&field_declaration.label, Some(r#type)),
@@ -80,7 +79,7 @@ impl FieldDeclarations {
                     // An error was seen! Switch to a degraded state.
                     Value::Error => has_errors = true,
                     // Add the value of the field to the local context
-                    _ => locals.push(value),
+                    _ => self.locals.push(value),
                 }
             }
         }
@@ -88,23 +87,22 @@ impl FieldDeclarations {
 
     /// Get the type of a field declaration.
     pub fn get_field_type(
-        self,
+        mut self,
         globals: &Globals,
         items: &HashMap<String, Item>,
         head: Arc<Value>,
         label: &str,
     ) -> Option<Arc<Value>> {
-        let mut locals = self.locals;
-
         for field_declaration in self.fields.iter() {
             if field_declaration.label.data == label {
-                let r#type = eval(globals, items, &mut locals, &field_declaration.type_);
+                let r#type = eval(globals, items, &mut self.locals, &field_declaration.type_);
                 return match self.is_format {
                     true => Some(repr(r#type)),
                     false => Some(r#type),
                 };
             } else {
-                locals.push(struct_elim(head.clone(), &field_declaration.label.data));
+                let value = struct_elim(head.clone(), &field_declaration.label.data);
+                self.locals.push(value);
             }
         }
 
