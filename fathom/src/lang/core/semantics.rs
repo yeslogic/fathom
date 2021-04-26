@@ -292,7 +292,7 @@ pub fn eval(
         TermData::Local(local_index) => match locals.get(*local_index) {
             Some(value) => value.clone(),
             None => {
-                let local_level = local_index.to_level(locals.size()).unwrap();
+                let local_level = locals.size().index_to_level(*local_index).unwrap();
                 Arc::new(Value::local(local_level, Vec::new()))
             }
         },
@@ -488,9 +488,9 @@ fn read_back_neutral(
     let head = match head {
         Head::Global(global_name) => Term::generated(TermData::Global(global_name.clone())),
         Head::Item(item_name) => Term::generated(TermData::Item(item_name.clone())),
-        Head::Local(local_level) => {
-            Term::generated(TermData::Local(local_level.to_index(local_size).unwrap()))
-        }
+        Head::Local(local_level) => Term::generated(TermData::Local(
+            local_size.level_to_index(*local_level).unwrap(),
+        )),
         Head::Error => Term::generated(TermData::Error),
     };
 

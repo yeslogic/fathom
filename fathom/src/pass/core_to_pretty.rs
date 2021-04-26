@@ -339,7 +339,7 @@ where
         TermData::Local(local_index) => (alloc.nil())
             .append("local")
             .append(alloc.space())
-            .append(local_index.0.to_string()),
+            .append(alloc.as_string(local_index.to_usize())),
 
         TermData::Ann(term, r#type) => paren(
             alloc,

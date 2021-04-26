@@ -378,7 +378,7 @@ impl CoreTypingMessage {
             } => Diagnostic::bug()
                 .with_message(format!(
                     "cannot find local `{}` in this scope",
-                    local_index.0,
+                    local_index.to_usize(),
                 ))
                 .with_labels(labels![
                     primary(local_index_location) = "local not found in this scope",

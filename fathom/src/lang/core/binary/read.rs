@@ -243,7 +243,7 @@ impl<'me> Context<'me> {
                 }
             }
             Value::Stuck(Head::Local(local_level), elims) => {
-                let local_index = local_level.to_index(self.locals.size()).unwrap();
+                let local_index = self.locals.size().level_to_index(*local_level).unwrap();
                 match (self.locals.get(local_index).cloned(), elims.as_slice()) {
                     (Some(value), []) => self.read_format(reader, &value),
                     (Some(_), _) | (None, _) => Err(ReadError::InvalidDataDescription),
