@@ -366,6 +366,10 @@ impl LocalLevel {
 pub struct LocalSize(u32);
 
 impl LocalSize {
+    pub fn to_usize(self) -> usize {
+        self.0 as usize
+    }
+
     /// Increments the local environment size by one.
     ///
     /// This is usually used for 'stepping inside a binder' during read-back.
@@ -436,10 +440,9 @@ impl<Entry: Clone> Locals<Entry> {
         self.entries.pop_back()
     }
 
-    /// Pop a number of entries off the environment.
-    pub fn pop_many(&mut self, count: usize) {
-        let len = self.entries.len().saturating_sub(count);
-        self.entries.truncate(len);
+    /// Truncate an environment to a certain length.
+    pub fn truncate(&mut self, local_size: LocalSize) {
+        self.entries.truncate(local_size.to_usize());
     }
 
     /// Clear the entries from the environment.

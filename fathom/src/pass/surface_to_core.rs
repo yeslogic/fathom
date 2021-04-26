@@ -54,9 +54,9 @@ impl<'me> Context<'me> {
         }
     }
 
-    /// Get the next level to be used for a local entry.
-    fn next_level(&self) -> core::LocalLevel {
-        self.local_declarations.size().next_level()
+    /// Get the number of local entries in the context.
+    fn size(&self) -> core::LocalSize {
+        self.local_declarations.size()
     }
 
     /// Get the most recently bound local variable of a given name.
@@ -81,7 +81,7 @@ impl<'me> Context<'me> {
 
     /// Push a local parameter.
     fn push_local_param(&mut self, name: String, r#type: Arc<Value>) -> Arc<Value> {
-        let value = Arc::new(Value::local(self.next_level(), Vec::new()));
+        let value = Arc::new(Value::local(self.size().next_level(), Vec::new()));
         self.push_local(name, value.clone(), r#type);
         value
     }
@@ -94,11 +94,11 @@ impl<'me> Context<'me> {
         self.core_to_surface.pop_local();
     }
 
-    /// Pop the given number of local entries.
-    fn pop_many_locals(&mut self, count: usize) {
-        self.local_declarations.pop_many(count);
-        self.local_definitions.pop_many(count);
-        self.core_to_surface.pop_many_locals(count);
+    /// Truncate number of local entries to the given size.
+    fn truncate_locals(&mut self, local_size: core::LocalSize) {
+        self.local_declarations.truncate(local_size);
+        self.local_definitions.truncate(local_size);
+        self.core_to_surface.truncate_locals(local_size);
     }
 
     /// Store a diagnostic message in the context for later reporting.
@@ -304,6 +304,9 @@ impl<'me> Context<'me> {
     ) -> (core::ItemData, semantics::ItemData, Arc<Value>) {
         use std::collections::hash_map::Entry;
 
+        // Remember the initial size, for later cleanup.
+        let initial_size = self.size();
+
         // Elaborate the parameters into the core language
         let mut params = Vec::with_capacity(struct_type.params.len());
         for (param_name, param_type) in &struct_type.params {
@@ -353,7 +356,7 @@ impl<'me> Context<'me> {
         }
 
         // Clean up the elaboration context
-        self.pop_many_locals(params.len() + seen_field_labels.len());
+        self.truncate_locals(initial_size);
 
         // Build up the return type
         let mut r#type = type_type;
@@ -381,6 +384,9 @@ impl<'me> Context<'me> {
         struct_type: &StructType,
     ) -> (core::ItemData, semantics::ItemData, Arc<Value>) {
         use std::collections::hash_map::Entry;
+
+        // Remember the initial size, for later cleanup.
+        let initial_size = self.size();
 
         // Elaborate the parameters into the core language
         let mut params = Vec::with_capacity(struct_type.params.len());
@@ -431,7 +437,7 @@ impl<'me> Context<'me> {
         }
 
         // Clean up the elaboration context
-        self.pop_many_locals(params.len() + seen_field_labels.len());
+        self.truncate_locals(initial_size);
 
         // Build up the return type
         let mut r#type = format_type;

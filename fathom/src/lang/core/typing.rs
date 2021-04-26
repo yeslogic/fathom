@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{
-    Globals, ItemData, LocalLevel, Locals, Module, Primitive, Sort, Term, TermData,
+    Globals, ItemData, LocalSize, Locals, Module, Primitive, Sort, Term, TermData,
 };
 use crate::lang::Location;
 use crate::reporting::{CoreTypingMessage, Message};
@@ -61,9 +61,9 @@ impl<'me> Context<'me> {
         }
     }
 
-    /// Get the next level to be used for a local entry.
-    fn next_level(&self) -> LocalLevel {
-        self.local_declarations.size().next_level()
+    /// Get the number of entries in the context.
+    fn size(&self) -> LocalSize {
+        self.local_declarations.size()
     }
 
     /// Push a local entry.
@@ -74,7 +74,7 @@ impl<'me> Context<'me> {
 
     /// Push a local parameter.
     fn push_local_param(&mut self, r#type: Arc<Value>) -> Arc<Value> {
-        let value = Arc::new(Value::local(self.next_level(), Vec::new()));
+        let value = Arc::new(Value::local(self.size().next_level(), Vec::new()));
         self.push_local(value.clone(), r#type);
         value
     }
@@ -86,10 +86,10 @@ impl<'me> Context<'me> {
         self.local_definitions.pop();
     }
 
-    /// Pop the given number of local entries.
-    fn pop_many_locals(&mut self, count: usize) {
-        self.local_declarations.pop_many(count);
-        self.local_definitions.pop_many(count);
+    /// Truncate number of local entries to the given size.
+    fn truncate_locals(&mut self, local_size: LocalSize) {
+        self.local_declarations.truncate(local_size);
+        self.local_definitions.truncate(local_size);
     }
 
     /// Store a diagnostic message in the context for later reporting.
@@ -177,6 +177,8 @@ impl<'me> Context<'me> {
                 ItemData::StructType(struct_type) => {
                     use std::collections::HashSet;
 
+                    let initial_size = self.size();
+
                     // Check parameters
                     for (_, param_type) in struct_type.params.iter() {
                         self.synth_sort(param_type);
@@ -207,7 +209,7 @@ impl<'me> Context<'me> {
                     }
 
                     // Clean up the type checking context
-                    self.pop_many_locals(struct_type.params.len() + seen_field_labels.len());
+                    self.truncate_locals(initial_size);
 
                     // Build up the return type
                     let mut r#type = type_type;
@@ -225,6 +227,8 @@ impl<'me> Context<'me> {
                 }
                 ItemData::StructFormat(struct_format) => {
                     use std::collections::HashSet;
+
+                    let initial_size = self.size();
 
                     // Check parameters
                     for (_, param_type) in struct_format.params.iter() {
@@ -256,7 +260,7 @@ impl<'me> Context<'me> {
                     }
 
                     // Clean up the type checking context
-                    self.pop_many_locals(struct_format.params.len() + seen_field_labels.len());
+                    self.truncate_locals(initial_size);
 
                     // Build up the return type
                     let mut r#type = format_type;
