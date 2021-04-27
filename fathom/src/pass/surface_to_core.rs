@@ -23,9 +23,9 @@ use crate::pass::core_to_surface;
 use crate::reporting::{Message, SurfaceToCoreMessage};
 
 /// Contextual information to be used during elaboration.
-pub struct Context<'me> {
+pub struct Context<'globals> {
     /// The global environment.
-    globals: &'me core::Globals,
+    globals: &'globals core::Globals,
     /// Top-level item declarations.
     item_declarations: HashMap<String, Arc<Value>>,
     /// Top-level item definitions.
@@ -40,9 +40,9 @@ pub struct Context<'me> {
     messages: Vec<Message>,
 }
 
-impl<'me> Context<'me> {
+impl<'globals> Context<'globals> {
     /// Create a new context.
-    pub fn new(globals: &'me core::Globals) -> Context<'me> {
+    pub fn new(globals: &'globals core::Globals) -> Context<'globals> {
         Context {
             globals,
             item_declarations: HashMap::new(),

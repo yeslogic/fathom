@@ -33,9 +33,9 @@ pub fn rule(sort0: Sort, sort1: Sort) -> Sort {
 }
 
 /// Contextual information to be used during validation.
-pub struct Context<'me> {
+pub struct Context<'globals> {
     /// The global environment.
-    globals: &'me Globals,
+    globals: &'globals Globals,
     /// Top-level item declarations.
     item_declarations: HashMap<String, Arc<Value>>,
     /// Top-level item definitions.
@@ -48,9 +48,9 @@ pub struct Context<'me> {
     messages: Vec<Message>,
 }
 
-impl<'me> Context<'me> {
+impl<'globals> Context<'globals> {
     /// Create a new context.
-    pub fn new(globals: &'me Globals) -> Context<'me> {
+    pub fn new(globals: &'globals Globals) -> Context<'globals> {
         Context {
             globals,
             item_declarations: HashMap::new(),

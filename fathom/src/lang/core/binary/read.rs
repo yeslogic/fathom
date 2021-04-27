@@ -9,16 +9,16 @@ use crate::lang::core::semantics::{self, Elim, Head, Value};
 use crate::lang::core::{FieldDeclaration, Globals, ItemData, Module, Primitive};
 
 /// Contextual information to be used when parsing items.
-pub struct Context<'me> {
-    globals: &'me Globals,
+pub struct Context<'globals> {
+    globals: &'globals Globals,
     items: HashMap<String, semantics::Item>,
     locals: core::Locals<Arc<Value>>,
     pending_links: VecDeque<(usize, Arc<Value>)>,
 }
 
-impl<'me> Context<'me> {
+impl<'globals> Context<'globals> {
     /// Create a new context.
-    pub fn new(globals: &'me Globals, module: &Module) -> Context<'me> {
+    pub fn new(globals: &'globals Globals, module: &Module) -> Context<'globals> {
         let mut context = Context {
             globals,
             items: HashMap::new(),
