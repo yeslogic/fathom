@@ -333,6 +333,11 @@ impl LocalIndex {
     }
 }
 
+/// An infinite iterator of local indices.
+pub fn local_indices() -> impl Iterator<Item = LocalIndex> {
+    (0..).map(LocalIndex)
+}
+
 /// A de Bruijn level in the local environment.
 ///
 /// This describes an occurrence of a variable by counting the binders inwards
@@ -448,15 +453,6 @@ impl<Entry: Clone> Locals<Entry> {
     /// Clear the entries from the environment.
     pub fn clear(&mut self) {
         self.entries.clear();
-    }
-
-    /// Returns a reverse iterator over the entries in the environment and the
-    /// indices where those entries were bound.
-    pub fn iter_rev(&self) -> impl Iterator<Item = (LocalIndex, &Entry)> {
-        (self.entries.iter().rev()).scan(0, |current_index, entry| {
-            let local_index = LocalIndex(std::mem::replace(current_index, *current_index + 1));
-            Some((local_index, entry))
-        })
     }
 }
 

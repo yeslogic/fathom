@@ -31,7 +31,7 @@ pub struct Context<'me> {
     /// Top-level item definitions.
     item_definitions: HashMap<String, semantics::Item>,
     /// Local variable declarations.
-    local_declarations: core::Locals<(String, Arc<Value>)>,
+    local_declarations: Vec<(String, Arc<Value>)>,
     /// Local variable definitions.
     local_definitions: core::Locals<Arc<Value>>,
     /// Core-to-surface distillation context.
@@ -47,7 +47,7 @@ impl<'me> Context<'me> {
             globals,
             item_declarations: HashMap::new(),
             item_definitions: HashMap::new(),
-            local_declarations: core::Locals::new(),
+            local_declarations: Vec::new(),
             local_definitions: core::Locals::new(),
             core_to_surface: core_to_surface::Context::new(),
             messages: Vec::new(),
@@ -56,20 +56,20 @@ impl<'me> Context<'me> {
 
     /// Get the number of local entries in the context.
     fn size(&self) -> core::LocalSize {
-        self.local_declarations.size()
+        self.local_definitions.size()
     }
 
     /// Get the most recently bound local variable of a given name.
     ///
     /// Returns the [`core::LocalIndex`] of the variable at the current binding
     /// depth and the type that the variable was bound with.
-    fn get_local(&self, name: &str) -> Option<(core::LocalIndex, &Arc<Value>)> {
-        for (local_index, (decl_name, r#type)) in self.local_declarations.iter_rev() {
-            if decl_name == name {
-                return Some((local_index, r#type));
-            }
-        }
-        None
+    fn get_local(&self, name: &str) -> Option<(&Arc<Value>, core::LocalIndex)> {
+        Iterator::zip(core::local_indices(), self.local_declarations.iter().rev()).find_map(
+            |(index, (decl_name, r#type))| match decl_name == name {
+                true => Some((r#type, index)),
+                false => None,
+            },
+        )
     }
 
     /// Push a local entry.
@@ -96,7 +96,7 @@ impl<'me> Context<'me> {
 
     /// Truncate number of local entries to the given size.
     fn truncate_locals(&mut self, local_size: core::LocalSize) {
-        self.local_declarations.truncate(local_size);
+        self.local_declarations.truncate(local_size.to_usize());
         self.local_definitions.truncate(local_size);
         self.core_to_surface.truncate_locals(local_size);
     }
@@ -463,7 +463,7 @@ impl<'me> Context<'me> {
     /// Validate that a surface term is a type, and translate it into the core syntax.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn is_type(&mut self, surface_term: &Term) -> (core::Term, Option<core::Sort>) {
         let (core_term, core_type) = self.synth_type(surface_term);
@@ -491,7 +491,7 @@ impl<'me> Context<'me> {
     /// core syntax.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn check_type(&mut self, surface_term: &Term, expected_type: &Arc<Value>) -> core::Term {
         match (&surface_term.data, expected_type.as_ref()) {
@@ -724,12 +724,12 @@ impl<'me> Context<'me> {
     /// Synthesize the type of a surface term, and elaborate it into the core syntax.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn synth_type(&mut self, surface_term: &Term) -> (core::Term, Arc<Value>) {
         match &surface_term.data {
             TermData::Name(name) => {
-                if let Some((index, r#type)) = self.get_local(name) {
+                if let Some((r#type, index)) = self.get_local(name) {
                     let term_data = core::TermData::Local(index);
                     let core_term = core::Term::new(surface_term.location, term_data);
                     return (core_term, r#type.clone());

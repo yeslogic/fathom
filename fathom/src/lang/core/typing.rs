@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::lang::core::semantics::{self, Elim, Value};
 use crate::lang::core::{
-    Globals, ItemData, LocalSize, Locals, Module, Primitive, Sort, Term, TermData,
+    Globals, ItemData, LocalIndex, LocalSize, Locals, Module, Primitive, Sort, Term, TermData,
 };
 use crate::lang::Location;
 use crate::reporting::{CoreTypingMessage, Message};
@@ -41,7 +41,7 @@ pub struct Context<'me> {
     /// Top-level item definitions.
     item_definitions: HashMap<String, semantics::Item>,
     /// Local variable declarations.
-    local_declarations: Locals<Arc<Value>>,
+    local_declarations: Vec<Arc<Value>>,
     /// Local variable definitions.
     local_definitions: Locals<Arc<Value>>,
     /// Diagnostic messages collected during type checking.
@@ -55,7 +55,7 @@ impl<'me> Context<'me> {
             globals,
             item_declarations: HashMap::new(),
             item_definitions: HashMap::new(),
-            local_declarations: Locals::new(),
+            local_declarations: Vec::new(),
             local_definitions: Locals::new(),
             messages: Vec::new(),
         }
@@ -63,7 +63,13 @@ impl<'me> Context<'me> {
 
     /// Get the number of entries in the context.
     fn size(&self) -> LocalSize {
-        self.local_declarations.size()
+        self.local_definitions.size()
+    }
+
+    /// Get the type of a variable.
+    fn get_local_type(&self, local_index: LocalIndex) -> Option<&Arc<Value>> {
+        let local_level = self.size().index_to_level(local_index)?;
+        self.local_declarations.get(local_level.to_usize())
     }
 
     /// Push a local entry.
@@ -88,7 +94,7 @@ impl<'me> Context<'me> {
 
     /// Truncate number of local entries to the given size.
     fn truncate_locals(&mut self, local_size: LocalSize) {
-        self.local_declarations.truncate(local_size);
+        self.local_declarations.truncate(local_size.to_usize());
         self.local_definitions.truncate(local_size);
     }
 
@@ -301,7 +307,7 @@ impl<'me> Context<'me> {
     /// Validate that that a term is a well-formed type.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn synth_sort(&mut self, term: &Term) -> Option<Sort> {
         match self.synth_type(term).as_ref() {
@@ -320,7 +326,7 @@ impl<'me> Context<'me> {
     /// Validate that a term is an element of the given type.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn check_type(&mut self, term: &Term, expected_type: &Arc<Value>) {
         match (&term.data, expected_type.as_ref()) {
@@ -461,7 +467,7 @@ impl<'me> Context<'me> {
     /// Synthesize the type of a term.
     #[debug_ensures(self.item_declarations.len() == old(self.item_declarations.len()))]
     #[debug_ensures(self.item_definitions.len() == old(self.item_definitions.len()))]
-    #[debug_ensures(self.local_declarations.size() == old(self.local_declarations.size()))]
+    #[debug_ensures(self.local_declarations.len() == old(self.local_declarations.len()))]
     #[debug_ensures(self.local_definitions.size() == old(self.local_definitions.size()))]
     pub fn synth_type(&mut self, term: &Term) -> Arc<Value> {
         match &term.data {
@@ -485,7 +491,7 @@ impl<'me> Context<'me> {
                     Arc::new(Value::Error)
                 }
             },
-            TermData::Local(local_index) => match self.local_declarations.get(*local_index) {
+            TermData::Local(local_index) => match self.get_local_type(*local_index) {
                 Some(r#type) => r#type.clone(),
                 None => {
                     self.push_message(CoreTypingMessage::LocalIndexNotFound {
